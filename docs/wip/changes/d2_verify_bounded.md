@@ -1,7 +1,7 @@
 ---
 id: d2_verify_bounded
 class: light
-status: open
+status: landed
 issue: none (D2 item 6; operator requirement relayed by prod, 2026-10-31)
 touches:
   - src/podcast_scraper/upgrade/cli_handlers.py
@@ -65,6 +65,16 @@ What each check concludes stays the same.
   10,000 wanted rows 92 MB peak, 7.2 s.
 - **Not measured:** 0028's whole verify on prod's real index with this code. It needs a prod run
   with the branch code (read-only, capped), or D2's image.
+
+## 11. On prod
+
+D2's run, 2026-11-03, after the nightly: `upgrade verify --only 0039,0040,0041,0042` in the corpus-migration skill's capped throwaway container (image `sha-8906696`), exit 0, each line `[OK ]`:
+- 0039: every served ad-free segment slices to its own text;
+- 0040: every GI quote time can place slices to its text (6 left, listed);
+- 0041: every joined person's name in the episode files is the group's spelling;
+- 0042: every insight cluster quote matches its GI quote.
+
+The full `upgrade verify` was not run on prod. It had run out of memory on 2026-10-31 (record 0038); the bounded `--only` form is this record's change.
 
 ## Not covered
 

@@ -1,7 +1,7 @@
 ---
 id: 0041_joined_names_respelled
 class: full
-status: open
+status: landed
 issue: none (RFC-131 plan V3, D2 items 8 and 9; operator, 2026-10-31)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0041_joined_names_respelled.py
@@ -773,6 +773,68 @@ transcript path. My after-check script skips such an episode (eval-data `d2out/g
   - segment text and times equal;
   - 0 GI quotes off their text (224 and 79 checked).
 - The gap is in my measuring script, not in 0041.
+
+## 10. Before apply / deploy
+
+- **Prod's plan against the clone's:** 479 episodes (the clone 467), 183 names refused (179). The
+  outcome hook's plan diff: 14 episodes, each given a cause from prod's rows and the snapshot:
+  - 10 were ingested after the snapshot;
+  - 1 differs only in the ledger file's sha among its inputs;
+  - 3 come from joins prod's newer episodes made possible (`donald-j-trump`, `robert-carrow`,
+    `louis-guerra`).
+  - In all 4 rows checked, every file sha equals the snapshot's.
+  - The accept file is on prod: `.podcast_scraper/upgrade-outcomes/0041_joined_names_respelled.accept.json`.
+    It is also in eval-data `d2out/accept_0041_plan_diff.json`, without the go.
+- **Run steps, as run on prod (2026-11-02, each on the operator's go typed in prod's session):**
+  1. deploy-all-prod on `sha-8906696` (run 41489217128, both live smokes).
+     - The operator waived Docker Build & Test and CodeQL Advanced, which did not run on 890669690:
+       their path filters skip a test-only commit.
+     - `deploy.py verify`: VERIFY PASS, 10 of 10 containers.
+  2. The ledger rebuilt with D2's rules, `identity-ledger --no-respell` (pipeline-llm,
+     18:53–18:56Z): 644 joins (the clone 631), 40 blocked (the clone 40). Its 5 canonical changes
+     are the clone's.
+  3. 0039, 0040, 0041 and 0042, one corpus-migration job each, in order.
+     - One pre-apply snapshot, before 0039; the other three ran with `--no-snapshot`.
+     - The ledger refresh after each run deferred the respelling until 0041 was applied
+       (`identity/refresh_guard`).
+  4. `enrich`, then the incremental `index` (not `index-two-tier`, which drops the index), both in
+     pipeline-llm.
+  5. The bounded verify of 0039–0042, the near-spelling report, and spot checks through the API.
+
+## 11. After apply / deploy
+
+Prod, 2026-11-02, each step on the operator's go typed in prod's session.
+
+- **Apply** 20:10:29–20:39:55Z, exit 0, `--no-snapshot`, `--accept-plan-diff` (operator_go "Go"):
+  "rewrote 479 episode(s)", with the dry run's counts.
+  - The outcome hook: verdict PASS, failures none, clone_deltas and prod_deltas empty.
+  - Now at 2.7.35.
+  - The upgrade process peaked at 450 MB RSS.
+- **The first real respell,** the refresh after it: 0 files written, as predicted.
+- **Verify** `--only 0041`: OK.
+- **Ownership:** FAIL on 5 root-owned backup directories under `upgrade-backups/0041/…/transcripts`.
+  - The cause is m0023's `_write_text_with_backup`, which does not chown the directories it creates
+    (handover item).
+  - They were chowned on the operator's go; the recheck gave PASS.
+- **Derived surfaces:**
+  - `enrich` 21:12:54–21:29Z: exit 0, 9 enrichers, insight_density 481 of 481; the refresh after it
+    respelled 0;
+  - incremental `index` 21:30:39–22:44:27Z: exit 0;
+  - the 2026-11-03 nightly ran after it, exit 0.
+- **Bounded verify** (`upgrade verify --only 0039,0040,0041,0042`, capped container, after the
+  nightly): all four OK.
+- **Near-spelling report:** 15 lines, 11 pairs, each read as one person in prod's transcripts. The
+  0 expected was the clone's: prod's ledger has joins the clone did not. The verdicts went into the
+  reviewed list for the next deploy.
+- **Spot checks** (the API, not the player UI):
+  - a respelled episode's search hits and speaker labels read right;
+  - an empty `person_profile` (`person:robert-caro`) is empty on the D1 snapshot too: a separate
+    bug, not D2.
+- **Rollback:** this migration's receipts and backups under `.podcast_scraper/upgrade-backups/`. The
+  pre-apply snapshot and the rollback image holds were removed on the operator's go, 2026-11-03.
+- **Operator accepted:** 2026-11-03.
+
+Status `landed` (2026-11-03): applied on prod, so its outcome is no longer compared with later code.
 
 ## Not covered
 

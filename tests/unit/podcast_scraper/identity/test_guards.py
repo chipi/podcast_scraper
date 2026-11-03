@@ -373,7 +373,7 @@ class TestReviewedPairRule:
 
     def test_the_shipped_list_loads(self):
         reviewed = G.load_reviewed()
-        assert len(reviewed["groups"]) == 329 and len(reviewed["apart"]) == 31
+        assert len(reviewed["groups"]) == 337 and len(reviewed["apart"]) == 31
         ids = [i for g in reviewed["groups"] for i in g]
         assert len(ids) == len(set(ids))
         group_of = {i: n for n, g in enumerate(reviewed["groups"]) for i in g}

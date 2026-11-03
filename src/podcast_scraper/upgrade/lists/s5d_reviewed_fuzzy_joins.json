@@ -52,7 +52,8 @@
   ],
   [
    "person:aleksandar-vucic",
-   "person:alexander-vucic"
+   "person:alexander-vucic",
+   "person:unresolved-vucic-e5a5850d-53af-45dd-92a7-5fdb6f09e2d5"
   ],
   [
    "person:aleksandr-turchinov",
@@ -344,7 +345,8 @@
   ],
   [
    "person:davi-alcolumbre",
-   "person:unresolved-alcolumbre-buzzsprout-18629745"
+   "person:unresolved-alcolumbre-buzzsprout-18629745",
+   "person:davi-alcolumbri"
   ],
   [
    "person:david-ha",
@@ -1209,7 +1211,8 @@
   ],
   [
    "person:robin-hansen",
-   "person:robin-hanson"
+   "person:robin-hanson",
+   "person:unresolved-hanson-a4a8ae59-69af-4d07-805b-24558135d5a3"
   ],
   [
    "person:roland-schoeman",
@@ -1450,6 +1453,41 @@
   [
    "person:zoran-mamdani",
    "person:zoran-mandani"
+  ],
+  [
+   "person:asime-nite",
+   "person:asime-nute"
+  ],
+  [
+   "person:willem-els",
+   "person:willem-als"
+  ],
+  [
+   "person:luis-guerra",
+   "person:louis-guerra"
+  ],
+  [
+   "person:robert-caro",
+   "person:robert-carrow"
+  ],
+  [
+   "person:bobby-kennedy",
+   "person:robert-kennedy"
+  ],
+  [
+   "person:nina-panikova",
+   "person:ina-panikova"
+  ],
+  [
+   "person:noam-chomsky",
+   "person:unresolved-chomsky-536ae6c8-bbd3-425b-969f-65e25c673d90",
+   "person:unresolved-chomsky-547d0970-ddf6-4a79-86aa-0feb0624d321",
+   "person:unresolved-chomsky-bc79d943-e6c0-492a-8df9-f7051b3734fc",
+   "person:unresolved-chomsky-e66db573-9f5c-4ef8-aae5-c0e9bfff1d95"
+  ],
+  [
+   "person:nosa-laulu",
+   "person:unresolved-laulu-696dc325f0f57e95a0d67d3b"
   ]
  ],
  "apart": [
@@ -1618,6 +1656,10 @@
   [
    "(step 9, 2026-11-02)",
    "the one-person verdicts of D2's join reads: the 59-pair read, the 276 respelling pairs, the bare-name and title-form joins (eval-data d2i9/near_joins_read_one_person.json, near_joins_unread.txt)"
+  ],
+  [
+   "(prod, 2026-11-03)",
+   "the 11 pairs prod's near-spelling report listed after D2's apply, each read in prod's transcripts (show, episode, the spoken context): one person each. 8 new groups; 3 ids added to existing groups (davi-alcolumbre, robin-hanson, aleksandar-vucic)"
   ]
  ]
 }

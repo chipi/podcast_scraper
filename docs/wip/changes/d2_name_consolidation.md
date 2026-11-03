@@ -1,7 +1,7 @@
 ---
 id: d2_name_consolidation
 class: full
-status: open
+status: landed
 issue: none (RFC-131; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/*.py
@@ -164,7 +164,7 @@ Second apply and full-copy undo, each on a copy of its own after-state (`d2out/i
 
 ## Read
 
-Pending: the step-8 fresh reviewer (plan step 12).
+The step-8 fresh reviewer read 0039–0042 (2026-11-02): GO WITH CONDITIONS on each; the conditions and their answers are in each record's section 8.
 
 ## Not covered / not verified
 
@@ -195,6 +195,26 @@ Pending: the step-8 fresh reviewer (plan step 12).
   record s5o. No gold set covers organisations.
 - **Read-time surfaces on the player** (cards, chips, the people page) are not exercised in a
   browser for D2.
+
+## On prod (2026-11-02 and 11-03)
+
+The run steps and each migration's prod numbers are in records 0039–0042, steps 10 and 11. In short:
+- **Deploy:** `sha-8906696` (890669690).
+- **Ledger:** 644 joins (the clone 631), 40 blocked (the clone 40).
+- **0039 and 0040:** equal to the clone, plan diff 0.
+- **0041:** 479 episodes (the clone 467); its 14 plan-diff entries were each given a verified cause.
+- **0042:** 1,838 quotes (the clone 1,835); its 1 plan-diff entry was given a cause.
+- **Outcome hook:** every verdict PASS, with empty deltas.
+- **After the applies:** enrich and the incremental index; the bounded verify, all OK.
+- **The near-spelling report:** 11 pairs, all one person, added to the reviewed list (2026-11-03).
+- **Operator accepted** 2026-11-03.
+- **Rollback:** each migration's receipts and backups. The pre-apply snapshot and the image holds
+  were removed on the operator's go.
+
+Not covered on prod:
+- the player UI (spot checks went through the API);
+- the gold sets and the scoreboard (measured on the clone only);
+- which rule step joins `person:robert-carrow` on prod.
 
 ## Corrections sent
 

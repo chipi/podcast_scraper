@@ -18,26 +18,14 @@ Ids only. The plan is RFC-131 (plan V3 in the eval-data repo); the change record
 - **Rollback:** each migration's own receipts and backups under `.podcast_scraper/upgrade-backups/`,
   plus the daily snapshots. The pre-apply snapshot and the rollback image holds were removed on the
   operator's go.
-- **Records:** d2_name_consolidation (the outcome table), 0039–0042 (steps 1–8), s5d–s6h.
+- **Records:** d2_name_consolidation, d2_verify_bounded and 0039–0042 are `landed` (steps 10–11 hold the
+  prod run); s5d–s6h hold the rules. The 11 near-spelling pairs prod's report listed after the
+  apply were read as one person each and added to the reviewed list (2026-11-03); the report
+  reads 0 on prod once a deploy carries the list. Infra was told D2 is on prod (PR #2405).
 
 ## 2. Next steps, in order
 
-1. **Close D2's records.**
-   - Write steps 10 and 11 (the prod dry runs, the plan diffs and their causes, the applies, the
-     verifies) into 0039–0042 and d2_name_consolidation.
-   - Record d2_verify_bounded's prod result.
-   - Set the four migration records to `status: landed`.
-2. **Infra:** tell the infra session D2 is on prod. PR #2405 (server module renames) waits for it.
-   The D2 file list was sent on 2026-11-02.
-3. **The reviewed list:** add the 11 near-spelling pairs prod's report listed on 2026-11-03, all
-   read as one person, to `upgrade/lists/s5d_reviewed_fuzzy_joins.json`, and update the list test's
-   counts. The report reads 0 on prod after the next deploy carries the list.
-   - The pairs: `asime-nite`/`asime-nute`, `willem-els`/`willem-als`, `luis-guerra`/`louis-guerra`,
-     `robert-caro`/`robert-carrow`, `bobby-kennedy`/`robert-kennedy`, `nina-panikova`/`ina-panikova`,
-     `davi-alcolumbre`/`davi-alcolumbri`.
-   - Plus the episode-scoped bare surnames joined to their full name: `robin-hanson`,
-     `aleksandar-vucic` (and `alexander-vucic`), `noam-chomsky` (4 ids), `nosa-laulu`.
-4. **Bug: `person_profile` is empty for some speakers**, for example `person:robert-caro` and
+1. **Bug: `person_profile` is empty for some speakers**, for example `person:robert-caro` and
    `person:anita-anand`.
    - The search shows grounded quotes with their `speaker_id`, and `person:dwarkesh-patel` returns
      16.
@@ -45,25 +33,25 @@ Ids only. The plan is RFC-131 (plan V3 in the eval-data repo); the change record
    - `server/cil_queries.person_profile` finds episodes through each bridge's GI ids; the cause is
      in that lookup.
    - Repro first.
-5. **Bug: root-owned backup directories.** m0023's `_write_text_with_backup`, which 0041 uses for
+2. **Bug: root-owned backup directories.** m0023's `_write_text_with_backup`, which 0041 uses for
    transcript text, creates backup parent directories and does not pass them to
    `match_corpus_owner`; `write_with_backup` does. On prod, 0041 left 5 root-owned directories,
    since chowned. Fix with a test. It moves the code digest of the migrations that import it, so
    it lands with the next migration batch.
-6. **The feed-host spelling rule (deferred, not refused).**
+3. **The feed-host spelling rule (deferred, not refused).**
    - `person:dara-obrey`'s 12 dev_v1 gold insights are an accepted D2 loss. The group is all ASR
      spellings of the feed's stated co-host.
    - Fixing it needs a rule that matches a feed's stated host to a group by first name and the host
      role, not by letters.
    - It would also decide `person:luisa-lemi` and `person:john-glenn-hill`.
-7. **`known_hosts` is mixed evidence** (record s6h, 4b): correct self-introductions, ASR spellings
+4. **`known_hosts` is mixed evidence** (record s6h, 4b): correct self-introductions, ASR spellings
    from the recurrence scan (`workflow/stages/processing._recurrent_hosts_from_disk`) and parse
    artifacts. The joins, the display rule, and m0041's and m0025's stated-name reads take it as
    stated. Fix at the pipeline.
-8. **Strict-tier losses D1 → D2 not addressed:** `sarah-gonzalez`-shaped (16 gold insights),
+5. **Strict-tier losses D1 → D2 not addressed:** `sarah-gonzalez`-shaped (16 gold insights),
    `erika-barris` (8), `david-sanger` (8). These are majority or publisher picks (record s6h,
    Not covered).
-9. **Bare names in a show,** pooled again only with voice-fingerprint evidence, after the
+6. **Bare names in a show,** pooled again only with voice-fingerprint evidence, after the
    fingerprint shadow validation (record s5c).
 
 ## 3. Lessons from D2's run, for the next deploy runbook

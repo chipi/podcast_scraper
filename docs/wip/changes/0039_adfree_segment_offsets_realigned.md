@@ -1,7 +1,7 @@
 ---
 id: 0039_adfree_segment_offsets_realigned
 class: full
-status: open
+status: landed
 issue: none (RFC-131 D2; found by 0041's offset guard, 2026-11-01)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0039_adfree_segment_offsets_realigned.py
@@ -186,6 +186,57 @@ Verdict: GO WITH CONDITIONS
 Outcome: `src/podcast_scraper/upgrade/outcomes/0039_adfree_segment_offsets_realigned.json`, sha256
 865d318a77cbd0de2d4be81cc913068fe15a95b619bd77f9ae91058b676ba3df (`scripts/measure/build_outcome.py`, from the gate report measured on
 b64e08e04 and this verdict).
+
+## 10. Before apply / deploy
+
+- **Prod's plan against the clone's:** dry run "would realign 187 row(s) in 1 episode(s); 0 refused";
+  the outcome hook's plan diff: 0 episodes.
+- **Run steps, as run on prod (2026-11-02, each on the operator's go typed in prod's session):**
+  1. deploy-all-prod on `sha-8906696` (run 41489217128, both live smokes).
+     - The operator waived Docker Build & Test and CodeQL Advanced, which did not run on 890669690:
+       their path filters skip a test-only commit.
+     - `deploy.py verify`: VERIFY PASS, 10 of 10 containers.
+  2. The ledger rebuilt with D2's rules, `identity-ledger --no-respell` (pipeline-llm,
+     18:53–18:56Z): 644 joins (the clone 631), 40 blocked (the clone 40). Its 5 canonical changes
+     are the clone's.
+  3. 0039, 0040, 0041 and 0042, one corpus-migration job each, in order.
+     - One pre-apply snapshot, before 0039; the other three ran with `--no-snapshot`.
+     - The ledger refresh after each run deferred the respelling until 0041 was applied
+       (`identity/refresh_guard`).
+  4. `enrich`, then the incremental `index` (not `index-two-tier`, which drops the index), both in
+     pipeline-llm.
+  5. The bounded verify of 0039–0042, the near-spelling report, and spot checks through the API.
+
+## 11. After apply / deploy
+
+Prod, 2026-11-02, each step on the operator's go typed in prod's session.
+
+- **Apply** 19:05:13–19:13:51Z, exit 0: "realigned 187 row(s) in 1 episode(s); 0 refused", as on
+  the clone.
+  - The snapshot `.corpus-upgrade-backup-2.7.32-20261102T190554Z` was taken (removed 2026-11-03 on
+    the operator's go).
+  - Now at 2.7.33.
+- **Verify** `--only 0039`: OK. Ownership: PASS.
+- The ledger refresh after it: 644 joins, respell deferred (0041 pending).
+- **Derived surfaces:**
+  - `enrich` 21:12:54–21:29Z: exit 0, 9 enrichers, insight_density 481 of 481; the refresh after it
+    respelled 0;
+  - incremental `index` 21:30:39–22:44:27Z: exit 0;
+  - the 2026-11-03 nightly ran after it, exit 0.
+- **Bounded verify** (`upgrade verify --only 0039,0040,0041,0042`, capped container, after the
+  nightly): all four OK.
+- **Near-spelling report:** 15 lines, 11 pairs, each read as one person in prod's transcripts. The
+  0 expected was the clone's: prod's ledger has joins the clone did not. The verdicts went into the
+  reviewed list for the next deploy.
+- **Spot checks** (the API, not the player UI):
+  - a respelled episode's search hits and speaker labels read right;
+  - an empty `person_profile` (`person:robert-caro`) is empty on the D1 snapshot too: a separate
+    bug, not D2.
+- **Rollback:** this migration's receipts and backups under `.podcast_scraper/upgrade-backups/`. The
+  pre-apply snapshot and the rollback image holds were removed on the operator's go, 2026-11-03.
+- **Operator accepted:** 2026-11-03.
+
+Status `landed` (2026-11-03): applied on prod, so its outcome is no longer compared with later code.
 
 ## Not covered
 
