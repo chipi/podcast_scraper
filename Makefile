@@ -25,6 +25,10 @@ PYTHON ?= .venv/bin/python
 CODESPELL ?= .venv/bin/codespell
 endif
 PACKAGE = podcast_scraper
+# App state is Postgres (ADR-169). Local servers use PODCAST_DATABASE_URL, else the test database
+# `make test-db-up` printed (PODCAST_TEST_DATABASE_URL), and upgrade the player plane first (dev
+# only: the API never migrates at start, and prod runs `db upgrade` as its own step).
+DB_UP = export PODCAST_DATABASE_URL=$${PODCAST_DATABASE_URL:-$$PODCAST_TEST_DATABASE_URL} && $(PYTHON) -m $(PACKAGE).cli db upgrade --plane player
 
 # Fixture version: resolved from tests/fixtures/FIXTURES_VERSION (single source of truth).
 # Versioned fixture subdirs: tests/fixtures/{transcripts,audio}/$(FIXTURES_VERSION)/...
@@ -803,6 +807,7 @@ serve-api:
 		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
 		if [ -f .env.obs.dev ]; then set -a; . ./.env.obs.dev; set +a; echo "[obs] streaming to homelab as environment=dev instance=$(notdir $(CURDIR))-$${PODCAST_OBS_PORT:-8000}"; fi && \
 		export PODCAST_OBS_PORT=$${PODCAST_OBS_PORT:-8000} && \
+		$(DB_UP) && \
 		$(PYTHON) -m $(PACKAGE).cli serve --host "$(SERVE_HOST)" --port "$(SERVE_PORT)" --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:

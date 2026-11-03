@@ -7,7 +7,8 @@
 set -euo pipefail
 
 IMAGE="${PODCAST_TEST_DB_IMAGE:-postgres:18}"
-NAME="podcast-scraper-test-db-$(basename "$(git rev-parse --show-toplevel)")"
+# PODCAST_TEST_DB_NAME lets a caller (the containerised e2e scripts) own a differently named one.
+NAME="${PODCAST_TEST_DB_NAME:-podcast-scraper-test-db-$(basename "$(git rev-parse --show-toplevel)")}"
 USER_NAME=podcast
 PASSWORD=podcast
 
@@ -15,6 +16,11 @@ url() {
   local hostport
   hostport=$(docker port "$NAME" 5432/tcp | head -n1)
   echo "postgresql://${USER_NAME}:${PASSWORD}@127.0.0.1:${hostport##*:}/postgres"
+}
+
+# The same database as a container on PODCAST_TEST_DB_NETWORK sees it (the e2e api runs in docker).
+docker_url() {
+  echo "postgresql://${USER_NAME}:${PASSWORD}@${NAME}:5432/postgres"
 }
 
 exists() {
@@ -27,7 +33,7 @@ case "${1:-}" in
       docker start "$NAME" >/dev/null
     else
       # fsync off + tmpfs: the data is disposable and the suite is write-heavy.
-      docker run -d --name "$NAME" \
+      docker run -d --name "$NAME" ${PODCAST_TEST_DB_NETWORK:+--network "$PODCAST_TEST_DB_NETWORK"} \
         -e POSTGRES_USER="$USER_NAME" -e POSTGRES_PASSWORD="$PASSWORD" \
         -p 127.0.0.1::5432 \
         --tmpfs /var/lib/postgresql \
@@ -58,8 +64,11 @@ case "${1:-}" in
   url)
     url
     ;;
+  docker-url)
+    docker_url
+    ;;
   *)
-    echo "usage: $0 up|down|url" >&2
+    echo "usage: $0 up|down|url|docker-url" >&2
     exit 2
     ;;
 esac

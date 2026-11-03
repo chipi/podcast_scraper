@@ -55,7 +55,20 @@ API_MEMORY="${E2E_API_MEMORY:-3g}"
 # `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
 # "Loading…" forever — which reads as a hung frontend, not a permissions problem.
 
-cleanup() { docker rm -f "$CONTAINER" "$CONTAINER-seed" "$CONTAINER-prep" >/dev/null 2>&1 || true; }
+# App state is Postgres (ADR-169): the api container gets its own throwaway postgres:18, published on
+# loopback, on a network shared with the api container.
+DB_CONTAINER="$CONTAINER-db"
+NETWORK="$CONTAINER-net"
+db() {
+  PODCAST_TEST_DB_NAME="$DB_CONTAINER" PODCAST_TEST_DB_NETWORK="$NETWORK" \
+    bash "$REPO_ROOT/scripts/tools/test_db.sh" "$@"
+}
+
+cleanup() {
+  docker rm -f "$CONTAINER" "$CONTAINER-seed" "$CONTAINER-prep" >/dev/null 2>&1 || true
+  db down >/dev/null 2>&1 || true
+  docker network rm "$NETWORK" >/dev/null 2>&1 || true
+}
 trap cleanup EXIT INT TERM
 
 [ -d "$CORPUS_SRC" ] || { echo "missing fixture corpus: $CORPUS_SRC" >&2; exit 1; }
@@ -105,10 +118,16 @@ docker run --rm --name "$CONTAINER-prep" --memory "$API_MEMORY" \
 #   PODCAST_SERVE_ENABLE_JOBS_API               likewise /api/jobs + /api/scheduled-jobs.
 #
 # Mounting them is safe here because the corpus is a throwaway copy (see above).
+docker network create "$NETWORK" >/dev/null
+db up >/dev/null
+DB_URL="$(db docker-url)"
+
 docker run -d --name "$CONTAINER" --memory "$API_MEMORY" \
   -p "127.0.0.1::$API_PORT" \
   -v "$CORPUS_VOLUME:/corpus" \
   -v "$VOLUME:/appdata" \
+  --network "$NETWORK" \
+  -e PODCAST_DATABASE_URL="$DB_URL" \
   -e APP_OAUTH_PROVIDER=mock \
   -e APP_SESSION_SECRET=e2e-secret \
   -e APP_DATA_DIR=/appdata \
@@ -119,8 +138,8 @@ docker run -d --name "$CONTAINER" --memory "$API_MEMORY" \
   -e PODCAST_SERVE_ENABLE_JOBS_API=1 \
   -e HF_HUB_OFFLINE=1 \
   -e TRANSFORMERS_OFFLINE=1 \
-  --entrypoint python "$IMAGE" \
-  -m podcast_scraper.cli serve --output-dir /corpus --port "$API_PORT" --host 0.0.0.0 >/dev/null
+  --entrypoint sh "$IMAGE" -c \
+  'python -m podcast_scraper.cli db upgrade --plane player && exec python -m podcast_scraper.cli serve --output-dir /corpus --port "$0" --host 0.0.0.0' "$API_PORT" >/dev/null
 PORT="$(docker port "$CONTAINER" "$API_PORT/tcp" | head -1 | sed 's/.*://')"
 echo "api container on host port $PORT"
 
