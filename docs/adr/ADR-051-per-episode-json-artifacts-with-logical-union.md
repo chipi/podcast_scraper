@@ -1,6 +1,6 @@
 # ADR-051: Per-Episode JSON Artifacts with Logical Union
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-169](ADR-169-the-database-is-the-source-of-truth.md) (2026-11-03)
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md), [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md), [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)

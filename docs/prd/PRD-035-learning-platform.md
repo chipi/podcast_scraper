@@ -244,7 +244,7 @@ no premature infrastructure.
 - **D1 — Web-first responsive PWA** (was OQ1). Ship a mobile-friendly, installable PWA; no native wrapper
   in v2.7. Rationale: covers mobile + a11y + i18n with zero app-store friction. Native shell + OS
   media-session is north-star (pairs with PRD-039 background audio).
-- **D2 — Per-user state is stored as plain per-user files, reusing what the project already does; no
+- **D2 (superseded 2026-11-03 by ADR-169: per-user state moves to the database) — Per-user state is stored as plain per-user files, reusing what the project already does; no
   persistence-layer work in this phase** (was OQ2). Per-user overlay state (library, playback, queue,
   highlights, notes, interests) is written as per-user files (JSON/JSONL under a per-user directory) with the
   existing helpers (`atomic_write`, `filelock`) — exactly the pattern `jobs.jsonl` already uses. **No new

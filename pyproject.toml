@@ -75,6 +75,13 @@ dependencies = [
   # artifacts too, not only the enrichment config, which is why this is core rather than an extra.
   # Pure-python wheel, no system libs.
   "jsonschema>=4.26.0,<5.0.0",
+  # The database is the source of truth for app state and the corpus (ADR-169): Postgres 18 in
+  # every edition through SQLAlchemy Core, migrations through Alembic, the psycopg 3 driver.
+  # Core, not an extra: the api, the sidecars and the pipeline all read and write it. The
+  # `binary` extra ships libpq in the wheel, so the slim images need no system package.
+  "sqlalchemy>=2.1.6,<3.0.0",
+  "alembic>=1.20.1,<2.0.0",
+  "psycopg[binary]>=3.3.7,<4.0.0",
   # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
   # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
   # See the [project.optional-dependencies] header (the extensions guide is operator documentation, not in this repository).

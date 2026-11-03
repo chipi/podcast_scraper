@@ -1,6 +1,6 @@
 # ADR-169: The database is the source of truth for app state and the corpus
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-03)
 - **Date**: 2026-11-03
 - **Authors**: Marko Dragoljevic
 - **Supersedes**: [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) ("CLI mode

@@ -1,6 +1,6 @@
 # ADR-054: Relational Postgres Projection for GIL and KG
 
-- **Status**: Accepted
+- **Status**: Accepted; its "files remain the canonical source of truth" part is superseded by [ADR-169](ADR-169-the-database-is-the-source-of-truth.md) (2026-11-03); the relational, separate-layer and provenance decisions carry over
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)
