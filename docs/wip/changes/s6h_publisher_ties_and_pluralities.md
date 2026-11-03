@@ -1,7 +1,7 @@
 ---
 id: s6h_publisher_ties_and_pluralities
 class: full
-status: open
+status: landed
 issue: none (RFC-131 S6; D2 step 11, the gold measurement of 2026-11-02)
 touches:
   - src/podcast_scraper/identity/ledger.py

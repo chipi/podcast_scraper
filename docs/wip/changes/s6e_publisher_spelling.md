@@ -1,7 +1,7 @@
 ---
 id: s6e_publisher_spelling
 class: full
-status: open
+status: landed
 issue: none (RFC-131 S6; operator decision, 2026-11-01)
 touches:
   - src/podcast_scraper/identity/ledger.py

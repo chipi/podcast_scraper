@@ -1,7 +1,7 @@
 ---
 id: s6c_search_names_and_visibility
 class: full
-status: open
+status: landed
 issue: none (RFC-131 S6, the search part, and D2 item 7)
 touches:
   - src/podcast_scraper/search/corpus_search.py
@@ -179,7 +179,9 @@ Code:
 
 ## 8. Verdict
 
-_TODO_
+MISSED: no fresh verdict on this rule on its own. D2's step-8 reviews were of migrations 0039–0042 (their records, section 8), over the combined ledger.
+
+Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 
 ## 9. Operator review
 
@@ -187,7 +189,9 @@ _TODO_
 
 ## 10–12.
 
-_TODO_
+MISSED: no operator review of this record on its own. The operator accepted D2 on 2026-11-03 (`d2_name_consolidation.md`).
+
+Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 
 ## Not covered
 

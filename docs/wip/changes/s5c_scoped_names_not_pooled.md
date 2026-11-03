@@ -1,7 +1,7 @@
 ---
 id: s5c_scoped_names_not_pooled
 class: full
-status: open
+status: landed
 issue: none (RFC-131 D2; operator decision 1B, 2026-11-01)
 touches:
   - src/podcast_scraper/kg/entity_clusters.py

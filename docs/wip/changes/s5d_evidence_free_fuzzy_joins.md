@@ -1,7 +1,7 @@
 ---
 id: s5d_evidence_free_fuzzy_joins
 class: full
-status: open
+status: landed
 issue: none (RFC-131 D2; operator decision 2026-11-01, "B plus a reviewed allow-list")
 touches:
   - src/podcast_scraper/kg/entity_clusters.py

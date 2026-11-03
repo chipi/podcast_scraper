@@ -1,7 +1,7 @@
 ---
 id: s6d_remaining_name_surfaces
 class: full
-status: open
+status: landed
 issue: none (RFC-131 S6, every remaining name surface but the transcript; operator 2026-10-31)
 touches:
   - src/podcast_scraper/identity/display.py
