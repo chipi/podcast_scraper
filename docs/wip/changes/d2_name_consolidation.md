@@ -114,7 +114,7 @@ integer (0040: 6 left).
 
 ## Commands
 
-| What | Command (scratchpad) | Output |
+| What | Command (eval-data `d2out/scripts/`, measurement scripts in `d2out/`) | Output |
 |---|---|---|
 | ledger rebuild, group diff | `chain5.sh` step ledger; `d2out/s6h_group_diff.py` | "predicted 12, changed as predicted: 12", "other changes: 0" |
 | gates 0039–0042 | `chain5.sh` → `gate_run.sh` → `scripts/measure/corpus_change_gate.py` | four EXIT=0; verify 40 and 41 of 41 ok |

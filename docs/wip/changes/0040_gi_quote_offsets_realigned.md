@@ -98,18 +98,18 @@ Gate (`0040_gi_quote_offsets_realigned.gate.json`, the final batch, code digest 
 
 ### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
 
-Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain `scratchpad/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain eval-data `d2out/scripts/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
 - 18 quotes realigned in 8 episodes, 6 left: unchanged from the final batch.
 - `upgrade verify` ok, no regressions, no gating moves.
 
 ## 8. Verdict
 
-**Builder's verdict, before the review (2026-11-02): GO WITH CONDITIONS.** 18 quotes realigned in 8 episodes, 6 left and listed, as predicted; verify ok; second apply 0; undo byte-identical (8 files). Gate report on committed code `b64e08e04` (clean, code digest `bc3c9bb670fd`, worktree run `scratchpad/chain7.sh`), equal in outcome to the final rerun in section 7. Second apply and full-copy undo: record d2_name_consolidation, Undo.
+**Builder's verdict, before the review (2026-11-02): GO WITH CONDITIONS.** 18 quotes realigned in 8 episodes, 6 left and listed, as predicted; verify ok; second apply 0; undo byte-identical (8 files). Gate report on committed code `b64e08e04` (clean, code digest `bc3c9bb670fd`, worktree run eval-data `d2out/scripts/chain7.sh`), equal in outcome to the final rerun in section 7. Second apply and full-copy undo: record d2_name_consolidation, Undo.
 Conditions: `make ci-fast` and `make test-integration` green on the committed tree (plan step 13);
 at the apply, prod's dry-run plan diffed against the clone's (method step 10: prod has 43 episodes
 the snapshot lacks).
 
-Verdict read 2026-11-02 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5 reader), inputs as file paths (brief `scratchpad/step8_prompt.txt`), about 10 minutes for all four, ran nothing over the corpus. Its block, condensed:
+Verdict read 2026-11-02 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5 reader), inputs as file paths (brief eval-data `d2out/scripts/step8_prompt.txt`), about 10 minutes for all four, ran nothing over the corpus. Its block, condensed:
 
 ```text
 REVIEW 0040_gi_quote_offsets_realigned 2026-11-02 commit b64e08e04 reviewer Sonnet (fresh) minutes 2

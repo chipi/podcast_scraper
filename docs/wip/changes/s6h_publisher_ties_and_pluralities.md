@@ -361,7 +361,7 @@ already passed, as they should.
 
 After the code: 43 passed.
 
-**Mutants** (`mutate.py`, `scratchpad/mut_s6h.sh`): **killed 6 of 6**:
+**Mutants** (`mutate.py`, eval-data `d2out/scripts/mut_s6h.sh`): **killed 6 of 6**:
 - the plurality branch off;
 - `<` for `≤`;
 - tie checked after plurality;
@@ -378,7 +378,7 @@ isort, flake8 and codespell pass on the changed files. `make type`: "Success: no
 
 ## 7. Measure
 
-All runs are from `scratchpad/chain5.sh` (log `chain5.log`, "CHAIN_DONE"), on
+All runs are from eval-data `d2out/scripts/chain5.sh` (log `chain5.log`, "CHAIN_DONE"), on
 snapshot-prod-20261030 with 0038. Code digest `bc3c9bb670fd` for all four gates.
 
 **The ledger,** rebuilt on clone-pre0038a (`--no-respell`), diffed against the served one

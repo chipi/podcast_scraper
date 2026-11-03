@@ -18,6 +18,9 @@ Ids only. The plan is RFC-131 (plan V3 in the eval-data repo); the change record
 - **Rollback:** each migration's own receipts and backups under `.podcast_scraper/upgrade-backups/`,
   plus the daily snapshots. The pre-apply snapshot and the rollback image holds were removed on the
   operator's go.
+- **Scripts:** the gate chains, the second-apply and undo check, the step-8 brief and the plan-diff
+  readers are in eval-data `data/eval/name-consolidation/d2out/` (`scripts/` and the `.py`/`.out`
+  pairs); the accept files sent to prod are `d2out/accept_0041_plan_diff.json` and `…0042…`.
 - **Records:** d2_name_consolidation, d2_verify_bounded and 0039–0042 are `landed` (steps 10–11 hold the
   prod run); s5d–s6h hold the rules. The 11 near-spelling pairs prod's report listed after the
   apply were read as one person each and added to the reviewed list (2026-11-03); the report
