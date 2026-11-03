@@ -1705,8 +1705,9 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
 # Diarization — pyannote pipeline choice (in-process ML provider vs the DGX
 # diarize service). community-1 (v4) beats 3.1 on the full v3 fixture set
 # (count 40/45 vs 32/45, DER 7.1% vs 10.8%) by fixing 3.1's multi-speaker
-# panel merges; 3.1 kept as fallback (better on brief-cameo count). community-1
-# is non-gated (no HF token, unlike 3.1). See the eval report.
+# panel merges; 3.1 kept as fallback (better on brief-cameo count). Both are gated
+# on Hugging Face: community-1 answers 401 without a token on 2026-11-03 (its
+# 2026-07-11 entry below records it as non-gated). See the eval report.
 _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     # Diarization OFF — for cloud production profiles that run ``diarize: false`` (speaker turns
     # come from the LLM naming stage, not a diarizer pass). ``model=None`` so the resolver emits NO

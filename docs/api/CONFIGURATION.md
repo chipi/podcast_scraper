@@ -429,7 +429,7 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 | `diarization_min_speakers` | `--diarization-min-speakers` | `2` | Minimum speakers when auto-detecting |
 | `diarization_max_speakers` | `--diarization-max-speakers` | `20` | Maximum speakers when auto-detecting |
 | `diarization_device` | `--diarization-device` | `auto` | `cpu`, `cuda`, or `mps` |
-| `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, non-gated; 3.1 is the fallback) |
+| `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, gated: needs `HF_TOKEN`; 3.1 is the fallback) |
 | `diarization_clustering_threshold` | _(config only)_ | `None` | pyannote clustering-threshold override; higher merges → fewer speakers (curbs over-segmentation) |
 | `diarization_min_cluster_size` | _(config only)_ | `None` | Clusters smaller than this (≈12 default) are reassigned to the nearest speaker — drops short over-seg fragments |
 | `diarization_min_segment_ms` | _(config only)_ | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |

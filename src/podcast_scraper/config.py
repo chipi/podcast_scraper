@@ -1313,7 +1313,8 @@ class Config(BaseModel):
         alias="diarization_model",
         description=(
             "HuggingFace pyannote diarization pipeline model id. Default community-1 "
-            "(v4) — beats 3.1 on the v3 fixtures (count 40/45, DER 7.1%); non-gated. "
+            "(v4) — beats 3.1 on the v3 fixtures (count 40/45, DER 7.1%); gated, so "
+            "HF_TOKEN must reach it (a fine-grained token needs gated-repo access). "
             "Registry: pyannote_diarization_community1. 3.1 is the fallback."
         ),
     )
@@ -1763,8 +1764,8 @@ class Config(BaseModel):
         alias="dgx_diarize_model",
         description=(
             "Hugging Face repo ID for the pyannote model that the DGX diarize "
-            "service loads. Default community-1 (v4, non-gated — no HF_TOKEN needed, "
-            "unlike 3.1). Registry: tailnet_dgx_diarization_community1; 3.1 is the "
+            "service loads. Default community-1 (v4; gated like 3.1, so the service "
+            "needs HF_TOKEN). Registry: tailnet_dgx_diarization_community1; 3.1 is the "
             "fallback, kept deployable on a parallel container for instant rollback."
         ),
     )
