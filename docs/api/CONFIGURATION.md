@@ -1310,6 +1310,18 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 - **Use Cases**: Docker containers with limited resources, Memory-constrained environments, Performance tuning
 - **Note**: Only set this if you want to limit CPU usage. By default, all CPU cores are used for best performance.
 
+#### Database (app state)
+
+App state lives in Postgres ([ADR-169](../adr/ADR-169-the-database-is-the-source-of-truth.md)).
+These variables are read once per process; the settings and the commands are in
+[Platform API: Database](PLATFORM_API.md#database-app-state).
+
+- **`PODCAST_DATABASE_URL`**: read-write database URL. Required wherever app state is used.
+- **`PODCAST_DATABASE_RO_URL`**: optional read-only URL; defaults to `PODCAST_DATABASE_URL`.
+- **`PODCAST_DB_PLANE`**: `player` (default) or `operator`, the schema this process serves.
+- **`PODCAST_TEST_DATABASE_URL`**: tests only. `make test-db-up` starts a local `postgres:18` and
+  prints the URL to export; each pytest process creates its own database on that server.
+
 ### Usage Examples
 
 #### macOS / Linux
