@@ -39,17 +39,18 @@ taken fresh on the current labels.
 | --- | --- | --- | --- |
 | A0 | The operator's working rules for a multi-step arc, written into `AGENTS.md` § "Running a multi-step arc" | operator, 2026-11-03 | **done** `249ada02` |
 | A1 | Set the 14 rule records to `landed` (d1, s5a–s5d, s5o, s6a–s6h; d2 already was) | ingestion session | **done** `2ee536af`: 6 had steps only D2 covered, now `MISSED:` with the operator's acceptance (2026-11-03). The "#2405 waits" line was not in the handover |
-| A2 | `person_profile` empty for `person:robert-caro`, `person:anita-anand` | handover §2.1 | repro first; read-time fix in `server/cil_queries` (ladder rung 1) |
+| A2 | `person_profile` empty for `person:robert-caro`, `person:anita-anand` | handover §2.1 | **done** `218e2858`: every CIL reader kept one run per feed (289 of 3,668 bridges on snapshot-prod-20261103); now the central membership rule (3,130). Profiles: robert-caro 0 → 75 quotes, anita-anand 0 → 1,052 |
 | A3 | m0023 `_write_text_with_backup` creates backup dirs without `match_corpus_owner` | handover §2.2 | test + fix; changes every migration's code digest. 0031–0042 are landed, so no outcome goes stale; the record says so |
 | A4 | `write_with_backup` keeps the first backup, so a twice-written file undoes to its pre-first-run state | handover §4 | same module as A3 |
 | A5 | A test that checks each verdict row's `line_sha256` against the served segment | handover §4 | test only |
-| A6 | CIL readers read each feed's latest run only, so a fix in an older run's bridge is invisible | handover §4 | read-time |
+| A6 | CIL readers read each feed's latest run only, so a fix in an older run's bridge is invisible | handover §4 | **done** with A2 (`218e2858`): same cause |
 | A7 | #2253 `gi inspect` slices `.adfree.txt` spans from `.txt` | GH, open | tool fix |
 | A8 | #2131 `parse_webvtt` / `parse_srt` never unescape entities | GH, open | forward only; stored text stays as is |
 | A9 | Mixed-voice majority is measured in seconds: into `CORPUS_CHANGE_METHOD.md` | handover §4 | docs only |
 | A10 | Review budgets (method v0.9 §4a) are not enforced | handover §4 | tooling |
 | A11 | #2180 203 integration tests carry no `integration` marker | GH, open | test files only, no workflow edit |
 | A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | eval-data repo, its own branch |
+| A13 | `server/routes/artifacts.py:85` lists artifacts with the same one-run-per-feed name rule A2 removed from the CIL readers | found in A2 | read-time; measure what the artifact list drops on the snapshot first |
 
 ## Tier B: naming rules for new episodes
 
