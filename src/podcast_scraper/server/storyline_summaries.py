@@ -107,7 +107,7 @@ def load_storylines(root: Path) -> list[Storyline]:
 
 
 def _rows_by_episode_id(root: Path) -> dict[str, Any]:
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     return {row.episode_id: row for row in cached_catalog(root) if row.episode_id}
 
@@ -142,7 +142,7 @@ def build_material(
     episodes in publish order (spread across its time when there are more than the cap), each
     with its summary and top insights. None when none of its episodes is in the corpus."""
     from podcast_scraper.server.app_recap_view import build_episode_recap
-    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.slugs import slug_for_row
 
     clip = board_summaries._clip
     present = [rows[e] for e in storyline.episode_ids if e in rows]

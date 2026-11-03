@@ -48,7 +48,7 @@ immutable snapshot of history.
 - **Re-running** GIL/KG extraction, bridge emission, indexing, or topic clustering can
   change canonical `person:` / `topic:` / `org:` strings, graph layout, and RFC-075
   **`graph_compound_parent_id`** (`tc:`) values.
-- **RFC-073** enrichers never overwrite core files, but their derived outputs can become
+- **RFC-088** enrichers never overwrite core files, but their derived outputs can become
   **misaligned** until enrichers run again on the new core layer.
 
 **Practical stance for APIs and the viewer:** load and join using paths from the current

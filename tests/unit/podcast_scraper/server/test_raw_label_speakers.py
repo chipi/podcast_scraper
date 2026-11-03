@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 import pytest
 
 from podcast_scraper.graph_id_utils import is_bare_speaker_label, is_raw_speaker_label
-from podcast_scraper.server.app_gi_view import insights_from_gi
+from podcast_scraper.server.gi_view import insights_from_gi
 from podcast_scraper.server.segments_view import to_contract_segments
 
 

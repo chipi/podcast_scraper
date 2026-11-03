@@ -22,9 +22,9 @@ from podcast_scraper.server import app_sessions, app_user_state  # noqa: E402
 from podcast_scraper.server.app import create_app  # noqa: E402
 from podcast_scraper.server.app_access import AccessPolicy  # noqa: E402
 from podcast_scraper.server.app_captured_rail import captured_rail  # noqa: E402
-from podcast_scraper.server.app_corpus_access import load_json_artifact  # noqa: E402
-from podcast_scraper.server.app_slugs import resolve_slug  # noqa: E402
 from podcast_scraper.server.app_user_store import get_or_create_user  # noqa: E402
+from podcast_scraper.server.corpus_access import load_json_artifact  # noqa: E402
+from podcast_scraper.server.slugs import resolve_slug  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 

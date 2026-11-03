@@ -42,7 +42,6 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from podcast_scraper.server.app_gi_view import insights_from_gi  # noqa: E402
 from podcast_scraper.server.app_moments import (  # noqa: E402
     build_clip,
     Moment,
@@ -52,6 +51,7 @@ from podcast_scraper.server.app_moments import (  # noqa: E402
     score_candidates,
     spread_pick,
 )
+from podcast_scraper.server.gi_view import insights_from_gi  # noqa: E402
 
 # $/Mtok. Claude: the repo's Sonnet-tier row (config/pricing_assumptions.yaml); the newest
 # Sonnet is not in that table, so this is an assumption. Gemini 2.5 Pro: same table. Reported,

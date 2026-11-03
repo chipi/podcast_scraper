@@ -320,64 +320,95 @@ def admin_put_access_policy(
 
 
 class ReleaseOut(BaseModel):
-    """The released app version the native update prompt compares against, and its source."""
+    """One app's released version (what its update prompt compares against), and its source."""
 
-    player_version: str | None = Field(
+    app: str = Field(description="The app id (``player``, later ``news``).")
+    version: str | None = Field(
         description="What the server serves now: the override when set, else the deploy default."
     )
+    player_version: str | None = Field(
+        description="Legacy name for ``version``, kept for clients written before ``app`` existed."
+    )
     override: str | None = Field(description="The runtime override (null = none set).")
-    deploy_default: str | None = Field(description="APP_PLAYER_VERSION from the deployment.")
+    deploy_default: str | None = Field(
+        description="The deployment's default (``APP_PLAYER_VERSION`` for the player)."
+    )
 
 
 class ReleaseBody(BaseModel):
-    """``player_version`` to set, or ``null`` to clear the override."""
+    """The version to set for *app*, or ``null`` to clear its override.
 
-    player_version: str | None
+    ``version`` is the field; ``player_version`` is accepted as its legacy name.
+    """
+
+    app: str = "player"
+    version: str | None = None
+    player_version: str | None = None
 
 
-def _release_out(request: Request) -> ReleaseOut:
+def _app_id(app: str) -> str:
+    if not app_release_store.valid_app_id(app):
+        raise HTTPException(status_code=422, detail=f"not an app id: {app!r}")
+    return app
+
+
+def _release_out(request: Request, app: str) -> ReleaseOut:
     override = app_release_store.load_released_version(
-        app_release_store.release_dir(request.app.state)
+        app_release_store.release_dir(request.app.state), app
     )
-    deploy_default = getattr(request.app.state, "player_version", None)
+    st = request.app.state
+    if app == app_release_store.PLAYER:
+        deploy_default = getattr(st, "player_version", None)
+    else:
+        deploy_default = (getattr(st, "app_version_defaults", None) or {}).get(app)
+    served = override or deploy_default
     return ReleaseOut(
-        player_version=override or deploy_default,
+        app=app,
+        version=served,
+        player_version=served,
         override=override,
         deploy_default=deploy_default,
     )
 
 
 @router.get("/admin/release", response_model=ReleaseOut)
-def admin_get_release(request: Request, admin: User = Depends(get_admin_user)) -> ReleaseOut:
-    """The released app version served to the native update prompt (admin only)."""
-    return _release_out(request)
+def admin_get_release(
+    request: Request, app: str = "player", admin: User = Depends(get_admin_user)
+) -> ReleaseOut:
+    """One app's released version, served to its native update prompt (admin only)."""
+    return _release_out(request, _app_id(app))
 
 
 @router.put("/admin/release", response_model=ReleaseOut)
 def admin_put_release(
     body: ReleaseBody, request: Request, admin: User = Depends(get_admin_user)
 ) -> ReleaseOut:
-    """Set the released app version at RUNTIME — no deploy, no restart (operator 2026-10-07).
+    """Set an app's released version at RUNTIME — no deploy, no restart (operator 2026-10-07).
 
     For a native-only release: once a build is installable in TestFlight / Play, set its version
-    here and every app below it is prompted to update on its next check. ``null`` clears the
-    override and the deploy's ``APP_PLAYER_VERSION`` applies again. Audited, like every admin write.
+    here and every install below it is prompted to update on its next check. ``null`` clears the
+    override and the deploy default applies again. Audited, like every admin write.
     """
+    app = _app_id(body.app)
     target = app_release_store.release_dir(request.app.state)
     if target is None:
         raise HTTPException(status_code=503, detail="No app data dir configured.")
-    version = body.player_version.strip() if body.player_version else None
+    # Before ``version`` existed, ``player_version`` was required, so ``{}`` was a 422. Keep it one:
+    # a body naming neither field must not silently clear the override.
+    if not {"version", "player_version"} & body.model_fields_set:
+        raise HTTPException(status_code=422, detail="Body needs `version` (null clears).")
+    raw = body.version if "version" in body.model_fields_set else body.player_version
+    version = raw.strip() if raw else None
     if version is not None and not app_release_store.valid_player_version(version):
-        raise HTTPException(
-            status_code=422, detail="player_version must be a dotted number, e.g. 1.0.2."
-        )
-    before = _release_out(request)
-    app_release_store.save_released_version(target, version)
-    after = _release_out(request)
+        raise HTTPException(status_code=422, detail="version must be a dotted number, e.g. 1.0.2.")
+    before = _release_out(request, app)
+    app_release_store.save_released_version(target, version, app)
+    after = _release_out(request, app)
     _audit(
         request,
-        action="player_release_set",
+        action="player_release_set" if app == app_release_store.PLAYER else "app_release_set",
         by=admin.user_id,
+        app=app,
         before=before.override,
         after=after.override,
     )

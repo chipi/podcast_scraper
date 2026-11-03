@@ -17,9 +17,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.routes.app_search import _in_listening_scope, _storyline_slugs
+from podcast_scraper.server.slugs import slug_for_row
 
 pytestmark = [pytest.mark.unit]
 

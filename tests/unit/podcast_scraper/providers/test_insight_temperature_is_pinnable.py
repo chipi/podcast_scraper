@@ -11,9 +11,10 @@ head-to-head credited gemini with 9.3 unique insights/episode over qwen — and 
 that was the random number generator, not the model. We were within one step of spending ten vendor
 arms measuring sampling noise and calling it a leaderboard.
 
-The bug is ADR-111's allowlist, exactly: a key nobody copies does not error, it takes its default,
-and the default is "off". So these tests do NOT check that a field exists. They check that a pinned
-value SURVIVES the trip to the thing that actually samples — through both hand-maintained allowlists
+The bug is the profile-key allowlist, exactly: a key nobody copies does not error, it takes its
+default, and the default is "off". So these tests do NOT check that a field exists. They check
+that a pinned value SURVIVES the trip to the thing that actually samples — through both
+hand-maintained allowlists
 (the eval's ``params:`` mapping and the CLI's profile-forwarding tuple), for every provider.
 """
 
@@ -87,8 +88,7 @@ def test_pinning_insights_does_NOT_re_tune_summarisation_or_speaker_detection() 
     assert cfg.gemini_temperature == pytest.approx(0.3), "the insight pin leaked into other stages"
 
 
-# ALLOWLIST #1 — the eval's ``params:`` mapping — moved to chipi/podcast-scraper-eval-data
-# (tests/unit/podcast_scraper_eval/test_eval_forwards_the_sampler_pin.py) with
+# ALLOWLIST #1 — the eval's ``params:`` mapping — moved out with
 # the eval harness. The five tests that remain here assert APPLICATION
 # behaviour: provider resolution, the CLI, and that every config/profiles/*.yaml
 # pins a temperature. Those profiles live in this repo, so those tests do too.

@@ -72,9 +72,9 @@ def test_user_episode_set_heard_via_playback(tmp_path) -> None:  # type: ignore[
     from pathlib import Path
 
     from podcast_scraper.server import app_user_state
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.app_user_corpus import user_episode_set
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     root = Path(tmp_path) / "corpus"
     (root / "metadata").mkdir(parents=True)

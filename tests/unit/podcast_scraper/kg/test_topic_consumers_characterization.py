@@ -31,8 +31,8 @@ from podcast_scraper.enrichment.enrichers._loaders import topic_nodes
 from podcast_scraper.kg.corpus import topic_cooccurrence
 from podcast_scraper.kg.filters import is_filler_topic
 from podcast_scraper.kg.topic_clustering import is_concept_topic
-from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.feed_signals import _accumulate_kg_entities
+from podcast_scraper.server.kg_view import entities_from_kg
 
 # Real extractor output, copied verbatim from prod artifacts written by
 # provider:NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 — short noun phrases.
@@ -226,7 +226,7 @@ def test_chips_for_real_topics_are_identical_with_or_without_fabrications() -> N
 
 def test_feed_signals_is_a_third_filtering_chokepoint() -> None:
     """``_loaders.topic_nodes`` documents "the TWO read chokepoints". There are three that filter
-    (``topic_nodes``, ``app_kg_view``, ``feed_signals``) and at least one that does NOT
+    (``topic_nodes``, ``kg_view``, ``feed_signals``) and at least one that does NOT
     (``topic_cooccurrence``). Pinned here so the count is measured rather than trusted.
     """
     topic_eps: dict = {}

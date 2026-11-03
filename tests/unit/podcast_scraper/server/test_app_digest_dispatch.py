@@ -19,11 +19,10 @@ pytestmark = pytest.mark.unit
 
 def _stub(monkeypatch, **returns):
     """Stub every enqueuer; a value may be a list of ids or an Exception to raise."""
-    import importlib
 
     calls: list[tuple[str, Path, Path]] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         value = returns.get(label, [])
 
         def _fn(root, data, _v=value, _l=label):
@@ -94,10 +93,9 @@ def test_dispatch_never_raises_for_an_enqueuer_failure(monkeypatch, tmp_path) ->
 def test_enqueuer_targets_all_resolve(tmp_path) -> None:
     """Each declared (module, function) must actually exist — a typo here disables a whole
     cadence in BOTH schedulers at once, which is the cost of having one list."""
-    import importlib
 
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         func = getattr(module, func_name, None)
         assert callable(func), f"{label}: {module_name}.{func_name} is missing or not callable"
 

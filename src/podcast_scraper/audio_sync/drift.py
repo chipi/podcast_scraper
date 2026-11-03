@@ -100,7 +100,7 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--end-tolerance", type=float, default=30.0)
     args = ap.parse_args(argv)
 
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     root = args.corpus
     rows = []

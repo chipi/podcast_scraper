@@ -377,7 +377,7 @@ class TestTheSeamThatActuallyShipsTheName:
     Production orders them badly. `kg/pipeline` appends the roster's speakers AFTER the extracted
     entities, so in kg.json the merged-away node is usually first — measured, 8 of 11 real merges
     — and the survivor inherited the LOSER's spelling while gi.json kept the winner's. One id,
-    two names, and `app_kg_index` reads the kg side, so the card showed the wrong one.
+    two names, and `kg_index` reads the kg side, so the card showed the wrong one.
 
     So these tests run the whole seam, in BOTH node orders, and assert the two artifacts agree.
     """

@@ -56,12 +56,11 @@ def test_beat_writes_heartbeat(tmp_path: Path, monkeypatch) -> None:
 
 def _stub_all(mod, monkeypatch, **returns):
     """Stub every enqueuer in the SHARED dispatcher; unnamed ones return []."""
-    import importlib
 
     from podcast_scraper.server import app_digest_dispatch
 
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         value = returns.get(label, [])
         if isinstance(value, Exception):
 

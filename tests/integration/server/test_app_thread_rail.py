@@ -22,9 +22,9 @@ from fastapi.testclient import TestClient  # noqa: E402
 from podcast_scraper.server import app_sessions, app_user_state  # noqa: E402
 from podcast_scraper.server.app import create_app  # noqa: E402
 from podcast_scraper.server.app_access import AccessPolicy  # noqa: E402
-from podcast_scraper.server.app_slugs import resolve_slug  # noqa: E402
 from podcast_scraper.server.app_thread_rail import thread_rail  # noqa: E402
 from podcast_scraper.server.app_user_store import get_or_create_user  # noqa: E402
+from podcast_scraper.server.slugs import resolve_slug  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 

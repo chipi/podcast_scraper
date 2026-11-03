@@ -850,9 +850,7 @@ dedicated scripts and a "golden" dataset.
 Evaluation is performed against human-verified ground
 truth data stored in `data/eval/`. This dataset is
 versioned and frozen to provide a stable baseline for
-comparison. See
-`ADR-040` (moved to the private eval repo as ADR-009)
-for details.
+comparison.
 
 **GIL Golden Dataset**: A golden dataset for GIL
 evaluation includes human-annotated insights,
@@ -865,11 +863,7 @@ extraction tiers (ML-only, Hybrid, Cloud LLM).
 Quality evaluation is integrated into the
 **[AI Quality & Experimentation Platform](../prd/PRD-007-ai-quality-experiment-platform.md)**
 (PRD-007), which uses these metrics to gate new model
-deployments and configuration changes. The complete
-evaluation loop (runner, scorer, comparator) is
-documented in the
-**`Experiment Guide`**
-(Step 4: Evaluate Results).
+deployments and configuration changes.
 
 ## CI/CD Integration
 
@@ -888,7 +882,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - **test-e2e-fast**: Critical path E2E tests (Tier 1)
   using test ML models (~8-12 min)
 - **viewer-unit**: Vitest unit tests for `web/gi-kg-viewer` TS utils (`make test-ui`; ~150 ms)
-- **viewer-e2e**: Playwright tests for `web/gi-kg-viewer` (`make test-ui-e2e`; Firefox, Vite on 5174)
+- **viewer-e2e**: Playwright tests for `web/gi-kg-viewer` (`make test-ui-e2e`; Chrome locally, Firefox in CI; Vite on 5174)
 - **build**: Package build validation (~2 min)
 - **docs**: Documentation build validation (~3 min)
 

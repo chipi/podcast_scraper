@@ -15,12 +15,13 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.storylines import DEFAULT_MIN_STORYLINE_MEMBERS
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.server.routes.app_auth import require_viewer_access
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
@@ -234,3 +235,39 @@ def corpus_clustering_health(
             },
         }
     )
+
+
+@router.post(
+    "/corpus/storylines/seed",
+    responses={400: {"description": "Bad corpus path or mode"}},
+)
+async def storylines_history_seed(
+    request: Request,
+    path: str | None = Query(
+        default=None, description="Corpus output dir. Omit for server default."
+    ),
+    mode: str = Query(default="preview", description="preview | apply | undo"),
+    _user=Depends(require_viewer_access),
+) -> JSONResponse:
+    """The storyline history seed (RFC-128, #2349), from the dashboard: ``preview`` replays and
+    reports without writing; ``apply`` writes the seed the next storyline run takes in (and the
+    chart's past); ``undo`` withdraws it, or seeds back what a taken one replaced.
+
+    Operator surface only, like the theme rebuild. Never writes the storyline artifact,
+    so it cannot race a run. Seconds on production (no model).
+    """
+    import asyncio
+
+    from podcast_scraper.search import storyline_history
+
+    if mode not in ("preview", "apply", "undo"):
+        raise HTTPException(status_code=400, detail="mode must be preview, apply or undo.")
+    fallback = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, fallback)
+    if root is None:
+        raise HTTPException(status_code=400, detail="Corpus path is required (query or default).")
+    if mode == "undo":
+        result = await asyncio.to_thread(storyline_history.undo, root)
+    else:
+        result = await asyncio.to_thread(storyline_history.seed, root, apply=mode == "apply")
+    return JSONResponse({"mode": mode, **result})

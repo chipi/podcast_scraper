@@ -48,9 +48,9 @@ def last_listen_dates(
     """``{storyline id: YYYY-MM-DD}`` — the day of the listener's last listen to an episode about
     one of the storyline's topics. A storyline they never listened in is absent."""
     from podcast_scraper.server.app_rail_turns import episode_entity_ids
-    from podcast_scraper.server.app_slugs import resolve_slug
     from podcast_scraper.server.app_stats import _ts_to_date
     from podcast_scraper.server.app_user_state import list_listen_events
+    from podcast_scraper.server.slugs import resolve_slug
 
     last_by_slug: dict[str, str] = {}
     for ev in list_listen_events(data_dir, user_id):
@@ -77,8 +77,8 @@ def thread_rail(
     root: Path, data_dir: Path, user_id: str, *, limit: int = 6
 ) -> list[TrendingEpisodeCard]:
     """New episodes in the storylines the listener follows (see the module docstring)."""
-    from podcast_scraper.server.app_slugs import resolve_slug
     from podcast_scraper.server.app_user_corpus import experienced_episode_set, saved_episode_set
+    from podcast_scraper.server.slugs import resolve_slug
 
     followed = followed_storylines(data_dir, user_id)
     if not followed:

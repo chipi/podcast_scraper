@@ -12,9 +12,9 @@ from typing import Any, Optional
 
 import pytest
 
-from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_moments import MomentsConfig, score_candidates
-from podcast_scraper.server.app_relational_view import _node_to_app_insight
+from podcast_scraper.server.gi_view import insights_from_gi
+from podcast_scraper.server.relational_view import _node_to_app_insight
 from podcast_scraper.translation.provenance import translated_from
 
 pytestmark = pytest.mark.unit

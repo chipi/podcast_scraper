@@ -24,9 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.identity.display import person_display
-from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
-from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_momentum import (
     _weeks_ending,
     MomentumConfig,
@@ -39,8 +37,10 @@ from podcast_scraper.server.app_reasons import (
     Reason,
     ReasonSubject,
 )
-from podcast_scraper.server.app_relational_view import build_topic_perspectives
-from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.corpus_access import load_json_artifact
+from podcast_scraper.server.gi_view import insights_from_gi
+from podcast_scraper.server.relational_view import build_topic_perspectives
+from podcast_scraper.server.slugs import resolve_slug
 
 #: How far back "most engaged" looks, in ISO weeks.
 ENGAGED_WINDOW_WEEKS = 4

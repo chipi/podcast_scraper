@@ -262,7 +262,7 @@ def plan_display_names(
     Measured over the production sample, before this was fixed: of 11 real intra-episode merges,
     **8 left kg.json and gi.json displaying different names for the same person id** — the id was
     united and the label was not. ``person:stewart-brand`` read ``Stuart Brand`` on the card
-    (``app_kg_index`` reads KG) and ``Stewart Brand`` on its quotes, while the episode title says
+    (``kg_index`` reads KG) and ``Stewart Brand`` on its quotes, while the episode title says
     Stewart. The merge that was supposed to end one-human-two-names produced one-id-two-names.
 
     WHICH SPELLING WINS IS DECIDED BY THE FEED, not by which layer produced it. An earlier version

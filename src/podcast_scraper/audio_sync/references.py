@@ -86,7 +86,7 @@ def write_for_run(corpus_root: str, run_dir: str) -> Dict[str, int]:
     import logging
 
     from podcast_scraper.archive.offload import _metadata_dir, _safe_media_path
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.catalog_cache import cached_catalog
 
     log = logging.getLogger(__name__)
     root = Path(corpus_root)
@@ -149,8 +149,8 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args(argv)
 
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
     from podcast_scraper.server.app_episode_search import episode_segments_relpath
+    from podcast_scraper.server.catalog_cache import cached_catalog
     from podcast_scraper.utils import audio_cache
 
     root: Path = args.corpus

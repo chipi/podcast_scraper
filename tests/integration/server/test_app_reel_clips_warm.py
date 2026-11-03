@@ -16,7 +16,6 @@ import pytest
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server import app_cache_warm
-from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_episode_search import (
     episode_ad_spans,
     episode_segments,
@@ -30,6 +29,7 @@ from podcast_scraper.server.app_goal_reel import (
     _episode_token,
 )
 from podcast_scraper.server.app_moments import MomentsConfig
+from podcast_scraper.server.catalog_cache import cached_catalog
 
 pytestmark = [pytest.mark.integration]
 

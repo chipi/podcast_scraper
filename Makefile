@@ -357,6 +357,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" --ignore "eval-data/**" --ignore eval-data \
+	--ignore "apps/**" --ignore apps \
 	--ignore "data/eval/**" --ignore data/eval \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
@@ -419,7 +420,7 @@ security-fast: security-bandit
 # ./eval-data is its own private repo cloned inside the checkout (gitignored; CI never has it),
 # with its own .venv: scanning it reported ~69k third-party findings on machines that have it.
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./eval-data --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./eval-data,./apps --skip B113,B108,B110,B310 --severity-level medium
 
 # Dependency vulnerability audit (pip-audit).
 #
@@ -1532,10 +1533,10 @@ test-ui:
 	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
-# Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
+# Playwright browser E2E: Chrome locally, Firefox under CI (playwright.config.ts).
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
-	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install chromium && npm run test:e2e
 
 # API image the e2e run-local-stack scripts expect (#1619). Nothing built this before, so
 # ``e2e/run-local-stack.sh`` failed on a fresh machine with an image-not-found that read like a
@@ -1558,7 +1559,7 @@ e2e-api-image:
 # given), so this leaves the tracked fixture untouched.
 test-ui-e2e-live: e2e-api-image
 	@echo "Playwright E2E (gi-kg-viewer) against the fixture-bootstrapped API..."
-	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install chromium
 	@$(WEB_VIEWER_DIR)/e2e/run-local-stack.sh
 
 # Production viewer bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS

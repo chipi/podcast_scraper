@@ -42,8 +42,8 @@ def test_admission_route_reports_gate_status(client: TestClient) -> None:
     assert r.status_code == 200, r.text
     rows = {row["id"]: row for row in r.json()["enrichers"]}
     # All known enrichers reported (7 deterministic incl. insight_sentiment + topic_similarity
-    # + topic_consensus + person_web WEB-tier, wave-G).
-    assert len(rows) == 10
+    # + topic_consensus + person_web and org_web, WEB-tier, wave-G).
+    assert len(rows) == 11
     assert "person_web" in rows and rows["person_web"]["has_gate"] is False
     # topic_consensus declares a gate AND cleared it (precision 0.91 on prod-v2, ADR-108 composite)
     # → promoted. The gate + the promotion are both surfaced for the UI.

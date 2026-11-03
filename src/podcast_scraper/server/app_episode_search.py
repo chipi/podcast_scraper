@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from podcast_scraper.server.app_content_source import transcript_corpus_relpath, transcript_relpath
+from podcast_scraper.server.content_source import transcript_corpus_relpath, transcript_relpath
 from podcast_scraper.server.corpus_catalog import _load_metadata_doc, CatalogEpisodeRow
 from podcast_scraper.server.segments_view import (
     segments_relpaths_for_transcript,

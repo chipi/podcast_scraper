@@ -95,8 +95,7 @@ re-upload trades a format problem for a provenance problem, which is the worse o
 - **Retired models should be dropped rather than pinned.** `pegasus-*` and `distilbart` are
   reachable from no profile, and ADR-067 already retired Pegasus/LED for podcast content — the
   held-out v2 eval measured the BART+LED baseline at judge-mean **0.23**
-  (`podcast-scraper-eval-data:docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md` §6, *"no rubric
-  change recovers that"*). Deleting an entry removes the pickle instead of managing it, so the
+  (*"no rubric change recovers that"*). Deleting an entry removes the pickle instead of managing it, so the
   audit is per model: drop what nothing reaches, pin what remains.
 - **The test profile stops borrowing the airgapped constraint.** `test_default.yaml:41` and
   `airgapped_thin.yaml:78` both set `summary_reduce_model: long-fast`, but for unrelated reasons:

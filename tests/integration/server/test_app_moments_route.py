@@ -102,8 +102,8 @@ def _client(root: Path, *, signed_in: bool = True) -> TestClient:
 
 
 def _slug(root: Path, episode_id: str) -> str:
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     for row in build_catalog_rows_cumulative(root):
         if row.episode_id == episode_id:

@@ -92,10 +92,9 @@ def test_read_state_returns_empty_when_absent(tmp_path: Path) -> None:
 
 def test_dispatch_writes_health_state_end_to_end(tmp_path: Path, monkeypatch) -> None:
     """Through the real dispatcher, not the recorder directly."""
-    import importlib
 
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         monkeypatch.setattr(
             module, func_name, lambda root, data, _l=label: ([f"{_l}_x"] if _l == "weekly" else [])
         )
@@ -109,10 +108,9 @@ def test_dispatch_writes_health_state_end_to_end(tmp_path: Path, monkeypatch) ->
 
 def test_health_failure_does_not_break_dispatch(tmp_path: Path, monkeypatch) -> None:
     """If the recorder throws, the dispatch result must still be returned intact."""
-    import importlib
 
     for _, module_name, func_name in app_digest_dispatch.ENQUEUERS:
-        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        module = app_digest_dispatch.enqueuer_module(module_name)
         monkeypatch.setattr(module, func_name, lambda root, data: ["x"])
 
     def _boom(*a, **k):

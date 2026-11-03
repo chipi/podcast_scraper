@@ -118,9 +118,9 @@ def build_resolver(root: Path, extra_history: Mapping[str, Any] | None = None) -
     """The resolver for corpus ``root`` (read-only). ``extra_history`` adds successors and gone
     ids from before ids were kept (the one-time backfill, ``map_prior_ids``)."""
     from podcast_scraper.kg.entity_clusters import cached_entity_id_map
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_kg_index import get_kg_index
-    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.kg_index import get_kg_index
+    from podcast_scraper.server.slugs import slug_for_row
 
     root = Path(root)
     theme_payload = _load_json(root / "search" / "topic_clusters.json")

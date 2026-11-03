@@ -16,7 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from podcast_scraper.server.app_artwork import ensure_medium, ensure_thumbnail, safe_artwork_target
+from podcast_scraper.server.artwork import ensure_medium, ensure_thumbnail, safe_artwork_target
 
 router = APIRouter(tags=["app"])
 

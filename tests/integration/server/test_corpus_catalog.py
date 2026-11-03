@@ -428,7 +428,7 @@ def test_episode_list_summary_preview_never_truncates_the_prose_body() -> None:
 
 def test_episode_list_summary_preview_matches_the_app_card_builder() -> None:
     """The two builders must not drift apart again — that split is what caused this."""
-    from podcast_scraper.server.app_content_source import _card_lede
+    from podcast_scraper.server.content_source import _card_lede
 
     r = _row(summary_title="Head", summary_bullets=("one", "two"), summary_text="body")
     assert episode_list_summary_preview(r) == _card_lede(r)

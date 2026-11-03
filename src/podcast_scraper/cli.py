@@ -3962,11 +3962,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         cct_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_cluster_corpus_topics_argv(cct_argv)
 
-    if argv and len(argv) > 0 and argv[0] == "topic-clusters":
-        from .search.cli_handlers import parse_topic_clusters_argv
+    if argv and not argv[0].startswith("-"):
+        from .extensions import cli_command
 
-        tc_argv = list(argv[1:]) if len(argv) > 1 else []
-        return parse_topic_clusters_argv(tc_argv)
+        extension_command = cli_command(argv[0])
+        if extension_command is not None:
+            parsed: argparse.Namespace = extension_command.parse(list(argv[1:]))
+            return parsed
 
     if argv and len(argv) > 0 and argv[0] == "insight-clusters":
         from .search.cli_handlers import parse_insight_clusters_argv
@@ -4010,12 +4012,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
         serve_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_serve_argv(serve_argv)
-
-    if argv and len(argv) > 0 and argv[0] == "mcp":
-        from .mcp.cli_handlers import parse_mcp_argv
-
-        mcp_argv = list(argv[1:]) if len(argv) > 1 else []
-        return parse_mcp_argv(mcp_argv)
 
     if argv and len(argv) > 0 and argv[0] == "upgrade":
         from .upgrade.cli_handlers import parse_upgrade_argv
@@ -4130,7 +4126,7 @@ GIL_TUNING_KEYS = (
 )
 """Profile keys forwarded from YAML to ``Config`` on the ``--config`` path.
 
-THE ALLOWLIST (ADR-111). A key that is not on this list is not rejected — it is silently
+THE ALLOWLIST. A key that is not on this list is not rejected — it is silently
 DROPPED, and ``Config`` falls back to its default. The defaults are mostly "off", so omitting a
 key does not break a run; it quietly disables a stage and the run still looks fine. That is how
 ``gi_value_gate_enabled`` shipped switched off, and how ``gi_insight_temperature`` let every
@@ -5144,6 +5140,13 @@ def _default_service_name(argv: Sequence[str]) -> str:
     return {"mcp": "player-mcp", "serve": "podcast-api"}.get(sub, "podcast-pipeline")
 
 
+def _extension_command(name: str) -> bool:
+    """True when an installed extension owns the subcommand *name* (ADR-168)."""
+    from .extensions import cli_command
+
+    return cli_command(name) is not None
+
+
 def main(  # noqa: C901 - main function handles multiple command paths
     argv: Optional[Sequence[str]] = None,
     *,
@@ -5197,7 +5200,6 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "enrich-edges",
             "identity-ledger",
             "index-two-tier",
-            "mcp",
             "gi",
             "index",
             "insight-clusters",
@@ -5205,7 +5207,6 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "pricing-assumptions",
             "search",
             "serve",
-            "topic-clusters",
             # ``upgrade`` runs corpus format migrations (metadata only, no audio
             # decode) and runs in the ffmpeg-less ``api`` container during restore
             # (restore_corpus_from_tarball_host.sh). Requiring ffmpeg there broke
@@ -5215,6 +5216,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
         )
     ):
         pass  # Skip ffmpeg check for subcommands
+    elif argv and not argv[0].startswith("-") and _extension_command(argv[0]):
+        pass  # An installed extension's subcommand (ADR-168) never decodes audio
     else:
         _validate_ffmpeg()
 
@@ -5322,10 +5325,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
         return run_cluster_corpus_topics_cli(args, log)
 
-    if hasattr(args, "command") and args.command == "topic-clusters":
-        from .search.cli_handlers import run_topic_clusters_cli
+    if isinstance(getattr(args, "command", None), str):
+        from .extensions import cli_command
 
-        return run_topic_clusters_cli(args, log)
+        extension_command = cli_command(args.command)
+        if extension_command is not None:
+            return extension_command.run(args, log)
 
     if hasattr(args, "command") and args.command == "insight-clusters":
         from .search.cli_handlers import run_insight_clusters_cli
@@ -5344,11 +5349,6 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .server.cli_handlers import run_serve
 
         return run_serve(args, log)
-
-    if hasattr(args, "command") and args.command == "mcp":
-        from .mcp.cli_handlers import run_mcp
-
-        return run_mcp(args, log)
 
     if hasattr(args, "command") and args.command == "upgrade":
         from .upgrade.cli_handlers import run_upgrade_cli

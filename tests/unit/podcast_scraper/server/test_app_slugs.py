@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from podcast_scraper.server.app_slugs import episode_slug
+from podcast_scraper.server.slugs import episode_slug
 
 _SLUG_RE = re.compile(r"^[a-z0-9-]+$")
 

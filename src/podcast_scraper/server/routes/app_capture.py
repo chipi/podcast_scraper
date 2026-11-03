@@ -25,12 +25,11 @@ from podcast_scraper.server.app_capture_export import (
     render_highlights_html,
     render_highlights_markdown,
 )
-from podcast_scraper.server.app_corpus_access import (
+from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.corpus_access import (
     corpus_root_or_503,
     safe_relpath_under_corpus_root,
 )
-from podcast_scraper.server.app_slugs import resolve_slug
-from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes import app_collections
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
@@ -47,6 +46,7 @@ from podcast_scraper.server.segments_view import (
     segments_relpaths_for_transcript,
     to_contract_segments,
 )
+from podcast_scraper.server.slugs import resolve_slug
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +82,11 @@ def _contract_segments(root: Path, slug: str) -> list[dict] | None:
     """
     import json
 
-    from podcast_scraper.server.app_content_source import (
+    from podcast_scraper.server.content_source import (
         transcript_corpus_relpath,
         transcript_relpath,
     )
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
+    from podcast_scraper.server.corpus_access import load_json_artifact
 
     row = resolve_slug(root, slug)
     if row is None:

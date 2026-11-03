@@ -5,8 +5,7 @@ Ministral) publish a vendor-specific system prompt at
 ``SYSTEM_PROMPT.txt`` in the model repo's root. Loading that as the
 system prompt is a documented requirement for those models — using a
 generic system prompt instead causes subtle text-quality drift and
-strips the assistant priming the vendor expects (see
-`eval-data/autoresearch/MODEL_PLAYBOOK.md` § Mistral family).
+strips the assistant priming the vendor expects.
 
 This module provides a small fetch + cache helper. Callers decide
 *when* to use the result (per-provider, per-config), so this is
