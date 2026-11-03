@@ -1,0 +1,5 @@
+# Dev tools for this checkout (`mise trust && mise install`). rclone matches
+# PIN_RCLONE_VERSION in docker/pipeline/Dockerfile; tests/unit/test_mise_tool_pins.py
+# fails when the two differ.
+[tools]
+rclone = "1.75.2"
