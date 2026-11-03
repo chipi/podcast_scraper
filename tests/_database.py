@@ -72,8 +72,9 @@ def worker_database_url() -> str | None:
 def empty_kernel_tables() -> None:
     with rw_engine().begin() as conn:
         for plane in PLANES:
+            planed = conn.execution_options(schema_translate_map={None: plane})
             for table in reversed(metadata.sorted_tables):
-                conn.execute(text(f'DELETE FROM "{plane}"."{table.name}"'))
+                planed.execute(table.delete())
 
 
 def database_fixture(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
@@ -110,7 +111,7 @@ def drop_worker_database() -> None:
 
 
 def register_user(user_id: str, **fields: object) -> None:
-    """Insert (idempotently) a user row under a FIXED id, for tests that name their user (``"u_0123…"``).
+    """Insert (idempotently) a user row under a FIXED id, for tests that name their user.
 
     The store derives ids from ``(provider, subject)``; a test that wants a literal id (and no
     handle) writes the row directly. Stores that gate on "the account exists" then see it.

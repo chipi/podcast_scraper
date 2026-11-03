@@ -10,6 +10,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Connection, create_engine, text
+from sqlalchemy.schema import CreateSchema
 
 from podcast_scraper.db.settings import normalize_url, validate_plane
 
@@ -50,7 +51,7 @@ def _ensure_schema(conn: Connection, plane: str) -> None:
         text("SELECT 1 FROM pg_namespace WHERE nspname = :name"), {"name": plane}
     ).first()
     if present is None:
-        conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{plane}"'))
+        conn.execute(CreateSchema(plane, if_not_exists=True))
 
 
 def upgrade(url: str, plane: str, revision: str = "head") -> None:
