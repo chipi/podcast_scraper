@@ -510,6 +510,32 @@ is a bug waiting for the content to change.
 - Ask only when blocked: missing secrets, ambiguous scope, unsafe request,
   genuine multi-way decision where the user must pick, commit/push approval.
 
+## Running a multi-step arc
+
+How the operator wants a long piece of work run (a branch with several plan items, a naming or
+migration arc). Data changes also follow `docs/guides/CORPUS_CHANGE_METHOD.md`; these rules are the
+working rhythm around it.
+
+- **Problem / Plan / Done-when before each new activity.** Three short lines, written before the
+  first edit: what is wrong, what you will do, and the measurement or test that says it is done.
+- **Report at every plan-item boundary.** When an item is done (or blocked), stop, say what changed
+  and what measured it, and confirm the next item. Anything outside the item is a suggestion in
+  text, never a side quest (rule 3).
+- **Commit locally as you go; push once, at the end, on the operator's go** (rule 1). One
+  validation pass at the end (rule 9), not one per commit.
+- **Cheap gates before final measurements.** Run format, lint, type, docstring and spelling checks
+  before any gate or measurement that is bound to the code. Any change under `src/` after the final
+  gates voids them.
+- **Rules generalise; never tune to the score.** Design a rule on the development set, score it once
+  on a set nobody has read, and report totals only. Which naming sets are still unread is recorded
+  in the eval-data repo's `naming_speakers_v1/README.md`; check it before scoring.
+- **No DGX run without the operator's yes**, for any purpose: measurement, reprocess, eval.
+- **Delete your own leftovers** when an item is done: snapshot clones, gate working copies, scratch
+  files, worktrees. Only what you made (see "Clean up after yourself").
+- **In a worktree, export `PYTHONPATH=<worktree>/src`** for `make ci-fast` and
+  `make test-integration`: child processes can otherwise import the main checkout's code.
+- **Subagents:** every Agent call runs on sonnet; the advisor runs on fable.
+
 ---
 
 ## Stack
