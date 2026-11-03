@@ -5,7 +5,7 @@ Revises:
 """
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 
 revision = "0001_users"
 down_revision = None
@@ -15,6 +15,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create the ``users`` table."""
+    schema = context.config.attributes["plane"]
     op.create_table(
         "users",
         sa.Column("user_id", sa.Text(), primary_key=True),
@@ -38,4 +39,5 @@ def upgrade() -> None:
         sa.UniqueConstraint("analytics_id", name="users_analytics_id_key"),
         sa.CheckConstraint("role IN ('listener', 'creator', 'admin')", name="users_role_check"),
         sa.UniqueConstraint("provider", "subject", name="users_provider_subject_key"),
+        schema=schema,
     )

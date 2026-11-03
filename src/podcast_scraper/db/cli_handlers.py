@@ -1,7 +1,8 @@
 """CLI for the database (ADR-169): ``podcast_scraper db upgrade | status | import``.
 
 - ``upgrade --plane P``: bring plane ``P``'s schema to head. The prod migrate step; the API never
-  does this at start.
+  does this at start. ``--sql`` prints the SQL it would run (from the plane's current revision, or
+  ``--from REV``) and executes nothing.
 - ``status --plane P``: current vs head. Exit **2** when behind (distinct from error=1), so a
   boot script can gate on it.
 - ``import --from-files DIR --plane P [--only STORE] [--dry-run]``: read the file stores into the
@@ -28,6 +29,7 @@ from podcast_scraper.db.settings import (
     DatabaseSettings,
     DEFAULT_PLANE,
     ENV_PLANE,
+    ENV_URL,
     PLANES,
 )
 
@@ -45,7 +47,19 @@ def parse_db_argv(argv: Sequence[str]) -> argparse.Namespace:
     """Parse ``db`` subcommand args into a namespace with ``command='db'``."""
     parser = argparse.ArgumentParser(prog="podcast_scraper db")
     sub = parser.add_subparsers(dest="db_subcommand", required=True, help="Command")
-    _add_plane(sub.add_parser("upgrade", help="Bring a plane's schema to head"))
+    up = sub.add_parser("upgrade", help="Bring a plane's schema to head")
+    _add_plane(up)
+    up.add_argument(
+        "--sql",
+        action="store_true",
+        help="Print the SQL the upgrade would run and execute nothing (a dry run).",
+    )
+    up.add_argument(
+        "--from",
+        dest="from_revision",
+        default=None,
+        help="With --sql: start from this revision instead of the plane's current one.",
+    )
     _add_plane(sub.add_parser("status", help="Show a plane's current vs head revision"))
     imp = sub.add_parser("import", help="Import file stores into the database and verify")
     _add_plane(imp)
@@ -60,6 +74,10 @@ def parse_db_argv(argv: Sequence[str]) -> argparse.Namespace:
 
 
 def _upgrade(args: argparse.Namespace, log: logging.Logger) -> int:
+    if args.sql:
+        url = (os.getenv(ENV_URL) or "").strip() or None
+        print(migrate.upgrade_sql(url, args.plane, from_revision=args.from_revision), end="")
+        return 0
     url = DatabaseSettings.from_env().rw_url
     migrate.upgrade(url, args.plane)
     current, head = migrate.status(url, args.plane)

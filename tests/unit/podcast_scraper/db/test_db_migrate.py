@@ -74,7 +74,9 @@ def test_migrations_only_create_objects_in_the_plane() -> None:
     sources = {p.name: p.read_text() for p in VERSIONS.glob("*.py") if p.name != "__init__.py"}
     assert sources
     for name, source in sources.items():
-        assert not re.search(r"create\s+schema|\bgrant\b|\bschema\s*=", source, re.I), name
+        assert not re.search(r"create\s+schema|\bgrant\b", source, re.I), name
+        # An object names the plane it was given and no other schema.
+        assert not re.search(r"\bschema=(?!schema\b)", source), name
 
 
 def _cli(*args: str, url: str) -> subprocess.CompletedProcess[str]:
@@ -122,3 +124,106 @@ def test_the_cli_fails_loudly_with_no_database_url() -> None:
         check=False,
     )
     assert done.returncode == 1 and "PODCAST_DATABASE_URL" in done.stderr
+
+
+# --- db upgrade --sql: the dry run -------------------------------------------------------------
+
+
+def _sql(*args: str, url: str | None) -> subprocess.CompletedProcess[str]:
+    env = {k: v for k, v in os.environ.items() if k != "PODCAST_DATABASE_URL"}
+    env["PYTHONPATH"] = str(REPO / "src")
+    if url:
+        env["PODCAST_DATABASE_URL"] = url
+    return subprocess.run(
+        [sys.executable, "-m", "podcast_scraper.cli", "db", "upgrade", "--sql", *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=180,
+        check=False,
+    )
+
+
+def test_sql_for_a_fresh_plane_creates_the_plane_tables_and_nothing_in_public() -> None:
+    done = _sql("--plane", "player", url=None)
+    assert done.returncode == 0, done.stderr
+    out = done.stdout
+    assert re.search(r'CREATE TABLE "?player"?\.users \(', out)
+    assert re.search(r'CREATE TABLE "?player"?\.alembic_version \(', out)
+    assert re.search(r'INSERT INTO "?player"?\.alembic_version', out)
+    assert "CREATE SCHEMA" not in out.upper()
+    for statement in re.findall(r"CREATE TABLE ([^ (]+)", out):
+        assert statement.strip('"').startswith("player."), statement
+    assert "public" not in out
+
+
+def test_sql_against_a_plane_at_head_emits_no_ddl(url: str) -> None:
+    migrate.upgrade(url, "player")
+    done = _sql("--plane", "player", url=url)
+    assert done.returncode == 0, done.stderr
+    assert "nothing to run" in done.stdout
+    assert not re.search(r"CREATE|ALTER|INSERT|DROP", done.stdout)
+
+
+def test_sql_starts_from_the_plane_current_revision_and_runs_nothing(url: str) -> None:
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+            conn.execute(text("CREATE SCHEMA operator"))
+        done = _sql("--plane", "operator", url=url)
+        assert done.returncode == 0, done.stderr
+        assert "base -> " in done.stdout and "CREATE TABLE" in done.stdout
+        with admin.connect() as conn:
+            tables = conn.execute(
+                text("SELECT count(*) FROM pg_tables WHERE schemaname = 'operator'")
+            ).scalar()
+        assert tables == 0, "--sql must execute nothing"
+        # --from overrides the database: from head there is nothing to run.
+        head = migrate.head_revision()
+        again = _sql("--plane", "operator", "--from", head, url=url)
+        assert "nothing to run" in again.stdout
+    finally:
+        with admin.connect() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+        admin.dispose()
+        migrate.upgrade(url, "operator")
+
+
+def test_the_emitted_sql_builds_the_same_table_the_upgrade_does(url: str) -> None:
+    """The offline render is applied to an empty database and compared with the online result."""
+    done = _sql("--plane", "player", url=None)
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    name = f"sqlcheck_{os.getpid()}"
+    try:
+        with admin.connect() as conn:
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+            conn.execute(text(f'CREATE DATABASE "{name}"'))
+        target = make_url(normalize_url(url)).set(database=name)
+        scratch = create_engine(target, isolation_level="AUTOCOMMIT")
+        with scratch.connect() as conn:
+            conn.execute(text("CREATE SCHEMA player"))
+            raw = conn.connection.dbapi_connection
+            assert raw is not None
+            raw.execute(done.stdout)
+            columns_sql = conn.execute(
+                text(
+                    "SELECT column_name, data_type, is_nullable FROM information_schema.columns "
+                    "WHERE table_schema = 'player' AND table_name = 'users' ORDER BY column_name"
+                )
+            ).all()
+        scratch.dispose()
+        live = create_engine(normalize_url(url))
+        with live.connect() as conn:
+            columns_live = conn.execute(
+                text(
+                    "SELECT column_name, data_type, is_nullable FROM information_schema.columns "
+                    "WHERE table_schema = 'player' AND table_name = 'users' ORDER BY column_name"
+                )
+            ).all()
+        live.dispose()
+        assert columns_sql == columns_live and columns_sql
+    finally:
+        with admin.connect() as conn:
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+        admin.dispose()

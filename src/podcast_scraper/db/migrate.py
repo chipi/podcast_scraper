@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from alembic import command
@@ -75,3 +76,34 @@ def status(url: str, plane: str) -> tuple[str | None, str]:
             return current_revision(conn, plane), head_revision()
     finally:
         engine.dispose()
+
+
+def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None) -> str:
+    """The SQL ``upgrade`` would run for ``plane``, as text; nothing is executed.
+
+    Starts from ``from_revision`` when given; else from the plane's current revision, read with a
+    read-only query when a URL is configured; else from base. Already at head: a comment line.
+    """
+    validate_plane(plane)
+    start = from_revision
+    if start is None and url:
+        engine = create_engine(
+            normalize_url(url),
+            connect_args={"options": "-c default_transaction_read_only=on"},
+        )
+        try:
+            with engine.connect() as conn:
+                start = current_revision(conn, plane)
+        finally:
+            engine.dispose()
+    head = head_revision()
+    if start == head:
+        return f"-- plane {plane} is already at {head}; nothing to run\n"
+    cfg = _config(plane)
+    buffer = io.StringIO()
+    cfg.output_buffer = buffer
+    command.upgrade(cfg, f"{start or 'base'}:{head}", sql=True)
+    return (
+        f'-- plane {plane}: {start or "base"} -> {head}. The schema "{plane}" must already exist.\n'
+        + buffer.getvalue()
+    )
