@@ -140,10 +140,11 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-166](ADR-166-person-identity-ledger-no-joins-without-it.md) | Person identity is decided once, in a ledger; without a valid ledger there are no joins | Proposed | [RFC-131](../rfc/RFC-131-person-identity-one-home.md) | A deterministic step writes every cross-episode join, blocked join and display spelling with evidence to a ledger the server applies; a missing, unreadable or version-mismatched ledger means no joins, never the unguarded in-memory map. | No |
 | [ADR-167](ADR-167-identity-guards-inside-the-join.md) | Identity guards run inside the join; a cautious split is acceptable, a wrong merge is not | Proposed | [RFC-131](../rfc/RFC-131-person-identity-one-home.md) | A name joins a cluster only if no guard fires against any member: co-voice, publisher list (two people), mention co-occurrence (unknown, no join); guard-caused splits are listed, never fixed by weakening a guard. | No |
 | [ADR-168](ADR-168-installed-extensions.md) | Installed extensions — how packages add to the platform | Accepted | [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md) | Entry-point discovery; routes, hooks, jobs, CLI, sign-in providers and enrichers come from extensions; an installed package wins over its in-tree copy | Yes |
+| [ADR-169](ADR-169-the-database-is-the-source-of-truth.md) | The database is the source of truth for app state and the corpus | Proposed | [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md), [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | Postgres 18 in every edition; one database with plane schemas and a corpus schema; app state first, then a freeze-window corpus cut-over; supersedes ADR-051, ADR-054 "files canonical", PRD-035 D2 on acceptance | No |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **133** files under `docs/adr/ADR-*.md` (ADR-001–ADR-168;
+**Counts (reconcile when adding ADRs):** **134** files under `docs/adr/ADR-*.md` (ADR-001–ADR-169;
 numbering has historical gaps; ADR-134 = #1273 speaker-labeling renumber, ADR-135 = v2.4,
 ADR-137–140 = host/guest role, ad-cleaning stage, text-normalization contract, versioned labeling
 profiles; ADR-149 = corpus reprocess methodology;
