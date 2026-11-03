@@ -33,7 +33,8 @@ handovers, run logs, one-off measurements and screenshots of shipped UI do not s
 ## Open notes
 
 | Note | What is open |
-|---|---|
+| --- | --- |
+| [INGESTION-ARC-2026-11-03.md](INGESTION-ARC-2026-11-03.md) | The draft list for `feat/ingestion-arc` (work that changes nothing about deployment): tiers A, B, L, M and C, and how the corpus change method applies to each |
 | [HANDOVER-NAMING-2026-11-03.md](HANDOVER-NAMING-2026-11-03.md) | Speaker naming and identity after D2 (RFC-131): the next steps in order, D2 run lessons, open items carried over |
 | [NONENGLISH-REFERENCE-SHOWS-2026-10-09.md](NONENGLISH-REFERENCE-SHOWS-2026-10-09.md) | The non-English arc: readiness per language, the gate decisions, #2352 and #2353 |
 | [DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md](DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md) | The deferred root-cause fix for diarization merge/split artifacts (#1330) |
@@ -46,7 +47,7 @@ handovers, run logs, one-off measurements and screenshots of shipped UI do not s
 ## Folders
 
 | Folder | What it holds |
-|---|---|
+| --- | --- |
 | [changes/](changes/README.md) | Corpus change records ([README](changes/README.md), [TEMPLATE](changes/TEMPLATE.md)). The records for migrations 0031 to 0037 stay: the change gate's landing check needs every registered migration's record and gate file. |
 | [parked/](parked/README.md) | One parked patch (cleaned-base LLM selection), kept for later |
 | `ideas/knowledge-retention/` | The knowledge-retention product package (vision, PRD and RFC drafts, July 2026), kept as an idea, not open work |
