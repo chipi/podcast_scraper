@@ -147,6 +147,8 @@ help:
 	@echo "  make check-spotlight    Verify Spotlight indexing is disabled (macOS ML safety)"
 	@echo ""
 	@echo "Test commands:"
+	@echo "  make test-db-up           Start the local postgres:18 the tests need; prints PODCAST_TEST_DATABASE_URL to export"
+	@echo "  make test-db-down         Remove that test database container (this checkout's only)"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
 	@echo "  make test-unit-dev-venv   Unit tests inside $(VENVDEV) (run venv-dev-init first; true CI parity)"
@@ -1672,6 +1674,15 @@ check-spotlight:
 	else \
 		echo "mdutil not found (not macOS). Skipping."; \
 	fi
+
+# The test database (ADR-169): app-state tests read PODCAST_TEST_DATABASE_URL and FAIL without it.
+# One container per checkout, loopback only; down removes only that container.
+.PHONY: test-db-up test-db-down
+test-db-up:
+	@bash scripts/tools/test_db.sh up
+
+test-db-down:
+	@bash scripts/tools/test_db.sh down
 
 test-unit: cleanup-processes
 	# Unit tests: parallel execution for faster feedback

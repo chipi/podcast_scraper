@@ -8,10 +8,17 @@ from typing import Any
 import pytest
 
 from podcast_scraper.server import app_comms_store, app_outbox_store, app_push_store
+from tests._database import register_user
 
 pytestmark = pytest.mark.unit
 
 _UID = "u_0123456789abcdef01234567"
+
+
+@pytest.fixture(autouse=True)
+def _account() -> None:
+    """Suppression only acts on an account that exists."""
+    register_user(_UID)
 
 
 def _envelope(eid: str = "dgst_2026W31_" + _UID, channel: str = "email", **over: Any) -> dict:

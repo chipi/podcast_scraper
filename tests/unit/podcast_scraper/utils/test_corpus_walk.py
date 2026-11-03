@@ -107,6 +107,7 @@ def test_the_gi_and_kg_scanners_ignore_backups(tmp_path: Path) -> None:
 _SRC = Path(__file__).resolve().parents[4] / "src" / "podcast_scraper"
 _NOT_A_CORPUS = {
     "utils/corpus_walk.py": "the helper itself",
+    "db/inventory.py": "the app data dir (users, outbox), not a corpus tree",
     "cache/manager.py": "model cache dirs",
     "providers/ml/model_loader.py": "model cache dirs",
     "providers/ml/summarizer.py": "model cache dirs",

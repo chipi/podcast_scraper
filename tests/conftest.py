@@ -98,6 +98,13 @@ TEST_CONTENT_TYPE_SRT = "text/srt"
 # in sys.modules before any test's patch window opens.
 from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
 
+# Same reason as above: the database layer is imported at collection, before any sys.modules patch
+# window opens (sqlalchemy and psycopg are C-extension-backed and must not be re-imported).
+from tests._database import (
+    database_fixture as _database_fixture,
+    drop_worker_database as _drop_worker_database,
+)
+
 #: Git exports these repo-context vars into a hook's environment (see ``git rev-parse
 #: --local-env-vars``) so its child processes target the repo under operation. When the test suite
 #: runs INSIDE a git hook, any test that shells out to git inherits them and operates on the REAL
@@ -218,6 +225,7 @@ def pytest_runtest_logfinish(nodeid, location):
 
 
 def pytest_sessionfinish(session, exitstatus):
+    _drop_worker_database()
     """Fail the session if a module stub OUTLIVED THE WHOLE RUN (#1799).
 
     Stubbing an optional dependency is legitimate and common here — ``spacy``, ``torch``,
@@ -1065,3 +1073,13 @@ def cleanup_ml_resources_after_test(request):
     _cleanup_ml_reset_preloaded_after()
     _cleanup_ml_find_and_clean_models()
     _cleanup_ml_gc_after_test()
+
+
+@pytest.fixture(autouse=True)
+def _app_database(monkeypatch):
+    """Point app state (ADR-169) at this process's test database; empty it after each test.
+
+    Inert without ``PODCAST_TEST_DATABASE_URL``: nothing connects, and a test that needs app state
+    fails with the "start the test database" message (``make test-db-up``).
+    """
+    yield from _database_fixture(monkeypatch)

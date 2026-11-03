@@ -1,11 +1,17 @@
-"""Unit tests for the file-based per-user identity store (#1063)."""
+"""Tests for the per-user identity store (#1063), on the test database (ADR-169)."""
 
 from __future__ import annotations
 
-import json
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import pytest
+from sqlalchemy import insert, update
+
+from podcast_scraper.db import rw_engine
+from podcast_scraper.db.schema import users
 from podcast_scraper.server.app_user_store import (
     create_user,
     delete_user,
@@ -121,6 +127,31 @@ def test_delete_user(tmp_path: Path) -> None:
     assert delete_user(tmp_path, user.user_id) is False
 
 
+def test_delete_user_removes_the_row_and_the_remaining_file_directory(tmp_path: Path) -> None:
+    """The other per-user stores are still files under users/<id>/ and go with the account."""
+    user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    other = get_or_create_user(tmp_path, provider="google", subject="s2", email="b@x.com", name="B")
+    for u in (user, other):
+        d = tmp_path / "users" / u.user_id
+        d.mkdir(parents=True)
+        (d / "queue.json").write_text("[]", encoding="utf-8")
+
+    assert delete_user(tmp_path, user.user_id) is True
+
+    assert get_user(tmp_path, user.user_id) is None
+    assert not (tmp_path / "users" / user.user_id).exists()
+    # Only the deleted account's directory and row go.
+    assert get_user(tmp_path, other.user_id) is not None
+    assert (tmp_path / "users" / other.user_id / "queue.json").is_file()
+
+
+def test_delete_user_with_only_a_file_directory_still_reports_removal(tmp_path: Path) -> None:
+    uid = user_id_for("google", "ghost")
+    (tmp_path / "users" / uid).mkdir(parents=True)
+    assert delete_user(tmp_path, uid) is True
+    assert not (tmp_path / "users" / uid).exists()
+
+
 def test_path_traversal_user_ids_are_rejected_not_found(tmp_path: Path) -> None:
     """A non-conforming user_id (``..`` / ``/`` / non-hex) must never touch the
     filesystem: lookups/mutations return the graceful not-found result and a file
@@ -201,14 +232,11 @@ def test_analytics_id_is_backfilled_for_a_profile_written_before_the_field(
     """Every account that exists today predates the field, including the operator's own.
 
     Minting only at creation would leave them permanently unmeasurable, so the next sign-in fills
-    one in. Simulated by stripping the key from the profile on disk, which is exactly the shape of
-    an older profile.
+    one in. Simulated by blanking the column, which is exactly the shape of an imported older
+    profile.
     """
     user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
-    path = tmp_path / "users" / user.user_id / "profile.json"
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    del doc["analytics_id"]
-    path.write_text(json.dumps(doc), encoding="utf-8")
+    _blank_analytics_id(user.user_id)
 
     # Reading it back shows the gap...
     assert _stored(tmp_path, user.user_id).analytics_id == ""  # type: ignore[union-attr]
@@ -225,21 +253,18 @@ def test_analytics_id_is_backfilled_for_a_profile_written_before_the_field(
 
 
 def test_backfill_does_not_block_sign_in_when_the_write_fails(
-    tmp_path: Path, monkeypatch: object
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Analytics must never be the reason someone cannot sign in."""
     user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
-    path = tmp_path / "users" / user.user_id / "profile.json"
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    del doc["analytics_id"]
-    path.write_text(json.dumps(doc), encoding="utf-8")
+    _blank_analytics_id(user.user_id)
 
     import podcast_scraper.server.app_user_store as store
 
     def boom(*_a: object, **_k: object) -> None:
-        raise OSError("disk full")
+        raise OSError("database is down")
 
-    monkeypatch.setattr(store, "_write_profile", boom)  # type: ignore[attr-defined]
+    monkeypatch.setattr(store, "rw_engine", boom)
     back = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
     # Sign-in still succeeds; the id is simply still missing, to be filled next time.
     assert back.user_id == user.user_id
@@ -315,12 +340,102 @@ def test_new_accounts_get_mcp_access_by_default_and_a_revoke_sticks(tmp_path: Pa
     assert again.mcp_access is False  # signing in again does not re-grant a revoke
 
 
-def test_a_profile_written_before_mcp_access_existed_gets_the_default(tmp_path: Path) -> None:
-    from podcast_scraper.server.app_user_store import _profile_path
+def test_a_row_written_without_mcp_access_gets_the_default(tmp_path: Path) -> None:
+    uid = user_id_for("google", "old")
+    with rw_engine().begin() as conn:
+        conn.execute(insert(users).values(user_id=uid, provider="google", subject="old"))
+    stored = _stored(tmp_path, uid)
+    assert stored.mcp_access is True
+    assert stored.role == "listener" and stored.username == "" and stored.analytics_id == ""
 
-    user = get_or_create_user(tmp_path, provider="google", subject="old", email="o@x.com", name="O")
-    path = _profile_path(tmp_path, user.user_id)
-    doc = json.loads(path.read_text())
-    doc.pop("mcp_access")
-    path.write_text(json.dumps(doc))
-    assert _stored(tmp_path, user.user_id).mcp_access is True
+
+def test_on_created_fires_once_under_concurrent_first_logins(tmp_path: Path) -> None:
+    """Two (here eight) sign-ins racing for one new identity report ONE signup."""
+    workers = 8
+    barrier = threading.Barrier(workers)
+    seen: list[str] = []
+
+    def login(_: int) -> str:
+        barrier.wait()
+        return get_or_create_user(
+            tmp_path,
+            provider="google",
+            subject="racer",
+            email="racer@x.com",
+            name="R",
+            on_created=lambda u: seen.append(u.user_id),
+        ).user_id
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        ids = list(pool.map(login, range(workers)))
+
+    assert len(set(ids)) == 1
+    assert seen == [ids[0]]
+    assert len(list_users(tmp_path)) == 1
+
+
+def test_handles_stay_unique_under_concurrent_signups(tmp_path: Path) -> None:
+    """Distinct people who all derive the same handle each end up with a different one."""
+    workers = 12
+    barrier = threading.Barrier(workers)
+
+    def signup(i: int) -> str:
+        barrier.wait()
+        return get_or_create_user(
+            tmp_path, provider="google", subject=f"s{i}", email=f"sam@host{i}.com", name="Sam"
+        ).username
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        handles = list(pool.map(signup, range(workers)))
+
+    assert len(set(handles)) == workers
+    assert all(h == "sam" or h.startswith("sam") for h in handles)
+    assert sorted(u.username for u in list_users(tmp_path)) == sorted(handles)
+
+
+def test_create_user_overwrites_the_same_identity(tmp_path: Path) -> None:
+    first = create_user(
+        tmp_path, provider="stub", subject="s1", email="dana@x.com", name="D", role="listener"
+    )
+    again = create_user(
+        tmp_path, provider="stub", subject="s1", email="dana@x.com", name="D2", role="admin"
+    )
+    assert again.user_id == first.user_id
+    assert again.username == "dana"  # its own old handle does not count as taken
+    stored = _stored(tmp_path, first.user_id)
+    assert stored.name == "D2" and stored.role == "admin"
+    assert len(list_users(tmp_path)) == 1
+
+
+def test_list_users_is_ordered_by_user_id(tmp_path: Path) -> None:
+    for i in range(6):
+        get_or_create_user(
+            tmp_path, provider="google", subject=f"s{i}", email=f"u{i}@x.com", name="U"
+        )
+    ids = [u.user_id for u in list_users(tmp_path)]
+    assert ids == sorted(ids) and len(ids) == 6
+
+
+def test_setters_update_the_row_and_report_unknown_users(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_user_store import set_image, set_name
+
+    user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    assert set_name(tmp_path, user.user_id, "  New   Name ") is True
+    assert set_image(tmp_path, user.user_id, "https://cdn/p.png") is True
+    assert set_role(tmp_path, user.user_id, "no-such-role") is True
+    stored = _stored(tmp_path, user.user_id)
+    assert stored.name == "New Name"
+    assert stored.image == "https://cdn/p.png"
+    assert stored.role == "listener"  # coerced to a known role
+    assert set_image(tmp_path, user.user_id, None) is True
+    assert _stored(tmp_path, user.user_id).image is None
+
+    ghost = "u_" + "4" * 24
+    assert set_name(tmp_path, ghost, "X") is False
+    assert set_image(tmp_path, ghost, None) is False
+    assert set_name(tmp_path, user.user_id, "bad\nname") is False
+
+
+def _blank_analytics_id(user_id: str) -> None:
+    with rw_engine().begin() as conn:
+        conn.execute(update(users).where(users.c.user_id == user_id).values(analytics_id=None))

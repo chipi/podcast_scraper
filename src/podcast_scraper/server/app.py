@@ -154,6 +154,22 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     )
 
 
+def _open_app_database(app: FastAPI) -> None:
+    """Open the process's database engines at start, but only when a database URL is configured.
+
+    A server without one (the control-plane api, which never touches the users store) keeps
+    starting; engines otherwise open lazily on first use, and a store call with no URL raises the
+    named configuration error. With a URL, an unreachable or un-migrated database fails the start
+    (ADR-169). Prod migrates in its own step, never here.
+    """
+    from podcast_scraper.db.settings import is_configured
+
+    if is_configured():
+        from podcast_scraper.db import init_engines
+
+        init_engines()
+
+
 def _default_static_dir() -> Path | None:
     """Built SPA assets under ``web/gi-kg-viewer/dist`` (repo root relative to this file)."""
     repo_root = Path(__file__).resolve().parents[3]
@@ -716,6 +732,7 @@ def create_app(
         # thread) can hand spawn callbacks back to FastAPI via
         # ``asyncio.run_coroutine_threadsafe``.
         app.state.event_loop = asyncio.get_running_loop()
+        _open_app_database(app)
         root = getattr(app.state, "output_dir", None)
         if root is not None and os.environ.get("PODCAST_SERVE_WARM_SEARCH", "1") != "0":
             threading.Thread(

@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.server import app_comms_store
+from podcast_scraper.server.app_user_store import get_user
 from podcast_scraper.server.atomic_write import atomic_write_text
 from podcast_scraper.utils.privileges import OwnedFileLock
 
@@ -267,7 +268,7 @@ def _suppress(data_dir: Path, envelope: dict[str, Any]) -> None:
         return
     # A bounce that arrives after the account was deleted must not re-create its directory —
     # `set_channel` takes a lock that mkdirs `users/<id>/` (#2273).
-    if not (data_dir / "users" / user_id).is_dir():
+    if get_user(data_dir, user_id) is None:
         return
     channel = envelope.get("channel")
     if channel not in ("email", "push"):

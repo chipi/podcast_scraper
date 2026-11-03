@@ -1,6 +1,6 @@
 """Operator CLI for consumer-platform user administration (#1064).
 
-Runs directly against the per-user files (no server needed)::
+Runs directly against the database (accounts) and the per-user files (no server needed)::
 
     python -m podcast_scraper.server.app_users_cli list   --data-dir <dir>
     python -m podcast_scraper.server.app_users_cli disable --data-dir <dir> <user_id>

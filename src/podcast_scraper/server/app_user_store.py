@@ -1,44 +1,32 @@
-"""File-based per-user identity store for the consumer platform (#1063/#1064, RFC-098 §3).
+"""Per-user identity store for the consumer platform (#1063/#1064, RFC-098 §3), on Postgres.
 
-Per-user state as **plain files** (no DB) — the foundation #1065 extends. Each user is a
-directory ``<data_dir>/users/<user_id>/`` holding ``profile.json``. The user id is derived
-deterministically from the OAuth identity ``(provider, subject)``, so lookup is a direct
-path probe and ``get_or_create_user`` is idempotent (racing creates write identical bytes).
+Users live in the ``users`` table of the process's plane schema (ADR-169). The user id is derived
+deterministically from the OAuth identity ``(provider, subject)``, so ``get_or_create_user`` is
+idempotent by primary key. The functions keep the signatures they had as a file store: ``data_dir``
+stays the first argument because the other per-user stores are still files under
+``<data_dir>/users/<user_id>/``; the database comes from the engine registry
+(``podcast_scraper.db``), not from that argument.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 import shutil
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
+from sqlalchemy import delete, func, RowMapping, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Connection
+from sqlalchemy.exc import IntegrityError
+
+from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db.schema import users
 from podcast_scraper.server import app_roles
-from podcast_scraper.server.atomic_write import atomic_write_text
-from podcast_scraper.utils.privileges import OwnedFileLock
-
-#: Read-modify-write profile mutations serialize on a per-user lock so concurrent admin
-#: actions (role / activate flips) can't lose updates (mirrors the per-user file locks in
-#: ``app_user_state``). Distinct users never contend; same-user writes are ordered.
-_LOCK_TIMEOUT_S = 15.0
-
-
-def _profile_lock(data_dir: Path, user_id: str) -> OwnedFileLock:
-    path = _profile_path(data_dir, user_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return OwnedFileLock(str(path.with_name(".profile.lock")), timeout=_LOCK_TIMEOUT_S)
-
-
-def _handles_lock(data_dir: Path) -> OwnedFileLock:
-    """Store-GLOBAL lock for minting handles — uniqueness is a cross-user invariant the per-user
-    profile lock can't hold, so the scan-taken-then-write must be serialized across users."""
-    users_dir = data_dir / "users"
-    users_dir.mkdir(parents=True, exist_ok=True)
-    return OwnedFileLock(str(users_dir / ".handles.lock"), timeout=_LOCK_TIMEOUT_S)
 
 
 @dataclass(frozen=True)
@@ -61,7 +49,7 @@ class User:
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
     #: listener may have it, an admin may not), not a rank. **Default on** since 2026-10-16
     #: (operator: every user gets MCP; a beta user who joined the day before had no access).
-    #: An admin can still revoke it per user, and an explicit ``false`` on a profile stays revoked.
+    #: An admin can still revoke it per user, and an explicit ``false`` stays revoked.
     mcp_access: bool = True
     #: Pseudonymous analytics identity (#2265). A random UUIDv4 minted once, at account creation,
     #: and never rotated.
@@ -71,8 +59,8 @@ class User:
     #: identity could confirm the match by recomputing it. This id is random, so the only route
     #: back to a person is the operator's own private sheet.
     #:
-    #: Empty on profiles written before this field existed; ``get_or_create_user`` backfills one at
-    #: the next sign-in rather than leaving an existing account permanently unmeasurable.
+    #: Empty on accounts written before this field existed; ``get_or_create_user`` backfills one
+    #: at the next sign-in rather than leaving an existing account permanently unmeasurable.
     analytics_id: str = ""
 
 
@@ -84,32 +72,6 @@ def user_id_for(provider: str, subject: str) -> str:
     """Stable, opaque user id from the OAuth identity ``(provider, subject)``."""
     digest = hashlib.sha256(f"{provider}\x00{subject}".encode("utf-8")).hexdigest()
     return f"u_{digest[:24]}"
-
-
-def _backfill_analytics_id(data_dir: Path, user: User) -> User:
-    """Give an existing account an ``analytics_id`` if it has none (#2265).
-
-    Read-modify-write under the per-user profile lock, re-reading inside it: a concurrent sign-in
-    (a double-fired OAuth callback, two devices at once) must not mint two ids and have the second
-    overwrite the first, because the id is promised never to rotate — a rotated id silently splits
-    one participant into two in every report.
-
-    **Never raises.** A failure here returns the user unchanged, so a disk problem in the analytics
-    backfill cannot stop someone signing in. The cost of failing is one account measured from its
-    next sign-in instead of this one; the cost of raising would be a locked-out listener.
-    """
-    try:
-        with _profile_lock(data_dir, user.user_id):
-            current = get_user(data_dir, user.user_id)
-            if current is None:
-                return user
-            if current.analytics_id:
-                return current
-            updated = replace(current, analytics_id=new_analytics_id())
-            _write_profile(data_dir, updated)
-            return updated
-    except Exception:
-        return user
 
 
 def new_analytics_id() -> str:
@@ -126,11 +88,10 @@ def new_analytics_id() -> str:
 def _is_safe_user_id(user_id: str) -> bool:
     """Whether ``user_id`` is the opaque ``user_id_for`` shape (``u_`` + 24 hex).
 
-    Defence-in-depth: the id flows into ``<data_dir>/users/<user_id>/`` file paths
-    (and ``delete_user`` ``rmtree``). Public lookups/mutations early-return the
-    graceful "unknown user" result for a non-conforming id, so ``..`` / ``/`` / empty
-    can never reach the filesystem sink — even though ids only ever originate from the
-    HMAC-signed session, never raw request input.
+    Defence-in-depth: the id flows into ``<data_dir>/users/<user_id>/`` file paths (and
+    ``delete_user`` ``rmtree``) of the stores that are still files. Public lookups/mutations
+    early-return the graceful "unknown user" result for a non-conforming id, so ``..`` / ``/`` /
+    empty can never reach the filesystem sink.
     """
     return _USER_ID_RE.fullmatch(user_id) is not None
 
@@ -140,70 +101,96 @@ def _is_safe_user_id(user_id: str) -> bool:
 is_safe_user_id = _is_safe_user_id
 
 
-def _profile_path(data_dir: Path, user_id: str) -> Path:
-    return data_dir / "users" / user_id / "profile.json"
-
-
-def _write_profile(data_dir: Path, user: User) -> None:
-    path = _profile_path(data_dir, user.user_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(
-        path,
-        json.dumps(
-            {
-                "email": user.email,
-                "name": user.name,
-                "username": user.username,
-                "image": user.image,
-                "provider": user.provider,
-                "subject": user.subject,
-                "disabled": user.disabled,
-                "role": user.role,
-                "mcp_access": user.mcp_access,
-                "analytics_id": user.analytics_id,
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
+def row_to_user(row: RowMapping) -> User:
+    """A ``users`` row as a :class:`User` (NULL handle and analytics id read as '')."""
+    return User(
+        user_id=row["user_id"],
+        email=row["email"],
+        name=row["name"],
+        # NULL in the table: accounts older than the handle have none.
+        username=row["username"] or "",
+        image=row["image"] or None,
+        provider=row["provider"],
+        subject=row["subject"],
+        disabled=bool(row["disabled"]),
+        role=row["role"],
+        # NULL until backfilled.
+        analytics_id=row["analytics_id"] or "",
+        mcp_access=bool(row["mcp_access"]),
     )
+
+
+def user_to_row(user: User) -> dict[str, Any]:
+    """A :class:`User` as column values ('' handle and analytics id stored as NULL)."""
+    return {
+        "user_id": user.user_id,
+        "email": user.email,
+        "name": user.name,
+        "username": user.username or None,
+        "image": user.image,
+        "provider": user.provider,
+        "subject": user.subject,
+        "disabled": user.disabled,
+        "role": user.role,
+        "mcp_access": user.mcp_access,
+        "analytics_id": user.analytics_id or None,
+    }
+
+
+def _select_user(conn: Connection, user_id: str) -> User | None:
+    row = conn.execute(select(users).where(users.c.user_id == user_id)).mappings().first()
+    return row_to_user(row) if row is not None else None
 
 
 def get_user(data_dir: Path, user_id: str) -> User | None:
-    """Load a user by id, or ``None`` when absent/unreadable."""
+    """Load a user by id, or ``None`` when absent."""
     if not _is_safe_user_id(user_id):
         return None
-    path = _profile_path(data_dir, user_id)
-    if not path.is_file():
-        return None
+
+    def read(engine: Any) -> User | None:
+        with engine.connect() as conn:
+            return _select_user(conn, user_id)
+
+    return read_with_retry(read)
+
+
+def _backfill_analytics_id(user: User) -> User:
+    """Give an existing account an ``analytics_id`` if it has none (#2265).
+
+    One conditional UPDATE: a concurrent sign-in (a double-fired OAuth callback, two devices at
+    once) matches ``analytics_id IS NULL`` for exactly one of them, so two ids are never minted and
+    the id is never rotated, which would silently split one participant into two in every report.
+
+    **Never raises.** A failure here returns the user unchanged, so a database problem in the
+    analytics backfill cannot stop someone signing in. The cost of failing is one account measured
+    from its next sign-in instead of this one; the cost of raising would be a locked-out listener.
+    """
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(doc, dict):
-        return None
-    return User(
-        user_id=user_id,
-        email=str(doc.get("email", "")),
-        name=str(doc.get("name", "")),
-        # Profiles written before Area E have no ``username``.
-        username=str(doc.get("username", "")),
-        image=(str(doc["image"]) if doc.get("image") else None),
-        provider=str(doc.get("provider", "")),
-        subject=str(doc.get("subject", "")),
-        disabled=bool(doc.get("disabled", False)),
-        # Profiles written before #1128 have no ``role`` → default to listener.
-        role=app_roles.normalize_role(doc.get("role")),
-        # Profiles written before #2265 have no ``analytics_id``; ``get_or_create_user``
-        # backfills one at the next sign-in.
-        analytics_id=str(doc.get("analytics_id", "")),
-        # Profiles written before #1471 have no ``mcp_access`` → the default (on since 2026-10-16).
-        mcp_access=bool(doc.get("mcp_access", True)),
-    )
+        with rw_engine().begin() as conn:
+            row = (
+                conn.execute(
+                    update(users)
+                    .where(users.c.user_id == user.user_id, users.c.analytics_id.is_(None))
+                    .values(analytics_id=new_analytics_id(), updated_at=func.now())
+                    .returning(*users.c)
+                )
+                .mappings()
+                .first()
+            )
+            if row is not None:
+                return row_to_user(row)
+            current = _select_user(conn, user.user_id)
+            return current if current is not None else user
+    except Exception:
+        return user
 
 
 _HANDLE_MAX = 30
 _HANDLE_STRIP_RE = re.compile(r"[^a-z0-9_]+")
 _HANDLE_COLLAPSE_RE = re.compile(r"_+")
+#: Handle allocation loses a race only to a concurrent signup taking the same candidate; each
+#: retry re-reads the taken set, so a handful of attempts is far beyond any real contention.
+_HANDLE_ATTEMPTS = 20
 
 
 def _sanitize_handle(seed: str) -> str:
@@ -230,6 +217,14 @@ def _derive_username(email: str, name: str, taken: set[str]) -> str:
         i += 1
 
 
+def _taken_usernames(conn: Connection, *, excluding: str | None = None) -> set[str]:
+    """The handles in use. Only a hint: the UNIQUE constraint decides, a lost race retries."""
+    stmt = select(users.c.username).where(users.c.username.is_not(None))
+    if excluding is not None:
+        stmt = stmt.where(users.c.user_id != excluding)
+    return {u for (u,) in conn.execute(stmt)}
+
+
 def get_or_create_user(
     data_dir: Path,
     *,
@@ -249,98 +244,121 @@ def get_or_create_user(
     Also backfills a missing ``analytics_id`` on an existing account (#2265). Minting only at
     creation would leave every account that predates the field permanently unmeasurable — which is
     every account that exists today, including the operator's own and the e2e identities. This is
-    the right place for it because it runs on each sign-in and already holds the lock pattern, and
-    it is a one-time write per account: once set, the branch never fires again, and the id never
-    rotates.
+    the right place for it because it runs on each sign-in, and it is a one-time write per account:
+    once set, the branch never fires again, and the id never rotates.
 
-    ``on_created`` is called EXACTLY ONCE per real creation, inside the lock, with the new user —
-    the hook the `account_created` analytics event needs (#2266). It is here rather than in the
-    caller because the caller cannot tell a creation from a return without a second read, and that
-    read races: two concurrent first-logins for the same identity would both see "absent" and both
-    report a signup, for one account. Inside the lock, after the re-check, there is exactly one.
-    A raising callback must not fail the sign-in, so it is guarded.
+    ``on_created`` is called EXACTLY ONCE per real creation, after the row is committed, with the
+    new user — the hook the `account_created` analytics event needs (#2266). It is here rather
+    than in the caller because the caller cannot tell a creation from a return without a second
+    read, and that read races: two concurrent first-logins for the same identity would both see
+    "absent" and both report a signup, for one account. ``INSERT … ON CONFLICT DO NOTHING
+    RETURNING`` yields a row for exactly one of them. A raising callback must not fail the
+    sign-in, so it is guarded.
     """
     uid = user_id_for(provider, subject)
     existing = get_user(data_dir, uid)
     if existing is not None:
         if existing.analytics_id:
             return existing
-        return _backfill_analytics_id(data_dir, existing)
-    # Serialize the mint under the store-global handle lock so two racing first-logins can't derive
-    # the same handle from `taken` (uniqueness is cross-user; advisor H1). Re-check existence inside
-    # the lock to also collapse a double-fired OAuth callback for the same (provider, subject).
-    with _handles_lock(data_dir):
-        existing = get_user(data_dir, uid)
-        if existing is not None:
-            return existing
-        taken = {u.username for u in list_users(data_dir) if u.username}
-        user = User(
-            user_id=uid,
-            email=email,
-            name=name,
-            username=_derive_username(email, name, taken),
-            image=image,
-            provider=provider,
-            subject=subject,
-            role=app_roles.normalize_role(role),
-            analytics_id=new_analytics_id(),
-        )
-        _write_profile(data_dir, user)
+        return _backfill_analytics_id(existing)
+
+    for _ in range(_HANDLE_ATTEMPTS):
+        with rw_engine().begin() as conn:
+            user = User(
+                user_id=uid,
+                email=email,
+                name=name,
+                username=_derive_username(email, name, _taken_usernames(conn)),
+                image=image,
+                provider=provider,
+                subject=subject,
+                role=app_roles.normalize_role(role),
+                analytics_id=new_analytics_id(),
+            )
+            inserted = conn.execute(
+                pg_insert(users)
+                .values(**user_to_row(user))
+                .on_conflict_do_nothing()
+                .returning(users.c.user_id)
+            ).first()
+            if inserted is None:
+                # Nothing inserted: the account exists (a racing first-login won), or the handle
+                # was taken by a concurrent signup between the read and the insert.
+                raced = _select_user(conn, uid)
+                if raced is not None:
+                    return raced
+                continue
         if on_created is not None:
             try:
                 on_created(user)
             except Exception:  # noqa: BLE001 — a metric must never fail a signup.
                 pass
-    return user
+        return user
+    raise RuntimeError("could not allocate a unique handle")
 
 
 def create_user(
     data_dir: Path, *, provider: str, subject: str, email: str, name: str, role: str
 ) -> User:
-    """Write a fresh user profile (overwrites) and return it. Callers check for prior existence.
+    """Write a fresh user row (overwrites) and return it. Callers check for prior existence.
 
     Mints the immutable handle too (advisor M4), so admin-provisioned / seeded users get one just
-    like an OAuth first-login — under the store-global lock for uniqueness."""
-    with _handles_lock(data_dir):
-        taken = {u.username for u in list_users(data_dir) if u.username}
-        user = User(
-            user_id=user_id_for(provider, subject),
-            email=email,
-            name=name,
-            username=_derive_username(email, name, taken),
-            provider=provider,
-            subject=subject,
-            role=app_roles.normalize_role(role),
-            analytics_id=new_analytics_id(),
-        )
-        _write_profile(data_dir, user)
-    return user
+    like an OAuth first-login — the UNIQUE constraint holds uniqueness; a lost race retries."""
+    uid = user_id_for(provider, subject)
+    for attempt in range(_HANDLE_ATTEMPTS):
+        try:
+            with rw_engine().begin() as conn:
+                user = User(
+                    user_id=uid,
+                    email=email,
+                    name=name,
+                    username=_derive_username(email, name, _taken_usernames(conn, excluding=uid)),
+                    provider=provider,
+                    subject=subject,
+                    role=app_roles.normalize_role(role),
+                    analytics_id=new_analytics_id(),
+                )
+                values = user_to_row(user)
+                conn.execute(
+                    pg_insert(users)
+                    .values(**values)
+                    .on_conflict_do_update(
+                        index_elements=[users.c.user_id],
+                        set_={**values, "updated_at": func.now()},
+                    )
+                )
+            return user
+        except IntegrityError:
+            if attempt == _HANDLE_ATTEMPTS - 1:
+                raise
+    raise RuntimeError("could not allocate a unique handle")  # pragma: no cover
 
 
 def list_users(data_dir: Path) -> list[User]:
-    """List all users (id-sorted); empty when the store is absent."""
-    users_dir = data_dir / "users"
-    if not users_dir.is_dir():
-        return []
-    out: list[User] = []
-    for child in sorted(users_dir.iterdir()):
-        if child.is_dir():
-            user = get_user(data_dir, child.name)
-            if user is not None:
-                out.append(user)
-    return out
+    """List all users (id-sorted); empty when there are none."""
+
+    def read(engine: Any) -> list[User]:
+        with engine.connect() as conn:
+            rows = conn.execute(select(users).order_by(users.c.user_id.collate("C"))).mappings()
+            return [row_to_user(r) for r in rows]
+
+    return read_with_retry(read)
+
+
+def _update_user(user_id: str, **values: Any) -> bool:
+    """Set columns on one user; False when the id is unsafe or unknown."""
+    if not _is_safe_user_id(user_id):
+        return False
+    with rw_engine().begin() as conn:
+        result = conn.execute(
+            update(users).where(users.c.user_id == user_id).values(**values, updated_at=func.now())
+        )
+    return result.rowcount > 0
 
 
 def set_image(data_dir: Path, user_id: str, image: str | None) -> bool:
     """Set a user's avatar URL (Area E upload override). Returns False for unknown users."""
-    if not _is_safe_user_id(user_id):
-        return False
-    with _profile_lock(data_dir, user_id):
-        user = get_user(data_dir, user_id)
-        if user is None:
-            return False
-        _write_profile(data_dir, replace(user, image=image))
-    return True
+    return _update_user(user_id, image=image)
 
 
 #: Longest display name accepted. Generous for real names; short enough that a masthead, a share
@@ -372,58 +390,35 @@ def set_name(data_dir: Path, user_id: str, name: str) -> bool:
     not undo a rename. The handle (`username`) is NOT derived from this and does not change.
     """
     clean = normalize_display_name(name)
-    if clean is None or not _is_safe_user_id(user_id):
+    if clean is None:
         return False
-    with _profile_lock(data_dir, user_id):
-        user = get_user(data_dir, user_id)
-        if user is None:
-            return False
-        _write_profile(data_dir, replace(user, name=clean))
-    return True
+    return _update_user(user_id, name=clean)
 
 
 def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:
     """Enable/disable a user (disabled users fail auth). Returns False for unknown users."""
-    if not _is_safe_user_id(user_id):
-        return False
-    with _profile_lock(data_dir, user_id):
-        user = get_user(data_dir, user_id)
-        if user is None:
-            return False
-        _write_profile(data_dir, replace(user, disabled=bool(disabled)))
-    return True
+    return _update_user(user_id, disabled=bool(disabled))
 
 
 def set_role(data_dir: Path, user_id: str, role: str) -> bool:
     """Set a user's role (coerced to a known role). Returns False for unknown users."""
-    if not _is_safe_user_id(user_id):
-        return False
-    with _profile_lock(data_dir, user_id):
-        user = get_user(data_dir, user_id)
-        if user is None:
-            return False
-        _write_profile(data_dir, replace(user, role=app_roles.normalize_role(role)))
-    return True
+    return _update_user(user_id, role=app_roles.normalize_role(role))
 
 
 def set_mcp_access(data_dir: Path, user_id: str, mcp_access: bool) -> bool:
     """Grant/revoke a user's MCP-access entitlement (RFC-112). Returns False for unknown users."""
-    if not _is_safe_user_id(user_id):
-        return False
-    with _profile_lock(data_dir, user_id):
-        user = get_user(data_dir, user_id)
-        if user is None:
-            return False
-        _write_profile(data_dir, replace(user, mcp_access=bool(mcp_access)))
-    return True
+    return _update_user(user_id, mcp_access=bool(mcp_access))
 
 
 def delete_user(data_dir: Path, user_id: str) -> bool:
-    """Remove a user's directory (GDPR hard delete). Returns True if anything was removed."""
+    """Remove a user: the row, and the directory holding the stores that are still files (GDPR
+    hard delete). Returns True if anything was removed."""
     if not _is_safe_user_id(user_id):
         return False
+    with rw_engine().begin() as conn:
+        deleted = conn.execute(delete(users).where(users.c.user_id == user_id)).rowcount > 0
     udir = data_dir / "users" / user_id
-    if not udir.is_dir():
-        return False
-    shutil.rmtree(udir, ignore_errors=True)
-    return True
+    had_dir = udir.is_dir()
+    if had_dir:
+        shutil.rmtree(udir, ignore_errors=True)
+    return deleted or had_dir
