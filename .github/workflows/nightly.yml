@@ -290,6 +290,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30  # was 15; the suite ran 14-15+ min and hit the cap on 6 of 8 nights (2026-10-12..19)
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
+    # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
     steps:
     - uses: actions/checkout@v7
 
@@ -391,7 +407,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60  # was 30; integration suite outgrew it (hit the 30m cap 2026-08-03)
     needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
+    # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
@@ -562,6 +593,22 @@ jobs:
       needs.nightly-lint.result == 'success' &&
       needs.nightly-build.result == 'success' &&
       needs.nightly-test-e2e.result == 'success'
+    # App state is Postgres (ADR-169): the e2e API boots with PODCAST_DATABASE_URL (it upgrades the plane itself).
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PODCAST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
     steps:
     - uses: actions/checkout@v7
     # KEEP IN LOCKSTEP WITH python-app.yml `viewer-e2e`. #1619 moved the viewer suite off
