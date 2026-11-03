@@ -37,8 +37,8 @@ taken fresh on the current labels.
 
 | # | Item | Source | Notes |
 | --- | --- | --- | --- |
-| A0 | The operator's working rules for a multi-step arc, written into `AGENTS.md` § "Running a multi-step arc" | operator, 2026-11-03 | docs only; first task |
-| A1 | Set the 15 rule records to `landed` (d1, s5a–s5d, s5o, s6a–s6h); drop the handover's stale "#2405 waits" line | ingestion session | docs only |
+| A0 | The operator's working rules for a multi-step arc, written into `AGENTS.md` § "Running a multi-step arc" | operator, 2026-11-03 | **done** `249ada02` |
+| A1 | Set the 14 rule records to `landed` (d1, s5a–s5d, s5o, s6a–s6h; d2 already was) | ingestion session | **done** `2ee536af`: 6 had steps only D2 covered, now `MISSED:` with the operator's acceptance (2026-11-03). The "#2405 waits" line was not in the handover |
 | A2 | `person_profile` empty for `person:robert-caro`, `person:anita-anand` | handover §2.1 | repro first; read-time fix in `server/cil_queries` (ladder rung 1) |
 | A3 | m0023 `_write_text_with_backup` creates backup dirs without `match_corpus_owner` | handover §2.2 | test + fix; changes every migration's code digest. 0031–0042 are landed, so no outcome goes stale; the record says so |
 | A4 | `write_with_backup` keeps the first backup, so a twice-written file undoes to its pre-first-run state | handover §4 | same module as A3 |
