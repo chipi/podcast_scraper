@@ -34,7 +34,7 @@ handovers, run logs, one-off measurements and screenshots of shipped UI do not s
 
 | Note | What is open |
 |---|---|
-| [HANDOVER-NAMING-DEBT-2026-10-27.md](HANDOVER-NAMING-DEBT-2026-10-27.md) | Speaker naming and migration debt after the 0034 / 0035 / 0036 release: numbered items, most open |
+| [HANDOVER-NAMING-2026-11-03.md](HANDOVER-NAMING-2026-11-03.md) | Speaker naming and identity after D2 (RFC-131): the next steps in order, D2 run lessons, open items carried over |
 | [NONENGLISH-REFERENCE-SHOWS-2026-10-09.md](NONENGLISH-REFERENCE-SHOWS-2026-10-09.md) | The non-English arc: readiness per language, the gate decisions, #2352 and #2353 |
 | [DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md](DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md) | The deferred root-cause fix for diarization merge/split artifacts (#1330) |
 | [DEVICE-ONLY-DEFECTS-2026-09-27.md](DEVICE-ONLY-DEFECTS-2026-09-27.md) | Three defects seen only on the iPhone build, not yet solved |
