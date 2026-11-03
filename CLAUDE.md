@@ -138,22 +138,28 @@ failure-mode analysis lives in
   confirmation and is usually a scope error. The tell: a search returned
   nothing and I felt confirmed rather than suspicious.
 
-## PROD CORPUS FIXES ARE TEXT-FILE FIXES — NO DGX, NO RELABEL, NO REBUILD
+## PROD CORPUS FIXES COME FROM STORED EVIDENCE — NO DGX, NO RELABEL, NO REBUILD
 
-Operator rule, 2026-10-01: everything we fix on prod is fixed **without the
-DGX**. The corpus is text files; fix the text files. Do not offer relabel,
-rederive, rediarize, an LLM call, or a full search-index rebuild as an option,
-a follow-up, or a line in a status report — the operator does not want to hear
-it; it is a last resort only the operator may raise.
+Operator rule, 2026-10-01, reworded for the database (ADR-169, 2026-11-03):
+everything we fix on prod is fixed **without the DGX**. Until the corpus
+cut-over the corpus is text files: fix the files. After it the corpus is rows:
+fix the rows, from evidence already stored. Do not offer relabel, rederive,
+rediarize, an LLM call, or a full search-index rebuild as an option, a
+follow-up, or a line in a status report — it is a last resort only the
+operator may raise.
 
-The ladder: (1) read-time fix where data is served → (2) deterministic
-migration over the artifacts using evidence already on disk (dry-run, verify,
-undo, corpus-owner ownership) → (3) targeted in-place edits of the affected
-search-index rows → (4) re-run deterministic non-LLM steps (corpus-internal
-enrichers, bridge) for the affected episodes only. A migration is not done
+The ladder: (1) a read-time fix in the query intent or view that serves the
+data → (2) a deterministic data migration over the rows using evidence already
+stored (dry-run as a rolled-back transaction, verify by SQL assertions, undo
+from the receipts table, run under the `migrator` role) → (3) targeted updates
+of the affected search-index rows → (4) re-run deterministic non-LLM steps
+(corpus enrichers, view refresh) for the affected items only. Until the
+cut-over, rung (2) is the file migration framework (dry-run, verify, undo,
+corpus-owner ownership) over the artifacts on disk. A migration is not done
 until every derived surface built from what it changed is consistent:
-enrichment outputs, bridge, search-index rows. If something truly cannot be
-fixed from text on disk, say exactly what evidence is missing and stop there.
+enrichment outputs, views, search-index rows. If something truly cannot be
+fixed from stored evidence, say exactly what evidence is missing and stop
+there.
 
 ---
 
