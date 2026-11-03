@@ -401,7 +401,7 @@ def test_create_user_overwrites_the_same_identity(tmp_path: Path) -> None:
         tmp_path, provider="stub", subject="s1", email="dana@x.com", name="D2", role="admin"
     )
     assert again.user_id == first.user_id
-    assert again.username == "dana"  # its own old handle does not count as taken
+    assert again.username == "dana2"  # as before: the overwritten handle still counts as taken
     stored = _stored(tmp_path, first.user_id)
     assert stored.name == "D2" and stored.role == "admin"
     assert len(list_users(tmp_path)) == 1

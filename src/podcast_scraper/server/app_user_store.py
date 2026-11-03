@@ -217,11 +217,9 @@ def _derive_username(email: str, name: str, taken: set[str]) -> str:
         i += 1
 
 
-def _taken_usernames(conn: Connection, *, excluding: str | None = None) -> set[str]:
+def _taken_usernames(conn: Connection) -> set[str]:
     """The handles in use. Only a hint: the UNIQUE constraint decides, a lost race retries."""
     stmt = select(users.c.username).where(users.c.username.is_not(None))
-    if excluding is not None:
-        stmt = stmt.where(users.c.user_id != excluding)
     return {u for (u,) in conn.execute(stmt)}
 
 
@@ -312,7 +310,7 @@ def create_user(
                     user_id=uid,
                     email=email,
                     name=name,
-                    username=_derive_username(email, name, _taken_usernames(conn, excluding=uid)),
+                    username=_derive_username(email, name, _taken_usernames(conn)),
                     provider=provider,
                     subject=subject,
                     role=app_roles.normalize_role(role),
@@ -341,6 +339,21 @@ def list_users(data_dir: Path) -> list[User]:
         with engine.connect() as conn:
             rows = conn.execute(select(users).order_by(users.c.user_id.collate("C"))).mappings()
             return [row_to_user(r) for r in rows]
+
+    return read_with_retry(read)
+
+
+def list_user_ids(data_dir: Path) -> list[str]:
+    """Every account id, sorted: the account list for cross-user work. Accounts are rows; a
+    directory under ``users/`` is per-user file state, which may not exist yet."""
+
+    def read(engine: Any) -> list[str]:
+        with engine.connect() as conn:
+            return list(
+                conn.execute(select(users.c.user_id).order_by(users.c.user_id.collate("C")))
+                .scalars()
+                .all()
+            )
 
     return read_with_retry(read)
 

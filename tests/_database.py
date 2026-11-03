@@ -110,15 +110,15 @@ def drop_worker_database() -> None:
 
 
 def register_user(user_id: str, **fields: object) -> None:
-    """Insert a user row under a FIXED id, for tests that name their user (``"u_0123…"``).
+    """Insert (idempotently) a user row under a FIXED id, for tests that name their user (``"u_0123…"``).
 
     The store derives ids from ``(provider, subject)``; a test that wants a literal id (and no
     handle) writes the row directly. Stores that gate on "the account exists" then see it.
     """
-    from sqlalchemy import insert
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     from podcast_scraper.db.schema import users
 
     values: dict[str, object] = {"provider": "test", "subject": user_id, **fields}
     with rw_engine().begin() as conn:
-        conn.execute(insert(users).values(user_id=user_id, **values))
+        conn.execute(pg_insert(users).values(user_id=user_id, **values).on_conflict_do_nothing())

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server import app_comms_store
+from tests._database import register_user
 
 pytestmark = pytest.mark.unit
 
@@ -120,3 +121,10 @@ def test_unsafe_user_id(tmp_path: Path) -> None:
     assert app_comms_store.get_comms(tmp_path, "../evil")["types"]["digest"]["email"] is False
     with pytest.raises(ValueError):
         app_comms_store.set_comms(tmp_path, "../evil", types={"digest": {"email": True}})
+
+
+@pytest.fixture(autouse=True)
+def _accounts() -> None:
+    """These tests name their users; cross-user work lists accounts from the users table."""
+    for uid in (_UID,):
+        register_user(uid)

@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request, Response
 
 from podcast_scraper.server import app_graph_telemetry
-from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.app_user_store import list_user_ids, User
 from podcast_scraper.server.routes.app_auth import get_admin_user, get_current_user
 from podcast_scraper.server.schemas import AppGraphEventsBody
 
@@ -52,11 +52,8 @@ def graph_events_summary(
         return {**app_graph_telemetry.aggregate([]), "users": 0}
     root = Path(data_dir)
     summary = app_graph_telemetry.aggregate(app_graph_telemetry.read_all_events(root))
-    users_dir = root / "users"
-    summary["users"] = (
-        sum(1 for d in users_dir.iterdir() if d.is_dir() and (d / "graph_events.jsonl").is_file())
-        if users_dir.is_dir()
-        else 0
+    summary["users"] = sum(
+        1 for uid in list_user_ids(root) if (root / "users" / uid / "graph_events.jsonl").is_file()
     )
     return summary
 

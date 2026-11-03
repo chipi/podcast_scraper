@@ -72,13 +72,11 @@ def read_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
 
 def read_all_events(data_dir: Path) -> list[dict[str, Any]]:
     """Every user's graph events, concatenated (each user's own order preserved)."""
-    users_dir = data_dir / "users"
-    if not users_dir.is_dir():
-        return []
+    from podcast_scraper.server.app_user_store import list_user_ids
+
     out: list[dict[str, Any]] = []
-    for user_dir in sorted(users_dir.iterdir()):
-        if user_dir.is_dir():
-            out.extend(read_events(data_dir, user_dir.name))
+    for uid in list_user_ids(data_dir):
+        out.extend(read_events(data_dir, uid))
     return out
 
 

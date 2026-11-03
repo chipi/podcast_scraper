@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from podcast_scraper.server import app_graph_telemetry as tel
+from tests._database import register_user
 
 
 def test_records_and_reads_events(tmp_path: Path) -> None:
@@ -123,3 +126,10 @@ def test_sessions_summaries_and_timeline() -> None:
     timeline = tel.session_events(events, "s1")
     assert [e["ts"] for e in timeline] == [10, 11, 12]  # ordered
     assert tel.session_events(events, "nope") == []
+
+
+@pytest.fixture(autouse=True)
+def _accounts() -> None:
+    """These tests name their users; cross-user work lists accounts from the users table."""
+    for uid in ("u1", "u2", "anon"):
+        register_user(uid)

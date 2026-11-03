@@ -21,6 +21,12 @@ _UID = "u_0123456789abcdef01234567"
 _TOKEN = "tok-test-01"
 
 
+@pytest.fixture(autouse=True)
+def _account() -> None:
+    """Suppression and the unsubscribe scan act on an account that exists."""
+    register_user(_UID)
+
+
 def _app(tmp_path: Path, *, token: str = _TOKEN):
     app = create_app(tmp_path, static_dir=False)
     data_dir = tmp_path / "appdata"
@@ -82,7 +88,6 @@ def test_pending_returns_consented_envelopes(tmp_path: Path) -> None:
 
 def test_status_idempotent_and_suppresses(tmp_path: Path) -> None:
     app, data_dir = _app(tmp_path)
-    register_user(_UID)  # suppression only acts on an account that exists
     app_comms_store.set_comms(data_dir, _UID, types={"digest": {"email": True}})
     app_outbox_store.enqueue(data_dir, _envelope())
     client = TestClient(app)
