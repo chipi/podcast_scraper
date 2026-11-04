@@ -49,7 +49,7 @@ taken fresh on the current labels.
 | A9 | Mixed-voice majority is measured in seconds: into `CORPUS_CHANGE_METHOD.md` | handover §4 | **already done**: method guide, operator decisions 2026-10-26/27, item 1 |
 | A10 | Review budgets (method v0.9 §4a) are not enforced | handover §4 | **done** `da2ae4be` (method v1.0): the change gate refuses a review from 2026-11-04 with no minutes, past 10 minutes without INCOMPLETE, or with no stated budget; numbers are self-reported |
 | A11 | #2180 203 integration tests carry no `integration` marker | GH, open | **done** `84ace6f6`: 239 tests in 14 files marked; `check_test_policy` rule I2 guards it |
-| A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | **unblocked**: own clone at `eval-data/` (operator, 2026-11-04); the script fix is open. The D1 recount cannot run: D1's clones are gone |
+| A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | **done** `bb819aca`: naming_gold_cases and naming_replay_compare read absolute transcript paths (pool 3,009 to 3,130 on the snapshot). The archived D1/D2 scripts keep their code; the D1 recount cannot run (its clones are gone) |
 | A13 | `server/routes/artifacts.py:85` lists artifacts with the same one-run-per-feed name rule A2 removed from the CIL readers | found in A2 | **done** `d73856d4`: per-episode membership shared with the CIL readers, cached per corpus change (snapshot: 3,130 per kind, 1.45 s cold, 0.02 s warm). In the viewer, episodes eligible for the 7-day graph: 8 before, 104 after (22 shown, the cap) |
 
 ## Tier B: naming rules for new episodes
