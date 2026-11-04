@@ -115,7 +115,8 @@ _TODO_
 ## 9. Operator review
 
 - **Open call 1:** 0043 reverses 0034's third-ruling keeps for these 39 self-introduced promo and
-  shout-out voices, aligning stored episodes with the shipped pipeline (#2123, #2364). Yes / no.
+  shout-out voices, aligning stored episodes with the shipped pipeline (#2123, #2364).
+  Operator accepted: 2026-11-04 0043 reverses the 0034 third-ruling keeps for the 39 listed voices.
 
 ## 10. Before apply / deploy
 
