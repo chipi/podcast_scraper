@@ -14,7 +14,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .ownership import created_dirs, match_corpus_owner
 from .role_ledger import file_sha
@@ -40,19 +40,47 @@ def backup_dir(root: Path, tag: str) -> Path:
     return Path(root) / ".podcast_scraper" / "upgrade-backups" / tag
 
 
+def keep_backup(path: Path, backup: Path, sha_before: str) -> Optional[Path]:
+    """Back up *path*'s current bytes before it is replaced; return the backup written, if any.
+
+    The first backup keeps its plain path (earlier migrations read ``upgrade-backups/<tag>/<rel>``
+    as the original). A later run whose before-state differs, because something else rewrote the
+    file in between, keeps that state as ``<backup>.<sha_before>``: undo restores the receipt's
+    before-state, and with the first backup only it lost the change made in between.
+    """
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    if not backup.exists():
+        shutil.copyfile(path, backup)
+        return backup
+    if not sha_before or file_sha(backup) == sha_before:
+        return None
+    alt = backup.with_name(f"{backup.name}.{sha_before}")
+    if alt.exists():
+        return None
+    shutil.copyfile(path, alt)
+    return alt
+
+
+def backup_holding(backup: Path, sha: str) -> Optional[Path]:
+    """The backup of this file whose bytes have sha256 *sha*, or ``None``."""
+    for cand in (backup, backup.with_name(f"{backup.name}.{sha}")):
+        if cand.is_file() and file_sha(cand) == sha:
+            return cand
+    return None
+
+
 def write_with_backup(root: Path, tag: str, path: Path, payload: Any) -> Dict[str, str]:
     """Back up *path*, replace it atomically with *payload*, return its receipt."""
     root = Path(root)
     rel = str(path.relative_to(root))
     backup = backup_dir(root, tag) / rel
-    backup.parent.mkdir(parents=True, exist_ok=True)
-    if not backup.exists():
-        shutil.copyfile(path, backup)
     sha_before = file_sha(path)
+    kept = keep_backup(path, backup, sha_before)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(dump_json(payload), encoding="utf-8")
     os.replace(tmp, path)
-    match_corpus_owner(root, [path, backup, *created_dirs(backup.parent, root)])
+    written = [p for p in (backup, kept) if p is not None]
+    match_corpus_owner(root, [path, *written, *created_dirs(backup.parent, root)])
     return {"relpath": rel, "sha_before": sha_before, "sha_after": file_sha(path)}
 
 
@@ -119,11 +147,12 @@ def undo_from_receipts(
         if current != row["sha_after"]:
             refused.append(f"{row['relpath']}: changed since the migration wrote it")
             continue
-        if not backup.is_file():
-            refused.append(f"{row['relpath']}: no backup")
+        source = backup_holding(backup, row["sha_before"]) if row.get("sha_before") else backup
+        if source is None or not source.is_file():
+            refused.append(f"{row['relpath']}: no backup of the state the migration replaced")
             continue
         tmp = target.with_name(target.name + ".tmp")
-        shutil.copyfile(backup, tmp)
+        shutil.copyfile(source, tmp)
         os.replace(tmp, target)
         match_corpus_owner(root, [target])
         restored += 1

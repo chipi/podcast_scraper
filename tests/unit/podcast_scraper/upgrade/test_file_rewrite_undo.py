@@ -64,3 +64,29 @@ def test_a_missing_backup_is_refused(tmp_path: Path) -> None:
     backup.unlink()
     restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
     assert restored == 0 and "no backup" in refused[0]
+
+
+def test_a_second_run_over_a_file_changed_in_between_undoes_to_that_change(
+    tmp_path: Path,
+) -> None:
+    """Run 1 writes v1 (backup: v0). Something else rewrites the file to v2. Run 2 writes v3, and
+    its receipt says "before v2". Undo must restore v2, not run 1's v0: keeping only the first
+    backup silently threw away the change made in between."""
+    root = _corpus(tmp_path)
+    _run(root, {"v": 1})
+    (root / "feeds/a.json").write_text('{"v": 2}', encoding="utf-8")
+    between = (root / "feeds/a.json").read_bytes()
+    _run(root, {"v": 3})
+    assert undo_from_receipts(root, RECEIPTS, TAG, MID) == (1, [])
+    assert (root / "feeds/a.json").read_bytes() == between
+
+
+def test_a_backup_of_another_state_is_refused_not_restored(tmp_path: Path) -> None:
+    """A backup whose bytes are not the receipt's before-state is never copied over the file."""
+    root = _corpus(tmp_path)
+    _run(root, {"v": 1})
+    backup = root / ".podcast_scraper" / "upgrade-backups" / TAG / "feeds/a.json"
+    backup.write_text('{"v": "unrelated"}', encoding="utf-8")
+    restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
+    assert restored == 0 and len(refused) == 1 and "no backup" in refused[0]
+    assert (root / "feeds/a.json").read_text(encoding="utf-8") != '{"v": "unrelated"}'
