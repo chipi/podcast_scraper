@@ -360,6 +360,9 @@ Verdict: GO WITH CONDITIONS
 
 - **Condition 1:** `make ci-fast` green on the committed tree, log attached (the first run, while
   this section was still empty, failed only the landing check that requires this line).
+  **Done** 2026-11-04 on `0758c88cf` (clean tree): `MAKE_EXIT=0`; unit 17,475 passed, 58 skipped;
+  then 2,263 passed, 46 skipped; 244 passed; 40 passed (log `scratchpad ci-fast-0043b.log`, sha256
+  `fb6526c518a8c3ed…`, kept local: it holds machine paths).
 - **Condition 2:** at the apply, prod's dry-run plan diffed against the clone's (method step 10:
   prod holds episodes the snapshot lacks), and the search-index rows of the written episodes
   reindexed (targeted, no rebuild).
