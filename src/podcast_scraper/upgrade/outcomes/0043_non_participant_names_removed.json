@@ -42,9 +42,9 @@
   "0041_joined_names_respelled",
   "0042_insight_cluster_quotes_resynced"
  ],
- "code_digest": "9a58bb74abb82fa1ae25266554613e6ab939ff0125e2dd480f88b22637d54cd1",
+ "code_digest": "32bd97a036cec6c79505eee61c50f3a1d60d640a9610a0af5a7e91568281ebce",
  "code_dirty": false,
- "code_sha": "c91191dad1b78e97a538bd4f5a3c4c613b7f8888",
+ "code_sha": "5d37558ed7fe0a8fedbefdf92c98300e94770f29",
  "computed_class": "full",
  "conditions": [
   "- **Condition 1:** `make ci-fast` green on the committed tree, log attached (the first run, while",

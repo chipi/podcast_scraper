@@ -466,11 +466,15 @@ Verdict: GO WITH CONDITIONS
 Gate on committed code: re-run 2026-11-04T12:08:57 on a clean tree (`91794771c`, dirty false),
 equal to measurement 2 in everything but its time and code stamp (plan sha256 `d167d230…`).
 Outcome: `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
-`584ff3c05dd34458a4fe9cc0d6e83140ffcab0ddacaf17156f8364324ef6ef7b` (rebuilt 2026-11-04 after the
-C2 `upgrade rerun` change and its leak-check fix moved `upgrade/runner` and
-`upgrade/outcome_hook`; gate re-run on `c91191da`, dirty false, plan sha256 `d167d230…` equal,
-targets 111 voices renamed in 101 episodes before, 0 after; earlier builds `5866ae29…`,
-`fe2692aa…`, `27bca008…` and `f625eb63…`, each stale once code in its digest moved).
+`632a047f34630b0347f6bd74d00064062a6932d0498620c8935d2a1c61b2a920` (rebuilt 2026-11-04 after
+0044's registry entry, revision 4e; gate re-run on `5d37558e`, dirty false, plan sha256
+`d167d230…` equal, 42 verify ok, 0 regressions; earlier builds `584ff3c0…` (after C2's fix),
+`5866ae29…`, `fe2692aa…`, `27bca008…` and `f625eb63…`, each stale once code in its digest moved).
+
+**Rehearsal of prod's apply path** (2026-11-04, a copy of snapshot-prod-20261103, `upgrade run
+--to 2.7.37 --yes --no-snapshot`, code `bc03d093`): the outcome hook applied 0043, receipt verdict
+PASS, 0 failures, 0 plan differences, `S1c_inconsistent` 0; 101 episodes with the gate's counters;
+"Now at version 2.7.37; 0 pending"; the ledger refresh after it: 649 joins, 3 removed, as measured.
 
 ## 9. Operator review
 
