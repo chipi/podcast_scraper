@@ -160,18 +160,31 @@ def host_route(host: str, other: str, by_first: Mapping[str, Sequence[str]]) -> 
     Measured on snapshot-prod-20261103 (prototype runs 1-4): a whole-name ratio route joined two
     pairs of different people, a loose first-name route a dozen, route C without the first letter
     two; these three routes join only ASR spellings of a stated host there."""
-    ht, ot = fold(host).split(), fold(other).split()
-    if len(ht) < 2 or len(ot) < 2 or ht == ot:
+    host_toks, other_toks = fold(host).split(), fold(other).split()
+    if len(host_toks) < 2 or len(other_toks) < 2 or host_toks == other_toks:
         return None
-    hf, hs, of, os_ = ht[0], " ".join(ht[1:]), ot[0], " ".join(ot[1:])
-    if hf == of and len(by_first.get(hf, ())) == 1 and strong_surname(hs, os_):
+    host_first, host_rest, other_first, other_rest = (
+        host_toks[0],
+        " ".join(host_toks[1:]),
+        other_toks[0],
+        " ".join(other_toks[1:]),
+    )
+    if (
+        host_first == other_first
+        and len(by_first.get(host_first, ())) == 1
+        and strong_surname(host_rest, other_rest)
+    ):
         return "A"
-    if hf != of and _ratio(hf, of) >= 0.75 and strong_surname(hs, os_):
+    if (
+        host_first != other_first
+        and _ratio(host_first, other_first) >= 0.75
+        and strong_surname(host_rest, other_rest)
+    ):
         return "B"
     if (
-        ht[-1] == ot[-1]
-        and hf[:1] == of[:1]
-        and _ratio(" ".join(ht[:-1]), " ".join(ot[:-1])) >= 0.5
+        host_toks[-1] == other_toks[-1]
+        and host_first[:1] == other_first[:1]
+        and _ratio(" ".join(host_toks[:-1]), " ".join(other_toks[:-1])) >= 0.5
     ):
         return "C"
     return None
