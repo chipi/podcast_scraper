@@ -61,7 +61,7 @@ any migration here is built and gated on the branch, and its apply waits for the
 
 | # | Item | Source |
 | --- | --- | --- |
-| B5 | A name in the middle of an episode title is a stated spelling | #2363, open |
+| B5 | A name in the middle of an episode title is a stated spelling | #2363, open on GitHub. **Shipped** in `fe231664` (2026-10-15), on prod; new episodes get it. The stored episodes from before it are L6 |
 | B6 | Patreon supporter shout-outs published as guests | #2364, open |
 | B7 | An eponymous host treated as the show | #2136, open |
 | B8 | A house-ad read published as a guest | #2123, open |
@@ -97,6 +97,7 @@ before the first rule.
 | L3 | `known_hosts` as mixed evidence, fixed at the pipeline (`_recurrent_hosts_from_disk`); a ledger change if it feeds the ledger | handover §2.4 |
 | L4 | Strict-tier losses D1 → D2: `sarah-gonzalez`, `erika-barris`, `david-sanger` | handover §2.5 |
 | L5 | Check #2056 (duplicate people from spelling variants) against D2; close it or name what is left | GH, open |
+| L6 | A voice's heard spelling joins the person its own episode title names when the roster's stated-name match pairs them (nickname pair, surname within one edit); the title's spelling is shown. On snapshot-prod-20261103, 20 served episodes still carry the heard spelling (13 only it, 7 beside the title's); D2's s5d keeps the two one-episode ids apart. Replay: 27 voices of 3,130 episodes, every one the same person | B5 (#2363) |
 
 ## Tier M: measuring instruments (from the 2026-10-19 plan's Stage 2; D1/D2 did not do them)
 
