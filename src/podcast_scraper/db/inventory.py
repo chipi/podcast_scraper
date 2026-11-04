@@ -3,7 +3,8 @@
 ``db import --from-files`` walks the whole directory and classifies each file as
 
 - ``imported``: an importer in ``db.importers`` reads it into the database;
-- ``file``: still a file, its store not yet migrated (declared in ``_FILE_CLAIMS`` below);
+- ``file``: still a file, its store not yet migrated (declared in ``_file_claims`` below for the
+  platform's own stores, and by each installed extension's ``app_data_files`` for its own);
 - ``ignored``: a lock file;
 - ``retired``: data a removed store left behind; no code reads it, it stays with the frozen files
   and is not imported;
@@ -12,7 +13,9 @@
   would be lost by a cut-over, so it fails the command.
 
 Names come from the stores' own constants (never a catch-all glob). When a store migrates, its
-entries move from ``_file_claims`` to its importer's ``claims()``.
+entries move from ``_file_claims`` (or its extension's list) to its importer's ``claims()``.
+A file only an extension that is not installed would claim is ``unclaimed``: the inventory covers
+what this process can see.
 """
 
 from __future__ import annotations
@@ -30,13 +33,6 @@ Kind = Literal["imported", "file", "ignored", "retired", "ops"]
 RETIRED_USER_FILES = {
     "ranking_events.jsonl": "ranking_telemetry (removed in 6c6c08c6, #2327)",
 }
-
-#: ``scripts/ops/dedupe_playback_milestones.py``: its per-file backups and its receipts. Literal
-#: here because scripts are not importable from the package; a test pins them to the script.
-DEDUPE_LOG_NAME = "playback_events.jsonl"
-DEDUPE_BACKUP_SUFFIX = ".bak-dedupe-milestones"
-DEDUPE_RECEIPTS_FILE = "dedupe_playback_milestones.jsonl"
-
 
 @dataclass(frozen=True)
 class Claim:
@@ -63,27 +59,14 @@ def dir_files(dirname: str, file_regex: str, kind: Kind, owner: str) -> Claim:
 
 
 def _file_claims() -> list[Claim]:
-    """Everything under APP_DATA_DIR that is still a file, by owning store."""
+    """The platform's own files that are still files, by owning store."""
     # Imported here: the server modules import the database layer.
     from podcast_scraper.server import (
         app_access_store,
         app_account_deletion,
-        app_collections_store,
         app_comms_store,
-        app_corpus_revision,
-        app_digest_health,
-        app_mcp_tokens,
-        app_new_episode_digest,
-        app_notifications_store,
-        app_oauth_server,
-        app_pkm_export,
         app_push_store,
         app_user_preferences,
-        app_user_state,
-        board_summaries,
-        reference_integrity,
-        rekey_references,
-        storyline_summaries,
     )
     from podcast_scraper.server.routes import app_profile
 
@@ -95,21 +78,11 @@ def _file_claims() -> list[Claim]:
     def at_root(owner: str, *names: str) -> None:
         claims.extend(root_file(n, "file", owner) for n in names)
 
-    per_user("user_state", *(f"{n}.json" for n in app_user_state.STATE_NAMES))
-    per_user("user_state", *app_user_state.EVENT_LOGS)
-    per_user("collections", app_collections_store._FILE_NAME)
     per_user("comms", app_comms_store._FILE_NAME)
-    per_user("corpus_revision", app_corpus_revision._FILE_NAME)
     per_user("graph_telemetry", "graph_events.jsonl")
-    per_user("mcp_tokens", app_mcp_tokens._TOKENS_FILE)
-    per_user("new_episode_digest", app_new_episode_digest._LEDGER_NAME)
-    per_user("notifications", app_notifications_store._FILE_NAME)
-    per_user("pkm_export", app_pkm_export._STATE_FILE)
     per_user("push", app_push_store._FILE_NAME)
     per_user("user_preferences", app_user_preferences._FILE_NAME)
     per_user("account_deletion", app_account_deletion._APPLE_TOKEN_FILE)
-    per_user("board_summaries", board_summaries.SUMMARIES_FILE)
-    per_user("reference_integrity", f"{reference_integrity.FLAGS_STORE}.json")
     claims.extend(
         Claim(re.compile(rf"users/[^/]+/avatar\.{re.escape(ext)}"), "file", "avatar")
         for ext, _media in app_profile._ALLOWED.values()
@@ -119,18 +92,6 @@ def _file_claims() -> list[Claim]:
     at_root("audit", "audit.jsonl")
     at_root("ranking_config", "ranking_config.json")
     at_root("releases", "app_releases.json", "player_release.json")
-    at_root("digest_health", app_digest_health.STATE_FILENAME)
-    at_root("storyline_summaries", storyline_summaries.SUMMARIES_FILE)
-    at_root("mcp_tokens", app_mcp_tokens._INDEX_FILE)
-    at_root(
-        "oauth_server",
-        app_oauth_server._CLIENTS_FILE,
-        app_oauth_server._GRANTS_FILE,
-        app_oauth_server._CONSENTS_FILE,
-        app_oauth_server._USE_FILE,
-    )
-    at_root("board_summaries", board_summaries.SETTINGS_FILE, board_summaries.LEDGER_FILE)
-    at_root("rekey_references", rekey_references.RECEIPTS_FILE)
 
     # Dynamic names, each a shape the writing code produces.
     claims.append(dir_files("outbox", r"[0-9a-f]{64}\.json", "file", "outbox"))
@@ -138,10 +99,6 @@ def _file_claims() -> list[Claim]:
     claims.append(dir_files("magic_link_recent", r"[0-9a-f]{32}\.txt", "file", "magic_link"))
 
     claims.extend(user_file(n, "retired", owner) for n, owner in RETIRED_USER_FILES.items())
-    claims.append(
-        user_file(DEDUPE_LOG_NAME + DEDUPE_BACKUP_SUFFIX, "ops", "dedupe_playback_milestones")
-    )
-    claims.append(root_file(DEDUPE_RECEIPTS_FILE, "ops", "dedupe_playback_milestones"))
     # A one-off manual prune of dead push tokens kept the old file beside the live one (one prod
     # account, 2026-10-07). No code writes it; only this exact shape is accepted.
     claims.append(
@@ -156,14 +113,22 @@ def _file_claims() -> list[Claim]:
     return claims
 
 
+def _extension_claims() -> list[Claim]:
+    """What every installed extension declares for the files it keeps."""
+    from podcast_scraper.extensions import load_extensions
+
+    return [claim for ext in load_extensions() for claim in ext.app_data_files()]
+
+
 _LOCK = Claim(re.compile(r"(?:.*/)?[^/]*\.lock"), "ignored", "lock")
 
 
 def declared_claims() -> list[Claim]:
-    """Every declared file shape: imported, still a file, ignored."""
+    """Every declared file shape: imported, still a file (the platform's and the installed
+    extensions'), ignored."""
     from podcast_scraper.db.importers import import_claims
 
-    return [*import_claims(), *_file_claims(), _LOCK]
+    return [*import_claims(), *_file_claims(), *_extension_claims(), _LOCK]
 
 
 @dataclass

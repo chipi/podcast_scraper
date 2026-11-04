@@ -16,6 +16,7 @@ from podcast_scraper.db.cli_handlers import parse_db_argv, run_db_cli
 from podcast_scraper.db.importers import registry
 from podcast_scraper.db.importers.users import read_profile
 from podcast_scraper.db.schema import users
+from podcast_scraper.extensions import Extension, use_extensions
 from podcast_scraper.server.app_user_store import get_user, list_users, user_id_for
 from tests._database import worker_database_url
 
@@ -27,6 +28,13 @@ def _database_url(monkeypatch: pytest.MonkeyPatch) -> None:
     url = worker_database_url()
     assert url, "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
     monkeypatch.setenv("PODCAST_DATABASE_URL", url)
+
+
+@pytest.fixture(autouse=True)
+def _platform_only():
+    """No installed extension: the inventory is the platform's own."""
+    with use_extensions([]):
+        yield
 
 
 def _profile(data_dir: Path, uid: str, **fields: object) -> Path:
@@ -161,9 +169,9 @@ def test_known_not_yet_migrated_files_are_listed_and_exit_zero(
     uid = user_id_for("google", "s1")
     _profile(tmp_path, uid, username="alpha", subject="s1")
     udir = tmp_path / "users" / uid
-    (udir / "queue.json").write_text("[]")
-    (udir / "listen_events.jsonl").write_text("")
-    (udir / ".queue.lock").write_text("")
+    (udir / "comms.json").write_text("{}")
+    (udir / "push_subscriptions.json").write_text("[]")
+    (udir / ".comms.lock").write_text("")
     (tmp_path / "audit.jsonl").write_text("")
     (tmp_path / "outbox").mkdir()
     (tmp_path / "outbox" / ("ab" * 32 + ".json")).write_text("{}")
@@ -174,6 +182,25 @@ def test_known_not_yet_migrated_files_are_listed_and_exit_zero(
     assert "imported by a store: 1" in out
     assert "still a file (not yet migrated): 4" in out
     assert "ignored (lock files): 1" in out
+    assert "UNCLAIMED: 0" in out
+
+
+def test_an_installed_extensions_file_is_known_and_a_missing_ones_is_unclaimed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    uid = user_id_for("google", "s1")
+    _profile(tmp_path, uid, username="alpha", subject="s1")
+    (tmp_path / "users" / uid / "app_notes.json").write_text("{}")
+
+    code, out = _import(capsys, tmp_path)
+    assert code == 1 and f"UNCLAIMED users/{uid}/app_notes.json" in out
+
+    from podcast_scraper.db.inventory import user_file
+
+    app = Extension(name="app", app_data_files=lambda: [user_file("app_notes.json", "file", "app")])
+    with use_extensions([app]):
+        code, out = _import(capsys, tmp_path)
+    assert code == 0, out
     assert "UNCLAIMED: 0" in out
 
 

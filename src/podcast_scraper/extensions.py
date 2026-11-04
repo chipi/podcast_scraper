@@ -28,6 +28,7 @@ from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, TYPE_CHE
 if TYPE_CHECKING:
     from fastapi import APIRouter
 
+    from podcast_scraper.db.inventory import Claim
     from podcast_scraper.search.groupings import TopicGroupings
     from podcast_scraper.server.app_user_store import User
 
@@ -95,6 +96,10 @@ def _no_routers() -> Sequence[RouterMount]:
 
 
 def _none() -> Sequence[Any]:
+    return ()
+
+
+def _no_claims() -> Sequence[Claim]:
     return ()
 
 
@@ -172,6 +177,10 @@ class Extension:
     #: Caches the extension keeps outside ``perf_cache``, by the key ``/api/ops/cache-stats``
     #: reports them under: ``() -> stats``.
     cache_stats: Mapping[str, Callable[[], Any]] = field(default_factory=dict)
+    #: The files the extension keeps under ``APP_DATA_DIR``, as ``podcast_scraper.db.inventory``
+    #: claims (``user_file``, ``root_file``, ``dir_files``). ``db import --from-files`` fails on a
+    #: file nobody claims, so an installed extension names its own here.
+    app_data_files: Callable[[], Sequence[Claim]] = _no_claims
 
 
 _override: list[Extension] | None = None
