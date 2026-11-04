@@ -8,7 +8,6 @@ Fast by design (no corpus walk): the snapshot is cached on the app for a few sec
 from __future__ import annotations
 
 import logging
-import threading
 import time
 import weakref
 from pathlib import Path
@@ -144,83 +143,79 @@ def get_version(request: Request) -> VersionResponse:
 
 # --- Prometheus info metrics ------------------------------------------------------------------
 
-_lock = threading.Lock()
 _metrics_app: "weakref.ref[Any] | None" = None
-_collector_registered = False
+
+
+class _VersionCollector:
+    """Reads the cached :func:`snapshot` of the latest app at scrape time."""
+
+    def collect(self):  # noqa: ANN202 — prometheus_client's duck-typed collector protocol
+        from prometheus_client.core import GaugeMetricFamily
+
+        build = GaugeMetricFamily(
+            "podcast_build_info",
+            "Build of each running component (value is always 1).",
+            labels=["component", "version", "git_sha", "release"],
+        )
+        schema = GaugeMetricFamily(
+            "podcast_db_schema_info",
+            "Database schema revision of this process's plane (value is always 1).",
+            labels=["plane", "revision", "at_head"],
+        )
+        target = _metrics_app() if _metrics_app is not None else None
+        data = None
+        if target is not None:
+            try:
+                data = snapshot(target)
+            except Exception:  # noqa: BLE001 — telemetry never breaks the scrape
+                data = None
+        if data is not None:
+            release = data["release"] or data["image_release"] or ""
+            api = data["api"]
+            build.add_metric(
+                [api["component"] or "api", api["version"], api["git_sha"] or "", release], 1
+            )
+            for mod in data["modules"]:
+                build.add_metric(
+                    [
+                        mod["name"],
+                        str(mod.get("version") or ""),
+                        str(mod.get("git_sha") or ""),
+                        release,
+                    ],
+                    1,
+                )
+            db = data["database"]
+            if db.get("configured"):
+                at_head = {True: "true", False: "false", None: "unknown"}[db.get("schema_at_head")]
+                schema.add_metric(
+                    [db.get("plane") or "", db.get("current_revision") or "", at_head], 1
+                )
+        yield build
+        yield schema
+
+
+_collector = _VersionCollector()
 
 
 def install_version_metrics(app: Any) -> bool:
     """Publish ``podcast_build_info`` and ``podcast_db_schema_info`` on ``/metrics``.
 
-    Read at scrape time from the cached :func:`snapshot`. One collector per process: the latest
-    app wins, so rebuilding the app (tests) never double-registers. Never raises.
+    One collector per process; the latest app wins, so rebuilding the app (tests) never
+    double-registers. Never raises.
     """
-    global _metrics_app, _collector_registered
+    global _metrics_app
     try:
         from prometheus_client import REGISTRY
-        from prometheus_client.core import GaugeMetricFamily
     except Exception:  # noqa: BLE001 — metrics extras absent; run without these gauges
         return False
-
-    class _VersionCollector:
-        def collect(self):  # noqa: ANN202 — prometheus_client's duck-typed collector protocol
-            build = GaugeMetricFamily(
-                "podcast_build_info",
-                "Build of each running component (value is always 1).",
-                labels=["component", "version", "git_sha", "release"],
-            )
-            schema = GaugeMetricFamily(
-                "podcast_db_schema_info",
-                "Database schema revision of this process's plane (value is always 1).",
-                labels=["plane", "revision", "at_head"],
-            )
-            target = _metrics_app() if _metrics_app is not None else None
-            if target is not None:
-                try:
-                    data = snapshot(target)
-                except Exception:  # noqa: BLE001 — telemetry never breaks the scrape
-                    data = None
-                if data is not None:
-                    release = data["release"] or data["image_release"] or ""
-                    api = data["api"]
-                    build.add_metric(
-                        [api["component"] or "api", api["version"], api["git_sha"] or "", release],
-                        1,
-                    )
-                    for mod in data["modules"]:
-                        build.add_metric(
-                            [
-                                mod["name"],
-                                str(mod.get("version") or ""),
-                                str(mod.get("git_sha") or ""),
-                                release,
-                            ],
-                            1,
-                        )
-                    db = data["database"]
-                    if db.get("configured"):
-                        schema.add_metric(
-                            [
-                                db.get("plane") or "",
-                                db.get("current_revision") or "",
-                                {True: "true", False: "false", None: "unknown"}[
-                                    db.get("schema_at_head")
-                                ],
-                            ],
-                            1,
-                        )
-            yield build
-            yield schema
-
-    with _lock:
-        _metrics_app = weakref.ref(app)
-        if _collector_registered:
-            return True
-        try:
-            REGISTRY.register(_VersionCollector())  # type: ignore[arg-type]
-        except Exception:  # noqa: BLE001 — already registered by another import path
-            return False
-        _collector_registered = True
+    _metrics_app = weakref.ref(app)
+    try:
+        REGISTRY.register(_collector)  # type: ignore[arg-type]
+    except ValueError:
+        pass  # already registered: the duplicate-timeseries refusal
+    except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
+        return False
     return True
 
 
