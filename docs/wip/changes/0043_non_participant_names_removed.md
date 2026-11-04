@@ -314,7 +314,7 @@ scratchpad `m43_excerpts.json`): every unnamed voice goes from its name to no la
 of each episode keep their labels (an episode's label count drops only by its own listed voices).
 
 Derived-surface census: the files written per suffix are in the gate report
-(`files_changed_by_suffix`: metadata 101, segments 202, transcripts and ad-free text 180, turns
+(`files_changed_by_suffix`: metadata 101, segments 202, transcripts and ad-free text 201 (`transcripts_rerendered`; 21 of them under odd suffix keys, file names with dots), turns
 30, diagnostics 101, GI 90, KG 77, bridge 91, context 100, ad maps 83, cleaned text 34). Not
 written on the clone and left for step 10 on prod: the search-index rows of the 101 episodes
 (targeted reindex) and the enrichment outputs built from the changed files.
