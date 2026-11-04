@@ -1,5 +1,6 @@
-"""scripts/measure/m0043_candidates.py: rule A (stated only by the transcript-filled guest list and
-absent from the publisher's text) and its agreement with m0016's own stated-name sources."""
+"""scripts/measure/m0043_candidates.py: rule A (stated only by the pre-1.2.0 roster projection
+``detected_guests`` and absent from the publisher's text) and its agreement with m0016's own
+stated-name sources."""
 
 from __future__ import annotations
 

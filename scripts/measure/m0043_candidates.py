@@ -2,12 +2,12 @@
 """Rule A candidates for corpus migration 0043. Read-only.
 
 m0016 removes a name from a voice the corpus's ad signatures call an ad, unless a source STATED the
-name for the episode. One of the sources it counts is the metadata's own ``detected_guests``, which
-the pipeline fills from the transcript: an ad read that introduces its narrator ("I'm Daniel
-Atkinson, a travel editor at the New York Times") states itself, and m0016 keeps it (22 episodes on
-snapshot-prod-20261103). Rule A takes m0016's excluded hits and keeps those whose name is stated
-ONLY by ``content.detected_guests`` and appears nowhere in the episode's publisher text (feed title
-and description, episode title and description).
+name for the episode. One of the sources it counts is the metadata's own ``detected_guests``: in
+artifacts before schema 1.2.0 (#2075) a projection of the roster by role, so the old roster's own
+guest seat for a self-introduced ad reader counts as a statement and m0016 keeps the name (33
+voices on snapshot-prod-20261103). Rule A takes m0016's excluded hits and keeps those whose name
+is stated ONLY by ``content.detected_guests`` and appears nowhere in the episode's publisher text
+(feed title and description, episode title and description).
 
     python scripts/measure/m0043_candidates.py --corpus <root> [--json out.jsonl]
 
