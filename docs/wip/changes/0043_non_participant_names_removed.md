@@ -220,6 +220,17 @@ above 1). Revision: the shares are computed from the total after the move.
   the gate's counters stay as measured; the re-gate (step 7, measurement 3) must reproduce them
   exactly, plan sha256 aside if the code digest moves it.
 - **Must not move:** everything in 4c; the case is reached only by a voice with no type.
+- **Rows added at its acceptance** (fresh agent, `minutes 3, tokens ~14k`): the sibling case, a
+  previous type the census has no bucket for (or one holding fewer seconds than the voice), also
+  moves the total; computing from the total after the move covers both. **Census row:** at
+  measurement 3, every written diagnostics file with a `voice_census` has shares summing to 1
+  within 0.001 (count of such files stated there). **By identity:** 0 of the 111 applied voices hit
+  either case on the snapshot (`m43_census_chk.py`); for a typed voice with a bucket the total is
+  unchanged, so its shares are the same values as at measurement 2; the 2 kept voices and voices
+  outside the 111 are not touched. **Repro first:** the census test, parametrised none / a counted
+  type / a type without a bucket, fails on the 4c code for none and no-bucket, and passes after.
+  Not verified: whether the pipeline's own census counts an untyped voice's seconds; the fix assumes
+  it counts every voice it lists.
 
 ## 5. Acceptance
 
