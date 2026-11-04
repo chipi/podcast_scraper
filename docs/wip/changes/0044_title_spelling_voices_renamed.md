@@ -210,6 +210,13 @@ Conditions, each answered (2026-11-04):
 
 Verdict: GO WITH CONDITIONS
 
+- **Condition 1:** applied on prod only after 0043, in its own run (`--to 2.7.38`), on the
+  operator's go, with prod's plan diffed against this gate's.
+- **Condition 2:** after the apply, the incremental index re-embeds the written episodes (18 on the
+  clone) and the ledger refresh respells at most the 3 measured; prod's counts recorded in step 11.
+- **Condition 3:** the wrong-person voice the review found (episode
+  `a02c151a-dde6-4804-9827-a3df80b8352c`) is not fixed by this migration; it needs its own list.
+
 ## 9. Operator review
 
 _TODO_
