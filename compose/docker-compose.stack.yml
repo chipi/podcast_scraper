@@ -94,6 +94,10 @@ services:
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
+      args:
+        # Baked into /app/VERSION.json (GET /api/version); ``make stack-build`` exports them.
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: podcast-scraper-stack-api:latest
     expose:
       - "8000"
@@ -267,6 +271,7 @@ services:
         GIT_SHA: ${GIT_SHA:-}
         GIT_BRANCH: ${GIT_BRANCH:-}
         GIT_DIRTY: ${GIT_DIRTY:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: podcast-scraper-stack-pipeline-llm:latest
     volumes:
       - corpus_data:/app/output

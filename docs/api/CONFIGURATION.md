@@ -1319,8 +1319,25 @@ These variables are read once per process. `podcast_scraper db --help` lists the
 - **`PODCAST_DATABASE_URL`**: read-write database URL. Required wherever app state is used.
 - **`PODCAST_DATABASE_RO_URL`**: optional read-only URL; defaults to `PODCAST_DATABASE_URL`.
 - **`PODCAST_DB_PLANE`**: `player` (default) or `operator`, the schema this process serves.
+- **`CL_RELEASE`**: the infra release id of the deploy. Served as `release` on `GET /api/version`
+  and written to `schema_history.release` by `db upgrade`. When unset, `db upgrade` records
+  `PODCAST_RELEASE` instead and says so in `release_source`.
+- **`PODCAST_RELEASE`**: the public image ref the container runs (`sha-<7>`). Served as
+  `image_release`. Also the Sentry/trace `service.version`.
+- **`PODCAST_VERSION_FILE`**: where the image's build record is read from (default
+  `/app/VERSION.json`, written at build from `--build-arg GIT_SHA` and `BUILD_TIME`). Without
+  the file, `git_sha` falls back to `PODCAST_GIT_SHA`, then null.
 - **`PODCAST_TEST_DATABASE_URL`**: tests only. `make test-db-up` starts a local `postgres:18` and
   prints the URL to export; each pytest process creates its own database on that server.
+
+`db upgrade` appends one row per revision it applied to `<plane>.schema_history` (`revision`,
+`applied_at`, `release`, `release_source`, `duration_ms`), in the upgrade's transaction. A run that
+applies nothing writes nothing, and `db upgrade --sql` prints the table's DDL but no rows.
+`db status --plane P` prints the current and head revision and the last five history rows; it
+exits 2 when the plane is behind. `GET /api/version` reports the same facts over HTTP
+(`database.schema_at_head`; revisions for an admin), and with `PODCAST_METRICS_ENABLED` the
+`/metrics` endpoint carries `podcast_build_info{component,version,git_sha,release}` and
+`podcast_db_schema_info{plane,revision,at_head}`.
 
 ### Usage Examples
 

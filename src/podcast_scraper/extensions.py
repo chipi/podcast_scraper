@@ -181,6 +181,10 @@ class Extension:
     #: claims (``user_file``, ``root_file``, ``dir_files``). ``db import --from-files`` fails on a
     #: file nobody claims, so an installed extension names its own here.
     app_data_files: Callable[[], Sequence[Claim]] = _no_claims
+    #: What the module reports about itself on ``GET /api/version`` (admins only): ``() -> {...}``
+    #: with at least ``version`` and ``git_sha`` and whatever refs it was built from. Cheap and
+    #: free of I/O beyond a small file; a raising hook is reported as an error, never propagated.
+    version_info: Callable[[], Mapping[str, Any]] | None = None
 
 
 _override: list[Extension] | None = None
@@ -273,6 +277,25 @@ def extension_cache_stats() -> dict[str, Any]:
     return {key: stats() for ext in load_extensions() for key, stats in ext.cache_stats.items()}
 
 
+def extension_versions() -> list[dict[str, Any]]:
+    """Each installed extension's ``version_info`` as ``{"name": ..., **info}``, in load order.
+
+    An extension without the hook is listed by name alone; one whose hook raises carries an
+    ``error`` instead, so a broken module shows up rather than vanishing.
+    """
+    out: list[dict[str, Any]] = []
+    for ext in load_extensions():
+        entry: dict[str, Any] = {"name": ext.name}
+        if ext.version_info is not None:
+            try:
+                entry.update(ext.version_info())
+            except Exception as exc:  # noqa: BLE001 — a module never breaks the endpoint
+                logger.warning("extension %s: version_info failed: %s", ext.name, exc)
+                entry["error"] = type(exc).__name__
+        out.append(entry)
+    return out
+
+
 def engagement_series() -> EngagementSeries | None:
     """The installed listener-engagement source, if any."""
     for ext in load_extensions():
@@ -343,6 +366,7 @@ __all__ = [
     "cli_command",
     "engagement_series",
     "enrichment_contributions",
+    "extension_versions",
     "job_runner",
     "load_extensions",
     "run_account_created",

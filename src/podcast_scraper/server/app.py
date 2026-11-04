@@ -64,6 +64,7 @@ from podcast_scraper.server.routes import (
     scheduled_jobs as scheduled_jobs_route,
     search,
     usage as usage_routes,
+    version,
 )
 from podcast_scraper.server.spa import SpaStaticFiles
 from podcast_scraper.utils.access_log import AccessLogMiddleware
@@ -260,6 +261,9 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
       gate** (``require_viewer_access``). ``index_rebuild`` / ``ops`` are NOT mounted here.
     """
     app.include_router(health.router, prefix="/api")
+    app.include_router(version.router, prefix="/api")
+    # The player's public edge proxies only /api/app/*, so the same route is reachable there.
+    app.include_router(version.router, prefix="/api/app", include_in_schema=False)
     if operator_public:
         gate = [Depends(app_auth.require_viewer_access)]
         for module in _OPERATOR_PUBLIC_READ_ROUTES:
@@ -580,6 +584,12 @@ def _install_metrics(app: FastAPI) -> None:
         _start_dev_metrics_pusher()
 
 
+def _install_version_metrics(app: FastAPI) -> None:
+    """``podcast_build_info`` and ``podcast_db_schema_info`` (see ``routes.version``)."""
+    if _env_truthy("PODCAST_METRICS_ENABLED"):
+        version.install_version_metrics(app)
+
+
 def _install_job_age_metrics(app: FastAPI) -> None:
     """Register ``podcast_pipeline_last_success_age_seconds`` from the job registry (#2119).
 
@@ -813,6 +823,7 @@ def create_app(
     # (#2119); tests/integration/server/test_app_digest_health_wiring.py pins the order.
     run_app_configured(app)
     _install_job_age_metrics(app)
+    _install_version_metrics(app)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)

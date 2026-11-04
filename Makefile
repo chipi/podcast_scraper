@@ -846,6 +846,7 @@ STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 # Inner quotes are NOT backslash-escaped — see the note on GIT_BUILD_ARGS; the escaped form
 # reports a dirty tree as clean instead of erroring loudly.
 GIT_BUILD_ENV = \
+	BUILD_TIME="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
 	GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
 	GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
@@ -1490,7 +1491,9 @@ test-ui-e2e:
 # ~705 MB, a few minutes cold; layer-cached afterwards.
 e2e-api-image:
 	@echo "Building podcast-api:e2e-local (viewer e2e backend; the player's builds on it)..."
-	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile .
+	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile \
+		--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+		--build-arg BUILD_TIME="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
 	@echo ""
 	@echo "✓ podcast-api:e2e-local ready — run: $(WEB_VIEWER_DIR)/e2e/run-local-stack.sh"
 # The viewer e2e suite against the real backend, image included. The stack script serves from a
@@ -2684,6 +2687,7 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 # the backslashes reach `test` as literal arguments. That form dies with "test: too many
 # arguments" and, worse, falls through to `echo false`: a dirty tree silently reported clean.
 GIT_BUILD_ARGS = \
+	--build-arg BUILD_TIME="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
 	--build-arg GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
 	--build-arg GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"

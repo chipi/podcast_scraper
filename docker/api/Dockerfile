@@ -172,6 +172,15 @@ RUN groupadd -g "${PODCAST_GID}" podcast \
     && mkdir -p /app/output \
     && chown -R podcast:podcast /app
 
+# What this image is, readable by the running process (``podcast_scraper.build_info`` serves it on
+# ``GET /api/version``). Last, so a new commit rebuilds only this layer.
+ARG GIT_SHA=""
+ARG BUILD_TIME=""
+RUN python -c "import datetime, json, os; from podcast_scraper import __version__; \
+json.dump({'component': 'api', 'version': __version__, 'git_sha': os.environ.get('GIT_SHA') or None, \
+'built_at': os.environ.get('BUILD_TIME') or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}, \
+open('/app/VERSION.json', 'w'), indent=2)"
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \

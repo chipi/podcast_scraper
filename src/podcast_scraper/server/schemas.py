@@ -3344,6 +3344,57 @@ class HealthResponse(BaseModel):
     )
 
 
+class VersionApi(BaseModel):
+    """The running API image's build."""
+
+    version: str = Field(description="Package version (``podcast_scraper.__version__``).")
+    git_sha: str | None = Field(default=None, description="Commit the image was built from.")
+    built_at: str | None = Field(default=None, description="UTC build time of the image.")
+
+
+class VersionDatabase(BaseModel):
+    """Database facts. Signed-out callers get ``configured`` and ``schema_at_head`` only."""
+
+    configured: bool = Field(description="False when this process has no database URL.")
+    schema_at_head: bool | None = Field(
+        default=None, description="Whether the plane's schema is at the shipped head revision."
+    )
+    plane: str | None = Field(
+        default=None, description="Admin only: the schema this process serves."
+    )
+    current_revision: str | None = Field(default=None, description="Admin only: applied revision.")
+    head_revision: str | None = Field(default=None, description="Admin only: shipped head.")
+    server_version: str | None = Field(default=None, description="Admin only: Postgres version.")
+
+
+class VersionCorpus(BaseModel):
+    """The corpus format the server found, as ``GET /api/health`` reports it."""
+
+    code_version: str | None = Field(default=None, description="Effective corpus semver.")
+    produced_by: CorpusProducedBy | None = Field(default=None, description="Manifest stamp.")
+
+
+class VersionResponse(BaseModel):
+    """Response for GET /api/version (also served at /api/app/version for the player edge)."""
+
+    release: str | None = Field(
+        default=None, description="The infra release id (``CL_RELEASE``); null when unset."
+    )
+    image_release: str | None = Field(
+        default=None, description="The public image ref (``PODCAST_RELEASE``); null when unset."
+    )
+    api: VersionApi
+    database: VersionDatabase
+    corpus: VersionCorpus
+    modules: list[dict[str, Any]] | None = Field(
+        default=None,
+        description=(
+            "Admin only: every installed extension as ``{name, version, git_sha, ...refs}``, from "
+            "its ``version_info`` hook."
+        ),
+    )
+
+
 class FeedsListResponse(BaseModel):
     """Response for GET/PUT /api/feeds (structured ``{ feeds: [...] }`` on disk)."""
 
