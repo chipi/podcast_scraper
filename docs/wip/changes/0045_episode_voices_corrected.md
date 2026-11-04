@@ -126,7 +126,32 @@ fingerprint; undo, second apply, a gate on a clean commit.
 
 ## 7. Measure
 
-_TODO_
+Clone: `clone-0044` (snapshot-prod-20261103, 0043 and 0044 applied through `upgrade run`, hook
+receipts PASS). Gate: `corpus_change_gate.py` on `3a4adaf47` (the branch rebased onto PR B),
+dirty false (`0045_episode_voices_corrected.gate.json`). Checks: scratchpad `m45_checks.py` (gate
+copy against the clone), `gold_insights.py` totals.
+
+| Row (4 / 4b) | Predicted | Measured |
+| --- | --- | --- |
+| renames applied | 1 | **1** (targets: 1 episode before, 0 after) |
+| episodes / files written | 1 / 6 to 14 | **1 / 11** |
+| gating scoreboard | no total moves | **no gating number moved** |
+| `upgrade verify`, all applied | 0 new failures | **44 ok, 0 failing** |
+| files outside the episode | 0 | **0** (23 changed: 11 in the episode, 12 the gate's bookkeeping) |
+| segment rows | SPEAKER_02's 271 guest -> host; others 0 | **271 SPEAKER_02 rows guest -> host with the new label; 0 other rows** |
+| roster | 2 hosts, SPEAKER_01's entry as stored, the heard entry gone, no duplicate | **2 hosts, 1 guest; the heard name gone; 1 host-name entry; SPEAKER_01's stored name kept** |
+| KG persons | about 1 removed, 1 added; the host's node role host | **miss: 0 removed, 0 added**; the host's node `person:kevin-roose` existed as `mentioned` and goes to `host` |
+| old-name markers in `.txt`, `.adfree.txt`, `.cleaned.txt` | 0 | **0, 0, 0** (37, 37, 34 lines carry the host's name) |
+| index fingerprint | changes (1 of 1) | **changes** |
+| second apply / undo / re-apply | 0 / byte-identical, 0 refused / 1 | **0 / 11 of 11 equal, 0 refused / 1** |
+| ledger refresh | no voice back on a heard spelling; 0 or 1 episode respelled | **0 files written, joins 652 unchanged; SPEAKER_02 keeps the host's name** |
+| gold totals | no move | **dev_v1 2,440 / 392 / 1,313 / 77 and val_v7 2,334 / 299 / 799 / 5, as before** |
+
+- **The KG miss:** the episode's KG held no speaking node under the heard spelling, and the host
+  was already a `mentioned` node; the rename moves that node's role. Same shape as 0044's
+  `person:adam-mosseri`.
+
+**Builder: GO.** Deciding numbers: 1 voice renamed in 1 episode, nothing outside it, undo whole.
 
 ## 8. Verdict
 
@@ -150,4 +175,13 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- **SPEAKER_01 is still open.** The reader refused its rename from the voice's first 20 of 109
+  segments (host talk); the packet did not show its later segments, so whether SPEAKER_01 is the
+  guest, the first host's split voice or a merge is not decided. It keeps its stored guest name.
+  Settling it needs a reading of the whole voice, as its own reviewed entry.
+- The first host's voice (SPEAKER_00) and the 5 unnamed voices are untouched; whether the
+  diarization split a host across voices is not traced.
+- Only the speaker name and role move: the heard spelling inside spoken text, insight and quote
+  text stays; the episode title is untouched.
+- The search-index rows are refreshed by the incremental index after the apply; the enrichers
+  re-run the written episode after it.
