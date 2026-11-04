@@ -359,9 +359,9 @@ commercial with 0 problems in 121,855 rows, S2 the only moving gating number (+1
 0 verify regressions, full undo byte-identical.
 
 **Measurement 3** (after revision 4d and the tier-L code; gate 2026-11-04T14:37:04 on clean
-`804826ade`): equal to measurement 2 in everything but its time and code stamp (plan sha256
+`804826ade`; re-run 14:52:16 on `26ed7d59a` after a variable rename the spelling check asked for, equal again): equal to measurement 2 in everything but its time and code stamp (plan sha256
 `d167d230…`, files 1,110, S2 +1 only, `verify_all` 42 ok, 0 regressions); outcome rebuilt
-(sha256 `27bca008…`). Revision 4d's census row: 101 diagnostics files written, 101 with a
+(sha256 `fe2692aa…` after the re-run). Revision 4d's census row: 101 diagnostics files written, 101 with a
 `voice_census`, 101 summing to 1 within 0.001 (`scratchpad m43_census_row.py`).
 
 **Ledger after 0043** (added 2026-11-04 after step 8, a derived surface the gate does not run: on
