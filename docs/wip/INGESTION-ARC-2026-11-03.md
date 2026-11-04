@@ -93,11 +93,11 @@ before the first rule.
 
 | # | Item | Source |
 | --- | --- | --- |
-| L1 | Roster same-person rules unified or justified (RFC-131 Phase 5), if they change what the ledger reads | #2403, open |
-| L2 | Feed-host spelling rule: a feed's stated host matched by first name and host role (`dara-obrey`, `luisa-lemi`, `john-glenn-hill`) | handover §2.3 |
-| L3 | `known_hosts` as mixed evidence, fixed at the pipeline (`_recurrent_hosts_from_disk`); a ledger change if it feeds the ledger | handover §2.4 |
-| L4 | Strict-tier losses D1 → D2: `sarah-gonzalez`, `erika-barris`, `david-sanger` | handover §2.5 |
-| L5 | Check #2056 (duplicate people from spelling variants) against D2; close it or name what is left | GH, open |
+| L1 | Roster same-person rules unified or justified (RFC-131 Phase 5), if they change what the ledger reads | #2403, open. **Out of the ledger mode** (record `l_publisher_verified_mode` §1): a roster rule at naming time; its prerequisites (the shadow namers' decision, a voice-level truth set) are unmet |
+| L2 | Feed-host spelling rule: a feed's stated host matched by first name and host role (`dara-obrey`, `luisa-lemi`, `john-glenn-hill`) | handover §2.3. **Built, switched off**: record `l_publisher_verified_mode` (V2, V3), step 8 GO WITH CONDITIONS |
+| L3 | `known_hosts` as mixed evidence, fixed at the pipeline (`_recurrent_hosts_from_disk`); a ledger change if it feeds the ledger | handover §2.4. **Ledger half built, switched off** (V1: 1,063 of 4,307 name-episodes not in the publisher's text); the pipeline half is its own forward change |
+| L4 | Strict-tier losses D1 → D2: `sarah-gonzalez`, `erika-barris`, `david-sanger` | handover §2.5. **Two built, switched off** (`sarah-gonzales`, `erica-barris` take the publisher's spelling); `david-sanger` is a middle-initial scoring artifact, not a ledger error |
+| L5 | Check #2056 (duplicate people from spelling variants) against D2; close it or name what is left | GH, open. **Checked**: neither reported duplicate remains on snapshot-prod-20261103 (one pair is one group, the other has one spelling left); closing is the operator's call |
 | L6 | A voice's heard spelling joins the person its own episode title names when the roster's stated-name match pairs them (nickname pair, surname within one edit); the title's spelling is shown. On snapshot-prod-20261103, 20 served episodes still carry the heard spelling (13 only it, 7 beside the title's); D2's s5d keeps the two one-episode ids apart. Replay: 27 voices of 3,130 episodes, every one the same person | B5 (#2363) |
 
 ## Tier M: measuring instruments (from the 2026-10-19 plan's Stage 2; D1/D2 did not do them)
@@ -105,7 +105,7 @@ before the first rule.
 | # | Item | Notes |
 | --- | --- | --- |
 | M1 | Gold refresh: re-cut the stale gold cases on a new baseline, and draw a new unseen validation set | D1/D2 scored on `labels_v1` |
-| M2 | Split S7: same person misspelled vs another person (`gold_insights` counts an ASR spelling of the right person as wrong) | eval-data |
+| M2 | Split S7: same person misspelled vs another person (`gold_insights` counts an ASR spelling of the right person as wrong) | eval-data. **Tried, not kept** (2026-11-04): split by the roster's ASR rule (`_loosely_same_person`), 0 of 392 (dev_v1) and 0 of 299 (val_v7) S7_wrong come out misspelled: the gate's fuzzy tier already counts those as correct, and what is left (`dara-obrey`'s 12) is ASR no rule calls the same person. A split needs a human-read variant list |
 | M3 | The loss-ranking script: `origin/wip/loss-ranking`, 85 commits ahead of main, never merged, not read | decide: rebase, salvage or drop |
 | M4 | V3 S7, roster vs voices: `quality/name_report.py` measures R5 (`listed_not_heard_entries`); the operator's decision on how a listed-but-unheard name shows was never asked, so no read-time fix exists | needs an operator decision before code |
 
@@ -120,7 +120,7 @@ snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on), then `upg
 
 | # | Item | Source |
 | --- | --- | --- |
-| C1 | The code digest covers a migration and most of the package; narrow it | handover §4 |
+| C1 | The code digest covers a migration and most of the package; narrow it | handover §4. **Measured, needs a decision**: 0043's closure is 610 of 778 package modules (every parent `__init__`'s imports), so tier L's `identity/` edit made 0043's outcome stale. Narrowing changes the digest prod's outcome hook compares, so it needs a versioned scheme: a design call before code |
 | C2 | Re-run an applied migration for named episodes (today: calling the class in the api container) | handover §4 |
 | C3 | A naming migration that re-renders text keeps the stored ad cut; recompute it or end with 0030's resync | handover §4 |
 | C4 | A gate row "wrong-person voices before / after" | handover §4 |
@@ -139,9 +139,11 @@ the merge sha.
    files this branch marked (`test_app_audio_drift`, `test_app_mcp_routes`,
    `test_app_moments_no_ads`, `test_mcp_oauth_routes`): drop those edits. It also modifies
    `README.md`, `docs/api/CONFIGURATION.md` and `docs/wip/WIP_README.md`: resolve by hand.
-2. After the rebase: `make ci-fast` again, the docs strict build, the secrets scan, and the 0043
+2. Re-gate 0043 on the clean tree and rebuild its outcome **after the last package change**: its
+   code digest covers 610 modules, so any later edit makes the outcome stale (C1).
+3. After the rebase: `make ci-fast` again, the docs strict build, the secrets scan, and the 0043
    landing check; then the operator's go to push and open the PR (ship skill).
-3. Tell the database session when the PR merges (it rebases #2417 onto it).
+4. Tell the database session when the PR merges (it rebases #2417 onto it).
 
 **The deploy** (prod session, through the database session until the database moment):
 
