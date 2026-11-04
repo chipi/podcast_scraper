@@ -175,21 +175,18 @@ def _names_integration_mark(node: ast.AST) -> bool:
     return any(
         isinstance(n, ast.Attribute)
         and n.attr == "integration"
-        and isinstance(n.value, ast.Attribute)
-        and n.value.attr == "mark"
+        and (
+            (isinstance(n.value, ast.Attribute) and n.value.attr == "mark")
+            or (isinstance(n.value, ast.Name) and n.value.id == "mark")  # from pytest import mark
+        )
         for n in ast.walk(node)
     )
 
 
-def _all_tests_marked_integration(text: str) -> bool:
-    """Every test the file defines carries the marker the way pytest reads it: a module-level
-    ``pytestmark``, or a decorator on the test function or on its ``Test*`` class. Text that only
-    mentions the marker (a docstring, a comment) selects nothing."""
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return False
-    for node in tree.body:
+def _assigns_pytestmark(body: list) -> bool:
+    """``body`` sets ``pytestmark`` to the integration mark, also inside ``if`` / ``try`` /
+    ``with`` blocks (not inside a nested function or class)."""
+    for node in body:
         targets = (
             node.targets
             if isinstance(node, ast.Assign)
@@ -198,20 +195,50 @@ def _all_tests_marked_integration(text: str) -> bool:
         if any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in targets):
             if node.value is not None and _names_integration_mark(node.value):
                 return True
+        nested = [getattr(node, f, None) or [] for f in ("body", "orelse", "finalbody", "handlers")]
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for block in nested:
+                if isinstance(block, list) and _assigns_pytestmark(
+                    [
+                        b
+                        for h in block
+                        for b in (h.body if isinstance(h, ast.ExceptHandler) else [h])
+                    ]
+                ):
+                    return True
+    return False
+
+
+def _all_tests_marked_integration(text: str) -> bool:
+    """Every test the file defines carries the marker the way pytest reads it: a module-level
+    ``pytestmark``, a ``pytestmark`` in its ``Test*`` class, or a decorator on the test or its
+    class. Text that only mentions the marker (a docstring, a comment) selects nothing, and a file
+    whose tests sit where this walk does not look passes only on a module-level mark."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return False
+    if _assigns_pytestmark(tree.body):
+        return True
 
     def marked(n: ast.AST) -> bool:
         return any(_names_integration_mark(d) for d in getattr(n, "decorator_list", []))
 
     is_test = (ast.FunctionDef, ast.AsyncFunctionDef)
+    seen = 0
     for node in tree.body:
         if isinstance(node, is_test) and node.name.startswith("test"):
+            seen += 1
             if not marked(node):
                 return False
-        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test") and not marked(node):
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            whole = marked(node) or _assigns_pytestmark(node.body)
             for item in node.body:
-                if isinstance(item, is_test) and item.name.startswith("test") and not marked(item):
-                    return False
-    return True
+                if isinstance(item, is_test) and item.name.startswith("test"):
+                    seen += 1
+                    if not (whole or marked(item)):
+                        return False
+    return seen > 0
 
 
 def check_integration_marker(files: list[Path]) -> list[Violation]:

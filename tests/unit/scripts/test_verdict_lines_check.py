@@ -86,3 +86,25 @@ def test_a_malformed_deciding_line_is_counted_bad(tmp_path: Path, idx: object, s
     report = vlc.check(corpus, vd / "9999_x.tsv")
     assert report["match"] == 1 and len(report["malformed"]) == 1
     assert vlc.main(["--corpus", str(corpus), "--verdicts-dir", str(vd)]) == 1
+
+
+def test_a_non_ascii_digit_index_is_malformed_not_a_crash(tmp_path: Path) -> None:
+    """Review 2, 2026-11-04: "²".isdigit() is True and int("²") raises."""
+    corpus = _corpus(tmp_path / "c", ["Welcome."])
+    vd = _verdicts(tmp_path / "v", [(0, line_sha256("Welcome.")), ("²", line_sha256("Welcome."))])
+    report = vlc.check(corpus, vd / "9999_x.tsv")
+    assert len(report["malformed"]) == 1
+
+
+def test_a_named_migration_with_nothing_checked_fails_beside_one_that_passes(
+    tmp_path: Path,
+) -> None:
+    corpus = _corpus(tmp_path / "c", ["Welcome."])
+    vd = _verdicts(tmp_path / "v", [(0, line_sha256("Welcome."))])
+    (vd / "9998_y.tsv").write_text(
+        "# migration: 9998_y\n" + HEADER + "\n" + f"e1\t{META}\tSPEAKER_00\tN\tCORRECT\tx\t\t\t\n",
+        encoding="utf-8",
+    )
+    args = ["--corpus", str(corpus), "--verdicts-dir", str(vd)]
+    assert vlc.main(args + ["--migration", "9999_x", "--migration", "9998_y"]) == 1
+    assert vlc.main(args + ["--migration", "9999_x"]) == 0

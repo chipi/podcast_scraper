@@ -44,6 +44,8 @@ def _load(path: Path) -> Any:
 
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+#: ASCII digits only: ``str.isdigit`` accepts "²", which ``int`` refuses.
+_INDEX = re.compile(r"[0-9]+")
 
 
 def _rows(path: Path) -> List[Dict[str, str]]:
@@ -85,7 +87,7 @@ def check(corpus: Path, verdicts: Path) -> Dict[str, Any]:
         idx, want = (row.get("segment_idx") or "").strip(), (row.get("line_sha256") or "").strip()
         if not idx and not want:
             continue  # a row without a deciding line (a pre-basis file) has nothing to check
-        if not idx.isdigit() or not _SHA256.fullmatch(want):
+        if not _INDEX.fullmatch(idx) or not _SHA256.fullmatch(want):
             out["malformed"].append(
                 {"meta": row.get("meta", ""), "voice": row.get("voice", ""), "segment_idx": idx}
             )
@@ -136,6 +138,12 @@ def main(argv: List[str] | None = None) -> int:
     checked = sum(r["checked"] for r in reports)
     if not checked:
         print(f"VERDICT LINES: FAIL (no row with a deciding line checked, {len(files)} file(s))")
+        return 1
+    # A migration named on the command line is a claim that its file is checked: one with nothing
+    # to check fails even when another named file passes.
+    unchecked = [r["file"] for r in reports if args.migration and not r["checked"]]
+    if unchecked:
+        print(f"VERDICT LINES: FAIL (named but nothing checked: {unchecked})")
         return 1
     print(f"VERDICT LINES: {'FAIL' if bad else 'PASS'} ({bad} rows mismatch, missing or malformed)")
     return 1 if bad else 0

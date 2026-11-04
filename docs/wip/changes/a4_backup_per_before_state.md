@@ -39,3 +39,7 @@ its undo. Both backups are now copied to `<backup>.part` and renamed into place,
 whose bytes are not the state its name says is copied again. m0023's writer calls the same
 `keep_backup`. No content file's bytes change; two more tests in the same file fail before and pass
 after, and the 754 other upgrade unit tests pass.
+
+Revision after Review 2 (2026-11-04): the copy is flushed to disk (`fsync`) before the rename. The
+directory entry is not, so a power cut right after a run can lose the renamed backup; the next run
+then copies it again. A killed run leaves at most a `<backup>.part`, overwritten on the next run.

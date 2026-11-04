@@ -437,3 +437,22 @@ def test_a_review_header_without_a_date_is_a_problem(tmp_path: Path) -> None:
     body = "Review budget: minutes 5, tokens 1\n\nREVIEW 0099_x yesterday minutes 3\nVERDICT: GO\n"
     [problem] = _problems(tmp_path, body)
     assert "no date" in problem
+
+
+def test_an_indented_budget_line_counts(tmp_path: Path) -> None:
+    """Review 2, 2026-11-04: a budget line inside a list item was not seen."""
+    body = (
+        "- Review budget: minutes 5, tokens 40000\n\n"
+        "REVIEW 0099_x 2026-11-05 minutes 3\nVERDICT: GO\n"
+    )
+    assert _problems(tmp_path, body) == []
+
+
+def test_three_reviews_are_three_blocks(tmp_path: Path) -> None:
+    reviews = [_review("minutes 3", "GO", date=f"2026-11-0{d}") for d in (5, 6, 7)]
+    (tmp_path / "ok").mkdir()
+    assert _problems(tmp_path / "ok", "\n".join(reviews)) == []
+    late = reviews[:2] + [_review("minutes 13", "GO", date="2026-11-07")]
+    (tmp_path / "late").mkdir()
+    [problem] = _problems(tmp_path / "late", "\n".join(late))
+    assert "2026-11-07" in problem and "hard stop" in problem

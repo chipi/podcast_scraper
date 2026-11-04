@@ -64,10 +64,14 @@ def keep_backup(path: Path, backup: Path, sha_before: str) -> Optional[Path]:
 
 def _copy_whole(src: Path, dst: Path) -> None:
     """Copy *src* to *dst* so that *dst* holds all of it or does not exist: a copy cut off midway
-    left a truncated backup that every later run trusted (Review 1, 2026-11-04)."""
+    (a killed run, a full disk) left a truncated backup that every later run trusted (Review 1,
+    2026-11-04). The copy is flushed to disk before the rename; the directory entry is not, so a
+    power cut right after can still lose the rename (the next run then makes the backup again)."""
     part = dst.with_name(dst.name + ".part")
     try:
         shutil.copyfile(src, part)
+        with open(part, "rb") as fh:
+            os.fsync(fh.fileno())
         os.replace(part, dst)
     finally:
         part.unlink(missing_ok=True)

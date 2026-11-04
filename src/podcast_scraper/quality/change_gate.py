@@ -56,8 +56,10 @@ _REVIEW_HEAD = re.compile(r"^[ \t]*REVIEW\b[^\n]*$", re.MULTILINE)
 _REVIEW_DATE = re.compile(r"^[ \t]*REVIEW \S+\s+(\d{4}-\d{2}-\d{2})\b")
 _REVIEW_VERDICT = re.compile(r"^[ \t]*VERDICT:\s*(\S+)[^\n]*$", re.MULTILINE)
 _MINUTES = re.compile(r"\bminutes\s+(\d+)\b")
-_BUDGET = re.compile(r"^Review budget:.*\bminutes\s+\d+.*\btokens\s+\d+", re.MULTILINE)
-_BUDGET_LINE = re.compile(r"^Review budget:", re.MULTILINE)
+_BUDGET = re.compile(
+    r"^[ \t]*(?:[-*][ \t]+)?Review budget:.*\bminutes\s+\d+.*\btokens\s+\d+", re.MULTILINE
+)
+_BUDGET_LINE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?Review budget:", re.MULTILINE)
 #: Reviews dated from here on are held to the §4a budget (method v1.0); earlier ones stand as read.
 REVIEW_BUDGET_FROM = "2026-11-04"
 REVIEW_HARD_STOP_MINUTES = 10

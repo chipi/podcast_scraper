@@ -68,3 +68,25 @@ def test_every_integration_file_in_the_repo_is_selected() -> None:
     root = Path(__file__).resolve().parents[4] / "tests" / "integration"
     files = sorted(p for p in root.rglob("test_*.py"))
     assert files and ctp.check_integration_marker(files) == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "class TestA:\n    pytestmark = pytest.mark.integration\n\n"
+        "    def test_a(self):\n        pass\n",
+        "from pytest import mark\n\n@mark.integration\ndef test_a():\n    pass\n",
+        "from pytest import mark\n\npytestmark = mark.integration\n\ndef test_a():\n    pass\n",
+        "if True:\n    pytestmark = pytest.mark.integration\n\ndef test_a():\n    pass\n",
+    ],
+)
+def test_other_ways_pytest_applies_the_marker_pass(tmp_path: Path, body: str) -> None:
+    """Review 2, 2026-11-04: valid pytest the rule did not read."""
+    assert _check(tmp_path, body) == []
+
+
+def test_a_test_the_walk_cannot_see_is_not_a_pass(tmp_path: Path) -> None:
+    """A ``def test_`` only nested somewhere the AST walk does not visit must not pass unmarked."""
+    body = "class Helper:\n    def test_a(self):\n        pass\n"
+    [v] = _check(tmp_path, body)
+    assert v.rule == "I2-integration-marker"
