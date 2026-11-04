@@ -1508,6 +1508,25 @@ describe('GraphCanvas search highlights and context emphasis', () => {
     await mountTracked()
     expect(classesOf('episode:ep-2')).toContain('context-relevant')
   })
+
+  it('emphasises insights whose episode the active search context favours', async () => {
+    const data = giData()
+    data.nodes = [
+      ...(data.nodes ?? []),
+      { id: 'insight:i1', type: 'Insight', properties: { text: 'x', episode_id: 'ep-1' } },
+      { id: 'insight:i2', type: 'Insight', properties: { text: 'y', episode_id: 'ep-2' } },
+    ]
+    data.edges = [
+      ...(data.edges ?? []),
+      { from: 'episode:ep-1', to: 'insight:i1', type: 'HAS_INSIGHT' },
+      { from: 'episode:ep-2', to: 'insight:i2', type: 'HAS_INSIGHT' },
+    ]
+    await mountTracked(data)
+    useActiveSearchContextStore().setContext('ai', [hit('topic:ai', { episode_id: 'ep-1' })] as never)
+    await tick()
+    expect(classesOf('insight:i1')).toContain('context-relevant')
+    expect(classesOf('insight:i2')).not.toContain('context-relevant')
+  })
 })
 
 describe('GraphCanvas degree filter', () => {
@@ -1811,7 +1830,8 @@ describe('GraphCanvas clearInteractionState', () => {
     ;(w.vm as unknown as { clearInteractionState: (o: object) => void }).clearInteractionState({
       skipRedraw: true,
     })
-    // No synchronous rebuild (a later watcher-driven redraw is separate).
+    expect(cyKit.cores).toHaveLength(n)
+    await tick(SETTLE_MS)
     expect(cyKit.cores).toHaveLength(n)
   })
 })

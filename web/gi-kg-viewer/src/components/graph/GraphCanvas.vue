@@ -727,7 +727,7 @@ function applySearchHighlights(core: Core): void {
 
 /**
  * PRD-033 FR5.1 — emphasize (size + ring) nodes whose episode is relevant to the
- * active search context (RFC-094 OQ-2). Episode nodes match by their stripped id;
+ * active search context (RFC-094 OQ-2). Episode nodes match by their bare episode id;
  * Insight/Quote nodes by their ``episodeId`` data. No-op when no context is active.
  */
 function applyContextEmphasis(core: Core): void {
@@ -735,12 +735,12 @@ function applyContextEmphasis(core: Core): void {
   if (!activeSearchContext.active) return
   core.batch(() => {
     core.nodes().forEach((n) => {
+      // ``data.episodeId`` is prefixed (``episode:<id>``); the context is keyed by bare id.
       const dataEp = n.data('episodeId')
-      let epId = typeof dataEp === 'string' ? dataEp.trim() : ''
-      if (!epId) {
-        const id = n.id()
-        if (id.startsWith('episode:')) epId = id.slice('episode:'.length)
-      }
+      const raw = typeof dataEp === 'string' ? dataEp.trim() : ''
+      const epId = raw
+        ? (logicalEpisodeIdFromGraphNodeId(raw) ?? raw)
+        : logicalEpisodeIdFromGraphNodeId(n.id())
       if (epId && activeSearchContext.relevanceFor(epId)) {
         n.addClass('context-relevant')
       }
