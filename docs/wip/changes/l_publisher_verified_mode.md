@@ -135,8 +135,10 @@ letter (fixed). Design data: the snapshot and dev_v1. val_v7 is not read.
 - **Shown spellings: 18 groups move.** 12 take the publisher's spelling: `person:amanda-aronchik`,
   `person:chris-hustane`, `person:dara-obrey`, `person:erica-barris`, `person:greg-rosalski`,
   `person:jeff-glow`, `person:john-glenn-hill`, `person:luisa-lemi`, `person:luisa-lemme`,
-  `person:sam-brazell`, `person:sarah-gonzales`, `person:yasmin-tayag` (5 of them had no spelling
-  before: tie or plurality). 6 keep their spelling and change only the evidence label (publisher
+  `person:sam-brazell`, `person:sarah-gonzales`, `person:yasmin-tayag` (7 of them had no spelling
+  before, a tie or a plurality: `person:amanda-aronchik`, `person:chris-hustane`,
+  `person:greg-rosalski`, `person:jeff-glow`, `person:john-glenn-hill`, `person:sam-brazell`,
+  `person:yasmin-tayag`). 6 keep their spelling and change only the evidence label (publisher
   <-> frequency): `person:casey-newton`, `person:dan-saffer`, `person:heather-haddon`,
   `person:lily-ottinger`, `person:noah-kravitz`, `person:steve-hatherly`.
 - **Respell when the mode is switched on:** 110 files written of 1,009 examined, 0 refused (on a
@@ -153,9 +155,54 @@ letter (fixed). Design data: the snapshot and dev_v1. val_v7 is not read.
 - **L5 (#2056):** to be answered from the build's ledger: whether the two reported pairs are one
   group each in today's mode and in the new one.
 
+### 4b. Rows added at step 5 (2026-11-04)
+
+- **Baselines' source:** both today's-mode gold numbers above are one run of
+  `scripts/measure/gold_insights.py --corpus <snap1103> --set dev_v1 --set val_v7 --labels
+  <set>=labels_v1` (scratchpad `l_gold_base.txt`, 2026-11-04), which reads the cases and labels
+  inside the scorer; no case or label file was opened by hand, and val_v7's output was read for
+  its totals only. S8_undecidable baseline: dev_v1 77, val_v7 5.
+- **val_v7 point predictions** (rule: dev_v1's net move per insight, +12 correct over 4,427
+  insights, scaled to val_v7's 3,634 insights = +10; fold_exact +28 / 4,427 -> +23): S7_wrong
+  299 -> **289**, S7_correct 2,334 -> **2,344**, fold_exact 2,181 -> **2,204**; bounds S7_wrong
+  <= 299, S7_correct >= 2,334, fold_exact >= 2,181 (floors: the mode removes no join and moves a
+  group only to a spelling the publisher's text gives). S8_undecidable 5 unchanged; S7_unnamed 799
+  unchanged.
+- **Must not move, added:** blocked joins 40 unchanged; groups 458 less the merges of the 4 added
+  joins, no other group changes membership; the 6 label-only groups keep their spelling; the
+  ADR-167 guards and the s5d reviewed pairs untouched (no code there); the one-episode ids s5d
+  keeps apart (L6's 27 voices) stay apart, since this mode adds no title rule (L6 is not in it,
+  below).
+- **By identity, V1 and V2 samples:** V1 drops the `known_hosts` spellings `person:rj-hanaki` (0 of
+  37 texts) and `person:rj-honicky` (0 of 18) on Latent Space, `person:luisa-lemi` (0 of 17) on
+  Latin America in Focus, `person:dara-obrey` (0 of 24) on Curious Cases. V2 finds the
+  publisher's spelling for `person:luisa-lemi`'s group (20 of 44 texts) and
+  `person:sarah-gonzales`'s (10 of 89). The build lists every V1 drop and V2 spelling by episode
+  and id in its measurement.
+- **Denominators:** V2's 187 found and 204 ambiguous are of 391 roster or extracted names not in
+  their episode's text whose first name occurs there; V3's 28 pairs are of 77 shows with a stated
+  host; section 3's 29 pairs are of the same 77 shows.
+- **L6 is not in this mode** (correction to section 1's scope): the title rule joins by an episode
+  title naming the person, a fourth evidence source this record does not build; it stays a tier-L
+  item for its own change.
+- **Iteration stops at prototype run 4.** The build implements run 4; nothing is re-tuned after
+  the val_v7 score.
+
 ## 5. Acceptance
 
-_TODO_
+Fresh agent, 2026-11-04: `minutes 4, tokens ~40k`. Rows added in 4b: point predictions with
+their rule, the baselines' source, S8, blocked joins, group count, the label-only groups, the
+guards and s5d untouched, samples by id, denominators, the discipline stated. Reading list
+added to section 1: #2102 (tier sources by provenance: V1's subject), #2092 (show hosts and
+episode hosts one field), #2219 (entity registry), #2097 (post-deploy epic), #2261 (feed-level
+profiles), #2078 and #2105 (host-seat roles, which V3 reads); `docs/wip/HANDOVER-NAMING-2026-11-03.md`
+(the "handover" of section 1), `docs/guides/NAMING_KNOWN_ISSUES.md`, `docs/guides/NAMING_LADDER.md`,
+`docs/guides/SPEAKER_ATTRIBUTION_TRACE_GUIDE.md`, the arc list's "Tier L" section.
+
+Spot checks for step 8: the 12 shown-spelling moves; the 4 added joins and 5 rejected V3 pairs;
+10 V1-dropped `known_hosts` names (Latent Space among them); today's mode byte-identical on the
+snapshot; none of the 110 respelled files gives a voice another person's name;
+`person:sarah-gonzales` shows the publisher's spelling.
 
 ## 6. Build
 
