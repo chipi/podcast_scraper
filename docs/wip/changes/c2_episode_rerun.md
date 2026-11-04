@@ -178,7 +178,10 @@ the measured apply and nothing else; the default path's plan is unchanged.
   equal the snapshot's. A rerun leaves the apply's undo whole.
 - **Lock held, unit-tested:** `test_a_held_lock_refuses_a_real_rerun_and_not_a_dry_one`: the dry
   rerun plans, the real one raises and the tree is unchanged. 16 tests (the count above was 14
-  when written; the normalisation test made 15).
+  when written; the normalisation test made 15). **Then measured** (2026-11-04, clone-0043,
+  scratchpad `c2_lock.py`, the lock held by another process): the dry rerun exit 0 ("rerun plan:
+  0 of 1 named episode(s)"), the real rerun exit 1 ("the corpus is in use: Corpus directory is
+  locked by PID …"), 0 files changed in a whole-tree sha256 manifest.
 - **Prediction misses, stated as misses:** section 4's snapshot rows ("3 of 101", "2 planned + 1
   not planned") cannot happen as written, because 0043 is unapplied on the snapshot, which is
   that same section's refusal row; they were measured on the gate copy instead. The "gate copy

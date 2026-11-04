@@ -217,6 +217,20 @@ Verdict: GO WITH CONDITIONS
 - **Condition 3:** the wrong-person voice the review found (episode
   `a02c151a-dde6-4804-9827-a3df80b8352c`) is not fixed by this migration; it needs its own list.
 
+**Measured after the verdict** (2026-11-04, a copy of clone-0043, `upgrade run --to 2.7.38 --yes
+--no-snapshot` on `a35cbd04`):
+
+- **Prod's apply path:** the outcome hook applied 0044, receipt verdict PASS, 0 failures, 0 plan
+  differences, `S1c_inconsistent` 0; 18 episodes with the gate's counters; "Now at version 2.7.38;
+  0 pending"; the ledger refresh after it: 652 joins, 3 added, 3 episodes (9 files) respelled, as
+  on the gate copy.
+- **Gold:** `gold_insights.py` on clone-0043 and on this copy, totals only: dev_v1 S7_correct 2,440,
+  S7_wrong 392, S7_unnamed 1,313, S8_undecidable 77 on both; val_v7 2,334, 299, 799, 5 on both.
+  No case's served name moves: the gold covers none of the 18 voices' insights.
+- **Enrichers:** `enrich --only insight_density,insight_sentiment` (no `--force`): 123 runs ok, 0
+  failed each, EXIT=0; 123 is what the staleness check picked after 0043 and 0044 together, not
+  broken down by migration.
+
 Outcome: `src/podcast_scraper/upgrade/outcomes/0044_title_spelling_voices_renamed.json`, sha256
 `816bc81ec1d21936b5ee155750ec8d20c3a5394026f8a02b693c7aaff64bb857` (gate on `5d37558e`, dirty
 false, plan sha256 `9ae9d480…`).
