@@ -31,12 +31,13 @@ frozen list (package data, as 0034's and 0037's) carries the published names.
 - **0034 (landed): every voice here was on its list and was KEPT.** 0034's reviewers judged
   whether the name is the voice's own person, and the operator's third ruling (0034 §4c,
   2026-10-26) keeps a sponsor-tag / house-promo voice named when "the text ties it to the named
-  person". A self-introduction inside the promo is such a tie: all 39 voices below carry
-  `CORRECT` / basis `self_intro` in `upgrade/verdicts/0034_talk_floor_names_removed.tsv`.
-- **The conflict this change must not paper over:** today's pipeline publishes these 39 voices
+  person". A self-introduction inside the promo is such a tie: all 59 voices below (39 at intake,
+  20 added at step 5) carry `CORRECT` / basis `self_intro` in
+  `upgrade/verdicts/0034_talk_floor_names_removed.tsv`.
+- **The conflict this change must not paper over:** today's pipeline publishes these 59 voices
   `commercial` with no name (section 3); 0034's ruling keeps them named on stored episodes. Both
-  cannot stand. 0043 sides with the pipeline. That reverses 39 rows of a recorded operator ruling,
-  so the operator decides it before the build (section 9, open call 1).
+  cannot stand. 0043 sides with the pipeline. That reverses 59 rows of a recorded operator ruling,
+  so the operator decides it before the build (section 9, open calls 1 and 2).
 - **m0016** (`upgrade/migrations/m0016_ad_reader_names_removed.py`): the commercial typing
   (`_VoiceEpisode._commercial_after_whole`) this change reuses for its type.
 - **0034 / 0037 machinery** (frozen reviewed list, verdicts bound by list sha256, 0029's
@@ -72,7 +73,7 @@ Three classes, each found by a committed or stated rule over the snapshot, then 
   (3) or another show's / the publisher's subscription promo (3); talk share 0.002 to 0.040. The
   7th is the show's own host reading the show's premium promo: not a target (the host is a
   participant; the name is right and the role error is another item).
-- **Today's code agrees on all 39.** Replaying `resolve_speaker_roster` (current tree) on each
+- **Today's code agrees on all 39 of classes A and B** (class C below: all 20). Replaying `resolve_speaker_roster` (current tree) on each
   episode's stored inputs with signatures built in memory: `{A unnamed commercial: 33, B unnamed
   commercial: 6}`; 0 named. So new episodes are already right; only stored ones carry the names.
 - **What the names reach today (per voice, the snapshot):** other voices carrying the same name in
@@ -83,9 +84,8 @@ Three classes, each found by a committed or stated rule over the snapshot, then 
 - **Class C, 20 voices in 13 episodes (added at step 5, 2026-11-04).** m0016's own RECURRENCE hits
   on the snapshot's rebuilt signatures (`find_hits`: 20; language-only 0). m0016's hit set was
   frozen at its apply, and these voices arrived or turned recurrent since. Each is another show's
-  host or writer promoting their own show inside this one: C1 a Pivot co-host 7 voices, C2 the other
-  co-host 4, C3 Criminal's host 3, C4 Rest is Entertainment's host 3, C5 an Athletic writer 2, and
-  class A's reader R4 once more (1). Roster entries `placed: true`, `self_intro`, guest; 0034 kept all 20
+  host or writer promoting their own show inside this one: five readers C1 to C5 (7, 4, 3, 3 and 2
+  voices) and class A's reader R4 once more (1). Roster entries `placed: true`, `self_intro`, guest; 0034 kept all 20
   (`CORRECT` / `self_intro`). Today's code: `{recurrence unnamed commercial: 20}`
   (`m43_rec.py`, the replay as above). Reach: GI 0 / 0 / 0; KG Person nodes 20 (one per voice);
   `detected_guests` 0; roster entries 20; segment rows 228, ad-free 228; no episode shared with
@@ -100,7 +100,7 @@ On snapshot-prod-20261103, after apply on a clone:
 - **Listed voices 59 in 52 episodes** (A 33 in 33, B 6 in 6, C 20 in 13); **applied 59** if every
   verdict confirms, per class A 33 / B 6 / C 20; episodes written 52.
 - **Own numbers:** served names on the listed voices 59 -> 0; roster entries removed 59; KG Person
-  nodes removed 31 (11 + 20, in 31 episodes); `content.detected_guests` entries removed 33; segment
+  nodes removed 31 (11 in 11 episodes + 20 in 13 episodes: 24 episodes); `content.detected_guests` entries removed 33; segment
   rows typed `commercial` 674 (A 295, B 151, C 228) and ad-free segment rows 674; unnamed voices on
   the corpus +59.
 - **Must not move:** S1 18,589; S1n 7; S1c 0; S2 32,488 with each bucket (unknown 18,589,
@@ -121,7 +121,7 @@ On snapshot-prod-20261103, after apply on a clone:
 Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
 the segment-row integer (674), commercial 95 stated, the #2200 / #2198 totals, the ids, the class
 split, the KG population. Its reading of #2365 led to class C (m0016's recurrence hits). Added to
-section 1's reading list: #2365 (closed; Kara Swisher's promo on The Gray Area, "4 served records
+section 1's reading list: #2365 (closed; another show's host's promo published as a guest, "4 served records
 still carry the old name until a relabel": they are in class C), #2362 (closed; host seat never
 typed commercial), #2331 (closed; sponsor reads take voices), #2200 and #2198 (open; insights hidden
 by unnamed voices: not moved here, GI 0), #1227 (closed; pre-roll ad narrators as guests),

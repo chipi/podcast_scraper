@@ -117,3 +117,30 @@ def test_the_sources_agree_with_m0016s_stated_names(
 def test_main_without_signatures_refuses(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     assert mc.main(["--corpus", str(tmp_path)]) == 2
     assert "ad_signatures.json" in capsys.readouterr().out
+
+
+def _absolute(tmp_path: Path, path: str, diag: Dict[str, Any]) -> tuple:
+    hit = _episode(tmp_path, content={"transcript_file_path": path}, diag=diag)
+    return hit
+
+
+def test_an_ingest_time_absolute_path_still_reads_the_diagnostics(tmp_path: Path) -> None:
+    """Review 2, 2026-11-04: 121 of 3,130 episodes store the path written at ingest; read as given
+    the diagnostics were missed and a stated host came out rule A."""
+    hit = _absolute(
+        tmp_path,
+        "/app/output/feeds/f/run_1/transcripts/ep.txt",
+        {"tried": {"known_hosts": [AD]}, "summary": {}},
+    )
+    r = mc.classify(tmp_path, hit)
+    assert r["verdict"] == "kept: stated by tried.known_hosts"
+
+
+def test_without_diagnostics_to_read_nothing_is_rule_a(tmp_path: Path) -> None:
+    hit = _absolute(tmp_path, "/elsewhere/run_9/transcripts/ep.txt", {"tried": {}, "summary": {}})
+    assert mc.classify(tmp_path, hit)["verdict"] == "kept: no speaker diagnostics to read"
+
+
+def test_the_publisher_text_names_whole_words_only(tmp_path: Path) -> None:
+    hit = _episode(tmp_path, episode={"title": "Episode 1", "description": f"{AD}son and others"})
+    assert mc.classify(tmp_path, hit)["verdict"] == "rule_a"

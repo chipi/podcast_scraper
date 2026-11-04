@@ -29,6 +29,7 @@ from typing import Any, Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from podcast_scraper.upgrade.migrations import m0016_ad_reader_names_removed as m16  # noqa: E402
+from podcast_scraper.utils.run_relative import run_relative  # noqa: E402
 
 
 def _strings(values: Any) -> List[str]:
@@ -60,14 +61,18 @@ def publisher_text(doc: Dict[str, Any]) -> str:
     )
 
 
+def diagnostics(meta: Path, content: Dict[str, Any]) -> Any:
+    """The episode's speaker diagnostics, found through the run even when the metadata stores the
+    transcript path written at ingest; ``None`` when there is none to read."""
+    rel = run_relative(content.get("transcript_file_path"), meta.parent.parent)
+    if not rel.endswith(".txt"):
+        return None
+    return m16._load(meta.parent.parent / rel.replace(".txt", ".speakers.diagnostics.json"))
+
+
 def stated_by_source(meta: Path, content: Dict[str, Any], name: str) -> List[str]:
     """Which of m0016's stated-name sources list ``name`` (m16.same_person)."""
-    rel = str(content.get("transcript_file_path") or "")
-    diag = (
-        m16._load(meta.parent.parent / rel.replace(".txt", ".speakers.diagnostics.json"))
-        if rel
-        else None
-    )
+    diag = diagnostics(meta, content)
     tried = (diag or {}).get("tried") or {} if isinstance(diag, dict) else {}
     summary = (diag or {}).get("summary") or {} if isinstance(diag, dict) else {}
     sources = {
@@ -93,15 +98,20 @@ def classify(root: Path, hit: tuple) -> Dict[str, Any]:
     doc = json.loads(meta.read_text(encoding="utf-8"))
     content = doc.get("content") or {}
     sources = stated_by_source(meta, content, name)
-    in_publisher = bool(_norm(name)) and _norm(name) in publisher_text(doc)
-    if sources == ["content.detected_guests"] and not in_publisher:
-        verdict = "rule_a"
+    key = _norm(name)
+    in_publisher = bool(key) and f" {key} " in f" {publisher_text(doc)} "
+    others = [s for s in sources if s != "content.detected_guests"]
+    if not isinstance(diagnostics(meta, content), dict):
+        # Unread diagnostics would hide a host the feed states: never rule A on that.
+        verdict = "kept: no speaker diagnostics to read"
     elif in_publisher:
         verdict = "kept: the publisher's text names them"
+    elif others:
+        verdict = "kept: stated by " + ",".join(others)
+    elif sources == ["content.detected_guests"]:
+        verdict = "rule_a"
     else:
-        verdict = "kept: stated by " + ",".join(
-            s for s in sources if s != "content.detected_guests"
-        )
+        verdict = "kept: not stated by content.detected_guests"
     return {
         "meta": rel,
         "voice": voice,
