@@ -98,7 +98,7 @@ before the first rule.
 | L3 | `known_hosts` as mixed evidence, fixed at the pipeline (`_recurrent_hosts_from_disk`); a ledger change if it feeds the ledger | handover §2.4. **Ledger half built, switched off** (V1: 1,063 of 4,307 name-episodes not in the publisher's text); the pipeline half is its own forward change |
 | L4 | Strict-tier losses D1 → D2: `sarah-gonzalez`, `erika-barris`, `david-sanger` | handover §2.5. **Two built, switched off** (`sarah-gonzales`, `erica-barris` take the publisher's spelling); `david-sanger` is a middle-initial scoring artifact, not a ledger error |
 | L5 | Check #2056 (duplicate people from spelling variants) against D2; close it or name what is left | GH, open. **Checked**: neither reported duplicate remains on snapshot-prod-20261103 (one pair is one group, the other has one spelling left); closing is the operator's call |
-| L6 | A voice's heard spelling joins the person its own episode title names when the roster's stated-name match pairs them (nickname pair, surname within one edit); the title's spelling is shown. On snapshot-prod-20261103, 20 served episodes still carry the heard spelling (13 only it, 7 beside the title's); D2's s5d keeps the two one-episode ids apart. Replay: 27 voices of 3,130 episodes, every one the same person | B5 (#2363) |
+| L6 | A voice's heard spelling joins the person its own episode title names when the roster's stated-name match pairs them (nickname pair, surname within one edit); the title's spelling is shown. On snapshot-prod-20261103, 20 served episodes still carry the heard spelling (13 only it, 7 beside the title's); D2's s5d keeps the two one-episode ids apart. Replay: 27 voices of 3,130 episodes, every one the same person | B5 (#2363). **Built as migration 0044** (record `0044_title_spelling_voices_renamed`), not a ledger rule: 22 of the 27 ids are in no ledger group, so a join cannot rename them. 18 voices in 18 episodes after a blind review (2 refused). Its apply is a deploy step after 0043's |
 
 ## Tier M: measuring instruments (from the 2026-10-19 plan's Stage 2; D1/D2 did not do them)
 
@@ -154,7 +154,8 @@ the merge sha.
 
 **After the deploy, in this order** (each on the operator's go):
 
-1. 0043 apply with the corpus-migration skill: preflight (not within 90 min before the 00:00Z
+1. 0043 apply (`upgrade run --to 2.7.37`; rehearsed on a snapshot copy 2026-11-04, hook receipt
+   PASS) with the corpus-migration skill: preflight (not within 90 min before the 00:00Z
    nightly, not during it; no backup, reprocess or sweep running; snapshot to
    `/srv/corpus-upgrade-snapshots`, 77 GB free on 2026-11-04 for a 30 GB corpus); the dry run and
    the outcome hook's plan diff against the clone's (sha256 `d167d230…`, 101 episodes); an accept
@@ -169,6 +170,10 @@ the merge sha.
    of the 101 written episodes re-embed, 0 rows stay stale. Expect `reindexed` 100.
 4. Enrichment of the written episodes: the nightly `corpus_enrichment` picks them up, or run
    `enrich` at once in pipeline-llm.
+4b. 0044 apply, on its own go, in its own run after 0043's (`upgrade run --to 2.7.38`; a run
+   without `--to` with both pending is refused): 18 voices in 18 episodes (record
+   `0044_title_spelling_voices_renamed`), its ledger refresh (3 episodes respelled on the clone),
+   then the same incremental index for its 18 episodes.
 5. Record 0043 steps 10 and 11 (prod's plan diff, the apply counts, the after-apply scoreboard),
     status `landed`; `config/last_deployed_prod_version.json` brought up to the applied list (it
     lists up to 0037; prod has through 0042).
@@ -221,6 +226,7 @@ only the operator takes; they go with the push go for the branch's PR.
 | C2 | Built: `upgrade rerun` (record `c2_episode_rerun`); measurement on the snapshot in that record |
 | C3 | Already guarded: the clone gate's `verify_all` runs 0030's check after every apply (added after 0035, 2026-10-27); on 0043: 0030 ok, 0 regressions |
 | C4 | Built: the gate's `targets` row (`69802a6d`); 0043: 111 wrong-person voices in 101 episodes before, 0 after |
+| L6 | Built: migration 0044 (record `0044_title_spelling_voices_renamed`); 18 voices renamed to their title's spelling after a blind review; apply after 0043's, on its own go |
 | M3 | Drop the branch (action 2) |
 | M4 | Measured, no read-time change. The player's episode page lists KG persons with their roster role. Of the 3,889 listed-but-unheard names: 1,731 shown as host or guest, 429 as mentioned, 1,729 not shown (snapshot-prod-20261103, scratchpad `m4_player_role.py`). A host absent from this episode and a host who spoke but is not placed look the same in the text on disk, so no text-only rule separates them: changing the role would trade one error for the other. Junk names ("CEO Sam Rodriguez") are the descriptor rule's shape (0019) |
 | B10 | No change: the recurrence scan is a reviewer's aid for 0034's lists, its misses are listed in record 0034 (round 6), and every listed voice was read by a person; nothing consumes its completeness |
@@ -232,7 +238,7 @@ only the operator takes; they go with the push go for the branch's PR.
 
 | Item | When |
 | --- | --- |
-| L6 | Built next on this branch, switched off like tier L |
+| Wrong-person voice found by 0044's review | Episode `a02c151a-dde6-4804-9827-a3df80b8352c`: the host's voice stored with a guest's name; a 0037-class reviewed rename of its own |
 | M1 | After the deploy, on the first snapshot with 0043 applied: re-cut the stale gold cases and draw a new unseen split |
 | GitHub issues #2131, #2180, #2253, #2363, #2364, #2123, #2136, #2056 | Closed after the deploy proves each |
 
