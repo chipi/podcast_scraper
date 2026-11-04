@@ -190,6 +190,10 @@ Verdict: GO WITH CONDITIONS
   operator's go, with prod's plan diffed against this gate's.
 - **Condition 2:** SPEAKER_01 of the episode stays as stored until its own reviewed entry.
 
+Outcome: `src/podcast_scraper/upgrade/outcomes/0045_episode_voices_corrected.json`, sha256
+`a840b1862383606971d68b9375c9a9e6d32f8242959ef56b4a7919a028433c50` (gate on `3a4adaf47`, dirty
+false, plan sha256 `3500641d…`).
+
 ## 9. Operator review
 
 _TODO_
