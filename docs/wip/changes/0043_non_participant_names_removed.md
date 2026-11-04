@@ -358,6 +358,12 @@ written on the clone and left for step 10 on prod: the search-index rows of the 
 commercial with 0 problems in 121,855 rows, S2 the only moving gating number (+1, as predicted),
 0 verify regressions, full undo byte-identical.
 
+**Measurement 3** (after revision 4d and the tier-L code; gate 2026-11-04T14:37:04 on clean
+`804826ade`): equal to measurement 2 in everything but its time and code stamp (plan sha256
+`d167d230…`, files 1,110, S2 +1 only, `verify_all` 42 ok, 0 regressions); outcome rebuilt
+(sha256 `27bca008…`). Revision 4d's census row: 101 diagnostics files written, 101 with a
+`voice_census`, 101 summing to 1 within 0.001 (`scratchpad m43_census_row.py`).
+
 **Ledger after 0043** (added 2026-11-04 after step 8, a derived surface the gate does not run: on
 prod `upgrade run` ends with the ledger refresh and, since 0041, its respell). On a fresh copy of
 the snapshot (`scratchpad m43_ledger.py`): a baseline refresh first wrote 0 files and changed 0 of
@@ -423,7 +429,7 @@ Verdict: GO WITH CONDITIONS
 
 Gate on committed code: re-run 2026-11-04T12:08:57 on a clean tree (`91794771c`, dirty false),
 equal to measurement 2 in everything but its time and code stamp (plan sha256 `d167d230…`).
-Outcome: `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
+Outcome (rebuilt at measurement 3, sha256 `27bca008f9641f1e1b6a856b40dc0c822f9d67c61605e15109539fce7eb23b88`; the one before it:): `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
 `f625eb6372dbcb45790d8201510fd2a37390278fd090a399971e211d69fa1864`.
 
 ## 9. Operator review
