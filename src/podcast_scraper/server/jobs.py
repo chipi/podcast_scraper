@@ -432,6 +432,10 @@ def pid_alive(pid: int | None) -> bool:
 #: Identifies THIS process. Stamped at import, which for the API server is process start.
 _BOOT_ID = uuid.uuid4().hex
 
+#: Jobs whose child this process is waiting on in ``monitor_subprocess``. The reconcile (run in
+#: a thread by the queue sweeper) reads it; set membership checks are atomic under the GIL.
+_MONITORED_JOB_IDS: set[str] = set()
+
 
 def current_boot_id() -> str:
     """The id of the currently-running server process.
@@ -804,7 +808,12 @@ def reconcile_jobs_inplace(
                 pass
 
         alive: bool | None
-        if this_boot and pid is not None and int(pid) > 0:
+        if this_boot and job_id in _MONITORED_JOB_IDS:
+            # This process is still waiting on the child: between its exit and
+            # ``monitor_subprocess`` finalizing the row the pid is gone, yet the verdict (often
+            # success) is about to be written. The monitor owns it.
+            alive = True
+        elif this_boot and pid is not None and int(pid) > 0:
             alive = pid_alive(int(pid))
         elif not this_boot:
             # Prior-boot row: ask the probe, which knows what counts as evidence in this
@@ -1591,6 +1600,7 @@ async def monitor_subprocess(
     log_fp = getattr(proc, "_ps_log_fp", None)
     log_pump = getattr(proc, "_ps_log_pump", None)
     failed_log_relpath: str | None = None
+    _MONITORED_JOB_IDS.add(job_id)
     try:
         try:
             code = await proc.wait()
@@ -1601,11 +1611,16 @@ async def monitor_subprocess(
             code = -1
         rec = await asyncio.to_thread(get_job, corpus_root, job_id)
         cancelled = bool(rec and rec.get("cancel_requested"))
-        failed_log_relpath = await _finalize_job(
-            corpus_root, job_id, exit_code=code, cancelled=cancelled
-        )
+        try:
+            failed_log_relpath = await _finalize_job(
+                corpus_root, job_id, exit_code=code, cancelled=cancelled
+            )
+        finally:
+            # Finalized (or failed trying): the row is no longer this monitor's to vouch for.
+            _MONITORED_JOB_IDS.discard(job_id)
         await drain_queue_async(app, corpus_root)
     finally:
+        _MONITORED_JOB_IDS.discard(job_id)
         # #666 review #10: wait for the pump task to finish draining stdout
         # AFTER the child exited — otherwise the last buffered chunks are
         # lost. The pump owns the file handle internally and closes it.
