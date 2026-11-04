@@ -429,8 +429,9 @@ Verdict: GO WITH CONDITIONS
 
 Gate on committed code: re-run 2026-11-04T12:08:57 on a clean tree (`91794771c`, dirty false),
 equal to measurement 2 in everything but its time and code stamp (plan sha256 `d167d230…`).
-Outcome (rebuilt at measurement 3, sha256 `27bca008f9641f1e1b6a856b40dc0c822f9d67c61605e15109539fce7eb23b88`; the one before it:): `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
-`f625eb6372dbcb45790d8201510fd2a37390278fd090a399971e211d69fa1864`.
+Outcome: `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
+`fe2692aa518c958f1fffc2ae1e93582ef78660cd53f401009ddac9a41bf32896` (rebuilt after measurement 3's
+re-run; earlier builds `27bca008…` and `f625eb63…`, each stale once code in its digest moved).
 
 ## 9. Operator review
 
