@@ -40,7 +40,7 @@ taken fresh on the current labels.
 | A0 | The operator's working rules for a multi-step arc, written into `AGENTS.md` § "Running a multi-step arc" | operator, 2026-11-03 | **done** `249ada02` |
 | A1 | Set the 14 rule records to `landed` (d1, s5a–s5d, s5o, s6a–s6h; d2 already was) | ingestion session | **done** `2ee536af`: 6 had steps only D2 covered, now `MISSED:` with the operator's acceptance (2026-11-03). The "#2405 waits" line was not in the handover |
 | A2 | `person_profile` empty for `person:robert-caro`, `person:anita-anand` | handover §2.1 | **done** `218e2858`: every CIL reader kept one run per feed (289 of 3,668 bridges on snapshot-prod-20261103); now the central membership rule (3,130). Profiles: robert-caro 0 → 75 quotes, anita-anand 0 → 1,052 |
-| A3 | m0023 `_write_text_with_backup` creates backup dirs without `match_corpus_owner` | handover §2.2 | test + fix; changes every migration's code digest. 0031–0042 are landed, so no outcome goes stale; the record says so |
+| A3 | m0023 `_write_text_with_backup` creates backup dirs without `match_corpus_owner` | handover §2.2 | **done** `afcb74d9` (record `a3_text_backup_dir_owner`, light, open until a deploy carries it). Also covers `identity/respell.py`, which uses the same writer on every prod refresh |
 | A4 | `write_with_backup` keeps the first backup, so a twice-written file undoes to its pre-first-run state | handover §4 | same module as A3 |
 | A5 | A test that checks each verdict row's `line_sha256` against the served segment | handover §4 | test only |
 | A6 | CIL readers read each feed's latest run only, so a fix in an older run's bridge is invisible | handover §4 | **done** with A2 (`218e2858`): same cause |
