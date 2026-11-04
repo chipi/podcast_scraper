@@ -356,3 +356,40 @@ def test_a_landed_record_needs_step_10_too(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(cg, "current_digest", lambda mid: "changed")
     [problem] = cg.check_landing(root, ["0099_x"])
     assert "landed: step 10: not done" in problem
+
+
+def _review(minutes: str, verdict: str, date: str = "2026-11-05", budget: bool = True) -> str:
+    line = "Review budget: minutes 5, tokens 40000\n\n" if budget else ""
+    return (
+        f"{line}REVIEW 0099_x {date}  commit abc  reviewer fresh  {minutes}\n"
+        f"INPUTS READ: x\nVERDICT: {verdict}  the deciding item\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "review, problem",
+    [
+        (_review("minutes 4", "GO"), None),
+        (_review("minutes 14", "INCOMPLETE"), None),
+        (_review("minutes 14", "GO"), "past the 10-minute hard stop"),
+        (_review("", "GO"), "reports no 'minutes <n>'"),
+        (_review("minutes 3", "GO", budget=False), "no 'Review budget:"),
+        (_review("minutes 60", "GO", date="2026-10-27"), None),  # before the rule: stands as read
+    ],
+)
+def test_a_review_keeps_the_4a_budget(tmp_path: Path, review: str, problem) -> None:
+    """Method §4a: 5 minutes, a hard stop at 10 that returns INCOMPLETE, and the budget stated.
+    The first read under it used 128,701 tokens against a 40k budget (2026-10-27)."""
+    root = _repo(tmp_path)
+    _record(root, "0099_x", "full", {**DONE, "8": review})
+    rec = cg.parse_record(root / "docs/wip/changes/0099_x.md")
+    assert rec is not None
+    found = cg.review_budget_problems(rec)
+    if problem is None:
+        assert found == []
+    else:
+        assert len(found) == 1 and problem in found[0], found
+
+
+def test_every_record_in_the_repo_keeps_the_review_budget() -> None:
+    assert cg.check_reviews(REPO) == []

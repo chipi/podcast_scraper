@@ -1,6 +1,6 @@
 # Corpus change method — how every change to what the corpus serves is planned, judged and shipped
 
-Status: **DRAFT v0.9** (2026-10-27). Practice runs: the 0030/0031 evaluation and 0030's go. Built under it: `0031_named_voices_shown` (the 0029 repair, through revision B.6), the S7/S8 instrument and the migration outcome hook, each with its record in `docs/wip/changes/`.
+Status: **DRAFT v1.0** (2026-11-04). Practice runs: the 0030/0031 evaluation and 0030's go. Built under it: `0031_named_voices_shown` (the 0029 repair, through revision B.6), the S7/S8 instrument and the migration outcome hook, each with its record in `docs/wip/changes/`.
 
 > **Renumbered 2026-10-18.** "0031" in this document is the naming re-derivation, now
 > `0032_naming_voices_rederived` (held under #2380, retired 2026-10-27 without running). The id 0031 now belongs to
@@ -308,6 +308,14 @@ DOUBTED NUMBER: <none | the number, the reason, test or one re-measure>
 VERDICT: GO | NO-GO | INCOMPLETE  <one sentence: the deciding item>
 ```
 
+**The budget is enforced (v1.0).** For every review dated from 2026-11-04 the change gate
+(`quality/change_gate.review_budget_problems`, in the landing check and over every record by
+`test_every_record_in_the_repo_keeps_the_review_budget`) refuses a step 8 whose review block
+reports no `minutes <n>`, whose review ran past 10 minutes and does not say `VERDICT: INCOMPLETE`,
+or that has no `Review budget: minutes <n>, tokens <n>` line stating what the reviewer was launched
+with. The minutes are the reviewer's own report: the gate checks the record's form, not the real
+cost, which only the harness that ran the review can measure.
+
 **The recalculation rule.** A reviewer who doubts a number names it and the reason under DOUBTED
 NUMBER. Then one of two things happens, never a third:
 
@@ -397,6 +405,7 @@ accepted. It must change a check, a gate or a step.
 | 0.7 | 2026-10-19 | After 0031's apply, the landing test refused it as stale on every edit inside its 667-module import closure, including other sessions' server fixes. A landed record (`status: landed`, set by hand at step 12 after the apply; steps 10 and 11 filled) is no longer compared with today's code on main; at any later apply the outcome hook refuses unmeasured code, or with an empty plan refuses any write (operator: "A"; record `stale_check_landed_migrations`). |
 | 0.8 | 2026-10-27 | A review reads, it does not recalculate, and takes at most 5 minutes (operator, after a step-8 "review" for 0037 re-ran the full `upgrade verify` twice and every scoreboard on its own clone for over an hour). Recomputing is the tests' job; a suspicious number is named and only it is re-measured, with the operator's go. |
 | 0.9 | 2026-10-27 | §4a defines the review (operator, after the 0037 step-8 "review" re-ran the full upgrade verify twice and every scoreboard on its own 9 GB clone for over an hour, with no budget). Written by a fresh advisor (Fable 5) at the operator's request. Two reads per change, 5 minutes each, no numbers produced; the acceptance list is gone (0034 had five, each restating the prediction; 0037's ordered the reviewer to re-derive everything): the acceptance criteria are the prediction plus the standing checks; the builder's own verdict precedes any review; a recompute-found defect becomes a test (0036 round 1), the tests carry that weight. |
+| 1.0 | 2026-11-04 | §4a's budget is enforced, not only stated (operator, on the builder's recommendation): the first read under v0.9 used 128,701 tokens against a 40k budget, and nothing checked it. The change gate refuses a step 8 dated from 2026-11-04 whose review reports no `minutes`, ran past 10 minutes without `VERDICT: INCOMPLETE`, or does not state its launch budget (`Review budget: minutes <n>, tokens <n>`). Reviews before that date stand as read. The minutes and tokens are self-reported, so this enforces the record's form, not the real cost. |
 
 ## Operator decisions (2026-10-26 / 27)
 
