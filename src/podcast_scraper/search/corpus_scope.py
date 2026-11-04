@@ -384,6 +384,54 @@ def dedupe_metadata_paths_newest_run_per_episode(
     return sorted(set(keep))
 
 
+_ARTIFACT_SUFFIXES = (".bridge.json", ".gi.json", ".kg.json")
+
+
+def member_episode_artifacts(corpus_root: Path, artifact_paths: List[Path]) -> List[Path]:
+    """The per-episode artifacts (bridge, GI, KG) of the corpus's MEMBER episodes, in input order.
+
+    An artifact whose ``<stem>.metadata.json`` sibling exists is kept exactly when that file is a
+    member under :func:`dedupe_metadata_paths_newest_run_per_episode`: every episode of every run,
+    a reprocessed episode from its newest run only. That is the rule indexing, enrichment and the
+    catalog share, so every reader that lists or walks artifacts agrees with them.
+
+    The readers used to keep only the ``run_*`` whose NAME sorted highest per feed
+    (:func:`latest_feed_run_allowed_relpaths`). Prod writes one run per nightly holding only that
+    night's episodes, named ``run_<uuid>_<timestamp>_<hash>``: on snapshot-prod-20261103 that kept
+    289 of 3,668 episodes, and in 70 of 80 multi-run feeds not even the newest run. An artifact with
+    no metadata sibling has no readable identity; for those that name rule still drops a
+    superseded copy.
+    """
+    root = Path(corpus_root)
+    meta_of: dict[Path, Path] = {}
+    for p in artifact_paths:
+        name = p.name
+        suffix = next((s for s in _ARTIFACT_SUFFIXES if name.endswith(s)), None)
+        if suffix is None:
+            continue
+        meta = p.with_name(name[: -len(suffix)] + ".metadata.json")
+        if meta.is_file():
+            meta_of[p] = meta
+    members = {
+        os.path.normpath(str(m))
+        for m in dedupe_metadata_paths_newest_run_per_episode(root, list(set(meta_of.values())))
+    }
+    bare = {}
+    for p in artifact_paths:
+        if p in meta_of:
+            continue
+        try:
+            bare[p] = p.relative_to(root).as_posix()
+        except ValueError:
+            bare[p] = p.as_posix()
+    allowed = latest_feed_run_allowed_relpaths(bare.values())
+    return [
+        p
+        for p in artifact_paths
+        if (os.path.normpath(str(meta_of[p])) in members if p in meta_of else bare[p] in allowed)
+    ]
+
+
 def _collect_root_run_dirs(root_normed: str, collect: "Callable[[str], None]") -> None:
     """Discover ``<root>/run_<id>/metadata/`` — the layout a SINGLE-FEED run produces.
 

@@ -96,3 +96,32 @@ def test_concurrent_listings_of_one_corpus_compute_once(
         t.join(10)
     assert codes == [200] * 5
     assert calls == [1]
+
+
+def test_every_member_episode_is_listed_newest_copy_only(tmp_path: Path) -> None:
+    """Prod writes one run per nightly with that night's episodes, named
+    ``run_<uuid>_<timestamp>_<hash>``. Keeping the run whose NAME sorted highest listed 289 of
+    3,668 GI files on snapshot-prod-20261103, and in 70 of 80 multi-run feeds not even the newest.
+    The listing now follows the central membership rule, as the CIL readers do."""
+    older = "feeds/f/run_ffff0000-0000-0000-0000-000000000000_20260101-000000_aaaa/metadata"
+    newer = "feeds/f/run_00000000-0000-0000-0000-00000000ffff_20260201-000000_bbbb/metadata"
+    episodes = {
+        f"{older}/only_old": "ep_old",
+        f"{older}/both": "ep_both",
+        f"{newer}/both": "ep_both",
+        f"{newer}/only_new": "ep_new",
+    }
+    for stem, eid in episodes.items():
+        for suffix in (".gi.json", ".kg.json", ".bridge.json"):
+            path = tmp_path / f"{stem}{suffix}"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
+        (tmp_path / f"{stem}.metadata.json").write_text(
+            json.dumps({"feed": {"feed_id": "f"}, "episode": {"episode_id": eid}}),
+            encoding="utf-8",
+        )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
+    assert resp.status_code == 200
+    gi = {a["relative_path"] for a in resp.json()["artifacts"] if a["kind"] == "gi"}
+    assert gi == {f"{older}/only_old.gi.json", f"{newer}/both.gi.json", f"{newer}/only_new.gi.json"}
