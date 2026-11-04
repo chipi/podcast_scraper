@@ -102,8 +102,56 @@ snapshot-prod-20261103; counts and ids only.
 
 ## 4. Prediction
 
-_TODO_ (after a prototype over the snapshot's unlabelled data and the dev_v1 baseline; before any
-code in `identity/`).
+Dated: 2026-11-04T14:00
+
+**The mode** (prototyped in the scratchpad, `l_proto.py`, by patching the evidence and the join
+test at runtime; no code in `identity/` yet). A new evidence mode beside today's, selected by a
+constant like `PERSON_MODE`, default today's:
+
+- **V1** an extracted name (`known_hosts`, `metadata_named`, `detected_guests`) counts as the
+  publisher's only when the episode's own publisher text (feed and episode title and description,
+  folded) contains it;
+- **V2** the publisher's text supplies its own spelling of a person the episode names: a span
+  "first name + one or two capitalised words" whose surname resembles (same Soundex, or folded
+  ratio >= 0.5), the only such spelling in the text; a trailing possessive is dropped;
+- **V3** joins inside one show: a host-seat person id joins a verified host by route A (same first
+  name, the only verified host with it, surname Soundex equal or ratio >= 0.6), B (first names at
+  ratio >= 0.75, the same surname test) or C (the same last word, the same first letter, the rest
+  at ratio >= 0.5).
+
+The prototype was iterated four times on the snapshot's unlabelled data, each run's joins read by
+hand: run 1 joined two pairs of different people through a whole-name route (dropped), run 2 a
+dozen through a loose first-name route (dropped), run 3 two through route C without the first
+letter (fixed). Design data: the snapshot and dev_v1. val_v7 is not read.
+
+**On snapshot-prod-20261103, the new mode against today's** (prototype run 4):
+
+- **V1 drops** 1,063 `known_hosts`, 264 `metadata_named` and 1 `detected_guests` name-episodes
+  as not the publisher's; **V2 finds** 187 publisher spellings (204 left: two fitting spellings in
+  one text); **V3** 28 candidate join pairs.
+- **Joins 652 -> 656** (+4, 0 removed, 0 moved): `person:erika-beras` -> `person:erica-barris`;
+  `person:john-quillen-hill`, `person:jonklin-hill`, `person:jonquilyn-hill` ->
+  `person:john-glenn-hill`.
+- **Shown spellings: 18 groups move.** 12 take the publisher's spelling: `person:amanda-aronchik`,
+  `person:chris-hustane`, `person:dara-obrey`, `person:erica-barris`, `person:greg-rosalski`,
+  `person:jeff-glow`, `person:john-glenn-hill`, `person:luisa-lemi`, `person:luisa-lemme`,
+  `person:sam-brazell`, `person:sarah-gonzales`, `person:yasmin-tayag` (5 of them had no spelling
+  before: tie or plurality). 6 keep their spelling and change only the evidence label (publisher
+  <-> frequency): `person:casey-newton`, `person:dan-saffer`, `person:heather-haddon`,
+  `person:lily-ottinger`, `person:noah-kravitz`, `person:steve-hatherly`.
+- **Respell when the mode is switched on:** 110 files written of 1,009 examined, 0 refused (on a
+  copy, `l_proto.py --write-ledger`).
+- **dev_v1 (design set), served names after the respell:** S7_correct 2,440 -> **2,452**,
+  S7_wrong 392 -> **380** (the 12 are `person:dara-obrey`'s, D2's accepted loss), fold_exact
+  2,251 -> **2,279**, fuzzy_or_title 25 -> 9, token_subset 164 -> 164, S7_unnamed 1,313 -> 1,313.
+- **val_v7 (scored once, at step 7), integers:** S7_wrong 299 -> **290 to 299** (no increase),
+  S7_correct 2,334 -> **2,334 to 2,345**, fold_exact 2,181 -> **2,181 or more**, S7_unnamed 799
+  unchanged.
+- **Must not move:** S7_unnamed (both sets); no join removed; no group loses a member; the
+  shipped mode (today's) builds byte-identical ledgers on the snapshot before and after the build;
+  `PERSON_MODE` and the active evidence mode unchanged, so the deploy writes no file.
+- **L5 (#2056):** to be answered from the build's ledger: whether the two reported pairs are one
+  group each in today's mode and in the new one.
 
 ## 5. Acceptance
 
