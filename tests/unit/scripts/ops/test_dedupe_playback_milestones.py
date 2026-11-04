@@ -68,3 +68,30 @@ def test_a_log_with_no_repeats_is_not_touched(tmp_path: Path) -> None:
     appdata = _appdata(tmp_path, _ev("ep1", 25, 1) + _ev("ep1", 50, 2))
     assert _mod.main(["--appdata", str(appdata), "--apply"]) == 0
     assert not (appdata / "users/u1/playback_events.jsonl.bak-dedupe-milestones").exists()
+
+
+def test_run_as_root_every_file_it_writes_gets_the_owner_of_what_it_stands_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Run as root, ``os.replace`` left the log root's and the api could no longer append to it
+    (prod, 2026-10-09). The test cannot be root, so it records the chown calls the script makes."""
+    appdata = _appdata(tmp_path, LINES)
+    log = appdata / "users" / "u1" / "playback_events.jsonl"
+    log_owner = (log.stat().st_uid, log.stat().st_gid)
+    dir_owner = (appdata.stat().st_uid, appdata.stat().st_gid)
+    calls: dict[str, tuple[int, int]] = {}
+    monkeypatch.setattr(_mod.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(_mod.os, "chown", lambda p, u, g: calls.__setitem__(Path(p).name, (u, g)))
+    _mod.run(appdata, apply=True)
+    assert calls == {
+        "playback_events.jsonl.tmp-dedupe": log_owner,
+        "playback_events.jsonl.bak-dedupe-milestones": log_owner,
+        "dedupe_playback_milestones.jsonl": dir_owner,
+    }
+
+
+def test_not_root_it_never_chowns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    appdata = _appdata(tmp_path, LINES)
+    monkeypatch.setattr(_mod.os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(_mod.os, "chown", lambda *a: pytest.fail("chown without root"))
+    _mod.run(appdata, apply=True)
