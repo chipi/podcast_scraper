@@ -264,10 +264,10 @@ Verdict: GO WITH CONDITIONS
   broken down by migration.
 
 Outcome: `src/podcast_scraper/upgrade/outcomes/0044_title_spelling_voices_renamed.json`, sha256
-`f35cc2a9f6f5030548692f66189f7c85f552f91c23f66d695a1cbae84e390aeb` (rebuilt 2026-11-04 on the
-branch rebased onto PR B `aeaf39e7`, after 0045's registry entry, revision 4c; gate re-run on
-`3a4adaf47`, dirty false, plan sha256 `9ae9d480…` equal, 43 verify ok; the first build
-`816bc81e…` was on `5d37558e`).
+`57871ffe09081246fa043c7c1e61868314a5c7d7f06235416be83ea8f7448918` (rebuilt 2026-11-05 on
+`98e72bea`, the branch rebased onto `3c54dcb7`, whose #2424 `server/jobs.py` is in the digest;
+gate dirty false, plan sha256 `9ae9d480…` equal, 43 verify ok; earlier builds `f35cc2a9…` (on
+`3a4adaf47`, after PR B and 0045's registry entry) and `816bc81e…` (on `5d37558e`)).
 
 ## 9. Operator review
 

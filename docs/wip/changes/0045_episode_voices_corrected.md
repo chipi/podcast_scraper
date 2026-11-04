@@ -191,8 +191,10 @@ Verdict: GO WITH CONDITIONS
 - **Condition 2:** SPEAKER_01 of the episode stays as stored until its own reviewed entry.
 
 Outcome: `src/podcast_scraper/upgrade/outcomes/0045_episode_voices_corrected.json`, sha256
-`a840b1862383606971d68b9375c9a9e6d32f8242959ef56b4a7919a028433c50` (gate on `3a4adaf47`, dirty
-false, plan sha256 `3500641d…`).
+`7e901ff127710b5004603b0284a78fdedba74a7bdad42ae949c2d385cd5856fa` (rebuilt 2026-11-05 on
+`98e72bea`, the branch rebased onto `3c54dcb7`, whose #2424 `server/jobs.py` is in the digest;
+gate dirty false, plan sha256 `3500641d…` equal, 44 verify ok; the earlier build `a840b186…` was
+on `3a4adaf47`).
 
 ## 9. Operator review
 

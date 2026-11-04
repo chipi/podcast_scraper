@@ -498,11 +498,12 @@ Verdict: GO WITH CONDITIONS
 Gate on committed code: re-run 2026-11-04T12:08:57 on a clean tree (`91794771c`, dirty false),
 equal to measurement 2 in everything but its time and code stamp (plan sha256 `d167d230…`).
 Outcome: `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
-`93ab01d520521a2048eca40f7d19d3ec3df0f56df23e107186495ae12b3b6188` (rebuilt 2026-11-04 on the
-branch rebased onto PR B `aeaf39e7`, after 0045's registry entry, revision 4f; gate re-run on
-`3a4adaf47`, dirty false, plan sha256 `d167d230…` equal, 42 verify ok, 0 regressions; earlier
-builds `632a047f…` (after 0044's registry entry), `584ff3c0…` (after C2's fix),
-`5866ae29…`, `fe2692aa…`, `27bca008…` and `f625eb63…`, each stale once code in its digest moved).
+`382c6e7cd6e31559f50d55a560196978158ca3fb0f95fcb7866441d9c274416c` (rebuilt 2026-11-05 on
+`98e72bea`, the branch rebased onto `3c54dcb7`, whose #2424 `server/jobs.py` is in the digest;
+gate dirty false, plan sha256 `d167d230…` equal, 42 verify ok, 0 regressions; earlier builds
+`93ab01d5…` (on `3a4adaf47`, after PR B and 0045's registry entry), `632a047f…` (after 0044's
+registry entry), `584ff3c0…` (after C2's fix), `5866ae29…`, `fe2692aa…`, `27bca008…` and
+`f625eb63…`, each stale once code in its digest moved).
 
 **Rehearsal of prod's apply path** (2026-11-04, a copy of snapshot-prod-20261103, `upgrade run
 --to 2.7.37 --yes --no-snapshot`, code `bc03d093`): the outcome hook applied 0043, receipt verdict
