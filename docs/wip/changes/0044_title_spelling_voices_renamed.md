@@ -117,11 +117,59 @@ unchanged; the 9 not reached byte-identical by sha256; files and episodes writte
 
 ## 6. Build
 
-_TODO_
+- `upgrade/migrations/m0044_title_spelling_voices_renamed.py`: 0037's `NamedVoicesCorrectedMigration`
+  with its own id (to 2.7.38), list, verdicts, receipts (`title_spelling_voices_renamed.jsonl`)
+  and backup tag (`0044`); `load_list` holds 0037's rule (renames only, a deciding segment).
+- `upgrade/lists/0044_…json` (20 entries), `upgrade/verdicts/0044_…tsv` (the blind reader's 20
+  rows: verdict, basis, segment index and the segment text's sha256, no text; bound to the list's
+  sha256), `upgrade/registry.py` (after 0043; 0043's revision 4e and acceptance 5d).
+- Tests (`test_m0044_title_spelling_voices_renamed.py`, 6, fictional names, written before the
+  module was placed): a heard spelling takes the title's on segments, roster, GI and transcript,
+  and the undo puts it back; the host's name on the titled guest's voice takes the guest and the
+  role; a `WRONG_PERSON` verdict writes nothing; a stored name that moved on is refused untouched;
+  the shipped list (20 in 20 episodes); registered after 0043, own backups and receipts, verdicts
+  load against the list. Commit `5d37558e`.
+- `MISSED:` the tests ran against the drafted module before acceptance in the scratchpad, not
+  first against a failing build.
 
 ## 7. Measure
 
-_TODO_
+Clone: snapshot-prod-20261103 with 0043 applied through `upgrade run --to 2.7.37` (hook receipt
+PASS; recorded in record 0043, step 8). Gate: `corpus_change_gate.py` on `5d37558e`, dirty false
+(`0044_title_spelling_voices_renamed.gate.json`). Checks on the gate copy: scratchpad
+`m44_checks.py`, `m44_marker2.py`, `m44_cleaned.py`, `l6_dups.py`.
+
+| Row (4 / 4b) | Predicted | Measured |
+| --- | --- | --- |
+| renames applied | 18 | **18** (`diagnostics_voices_renamed` 18; targets after: 0 episodes) |
+| episodes written | 18 | **18** |
+| files written | 150 to 260 | **206** |
+| refused, unnamings, role changes | 0, 0, 0 | **0, 0, 0** (`kg_roles_set` 1 is a KG Person node's role property, the voice's role is unchanged) |
+| gating scoreboard | no total moves | **no gating number moved** |
+| `upgrade verify`, all applied | 0 new failures | **43 ok, 0 failing, 0 regressions** |
+| the 20 listed voices after | 18 on the title's spelling, 2 as stored | **20 of 20** |
+| other voices of the listed episodes | 0 moved | **0** |
+| the 2 refused entries' episodes | byte-identical | **0 files moved** |
+| new / old name on another voice of the episode | 0 / 0 | **0 / 0** |
+| second apply | 0 files | **0 episodes, 0 files** |
+| undo | byte-identical, 0 refused | **209 restored, 0 refused, 209 of 209 equal to the clone** |
+| ledger refresh after the apply | 0 to 3 episodes respelled, none back to the heard spelling | **3 episodes (9 files), 0 refused; 0 applied voices back on the heard spelling**; joins 649 -> 652: `person:andrea-tosoto`, `person:jacob-liberman` and `person:nikhyl-singhal` join their groups |
+| old-name `Name:` markers left in the 18 episodes' transcripts | 0 | **2 lines in 1 file**: `6410d1c5-6b80-4908-a7b3-ab62b46c7576` `.cleaned.txt` (below) |
+
+- **The 2 lines:** the stored cleaned transcript of `6410d1c5` already labels lines of another
+  voice with this guest's heard name (by the segments, lines 256 and 276 are another voice's
+  text). 0029's cleaned-line rewrite relabels only the lines whose text is this voice's, so those
+  2 keep the old label. A misattribution in that file before 0044, left as it was; 45 of the
+  voice's own lines carry the title's spelling.
+- **Spot checks:** entries 19 and 20 (refused) unchanged; the nickname-to-formal entries carry no
+  short form on any voice (the new/old-on-another-voice counts above); entry 15's non-ASCII
+  heard spelling has no marker left in `.txt`, `.adfree.txt` or `.cleaned.txt` (`m44_marker2.py`
+  lists only `6410d1c5`).
+- Not measured here: the incremental index's re-embed count (predicted 18), the enrichers of the
+  written episodes, and the gold's coverage of the 18 voices.
+
+**Builder: GO.** Deciding numbers: 18 renames in 18 episodes and nothing else, every listed voice as
+the review decided, undo whole, no gating number moved.
 
 ## 8. Verdict
 
@@ -145,4 +193,18 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- **Found by the review, not fixed here:** episode `a02c151a-dde6-4804-9827-a3df80b8352c`'s voice
+  stored with a third spelling of the titled guest is the show's host's voice: a wrong-person name
+  on a served voice. A rename to the host is a 0037-class correction with its own list and review.
+- Episode `6410d1c5-6b80-4908-a7b3-ab62b46c7576`: 2 cleaned-transcript lines of another voice
+  labelled with this guest's heard spelling (section 7).
+- The 3 unnamed voices the replay names (naming an unnamed voice is a different claim) and the 4
+  already on the title's spelling.
+- Only the speaker name moves: the heard spelling inside spoken text, insight and quote text,
+  summaries and KG mentions stays; the episode title is untouched.
+- Other episodes of the same people stored with the heard spelling that the replay did not reach,
+  and episodes stored after the snapshot.
+- The search-index rows are refreshed by the incremental index after the apply, not by the
+  migration; the enrichers of the written episodes run after it.
+- The verdict reader's evidence for 3 entries (6, 12, 14) is by elimination: the only other voices
+  are the host and a co-guest named elsewhere.
