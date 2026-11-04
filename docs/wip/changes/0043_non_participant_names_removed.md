@@ -284,6 +284,45 @@ voice's). Undo on the full work copy: restored 1,155, refused 0, all 1,155 byte-
 snapshot, `verify` pending again (101 episodes). The excerpts (10 voices, both kept ones among
 them) showed the unnamed voices keep `speaker_role`: revision 4c.
 
+**Measurement 2** (after revision 4c; gate measured 2026-11-04T11:43:44, report
+`0043_non_participant_names_removed.gate.json`, plan sha256 `d167d230…`): computed class full;
+gating move S2_hidden +1 only (32,488 -> 32,489; commercial 95 -> 96); files changed 1,110;
+`verify` ok; `upgrade verify` over all 42 applied migrations ok, 0 failing, `verify_regressions`
+0. Apply counters identical to measurement 1. Checks on the work copy
+(`scratchpad m43_m2.py`):
+
+| 4c / 5b row | Predicted | Measured |
+| --- | --- | --- |
+| applied voices / episodes | 111 / 101 | 111 / 101 |
+| segment rows typed commercial, no `speaker_role`, no label | 2,237 | 2,237, 0 problems |
+| diagnostics voices role `unknown`, commercial, unnamed | 111 | 111 |
+| other voices' segment role unchanged (rows) | all | 119,618 rows, 0 moved |
+| other voices' diagnostics role unchanged | all | 0 moved |
+| the 2 kept voices untouched | yes | yes |
+| host seats by segment role, class E | 0 and 2 | 0 and 2 |
+| roster / KG / `detected_guests` / `detected_hosts` | 110 / 76 / 43 / 2 | 110 / 76 / 43 / 2 |
+| GI Person, quote, insight | 1 / 1 / 1 | 1 / 1 / 1 (2 nodes typed commercial) |
+| S2 (commercial) | 32,489 (96) | 32,489 (96) |
+| S1, S1n, S1c, S3, S10a, S10b, S12, A1 | unchanged | unchanged |
+| second apply | 0 files | 0 episodes |
+| full-clone undo | restored all, refused 0, byte-identical, verify pending | 1,155 restored, 0 refused, 1,155 / 1,155 identical, verify pending (101) |
+
+Per-voice excerpts (10 voices: one per class A, C, E, both kept voices, five class B; ids,
+labels, roles and types before and after, the deciding segment's text kept private in the
+scratchpad `m43_excerpts.json`): every unnamed voice goes from its name to no label, type
+`commercial`, and from measurement 2 no role; the kept voices are byte-unchanged; the other voices
+of each episode keep their labels (an episode's label count drops only by its own listed voices).
+
+Derived-surface census: the files written per suffix are in the gate report
+(`files_changed_by_suffix`: metadata 101, segments 202, transcripts and ad-free text 180, turns
+30, diagnostics 101, GI 90, KG 77, bridge 91, context 100, ad maps 83, cleaned text 34). Not
+written on the clone and left for step 10 on prod: the search-index rows of the 101 episodes
+(targeted reindex) and the enrichment outputs built from the changed files.
+
+**Builder: GO.** Deciding number: 111 of 111 reviewed non-participant voices unnamed and typed
+commercial with 0 problems in 121,855 rows, S2 the only moving gating number (+1, as predicted),
+0 verify regressions, full undo byte-identical.
+
 ## 8. Verdict
 
 _TODO_
