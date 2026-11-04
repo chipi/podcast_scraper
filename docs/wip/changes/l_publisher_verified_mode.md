@@ -271,6 +271,11 @@ On snapshot-prod-20261103 with the committed build (`identity/` at the build com
   already one group: none joins two people. V1's drops include the Latent Space and Latin
   America in Focus spellings named in 4b. `person:sarah-gonzales` shows the publisher's spelling.
   Not read: each of the 102 respelled episodes' files.
+- **The one change on the default path:** `guards._publisher_names_by_key` now resolves an
+  absolute transcript path through `utils.run_relative` (the last occurrence of the run's name; it
+  took the first, and a path ending at the run directory now gives no diagnostics instead of an
+  odd path). It differs only for a path that repeats the run's name; on the snapshot the default
+  ledger is byte-identical with it.
 
 **Builder: GO for shipping switched off.** Deciding numbers: today's mode byte-identical, so the
 deploy changes no stored file; switched on, the measured ledger moves (4 joins, 12 spellings, 0
@@ -279,7 +284,35 @@ val_v7 does not move. Switching on stays the operator's call, after reading this
 
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5
+reader), inputs as file paths, ran nothing over the corpus, read no val_v7 case or label.
+
+Review budget: minutes 5, tokens 40000
+
+```text
+REVIEW l_publisher_verified_mode 2026-11-04 commit cf77b1ece reviewer Sonnet (fresh) minutes 4
+PREDICTION vs GATE: 12 rows (section 7; no gate report), 9 equal, 3 val_v7 point misses stated as misses, bounds held; respell row in other units (110 files vs 102 episodes / 980 files), 8 episodes untraced
+REQUIRED ITEMS: EVIDENCE_MODE "extracted"; default build passes extracted evidence and today's rule version; unknown modes refused; "join" only from host_join_pair_rule, only in publisher_verified; today's mode byte-identical; 21 tests, mutation 4 of 4; missing: ci-fast log, section 8 and Not covered, run_relative not named as a default-path change
+AFTER-STATE READ: default path unchanged on the snapshot; switched-on ledger moves read by id (4 joins, 12 spellings); 102 respelled episodes not read; 3 of V3's 28 pairs not itemised
+OPEN CALLS: L1 / L3 pipeline half / L6 out of this mode: agreed; switching on stays the operator's; closing #2056 the operator's
+DOUBTED NUMBER: 102 vs 110 respelled episodes; trace by id before any switch-on (not blocking a switched-off ship)
+VERDICT: GO WITH CONDITIONS  shipped switched off with the default path unchanged on the snapshot; val_v7 misses honestly stated
+```
+
+Conditions, each answered:
+
+1. `make ci-fast` on the committed tree: **open**, run once with the arc's other changes before
+   the PR (arc list, "Before the branch's PR").
+2. `run_relative` named as the default-path change in section 7: **done**.
+3. Section 8 and Not covered filled: **done**.
+4. The 102 vs 110 respelled episodes traced by id: **open, before any switch-on change** (it is
+   not written by this deploy).
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** `make ci-fast` green on the committed tree before the branch's PR.
+- **Condition 2:** before switching the mode on, the respell's episode set traced against the
+  prototype's by id, and the switch-on measured again on a fresh snapshot.
 
 ## 9. Operator review
 
@@ -300,4 +333,18 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- **The gain on unseen data is zero:** val_v7 does not move; the evidence for the mode is dev_v1
+  (the design set, one group) and the ledger moves read by id on the snapshot.
+- The 102 respelled episodes' files were not read one by one; the 8 episodes between the
+  prototype's 110 and the build's 102 are not traced by id.
+- 3 of V3's 28 candidate pairs are not itemised; the 21 that joined nothing are listed by kind,
+  not each read.
+- V1 drops 1,063 `known_hosts` name-episodes; 4 are named by id, the rest counted. A V1 drop
+  also loosens the publisher-list guard (b); blocked joins stayed 40 on the snapshot, but on a
+  corpus with more ASR `known_hosts` a guard that held could stop holding.
+- V2's span finder is English-capitalisation based; non-Latin scripts and lowercase-name
+  languages give it nothing.
+- L1, L3's pipeline half and L6 are not built (section 1, 4b).
+- No gate report: a ledger mode has no migration; the measurement is section 7's table and the
+  scratchpad scripts, which are not committed.
+- `make ci-fast` not yet run on the committed tree (condition 1).
