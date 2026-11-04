@@ -624,9 +624,9 @@ def preload_diarization_models() -> None:
 
     Loading ``Pipeline.from_pretrained`` downloads and caches every sub-model
     (segmentation + embedding) so later runs load offline (``HF_HUB_OFFLINE=1``).
-    The default community-1 (v4) is **non-gated** — it caches with no HF token. The
-    3.1 fallback is gated (needs a token with accepted terms); without one its
-    preload 403s harmlessly (warned, not fatal — diarization is optional).
+    The default community-1 (v4) and the 3.1 fallback are both **gated** (401 without a
+    token, checked 2026-11-03): they need a token whose account accepted the terms. Without
+    one the preload fails harmlessly (warned, not fatal — diarization is optional).
 
     Controlled by ``DIARIZATION_MODEL`` (default = manifest ``DIARIZATION_PIPELINE_ID``,
     community-1) and skipped entirely with ``SKIP_DIARIZATION=1``.
@@ -652,8 +652,8 @@ def preload_diarization_models() -> None:
 
     model = os.environ.get("DIARIZATION_MODEL", DIARIZATION_PIPELINE_ID).strip()
     cfg = _config.Config(rss="https://example.com/feed.xml", transcription_provider="whisper")
-    # community-1 (default) is non-gated → token optional. A gated model (3.1) without
-    # a token 403s in the try below (warned, not fatal). Pass token when we have one.
+    # Both pyannote pipelines are gated: without a token the try below fails with a 401
+    # (warned, not fatal). Pass the token when we have one.
     token = resolve_hf_token(cfg)
 
     print(f"  Loading {model} (downloads + caches its sub-models)...")

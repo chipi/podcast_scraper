@@ -286,12 +286,12 @@ docker run -v ./config.yaml:/app/config.yaml \
            podcast-scraper:ml
 ```
 
-> **The default diarization model (`community-1`, v4) is non-gated — no Hugging Face
-> token needed**, and the ML image bakes it in. A token is only required if you switch
-> to the gated `pyannote/speaker-diarization-3.1` fallback (whose `segmentation-3.0` is
-> also gated and cannot be redistributed in a published image). For that fallback,
-> accept the terms on Hugging Face, then pass your token and a persistent cache so the
-> one-time download survives restarts:
+> **Both pyannote diarization models are gated on Hugging Face**: the default
+> `community-1` (v4) and the `speaker-diarization-3.1` fallback (with `segmentation-3.0`)
+> answer 401 without a token (checked 2026-11-03). The image build passes no token, so the
+> preload skips them and the ML image does not include them. To diarize in a container,
+> accept the terms on Hugging Face with the token's account, then pass the token and a
+> persistent cache so the one-time download survives restarts:
 >
 > ```bash
 > docker run -v ./config.yaml:/app/config.yaml \

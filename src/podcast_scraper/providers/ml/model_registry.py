@@ -1707,7 +1707,7 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
 # (count 40/45 vs 32/45, DER 7.1% vs 10.8%) by fixing 3.1's multi-speaker
 # panel merges; 3.1 kept as fallback (better on brief-cameo count). Both are gated
 # on Hugging Face: community-1 answers 401 without a token on 2026-11-03 (its
-# 2026-07-11 entry below records it as non-gated). See the eval report.
+# 2026-07-11 measurement called it non-gated). See the eval report.
 _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     # Diarization OFF — for cloud production profiles that run ``diarize: false`` (speaker turns
     # come from the LLM naming stage, not a diarizer pass). ``model=None`` so the resolver emits NO
@@ -1734,7 +1734,7 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         model="pyannote/speaker-diarization-community-1",
         headline_metric=(
             "count 40/45 + DER 7.1% on v3 fixtures (vs 3.1's 32/45 / 10.8%); "
-            "fixes 3.1's multi-speaker panel merges; non-gated"
+            "fixes 3.1's multi-speaker panel merges; gated (401 without a token, 2026-11-03)"
         ),
         measured_at="2026-07-11",
         tier="primary",
