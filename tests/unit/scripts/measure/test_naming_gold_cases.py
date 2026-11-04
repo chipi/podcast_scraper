@@ -83,3 +83,14 @@ def test_an_episode_in_an_existing_set_is_excluded_even_after_a_reprocess(tmp_pa
     exclude = gc.excluded_episodes([held], tmp_path)
     picked = gc.select([new, other], tmp_path, 5, 1, exclude, "en")
     assert picked == [other]
+
+
+def test_an_absolute_transcript_path_reads_this_corpus_s_segments(tmp_path: Path) -> None:
+    """121 of 3,130 member episodes on snapshot-prod-20261103 store the path at ingest,
+    /app/output/feeds/<feed>/<run>/transcripts/<x>.txt. Joined as written it names no file here,
+    so the episode silently left the sampling pool."""
+    meta = _episode(tmp_path, "f1", "e1", "run_x", [_seg("SPEAKER_00", 0, 5, "Hi, I'm the host.")])
+    doc = json.loads(meta.read_text())
+    doc["content"]["transcript_file_path"] = "/app/output/feeds/f1/run_x/transcripts/e1.txt"
+    meta.write_text(json.dumps(doc))
+    assert [s["text"] for s in gc._segments(meta, doc)] == ["Hi, I'm the host."]

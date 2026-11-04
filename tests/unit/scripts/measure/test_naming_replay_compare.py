@@ -57,3 +57,21 @@ def test_an_episode_losing_every_name_is_counted(tmp_path: Path) -> None:
     a = nrc.load(_write(tmp_path / "a.jsonl", [_rec("e1", {"S0": host})]))
     b = nrc.load(_write(tmp_path / "b.jsonl", [_rec("e1", {"S0": raw})]))
     assert nrc.episode_moves(a, b) == {"gained_first_name": 0, "lost_every_name": 1}
+
+
+def test_voice_texts_reads_an_absolute_transcript_path_under_this_corpus(tmp_path: Path) -> None:
+    """Some metadata stores the path at ingest (/app/output/feeds/<feed>/<run>/...); joined as
+    written it named no file in a copy and raised (121 of 3,130 episodes on the 11-03 snapshot)."""
+    run = tmp_path / "feeds" / "f1" / "run_x"
+    (run / "metadata").mkdir(parents=True)
+    (run / "transcripts").mkdir()
+    (run / "transcripts" / "e1.segments.json").write_text(
+        json.dumps([{"speaker": "SPEAKER_00", "text": "Hello there."}])
+    )
+    meta = run / "metadata" / "e1.metadata.json"
+    meta.write_text(
+        json.dumps(
+            {"content": {"transcript_file_path": "/app/output/feeds/f1/run_x/transcripts/e1.txt"}}
+        )
+    )
+    assert nrc.voice_texts(str(meta)) == {"SPEAKER_00": ["Hello there."]}

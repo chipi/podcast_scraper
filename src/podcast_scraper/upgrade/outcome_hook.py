@@ -32,10 +32,11 @@ import hashlib
 import importlib
 import importlib.resources
 import json
+import posixpath
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
 from .ownership import created_dirs, match_corpus_owner
 
@@ -360,6 +361,10 @@ class Prepared:
     diff: List[Dict[str, Any]] = field(default_factory=list)
     accept: Optional[Dict[str, Any]] = None
     accept_sha: Optional[str] = None
+    # ``upgrade rerun``: the named episodes, the rerun's own receipts file and outcome receipt name.
+    scope: Optional[FrozenSet[str]] = None
+    rerun_receipts: Optional[str] = None
+    receipt_name: Optional[str] = None
 
 
 def check_static(migration: Any, pending_ids: List[str], applied: Set[str]) -> Tuple[Dict, str]:
@@ -392,11 +397,64 @@ def prepare(
     outcome, sha = check_static(migration, pending_ids, applied)
     prod = episode_plan(migration, root)
     diff = plan_diff(outcome["plan"], prod)
-    prepared = Prepared(migration, outcome, sha, diff)
+    return _accepted(Prepared(migration, outcome, sha, diff), root, accept_path, write)
+
+
+def prepare_rerun(
+    migration: Any,
+    root: Path,
+    scope: FrozenSet[str],
+    applied: Set[str],
+    stamp: str,
+    accept_path: Optional[Path] = None,
+    dry: bool = False,
+) -> Prepared:
+    """``upgrade rerun``: an applied migration again for the named episodes, measured against its
+    outcome's rows for them. The caller holds ``corpus_selection.episode_scope(root, scope)``.
+    ``dry``: the plan difference is returned, not stopped on, and nothing is written."""
+    outcome, sha = load_outcome(migration.id)
+    if migration.id not in applied:
+        raise HookRefused(f"{migration.id}: not applied here; `upgrade run` applies it")
+    missing = sorted(set(outcome["applied_before"]) - set(applied))
+    if missing:
+        raise HookRefused(
+            f"{migration.id}: the outcome's earlier migrations are not all applied: {missing}"
+        )
+    if migration_digest(migration) != outcome["code_digest"]:
+        raise HookRefused(f"{migration.id}: the installed code is not the code that was measured")
+    prod = episode_plan(migration, root)
+    outside = sorted(str(r["meta"]) for r in prod if str(r["meta"]) not in scope)
+    if outside:
+        raise HookRefused(
+            f"{migration.id}: its plan names {len(outside)} episode(s) outside the scope (it does "
+            f"not select through corpus_selection): {outside[:3]}"
+        )
+    # Measured against the outcome's rows for the named episodes this rerun writes. A named
+    # episode the outcome planned and that needs nothing now is no difference: nothing touches it.
+    writes = {str(r["meta"]) for r in prod}
+    scoped = dict(outcome)
+    scoped["plan"] = [r for r in outcome["plan"] if str(r["meta"]) in writes]
+    scoped["episode_deltas"] = {k: v for k, v in outcome["episode_deltas"].items() if k in writes}
+    prepared = Prepared(
+        migration,
+        scoped,
+        sha,
+        plan_diff(scoped["plan"], prod),
+        scope=scope,
+        rerun_receipts=getattr(migration, "_receipts_file", None),
+        receipt_name=f"{migration.id}.rerun-{stamp}",
+    )
+    return prepared if dry else _accepted(prepared, root, accept_path, True)
+
+
+def _accepted(prepared: Prepared, root: Path, accept_path: Optional[Path], write: bool) -> Prepared:
+    """A plan difference stops the run until an accept file names it exactly (``HookStopped``)."""
+    migration, sha, diff = prepared.migration, prepared.outcome_sha, prepared.diff
+    name = prepared.receipt_name or migration.id
     if diff:
         if accept_path is None:
             if write:
-                out = Path(root) / OUT_DIR / f"{migration.id}.plan-diff.json"
+                out = Path(root) / OUT_DIR / f"{name}.plan-diff.json"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(
                     json.dumps(
@@ -452,7 +510,10 @@ def measure(
         "accept": prepared.accept,
         "clone_deltas": prepared.outcome["episode_deltas"],
     }
-    path = Path(root) / OUT_DIR / f"{mig.id}.json"
+    if prepared.scope is not None:
+        receipt["rerun_scope"] = sorted(prepared.scope)
+        receipt["rerun_receipts"] = prepared.rerun_receipts
+    path = Path(root) / OUT_DIR / f"{prepared.receipt_name or mig.id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         after = score_by_episode(root)
@@ -461,7 +522,7 @@ def measure(
         path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
         _own(Path(root), path)
         raise HookOutcomeFailed(
-            f"{mig.id}: applied, but the after-scoreboard failed ({exc}); {undo_hint(mig)}"
+            f"{mig.id}: applied, but the after-scoreboard failed ({exc}); {_hint(prepared)}"
         ) from exc
     prod = deltas(before, after, metrics)
     differing = {e["meta"] for e in prepared.diff}
@@ -469,6 +530,8 @@ def measure(
     total_after = {m: sum(e.get(m, 0) for e in after.values()) for m in metrics}
     if total_after.get("S1c_inconsistent", 0):
         fails.append(f"S1c is {total_after['S1c_inconsistent']} after, not 0")
+    if prepared.scope is not None:
+        fails += _rerun_leaks(prepared, root, before, after)
     receipt.update(
         verdict="FAIL" if fails else "PASS",
         prod_deltas=prod,
@@ -481,9 +544,54 @@ def measure(
     if fails:
         raise HookOutcomeFailed(
             f"{mig.id}: applied, and the outcome is not the measured one ({len(fails)}): "
-            f"{fails[:5]}; {undo_hint(mig)}"
+            f"{fails[:5]}; {_hint(prepared)}"
         )
     return result
+
+
+def files_outside(scope: Iterable[str], relpaths: Iterable[str]) -> List[str]:
+    """The written files that belong to no named episode: an episode owns the files in its run
+    directory whose name starts with its metadata file's stem. Paths are normalised first: some
+    migrations record ``run_x/../run_x/transcripts/…`` (0043 on the snapshot, 2026-11-04)."""
+    owners = []
+    for meta in scope:
+        p = Path(posixpath.normpath(meta))
+        owners.append((p.parent.parent.as_posix(), p.name[: -len(".metadata.json")] + "."))
+    out = []
+    for rel in relpaths:
+        r = Path(posixpath.normpath(str(rel)))
+        run = r.parent.parent.as_posix()
+        if not any(run == o_run and r.name.startswith(stem) for o_run, stem in owners):
+            out.append(str(rel))
+    return sorted(out)
+
+
+def _rerun_leaks(
+    prepared: Prepared,
+    root: Path,
+    before: Dict[str, Dict[str, int]],
+    after: Dict[str, Dict[str, int]],
+) -> List[str]:
+    """A rerun wrote only its named episodes: its own receipts name no other file, and every other
+    episode's scoreboard row is unchanged."""
+    scope = prepared.scope or frozenset()
+    fails = [
+        f"{ep}: outside the scope, its scoreboard changed"
+        for ep in sorted(set(before) | set(after))
+        if ep not in scope and before.get(ep) != after.get(ep)
+    ]
+    written: List[str] = []
+    if prepared.rerun_receipts:
+        try:
+            lines = (Path(root) / prepared.rerun_receipts).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            lines = []
+        for line in lines:
+            row = json.loads(line)
+            if row.get("kind") != "header" and row.get("relpath"):
+                written.append(str(row["relpath"]))
+    fails += [f"{rel}: written outside the scope" for rel in files_outside(scope, written)]
+    return fails
 
 
 def _write_marks(migration: Any, root: Path) -> Tuple[int, bool]:
@@ -519,6 +627,18 @@ def apply_empty(migration: Any, root: Path, apply: Callable[[], Any]) -> Any:
         )
     print(f"{migration.id}: plan empty: nothing to measure", file=sys.stderr)
     return result
+
+
+def _hint(prepared: Prepared) -> str:
+    mig = prepared.migration
+    if prepared.scope is None:
+        return undo_hint(mig)
+    return (
+        "the rerun stays (the apply's own backups are untouched); to undo the rerun: python -c "
+        '"from pathlib import Path; from podcast_scraper.upgrade.file_rewrite import '
+        f"undo_from_receipts; print(undo_from_receipts(Path('<corpus root>'), "
+        f"'{prepared.rerun_receipts}', '{getattr(mig, '_backup_tag', '')}', '{mig.id}'))\""
+    )
 
 
 def undo_hint(migration: Any) -> str:

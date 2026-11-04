@@ -10,7 +10,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
+from podcast_scraper import perf_cache
+from podcast_scraper.search.corpus_scope import member_episode_artifacts
 from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_artifact_listing
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
@@ -67,26 +68,35 @@ def list_artifacts(
     """List ``*.gi.json``, ``*.kg.json``, and ``*.bridge.json`` under the directory (recursive)."""
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
-    # Concurrent callers for one corpus share ONE listing (single_flight.py: retries piled up).
-    return single_flight(("artifacts", str(base)), lambda: _list_artifacts(base))
+    # Concurrent callers for one corpus share ONE listing (single_flight.py: retries piled up), and
+    # the listing is cached until the corpus changes: it now holds every member episode (3,130 on
+    # snapshot-prod-20261103, against 289 under the old one-run-per-feed rule), which is the 8.5 s
+    # listing of 2026-10-15 again on a cold call.
+    return single_flight(  # type: ignore[no-any-return]
+        ("artifacts", str(base)),
+        lambda: perf_cache.get_or_compute(
+            "artifact_listing",
+            str(base),
+            perf_cache.corpus_mtime(base),
+            lambda: _list_artifacts(base),
+        ),
+    )
 
 
 def _list_artifacts(base: Path) -> ArtifactListResponse:
-    # One walk for all three kinds, then the latest-run filter BEFORE any per-file work: on prod
-    # (2026-10-15) three walks plus a publish date for every one of 9,531 files took 8.5 s, while
-    # only the latest run of each feed (1,191 files) is listed. The 10 s post-deploy smoke timed
-    # out under start-up load and its retries piled up to ~600 s per call.
+    # One walk for all three kinds, then the membership filter BEFORE any per-file work, so a
+    # superseded copy never costs a publish date (2026-10-15: a date for each of 9,531 files).
     found: dict[str, Path] = {}
     for p in corpus_files_with_suffixes(base, (".gi.json", ".kg.json", ".bridge.json")):
         try:
             found.setdefault(p.relative_to(base).as_posix(), p)
         except ValueError:
             continue
-    allowed = latest_feed_run_allowed_relpaths(found)
+    members = set(member_episode_artifacts(base, list(found.values())))
     items: list[ArtifactItem] = []
     for rel, p in found.items():
         kind = _kind_for_suffix(p.name)
-        if rel not in allowed or kind is None or not p.is_file():
+        if p not in members or kind is None or not p.is_file():
             continue
         try:
             st = p.stat()

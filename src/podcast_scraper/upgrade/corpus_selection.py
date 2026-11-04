@@ -27,10 +27,43 @@ instead; that is one change, not two independent ones.
 
 from __future__ import annotations
 
+import contextlib
+from contextvars import ContextVar
 from pathlib import Path
-from typing import List, Tuple
+from typing import FrozenSet, Iterable, Iterator, List, Optional, Tuple
 
 METADATA_SUFFIX = ".metadata.json"
+
+# ``upgrade rerun``: the named episodes (metadata paths, relative to the root) it may select.
+_SCOPE: ContextVar[Optional[Tuple[Path, FrozenSet[str]]]] = ContextVar(
+    "episode_scope", default=None
+)
+
+
+@contextlib.contextmanager
+def episode_scope(root: Path, metas: Iterable[str]) -> Iterator[None]:
+    """Within the block, ``select_served_artifacts`` returns only these episodes' served artifacts
+    (an artifact with no metadata sibling is out of scope). An empty scope is refused: it must
+    never read as "no scope"."""
+    scope = frozenset(metas)
+    if not scope:
+        raise ValueError("an empty episode scope")
+    token = _SCOPE.set((Path(root).resolve(), scope))
+    try:
+        yield
+    finally:
+        _SCOPE.reset(token)
+
+
+def _in_scope(meta: Path) -> bool:
+    scope = _SCOPE.get()
+    if scope is None:
+        return True
+    base, metas = scope
+    try:
+        return meta.resolve().relative_to(base).as_posix() in metas
+    except ValueError:
+        return False
 
 
 def metadata_sibling_for(artifact: Path, suffix: str) -> Path:
@@ -71,5 +104,7 @@ def select_served_artifacts(root: Path, suffix: str) -> Tuple[List[Path], List[P
 
     kept = set(dedupe_metadata_paths_newest_run_per_episode(root, sorted(by_metadata)))
     served = sorted([art for meta, art in by_metadata.items() if meta in kept] + orphans)
+    if _SCOPE.get() is not None:
+        served = [art for art in served if _in_scope(metadata_sibling_for(art, suffix))]
     superseded = sorted(art for meta, art in by_metadata.items() if meta not in kept)
     return served, superseded

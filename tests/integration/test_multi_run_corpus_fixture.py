@@ -23,6 +23,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 # Pin known fixture counts so the tests document the expected math.
 EXPECTED_METADATA_FILES = 33
 EXPECTED_CUMULATIVE_UNIQUE = 21

@@ -17,6 +17,8 @@ pytest.importorskip("fastapi", reason="mock-server import indirectly requires Fa
 
 from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler  # noqa: E402
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(autouse=True)
 def _clear_violations_around_each_test():

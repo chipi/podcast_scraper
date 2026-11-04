@@ -1326,6 +1326,83 @@ def test_timeline_dedups_to_latest_run_per_feed(tmp_path: Path) -> None:
     assert "i_old" not in ids  # the superseded run is dropped
 
 
+def _write_episode_metadata(directory: Path, stem: str, *, feed_id: str, episode_id: str) -> None:
+    (directory / f"{stem}.metadata.json").write_text(
+        json.dumps({"feed": {"feed_id": feed_id}, "episode": {"episode_id": episode_id}}),
+        encoding="utf-8",
+    )
+
+
+def test_cil_reads_every_episode_of_an_incremental_feed_newest_copy_only(tmp_path: Path) -> None:
+    """Prod writes a new run dir per nightly with only that night's episodes, named
+    ``run_<run-uuid>_<timestamp>_<hash>``. The CIL readers kept only the run whose NAME sorted
+    highest per feed, so on snapshot-prod-20261103 they read 289 of 3,668 bridges and two
+    persons' profiles were empty. They now follow the central corpus-membership rule: every
+    episode of every run, and a reprocessed episode from its newest run only."""
+    corpus = tmp_path / "c"
+    feed = corpus / "feeds" / "f1"
+    # The older run's uuid sorts AFTER the newer run's, as on prod: a name rule picks it.
+    older = feed / "run_ffff0000-0000-0000-0000-000000000000_20260101-000000_aaaa" / "metadata"
+    newer = feed / "run_00000000-0000-0000-0000-00000000ffff_20260201-000000_bbbb" / "metadata"
+    _write_bundle(
+        older,
+        "only_old",
+        episode_id="ep_old",
+        person="person:a",
+        insight_id="i_old",
+        quote_id="q_old",
+        insight_text="only in the older run",
+        publish_date="2024-01-15",
+        topic="topic:ai",
+    )
+    _write_episode_metadata(older, "only_old", feed_id="f1", episode_id="ep_old")
+    _write_bundle(
+        older,
+        "both",
+        episode_id="ep_both",
+        person="person:a",
+        insight_id="i_both_old",
+        quote_id="q_both_old",
+        insight_text="superseded copy",
+        publish_date="2024-01-15",
+        topic="topic:ai",
+    )
+    _write_episode_metadata(older, "both", feed_id="f1", episode_id="ep_both")
+    _write_bundle(
+        newer,
+        "both",
+        episode_id="ep_both",
+        person="person:a",
+        insight_id="i_both_new",
+        quote_id="q_both_new",
+        insight_text="reprocessed copy",
+        publish_date="2024-01-15",
+        topic="topic:ai",
+    )
+    _write_episode_metadata(newer, "both", feed_id="f1", episode_id="ep_both")
+    _write_bundle(
+        newer,
+        "only_new",
+        episode_id="ep_new",
+        person="person:b",
+        insight_id="i_new",
+        quote_id="q_new",
+        insight_text="only in the newer run",
+        publish_date="2024-01-15",
+        topic="topic:ai",
+    )
+    _write_episode_metadata(newer, "only_new", feed_id="f1", episode_id="ep_new")
+    root = str(corpus)
+
+    quotes = {
+        q["quote"]["id"] for q in cil_queries.person_profile(root, root, "person:a")["quotes"]
+    }
+    assert quotes == {"q_old", "q_both_new"}
+
+    tl = cil_queries.topic_timeline(root, root, "topic:ai", insight_types=None)
+    assert {n.get("id") for b in tl for n in b["insights"]} == {"i_old", "i_both_new", "i_new"}
+
+
 def test_timeline_sentiment_missing_sidecar_leaves_insights_untinted(tmp_path: Path) -> None:
     """With no ``insight_sentiment`` sidecar, timeline insights come back with no ``sentiment`` key
     (surfaces render un-tinted) rather than raising."""

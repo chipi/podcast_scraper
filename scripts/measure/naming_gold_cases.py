@@ -28,6 +28,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+# An absolute transcript path stored at ingest is read inside this corpus's run (121 of 3,130
+# member episodes on snapshot-prod-20261103 otherwise left the pool).
+from podcast_scraper.utils.run_relative import run_relative  # noqa: E402
+
 OPENING_CHARS = 1800
 CLOSING_CHARS = 400
 FIRST_TURNS = 45
@@ -48,7 +54,7 @@ def _cap(text: Any, chars: int) -> Any:
 
 
 def _segments(meta: Path, doc: Dict[str, Any]) -> List[Dict[str, Any]]:
-    rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
+    rel = run_relative((doc.get("content") or {}).get("transcript_file_path"), meta.parent.parent)
     if not rel.endswith(".txt"):
         return []
     raw = _load(meta.parent.parent / rel.replace(".txt", ".segments.json"))

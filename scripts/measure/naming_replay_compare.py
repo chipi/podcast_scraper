@@ -30,6 +30,10 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from podcast_scraper.utils.run_relative import run_relative as _run_relative  # noqa: E402
+
 Key = Tuple[Optional[str], Optional[str]]
 _HOST_LINE = re.compile(r"\b(?:welcome|joined by|with me|my guest|our guest|today's guest)\b", re.I)
 
@@ -86,7 +90,11 @@ def voice_texts(meta_path: str) -> Dict[str, List[str]]:
     """Each voice's segment texts, from the episode's ``.segments.json`` next to its transcript."""
     meta = Path(meta_path)
     doc = json.loads(meta.read_text(encoding="utf-8"))
-    tp = meta.parent.parent / doc["content"]["transcript_file_path"]
+    rel = _run_relative(doc["content"]["transcript_file_path"], meta.parent.parent)
+    if not rel.endswith(".txt"):
+        # An absolute path outside this run names the ingest host's file, not this corpus's.
+        raise FileNotFoundError(f"{meta}: transcript path is not inside its run directory")
+    tp = meta.parent.parent / rel
     segs = json.loads(Path(str(tp).replace(".txt", ".segments.json")).read_text(encoding="utf-8"))
     segs = segs if isinstance(segs, list) else segs.get("segments", [])
     out: Dict[str, List[str]] = {}

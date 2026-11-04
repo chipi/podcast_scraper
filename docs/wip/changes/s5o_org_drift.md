@@ -1,7 +1,7 @@
 ---
 id: s5o_org_drift
 class: full
-status: open
+status: landed
 issue: none (RFC-131 S5o; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/person_match.py
@@ -214,7 +214,9 @@ Code: `identity/person_match.py` `_cluster` = the existing rule (now `_cluster_r
 
 ## 8. Verdict
 
-_TODO_
+MISSED: no fresh verdict on this rule on its own. D2's step-8 reviews were of migrations 0039–0042 (their records, section 8), over the combined ledger.
+
+Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 
 ## 9. Operator review
 
@@ -222,11 +224,15 @@ _TODO_
 
 ## 10. Before apply / deploy
 
-_TODO_
+MISSED: no plan diff of its own. The rule shipped in the D2 deploy (`sha-8906696`); prod's plan for D2 is in records 0039–0042, section 10.
+
+Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 
 ## 11. After apply / deploy
 
-_TODO_
+MISSED: not re-measured on prod on its own. D2's prod apply and its after-measurement are in records 0039–0042, section 11.
+
+Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 
 ## 12. Retrospective
 

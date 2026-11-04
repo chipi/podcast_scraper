@@ -1,0 +1,431 @@
+{
+  "applied_before": [
+    "0001_faiss_to_lance",
+    "0002_two_tier_native_reindex",
+    "0003_gi_v3_typed_mentions",
+    "0004_insight_type_reindex",
+    "0005_gi_v3_1_route_and_tag",
+    "0006_kg_v2_typed_entities",
+    "0007_scope_bare_person_names",
+    "0008_object_entity_kind",
+    "0009_backfill_speaker_roles",
+    "0010_canonical_person_names",
+    "0011_shared_artwork_store",
+    "0012_org_speakers_removed",
+    "0013_artwork_thumbnails",
+    "0014_eponymous_hosts_restored",
+    "0015_unpublishable_speaker_names_removed",
+    "0016_ad_reader_names_removed",
+    "0017_speaker_names_canonicalised",
+    "0018_org_speakers_removed_residue",
+    "0019_descriptor_speaker_names_removed",
+    "0020_titled_person_ids_remerged",
+    "0021_backfill_feed_language",
+    "0022_derived_speaker_surfaces_resynced",
+    "0023_transcript_speaker_prefixes_resynced",
+    "0024_shared_removed_speaker_prefixes",
+    "0025_one_person_one_entry",
+    "0026_artwork_medium",
+    "0027_missing_covers_stored",
+    "0028_transcript_chunk_times",
+    "0029_naming_arc_voices_repaired",
+    "0030_adfree_cut_resynced",
+    "0031_named_voices_shown",
+    "0033_hand_removed_names_refused",
+    "0034_talk_floor_names_removed",
+    "0035_voice_identity_names",
+    "0036_bridge_identities_restored",
+    "0037_named_voices_corrected",
+    "0038_raw_label_speakers_removed",
+    "0039_adfree_segment_offsets_realigned",
+    "0040_gi_quote_offsets_realigned",
+    "0041_joined_names_respelled",
+    "0042_insight_cluster_quotes_resynced",
+    "0043_non_participant_names_removed",
+    "0044_title_spelling_voices_renamed"
+  ],
+  "apply_message": "rewrote 1 episode(s); bridge_identities_removed=1, cleaned_lines=34, context_rebuilt=1, diagnostics_voices_renamed=1, entities_added=1, insights_reattributed=9, kg_roles_set=1, quotes_reattributed=16, segments_relabelled=542, transcripts_rerendered=2, voices_named=1",
+  "clone": "/work/closelistening/snapshots/clone-0044",
+  "code": {
+    "dirty": false,
+    "sha": "98e72bea7ca7fdb17b630f33ea90aaf653595991"
+  },
+  "code_digest": "8c6364431b39479d9befd46c403a3531e1c74362dc79355faa433a15a3cb5f89",
+  "computed_class": "full",
+  "episode_deltas": {},
+  "files_changed": 11,
+  "files_changed_by_suffix": {
+    ".adfree.txt": 1,
+    ".bridge.json": 1,
+    ".cleaned.txt": 1,
+    ".context.json": 1,
+    ".diagnostics.json": 1,
+    ".gi.json": 1,
+    ".kg.json": 1,
+    ".metadata.json": 1,
+    ".segments.json": 2,
+    ".txt": 1
+  },
+  "gating_moves": {},
+  "measured_at": "2026-11-04T22:58:36",
+  "migration": "0045_episode_voices_corrected",
+  "plan": [
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 34,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 9,
+        "kg_roles_set": 1,
+        "quotes_reattributed": 16,
+        "segments_relabelled": 542,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.bridge.json": "378868edc88ce69be183716a80d012f4ecc731a093f1f5aadae710f28758d7a5",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.context.json": "b6d34faeacbe2f9425d04458fc84e2b01d46afa5021cfd9e12bd156d856dcb9e",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.gi.json": "f764131a54b07bcc00959805740c5937ab04e7d3699aac75927eeb5e778c8995",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.kg.json": "b92a7ee47f5022d1766c37b55ce2931bc1dae7f4b9ba2890aab7272b7720998b",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.metadata.json": "c12d8c707415f83ab120ec1d605706c1010573450ef41a8b6b44d9c5291170f1",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.adfree.admap.json": "623315a774c703a7b204c6e4556c2b1b8cea3e6adeafd32c6d852919a5fc9dda",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.adfree.segments.json": "a16e072acb7571752a331200fe9078cc01e66d8731a143dca24e4ba7ec5f3bf4",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.adfree.txt": "eece7130a06dc39c05317c4229a8f28dfa3242c87ec97f88df874173530a394d",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.cleaned.txt": "d90217a27640ee8a93006b9599ffc37a4be04ef6c161ab2c24f1570820ff53d1",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.segments.json": "1612b72020b23535f60f5b5e741ada00fcdd2a07821ff6830b29cd5602f1b6a6",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.speakers.diagnostics.json": "a08715b4eb2ef8bf0444ad5ac3c4dc78cb490abc891e80696fd5acec075d1d7f",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.turns.json": "absent",
+        "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.txt": "eece7130a06dc39c05317c4229a8f28dfa3242c87ec97f88df874173530a394d",
+        "identity_ledger.json": "4dbb2a9a02da3f912595cdeca7f34f6c6e3e74a7d2dd8464b8e4e784301b54db"
+      },
+      "meta": "feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_02": "Kevin Roose"
+      }
+    }
+  ],
+  "plan_sha256": "3500641d24f6ca2c581e0de7efba9c8ea7216887ad67eb083cc20972138cbfed",
+  "scoreboard_after": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 301,
+    "A1_marker_hits": 400,
+    "S10a_zero_visible": 197,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 6,
+    "S1_hidden_unknown": 18589,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 32489,
+    "S2_hidden_commercial": 96,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13804,
+    "S2_hidden_unknown": 18589,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9373,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3130,
+    "episodes_no_gi": 0,
+    "insights": 138469,
+    "metadata_unreadable": 0,
+    "quotes": 268625,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "scoreboard_before": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 301,
+    "A1_marker_hits": 400,
+    "S10a_zero_visible": 197,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 6,
+    "S1_hidden_unknown": 18589,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 32489,
+    "S2_hidden_commercial": 96,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13804,
+    "S2_hidden_unknown": 18589,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9373,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3130,
+    "episodes_no_gi": 0,
+    "insights": 138469,
+    "metadata_unreadable": 0,
+    "quotes": 268625,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "snapshot": "snapshot-prod-20261103+0043+0044",
+  "targets": {
+    "after": {
+      "counts": {},
+      "episodes": 0
+    },
+    "before": {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 34,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 9,
+        "kg_roles_set": 1,
+        "quotes_reattributed": 16,
+        "segments_relabelled": 542,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "episodes": 1
+    }
+  },
+  "verdicts_sha256": "d22d28b6e0b22b8c384986c755ac3c2b6a5c9bfcccda3453454199c2f29bc6ff",
+  "verify": {
+    "message": "every rename the review confirmed carries the voice's own person's name",
+    "ok": true
+  },
+  "verify_all": [
+    {
+      "id": "0001_faiss_to_lance",
+      "message": "FAISS retired (#995); no-op",
+      "ok": true
+    },
+    {
+      "id": "0002_two_tier_native_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0003_gi_v3_typed_mentions",
+      "message": "all 3668 .gi.json parse and are fully migrated to v3",
+      "ok": true
+    },
+    {
+      "id": "0004_insight_type_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0005_gi_v3_1_route_and_tag",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0006_kg_v2_typed_entities",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0007_scope_bare_person_names",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0008_object_entity_kind",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0009_backfill_speaker_roles",
+      "message": "1781 of 1781 recorded role(s) still present in files this migration last wrote; 1433 row(s) in files rewritten since (not judged)",
+      "ok": true
+    },
+    {
+      "id": "0010_canonical_person_names",
+      "message": "every person name is canonical and every id agrees with the name that minted it",
+      "ok": true
+    },
+    {
+      "id": "0011_shared_artwork_store",
+      "message": "all artwork is in the corpus-root store",
+      "ok": true
+    },
+    {
+      "id": "0012_org_speakers_removed",
+      "message": "no served surface names any of 17 org(s) as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0013_artwork_thumbnails",
+      "message": "every stored image has a thumbnail (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0014_eponymous_hosts_restored",
+      "message": "every self-introduced eponymous host holds their seat",
+      "ok": true
+    },
+    {
+      "id": "0015_unpublishable_speaker_names_removed",
+      "message": "no served surface carries any of 31 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0016_ad_reader_names_removed",
+      "message": "no served surface names an ad voice for any of 50 frozen hit(s)",
+      "ok": true
+    },
+    {
+      "id": "0017_speaker_names_canonicalised",
+      "message": "no served surface carries any of 6 name(s) / 64 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0018_org_speakers_removed_residue",
+      "message": "no served surface names any of m0012's 17 org(s)",
+      "ok": true
+    },
+    {
+      "id": "0019_descriptor_speaker_names_removed",
+      "message": "no served surface carries any of 1 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0020_titled_person_ids_remerged",
+      "message": "no served surface carries any of 0 name(s) / 27 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0021_backfill_feed_language",
+      "message": "every backfilled show is consistent across its episodes",
+      "ok": true
+    },
+    {
+      "id": "0022_derived_speaker_surfaces_resynced",
+      "message": "every served episode's context digest and diagnostics follow its segments",
+      "ok": true
+    },
+    {
+      "id": "0023_transcript_speaker_prefixes_resynced",
+      "message": "every served transcript is its segments' render",
+      "ok": true
+    },
+    {
+      "id": "0024_shared_removed_speaker_prefixes",
+      "message": "no served transcript names a removed speaker",
+      "ok": true
+    },
+    {
+      "id": "0025_one_person_one_entry",
+      "message": "no served episode lists one person twice",
+      "ok": true
+    },
+    {
+      "id": "0026_artwork_medium",
+      "message": "every stored image has a medium copy (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0027_missing_covers_stored",
+      "message": "every cover is stored, or recorded as unfetchable",
+      "ok": true
+    },
+    {
+      "id": "0028_transcript_chunk_times",
+      "message": "no search index or no index sidecar: nothing to time",
+      "ok": true
+    },
+    {
+      "id": "0029_naming_arc_voices_repaired",
+      "message": "every listed voice carries the name the naming ladder gives it",
+      "ok": true
+    },
+    {
+      "id": "0030_adfree_cut_resynced",
+      "message": "every served ad-free base is today's cut",
+      "ok": true
+    },
+    {
+      "id": "0031_named_voices_shown",
+      "message": "every voice 0029 names carries its name and no hiding, as reviewed; insights_checked=2464, unnamed_checked=1, unreviewed_unchanged=22, admaps_checked=71, served=3130, served_listed=71, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0033_hand_removed_names_refused",
+      "message": "every voice this migration names carries its name and no hiding, as reviewed; insights_checked=58, unnamed_checked=0, unreviewed_unchanged=0, admaps_checked=1, served=3130, served_listed=1, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0034_talk_floor_names_removed",
+      "message": "every voice the review confirmed is off the floor's name",
+      "ok": true
+    },
+    {
+      "id": "0035_voice_identity_names",
+      "message": "every rename the review confirmed carries the fingerprint group's name, and every unnaming the review confirmed is off its voice",
+      "ok": true
+    },
+    {
+      "id": "0036_bridge_identities_restored",
+      "message": "every published GI / KG person has a bridge identity",
+      "ok": true
+    },
+    {
+      "id": "0037_named_voices_corrected",
+      "message": "every rename the review confirmed carries the voice's own person's name",
+      "ok": true
+    },
+    {
+      "id": "0038_raw_label_speakers_removed",
+      "message": "no served episode credits a raw diarization label as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0039_adfree_segment_offsets_realigned",
+      "message": "every served ad-free segment slices to its own text",
+      "ok": true
+    },
+    {
+      "id": "0040_gi_quote_offsets_realigned",
+      "message": "every GI quote time can place slices to its text (6 left, listed)",
+      "ok": true
+    },
+    {
+      "id": "0041_joined_names_respelled",
+      "message": "every joined person's name in the episode files is the group's spelling",
+      "ok": true
+    },
+    {
+      "id": "0042_insight_cluster_quotes_resynced",
+      "message": "every insight cluster quote matches its GI quote",
+      "ok": true
+    },
+    {
+      "id": "0043_non_participant_names_removed",
+      "message": "every voice the review confirmed as a non-participant is unnamed and commercial",
+      "ok": true
+    },
+    {
+      "id": "0044_title_spelling_voices_renamed",
+      "message": "every rename the review confirmed carries the title's spelling of its person",
+      "ok": true
+    },
+    {
+      "id": "0045_episode_voices_corrected",
+      "message": "every rename the review confirmed carries the voice's own person's name",
+      "ok": true
+    }
+  ],
+  "verify_regressions": [],
+  "why": [
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.bridge.json",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.context.json",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.gi.json",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.kg.json",
+    "content key changed in feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.metadata.json: content.speakers",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.adfree.segments.json",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.adfree.txt",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.cleaned.txt",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.segments.json",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.speakers.diagnostics.json",
+    "content file written: feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/transcripts/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.txt"
+  ]
+}

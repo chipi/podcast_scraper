@@ -1,7 +1,7 @@
 ---
 id: s6f_person_web_and_consensus_scores
 class: full
-status: open
+status: landed
 issue: none (RFC-131 D2; operator decisions 2A and 3A, 2026-11-01)
 touches:
   - src/podcast_scraper/server/app_relational_view.py

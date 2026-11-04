@@ -50,6 +50,19 @@ _INTEGER = re.compile(r"\b\d+\b")
 _ACCEPTED = re.compile(r"^Operator accepted:\s*\d{4}-\d{2}-\d{2}", re.MULTILINE)
 _SECTION = re.compile(r"^## (\d+)\.[^\n]*\n", re.MULTILINE)
 _VERDICT = re.compile(r"^Verdict:\s*(GO WITH CONDITIONS|GO|NO-GO)\b", re.MULTILINE)
+#: A §4a review block starts at its header line and runs to the next one; its ``VERDICT:`` line
+#: must be inside it.
+_REVIEW_HEAD = re.compile(r"^[ \t]*REVIEW\b[^\n]*$", re.MULTILINE)
+_REVIEW_DATE = re.compile(r"^[ \t]*REVIEW \S+\s+(\d{4}-\d{2}-\d{2})\b")
+_REVIEW_VERDICT = re.compile(r"^[ \t]*VERDICT:\s*(\S+)[^\n]*$", re.MULTILINE)
+_MINUTES = re.compile(r"\bminutes\s+(\d+)\b")
+_BUDGET = re.compile(
+    r"^[ \t]*(?:[-*][ \t]+)?Review budget:.*\bminutes\s+\d+.*\btokens\s+\d+", re.MULTILINE
+)
+_BUDGET_LINE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?Review budget:", re.MULTILINE)
+#: Reviews dated from here on are held to the §4a budget (method v1.0); earlier ones stand as read.
+REVIEW_BUDGET_FROM = "2026-11-04"
+REVIEW_HARD_STOP_MINUTES = 10
 
 
 def load_config(repo_root: Path) -> Dict[str, Any]:
@@ -180,6 +193,61 @@ def _revision_problems(rec: Record) -> List[str]:
     return out
 
 
+def review_budget_problems(rec: Record) -> List[str]:
+    """§4a for every step-8 review dated from :data:`REVIEW_BUDGET_FROM`: the block reports its
+    ``minutes``, the record states the budget the reviewer was launched with (``Review budget:
+    minutes <n>, tokens <n>``), and a review past the hard stop ends ``INCOMPLETE``.
+
+    The minutes are the reviewer's own report, so this checks the record's honesty of form, not
+    the real cost (method §7, v1.0). The first read under §4a used 128,701 tokens against a 40k
+    budget, and an earlier one re-ran the corpus checks for over an hour.
+    """
+    body = rec.sections.get("8", "")
+    out: List[str] = []
+    heads = list(_REVIEW_HEAD.finditer(body))
+    preamble_from = 0
+    for i, head in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(body)
+        next_budget = _BUDGET_LINE.search(body, head.end(), end)
+        if next_budget:  # the next review's budget line closes this block
+            end = next_budget.start()
+        block, preamble = body[head.start() : end], body[preamble_from : head.start()]
+        verdict_m = _REVIEW_VERDICT.search(block)
+        # The next block's budget line sits after this one's VERDICT line.
+        preamble_from = head.start() + verdict_m.end() if verdict_m else end
+        dated = _REVIEW_DATE.match(head.group(0))
+        if dated is None:
+            out.append(f"step 8: a review header has no date ({head.group(0).strip()[:60]!r})")
+            continue
+        date = dated.group(1)
+        if date < REVIEW_BUDGET_FROM:
+            continue
+        if verdict_m is None:
+            out.append(f"step 8: the review of {date} has no 'VERDICT:' line in its block")
+        verdict = verdict_m.group(1) if verdict_m else ""
+        minutes = _MINUTES.search(block[: verdict_m.end()] if verdict_m else block)
+        if minutes is None:
+            out.append(f"step 8: the review of {date} reports no 'minutes <n>'")
+        elif int(minutes.group(1)) > REVIEW_HARD_STOP_MINUTES and verdict != "INCOMPLETE":
+            out.append(
+                f"step 8: the review of {date} took {minutes.group(1)} minutes, past the "
+                f"{REVIEW_HARD_STOP_MINUTES}-minute hard stop, and says {verdict}; it must return "
+                "INCOMPLETE (method §4a)"
+            )
+        if not _BUDGET.search(preamble):
+            out.append(
+                f"step 8: the review of {date} has no 'Review budget: minutes <n>, tokens <n>' "
+                "line above its block"
+            )
+    return out
+
+
+def check_reviews(repo_root: Path) -> List[str]:
+    """:func:`review_budget_problems` over every record, migration or not."""
+    config = load_config(repo_root)
+    return [f"{r.id}: {p}" for r in records(repo_root, config) for p in review_budget_problems(r)]
+
+
 def check_build_ready(rec: Record) -> List[str]:
     """Why content code may NOT yet be written under this record (empty: it may)."""
     if rec.change_class == "light":
@@ -243,6 +311,7 @@ def check_landing(repo_root: Path, registered_ids: Iterable[str]) -> List[str]:
             problems.append(f"{mid}: record says light, the gate measured {measured!r}")
         if rec.change_class == "full" or measured == "full":
             problems += [f"{mid}: {p}" for s in LANDING_STEPS if (p := _section_problem(rec, s))]
+            problems += [f"{mid}: {p}" for p in review_budget_problems(rec)]
             verdicts = _VERDICT.findall(rec.sections.get("8", ""))
             if not verdicts or verdicts[-1] == "NO-GO":
                 problems.append(

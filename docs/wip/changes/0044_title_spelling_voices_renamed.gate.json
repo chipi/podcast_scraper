@@ -1,0 +1,1138 @@
+{
+  "applied_before": [
+    "0001_faiss_to_lance",
+    "0002_two_tier_native_reindex",
+    "0003_gi_v3_typed_mentions",
+    "0004_insight_type_reindex",
+    "0005_gi_v3_1_route_and_tag",
+    "0006_kg_v2_typed_entities",
+    "0007_scope_bare_person_names",
+    "0008_object_entity_kind",
+    "0009_backfill_speaker_roles",
+    "0010_canonical_person_names",
+    "0011_shared_artwork_store",
+    "0012_org_speakers_removed",
+    "0013_artwork_thumbnails",
+    "0014_eponymous_hosts_restored",
+    "0015_unpublishable_speaker_names_removed",
+    "0016_ad_reader_names_removed",
+    "0017_speaker_names_canonicalised",
+    "0018_org_speakers_removed_residue",
+    "0019_descriptor_speaker_names_removed",
+    "0020_titled_person_ids_remerged",
+    "0021_backfill_feed_language",
+    "0022_derived_speaker_surfaces_resynced",
+    "0023_transcript_speaker_prefixes_resynced",
+    "0024_shared_removed_speaker_prefixes",
+    "0025_one_person_one_entry",
+    "0026_artwork_medium",
+    "0027_missing_covers_stored",
+    "0028_transcript_chunk_times",
+    "0029_naming_arc_voices_repaired",
+    "0030_adfree_cut_resynced",
+    "0031_named_voices_shown",
+    "0033_hand_removed_names_refused",
+    "0034_talk_floor_names_removed",
+    "0035_voice_identity_names",
+    "0036_bridge_identities_restored",
+    "0037_named_voices_corrected",
+    "0038_raw_label_speakers_removed",
+    "0039_adfree_segment_offsets_realigned",
+    "0040_gi_quote_offsets_realigned",
+    "0041_joined_names_respelled",
+    "0042_insight_cluster_quotes_resynced",
+    "0043_non_participant_names_removed"
+  ],
+  "apply_message": "rewrote 18 episode(s); admaps_carried=12, bridge_identities_removed=12, cleaned_lines=515, context_rebuilt=18, diagnostics_voices_renamed=18, entities_added=23, entities_dropped=6, gi_persons_added=13, insights_reattributed=561, kg_edges_moved=15, kg_persons_added=11, kg_persons_removed=11, kg_roles_set=1, metadata_counts_synced=1, quotes_moved=801, quotes_reattributed=1106, segments_relabelled=16726, transcripts_rerendered=36, unplaced_dropped=2, voices_named=14",
+  "clone": "/work/closelistening/snapshots/clone-0043",
+  "code": {
+    "dirty": false,
+    "sha": "98e72bea7ca7fdb17b630f33ea90aaf653595991"
+  },
+  "code_digest": "66d65fa8406c5d850b2871dff748ce387aa15e784d9579903ec15a2ce10076bd",
+  "computed_class": "full",
+  "episode_deltas": {},
+  "files_changed": 206,
+  "files_changed_by_suffix": {
+    ".adfree.txt": 18,
+    ".admap.json": 12,
+    ".bridge.json": 18,
+    ".cleaned.txt": 17,
+    ".context.json": 18,
+    ".diagnostics.json": 18,
+    ".gi.json": 18,
+    ".kg.json": 15,
+    ".metadata.json": 18,
+    ".segments.json": 36,
+    ".txt": 18
+  },
+  "gating_moves": {},
+  "measured_at": "2026-11-04T22:58:57",
+  "migration": "0044_title_spelling_voices_renamed",
+  "plan": [
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 42,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 53,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_reattributed": 91,
+        "segments_relabelled": 1850,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.bridge.json": "ea05ada731928836be3219c51b1e24dd3725ae9b30a54916e92f31f57daaa196",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.context.json": "5417b4d79b4aed9769f52a03cd0be6ff16db68cfab858d1f30e0c532ddb556bd",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.gi.json": "c68e201cc1c1e8080d92c318d4ad907799f730ac76556c33d00250cce2407827",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.kg.json": "c3b4c09ca562709f21e4b284d124456b9c8bcca7bf2c2367e4daa3d1d4a3e1c2",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json": "d022f4b9d1c210d07bcc0613065f9db0a689c778e6c2215647f1bdcf33be4c36",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.admap.json": "9abb8983b53cfe0cc2ca8311daf9b5e0ee83681dac2673cb7b1f9d40983d218f",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.segments.json": "6775ff474a79fe93f07fb53cc4123aec59bea75aae43bc0e5a0dccae97f2be35",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.txt": "67c125623d3f4f322d8e60e98e7496dedf9e41eb8651ca2319cdd2fcb3c182f9",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.cleaned.txt": "8d659e5954f6ca436bd87cc3853936f6a99144b16d297c046c07dca15359e920",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.segments.json": "6b5e71f79fde338508e7728ff2222194242431094ba5cb4b21490dd8f2da1890",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.speakers.diagnostics.json": "3097f5c7c726a8e7a7d3281baf752f9dfedb11c192d6ef52081c696dec1e8c68",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.txt": "6b68c5b93fc1386744bd9cc197c10c9e36b60a3ce4cb6cb17e110a0d727d08da",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Nikhyl Singhal"
+      }
+    },
+    {
+      "counts": {
+        "cleaned_lines": 34,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "entities_dropped": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 92,
+        "kg_edges_moved": 2,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_reattributed": 185,
+        "segments_relabelled": 1130,
+        "transcripts_rerendered": 2
+      },
+      "inputs": {
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.bridge.json": "e697965125fe166eb91d597c062e06d8fc81d426c2e17978cf6d74317c153116",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.context.json": "a2014ed432c5bb38fc8b6a1e24372cef9efc63a1bdd651c6439c6c9b035b6625",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.gi.json": "b5a332c0192dd326c8a72d3afab245937ec2c730860715f9f85df6c8291f85b0",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.kg.json": "8e133255c72966b20eb745328d9eaaac3fa880a761a6590b8f9fee8756cb2c2f",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json": "724291ca77acc5e51b66b62ad25db47fd960c120f2e78c84431e6a7102406e7e",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.admap.json": "358eeb9840fa822542769a1ff382037c7763484da2128f2db83effebe75d9f34",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.segments.json": "b48fce1117cd92be8761cd230c2bb52f5e65828a3a76be22b94fe525c06e39d3",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.txt": "d653e377f323b73fe22615586e129c24367805886239f85ce4526919f7600657",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.cleaned.txt": "5eb51b3541b5ae3546c57d58001e9d0376669bd3da1148ce778ab37002466087",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.segments.json": "9f323cf4d00059d637f7b93e19a85b3166df23c8366cca48fea81a24b3ad5fce",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.speakers.diagnostics.json": "64d18dc5e886bdd9bca8d790fbc50b1e930a4109233f628029d7d1e0f5df5115",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.txt": "c24a1e36b7b0e560cfcbfba761899b2c8949cbb1bd90c91a5243bb7d0a9ef77d",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Amol Avasare"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 55,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 11,
+        "quotes_moved": 21,
+        "quotes_reattributed": 19,
+        "segments_relabelled": 1998,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.bridge.json": "5e5793ce412afd35934f6a0d6d5023ef4d7447ab01ddc1a09dd8634a35465107",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.context.json": "f9c81285c09746aad139d8e99066748529f91e36f1fb9c2c45ae6cb43138c46a",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.gi.json": "8a6e5d44b44a224fcc72a693d972d8850a09aad51075ddd0df03edb0e3f6ef25",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.kg.json": "c234a43dc01361ca89006f0a5ac99612ae6ad36a74eb85e806c60dbd8982c934",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json": "1b46ccfd32651c68db7f95858f63d20dd1777866d5437bb3eeaa5958e3c5a0b5",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.admap.json": "0f6e5028e340f49e5b017e68d7f5b0d44011f929f1e1ad66fc62bddd52aa30bf",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.segments.json": "8df4b28d99310a128140bac8ab0b876203f984b17e3976f9298b916de5ce929d",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.txt": "ca89346dbd5387451feecd3869019257c8394e515be3c3e8047383ec90a51600",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.txt": "8eb1f698431ac5eb86d09e82eaf4a59bf413f801a079c87b9ec513ecce34573b",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.segments.json": "a806470cfdf2fa8cf6adad2f6cd472985b4278b54d6d13551ea7c8693d4c33ab",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.speakers.diagnostics.json": "ba0011af7ffa1a704be319066645a58faf4e979531c9c6e45d0b2cbdcff1ed3c",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.txt": "637b8f2daf8fd430f18c26d902bd774f016319e2354fcc670522915e48be1d6f",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0002 - Anthropic_s first technical PM o_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_00": "Dianne Penn"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 55,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 30,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_moved": 50,
+        "quotes_reattributed": 45,
+        "segments_relabelled": 2472,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.bridge.json": "95438a466c59f04309d5172c0058bc28976f39743a926a7f53d7e322d018111e",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.context.json": "70086d3eacdea74df0f0d6acea636fc4eb42ce930c138befddb3e3c924ebbd1b",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.gi.json": "74c7647f11fdc2641f237f5238981ada3ae95c3da7cf8c08832992aaf8937a24",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.kg.json": "cf79925cb4c295ce23a6f6d261f38bee5d102a40927061ae44e0252081d72fcf",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json": "6ff9933100805f17e54637c28031bd03055b724f573633ef2c0f36e8d5c32017",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.admap.json": "13506e6423af88feeb7a2393378f4f237c8d916da7dc5ca06828c5c17e47b3a6",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.segments.json": "ab1721f93133e0b268e7a7579662e6ae4684f457c43c23d027067d8f7bb76881",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.txt": "c8a63a1a46ca7e607ba6e93e935af2ba2a63966ce077e6cbc63f859d837326ea",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.txt": "ff1175be365794f8f2db6a744f1c9a5a541bb461be25bd3f5bd32fc0ee43a716",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.segments.json": "66ddf856a49e9e590abf73aa0dbb43be5bfeb443410459f9dcd505a2c66174a4",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.speakers.diagnostics.json": "6e5aa72e7ab3e73620b2028c44f3e7572597d6fca5083e98aa9748c258c88d9c",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.txt": "254690ae31bd8a922d23146c652cddbe234ef13b98edd50ac3f6cb3ab778fe67",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0004 - How tech workers actually feel a_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_00": "Noam Segal"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 41,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 27,
+        "kg_roles_set": 1,
+        "quotes_moved": 45,
+        "quotes_reattributed": 44,
+        "segments_relabelled": 1240,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.bridge.json": "28e368e7a3dbf455978f03aefc095633f336dca2da1bfdd2718a9f6c718f66bd",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.context.json": "4619dddee4a67a4b3231cd01ddb4ed972c985dc59d957f76e4b800708347e88a",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.gi.json": "096af7faeacfff66543fc3b9c917bafb960be2224334e7915a35026a06612993",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.kg.json": "38efbbd5bfafbfd6beddb209f14d6c096000ca8b59b2e3251fd18daa6d25fa3a",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json": "64ceb5b020fb6bcec0f51282b4da9ee97b8f348fdfa658c05426f4d32bb6028e",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.admap.json": "8976a0b4488f74f309cb6c89f658802212ffd1583faf3490002818d0ddc97615",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.segments.json": "68852b2134c06951ce425c965d8afa367fb02cfd2b474ac6358647ac03581625",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.txt": "ddc40ca024a13308160236740d7abf35cffe4e6771d4c77900df90d74d783260",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.txt": "1b8e2173688a5bd498e80dfd5da0e61492459fe58ebef0bcd0b379a7f9e67129",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.segments.json": "6a99a4d08596769bb259f4b7690e7f29c12ce55dc5657fa5b8a1fe337811fb9a",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.speakers.diagnostics.json": "bc8e0d7ede0de372390b9aaaadf8b52ff3cc3032f17c1ec73bb1b21d413d5148",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.txt": "427d3ba59bbc1b8d8678db31a1874aff2b91970f90564d69734983f13a9e61c0",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0005 - Adam Mosseri_ AI is a tailwind f_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_00": "Adam Mosseri"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 51,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 48,
+        "quotes_moved": 78,
+        "quotes_reattributed": 73,
+        "segments_relabelled": 1318,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.bridge.json": "3ba57b752dad9616bb1fa6bf72e2121cd64813f41857177b656062213c98450b",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.context.json": "c752844ea48f7d61b432bfbcd3490d844e173da0d1d0346ffdd12f6168d0d11b",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.gi.json": "46be0efb2501057b1a9712ce7e6f6bb1c03278b0398448b7d5b74c000839757f",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.kg.json": "98592d3d56daac35e8f0fc503ff52c9915a0d404f3c2b0e9dfe351fdd4548e72",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json": "1105e5188ed274376ebdd769000f6418a84b9ee1df7bd616c3ff6c38eb8f9e89",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.admap.json": "185c55c6908c91901ffe9d60e77b7638ed9fc20d95b3b8606fec0c5690384cb7",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.segments.json": "41ddda7d4fc22c0e01eaa763c891022309193a560740a64b7edb3ff8c0d4f9e9",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.adfree.txt": "ebedceb97144b2ee9703bfb2bc6ee63ac03ba273eef2a00f66dbfea3476099d1",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.cleaned.txt": "44bd8585cb74a6c4ba0cff1009d04c4135ace0ad60b9d9a6bbe9574cc4666770",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.segments.json": "5232259a8237ec2e500989015d23719faf445868e6fbd50525306955ec5a60e6",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.speakers.diagnostics.json": "5b4ddad7f7695c5545a12240a88304339ee022f83097368d7e4b4578919b6875",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.turns.json": "absent",
+        "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/transcripts/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.txt": "8f3f36b63c942c5af506f8d47efc12f88e225ae4784d2171f59751bc6fb54b27",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_api.substack.com_deda024b/run_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2/metadata/0014 - Why cultivating agency matters m_b20e3904-3c13-4bc9-937c-0e0bb74aa164_20260813-205018_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_00": "Max Schoening"
+      }
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 23,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 19,
+        "quotes_reattributed": 35,
+        "segments_relabelled": 1172,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.bridge.json": "5a2d136987bd9cf006cdaa77119586ac79cc496be219ae4585bf47827db5e6a9",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.context.json": "8c6dc6f73a5f760da9b0479a8fe49b6ba92fa5d76d37f71e0ccddbfee26d43e7",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.gi.json": "2228aa171ecf3d639c950304fa8e4cd552490930ce70a60ae4b3ab4454feb32b",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.kg.json": "7603960e994a4dbb9c0b417f86968ddc74d6ba30a73956107db702b3d56e936a",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.metadata.json": "ee8025c556f6b027254e422149a7165a16f4fd82a1ea7ad163301e26beef479e",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.admap.json": "66f6855d10415369697c17edd78a0d1afe3b3c04eae2acb9c1892801c8adb24b",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.segments.json": "d29edad4272e536c0b6d8e2d952d1ef1accb01907147755e75dd29f295dd4ce8",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.txt": "a6152e4ad0bc73800106995ab9832b96be4cea6816efbd58fe7bb97679af04ec",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.cleaned.txt": "b367b0c0d6e9131d23d63fc706f4e053d781f21679bb4cfc4f04e5c8d9ab0b94",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.segments.json": "c20d96082f159cbf5091903c92b1d2f3aa4f3bdcec13d77b50b51f75004e3d7a",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.speakers.diagnostics.json": "0f0dc4dfe3464df80c789eb4b08dc8adb49557ffc694d00a6c1b7e286969b470",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.txt": "0d639d8e90d0d9bb629d2433384edc1dd9e7fd3521735c72f526d956fe473ca1",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0010 - Nick Kokonas - Know What You Are_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_02": "Nick Kokonas"
+      }
+    },
+    {
+      "counts": {
+        "cleaned_lines": 17,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "entities_dropped": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 117,
+        "kg_edges_moved": 2,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_reattributed": 244,
+        "segments_relabelled": 866,
+        "transcripts_rerendered": 2,
+        "unplaced_dropped": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.bridge.json": "9833ef07b5fe4a1ec01ff39e23481f050aab610a4ebb2d39691659174959b45f",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.context.json": "38dcbffa32f4f9cf975da943a50ecbc93a0ece09ff190d8a854d4a65566cec61",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.gi.json": "8e18e649f6750367cb8ea301618c8889fdc5a2de56a9143b389f2b22b4458896",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.kg.json": "60c17af7928fe30c38a80cfe903edb386c7bdd3aeb547192c17d5dbc6160416e",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.metadata.json": "19ea73eb66086505742ce515f033d2957ffb2ae7a38cec9125490c6acac68891",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.admap.json": "e93ea142a7046c3bc35e8a47d92cc39e736527b8db7d89b2d1ae54a6094e13f9",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.segments.json": "6f4d1742137195e8fed4e9dbb50b73ce26abce4063a1d67c56771c26173be56b",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.adfree.txt": "19954c3f764424f817aca28ab6176d6a3916f7947bfe4b060c425fa38e921e31",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.cleaned.txt": "49645c66e66caefe431725fa7be90b1763d444455a0dd09f8f880e1fbe2fe77f",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.segments.json": "e36acccfae25a67e1097cf29f79e49527965830a94157a8d82e43b23453ab58a",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.speakers.diagnostics.json": "c8e42de142ea5ef737d2f74790ba9c61b7564c7bb5aa0629c57ca4a29dcc2af3",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/transcripts/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.txt": "f7b5df8f87ad05a6180292f0a5291a68fd0680deff14ed066836ebcbba546ca9",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_3581c092/run_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2/metadata/0036 - Ramtin Naimi - Building Abstract_090d89d5-7820-4ac0-89bb-ff3db4cb7735_20260812-081647_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_02": "Ramtin Naimi"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 20,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "insights_reattributed": 5,
+        "quotes_moved": 10,
+        "quotes_reattributed": 10,
+        "segments_relabelled": 514,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/metadata/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.bridge.json": "778c80685ac2f6e1df426c6a21cd1a08550b2affaebe61d9342e2a41a8711cbb",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/metadata/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.context.json": "9d2b5eb84f5d76885ead0d6e7614c5fcae551b63d7192a19bfc469d44c274cef",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/metadata/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.gi.json": "5fe1099d5ef131152f357358c2963f65c0436f2867f06ec13fbe2b0bafb4c195",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/metadata/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.kg.json": "c4df9ca98c1b67b9d09cd089af677d01b1e255cb078fce9a20d77fc68bed42c6",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/metadata/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.metadata.json": "f24326cf8920a252da557a26e99af3d5cd44a47bbd290ba1c9a111e8a1e8bd1a",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.adfree.admap.json": "614fa93fdddfb9116dbbf1bc4fd03d4fe321cd6d729868dcc86247fbed44f89e",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.adfree.segments.json": "946c51963997070a4564da24d8ec67a621247260c5e593ee8bdfe5e82da19118",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.adfree.txt": "6ee76bd210c00c26de9efb732e7118d9e9abdb265972aa2d4474336830d8fcc6",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.cleaned.txt": "385531c60121d033b9092a7bbe2e4edad80762fb28d6c1a2c2f8800037b34215",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.segments.json": "fa81202446113aa042d89f604cfe1748922b033dc196ab57010b4b0532c00fbe",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.speakers.diagnostics.json": "6d2385435dc853dee8855b17c5e39eee068b0915c66bfd84a3fe730df26dde50",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/transcripts/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.txt": "6ee76bd210c00c26de9efb732e7118d9e9abdb265972aa2d4474336830d8fcc6",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_370fb395/run_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2/metadata/0013 - AI_ Spatial Intelligence_ and 3D_aa805efb-e69a-4ab4-b889-54e498d1fd0b_20260812-150111_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Sanja Fidler"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "cleaned_lines": 17,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 5,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_moved": 9,
+        "quotes_reattributed": 9,
+        "segments_relabelled": 426,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/metadata/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.bridge.json": "75d1d96f9cfd2b293a55cd50c1636afddb191156bdbb1b3725540085863e4cdd",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/metadata/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.context.json": "6dbbb4ad49a90d2bc18b68c6551b253d7bcc7ec623aa95eb0bd533d54517c6e7",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/metadata/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.gi.json": "b83e03c482df2ffb700445336ec3b8f05ad80d62ab15228c5f3b803fa3fecb1c",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/metadata/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.kg.json": "3a0c27a53074d3f7f8f56cb8e13d1d350b86dceb41d602f22e44e1c4a3916747",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/metadata/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.metadata.json": "46e179b447ed192f41a54cc113f1eb15dd12e6ede764f1dd62641b8a7ad3d6bc",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.adfree.admap.json": "ab0a83b1acbe8faf040696dbc6d32585749df9b0a1de5d7f44d3ae03f202c73c",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.adfree.segments.json": "5472bbc07e936838d24665e72bf917b6dfdb845bd406dfc6125de363e182aa86",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.adfree.txt": "345a4f62bce6f4614da92cacc553d387a4b9333abfc8715bdf1b71d161cb143b",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.cleaned.txt": "3018dc00a76e861d39abc62ab6efc50318679e522a4cde5f3ada8dbc8e533fc8",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.segments.json": "8dea1c6e678e8d30e8e5248a62e7bc403329e0f83ff9875e72ad1d6e91dd4ec8",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.speakers.diagnostics.json": "ccfa0a12d924f4911c371426f7e256f1921d1beaae566de41afd4d7cc3b56885",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/transcripts/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.txt": "345a4f62bce6f4614da92cacc553d387a4b9333abfc8715bdf1b71d161cb143b",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_370fb395/run_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2/metadata/0004 - NVIDIA_s Jacob Liberman on the P_c0db2348-95dd-4260-a76d-f5dff8c3f32f_20260813-090841_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Jacob Liberman"
+      }
+    },
+    {
+      "counts": {
+        "cleaned_lines": 23,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "entities_dropped": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 42,
+        "kg_edges_moved": 2,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_reattributed": 94,
+        "segments_relabelled": 638,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/metadata/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.bridge.json": "01da693d67a373a4ce3dfab8b6e228f12f95d1b203e4c1e2680f5e3750b49a8a",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/metadata/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.context.json": "f4c9a172581becdc75d7b0bf60111863186f4c8ddf1be1b122f9013a68dd337b",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/metadata/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.gi.json": "9b4e13b83ec7fe49a22211d05bfe9a50d2ff11edc94a5944ecbb60a99e452a21",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/metadata/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.kg.json": "296b9f254372e575dabb4f52d9b477d9e4598e01d92e366d5fa613e2580eed5d",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/metadata/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.metadata.json": "09e985188571413cad070d1e6a9a1c44b0a99b5af7c238524d4b7edd757d92f8",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.adfree.admap.json": "f8b2bd1e8a13aa9c41ddcc4430348a5f88df26c005b9ece621000dd27fcbc960",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.adfree.segments.json": "6c9ed4b9f3914689acf4c7e05b049a9646c5ca12c966e1d9cff14d3ba8398bc5",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.adfree.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.adfree.txt": "599b13c431e205dfc2959ab6a9465db81914c73da03c393e9d14cb82f64b77ed",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.cleaned.txt": "1bc93cfef5a674dc828e9c85e3b73994936e5e5a87df21f7d1ecee5d377eb2ee",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.segments.json": "5a2cf13d2ebc81aeed7952a029b44ec85e4ea42941a38ecbbfe62a0c4e488de0",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.speakers.diagnostics.json": "621840270048c5665f82a305c5cc2ac21087a336ead87ff66f426f14c95af274",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/transcripts/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.txt": "599b13c431e205dfc2959ab6a9465db81914c73da03c393e9d14cb82f64b77ed",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_755f5437/run_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123/metadata/0001 - Why Diffusion Will Win AI Infere_0d12a48d-7dfd-4f59-8f55-61811ec4e264_20260919-030123.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Stefano Ermon"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 22,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 2,
+        "entities_dropped": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 8,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_moved": 29,
+        "quotes_reattributed": 20,
+        "segments_relabelled": 474,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/metadata/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.bridge.json": "00564870b384b43904572f14ae5a7c3aa190a4242825d1cd7daaf31bb335c780",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/metadata/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.context.json": "66f474d80d5c751c98c559eb43c824f80afab01e7cafb8a68ca5b4847ed1366a",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/metadata/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.gi.json": "c2b26ec9ad4931799a8118a025346001ee3575bdf46a5bdc12c31f2a10fc7678",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/metadata/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.kg.json": "6217f768d810400ff7505906b3cc5cc0e0b76936155b11268e99074d7a1cb302",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/metadata/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.metadata.json": "510e5c123aab6b333d43b4a5a6c0df07c988b839d635bcb09021bf2f6db20770",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.adfree.admap.json": "657e1d070279d3f95161fdaf1b7ea251be80e5854d2852ae04af16f4dfc36c0b",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.adfree.segments.json": "fca3962e4f0cde0e3b0ad288c7e1cf5ee10e38163ce4adc8797b7a8c9dc719d8",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.adfree.txt": "bef62ee8c85abd497807320e2f46097a90d77348dced88303124c6a0d6d01b6e",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.cleaned.txt": "e0845637c90b94ef4d418b0f9f433a6e5e7062a321beb11e04f4e7a62312ec77",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.segments.json": "d5c381869c5505377888e39c3efe35e2742e599b69514578d38a18279f21471b",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.speakers.diagnostics.json": "c5e24261ba967802542272786611cf861e40f7b8c474ff1d5a4d759aa0f267af",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.turns.json": "absent",
+        "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/transcripts/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.txt": "bef62ee8c85abd497807320e2f46097a90d77348dced88303124c6a0d6d01b6e",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.megaphone.fm_755f5437/run_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2/metadata/0005 - Sunday Robotics_ Scaling the Hom_43d57626-d1b3-43e6-bc15-6c96de7115ee_20260812-193700_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_00": "Cheng Chi"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 6,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "entities_dropped": 2,
+        "gi_persons_added": 1,
+        "insights_reattributed": 1,
+        "kg_edges_moved": 2,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "metadata_counts_synced": 1,
+        "quotes_moved": 66,
+        "quotes_reattributed": 1,
+        "segments_relabelled": 18,
+        "transcripts_rerendered": 2
+      },
+      "inputs": {
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/metadata/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.bridge.json": "51bee47f25d2691ffdf1bae243714b5a1a6304c7254b0b977ebd55e66f6031a9",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/metadata/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.context.json": "f822d64cedbd96bcf7418cadc6663a7febbaa869ee39b9064545db6c14cafc12",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/metadata/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.gi.json": "4362e2f33e1de2aaf15fb7ba79c1aa1e915a93551b45cd866ec96e9b3d690d41",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/metadata/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.kg.json": "0574a23b0f50cc23f38258ae50244cf1678eca08311706244ce96461ac12f732",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/metadata/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.metadata.json": "922441b11557106e8b26133ebf417b8d03c33815de51bb66b929ffc9e4188dce",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.adfree.admap.json": "e66fdca556fd4ccf91d380a283af93cfa7da645d9f8627e787b37ccc26d0b29c",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.adfree.segments.json": "60407047fca602fa4fc10ba46254b1aab8557d3b56cc562e22bab44efbfa0f4d",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.adfree.turns.json": "absent",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.adfree.txt": "f80cc8113177a292b92dcbcc96ea333c120e226ea6a27da822b1dd014c5dfaec",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.cleaned.txt": "2f57c1e93c62254780342baf391e8674a5c7b45ce7f541f1475429dc80848fcd",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.segments.json": "a841871e52ef8c32997f813fd7d9895423e96755f7937b1c20c81f7dd8e40a44",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.speakers.diagnostics.json": "4616add1d7658ed6b803776f36d1ad848edbd6c88c2b5ec3238d690b25d9b44c",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.turns.json": "absent",
+        "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/transcripts/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.txt": "f80cc8113177a292b92dcbcc96ea333c120e226ea6a27da822b1dd014c5dfaec",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_feeds.soundcloud.com_c56bfb45/run_fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222/metadata/0007 - Ep182_ Andy Rachleff _ Yung Lie _fb89500d-a658-468d-81c6-502ac94cff65_20260902-151222.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_02": "Yung Lie"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 46,
+        "quotes_moved": 229,
+        "quotes_reattributed": 120,
+        "segments_relabelled": 778,
+        "transcripts_rerendered": 2
+      },
+      "inputs": {
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/metadata/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.bridge.json": "6e5e86f3c74df205899eb3dba161a27fb5553907d4dc4a00bfb04f4d1e24ddd3",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/metadata/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.context.json": "30b8b1f09c7876c5dcfe4fb26904bb5c7a20d011847194b3e7eabd7178116da3",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/metadata/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.gi.json": "40e84e52c4942a766648ea281271df0ce4f25af19f7529ce4fb176733b846642",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/metadata/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.kg.json": "516f629e6397547b09ee286762d376013531a5edbd6db30351a72361079216f4",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/metadata/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.metadata.json": "f6791fa79bad1877c5e5e024c43bbe1634cf14ef001ef65d106e18ff1ce495f3",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.adfree.admap.json": "3bf1d79cd03e6efa133eb38aba0c680bc7306c6fc8eb2df11d2b25a42da12ce8",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.adfree.segments.json": "cb28c4f45822c2ded765b962925265562abe27daf2731efc29886abe2a1c4725",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.adfree.txt": "8ecc705f83f5f5aa21b90d9441a5da6c042f94996268a35d62f9636a5a6d23f0",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.cleaned.txt": "c5177f56ae489adedc5fac0a31839eed24e46616a3e0b32034ce7c8cf76b3f44",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.segments.json": "3aedcb8c4bdb231afc7204f5a00ba8b166380d5469ec8903875bcff66e45bcb5",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.speakers.diagnostics.json": "890335eef58e662e4739d4b5287262c74da35be37624ae297ddcbf9989e1742d",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.turns.json": "absent",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/transcripts/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.txt": "8ecc705f83f5f5aa21b90d9441a5da6c042f94996268a35d62f9636a5a6d23f0",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_rss.flightcast.com_c63dc3c0/run_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2/metadata/0003 - _ Training Transformers to solve_0b2f616f-4cb3-4f4f-b2eb-98f692dc7cab_20260813-095929_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Daniel Bear"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "cleaned_lines": 39,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 2,
+        "gi_persons_added": 1,
+        "insights_reattributed": 12,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_moved": 43,
+        "quotes_reattributed": 20,
+        "segments_relabelled": 374,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/metadata/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.bridge.json": "be9ee04521e3341a98fb483605e791e1ceed8c7b019b5111ec8167710324c14f",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/metadata/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.context.json": "e8836b839dec9493d03753bb7cba8f101f17ad5a59863a89c74a6fac3130d22e",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/metadata/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.gi.json": "618d21488f379dcb2f1aab678f76482b2055de5b03d512c537f6e69fe6dda7b2",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/metadata/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.kg.json": "f6c3b0ed7c340541c387443c82a0052f9ecb789f9587288dfad09f7852148996",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/metadata/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.metadata.json": "0ffc8c757626d4fb9f317d217c709b424ec591e45ccc71e65ad2cf043f3f426e",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.adfree.admap.json": "1061d6238f0361f9ad5eddf0d3e6d980d0d4de969586052f767cfc4e2599c7a4",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.adfree.segments.json": "b17b9779ee74960419eaccfd37f06207cf95032d0f153fe64dc24cbc0cb365d0",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.adfree.turns.json": "absent",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.adfree.txt": "a006a87ccec67143f261c8f603c6028d176aa6d76fe41e0d849d2e2b4183afba",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.cleaned.txt": "43386c9124f0edad12aac4a3f62039ff713040989502edd3c99059d803f31dd6",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.segments.json": "4567406f2836a9919c4bc36cdf4ee01b1c1b47c3e3dec869110ca2c20868b2d1",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.speakers.diagnostics.json": "cb84036110513976977d5008d71a7c38962cf219d7c29844e8b8e0b07cdc3e25",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.turns.json": "absent",
+        "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/transcripts/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.txt": "a006a87ccec67143f261c8f603c6028d176aa6d76fe41e0d849d2e2b4183afba",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_rss.flightcast.com_c63dc3c0/run_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2/metadata/0001 - _The BioAI Phase Shift - Matthew_a502a731-1211-468d-a055-3c86d5e9a9fe_20260811-222836_285e51f2.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_02": "Matthew McPartlon"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 45,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 1,
+        "gi_persons_added": 1,
+        "insights_reattributed": 19,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_moved": 109,
+        "quotes_reattributed": 44,
+        "segments_relabelled": 702,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/metadata/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.bridge.json": "3253c91e6b85f3ecd3f081229ce3a007a33482fc6a3cb3176a2e3efc97afcda3",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/metadata/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.context.json": "21dbbee564c2bcf0df7ad385ccb4455a8349f1fc33bd98ec33dbb86c31c7da43",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/metadata/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.gi.json": "b4b91657b94076cc41e28e45823db1767ef0e036e12c6f88feb8094676b6412e",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/metadata/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.kg.json": "7296e156bc13b6b0357e46d6a4545b4a76ad02d4ac1628391033be6bf1b57115",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/metadata/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.metadata.json": "c10d0ff6f49cc6e4fb50a6a9cda36d39ee2cc2b820eaeee5486b1098ad5b8901",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.adfree.admap.json": "4c27357be2e5c1a3d95526fc0658a0e46a3b2bddb70e920d712dbe00b9dd2604",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.adfree.segments.json": "8f29d2977e7a7189a9f413b369f262ed2ebc9cc115147bb2d33250f06e1f4b56",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.adfree.turns.json": "absent",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.adfree.txt": "64c0fa9e366e37645af8e1ac636eded941789782e6f9923334fcabaa2567dc73",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.cleaned.txt": "7c85d080e6a481ae15705f624e3bace956dfd680fa7b51e4e6c545c8820eacda",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.segments.json": "5fec4c374d3af6335cf20ee4227273abfd750819576ebbb86f992ef9a14e30c3",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.speakers.diagnostics.json": "ee6883424b456212107702632f5990a94f04c3c935c612b29c8d1c60f846041b",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.turns.json": "absent",
+        "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/transcripts/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.txt": "64c0fa9e366e37645af8e1ac636eded941789782e6f9923334fcabaa2567dc73",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_rss.libsyn.com_3181f163/run_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722/metadata/0001 - Arvind Subramanian and Devesh Ka_1f105eb5-d2b4-4ee1-89f5-74f930ddf271_20260906-114722.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Devesh Kapur"
+      }
+    },
+    {
+      "counts": {
+        "bridge_identities_removed": 1,
+        "cleaned_lines": 16,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 3,
+        "gi_persons_added": 1,
+        "insights_reattributed": 7,
+        "kg_edges_moved": 1,
+        "kg_persons_added": 1,
+        "kg_persons_removed": 1,
+        "quotes_reattributed": 19,
+        "segments_relabelled": 504,
+        "transcripts_rerendered": 2,
+        "unplaced_dropped": 1,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/metadata/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.bridge.json": "df01afd2fa54ccb7ae0e2f556e014b824ea106fae04c2eaa9de4f00b0a0608b0",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/metadata/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.context.json": "5433144bdc328c7f7f081af2c0ac67ff5b03aa65f63af43fcff09e7bdf9ea4d2",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/metadata/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.gi.json": "1f7e8f231a7518fc708b658be2a3622b086fa595b37c81469f9ee1b648491154",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/metadata/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.kg.json": "919e034e964a951fc432aee0afa48bb323ac5c09b82637f14176cb70886f430b",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/metadata/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.metadata.json": "2e5148224fcf6c34ec379916279996b3f3425e2b472786afa5a67aba74c056d5",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.adfree.admap.json": "12573597f30db9b0bc669fb5afefb384dcb2005ad1544af0cfd46f8fa2cb620c",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.adfree.segments.json": "93ccea2f96adfc9468acec6c39e3bed393fb83c330ecc11932af1341e90462a4",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.adfree.turns.json": "absent",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.adfree.txt": "bf1a4b37e98eebee18509ab7a68c000ec401e193f8e7923a94dbc52b083e2ccf",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.cleaned.txt": "2d952052313eb2779268e08a62ae36dc3cee8aada2103b14ded2e61b9e96b49b",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.segments.json": "858d32aca01fcd230fc6200f1618529eb06fd12f32e90af110b4f77c688857d5",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.speakers.diagnostics.json": "d96cc6eadb73cabe660963b0ff582c1b825a59fe322954d07b19c35e98b73d86",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.turns.json": "absent",
+        "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/transcripts/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.txt": "bf1a4b37e98eebee18509ab7a68c000ec401e193f8e7923a94dbc52b083e2ccf",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_rss.libsyn.com_af575c34/run_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422/metadata/0009 - Yesha Yadav_ Chris Odinet_ and A_4fd4a0f6-ab1f-4a21-99f1-7fa4152ea4d8_20260905-194422.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_02": "Andrea Tosato"
+      }
+    },
+    {
+      "counts": {
+        "admaps_carried": 1,
+        "cleaned_lines": 9,
+        "context_rebuilt": 1,
+        "diagnostics_voices_renamed": 1,
+        "entities_added": 3,
+        "gi_persons_added": 1,
+        "insights_reattributed": 19,
+        "quotes_moved": 112,
+        "quotes_reattributed": 33,
+        "segments_relabelled": 252,
+        "transcripts_rerendered": 2,
+        "voices_named": 1
+      },
+      "inputs": {
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/metadata/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.bridge.json": "0c5fa9d835e8b09aa103c084545387f74116407c8a7defb12111753f75ebe5fd",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/metadata/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.context.json": "20d68de0c1a7ab6eab61f50978995cd3055035980a122cbb4c7da4a39fee5d26",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/metadata/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.gi.json": "6b4fdad8dadaa426d2bb78f5aef85ac0f131bd48eeee150a35cef4222b5ef7c3",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/metadata/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.kg.json": "3ecccee48be1b7a2abcff268a745687d503a1e8acb767d9604224033c845a204",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/metadata/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.metadata.json": "b1b3cdbc91f3527120c0ee14e79471fceb45a87e9699b539131d9e696d408ad2",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.adfree.admap.json": "7f69ab797e70dcc2dcf2734caa192d36249f8e9b97b932ea6e27132bb5b46217",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.adfree.segments.json": "39f066ac6eba76c8b9672eaf70cef4e65254dc9b2635c51335bc7e089a7a1026",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.adfree.turns.json": "absent",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.adfree.txt": "5122b47a1c992f38af86e28e35785eccd4d1266efe4e33db02baea17aaa13b10",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.cleaned.adfree.admap.json": "absent",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.cleaned.txt": "de92445c2cc4cc770e6db7b7e093c89fc208dd6c0742b4c76ca01fbe7e338988",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.segments.json": "2ebc0c6b9c01d17ddaed749c869c453b0b972069e3729bf1a1f81cd1ace02151",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.speakers.diagnostics.json": "5e2cb131949adbe30398c6deb6a4472a243847993856fe1a9b730fa541c3df83",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.turns.json": "absent",
+        "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/transcripts/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.txt": "5122b47a1c992f38af86e28e35785eccd4d1266efe4e33db02baea17aaa13b10",
+        "identity_ledger.json": "b8a115794a3eb4d665f8c4fb3522cecb96668ae534087796ab1ad047e0f8c95b"
+      },
+      "meta": "feeds/rss_rss.libsyn.com_af575c34/run_646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354/metadata/0016 - Neha Narula_ Anders Brownworth_ _646f305e-7995-4ea9-b9fd-774758c50212_20260908-020354.metadata.json",
+      "refused": null,
+      "voices": {
+        "SPEAKER_01": "Daniel Aronoff"
+      }
+    }
+  ],
+  "plan_sha256": "9ae9d480a27ef1e8ea0a0f1ec0821261f68e475ed0530f31891f55bd922c7099",
+  "scoreboard_after": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 301,
+    "A1_marker_hits": 400,
+    "S10a_zero_visible": 197,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 6,
+    "S1_hidden_unknown": 18589,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 32489,
+    "S2_hidden_commercial": 96,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13804,
+    "S2_hidden_unknown": 18589,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9373,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3130,
+    "episodes_no_gi": 0,
+    "insights": 138469,
+    "metadata_unreadable": 0,
+    "quotes": 268625,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "scoreboard_before": {
+    "A1_episodes_no_adfree": 2,
+    "A1_episodes_with_hits": 301,
+    "A1_marker_hits": 400,
+    "S10a_zero_visible": 197,
+    "S10b_zero_visible_panel": 2,
+    "S12_quotes_off_text": 6,
+    "S1_hidden_unknown": 18589,
+    "S1c_inconsistent": 0,
+    "S1n_named_but_hidden": 7,
+    "S2_hidden": 32489,
+    "S2_hidden_commercial": 96,
+    "S2_hidden_none": 0,
+    "S2_hidden_unidentified": 13804,
+    "S2_hidden_unknown": 18589,
+    "S3_outside_no_diagnostics": 0,
+    "S3_outside_no_voice": 0,
+    "S3_principal_unidentified": 9373,
+    "S3_voice_not_in_diagnostics": 0,
+    "episodes": 3130,
+    "episodes_no_gi": 0,
+    "insights": 138469,
+    "metadata_unreadable": 0,
+    "quotes": 268625,
+    "quotes_no_offsets": 0,
+    "quotes_ref_unresolved": 244
+  },
+  "snapshot": "snapshot-prod-20261103+0043",
+  "targets": {
+    "after": {
+      "counts": {},
+      "episodes": 0
+    },
+    "before": {
+      "counts": {
+        "admaps_carried": 12,
+        "bridge_identities_removed": 12,
+        "cleaned_lines": 515,
+        "context_rebuilt": 18,
+        "diagnostics_voices_renamed": 18,
+        "entities_added": 23,
+        "entities_dropped": 6,
+        "gi_persons_added": 13,
+        "insights_reattributed": 561,
+        "kg_edges_moved": 15,
+        "kg_persons_added": 11,
+        "kg_persons_removed": 11,
+        "kg_roles_set": 1,
+        "metadata_counts_synced": 1,
+        "quotes_moved": 801,
+        "quotes_reattributed": 1106,
+        "segments_relabelled": 16726,
+        "transcripts_rerendered": 36,
+        "unplaced_dropped": 2,
+        "voices_named": 14
+      },
+      "episodes": 18
+    }
+  },
+  "verdicts_sha256": "b98ff906d294842c23a292e5bece480f783a78988462ee9d084da810901ffb45",
+  "verify": {
+    "message": "every rename the review confirmed carries the title's spelling of its person",
+    "ok": true
+  },
+  "verify_all": [
+    {
+      "id": "0001_faiss_to_lance",
+      "message": "FAISS retired (#995); no-op",
+      "ok": true
+    },
+    {
+      "id": "0002_two_tier_native_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0003_gi_v3_typed_mentions",
+      "message": "all 3668 .gi.json parse and are fully migrated to v3",
+      "ok": true
+    },
+    {
+      "id": "0004_insight_type_reindex",
+      "message": "no LanceDB index (empty corpus or nothing to index)",
+      "ok": true
+    },
+    {
+      "id": "0005_gi_v3_1_route_and_tag",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0006_kg_v2_typed_entities",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0007_scope_bare_person_names",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0008_object_entity_kind",
+      "message": "no verification defined",
+      "ok": true
+    },
+    {
+      "id": "0009_backfill_speaker_roles",
+      "message": "1782 of 1782 recorded role(s) still present in files this migration last wrote; 1432 row(s) in files rewritten since (not judged)",
+      "ok": true
+    },
+    {
+      "id": "0010_canonical_person_names",
+      "message": "every person name is canonical and every id agrees with the name that minted it",
+      "ok": true
+    },
+    {
+      "id": "0011_shared_artwork_store",
+      "message": "all artwork is in the corpus-root store",
+      "ok": true
+    },
+    {
+      "id": "0012_org_speakers_removed",
+      "message": "no served surface names any of 17 org(s) as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0013_artwork_thumbnails",
+      "message": "every stored image has a thumbnail (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0014_eponymous_hosts_restored",
+      "message": "every self-introduced eponymous host holds their seat",
+      "ok": true
+    },
+    {
+      "id": "0015_unpublishable_speaker_names_removed",
+      "message": "no served surface carries any of 31 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0016_ad_reader_names_removed",
+      "message": "no served surface names an ad voice for any of 50 frozen hit(s)",
+      "ok": true
+    },
+    {
+      "id": "0017_speaker_names_canonicalised",
+      "message": "no served surface carries any of 6 name(s) / 64 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0018_org_speakers_removed_residue",
+      "message": "no served surface names any of m0012's 17 org(s)",
+      "ok": true
+    },
+    {
+      "id": "0019_descriptor_speaker_names_removed",
+      "message": "no served surface carries any of 1 refused name(s)",
+      "ok": true
+    },
+    {
+      "id": "0020_titled_person_ids_remerged",
+      "message": "no served surface carries any of 0 name(s) / 27 id(s)",
+      "ok": true
+    },
+    {
+      "id": "0021_backfill_feed_language",
+      "message": "every backfilled show is consistent across its episodes",
+      "ok": true
+    },
+    {
+      "id": "0022_derived_speaker_surfaces_resynced",
+      "message": "every served episode's context digest and diagnostics follow its segments",
+      "ok": true
+    },
+    {
+      "id": "0023_transcript_speaker_prefixes_resynced",
+      "message": "every served transcript is its segments' render",
+      "ok": true
+    },
+    {
+      "id": "0024_shared_removed_speaker_prefixes",
+      "message": "no served transcript names a removed speaker",
+      "ok": true
+    },
+    {
+      "id": "0025_one_person_one_entry",
+      "message": "no served episode lists one person twice (except 1 with two placed voices left to the roster)",
+      "ok": true
+    },
+    {
+      "id": "0026_artwork_medium",
+      "message": "every stored image has a medium copy (0 undecodable, recorded)",
+      "ok": true
+    },
+    {
+      "id": "0027_missing_covers_stored",
+      "message": "every cover is stored, or recorded as unfetchable",
+      "ok": true
+    },
+    {
+      "id": "0028_transcript_chunk_times",
+      "message": "no search index or no index sidecar: nothing to time",
+      "ok": true
+    },
+    {
+      "id": "0029_naming_arc_voices_repaired",
+      "message": "every listed voice carries the name the naming ladder gives it",
+      "ok": true
+    },
+    {
+      "id": "0030_adfree_cut_resynced",
+      "message": "every served ad-free base is today's cut",
+      "ok": true
+    },
+    {
+      "id": "0031_named_voices_shown",
+      "message": "every voice 0029 names carries its name and no hiding, as reviewed; insights_checked=2464, unnamed_checked=1, unreviewed_unchanged=22, admaps_checked=71, served=3130, served_listed=71, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0033_hand_removed_names_refused",
+      "message": "every voice this migration names carries its name and no hiding, as reviewed; insights_checked=58, unnamed_checked=0, unreviewed_unchanged=0, admaps_checked=1, served=3130, served_listed=1, metadata_unreadable=0",
+      "ok": true
+    },
+    {
+      "id": "0034_talk_floor_names_removed",
+      "message": "every voice the review confirmed is off the floor's name",
+      "ok": true
+    },
+    {
+      "id": "0035_voice_identity_names",
+      "message": "every rename the review confirmed carries the fingerprint group's name, and every unnaming the review confirmed is off its voice",
+      "ok": true
+    },
+    {
+      "id": "0036_bridge_identities_restored",
+      "message": "every published GI / KG person has a bridge identity",
+      "ok": true
+    },
+    {
+      "id": "0037_named_voices_corrected",
+      "message": "every rename the review confirmed carries the voice's own person's name",
+      "ok": true
+    },
+    {
+      "id": "0038_raw_label_speakers_removed",
+      "message": "no served episode credits a raw diarization label as a speaker",
+      "ok": true
+    },
+    {
+      "id": "0039_adfree_segment_offsets_realigned",
+      "message": "every served ad-free segment slices to its own text",
+      "ok": true
+    },
+    {
+      "id": "0040_gi_quote_offsets_realigned",
+      "message": "every GI quote time can place slices to its text (6 left, listed)",
+      "ok": true
+    },
+    {
+      "id": "0041_joined_names_respelled",
+      "message": "every joined person's name in the episode files is the group's spelling",
+      "ok": true
+    },
+    {
+      "id": "0042_insight_cluster_quotes_resynced",
+      "message": "every insight cluster quote matches its GI quote",
+      "ok": true
+    },
+    {
+      "id": "0043_non_participant_names_removed",
+      "message": "every voice the review confirmed as a non-participant is unnamed and commercial",
+      "ok": true
+    },
+    {
+      "id": "0044_title_spelling_voices_renamed",
+      "message": "every rename the review confirmed carries the title's spelling of its person",
+      "ok": true
+    }
+  ],
+  "verify_regressions": [],
+  "why": [
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.bridge.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.context.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.gi.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.kg.json",
+    "content key changed in feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json: content.speakers",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.bridge.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.context.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.gi.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.kg.json",
+    "content key changed in feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/metadata/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.metadata.json: content.speakers",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.segments.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.txt",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.cleaned.txt",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.segments.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.speakers.diagnostics.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0002 - Why half of product managers are_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.txt",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.segments.json",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.adfree.txt",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.cleaned.txt",
+    "content file written: feeds/rss_api.substack.com_deda024b/run_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2/transcripts/0004 - Head of Growth _Anthropic__ _Cla_a5bfce05-654b-446a-8c6f-88e2459a4795_20260813-224240_285e51f2.segments.json"
+  ]
+}

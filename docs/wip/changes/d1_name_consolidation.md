@@ -1,7 +1,7 @@
 ---
 id: d1_name_consolidation
 class: full
-status: open
+status: landed
 issue: none (RFC-131; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/gi/pipeline.py
@@ -250,7 +250,9 @@ Open, not a condition: the nginx test's `_docker_is_usable` guard returned true 
 
 ## 9. Operator review
 
-_TODO_
+MISSED: no operator review of this record on its own. The operator accepted D2 on 2026-11-03 (`d2_name_consolidation.md`).
+
+Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 
 ## 10. Before apply / deploy
 

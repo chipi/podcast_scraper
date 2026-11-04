@@ -24,7 +24,7 @@ from typing import Any, Callable, Iterator, Sequence
 from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
-from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
+from podcast_scraper.search.corpus_scope import member_episode_artifacts
 from podcast_scraper.server.corpus_catalog import (
     _optional_image_url,
     _optional_relpath_field,
@@ -37,17 +37,15 @@ logger = logging.getLogger(__name__)
 
 
 def _latest_run_bridge_paths(bridge_paths: list[str], corpus_base: str) -> list[str]:
-    """Drop bridges under superseded ``feeds/<feed>/run_*`` siblings — keep the latest run per feed.
+    """The bridges of the corpus's member episodes (:func:`member_episode_artifacts`).
 
-    The CIL read surfaces (timeline / position-arc / conversation-arc) walk every ``*.bridge.json``
-    under the corpus. When a feed has been re-run, that includes insights from older runs, which
-    then double-count in the timeline and render un-tinted (enrichment only writes the latest run).
-    Apply the same latest-run-per-feed dedup the indexer + enrichment use so the reads match the
-    enriched set. Non-run (flat) layouts are unaffected.
+    The CIL read surfaces walk every ``*.bridge.json`` under the corpus; a reprocessed episode has
+    a copy in an older run too, which would double-count. The central membership rule keeps every
+    episode of every run and a reprocessed one from its newest run only, the same set
+    ``/api/artifacts``, indexing, enrichment and the catalog read.
     """
-    rel_by_abs = {p: os.path.relpath(p, corpus_base).replace(os.sep, "/") for p in bridge_paths}
-    allowed = latest_feed_run_allowed_relpaths(rel_by_abs.values())
-    return [p for p in bridge_paths if rel_by_abs[p] in allowed]
+    kept = member_episode_artifacts(Path(corpus_base), [Path(p) for p in bridge_paths])
+    return [str(p) for p in kept]
 
 
 def canonical_cil_entity_id(viewer_graph_id: str) -> str:

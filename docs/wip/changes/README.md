@@ -33,3 +33,7 @@ The class is decided by what the change does, not by its label:
   staged files, whatever wrote them.
 - **Before it lands:** a unit test refuses a registered migration from 0031 on without a record,
   a gate report, and steps 1 to 8 done (light: step 0, and the gate must agree it is light).
+- **The review budget:** a step-8 review dated from 2026-11-04 reports its `minutes`, states its
+  launch budget (`Review budget: minutes <n>, tokens <n>`), and past 10 minutes says
+  `VERDICT: INCOMPLETE`; the landing check and a unit test over every record refuse it otherwise
+  (method v1.0, self-reported numbers).

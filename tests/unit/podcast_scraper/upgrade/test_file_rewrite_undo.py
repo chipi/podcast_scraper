@@ -64,3 +64,70 @@ def test_a_missing_backup_is_refused(tmp_path: Path) -> None:
     backup.unlink()
     restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
     assert restored == 0 and "no backup" in refused[0]
+
+
+def test_a_second_run_over_a_file_changed_in_between_undoes_to_that_change(
+    tmp_path: Path,
+) -> None:
+    """Run 1 writes v1 (backup: v0). Something else rewrites the file to v2. Run 2 writes v3, and
+    its receipt says "before v2". Undo must restore v2, not run 1's v0: keeping only the first
+    backup silently threw away the change made in between."""
+    root = _corpus(tmp_path)
+    _run(root, {"v": 1})
+    (root / "feeds/a.json").write_text('{"v": 2}', encoding="utf-8")
+    between = (root / "feeds/a.json").read_bytes()
+    _run(root, {"v": 3})
+    assert undo_from_receipts(root, RECEIPTS, TAG, MID) == (1, [])
+    assert (root / "feeds/a.json").read_bytes() == between
+
+
+def test_a_backup_of_another_state_is_refused_not_restored(tmp_path: Path) -> None:
+    """A backup whose bytes are not the receipt's before-state is never copied over the file."""
+    root = _corpus(tmp_path)
+    _run(root, {"v": 1})
+    backup = root / ".podcast_scraper" / "upgrade-backups" / TAG / "feeds/a.json"
+    backup.write_text('{"v": "unrelated"}', encoding="utf-8")
+    restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
+    assert restored == 0 and len(refused) == 1 and "no backup" in refused[0]
+    assert (root / "feeds/a.json").read_text(encoding="utf-8") != '{"v": "unrelated"}'
+
+
+def test_an_interrupted_backup_copy_leaves_no_backup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review 1, 2026-11-04: a copy cut off midway left a truncated file at the backup path, and
+    every later run took it for the backup. The copy now lands under its name whole or not at
+    all, and the file itself is untouched."""
+    import shutil
+
+    from podcast_scraper.upgrade import file_rewrite as fr
+
+    root = _corpus(tmp_path)
+
+    def torn(src: Path, dst: Path) -> None:
+        Path(dst).write_text('{"v"', encoding="utf-8")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(shutil, "copyfile", torn)
+    with pytest.raises(OSError):
+        write_with_backup(root, TAG, root / "feeds/a.json", {"v": 1})
+    backup = fr.backup_dir(root, TAG) / "feeds/a.json"
+    assert not backup.exists()
+    assert list(backup.parent.glob("a.json*")) == []
+    assert (root / "feeds/a.json").read_text(encoding="utf-8") == '{"v": 0}'
+
+
+def test_a_truncated_state_backup_is_rewritten_not_trusted(tmp_path: Path) -> None:
+    from podcast_scraper.upgrade import file_rewrite as fr
+
+    root = _corpus(tmp_path)
+    _run(root, {"v": 1})
+    (root / "feeds/a.json").write_text('{"v": 2}', encoding="utf-8")
+    sha = fr.file_sha(root / "feeds/a.json")
+    alt = (fr.backup_dir(root, TAG) / "feeds/a.json").with_name(f"a.json.{sha}")
+    alt.write_text('{"v"', encoding="utf-8")  # left by a copy cut off before this fix
+    _run(root, {"v": 3})
+    assert fr.file_sha(alt) == sha
+    restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
+    assert refused == []
+    assert (root / "feeds/a.json").read_text(encoding="utf-8") == '{"v": 2}'

@@ -60,7 +60,7 @@ default location. See [CONFIGURATION.md — Twelve-factor app alignment (config)
 | :------- | :------ | :---------- |
 | `PODCAST_SCRAPER_CONFIG` | `/app/config.yaml` | Path to configuration file |
 | `PODCAST_SCRAPER_WORK_DIR` | `/app` | Working directory for service |
-| `HF_TOKEN` | _(none)_ | Only needed for the **gated `3.1` fallback** (`pyannote/speaker-diarization-3.1` + `segmentation-3.0`), which the ML image cannot bundle (licence forbids redistribution). The **default `community-1` (v4) is non-gated and baked into the image — no token required.** If you switch to 3.1: supply a token + accept the terms; without it, diarization falls back to gap-based screenplay. Pair with a persistent `~/.cache/huggingface` mount (see Model cache below). |
+| `HF_TOKEN` | _(none)_ | Needed for in-container diarization: the **default `community-1` (v4) and the `3.1` fallback** (`pyannote/speaker-diarization-3.1` + `segmentation-3.0`) are both gated on Hugging Face (401 without a token, checked 2026-11-03), and the image build passes no token, so neither is in the image. Supply a token whose account accepted the terms; without it, diarization falls back to gap-based screenplay. Pair with a persistent `~/.cache/huggingface` mount (see Model cache below). |
 
 ### Setting Environment Variables
 

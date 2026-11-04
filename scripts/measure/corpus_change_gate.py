@@ -96,6 +96,28 @@ def _verify_all(
     return out, regressions
 
 
+def _targets(plan: Optional[List[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
+    """What a plan still targets: its episodes and its counters summed. For a reviewed-list
+    migration the counters are its listed voices, so before and after is the wrong-person row the
+    gold cannot give for episodes it does not cover; ``None`` when there is no comparable plan."""
+    if plan is None:
+        return None
+    counts: Dict[str, int] = {}
+    for row in plan:
+        for k, v in (row.get("counts") or {}).items():
+            if k != "refused" and not k.startswith("refused: ") and isinstance(v, int):
+                counts[k] = counts.get(k, 0) + v
+    return {"episodes": len(plan), "counts": dict(sorted(counts.items()))}
+
+
+def _plan_or_none(migration: Any, root: Path) -> Optional[List[Dict[str, Any]]]:
+    try:
+        rows: List[Dict[str, Any]] = outcome_hook.episode_plan(migration, root)
+    except outcome_hook.HookError:
+        return None
+    return rows
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--migration", required=True, help="registered migration id")
@@ -127,14 +149,14 @@ def main() -> int:
     before_hash = _hashes(args.work)
     before = score_corpus(args.clone)["total"]
     before_ep = outcome_hook.score_by_episode(args.work)
-    try:
-        plan = outcome_hook.episode_plan(migration, args.work)
-    except outcome_hook.HookError as exc:
-        plan = []
-        print(f"no comparable plan: {exc}", file=sys.stderr)
+    planned = _plan_or_none(migration, args.work)
+    plan = planned if planned is not None else []
+    if planned is None:
+        print("no comparable plan: the migration has no usable dry_run_report", file=sys.stderr)
     result = migration.apply(MigrationContext(corpus_root=args.work))
     ok, message = migration.verify(MigrationContext(corpus_root=args.work))
     verify_all, regressions = _verify_all(migration.id, applied, args.clone, args.work)
+    left = _plan_or_none(migration, args.work)
     after = score_corpus(args.work)["total"]
     after_ep = outcome_hook.score_by_episode(args.work)
     after_hash = _hashes(args.work)
@@ -177,11 +199,13 @@ def main() -> int:
         "episode_deltas": outcome_hook.deltas(before_ep, after_ep, config["gating_metrics"]),
         "plan": plan,
         "plan_sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
+        "targets": {"before": _targets(planned), "after": _targets(left)},
     }
     args.out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({k: report[k] for k in ("computed_class", "gating_moves", "files_changed")}))
     failing = [v["id"] for v in verify_all if not v["ok"]]
     print(f"upgrade verify, all applied: {len(verify_all) - len(failing)} ok, failing {failing}")
+    print(f"targets before -> after: {report['targets']}")
     if regressions:
         print(f"VERIFY REGRESSIONS (ok on the clone, failing after this migration): {regressions}")
     print(f"report: {args.out}")

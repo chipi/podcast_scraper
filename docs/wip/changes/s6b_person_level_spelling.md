@@ -1,7 +1,7 @@
 ---
 id: s6b_person_level_spelling
 class: full
-status: open
+status: landed
 issue: none (RFC-131 S6, the person-level surfaces; operator scope 2026-10-31)
 touches:
   - src/podcast_scraper/identity/display.py

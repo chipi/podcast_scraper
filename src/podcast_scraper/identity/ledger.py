@@ -51,6 +51,19 @@ PREVIOUS_RULE_VERSION = "cluster-person-no-bridge-guarded/2"
 PERSON_MODE = "cluster_person"
 PERSON_LINKAGE = "no_one_word_bridge"
 
+#: Where the ledger's publisher evidence comes from (record ``l_publisher_verified_mode``):
+#: ``extracted``, the diagnostics' extracted names as every build before it, or
+#: ``publisher_verified``, checked against and supplemented from the publisher's own text, with
+#: its host-seat joins. Shipped ``extracted`` (operator, 2026-11-04: tier L ships switched off).
+#: Switching on is its own change: set this, set ``RULE_VERSION`` to the mode's version below and
+#: move the old one to ``PREVIOUS_RULE_VERSION``, and deploy; the next refresh respells the files.
+#: A build is stamped with its own mode's version, whichever mode ships.
+EVIDENCE_MODE = "extracted"
+RULE_VERSION_BY_EVIDENCE = {
+    "extracted": "cluster-person-no-bridge-guarded/3",
+    "publisher_verified": "cluster-person-no-bridge-guarded-publisher-verified/1",
+}
+
 #: Ledger states, for logs and the state gauge.
 STATE_OK = "ok"
 STATE_OK_PREVIOUS_RULE = "ok_previous_rule"
@@ -83,7 +96,7 @@ def corpus_token(root: Path | str) -> Dict[str, Any]:
     return {"corpus_mtime": corpus_content_mtime(root), "newest_kg_count": len(kg)}
 
 
-def build_ledger(root: Path | str) -> Dict[str, Any]:
+def build_ledger(root: Path | str, evidence_mode: Optional[str] = None) -> Dict[str, Any]:
     """Build the ledger for a corpus root, from corpus text only. Writes nothing.
 
     The joins are the cluster rule's for organisations. For people: rule mode ``PERSON_MODE``,
@@ -91,11 +104,16 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
     refused join is recorded in ``blocked_joins``. The reviewed near-spelling list (record s5d)
     applies as the build's ``pair_rule``. A group keeps the canonical id the served
     ledger gives it while that id is still a member (RFC-131 0041).
+
+    ``evidence_mode`` (default ``EVIDENCE_MODE``): ``publisher_verified`` builds with the
+    publisher's own text as evidence and its host-seat joins (record l_publisher_verified_mode),
+    stamped with that mode's rule version.
     """
     import podcast_scraper
     from podcast_scraper.identity.guards import (
         candidate_guard,
         collect_episode_evidence,
+        host_join_pair_rule,
         load_reviewed,
         reviewed_pair_rule,
     )
@@ -104,23 +122,29 @@ def build_ledger(root: Path | str) -> Dict[str, Any]:
         collect_entity_candidates,
     )
 
+    mode = evidence_mode or EVIDENCE_MODE
+    if mode not in RULE_VERSION_BY_EVIDENCE:
+        raise ValueError(f"unknown evidence mode {mode!r}")
     root = Path(root)
     candidates = collect_entity_candidates(root)
-    evidence = collect_episode_evidence(root)
+    evidence = collect_episode_evidence(root, mode=mode)
     served, _state = read_ledger(root)
+    pair_rule = reviewed_pair_rule(evidence, load_reviewed())
+    if mode == "publisher_verified":
+        pair_rule = host_join_pair_rule(evidence, pair_rule)
     payload, _id_map = build_entity_canonical_map(
         candidates,
         guard=candidate_guard(evidence),
         person_mode=PERSON_MODE,
         linkage=PERSON_LINKAGE,
         keep_canonical=_canonical_ids(served),
-        pair_rule=reviewed_pair_rule(evidence, load_reviewed()),
+        pair_rule=pair_rule,
     )
     _add_display_spellings(payload, candidates, evidence)
     blocked = payload.pop("blocked_joins", [])
     return {
         "schema_version": LEDGER_SCHEMA_VERSION,
-        "rule_version": RULE_VERSION,
+        "rule_version": RULE_VERSION_BY_EVIDENCE[mode],
         "code_version": getattr(podcast_scraper, "__version__", "unknown"),
         "corpus_token": corpus_token(root),
         "built_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
@@ -240,6 +264,16 @@ def _undecided(pool: List[str], candidates: Any) -> Optional[str]:
     return None
 
 
+def _pair(pairs: Any, a: str, b: str) -> bool:
+    """``(a, b)`` is a V2 pair, either way round (``publisher_text.fold``)."""
+    if not pairs:
+        return False
+    from podcast_scraper.identity.publisher_text import fold
+
+    fa, fb = fold(a), fold(b)
+    return (fa, fb) in pairs or (fb, fa) in pairs
+
+
 def _fold(name: str) -> str:
     """Case, spacing and accents folded: how two spellings of one name are compared."""
     import unicodedata
@@ -310,7 +344,13 @@ def _publisher_spellings(
                     and _full_name(p)
                     and any(
                         _full_name(n)
-                        and (R._same_person(p, n) or R._same_person_on_one_episode(p, n))
+                        and (
+                            R._same_person(p, n)
+                            or R._same_person_on_one_episode(p, n)
+                            # V2: the publisher's text spells this person so (empty unless the
+                            # evidence mode is publisher_verified)
+                            or _pair(ev.publisher_pairs, p, n)
+                        )
                         for n in here
                     )
                 )

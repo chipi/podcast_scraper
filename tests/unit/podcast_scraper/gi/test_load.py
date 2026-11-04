@@ -282,3 +282,19 @@ class TestItReadsTheBodyTheArtifactDECLARES:
             ap, self._artifact("transcripts/01 - ep.adfree.txt", offsets=False)
         )
         assert got == tmp_path / "transcripts" / "01 - ep.txt"
+
+    def test_an_ABSOLUTE_ref_through_this_run_is_the_declared_body(self, tmp_path: Path) -> None:
+        """Prod artifacts can declare ``/app/output/feeds/<feed>/<run>/transcripts/x.adfree.txt``,
+        the path at ingest. Rejected as "outside the run", the raw ``.txt`` was sliced instead: on
+        snapshot-prod-20261103, 7,481 quotes in 52 episodes showed the wrong text (#2253). The part
+        after this run's directory name is the same file in this corpus."""
+        ap = self._artifact_path(tmp_path)
+        ref = f"/app/output/feeds/f1/{tmp_path.name}/transcripts/01 - ep.adfree.txt"
+        got = _transcript_path_from_artifact_path(ap, self._artifact(ref))
+        assert got == (tmp_path / "transcripts" / "01 - ep.adfree.txt").resolve()
+
+    def test_an_ABSOLUTE_ref_through_another_run_still_falls_back(self, tmp_path: Path) -> None:
+        ap = self._artifact_path(tmp_path)
+        ref = "/app/output/feeds/f1/run_someone_else/transcripts/01 - ep.adfree.txt"
+        got = _transcript_path_from_artifact_path(ap, self._artifact(ref))
+        assert got == tmp_path / "transcripts" / "01 - ep.txt"

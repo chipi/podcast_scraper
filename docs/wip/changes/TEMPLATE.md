@@ -72,7 +72,9 @@ _TODO_
 ## 8. Verdict
 
 The §4a review block from a fresh agent: prediction vs gate, required items, the after-state read,
-open calls, VERDICT. No numbers of its own.
+open calls, VERDICT. No numbers of its own. Above it, the budget the reviewer was launched with:
+`Review budget: minutes 5, tokens <n>`. The block reports `minutes <n>`; past 10 it must be
+`VERDICT: INCOMPLETE` (the change gate refuses otherwise).
 
 _TODO_
 

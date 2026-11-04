@@ -282,3 +282,25 @@ def test_a_quote_on_the_shared_line_separator_and_one_that_starts_with_the_prefi
         q = node["properties"]
         assert q["text"] == "Search is the gateway."
         assert atxt[q["char_start"] : q["char_end"]] == q["text"]
+
+
+def test_text_backup_dirs_it_creates_get_the_corpus_owner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On prod ``upgrade run`` runs as root: 0041 left 5 root-owned backup directories, because
+    the text writer chowned only the file and its backup, never the directories it created."""
+    from podcast_scraper.upgrade.migrations import m0023_transcript_speaker_prefixes_resynced as m
+
+    seen: List[Path] = []
+    monkeypatch.setattr(m, "match_corpus_owner", lambda root, paths: seen.extend(paths))
+    path = tmp_path / "feeds" / "f1" / "run_x" / "transcripts" / "ep.txt"
+    path.parent.mkdir(parents=True)
+    path.write_text("before\n", encoding="utf-8")
+
+    m._write_text_with_backup(tmp_path, path, "after\n", "t")
+
+    backup = tmp_path / ".podcast_scraper" / "upgrade-backups" / "t" / path.relative_to(tmp_path)
+    assert backup.read_text(encoding="utf-8") == "before\n"
+    created = [backup.parent, *backup.parent.parents]
+    created = [d for d in created if d != tmp_path and tmp_path in d.parents]
+    assert set(created) <= set(seen), sorted(str(d) for d in set(created) - set(seen))

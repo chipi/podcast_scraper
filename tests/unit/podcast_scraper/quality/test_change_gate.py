@@ -356,3 +356,103 @@ def test_a_landed_record_needs_step_10_too(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(cg, "current_digest", lambda mid: "changed")
     [problem] = cg.check_landing(root, ["0099_x"])
     assert "landed: step 10: not done" in problem
+
+
+def _review(minutes: str, verdict: str, date: str = "2026-11-05", budget: bool = True) -> str:
+    line = "Review budget: minutes 5, tokens 40000\n\n" if budget else ""
+    return (
+        f"{line}REVIEW 0099_x {date}  commit abc  reviewer fresh  {minutes}\n"
+        f"INPUTS READ: x\nVERDICT: {verdict}  the deciding item\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "review, problem",
+    [
+        (_review("minutes 4", "GO"), None),
+        (_review("minutes 14", "INCOMPLETE"), None),
+        (_review("minutes 14", "GO"), "past the 10-minute hard stop"),
+        (_review("", "GO"), "reports no 'minutes <n>'"),
+        (_review("minutes 3", "GO", budget=False), "no 'Review budget:"),
+        (_review("minutes 60", "GO", date="2026-10-27"), None),  # before the rule: stands as read
+    ],
+)
+def test_a_review_keeps_the_4a_budget(tmp_path: Path, review: str, problem) -> None:
+    """Method §4a: 5 minutes, a hard stop at 10 that returns INCOMPLETE, and the budget stated.
+    The first read under it used 128,701 tokens against a 40k budget (2026-10-27)."""
+    root = _repo(tmp_path)
+    _record(root, "0099_x", "full", {**DONE, "8": review})
+    rec = cg.parse_record(root / "docs/wip/changes/0099_x.md")
+    assert rec is not None
+    found = cg.review_budget_problems(rec)
+    if problem is None:
+        assert found == []
+    else:
+        assert len(found) == 1 and problem in found[0], found
+
+
+def test_every_record_in_the_repo_keeps_the_review_budget() -> None:
+    assert cg.check_reviews(REPO) == []
+
+
+def _problems(tmp_path: Path, body: str) -> list:
+    root = _repo(tmp_path)
+    _record(root, "0099_x", "full", {**DONE, "8": body})
+    rec = cg.parse_record(root / "docs/wip/changes/0099_x.md")
+    assert rec is not None
+    return cg.review_budget_problems(rec)
+
+
+def test_a_review_without_its_verdict_line_is_a_problem(tmp_path: Path) -> None:
+    body = "Review budget: minutes 5, tokens 40000\n\nREVIEW 0099_x 2026-11-05 minutes 3\nnotes\n"
+    [problem] = _problems(tmp_path, body)
+    assert "no 'VERDICT:' line" in problem
+
+
+def test_each_review_is_checked_on_its_own_block(tmp_path: Path) -> None:
+    """Review 1, 2026-11-04: the second block's budget line and minutes were read off the first."""
+    first = _review("minutes 4", "GO")
+    second = "REVIEW 0099_x 2026-11-06  reviewer fresh  minutes 14\nVERDICT: GO  re-read\n"
+    found = _problems(tmp_path, first + "\n" + second)
+    assert len(found) == 2, found
+    assert any("2026-11-06" in p and "hard stop" in p for p in found)
+    assert any("2026-11-06" in p and "Review budget" in p for p in found)
+
+
+def test_a_missing_verdict_does_not_borrow_the_next_blocks(tmp_path: Path) -> None:
+    first = "Review budget: minutes 5, tokens 1\n\nREVIEW 0099_x 2026-11-05  reviewer a\nnotes\n"
+    second = _review("minutes 4", "GO", date="2026-11-06")
+    found = _problems(tmp_path, first + "\n" + second)
+    assert any("2026-11-05" in p and "VERDICT" in p for p in found), found
+    assert any("2026-11-05" in p and "minutes" in p for p in found), found
+
+
+def test_the_budget_line_states_tokens_too(tmp_path: Path) -> None:
+    body = "Review budget: minutes 5\n\nREVIEW 0099_x 2026-11-05 minutes 3\nVERDICT: GO  x\n"
+    [problem] = _problems(tmp_path, body)
+    assert "tokens <n>" in problem
+
+
+def test_a_review_header_without_a_date_is_a_problem(tmp_path: Path) -> None:
+    body = "Review budget: minutes 5, tokens 1\n\nREVIEW 0099_x yesterday minutes 3\nVERDICT: GO\n"
+    [problem] = _problems(tmp_path, body)
+    assert "no date" in problem
+
+
+def test_an_indented_budget_line_counts(tmp_path: Path) -> None:
+    """Review 2, 2026-11-04: a budget line inside a list item was not seen."""
+    body = (
+        "- Review budget: minutes 5, tokens 40000\n\n"
+        "REVIEW 0099_x 2026-11-05 minutes 3\nVERDICT: GO\n"
+    )
+    assert _problems(tmp_path, body) == []
+
+
+def test_three_reviews_are_three_blocks(tmp_path: Path) -> None:
+    reviews = [_review("minutes 3", "GO", date=f"2026-11-0{d}") for d in (5, 6, 7)]
+    (tmp_path / "ok").mkdir()
+    assert _problems(tmp_path / "ok", "\n".join(reviews)) == []
+    late = reviews[:2] + [_review("minutes 13", "GO", date="2026-11-07")]
+    (tmp_path / "late").mkdir()
+    [problem] = _problems(tmp_path / "late", "\n".join(late))
+    assert "2026-11-07" in problem and "hard stop" in problem

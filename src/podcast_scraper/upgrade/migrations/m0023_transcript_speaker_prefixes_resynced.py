@@ -37,11 +37,13 @@ from ..file_rewrite import (
     append_receipts,
     backup_dir,
     file_sha,
+    keep_backup,
     match_corpus_owner,
     undo_from_receipts,
     write_with_backup,
 )
 from ..migration import Migration, MigrationContext, MigrationResult
+from ..ownership import created_dirs
 
 MIGRATION_ID = "0023_transcript_speaker_prefixes_resynced"
 RECEIPTS_FILE = "transcript_speaker_prefixes_resynced.jsonl"
@@ -427,16 +429,15 @@ def _write_text_with_backup(
     """``write_with_backup`` for a plain-text file (that one serialises JSON)."""
     rel = str(path.relative_to(root))
     backup = backup_dir(root, tag) / rel
-    backup.parent.mkdir(parents=True, exist_ok=True)
-    if not backup.exists():
-        backup.write_bytes(path.read_bytes())
     sha_before = file_sha(path)
+    kept = keep_backup(path, backup, sha_before)
     mode = os.stat(path).st_mode & 0o777
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     os.chmod(tmp, mode)
     os.replace(tmp, path)
-    match_corpus_owner(root, [path, backup])
+    written = [p for p in (backup, kept) if p is not None]
+    match_corpus_owner(root, [path, *written, *created_dirs(backup.parent, root)])
     return {"relpath": rel, "sha_before": sha_before, "sha_after": file_sha(path)}
 
 

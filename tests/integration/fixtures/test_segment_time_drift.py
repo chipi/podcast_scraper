@@ -16,7 +16,7 @@ from tests.integration.fixtures.segment_time_drift import (
     refined_and_segment_timelines,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 def test_align_tolerates_insert_delete_substitute() -> None:

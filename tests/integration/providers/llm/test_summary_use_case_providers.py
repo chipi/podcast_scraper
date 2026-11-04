@@ -24,7 +24,7 @@ import pytest
 from podcast_scraper import config
 from podcast_scraper.providers.common.summary_use_case import SummaryUseCase
 
-pytestmark = pytest.mark.critical_path
+pytestmark = [pytest.mark.critical_path, pytest.mark.integration]
 
 BUDGET = 333
 STAGE = "board_summary"

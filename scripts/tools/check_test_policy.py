@@ -34,6 +34,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -169,6 +170,102 @@ def check_integration_ml_models(files: list[Path]) -> list[Violation]:
     return violations
 
 
+def _names_integration_mark(node: ast.AST) -> bool:
+    """``node`` holds a ``<x>.mark.integration`` (bare, called, or inside a list/tuple)."""
+    return any(
+        isinstance(n, ast.Attribute)
+        and n.attr == "integration"
+        and (
+            (isinstance(n.value, ast.Attribute) and n.value.attr == "mark")
+            or (isinstance(n.value, ast.Name) and n.value.id == "mark")  # from pytest import mark
+        )
+        for n in ast.walk(node)
+    )
+
+
+def _assigns_pytestmark(body: list) -> bool:
+    """``body`` sets ``pytestmark`` to the integration mark, also inside ``if`` / ``try`` /
+    ``with`` blocks (not inside a nested function or class)."""
+    for node in body:
+        targets = (
+            node.targets
+            if isinstance(node, ast.Assign)
+            else [node.target] if isinstance(node, ast.AnnAssign) else []
+        )
+        if any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in targets):
+            if node.value is not None and _names_integration_mark(node.value):
+                return True
+        nested = [getattr(node, f, None) or [] for f in ("body", "orelse", "finalbody", "handlers")]
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for block in nested:
+                if isinstance(block, list) and _assigns_pytestmark(
+                    [
+                        b
+                        for h in block
+                        for b in (h.body if isinstance(h, ast.ExceptHandler) else [h])
+                    ]
+                ):
+                    return True
+    return False
+
+
+def _all_tests_marked_integration(text: str) -> bool:
+    """Every test the file defines carries the marker the way pytest reads it: a module-level
+    ``pytestmark``, a ``pytestmark`` in its ``Test*`` class, or a decorator on the test or its
+    class. Text that only mentions the marker (a docstring, a comment) selects nothing, and a file
+    whose tests sit where this walk does not look passes only on a module-level mark."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return False
+    if _assigns_pytestmark(tree.body):
+        return True
+
+    def marked(n: ast.AST) -> bool:
+        return any(_names_integration_mark(d) for d in getattr(n, "decorator_list", []))
+
+    is_test = (ast.FunctionDef, ast.AsyncFunctionDef)
+    seen = 0
+    for node in tree.body:
+        if isinstance(node, is_test) and node.name.startswith("test"):
+            seen += 1
+            if not marked(node):
+                return False
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            whole = marked(node) or _assigns_pytestmark(node.body)
+            for item in node.body:
+                if isinstance(item, is_test) and item.name.startswith("test"):
+                    seen += 1
+                    if not (whole or marked(item)):
+                        return False
+    return seen > 0
+
+
+def check_integration_marker(files: list[Path]) -> list[Violation]:
+    """A test file under tests/integration/ must carry the ``integration`` marker.
+
+    Every CI path runs ``pytest tests/integration/ -m integration`` and nothing marks by path, so a
+    file without the marker is collected locally and dropped by CI (#2180: 239 tests in 14 files on
+    2026-11-04, one of them red on main unseen).
+    """
+    violations = []
+    for f in files:
+        if f.name == "conftest.py":
+            continue
+        text = f.read_text(encoding="utf-8")
+        if TEST_METHOD_RE.search(text) and not _all_tests_marked_integration(text):
+            violations.append(
+                Violation(
+                    f,
+                    1,
+                    "I2-integration-marker",
+                    "integration test file never declares pytest.mark.integration; CI selects "
+                    "-m integration, so none of its tests run there",
+                )
+            )
+    return violations
+
+
 def check_empty_test_files(files: list[Path]) -> list[Violation]:
     violations = []
     for f in files:
@@ -219,6 +316,9 @@ def main() -> int:
 
     # Rule I1: No ml_models marker in integration tests
     violations.extend(check_integration_ml_models(integration_files))
+
+    # Rule I2: Every integration test file carries the integration marker CI selects on
+    violations.extend(check_integration_marker(integration_files))
 
     # Rule G1: No empty test files anywhere
     violations.extend(check_empty_test_files(all_test_files))
