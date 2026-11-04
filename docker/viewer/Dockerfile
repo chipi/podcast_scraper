@@ -56,7 +56,7 @@ RUN npm ci
 COPY web/gi-kg-viewer/ ./
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 
 COPY --from=build /viewer/dist/ /usr/share/nginx/html/
 # COPY into /etc/nginx/templates/ so the nginx:alpine entrypoint runs
