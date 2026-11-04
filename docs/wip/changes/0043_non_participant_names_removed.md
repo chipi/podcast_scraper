@@ -206,6 +206,21 @@ voice gets role `unknown`.
 - **Wording:** "GI Person nodes 1" is the Person node removed; `gi_nodes_typed_commercial` 2 is
   the quote and the insight.
 
+### 4d. Revision after Review 2 (supersedes nothing above)
+
+Dated: 2026-11-04T14:21
+
+Review 2's census test found `_move_census` computing the talk shares from the total before the
+move: right when the voice leaves another type (the total is unchanged), wrong when the voice had
+no type before (its seconds join the total but the shares do not see them; the shares then sum
+above 1). Revision: the shares are computed from the total after the move.
+
+- **On snapshot-prod-20261103:** 0 of the 111 applied voices have a diagnostics voice without a
+  `voice_type` (scratchpad `m43_census_chk.py`), so **no measured number moves**: every 4c row and
+  the gate's counters stay as measured; the re-gate (step 7, measurement 3) must reproduce them
+  exactly, plan sha256 aside if the code digest moves it.
+- **Must not move:** everything in 4c; the case is reached only by a voice with no type.
+
 ## 5. Acceptance
 
 Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
