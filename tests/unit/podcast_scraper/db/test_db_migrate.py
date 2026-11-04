@@ -106,10 +106,16 @@ def test_the_cli_entry_point_upgrades_and_reports_status(url: str) -> None:
     assert behind.returncode == 2 and "current none" in behind.stdout, behind.stderr
 
     up = _cli("upgrade", "--plane", "operator", url=url)
-    assert up.returncode == 0 and "plane operator: 0001_users (head 0001_users)" in up.stdout
+    assert (
+        up.returncode == 0
+        and "plane operator: 0002_schema_history (head 0002_schema_history)" in up.stdout
+    )
 
     player = _cli("status", "--plane", "player", url=url)
-    assert player.returncode == 0 and "current 0001_users, head 0001_users" in player.stdout
+    assert (
+        player.returncode == 0
+        and "current 0002_schema_history, head 0002_schema_history" in player.stdout
+    )
 
 
 def test_the_cli_fails_loudly_with_no_database_url() -> None:
@@ -227,3 +233,98 @@ def test_the_emitted_sql_builds_the_same_table_the_upgrade_does(url: str) -> Non
         with admin.connect() as conn:
             conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
         admin.dispose()
+
+
+# --- schema_history: what each upgrade applied --------------------------------------------------
+
+
+def _fresh_operator(url: str) -> None:
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+    finally:
+        admin.dispose()
+
+
+def test_an_upgrade_from_empty_writes_a_history_row_per_revision_and_a_second_writes_none(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CL_RELEASE", "b5a243d")
+    monkeypatch.setenv("PODCAST_RELEASE", "sha-f493b65")
+    _fresh_operator(url)
+    try:
+        applied = migrate.upgrade(url, "operator")
+        assert applied == ["0001_users", "0002_schema_history"]
+        rows = migrate.history_rows(url, "operator")
+        assert [r["revision"] for r in rows] == ["0002_schema_history", "0001_users"]
+        assert {r["release"] for r in rows} == {"b5a243d"}
+        assert {r["release_source"] for r in rows} == {"CL_RELEASE"}
+        assert all(isinstance(r["duration_ms"], int) and r["duration_ms"] >= 0 for r in rows)
+        assert all(r["applied_at"] is not None for r in rows)
+
+        assert migrate.upgrade(url, "operator") == []
+        assert len(migrate.history_rows(url, "operator")) == 2
+    finally:
+        migrate.upgrade(url, "operator")
+
+
+def test_the_history_falls_back_to_the_image_release_and_names_it(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CL_RELEASE", raising=False)
+    monkeypatch.setenv("PODCAST_RELEASE", "sha-f493b65")
+    _fresh_operator(url)
+    migrate.upgrade(url, "operator")
+    row, _ = migrate.history_rows(url, "operator", limit=2)
+    assert (row["release"], row["release_source"]) == ("sha-f493b65", "PODCAST_RELEASE")
+
+
+def test_an_upgrade_with_no_release_set_records_null(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CL_RELEASE", raising=False)
+    monkeypatch.delenv("PODCAST_RELEASE", raising=False)
+    _fresh_operator(url)
+    migrate.upgrade(url, "operator")
+    row, *_ = migrate.history_rows(url, "operator")
+    assert (row["release"], row["release_source"]) == (None, None)
+
+
+def test_an_upgrade_that_stops_before_the_history_table_writes_no_rows(url: str) -> None:
+    _fresh_operator(url)
+    try:
+        assert migrate.upgrade(url, "operator", "0001_users") == ["0001_users"]
+        assert migrate.history_rows(url, "operator") == []
+    finally:
+        migrate.upgrade(url, "operator")
+
+
+def test_the_offline_sql_creates_the_history_table_and_writes_no_rows() -> None:
+    done = _sql("--plane", "player", url=None)
+    assert done.returncode == 0, done.stderr
+    assert re.search(r'CREATE TABLE "?player"?\.schema_history \(', done.stdout)
+    assert not re.search(r"INSERT INTO \"?player\"?\.schema_history", done.stdout)
+
+
+def test_status_prints_the_last_history_rows(url: str) -> None:
+    _fresh_operator(url)
+    try:
+        assert _cli("upgrade", "--plane", "operator", url=url).returncode == 0
+        out = _cli("status", "--plane", "operator", url=url)
+        assert out.returncode == 0, out.stderr
+        assert "0002_schema_history" in out.stdout and "0001_users" in out.stdout
+        assert " ms" in out.stdout
+    finally:
+        migrate.upgrade(url, "operator")
+
+
+def test_status_on_a_plane_before_the_history_table_prints_no_rows(url: str) -> None:
+    _fresh_operator(url)
+    try:
+        migrate.upgrade(url, "operator", "0001_users")
+        out = _cli("status", "--plane", "operator", url=url)
+        assert out.returncode == 2 and "current 0001_users" in out.stdout
+        assert " ms" not in out.stdout
+    finally:
+        migrate.upgrade(url, "operator")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from datetime import timezone
 from pathlib import Path
 
 from alembic import command
@@ -12,6 +13,8 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Connection, create_engine, text
 from sqlalchemy.schema import CreateSchema
 
+from podcast_scraper import build_info
+from podcast_scraper.db.schema import schema_history
 from podcast_scraper.db.settings import normalize_url, validate_plane
 
 _SCRIPT_LOCATION = Path(__file__).parent / "migrations"
@@ -54,18 +57,61 @@ def _ensure_schema(conn: Connection, plane: str) -> None:
         conn.execute(CreateSchema(plane, if_not_exists=True))
 
 
-def upgrade(url: str, plane: str, revision: str = "head") -> None:
-    """Create the plane's schema if missing and bring it to ``revision``."""
+def upgrade(url: str, plane: str, revision: str = "head") -> list[str]:
+    """Create the plane's schema if missing and bring it to ``revision``.
+
+    Appends one ``schema_history`` row per revision this run applied (none when already there),
+    in the same transaction as the upgrade. Returns the applied revisions, oldest first.
+    """
     validate_plane(plane)
     engine = create_engine(normalize_url(url))
+    applied: list[tuple[str, int]] = []
     try:
         with engine.begin() as conn:
             _ensure_schema(conn, plane)
         with engine.connect() as conn:
-            command.upgrade(_config(plane, conn), revision)
+            cfg = _config(plane, conn)
+            cfg.attributes["applied"] = applied
+            command.upgrade(cfg, revision)
+            _record_history(conn, plane, applied)
             conn.commit()
     finally:
         engine.dispose()
+    return [rev for rev, _ in applied]
+
+
+def _record_history(conn: Connection, plane: str, applied: list[tuple[str, int]]) -> None:
+    """Insert the run's applied revisions, when the plane has a ``schema_history`` table yet."""
+    if not applied or not _has_history_table(conn, plane):
+        return
+    release, source = build_info.release()
+    conn.execute(
+        schema_history.insert().execution_options(schema_translate_map={None: plane}),
+        [
+            {"revision": rev, "release": release, "release_source": source, "duration_ms": ms}
+            for rev, ms in applied
+        ],
+    )
+
+
+def _has_history_table(conn: Connection, plane: str) -> bool:
+    found = conn.execute(
+        text("SELECT to_regclass(:name)"), {"name": f'"{plane}".schema_history'}
+    ).scalar()
+    return found is not None
+
+
+def history(conn: Connection, plane: str, limit: int = 5) -> list[dict[str, object]]:
+    """The plane's last ``limit`` ``schema_history`` rows, newest first; ``[]`` before 0002."""
+    if not _has_history_table(conn, plane):
+        return []
+    rows = conn.execute(
+        schema_history.select()
+        .order_by(schema_history.c.id.desc())
+        .limit(limit)
+        .execution_options(schema_translate_map={None: plane})
+    ).mappings()
+    return [dict(r) for r in rows]
 
 
 def status(url: str, plane: str) -> tuple[str | None, str]:
@@ -77,6 +123,20 @@ def status(url: str, plane: str) -> tuple[str | None, str]:
             return current_revision(conn, plane), head_revision()
     finally:
         engine.dispose()
+
+
+def history_rows(url: str, plane: str, limit: int = 5) -> list[dict[str, object]]:
+    """``history`` over a fresh connection to ``url``, with ``applied_at`` in UTC."""
+    validate_plane(plane)
+    engine = create_engine(normalize_url(url))
+    try:
+        with engine.connect() as conn:
+            rows = history(conn, plane, limit)
+    finally:
+        engine.dispose()
+    for row in rows:
+        row["applied_at"] = row["applied_at"].astimezone(timezone.utc)  # type: ignore[attr-defined]
+    return rows
 
 
 def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None) -> str:

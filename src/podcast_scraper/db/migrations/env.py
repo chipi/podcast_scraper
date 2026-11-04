@@ -5,12 +5,32 @@ connection) in ``config.attributes``; there is no alembic.ini. Offline mode (``-
 SQL to ``config.output_buffer`` and touches no database.
 """
 
+import time
+from typing import Any, Collection, Mapping
+
 from alembic import context
+from alembic.runtime.migration import MigrationContext, MigrationInfo
 
 from podcast_scraper.db.schema import metadata
 
 config = context.config
 plane = config.attributes["plane"]
+
+_last_step_end = time.monotonic()
+
+
+def _record_applied(
+    ctx: MigrationContext, step: MigrationInfo, heads: Collection[Any], run_args: Mapping[str, Any]
+) -> None:
+    """Note each upgrade step with its duration; ``migrate.upgrade`` writes them to
+    ``schema_history`` once the run is done (the table does not exist yet while 0001 applies)."""
+    global _last_step_end
+    now = time.monotonic()
+    applied = config.attributes.get("applied")
+    if applied is not None and step.is_upgrade:
+        applied.append((step.up_revision_id, round((now - _last_step_end) * 1000)))
+    _last_step_end = now
+
 
 if context.is_offline_mode():
     context.configure(
@@ -32,6 +52,7 @@ else:
         connection=connection,
         target_metadata=metadata,
         version_table_schema=plane,
+        on_version_apply=_record_applied,
     )
     with context.begin_transaction():
         context.run_migrations()

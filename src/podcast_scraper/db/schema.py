@@ -12,6 +12,8 @@ from sqlalchemy import (
     Column,
     DateTime,
     func,
+    Identity,
+    Integer,
     MetaData,
     Table,
     Text,
@@ -43,4 +45,17 @@ users = Table(
     UniqueConstraint("analytics_id", name="users_analytics_id_key"),
     CheckConstraint("role IN ('listener', 'creator', 'admin')", name="users_role_check"),
     UniqueConstraint("provider", "subject", name="users_provider_subject_key"),
+)
+
+# One row per revision a ``db upgrade`` applied; written by ``migrate.upgrade``, never by the app.
+schema_history = Table(
+    "schema_history",
+    metadata,
+    Column("id", Integer, Identity(), primary_key=True),
+    Column("revision", Text, nullable=False),
+    Column("applied_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("release", Text, nullable=True),
+    # Which variable ``release`` came from: CL_RELEASE (the deploy) or PODCAST_RELEASE (image ref).
+    Column("release_source", Text, nullable=True),
+    Column("duration_ms", Integer, nullable=True),
 )

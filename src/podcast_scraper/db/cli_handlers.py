@@ -79,15 +79,23 @@ def _upgrade(args: argparse.Namespace, log: logging.Logger) -> int:
         print(migrate.upgrade_sql(url, args.plane, from_revision=args.from_revision), end="")
         return 0
     url = DatabaseSettings.from_env().rw_url
-    migrate.upgrade(url, args.plane)
+    applied = migrate.upgrade(url, args.plane)
     current, head = migrate.status(url, args.plane)
     print(f"plane {args.plane}: {current} (head {head})")
+    print(f"applied: {', '.join(applied) if applied else 'nothing'}")
     return 0 if current == head else 1
 
 
 def _status(args: argparse.Namespace, log: logging.Logger) -> int:
-    current, head = migrate.status(DatabaseSettings.from_env().rw_url, args.plane)
+    url = DatabaseSettings.from_env().rw_url
+    current, head = migrate.status(url, args.plane)
     print(f"plane {args.plane}: current {current or 'none'}, head {head}")
+    for row in migrate.history_rows(url, args.plane):
+        release = f" release {row['release']} ({row['release_source']})" if row["release"] else ""
+        print(
+            f"  {row['applied_at']:%Y-%m-%d %H:%M:%S}Z  {row['revision']}  "
+            f"{row['duration_ms']} ms{release}"
+        )
     return 0 if current == head else 2
 
 
