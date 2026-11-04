@@ -62,12 +62,13 @@ any migration here is built and gated on the branch, and its apply waits for the
 | # | Item | Source |
 | --- | --- | --- |
 | B5 | A name in the middle of an episode title is a stated spelling | #2363, open on GitHub. **Shipped** in `fe231664` (2026-10-15), on prod; new episodes get it. The stored episodes from before it are L6 |
-| B6 | Patreon supporter shout-outs published as guests | #2364, open |
-| B7 | An eponymous host treated as the show | #2136, open |
-| B8 | A house-ad read published as a guest | #2123, open |
-| B9 | Rosters wrong beyond a missing name | #2367, open |
-| B10 | Recurrence-scan blind spots | handover §4 (record 0034, round 6) |
-| B11 | The hardfork-guest-in-record golden failure: cause not established | handover §4 |
+| B6 | Patreon supporter shout-outs published as guests | #2364, open on GitHub. **Shipped** in `fc4e0dbd`, on prod for new episodes; the stored ones are in 0043 (class B) |
+| B7 | An eponymous host treated as the show | #2136, open on GitHub. **Shipped** for new episodes (self-intro exemption) and m0014 for stored ones; residual: a host who never self-introduces, 0 measured losses |
+| B8 | A house-ad read published as a guest | #2123, open on GitHub. **Shipped** for new episodes (ad signatures) and m0016 for stored ones; m0016's gaps are in 0043 (classes A, C) |
+| B9 | Rosters wrong beyond a missing name | #2367, open. **Tried and rejected** on replay (`70a041d7`: 42 lost, 2 gained) |
+| B10 | Recurrence-scan blind spots | handover §4 (record 0034, round 6). **Open** |
+| B11 | The hardfork-guest-in-record golden failure: cause not established | handover §4. **Open** |
+| B12 | Stored names on voices today's roster types commercial (ad, promo, shout-out readers) | found in B6 / B8 triage. **Built**: migration 0043 (record `0043_non_participant_names_removed`), 111 voices in 101 episodes, step 8 GO WITH CONDITIONS, ci-fast green on `0758c88cf`. **Apply held** for the deploy (below) |
 
 ## Tier L: ledger rules, which rewrite stored files on prod after a deploy, without a migration
 
@@ -123,6 +124,70 @@ snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on), then `upg
 | C2 | Re-run an applied migration for named episodes (today: calling the class in the api container) | handover §4 |
 | C3 | A naming migration that re-renders text keeps the stored ad cut; recompute it or end with 0030's resync | handover §4 |
 | C4 | A gate row "wrong-person voices before / after" | handover §4 |
+
+## The deploy and what follows it (inventory, 2026-11-04)
+
+**Order** (operator, 2026-11-04; in the database session's plan, Common `SEQUENCE.md`, "Then: the
+ingestion deploy"): infra's PR B (#2420) merges and deploys first; then this branch, rebased onto
+main after it, with the 0043 apply and the targeted reindex; then the first database moment
+(#2417 and companions). PR B merges only on the operator's go; the session that owns it messages
+the merge sha.
+
+**Before the branch's PR** (local, nothing on origin yet):
+
+1. Wait for PR B's merge sha; rebase onto main. PR B deletes the 4 `tests/integration/server/`
+   files this branch marked (`test_app_audio_drift`, `test_app_mcp_routes`,
+   `test_app_moments_no_ads`, `test_mcp_oauth_routes`): drop those edits. It also modifies
+   `README.md`, `docs/api/CONFIGURATION.md` and `docs/wip/WIP_README.md`: resolve by hand.
+2. After the rebase: `make ci-fast` again, the docs strict build, the secrets scan, and the 0043
+   landing check; then the operator's go to push and open the PR (ship skill).
+3. Tell the database session when the PR merges (it rebases #2417 onto it).
+
+**The deploy** (prod session, through the database session until the database moment):
+
+1. A new private-image release built from the merged public main (prod runs release `64d910c`,
+   public `ba5e9a7`); the api, pipeline and player-api images from it.
+2. Deploy verify: every container on the new sha (prod-deploy skill), telemetry clean
+   (deploy-verify skill).
+
+**After the deploy, in this order** (each on the operator's go):
+
+1. 0043 apply with the corpus-migration skill: preflight (not within 90 min before the 00:00Z
+   nightly, not during it; no backup, reprocess or sweep running; snapshot to
+   `/srv/corpus-upgrade-snapshots`, 77 GB free on 2026-11-04 for a 30 GB corpus); the dry run and
+   the outcome hook's plan diff against the clone's (sha256 `d167d230…`, 101 episodes); an accept
+   file for the `prod_only` rows of episodes newer than snapshot-prod-20261103; the apply; verify;
+   the ownership check.
+2. The ledger refresh that `upgrade run` ends with respells the episode files (since 0041):
+   measured on a clone before the apply (record 0043, section 7, "ledger after 0043").
+3. Search index: the incremental `python -m podcast_scraper.cli index --output-dir /app/output` in
+   a pipeline-llm run (6g/8g; never `index-two-tier`). It re-embeds an episode only when its
+   embeddable text changed (record 0043, section 7, "re-embed check"), and reports `reindexed`.
+4. Enrichment of the written episodes: the nightly `corpus_enrichment` picks them up, or run
+   `enrich` at once in pipeline-llm.
+5. Record 0043 steps 10 and 11 (prod's plan diff, the apply counts, the after-apply scoreboard),
+    status `landed`; `config/last_deployed_prod_version.json` brought up to the applied list (it
+    lists up to 0037; prod has through 0042).
+6. Tell the database session when the reindex has finished and the next nightly ran clean: the
+    database day must not overlap the apply, the reindex or the nightly.
+
+**What the deploy changes without a migration** (check on prod after step 5):
+
+1. A2 / A6: the CIL readers use the corpus membership rule; person profiles grow (snapshot:
+    `person:robert-caro` 0 -> 75 quotes, `person:anita-anand` 0 -> 1,052). Spot-read both.
+2. A13: `/api/artifacts` lists every member episode (viewer's 7-day graph: 8 -> 104 eligible).
+3. A7: `gi inspect` on an episode whose GI stores the absolute `transcript_ref`.
+4. A3 / A4: the next migration's backups are owned by the corpus owner and kept per before-state;
+    nothing to run, read the next apply's backup dir.
+5. Tier L is not in this deploy (not built). When built, it ships switched off: no stored file
+    changes until its own one-line deploy.
+
+**GitHub issues fixed here but still open** (closing is the operator's call; after the deploy
+proves each): #2131 (A8), #2180 (A11), #2253 (A7), #2363 (B5), #2364 (B6), #2123 (B8), #2136
+(B7, with its residual).
+
+**eval-data** (private repo, this checkout's own clone): branches `naming-val-v7` (the val_v7
+split) and `ingestion-arc-l6` (L6's replay) are local; pushing them is the operator's go.
 
 ## Not in this arc, and why
 
