@@ -45,8 +45,8 @@
   "apply_message": "rewrote 101 episode(s); admaps_carried=83, bridge_identities_removed=77, cleaned_lines=56, context_rebuilt=100, detected_guests_removed=43, detected_hosts_removed=2, diagnostics_voices_renamed=111, diagnostics_voices_typed_commercial=111, entities_added=44, entities_dropped=99, gi_nodes_typed_commercial=2, insights_reattributed=1, kg_persons_removed=76, metadata_counts_synced=66, quotes_moved=3011, quotes_reattributed=1, quotes_retexted=12, roster_entries_unnamed=110, segments_relabelled=2237, segments_typed_commercial=2237, transcripts_rerendered=201, turns_rebuilt=30",
   "clone": "/work/closelistening/snapshots/snapshot-prod-20261103/extract/corpus",
   "code": {
-    "dirty": true,
-    "sha": "c7d278b2fe99461be458f936027333e211666e7d"
+    "dirty": false,
+    "sha": "91794771cd38d5f58b5fe07fe7ae1a144f816d59"
   },
   "code_digest": "2468faa121654b961c9dc2c8be61b51c51319de38822884350b6fa54fefc4c71",
   "computed_class": "full",
@@ -94,7 +94,7 @@
   "gating_moves": {
     "S2_hidden": 1
   },
-  "measured_at": "2026-11-04T11:43:44",
+  "measured_at": "2026-11-04T12:08:57",
   "migration": "0043_non_participant_names_removed",
   "plan": [
     {

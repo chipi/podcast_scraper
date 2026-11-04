@@ -364,6 +364,11 @@ Verdict: GO WITH CONDITIONS
   prod holds episodes the snapshot lacks), and the search-index rows of the written episodes
   reindexed (targeted, no rebuild).
 
+Gate on committed code: re-run 2026-11-04T12:08:57 on a clean tree (`91794771c`, dirty false),
+equal to measurement 2 in everything but its time and code stamp (plan sha256 `d167d230…`).
+Outcome: `src/podcast_scraper/upgrade/outcomes/0043_non_participant_names_removed.json`, sha256
+`f625eb6372dbcb45790d8201510fd2a37390278fd090a399971e211d69fa1864`.
+
 ## 9. Operator review
 
 - **Open call 1:** 0043 reverses 0034's third-ruling keeps for these 39 self-introduced promo and
