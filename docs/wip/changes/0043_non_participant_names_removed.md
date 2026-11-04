@@ -220,12 +220,12 @@ by unnamed voices: not moved here, GI 0), #1227 (closed; pre-roll ad narrators a
 Spot checks for step 8:
 
 - (a) the 3 class-B promo voices: the episode's real participants keep their names;
-- (b) the 4 not-listed ids unchanged;
+- (b) the not-listed ids unchanged (4 at step 5; 7 after the census, section 4b);
 - (c) the class-B host keeps name and role;
 - (d) one voice per reader (R1-R4, C1-C5): roster, segment labels, transcript prefix, bridge
   identity row unnamed and typed `commercial`;
-- (e) the 31 KG Person nodes gone, no GI node touched;
-- (f) one search-index transcript chunk per class: the prefix gone, rows outside the 52 episodes
+- (e) the KG Person nodes gone (31 at step 5; 76 after the census and the review), no GI node touched beyond the predicted ones;
+- (f) one search-index transcript chunk per class: the prefix gone, rows outside the written episodes (52 at step 5; 101 after the census and the review)
   untouched (step 10, prod).
 
 ### 5b. Acceptance of revision 4c
@@ -325,7 +325,44 @@ commercial with 0 problems in 121,855 rows, S2 the only moving gating number (+1
 
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5
+reader), inputs as file paths, ran nothing over the corpus.
+
+Review budget: minutes 5, tokens 40000
+
+```text
+REVIEW 0043_non_participant_names_removed 2026-11-04 commit 5c410dcb6 reviewer Sonnet (fresh) minutes 4
+PREDICTION vs GATE: 4c compared row by row, 18 rows equal, 0 missed (applied 111 / 101 episodes; segments 2,237; diagnostics 111; roster 110; KG 76; detected_guests 43 / hosts 2; GI 2 typed, quote 1, insight 1; S2 +1, commercial 95 -> 96; every must-not-move number equal; verify ok, 0 regressions; host seats 0 and 2; second apply 0; 119,618 other rows unmoved)
+REQUIRED ITEMS: gate, undo (1,155 restored, 0 refused, byte-identical, verify pending), second apply, census, verify_all, excerpts, builder GO with deciding number present; ci-fast log missing
+AFTER-STATE READ: excerpts show labels gone, type commercial, other voices kept, kept voices unchanged, but they are the measurement-1 state (role still present); spot checks (c), (d), (e) not evidenced by id; section 5 wording stale (31, 52, "4 ids")
+OPEN CALLS: calls 1-3 recorded as operator-accepted; the 2 kept voices consistent with call 3; none new
+DOUBTED NUMBER: none by arithmetic
+VERDICT: GO WITH CONDITIONS  every 4c integer and must-not-move number holds, undo and second apply clean; ci-fast log, 4c-state excerpts and checks (c), (d), (e) by id missing
+```
+
+Conditions, each answered:
+
+1. `make ci-fast` on the committed tree, log attached: **open** (running at the time of writing;
+   result below).
+2. Excerpts on the 4c state and checks (c), (d), (e) by id: **done** (`scratchpad
+   m43_checks2.out`, on the work copy after measurement 2). One voice per reader of classes A, C
+   and E (12 voices) and both kept voices: every unnamed voice goes from its transcript prefix
+   lines (1 to 5) to 0, its bridge identity (1, or 0 where it had none) to 0, its roster entry to
+   0, its segment role (guest, or host for E) to none and its diagnostics role to `unknown`; the 2
+   kept voices keep prefixes, bridge identity, roster entry and roles (guest -> guest). (c) the
+   BizNews host `https://iono.fm/e/1726296`: episode not written (`m43_spot.json`, with the other
+   6 not-listed ids). (e) GI attribution moved on exactly 3 nodes, all in
+   `29b52580-0f56-41a6-8b8a-288bd604bc01`: 1 Person removed, 1 quote (`quote:d0ebd498559efb4e`)
+   and 1 insight (`insight:7d18f7a8ab112598`) unattributed and typed commercial.
+3. Section 5's stale numbers: **done** (the step-5 values kept, the current ones beside them).
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** `make ci-fast` green on the committed tree, log attached (the first run, while
+  this section was still empty, failed only the landing check that requires this line).
+- **Condition 2:** at the apply, prod's dry-run plan diffed against the clone's (method step 10:
+  prod holds episodes the snapshot lacks), and the search-index rows of the written episodes
+  reindexed (targeted, no rebuild).
 
 ## 9. Operator review
 
