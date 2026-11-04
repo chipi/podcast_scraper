@@ -34,6 +34,7 @@ RETIRED_USER_FILES = {
     "ranking_events.jsonl": "ranking_telemetry (removed in 6c6c08c6, #2327)",
 }
 
+
 @dataclass(frozen=True)
 class Claim:
     """One declared file shape: a regex over the path relative to the data dir (posix)."""
