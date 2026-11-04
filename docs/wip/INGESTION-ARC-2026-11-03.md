@@ -174,6 +174,9 @@ the merge sha.
    without `--to` with both pending is refused): 18 voices in 18 episodes (record
    `0044_title_spelling_voices_renamed`), its ledger refresh (3 episodes respelled on the clone),
    then the same incremental index for its 18 episodes.
+4c. 0045 apply, on its own go, in its own run after 0044's (`upgrade run --to 2.7.39`): 1 voice in
+   1 episode (record `0045_episode_voices_corrected`), its ledger refresh (0 files on the clone),
+   then the incremental index for that episode.
 5. Record 0043 steps 10 and 11 (prod's plan diff, the apply counts, the after-apply scoreboard),
     status `landed`; `config/last_deployed_prod_version.json` brought up to the applied list (it
     lists up to 0037; prod has through 0042).
@@ -227,6 +230,7 @@ only the operator takes; they go with the push go for the branch's PR.
 | C3 | Already guarded: the clone gate's `verify_all` runs 0030's check after every apply (added after 0035, 2026-10-27); on 0043: 0030 ok, 0 regressions |
 | C4 | Built: the gate's `targets` row (`69802a6d`); 0043: 111 wrong-person voices in 101 episodes before, 0 after |
 | L6 | Built: migration 0044 (record `0044_title_spelling_voices_renamed`); 18 voices renamed to their title's spelling after a blind review; apply after 0043's, on its own go |
+| Wrong-person voice found by 0044's review | Built: migration 0045 (record `0045_episode_voices_corrected`); the host's voice takes the host's name and role in episode `a02c151a…`; apply after 0044's, on its own go |
 | M3 | Drop the branch (action 2) |
 | M4 | Measured, no read-time change. The player's episode page lists KG persons with their roster role. Of the 3,889 listed-but-unheard names: 1,731 shown as host or guest, 429 as mentioned, 1,729 not shown (snapshot-prod-20261103, scratchpad `m4_player_role.py`). A host absent from this episode and a host who spoke but is not placed look the same in the text on disk, so no text-only rule separates them: changing the role would trade one error for the other. Junk names ("CEO Sam Rodriguez") are the descriptor rule's shape (0019) |
 | B10 | No change: the recurrence scan is a reviewer's aid for 0034's lists, its misses are listed in record 0034 (round 6), and every listed voice was read by a person; nothing consumes its completeness |
@@ -238,7 +242,7 @@ only the operator takes; they go with the push go for the branch's PR.
 
 | Item | When |
 | --- | --- |
-| Wrong-person voice found by 0044's review | Episode `a02c151a-dde6-4804-9827-a3df80b8352c`: the host's voice stored with a guest's name; a 0037-class reviewed rename of its own |
+| The episode's other guest-named voice | Episode `a02c151a-dde6-4804-9827-a3df80b8352c` SPEAKER_01: refused by 0045's reader on its first 20 of 109 segments (record 0045, Not covered); needs a reading of the whole voice |
 | M1 | After the deploy, on the first snapshot with 0043 applied: re-cut the stale gold cases and draw a new unseen split |
 | GitHub issues #2131, #2180, #2253, #2363, #2364, #2123, #2136, #2056 | Closed after the deploy proves each |
 
