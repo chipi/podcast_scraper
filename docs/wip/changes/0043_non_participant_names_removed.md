@@ -48,16 +48,16 @@ frozen list (package data, as 0034's and 0037's) carries the published names.
 
 - **Outcome:** no stored episode serves a name on a voice that today's roster code, run on the
   episode's own stored inputs with the corpus's ad signatures, types `commercial` and leaves
-  unnamed, in the two classes below.
+  unnamed, in the three classes below.
 - **Baseline, snapshot-prod-20261103** (`scripts/measure/corpus_scoreboard.py --corpus
   <snap1103> --label snapshot-prod-20261103`, 3,130 episodes, 138,469 insights): S1 18,589;
   S1n 7; S1c 0; S2 32,488 (unknown 18,589 / unidentified 13,804 / commercial 95); S3 9,373;
   S10a 197; S10b 2; S12 6 (244 outside: transcript file not found); A1 400 hits in 301 episodes.
-- **The change's own number:** served names on such voices: **39 voices in 39 episodes**.
+- **The change's own number:** served names on such voices: **59 voices in 52 episodes** (39 in 39 before step 5 added class C).
 
 ## 3. Diagnosis by loss
 
-Two classes, each found by a committed or stated rule over the snapshot, then every voice read.
+Three classes, each found by a committed or stated rule over the snapshot, then every voice read.
 
 - **Class A, 33 voices (m0016's stated-name exemption).** `scripts/measure/m0043_candidates.py
   --corpus <snap1103>` (after `ad_signatures.write_for_corpus`, 32 s) takes m0016's `find_hits`
@@ -77,28 +77,66 @@ Two classes, each found by a committed or stated rule over the snapshot, then ev
   commercial: 6}`; 0 named. So new episodes are already right; only stored ones carry the names.
 - **What the names reach today (per voice, the snapshot):** other voices carrying the same name in
   the episode 0; GI insights 0, GI quotes 0, GI Person nodes 0 (the ad voices produced no insight);
-  KG Person nodes 11; `content.detected_guests` entries 33 (class A); roster entries 39; segment
-  labels and transcript prefixes on all 39.
+  KG Person nodes 11 (one per episode, in 11 of the 39 episodes; KG is per episode, nothing
+  shared); `content.detected_guests` entries 33 (class A); roster entries 39; segment rows of the
+  39 voices 446 (A 295, B 151), ad-free segment rows 446; transcript prefixes on all 39.
+- **Class C, 20 voices in 13 episodes (added at step 5, 2026-11-04).** m0016's own RECURRENCE hits
+  on the snapshot's rebuilt signatures (`find_hits`: 20; language-only 0). m0016's hit set was
+  frozen at its apply, and these voices arrived or turned recurrent since. Each is another show's
+  host or writer promoting their own show inside this one: C1 a Pivot co-host 7 voices, C2 the other
+  co-host 4, C3 Criminal's host 3, C4 Rest is Entertainment's host 3, C5 an Athletic writer 2, and
+  class A's reader R4 once more (1). Roster entries `placed: true`, `self_intro`, guest; 0034 kept all 20
+  (`CORRECT` / `self_intro`). Today's code: `{recurrence unnamed commercial: 20}`
+  (`m43_rec.py`, the replay as above). Reach: GI 0 / 0 / 0; KG Person nodes 20 (one per voice);
+  `detected_guests` 0; roster entries 20; segment rows 228, ad-free 228; no episode shared with
+  classes A / B. Talk share 0.004 to 0.024.
 
 ## 4. Prediction
 
-Dated: 2026-11-04
+Dated: 2026-11-04 (restated the same day at step 5, before any code: class C added, rows below)
 
 On snapshot-prod-20261103, after apply on a clone:
 
-- **Listed voices 39 in 39 episodes; applied 39** if every verdict confirms; episodes written 39.
-- **Own numbers:** served names on the listed voices 39 -> 0; roster entries removed 39; KG Person
-  nodes removed 11; `content.detected_guests` entries removed 33; segment rows typed `commercial`
-  on the 39 voices (count from the clone plan, stated before the clone gate).
-- **Must not move:** S1 18,589; S1n 7; S1c 0; S2 32,488 and each bucket (no GI node carries these
-  names: insights and quotes untouched); S3 9,373; S10a 197; S10b 2; S12 6; A1 400 / 301; every
-  file outside the 39 episodes byte-identical; no voice outside the list changes name, role or type.
-- **Population not reached:** the 3 class-A kept hits; the host voice of class B; voices typed
-  commercial by neither rule; episodes ingested after the snapshot (the pipeline's own rules).
+- **Listed voices 59 in 52 episodes** (A 33 in 33, B 6 in 6, C 20 in 13); **applied 59** if every
+  verdict confirms, per class A 33 / B 6 / C 20; episodes written 52.
+- **Own numbers:** served names on the listed voices 59 -> 0; roster entries removed 59; KG Person
+  nodes removed 31 (11 + 20, in 31 episodes); `content.detected_guests` entries removed 33; segment
+  rows typed `commercial` 674 (A 295, B 151, C 228) and ad-free segment rows 674; unnamed voices on
+  the corpus +59.
+- **Must not move:** S1 18,589; S1n 7; S1c 0; S2 32,488 with each bucket (unknown 18,589,
+  unidentified 13,804, **commercial 95**: commercial counts insights, and no GI node carries these
+  voices, so typing them commercial adds 0); S3 9,373; S10a 197; S10b 2; S12 6; A1 400 / 301; the
+  hidden-insight totals of #2200 / #2198 (S1, S10a) unchanged; every file outside the 52 episodes
+  byte-identical; no voice outside the 59 changes name, role or type, inside the 52 episodes too.
+- **By identity:** the 59 are the frozen list's entries (episode id, voice), class in the evidence
+  field; ids in the list file, not repeated here. Not listed, by id: class-A kept
+  `substack:post:196570345` SPEAKER_01, `47f783de-0450-4f3b-9a6c-251b63ddff6e` SPEAKER_07,
+  `743e06dc-a88d-11f1-a4dd-878b8bea9556` SPEAKER_00; class-B host `https://iono.fm/e/1726296`
+  SPEAKER_00. The 59 reversed 0034 keeps are the 59 listed ids.
+- **Population not reached:** the 4 ids above; voices typed commercial by none of the three rules;
+  episodes ingested after the snapshot (the pipeline's own rules).
 
 ## 5. Acceptance
 
-_TODO_ (after the operator's call in section 9)
+Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
+the segment-row integer (674), commercial 95 stated, the #2200 / #2198 totals, the ids, the class
+split, the KG population. Its reading of #2365 led to class C (m0016's recurrence hits). Added to
+section 1's reading list: #2365 (closed; Kara Swisher's promo on The Gray Area, "4 served records
+still carry the old name until a relabel": they are in class C), #2362 (closed; host seat never
+typed commercial), #2331 (closed; sponsor reads take voices), #2200 and #2198 (open; insights hidden
+by unnamed voices: not moved here, GI 0), #1227 (closed; pre-roll ad narrators as guests),
+`docs/guides/NAMING_KNOWN_ISSUES.md` K14, `docs/guides/NAMING_LADDER.md`.
+
+Spot checks for step 8:
+
+- (a) the 3 class-B promo voices: the episode's real participants keep their names;
+- (b) the 4 not-listed ids unchanged;
+- (c) the class-B host keeps name and role;
+- (d) one voice per reader (R1-R4, C1-C5): roster, segment labels, transcript prefix, bridge
+  identity row unnamed and typed `commercial`;
+- (e) the 31 KG Person nodes gone, no GI node touched;
+- (f) one search-index transcript chunk per class: the prefix gone, rows outside the 52 episodes
+  untouched (step 10, prod).
 
 ## 6. Build
 
@@ -117,6 +155,9 @@ _TODO_
 - **Open call 1:** 0043 reverses 0034's third-ruling keeps for these 39 self-introduced promo and
   shout-out voices, aligning stored episodes with the shipped pipeline (#2123, #2364).
   Operator accepted: 2026-11-04 0043 reverses the 0034 third-ruling keeps for the 39 listed voices.
+- **Open call 2:** class C (20 voices, 13 episodes, section 3) is the same ruling's keeps, found
+  at step 5. Reverse those too (59 in all)? Until answered, the build lists class C separately so
+  it can be dropped whole.
 
 ## 10. Before apply / deploy
 
@@ -138,7 +179,7 @@ _TODO_
 - The ad signatures are rebuilt every 6 h on prod; class A is computed from the snapshot's rebuild
   (2026-11-04). Prod's list can differ; the list is frozen from the snapshot and verified per entry
   against prod's stored name and role (refused, untouched, when moved on).
-- The search index's chunk rows for the 39 episodes are a step-10 item (targeted reindex of those
+- The search index's chunk rows for the 52 episodes are a step-10 item (targeted reindex of those
   episodes), not measured on the clone.
 - The class-B host voice's wrong role (guest) is not fixed here.
 - m0016's exemption still counts a pre-1.2.0 `content.detected_guests` as a statement; 0043 does
