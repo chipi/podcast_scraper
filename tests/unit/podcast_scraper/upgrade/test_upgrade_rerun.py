@@ -302,3 +302,12 @@ def test_a_migration_whose_plan_ignores_the_scope_is_refused(
     with pytest.raises(oh.HookRefused, match="outside the scope"):
         _rerun(applied, [_meta("e3")])
     assert _manifest(applied) == before
+
+
+def test_a_written_path_is_owned_after_normalisation() -> None:
+    meta = "feeds/f/run_a/metadata/0006 - Greece vs. Persia_ x.metadata.json"
+    inside = "feeds/f/run_a/../run_a/transcripts/0006 - Greece vs. Persia_ x.adfree.segments.json"
+    other_run = "feeds/f/run_a/../run_b/transcripts/0006 - Greece vs. Persia_ x.txt"
+    other_ep = "feeds/f/run_a/metadata/0007 - y.kg.json"
+    assert oh.files_outside([meta], [inside]) == []
+    assert oh.files_outside([meta], [other_run, other_ep]) == sorted([other_run, other_ep])

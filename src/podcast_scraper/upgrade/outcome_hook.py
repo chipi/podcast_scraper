@@ -32,6 +32,7 @@ import hashlib
 import importlib
 import importlib.resources
 import json
+import posixpath
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -550,14 +551,15 @@ def measure(
 
 def files_outside(scope: Iterable[str], relpaths: Iterable[str]) -> List[str]:
     """The written files that belong to no named episode: an episode owns the files in its run
-    directory whose name starts with its metadata file's stem."""
+    directory whose name starts with its metadata file's stem. Paths are normalised first: some
+    migrations record ``run_x/../run_x/transcripts/…`` (0043 on the snapshot, 2026-11-04)."""
     owners = []
     for meta in scope:
-        p = Path(meta)
+        p = Path(posixpath.normpath(meta))
         owners.append((p.parent.parent.as_posix(), p.name[: -len(".metadata.json")] + "."))
     out = []
     for rel in relpaths:
-        r = Path(rel)
+        r = Path(posixpath.normpath(str(rel)))
         run = r.parent.parent.as_posix()
         if not any(run == o_run and r.name.startswith(stem) for o_run, stem in owners):
             out.append(str(rel))
