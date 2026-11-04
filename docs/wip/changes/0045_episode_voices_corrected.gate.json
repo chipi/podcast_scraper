@@ -48,9 +48,9 @@
   "clone": "/work/closelistening/snapshots/clone-0044",
   "code": {
     "dirty": false,
-    "sha": "3a4adaf47575bca7563476046f8e10826598adcd"
+    "sha": "98e72bea7ca7fdb17b630f33ea90aaf653595991"
   },
-  "code_digest": "48dc22c55169967a59e3b9eac4a0393f3c039d5490b3de7cabf37c0b5804bab9",
+  "code_digest": "8c6364431b39479d9befd46c403a3531e1c74362dc79355faa433a15a3cb5f89",
   "computed_class": "full",
   "episode_deltas": {},
   "files_changed": 11,
@@ -67,7 +67,7 @@
     ".txt": 1
   },
   "gating_moves": {},
-  "measured_at": "2026-11-04T18:03:34",
+  "measured_at": "2026-11-04T22:58:36",
   "migration": "0045_episode_voices_corrected",
   "plan": [
     {
