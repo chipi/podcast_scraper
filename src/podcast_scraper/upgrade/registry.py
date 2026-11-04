@@ -65,6 +65,9 @@ from .migrations.m0041_joined_names_respelled import JoinedNamesRespelledMigrati
 from .migrations.m0042_insight_cluster_quotes_resynced import (
     InsightClusterQuotesResyncedMigration,
 )
+from .migrations.m0043_non_participant_names_removed import (
+    NonParticipantNamesRemovedMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -163,6 +166,9 @@ _MIGRATIONS: List[Migration] = [
     # 0042 resyncs the insight clusters' copied quote fields from the GI (0038's removed ids,
     # 0041's moved offsets; D2 item 5).
     InsightClusterQuotesResyncedMigration(),
+    # 0043 takes the name off voices that only read an ad, a promo or a shout-out, typed
+    # commercial as today's roster types them (frozen, reviewed list; #2123, #2364).
+    NonParticipantNamesRemovedMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
     # the id stays unused.
 ]

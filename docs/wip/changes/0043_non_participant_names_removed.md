@@ -8,6 +8,7 @@ touches:
   - src/podcast_scraper/upgrade/lists/0043_non_participant_names_removed.json
   - src/podcast_scraper/upgrade/verdicts/0043_non_participant_names_removed.tsv
   - tests/unit/podcast_scraper/upgrade/test_m0043_non_participant_names_removed.py
+  - src/podcast_scraper/upgrade/registry.py
 ---
 
 # 0043 — a name on a voice that only reads an ad or a supporter shout-out comes off (text only)

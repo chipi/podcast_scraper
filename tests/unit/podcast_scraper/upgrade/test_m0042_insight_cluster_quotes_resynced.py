@@ -69,8 +69,9 @@ def _verify(root: Path):
     return m40.InsightClusterQuotesResyncedMigration().verify(MigrationContext(corpus_root=root))
 
 
-def test_registered_last() -> None:
-    assert [m.id for m in get_migrations()][-1] == m40.MIGRATION_ID
+def test_registered_after_0041() -> None:
+    ids = [m.id for m in get_migrations()]
+    assert ids[ids.index(m40.MIGRATION_ID) - 1] == "0041_joined_names_respelled"
 
 
 def test_a_quote_takes_its_gi_quotes_current_fields_and_nothing_else_moves(tmp_path: Path) -> None:

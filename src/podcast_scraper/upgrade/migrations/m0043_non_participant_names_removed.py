@@ -196,7 +196,7 @@ class NonParticipantNamesRemovedMigration(m34.TalkFloorNamesRemovedMigration):
     """Names off voices that only read an ad, a promo or a shout-out, as listed and reviewed."""
 
     id = MIGRATION_ID
-    to_version = "2.7.32"
+    to_version = "2.7.37"
     description = (
         "a name off a served voice that only reads an ad, a promo or a supporter shout-out "
         "(today's roster types it commercial): frozen, reviewed list through 0029's rewrite with "

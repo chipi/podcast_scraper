@@ -201,6 +201,14 @@ def test_the_backups_and_receipts_are_its_own() -> None:
     assert (mig._backup_tag, mig._receipts_file) == (m43.BACKUP_TAG, m43.RECEIPTS_FILE)
 
 
-def test_not_registered_until_its_verdicts_exist() -> None:
+def test_registered_after_0042_with_its_list_and_verdicts_shipped() -> None:
     ids = [m.id for m in get_migrations()]
-    assert (m43.MIGRATION_ID in ids) == m43.verdicts_file().is_file()
+    assert ids[ids.index(m43.MIGRATION_ID) - 1] == "0042_insight_cluster_quotes_resynced"
+    assert m43.verdicts_file().is_file() and m43.list_file().is_file()
+    listed = m43.load_list()
+    mig = m43.NonParticipantNamesRemovedMigration()
+    verdicts = mig._verdicts()
+    assert len(listed) == 113
+    assert all(verdicts.get(*key) is not None for key in listed)
+    applied, missing = mig._reviewed()
+    assert missing == [] and len(applied) == 111
