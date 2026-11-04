@@ -102,6 +102,8 @@ class _Episode(m34._Episode):
             for r in _rows(payload):
                 if str(r.get("speaker")) in gone and r.get("voice_type") == "unknown":
                     r["voice_type"] = COMMERCIAL
+                    # The pipeline writes no role for a commercial voice: it is nobody's seat.
+                    r.pop("speaker_role", None)
                     self._bump("segments_typed_commercial")
 
     def _type_gi(self, before: Dict[str, Any]) -> None:
@@ -130,6 +132,7 @@ class _Episode(m34._Episode):
                 if old == COMMERCIAL:
                     continue
                 v["voice_type"] = COMMERCIAL
+                v["role"] = "unknown"
                 self._bump("diagnostics_voices_typed_commercial")
                 _move_census(summary, old, float(v.get("talk_time_s") or 0.0))
 

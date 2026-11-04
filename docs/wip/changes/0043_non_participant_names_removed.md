@@ -171,6 +171,41 @@ Dated: 2026-11-04T10:51
 - **Trade by identity:** the 2 class-E episodes (`743e06dc-a88d-11f1-a4dd-878b8bea9556`,
   `47f783de-0450-4f3b-9a6c-251b63ddff6e`) lose their host's name: it sat only on the ad voice.
 
+### 4c. Revision after the first clone gate (supersedes 4b where it differs)
+
+Dated: 2026-11-04T11:26
+
+The first gate (section 7, measurement 1) left `speaker_role` (guest 1,071 + 1,054 ad-free rows,
+host 56 + 56) on the segments of the unnamed commercial voices and their diagnostics role (guest
+109, host 2). The pipeline writes no segment role and diagnostics role `unknown` for a commercial
+voice, and a reader counting hosts from segments would still count the 2 class-E ad voices as
+hosts. Revision: the unnamed listed voices' segment rows lose `speaker_role`; their diagnostics
+voice gets role `unknown`.
+
+- **Applied 111** (the review kept 2: section 8 input); episodes written 101.
+- **Own numbers after the revision:** segment rows typed `commercial` 2,237 (raw 1,127, ad-free
+  1,110), each without `speaker_role`; diagnostics voices typed `commercial` 111, role `unknown`
+  111; roster entries removed 110 (one listed voice has no roster entry); KG Person nodes removed
+  76; `detected_guests` 43, `detected_hosts` 2; GI Person nodes 1, quotes 1, insights 1 (each typed
+  `commercial`).
+- **Scoreboard:** as measured at gate 1 and unchanged by the revision: S2 32,489 (commercial 96),
+  every other number as at the baseline.
+- **Must not move:** S1 18,589; S1n 7; S1c 0; unknown 18,589; unidentified 13,804; S3 9,373;
+  S10a 197; S10b 2; S12 6; A1 400 / 301; files written as at gate 1 (the role edit lands in files
+  gate 1 already writes: 0 episodes change only by role); `verify_all` with 0 regressions; every
+  voice outside the 111 keeps its segment role and diagnostics role, the 2 kept voices
+  (`0d5b552f-016f-47a7-8325-e993f48e9ea2` SPEAKER_08, `tag:soundcloud,2010:tracks/2178767775`
+  SPEAKER_02) included; a second apply writes 0 files.
+- **By identity:** the key is deleted (`speaker_role` absent, as the pipeline writes), not set to
+  null. The host-role rows (56 raw + 56 ad-free, diagnostics host 2) are the 2 class-E ad voices,
+  `743e06dc-a88d-11f1-a4dd-878b8bea9556` SPEAKER_00 and `47f783de-0450-4f3b-9a6c-251b63ddff6e`
+  SPEAKER_07. Host voices by segment role: `743e06dc…` 1 -> **0** (the ad voice was its only host
+  seat; the host's name, on no other voice, already leaves the episode at 4b), `47f783de…` 3 ->
+  **2** (SPEAKER_04 and SPEAKER_14 keep their host role). The other 109 voices' rows go from
+  guest to no role.
+- **Wording:** "GI Person nodes 1" is the Person node removed; `gi_nodes_typed_commercial` 2 is
+  the quote and the insight.
+
 ## 5. Acceptance
 
 Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
@@ -192,6 +227,23 @@ Spot checks for step 8:
 - (e) the 31 KG Person nodes gone, no GI node touched;
 - (f) one search-index transcript chunk per class: the prefix gone, rows outside the 52 episodes
   untouched (step 10, prod).
+
+### 5b. Acceptance of revision 4c
+
+Dated: 2026-11-04T11:28
+
+Fresh agent (reviewer), `minutes 3, tokens ~14k`: 4c's integers are consistent with measurement 1
+(arithmetic). Rows added to 4c on its reading: the must-not-move integers restated, the 2 kept
+voices by id, the host-role rows tied to the 2 class-E voices with the host-seat count per
+episode (1 -> 0, 3 -> 2), key deleted not nulled, 0 episodes changing only by role, the GI
+counter wording. Spot checks for step 8 added:
+
+- (g) both class-E episodes: no segment row of the ad voice carries `speaker_role`; host seats by
+  segment role 0 and 2;
+- (h) one class A or B voice: segment rows without `speaker_role`, diagnostics role `unknown`,
+  neighbouring voices unchanged;
+- (i) one kept voice: segments and diagnostics untouched, name and role;
+- (j) idempotence: a second apply writes 0 files.
 
 ## 6. Build
 
@@ -218,7 +270,19 @@ Spot checks for step 8:
 
 ## 7. Measure
 
-_TODO_
+**Measurement 1** (2026-11-04T11:22, `corpus_change_gate.py` on snapshot-prod-20261103, work copy
+`gate-0043`; report `0043_non_participant_names_removed.gate.json` of that run): computed class
+full; gating move S2 +1 only; files changed 1,110; `verify` ok; `verify_regressions` 0. Apply:
+101 episodes, 0 refused; `roster_entries_unnamed` 110, `segments_typed_commercial` 2,237,
+`diagnostics_voices_typed_commercial` 111, `kg_persons_removed` 76, `detected_guests_removed` 43,
+`detected_hosts_removed` 2, `gi_nodes_typed_commercial` 2, `quotes_reattributed` 1,
+`insights_reattributed` 1, `quotes_retexted` 12 (m0023's offset carry; S12 stays 6),
+`entities_added` 44 / `entities_dropped` 99 (m0025's `normalized_entities` resync to the placed
+roster). Against 4b with the 2 kept voices taken out: every number equal except roster entries
+(110, not 111: one listed voice has no roster entry) and GI quotes (1, not 2: the other is a kept
+voice's). Undo on the full work copy: restored 1,155, refused 0, all 1,155 byte-identical to the
+snapshot, `verify` pending again (101 episodes). The excerpts (10 voices, both kept ones among
+them) showed the unnamed voices keep `speaker_role`: revision 4c.
 
 ## 8. Verdict
 

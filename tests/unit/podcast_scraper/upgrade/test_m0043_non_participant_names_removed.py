@@ -96,7 +96,12 @@ def test_the_reader_loses_the_name_and_the_voice_is_commercial_everywhere(
     rows = t34._rows(fx._r(p["seg"]))
     assert {r.get("voice_type") for r in rows if r["speaker"] == "SPEAKER_02"} == {"commercial"}
     assert all("voice_type" not in r for r in rows if r["speaker"] != "SPEAKER_02")
+    # The pipeline's shape for a commercial voice: no role on its segments, role unknown in the
+    # diagnostics (a commercial voice is nobody's seat; step 7, 2026-11-04).
+    assert all("speaker_role" not in r for r in rows if r["speaker"] == "SPEAKER_02")
+    assert {r.get("speaker_role") for r in rows if r["speaker"] == "SPEAKER_00"} == {"host"}
     diag = fx._r(p["diag"])
+    assert {v["voice"]: v["role"] for v in diag["voices"]}["SPEAKER_02"] == "unknown"
     by_voice = {v["voice"]: v for v in diag["voices"]}
     assert by_voice["SPEAKER_02"]["voice_type"] == "commercial"
     assert by_voice["SPEAKER_00"]["voice_type"] == "person"
