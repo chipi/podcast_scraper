@@ -271,6 +271,15 @@ counter wording. Spot checks for step 8 added:
 - (i) one kept voice: segments and diagnostics untouched, name and role;
 - (j) idempotence: a second apply writes 0 files.
 
+### 5c. Acceptance of revision 4d
+
+Dated: 2026-11-04T14:22
+
+Fresh agent (reviewer), `minutes 3, tokens ~14k`: the fix is right for the stated case and, with
+the total taken after the move, covers the sibling case (a previous type without a census
+bucket). Rows it asked for are in 4d (census row, identity, repro first, the pipeline-census
+assumption named). Spot check for step 8: measurement 3's census row.
+
 ## 6. Build
 
 - **Migration** `upgrade/migrations/m0043_non_participant_names_removed.py`: 0034's reviewed-list
