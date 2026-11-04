@@ -23,11 +23,10 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock
-
 from podcast_scraper.server.app_user_state import UserStateUnreadable
 from podcast_scraper.server.app_user_store import _is_safe_user_id
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 _LOCK_TIMEOUT_S = 5.0
 _FILE_NAME = "collections.json"
@@ -95,10 +94,10 @@ def _path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / _FILE_NAME
 
 
-def _lock(data_dir: Path, user_id: str) -> FileLock:
+def _lock(data_dir: Path, user_id: str) -> OwnedFileLock:
     path = _path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(path.with_name(f".{_FILE_NAME}.lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(path.with_name(f".{_FILE_NAME}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 def _read(data_dir: Path, user_id: str, *, strict: bool = False) -> dict[str, Any]:

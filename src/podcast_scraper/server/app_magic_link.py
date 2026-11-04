@@ -39,10 +39,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock, Timeout
+from filelock import Timeout
 
 from podcast_scraper.server import app_sessions
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ def consume(data_dir: Path, token_id: str, *, now: int | None = None) -> bool:
         if not marker_s.startswith(used_root + os.sep):
             return False
         marker = Path(marker_s)
-        with FileLock(str(directory / f".{token_id}.lock"), timeout=_LOCK_TIMEOUT_S):
+        with OwnedFileLock(str(directory / f".{token_id}.lock"), timeout=_LOCK_TIMEOUT_S):
             if marker.exists():
                 return False
             atomic_write_text(marker, f'{{"used_at": {stamp}}}')

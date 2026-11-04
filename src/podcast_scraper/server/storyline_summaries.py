@@ -29,9 +29,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
-from filelock import FileLock
-
 from podcast_scraper.server import board_summaries
+from podcast_scraper.utils.privileges import match_data_owner, OwnedFileLock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -194,12 +193,13 @@ def read_summaries(data_dir: Path) -> dict[str, dict[str, Any]]:
 def _update(data_dir: Path, change: Callable[[dict[str, Any]], None]) -> None:
     path = _path(data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with FileLock(str(path) + ".lock", timeout=5.0):
+    with OwnedFileLock(str(path) + ".lock", timeout=5.0):
         doc = read_summaries(data_dir)
         change(doc)
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(tmp, path)
+        match_data_owner(path)
 
 
 def summary_for(root: Path, data_dir: Path, ref: str) -> Optional[dict[str, Any]]:

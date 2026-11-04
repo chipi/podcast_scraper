@@ -48,6 +48,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.utils.privileges import match_data_owner
+
 #: Written by the sidecar, read by the API exporter. Lives in appdata, which both mount.
 STATE_FILENAME = "digest_health.json"
 
@@ -113,6 +115,7 @@ def record_dispatch(
                 fh.flush()
                 os.fsync(fh.fileno())
             os.replace(tmp, path)
+            match_data_owner(path)
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)

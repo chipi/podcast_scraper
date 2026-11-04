@@ -398,7 +398,10 @@ def main() -> NoReturn:
     """Run the sidecar: one summary cycle per interval, forever (or the storylines backfill)."""
     import sys
 
+    from podcast_scraper.utils.privileges import drop_root_to_owner
+
     if "--storylines-backfill" in sys.argv[1:]:
+        drop_root_to_owner(DATA_DIR)
         _startup()
         sys.exit(backfill_storylines(apply="--apply" in sys.argv[1:]))
     _startup()

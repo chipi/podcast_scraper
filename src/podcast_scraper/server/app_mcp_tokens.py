@@ -23,10 +23,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock
-
 from podcast_scraper.server.app_user_store import _is_safe_user_id
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 _LOCK_TIMEOUT_S = 5.0
 _TOKENS_FILE = "mcp_tokens.json"
@@ -38,19 +37,19 @@ def _tokens_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / _TOKENS_FILE
 
 
-def _tokens_lock(data_dir: Path, user_id: str) -> FileLock:
+def _tokens_lock(data_dir: Path, user_id: str) -> OwnedFileLock:
     path = _tokens_path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(path.with_name(f".{_TOKENS_FILE}.lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(path.with_name(f".{_TOKENS_FILE}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 def _index_path(data_dir: Path) -> Path:
     return data_dir / _INDEX_FILE
 
 
-def _index_lock(data_dir: Path) -> FileLock:
+def _index_lock(data_dir: Path) -> OwnedFileLock:
     data_dir.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(_index_path(data_dir).with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(_index_path(data_dir).with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 def _hash(token: str) -> str:

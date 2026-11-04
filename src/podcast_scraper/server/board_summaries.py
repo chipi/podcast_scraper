@@ -32,11 +32,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from filelock import FileLock
-
 from podcast_scraper.server import app_collections_store
 from podcast_scraper.server.app_board_view import Board, board_episode_slugs, load_board
 from podcast_scraper.server.app_user_store import _is_safe_user_id
+from podcast_scraper.utils.privileges import match_data_owner, OwnedFileLock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,6 +119,7 @@ def _write_json(path: Path, doc: dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(doc, indent=2, sort_keys=True), "utf-8")
     os.replace(tmp, path)
+    match_data_owner(path)
 
 
 def spent_today(data_dir: Path, now: float) -> float:
@@ -130,7 +130,7 @@ def spent_today(data_dir: Path, now: float) -> float:
 
 def _record_spend(data_dir: Path, now: float, usd: float) -> None:
     path = data_dir / LEDGER_FILE
-    with FileLock(str(path) + ".lock", timeout=5.0):
+    with OwnedFileLock(str(path) + ".lock", timeout=5.0):
         doc = _read_json(path)
         day = doc.get(_today(now)) or {}
         doc[_today(now)] = {
@@ -160,7 +160,7 @@ def write_summary(data_dir: Path, user_id: str, board_id: str, record: dict[str,
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
     path = _summaries_path(data_dir, user_id)
-    with FileLock(str(path) + ".lock", timeout=5.0):
+    with OwnedFileLock(str(path) + ".lock", timeout=5.0):
         doc = _read_json(path)
         doc[board_id] = record
         _write_json(path, doc)
@@ -171,7 +171,7 @@ def drop_summaries(data_dir: Path, user_id: str, board_ids: list[str]) -> None:
     if not _is_safe_user_id(user_id):
         return
     path = _summaries_path(data_dir, user_id)
-    with FileLock(str(path) + ".lock", timeout=5.0):
+    with OwnedFileLock(str(path) + ".lock", timeout=5.0):
         doc = _read_json(path)
         for board_id in board_ids:
             doc.pop(board_id, None)

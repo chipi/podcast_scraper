@@ -6,6 +6,8 @@ import os
 import uuid
 from pathlib import Path
 
+from podcast_scraper.utils.privileges import match_data_owner
+
 
 def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> None:
     """Write ``content`` to ``path`` via a same-directory replace (best-effort atomic).
@@ -16,6 +18,9 @@ def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> N
     The temp file name is unique per write (pid **+** a random token) so two concurrent writers of
     the same target — different threads in one process, or different uvicorn workers — never share a
     temp path and clobber each other mid-replace.
+
+    As root, the file (and any directory this call created) is chowned to the owner of the nearest
+    non-root ancestor, so an operator command never leaves the API unable to write it.
     """
     # codeql[py/path-injection] -- path from corpus-anchored callers only (Type 1).
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -25,3 +30,4 @@ def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> N
     tmp.write_text(content, encoding=encoding)
     # codeql[py/path-injection] -- replace target is path (see above).
     tmp.replace(path)
+    match_data_owner(path)

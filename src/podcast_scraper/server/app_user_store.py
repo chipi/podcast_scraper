@@ -17,10 +17,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from filelock import FileLock
-
 from podcast_scraper.server import app_roles
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 #: Read-modify-write profile mutations serialize on a per-user lock so concurrent admin
 #: actions (role / activate flips) can't lose updates (mirrors the per-user file locks in
@@ -28,18 +27,18 @@ from podcast_scraper.server.atomic_write import atomic_write_text
 _LOCK_TIMEOUT_S = 15.0
 
 
-def _profile_lock(data_dir: Path, user_id: str) -> FileLock:
+def _profile_lock(data_dir: Path, user_id: str) -> OwnedFileLock:
     path = _profile_path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(path.with_name(".profile.lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(path.with_name(".profile.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
-def _handles_lock(data_dir: Path) -> FileLock:
+def _handles_lock(data_dir: Path) -> OwnedFileLock:
     """Store-GLOBAL lock for minting handles — uniqueness is a cross-user invariant the per-user
     profile lock can't hold, so the scan-taken-then-write must be serialized across users."""
     users_dir = data_dir / "users"
     users_dir.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(users_dir / ".handles.lock"), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(users_dir / ".handles.lock"), timeout=_LOCK_TIMEOUT_S)
 
 
 @dataclass(frozen=True)

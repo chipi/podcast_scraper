@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.utils.privileges import match_data_owner
+
 
 def append_audit(audit_path: Path | None, record: dict[str, Any]) -> None:
     """Append ``record`` (stamped with ``ts``) to the JSONL audit log; never raises."""
@@ -21,6 +23,7 @@ def append_audit(audit_path: Path | None, record: dict[str, Any]) -> None:
         line = json.dumps({"ts": int(time.time()), **record}, ensure_ascii=False)
         with audit_path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
+        match_data_owner(audit_path)
     except OSError:
         pass
 
