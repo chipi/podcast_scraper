@@ -41,16 +41,16 @@ taken fresh on the current labels.
 | A1 | Set the 14 rule records to `landed` (d1, s5a–s5d, s5o, s6a–s6h; d2 already was) | ingestion session | **done** `2ee536af`: 6 had steps only D2 covered, now `MISSED:` with the operator's acceptance (2026-11-03). The "#2405 waits" line was not in the handover |
 | A2 | `person_profile` empty for `person:robert-caro`, `person:anita-anand` | handover §2.1 | **done** `218e2858`: every CIL reader kept one run per feed (289 of 3,668 bridges on snapshot-prod-20261103); now the central membership rule (3,130). Profiles: robert-caro 0 → 75 quotes, anita-anand 0 → 1,052 |
 | A3 | m0023 `_write_text_with_backup` creates backup dirs without `match_corpus_owner` | handover §2.2 | **done** `afcb74d9` (record `a3_text_backup_dir_owner`, light, open until a deploy carries it). Also covers `identity/respell.py`, which uses the same writer on every prod refresh |
-| A4 | `write_with_backup` keeps the first backup, so a twice-written file undoes to its pre-first-run state | handover §4 | same module as A3 |
-| A5 | A test that checks each verdict row's `line_sha256` against the served segment | handover §4 | test only |
+| A4 | `write_with_backup` keeps the first backup, so a twice-written file undoes to its pre-first-run state | handover §4 | **done** `36ef4b53` (record `a4_backup_per_before_state`, light): a second backup per replaced state; undo restores only the receipt's before-state |
+| A5 | A test that checks each verdict row's `line_sha256` against the served segment | handover §4 | **done** `4439151e`: `scripts/measure/verdict_lines_check.py`; snapshot-prod-20261103: 652 of 652 hashed rows match |
 | A6 | CIL readers read each feed's latest run only, so a fix in an older run's bridge is invisible | handover §4 | **done** with A2 (`218e2858`): same cause |
-| A7 | #2253 `gi inspect` slices `.adfree.txt` spans from `.txt` | GH, open | tool fix |
-| A8 | #2131 `parse_webvtt` / `parse_srt` never unescape entities | GH, open | forward only; stored text stays as is |
-| A9 | Mixed-voice majority is measured in seconds: into `CORPUS_CHANGE_METHOD.md` | handover §4 | docs only |
-| A10 | Review budgets (method v0.9 §4a) are not enforced | handover §4 | tooling |
-| A11 | #2180 203 integration tests carry no `integration` marker | GH, open | test files only, no workflow edit |
-| A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | eval-data repo, its own branch |
-| A13 | `server/routes/artifacts.py:85` lists artifacts with the same one-run-per-feed name rule A2 removed from the CIL readers | found in A2 | read-time; measure what the artifact list drops on the snapshot first |
+| A7 | #2253 `gi inspect` slices `.adfree.txt` spans from `.txt` | GH, open | **done** `5d9d011b`: the residual case, an absolute `transcript_ref` (7,481 quotes in 52 episodes on the snapshot). 8 quotes remain off their text in the right body: offset drift, not #2253 |
+| A8 | #2131 `parse_webvtt` / `parse_srt` never unescape entities | GH, open | **already fixed** `caa9987e` (#2131 still open on GitHub); 0 of 4,950 served raw transcripts carry an entity |
+| A9 | Mixed-voice majority is measured in seconds: into `CORPUS_CHANGE_METHOD.md` | handover §4 | **already done**: method guide, operator decisions 2026-10-26/27, item 1 |
+| A10 | Review budgets (method v0.9 §4a) are not enforced | handover §4 | **operator decision**: enforcing the review budget changes the method's gate (§7) |
+| A11 | #2180 203 integration tests carry no `integration` marker | GH, open | **done** `84ace6f6`: 239 tests in 14 files marked; `check_test_policy` rule I2 guards it |
+| A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | **on hold**: the eval-data checkout is on another session's branch; D1's clones are gone |
+| A13 | `server/routes/artifacts.py:85` lists artifacts with the same one-run-per-feed name rule A2 removed from the CIL readers | found in A2 | **operator decision**: the one-run rule there is deliberate for speed (9,531 files took 8.5 s on prod, 2026-10-15) |
 
 ## Tier B: naming rules for new episodes
 
