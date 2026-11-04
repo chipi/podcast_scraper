@@ -66,8 +66,8 @@ any migration here is built and gated on the branch, and its apply waits for the
 | B7 | An eponymous host treated as the show | #2136, open on GitHub. **Shipped** for new episodes (self-intro exemption) and m0014 for stored ones; residual: a host who never self-introduces, 0 measured losses |
 | B8 | A house-ad read published as a guest | #2123, open on GitHub. **Shipped** for new episodes (ad signatures) and m0016 for stored ones; m0016's gaps are in 0043 (classes A, C) |
 | B9 | Rosters wrong beyond a missing name | #2367, open. **Tried and rejected** on replay (`70a041d7`: 42 lost, 2 gained) |
-| B10 | Recurrence-scan blind spots | handover §4 (record 0034, round 6). **Open** |
-| B11 | The hardfork-guest-in-record golden failure: cause not established | handover §4. **Open** |
+| B10 | Recurrence-scan blind spots | handover §4 (record 0034, round 6). **Closed, no change** (below) |
+| B11 | The hardfork-guest-in-record golden failure: cause not established | handover §4. **Closed: cause established** (below) |
 | B12 | Stored names on voices today's roster types commercial (ad, promo, shout-out readers) | found in B6 / B8 triage. **Built**: migration 0043 (record `0043_non_participant_names_removed`), 111 voices in 101 episodes, step 8 GO WITH CONDITIONS, ci-fast green on `0758c88cf`. **Apply held** for the deploy (below) |
 
 ## Tier L: ledger rules, which rewrite stored files on prod after a deploy, without a migration
@@ -106,8 +106,8 @@ before the first rule.
 | --- | --- | --- |
 | M1 | Gold refresh: re-cut the stale gold cases on a new baseline, and draw a new unseen validation set | D1/D2 scored on `labels_v1` |
 | M2 | Split S7: same person misspelled vs another person (`gold_insights` counts an ASR spelling of the right person as wrong) | eval-data. **Tried, not kept** (2026-11-04): split by the roster's ASR rule (`_loosely_same_person`), 0 of 392 (dev_v1) and 0 of 299 (val_v7) S7_wrong come out misspelled: the gate's fuzzy tier already counts those as correct, and what is left (`dara-obrey`'s 12) is ASR no rule calls the same person. A split needs a human-read variant list |
-| M3 | The loss-ranking script: `origin/wip/loss-ranking`, 85 commits ahead of main, never merged, not read | **Checked, recommend drop** (2026-11-04): `git diff --quiet origin/wip/loss-ranking bc8ab25b` is empty and `bc8ab25b` is on main, so the branch's tree is already in main. Deleting the remote branch is the operator's action (Q3) |
-| M4 | V3 S7, roster vs voices: `quality/name_report.py` measures R5 (`listed_not_heard_entries`); the operator's decision on how a listed-but-unheard name shows was never asked, so no read-time fix exists | **Measured, needs a decision** (Q4): on snapshot-prod-20261103, 3,889 listed-but-unheard names in 1,983 of 3,130 episodes |
+| M3 | The loss-ranking script: `origin/wip/loss-ranking`, 85 commits ahead of main, never merged, not read | **Checked, recommend drop** (2026-11-04): `git diff --quiet origin/wip/loss-ranking bc8ab25b` is empty and `bc8ab25b` is on main, so the branch's tree is already in main. Deleting the remote branch is the operator's action (below) |
+| M4 | V3 S7, roster vs voices: `quality/name_report.py` measures R5 (`listed_not_heard_entries`); the operator's decision on how a listed-but-unheard name shows was never asked, so no read-time fix exists | **Measured, closed with no read-time change** (below): on snapshot-prod-20261103, 3,889 listed-but-unheard names in 1,983 of 3,130 episodes |
 
 Measuring tiers L, B and M locally needs a snapshot copy; none is on this machine. Source: the
 backup repo, `scripts/ops/corpus_snapshot/download_and_verify_snapshot.sh --tag
@@ -121,9 +121,9 @@ snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on), then `upg
 | # | Item | Source |
 | --- | --- | --- |
 | C1 | The code digest covers a migration and most of the package; narrow it | handover §4. **Measured, a decision for later** ([C1-CODE-DIGEST-2026-11-04.md](C1-CODE-DIGEST-2026-11-04.md)): 0043's closure is 610 of 778 modules; following no parent `__init__` imports gives 603, so the breadth is the migrations' own imports. Recommendation: keep it, and re-gate open migrations after a branch's last package change (deploy inventory step 2) |
-| C2 | Re-run an applied migration for named episodes (today: calling the class in the api container) | handover §4. **Not built: open question Q5** (which migrations can run per episode, and the prod safety of a partial re-run) |
-| C3 | A naming migration that re-renders text keeps the stored ad cut; recompute it or end with 0030's resync | handover §4. **Measured for 0043; the general guard is not built.** 0030's read-only plan recomputes today's cut and compares it with the stored one. It reads `ad-free cut plan: 0 episode(s)` on snapshot-prod-20261103 and again on the gate copy after 0043. The cut depends on the transcript text (`workflow/adfree_transcript.build_adfree_artifacts` re-renders the `Name:` markers), so a later naming migration can leave it stale. The guard is open question Q6 |
-| C4 | A gate row "wrong-person voices before / after" | handover §4. **Not built: open question Q6** (no instrument counts wrong-person voices outside the gold) |
+| C2 | Re-run an applied migration for named episodes (today: calling the class in the api container) | handover §4. **Built**: `upgrade rerun` (record `c2_episode_rerun`) |
+| C3 | A naming migration that re-renders text keeps the stored ad cut; recompute it or end with 0030's resync | handover §4. **Closed: measured for 0043, and already guarded.** 0030's read-only plan recomputes today's cut and compares it with the stored one. It reads `ad-free cut plan: 0 episode(s)` on snapshot-prod-20261103 and again on the gate copy after 0043. The cut depends on the transcript text (`workflow/adfree_transcript.build_adfree_artifacts` re-renders the `Name:` markers), so a later naming migration can leave it stale. The guard exists: the clone gate's `verify_all` runs 0030's check after every apply, and on 0043 it is ok with 0 regressions |
+| C4 | A gate row "wrong-person voices before / after" | handover §4. **Built**: the gate's `targets` row (`69802a6d`); 0043: 111 before, 0 after |
 
 ## The deploy and what follows it (inventory, 2026-11-04)
 
@@ -197,26 +197,41 @@ proves each): #2131 (A8), #2180 (A11), #2253 (A7), #2363 (B5), #2364 (B6), #2123
 **eval-data** (private repo, this checkout's own clone): branches `naming-val-v7` (the val_v7
 split) and `ingestion-arc-l6` (L6's replay) are local; pushing them is the operator's go.
 
-## Open questions for later (2026-11-04)
+## The arc's open items, closed (2026-11-04)
 
-Left for the end of the arc, by the operator's instruction of 2026-11-04. Each one needs the
-operator's answer or go; none blocks the branch's PR.
+Operator, 2026-11-04: close them rather than ask. What is left for the operator is three actions
+only the operator takes; they go with the push go for the branch's PR.
 
-| # | Question | What is known | Recommendation |
-| --- | --- | --- | --- |
-| Q1 | C1: keep the code digest as it is, or measure an executed-code closure? | 610 of 778 modules; the simple narrowing gives 603 ([C1-CODE-DIGEST-2026-11-04.md](C1-CODE-DIGEST-2026-11-04.md)) | keep it, re-gate after a branch's last package change |
-| Q2 | Tier L switch-on: when, and after what? | built switched off; switched on, the snapshot ledger moves 4 joins and 12 spellings, all the same person; val_v7 does not move; the respell writes 102 episodes (980 files), and the 8 it differs from the prototype by are traced in record `l_publisher_verified_mode` | its own one-line change and deploy, after the operator reads the record's section 7 |
-| Q3 | Delete `origin/wip/loss-ranking`? | its tree is in main (M3) | delete (the operator's action) |
-| Q4 | M4: how a name the publisher lists but no voice carries is shown | 3,889 such names in 1,983 of 3,130 episodes: hosts 2,210, guests 1,679. Their sources: none recorded 1,881, `feed_statement` 1,119, `episode_metadata` 831, hint 56. 1,961 are named in the episode's own title or description. The shapes: a feed host absent from this episode (Ittai Abraham on The a16z Show); a host who speaks but is not placed (Dwarkesh Patel); a guest named in the description but not placed (Jean Lee); a person only mentioned (General Feroz Khan); junk ("CEO Sam Rodriguez"). How the player shows them today is **not verified** | first verify what the player shows, then decide the rule per shape (a host absent from this episode is not shown as present; a person only mentioned is not a participant; junk is dropped) |
-| Q5 | C2: a command to re-run an applied migration for named episodes | today it means calling the class from Python in the api container. Open: which migrations can run per episode (0034-shaped `_Episode` classes can; corpus-wide ones such as 0030's resync may not), and what the receipts and the outcome hook require of a partial re-run | design note first, with the corpus-migration skill's preflight |
-| Q6 | C3 and C4: gate rows for naming migrations | C3's check exists as 0030's read-only plan (0 episodes after 0043). C4 has no instrument outside the gold | add "0030 plan after apply" to the clone gate; C4 waits on M1's refreshed gold |
-| Q7 | Scope split: L1 (roster rules, RFC-131 Phase 5) and L3's pipeline half as their own forward changes | both are naming-time rules for new episodes, not ledger rules; L1's prerequisites are unmet | own records after this arc |
-| Q8 | M1: refresh the gold and draw a new unseen split | D1/D2 and tier L scored on `labels_v1`; val_v7 is now seen once | after this arc's deploy, on the post-0043 snapshot |
-| Q9 | B10 (recurrence-scan blind spots) and B11 (the hardfork golden failure) | both open, no cause established | investigate as their own items |
-| Q10 | L6: stored episodes before B5 that still carry the heard spelling | 20 served episodes; replay 27 voices, every one the same person (eval-data `ingestion-arc-l6`) | a ledger rule change through the method, switched off like tier L |
-| Q11 | Close the GitHub issues fixed here | #2131, #2180, #2253, #2363, #2364, #2123, #2136; #2056 (L5) | close each after the deploy proves it |
-| Q12 | Push the eval-data branches `naming-val-v7` and `ingestion-arc-l6` to the private remote | local only | push (private remote only) |
-| Q13 | Deploy windows with the database session | order agreed (PR B, then this branch's deploy and the database moment, not overlapping) | message the database session at the PR merge, and when the reindex and the next nightly are clean |
+**For the operator (with the PR's push go):**
+
+1. Tier L switch-on: its own one-line change and deploy (operator's rule of 2026-11-04). Ready:
+   the 8 episodes between prototype and build are traced (record `l_publisher_verified_mode` 8b);
+   the switch-on is measured again on a fresh snapshot first.
+2. Delete `origin/wip/loss-ranking`: its tree equals `bc8ab25b` on main (M3).
+3. Push the eval-data branches `naming-val-v7` and `ingestion-arc-l6` to the private remote.
+
+**Closed:**
+
+| Item | How |
+| --- | --- |
+| C1 | Kept as it is ([C1-CODE-DIGEST-2026-11-04.md](C1-CODE-DIGEST-2026-11-04.md)); re-gating open migrations after the last package change is deploy inventory step 2 |
+| C2 | Built: `upgrade rerun` (record `c2_episode_rerun`); measurement on the snapshot in that record |
+| C3 | Already guarded: the clone gate's `verify_all` runs 0030's check after every apply (added after 0035, 2026-10-27); on 0043: 0030 ok, 0 regressions |
+| C4 | Built: the gate's `targets` row (`69802a6d`); 0043: 111 wrong-person voices in 101 episodes before, 0 after |
+| M3 | Drop the branch (action 2) |
+| M4 | Measured, no read-time change. The player's episode page lists KG persons with their roster role. Of the 3,889 listed-but-unheard names: 1,731 shown as host or guest, 429 as mentioned, 1,729 not shown (snapshot-prod-20261103, scratchpad `m4_player_role.py`). A host absent from this episode and a host who spoke but is not placed look the same in the text on disk, so no text-only rule separates them: changing the role would trade one error for the other. Junk names ("CEO Sam Rodriguez") are the descriptor rule's shape (0019) |
+| B10 | No change: the recurrence scan is a reviewer's aid for 0034's lists, its misses are listed in record 0034 (round 6), and every listed voice was read by a person; nothing consumes its completeness |
+| B11 | Cause established: the snapshot serves the episode's 2026-08-13 run, made before the fix (`metadata_named: []`). The 2026-08-19 run carries `metadata_named: ['MacKenzie Price', …]` but wrote no metadata file for this episode, so it is not served. The input, not the code |
+| Scope split | L1 and L3's pipeline half are their own forward changes (operator, record `l_publisher_verified_mode` §9) |
+| Deploy windows | The deploy inventory's last step: message the database session at the PR merge, after the reindex and after a clean nightly |
+
+**Mine, scheduled:**
+
+| Item | When |
+| --- | --- |
+| L6 | Built next on this branch, switched off like tier L |
+| M1 | After the deploy, on the first snapshot with 0043 applied: re-cut the stale gold cases and draw a new unseen split |
+| GitHub issues #2131, #2180, #2253, #2363, #2364, #2123, #2136, #2056 | Closed after the deploy proves each |
 
 ## Not in this arc, and why
 
