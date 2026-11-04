@@ -58,6 +58,10 @@ RUN npm run build
 
 FROM nginx:1.30-alpine
 
+# The base image is a snapshot; Alpine ships security fixes between its releases (expat, brotli
+# the first time an image scan looked). Take them at build time.
+RUN apk upgrade --no-cache
+
 COPY --from=build /viewer/dist/ /usr/share/nginx/html/
 # COPY into /etc/nginx/templates/ so the nginx:alpine entrypoint runs
 # envsubst on it at container start — needed for the PODCAST_ENV
