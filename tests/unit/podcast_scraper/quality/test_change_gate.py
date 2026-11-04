@@ -393,3 +393,47 @@ def test_a_review_keeps_the_4a_budget(tmp_path: Path, review: str, problem) -> N
 
 def test_every_record_in_the_repo_keeps_the_review_budget() -> None:
     assert cg.check_reviews(REPO) == []
+
+
+def _problems(tmp_path: Path, body: str) -> list:
+    root = _repo(tmp_path)
+    _record(root, "0099_x", "full", {**DONE, "8": body})
+    rec = cg.parse_record(root / "docs/wip/changes/0099_x.md")
+    assert rec is not None
+    return cg.review_budget_problems(rec)
+
+
+def test_a_review_without_its_verdict_line_is_a_problem(tmp_path: Path) -> None:
+    body = "Review budget: minutes 5, tokens 40000\n\nREVIEW 0099_x 2026-11-05 minutes 3\nnotes\n"
+    [problem] = _problems(tmp_path, body)
+    assert "no 'VERDICT:' line" in problem
+
+
+def test_each_review_is_checked_on_its_own_block(tmp_path: Path) -> None:
+    """Review 1, 2026-11-04: the second block's budget line and minutes were read off the first."""
+    first = _review("minutes 4", "GO")
+    second = "REVIEW 0099_x 2026-11-06  reviewer fresh  minutes 14\nVERDICT: GO  re-read\n"
+    found = _problems(tmp_path, first + "\n" + second)
+    assert len(found) == 2, found
+    assert any("2026-11-06" in p and "hard stop" in p for p in found)
+    assert any("2026-11-06" in p and "Review budget" in p for p in found)
+
+
+def test_a_missing_verdict_does_not_borrow_the_next_blocks(tmp_path: Path) -> None:
+    first = "Review budget: minutes 5, tokens 1\n\nREVIEW 0099_x 2026-11-05  reviewer a\nnotes\n"
+    second = _review("minutes 4", "GO", date="2026-11-06")
+    found = _problems(tmp_path, first + "\n" + second)
+    assert any("2026-11-05" in p and "VERDICT" in p for p in found), found
+    assert any("2026-11-05" in p and "minutes" in p for p in found), found
+
+
+def test_the_budget_line_states_tokens_too(tmp_path: Path) -> None:
+    body = "Review budget: minutes 5\n\nREVIEW 0099_x 2026-11-05 minutes 3\nVERDICT: GO  x\n"
+    [problem] = _problems(tmp_path, body)
+    assert "tokens <n>" in problem
+
+
+def test_a_review_header_without_a_date_is_a_problem(tmp_path: Path) -> None:
+    body = "Review budget: minutes 5, tokens 1\n\nREVIEW 0099_x yesterday minutes 3\nVERDICT: GO\n"
+    [problem] = _problems(tmp_path, body)
+    assert "no date" in problem

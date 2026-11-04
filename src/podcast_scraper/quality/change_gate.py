@@ -50,12 +50,14 @@ _INTEGER = re.compile(r"\b\d+\b")
 _ACCEPTED = re.compile(r"^Operator accepted:\s*\d{4}-\d{2}-\d{2}", re.MULTILINE)
 _SECTION = re.compile(r"^## (\d+)\.[^\n]*\n", re.MULTILINE)
 _VERDICT = re.compile(r"^Verdict:\s*(GO WITH CONDITIONS|GO|NO-GO)\b", re.MULTILINE)
-#: A §4a review block: its header line, then its own ``VERDICT:`` line.
-_REVIEW = re.compile(
-    r"^\s*REVIEW \S+\s+(\d{4}-\d{2}-\d{2})\b(.*?)^\s*VERDICT:\s*(\S+)", re.M | re.S
-)
+#: A §4a review block starts at its header line and runs to the next one; its ``VERDICT:`` line
+#: must be inside it.
+_REVIEW_HEAD = re.compile(r"^[ \t]*REVIEW\b[^\n]*$", re.MULTILINE)
+_REVIEW_DATE = re.compile(r"^[ \t]*REVIEW \S+\s+(\d{4}-\d{2}-\d{2})\b")
+_REVIEW_VERDICT = re.compile(r"^[ \t]*VERDICT:\s*(\S+)[^\n]*$", re.MULTILINE)
 _MINUTES = re.compile(r"\bminutes\s+(\d+)\b")
-_BUDGET = re.compile(r"^Review budget:.*\bminutes\s+\d+", re.MULTILINE)
+_BUDGET = re.compile(r"^Review budget:.*\bminutes\s+\d+.*\btokens\s+\d+", re.MULTILINE)
+_BUDGET_LINE = re.compile(r"^Review budget:", re.MULTILINE)
 #: Reviews dated from here on are held to the §4a budget (method v1.0); earlier ones stand as read.
 REVIEW_BUDGET_FROM = "2026-11-04"
 REVIEW_HARD_STOP_MINUTES = 10
@@ -200,11 +202,28 @@ def review_budget_problems(rec: Record) -> List[str]:
     """
     body = rec.sections.get("8", "")
     out: List[str] = []
-    for m in _REVIEW.finditer(body):
-        date, verdict = m.group(1), m.group(3)
+    heads = list(_REVIEW_HEAD.finditer(body))
+    preamble_from = 0
+    for i, head in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(body)
+        next_budget = _BUDGET_LINE.search(body, head.end(), end)
+        if next_budget:  # the next review's budget line closes this block
+            end = next_budget.start()
+        block, preamble = body[head.start() : end], body[preamble_from : head.start()]
+        verdict_m = _REVIEW_VERDICT.search(block)
+        # The next block's budget line sits after this one's VERDICT line.
+        preamble_from = head.start() + verdict_m.end() if verdict_m else end
+        dated = _REVIEW_DATE.match(head.group(0))
+        if dated is None:
+            out.append(f"step 8: a review header has no date ({head.group(0).strip()[:60]!r})")
+            continue
+        date = dated.group(1)
         if date < REVIEW_BUDGET_FROM:
             continue
-        minutes = _MINUTES.search(m.group(0))
+        if verdict_m is None:
+            out.append(f"step 8: the review of {date} has no 'VERDICT:' line in its block")
+        verdict = verdict_m.group(1) if verdict_m else ""
+        minutes = _MINUTES.search(block[: verdict_m.end()] if verdict_m else block)
         if minutes is None:
             out.append(f"step 8: the review of {date} reports no 'minutes <n>'")
         elif int(minutes.group(1)) > REVIEW_HARD_STOP_MINUTES and verdict != "INCOMPLETE":
@@ -213,9 +232,10 @@ def review_budget_problems(rec: Record) -> List[str]:
                 f"{REVIEW_HARD_STOP_MINUTES}-minute hard stop, and says {verdict}; it must return "
                 "INCOMPLETE (method §4a)"
             )
-        if not _BUDGET.search(body):
+        if not _BUDGET.search(preamble):
             out.append(
-                f"step 8: the review of {date} has no 'Review budget: minutes <n>, tokens <n>' line"
+                f"step 8: the review of {date} has no 'Review budget: minutes <n>, tokens <n>' "
+                "line above its block"
             )
     return out
 
