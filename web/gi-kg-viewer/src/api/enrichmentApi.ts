@@ -215,9 +215,6 @@ export interface CorpusEnrichmentEnvelope<TData = Record<string, unknown>> {
  * the whole multi-MB envelope. Shape mirrors the enricher `data` blocks, minus the envelope wrapper.
  */
 export interface CorpusEntitySignals {
-  temporal_velocity?: {
-    topics: Array<{ topic_id: string; velocity_last_over_6mo: number; total: number }>
-  }
   topic_cooccurrence_corpus?: {
     pairs: Array<{
       topic_a_id: string
@@ -247,17 +244,6 @@ export interface CorpusEntitySignals {
       person_a_name?: string
       person_b_name?: string
       episode_count: number
-    }>
-  }
-  topic_consensus?: {
-    consensus: Array<{
-      topic_id: string
-      person_a_id: string
-      person_b_id: string
-      person_a_name?: string
-      person_b_name?: string
-      insight_a_text?: string
-      insight_b_text?: string
     }>
   }
 }

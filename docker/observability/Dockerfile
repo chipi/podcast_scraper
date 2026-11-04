@@ -41,5 +41,5 @@ ENV PYTHONUNBUFFERED=1 \
 # streamable-http transport so an agent on another tailnet box can reach it. Override the CMD for
 # stdio (`serve --transport stdio`) or a one-shot probe (`summary --target prod`).
 EXPOSE 8848
-ENTRYPOINT ["python", "-m", "podcast_obs"]
-CMD ["serve", "--transport", "http", "--host", "0.0.0.0", "--port", "8848"]
+# No entrypoint: this image is the base of the private observability server, which adds its
+# CLI and MCP server and sets its own entrypoint (ADR-170). Only the data layer is public.

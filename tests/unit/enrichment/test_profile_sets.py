@@ -38,66 +38,6 @@ def test_airgapped_thin_is_deterministic_only() -> None:
     assert "person_web" not in s.enabled_enrichers
 
 
-def test_airgapped_adds_topic_similarity() -> None:
-    s = enricher_set_for_profile("airgapped")
-    assert "topic_similarity" in s.enabled_enrichers
-    assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
-    assert "topic_consensus" not in s.enabled_enrichers
-    assert "person_web" not in s.enabled_enrichers  # no external fetch in the airgapped tier
-
-
-@pytest.mark.parametrize("profile", ["cloud_thin", "cloud_balanced", "cloud_quality"])
-def test_cloud_profiles_get_full_stack(profile: str) -> None:
-    s = enricher_set_for_profile(profile)
-    assert "topic_similarity" in s.enabled_enrichers
-    # topic_consensus (ADR-108 composite) cleared its eval — precision 0.91 on prod-v2 recorded in
-    # data/eval/enrichment/topic_consensus/gate_metrics.json → admitted by the data-driven gate.
-    assert "topic_consensus" in s.enabled_enrichers
-    assert set(ALL_DETERMINISTIC_ENRICHER_IDS) <= set(s.enabled_enrichers)
-    # WEB-tier person_web is ON by default in the cloud/prod profiles (wave-G).
-    assert "person_web" in s.enabled_enrichers
-
-
-@pytest.mark.parametrize(
-    "profile",
-    [
-        "local_dgx_balanced",
-        "local_dgx_full",
-        "prod_dgx_full",
-        "cloud_with_dgx_primary",
-        "dev",
-        "local",
-    ],
-)
-def test_dgx_dev_local_profiles_get_full_stack(profile: str) -> None:
-    """Every profile with a real LLM somewhere gets the full enricher set.
-    'prod' is intentionally NOT here — there is no config/profiles/prod.yaml;
-    the production profiles are prod_dgx_*."""
-    s = enricher_set_for_profile(profile)
-    # topic_consensus (ADR-108 composite) cleared its eval → admitted. Membership is data-driven.
-    assert "topic_consensus" in s.enabled_enrichers
-
-
-def test_admit_gate_is_hermetic_via_injected_eval_root(tmp_path: Path) -> None:
-    """The gate decision is deterministic under an injected eval_root, not coupled to
-    whatever ``gate_metrics.json`` happens to be committed under ``data/eval`` (review H1).
-
-    Also pins the auto-promotion contract: a recorded passing precision admits a gated
-    enricher with no code edit.
-    """
-    from podcast_scraper.enrichment.eval.admission import write_gate_metrics
-
-    # Empty eval root → topic_consensus gated dark (on_missing=reject).
-    excluded = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
-    assert "topic_consensus" not in excluded.enabled_enrichers
-    assert "topic_similarity" in excluded.enabled_enrichers  # no gate → always admitted
-
-    # Record a passing precision → the same call now admits it.
-    write_gate_metrics({"topic_consensus": {"precision": 0.9}}, eval_root=tmp_path)
-    promoted = enricher_set_for_profile("cloud_thin", eval_root=tmp_path)
-    assert "topic_consensus" in promoted.enabled_enrichers
-
-
 def test_phantom_prod_profile_is_unknown() -> None:
     """A 'prod' literal in the matrix without a corresponding YAML used to
     be dead code (chunk-8 sweep finding #3). The matrix now treats
@@ -271,41 +211,6 @@ def test_every_real_profile_yaml_lands_in_an_explicit_branch(
         f"profile YAML(s) without an explicit enricher_set_for_profile() branch: "
         f"{[w.getMessage() for w in unknown_warnings]}"
     )
-
-
-def test_yaml_enrichment_block_matches_python_matrix() -> None:
-    """The advisory ``enrichment.enrichers`` dict in each
-    ``config/profiles/*.yaml`` MUST declare the same enrichers as the
-    Python matrix returns. The Python matrix is the source of truth;
-    the YAML block is the operator-facing mirror. Drift between them
-    is a bug.
-
-    Shape B (RFC-088 v2) accepts either:
-      - the legacy list-of-ids form (``enrichers: [id1, id2]``)
-      - the dict-of-blocks form (``enrichers: {id1: {...}, id2: {}}``)
-    The drift check normalises both to a set of ids before comparing.
-    """
-    import yaml
-
-    profiles_dir = Path(__file__).resolve().parents[3] / "config" / "profiles"
-    for name in discover_profile_yaml_names(profiles_dir):
-        yaml_path = profiles_dir / f"{name}.yaml"
-        body = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
-        yaml_block = body.get("enrichment")
-        if yaml_block is None:
-            continue
-        raw = yaml_block.get("enrichers") or {}
-        if isinstance(raw, dict):
-            yaml_set = set(raw.keys())
-        elif isinstance(raw, list):
-            yaml_set = set(raw)
-        else:
-            yaml_set = set()
-        py_set = set(enricher_set_for_profile(name).enabled_enrichers)
-        assert yaml_set == py_set, (
-            f"profile {name!r}: YAML enrichment.enrichers ({sorted(yaml_set)}) "
-            f"differs from Python matrix ({sorted(py_set)})"
-        )
 
 
 def test_top_level_profiles_have_an_enrichment_block() -> None:

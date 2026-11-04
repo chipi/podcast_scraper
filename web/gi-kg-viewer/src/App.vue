@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
+import { appBanners, graphActivationHooks, searchOperators, topicGrouping } from './extensions'
 import { track } from './lib/analytics'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
@@ -43,7 +44,8 @@ import {
 } from './utils/graphEpisodeSelection'
 import { localYmdDaysAgo } from './utils/localCalendarDate'
 import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
-import { topicEpisodeIdsFromClusters, topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
+import { stripLayerPrefixesForCil } from './utils/mergeGiKg'
+import { topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
 import { fetchTopicTimeline } from './api/cilApi'
 import { fetchResolveEpisodeArtifacts } from './api/corpusLibraryApi'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
@@ -258,15 +260,6 @@ async function ensureLastQueryLoaded(): Promise<string> {
   return q
 }
 
-async function onPaletteOperatorOnLast(op: 'cluster' | 'consensus'): Promise<void> {
-  const q = await ensureLastQueryLoaded()
-  if (!q) return
-  const root = shell.corpusPath.trim()
-  if (!root) return
-  search.activeOperator = op
-  await search.runOperator(root, op)
-}
-
 async function onPaletteTimelineOnLast(): Promise<void> {
   const q = await ensureLastQueryLoaded()
   if (!q) return
@@ -276,6 +269,14 @@ async function onPaletteTimelineOnLast(): Promise<void> {
   search.activeOperator = 'timeline'
 }
 
+/** A registered result-set operator on the last query: open its panel and run it. */
+async function onPaletteOperatorOnLast(id: string): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  search.activeOperator = id
+  searchOperators.list().find((op) => op.id === id)?.activate?.()
+}
+
 async function onPaletteCompareOnLast(): Promise<void> {
   const q = await ensureLastQueryLoaded()
   if (!q) return
@@ -283,6 +284,16 @@ async function onPaletteCompareOnLast(): Promise<void> {
   // panel is open with the auto-seeded slots ready for one-click Run.
   search.activeOperator = 'compare'
 }
+
+/* A loaded graph on the graph tab: tell registered hooks (for example to grow the selection). */
+watch(
+  () => ({ loading: artifacts.loading, parsedLen: artifacts.parsedList.length, tab: mainTab.value }) as const,
+  async ({ loading, parsedLen, tab }) => {
+    if (loading || parsedLen === 0 || tab !== 'graph') return
+    for (const h of graphActivationHooks.list()) await h.onGraphShown?.()
+  },
+  { flush: 'post' },
+)
 
 async function activateGraphTab(
   targetNodeId?: string,
@@ -324,26 +335,25 @@ async function activateGraphTab(
 
   graphExplorer.markGraphTabOpenedOnce()
 
-  // #769 — track whether the bootstrap path already called
-  // ``ensureTopicClusterCompoundVisible`` so we can skip the duplicate
-  // call below. ``maybeBootstrapGraphFromTopicClusterOnly`` invokes it
-  // internally (artifacts.ts:705); without this skip the same compound-
-  // visibility work runs twice on every first-open graph click.
-  let bootstrappedFromCluster = false
-  if (artifacts.parsedList.length === 0) {
-    if (target && !target.startsWith('topic:')) {
-      bootstrappedFromCluster =
-        await artifacts.maybeBootstrapGraphFromTopicClusterOnly(target)
+  // A registered hook may build the graph for the target itself (extension point
+  // `graphActivationHooks`); the default corpus sync then does not run.
+  let builtByHook = false
+  if (target && !topicTarget) {
+    for (const h of graphActivationHooks.list()) {
+      if (await h.beforeSync?.(target)) {
+        builtByHook = true
+        break
+      }
     }
-    if (!bootstrappedFromCluster) {
+  }
+  if (!builtByHook) {
+    if (artifacts.parsedList.length === 0) {
       await syncMergedGraphFromCorpusApi()
     }
+    for (const h of graphActivationHooks.list()) await h.afterSync?.(target)
   }
 
   if (target && !target.startsWith('topic:')) {
-    if (!bootstrappedFromCluster) {
-      await artifacts.ensureTopicClusterCompoundVisible(target)
-    }
     graphNav.requestFocusNode(target, fbTrim || null)
   }
   if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
@@ -362,7 +372,10 @@ async function handOffTopic(
   source: EnvelopeSource,
 ): Promise<void> {
   await loadTopicEpisodesIfAbsent(topicId)
-  if (subject.graphNodeCyId && subject.graphNodeCyId !== topicId) return // another subject was picked meanwhile
+  // Another subject was picked meanwhile. Compared without the layer prefix: once the topic's
+  // episodes load, the canvas re-focuses the same topic under its node id (`g:topic:…`).
+  const focused = subject.graphNodeCyId
+  if (focused && stripLayerPrefixesForCil(focused) !== stripLayerPrefixesForCil(topicId)) return
   graphHandoff.handoffRequested({
     kind: 'topic',
     cyId: topicId,
@@ -377,10 +390,9 @@ async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) return
   if (findRawNodeInArtifactByIdOrPrefixed(artifacts.displayArtifact, topicId)) return
-  // The cluster document names a topic's episodes; the timeline only knows topics an insight is
-  // about, so it is the fallback for topics outside any cluster.
-  let ids = topicEpisodeIdsFromClusters(artifacts.topicClustersDoc, topicId)
   try {
+    // A grouping provider may already know the topic's episodes; the timeline is the fallback.
+    let ids = topicGrouping.list().flatMap((g) => g.episodeIdsForTopic?.(topicId) ?? [])
     if (ids.length === 0) ids = (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
     if (ids.length === 0) return
     const paths = topicHandoffArtifactPaths((await fetchResolveEpisodeArtifacts(root, ids)).resolved)
@@ -465,23 +477,6 @@ onMounted(() => {
   window.addEventListener('pagehide', flushAnalytics)
 })
 
-/** Topic-cluster sibling catalog merge: ``artifacts.loadSelected`` does not know the active tab. */
-watch(
-  () =>
-    ({
-      loading: artifacts.loading,
-      parsedLen: artifacts.parsedList.length,
-      tab: mainTab.value,
-    }) as const,
-  async ({ loading, parsedLen, tab }) => {
-    if (loading || parsedLen === 0 || tab !== 'graph') {
-      return
-    }
-    await artifacts.maybeMergeClusterSiblingEpisodes(true)
-  },
-  { flush: 'post' },
-)
-
 watch(
   () => shell.corpusPath,
   (p, old) => {
@@ -531,7 +526,7 @@ async function runCorpusGraphSyncBody(): Promise<void> {
     return
   }
   graphExplorer.seedFromCorpusLensIfNeeded()
-  await artifacts.syncTopicClustersForCurrentCorpus()
+  for (const h of graphActivationHooks.list()) await h.beforeCorpusGraphSync?.()
   await shell.fetchArtifactList()
   if (corpusGraphSyncGate.isStale(gen)) {
     return
@@ -557,12 +552,7 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   ]
   let appliedStep: (typeof widenSchedule)[number] | null = null
   for (const step of widenSchedule) {
-    const attempt = selectRelPathsForGraphLoad(
-      rows,
-      step.sinceYmd,
-      GRAPH_DEFAULT_EPISODE_CAP,
-      artifacts.topicClustersDoc,
-    )
+    const attempt = selectRelPathsForGraphLoad(rows, step.sinceYmd, GRAPH_DEFAULT_EPISODE_CAP)
     selectedRelPaths = attempt.selectedRelPaths
     wasCapped = attempt.wasCapped
     appliedStep = step
@@ -575,7 +565,6 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   graphExplorer.setLastAutoLoadCapped(wasCapped)
   if (selectedRelPaths.length === 0) {
     artifacts.clearSelection()
-    await artifacts.syncTopicClustersForCurrentCorpus()
     return
   }
   artifacts.selectAllListed(selectedRelPaths)
@@ -1079,24 +1068,11 @@ watch(
       </div>
     </header>
 
-    <div
-      v-if="artifacts.siblingMergeError && artifacts.siblingMergeLine"
-      class="shrink-0 border-b border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-      role="alert"
-      data-testid="sibling-merge-error-banner"
-    >
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <span class="min-w-0 flex-1 leading-snug">{{ artifacts.siblingMergeLine }}</span>
-        <button
-          type="button"
-          class="shrink-0 rounded border border-destructive/50 px-2 py-0.5 text-[10px] font-medium hover:bg-destructive/10"
-          data-testid="sibling-merge-error-dismiss"
-          @click="artifacts.clearSiblingMergeBanner()"
-        >
-          Dismiss
-        </button>
-      </div>
-    </div>
+    <component
+      :is="banner.component"
+      v-for="banner in appBanners.list()"
+      :key="banner.id"
+    />
 
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex min-h-0 flex-1">
@@ -1271,9 +1247,9 @@ watch(
         @open-configuration="onPaletteOpenConfiguration"
         @open-health="onPaletteOpenHealth"
         @rebuild-index="onPaletteRebuildIndex"
-        @operator-on-last="onPaletteOperatorOnLast"
         @timeline-on-last="onPaletteTimelineOnLast"
         @compare-on-last="onPaletteCompareOnLast"
+        @operator-on-last="onPaletteOperatorOnLast"
       />
     </div>
   </div>

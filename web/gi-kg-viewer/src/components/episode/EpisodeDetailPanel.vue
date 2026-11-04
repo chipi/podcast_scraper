@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref, useSlots, watch } from 'vue'
+import { topicGrouping } from '../../extensions'
 import { storeToRefs } from 'pinia'
 import { fetchIndexStats, type IndexStatsEnvelope } from '../../api/indexStatsApi'
 import {
@@ -19,7 +20,6 @@ import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
-import { themeMemberTopicIdSet } from '../../utils/topicClustersOverlay'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
@@ -86,7 +86,6 @@ const railTabsEnabled = computed(
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 // Topic ids in any co-occurrence THEME cluster — teal ring on the episode pills.
-const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.storylinesDoc))
 const graphExplorer = useGraphExplorerStore()
 const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 
@@ -411,9 +410,7 @@ async function loadDetail(metaPath: string): Promise<void> {
   if (!root || !shell.healthStatus) {
     return
   }
-  // Best-effort (memoized): load THEME clusters so topic pills can show the teal
-  // theme ring without requiring a prior graph visit.
-  void artifacts.syncTopicClustersForCurrentCorpus()
+  for (const g of topicGrouping.list()) g.ensureLoaded?.()
   detailLoading.value = true
   try {
     await loadFeedsAndIndex(seq)
@@ -906,7 +903,6 @@ watch(
           truncation="wrap"
           max-width-class="auto"
           cluster-member-appearance="kg"
-          :theme-member-ids="themeMemberIds"
           data-testid="episode-detail-cil-pills"
           @pill-click="(i) => void openDetailCilTopicInGraph(i)"
         />

@@ -224,7 +224,7 @@ test.describe('Handoff contracts § T3 architectural invariants', () => {
 
   // The remaining 6 surfaces (D1, D2, D3, S1, O3, O1/O2/O4-O6) require
   // heavier mock infrastructure (Digest pills with specific topics, search
-  // mocks, Dashboard topic landscape, NodeDetail TopicCluster fixtures, etc.)
+  // mocks, etc.)
   // that lives in #754 — the deferred-matrix-mock tracking issue. Their
   // migration code is in place (F1.5, F1.6) and verified indirectly by:
   //   - digest.spec.ts (Digest D1)

@@ -160,7 +160,7 @@ mounts the user store) and 401s otherwise. It also serves the public RFC 9728 pr
 discovery doc. Env: `APP_MCP_VERIFY_URL` with `INTERNAL_MCP_TOKEN` (verify seam), `APP_MCP_ISSUER_URL`
 with `APP_MCP_RESOURCE_URL` (discovery), and optional `APP_MCP_ALLOWED_ORIGINS` (DNS-rebind guard). In
 production this runs as the `mcp` container fronted by `mcp.<domain>` — see
-Player launch — MCP + [PLATFORM_API — MCP access](../api/PLATFORM_API.md).
+Player launch — MCP + PLATFORM_API — MCP access.
 
 **Tools (RFC-095):** `resolve_entity` (name → canonical id — call first) and
 `search_corpus` (hybrid two-tier; tiers + intent + grounded evidence) from slice 1; plus
@@ -173,7 +173,7 @@ result-set operators (`cluster_search`, `consensus_search`), enrichment signals,
 (`entity_neighborhood`, `ego_network`, `bridge`, …), and composites (`entity_dossier`,
 `episode_digest`) — **38 tools** total (`grep -c '@server.tool()' src/podcast_scraper/mcp/server.py`).
 (`corpus_digest` is intentionally omitted — agents compose `search_corpus` + `list_episodes`
-instead of a recency view.) Full catalogue: [RFC-095](../rfc/RFC-095-generic-mcp-server.md).
+instead of a recency view.) Full catalogue: RFC-095.
 
 ## Route conventions
 

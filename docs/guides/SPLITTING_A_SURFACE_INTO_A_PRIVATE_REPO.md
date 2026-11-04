@@ -67,7 +67,7 @@ Do not grep for a word. It fails in both directions, and it failed four times:
 | sweep | basis | missed |
 | --- | --- | --- |
 | 1 | the word "eval" | every `autoresearch/` doc — the directory moved, its ADRs stayed |
-| 2 | the word "autoresearch" | `RFC-015`, `RFC-041` and the five ADRs they were built on |
+| 2 | the word "autoresearch" | two experiment-framework RFCs and the five ADRs they were built on |
 | 3 | **do the paths this doc cites still exist?** | nothing of that class |
 
 Sweep 3 is the one to start with: extract every path literal in the repo and

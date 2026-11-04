@@ -251,7 +251,7 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     // sources preserve layout. Drive both through the dev hook to pin the
     // FSM-side contract.
     const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { search: true, clusters: true })
+    await setupHandoffMatrixMocks(page, { search: true })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
@@ -278,7 +278,7 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
       })
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'tc:ci-policy-cluster',
+        cyId: 'g:insight:b72dafa3f874480d',
         source: 'node-detail',
         loadSource: 'graph-internal',
         camera: { kind: 'center-on-target' },

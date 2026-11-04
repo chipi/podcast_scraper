@@ -39,12 +39,10 @@ import {
   readdirSync,
   rmSync,
 } from "node:fs"
-import { dirname, join, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { join } from "node:path"
+import { appRoot as viewerRoot, platformRoot } from "../platform-root.mjs"
 
-const here = dirname(fileURLToPath(import.meta.url))
-const viewerRoot = resolve(here, "..")
-const repoRoot = resolve(viewerRoot, "..", "..")
+const repoRoot = platformRoot()
 const source = join(repoRoot, "tests", "fixtures", "app-validation-corpus", "v3")
 const workdir = process.env.E2E_CORPUS_WORKDIR || join(viewerRoot, ".e2e-corpus")
 const corpus = join(workdir, "v3")

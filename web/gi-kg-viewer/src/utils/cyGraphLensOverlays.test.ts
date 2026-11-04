@@ -11,15 +11,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyCoGuestEdges,
-  applyConsensusEdges,
   applyCredibilityBorder,
-  applyVelocityHalo,
   clearCoGuestEdges,
-  clearConsensusEdges,
   clearCredibilityBorder,
-  clearVelocityHalo,
   COGUEST_EDGE_CLASS,
-  CONSENSUS_EDGE_CLASS,
 } from './cyGraphLensOverlays'
 
 interface NodeStub {
@@ -130,64 +125,6 @@ function makeCore(nodes: NodeStub[]) {
   return core
 }
 
-describe('applyVelocityHalo (Tier 5C-1)', () => {
-  it('is a no-op when envelope is null', () => {
-    const core = makeCore([makeNode('g:topic:x')])
-    // @ts-expect-error MockCore satisfies the runtime interface, not the strict Cytoscape type.
-    applyVelocityHalo(core, null)
-    expect(core.nodes().forEach).toBeDefined()
-  })
-
-  it('paints velocity-up when velocity_last_over_6mo >= 1.15', () => {
-    const t1 = makeNode('g:topic:rising')
-    const core = makeCore([t1])
-    // @ts-expect-error MockCore
-    applyVelocityHalo(core, { topics: [{ topic_id: 'topic:rising', velocity_last_over_6mo: 2.0 }] })
-    expect(t1.classes).toContain('velocity-up')
-  })
-
-  it('paints velocity-down when velocity_last_over_6mo <= 0.85', () => {
-    const t1 = makeNode('g:topic:cooling')
-    const core = makeCore([t1])
-    // @ts-expect-error MockCore
-    applyVelocityHalo(core, {
-      topics: [{ topic_id: 'topic:cooling', velocity_last_over_6mo: 0.5 }],
-    })
-    expect(t1.classes).toContain('velocity-down')
-  })
-
-  it('paints velocity-steady in the neutral 0.85..1.15 band', () => {
-    const t1 = makeNode('g:topic:steady')
-    const core = makeCore([t1])
-    // @ts-expect-error MockCore
-    applyVelocityHalo(core, {
-      topics: [{ topic_id: 'topic:steady', velocity_last_over_6mo: 1.0 }],
-    })
-    expect(t1.classes).toContain('velocity-steady')
-  })
-
-  it('skips rows with non-finite velocity', () => {
-    const t1 = makeNode('g:topic:x')
-    const core = makeCore([t1])
-    // @ts-expect-error MockCore
-    applyVelocityHalo(core, {
-      topics: [{ topic_id: 'topic:x', velocity_last_over_6mo: Number.NaN }],
-    })
-    expect(t1.classes).toEqual([])
-  })
-
-  it('clearVelocityHalo removes every previously-assigned velocity class', () => {
-    const t1 = makeNode('g:topic:x')
-    t1.addClass('velocity-up')
-    t1.addClass('velocity-down')
-    t1.addClass('velocity-steady')
-    const core = makeCore([t1])
-    // @ts-expect-error MockCore
-    clearVelocityHalo(core)
-    expect(t1.classes).toEqual([])
-  })
-})
-
 describe('applyCredibilityBorder (Tier 5C-2)', () => {
   it('rate >= 0.7 → credibility-high', () => {
     const p = makeNode('g:person:a')
@@ -229,71 +166,6 @@ describe('applyCredibilityBorder (Tier 5C-2)', () => {
     // @ts-expect-error MockCore
     clearCredibilityBorder(core)
     expect(p.classes).toEqual([])
-  })
-})
-
-describe('applyConsensusEdges (Tier 5D-1)', () => {
-  it('adds one edge per consensus row when both persons exist', () => {
-    const a = makeNode('g:person:a')
-    const b = makeNode('g:person:b')
-    const core = makeCore([a, b])
-    // @ts-expect-error MockCore
-    applyConsensusEdges(core, {
-      consensus: [{ topic_id: 'topic:x', person_a_id: 'person:a', person_b_id: 'person:b' }],
-    })
-    expect(core._addedEdges.length).toBe(1)
-    expect(core._addedEdges[0]?.classes).toContain(CONSENSUS_EDGE_CLASS)
-  })
-
-  it('dedupes when the same pair corroborates on the same topic twice', () => {
-    const a = makeNode('g:person:a')
-    const b = makeNode('g:person:b')
-    const core = makeCore([a, b])
-    // @ts-expect-error MockCore
-    applyConsensusEdges(core, {
-      consensus: [
-        { topic_id: 'topic:x', person_a_id: 'person:a', person_b_id: 'person:b' },
-        { topic_id: 'topic:x', person_a_id: 'person:b', person_b_id: 'person:a' }, // same pair swapped
-      ],
-    })
-    expect(core._addedEdges.length).toBe(1)
-  })
-
-  it('emits distinct edges for the same pair on different topics', () => {
-    const a = makeNode('g:person:a')
-    const b = makeNode('g:person:b')
-    const core = makeCore([a, b])
-    // @ts-expect-error MockCore
-    applyConsensusEdges(core, {
-      consensus: [
-        { topic_id: 'topic:x', person_a_id: 'person:a', person_b_id: 'person:b' },
-        { topic_id: 'topic:y', person_a_id: 'person:a', person_b_id: 'person:b' },
-      ],
-    })
-    expect(core._addedEdges.length).toBe(2)
-  })
-
-  it('skips rows where a person is not in the graph slice', () => {
-    const a = makeNode('g:person:a')
-    const core = makeCore([a])
-    // @ts-expect-error MockCore
-    applyConsensusEdges(core, {
-      consensus: [{ topic_id: 'topic:x', person_a_id: 'person:a', person_b_id: 'person:missing' }],
-    })
-    expect(core._addedEdges.length).toBe(0)
-  })
-
-  it('clearConsensusEdges removes every consensus edge', () => {
-    const a = makeNode('g:person:a')
-    const b = makeNode('g:person:b')
-    const core = makeCore([a, b])
-    // @ts-expect-error MockCore
-    applyConsensusEdges(core, {
-      consensus: [{ topic_id: 'topic:x', person_a_id: 'person:a', person_b_id: 'person:b' }],
-    })
-    // @ts-expect-error MockCore
-    clearConsensusEdges(core)
-    expect(core._removedEdges.length).toBe(1)
   })
 })
 

@@ -25,9 +25,7 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
-import { useGraphLoadModeStore } from '../../stores/graphLoadMode'
-import { useGraphStorylineFocusStore } from '../../stores/graphStorylineFocus'
-import { useGraphTopDownStore } from '../../stores/graphTopDown'
+import { graphCanvasPlugins, graphLenses as registeredGraphLenses } from '../../extensions'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -36,26 +34,15 @@ import { useActiveSearchContextStore } from '../../stores/activeSearchContext'
 import { useShellStore } from '../../stores/shell'
 import { useThemeStore } from '../../stores/theme'
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
-import type { TopicClustersDocument } from '../../api/corpusTopicClustersApi'
-import {
-  THEME_REGION_PALETTE_SIZE,
-  storylineRegionIndex,
-} from '../../utils/themeRegionPalette'
 import {
   applyCoGuestEdges,
-  applyConsensusEdges,
   applyCredibilityBorder,
   applyPersonCommunityRegions,
-  applyVelocityHalo,
   clearCoGuestEdges,
-  clearConsensusEdges,
   clearCredibilityBorder,
   clearPersonCommunityRegions,
-  clearVelocityHalo,
   type CoGuestEnvelopeData,
-  type ConsensusEnvelopeData,
   type GroundingEnvelopeData,
-  type VelocityEnvelopeData,
 } from '../../utils/cyGraphLensOverlays'
 import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
@@ -103,7 +90,6 @@ import { visualNodeTypeCounts } from '../../utils/visualGroup'
 import GraphBottomBar from './GraphBottomBar.vue'
 import GraphFilterBar from './GraphFilterBar.vue'
 import GraphGestureOverlay from './GraphGestureOverlay.vue'
-import GraphThemeLegend from './GraphThemeLegend.vue'
 import GraphStatusLine from './GraphStatusLine.vue'
 
 registerNavigator(cytoscape)
@@ -115,9 +101,6 @@ const emit = defineEmits<{
 
 const gf = useGraphFilterStore()
 const lenses = useGraphLensesStore()
-const storylineFocus = useGraphStorylineFocusStore()
-const loadMode = useGraphLoadModeStore()
-const topDown = useGraphTopDownStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
@@ -792,38 +775,6 @@ function clearGraphSelectionDim(core: Core): void {
   })
 }
 
-/** graph-v3 tier 7-3 — theme-focus dim.
- *  Called from the legend focus bus (`useGraphStorylineFocusStore`). Every node
- *  whose `storylineId` is IN the provided set is treated as focused;
- *  everything else is dimmed. Edges are dimmed unless BOTH endpoints are in
- *  the focus set. `storylineId` is propagated onto Insight / Episode /
- *  Person / Podcast / Org nodes upstream (see graph-v3 tier T), so the
- *  focus signal reaches the whole community, not just its TopicCluster
- *  parent. Empty set clears back to the default view.  */
-function applyGraphSelectionDimFromThemeIds(core: Core, themeIds: Set<string>): void {
-  if (themeIds.size === 0) {
-    clearGraphSelectionDim(core)
-    return
-  }
-  core.batch(() => {
-    core.nodes().addClass('graph-dimmed')
-    core.edges().addClass('graph-edge-dimmed')
-    core.nodes().forEach((n) => {
-      const tid = n.data('storylineId')
-      if (typeof tid === 'string' && themeIds.has(tid)) {
-        n.addClass('graph-neighbour').removeClass('graph-dimmed')
-      }
-    })
-    core.edges().forEach((ee) => {
-      const sDim = ee.source().hasClass('graph-dimmed')
-      const tDim = ee.target().hasClass('graph-dimmed')
-      if (!sDim && !tDim) {
-        ee.addClass('graph-edge-neighbour').removeClass('graph-edge-dimmed')
-      }
-    })
-  })
-}
-
 function clearEpisodeRepresentativeGraphState(core: Core | null): void {
   episodeTerritoryMode.value = 'off'
   if (!core) {
@@ -1075,45 +1026,6 @@ function applyGraphSelectionDimFromNode(core: Core, node: NodeSingular): void {
   })
 }
 
-// graph-v3 U — palette + hash extracted to `utils/themeRegionPalette.ts`
-// so the legend + tests can resolve the same colour for a given `thc:...`
-// id without duplicating the constants here.
-
-/** graph-v3 R-V + Tier 5A-2 — paint theme-cluster region classes.
- *
- *  Propagation now runs artifact-side in `applyStorylinesOverlay` so
- *  every raw graph node with a theme membership already carries a
- *  `storylineId` on its data (Topics + Episodes as direct seeds;
- *  Insights + Persons + Orgs + Podcasts by edge-walk propagation).
- *  This function only PAINTS: for each node with storylineId set,
- *  add the matching `theme-region-N` class based on the stable hash.
- *  Enricher-gated caller (finishLayoutPass / watcher) keeps this a
- *  no-op when the artifact isn't loaded. */
-function applyThemeRegionClasses(
-  core: Core,
-  doc: TopicClustersDocument | null,
-): void {
-  if (!doc?.clusters?.length) return
-  core.batch(() => {
-    for (let i = 0; i < THEME_REGION_PALETTE_SIZE; i++) {
-      core.nodes().removeClass(`theme-region-${i}`)
-    }
-    core.nodes().forEach((n) => {
-      const raw = n.data('storylineId')
-      if (typeof raw !== 'string' || !raw.trim()) return
-      n.addClass(`theme-region-${storylineRegionIndex(raw)}`)
-    })
-  })
-}
-
-function clearThemeRegionClasses(core: Core): void {
-  core.batch(() => {
-    for (let i = 0; i < THEME_REGION_PALETTE_SIZE; i++) {
-      core.nodes().removeClass(`theme-region-${i}`)
-    }
-  })
-}
-
 /** graph-v3 Tier 5C/5D — refresh every enricher-based lens overlay
  *  based on the current lens flags + corpus. Each lens fetches its
  *  envelope via the cached helper (so subsequent calls are a Map hit)
@@ -1124,19 +1036,6 @@ function refreshEnricherLensOverlays(): void {
   const core = cy
   if (!core) return
   const root = shell.corpusPath.trim()
-  // Velocity halo (Topic/Person)
-  if (lenses.velocityHalo && root) {
-    void fetchCachedCorpusEnvelope<VelocityEnvelopeData>(root, 'temporal_velocity')
-      .then((env) => {
-        if (!cy) return
-        applyVelocityHalo(cy, env?.data ?? null)
-      })
-      .catch(() => {
-        /* silently degrade — lens stays clear */
-      })
-  } else {
-    clearVelocityHalo(core)
-  }
   // Person credibility border
   if (lenses.personCredibility && root) {
     void fetchCachedCorpusEnvelope<GroundingEnvelopeData>(root, 'grounding_rate')
@@ -1149,19 +1048,6 @@ function refreshEnricherLensOverlays(): void {
       })
   } else {
     clearCredibilityBorder(core)
-  }
-  // Consensus edges
-  if (lenses.consensusEdges && root) {
-    void fetchCachedCorpusEnvelope<ConsensusEnvelopeData>(root, 'topic_consensus')
-      .then((env) => {
-        if (!cy) return
-        applyConsensusEdges(cy, env?.data ?? null)
-      })
-      .catch(() => {
-        /* silently degrade */
-      })
-  } else {
-    clearConsensusEdges(core)
   }
   // Co-guest edges
   if (lenses.coGuestEdges && root) {
@@ -1189,59 +1075,24 @@ function refreshEnricherLensOverlays(): void {
   } else {
     clearPersonCommunityRegions(core)
   }
-}
-
-/** graph-v3 Tier 5B — annotate bridge nodes with the themes they bridge.
- *  For each node carrying the `graph-bridge` class, walk its neighbourhood
- *  and collect the distinct storylineId values touched by neighbours;
- *  when the set has >=2 entries, store both the ids and the human labels
- *  on the bridge node's data as `bridgedThemes` / `bridgedThemeLabels`.
- *
- *  Compositional signal: makes K's rose ring analytically meaningful when
- *  the theme regions lens is on ("bridge between AI-and-jobs and
- *  interest-rates"). No-op when either lens is off or when the theme-cluster
- *  artifact isn't loaded — the empty label set falls out naturally. */
-function annotateBridgesWithThemes(
-  core: Core,
-  doc: TopicClustersDocument | null,
-): void {
-  const labelById = new Map<string, string>()
-  for (const cl of doc?.clusters ?? []) {
-    const id = typeof cl?.graph_compound_parent_id === 'string' ? cl.graph_compound_parent_id.trim() : ''
-    if (!id) continue
-    const lbl = typeof cl?.canonical_label === 'string' && cl.canonical_label.trim() ? cl.canonical_label.trim() : id
-    labelById.set(id, lbl)
+  // Lenses a build registered (extension point `graphLenses`).
+  for (const lens of registeredGraphLenses.list()) {
+    if (lenses.isLensOn(lens.id) && root) {
+      void Promise.resolve()
+        .then(() => (cy ? lens.apply(cy, root) : undefined))
+        .catch(() => {
+          /* silently degrade, as the viewer's own lenses do */
+        })
+    } else {
+      lens.clear(core)
+    }
   }
-  core.batch(() => {
-    core.nodes('.graph-bridge').forEach((bridge) => {
-      const themes = new Set<string>()
-      bridge.neighborhood('node').forEach((nb) => {
-        const t = nb.data('storylineId')
-        if (typeof t === 'string' && t && labelById.has(t)) themes.add(t)
-      })
-      if (themes.size >= 2) {
-        const arr = Array.from(themes).sort()
-        bridge.data('bridgedThemes', arr)
-        bridge.data(
-          'bridgedThemeLabels',
-          arr.map((t) => labelById.get(t) ?? t),
-        )
-      } else {
-        try {
-          bridge.removeData('bridgedThemes')
-          bridge.removeData('bridgedThemeLabels')
-        } catch {
-          /* removeData is not available on all cytoscape versions; ignore */
-        }
-      }
-    })
-  })
 }
 
 /** graph-v3 Tier 6-4 — bridge hover tooltip.
  *  When the cursor lands on a `.graph-bridge` node, mutate the canvas
- *  container's native `title` attribute so the OS tooltip surfaces the
- *  themes this bridge spans (populated by `annotateBridgesWithThemes`).
+ *  container's native `title` attribute so the OS tooltip explains the
+ *  rose ring.
  *  Native `title` gives the ~0.5s hover delay users expect and zero
  *  extra DOM/JS surface — Cytoscape draws to canvas so there is no
  *  per-node element to hang tippy off cheaply. Non-bridge hovers clear
@@ -1255,18 +1106,14 @@ function maybeSetBridgeHoverTitle(
     if (el.hasAttribute('title')) el.removeAttribute('title')
     return
   }
-  const raw = node.data('bridgedThemeLabels')
-  const labels = Array.isArray(raw)
-    ? raw.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-    : []
-  if (labels.length < 2) {
-    /* Bridge without theme-cluster context (theme regions lens off or
-       artifact missing) — still surface a minimal tooltip so users
-       understand the rose ring. */
-    el.setAttribute('title', 'Bridge node — connects distinct neighbourhoods')
-    return
+  for (const plugin of graphCanvasPlugins.list()) {
+    const title = plugin.bridgeTitle?.(node)
+    if (title) {
+      el.setAttribute('title', title)
+      return
+    }
   }
-  el.setAttribute('title', `Bridge: ${labels.join(' ↔ ')}`)
+  el.setAttribute('title', 'Bridge node — connects distinct neighbourhoods')
 }
 
 function clearBridgeHoverTitle(el: HTMLElement | null): void {
@@ -1480,7 +1327,7 @@ function timelineLayoutSpec(core: Core): Record<string, unknown> {
     })
   }
   placeBand('node[type = "Topic"]', TIMELINE_TOPIC_BAND_OFFSET)
-  placeBand('node[type = "TopicCluster"]', TIMELINE_TOPIC_BAND_OFFSET)
+  for (const t of pluginTopicLikeTypes()) placeBand(`node[type = "${t}"]`, TIMELINE_TOPIC_BAND_OFFSET)
   placeBand('node[type = "Entity_person"]', TIMELINE_PERSON_BAND_OFFSET)
   placeBand('node[type = "Entity_organization"]', TIMELINE_PERSON_BAND_OFFSET)
 
@@ -1626,7 +1473,7 @@ function collectAnchorsForAddedComponent(
       seenNeighbor.add(oid)
       const t = String(o.data('type') ?? '')
       const p = o.position()
-      if (t === 'Topic' || t === 'TopicCluster') {
+      if (t === 'Topic' || pluginTopicLikeTypes().includes(String(t))) {
         topicLike.push(p)
       } else {
         otherFixed.push(p)
@@ -1638,7 +1485,7 @@ function collectAnchorsForAddedComponent(
 
 /**
  * Seed model positions for newly appended nodes before a localized COSE pass.
- * Prefers Topic / TopicCluster neighbours already on the graph; otherwise uses other fixed neighbours;
+ * Prefers Topic neighbours already on the graph; otherwise uses other fixed neighbours;
  * disconnected new components go to the right of the existing bbox.
  */
 function seedPositionsForIncrementalAppend(core: Core, addedIds: Set<string>): void {
@@ -1856,10 +1703,9 @@ function finishLayoutPass(core: Core): void {
     return
   }
   /* HD22 (2026-07-19) — always-on `flp:total` performance.measure so the
-   * capture-graph-lcp mjs (private eval repo) can observe real settle time on the topDown
-   * expand-on-tap path (and everywhere else). Cost is a `performance.mark`
+   * a graph-LCP capture script can observe real settle time. Cost is a `performance.mark`
    * pair on entry/exit — sub-microsecond, no allocation, no side-effect.
-   * Per-phase marks (`flp:bridgeRing`, `flp:storylineRegions`, …) were
+   * Per-phase marks (`flp:bridgeRing`, …) were
    * removed pre-commit in #1207 and are NOT restored here — they can be
    * added back locally when a specific phase needs blame. */
   const flpStartMark = `flp:start:${core.nodes().length}`
@@ -1874,19 +1720,14 @@ function finishLayoutPass(core: Core): void {
   } else {
     cy.nodes().removeClass('graph-bridge')
   }
-  if (lenses.storylineRegions) {
-    applyThemeRegionClasses(cy, artifacts.storylinesDoc)
-  } else {
-    clearThemeRegionClasses(cy)
-  }
-  // graph-v3 Tier 5B — when both bridge + theme lenses are on, tag each bridge
-  // node with the set of themes it connects. Data-only for now (surfaced in
-  // NodeDetail below); a future iteration could paint a specific glyph.
-  annotateBridgesWithThemes(cy, artifacts.storylinesDoc)
   /* graph-v3 Tier 5C/5D — enricher-based lens overlays. Fire-and-forget
      async fetches (cache-warm after first call). Each apply function is
      a no-op when the envelope is null. */
   refreshEnricherLensOverlays()
+  for (const plugin of graphCanvasPlugins.list()) {
+    const c = cy
+    safeGraphWatch(`plugin:${plugin.id}:layout`, () => plugin.onLayoutPass?.(c))
+  }
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
   // Clear the fit request flag after applying viewport (fit or preserve)
@@ -1984,7 +1825,9 @@ function finishLayoutPass(core: Core): void {
     }
   }
   reapplySelectionDimmingIfAny(core)
-  applyTopicClusterMemberCollapse(core)
+  for (const plugin of graphCanvasPlugins.list()) {
+    safeGraphWatch(`plugin:${plugin.id}:restore`, () => plugin.afterRestore?.(core))
+  }
   applyCrossEpisodeExpandHints(core)
   scheduleNodeEpisodesCorpusBeyondProbes()
   const viewArt = gf.viewWithEgo(focusNodeId.value)
@@ -2326,25 +2169,6 @@ function scheduleNodeEpisodesCorpusBeyondProbes(): void {
   }, 400)
 }
 
-/** Hide member Topic nodes inside collapsed TopicCluster compounds (detail rail toggle). */
-function applyTopicClusterMemberCollapse(core: Core): void {
-  const collapsed = nav.topicClusterCanvasCollapsedIds
-  core.batch(() => {
-    core.nodes('[parent]').forEach((ele) => {
-      try {
-        const p = ele.data('parent')
-        if (typeof p !== 'string' || !p.trim()) {
-          return
-        }
-        const hide = collapsed.includes(p.trim())
-        ele.style('display', hide ? 'none' : 'element')
-      } catch {
-        /* ignore */
-      }
-    })
-  })
-}
-
 /* RFC-080 V4 — radial focus mode state. The mode is enter/exit only;
  * snapshots capture node positions + per-element display so an exit
  * restores the graph exactly. Held at module scope (not pinia) because
@@ -2361,8 +2185,8 @@ function enterRadialMode(centreId: string): boolean {
   if (centre.empty() || !centre.isNode()) return false
 
   // Ring 1 = 1-hop neighbour nodes; ring 2 = 2-hop minus ring 1 minus
-  // the centre itself. Compound (TopicCluster) members participate in
-  // ring 1 alongside external 1-hop neighbours per RFC-080 V4.
+  // the centre itself. Compound members participate in ring 1 alongside
+  // external 1-hop neighbours per RFC-080 V4.
   const ring1 = centre.neighborhood('node').union(centre.children('node'))
   const ring2 = ring1.neighborhood('node').difference(ring1).difference(centre)
   const ring1Ids = ring1.map((n) => n.id())
@@ -2652,56 +2476,6 @@ function animateCameraToFocusedNode(
 }
 
 /** @returns ``true`` when pending focus was applied (camera + selection); caller may skip episode-strip camera. */
-/** graph-v3 tier 8-3 — walk the full artifact + theme doc to find the
- *  super-theme housing a pending-focus node id; expand it so the next
- *  redraw's `tryApplyPendingFocus` can resolve the target. Safe to call
- *  with any raw id (fallback ids, bare ids, prefixed ids) — the id
- *  lookup is best-effort and returns silently on miss. */
-function maybeExpandTopDownForPendingFocus(rawId: string): void {
-  const full = artifacts.displayArtifact?.data
-  if (!full) return
-  const storylineDoc = artifacts.storylinesDoc
-  if (!storylineDoc?.clusters?.length) return
-  const clusterToSuper = new Map<string, string>()
-  for (const cl of storylineDoc.clusters) {
-    const cid =
-      typeof cl?.graph_compound_parent_id === 'string'
-        ? cl.graph_compound_parent_id.trim()
-        : ''
-    const sid = typeof cl?.super_theme_id === 'string' ? cl.super_theme_id.trim() : ''
-    if (cid && sid) clusterToSuper.set(cid, sid)
-  }
-  if (clusterToSuper.size === 0) return
-  const nodes = Array.isArray(full.nodes) ? full.nodes : []
-  const findNode = (id: string) => {
-    const wanted = id.trim()
-    if (!wanted) return undefined
-    for (const n of nodes) {
-      if (n && n.id != null && String(n.id) === wanted) return n
-    }
-    return undefined
-  }
-  let target = findNode(rawId)
-  if (!target) {
-    /* Try common id-prefix normalizations before giving up. */
-    if (rawId.startsWith('g:') || rawId.startsWith('k:')) {
-      target = findNode(rawId.slice(2))
-    } else {
-      target = findNode(`g:${rawId}`) ?? findNode(`k:${rawId}`)
-    }
-  }
-  if (!target) return
-  const tcid =
-    typeof (target as { storylineId?: unknown }).storylineId === 'string'
-      ? String((target as { storylineId?: unknown }).storylineId).trim()
-      : ''
-  if (!tcid) return
-  const sid = clusterToSuper.get(tcid)
-  if (!sid) return
-  if (topDown.isExpanded(sid)) return
-  topDown.expandSuperTheme(sid)
-}
-
 function tryApplyPendingFocus(core: Core): boolean {
   // F3a — generation-token check point #6 (FSM spec § 8 sites). If a newer
   // handoff has bumped generation since this watcher fired, abandon the apply.
@@ -2717,15 +2491,7 @@ function tryApplyPendingFocus(core: Core): boolean {
   }
   /** Do not clear pending: ``redraw`` can leave the graph mid-rebuild; a later ``finishLayoutPass`` / watcher applies. */
   if (!cyId) {
-    /* graph-v3 tier 8-3 — search reveals hidden. In top-down mode the
-     * search target may live under a collapsed super-theme. Look up
-     * the target's storylineId in the FULL display artifact,
-     * roll it up to super_theme_id, and expand that super-theme.
-     * The store change re-derives topDownDisplayArtifact and the
-     * next redraw's tryApplyPendingFocus call succeeds. */
-    if (loadMode.isTopDown) {
-      maybeExpandTopDownForPendingFocus(rawId)
-    }
+    for (const plugin of graphCanvasPlugins.list()) plugin.onFocusTargetMissing?.(rawId)
     return false
   }
   if (graphHandoff.isStale(entryGen)) {
@@ -3010,7 +2776,7 @@ function clearInteractionState(opts?: { skipRedraw?: boolean }): void {
   clearEpisodeRepresentativeGraphState(cy)
   nav.clearPendingFocus()
   nav.clearLibraryEpisodeHighlights()
-  nav.clearTopicClusterCanvasCollapsed()
+  for (const plugin of graphCanvasPlugins.list()) plugin.onInteractionReset?.()
   clearSelectedNodeZoomAnchor()
   const hadEgo = focusNodeId.value !== null
   if (hadEgo) {
@@ -3784,6 +3550,10 @@ function redraw(): void {
       elements,
       style: buildCyStyle(),
       wheelSensitivity: 0.35,
+      // No layout at construction: the real one runs below and places every node itself.
+      // Cytoscape's default grid layout would run here first, and on a container with no usable
+      // size (mid-handoff) its bounding box comes back undefined and it throws.
+      layout: { name: 'null' },
     })
     cy = core
     if (import.meta.env.DEV) {
@@ -3999,22 +3769,11 @@ function redraw(): void {
       selectedNodeId.value = null
       subject.clearSubject()
       clearSelectedNodeZoomAnchor()
-      // graph-v3 tier 7-3 — tapping the empty canvas clears legend focus too.
-      storylineFocus.clearFocus()
+      for (const plugin of graphCanvasPlugins.list()) plugin.onEmptyTap?.(core)
       return
     }
     if (typeof t.isNode === 'function' && t.isNode()) {
-      /* graph-v3 tier 8-2 — tapping a SuperTheme node in top-down mode
-       * toggles its expand state instead of running the normal select
-       * flow. The store change re-derives `topDownDisplayArtifact`
-       * which re-renders the graph with the projected children. */
-      if (loadMode.isTopDown && t.data('type') === 'SuperTheme') {
-        topDown.toggleSuperTheme(t.id())
-        return
-      }
-      // Tapping a node hands control back to the selection-dim path; drop
-      // any active theme focus so the two dim sources don't fight.
-      storylineFocus.clearFocus()
+      if (graphCanvasPlugins.list().some((plugin) => plugin.onNodeTap?.(core, t) === true)) return
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = t.id()
@@ -4030,10 +3789,8 @@ function redraw(): void {
   core.on('onetap', (evt) => {
     const t = evt.target
     if (typeof t.isNode === 'function' && t.isNode()) {
+      if (graphCanvasPlugins.list().some((plugin) => plugin.onNodeOneTap?.(t) === true)) return
       const id = t.id()
-      // graph-v3 tier 8-2 — SuperTheme tap is handled by the `tap` handler
-      // (expand toggle); don't open the detail rail for synthetic nodes.
-      if (loadMode.isTopDown && t.data('type') === 'SuperTheme') return
       // F1.2 — fire FSM canvasTapped before opening rail. The tap is direct
       // (no load barriers needed); FSM transitions to `applying` then `ready`
       // via supersession or finishLayoutPass apply phase.
@@ -4058,17 +3815,8 @@ function redraw(): void {
       raw && 'shiftKey' in raw ? Boolean((raw as MouseEvent).shiftKey) : false
     const t = evt.target
     if (typeof t.isNode === 'function' && t.isNode()) {
+      if (graphCanvasPlugins.list().some((plugin) => plugin.onNodeDblTap?.(t) === true)) return
       const id = t.id()
-      /* graph-v3 tier 8-6 — dbltap on a SuperTheme in top-down mode is
-       * semantically the same as tapping it: expand. Projected children
-       * are already visible (their super-theme is already expanded, or
-       * they wouldn't render), and the ego path uses `displayArtifact`
-       * (the FULL artifact), not the top-down slice — so there's no
-       * super-theme-expansion work to do for children here. */
-      if (loadMode.isTopDown && t.data('type') === 'SuperTheme') {
-        topDown.toggleSuperTheme(id)
-        return
-      }
       if (shift) {
         const c = cy
         const cur = focusNodeId.value
@@ -4163,6 +3911,30 @@ const typeHistogramCounts = computed(() => {
 })
 
 /** Avoid Vue “unhandled error in watcher” / uncaught promise if cytoscape callbacks throw. */
+/** Canvas plugins (extension point `graphCanvasPlugins`): topic-like node types and lifecycle. */
+function pluginTopicLikeTypes(): string[] {
+  return graphCanvasPlugins.list().flatMap((plugin) => plugin.topicLikeTypes ?? [])
+}
+const pluginDisposers: Array<() => void> = []
+const pluginContext = {
+  core: () => cy,
+  guarded(label: string, fn: (core: Core) => void): void {
+    safeGraphWatch(label, () => {
+      const c = cy
+      if (c) fn(c)
+    })
+  },
+}
+onMounted(() => {
+  for (const plugin of graphCanvasPlugins.list()) {
+    const dispose = plugin.setup?.(pluginContext)
+    if (dispose) pluginDisposers.push(dispose)
+  }
+})
+onUnmounted(() => {
+  for (const dispose of pluginDisposers.splice(0)) dispose()
+})
+
 function safeGraphWatch(label: string, fn: () => void): void {
   try {
     fn()
@@ -4349,8 +4121,7 @@ watch(
         priorEgoBeforeWatcherClear = focusNodeId.value?.trim() ?? ''
         focusNodeId.value = null
         selectedNodeId.value = null
-        // Keep the subject rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
-        // detail). Otherwise clearing the subject wipes ids and feels like Search replaced detail — bad
+        // Keep the subject rail on **Episode** (Library / Digest) or **Graph node**. Otherwise clearing the subject wipes ids and feels like Search replaced detail — bad
         // when the graph reloads after **Load** on a cluster member (append artifacts) or
         // **Open in graph**: user expects panels to stay and only the canvas to expand.
         const keepDetailRailOpen =
@@ -4359,7 +4130,7 @@ watch(
           subject.clearSubject()
         }
         nav.clearLibraryEpisodeHighlights()
-        nav.clearTopicClusterCanvasCollapsed()
+        for (const plugin of graphCanvasPlugins.list()) plugin.onInteractionReset?.()
         pendingViewportPreserve = null
         egoPriorFullGraphViewportPreserve = null
         const restoreGraphNodeId =
@@ -4549,36 +4320,6 @@ watch(
   },
 )
 
-/* graph-v3 R-V — lens toggles for theme-cluster regions + bridge take
-   effect without a full re-layout. Class add/remove only, so pan / zoom /
-   selection state is preserved. Also watches the theme-cluster doc
-   itself: switching corpora reloads the artifact, so the region tint
-   needs to refresh even if the lens flag hasn't changed. */
-watch(
-  () => lenses.storylineRegions,
-  (on) => {
-    safeGraphWatch('storylineRegions', () => {
-      const c = cy
-      if (!c) return
-      if (on) applyThemeRegionClasses(c, artifacts.storylinesDoc)
-      else clearThemeRegionClasses(c)
-    })
-  },
-)
-
-watch(
-  () => artifacts.storylinesDoc,
-  () => {
-    safeGraphWatch('storylinesDoc', () => {
-      const c = cy
-      if (!c) return
-      if (lenses.storylineRegions) {
-        applyThemeRegionClasses(c, artifacts.storylinesDoc)
-      }
-    })
-  },
-)
-
 /* graph-v3 Tier 5C/5D — enricher-lens toggles route through
    refreshEnricherLensOverlays which handles both enable + disable
    (fetch + apply / clear). Each watcher is intentionally tiny — the
@@ -4586,11 +4327,11 @@ watch(
    same fetch cadence and error handling. */
 watch(
   () => [
-    lenses.velocityHalo,
     lenses.personCredibility,
-    lenses.consensusEdges,
     lenses.coGuestEdges,
     lenses.personCommunities,
+    lenses.registered,
+    ...registeredGraphLenses.list().map((l) => l.watchSource?.()),
   ] as const,
   () => {
     safeGraphWatch('enricherLenses', () => refreshEnricherLensOverlays())
@@ -4605,33 +4346,6 @@ watch(
       if (!c) return
       if (on) applyBridgeNodeClass(c)
       else c.nodes().removeClass('graph-bridge')
-    })
-  },
-)
-
-/** graph-v3 tier 8-2 — reset expansions when leaving top-down mode.
- *  Not persisted across mode flips: entering top-down again starts at
- *  the clean super-theme preview. USERPREFS-1 still remembers the
- *  overall mode so cross-tab / cross-device state carries. */
-watch(
-  () => loadMode.isTopDown,
-  (isTopDown, wasTopDown) => {
-    if (wasTopDown && !isTopDown) topDown.clearExpanded()
-  },
-)
-
-/** graph-v3 tier 7-3 — legend focus bus.
- *  React to `useGraphStorylineFocusStore` changes. Skip when a node is
- *  currently :selected (existing selection-dim wins) so a legend click
- *  can't strip the user's node-selection context. */
-watch(
-  () => storylineFocus.focusedStorylineIds,
-  (ids) => {
-    safeGraphWatch('storylineFocus', () => {
-      const c = cy
-      if (!c) return
-      if (c.nodes(':selected').length > 0) return
-      applyGraphSelectionDimFromThemeIds(c, ids)
     })
   },
 )
@@ -4672,19 +4386,6 @@ watch(
       })
     })
   },
-)
-
-watch(
-  () => [...nav.topicClusterCanvasCollapsedIds],
-  () => {
-    safeGraphWatch('topicClusterCollapse', () => {
-      const c = cy
-      if (c) {
-        applyTopicClusterMemberCollapse(c)
-      }
-    })
-  },
-  { deep: true },
 )
 
 watch(
@@ -4730,6 +4431,7 @@ let radialKeydownHandler: ((e: KeyboardEvent) => void) | null = null
 
 function attachRadialKeydown(): void {
   radialKeydownHandler = (e: KeyboardEvent): void => {
+    if (graphCanvasPlugins.list().some((plugin) => plugin.onKeydown?.(e) === true)) return
     if (e.key === 'Escape' && radialModeActive.value) {
       e.preventDefault()
       exitRadialMode()
@@ -4748,25 +4450,6 @@ function attachRadialKeydown(): void {
       const target = sel.empty() ? null : sel.first()
       if (!target) return
       enterRadialMode(target.id())
-    }
-    /* graph-v3 tier 8-5 — Shift+E toggles load-mode (Top-down ↔ Everything).
-     * `key === 'E'` because Shift is held; guard against Alt/Ctrl/Meta so
-     * this doesn't collide with browser / OS shortcuts. Ignore when focus
-     * is in an input to preserve capital E typing. */
-    if (
-      e.key === 'E' &&
-      e.shiftKey &&
-      !e.altKey &&
-      !e.ctrlKey &&
-      !e.metaKey &&
-      !(
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target instanceof HTMLElement && e.target.isContentEditable)
-      )
-    ) {
-      e.preventDefault()
-      loadMode.toggleMode()
     }
   }
   window.addEventListener('keydown', radialKeydownHandler, true)
@@ -5043,8 +4726,11 @@ defineExpose({
             />
           </div>
         </div>
-        <!-- graph-v3 Tier 5A-1 — theme-cluster legend, opposite corner from minimap. -->
-        <GraphThemeLegend />
+        <component
+          :is="plugin.overlay"
+          v-for="plugin in graphCanvasPlugins.list().filter((x) => x.overlay)"
+          :key="plugin.id"
+        />
         </div>
         <GraphBottomBar
           v-if="gf.state"

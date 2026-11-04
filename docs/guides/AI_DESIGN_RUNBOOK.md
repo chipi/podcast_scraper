@@ -493,7 +493,7 @@ Before you start:
 
 ## Further reading
 
-- **UX Specifications:** [UXS-011 Consumer Learning App](../uxs/UXS-011-consumer-learning-app.md), [UXS-014 Interaction Patterns](../uxs/UXS-014-interaction-patterns.md)
+- **UX Specifications:** UXS-011 Consumer Learning App, UXS-014 Interaction Patterns
 - **Design tokens:** `src/theme/tokens.css` (the frozen API)
 - **Validation harness:** `e2e/validation/README.md` (if it exists) or `playwright.validation.config.ts`
 - **E2E Testing Guide:** [E2E Testing Guide](E2E_TESTING_GUIDE.md)

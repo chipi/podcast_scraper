@@ -4,14 +4,11 @@
  * Drives ``make serve-for-validation`` against a real operator-supplied
  * corpus and exercises the shipped Search v3 surfaces end-to-end:
  *
- *   T1 — GET /api/search?enrich_results=true → EnrichedAnswerHero
- *   T2 — GET /api/search?operator=cluster    → operator-cluster-panel
- *   T3 — GET /api/search?operator=consensus  → operator-consensus-panel
  *   T4 — POST /api/search/compare (§S8)      → operator-compare-columns
  *   T5 — GET /api/search?episode_id=…        → rail "Search within episode"
  *
  * Each walk defensively skips when the corpus lacks the required
- * artifact (no enrichment output, no topic_consensus.json, etc.) —
+ * artifact (no vector index, too few comparable subjects, etc.) —
  * Tier-2 covers the "response present" contract; Tier-3 is drift
  * detection against the real backend.
  *
@@ -92,106 +89,6 @@ test.describe('Search v3 real-corpus validation', () => {
     expect(resp?.ok(), 'api at localhost:8000 must be reachable (start `make serve-for-validation`)').toBe(
       true,
     )
-  })
-
-  test('T1 — enriched-answer hero renders topic chips from the real QueryEnricher chain', async ({
-    page,
-  }, testInfo) => {
-    const hasIndex = await corpusHasSearchIndex(page)
-    test.skip(!hasIndex, 'corpus has no vector index — Tier-2 P1.5 covers this surface')
-    await signInIsolated(page, 'search-v3-t1', testInfo)
-    await landOnSearch(page)
-
-    // Verify the shell reports enrichment availability BEFORE we submit
-    // (the hero auto-adopts capability when the chip stays null). If
-    // enrichment isn't configured on this corpus, the hero is
-    // legitimately absent — skip rather than fail.
-    const health = await page.request
-      .get(`http://localhost:8000/api/health?path=${encodeURIComponent(CORPUS_PATH)}`)
-      .then((r) => r.json())
-      .catch(() => null)
-    test.skip(
-      !health?.enriched_search_available,
-      'corpus has no enrichments/topic_similarity.json — S5 hero cannot decorate hits',
-    )
-    await submitSearch(page, 'AI')
-    await page.screenshot({
-      path: 'validation-results/search-v3-t1-1-results.png',
-      fullPage: false,
-    })
-    // Hero renders WHEN the query enricher decorated at least one hit.
-    // Some queries yield zero decorated hits (topic similarity below
-    // threshold across the whole page); accept that as a valid terminal.
-    const hero = page.getByTestId('enriched-answer-hero')
-    const heroVisible = await hero.isVisible().catch(() => false)
-    if (heroVisible) {
-      // If it renders, it MUST hold at least one topic chip.
-      const chips = page.getByTestId('enriched-answer-topics').locator('li')
-      await expect(chips.first()).toBeVisible({ timeout: 5_000 })
-      await page.screenshot({
-        path: 'validation-results/search-v3-t1-2-hero-visible.png',
-        fullPage: false,
-      })
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('[validation T1] no enrichment decorated hits — hero hidden, valid terminal')
-    }
-  })
-
-  test('T2 — operator=cluster round-trip renders operator-cluster-panel', async ({
-    page,
-  }, testInfo) => {
-    const hasIndex = await corpusHasSearchIndex(page)
-    test.skip(!hasIndex, 'corpus has no vector index')
-    await signInIsolated(page, 'search-v3-t2', testInfo)
-    await landOnSearch(page)
-    await submitSearch(page, 'technology')
-    const bar = page.getByTestId('result-set-operator-bar')
-    await expect(bar).toBeVisible({ timeout: 10_000 })
-    await page.getByTestId('operator-chip-cluster').click()
-    const panel = page.getByTestId('operator-cluster-panel')
-    await expect(panel).toBeVisible({ timeout: 15_000 })
-    // Panel must reach a terminal state — either loading finishes with
-    // clusters, or the empty-state notice renders (no topic / theme
-    // anchors in the visible hits). No console error either way.
-    await expect(async () => {
-      const list = page.getByTestId('operator-cluster-list')
-      const empty = page.getByTestId('operator-cluster-empty')
-      const listVisible = await list.isVisible().catch(() => false)
-      const emptyVisible = await empty.isVisible().catch(() => false)
-      if (!listVisible && !emptyVisible) throw new Error('cluster panel still loading')
-    }).toPass({ timeout: 15_000 })
-    await page.screenshot({
-      path: 'validation-results/search-v3-t2-cluster.png',
-      fullPage: false,
-    })
-  })
-
-  test('T3 — operator=consensus round-trip renders operator-consensus-panel', async ({
-    page,
-  }, testInfo) => {
-    const hasIndex = await corpusHasSearchIndex(page)
-    test.skip(!hasIndex, 'corpus has no vector index')
-    await signInIsolated(page, 'search-v3-t3', testInfo)
-    await landOnSearch(page)
-    await submitSearch(page, 'regulation')
-    await page.getByTestId('operator-chip-consensus').click()
-    const panel = page.getByTestId('operator-consensus-panel')
-    await expect(panel).toBeVisible({ timeout: 15_000 })
-    // Terminal state: either the pairs list renders or the empty-state
-    // notice explains no consensus (corpus lacks topic_consensus.json,
-    // or no hit page topic overlaps a pair). No console error either way.
-    await expect(async () => {
-      const list = page.getByTestId('operator-consensus-list')
-      const empty = page.getByTestId('operator-consensus-empty')
-      const listVisible = await list.isVisible().catch(() => false)
-      const emptyVisible = await empty.isVisible().catch(() => false)
-      if (!listVisible && !emptyVisible) throw new Error('consensus panel still loading')
-    }).toPass({ timeout: 15_000 })
-    await page.screenshot({
-      path: 'validation-results/search-v3-t3-consensus.png',
-      fullPage: false,
-    })
   })
 
   test('T4 — POST /api/search/compare returns two grounded packs (§S8)', async ({

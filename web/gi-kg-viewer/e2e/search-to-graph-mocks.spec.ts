@@ -29,8 +29,7 @@ const TRANSCRIPT_BODY =
  *   with `episodes: []` for every corpus topic, so there is no timeline to render. Ladder §B.
  *
  * What IS live-capable and worth doing when the fixture above is revisited: the corpus serves real
- * GI artifacts (`/api/artifacts/<feed>/<run>/metadata/<ep>.gi.json` → 200) and real topic clusters,
- * so a future version could drive the graph from corpus data once the assertions are re-anchored.
+ * GI artifacts (`/api/artifacts/<feed>/<run>/metadata/<ep>.gi.json` → 200), so a future version could drive the graph from corpus data once the assertions are re-anchored.
  */
 test.describe('Search → graph (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
@@ -180,29 +179,6 @@ test.describe('Search → graph (mocked API)', () => {
         }),
       })
     })
-
-    await page.route('**/api/corpus/topic-clusters**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          schema_version: '2',
-          clusters: [
-            {
-              graph_compound_parent_id: 'tc:ci-policy-cluster',
-              cil_alias_target_topic_id: 'topic:ci-policy',
-              canonical_label: 'Climate policy cluster',
-              member_count: 1,
-              members: [{ topic_id: 'topic:ci-policy' }],
-            },
-          ],
-          topic_count: 1,
-          cluster_count: 1,
-          singletons: 0,
-        }),
-      })
-    })
-
     await page.route(/\/api\/topics\/(?:g%3A)?topic%3Aci-policy\/timeline\?/, async (route) => {
       const url = new URL(route.request().url())
       const path = url.searchParams.get('path') || '/mock/corpus'
@@ -230,74 +206,7 @@ test.describe('Search → graph (mocked API)', () => {
       })
     })
 
-    await page.route('**/api/topics/timeline', async (route) => {
-      if (route.request().method().toUpperCase() !== 'POST') {
-        await route.continue()
-        return
-      }
-      const body = route.request().postDataJSON() as { path?: string; topic_ids?: string[] }
-      const path = typeof body.path === 'string' && body.path.trim() ? body.path.trim() : '/mock/corpus'
-      const ids = Array.isArray(body.topic_ids) ? body.topic_ids : ['topic:ci-policy']
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path,
-          topic_ids: ids,
-          episodes: [
-            {
-              episode_id: 'ci-fixture',
-              publish_date: '2020-01-01',
-              episode_title: 'CI fixture episode',
-              feed_title: 'Stub feed',
-              episode_number: 1,
-              episode_image_url: null,
-              episode_image_local_relpath: null,
-              feed_image_url: null,
-              feed_image_local_relpath: null,
-              insights: [{ text: 'Merged cluster timeline insight.' }],
-            },
-          ],
-        }),
-      })
-    })
-
     await setupCorpusDashboardDataRoutes(page)
-  })
-
-  test('mocked topic-clusters v2 adds Topic cluster to Types row', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    // #658 — node-type list moved inside the Types chip popover.
-    await page.getByTestId('graph-chip-types').click()
-    await expect(
-      page.getByTestId('graph-popover-types').getByText(/Topic cluster\s*\(\d+\)/),
-    ).toBeVisible()
-  })
-
-  test('Dashboard Intelligence tab shows topic clusters loaded and schema line', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await page.getByTestId('status-bar-list-artifacts').waitFor({ state: 'visible', timeout: 15_000 })
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
-    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
-    await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
-
-    const block = page.getByTestId('topic-clusters-status-block')
-    await expect(block.getByRole('heading', { name: 'Topic clusters', level: 3 })).toBeVisible()
-    await expect(block.getByText('Loaded', { exact: true })).toBeVisible()
-    await expect(block.getByText(/schema_version:\s*2/)).toBeVisible()
   })
 
   test('corpus path auto-loads graph → search → Show on graph opens node detail', async ({
@@ -456,10 +365,9 @@ test.describe('Search → graph (mocked API)', () => {
     await page.getByTestId('node-detail-rail-tab-timeline').click()
     const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
     await expect(inlineTimeline).toBeVisible()
-    // The Timeline rail tab now labels the section; the cluster-vs-topic
-    // distinction lives in the episode-count copy below (no in-section heading).
+    // The Timeline rail tab now labels the section (no in-section heading).
     await expect(inlineTimeline).toContainText('CI fixture episode')
-    await expect(inlineTimeline).toContainText('1 episode with insights about this cluster.')
+    await expect(inlineTimeline).toContainText('1 episode with insights about this topic.')
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
     await expect(page.getByTestId('node-detail-topic-timeline')).toHaveCount(0)
 
@@ -547,24 +455,7 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(hint).toContainText('No speaker detected')
   })
 
-  test('topic detail renders inline topic timeline when cluster overlay is absent', async ({
-    page,
-  }) => {
-    await page.unroute('**/api/corpus/topic-clusters**')
-    await page.route('**/api/corpus/topic-clusters**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          schema_version: '2',
-          clusters: [],
-          topic_count: 0,
-          cluster_count: 0,
-          singletons: 0,
-        }),
-      })
-    })
-
+  test('topic detail renders the inline topic timeline', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
@@ -592,8 +483,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.getByTestId('node-detail-rail-tab-timeline').click()
     const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
     await expect(inlineTimeline).toBeVisible()
-    // Timeline rail tab labels the section now; cluster-vs-topic distinction is
-    // in the episode-count copy (no in-section "Topic timeline" heading).
+    // Timeline rail tab labels the section now (no in-section "Topic timeline" heading).
     await expect(inlineTimeline).toContainText('CI fixture episode')
     await expect(inlineTimeline).toContainText('1 episode with insights about this topic.')
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)

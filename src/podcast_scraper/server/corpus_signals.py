@@ -92,6 +92,7 @@ def corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
 
 
 def as_int(value: Any) -> int:
+    """``value`` as an int; 0 when it is empty or not a number."""
     try:
         return int(value or 0)
     except (TypeError, ValueError):

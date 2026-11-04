@@ -63,14 +63,17 @@ export default defineConfig({
     // tests *broadens* scope and lowers the headline % even as absolute coverage
     // grows — the figure is now honest about the full component tree. Baseline at
     // this scope: stmts 81.1 / br 69.4 / fn 80.5 / ln 82.8. Raise as coverage grows.
+    // Re-baselined 2026-11-04 (ADR-170): the tier-A features left and the extension-point tests
+    // pulled GraphCanvas and the dashboard into scope; with their tests the baseline is
+    // stmts 83.2 / br 71.4 / fn 82.5 / ln 85.0, and the floor moved up with it.
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov', 'json-summary'],
       thresholds: {
-        statements: 78,
-        branches: 66,
-        functions: 77,
-        lines: 80,
+        statements: 80,
+        branches: 68,
+        functions: 79,
+        lines: 82,
       },
     },
   },

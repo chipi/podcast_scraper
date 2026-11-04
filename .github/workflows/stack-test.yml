@@ -129,6 +129,36 @@ jobs:
       - name: Run Playwright (smoke + full UI flow)
         run: make stack-test-playwright
 
+      - name: Public only — nothing private installed, loaded or mounted (ADR-170)
+        # The public project must stand on its own: anyone who builds main or a tag gets this
+        # stack. A regression that quietly made it depend on a private package would still pass
+        # every spec above if the package happened to be present, so assert the absence itself.
+        # The routes are asked of the api directly: the viewer's nginx answers any unknown path
+        # with the SPA (200), which would hide a mounted route.
+        env:
+          COMPOSE: docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml
+        run: |
+          set -euo pipefail
+          $COMPOSE exec -T api python - <<'PY'
+          from importlib import metadata
+          from podcast_scraper.extensions import ENTRY_POINT_GROUP, load_extensions
+          eps = list(metadata.entry_points(group=ENTRY_POINT_GROUP))
+          assert not eps, f"extension entry points installed in the public image: {eps}"
+          exts = load_extensions()
+          assert not exts, f"extensions loaded in the public image: {[e.name for e in exts]}"
+          print("no extension entry points, no extensions loaded")
+          PY
+          # Routes the private packages add: the consumer app's trending rail and collections, and the
+          # MCP connection config. Each answers 401 when its package is installed (checked 2026-11-04).
+          for path in /api/app/trending /api/app/collections /api/app/mcp/config; do
+            code=$($COMPOSE exec -T api curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000${path}")
+            if [ "$code" != "404" ]; then
+              echo "::error::${path} answered ${code}; the public stack must not serve it (expected 404)"
+              exit 1
+            fi
+            echo "${path}: 404"
+          done
+
       - name: Dump compose logs on failure
         if: failure()
         run: |
@@ -197,7 +227,8 @@ jobs:
   # ============================================================
   # publish — gated on stack-test success on main.
   #
-  # Pushes api / viewer / learning-app / pipeline-llm / obs to GHCR, each
+  # Pushes api / viewer / pipeline-llm / obs to GHCR (the player's app image is built in the
+  # player repo), each
   # with two tags:
   #   * :main         — the always-track-latest-green-main tag
   #   * :sha-<short>  — for incident-response pinning + rollback
@@ -267,11 +298,6 @@ jobs:
             context: "."
             dockerfile: docker/viewer/Dockerfile
             cache_scope: publish-viewer
-          - image: learning-app
-            repo: podcast-scraper-learning-app
-            context: web/learning-player
-            dockerfile: ""
-            cache_scope: publish-learning-app
           - image: pipeline-llm
             repo: podcast-scraper-stack-pipeline-llm
             context: "."
@@ -298,9 +324,9 @@ jobs:
       # injects only the ones the matrix image needs. GitHub leaves the
       # rest empty, which is a no-op. Secrets are NEVER placed in the
       # matrix include (that would print them in logs).
-      # No browser DSN here: the viewer and learning-app images take theirs when the deployment
-      # starts them (PODCAST_SENTRY_DSN_VIEWER / PLAYER_SENTRY_DSN_WEB, injected into index.html by
-      # their nginx), so this build bakes none.
+      # No browser DSN here: the viewer image takes its own when the deployment
+      # starts it (PODCAST_SENTRY_DSN_VIEWER, injected into index.html by its nginx), so this
+      # build bakes none.
       # Umami analytics ids are PUBLIC (they ship in the bundle) → GH vars.
       OPERATOR_UMAMI_SRC: ${{ vars.OPERATOR_UMAMI_SRC }}
       OPERATOR_UMAMI_WEBSITE_ID: ${{ vars.OPERATOR_UMAMI_WEBSITE_ID }}
@@ -352,12 +378,6 @@ jobs:
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${OPERATOR_UMAMI_WEBSITE_ID}")
               BUILD_ARGS+=(--build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}")
               ;;
-            learning-app)
-              BUILD_ARGS+=(--build-arg "VITE_UMAMI_SRC=${PLAYER_UMAMI_SRC}")
-              BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${PLAYER_UMAMI_WEBSITE_ID}")
-              # The context has no .git: without this the bundle's release tag is `sha-unknown`.
-              BUILD_ARGS+=(--build-arg "BUILD_SHA=${GITHUB_SHA}")
-              ;;
             pipeline-llm)
               # INSTALL_EXTRAS=llm = cloud-thin variant (OpenAI/Gemini SDKs).
               # PRELOAD_ML_MODELS=false because this image has no local ML models.
@@ -372,8 +392,7 @@ jobs:
               ;;
           esac
 
-          # learning-app builds from a context dir with its own Dockerfile;
-          # the others pass an explicit -f.
+          # An image with no dockerfile builds from its context dir's own Dockerfile.
           DF_ARGS=()
           if [ -n "${DOCKERFILE}" ]; then
             DF_ARGS+=(-f "${DOCKERFILE}")
@@ -389,12 +408,12 @@ jobs:
 
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
 
-          # obs is NOT exercised by the stack-test job (it's not in the compose stack), so it
-          # keeps the smoke the standalone obs-image.yml used to run — the CLI + a verb that
-          # degrades cleanly with no backends. The other 4 images are smoked by stack-test.
+          # obs is NOT exercised by the stack-test job (it's not in the compose stack). It is now
+          # the base of the private observability server (its CLI and MCP server left the public
+          # repo, ADR-170), so the smoke is that the public data layer imports.
           if [ "${MATRIX_IMAGE}" = "obs" ]; then
-            docker run --rm "${IMAGE}:build-${SHORT_SHA}" --help | grep -q "surface"
-            docker run --rm "${IMAGE}:build-${SHORT_SHA}" summary | grep -q '"target"'
+            docker run --rm --entrypoint python "${IMAGE}:build-${SHORT_SHA}" \
+              -c "import podcast_obs.aggregate, podcast_obs.config, podcast_obs.result, podcast_obs.sources"
           fi
 
           docker buildx build \
@@ -449,7 +468,7 @@ jobs:
           # Assert each pushed :sha-<short> manifest exists and lists
           # linux/amd64. amd64-only by design (see the publish job header);
           # if a CAX/arm64 target is ever added, extend this to arm64 too.
-          IMAGES="podcast-scraper-stack-api podcast-scraper-stack-viewer podcast-scraper-learning-app podcast-scraper-stack-pipeline-llm podcast-obs"
+          IMAGES="podcast-scraper-stack-api podcast-scraper-stack-viewer podcast-scraper-stack-pipeline-llm podcast-obs"
           for NAME in $IMAGES; do
             IMAGE="${REGISTRY}/${OWNER}/${NAME}"
             echo "==> Inspecting ${IMAGE}:sha-${SHORT_SHA}"
@@ -469,12 +488,11 @@ jobs:
           {
             echo "## GHCR publish complete (amd64)"
             echo ""
-            echo "Pushed five images with tags \`:main\` + \`:sha-${SHORT}\`,"
+            echo "Pushed four images with tags \`:main\` + \`:sha-${SHORT}\`,"
             echo "each linux/amd64 — the arch the prod VPS (Hetzner cx43) pulls."
             echo ""
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-api:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-viewer:main\`"
-            echo "* \`ghcr.io/${OWNER}/podcast-scraper-learning-app:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-pipeline-llm:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-obs:main\`  (observability MCP, #803)"
             echo ""

@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import GraphBottomBar from './GraphBottomBar.vue'
+import { graphBottomBarChips } from '../../extensions'
 
 // happy-dom's built-in Storage is unreliable here (getItem/setItem are not
 // callable in this mount context), so back localStorage with a Map — same
@@ -257,5 +258,19 @@ describe('GraphBottomBar', () => {
         new KeyboardEvent('keydown', { key: 'b', altKey: true, bubbles: true }),
       ),
     ).not.toThrow()
+  })
+})
+
+describe('GraphBottomBar registered chips', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => graphBottomBarChips.reset())
+
+  it('renders registered chips after the lenses chip', () => {
+    graphBottomBarChips.register({ id: 'x', component: { template: '<button data-testid="extra-chip">X</button>' } })
+    const w = mountBar()
+    const lenses = w.get('[data-testid="graph-chip-lenses"]').element
+    const extra = w.get('[data-testid="extra-chip"]').element
+    expect(lenses.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    w.unmount()
   })
 })

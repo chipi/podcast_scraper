@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from '../fixtures'
+import { isInjectedFaultLog } from '../injected-faults'
 
 const ARTIFACT_JSON = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -76,12 +77,13 @@ export async function cyIdExists(page: Page, id: string): Promise<boolean> {
  * see `src/main.ts`), so the cause is gone and the filter went with it.
  *
  * Keep it that way: an allowlist here hides exactly the class of defect these rows exist to catch.
- * If a console error starts appearing, fix the source rather than adding a pattern.
+ * If a console error starts appearing, fix the source rather than adding a pattern. The one skip
+ * is a request the test itself fails on purpose and declared (see `../injected-faults.ts`).
  */
 export function captureConsoleErrors(page: Page): { errors: string[] } {
   const ref = { errors: [] as string[] }
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+    if (msg.type() === 'error' && !isInjectedFaultLog(page, msg.text(), msg.location().url)) {
       ref.errors.push(msg.text())
     }
   })
@@ -109,13 +111,10 @@ export function captureConsoleErrors(page: Page): { errors: string[] } {
  *   - `search`: populates `/api/search` with one result wired to the same
  *     ``topic:ci-policy`` node so the search "Show on graph" handoff
  *     reaches the same target. Unblocks S1 rows.
- *   - `clusters`: populates `/api/corpus/topic-clusters` with a cluster
- *     containing ``topic:ci-policy`` so NodeDetail's "Load" / sibling-merge
- *     paths have data to expand. Unblocks O3 / H2.7 / H4.3.
  */
 export async function setupHandoffMatrixMocks(
   page: Page,
-  opts?: { digest?: boolean; search?: boolean; clusters?: boolean },
+  opts?: { digest?: boolean; search?: boolean },
 ): Promise<void> {
   // Match ``/api/health`` AND ``/api/health?path=…`` — the debounced
   // re-probe on corpus-path change (shell.ts §S4-shell followup) fires
@@ -267,32 +266,6 @@ export async function setupHandoffMatrixMocks(
       body: ARTIFACT_JSON,
     }),
   )
-  // Topic clusters endpoint
-  await page.route('**/api/corpus/topic-clusters**', (r) =>
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(
-        opts?.clusters
-          ? {
-              schema_version: '2',
-              clusters: [
-                {
-                  graph_compound_parent_id: 'tc:ci-policy-cluster',
-                  cil_alias_target_topic_id: 'topic:ci-policy',
-                  canonical_label: 'CI policy cluster',
-                  member_count: 1,
-                  members: [{ topic_id: 'topic:ci-policy' }],
-                },
-              ],
-              topic_count: 1,
-              cluster_count: 1,
-              singletons: 0,
-            }
-          : { path: '/mock/corpus', topic_clusters: [], compounds: [] },
-      ),
-    }),
-  )
   // Digest endpoint
   await page.route('**/api/corpus/digest**', (r) =>
     r.fulfill({
@@ -326,8 +299,8 @@ export async function setupHandoffMatrixMocks(
                     {
                       topic_id: 'topic:ci-policy',
                       label: 'CI Policy',
-                      in_topic_cluster: true,
-                      topic_cluster_compound_id: 'tc:ci-policy-cluster',
+                      in_topic_cluster: false,
+                      topic_cluster_compound_id: null,
                     },
                   ],
                 },
@@ -628,13 +601,15 @@ export async function assertHandoffApplied(
   if (!opts.skipCameraCenter) {
     const settled = await page.evaluate(
       async ({ maxMs, pollMs, centerTol }) => {
-        const cy = (
-          window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
-        ).__GIKG_CY_DEV__
-        if (!cy) return null
-        const sel = cy.nodes(':selected')
+        // A redraw can replace the Cytoscape instance mid-poll, so re-read it on every pass: the
+        // first instance is destroyed and frozen wherever its camera animation stopped.
+        const liveCy = () =>
+          (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+        const first = liveCy()
+        if (!first) return null
+        const sel = first.nodes(':selected')
         if (sel.length !== 1) return null
-        const node = sel.first()
+        const nodeId = sel.first().id()
         let lastX = Number.POSITIVE_INFINITY
         let lastY = Number.POSITIVE_INFINITY
         let stableReads = 0
@@ -648,6 +623,14 @@ export async function assertHandoffApplied(
         }
         // eslint-disable-next-line no-constant-condition
         while (true) {
+          const cy = liveCy()
+          const node = cy?.$id(nodeId)
+          if (!cy || !node || node.empty()) {
+            if (Date.now() >= deadline) return null
+            stableReads = 0
+            await new Promise((resolve) => setTimeout(resolve, pollMs))
+            continue
+          }
           const rp = node.renderedPosition()
           const vw = cy.width()
           const vh = cy.height()

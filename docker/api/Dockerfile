@@ -73,7 +73,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')" \
-    && python -c "import mcp.server.fastmcp; from podcast_scraper.mcp import server; print('mcp sdk import ok')"
+    && python -c "import mcp.server.fastmcp; print('mcp sdk import ok')"
 
 # OTEL distributed tracing (ADR-119 "traces" signal). ``opentelemetry-instrument``
 # (see CMD) auto-wraps the process; ``opentelemetry-bootstrap -a install`` adds the

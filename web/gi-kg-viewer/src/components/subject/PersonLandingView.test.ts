@@ -572,3 +572,29 @@ describe('PersonLandingView — view prop gating + positions lens', () => {
     expect(w.findAll('[data-testid="person-landing-corpus-row"]').length).toBe(2)
   })
 })
+
+describe('PersonLandingView topic grouping', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    invalidateRelationalCache()
+    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonTopics.mockResolvedValue({
+      subject: 'person:alice',
+      results: [rel('topic:ai', 'AI ethics', 'topic'), rel('topic:reg', 'AI regulation', 'topic')],
+    })
+    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
+  })
+
+  it('marks a topic a grouping provider titles, and only that one', async () => {
+    const { topicGrouping } = await import('../../extensions')
+    topicGrouping.register({ id: 'g', groupTitle: (id) => (id === 'topic:ai' ? 'Group: Ethics' : undefined) })
+    const w = await mountWith()
+    const chips = w.findAll('[data-testid="person-landing-topic-chip"]')
+    const marked = chips.filter((c) => c.attributes('data-cluster') === 'true')
+    expect(marked.map((c) => c.text())).toEqual(['⧉AI ethics'])
+    expect(marked[0].attributes('title')).toBe('Group: Ethics')
+    topicGrouping.reset()
+    w.unmount()
+  })
+})

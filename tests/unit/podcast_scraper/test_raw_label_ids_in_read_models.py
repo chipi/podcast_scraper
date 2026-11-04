@@ -98,17 +98,3 @@ def test_the_lifted_search_speaker_is_never_a_raw_label(pid, name, want) -> None
     from podcast_scraper.search.transcript_chunk_lift import _lifted_speaker
 
     assert _lifted_speaker(pid, name) == want
-
-
-def test_the_mcp_roster_lists_no_raw_label_as_a_speaker() -> None:
-    from podcast_scraper.mcp.tools.enrichment import _roster_from_record
-
-    content = {
-        "speakers": [
-            {"name": "Jorna Velt", "role": "host", "placed": True, "voices": ["SPEAKER_00"]},
-            {"name": "SPEAKER_01", "role": "guest", "placed": True, "voices": ["SPEAKER_01"]},
-            {"name": "unknown_guest_1", "role": "guest", "placed": False, "voices": []},
-        ]
-    }
-    diag = {"voices": [{"voice": "SPEAKER_00", "talk_time_s": 10.0}]}
-    assert [r["name"] for r in _roster_from_record(content, diag)] == ["Jorna Velt"]

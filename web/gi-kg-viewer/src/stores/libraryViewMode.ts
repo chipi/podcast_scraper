@@ -10,9 +10,9 @@ import { useUserPreferencesStore } from './userPreferences'
  * ``localStorage.setItem/getItem``. Promoted to a store + USERPREFS-1
  * write-through so the operator's choice of Shows vs Episodes syncs
  * across devices, matching the other USERPREFS-1-adopted stores
- * (``graphLoadMode``, ``graphLenses``, ``theme``).
+ * (``graphLenses``, ``theme``).
  *
- * Follows the same shape as ``graphLoadMode.ts``:
+ * Follows the same shape as ``graphLenses.ts``:
  * - localStorage mirror is authoritative until the server responds,
  * - write-through PATCH on every mutation,
  * - server-hydrated value applied via a guarded watcher to avoid

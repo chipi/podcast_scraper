@@ -28,7 +28,7 @@ import {
  * ``/api/search``.
  */
 /*
- * See search-enriched-hero.spec.ts for why this is not 'systems thinking': the palette's
+ * Why this is not 'systems thinking': the palette's
  * "Show on graph" action needs a graph-resolvable (kg_*) hit, and that phrase stopped
  * placing one in the top 10 once the fixture grew to 40 episodes.
  */

@@ -4,10 +4,10 @@
 - **Authors**: Marko
 - **Target Release**: v2.8
 - **Parent PRD**: [PRD-031](PRD-031-search.md) (Search product surface), [PRD-033](PRD-033-search-powered-surfaces.md) (Search-powered surfaces)
-- **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), [RFC-093](../rfc/RFC-093-litm-context-packs.md) (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
-- **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies [UXS-008](../uxs/UXS-008-enriched-search.md); shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
+- **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), RFC-093 (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
+- **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies the enriched answer; shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Related RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) (technical design)
-- **Related ADRs**: [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (`topic_consensus` activated, `stance_*` retired), [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
+- **Related ADRs**: ADR-108 (`topic_consensus` activated, `stance_*` retired), [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
 - **Related epic**: [#1229](https://github.com/chipi/podcast_scraper/issues/1229)
 - **Scope**: operator viewer only (`web/gi-kg-viewer`). Consumer learning-player search is **out of scope** for this PRD.
 
@@ -27,7 +27,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 - The left panel is a fixed `w-72` (288 px) column that shares its real estate with **Explore** via a slide mode-switch (`shell.leftPanelSurface`). Two overlapping query UIs, one column, one visible at a time — cognitive tax with no ergonomic upside.
 - Main tabs answer *browse* questions (Digest / Library / Graph / Dashboard). "What am I trying to find out?" is not a first-class question in the shell.
 - Result cards have handoffs OUT (`G` graph focus, `L` library episode, entity → rail) but almost no handoffs IN — Digest, Library, Graph, Dashboard, and the subject rails don't launch scoped searches. Search is a place, not a verb.
-- The graph program (v3, #1207) landed a shell redesign, a perf runbook (`GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo)), and a three-tier test pyramid (ADR-095). This PRD adopts the same test-pyramid + perf-capture pattern for search.
+- The graph program (v3, #1207) landed a shell redesign and a three-tier test pyramid (ADR-095). This PRD adopts the same test-pyramid + perf-capture pattern for search.
 - #1205 (SIGSEGV in LanceDB native hybrid combine) is a live hazard: the fix bypassed the native combine and removed the process-wide query lock. Search v3 must inherit those guardrails and not silently regress them.
 
 ## Goals
@@ -42,7 +42,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 8. **In-episode search** on `EpisodeDetailPanel` — episode-scoped search inline in the rail.
 9. **Three-tier test coverage** (Tier 1 mocked / Tier 2 production-shaped fixture / Tier 3 real-corpus Playwright), mirroring ADR-095.
 10. **Quality eval harness** for search outcomes on a well-defined text corpus (nDCG, MRR, tier coverage, intent-router accuracy, compound-lift rate, enriched-answer groundedness, `topic_consensus` precision on the labelled set).
-11. **Perf baseline + regeneration harness**, mirroring `capture-graph-lcp.{sh,mjs}` — first for the API (structured search endpoint per intent), then for the UI (Workspace TTI, filter-apply, cmd-K open, result-set operator latency).
+11. **Perf baseline + regeneration harness**, first for the API (structured search endpoint per intent), then for the UI (Workspace TTI, filter-apply, cmd-K open, result-set operator latency).
 12. **No SIGSEGV regression** — inherit and enforce the #1205 guardrails (Python-side fan-out; no native `_combine_hybrid_results`).
 
 ## Non-Goals
@@ -112,9 +112,9 @@ Bar above the result list with operators that act on the **returned result set**
 
 ### FR5 — Enriched-answer hero
 
-- **FR5.1** When `enriched_search_available: true` from `/api/health` and `/api/search` is called with `enrich_results=true` (shipped by RFC-088 chunk 5), the Workspace shows an **Enriched Answer** panel at the top of the results area. Contract inherits UXS-008.
+- **FR5.1** When `enriched_search_available: true` from `/api/health` and `/api/search` is called with `enrich_results=true` (shipped by RFC-088 chunk 5), the Workspace shows an **Enriched Answer** panel at the top of the results area. Contract inherits the enriched answer's (badge, sources, provider attribution, degraded states).
 - **FR5.2** Sources in the answer link to the corresponding hit cards below (visible tie-in — chip on the hit card).
-- **FR5.3** Enrichment latency degradation follows UXS-008: skeleton while pending; hidden on hard-fail; raw hits always ship first.
+- **FR5.3** Enrichment latency degrades gracefully: skeleton while pending; hidden on hard-fail; raw hits always ship first.
 - **FR5.4** Enrichment is **never** invoked from the LeftPanel compact launcher or from the Cmd-K palette — Workspace only (bounds cost and latency).
 - **FR5.5** The `EnrichmentConfigEditor.vue` (already shipped, RFC-088 config surface) remains the operator-facing config UI; Search v3 does NOT reinvent it.
 
@@ -157,13 +157,12 @@ Every rail launcher publishes the pre-filled scope to `activeSearchContext` (RFC
 
 ### FR11 — Perf baseline + regeneration harness
 
-> The capture scripts in FR11 moved to the private eval repo with the rest of
-> the performance story; the paths below are where they live there.
+> The capture scripts in FR11 are no longer in this repository.
 
-- **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}` mirroring `capture-graph-lcp.{sh,mjs}`:
+- **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}`:
   - **API surface** — an HTTP capturer that records p50/p95/p99 for `/api/search`, `/api/app/search`, `/api/corpus/search` per intent class + per top_k, over the query set from FR10.
   - **UI surface** — Chrome DevTools/CDP trace of: Workspace-open (TTI), cmd-K-open latency, filter-apply, result-set operator ("Cluster", "Show on graph"), enriched-answer paint.
-- **FR11.2** Median-of-3 (same fair-comparison rule as GRAPH_PERF_TRACE_RUNBOOK); outputs `.metrics.json` + gzipped trace per label; committed under `docs/guides/perf-traces/`.
+- **FR11.2** Median-of-3 (fair-comparison rule); outputs `.metrics.json` + gzipped trace per label; committed under `docs/guides/perf-traces/`.
 - **FR11.3** Baseline against `main` captured on branch tip **before** slice 1; re-captured per slice; deltas reported in each PR body.
 - **FR11.4** After baseline, a **deep-review pass** (backend + frontend) surfaces optimization candidates — issues opened, not silently applied.
 
@@ -213,20 +212,18 @@ Slices missing any of these get rejected at review, not deferred.
 - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — hybrid retrieval (do not touch native combine — #1205)
 - [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational query layer + `activeSearchContext` + `PanelRetrievalStore` (shipped substrate)
 - [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) — enrichment layer + QueryEnricher (shipped)
-- [RFC-093](../rfc/RFC-093-litm-context-packs.md) — `build_briefing_pack` (shipped; Compare operator source)
+- RFC-093 — `build_briefing_pack` (shipped; Compare operator source)
 - [RFC-092](../rfc/RFC-092-ml-query-router.md) — query router intent taxonomy
 - [RFC-091](../rfc/RFC-091-kg-proximity-signal.md) — **REJECTED** (KG proximity as retrieval signal)
 - [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — canonical identity / chunk-to-Insight lift (compound-card contract)
 - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — v2 materialized descriptive edges (typed CONTRADICTS remains v3+)
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier test pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
-- [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` activated; `stance_*` retired
+- ADR-108 — `topic_consensus` activated; `stance_*` retired
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab order + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — extended (compact launcher role)
-- [UXS-008](../uxs/UXS-008-enriched-search.md) — heroified
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (this PRD's primary UX)
-- `GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo) (moved to the private eval repo) — perf-capture template (mirrored)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current normative operator-facing enrichment config surface (RFC-088 chunk 6)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes (independent of Search v3's `/api/search?enrich_results=`)
 - USERPREFS-1: `docs/rfc/RFC-107-search-v3-query-workspace.md`

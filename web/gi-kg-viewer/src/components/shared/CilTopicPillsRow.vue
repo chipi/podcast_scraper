@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { CilDigestTopicPill } from '../../api/digestApi'
+import { topicGrouping } from '../../extensions'
 import { cilClusteredTopicPillChrome } from '../../utils/colors'
 import { renderPillLabel, type CilPillTruncation } from '../../utils/topicPillLabel'
 
@@ -27,8 +29,6 @@ const props = withDefaults(
      * Cluster-member pill chrome: ``quote`` (amber, legacy) or ``kg`` (Digest Recent parity with graph TopicCluster).
      */
     clusterMemberAppearance?: CilClusterMemberAppearance
-    /** Bare topic ids that are THEME-cluster (co-occurrence) members — teal ring, matching the graph + player pills. */
-    themeMemberIds?: Set<string>
   }>(),
   {
     maxPillChars: 24,
@@ -37,9 +37,15 @@ const props = withDefaults(
     maxWidthClass: 'max-w-[11rem]',
     dataTestid: undefined,
     clusterMemberAppearance: 'quote',
-    themeMemberIds: () => new Set<string>(),
   },
 )
+
+/** Topic ids a grouping provider marks as theme members (extension point `topicGrouping`). */
+const themeMemberIds = computed(() => {
+  const out = new Set<string>()
+  for (const g of topicGrouping.list()) for (const id of g.themeMemberTopicIds?.() ?? []) out.add(id)
+  return out
+})
 
 const emit = defineEmits<{
   'pill-click': [index: number]

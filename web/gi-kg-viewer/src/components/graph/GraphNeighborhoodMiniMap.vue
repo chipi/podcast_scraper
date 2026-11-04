@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CompoundNeighborhood } from '../../utils/parsing'
 import cytoscape, { type Core } from 'cytoscape'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -8,7 +9,7 @@ import { giKgCoseLayoutOptionsCompact } from '../../utils/cyCoseLayoutOptions'
 import { prefersReducedMotionQuery, syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
-  filterArtifactEgoAroundTopicCluster,
+  filterArtifactEgoAroundCompound,
   filterArtifactEgoOneHop,
   findRawNodeInArtifact,
   toCytoElements,
@@ -17,19 +18,22 @@ import {
 const props = defineProps<{
   viewArtifact: ParsedArtifact | null
   centerId: string | null
-  /** When set, minimap shows compound + members + 1-hop from members (not ego of compound only). */
-  topicClusterNeighborhood?: { compoundId: string; memberIds: string[] } | null
+  /** When set, the minimap shows the compound, its members and one hop from the members. */
+  compoundNeighborhood?: CompoundNeighborhood | null
 }>()
+
+function activeCompound(): CompoundNeighborhood | null {
+  const c = props.compoundNeighborhood
+  return c?.compoundId?.trim() && c.memberIds.length > 0 ? c : null
+}
 
 const showMini = computed(() => {
   const a = props.viewArtifact
   if (!a) {
     return false
   }
-  const tc = props.topicClusterNeighborhood
-  if (tc?.compoundId?.trim() && tc.memberIds.length > 0) {
-    const sub = miniArtifact()
-    return Boolean(sub?.data?.nodes?.length)
+  if (activeCompound()) {
+    return Boolean(miniArtifact()?.data?.nodes?.length)
   }
   const id = props.centerId?.trim()
   return Boolean(id && findRawNodeInArtifact(a, id))
@@ -66,9 +70,9 @@ function miniArtifact(): ParsedArtifact | null {
   if (!art) {
     return null
   }
-  const tc = props.topicClusterNeighborhood
-  if (tc?.compoundId?.trim() && tc.memberIds.length > 0) {
-    return filterArtifactEgoAroundTopicCluster(art, tc.compoundId.trim(), tc.memberIds)
+  const compound = activeCompound()
+  if (compound) {
+    return filterArtifactEgoAroundCompound(art, compound.compoundId.trim(), compound.memberIds)
   }
   const id = props.centerId?.trim()
   if (!id || !findRawNodeInArtifact(art, id)) {
@@ -113,12 +117,11 @@ function mountCy(): void {
       wheelSensitivity: 0,
     })
     cy = core
-    const tc = props.topicClusterNeighborhood
-    const layoutId =
-      tc?.compoundId?.trim() && !core.$id(tc.compoundId.trim()).empty()
-        ? tc.compoundId.trim()
-        : tc?.memberIds[0]?.trim() || props.centerId!.trim()
-    const cid = layoutId
+    const compound = activeCompound()
+    const cid =
+      compound && !core.$id(compound.compoundId.trim()).empty()
+        ? compound.compoundId.trim()
+        : compound?.memberIds[0]?.trim() || props.centerId!.trim()
     const layoutOpts: Record<string, unknown> = giKgCoseLayoutOptionsCompact()
     const layout = core.elements().layout(layoutOpts as never)
     layout.one('layoutstop', () => {
@@ -163,8 +166,8 @@ watch(
       showMini.value,
       props.viewArtifact,
       props.centerId,
-      props.topicClusterNeighborhood?.compoundId,
-      props.topicClusterNeighborhood?.memberIds?.slice(),
+      props.compoundNeighborhood?.compoundId,
+      props.compoundNeighborhood?.memberIds?.slice(),
       themeChoice.value,
     ] as const,
   () => {
@@ -182,8 +185,7 @@ watch(
 <template>
   <div v-if="showMini" class="mb-3">
     <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
-      <template v-if="topicClusterNeighborhood?.compoundId">Cluster neighborhood</template>
-      <template v-else>Local neighborhood</template>
+      {{ activeCompound() ? (compoundNeighborhood?.label ?? 'Group neighborhood') : 'Local neighborhood' }}
     </p>
     <div
       ref="host"
@@ -191,8 +193,8 @@ watch(
       data-testid="graph-neighborhood-mini"
       role="img"
       :aria-label="
-        topicClusterNeighborhood?.compoundId
-          ? 'Graph around topic cluster compound and member topics'
+        activeCompound()
+          ? (compoundNeighborhood?.ariaLabel ?? 'Graph around a group node and its members')
           : '1-hop graph around selected node'
       "
     />

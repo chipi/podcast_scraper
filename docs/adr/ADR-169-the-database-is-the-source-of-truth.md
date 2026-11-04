@@ -6,7 +6,7 @@
 - **Supersedes**: [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) ("CLI mode
   requires no database"), the "files remain the canonical source of truth" part of
   [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md), and decision D2 of
-  [PRD-035](../prd/PRD-035-learning-platform.md) ("no persistence layer")
+  PRD-035 ("no persistence layer")
 - **Related**: [ADR-116](ADR-116-privilege-split-public-control-api.md),
   [ADR-168](ADR-168-installed-extensions.md), [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md),
   [ADR-099](ADR-099-lancedb-first-single-index-search.md)
@@ -108,4 +108,4 @@ one of these problems on the write side.
   [ADR-116](ADR-116-privilege-split-public-control-api.md),
   [ADR-168](ADR-168-installed-extensions.md)
 - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md),
-  [PRD-035](../prd/PRD-035-learning-platform.md)
+  PRD-035

@@ -214,28 +214,6 @@ def test_native_platform_gets_a_deep_link_carrying_the_new_flag(tmp_path: Path) 
     assert "&new=1" in location, "a first sign-in must tell the shell this is a new account"
 
 
-def test_the_account_is_created_with_the_email_provider_and_a_signup_event(
-    tmp_path: Path,
-) -> None:
-    """`user_id = sha256(provider || subject)`, so an email identity cannot collide with the Google
-    identity for the same address — they are deliberately different accounts."""
-    client, data_dir = _client(tmp_path)
-    token, _ = app_magic_link.issue(_ALLOWED, _SECRET)
-    client.get(f"/api/app/auth/email/verify?token={token}")
-
-    profiles = list((data_dir / "users").glob("*/profile.json"))
-    assert len(profiles) == 1
-    profile = json.loads(profiles[0].read_text())
-    assert profile["provider"] == "email"
-    assert profile["email"] == _ALLOWED
-    assert profile["analytics_id"], "every account gets a pseudonymous analytics id (#2265)"
-
-    events = profiles[0].parent / "account_events.jsonl"
-    rows = [json.loads(line) for line in events.read_text().splitlines() if line.strip()]
-    assert len(rows) == 1, "server-side signup truth, exactly once"
-    assert rows[0]["provider"] == "email"
-
-
 def test_open_mode_admits_any_address(tmp_path: Path) -> None:
     client, _ = _client(tmp_path, mode="open")
     token, _ = app_magic_link.issue(_STRANGER, _SECRET)

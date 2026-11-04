@@ -136,22 +136,6 @@ def test_missing_diarization_is_soft_only(tmp_path: Path):
     assert any("SPOKEN_BY" in m.stage for m in report.missing_soft)
 
 
-def test_missing_topic_clusters_fails_when_index_present(tmp_path: Path):
-    """#14 cutover: index present but search/topic_clusters.json absent → 404 smoke → HARD fail."""
-    _write_index(tmp_path, LANCE_SCHEMA_VERSION)
-    _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "SPOKEN_BY"])
-    _write_enrichments(tmp_path)
-    # no topic_clusters.json
-    report = assess_completeness(tmp_path)
-    assert not report.ok
-    assert not report.has_topic_clusters
-    assert "topic_clusters.json" in format_report(report)
-
-    _write_topic_clusters(tmp_path)  # once present → passes
-    report2 = assess_completeness(tmp_path)
-    assert report2.ok and report2.has_topic_clusters
-
-
 def test_missing_topic_clusters_is_no_gap_when_themes_are_not_installed(tmp_path: Path):
     """ADR-168: themes are a private feature. With no extension providing them nothing builds the
     artifact and nothing serves it, so the gate must not demand it."""
@@ -164,17 +148,6 @@ def test_missing_topic_clusters_is_no_gap_when_themes_are_not_installed(tmp_path
         report = assess_completeness(tmp_path)
     assert report.ok and not report.themes_expected
     assert "topic_clusters.json" not in format_report(report)
-
-
-def test_empty_topic_clusters_fails(tmp_path: Path):
-    """Present-but-empty topic_clusters.json still breaks the surface — mirror the smoke's
-    'clusters empty on populated prod corpus' rule, not just the 404."""
-    _write_index(tmp_path, LANCE_SCHEMA_VERSION)
-    _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "SPOKEN_BY"])
-    _write_enrichments(tmp_path)
-    (tmp_path / "search" / "topic_clusters.json").write_text('{"clusters": []}', encoding="utf-8")
-    report = assess_completeness(tmp_path)
-    assert not report.ok and not report.has_topic_clusters
 
 
 def test_stale_index_fails_even_if_edges_complete(tmp_path: Path):

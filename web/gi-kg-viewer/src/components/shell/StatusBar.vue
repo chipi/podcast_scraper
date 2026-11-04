@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
+import { configTabs } from '../../extensions'
 import { getFeeds, putFeeds, type FeedApiEntry } from '../../api/feedsApi'
 import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import { fetchCorpusCoverage, type CoverageByMonthItem } from '../../api/corpusCoverageApi'
@@ -22,16 +23,13 @@ import IndexTimeseriesChart from './IndexTimeseriesChart.vue'
 import type { TimeseriesSeries } from './timeseriesChart'
 import FeedOverrideEditor from './FeedOverrideEditor.vue'
 import ScheduledJobsSection from './ScheduledJobsSection.vue'
-import ConnectedAgentsSection from './ConnectedAgentsSection.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
-import { useAuthStore } from '../../stores/auth'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const indexStats = useIndexStatsStore()
-const auth = useAuthStore()
 
 const localFileInputRef = useTemplateRef<HTMLInputElement>('localFileInputRef')
 const artifactListDialogOpen = ref(false)
@@ -44,9 +42,11 @@ type SourcesDialogTab =
   | 'scheduled'
   | 'index'
   | 'health'
-  | 'agents'
+  /** A tab a build registered (extension point `configTabs`), by id. */
+  | `ext:${string}`
 
 const sourcesTab = ref<SourcesDialogTab>('feeds')
+const extensionTabs = computed(() => configTabs.list().filter((t) => t.visible?.() ?? true))
 /** In-memory feed list (mirrors ``GET/PUT /api/feeds``); last write wins. */
 const feedsCrudList = ref<FeedApiEntry[]>([])
 const feedsSpecRelPath = ref('feeds.spec.yaml')
@@ -369,8 +369,8 @@ async function onLocalFilesChange(ev: Event): Promise<void> {
 
 /** Load only the active tab so a broken operator file does not block the Feeds editor. */
 async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
-  if (tab === 'health' || tab === 'scheduled' || tab === 'enrichment' || tab === 'agents') {
-    // Health is static; Scheduled / Enrichment / Agents panels fetch their own data on activation.
+  if (tab === 'health' || tab === 'scheduled' || tab === 'enrichment' || tab.startsWith('ext:')) {
+    // Health is static; Scheduled / Enrichment panels fetch their own data on activation.
     return
   }
   if (tab === 'index') {
@@ -968,14 +968,15 @@ defineExpose({
           Health
         </button>
         <button
-          v-if="auth.user?.mcp_access"
+          v-for="t in extensionTabs"
+          :key="t.id"
           type="button"
           class="w-full truncate rounded px-2 py-1 text-left text-[11px] hover:bg-overlay"
-          :class="sourcesTab === 'agents' ? 'bg-overlay font-medium' : 'text-muted'"
-          data-testid="sources-dialog-tab-agents"
-          @click="void selectSourcesTab('agents')"
+          :class="sourcesTab === `ext:${t.id}` ? 'bg-overlay font-medium' : 'text-muted'"
+          :data-testid="`sources-dialog-tab-${t.id}`"
+          @click="void selectSourcesTab(`ext:${t.id}`)"
         >
-          Connected agents
+          {{ t.label }}
         </button>
       </nav>
       <!-- Content column: loading / error banners pinned above the active section. -->
@@ -1680,14 +1681,14 @@ defineExpose({
         </div>
       </div>
     </div>
-    <!-- Connected agents (RFC-112 §5) — only when the operator holds mcp_access. -->
     <div
-      v-if="auth.user?.mcp_access"
-      v-show="sourcesTab === 'agents'"
+      v-for="t in extensionTabs"
+      v-show="sourcesTab === `ext:${t.id}`"
+      :key="t.id"
       class="flex min-h-0 flex-1 flex-col gap-2"
-      data-testid="sources-dialog-agents-panel"
+      :data-testid="`sources-dialog-${t.id}-panel`"
     >
-      <ConnectedAgentsSection :active="sourcesTab === 'agents'" />
+      <component :is="t.component" :active="sourcesTab === `ext:${t.id}`" />
     </div>
     </div>
     </div>

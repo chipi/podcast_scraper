@@ -21,6 +21,7 @@
  * shipped endpoint returns the same shape without it.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { searchListeners } from '../../extensions'
 import { searchCorpus, type SearchHit } from '../../api/searchApi'
 import { fetchCorpusEpisodes, type CorpusEpisodeListItem } from '../../api/corpusLibraryApi'
 import { useShellStore } from '../../stores/shell'
@@ -66,12 +67,12 @@ const emit = defineEmits<{
   'rebuild-index': []
   /**
    * #1259-4 operator kickers — parent activates the Search tab on
-   * ``lastQuery`` and either fires an ``operator=cluster|consensus``
-   * round-trip, toggles Timeline on, or opens the Compare picker.
+   * ``lastQuery`` and either toggles Timeline on or opens the Compare picker.
    */
-  'operator-on-last': [op: 'cluster' | 'consensus']
   'timeline-on-last': []
   'compare-on-last': []
+  /** A registered result-set operator on the last query (extension point `searchOperators`). */
+  'operator-on-last': [id: string]
 }>()
 
 const shell = useShellStore()
@@ -161,7 +162,7 @@ function runResetFilters(): void {
   search.filters.topic = ''
   search.filters.minConfidence = ''
   search.filters.episodeId = ''
-  search.filters.enrichResults = null
+  for (const l of searchListeners.list()) l.onFiltersReset?.()
 }
 
 const paletteCommands = computed<PaletteCommand[]>(() =>
@@ -175,9 +176,9 @@ const paletteCommands = computed<PaletteCommand[]>(() =>
     openConfiguration: () => emit('open-configuration'),
     openHealth: () => emit('open-health'),
     rebuildIndex: () => emit('rebuild-index'),
-    runOperatorOnLastQuery: (op) => emit('operator-on-last', op),
     openTimelineForLastQuery: () => emit('timeline-on-last'),
     openCompareForLastQuery: () => emit('compare-on-last'),
+    openOperatorForLastQuery: (id) => emit('operator-on-last', id),
     isAdmin: auth.isAdmin,
   }),
 )

@@ -37,7 +37,7 @@ handovers, run logs, one-off measurements and screenshots of shipped UI do not s
 | [HANDOVER-NAMING-2026-11-03.md](HANDOVER-NAMING-2026-11-03.md) | Speaker naming and identity after D2 (RFC-131): the next steps in order, D2 run lessons, open items carried over |
 | [NONENGLISH-REFERENCE-SHOWS-2026-10-09.md](NONENGLISH-REFERENCE-SHOWS-2026-10-09.md) | The non-English arc: readiness per language, the gate decisions, #2352 and #2353 |
 | [DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md](DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md) | The deferred root-cause fix for diarization merge/split artifacts (#1330) |
-| [DEVICE-ONLY-DEFECTS-2026-09-27.md](DEVICE-ONLY-DEFECTS-2026-09-27.md) | Three defects seen only on the iPhone build, not yet solved |
+| DEVICE-ONLY-DEFECTS-2026-09-27.md | Three defects seen only on the iPhone build, not yet solved |
 | [SPEND-ESTIMATOR-OVERSTATEMENT-2026-08-28.md](SPEND-ESTIMATOR-OVERSTATEMENT-2026-08-28.md) | Run-reported LLM cost overstates gateway spend about 3.5x; the fix is not built |
 | [wip-concurrent-pipeline-http-retry-metrics.md](wip-concurrent-pipeline-http-retry-metrics.md) | The process-wide HTTP retry counter clashes when pipelines run concurrently |
 | [TODO-remove-pre-1.0.3-compat.md](TODO-remove-pre-1.0.3-compat.md) | Compatibility paths to remove once no client older than 1.0.3 is in use |

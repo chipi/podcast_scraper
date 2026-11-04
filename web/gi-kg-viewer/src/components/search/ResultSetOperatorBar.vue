@@ -1,31 +1,22 @@
 <script setup lang="ts">
 /**
  * Result-set operator bar — Search v3 §S4a (RFC-107 §7.4). Sits between
- * the results-count row and the hit cards. Four operator chips:
+ * the results-count row and the hit cards. Three operator chips:
  *
- *   * **Cluster**  — groups the hit set (server-side; S4b, disabled here).
  *   * **Timeline** — client-only histogram of hits by publish month,
  *                    rendered inline below the bar.
  *   * **On graph** — pins every hit's episode/topic/entity to the graph
  *                    canvas as ``search-hit`` highlights + a set bbox,
  *                    then switches to the Graph tab.
- *   * **Consensus** — cross-speaker corroboration pairs (server-side; S4b,
- *                     disabled here).
+ *   * **Compare** — two subjects from the hit set side by side (§S8).
  *
- * S4a scope: bar shell + Timeline + On-graph. S4b lands Cluster + Consensus
- * (server aggregation via ``operator=cluster`` / ``operator=consensus`` on
- * ``/api/search``); both chips render an honest "Coming in S4b" tooltip
- * today. The bar reads exclusively from the current ``search.results``
- * (or the caller's ``visible-hits`` prop) — it does NOT re-fetch.
+ * The server-side Cluster and Consensus operators are private features (ADR-170) and are not part
+ * of this viewer. The bar reads exclusively from the current ``search.results`` (or the caller's
+ * ``visible-hits`` prop) — it does NOT re-fetch, except Compare.
  */
 import { computed } from 'vue'
-import type {
-  CompareSubjectRef,
-  SearchClusterGroup,
-  SearchCompareResponse,
-  SearchConsensusPair,
-  SearchHit,
-} from '../../api/searchApi'
+import { searchOperators, type SearchOperator } from '../../extensions'
+import type { CompareSubjectRef, SearchCompareResponse, SearchHit } from '../../api/searchApi'
 import type { SubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 import CompareOperatorPanel from './CompareOperatorPanel.vue'
@@ -37,26 +28,6 @@ const props = defineProps<{
    * matches what the user sees below.
    */
   visibleHits: SearchHit[]
-  /**
-   * Search v3 §S4b — the server's most-recent cluster response for the
-   * current query, or null. Rendered inline in the Cluster panel.
-   */
-  clusters?: SearchClusterGroup[] | null
-  /**
-   * Search v3 §S4b — the server's most-recent consensus response for the
-   * current query, or null. Rendered inline in the Consensus panel.
-   */
-  consensusPairs?: SearchConsensusPair[] | null
-  /**
-   * Search v3 §S4b / §S8 — which operator is currently mid-flight, if any.
-   * The bar renders a small "…" affordance beside the active chip.
-   */
-  operatorLoading?: 'cluster' | 'consensus' | 'compare' | null
-  /**
-   * Search v3 §S4b — the last operator-fetch error (mapped human string),
-   * or null.
-   */
-  operatorError?: string | null
   /**
    * Search v3 §S8 — Compare state. Panel-level state stays here so the
    * bar (as the operator surface) knows when to enable / disable the
@@ -76,16 +47,6 @@ const emit = defineEmits<{
    */
   'focus-set': [ids: string[]]
   /**
-   * Search v3 §S4b — request the server-side Cluster operator over the
-   * current query. Parent triggers ``search.runOperator('cluster')``.
-   */
-  'run-cluster': []
-  /**
-   * Search v3 §S4b — request the server-side Consensus operator over the
-   * current query. Parent triggers ``search.runOperator('consensus')``.
-   */
-  'run-consensus': []
-  /**
    * Search v3 §S8 — request a compare against 2 picker-selected
    * subjects (from the current visible hits). Parent triggers
    * ``search.runCompare(subjectA, subjectB, {insightTypes})``.
@@ -103,13 +64,33 @@ const emit = defineEmits<{
   'clear-compare': []
 }>()
 
-type OperatorId = 'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare'
+/** The viewer's own chips, or the id of a registered operator (extension point `searchOperators`). */
+const active = defineModel<string | null>('active', { default: null })
 
-const active = defineModel<OperatorId | null>('active', { default: null })
+const BUILT_IN_ORDER = { timeline: 10, graph: 20, compare: 30 } as const
+/** Registered operators whose order falls in [from, to). */
+function registeredBetween(from: number, to: number): SearchOperator[] {
+  return searchOperators.list().filter((o) => (o.order ?? 0) >= from && (o.order ?? 0) < to)
+}
+const activeRegistered = computed(() => searchOperators.list().find((o) => o.id === active.value))
+const registeredError = computed(() => {
+  for (const o of searchOperators.list()) {
+    const e = o.error?.()
+    if (e) return e
+  }
+  return null
+})
 
-const clusterActive = computed(() => active.value === 'cluster')
+function onRegisteredClick(op: SearchOperator): void {
+  if (active.value === op.id) {
+    active.value = null
+    return
+  }
+  active.value = op.id
+  op.activate?.()
+}
+
 const timelineActive = computed(() => active.value === 'timeline')
-const consensusActive = computed(() => active.value === 'consensus')
 const compareActive = computed(() => active.value === 'compare')
 
 /**
@@ -235,15 +216,6 @@ const graphChipLabel = computed(() =>
   graphChipDisabled.value ? 'On graph (no ids)' : `On graph (${graphSetIds.value.length})`,
 )
 
-function onClusterClick(): void {
-  if (clusterActive.value) {
-    active.value = null
-    return
-  }
-  active.value = 'cluster'
-  emit('run-cluster')
-}
-
 function onTimelineClick(): void {
   active.value = timelineActive.value ? null : 'timeline'
 }
@@ -252,15 +224,6 @@ function onGraphClick(): void {
   if (graphChipDisabled.value) return
   active.value = 'graph'
   emit('focus-set', graphSetIds.value)
-}
-
-function onConsensusClick(): void {
-  if (consensusActive.value) {
-    active.value = null
-    return
-  }
-  active.value = 'consensus'
-  emit('run-consensus')
 }
 
 function onCompareClick(): void {
@@ -293,19 +256,21 @@ function onCompareClear(): void {
       aria-label="Operator chips"
     >
       <button
+        v-for="op in registeredBetween(-Infinity, BUILT_IN_ORDER.timeline)"
+        :key="op.id"
         type="button"
         class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
         :class="
-          clusterActive
+          active === op.id
             ? 'border-primary bg-primary text-primary-foreground'
             : 'border-border text-muted hover:bg-overlay'
         "
-        :aria-pressed="clusterActive"
-        data-testid="operator-chip-cluster"
-        title="Group hits by topic / theme cluster (server-side; over-fetches top_k × 3 for grouping)."
-        @click="onClusterClick"
+        :aria-pressed="active === op.id"
+        :data-testid="`operator-chip-${op.id}`"
+        :title="op.title"
+        @click="onRegisteredClick(op)"
       >
-        {{ operatorLoading === 'cluster' ? 'Cluster…' : 'Cluster' }}
+        {{ op.busy?.() ? `${op.label}…` : op.label }}
       </button>
       <button
         type="button"
@@ -323,6 +288,23 @@ function onCompareClear(): void {
         Timeline
       </button>
       <button
+        v-for="op in registeredBetween(BUILT_IN_ORDER.timeline, BUILT_IN_ORDER.graph)"
+        :key="op.id"
+        type="button"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        :class="
+          active === op.id
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-muted hover:bg-overlay'
+        "
+        :aria-pressed="active === op.id"
+        :data-testid="`operator-chip-${op.id}`"
+        :title="op.title"
+        @click="onRegisteredClick(op)"
+      >
+        {{ op.busy?.() ? `${op.label}…` : op.label }}
+      </button>
+      <button
         type="button"
         class="rounded border border-border px-2 py-0.5 text-[10px] font-medium leading-none text-muted transition-colors hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="graphChipDisabled"
@@ -337,19 +319,21 @@ function onCompareClear(): void {
         {{ graphChipLabel }}
       </button>
       <button
+        v-for="op in registeredBetween(BUILT_IN_ORDER.graph, BUILT_IN_ORDER.compare)"
+        :key="op.id"
         type="button"
         class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
         :class="
-          consensusActive
+          active === op.id
             ? 'border-primary bg-primary text-primary-foreground'
             : 'border-border text-muted hover:bg-overlay'
         "
-        :aria-pressed="consensusActive"
-        data-testid="operator-chip-consensus"
-        title="Cross-speaker corroboration pairs from enrichments/topic_consensus.json (ADR-108, precision ~0.91 on prod-v2)."
-        @click="onConsensusClick"
+        :aria-pressed="active === op.id"
+        :data-testid="`operator-chip-${op.id}`"
+        :title="op.title"
+        @click="onRegisteredClick(op)"
       >
-        {{ operatorLoading === 'consensus' ? 'Consensus…' : 'Consensus' }}
+        {{ op.busy?.() ? `${op.label}…` : op.label }}
       </button>
       <button
         type="button"
@@ -369,17 +353,26 @@ function onCompareClear(): void {
         "
         @click="onCompareClick"
       >
-        {{ operatorLoading === 'compare' ? 'Compare…' : 'Compare' }}
+        Compare
+      </button>
+      <button
+        v-for="op in registeredBetween(BUILT_IN_ORDER.compare, Infinity)"
+        :key="op.id"
+        type="button"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        :class="
+          active === op.id
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-muted hover:bg-overlay'
+        "
+        :aria-pressed="active === op.id"
+        :data-testid="`operator-chip-${op.id}`"
+        :title="op.title"
+        @click="onRegisteredClick(op)"
+      >
+        {{ op.busy?.() ? `${op.label}…` : op.label }}
       </button>
     </div>
-
-    <p
-      v-if="operatorError"
-      class="text-[10px] text-danger"
-      data-testid="operator-error"
-    >
-      {{ operatorError }}
-    </p>
 
     <div
       v-if="timelineActive"
@@ -404,113 +397,19 @@ function onCompareClear(): void {
       </p>
     </div>
 
-    <div
-      v-if="clusterActive"
-      class="rounded border border-border bg-canvas p-2"
-      data-testid="operator-cluster-panel"
-      aria-label="Cluster grouping of the current hit set"
+    <p
+      v-if="registeredError"
+      class="text-[10px] text-danger"
+      data-testid="operator-error"
     >
-      <p
-        v-if="operatorLoading === 'cluster' && !clusters"
-        class="text-[10px] text-muted"
-        data-testid="operator-cluster-loading"
-      >
-        Loading clusters…
-      </p>
-      <p
-        v-else-if="!clusters || !clusters.length"
-        class="text-[10px] text-muted"
-        data-testid="operator-cluster-empty"
-      >
-        No clusters — no hit resolves to a topic or theme cluster surface.
-      </p>
-      <ul
-        v-else
-        class="flex flex-col gap-1"
-        data-testid="operator-cluster-list"
-      >
-        <li
-          v-for="c in clusters"
-          :key="c.cluster_id ?? 'ungrouped'"
-          class="rounded border border-border/60 bg-surface px-2 py-1 text-[11px] text-surface-foreground"
-        >
-          <div class="flex items-center gap-2">
-            <span
-              class="rounded px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide text-muted"
-              :class="c.cluster_kind === 'ungrouped' ? 'bg-overlay' : 'bg-primary/15 text-primary'"
-              :title="`Cluster kind: ${c.cluster_kind}`"
-            >
-              {{ c.cluster_kind === 'ungrouped' ? 'Other' : c.cluster_kind.replace('_', ' ') }}
-            </span>
-            <span class="truncate font-medium">{{ c.label }}</span>
-            <span class="ml-auto shrink-0 text-[10px] text-muted">
-              {{ c.size }} {{ c.size === 1 ? 'hit' : 'hits' }}
-            </span>
-          </div>
-        </li>
-      </ul>
-    </div>
+      {{ registeredError }}
+    </p>
 
-    <div
-      v-if="consensusActive"
-      class="rounded border border-border bg-canvas p-2"
-      data-testid="operator-consensus-panel"
-      aria-label="Cross-speaker corroboration pairs"
-    >
-      <p
-        v-if="operatorLoading === 'consensus' && !consensusPairs"
-        class="text-[10px] text-muted"
-        data-testid="operator-consensus-loading"
-      >
-        Loading consensus pairs…
-      </p>
-      <p
-        v-else-if="!consensusPairs || !consensusPairs.length"
-        class="text-[10px] text-muted"
-        data-testid="operator-consensus-empty"
-      >
-        No corroboration pairs for topics in this hit set (or the corpus has no
-        <code>enrichments/topic_consensus.json</code> yet).
-      </p>
-      <ul
-        v-else
-        class="flex flex-col gap-1.5"
-        data-testid="operator-consensus-list"
-      >
-        <li
-          v-for="p in consensusPairs"
-          :key="`${p.topic_id}-${p.insight_a_id}-${p.insight_b_id}`"
-          class="rounded border border-border/60 bg-surface px-2 py-1.5 text-[11px] text-surface-foreground"
-        >
-          <p class="mb-1 flex items-center gap-1.5">
-            <span
-              class="rounded bg-primary/15 px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide text-primary"
-            >Topic</span>
-            <span class="truncate font-medium">{{ p.topic_label ?? p.topic_id }}</span>
-          </p>
-          <p class="mb-1 line-clamp-2 italic">
-            <span class="font-medium">{{ p.person_a_label ?? p.person_a_id }}:</span>
-            {{ p.insight_a_text || '(no text)' }}
-          </p>
-          <p class="mb-1 line-clamp-2 italic">
-            <span class="font-medium">{{ p.person_b_label ?? p.person_b_id }}:</span>
-            {{ p.insight_b_text || '(no text)' }}
-          </p>
-          <p class="text-[10px] text-muted">
-            <span title="Lower is stronger agreement (ADR-108)">
-              contradiction: {{ p.contradiction_score.toFixed(2) }}
-            </span>
-            <span
-              v-if="p.cosine_similarity != null"
-              title="Higher is same-question (embedding cosine)"
-              class="ml-2"
-            >
-              cosine: {{ p.cosine_similarity.toFixed(2) }}
-            </span>
-          </p>
-        </li>
-      </ul>
-    </div>
+    <component
+      :is="activeRegistered.panel"
+      v-if="activeRegistered?.panel"
+      :visible-hits="visibleHits"
+    />
 
     <CompareOperatorPanel
       v-if="compareActive"

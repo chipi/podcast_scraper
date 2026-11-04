@@ -68,36 +68,6 @@ def test_unparsable_yaml_does_not_break_the_probe(tmp_path: Path) -> None:
     assert _operator_disabled_enricher_ids(_corpus(tmp_path, "{{{ not yaml")) == set()
 
 
-def test_disabled_enrichers_are_not_stale_and_do_not_recommend_reenrich(tmp_path: Path) -> None:
-    """The point of the change: a switched-off enricher stops looking like a backlog."""
-    root = _corpus(tmp_path, _YAML)
-    fields = compute_enrichment_staleness(root)
-    by_id = {r.enricher_id: r for r in fields.enrichers}
-
-    for eid in ("topic_similarity", "topic_consensus"):
-        row = by_id.get(eid)
-        assert row is not None, f"{eid} must still be REPORTED, not hidden"
-        assert row.disabled is True
-        assert row.stale is False, f"{eid} is off by choice — not outstanding work"
-        assert row.reasons == []
-
-    # ...and they no longer drag the rollup. Asserted by DIFFERENCE, not by absence:
-    # in an empty corpus the other (enabled) enrichers legitimately have never run, so
-    # ``never_ran`` in the rollup is correct — it just must not come from these two.
-    from podcast_scraper.enrichment.eval.admission import known_enricher_manifests
-
-    all_off = "enrichment:\n  enabled: true\n  enrichers:\n" + "".join(
-        f"    {eid}:\n      enabled: false\n" for eid in known_enricher_manifests()
-    )
-    root_all_off = _corpus(tmp_path / "everything-off", all_off)
-    fields_all_off = compute_enrichment_staleness(root_all_off)
-    assert fields_all_off.reenrich_recommended is False, (
-        "with every enricher disabled there is no outstanding enrichment work, so the "
-        "rollup must be quiet"
-    )
-    assert fields_all_off.reenrich_reasons == []
-
-
 def test_an_enabled_enricher_with_no_output_is_still_stale(tmp_path: Path) -> None:
     """The guard must not silence genuine never-ran enrichers — that would be worse than
     the bug it replaces."""

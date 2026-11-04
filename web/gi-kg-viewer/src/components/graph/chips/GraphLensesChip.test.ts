@@ -105,7 +105,6 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
 
   it('renders 2 rows when no artifact is loaded (all enricher/data-gated rows hidden)', async () => {
     const { artifacts } = await useStores()
-    artifacts.storylinesDoc = null
     // parsedList empty → displayArtifact.value?.data?.edges is undefined
     artifacts.parsedList = [] as unknown as typeof artifacts.parsedList
     const Chip = await loadChip()
@@ -113,22 +112,13 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
     await nextTick()
     expect(w.find('[data-testid="lens-node-size-by-degree"]').exists()).toBe(true)
     expect(w.find('[data-testid="lens-bridge-ring"]').exists()).toBe(true)
-    // Theme regions row hidden when the enricher artifact isn't loaded.
-    expect(w.find('[data-testid="lens-theme-cluster-regions"]').exists()).toBe(false)
+    // The private lenses (theme regions, velocity halo, consensus edges) are not in this viewer.
+    for (const id of ['lens-theme-cluster-regions', 'lens-velocity-halo', 'lens-consensus-edges']) {
+      expect(w.find(`[data-testid="${id}"]`).exists()).toBe(false)
+    }
     // Aggregated-edges row hidden when the full artifact has no ABOUT /
     // SPOKEN_BY source edges to roll up (FU2 gate).
     expect(w.find('[data-testid="lens-aggregated-edges"]').exists()).toBe(false)
-  })
-
-  it('renders theme regions row when the artifact is present', async () => {
-    const { artifacts } = await useStores()
-    artifacts.storylinesDoc = {
-      clusters: [{ graph_compound_parent_id: 'thc:x', canonical_label: 'X' }],
-    }
-    const Chip = await loadChip()
-    const w = mount(Chip)
-    await nextTick()
-    expect(w.find('[data-testid="lens-theme-cluster-regions"]').exists()).toBe(true)
   })
 
   it('renders aggregated-edges row when the artifact has ABOUT edges', async () => {
@@ -159,22 +149,20 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
   })
 
   it('toggling a checkbox writes to the lens store', async () => {
-    const { lenses, artifacts } = await useStores()
-    artifacts.storylinesDoc = { clusters: [{ graph_compound_parent_id: 'thc:x' }] }
-    // Defaults: storylineRegions=false, bridgeRing=true.
-    expect(lenses.storylineRegions).toBe(false)
+    const { lenses } = await useStores()
+    // Default: bridgeRing=true.
+    expect(lenses.bridgeRing).toBe(true)
     const Chip = await loadChip()
     const w = mount(Chip)
     await nextTick()
-    const themeCheckbox = w.find('[data-testid="lens-theme-cluster-regions"]')
-    expect(themeCheckbox.exists()).toBe(true)
-    await themeCheckbox.setValue(true)
-    expect(lenses.storylineRegions).toBe(true)
+    const bridgeCheckbox = w.find('[data-testid="lens-bridge-ring"]')
+    expect(bridgeCheckbox.exists()).toBe(true)
+    await bridgeCheckbox.setValue(false)
+    expect(lenses.bridgeRing).toBe(false)
   })
 
   it('reset link calls resetToDefaults', async () => {
-    const { lenses, artifacts } = await useStores()
-    artifacts.storylinesDoc = null
+    const { lenses } = await useStores()
     lenses.setAggregatedEdges(true)
     lenses.setNodeSizeByDegree(false)
     const Chip = await loadChip()
@@ -184,5 +172,39 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
     expect(lenses.aggregatedEdges).toBe(false)
     expect(lenses.nodeSizeByDegree).toBe(true) // default-on
     expect(lenses.bridgeRing).toBe(true) // default-on
+  })
+})
+
+describe('GraphLensesChip registered lenses', () => {
+  beforeEach(() => {
+    storage.clear()
+    setActivePinia(createPinia())
+  })
+
+  it('lists an available registered lens by order and toggles its flag; hides an unavailable one', async () => {
+    const { graphLenses } = await import('../../../extensions')
+    graphLenses.reset()
+    graphLenses.register({
+      id: 'between', label: 'Between', description: 'd', testid: 'lens-between', order: 30,
+      available: () => true, apply: () => {}, clear: () => {},
+    })
+    graphLenses.register({
+      id: 'gone', label: 'Gone', description: 'd', testid: 'lens-gone',
+      available: async () => false, apply: () => {}, clear: () => {},
+    })
+    const { useShellStore } = await import('../../../stores/shell')
+    useShellStore().corpusPath = '/corpus'
+    const { lenses } = await useStores()
+    const Chip = await loadChip()
+    const w = mount(Chip)
+    await new Promise((r) => setTimeout(r, 0))
+    await w.vm.$nextTick()
+    const ids = w.findAll('input[type="checkbox"]').map((i) => i.attributes('data-testid'))
+    expect(ids.slice(0, 3)).toEqual(['lens-node-size-by-degree', 'lens-bridge-ring', 'lens-between'])
+    expect(ids).not.toContain('lens-gone')
+    await w.get('[data-testid="lens-between"]').setValue(true)
+    expect(lenses.isLensOn('between')).toBe(true)
+    graphLenses.reset()
+    w.unmount()
   })
 })

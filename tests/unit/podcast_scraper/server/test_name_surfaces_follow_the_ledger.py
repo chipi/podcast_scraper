@@ -45,31 +45,6 @@ def test_the_corpus_graph_spells_person_nodes() -> None:
     assert plain._nodes["person:korin-vaal"].payload["name"] == "Korin Vaal"
 
 
-def test_trending_people_labels_follow_the_ledger(tmp_path, monkeypatch) -> None:
-    from podcast_scraper.server import app_momentum as M
-
-    monkeypatch.setattr(
-        M,
-        "cached_json_artifact",
-        lambda _root, _rel: {
-            "data": {
-                "content_series": {
-                    "persons": [
-                        {"person_id": "person:korin-vaal", "person_label": "Korin Vaal"},
-                        {"person_id": "person:odile-brand", "person_label": "Odile Brand"},
-                    ]
-                }
-            }
-        },
-    )
-    monkeypatch.setattr("podcast_scraper.identity.display.person_display", lambda _root: VIEW)
-    labels = M._labels_from_content(tmp_path)
-    assert (
-        labels["person:korin-vaal"] == "Korin Vael"
-        and labels["person:odile-brand"] == "Odile Brand"
-    )
-
-
 COAPPEARANCE = {
     "pairs": [
         {
@@ -212,24 +187,3 @@ def test_a_community_named_by_two_ids_of_one_person_is_spelled() -> None:
     }
     out = spell_enrichment_people("guest_coappearance", data, view)
     assert out["communities"][0]["community_label"] == "Korin Vael"
-
-
-def test_agreeing_pairs_use_canonical_ids(tmp_path, monkeypatch) -> None:
-    from podcast_scraper.server import app_another_view_rail as R
-
-    payload = {
-        "data": {
-            "consensus": [
-                {"topic_id": "topic:t", "person_a_id": "person:k2", "person_b_id": "person:o"},
-                {"topic_id": "topic:t", "person_a_id": "person:k1", "person_b_id": "person:k2"},
-            ]
-        }
-    }
-    monkeypatch.setattr(
-        "podcast_scraper.search.operators._load_consensus_payload", lambda _r: payload
-    )
-    monkeypatch.setattr(
-        "podcast_scraper.identity.ledger.served_id_map",
-        lambda _r: {"person:k1": "person:k1", "person:k2": "person:k1"},
-    )
-    assert R.agreeing_pairs(tmp_path) == {("topic:t", frozenset({"person:k1", "person:o"}))}

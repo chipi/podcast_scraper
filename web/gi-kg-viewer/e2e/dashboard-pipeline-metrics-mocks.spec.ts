@@ -57,8 +57,17 @@ async function mockDashboardWithRuns(
       contentType: 'application/json',
       body: JSON.stringify({
         available: true,
-        // As the API sends it: `feeds_indexed` is always present (schemas.py, default []).
-        stats: { total_vectors: 0, doc_type_counts: {}, feeds_indexed: [] },
+        // The whole IndexStatsBody: the real server always sends every field, and the store reads
+        // feeds_indexed unguarded (it threw on this mock's partial body).
+        stats: {
+          total_vectors: 0,
+          doc_type_counts: {},
+          feeds_indexed: [],
+          embedding_model: '',
+          embedding_dim: 0,
+          last_updated: '',
+          index_size_bytes: 0,
+        },
         reindex_recommended: false,
         reindex_reasons: [],
       }),

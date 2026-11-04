@@ -8,7 +8,7 @@
 # mocks were never a necessity — just the only thing available when the suite was written.
 #
 # Two notes specific to this suite:
-#   * it runs on FIREFOX (`npx playwright install firefox` once), not Chromium;
+#   * it runs on Chrome (`npx playwright install chromium` once), like the player suite;
 #   * Vite proxies /api to VITE_API_TARGET, so pointing it at the container is one env var.
 #
 # Usage:  e2e/run-local-stack.sh [playwright args...]
@@ -17,14 +17,25 @@
 #   make e2e-api-image          # -> podcast-api:e2e-local
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+VIEWER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Found the way the Playwright configs find it (platform-root.mjs), so this runs from the public
+# repo and from the private studio mount alike (ADR-170).
+REPO_ROOT="$(node "$VIEWER_ROOT/platform-root.mjs")"
 CORPUS_SRC="$REPO_ROOT/tests/fixtures/app-validation-corpus/v3"
 IMAGE="${E2E_API_IMAGE:-podcast-api:e2e-local}"
-CONTAINER=viewer-e2e-api
-VOLUME=viewer-e2e-appdata
-PORT=8012
+# Named per checkout, so two worktrees (or this viewer and Studio) can run side by side on one
+# engine. The host port is whatever Docker gives the container: a fixed one collides with other
+# checkouts' runs and with the native server the Playwright config starts on 8012.
+CHECKOUT="$(basename "$REPO_ROOT")-$(basename "$(dirname "$VIEWER_ROOT")")"
+CONTAINER="viewer-e2e-api-$CHECKOUT"
+VOLUME="viewer-e2e-appdata-$CHECKOUT"
+CORPUS_VOLUME="viewer-e2e-corpus-$CHECKOUT"
+API_PORT=8012  # inside the container
+# Every container gets a memory cap (the shared dev engine's contract). The API holds the
+# embedding model and a LanceDB index; 3g is the size the engine's owners suggested for it.
+API_MEMORY="${E2E_API_MEMORY:-3g}"
 
-# ── The corpus is served from a COPY, never from the tracked fixture ──────────────────────────
+# ── The corpus is served from a COPY in a volume, never from the tracked fixture ──────────────
 #
 # The operator plane WRITES into whatever corpus directory it is given: `GET /api/operator-config`
 # *creates* `viewer_operator.yaml` when it is missing, and enabling the jobs API creates
@@ -33,33 +44,33 @@ PORT=8012
 # tracked tree after every run — and worse, a second run starts from a corpus the first one
 # mutated, so "fresh corpus" assertions quietly stop being fresh.
 #
-# Copying is cheap (~6 MB) and makes each run hermetic. Override the location with
-# E2E_CORPUS_WORKDIR if the default is inconvenient (it must be a path your container runtime can
-# bind-mount — on Colima only paths under $HOME are visible inside the VM, so a $TMPDIR path
-# silently mounts as an EMPTY directory).
-WORKDIR="${E2E_CORPUS_WORKDIR:-$REPO_ROOT/web/gi-kg-viewer/.e2e-corpus}"
-CORPUS="$WORKDIR/v3"
+# The copy lives in a named volume, re-created on every run, not in a bind-mounted host directory.
+# On Colima a bind mount crosses the VM boundary for every stat and read: `GET /api/artifacts`,
+# which walks the corpus, took 7.3 s against the bind mount and 0.1–0.3 s against the same files
+# inside the container (measured 2026-10-08). That walk runs on every graph load, so the
+# bind-mounted corpus pushed graph-loading specs past their timeouts.
+#
+# The container runs as uid 1000 (PODCAST_UID in docker/api/Dockerfile), so the seeded tree is
+# chowned to it. Symptom if it is not: `GET /api/jobs` → 500 with
+# `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
+# "Loading…" forever — which reads as a hung frontend, not a permissions problem.
 
-cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
+cleanup() { docker rm -f "$CONTAINER" "$CONTAINER-seed" >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
 
 [ -d "$CORPUS_SRC" ] || { echo "missing fixture corpus: $CORPUS_SRC" >&2; exit 1; }
 
-echo "seeding a disposable corpus copy at $CORPUS"
-rm -rf "$WORKDIR"
-mkdir -p "$WORKDIR"
-cp -R "$CORPUS_SRC" "$CORPUS"
-# The container runs as a non-root uid (PODCAST_UID=1000 in docker/api/Dockerfile) while the copy is
-# owned by whoever ran this script, so the operator plane cannot create the files it needs inside
-# the mount. Symptom if you skip this: `GET /api/jobs` → 500 with
-# `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
-# "Loading…" forever — which reads as a hung frontend, not a permissions problem.
-# Safe to blanket-chmod: this tree is a throwaway copy, re-seeded above on every run.
-chmod -R a+rwX "$CORPUS"
-
 cleanup
-docker volume rm "$VOLUME" >/dev/null 2>&1 || true
+docker volume rm "$VOLUME" "$CORPUS_VOLUME" >/dev/null 2>&1 || true
 docker volume create "$VOLUME" >/dev/null
+docker volume create "$CORPUS_VOLUME" >/dev/null
+
+echo "seeding a disposable corpus copy into the $CORPUS_VOLUME volume"
+docker run -d --name "$CONTAINER-seed" --memory 512m --user root -v "$CORPUS_VOLUME:/w" \
+  --entrypoint sleep "$IMAGE" 300 >/dev/null
+docker cp "$CORPUS_SRC/." "$CONTAINER-seed:/w"
+docker exec "$CONTAINER-seed" chown -R 1000:1000 /w
+docker rm -f "$CONTAINER-seed" >/dev/null
 
 # ── Env the suite actually needs ───────────────────────────────────────────────────────────────
 #
@@ -76,9 +87,9 @@ docker volume create "$VOLUME" >/dev/null
 #   PODCAST_SERVE_ENABLE_JOBS_API               likewise /api/jobs + /api/scheduled-jobs.
 #
 # Mounting them is safe here because the corpus is a throwaway copy (see above).
-docker run -d --name "$CONTAINER" \
-  -p "127.0.0.1:$PORT:$PORT" \
-  -v "$CORPUS:/corpus" \
+docker run -d --name "$CONTAINER" --memory "$API_MEMORY" \
+  -p "127.0.0.1::$API_PORT" \
+  -v "$CORPUS_VOLUME:/corpus" \
   -v "$VOLUME:/appdata" \
   -e APP_OAUTH_PROVIDER=mock \
   -e APP_SESSION_SECRET=e2e-secret \
@@ -91,7 +102,9 @@ docker run -d --name "$CONTAINER" \
   -e HF_HUB_OFFLINE=1 \
   -e TRANSFORMERS_OFFLINE=1 \
   --entrypoint python "$IMAGE" \
-  -m podcast_scraper.cli serve --output-dir /corpus --port "$PORT" --host 0.0.0.0 >/dev/null
+  -m podcast_scraper.cli serve --output-dir /corpus --port "$API_PORT" --host 0.0.0.0 >/dev/null
+PORT="$(docker port "$CONTAINER" "$API_PORT/tcp" | head -1 | sed 's/.*://')"
+echo "api container on host port $PORT"
 
 printf 'waiting for the api'
 for _ in $(seq 1 120); do
@@ -150,4 +163,8 @@ case " $* " in
   *) WORKER_ARGS=(--workers=1) ;;
 esac
 
-VITE_API_TARGET="http://127.0.0.1:$PORT" npx playwright test "${WORKER_ARGS[@]}" "$@"
+# Run from the viewer so npx finds its own pinned Playwright and config. From anywhere else
+# (`make test-ui-e2e-live` runs at the repo root) npx fetched an unpinned Playwright and collected
+# every spec in the repo.
+cd "$VIEWER_ROOT"
+E2E_API_PORT="$PORT" npx playwright test "${WORKER_ARGS[@]}" "$@"

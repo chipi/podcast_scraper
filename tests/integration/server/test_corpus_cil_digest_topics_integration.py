@@ -62,25 +62,6 @@ def _write_minimal_corpus(
     (search / "topic_clusters.json").write_text(json.dumps(clusters), encoding="utf-8")
 
 
-def test_digest_includes_cil_digest_topics(tmp_path: Path) -> None:
-    _write_minimal_corpus(tmp_path)
-    app = create_app(tmp_path, static_dir=False)
-    client = TestClient(app)
-    r = client.get("/api/corpus/digest", params={"path": str(tmp_path), "window": "all"})
-    assert r.status_code == 200
-    body = r.json()
-    rows = body.get("rows") or []
-    assert len(rows) >= 1
-    row0 = rows[0]
-    pills = row0.get("cil_digest_topics") or []
-    assert isinstance(pills, list)
-    assert len(pills) >= 1
-    alpha = next((p for p in pills if p.get("topic_id") == "topic:alpha"), None)
-    assert alpha is not None
-    assert alpha.get("in_topic_cluster") is True
-    assert alpha.get("label") == "Alpha"
-
-
 def test_episodes_detail_includes_cil_digest_topics(tmp_path: Path) -> None:
     _write_minimal_corpus(tmp_path)
     app = create_app(tmp_path, static_dir=False)
