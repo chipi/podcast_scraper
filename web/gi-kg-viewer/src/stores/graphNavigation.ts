@@ -130,8 +130,10 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
 
   function setGraphEgoFocusCyId(id: string | null): void {
     const next = id?.trim() ? id.trim() : null
-    if (next !== graphEgoFocusCyId.value) {
-      trailNodeIds.value = [] // new ego origin → start a fresh breadcrumb trail
+    // New ego origin → fresh breadcrumb trail. Only assign when there is a trail: a new []
+    // trips the canvas ``trailNodeIds`` watcher into a redraw even when nothing changed.
+    if (next !== graphEgoFocusCyId.value && trailNodeIds.value.length > 0) {
+      trailNodeIds.value = []
     }
     graphEgoFocusCyId.value = next
   }

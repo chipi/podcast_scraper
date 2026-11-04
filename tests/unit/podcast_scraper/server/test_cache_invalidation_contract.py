@@ -28,21 +28,7 @@ SCANNED = ("server", "search")
 CONTRACT: dict[str, tuple[str, str]] = {
     "server/relational_view.py::_theme_ref_by_norm_at": ("token", "_token"),
     "server/relational_view.py::_storyline_ref_by_norm_at": ("token", "_token"),
-    "server/app_momentum.py::_share_card_trends_cached": ("token", "_mtime"),
     "server/og/card.py::_font": ("static", "a font file shipped with the code"),
-    "server/app_discover_view.py::_INTEREST_INDEX_CACHE": (
-        "mtime",
-        "search/interest_index.json (mtime, size), checked on every read",
-    ),
-    "server/routes/app_episodes.py::_related_cache": (
-        "ttl",
-        "bounded TTL; related episodes are corpus content, not user state",
-    ),
-    "server/routes/app_episodes.py::_episode_reach_cache": (
-        "ttl",
-        "30 s; anonymous aggregate counts",
-    ),
-    "server/routes/app_relational.py::_conversation_arc_cache": ("ttl", "30 s"),
     "server/app_audio_bridge.py::_https_cache": ("ttl", "1 h (_HTTPS_TTL_S)"),
     "server/routes/corpus_enrichments.py::_CATALOGUE_CACHE": (
         "mtime",
@@ -92,7 +78,7 @@ def _found() -> dict[str, list[str]]:
 def test_the_scan_still_finds_caches() -> None:
     found = _found()
     assert "server/relational_view.py::_storyline_ref_by_norm_at" in found
-    assert len(found) >= 8
+    assert len(found) >= 6
 
 
 def test_every_cache_states_its_invalidation() -> None:

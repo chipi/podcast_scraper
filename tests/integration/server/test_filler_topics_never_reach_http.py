@@ -115,52 +115,6 @@ def _topic_ids(payload: object) -> set[str]:
     return found
 
 
-def test_episode_entities_serve_no_filler(tmp_path: Path) -> None:
-    """Consumer: the topic chips under an episode. Tappable, and followable.
-
-    Reuses the known-good corpus builder from ``test_app_episodes`` and then OVERWRITES its KG
-    with filler beside a real topic, so the route is exercised for real rather than skipped. A
-    skipped test is not a guardrail.
-    """
-    from tests.integration.server.test_app_episodes import _only_slug, _write_corpus
-
-    _write_corpus(tmp_path)
-    kg_path = next((tmp_path / "metadata").glob("*.kg.json"))
-    kg_path.write_text(
-        json.dumps(
-            {
-                "nodes": [
-                    {"type": "Topic", "id": _FILLER_ID, "properties": {"label": "welcome back to"}},
-                    {
-                        "type": "Topic",
-                        "id": _TRUNCATED_ID,
-                        "properties": {"label": _TRUNCATED_LABEL},
-                    },
-                    {"type": "Topic", "id": _REAL_ID, "properties": {"label": "ai regulation"}},
-                ],
-                "edges": [],
-            }
-        ),
-        encoding="utf-8",
-    )
-    slug = _only_slug(tmp_path)
-    data_dir = tmp_path / "_appdata"
-    app = create_app(tmp_path, static_dir=False)
-    app.state.session_secret = "test-secret"
-    app.state.app_data_dir = data_dir
-    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
-    user = get_or_create_user(data_dir, provider="stub", subject="s2", email="u2@x.com", name="U2")
-    tc = TestClient(app)
-    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
-    tc.cookies.set(app_sessions.SESSION_COOKIE, token)
-    body = tc.get(f"/api/app/episodes/{slug}/entities").json()
-
-    ids = _topic_ids(body)
-    assert _FILLER_ID not in ids, "a greeting is rendered as an episode topic chip"
-    assert _TRUNCATED_ID not in ids, "a truncated proposition is rendered as an episode topic chip"
-    assert _REAL_ID in ids, "the real topic was dropped too — the guard is deleting, not filtering"
-
-
 def test_show_signals_serve_no_filler(client: TestClient) -> None:
     """Operator: top_topics AND the #1932 connectivity metric read the same accumulator."""
     r = client.get(

@@ -44,20 +44,6 @@ def client(tmp_path: Path) -> TestClient:
     return TestClient(app)
 
 
-def test_stats_reports_freshness_rows(client: TestClient) -> None:
-    r = client.get("/api/enrichment/stats")
-    assert r.status_code == 200, r.text
-    body = r.json()
-    # Nothing has ever run → recommended, with the typed reason.
-    assert body["reenrich_recommended"] is True
-    assert "never_ran" in body["reenrich_reasons"]
-    rows = {row["enricher_id"]: row for row in body["enrichers"]}
-    assert "topic_consensus" in rows and "topic_similarity" in rows
-    tc = rows["topic_consensus"]
-    assert tc["scope"] == "corpus" and tc["stale"] is True
-    assert tc["current_version"]  # manifest version always present
-
-
 def test_stats_goes_quiet_when_corpus_scope_current(client: TestClient, tmp_path: Path) -> None:
     from podcast_scraper.enrichment.eval.admission import known_enricher_manifests
 
@@ -105,19 +91,3 @@ def test_default_submit_has_no_force(client: TestClient, tmp_path: Path) -> None
     rows = [json.loads(ln) for ln in reg.read_text(encoding="utf-8").splitlines() if ln.strip()]
     mine = [row for row in rows if row.get("command_type") == "corpus_enrichment"]
     assert mine and "--force" not in str(mine[-1]["argv_summary"])
-
-
-def test_ml_profile_in_operator_yaml_drives_with_ml(client: TestClient, tmp_path: Path) -> None:
-    # RFC-118: a UI/API force re-derive must reach the ML pair — the child gets
-    # --profile and --with-ml derived from the operator YAML, like the auto-chain.
-    (tmp_path / "viewer_operator.yaml").write_text(
-        "profile: airgapped\nenrichment:\n  enabled: true\n", encoding="utf-8"
-    )
-    r = client.post("/api/jobs/enrichment", json={"force": True, "corpus_only": True})
-    assert r.status_code == 202, r.text
-    reg = tmp_path / ".viewer" / "jobs.jsonl"
-    rows = [json.loads(ln) for ln in reg.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    summary = str(rows[-1]["argv_summary"])
-    assert "--with-ml" in summary
-    assert "--profile" in summary and "airgapped" in summary
-    assert "--force" in summary

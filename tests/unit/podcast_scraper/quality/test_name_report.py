@@ -237,7 +237,6 @@ def test_r1_finds_no_raw_label_on_any_surface_after_s3(corpus: Path) -> None:
         "episode_people_chips",
         "search_insight_quotes",
         "search_lifted_speaker",
-        "mcp_speaker_roster",
     }
     assert "Zed Superseded" not in json.dumps(report)
 
@@ -393,12 +392,9 @@ def test_languages_and_lossy_person_ids_are_reported(tmp_path: Path) -> None:
     assert row["person_id"] == "person:topic" and row["language"] == "zh"
 
 
-def test_r1_detects_raw_labels_on_search_and_the_mcp_roster(
-    corpus: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The read-model, lifted-speaker and roster surfaces, with the pre-S3 behaviour restored."""
+def test_r1_detects_raw_labels_on_search(corpus: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The read-model and lifted-speaker surfaces, with the pre-S3 behaviour restored."""
     from podcast_scraper.gi import load
-    from podcast_scraper.mcp.tools import enrichment
     from podcast_scraper.search import transcript_chunk_lift as lift
 
     def old_meta(artifact, quote_node_id):
@@ -414,15 +410,9 @@ def test_r1_detects_raw_labels_on_search_and_the_mcp_roster(
         "_lifted_speaker",
         lambda pid, name: {"id": pid, "display_name": name} if pid else None,
     )
-    monkeypatch.setattr(
-        enrichment,
-        "_roster_from_record",
-        lambda content, diag: [{"name": "SPEAKER_09"}] + list(content.get("speakers") or []),
-    )
     r1 = name_report.run(corpus)["r1_raw_labels"]
     assert r1["search_insight_quotes:raw"]["items"] >= 2
     assert r1["search_lifted_speaker:raw"]["items"] >= 1
-    assert r1["mcp_speaker_roster:raw"]["episodes"] == 6
 
 
 def test_data_level_counts_give_the_before_whatever_the_surfaces_do(corpus: Path) -> None:

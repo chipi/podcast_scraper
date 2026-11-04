@@ -9,9 +9,10 @@ An extension module must import with the platform's core dependencies only: the 
 has no web stack, and enrichment loads extensions too. So routers are a callable the server invokes,
 and hooks import what they need inside their own bodies.
 
-Extensions that live in this tree are listed in ``_IN_TREE``. Each is optional: a module that is
-not there is skipped. An extension found both in-tree and through an entry point is loaded once,
-by name, and the installed package wins (ADR-168 decision 6).
+Extensions that live in this tree are listed in ``_IN_TREE`` — none since the private packages
+left it (ADR-170), but the slot stays. Each is optional: a module that is not there is skipped. An
+extension found both in-tree and through an entry point is loaded once, by name, and the installed
+package wins (ADR-168 decision 6).
 """
 
 from __future__ import annotations
@@ -70,12 +71,9 @@ JobRunner = Callable[[str, Path, Any], None]
 #: listeners did with each entity per week (saves, plays, opens, follows). Trending blends it in.
 EngagementSeries = Callable[[Path, "str | None", "dict[str, int] | None"], dict[str, Any]]
 
-#: In-tree extension modules, each exposing ``EXTENSION``.
-_IN_TREE: tuple[str, ...] = (
-    "podcast_scraper.server.app_mcp_extension",
-    "podcast_scraper.server.app_player_extension",
-    "podcast_scraper.enrichment.intelligence_extension",
-)
+#: In-tree extension modules, each exposing ``EXTENSION``. Empty: the ones that lived here are
+#: installed packages now (ADR-170).
+_IN_TREE: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -181,11 +179,13 @@ _discovered: list[Extension] | None = None
 
 
 def _from_module(module_name: str) -> Extension | None:
+    """``module_name.EXTENSION``, or ``None`` when the module is not installed. The private
+    packages' tests load their extensions through it."""
     try:
         module = importlib.import_module(module_name)
     except ModuleNotFoundError as exc:
         if exc.name is not None and module_name.startswith(exc.name):
-            return None  # removed by the split: absent package, absent feature
+            return None  # absent package, absent feature
         raise
     ext = getattr(module, "EXTENSION", None)
     if not isinstance(ext, Extension):
@@ -206,8 +206,8 @@ def load_extensions() -> list[Extension]:
 
 
 def _discover() -> list[Extension]:
-    # Installed packages first: an image that installs an extension must run it, not the in-tree
-    # copy. The in-tree module only fills a name nothing installed provides. Either way each name
+    # Installed packages first: an image that installs an extension must run it, not an in-tree
+    # copy. An in-tree module only fills a name nothing installed provides. Either way each name
     # loads once, so no route registers twice.
     found: dict[str, Extension] = {}
     for ep in metadata.entry_points(group=ENTRY_POINT_GROUP):

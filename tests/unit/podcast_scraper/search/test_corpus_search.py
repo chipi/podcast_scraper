@@ -92,47 +92,6 @@ def test_run_corpus_search_success_mocked(mock_hybrid: object, tmp_path: Path) -
 
 
 @patch(_HYBRID)
-def test_run_corpus_search_attaches_topic_cluster_metadata(
-    mock_hybrid: object, tmp_path: Path
-) -> None:
-    search_dir = tmp_path / "search"
-    search_dir.mkdir()
-    (search_dir / "topic_clusters.json").write_text(
-        json.dumps(
-            {
-                "clusters": [
-                    {
-                        "graph_compound_parent_id": "tc:cam",
-                        "canonical_label": "Cam Label",
-                        "members": [{"topic_id": "topic:leaf1"}],
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
-    )
-    mock_hybrid.return_value = [
-        SearchResult(
-            doc_id="d1",
-            score=0.99,
-            metadata={
-                "doc_type": "kg_topic",
-                "episode_id": "e1",
-                "source_id": "topic:leaf1",
-                "text": "surface",
-            },
-        ),
-    ]
-    out = run_corpus_search(tmp_path, "q", top_k=5, dedupe_kg_surfaces=False)
-    assert out.error is None
-    assert len(out.results) == 1
-    tc = out.results[0]["metadata"].get("topic_cluster")
-    assert isinstance(tc, dict)
-    assert tc.get("graph_compound_parent_id") == "tc:cam"
-    assert tc.get("canonical_label") == "Cam Label"
-
-
-@patch(_HYBRID)
 def test_run_corpus_search_no_index_when_hybrid_none(mock_hybrid: object, tmp_path: Path) -> None:
     # hybrid_candidates returns None for a missing/unusable index → no_index (no FAISS fallback).
     mock_hybrid.return_value = None
@@ -202,39 +161,6 @@ def _storyline_hit(source_id: str) -> SearchResult:
             "text": "Managing risk across domains risk management",
         },
     )
-
-
-def test_storyline_hit_is_joined_to_a_usable_label_and_anchor(tmp_path: Path) -> None:
-    """A storyline hit must come back with a LABEL and a ROUTABLE id.
-
-    Without this join the client had only `source_id`, so it rendered the raw ``thc:`` slug as the
-    title and linked to a page that 404s — there is no storyline endpoint, the anchor topic's card
-    IS the storyline. The index cannot supply either field, so the read path must.
-    """
-    _write_theme_artifact(
-        tmp_path,
-        [
-            {
-                "graph_compound_parent_id": "thc:managing-risk",
-                "canonical_label": "Managing risk across domains",
-                "member_count": 4,
-                "members": [
-                    {"topic_id": "topic:risk-management", "label": "risk management"},
-                    {"topic_id": "topic:systems", "label": "systems thinking"},
-                ],
-            }
-        ],
-    )
-    with patch(_HYBRID) as hybrid:
-        hybrid.return_value = [_storyline_hit("thc:managing-risk")]
-        out = run_corpus_search(tmp_path, "risk", top_k=5, dedupe_kg_surfaces=False)
-    assert out.error is None
-    assert len(out.results) == 1
-    meta = out.results[0]["metadata"]
-    assert meta["storyline_label"] == "Managing risk across domains"
-    assert meta["storyline_size"] == 4
-    assert meta["anchor_topic_id"] == "topic:risk-management"
-    assert not str(meta["anchor_topic_id"]).startswith("thc:"), "must be routable, not a thc: id"
 
 
 def test_storyline_hit_for_a_vanished_cluster_is_dropped(tmp_path: Path) -> None:

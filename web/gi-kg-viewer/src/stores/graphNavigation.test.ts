@@ -199,6 +199,14 @@ describe('useGraphNavigationStore', () => {
       expect(s.trailNodeIds).toEqual([])
     })
 
+    it('leaves an empty trail untouched when the ego origin changes', () => {
+      const s = useGraphNavigationStore()
+      s.setGraphEgoFocusCyId('origin1')
+      const before = s.trailNodeIds
+      s.setGraphEgoFocusCyId(null)
+      expect(s.trailNodeIds).toBe(before)
+    })
+
     it('clearTrail empties it', () => {
       const s = useGraphNavigationStore()
       s.addToTrail('a')

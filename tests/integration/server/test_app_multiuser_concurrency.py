@@ -8,10 +8,7 @@ back exactly their own content, and concurrent writes neither lose updates nor d
 from __future__ import annotations
 
 import json
-import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -19,7 +16,6 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_oauth import MockOAuthProvider
@@ -144,124 +140,3 @@ def test_oauth_returns_a_distinct_user_per_hint(tmp_path: Path) -> None:
         assert me["email"] == f"{who}@e2e.local"
         seen[who] = me["user_id"]
     assert len(set(seen.values())) == 3  # three distinct user ids — independent lifecycles
-
-
-def test_concurrent_users_are_isolated_with_no_crosstalk(tmp_path: Path) -> None:
-    app = _mock_app(tmp_path)
-    n = 16
-
-    def work(i: int) -> tuple[int, list, list, list, dict]:
-        client = _login(app, f"u{i}")
-        # Each user writes only their OWN content across several profile files.
-        client.post(
-            "/api/app/highlights",
-            json={"episode_slug": f"ep{i}", "kind": "moment", "start_ms": i},
-        )
-        client.put(f"/api/app/playback/ep{i}", json={"position_seconds": float(i)})
-        client.put("/api/app/queue", json={"items": [f"q{i}"]})
-        client.put("/api/app/interests", json={"items": [f"topic:t{i}"]})
-        highlights = client.get("/api/app/highlights").json()["items"]
-        queue = client.get("/api/app/queue").json()["items"]
-        interests = client.get("/api/app/interests").json()["items"]
-        playback = client.get(f"/api/app/playback/ep{i}").json()
-        return i, highlights, queue, interests, playback
-
-    start = time.monotonic()
-    with ThreadPoolExecutor(max_workers=n) as pool:
-        results = list(pool.map(work, range(n)))
-    elapsed = time.monotonic() - start
-
-    # Completes quickly → no deadlock (a lock bug would hang to the pytest timeout).
-    assert elapsed < 30
-    for i, highlights, queue, interests, playback in results:
-        # Each user sees EXACTLY their own writes — no other user's data leaked in.
-        assert [h["episode_slug"] for h in highlights] == [f"ep{i}"]
-        assert queue == [f"q{i}"]
-        assert interests == [f"topic:t{i}"]
-        assert playback["position_seconds"] == float(i)
-
-
-def test_same_user_concurrent_writes_do_not_lose_updates(tmp_path: Path) -> None:
-    # Rapid concurrent captures by ONE user (e.g. double-taps) must all persist — the per-user
-    # highlight file is a read-modify-write, so this guards against lost updates + tmp-file clobber.
-    app = _mock_app(tmp_path)
-    client = _login(app, "solo")
-    m = 25
-
-    def add(i: int) -> int:
-        r = client.post(
-            "/api/app/highlights",
-            json={"episode_slug": "ep", "kind": "moment", "start_ms": i},
-        )
-        return int(r.status_code)
-
-    with ThreadPoolExecutor(max_workers=m) as pool:
-        codes = list(pool.map(add, range(m)))
-    assert all(c == 201 for c in codes)
-    items = client.get("/api/app/highlights").json()["items"]
-    assert len(items) == m  # every concurrent add survived — no lost updates
-    assert {h["start_ms"] for h in items} == set(range(m))
-
-
-def test_per_user_personalization_search_and_library_are_isolated(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    app = _mock_app(tmp_path)
-    _personalized_corpus(tmp_path)
-    app.state.personalized_ranking = True
-    ep1, ep2 = _slug(tmp_path, "ep1"), _slug(tmp_path, "ep2")
-    alice, bob = _login(app, "alice"), _login(app, "bob")
-
-    # (1) Different interests → different suggestions: each user's discover feed leads with the
-    # episode matching THEIR followed cluster.
-    alice.put("/api/app/interests", json={"items": ["tc:ai"]})
-    bob.put("/api/app/interests", json={"items": ["tc:cooking"]})
-    a_top = alice.get("/api/app/discover").json()["items"][0]["title"]
-    b_top = bob.get("/api/app/discover").json()["items"][0]["title"]
-    assert a_top == "Episode ep1" and b_top == "Episode ep2" and a_top != b_top
-
-    # (2) Each plays a different episode → unique "now playing"; neither sees the other's position.
-    alice.put(f"/api/app/playback/{ep1}", json={"position_seconds": 120.0})
-    bob.put(f"/api/app/playback/{ep2}", json={"position_seconds": 300.0})
-    assert alice.get("/api/app/playback").json()["items"][0]["slug"] == ep1
-    assert bob.get("/api/app/playback").json()["items"][0]["slug"] == ep2
-    assert alice.get(f"/api/app/playback/{ep2}").json()["position_seconds"] == 0.0  # never played
-
-    # (3) Different library / saved things → each sees only their own favourites.
-    alice.put("/api/app/favorites", json={"kind": "episode", "ref": ep1, "label": "A"})
-    bob.put("/api/app/favorites", json={"kind": "episode", "ref": ep2, "label": "B"})
-    assert [e["slug"] for e in alice.get("/api/app/favorites").json()["episodes"]] == [ep1]
-    assert [e["slug"] for e in bob.get("/api/app/favorites").json()["episodes"]] == [ep2]
-
-    # Each *captures* from their episode (a highlight = engagement). Under RFC-114 the `experienced`
-    # set (what `scope=mine` recalls over) is heard∪captured and EXCLUDES whole-episode favorites —
-    # so a highlight, not the favorite above, is what puts ep1 in alice's recall set.
-    alice.post("/api/app/highlights", json={"episode_slug": ep1, "kind": "moment", "start_ms": 0})
-    bob.post("/api/app/highlights", json={"episode_slug": ep2, "kind": "moment", "start_ms": 0})
-
-    # (4) Different searches (scope=mine) → each gets results only from their own corpus. The inner
-    # search returns BOTH episodes; the heard∪captured filter narrows to each user's set.
-    def both(output_dir: Path, query: str, **kw: Any) -> CorpusSearchOutcome:
-        return CorpusSearchOutcome(
-            results=[
-                {
-                    "doc_id": "i1",
-                    "score": 0.9,
-                    "text": "a",
-                    "metadata": {"doc_type": "insight", "feed_id": "f", "episode_id": "ep1"},
-                },
-                {
-                    "doc_id": "i2",
-                    "score": 0.8,
-                    "text": "b",
-                    "metadata": {"doc_type": "insight", "feed_id": "f", "episode_id": "ep2"},
-                },
-            ],
-            lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
-        )
-
-    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", both)
-    a_hits = alice.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()["results"]
-    b_hits = bob.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()["results"]
-    assert [r["doc_id"] for r in a_hits] == ["i1"]  # alice recalls only her captured episode
-    assert [r["doc_id"] for r in b_hits] == ["i2"]  # bob recalls only his

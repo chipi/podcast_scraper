@@ -27,8 +27,6 @@
   - `docs/prd/PRD-029-person-profile.md` -- speaker names in enriched sources can
     open Person Profile via Person Landing
 - **Related UX specs**:
-  - `docs/uxs/UXS-008-enriched-search.md` -- visual contract for Enriched Answer
-    panel, provider attribution, degradation states
   - `docs/uxs/UXS-005-semantic-search.md` -- baseline search panel this extends
   - `docs/uxs/UXS-001-gi-kg-viewer.md` -- shared design system (tokens, typography,
     states)

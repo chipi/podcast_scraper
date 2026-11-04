@@ -13,6 +13,9 @@ const repoRoot = path.resolve(__dirname, '..', '..')
  */
 const venvPython = path.join(repoRoot, '.venv', 'bin', 'python')
 const pythonBin = existsSync(venvPython) ? venvPython : 'python3'
+// The API's port. e2e/run-local-stack.sh sets it to whatever host port the container got, so a
+// stack run reuses the container instead of starting the native server below.
+const API_PORT = process.env.E2E_API_PORT || '8012'
 
 /**
  * Browser E2E against Vite dev server (no Python API required for offline tests).
@@ -78,9 +81,9 @@ export default defineConfig({
        *
        * `reuseExistingServer` is what keeps BOTH workflows working from one config: when the
        * container from `e2e/run-local-stack.sh` (or `make test-ui-e2e-live`) is already serving
-       * 8012, Playwright reuses it and never starts this one — that path bakes in its own model
+       * API_PORT, Playwright reuses it and never starts this one — that path bakes in its own model
        * cache and stays the one to use on a machine that cannot install `[search]` at all. With
-       * nothing on 8012, as in CI, this native server starts instead.
+       * nothing on API_PORT, as in CI, this native server starts instead.
        *
        * The env below is not optional decoration. Without `APP_SIGNUP_MODE=open`,
        * `/api/app/auth/login?as=…` returns 403 and `signInIsolated` cannot make a session;
@@ -93,9 +96,9 @@ export default defineConfig({
       // because Playwright starts webServer BEFORE globalSetup — seeding there lost the race and
       // the server exited 2 on a corpus directory that did not exist yet.
       // The identity ledger before the API boots (ADR-166): without it there are no cross-episode joins.
-      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port 8012 --host 127.0.0.1`,
+      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
       cwd: __dirname,
-      url: 'http://127.0.0.1:8012/api/health',
+      url: `http://127.0.0.1:${API_PORT}/api/health`,
       env: {
         ...process.env,
         PYTHONPATH: path.join(repoRoot, 'src'),
@@ -142,7 +145,7 @@ export default defineConfig({
       // (it would otherwise inject the tracking script in `vite dev`).
       VITE_ANALYTICS_OFF: '1',
       // Proxy /api at the server above rather than vite.config.ts's 8000 default.
-      VITE_API_TARGET: 'http://127.0.0.1:8012',
+      VITE_API_TARGET: `http://127.0.0.1:${API_PORT}`,
     },
       /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */
       reuseExistingServer: true,

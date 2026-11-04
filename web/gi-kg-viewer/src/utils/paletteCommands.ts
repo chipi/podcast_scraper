@@ -14,6 +14,8 @@
  *     parallel.
  */
 
+import { paletteCommands as registeredPaletteCommands, searchOperators } from '../extensions'
+
 export type CommandCategory =
   | 'nav'
   | 'session'
@@ -109,17 +111,13 @@ export interface PaletteCommandDeps {
   /** Trigger a corpus re-index (admin only). */
   rebuildIndex: () => void
   /**
-   * #1259-4 operator kickers — run a server-side result-set operator
-   * (Cluster / Consensus) over the most recent query. Silent no-op when
-   * there is no recent query yet.
-   */
-  runOperatorOnLastQuery: (op: 'cluster' | 'consensus') => Promise<void> | void
-  /**
    * #1259-4 timeline kicker — open the Search tab on the most recent
    * query and toggle the Timeline operator on. Silent no-op when there
    * is no recent query.
    */
   openTimelineForLastQuery: () => Promise<void> | void
+  /** A registered result-set operator, opened on the last query (by operator id). */
+  openOperatorForLastQuery?: (id: string) => Promise<void> | void
   /**
    * #1259-4 compare kicker — open the Search tab on the most recent
    * query and pop the Compare picker. Silent no-op when there is no
@@ -236,20 +234,6 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     },
     // #1259-4 operator kickers
     {
-      id: 'operator.cluster-last',
-      label: 'Cluster last query',
-      category: 'operator',
-      keywords: ['cluster', 'group', 'theme', 'operator', 's4b', 'last'],
-      run: () => deps.runOperatorOnLastQuery('cluster'),
-    },
-    {
-      id: 'operator.consensus-last',
-      label: 'Consensus last query',
-      category: 'operator',
-      keywords: ['consensus', 'corroboration', 'agreement', 'operator', 's4b'],
-      run: () => deps.runOperatorOnLastQuery('consensus'),
-    },
-    {
       id: 'operator.timeline-last',
       label: 'Timeline last query',
       category: 'operator',
@@ -264,5 +248,19 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       run: () => deps.openCompareForLastQuery(),
     },
   ]
+  for (const op of searchOperators.list()) {
+    if (!op.palette || !deps.openOperatorForLastQuery) continue
+    const open = deps.openOperatorForLastQuery
+    cmds.push({
+      id: `operator.${op.id}-last`,
+      label: op.palette.label,
+      category: 'operator',
+      keywords: op.palette.keywords ?? [],
+      run: () => open(op.id),
+    })
+  }
+  for (const e of registeredPaletteCommands.list()) {
+    cmds.push({ id: e.id, label: e.label, category: e.category as CommandCategory, keywords: e.keywords ?? [], run: e.run })
+  }
   return cmds.filter((c) => !c.adminOnly || deps.isAdmin)
 }

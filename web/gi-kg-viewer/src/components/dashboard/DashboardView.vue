@@ -5,6 +5,7 @@ import { fetchCorpusDigest, type CorpusDigestResponse } from '../../api/digestAp
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
 import { fetchCorpusRunsSummary, type CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
 import { fetchCorpusTopPersons, type TopPersonItem } from '../../api/corpusPersonsApi'
+import { dashboardCards, type DashboardCard } from '../../extensions'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
@@ -15,14 +16,11 @@ import BriefingCard from './BriefingCard.vue'
 import CoverageByMonthChart from './CoverageByMonthChart.vue'
 import FeedCoverageTable from './FeedCoverageTable.vue'
 import DashboardTopicPerspectives from './DashboardTopicPerspectives.vue'
-import DashboardTrendingTopics from './DashboardTrendingTopics.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import CostRollupCard from './CostRollupCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicBriefingCards from './TopicBriefingCards.vue'
 import QueryActivityChart from './QueryActivityChart.vue'
-import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
-import ClusteringHealthCard from './ClusteringHealthCard.vue'
 import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
 import PipelineFeedHistoryGrid from './PipelineFeedHistoryGrid.vue'
@@ -31,9 +29,7 @@ import PipelineJobLogDialog from './PipelineJobLogDialog.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
-import TopicLandscape from './TopicLandscape.vue'
 import TopVoices from './TopVoices.vue'
-import TrendingGlobal from './TrendingGlobal.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
 
 const emit = defineEmits<{
@@ -44,6 +40,18 @@ const emit = defineEmits<{
 
 const shell = useShellStore()
 const indexStats = useIndexStatsStore()
+
+/** The topic grid: this viewer's own cards plus any a build registered, in `order`. */
+const topicCards = computed<DashboardCard[]>(() =>
+  [
+    { id: 'topic-perspectives', region: 'topics' as const, order: 20, span: 2 as const, component: DashboardTopicPerspectives },
+    { id: 'topic-briefing', region: 'topics' as const, order: 50, span: 2 as const, component: TopicBriefingCards,
+      props: { digest: digestIntel.value } },
+    ...dashboardCards.list().filter((c) => c.region === 'topics'),
+  ].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+)
+const overviewCards = computed(() => dashboardCards.list().filter((c) => c.region === 'overview'))
+const SPAN_CLASS = { 1: 'xl:col-span-1', 2: 'xl:col-span-2', 4: 'xl:col-span-4' } as const
 const dashboardNav = useDashboardNavStore()
 
 const dashTab = ref<'coverage' | 'intelligence' | 'pipeline'>('coverage')
@@ -398,9 +406,13 @@ function openLibraryFailures(): void {
         @open-digest="emit('open-digest')"
       />
 
-      <!-- Global momentum (RFC-103): what's hot corpus-wide across every kind, with per-kind
-           sparklines. Backed by GET /api/corpus/trending. -->
-      <TrendingGlobal />
+      <component
+        :is="card.component"
+        v-for="card in overviewCards"
+        :key="card.id"
+        v-bind="card.props ?? {}"
+        @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
+      />
 
       <!-- Topic intelligence — the topic-related widgets grouped together (#1), laid out on a
            standard 4-col grid with per-widget spans (#2): wide/tall cards span 2 cols, compact
@@ -413,17 +425,17 @@ function openLibraryFailures(): void {
           Topics
         </h3>
         <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="xl:col-span-2"><DashboardTrendingTopics /></div>
-          <div class="xl:col-span-2"><DashboardTopicPerspectives /></div>
-          <div class="xl:col-span-2">
-            <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
+          <div
+            v-for="card in topicCards"
+            :key="card.id"
+            :class="SPAN_CLASS[card.span ?? 2]"
+          >
+            <component
+              :is="card.component"
+              v-bind="card.props ?? {}"
+              @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
+            />
           </div>
-          <div class="xl:col-span-2">
-            <TopicLandscape source="themes" @go-graph="(id, fb) => emit('go-graph', id, fb)" />
-          </div>
-          <div class="xl:col-span-2"><TopicBriefingCards :digest="digestIntel" /></div>
-          <div class="xl:col-span-2"><TopicClustersStatusBlock /></div>
-          <div class="xl:col-span-4"><ClusteringHealthCard /></div>
         </div>
       </section>
 

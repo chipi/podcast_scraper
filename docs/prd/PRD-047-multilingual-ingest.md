@@ -8,8 +8,8 @@
   - [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) — language routing, source-language transcription, translation stage
   - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — translation provenance (v1); source verification, labelling, the read-time gate and quality estimation (all v2)
   - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
-- **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint), [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (stance-over-time is a read-time query)
-- **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), [PRD-036](PRD-036-foundation-identity.md) (player `segments.json` contract), [PRD-039](PRD-039-player.md) (player), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
+- **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint), ADR-108 (stance-over-time is a read-time query)
+- **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), PRD-036 (player `segments.json` contract), PRD-039 (player), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
 - **Arc notes**: [MULTILINGUAL_ARC](../architecture/MULTILINGUAL_ARC.md) — arc shape, the slice plan (§4), decisions and running notes
 - **Scope**: pipeline (ingest → transcript → translation → ad-free base → existing intelligence layers), player transcript/quote surfaces, language visibility and filtering, operator feed config. No non-English UI.
 

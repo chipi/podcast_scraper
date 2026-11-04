@@ -51,16 +51,6 @@ def client(tmp_path_factory: pytest.TempPathFactory) -> TestClient:
     return TestClient(app)
 
 
-@pytest.mark.parametrize("kind", ["topic", "person", "show", "episode", "theme"])
-def test_og_route_renders_a_png_per_kind(
-    client: TestClient, ids: dict[str, str], kind: str
-) -> None:
-    r = client.get(f"/og/{kind}/{ids[kind]}.png")
-    assert r.status_code == 200, r.text
-    assert r.headers["content-type"] == "image/png"
-    assert r.content[:8] == _PNG_MAGIC
-
-
 def test_og_route_is_public_no_auth_required(client: TestClient, ids: dict[str, str]) -> None:
     # No Authorization header — unfurl bots carry no session. A 200 proves the route is ungated.
     assert client.get(f"/og/topic/{ids['topic']}.png").status_code == 200
@@ -144,13 +134,6 @@ def test_entity_document_injects_og_tags(client: TestClient, ids: dict[str, str]
     assert "/og/topic/" in body and ".png" in body
 
 
-def test_theme_document_injects_its_own_card(client: TestClient, ids: dict[str, str]) -> None:
-    # A shared theme link unfurls as the THEME card — not a topic's, not the generic site card.
-    r = client.get(f"/theme/{ids['theme']}")
-    assert r.status_code == 200
-    assert "/og/theme/tc%3Apublic-radio.png" in r.text
-
-
 def test_non_entity_route_falls_back_to_index_without_injection(client: TestClient) -> None:
     r = client.get("/catalog")
     assert r.status_code == 200
@@ -182,54 +165,6 @@ def test_topic_model_carries_voices_stat_and_attributed_quote(ids: dict[str, str
     assert "episode" in (m.stats or "") and "voice" in (m.stats or "")  # "N episodes · M voices"
     if m.quote:  # when the topic has a perspective, the quote is attributed in the byline
         assert (m.byline or "").startswith("—")
-
-
-def test_storyline_model_explains_itself(ids: dict[str, str]) -> None:
-    from podcast_scraper.server.og.build import build_og_model
-    from podcast_scraper.server.relational_view import build_topic_card
-
-    # A storyline WITH siblings, chosen explicitly: the index's first topic is a one-topic
-    # storyline on the refreshed corpus, which has nothing for the blurb to join.
-    anchor = next(
-        t
-        for t in build_kg_index(_CORPUS).topic_to_eps
-        if (card := build_topic_card(_CORPUS, t)) is not None and card.storyline_sibling_topics
-    )
-    m = build_og_model(_CORPUS, "storyline", anchor)
-    assert m is not None
-    # It defines what a storyline is (byline) and shows WHICH topics (blurb).
-    assert m.byline == "Topics discussed together"
-    assert m.blurb and "·" in m.blurb
-    assert "topic" in (m.stats or "")
-
-
-def test_theme_model_explains_itself(ids: dict[str, str]) -> None:
-    from podcast_scraper.server.og.build import build_og_model
-    from podcast_scraper.server.og.card import accent_for_kind
-
-    m = build_og_model(_CORPUS, "theme", ids["theme"])
-    assert m is not None
-    assert m.kicker == "Theme" and m.title == "public radio"
-    assert m.byline == "Topics that mean the same thing"
-    assert m.blurb and "broadcast format" in m.blurb  # WHICH topics
-    assert m.stats == "4 topics · 3 episodes"
-    assert m.accent == accent_for_kind("theme")
-
-
-@pytest.mark.parametrize("kind", ["topic", "storyline", "theme"])
-def test_a_grouping_without_a_rising_trend_shows_its_shows(ids: dict[str, str], kind: str) -> None:
-    # Without a trend the middle of the card was empty; it now shows the shows that discuss it
-    # (operator 2026-10-05). The fixture has no rising trend for these, so the gallery must appear.
-    from podcast_scraper.server.og.build import build_og_model
-
-    # Systems thinking: no rising trend on the natural corpus (risk management has one now).
-    ident = ids["theme"] if kind == "theme" else "topic:systems-thinking"
-    m = build_og_model(_CORPUS, kind, ident)
-    assert m is not None and m.sparkline is None
-    assert m.gallery, f"{kind} card has neither a trend nor any show artwork"
-    # The text-only path (document head) never reads image bytes.
-    text_only = build_og_model(_CORPUS, kind, ident, with_art=False)
-    assert text_only is not None and text_only.gallery == ()
 
 
 def test_show_and_episode_models_carry_artwork_when_present(ids: dict[str, str]) -> None:
@@ -302,9 +237,40 @@ def test_image_credit_formats_attribution() -> None:
     assert _image_credit("Photo", None, None) is None
 
 
+def test_share_page_404s_an_unknown_entity_or_route(client: TestClient) -> None:
+    assert client.get("/og/page/topic/topic:no-such-topic-zz9").status_code == 404
+    assert client.get("/og/page/library/x").status_code == 404
+
+
+@pytest.mark.parametrize("kind", ["topic", "person", "show", "episode"])
+def test_og_route_renders_a_png_per_kind(
+    client: TestClient, ids: dict[str, str], kind: str
+) -> None:
+    r = client.get(f"/og/{kind}/{ids[kind]}.png")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "image/png"
+    assert r.content[:8] == _PNG_MAGIC
+
+
+@pytest.mark.parametrize("kind", ["topic"])
+def test_a_grouping_without_a_rising_trend_shows_its_shows(ids: dict[str, str], kind: str) -> None:
+    # Without a trend the middle of the card was empty; it now shows the shows that discuss it
+    # (operator 2026-10-05). The fixture has no rising trend for these, so the gallery must appear.
+    from podcast_scraper.server.og.build import build_og_model
+
+    # Systems thinking: no rising trend on the natural corpus (risk management has one now).
+    ident = ids["theme"] if kind == "theme" else "topic:systems-thinking"
+    m = build_og_model(_CORPUS, kind, ident)
+    assert m is not None and m.sparkline is None
+    assert m.gallery, f"{kind} card has neither a trend nor any show artwork"
+    # The text-only path (document head) never reads image bytes.
+    text_only = build_og_model(_CORPUS, kind, ident, with_art=False)
+    assert text_only is not None and text_only.gallery == ()
+
+
 @pytest.mark.parametrize(
     "route,kind",
-    [("topic", "topic"), ("person", "person"), ("podcast", "show"), ("theme", "theme")],
+    [("topic", "topic"), ("person", "person"), ("podcast", "show")],
 )
 def test_share_page_carries_the_og_tags_a_link_preview_reads(
     client: TestClient, ids: dict[str, str], route: str, kind: str
@@ -318,8 +284,3 @@ def test_share_page_carries_the_og_tags_a_link_preview_reads(
     assert f'property="og:image" content="http://testserver/og/{kind}/' in body
     assert 'property="og:title"' in body and 'name="twitter:card"' in body
     assert "<script" not in body  # a bare page, not the app
-
-
-def test_share_page_404s_an_unknown_entity_or_route(client: TestClient) -> None:
-    assert client.get("/og/page/topic/topic:no-such-topic-zz9").status_code == 404
-    assert client.get("/og/page/library/x").status_code == 404

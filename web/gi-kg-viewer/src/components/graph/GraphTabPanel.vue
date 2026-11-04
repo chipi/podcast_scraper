@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
-import EnrichmentEdgesPanel from './EnrichmentEdgesPanel.vue'
 import GraphCanvas from './GraphCanvas.vue'
 import HandoffErrorStrip from './HandoffErrorStrip.vue'
+import { graphPanels } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
-import { useShellStore } from '../../stores/shell'
 import { GRAPH_DEFAULT_EPISODE_CAP } from '../../utils/graphEpisodeSelection'
 
 const emit = defineEmits<{
@@ -16,7 +15,6 @@ const emit = defineEmits<{
 
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
-const shell = useShellStore()
 const { truncationLine: graphExpansionTruncationLine } = storeToRefs(graphExpansion)
 
 const graphCanvasRef = ref<InstanceType<typeof GraphCanvas> | null>(null)
@@ -34,13 +32,11 @@ defineExpose({
     data-testid="graph-tab-panel"
   >
     <HandoffErrorStrip />
-    <p
-      v-if="artifacts.siblingMergeLine && !artifacts.siblingMergeError"
-      class="shrink-0 border-b border-border bg-elevated/40 px-2 py-1 text-[10px] leading-snug text-muted"
-      data-testid="graph-sibling-merge-line"
-    >
-      {{ artifacts.siblingMergeLine }}
-    </p>
+    <component
+      :is="p.component"
+      v-for="p in graphPanels.list().filter((x) => x.region === 'notice')"
+      :key="p.id"
+    />
     <div
       v-if="graphExpansionTruncationLine"
       class="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-border bg-elevated/30 px-2 py-1 text-[10px] leading-snug text-muted"
@@ -56,14 +52,14 @@ defineExpose({
         Dismiss
       </button>
     </div>
-    <!-- RFC-088 chunk-9: enrichment-layer edges (topic_similarity + topic_consensus).
-         Self-hides when no envelopes present. Above the canvas so it's scannable
-         without scrolling, but small footprint when populated. -->
-    <EnrichmentEdgesPanel
-      v-if="artifacts.displayArtifact"
-      :corpus-path="shell.corpusPath"
-      class="m-1 shrink-0"
-    />
+    <template v-if="artifacts.displayArtifact">
+      <component
+        :is="p.component"
+        v-for="p in graphPanels.list().filter((x) => x.region === 'above-canvas')"
+        :key="p.id"
+        class="m-1 shrink-0"
+      />
+    </template>
     <GraphCanvas
       v-if="artifacts.displayArtifact"
       ref="graphCanvasRef"

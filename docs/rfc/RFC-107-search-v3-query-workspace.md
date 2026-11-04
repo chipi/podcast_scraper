@@ -8,7 +8,7 @@
   - [RFC-090](RFC-090-hybrid-retrieval.md) — hybrid retrieval (**do not re-enable native combine**; #1205)
   - [RFC-094](RFC-094-search-powered-surfaces-query-layer.md) — relational query layer + `activeSearchContext` + `PanelRetrievalStore` (**shipped**; Search v3 composes with, does not replace)
   - [RFC-088](RFC-088-enrichment-layer-architecture.md) — enrichment layer + `QueryEnricher` (**shipped**)
-  - [RFC-093](RFC-093-litm-context-packs.md) — `build_briefing_pack` (**shipped**; Compare operator source)
+  - RFC-093 — `build_briefing_pack` (**shipped**; Compare operator source)
   - [RFC-092](RFC-092-ml-query-router.md) — query router (5-class intent taxonomy)
   - [RFC-091](RFC-091-kg-proximity-signal.md) — KG proximity as retrieval signal (**REJECTED** 2026-06-03; do NOT use)
   - [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) — canonical identity + compound-lift contract (KL1 shipped; KL5 CONTRADICTS is v3+)
@@ -17,7 +17,7 @@
 - **Related ADRs**:
   - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
   - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
-  - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` activated; `stance_*` retired
+  - ADR-108 — `topic_consensus` activated; `stance_*` retired
   - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's Section 8 conforms)
 - **Related incident**: #1205 — LanceDB native hybrid combine SIGSEGV (fix `0fe0854b`)
 
@@ -359,14 +359,14 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [RFC-090](RFC-090-hybrid-retrieval.md) — hybrid retrieval (native combine forbidden — #1205)
 - [RFC-094](RFC-094-search-powered-surfaces-query-layer.md) — relational layer + `activeSearchContext` + `PanelRetrievalStore` (shipped substrate)
 - [RFC-088](RFC-088-enrichment-layer-architecture.md) — enrichment layer + QueryEnricher (shipped)
-- [RFC-093](RFC-093-litm-context-packs.md) — `build_briefing_pack` (shipped; Compare source)
+- RFC-093 — `build_briefing_pack` (shipped; Compare source)
 - [RFC-092](RFC-092-ml-query-router.md) — intent taxonomy
 - [RFC-091](RFC-091-kg-proximity-signal.md) — **REJECTED**; do NOT use for retrieval or scope pre-fill
 - [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) — compound-lift contract (KL1)
 - [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md) — v2 edges; CONTRADICTS is v3+
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
-- [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` activated; `stance_*` retired
+- ADR-108 — `topic_consensus` activated; `stance_*` retired
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)

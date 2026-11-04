@@ -13,7 +13,7 @@
 3. **MCP / Agent tools** — the optional generic **MCP server** (`podcast mcp`) exposing
    the platform's read capabilities (search, the relational-query layer, CIL, catalog) as
    composable, read-only tools for agentic clients. Library-wrapped, stdio transport.
-   Spec: [PRD-034](../prd/PRD-034-generic-mcp-server.md) / [RFC-095](../rfc/RFC-095-generic-mcp-server.md);
+   Spec: PRD-034 / RFC-095;
    usage: [Server Guide — MCP server](../guides/SERVER_GUIDE.md#mcp-server-agent-tools).
 
 ## Programmatic (library) API

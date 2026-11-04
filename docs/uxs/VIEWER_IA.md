@@ -200,15 +200,15 @@ Tabs are polymorphic by node type:
 **Details** (first tab) carries the full type-specific detail — the content
 previously split into `TopicEntityView` / `PersonLandingView` folds in here:
 
-- **Topic / Entity** — name · aliases · cluster identity (Theme / Similar) ·
+- **Topic / Entity** — name · aliases ·
   a **compact mentions timeline** (topic-level; each episode is a collapsible
   row — collapsed shows the episode's own title, our generated `summary_title`,
   and date; expanding reveals the `summary_text` paragraph, never the KEY POINTS
   bullets) · Across shows · Related topics · Key voices · Entities involved ·
-  inline enrichment (velocity, co-occurs-above-chance).
+  inline enrichment (co-occurs-above-chance).
 - **Person** — name · role · aliases · description · ranked topics · insights
   voiced · episodes appeared · connections (co-speakers / topics) · enrichment
-  (grounding %, often-appears-with, contradicts) · stated positions.
+  (grounding %, often-appears-with) · stated positions.
 
 **Retired:** `TopicEntityView` and `PersonLandingView` as standalone rail
 routes; the generic entity overview (same component as topic) folds in too.

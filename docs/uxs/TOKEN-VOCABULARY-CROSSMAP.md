@@ -2,7 +2,7 @@
 
 The repository has **two independent design systems** on purpose — the operator GI/KG viewer
 ([UXS-001](UXS-001-gi-kg-viewer.md), `--ps-*`) and the consumer learning app
-([UXS-011](UXS-011-consumer-learning-app.md), `--lp-*`). Different audiences, different identity;
+(UXS-011, `--lp-*`). Different audiences, different identity;
 neither should borrow the other's values.
 
 They do share **names**. The same Tailwind class (`text-topic`, `bg-accent`, …) compiles in both

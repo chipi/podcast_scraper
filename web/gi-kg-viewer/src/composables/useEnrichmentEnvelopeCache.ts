@@ -4,7 +4,7 @@
  *
  * The TopicEntityView + PersonLandingView call
  * getCorpusEnrichmentEnvelope on every subject change. The payloads
- * (topic_cooccurrence_corpus / temporal_velocity / grounding_rate /
+ * (topic_cooccurrence_corpus / grounding_rate /
  * guest_coappearance) are corpus-scope — same JSON for every subject
  * — so a per-(corpusPath, enricherId) cache eliminates the N+1
  * fetch when browsing related subjects.

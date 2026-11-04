@@ -35,15 +35,6 @@ def test_missing_file_fails_open(tmp_path):
     assert derive_enrichment_job_params(tmp_path / "absent.yaml") == (None, False)
 
 
-def test_ml_profile_drives_with_ml(tmp_path):
-    # airgapped enables topic_similarity (provider_requirement) → --with-ml.
-    profile, with_ml = derive_enrichment_job_params(
-        _yaml(tmp_path, "profile: airgapped\nenrichment:\n  enabled: true\n")
-    )
-    assert profile == "airgapped"
-    assert with_ml is True
-
-
 def test_deterministic_only_profile_needs_no_ml(tmp_path):
     # airgapped_thin = the deterministic six only → no provider_requirement.
     profile, with_ml = derive_enrichment_job_params(

@@ -133,3 +133,15 @@ describe('CilTopicPillsRow', () => {
     expect(w.get('button').classes().join(' ')).toContain('bg-canvas')
   })
 })
+
+describe('CilTopicPillsRow topic grouping', () => {
+  it('marks pills a grouping provider names as theme members', async () => {
+    const { topicGrouping } = await import('../../extensions')
+    topicGrouping.register({ id: 'g', themeMemberTopicIds: () => new Set(['b']) })
+    const w = mountRow({ pills: [pill({ topic_id: 'a', label: 'A' }), pill({ topic_id: 'b', label: 'B' })] })
+    const btns = w.findAll('button')
+    expect(btns[0].attributes('data-theme-member')).toBeUndefined()
+    expect(btns[1].attributes('data-theme-member')).toBe('')
+    topicGrouping.reset()
+  })
+})

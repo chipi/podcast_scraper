@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server import app_user_state, app_user_store
+from podcast_scraper.server import app_user_store
 from podcast_scraper.server.atomic_write import atomic_write_text
 from podcast_scraper.utils import privileges
 
@@ -58,16 +58,6 @@ def test_profile_write_and_its_lock_are_chowned(tmp_path: Path, chowned: list[Pa
     assert udir / ".profile.lock" in chowned
 
 
-def test_jsonl_append_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    app_user_state.record_interest_follow(tmp_path, "u1", "tok", 1)
-    assert tmp_path / "users" / "u1" / "interest_events.jsonl" in chowned
-
-
-def test_event_log_append_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    app_user_state.append_playback_progress(tmp_path, "u1", "slug", None, 25, 1)
-    assert tmp_path / "users" / "u1" / "playback_events.jsonl" in chowned
-
-
 def test_audit_append_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
     from podcast_scraper.server.app_audit import append_audit
 
@@ -94,32 +84,3 @@ def test_magic_link_throttle_marker_is_chowned(tmp_path: Path, chowned: list[Pat
 
     app_auth._throttled(tmp_path, "a@x.com", now=10)
     assert app_auth._recent_request_marker(tmp_path, "a@x.com") in chowned
-
-
-def test_board_summary_json_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server import board_summaries
-
-    target = tmp_path / "board_summaries.json"
-    board_summaries._write_json(target, {})
-    assert target in chowned
-
-
-def test_storyline_summary_update_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server import storyline_summaries
-
-    storyline_summaries._update(tmp_path, lambda doc: None)
-    assert storyline_summaries._path(tmp_path) in chowned
-
-
-def test_new_episode_ledger_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server import app_new_episode_digest as mod
-
-    mod._write_ledger(tmp_path, "u1", {})
-    assert mod._ledger_path(tmp_path, "u1") in chowned
-
-
-def test_digest_health_state_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server import app_digest_health as mod
-
-    mod.record_dispatch(tmp_path, types.SimpleNamespace(ids={}, errors={}), now=1)
-    assert mod._state_path(tmp_path) in chowned

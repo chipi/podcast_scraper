@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { topicGrouping } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
-import {
-  findClusterByCompoundId,
-  findTopicClusterContextForGraphNode,
-} from '../../utils/topicClustersOverlay'
 import NodeDetail from './NodeDetail.vue'
 
 const gf = useGraphFilterStore()
@@ -89,12 +86,9 @@ const panelHeading = computed(() => {
     }
     return 'Node'
   }
-  if (
-    id &&
-    (findClusterByCompoundId(artifacts.topicClustersDoc, id) ||
-      findTopicClusterContextForGraphNode(id, artifacts.topicClustersDoc))
-  ) {
-    return 'TopicCluster'
+  for (const g of topicGrouping.list()) {
+    const kind = id ? g.nodeKind?.(id) : undefined
+    if (kind) return kind
   }
   const t = n.type
   return typeof t === 'string' && t.trim() ? t.trim() : 'Node'

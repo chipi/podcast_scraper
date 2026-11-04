@@ -6,7 +6,7 @@ root**. On top of that, **two independent Node/Vue projects** live side-by-side 
 - **GI/KG Viewer** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** inspection
   tool for knowledge-graph + grounded-insight artifacts. Under
   [`web/gi-kg-viewer/`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/).
-- **Learning Player** ([RFC-099](../rfc/RFC-099-learning-platform-consumer-client.md)) — the
+- **Learning Player** (RFC-099) — the
   **consumer** PWA for listening + capture + consolidation. Under
   [`web/learning-player/`](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/).
 
@@ -31,7 +31,7 @@ Node) that share one git tree, not one unified `npm` workspace (by design).
 **End-to-end player (real API + preview + PWA install path):** install `[dev]`, build under
 `web/learning-player`, then run its `npm run preview` proxying to `podcast_scraper serve`. See
 [web/learning-player/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/README.md)
-and [CONSUMER_LEARNING_PLAYER_GUIDE](CONSUMER_LEARNING_PLAYER_GUIDE.md).
+and CONSUMER_LEARNING_PLAYER_GUIDE.
 
 ---
 

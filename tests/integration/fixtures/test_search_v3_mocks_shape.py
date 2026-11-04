@@ -57,7 +57,6 @@ def test_fixture_file_exists_and_is_valid_json(fixture_doc: dict) -> None:
 
 SEARCH_SCENARIOS = [
     "compound-lift",
-    "enriched-answer",
     "temporal-intent",
 ]
 
@@ -74,31 +73,6 @@ def test_get_search_scenario_validates_against_response_model(
     scenario = scenarios[scenario_key]
     response = scenario["response"]
     CorpusSearchApiResponse.model_validate(response)
-
-
-def test_enriched_answer_scenario_uses_per_hit_query_enrichments(fixture_doc: dict) -> None:
-    """S5 shipped shape: enrichment lives on each hit's
-    ``metadata.query_enrichments.related_topics[]``. There is no
-    top-level ``enriched`` block (the shipped chain doesn't synthesize
-    an answer yet — that's a later chunk of RFC-088)."""
-    scenario = fixture_doc["scenarios"]["enriched-answer"]
-    response = scenario["response"]
-    assert "enriched" not in response, (
-        "S5 shipped shape has no top-level 'enriched' block — remove it or "
-        "downgrade the scenario to schema_version 1"
-    )
-    results = response.get("results") or []
-    assert results, "enriched-answer scenario must include at least one hit"
-    decorated = 0
-    for hit in results:
-        md = hit.get("metadata") or {}
-        related = (md.get("query_enrichments") or {}).get("related_topics")
-        if related:
-            decorated += 1
-            for entry in related:
-                assert isinstance(entry.get("topic_id"), str)
-                assert isinstance(entry.get("similarity"), (int, float))
-    assert decorated >= 1, "at least one hit must carry metadata.query_enrichments.related_topics"
 
 
 def test_operator_compare_scenario_validates_against_response_model(fixture_doc: dict) -> None:

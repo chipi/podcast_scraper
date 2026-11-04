@@ -161,7 +161,7 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
     // graph-internal load-source (preserves layout); search uses
     // subject-external. Three events ⇒ generation bumps by ≥3.
     const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { search: true, clusters: true })
+    await setupHandoffMatrixMocks(page, { search: true })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
@@ -188,7 +188,7 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
       })
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'tc:ci-policy-cluster',
+        cyId: 'g:insight:b72dafa3f874480d',
         source: 'node-detail',
         loadSource: 'graph-internal',
         camera: { kind: 'center-on-target' },

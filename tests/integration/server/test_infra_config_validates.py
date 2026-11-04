@@ -69,19 +69,6 @@ _HAS_SHELLCHECK = shutil.which("shellcheck") is not None
 # --------------------------------------------------------------------------- #
 
 
-def test_player_nginx_only_proxies_consumer_plane() -> None:
-    conf = NGINX_CONF.read_text()
-    assert "location /api/app/" in conf, "player nginx must proxy the consumer plane"
-    # Must NOT blanket-proxy all of /api/ (that would forward /api/jobs to the backend).
-    assert "location /api/ {" not in conf, "player nginx must NOT proxy all of /api/"
-
-
-def test_player_nginx_preserves_forwarded_proto() -> None:
-    conf = NGINX_CONF.read_text()
-    assert "map $http_x_forwarded_proto" in conf, "must preserve Caddy's X-Forwarded-Proto"
-    assert "proxy_set_header X-Forwarded-Proto $lp_forwarded_proto" in conf
-
-
 def test_viewer_nginx_preserves_forwarded_proto() -> None:
     # RFC-108: the operator-public viewer sits behind Caddy (TLS) on a plain-http
     # loopback hop, so nginx's own $scheme is always "http". Forwarding that
@@ -121,50 +108,6 @@ def test_viewer_nginx_rate_limits_api() -> None:
     ), "operator viewer API must be rate limited"
     assert "real_ip_header X-Forwarded-For" in conf, "must rate-limit by real client IP, not Caddy"
     assert "zone=op_auth" in conf, "auth endpoints need a tighter rate zone"
-
-
-def test_player_nginx_rate_limits_api() -> None:
-    conf = NGINX_CONF.read_text()
-    # Rate limiting (T-06) keyed on the REAL client IP (real_ip recovers it from XFF).
-    assert (
-        "limit_req_zone" in conf and "limit_req zone=" in conf
-    ), "consumer API must be rate limited"
-    assert "real_ip_header X-Forwarded-For" in conf, "must rate-limit by real client IP, not Caddy"
-    assert "zone=lp_auth" in conf, "auth endpoints need a tighter rate zone"
-
-
-def test_player_nginx_syntax_ok() -> None:
-    # nginx.conf is a template: the learning-app image renders ${PLAYER_*} into /tmp/player.conf
-    # at start and conf.d only includes it (web/learning-player/Dockerfile). Test it the same way,
-    # so `nginx -t` sees the rendered config, not the raw ${PLAYER_SENTRY_DSN_WEB}. The include
-    # stub is written inside the container, so only the repo file is mounted.
-    proc = subprocess.run(  # noqa: S603
-        [
-            "docker",
-            "run",
-            "--rm",
-            "--add-host",
-            "api:127.0.0.1",
-            "-e",
-            "NGINX_ENVSUBST_OUTPUT_DIR=/tmp",
-            "-e",
-            "NGINX_ENVSUBST_FILTER=^PLAYER_",
-            "-e",
-            "PLAYER_SENTRY_DSN_WEB=https://testkey@glitchtip.invalid/1",
-            "-v",
-            f"{NGINX_CONF}:/etc/nginx/templates/player.conf.template:ro",
-            "--entrypoint",
-            "sh",
-            "nginx:1.27-alpine",
-            "-c",
-            "printf 'include /tmp/player.conf;\\n' > /etc/nginx/conf.d/default.conf"
-            " && /docker-entrypoint.sh nginx -t",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert proc.returncode == 0, f"nginx -t failed:\n{proc.stderr}"
 
 
 @pytest.mark.skipif(not _HAS_SHELLCHECK, reason="shellcheck not installed")

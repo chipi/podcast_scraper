@@ -2,8 +2,8 @@
 
 - **Status**: Active — the design SSOT for the card
 - **Authored**: 2026-09-11 · promoted out of `docs/wip/` on 2026-09-27
-- **Related**: [UXS-014](UXS-014-interaction-patterns.md) (§Sharing — the interaction spec),
-  [UXS-011](UXS-011-consumer-learning-app.md) (tokens), issue #2036
+- **Related**: UXS-014 (§Sharing — the interaction spec),
+  UXS-011 (tokens), issue #2036
 
 Design record for the shareable "collectible" card. Captures the aesthetic decision, the one that
 was rejected and *why*, the exact tokens, the layout, and what is built versus left.

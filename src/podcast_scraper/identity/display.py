@@ -24,6 +24,7 @@ class PersonDisplay:
         self._spelling_of = spelling_of
 
     def shown(self, person_id: Optional[str], own_name: Optional[str]) -> Optional[str]:
+        """The group spelling of ``person_id``, or ``own_name`` when the id has none."""
         if not own_name or not isinstance(person_id, str):
             return own_name
         return self._spelling_of.get(person_id.strip(), own_name)

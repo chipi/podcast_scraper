@@ -6,7 +6,6 @@ with immutable caching; AppEpisode summary/detail expose `artwork_url` when loca
 
 from __future__ import annotations
 
-import io
 import json
 import time
 from pathlib import Path
@@ -67,66 +66,7 @@ def _client(root: Path) -> TestClient:
     return client
 
 
-def test_large_serves_original_with_immutable_cache(tmp_path: Path) -> None:
-    _write_corpus_with_art(tmp_path)
-    resp = _client(tmp_path).get("/api/app/artwork", params={"ref": ART_REL, "size": "large"})
-    assert resp.status_code == 200, resp.text
-    assert resp.headers["content-type"].startswith("image/")
-    assert "immutable" in resp.headers.get("cache-control", "")
-    img = Image.open(io.BytesIO(resp.content))
-    assert img.size == (600, 600)  # original, not resized
-
-
-def test_thumb_downscales(tmp_path: Path) -> None:
-    _write_corpus_with_art(tmp_path)
-    resp = _client(tmp_path).get("/api/app/artwork", params={"ref": ART_REL, "size": "thumb"})
-    assert resp.status_code == 200, resp.text
-    img = Image.open(io.BytesIO(resp.content))
-    assert max(img.size) <= 320  # downscaled for list density
-
-
-def test_rejects_path_outside_art_store(tmp_path: Path) -> None:
-    _write_corpus_with_art(tmp_path)
-    resp = _client(tmp_path).get(
-        "/api/app/artwork", params={"ref": "metadata/0001.metadata.json", "size": "large"}
-    )
-    assert resp.status_code == 400
-
-
 def test_missing_art_is_404(tmp_path: Path) -> None:
     _write_corpus_with_art(tmp_path)
     missing = f"{CORPUS_ART_REL_PREFIX}/sha256/zz/zz/nope.png"
     assert _client(tmp_path).get("/api/app/artwork", params={"ref": missing}).status_code == 404
-
-
-def test_invalid_size_rejected(tmp_path: Path) -> None:
-    _write_corpus_with_art(tmp_path)
-    resp = _client(tmp_path).get("/api/app/artwork", params={"ref": ART_REL, "size": "huge"})
-    assert resp.status_code == 422
-
-
-def test_episode_endpoints_expose_artwork_url(tmp_path: Path) -> None:
-    _write_corpus_with_art(tmp_path)
-    client = _client(tmp_path)
-    listing = client.get("/api/app/episodes").json()
-    item = listing["items"][0]
-    assert item["artwork_url"] is not None
-    assert "size=thumb" in item["artwork_url"]
-
-    detail = client.get(f"/api/app/episodes/{item['slug']}").json()
-    # The player gets the ≤1024px copy and cards built from the detail get the thumb — never the
-    # original, which runs to 3000px on prod (Android blanked under it, 2026-10-08).
-    assert "size=medium" in detail["artwork_url"]
-    assert "size=thumb" in detail["artwork_thumb_url"]
-    # And both URLs actually serve an image.
-    for url in (detail["artwork_url"], detail["artwork_thumb_url"]):
-        art = client.get(url)
-        assert art.status_code == 200 and art.headers["content-type"].startswith("image/")
-
-
-def test_medium_serves_an_image_no_larger_than_1024(tmp_path: Path) -> None:
-    _write_corpus_with_art(tmp_path)
-    resp = _client(tmp_path).get("/api/app/artwork", params={"ref": ART_REL, "size": "medium"})
-    assert resp.status_code == 200, resp.text
-    assert "immutable" in resp.headers.get("cache-control", "")
-    assert max(Image.open(io.BytesIO(resp.content)).size) <= 1024

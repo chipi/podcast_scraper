@@ -26,7 +26,6 @@ Practical guides for using and developing Podcast Scraper.
 | [Release Playbook](RELEASE_PLAYBOOK.md) | Standing plan before a public tag: eval/profiles policy (major vs minor), docs gates, release notes pattern, alignment with `vX.Y.Z` tags |
 | [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/`, env files, Makefile targets for the viewer |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI: `/api/*` (artifacts, CIL, search with optional **`lifted`**, explore, Corpus Library, index rebuild), OpenAPI `/docs`, static SPA, tests under `tests/integration/server/` |
-| [Notifications & Delivery Guide](NOTIFICATIONS_GUIDE.md) | End-to-end: subscriptions (Web Push + native iOS APNs), consent matrix, digest/recap/recommendations generation, the `/internal/outbox` seam, and the external last-mile delivery worker (Resend / Web Push / APNs). Governed by ADR-144/145, RFC-110/122 |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
@@ -66,12 +65,10 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md) | **RFC-072** map: **`bridge.json`**, CIL HTTP routes, semantic **lift**, offset verification, CLI/Make, and test entry points |
-| [How we decide what you should listen to next](RECOMMENDATION_GUIDE.md) | The whole recommendation system: the scoring formula term by term, what each signal is for and what it cost, interests (explicit / derived / decay), the spaced-repetition ladder, current tuning, and what it deliberately does NOT do |
 | [RSS and feed ingestion](RSS_GUIDE.md) | How RSS URLs become `RssFeed` and `Episode` objects: HTTP, caches, parsing, selection, multi-feed; entry point for future non-RSS ingestion docs |
 | [Semantic Search](SEMANTIC_SEARCH_GUIDE.md) | RFC-061 corpus vector index; **`GET /api/search`**; **chunk-to-Insight lift** and **`verify-gil-chunk-offsets`** when GIL + index share transcript space |
 | [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | GIL: **`gi.json`**, quotes, schema, CLI; **`bridge.json`** sibling for canonical ids; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG: **`kg.json`**, entities/topics/relationships; **bridge** aligns KG with GIL for APIs; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
-| [MCP server — tool reference & user guide](MCP_SERVER_GUIDE.md) | **RFC-095** generic MCP server: all 38 read tools grouped by family, the **resolve→pivot→chain** cross-surface workflow, Claude Desktop/Code config, maintenance — for humans and agents |
 | [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
 | [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on a server |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a single-container service (supervisor / systemd / scheduler-driven) |

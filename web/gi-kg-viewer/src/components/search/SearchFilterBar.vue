@@ -16,9 +16,9 @@ import SearchMoreChip from './chips/SearchMoreChip.vue'
 import SearchTopicChip from './chips/SearchTopicChip.vue'
 import SearchSpeakerChip from './chips/SearchSpeakerChip.vue'
 import SearchMinConfidenceChip from './chips/SearchMinConfidenceChip.vue'
-import SearchEnrichedChip from './chips/SearchEnrichedChip.vue'
 import SearchEpisodeChip from './chips/SearchEpisodeChip.vue'
 import SearchGroundedChip from './chips/SearchGroundedChip.vue'
+import { searchFilterChips } from '../../extensions'
 
 defineProps<{
   /** When false, chip popovers/inputs are visually disabled. */
@@ -75,8 +75,12 @@ const sinceModel = computed({
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchGroundedChip />
     </div>
-    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
-      <SearchEnrichedChip />
+    <div
+      v-for="chip in searchFilterChips.list()"
+      :key="chip.id"
+      :class="enabled ? '' : 'pointer-events-none opacity-50'"
+    >
+      <component :is="chip.component" />
     </div>
     <SearchEpisodeChip />
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">

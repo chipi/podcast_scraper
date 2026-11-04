@@ -15,7 +15,7 @@ export interface Me {
   name: string
   role: Role
   disabled: boolean
-  /** RFC-112: holds the MCP entitlement — gates the "Connected agents" Configuration section. */
+  /** RFC-112: holds the MCP entitlement (used by the private MCP surface, ADR-170). */
   mcp_access?: boolean
 }
 
@@ -126,37 +126,6 @@ export async function deleteUser(userId: string): Promise<void> {
     method: 'DELETE',
   })
   if (!res.ok && res.status !== 204) throw new Error(await errorMessage(res, 'delete user'))
-}
-
-// --- ranking config (admin; #11 B2) -------------------------------------------------------------
-
-export interface RankingSignalDTO {
-  name: string
-  enabled: boolean
-  weight: number
-  params: Record<string, unknown>
-}
-
-export interface RankingConfigDTO {
-  signals: RankingSignalDTO[]
-}
-
-/** The active discovery ranking-signal config (admin only). */
-export async function fetchRankingConfig(): Promise<RankingConfigDTO> {
-  const res = await fetchWithTimeout(`${BASE}/ranking-config`)
-  if (!res.ok) throw new Error(await errorMessage(res, 'load ranking config'))
-  return (await res.json()) as RankingConfigDTO
-}
-
-/** Replace the ranking-signal config (admin only); returns the stored config. */
-export async function saveRankingConfig(config: RankingConfigDTO): Promise<RankingConfigDTO> {
-  const res = await fetchWithTimeout(`${BASE}/ranking-config`, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(config),
-  })
-  if (!res.ok) throw new Error(await errorMessage(res, 'save ranking config'))
-  return (await res.json()) as RankingConfigDTO
 }
 
 // --- released app version (admin; runtime, no restart) -----------------------------------------

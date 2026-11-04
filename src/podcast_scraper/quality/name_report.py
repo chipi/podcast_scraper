@@ -259,7 +259,6 @@ def measure_episode(ep: Episode) -> EpisodeResult:
     if isinstance(gi, dict):
         raw_rows.extend(_read_model_rows(ep, gi))
         raw_rows.extend(_data_rows(ep, gi))
-    raw_rows.extend(_roster_rows(ep, roster))
     raw_rows.extend(
         _row(ep, "data_roster_entries", s["name"], "raw")
         for s in roster
@@ -367,19 +366,6 @@ def _data_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
     for ident in bridge.get("identities") or [] if isinstance(bridge, dict) else []:
         if isinstance(ident, dict) and label_kind(str(ident.get("display_name") or "")) == "raw":
             rows.append(_row(ep, "data_bridge_identities", str(ident.get("display_name")), "raw"))
-    return rows
-
-
-def _roster_rows(ep: Episode, roster: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """R1 on the MCP speaker roster: the names ``_roster_from_record`` lists as on the episode."""
-    from podcast_scraper.mcp.tools.enrichment import _roster_from_record
-
-    content = {"speakers": roster}
-    rows = []
-    for entry in _roster_from_record(content, None):
-        kind = label_kind(str(entry.get("name") or ""))
-        if kind in ("raw", "role"):
-            rows.append(_row(ep, "mcp_speaker_roster", str(entry.get("name")), kind))
     return rows
 
 
@@ -577,7 +563,6 @@ R1_SHOWN_SURFACES = (
     "episode_people_chips",
     "search_insight_quotes",
     "search_lifted_speaker",
-    "mcp_speaker_roster",
 )
 R1_DATA_SURFACES = ("data_quotes", "data_bridge_identities", "data_roster_entries")
 

@@ -90,6 +90,11 @@ export const useShellStore = defineStore('shell', () => {
       void fetchHealth()
     }, 300)
   })
+  /**
+   * The last `/api/health` body, as served (null when unreachable). Lets a build read flags this
+   * viewer does not model.
+   */
+  const lastHealth = ref<Record<string, unknown> | null>(null)
   const healthStatus = ref<string | null>(null)
   const healthError = ref<string | null>(null)
   /** From GET /api/health when corpus/code versions may be mismatched (#796). */
@@ -135,8 +140,6 @@ export const useShellStore = defineStore('shell', () => {
   const corpusMetricsApiAvailable = ref(true)
   /** True when /api/health reports CIL query routes. */
   const cilQueriesApiAvailable = ref(true)
-  /** From GET /api/health when server exposes optional search enrichment. */
-  const enrichedSearchAvailable = ref(false)
   /** True only when GET/PUT /api/feeds is advertised (strict). */
   const feedsApiAvailable = ref(false)
   /** True only when GET/PUT /api/operator-config is advertised (strict). */
@@ -214,7 +217,6 @@ export const useShellStore = defineStore('shell', () => {
         index_routes_api?: boolean
         corpus_metrics_api?: boolean
         cil_queries_api?: boolean
-        enriched_search_available?: boolean
         feeds_api?: boolean
         operator_config_api?: boolean
         jobs_api?: boolean
@@ -225,6 +227,7 @@ export const useShellStore = defineStore('shell', () => {
       if (healthFetchGate.isStale(seq)) {
         return
       }
+      lastHealth.value = body as Record<string, unknown>
       // Read BEFORE the status collapse below, which flattens every non-ok cause into one word.
       authReady.value = typeof body.auth_ready === 'boolean' ? body.auth_ready : null
       authEpoch.value = typeof body.auth_epoch === 'string' ? body.auth_epoch : null
@@ -249,7 +252,6 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = healthAdvertisesRoute(body.index_routes_api)
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
-      enrichedSearchAvailable.value = body.enriched_search_available === true
       feedsApiAvailable.value = body.feeds_api === true
       operatorConfigApiAvailable.value = body.operator_config_api === true
       jobsApiAvailable.value = body.jobs_api === true
@@ -261,6 +263,7 @@ export const useShellStore = defineStore('shell', () => {
         return
       }
       healthStatus.value = null
+      lastHealth.value = null
       corpusLibraryApiAvailable.value = false
       corpusDigestApiAvailable.value = false
       corpusBinaryApiAvailable.value = false
@@ -270,7 +273,6 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = false
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
-      enrichedSearchAvailable.value = false
       feedsApiAvailable.value = false
       operatorConfigApiAvailable.value = false
       jobsApiAvailable.value = false
@@ -340,6 +342,7 @@ export const useShellStore = defineStore('shell', () => {
   }
 
   return {
+    lastHealth,
     corpusRevision,
     noteCorpusChanged,
     corpusPath,
@@ -360,7 +363,6 @@ export const useShellStore = defineStore('shell', () => {
     indexRoutesApiAvailable,
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,
-    enrichedSearchAvailable,
     feedsApiAvailable,
     operatorConfigApiAvailable,
     jobsApiAvailable,

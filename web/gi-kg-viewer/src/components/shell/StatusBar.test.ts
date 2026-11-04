@@ -41,6 +41,7 @@ vi.mock('../../api/indexStatsApi', () => ({
 }))
 
 import StatusBar from './StatusBar.vue'
+import { configTabs } from '../../extensions'
 import { useShellStore } from '../../stores/shell'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
@@ -541,5 +542,30 @@ describe('StatusBar', () => {
     expect((dialog.element as HTMLDialogElement).open).toBe(true)
     // The Index section is the active one (rebuild controls live there now).
     expect(w.get('[data-testid="sources-dialog-index-panel"]').isVisible()).toBe(true)
+  })
+})
+
+describe('StatusBar registered configuration tabs', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => configTabs.reset())
+
+  it('adds a visible tab after its own, shows its panel with `active`, and hides an invisible one', async () => {
+    configTabs.register({
+      id: 'extra',
+      label: 'Extra',
+      component: { props: ['active'], template: '<p data-testid="extra-body">{{ active }}</p>' },
+    })
+    configTabs.register({ id: 'hidden', label: 'Hidden', visible: () => false, component: { template: '<p />' } })
+    const w = mountBar()
+    await w.get(HEALTH_TRIGGER).trigger('click')
+    await w.vm.$nextTick()
+    const tabs = w.findAll('nav [data-testid^="sources-dialog-tab-"]').map((t) => t.attributes('data-testid'))
+    expect(tabs.at(-1)).toBe('sources-dialog-tab-extra')
+    expect(tabs).not.toContain('sources-dialog-tab-hidden')
+    await w.get('[data-testid="sources-dialog-tab-extra"]').trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="sources-dialog-tab-extra"]').classes()).toContain('font-medium')
+    expect(w.get('[data-testid="extra-body"]').text()).toBe('true')
+    w.unmount()
   })
 })

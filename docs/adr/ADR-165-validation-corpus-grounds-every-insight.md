@@ -3,8 +3,8 @@
 - **Status**: Accepted
 - **Date**: 2026-10-11
 - **Authors**: Marko Dragoljevic
-- **See Also**: [ADR-163](ADR-163-the-jobs-of-discover.md) §4 (the extractive reason),
-  [RFC-126](../rfc/RFC-126-discover-rails-reasons-paging-and-reels.md),
+- **See Also**: ADR-163 §4 (the extractive reason),
+  RFC-126,
   `tests/fixtures/app-validation-corpus/README.md`, `tests/fixtures/FIXTURES_SPEC.md`
 
 ## Context & Problem Statement

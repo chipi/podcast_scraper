@@ -15,9 +15,8 @@ import type { CompareSubjectRef } from '../api/searchApi'
 
 /**
  * Search v3 §S8 — ``search.runCompare`` covers the client half of the
- * server compare flow. The store does NOT touch ``results`` /
- * ``clusters`` / ``consensusPairs`` — the compare panel renders from
- * ``compareResult`` only.
+ * server compare flow. The store does NOT touch ``results`` — the compare
+ * panel renders from ``compareResult`` only.
  */
 describe('useSearchStore.runCompare (Search v3 §S8)', () => {
   const subjectA: CompareSubjectRef = { kind: 'person', id: 'Alice', label: 'Alice' }
@@ -151,7 +150,7 @@ describe('useSearchStore.runCompare (Search v3 §S8)', () => {
     expect(s.comparePins).toEqual([])
   })
 
-  it('clearCompare wipes result + error and does not touch results/clusters', async () => {
+  it('clearCompare wipes result + error and does not touch results', async () => {
     const s = useSearchStore()
     s.compareResult = { pack_a: {}, pack_b: {}, judge_summary: null } as never
     s.compareError = 'x'

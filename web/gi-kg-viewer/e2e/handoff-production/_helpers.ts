@@ -120,7 +120,6 @@ export async function setupProductionShapedMocks(
   const feedsBody = readFixtureText('corpus/feeds.json')
   const episodesBody = readFixtureText('corpus/episodes.json')
   const digestBody = readFixtureText('corpus/digest.json')
-  const topicClustersBody = readFixtureText('corpus/topic-clusters.json')
   const statsBody = readFixtureText('corpus/stats.json')
   const coverageBody = readFixtureText('corpus/coverage.json')
   const personsTopBody = readFixtureText('corpus/persons-top.json')
@@ -243,13 +242,6 @@ export async function setupProductionShapedMocks(
     }
   }
 
-  await page.route('**/api/corpus/topic-clusters**', (r) =>
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: topicClustersBody,
-    }),
-  )
   await page.route('**/api/corpus/digest**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', body: digestBody }),
   )
