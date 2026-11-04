@@ -14,6 +14,10 @@ real topics are still there.
 Deliberately no ML extras — the deterministic corpus enrichers need none, so this runs anywhere
 including CI, which is the point of putting a real-corpus check here rather than in a manual
 runbook.
+
+The platform ships one corpus topic enricher, ``topic_cooccurrence_corpus``; ``temporal_velocity``
+and ``topic_theme_clusters`` come from an installed extension (ADR-170), whose own copy of these
+checks covers them. Here the chain is the platform's.
 """
 
 from __future__ import annotations
@@ -60,8 +64,12 @@ _EXPECTED_FILLER = {
 }
 
 
+#: The platform's corpus topic enricher (the others are an installed extension's).
+_ENRICHERS = ("topic_cooccurrence_corpus",)
+
+
 def _run_enrichers(dest: Path) -> None:
-    """Run the three corpus enrichers over ``dest``, through the CLI.
+    """Run the platform's corpus topic enricher over ``dest``, through the CLI.
 
     Through the CLI, deliberately: that is the command the runbook tells an operator to run
     after a scoring change, so this exercises the orchestration and not just the enricher
@@ -77,7 +85,7 @@ def _run_enrichers(dest: Path) -> None:
             str(dest),
             "--corpus-only",
             "--only",
-            "temporal_velocity,topic_cooccurrence_corpus,topic_theme_clusters",
+            ",".join(_ENRICHERS),
         ],
         capture_output=True,
         text=True,
@@ -158,8 +166,8 @@ def enriched_with_filler(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 def test_the_corpus_still_has_topics_after_filtering(enriched: Path) -> None:
     """THE regression: a guard that empties the corpus passes every rule-level test."""
-    data = _payload(enriched, "temporal_velocity")
-    topics = data.get("content_series", {}).get("topics") or []
+    data = _payload(enriched, "topic_cooccurrence_corpus")
+    topics = data.get("pairs") or []
     assert topics, (
         "the enrichment chain produced ZERO topics over a real corpus. Every downstream surface "
         "is empty: clustering, co-occurrence, trending, storylines. Check the filler guard before "
@@ -170,12 +178,8 @@ def test_the_corpus_still_has_topics_after_filtering(enriched: Path) -> None:
 def test_no_filler_survives_to_any_topic_artifact(enriched: Path) -> None:
     """Sweep every emitted topic id across every artifact, not just one enricher's view."""
     seen: set[str] = set()
-    for row in _payload(enriched, "temporal_velocity").get("content_series", {}).get("topics", []):
-        seen.add(str(row.get("topic_id")))
     for pair in _payload(enriched, "topic_cooccurrence_corpus").get("pairs", []):
         seen.update({str(pair.get("topic_a_id")), str(pair.get("topic_b_id"))})
-    for cluster in _payload(enriched, "topic_theme_clusters").get("clusters", []):
-        seen.update(str(m.get("topic_id")) for m in cluster.get("members", []))
 
     leaked = seen & _EXPECTED_FILLER
     assert not leaked, f"filler reached a topic artifact: {sorted(leaked)}"
@@ -190,7 +194,7 @@ def test_every_enricher_reports_what_it_removed(enriched: Path) -> None:
     runs, against a corpus dirtied on purpose — the right place for that claim, since it does
     not need the fixture to stay broken to stay true.
     """
-    for name in ("temporal_velocity", "topic_cooccurrence_corpus", "topic_theme_clusters"):
+    for name in _ENRICHERS:
         data = _payload(enriched, name)
         assert "topics_filtered_as_filler" in data, f"{name} does not report what it removed"
         assert isinstance(data["topics_filtered_as_filler"], int), (
@@ -201,12 +205,14 @@ def test_every_enricher_reports_what_it_removed(enriched: Path) -> None:
 
 def test_the_guard_still_fires_when_filler_is_present(enriched_with_filler: Path) -> None:
     """The guard runs and is attributable — proven by injection, not by a dirty fixture."""
-    data = _payload(enriched_with_filler, "temporal_velocity")
+    data = _payload(enriched_with_filler, "topic_cooccurrence_corpus")
     assert data["topics_filtered_as_filler"] > 0, (
-        "temporal_velocity reported 0 filtered on a corpus with "
+        "topic_cooccurrence_corpus reported 0 filtered on a corpus with "
         f"{len(_EXPECTED_FILLER)} filler topics injected into it — the guard is not running"
     )
-    seen = {str(row.get("topic_id")) for row in data.get("content_series", {}).get("topics", [])}
+    seen: set[str] = set()
+    for pair in data.get("pairs", []):
+        seen.update({str(pair.get("topic_a_id")), str(pair.get("topic_b_id"))})
     leaked = seen & _EXPECTED_FILLER
     assert not leaked, f"injected filler survived the guard: {sorted(leaked)}"
 
