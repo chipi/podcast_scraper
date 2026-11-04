@@ -85,8 +85,11 @@ def test_retired_and_ops_shapes_from_prod() -> None:
     assert _classify("users/u_x/ranking_events.jsonl") == "retired"
     assert _classify("users/u_x/playback_events.jsonl.bak-dedupe-milestones") == "ops"
     assert _classify("dedupe_playback_milestones.jsonl") == "ops"
+    assert _classify("users/u_x/push_subscriptions.json.bak-dead-tokens-20261007083919") == "ops"
     # Only those exact shapes: an unknown backup is still unclaimed.
     assert _classify("users/u_x/push_subscriptions.json.bak-dead-tokens-1") == "unclaimed"
+    assert _classify("users/u_x/push_subscriptions.json.bak-other-20261007083919") == "unclaimed"
+    assert _classify("users/u_x/comms.json.bak-dead-tokens-20261007083919") == "unclaimed"
     assert _classify("users/u_x/listen_events.jsonl.bak-dedupe-milestones") == "unclaimed"
     assert _classify("users/u_x/dedupe_playback_milestones.jsonl") == "unclaimed"
 

@@ -142,6 +142,17 @@ def _file_claims() -> list[Claim]:
         user_file(DEDUPE_LOG_NAME + DEDUPE_BACKUP_SUFFIX, "ops", "dedupe_playback_milestones")
     )
     claims.append(root_file(DEDUPE_RECEIPTS_FILE, "ops", "dedupe_playback_milestones"))
+    # A one-off manual prune of dead push tokens kept the old file beside the live one (one prod
+    # account, 2026-10-07). No code writes it; only this exact shape is accepted.
+    claims.append(
+        Claim(
+            re.compile(
+                rf"users/[^/]+/{re.escape(app_push_store._FILE_NAME)}\.bak-dead-tokens-\d{{14}}"
+            ),
+            "ops",
+            "manual push-token prune",
+        )
+    )
     return claims
 
 
