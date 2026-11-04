@@ -5,6 +5,9 @@
 - ``imported``: an importer in ``db.importers`` reads it into the database;
 - ``file``: still a file, its store not yet migrated (declared in ``_FILE_CLAIMS`` below);
 - ``ignored``: a lock file;
+- ``retired``: data a removed store left behind; no code reads it, it stays with the frozen files
+  and is not imported;
+- ``ops``: a backup or receipt an ops script in ``scripts/ops/`` writes for its own undo;
 - ``unclaimed``: matches nothing declared. That is a store nobody told the importer about, which
   would be lost by a cut-over, so it fails the command.
 
@@ -21,7 +24,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-Kind = Literal["imported", "file", "ignored"]
+Kind = Literal["imported", "file", "ignored", "retired", "ops"]
+
+#: Per-user files of stores that were removed; the commit that removed each store is the owner.
+RETIRED_USER_FILES = {
+    "ranking_events.jsonl": "ranking_telemetry (removed in 6c6c08c6, #2327)",
+}
+
+#: ``scripts/ops/dedupe_playback_milestones.py``: its per-file backups and its receipts. Literal
+#: here because scripts are not importable from the package; a test pins them to the script.
+DEDUPE_LOG_NAME = "playback_events.jsonl"
+DEDUPE_BACKUP_SUFFIX = ".bak-dedupe-milestones"
+DEDUPE_RECEIPTS_FILE = "dedupe_playback_milestones.jsonl"
 
 
 @dataclass(frozen=True)
@@ -122,6 +136,12 @@ def _file_claims() -> list[Claim]:
     claims.append(dir_files("outbox", r"[0-9a-f]{64}\.json", "file", "outbox"))
     claims.append(dir_files("magic_link_used", r"[A-Za-z0-9_-]+\.json", "file", "magic_link"))
     claims.append(dir_files("magic_link_recent", r"[0-9a-f]{32}\.txt", "file", "magic_link"))
+
+    claims.extend(user_file(n, "retired", owner) for n, owner in RETIRED_USER_FILES.items())
+    claims.append(
+        user_file(DEDUPE_LOG_NAME + DEDUPE_BACKUP_SUFFIX, "ops", "dedupe_playback_milestones")
+    )
+    claims.append(root_file(DEDUPE_RECEIPTS_FILE, "ops", "dedupe_playback_milestones"))
     return claims
 
 

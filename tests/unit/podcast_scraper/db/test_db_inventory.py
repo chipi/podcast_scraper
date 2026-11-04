@@ -78,3 +78,30 @@ def test_a_state_document_named_by_another_module_is_declared() -> None:
     assert found, "the scan found nothing; the pattern is stale"
     undeclared = sorted(n for n in found if _classify(f"users/u_x/{n}.json") == "unclaimed")
     assert not undeclared, undeclared
+
+
+def test_retired_and_ops_shapes_from_prod() -> None:
+    """The shapes the first dry run on prod's app data found unclaimed (2026-11-04)."""
+    assert _classify("users/u_x/ranking_events.jsonl") == "retired"
+    assert _classify("users/u_x/playback_events.jsonl.bak-dedupe-milestones") == "ops"
+    assert _classify("dedupe_playback_milestones.jsonl") == "ops"
+    # Only those exact shapes: an unknown backup is still unclaimed.
+    assert _classify("users/u_x/push_subscriptions.json.bak-dead-tokens-1") == "unclaimed"
+    assert _classify("users/u_x/listen_events.jsonl.bak-dedupe-milestones") == "unclaimed"
+    assert _classify("users/u_x/dedupe_playback_milestones.jsonl") == "unclaimed"
+
+
+def test_the_dedupe_names_match_the_ops_script() -> None:
+    script = (SERVER.parents[2] / "scripts" / "ops" / "dedupe_playback_milestones.py").read_text()
+    for const, value in (
+        ("LOG_NAME", inventory.DEDUPE_LOG_NAME),
+        ("BACKUP_SUFFIX", inventory.DEDUPE_BACKUP_SUFFIX),
+        ("RECEIPTS_FILE", inventory.DEDUPE_RECEIPTS_FILE),
+    ):
+        assert re.search(rf'^{const} = "{re.escape(value)}"$', script, re.M), const
+
+
+def test_retired_files_are_not_written_by_any_server_code() -> None:
+    for name in inventory.RETIRED_USER_FILES:
+        writers = [p.name for p in SERVER.rglob("*.py") if name in p.read_text()]
+        assert not writers, f"{name} is retired but {writers} still name it"

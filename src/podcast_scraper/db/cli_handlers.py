@@ -127,6 +127,8 @@ def _import(args: argparse.Namespace, log: logging.Logger) -> int:
         ("imported", "imported by a store"),
         ("file", "still a file (not yet migrated)"),
         ("ignored", "ignored (lock files)"),
+        ("retired", "retired (a removed store's data, not imported)"),
+        ("ops", "ops backups and receipts (not app state)"),
     ):
         print(f"  {label}: {inv.by_class.get(kind, 0)}")
         for (k, owner), n in sorted(inv.by_owner.items()):
