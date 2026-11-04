@@ -781,12 +781,19 @@ jobs:
       run: |
         python -m venv .venv
         .venv/bin/pip install --upgrade pip
+        # CPU-only torch first, as viewer-e2e does: PyPI's torch brings ~3 GB of NVIDIA CUDA
+        # wheels this GPU-less runner cannot use, and on runner image 20261015.610 they filled
+        # the disk (Errno 28, main a28c8c30). The no-deps reinstall after the extras keeps the
+        # CPU build if a dependency pulled PyPI's.
+        .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
         # [dev] pulls FastAPI + uvicorn — needed for `podcast_scraper serve`.
         # [search] pulls lancedb + sentence-transformers: the topic page + perspectives
         # branch on has_index, so the e2e needs a real two-tier index (built offline in
         # e2e/globalSetup.ts from the committed corpus). Without it, index-dependent specs
         # (perspectives, search) render a different claim and fail (#1387).
         .venv/bin/pip install -e ".[dev,search]"
+        .venv/bin/pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu
+        .venv/bin/python -c "import torch; assert not torch.version.cuda, torch.version.cuda; print('torch', torch.__version__, 'cpu')"
     - name: Install ffmpeg (torchcodec, pulled transitively by [search], needs FFmpeg shared libs to import)
       uses: ./.github/actions/install-ffmpeg
     - uses: actions/setup-node@v7
