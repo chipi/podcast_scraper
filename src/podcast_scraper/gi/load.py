@@ -90,6 +90,14 @@ def _transcript_path_from_artifact_path(
     output_dir = artifact_path.parent.parent  # metadata -> output_dir
     if artifact is not None:
         ref = _declared_transcript_ref(artifact)
+        if ref and Path(ref).is_absolute():
+            # Some artifacts declare the path at ingest (``/app/output/feeds/<feed>/<run>/...``).
+            # The part after this run's directory name is the same file in this corpus; read as
+            # "outside the run" it fell back to the raw body (7,481 quotes in 52 episodes on
+            # snapshot-prod-20261103, #2253). A path not through this run stays refused below.
+            parts = Path(ref).parts
+            if output_dir.name in parts:
+                ref = str(Path(*parts[len(parts) - parts[::-1].index(output_dir.name) :]))
         if ref:
             # Confined under the run dir: a `transcript_ref` is produced by this pipeline, but it
             # is still a path read out of a file, so it must not escape the directory it describes.
