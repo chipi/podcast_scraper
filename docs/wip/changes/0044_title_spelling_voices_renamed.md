@@ -144,7 +144,7 @@ PASS; recorded in record 0043, step 8). Gate: `corpus_change_gate.py` on `5d3755
 | renames applied | 18 | **18** (`diagnostics_voices_renamed` 18; targets after: 0 episodes) |
 | episodes written | 18 | **18** |
 | files written | 150 to 260 | **206** |
-| refused, unnamings, role changes | 0, 0, 0 | **0, 0, 0** (`kg_roles_set` 1 is a KG Person node's role property, the voice's role is unchanged) |
+| refused, unnamings, voice role changes | 0, 0, 0 | **0, 0, 0** (segment rows whose `speaker_role` changed in the 18 episodes: 0, `m44_roles.py`). `kg_roles_set` 1: the KG node `person:adam-mosseri` goes from `mentioned` to `guest`, since the renamed voice is that person |
 | gating scoreboard | no total moves | **no gating number moved** |
 | `upgrade verify`, all applied | 0 new failures | **43 ok, 0 failing, 0 regressions** |
 | the 20 listed voices after | 18 on the title's spelling, 2 as stored | **20 of 20** |
