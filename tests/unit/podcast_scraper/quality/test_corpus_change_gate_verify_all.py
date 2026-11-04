@@ -55,3 +55,20 @@ def test_a_failure_this_migration_caused_is_a_regression_and_an_old_one_is_not(
     assert by_id["0025_x"]["on_clone"]["ok"] is False
     assert by_id["0030_x"]["on_clone"]["ok"] is True
     assert "on_clone" not in by_id["0029_x"] and "on_clone" not in by_id["0035_x"]
+
+
+def test_targets_sums_a_plans_counters_and_tells_no_plan_from_an_empty_one() -> None:
+    plan = [
+        {"meta": "a", "counts": {"roster_entries_unnamed": 2, "refused": 1, "refused: x": 1}},
+        {"meta": "b", "counts": {"roster_entries_unnamed": 1, "segments_relabelled": 4}},
+    ]
+    assert gate._targets(plan) == {
+        "episodes": 2,
+        "counts": {"roster_entries_unnamed": 3, "segments_relabelled": 4},
+    }
+    assert gate._targets([]) == {"episodes": 0, "counts": {}}  # applied: nothing left
+    assert gate._targets(None) is None  # no dry_run_report: nothing to compare
+
+
+def test_plan_or_none_is_none_for_a_migration_without_a_dry_run_report() -> None:
+    assert gate._plan_or_none(_Fake("0030_x"), Path("/nonexistent")) is None
