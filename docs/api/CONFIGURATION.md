@@ -1313,8 +1313,8 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 #### Database (app state)
 
 App state lives in Postgres ([ADR-169](../adr/ADR-169-the-database-is-the-source-of-truth.md)).
-These variables are read once per process; the settings and the commands are in
-[Platform API: Database](PLATFORM_API.md#database-app-state).
+These variables are read once per process. `podcast_scraper db --help` lists the commands
+(`upgrade`, `status`, `import`).
 
 - **`PODCAST_DATABASE_URL`**: read-write database URL. Required wherever app state is used.
 - **`PODCAST_DATABASE_RO_URL`**: optional read-only URL; defaults to `PODCAST_DATABASE_URL`.

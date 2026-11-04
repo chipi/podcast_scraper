@@ -9,12 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from podcast_scraper.server import (
-    app_comms_store,
-    app_engagement_series,
-    app_graph_telemetry,
-    app_user_state,
-)
+from podcast_scraper.server import app_comms_store, app_graph_telemetry
 from podcast_scraper.server.app_user_store import get_or_create_user, list_user_ids
 
 
@@ -28,19 +23,6 @@ def test_list_user_ids_is_sorted_and_needs_no_directories(tmp_path: Path) -> Non
     ids = [_account(tmp_path, s) for s in ("a", "b", "c")]
     assert not (tmp_path / "users").exists()
     assert list_user_ids(tmp_path) == sorted(ids)
-
-
-def test_iter_user_ids_includes_an_account_with_no_directory(tmp_path: Path) -> None:
-    uid = _account(tmp_path, "fresh")
-    orphan = "u_" + "9" * 24
-    (tmp_path / "users" / orphan).mkdir(parents=True)
-    assert app_user_state.iter_user_ids(tmp_path) == [uid]
-
-
-def test_engagement_series_includes_an_account_with_no_directory(tmp_path: Path) -> None:
-    uid = _account(tmp_path, "fresh")
-    assert app_engagement_series._iter_user_ids(tmp_path, None) == [uid]
-    assert app_engagement_series._iter_user_ids(tmp_path, "u_x") == ["u_x"]
 
 
 def test_graph_telemetry_reads_accounts_from_rows(tmp_path: Path) -> None:

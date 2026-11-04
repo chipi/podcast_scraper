@@ -225,7 +225,6 @@ def pytest_runtest_logfinish(nodeid, location):
 
 
 def pytest_sessionfinish(session, exitstatus):
-    _drop_worker_database()
     """Fail the session if a module stub OUTLIVED THE WHOLE RUN (#1799).
 
     Stubbing an optional dependency is legitimate and common here — ``spacy``, ``torch``,
@@ -247,6 +246,7 @@ def pytest_sessionfinish(session, exitstatus):
     stop skipping and ``MLProvider.preload()`` die with ``AttributeError: load``, surfacing as an
     unrelated feed-error test two suites away.
     """
+    _drop_worker_database()
     # TWO OUTCOMES, because the two cases are not equally bad.
     #
     # SHADOWING an installed module -> FAIL. A Mock over a working package is the #1799 defect:
