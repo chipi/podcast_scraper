@@ -156,8 +156,8 @@ _TODO_
   shout-out voices, aligning stored episodes with the shipped pipeline (#2123, #2364).
   Operator accepted: 2026-11-04 0043 reverses the 0034 third-ruling keeps for the 39 listed voices.
 - **Open call 2:** class C (20 voices, 13 episodes, section 3) is the same ruling's keeps, found
-  at step 5. Reverse those too (59 in all)? Until answered, the build lists class C separately so
-  it can be dropped whole.
+  at step 5. Reverse those too (59 in all)?
+  Operator accepted: 2026-11-04 0043 also reverses the 0034 keeps for the 20 class-C voices (59 in all).
 
 ## 10. Before apply / deploy
 
