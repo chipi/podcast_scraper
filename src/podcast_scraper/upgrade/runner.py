@@ -11,8 +11,10 @@ behaves, so the contract survives a future move off the filesystem.
 from __future__ import annotations
 
 import contextlib
+import copy
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Any, Dict, FrozenSet, Iterator, List, Optional, Sequence, Tuple
 
 from packaging.version import InvalidVersion, Version
 
@@ -40,6 +42,28 @@ def _in_regime(migration_id: str) -> bool:
     from .outcome_hook import in_regime
 
     return in_regime(migration_id)
+
+
+def _checked_scope(root: Path, episodes: Sequence[str]) -> FrozenSet[str]:
+    """The named episodes, each a served episode's metadata path relative to *root*; refused when
+    none is named, one is named twice, or one is not served (a superseded copy, a typo)."""
+    from .corpus_selection import select_served_artifacts
+    from .outcome_hook import HookRefused
+
+    lines = [e.strip() for e in episodes if e.strip()]
+    if not lines:
+        raise HookRefused("the episodes file names no episode")
+    twice = sorted({line for line in lines if lines.count(line) > 1})
+    if twice:
+        raise HookRefused(f"named more than once: {twice[:3]}")
+    served = {
+        p.relative_to(root).as_posix()
+        for p in select_served_artifacts(Path(root), ".metadata.json")[0]
+    }
+    unknown = [line for line in lines if line not in served]
+    if unknown:
+        raise HookRefused(f"not a served episode's metadata path: {unknown[:3]}")
+    return frozenset(lines)
 
 
 class UpgradeRunner:
@@ -164,6 +188,75 @@ class UpgradeRunner:
                 )
             return outcome_hook.apply_empty(migration, ctx.corpus_root, apply)
         return outcome_hook.measure(prepared, ctx.corpus_root, apply, self.snapshot)
+
+    def rerun(
+        self,
+        migration_id: str,
+        episodes: Sequence[str],
+        ctx: MigrationContext,
+        *,
+        stamp: str,
+        accept_path: Optional[Path] = None,
+    ) -> MigrationResult:
+        """``upgrade rerun``: an applied regime migration again, for the named episodes only.
+
+        Measured by the outcome hook against the outcome's rows for those episodes, under the
+        corpus lock (not for a dry run). Its backups, receipts and outcome receipt carry
+        ``rerun-<stamp>``, so the apply's own undo stays whole; the ledger is not written.
+        """
+        from . import outcome_hook
+        from .corpus_selection import episode_scope
+
+        migration = next((m for m in self.migrations if m.id == migration_id), None)
+        if migration is None:
+            raise outcome_hook.HookRefused(f"{migration_id}: no such migration")
+        if not _in_regime(migration.id):
+            raise outcome_hook.HookRefused(
+                f"{migration.id}: below the regime, there is no outcome to measure a rerun against"
+            )
+        tag = getattr(migration, "_backup_tag", None)
+        receipts = getattr(migration, "_receipts_file", None)
+        if not tag or not receipts:
+            raise outcome_hook.HookRefused(
+                f"{migration.id}: its backups and receipts cannot be kept apart from its apply's"
+            )
+        root = ctx.corpus_root
+        scope = _checked_scope(root, episodes)
+        mig = copy.copy(migration)
+        stem = receipts[: -len(".jsonl")] if receipts.endswith(".jsonl") else receipts
+        setattr(mig, "_backup_tag", f"{tag}.rerun-{stamp}")
+        setattr(mig, "_receipts_file", f"{stem}.rerun-{stamp}.jsonl")
+        applied = set(self.state.applied_migration_ids())
+        with contextlib.ExitStack() as stack:
+            if not ctx.dry_run:
+                from ..utils.corpus_lock import corpus_parent_lock
+
+                stack.enter_context(corpus_parent_lock(root))
+            with episode_scope(root, scope):
+                prepared = outcome_hook.prepare_rerun(
+                    mig, root, scope, applied, stamp, accept_path, dry=ctx.dry_run
+                )
+                plan = outcome_hook.episode_plan(mig, root)
+            if ctx.dry_run or not plan:
+                return MigrationResult(
+                    mig.id,
+                    applied=False,
+                    dry_run=ctx.dry_run,
+                    message=f"rerun plan: {len(plan)} of {len(scope)} named episode(s), "
+                    f"{len(prepared.diff)} differ from the outcome",
+                    details={
+                        "episodes": [str(r["meta"]) for r in plan],
+                        "plan_diff": prepared.diff,
+                    },
+                )
+
+            def apply() -> MigrationResult:
+                with episode_scope(root, scope):
+                    return mig.apply(ctx)
+
+            # Scored outside the scope: every other episode must come out unchanged.
+            result: MigrationResult = outcome_hook.measure(prepared, root, apply, None)
+            return result
 
     def verify(
         self, ctx: MigrationContext, only: Optional[Sequence[str]] = None

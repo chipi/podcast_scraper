@@ -9,6 +9,8 @@ Subcommands give both on-demand and automated operation:
   ``--yes`` for automation, ``--dry-run`` to preview the plan, ``--to`` to stop at a
   version. Exit 1 if any step fails.
 - ``verify``  — run each applied migration's verification. Exit 1 on any failure.
+- ``rerun``   — apply an applied regime migration again for the episodes a file names, measured
+  by the outcome hook against its outcome's rows for them; ``--dry-run`` shows the plan.
 
 ``--json`` on any subcommand emits a machine-readable object for pipelines.
 """
@@ -77,6 +79,25 @@ def parse_upgrade_argv(argv: Sequence[str]) -> argparse.Namespace:
         default=None,
         help="A plan-diff file from a stopped run, every entry given a cause and the operator's "
         "go: applies only if prod's plan still differs exactly so (upgrade/outcome_hook.py).",
+    )
+
+    rerun_p = subparsers.add_parser(
+        "rerun", help="Apply an applied migration again, for named episodes only (measured)"
+    )
+    _add_common(rerun_p)
+    rerun_p.add_argument("--migration", required=True, help="The applied migration's full id.")
+    rerun_p.add_argument(
+        "--episodes",
+        required=True,
+        type=Path,
+        help="A file with one served episode's metadata path (relative to the corpus root) "
+        "per line.",
+    )
+    rerun_p.add_argument("--dry-run", action="store_true", help="Show the plan; write nothing.")
+    rerun_p.add_argument(
+        "--accept-plan-diff",
+        default=None,
+        help="The rerun's plan-diff file, every entry given a cause and the operator's go.",
     )
 
     args = parser.parse_args(list(argv))
@@ -382,6 +403,46 @@ def _cmd_run(
     return 0
 
 
+def _cmd_rerun(
+    runner: UpgradeRunner, ctx: MigrationContext, args: argparse.Namespace, log: logging.Logger
+) -> int:
+    from . import outcome_hook
+
+    try:
+        episodes = args.episodes.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        log.error("upgrade rerun: the episodes file is unreadable: %s", exc)
+        return 2
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    accept = Path(args.accept_plan_diff) if args.accept_plan_diff else None
+    try:
+        result = runner.rerun(args.migration, episodes, ctx, stamp=stamp, accept_path=accept)
+    except outcome_hook.HookError as exc:
+        print(f"OUTCOME HOOK: {exc}", file=sys.stderr)
+        return exc.code
+    except RuntimeError as exc:
+        log.error("upgrade rerun refused: the corpus is in use: %s", exc)
+        return 1
+    payload = {
+        "id": result.migration_id,
+        "applied": result.applied,
+        "dry_run": result.dry_run,
+        "message": result.message,
+        "details": result.details,
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, default=str))
+    else:
+        tag = "DRY-RUN" if result.dry_run else "rerun"
+        print(f"  [{tag}] {result.migration_id}: {result.message}")
+    if result.applied and not result.dry_run:
+        print(
+            "Not run by rerun, for the named episodes: the identity ledger refresh, the "
+            "incremental search index, their enrichment."
+        )
+    return 0
+
+
 def run_upgrade_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     """Dispatch a parsed ``upgrade`` namespace to its subcommand handler."""
     corpus_root = _resolve_corpus_root(args, log)
@@ -403,5 +464,7 @@ def run_upgrade_cli(args: argparse.Namespace, log: logging.Logger) -> int:
         return _cmd_verify(runner, ctx, args.json, getattr(args, "only", None))
     if sub == "run":
         return _cmd_run(runner, ctx, args, log)
+    if sub == "rerun":
+        return _cmd_rerun(runner, ctx, args, log)
     log.error("Unknown upgrade subcommand: %s", sub)
     return 1
