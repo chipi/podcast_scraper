@@ -314,6 +314,31 @@ Verdict: GO WITH CONDITIONS
 - **Condition 2:** before switching the mode on, the respell's episode set traced against the
   prototype's by id, and the switch-on measured again on a fresh snapshot.
 
+### 8b. Conditions after the verdict (builder, 2026-11-04)
+
+- **Condition 1, done:** `make ci-fast` ran on `8e8daac8` (the build plus 0043's rebuilt outcome)
+  and ended `MAKE_EXIT=0`. The only commits after it are docs.
+- **Condition 2, first half done:** the prototype was run again on the pre-build tree (`5f2a8baf`)
+  and the build on `8e8daac8`, each on its own fresh copy of snapshot-prod-20261103. Each copy was
+  then diffed against the snapshot (scratchpad `l_trace.sh`, `l_trace_diff.py`). The prototype
+  wrote 110 episodes (1,009 files) and the build wrote 102 (980), as before. The build writes no
+  episode the prototype does not. The 8 written only by the prototype:
+  - **7 fold an unplaced listing into the placed voice of the same person.** `person:dara-obrey`
+    in 5 BBC episodes (feed `rss_podcasts.files.bbci.co.uk_d95134c7`) is listed but unplaced
+    beside the placed host whose spelling the publisher gives. The others are
+    `person:jennifer-li` in 1 a16z episode (`rss_feeds.simplecast.com_e739a158`, run
+    `3d25717e`), beside a placed guest with the heard spelling, and `person:nicolas-cerisier` in
+    1 episode (`rss_feeds.megaphone.fm_370fb395`, run `7096bc13`). In that one the placed
+    guest's heard spelling also takes the publisher's. The prototype's process-wide
+    `_same_person` patch made the roster's own respell treat V2's pairs as one person. The build
+    keeps V2's pairs inside the display rule, so these listed-but-unheard duplicates stay.
+    That is arc item M4's shape, not a tier L loss.
+  - **1 is a prototype defect the build avoids.** In `rss_rss.iono.fm_5cbbfd48` (run `c34e9535`)
+    the prototype gave both placed voices `unplaced_*` ids and cut the first voice's surname. The
+    build leaves the episode as stored.
+  - The second half (the switch-on measured again on a fresh snapshot) is still open. It belongs
+    to the switch-on change.
+
 ## 9. Operator review
 
 - **Scope call:** L1 and L3's pipeline half move out of tier L into their own forward changes
@@ -335,8 +360,9 @@ _TODO_
 
 - **The gain on unseen data is zero:** val_v7 does not move; the evidence for the mode is dev_v1
   (the design set, one group) and the ledger moves read by id on the snapshot.
-- The 102 respelled episodes' files were not read one by one; the 8 episodes between the
-  prototype's 110 and the build's 102 are not traced by id.
+- The 102 respelled episodes' files were not read one by one. The 8 episodes between the
+  prototype's 110 and the build's 102 were traced by id (8b). `person:jennifer-li` beside the
+  placed guest's heard spelling was not checked against the audio as one person.
 - 3 of V3's 28 candidate pairs are not itemised; the 21 that joined nothing are listed by kind,
   not each read.
 - V1 drops 1,063 `known_hosts` name-episodes; 4 are named by id, the rest counted. A V1 drop
@@ -347,4 +373,5 @@ _TODO_
 - L1, L3's pipeline half and L6 are not built (section 1, 4b).
 - No gate report: a ledger mode has no migration; the measurement is section 7's table and the
   scratchpad scripts, which are not committed.
-- `make ci-fast` not yet run on the committed tree (condition 1).
+- `make ci-fast` ran before the branch's rebase onto PR B. It runs again after the rebase (arc
+  list, "Before the branch's PR").

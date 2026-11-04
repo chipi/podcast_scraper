@@ -187,7 +187,8 @@ the merge sha.
     `l_publisher_verified_mode`): the ledger builds byte-identical on the snapshot, so no stored
     file changes until its own switch-on deploy. The one default-path change is the diagnostics
     path through `utils.run_relative`. Switching on: set the mode and `RULE_VERSION`, deploy, and
-    trace the respell's episode set first (its step 8, condition 2).
+    measure the switch-on again on a fresh snapshot (its step 8, condition 2; the trace by id is
+    done, 8b).
 
 **GitHub issues fixed here but still open** (closing is the operator's call; after the deploy
 proves each): #2131 (A8), #2180 (A11), #2253 (A7), #2363 (B5), #2364 (B6), #2123 (B8), #2136
