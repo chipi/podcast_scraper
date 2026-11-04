@@ -512,6 +512,14 @@ PASS, 0 failures, 0 plan differences, `S1c_inconsistent` 0; 101 episodes with th
 
 ## 9. Operator review
 
+- **Operator's go (2026-11-05, in the ingestion session, verbatim):** "Ingo to sleepmand pre
+  approve all cor deploy" (going to sleep, pre-approving all for the deploy). Read as the go for
+  #2423's push and merge, the deploy, and this migration's apply in its turn (first, `--to 2.7.37`), within
+  these limits: prod's dry-run plan equals this gate's, except `prod_only` rows for episodes newer
+  than snapshot-prod-20261103, which go into an accept file with that cause; anything else (another
+  plan difference, a hook refusal, a failed verify or ownership check, a red check) stops the
+  apply for the operator.
+
 - **Open call 1:** 0043 reverses 0034's third-ruling keeps for these 39 self-introduced promo and
   shout-out voices, aligning stored episodes with the shipped pipeline (#2123, #2364).
   Operator accepted: 2026-11-04 0043 reverses the 0034 third-ruling keeps for the 39 listed voices.

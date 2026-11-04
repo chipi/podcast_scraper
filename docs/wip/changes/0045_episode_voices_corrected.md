@@ -198,7 +198,13 @@ on `3a4adaf47`).
 
 ## 9. Operator review
 
-_TODO_
+- **Operator's go (2026-11-05, in the ingestion session, verbatim):** "Ingo to sleepmand pre
+  approve all cor deploy" (going to sleep, pre-approving all for the deploy). Read as the go for
+  #2423's push and merge, the deploy, and this migration's apply in its turn (after 0044, `--to 2.7.39`), within
+  these limits: prod's dry-run plan equals this gate's, except `prod_only` rows for episodes newer
+  than snapshot-prod-20261103, which go into an accept file with that cause; anything else (another
+  plan difference, a hook refusal, a failed verify or ownership check, a red check) stops the
+  apply for the operator.
 
 ## 10. Before apply / deploy
 
