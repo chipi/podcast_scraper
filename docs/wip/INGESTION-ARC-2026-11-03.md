@@ -183,8 +183,11 @@ the merge sha.
 3. A7: `gi inspect` on an episode whose GI stores the absolute `transcript_ref`.
 4. A3 / A4: the next migration's backups are owned by the corpus owner and kept per before-state;
     nothing to run, read the next apply's backup dir.
-5. Tier L is not in this deploy (not built). When built, it ships switched off: no stored file
-    changes until its own one-line deploy.
+5. Tier L's code ships in this deploy switched off (`EVIDENCE_MODE = "extracted"`, record
+    `l_publisher_verified_mode`): the ledger builds byte-identical on the snapshot, so no stored
+    file changes until its own switch-on deploy. The one default-path change is the diagnostics
+    path through `utils.run_relative`. Switching on: set the mode and `RULE_VERSION`, deploy, and
+    trace the respell's episode set first (its step 8, condition 2).
 
 **GitHub issues fixed here but still open** (closing is the operator's call; after the deploy
 proves each): #2131 (A8), #2180 (A11), #2253 (A7), #2363 (B5), #2364 (B6), #2123 (B8), #2136

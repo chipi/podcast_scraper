@@ -193,7 +193,8 @@ class _JoinTest:
         if (
             kind == "person"
             and self.pair_rule is not None
-            and any(self.pair_rule(cand, m) == "join" for m in cluster)
+            and not _scoped(cand.id)
+            and any(self.pair_rule(cand, m) == "join" for m in cluster if not _scoped(m.id))
         ):
             # An evidence rule's join (record l_publisher_verified_mode, V3); the guards still
             # run on it in __call__.

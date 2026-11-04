@@ -173,17 +173,18 @@ def _move_census(summary: Dict[str, Any], old: Optional[str], talk_s: float) -> 
     census = summary.get("voice_census")
     if not isinstance(census, dict):
         return
-    total = sum(
-        float((c or {}).get("talk_s") or 0.0) for c in census.values() if isinstance(c, dict)
-    )
     for kind, sign in ((old, -1), (COMMERCIAL, 1)):
-        if not kind:
-            continue
+        if not kind or (sign < 0 and kind not in census):
+            continue  # a voice with no type, or one the census has no bucket for, leaves nothing
         c = census.setdefault(kind, {"count": 0, "talk_s": 0.0, "talk_share": 0.0})
         if not isinstance(c, dict):
             continue
         c["count"] = max(0, int(c.get("count") or 0) + sign)
         c["talk_s"] = round(max(0.0, float(c.get("talk_s") or 0.0) + sign * talk_s), 1)
+    # The total after the move (revision 4d): a voice that left no bucket adds its seconds.
+    total = sum(
+        float((c or {}).get("talk_s") or 0.0) for c in census.values() if isinstance(c, dict)
+    )
     if total > 0:
         for c in census.values():
             if isinstance(c, dict):

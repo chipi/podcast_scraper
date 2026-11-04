@@ -319,7 +319,9 @@ def host_join_pair_rule(evidence: Mapping[str, EpisodeEvidence], base):
             and member.kind == "person"
             and frozenset((cand.id, member.id)) in joins
         ):
-            return "join"
+            # A human-read "apart" (record s5d) wins over V3 (Review 2, 2026-11-04).
+            answer = base(cand, member) if base is not None else None
+            return "apart" if answer == "apart" else "join"
         return base(cand, member) if base is not None else None
 
     rule.joins = joins  # type: ignore[attr-defined]

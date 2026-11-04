@@ -217,3 +217,65 @@ def test_registered_after_0042_with_its_list_and_verdicts_shipped() -> None:
     assert all(verdicts.get(*key) is not None for key in listed)
     applied, missing = mig._reviewed()
     assert missing == [] and len(applied) == 111
+
+
+def test_a_name_leaving_the_episode_leaves_detected_hosts_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review 2, 2026-11-04: only detected_guests was tested."""
+    p = _episode(tmp_path)
+    meta = fx._r(p["meta"])
+    meta["content"]["detected_hosts"] = ["Gerald Orban", READER]
+    p["meta"].write_text(json.dumps(meta), encoding="utf-8")
+    _review(monkeypatch, tmp_path)
+    m43.NonParticipantNamesRemovedMigration().apply(_ctx(tmp_path))
+    assert fx._r(p["meta"])["content"]["detected_hosts"] == ["Gerald Orban"]
+
+
+def test_a_gi_node_already_unknown_stays_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    p = _episode(tmp_path)
+    gi = fx._r(p["gi"])
+    other = next(
+        n for n in gi["nodes"] if n["type"] == "Quote" and "Answer 0" in n["properties"]["text"]
+    )
+    other["properties"]["speaker_voice_type"] = "unknown"
+    p["gi"].write_text(json.dumps(gi), encoding="utf-8")
+    _review(monkeypatch, tmp_path)
+    m43.NonParticipantNamesRemovedMigration().apply(_ctx(tmp_path))
+    after = {n["id"]: n for n in fx._r(p["gi"])["nodes"]}
+    assert after[other["id"]]["properties"]["speaker_voice_type"] == "unknown"
+
+
+def test_only_rows_the_rewrite_typed_unknown_become_commercial(tmp_path: Path) -> None:
+    ep = m43._Episode.__new__(m43._Episode)
+    ep.counts = {}
+    rows = [
+        {"speaker": "SPEAKER_02", "voice_type": "unknown", "speaker_role": "guest"},
+        {"speaker": "SPEAKER_02", "voice_type": "cameo", "speaker_role": "guest"},
+        {"speaker": "SPEAKER_00", "voice_type": "unknown", "speaker_role": "host"},
+    ]
+    ep.json_files = {tmp_path / "ep.segments.json": rows}
+    ep._type_segments({"SPEAKER_02"})
+    assert rows[0] == {"speaker": "SPEAKER_02", "voice_type": "commercial"}
+    assert rows[1]["voice_type"] == "cameo" and rows[2]["voice_type"] == "unknown"
+
+
+@pytest.mark.parametrize("old", [None, "person", "unidentified"])
+def test_the_census_moves_one_voice_to_commercial(old) -> None:
+    """Revision 4d: the shares come from the total after the move, so they sum to 1 whether the
+    voice leaves a counted type, had no type, or names a type the census has no bucket for."""
+    summary: Dict[str, Any] = {
+        "by_voice_type": {"person": 2},
+        "voice_census": {"person": {"count": 2, "talk_s": 30.0, "talk_share": 1.0}},
+    }
+    m43._move_census(summary, old, 10.0)
+    assert summary["by_voice_type"]["commercial"] == 1
+    assert summary["by_voice_type"]["person"] == (1 if old == "person" else 2)
+    census = summary["voice_census"]
+    assert census["commercial"]["count"] == 1 and census["commercial"]["talk_s"] == 10.0
+    total = sum(c["talk_s"] for c in census.values())
+    assert total == (30.0 if old == "person" else 40.0)
+    assert abs(sum(c["talk_share"] for c in census.values()) - 1.0) < 1e-3
+    assert census["commercial"]["talk_share"] == round(10.0 / total, 4)

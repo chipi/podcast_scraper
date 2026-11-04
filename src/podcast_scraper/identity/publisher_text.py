@@ -120,9 +120,17 @@ def verify_and_find(
     the display rule takes as the same person."""
     text = publisher_text(meta)
     padded = f" {fold(text)} "
-    out: Dict[str, List[str]] = {
-        k: [n for n in names if f" {fold(n)} " in padded] for k, names in by_key.items()
-    }
+    raw = " ".join(text.casefold().split())
+
+    def in_text(name: str) -> bool:
+        folded = fold(name)
+        if folded:
+            return f" {folded} " in padded
+        # A name with no Latin letters (Cyrillic, CJK) folds to nothing: compare it as written.
+        written = " ".join(str(name).casefold().split())
+        return bool(written) and written in raw
+
+    out: Dict[str, List[str]] = {k: [n for n in names if in_text(n)] for k, names in by_key.items()}
     found: List[str] = []
     pairs = set()
     for name in [*roster, *(n for names in by_key.values() for n in names)]:

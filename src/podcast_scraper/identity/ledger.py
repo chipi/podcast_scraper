@@ -57,9 +57,10 @@ PERSON_LINKAGE = "no_one_word_bridge"
 #: its host-seat joins. Shipped ``extracted`` (operator, 2026-11-04: tier L ships switched off).
 #: Switching on is its own change: set this, set ``RULE_VERSION`` to the mode's version below and
 #: move the old one to ``PREVIOUS_RULE_VERSION``, and deploy; the next refresh respells the files.
+#: A build is stamped with its own mode's version, whichever mode ships.
 EVIDENCE_MODE = "extracted"
 RULE_VERSION_BY_EVIDENCE = {
-    "extracted": RULE_VERSION,
+    "extracted": "cluster-person-no-bridge-guarded/3",
     "publisher_verified": "cluster-person-no-bridge-guarded-publisher-verified/1",
 }
 
@@ -143,7 +144,7 @@ def build_ledger(root: Path | str, evidence_mode: Optional[str] = None) -> Dict[
     blocked = payload.pop("blocked_joins", [])
     return {
         "schema_version": LEDGER_SCHEMA_VERSION,
-        "rule_version": RULE_VERSION_BY_EVIDENCE[mode] if evidence_mode else RULE_VERSION,
+        "rule_version": RULE_VERSION_BY_EVIDENCE[mode],
         "code_version": getattr(podcast_scraper, "__version__", "unknown"),
         "corpus_token": corpus_token(root),
         "built_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
