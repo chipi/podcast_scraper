@@ -189,9 +189,9 @@ the measured apply and nothing else; the default path's plan is unchanged.
   read the apply's `details["episodes"]`, and it detects, it does not prevent: a write outside
   the scope is found after it happened, and the rerun's undo is the recovery. Row 8 prints one
   line naming the steps left for the named episodes; it does not list their index or bridge rows.
-- The 27 bookkeeping files: 25 backups under `0043.rerun-<stamp>`, the rerun's receipts file and
-  its outcome receipt. The manifest skipped nothing; `.podcast_scraper.lock` existed before the
-  rerun (left by the gate's own run), so it did not count as changed.
+- The 27 bookkeeping files, counted on the copy: 25 backups under `0043.rerun-<stamp>`, 1
+  receipts file, 1 outcome receipt. The manifest skipped symlinks only. `.podcast_scraper.lock`
+  comes with the snapshot itself (prod's, 2026-10-25 02:00:09, 0 bytes) and did not change.
 
 ## 8. Verdict
 
