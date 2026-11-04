@@ -47,9 +47,9 @@
   "clone": "/work/closelistening/snapshots/clone-0043",
   "code": {
     "dirty": false,
-    "sha": "5d37558ed7fe0a8fedbefdf92c98300e94770f29"
+    "sha": "3a4adaf47575bca7563476046f8e10826598adcd"
   },
-  "code_digest": "0b2703b745f1e25197d6ddc974ac3ff2aae37a8c77b75d556d81cd12ba334467",
+  "code_digest": "80e7e9c60d872b769e26b9af44fe4fc95ab5270fca45aab642c615eda3eb9103",
   "computed_class": "full",
   "episode_deltas": {},
   "files_changed": 206,
@@ -67,7 +67,7 @@
     ".txt": 18
   },
   "gating_moves": {},
-  "measured_at": "2026-11-04T17:03:54",
+  "measured_at": "2026-11-04T18:04:12",
   "migration": "0044_title_spelling_voices_renamed",
   "plan": [
     {
