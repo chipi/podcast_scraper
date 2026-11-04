@@ -48,14 +48,16 @@ def test_atomic_write_as_non_root_never_chowns(
     assert chowned == []
 
 
-def test_profile_write_and_its_lock_are_chowned(tmp_path: Path, chowned: list[Path]) -> None:
+def test_a_profile_write_as_root_leaves_no_file_to_chown(
+    tmp_path: Path, chowned: list[Path]
+) -> None:
+    """Profiles are rows (ADR-169): the 2026-10-07 root write cannot leave a root-owned file."""
     user = app_user_store.get_or_create_user(
         tmp_path, provider="google", subject="s", email="a@x.com", name="A"
     )
     app_user_store.set_mcp_access(tmp_path, user.user_id, True)
-    udir = tmp_path / "users" / user.user_id
-    assert udir / "profile.json" in chowned
-    assert udir / ".profile.lock" in chowned
+    assert not (tmp_path / "users").exists()
+    assert chowned == []
 
 
 def test_audit_append_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
