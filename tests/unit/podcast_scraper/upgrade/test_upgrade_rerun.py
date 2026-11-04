@@ -311,3 +311,23 @@ def test_a_written_path_is_owned_after_normalisation() -> None:
     other_ep = "feeds/f/run_a/metadata/0007 - y.kg.json"
     assert oh.files_outside([meta], [inside]) == []
     assert oh.files_outside([meta], [other_run, other_ep]) == sorted([other_run, other_ep])
+
+
+def test_a_held_lock_refuses_a_real_rerun_and_not_a_dry_one(
+    applied: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import contextlib
+
+    import podcast_scraper.utils.corpus_lock as lock
+
+    @contextlib.contextmanager
+    def held(root: Path):
+        raise RuntimeError("another job holds the corpus lock")
+        yield
+
+    monkeypatch.setattr(lock, "corpus_parent_lock", held)
+    before = _manifest(applied)
+    assert _rerun(applied, [_meta("e3")], dry=True).details["episodes"] == [_meta("e3")]
+    with pytest.raises(RuntimeError, match="holds the corpus lock"):
+        _rerun(applied, [_meta("e3")])
+    assert _manifest(applied) == before

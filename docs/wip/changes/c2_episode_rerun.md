@@ -170,9 +170,51 @@ sha256 manifest of all 145,558 files before and after.
 **Builder: GO.** Deciding numbers: a correct rerun writes the named episodes byte-identically to
 the measured apply and nothing else; the default path's plan is unchanged.
 
+**After the step-8 review (2026-11-04), its conditions:**
+
+- **Undo, measured** on the same copy (scratchpad `c2_undo.py`): undoing the rerun with its own
+  receipts and tag restored 25 files, refused 0, and all 25 equal the snapshot's bytes; undoing
+  0043's apply afterwards with its own receipts restored 1,155 files, refused 0, and all 1,155
+  equal the snapshot's. A rerun leaves the apply's undo whole.
+- **Lock held, unit-tested:** `test_a_held_lock_refuses_a_real_rerun_and_not_a_dry_one`: the dry
+  rerun plans, the real one raises and the tree is unchanged. 16 tests (the count above was 14
+  when written; the normalisation test made 15).
+- **Prediction misses, stated as misses:** section 4's snapshot rows ("3 of 101", "2 planned + 1
+  not planned") cannot happen as written, because 0043 is unapplied on the snapshot, which is
+  that same section's refusal row; they were measured on the gate copy instead. The "gate copy
+  plans 0" row was not run as written: 2 episodes were put back first.
+- **Rows 4 and 8, as built** (amended to what is built rather than built further, since either
+  build edits `outcome_hook` or the runner and re-gates 0043): row 4 checks the rerun's own
+  receipts against the scope and every scoreboard row outside it, after the apply; it does not
+  read the apply's `details["episodes"]`, and it detects, it does not prevent: a write outside
+  the scope is found after it happened, and the rerun's undo is the recovery. Row 8 prints one
+  line naming the steps left for the named episodes; it does not list their index or bridge rows.
+- The 27 bookkeeping files: 25 backups under `0043.rerun-<stamp>`, the rerun's receipts file and
+  its outcome receipt. The manifest skipped nothing; `.podcast_scraper.lock` existed before the
+  rerun (left by the gate's own run), so it did not count as changed.
+
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not the step-5
+reader), inputs as file paths, ran only the unit tests.
+
+Review budget: minutes 5, tokens 60000
+
+```text
+REVIEW c2_episode_rerun 2026-11-04 commit bc03d093 reviewer Sonnet (fresh) minutes 5
+PREDICTION vs MEASURE: 3 rows equal; the snapshot rows unmeasurable as written (0043 unapplied there), the gate-copy "plans 0" row not run as written, test count 14 vs 15
+REQUIRED ITEMS: 1, 2, 3, 5, 6, 9, 10 done; 4 partial (receipts and scoreboard, not details["episodes"], post-hoc); 7 lock-held not measured; 8 partial (one generic line)
+AFTER-STATE READ: one real rerun on one gate copy: PASS, 31 of 31 byte-identical, nothing outside the scope; undo, lock, a non-0043 migration, a real reprocess not shown; ContextVar scope not inherited by threads or processes
+OPEN CALLS: amend rows 4 and 8 or build them; measure undo and lock-held; fill Not measured; correct the test count; name the thread risk
+DOUBTED NUMBER: 52 = 25 + 27, the 27 not itemised, the lock file not accounted for
+VERDICT: GO WITH CONDITIONS (a) rows 4 and 8 amended or built; (b) undo, lock held and the snapshot rows measured or listed; (c) Not measured filled; (d) every prod rerun its own record and go
+```
+
+Conditions, each answered in section 7 ("After the step-8 review"): (a) amended to what is
+built; (b) undo measured, lock held unit-tested, the snapshot rows stated as misses; (c) Not
+covered below; (d) section 0 already says it, and the deploy inventory carries it.
+
+Verdict: GO WITH CONDITIONS
 
 ## 9. Operator review
 
@@ -192,4 +234,16 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- **Each prod rerun is its own corpus change:** its own record, plan diff, accept file with
+  causes, and the operator's go. This change ships the command only; no prod rerun is approved by
+  this record.
+- The scope is a `ContextVar`: a migration that applies in worker threads or child processes
+  would not see it and could select outside it. None of 0029–0043 does; the receipts and
+  scoreboard checks would find it after the fact.
+- The leak check detects after the apply; it cannot prevent a write. A write a migration does not
+  receipt and the scoreboard does not see (a sidecar outside `score_episode`) is not detected.
+- Measured on one migration (0043) and one copy; a below-regime migration is refused, not run.
+  A real reprocess (new pipeline bytes) was stood in for by the snapshot's bytes, so the stop at a
+  changed episode is unit-tested only.
+- The rerun does not refresh the identity ledger, the search index or enrichment for the named
+  episodes; it prints that they are left.
