@@ -30,6 +30,8 @@ from podcast_scraper.providers.ml.model_registry import (
     resolve_profile_to_settings,
 )
 
+pytestmark = pytest.mark.integration
+
 
 class TestStageOptionRegistries:
     def test_transcription_options_are_populated(self) -> None:

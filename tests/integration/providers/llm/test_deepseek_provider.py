@@ -21,6 +21,8 @@ from podcast_scraper.providers.openai.openai_provider import (
     OpenAIProvider,
 )
 
+pytestmark = pytest.mark.integration
+
 _KEY = "sk-" + "x" * 40
 _REASONING_MODEL = "deepseek-v4-flash"
 _CHAT_MODEL = "deepseek-chat"

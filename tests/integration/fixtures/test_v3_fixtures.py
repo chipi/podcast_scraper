@@ -26,6 +26,8 @@ from typing import Any, cast
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATASET_DIR = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "dataset"
 

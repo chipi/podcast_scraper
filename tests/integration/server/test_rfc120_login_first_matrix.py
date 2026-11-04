@@ -17,6 +17,8 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
 
+pytestmark = pytest.mark.integration
+
 _FIXTURE_CORPUS = Path(__file__).resolve().parents[3] / "tests/fixtures/app-validation-corpus/v3"
 
 # The ONLY content reachable without a free account: the curated teaser lure, plus endpoints

@@ -27,6 +27,8 @@ torch = pytest.importorskip("torch")
 
 from podcast_scraper.providers.ml.extractive_qa import QAEvidenceBackend  # noqa: E402
 
+pytestmark = pytest.mark.integration
+
 # Two windows over one document. Window 0 holds the answer; window 1 is filler.
 CONTEXT = "The answer is insulin resistance. " + ("Filler text about nothing at all. " * 2)
 _SEQ_LEN = 8

@@ -169,6 +169,31 @@ def check_integration_ml_models(files: list[Path]) -> list[Violation]:
     return violations
 
 
+def check_integration_marker(files: list[Path]) -> list[Violation]:
+    """A test file under tests/integration/ must carry the ``integration`` marker.
+
+    Every CI path runs ``pytest tests/integration/ -m integration`` and nothing marks by path, so a
+    file without the marker is collected locally and dropped by CI (#2180: 239 tests in 14 files on
+    2026-11-04, one of them red on main unseen).
+    """
+    violations = []
+    for f in files:
+        if f.name == "conftest.py":
+            continue
+        text = f.read_text(encoding="utf-8")
+        if TEST_METHOD_RE.search(text) and "pytest.mark.integration" not in text:
+            violations.append(
+                Violation(
+                    f,
+                    1,
+                    "I2-integration-marker",
+                    "integration test file never declares pytest.mark.integration; CI selects "
+                    "-m integration, so none of its tests run there",
+                )
+            )
+    return violations
+
+
 def check_empty_test_files(files: list[Path]) -> list[Violation]:
     violations = []
     for f in files:
@@ -219,6 +244,9 @@ def main() -> int:
 
     # Rule I1: No ml_models marker in integration tests
     violations.extend(check_integration_ml_models(integration_files))
+
+    # Rule I2: Every integration test file carries the integration marker CI selects on
+    violations.extend(check_integration_marker(integration_files))
 
     # Rule G1: No empty test files anywhere
     violations.extend(check_empty_test_files(all_test_files))

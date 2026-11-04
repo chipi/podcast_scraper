@@ -30,6 +30,8 @@ from podcast_scraper.providers.ml.model_registry import (
     StageOption,
 )
 
+pytestmark = pytest.mark.integration
+
 PROFILE_DIR = pathlib.Path("config/profiles")
 
 LLM_GROUNDER = "llm_matched_to_summary"
