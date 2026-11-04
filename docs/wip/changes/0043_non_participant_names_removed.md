@@ -446,6 +446,10 @@ re-run; earlier builds `27bca008…` and `f625eb63…`, each stale once code in 
   only the 2 host names on German-language ad voices?
   Operator accepted: 2026-11-04 0043 adds group D (52) and the 2 German-ad host-name voices of
   group E (113 in all); the 6 hosts' own-show promo voices keep their names.
+- **Open call 4** (Review 2, minor 4): the 2 class-E host names, on no other voice in their
+  episodes, also leave `detected_hosts` (the migration's own rule for a name that leaves its
+  episode). Keep that?
+  Operator accepted: 2026-11-04 class E stays as built (the name leaves `detected_hosts` too).
 
 ## 10. Before apply / deploy
 
