@@ -32,11 +32,16 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from podcast_scraper.upgrade.migrations.m0025_one_person_one_entry import (  # noqa: E402
-    _load,
-    _run_relative,
-)
 from podcast_scraper.upgrade.reviewer_verdicts import line_sha256, VERDICTS_DIR  # noqa: E402
+from podcast_scraper.utils.run_relative import run_relative as _run_relative  # noqa: E402
+
+
+def _load(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 
