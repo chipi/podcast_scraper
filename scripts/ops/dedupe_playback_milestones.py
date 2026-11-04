@@ -61,11 +61,20 @@ def _logs(appdata: Path) -> List[Path]:
     return sorted((appdata / "users").glob(f"*/{LOG_NAME}"))
 
 
+def _own_like(path: Path, model: Path) -> None:
+    """Give ``path`` the owner of ``model``. Run as root (``docker exec`` defaults to it), a new
+    file is root's, and the api, which runs as the app user, can no longer append to the log."""
+    if os.geteuid() == 0:
+        st = model.stat()
+        os.chown(path, st.st_uid, st.st_gid)
+
+
 def _replace_if_unchanged(path: Path, original: str, new: str) -> bool:
     """Write ``new`` over ``path`` only if it still reads ``original`` (the app may append)."""
     tmp = path.with_name(path.name + ".tmp-dedupe")
     tmp.write_text(new, encoding="utf-8")
     shutil.copymode(path, tmp)
+    _own_like(tmp, path)
     if path.read_text(encoding="utf-8") != original:
         tmp.unlink()
         return False
@@ -89,6 +98,7 @@ def run(appdata: Path, apply: bool) -> Dict[str, Any]:
         backup = path.with_name(path.name + BACKUP_SUFFIX)
         if not backup.exists():
             shutil.copy2(path, backup)
+            _own_like(backup, path)
         if not _replace_if_unchanged(path, original, new):
             stats["skipped_changed"].append(str(path.relative_to(appdata)))
             continue
@@ -99,6 +109,7 @@ def run(appdata: Path, apply: bool) -> Dict[str, Any]:
         with (appdata / RECEIPTS_FILE).open("a", encoding="utf-8") as fh:
             for r in receipts:
                 fh.write(json.dumps(r) + "\n")
+        _own_like(appdata / RECEIPTS_FILE, appdata)
     return stats
 
 
