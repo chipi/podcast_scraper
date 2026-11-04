@@ -133,6 +133,10 @@ main after it, with the 0043 apply and the targeted reindex; then the first data
 (#2417 and companions). PR B merges only on the operator's go; the session that owns it messages
 the merge sha.
 
+**Update (operator, 2026-11-04):** PR B merged (`aeaf39e7`); this branch is PR #2423, rebased onto
+`f493b650`. **#2423 merges only after the deploy of the current main has run**, so that deploy
+carries PR B alone; this branch's deploy and its three applies come after it.
+
 **Before the branch's PR** (local, nothing on origin yet):
 
 1. Wait for PR B's merge sha; rebase onto main. PR B deletes the 4 `tests/integration/server/`
