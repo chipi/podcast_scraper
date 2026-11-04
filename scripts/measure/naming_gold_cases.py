@@ -47,8 +47,26 @@ def _cap(text: Any, chars: int) -> Any:
     return text[:chars] if isinstance(text, str) else text
 
 
+def run_relative(value: Any, run: Path) -> str:
+    """The transcript path relative to the episode's run directory.
+
+    Some metadata stores the path at ingest (``/app/output/feeds/<feed>/<run>/transcripts/x.txt``):
+    joined as written it names no file in a copy of the corpus, and 121 of 3,130 member episodes on
+    snapshot-prod-20261103 silently left the pool. The part after this run's directory name is the
+    same file here (the rule of m0025's ``_run_relative``). ``""`` for an absolute path not through
+    this run.
+    """
+    rel = str(value or "")
+    parts = Path(rel).parts
+    if not Path(rel).is_absolute():
+        return rel
+    if run.name not in parts:
+        return ""
+    return str(Path(*parts[len(parts) - parts[::-1].index(run.name) :]))
+
+
 def _segments(meta: Path, doc: Dict[str, Any]) -> List[Dict[str, Any]]:
-    rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
+    rel = run_relative((doc.get("content") or {}).get("transcript_file_path"), meta.parent.parent)
     if not rel.endswith(".txt"):
         return []
     raw = _load(meta.parent.parent / rel.replace(".txt", ".segments.json"))

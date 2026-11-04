@@ -82,11 +82,24 @@ def changed_voices(
                 yield k, v, x, y
 
 
+def _run_relative(value: Any, run: Path) -> str:
+    """The transcript path relative to the run: an absolute path stored at ingest
+    (``/app/output/feeds/<feed>/<run>/...``) is read as the part after this run's name (m0025's
+    rule). 121 of 3,130 member episodes on snapshot-prod-20261103 store one."""
+    rel = str(value or "")
+    parts = Path(rel).parts
+    if not Path(rel).is_absolute() or run.name not in parts:
+        return rel
+    return str(Path(*parts[len(parts) - parts[::-1].index(run.name) :]))
+
+
 def voice_texts(meta_path: str) -> Dict[str, List[str]]:
     """Each voice's segment texts, from the episode's ``.segments.json`` next to its transcript."""
     meta = Path(meta_path)
     doc = json.loads(meta.read_text(encoding="utf-8"))
-    tp = meta.parent.parent / doc["content"]["transcript_file_path"]
+    tp = meta.parent.parent / _run_relative(
+        doc["content"]["transcript_file_path"], meta.parent.parent
+    )
     segs = json.loads(Path(str(tp).replace(".txt", ".segments.json")).read_text(encoding="utf-8"))
     segs = segs if isinstance(segs, list) else segs.get("segments", [])
     out: Dict[str, List[str]] = {}
