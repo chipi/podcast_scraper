@@ -38,6 +38,8 @@ names only in the frozen list (published, the precedent of 0034–0044).
 
 - **Outcome:** SPEAKER_02 carries the show's second host's name and the host role; SPEAKER_01
   carries the title's spelling of the guest; one guest entry on the roster, two hosts.
+  **As delivered** (after the verdicts, 4b): SPEAKER_01's rename was refused, so SPEAKER_01 keeps
+  its stored name; only SPEAKER_02's half of this outcome is met.
 - **Baseline:** clone-0044 (snapshot-prod-20261103, 0043 and 0044 applied through `upgrade run`).
 
 ## 3. Diagnosis by loss
@@ -155,7 +157,38 @@ copy against the clone), `gold_insights.py` totals.
 
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not the step-5 reader,
+not the verdict reader), inputs as file paths, ran only the unit tests.
+
+Review budget: minutes 5, tokens 60000
+
+```text
+REVIEW 0045_episode_voices_corrected 2026-11-04 commit 43891f75 (gated code 3a4adaf47 = HEAD's src/tests) reviewer Sonnet (fresh) minutes 5
+PREDICTION vs GATE: rows equal except the named KG miss; unpredicted counts bridge_identities_removed 1, entities_added 1, context_rebuilt 1
+REQUIRED ITEMS: verdicts bound to the list's sha256 (recomputed); 2 rows; WRONG_PERSON not applied (plan holds SPEAKER_02 only); 7 tests pass; module is 0044's with id, version and labels changed; gate on a clean commit; spot checks in section 7; per-voice insight count not shown
+AFTER-STATE READ: the gate JSON and section 7's figures; roster, rows, markers and undo are the builder's scratchpad checks, not re-run
+OPEN CALLS: section 2's outcome names SPEAKER_01, which is refused; SPEAKER_01 left open; the deciding index 23 against a 20-segment packet (a global index); one reader on SPEAKER_02, corroborated by 0044's reader
+DOUBTED NUMBER: the ledger refresh's 0 files / 652 joins, not in the gate JSON
+VERDICT: GO WITH CONDITIONS (1) section 2 and 4 say SPEAKER_01 keeps its stored name; (2) the unpredicted counts explained, per-voice insight count checked or in Not covered; (3) SPEAKER_01 tracked as follow-up work
+```
+
+Conditions, each answered (2026-11-04):
+
+1. Section 2 carries "as delivered: SPEAKER_01 keeps its stored name"; 4b row 3 already said it.
+2. The counts: `bridge_identities_removed` 1 is the heard-spelling identity of SPEAKER_02 in the
+   episode's bridge; `entities_added` 1 is the roster's transcript-provenance alias for the host's
+   name; `context_rebuilt` 1 is the episode's context file rebuilt from the new roster (0025's
+   rewrite, as 0044's counters in its step 8). Per-voice insight counts were not checked (Not
+   covered); `insights_reattributed` 9 and `quotes_reattributed` 16 follow the voice to the host.
+3. Tracked in the arc list (`INGESTION-ARC-2026-11-03.md`, "Mine, scheduled"): SPEAKER_01, a
+   whole-voice reading as its own reviewed entry. The deciding segment index is the segment's
+   index in the episode's segments, as every verdicts file's (`segment_idx`).
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** applied on prod only after 0044, in its own run (`--to 2.7.39`), on the
+  operator's go, with prod's plan diffed against this gate's.
+- **Condition 2:** SPEAKER_01 of the episode stays as stored until its own reviewed entry.
 
 ## 9. Operator review
 
@@ -179,6 +212,7 @@ _TODO_
   segments (host talk); the packet did not show its later segments, so whether SPEAKER_01 is the
   guest, the first host's split voice or a merge is not decided. It keeps its stored guest name.
   Settling it needs a reading of the whole voice, as its own reviewed entry.
+- Per-voice insight counts before and after were not checked.
 - The first host's voice (SPEAKER_00) and the 5 unnamed voices are untouched; whether the
   diarization split a host across voices is not traced.
 - Only the speaker name and role move: the heard spelling inside spoken text, insight and quote
