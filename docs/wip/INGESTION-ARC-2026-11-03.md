@@ -159,10 +159,12 @@ the merge sha.
    file for the `prod_only` rows of episodes newer than snapshot-prod-20261103; the apply; verify;
    the ownership check.
 2. The ledger refresh that `upgrade run` ends with respells the episode files (since 0041):
-   measured on a clone before the apply (record 0043, section 7, "ledger after 0043").
+   measured on a clone (record 0043, section 7, "Ledger after 0043"): 0 files written, 3 variant
+   joins dropped (652 -> 649), 0 spellings changed. Check prod's change log shows the same.
 3. Search index: the incremental `python -m podcast_scraper.cli index --output-dir /app/output` in
    a pipeline-llm run (6g/8g; never `index-two-tier`). It re-embeds an episode only when its
-   embeddable text changed (record 0043, section 7, "re-embed check"), and reports `reindexed`.
+   embeddable text changed; measured on a clone (record 0043, section 7, "Re-embed check"): 100
+   of the 101 written episodes re-embed, 0 rows stay stale. Expect `reindexed` 100.
 4. Enrichment of the written episodes: the nightly `corpus_enrichment` picks them up, or run
    `enrich` at once in pipeline-llm.
 5. Record 0043 steps 10 and 11 (prod's plan diff, the apply counts, the after-apply scoreboard),
