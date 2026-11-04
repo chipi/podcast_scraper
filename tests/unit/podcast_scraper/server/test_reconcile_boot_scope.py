@@ -81,6 +81,30 @@ class TestThisBootRows:
         assert reconcile_jobs_inplace(jobs, stale_seconds=0) == []
         assert jobs[0]["status"] == STATUS_RUNNING
 
+    def test_the_exit_to_finalize_window_is_not_an_orphan(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Between the child exiting and ``monitor_subprocess`` finalizing the row, the pid is
+        already gone but the job succeeded. The sweeper failed such a row as a dead pid (main's
+        stack test, 2026-11-04: an enrichment job logged status=ok, then was reconciled as
+        ``orphan_reconciled_dead_pid`` a second later). This process is still watching it, so the
+        monitor owns the verdict."""
+        monkeypatch.setattr(jobs_mod, "pid_alive", lambda _pid: False)
+        monkeypatch.setattr(jobs_mod, "_MONITORED_JOB_IDS", {"job-1"}, raising=False)
+        jobs = [_row()]
+        assert reconcile_jobs_inplace(jobs, stale_seconds=0) == []
+        assert jobs[0]["status"] == STATUS_RUNNING
+
+    def test_a_dead_pid_nobody_monitors_is_still_failed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The exemption is for a monitored job only; another job's dead pid is still freed."""
+        monkeypatch.setattr(jobs_mod, "pid_alive", lambda _pid: False)
+        monkeypatch.setattr(jobs_mod, "_MONITORED_JOB_IDS", {"job-other"}, raising=False)
+        jobs = [_row()]
+        assert reconcile_jobs_inplace(jobs, stale_seconds=0)
+        assert jobs[0]["status"] == STATUS_FAILED
+
     def test_the_promote_to_spawn_window_is_not_an_orphan(self) -> None:
         """Between promotion and ``set_job_pid`` the row is RUNNING with no pid. Failing it
         there would kill jobs that are seconds from starting."""
