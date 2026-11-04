@@ -233,7 +233,49 @@ snapshot; none of the 110 respelled files gives a voice another person's name;
 
 ## 7. Measure
 
-_TODO_
+On snapshot-prod-20261103 with the committed build (`identity/` at the build commit; scratchpad
+`l_build.py`, `l_compare.py`, `l_switch_on.py`, `l5.py`):
+
+| Row (4 / 4b) | Predicted | Measured |
+| --- | --- | --- |
+| today's mode, old code vs new, ledger byte-identical | yes | **yes** (a worktree at the commit before the build; `code_version` equal) |
+| joins in the new mode | 652 -> 656, the 4 named | **656**, the same 4 ids, equal to prototype run 4 |
+| joins removed or moved | 0 | **0** |
+| blocked joins | 40 unchanged | **40**, the same set |
+| groups | 458 less the merges | **458**: the 4 joining ids were one-member ids, which are not groups |
+| shown spellings moved | 18 (12 to the publisher's, 6 label-only) | **18**, the same set as run 4 |
+| respell when switched on | 110 episodes of 1,009 files | **102 episodes, 980 files**, 0 refused (a copy) |
+| dev_v1 S7_correct / S7_wrong / fold_exact | 2,452 / 380 / 2,279 | **2,452 / 380 / 2,279** |
+| val_v7 S7_wrong | 289 (<= 299) | **299** |
+| val_v7 S7_correct | 2,344 (>= 2,334) | **2,334** |
+| val_v7 fold_exact | 2,204 (>= 2,181) | **2,181** |
+| S7_unnamed, S8_undecidable (both sets) | unchanged | **unchanged** (1,313 / 77; 799 / 5) |
+
+- **val_v7 is a miss on the point predictions and holds every bound: the mode moves nothing on
+  the unseen split.** None of its 80 cases' served names changes. The point predictions scaled
+  dev_v1's move by insight count; dev_v1's move is one group (`person:dara-obrey`, 12 insights),
+  which says nothing about another set's feeds. Read as: on 27 unseen feeds the mode neither
+  helps nor hurts; its gain is where the publisher's text and the extracted names disagree, which
+  those feeds' cases do not touch. Scored once; nothing re-tuned.
+- **Respell 102 against the prototype's 110:** the prototype patched the roster's `_same_person`
+  for the whole process, so V2's pairs also reached the respell's own matching; the build keeps
+  them inside the display rule. The 8 episodes are not traced by id.
+- **L5 (#2056):** of its two pairs, "Theo Jaffee" / "Theo Jaffe" are one group in both modes, and
+  only one spelling of the other pair exists on the snapshot (`person:lukasz-kaiser`, 1 episode;
+  no `person:lucas-kaiser` node). Neither duplicate remains; closing #2056 is the operator's call.
+- **Spot checks (5b):** the 12 shown-spelling moves and the 4 joins are listed in section 4 by id,
+  each read: all are the publisher's or the stated host's own spelling of the same person. Of
+  V3's 28 candidate pairs, 21 joined nothing, most because the pair's second id is the
+  publisher's spelling, which no episode file carries as a node (for example
+  `person:sarah-gonzales` / `person:sarah-gonzalez`; V2 fixes its spelling instead), the rest
+  already one group: none joins two people. V1's drops include the Latent Space and Latin
+  America in Focus spellings named in 4b. `person:sarah-gonzales` shows the publisher's spelling.
+  Not read: each of the 102 respelled episodes' files.
+
+**Builder: GO for shipping switched off.** Deciding numbers: today's mode byte-identical, so the
+deploy changes no stored file; switched on, the measured ledger moves (4 joins, 12 spellings, 0
+removed, 40 blocked unchanged) are each the same person, dev_v1 recovers D2's accepted 12, and
+val_v7 does not move. Switching on stays the operator's call, after reading this table.
 
 ## 8. Verdict
 
