@@ -34,6 +34,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -169,6 +170,50 @@ def check_integration_ml_models(files: list[Path]) -> list[Violation]:
     return violations
 
 
+def _names_integration_mark(node: ast.AST) -> bool:
+    """``node`` holds a ``<x>.mark.integration`` (bare, called, or inside a list/tuple)."""
+    return any(
+        isinstance(n, ast.Attribute)
+        and n.attr == "integration"
+        and isinstance(n.value, ast.Attribute)
+        and n.value.attr == "mark"
+        for n in ast.walk(node)
+    )
+
+
+def _all_tests_marked_integration(text: str) -> bool:
+    """Every test the file defines carries the marker the way pytest reads it: a module-level
+    ``pytestmark``, or a decorator on the test function or on its ``Test*`` class. Text that only
+    mentions the marker (a docstring, a comment) selects nothing."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return False
+    for node in tree.body:
+        targets = (
+            node.targets
+            if isinstance(node, ast.Assign)
+            else [node.target] if isinstance(node, ast.AnnAssign) else []
+        )
+        if any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in targets):
+            if node.value is not None and _names_integration_mark(node.value):
+                return True
+
+    def marked(n: ast.AST) -> bool:
+        return any(_names_integration_mark(d) for d in getattr(n, "decorator_list", []))
+
+    is_test = (ast.FunctionDef, ast.AsyncFunctionDef)
+    for node in tree.body:
+        if isinstance(node, is_test) and node.name.startswith("test"):
+            if not marked(node):
+                return False
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test") and not marked(node):
+            for item in node.body:
+                if isinstance(item, is_test) and item.name.startswith("test") and not marked(item):
+                    return False
+    return True
+
+
 def check_integration_marker(files: list[Path]) -> list[Violation]:
     """A test file under tests/integration/ must carry the ``integration`` marker.
 
@@ -181,7 +226,7 @@ def check_integration_marker(files: list[Path]) -> list[Violation]:
         if f.name == "conftest.py":
             continue
         text = f.read_text(encoding="utf-8")
-        if TEST_METHOD_RE.search(text) and "pytest.mark.integration" not in text:
+        if TEST_METHOD_RE.search(text) and not _all_tests_marked_integration(text):
             violations.append(
                 Violation(
                     f,
