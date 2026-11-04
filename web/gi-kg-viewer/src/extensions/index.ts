@@ -141,6 +141,17 @@ export interface ConfigTab extends Entry {
 
 export const configTabs = extensionPoint<ConfigTab>('configTabs')
 
+/**
+ * A section on the Admin tab, between the user table and the release settings. For admin surfaces
+ * whose backend routes come from an installed extension, so a build without it shows no panel
+ * rather than one that cannot load.
+ */
+export interface AdminPanel extends Entry {
+  component: Component
+}
+
+export const adminPanels = extensionPoint<AdminPanel>('adminPanels')
+
 /** A panel on the graph tab: `notice` lines under the error strip, `above-canvas` over the graph. */
 export interface GraphPanel extends Entry {
   region: 'notice' | 'above-canvas'

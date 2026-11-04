@@ -83,11 +83,12 @@ test.describe('Corpus Digest tab', () => {
 
   test('digest Recent CIL topic pills render from the row cil_digest_topics', async ({ page }) => {
     const rows = await openDigest(page)
-    /* The pills render for topics that belong to a topic cluster. The v3 corpus supplies them on
-     * every row, so pick the first row that has one rather than pinning a label. */
-    const row = rows.find((r) => r.cil_digest_topics?.some((t) => t.in_topic_cluster))
-    expect(row, 'expected at least one digest row with a clustered CIL topic').toBeTruthy()
-    const topic = row!.cil_digest_topics.find((t) => t.in_topic_cluster)!
+    /* A pill renders for every CIL topic on the row; topic-cluster membership only changes its
+     * look, and the clusters come from an installed extension (ADR-170), so this build has none.
+     * Pick the first row with a topic rather than pinning a label. */
+    const row = rows.find((r) => r.cil_digest_topics?.length)
+    expect(row, 'expected at least one digest row with a CIL topic').toBeTruthy()
+    const topic = row!.cil_digest_topics[0]!
 
     await expect(page.getByTestId('digest-recent-cil-pills').first()).toBeVisible()
     await expect(
@@ -97,8 +98,8 @@ test.describe('Corpus Digest tab', () => {
 
   test('digest Recent CIL topic pill opens the graph', async ({ page }) => {
     const rows = await openDigest(page)
-    const row = rows.find((r) => r.cil_digest_topics?.some((t) => t.in_topic_cluster))!
-    const topic = row.cil_digest_topics.find((t) => t.in_topic_cluster)!
+    const row = rows.find((r) => r.cil_digest_topics?.length)!
+    const topic = row.cil_digest_topics[0]!
 
     /* No artifact stub: the corpus's own GI artifacts are served by `/api/artifacts`, so this is
      * the real handoff — pill → graph load → canvas. */

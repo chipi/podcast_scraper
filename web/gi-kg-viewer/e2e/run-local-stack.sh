@@ -8,7 +8,7 @@
 # mocks were never a necessity — just the only thing available when the suite was written.
 #
 # Two notes specific to this suite:
-#   * it runs on Chrome (`npx playwright install chromium` once), like the player suite;
+#   * it runs on FIREFOX (`npx playwright install firefox` once), not Chromium;
 #   * Vite proxies /api to VITE_API_TARGET, so pointing it at the container is one env var.
 #
 # Usage:  e2e/run-local-stack.sh [playwright args...]
@@ -55,7 +55,7 @@ API_MEMORY="${E2E_API_MEMORY:-3g}"
 # `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
 # "Loading…" forever — which reads as a hung frontend, not a permissions problem.
 
-cleanup() { docker rm -f "$CONTAINER" "$CONTAINER-seed" >/dev/null 2>&1 || true; }
+cleanup() { docker rm -f "$CONTAINER" "$CONTAINER-seed" "$CONTAINER-prep" >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
 
 [ -d "$CORPUS_SRC" ] || { echo "missing fixture corpus: $CORPUS_SRC" >&2; exit 1; }
@@ -69,8 +69,26 @@ echo "seeding a disposable corpus copy into the $CORPUS_VOLUME volume"
 docker run -d --name "$CONTAINER-seed" --memory 512m --user root -v "$CORPUS_VOLUME:/w" \
   --entrypoint sleep "$IMAGE" 300 >/dev/null
 docker cp "$CORPUS_SRC/." "$CONTAINER-seed:/w"
+# The same stale-index files e2e/prepare-corpus.mjs refuses to copy: a committed index predates
+# fixture changes, so it is rebuilt below rather than served.
+docker exec "$CONTAINER-seed" rm -rf /w/search/lance_index /w/search/metadata.json \
+  /w/search/episode_fingerprints.json
 docker exec "$CONTAINER-seed" chown -R 1000:1000 /w
 docker rm -f "$CONTAINER-seed" >/dev/null
+
+# The corpus the native path serves (playwright.config.ts webServer): prepare-corpus.mjs builds
+# the two-tier search index, then the identity ledger is written. Without them /api/search,
+# the corpus path hints (they point at the directory holding search/lance_index) and every
+# cross-episode join are missing, and the specs that need them fail as if the app were broken.
+echo "building the search index and the identity ledger in the corpus copy"
+docker run --rm --name "$CONTAINER-prep" --memory "$API_MEMORY" \
+  -v "$CORPUS_VOLUME:/corpus" \
+  -e HF_HUB_OFFLINE=1 \
+  -e TRANSFORMERS_OFFLINE=1 \
+  -e PODCAST_SEARCH_EXACT_VECTORS=1 \
+  --entrypoint sh "$IMAGE" -c \
+  'python -m podcast_scraper.cli index-two-tier --output-dir /corpus &&
+   python -m podcast_scraper.cli identity-ledger --output-dir /corpus'
 
 # ── Env the suite actually needs ───────────────────────────────────────────────────────────────
 #

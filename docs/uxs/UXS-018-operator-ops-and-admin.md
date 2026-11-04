@@ -2,7 +2,7 @@
 
 - **Status**: Active (written 2026-10-05 from the shipped components; the code was the source)
 - **Surface:** `web/gi-kg-viewer` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
-  `RankingConfigAdminView`, `ReleaseAdminView`, `GraphAnalyticsAdminView`)
+  panels registered at `adminPanels`, `ReleaseAdminView`, `GraphAnalyticsAdminView`)
 - **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator design system — tokens, type, density)
 - **Related:** #1128 (viewer roles, user management), ADR-113 (resilience), ADR-142 (LLM gateway),
   #11 B2 (discovery ranking)
@@ -77,8 +77,9 @@ Each panel fetches on its own, so one failing source never blanks the others.
 
 ## Admin tab
 
-Four sections stacked in one scroll column (`space-y-8`): Users, Discovery ranking, Released app
-version, Analytics.
+Sections stacked in one scroll column (`space-y-8`): Users, then any panels a build registers at
+the `adminPanels` extension point, then Released app version and Analytics. This build registers
+none.
 
 ### Users (`users-admin`)
 
@@ -97,17 +98,11 @@ version, Analytics.
 - While a row's request is in flight, that row's controls are disabled.
 - Any failure shows in `users-admin-error` (`role="alert"`). The table keeps its last good state.
 
-### Discovery ranking (`ranking-config-admin`)
+### Discovery ranking
 
-- One card per signal (`ranking-signal-{name}`) with:
-  - an enabled checkbox (`ranking-enabled-{name}`); a disabled signal's card is dimmed to 60 %;
-  - a weight (`ranking-weight-{name}`, step 0.1);
-  - one input per signal-specific param (`ranking-param-{name}-{key}`); numeric text is stored as a
-    number.
-- **Save** (`ranking-config-save`) writes the whole registry and shows **Saved ✓**
-  (`ranking-config-saved`). Any later edit clears it. The server merges onto defaults, so a bad save
-  cannot empty ranking.
-- The loading state is `ranking-config-loading`; the error state is `ranking-config-error`.
+The discovery ranking panel (#11 B2) edits a route the app serves, so it left this viewer with the
+app (ADR-170) and is registered at `adminPanels` by a build that has the route. Without it the
+Admin tab shows no ranking section, rather than one that cannot load.
 
 ### Released app version (`release-admin`)
 
@@ -163,8 +158,9 @@ player's deploy default, so what this view shows is what phones are served.
 
 `e2e/ops-and-admin.spec.ts` owns this surface:
 
-- **Users, Discovery ranking and Released app version** run against the live e2e API, with unique
-  identities per run. Ranking and the release override are restored after their tests.
+- **Users and Released app version** run against the live e2e API, with unique identities per
+  run. The release override is restored after its test. One test checks that the Admin tab shows
+  no ranking section and the server has no ranking route.
 - **Ops and graph analytics** are mocked. A test server has no telemetry sources (see **Decided**),
   and a fresh corpus has no analytics events.
 

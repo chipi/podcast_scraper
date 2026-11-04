@@ -111,43 +111,18 @@ test.describe('Admin › Users (live API)', () => {
   })
 })
 
-test.describe('Admin › Discovery ranking (live API)', () => {
-  test.describe.configure({ mode: 'serial' })
-
-  test('toggling a signal, its weight and a param saves to the server; editing clears "Saved"', async ({
+test.describe('Admin › Discovery ranking (absent from this build)', () => {
+  /* The ranking-config route is the app's (ADR-170): a build without it registers no admin panel
+   * for it, so the Admin tab shows the surfaces this server serves and nothing that cannot load. */
+  test('the Admin tab shows no ranking panel, and the server has no ranking-config route', async ({
     page,
   }) => {
     await signInAsAdmin(page)
-    const original = await (await page.request.get('/api/app/ranking-config')).json()
-    try {
-      await openAdmin(page)
-      const sigs = original.signals as Array<{ name: string; enabled: boolean; weight: number; params: Record<string, unknown> }>
-      const withParam = sigs.find((s) => Object.keys(s.params ?? {}).length > 0)!
-      const key = Object.keys(withParam.params)[0]!
-      const name = withParam.name
-
-      await page.getByTestId(`ranking-enabled-${name}`).setChecked(!withParam.enabled)
-      await page.getByTestId(`ranking-weight-${name}`).fill('2.5')
-      await page.getByTestId(`ranking-param-${name}-${key}`).fill('7')
-      await page.getByTestId('ranking-config-save').click()
-      await expect(page.getByTestId('ranking-config-saved')).toHaveText('Saved ✓')
-
-      const stored = (await (await page.request.get('/api/app/ranking-config')).json()) as typeof original
-      const s = (stored.signals as typeof sigs).find((x) => x.name === name)!
-      expect(s.enabled).toBe(!withParam.enabled)
-      expect(s.weight).toBe(2.5)
-      expect(s.params[key]).toBe(7) // numeric text is stored as a NUMBER
-
-      // A disabled signal is dimmed; any edit clears the saved mark.
-      if (withParam.enabled) {
-        await expect(page.getByTestId(`ranking-signal-${name}`)).toHaveClass(/opacity-60/)
-      }
-      await page.getByTestId(`ranking-weight-${name}`).fill('2.6')
-      await expect(page.getByTestId('ranking-config-saved')).toHaveCount(0)
-    } finally {
-      const r = await page.request.put('/api/app/ranking-config', { data: original })
-      expect(r.ok(), `restoring ranking-config returned ${r.status()}`).toBe(true)
-    }
+    expect((await page.request.get('/api/app/ranking-config')).status()).toBe(404)
+    await openAdmin(page)
+    await expect(page.getByTestId('ranking-config-loading')).toHaveCount(0)
+    await expect(page.getByTestId('ranking-config-error')).toHaveCount(0)
+    await expect(page.locator('[data-testid^="ranking-signal-"]')).toHaveCount(0)
   })
 })
 

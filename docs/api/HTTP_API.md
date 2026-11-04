@@ -28,7 +28,8 @@ reachable anonymously — treat that test as the source of truth over this page:
 ### The admin surface and cross-site writes
 
 - **Admin routes are restricted to a private network, not on the public edge.** `/api/app/admin/*` (users, access policy),
-  `/api/app/ranking-config` and the `/api/app/graph-events/*` readout require an admin session
+  `/api/app/ranking-config` (served when the app is installed) and the `/api/app/graph-events/*`
+  readout require an admin session
   (`get_admin_user`: anonymous 401, non-admin 403) AND are never proxied by the public player
   nginx — it answers 404 for them (operator decision 2026-10-05). `POST /api/app/graph-events`
   itself is the player's event ingestion and stays public-facing.

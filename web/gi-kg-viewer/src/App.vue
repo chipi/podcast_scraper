@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
-import { appBanners, graphActivationHooks, searchOperators, topicGrouping } from './extensions'
+import {
+  adminPanels,
+  appBanners,
+  graphActivationHooks,
+  searchOperators,
+  topicGrouping,
+} from './extensions'
 import { track } from './lib/analytics'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
@@ -10,7 +16,6 @@ import LibraryTab from './components/library/LibraryTab.vue'
 import SearchTab from './components/search/SearchTab.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
-import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
 import ReleaseAdminView from './components/admin/ReleaseAdminView.vue'
 import GraphAnalyticsAdminView from './components/admin/GraphAnalyticsAdminView.vue'
 import ReplayControls from './components/graph/ReplayControls.vue'
@@ -1168,7 +1173,7 @@ watch(
             class="h-full min-h-0 max-w-full flex-1 space-y-8 overflow-x-hidden overflow-y-auto p-3"
           >
             <UsersAdminView />
-            <RankingConfigAdminView />
+            <component :is="p.component" v-for="p in adminPanels.list()" :key="p.id" />
             <ReleaseAdminView />
             <GraphAnalyticsAdminView @replay="onReplaySession" />
           </div>

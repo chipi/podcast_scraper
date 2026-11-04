@@ -3,7 +3,8 @@
 1. ``POST /api/corpus/topic-clusters/rebuild`` was outside every operator base — a CREATOR could
    start it. Now operator-gated like ``/api/index/rebuild``.
 2. Operator writes were audited as ``actor: "operator"`` with no identity. Now ``via`` + ``by``.
-3. ``PUT /api/app/ranking-config`` wrote no audit record. Now who + before + after.
+3. ``PUT /api/app/ranking-config`` wrote no audit record. Now who + before + after. (The route is
+   the app's since ADR-170, and so is its audit test.)
 5. Cookie-authenticated writes rested on ``SameSite=Lax`` alone. Now a foreign ``Origin`` is
    refused (``app_csrf``).
 """
@@ -114,16 +115,18 @@ def test_a_refused_operator_write_records_that_no_credential_matched(tmp_path: P
     assert denied and denied[-1]["via"] == "none"
 
 
-# --- 3. ranking-config writes are audited ----------------------------------------------------------
-
-
 # --- 5. cross-site cookie writes are refused -------------------------------------------------------
+#
+# The check is middleware, so any cookie-authenticated write shows it; the release override is the
+# admin write this server serves.
+
+_COOKIE_WRITE = "/api/app/admin/release"
 
 
 def test_a_cookie_write_from_a_foreign_origin_is_refused(tmp_path: Path) -> None:
     app = _app(tmp_path)
     client, _ = _as(app, "admin")
-    r = client.put("/api/app/ranking-config", json={}, headers={"Origin": "https://evil.example"})
+    r = client.put(_COOKIE_WRITE, json={}, headers={"Origin": "https://evil.example"})
     assert r.status_code == 403
     assert r.json()["detail"] == "Cross-site request refused."
     assert any(x.get("action") == "cross_site_write_refused" for x in _audit(tmp_path))
@@ -132,16 +135,14 @@ def test_a_cookie_write_from_a_foreign_origin_is_refused(tmp_path: Path) -> None
 def test_a_foreign_referer_is_refused_when_there_is_no_origin(tmp_path: Path) -> None:
     app = _app(tmp_path)
     client, _ = _as(app, "admin")
-    r = client.put(
-        "/api/app/ranking-config", json={}, headers={"Referer": "https://evil.example/page"}
-    )
+    r = client.put(_COOKIE_WRITE, json={}, headers={"Referer": "https://evil.example/page"})
     assert r.status_code == 403
 
 
 def test_an_opaque_null_origin_is_refused(tmp_path: Path) -> None:
     app = _app(tmp_path)
     client, _ = _as(app, "admin")
-    r = client.put("/api/app/ranking-config", json={}, headers={"Origin": "null"})
+    r = client.put(_COOKIE_WRITE, json={}, headers={"Origin": "null"})
     assert r.status_code == 403
 
 
@@ -159,7 +160,7 @@ def test_another_credential_does_not_exempt_a_cookie_write(tmp_path: Path, extra
     app = _app(tmp_path, key="k")
     client, _ = _as(app, "admin")
     r = client.put(
-        "/api/app/ranking-config",
+        _COOKIE_WRITE,
         json={},
         headers={"Origin": "https://evil.example", **extra},
     )
