@@ -90,3 +90,44 @@ def test_a_backup_of_another_state_is_refused_not_restored(tmp_path: Path) -> No
     restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
     assert restored == 0 and len(refused) == 1 and "no backup" in refused[0]
     assert (root / "feeds/a.json").read_text(encoding="utf-8") != '{"v": "unrelated"}'
+
+
+def test_an_interrupted_backup_copy_leaves_no_backup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review 1, 2026-11-04: a copy cut off midway left a truncated file at the backup path, and
+    every later run took it for the backup. The copy now lands under its name whole or not at
+    all, and the file itself is untouched."""
+    import shutil
+
+    from podcast_scraper.upgrade import file_rewrite as fr
+
+    root = _corpus(tmp_path)
+
+    def torn(src: Path, dst: Path) -> None:
+        Path(dst).write_text('{"v"', encoding="utf-8")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(shutil, "copyfile", torn)
+    with pytest.raises(OSError):
+        write_with_backup(root, TAG, root / "feeds/a.json", {"v": 1})
+    backup = fr.backup_dir(root, TAG) / "feeds/a.json"
+    assert not backup.exists()
+    assert list(backup.parent.glob("a.json*")) == []
+    assert (root / "feeds/a.json").read_text(encoding="utf-8") == '{"v": 0}'
+
+
+def test_a_truncated_state_backup_is_rewritten_not_trusted(tmp_path: Path) -> None:
+    from podcast_scraper.upgrade import file_rewrite as fr
+
+    root = _corpus(tmp_path)
+    _run(root, {"v": 1})
+    (root / "feeds/a.json").write_text('{"v": 2}', encoding="utf-8")
+    sha = fr.file_sha(root / "feeds/a.json")
+    alt = (fr.backup_dir(root, TAG) / "feeds/a.json").with_name(f"a.json.{sha}")
+    alt.write_text('{"v"', encoding="utf-8")  # left by a copy cut off before this fix
+    _run(root, {"v": 3})
+    assert fr.file_sha(alt) == sha
+    restored, refused = undo_from_receipts(root, RECEIPTS, TAG, MID)
+    assert refused == []
+    assert (root / "feeds/a.json").read_text(encoding="utf-8") == '{"v": 2}'

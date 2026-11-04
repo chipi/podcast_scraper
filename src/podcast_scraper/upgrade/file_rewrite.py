@@ -50,15 +50,27 @@ def keep_backup(path: Path, backup: Path, sha_before: str) -> Optional[Path]:
     """
     backup.parent.mkdir(parents=True, exist_ok=True)
     if not backup.exists():
-        shutil.copyfile(path, backup)
+        _copy_whole(path, backup)
         return backup
     if not sha_before or file_sha(backup) == sha_before:
         return None
     alt = backup.with_name(f"{backup.name}.{sha_before}")
-    if alt.exists():
+    if alt.is_file() and file_sha(alt) == sha_before:
         return None
-    shutil.copyfile(path, alt)
+    # Absent, or not the state its name says (a copy cut off before copies were atomic).
+    _copy_whole(path, alt)
     return alt
+
+
+def _copy_whole(src: Path, dst: Path) -> None:
+    """Copy *src* to *dst* so that *dst* holds all of it or does not exist: a copy cut off midway
+    left a truncated backup that every later run trusted (Review 1, 2026-11-04)."""
+    part = dst.with_name(dst.name + ".part")
+    try:
+        shutil.copyfile(src, part)
+        os.replace(part, dst)
+    finally:
+        part.unlink(missing_ok=True)
 
 
 def backup_holding(backup: Path, sha: str) -> Optional[Path]:

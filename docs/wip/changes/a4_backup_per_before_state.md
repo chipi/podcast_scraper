@@ -32,3 +32,10 @@ Effect on landed outcomes: the code digest of every migration importing either w
 0031–0042 are landed, so no outcome goes stale (method v0.7). Measured by
 `tests/unit/podcast_scraper/upgrade/test_file_rewrite_undo.py`: two new tests fail before and pass
 after; the four existing ones pass in both.
+
+Revision after Review 1 (2026-11-04): a backup copy cut off midway (a full disk, a killed run) left
+a truncated file at the backup path, and every later run took it for the backup, so the file lost
+its undo. Both backups are now copied to `<backup>.part` and renamed into place, and a state backup
+whose bytes are not the state its name says is copied again. m0023's writer calls the same
+`keep_backup`. No content file's bytes change; two more tests in the same file fail before and pass
+after, and the 754 other upgrade unit tests pass.
