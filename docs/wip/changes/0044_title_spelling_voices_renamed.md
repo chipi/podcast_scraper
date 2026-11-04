@@ -173,7 +173,42 @@ the review decided, undo whole, no gating number moved.
 
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not the step-5 reader,
+not the verdict reader), inputs as file paths, ran only the unit tests.
+
+Review budget: minutes 5, tokens 60000
+
+```text
+REVIEW 0044_title_spelling_voices_renamed 2026-11-04 commit 3d6f6119 reviewer Sonnet (fresh) minutes 5
+PREDICTION vs GATE: rows equal (18, 18, 206 in 150-260, 0/0/0, verify 0 new failures, 20 of 20, other voices 0, undo 209/209, second apply 0, refresh 3 in 0-3); outside the rows: 2 cleaned-transcript lines in 6410d1c5 (named), the KG node role change (not predicted)
+REQUIRED ITEMS: verdicts bound to the list's canonical sha256; 20 rows for 20 entries; the 2 WRONG_PERSON not applied (0 files moved, test); spot checks done except the 7 unreached by sha256 and the odd spellings beyond the by-elimination note; verdicts header reviewed_commit is not the gate commit (list unchanged since)
+AFTER-STATE READ: counts only; no rendered excerpt; index re-embed, enrichers, gold coverage not shown
+OPEN CALLS: what voices_named 14, entities_dropped 6, kg_persons_removed 11 count; kg_roles_set 1; the 2 cleaned lines; entry 19's wrong-person voice; by-elimination verdicts
+DOUBTED NUMBER: voices_named=14
+VERDICT: GO WITH CONDITIONS (1) state what voices_named, entities_dropped and kg_persons_removed count; (2) the 7 unreached voices' episodes byte-identical, or named as not checked; (3) the verdicts header's reviewed_commit stated or updated; (4) the index re-embed count measured
+```
+
+Conditions, each answered (2026-11-04):
+
+1. **The counters** (0025's rewrite, `m0025_one_person_one_entry.py`): `voices_named` counts a
+   listed voice whose new name had no roster entry carrying that voice, so the entry is attached
+   (the unplaced entry for that person takes the voice, or one is added): 14 of the 18;
+   `unplaced_dropped` 2 is that unplaced entry dropped where the placed voice already holds the
+   person. `kg_persons_removed` / `kg_persons_added` 11 / 11 are the heard-spelling speaking
+   Person nodes replaced by the title's; `entities_dropped` / `entities_added` 6 / 23 are the
+   roster's transcript-provenance entity aliases recomputed from the new names. Each counts the
+   listed voices' own surfaces: `voice_names` holds only listed voices.
+2. **The 7 unreached** (4 on the title's spelling, 3 unnamed), on the gate copy after the apply
+   and the ledger refresh against the clone (scratchpad `m44_cond.py`): **0 of 7 episodes with a
+   differing file**.
+3. **`reviewed_commit` `f766a0b63`** is the branch head when the reader worked; the list and the
+   verdicts were first committed in `5d37558e` and have not changed since; the binding is the
+   list's sha256 in the header.
+4. **Index:** the indexer's own fingerprint (`m44_cond.py`, as 0043's `m43_fp.py`): **18 of 18
+   written episodes change it**, so prod's incremental `index` re-embeds 18; rows 11 removed, 11
+   added (the KG Person rows); 0 episodes with moved metadata and an unchanged fingerprint.
+
+Verdict: GO WITH CONDITIONS
 
 ## 9. Operator review
 
