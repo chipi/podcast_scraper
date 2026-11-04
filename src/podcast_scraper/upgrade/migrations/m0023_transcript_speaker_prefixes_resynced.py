@@ -42,6 +42,7 @@ from ..file_rewrite import (
     write_with_backup,
 )
 from ..migration import Migration, MigrationContext, MigrationResult
+from ..ownership import created_dirs
 
 MIGRATION_ID = "0023_transcript_speaker_prefixes_resynced"
 RECEIPTS_FILE = "transcript_speaker_prefixes_resynced.jsonl"
@@ -436,7 +437,7 @@ def _write_text_with_backup(
     tmp.write_text(text, encoding="utf-8")
     os.chmod(tmp, mode)
     os.replace(tmp, path)
-    match_corpus_owner(root, [path, backup])
+    match_corpus_owner(root, [path, backup, *created_dirs(backup.parent, root)])
     return {"relpath": rel, "sha_before": sha_before, "sha_after": file_sha(path)}
 
 
