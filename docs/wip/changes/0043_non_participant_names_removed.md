@@ -246,6 +246,17 @@ Dated: 2026-11-04T16:48
 - **On prod:** 0043 runs first (`--to 2.7.37`, alone, as the hook requires the first pending
   migration), then 0044 in its own run after its own go.
 
+### 4f. Revision: 0045 is registered after 0044 (supersedes nothing above)
+
+Dated: 2026-11-04T17:47
+
+`upgrade/registry.py` gains one entry after 0044's (`0045_episode_voices_corrected`, record
+`0045_episode_voices_corrected.md`); this migration's entry, list, verdicts and module do not
+change. As in 0043's revision 4e: no measured number of this migration moves; its code digest
+moves (the registry is in its import closure), so it is re-gated (plan sha256 equal to the last
+gate's) and its outcome rebuilt; on prod it runs in its own run (`--to` its version) before 0045,
+which a run without `--to` with both pending refuses.
+
 ## 5. Acceptance
 
 Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
@@ -315,6 +326,27 @@ Fresh agent (reviewer, Sonnet), `minutes 3`: rows added, each taken:
 8. Not taken as written: the reader asked for `--to` on the 0043 re-gate; the gate script applies
    the migration directly (not through `upgrade run`) and checks only that the clone's ledger holds
    every earlier migration, so `--to` does not apply to it.
+
+### 5e. Acceptance of revision 4f
+
+Dated: 2026-11-04T17:52
+
+Fresh agent (reviewer, Sonnet), `minutes 3`: rows added, each taken:
+
+1. Prod order: `--to 2.7.37` (0043), `--to 2.7.38` (0044), `--to 2.7.39` (0045), each in its own run after its own go; a run without `--to` with more than
+   one pending is refused ("runs alone", `cli_handlers` R1), not partly applied.
+2. `--to` leaves the later migrations out of `pending`, so `check_static`'s first-pending rule
+   sees the migration being applied.
+3. `applied_before` is unchanged; the only check the edit moves is the code digest.
+4. `upgrade/registry` is in this migration's import closure (scratchpad `c2_closure.py`); its list
+   and verdicts sha256 are unchanged.
+5. The re-gate's `verify_all` is reproduced, 0 regressions; an unapplied 0045 does not fail it;
+   verify and undo read only this migration's own receipts and tag.
+6. Registry-order tests: 0043's test pins its predecessor only; 0045's test asserts it follows 0044.
+7. 0045's gate and outcome are separate and later; its clone has 0043 and 0044 applied and
+   recorded.
+8. The gate script applies the migration directly, so `--to` does not apply to the re-gate.
+9. The re-gate reproduces plan sha256 `d167d230…` and the measured rows exactly.
 
 ## 6. Build
 

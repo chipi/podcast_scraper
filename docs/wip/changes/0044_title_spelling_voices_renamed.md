@@ -105,6 +105,17 @@ host: the stored name is right, the replay's rename was wrong. Neither applies.
    `verify`; an entry without its deciding segment is refused at load (0037's rule); the verdicts'
    deciding segment and its sha256 carry the evidence, the list's evidence text is the same for each.
 
+### 4c. Revision: 0045 is registered after 0044 (supersedes nothing above)
+
+Dated: 2026-11-04T17:47
+
+`upgrade/registry.py` gains one entry after 0044's (`0045_episode_voices_corrected`, record
+`0045_episode_voices_corrected.md`); this migration's entry, list, verdicts and module do not
+change. As in 0043's revision 4e: no measured number of this migration moves; its code digest
+moves (the registry is in its import closure), so it is re-gated (plan sha256 equal to the last
+gate's) and its outcome rebuilt; on prod it runs in its own run (`--to` its version) before 0045,
+which a run without `--to` with both pending refuses.
+
 ## 5. Acceptance
 
 Prediction read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not the verdict
@@ -114,6 +125,27 @@ the ledger-joined entries read again after the refresh; the odd title spellings 
 15, 16) against the verdicts; nickname-to-formal entries (3, 7, 14) leave no short form on a voice;
 entry 15's non-ASCII markers moved in every transcript; untouched voices in 2 or 3 listed episodes
 unchanged; the 9 not reached byte-identical by sha256; files and episodes written against 4b.
+
+### 5b. Acceptance of revision 4c
+
+Dated: 2026-11-04T17:52
+
+Fresh agent (reviewer, Sonnet), `minutes 3`: rows added, each taken:
+
+1. Prod order: `--to 2.7.38` (0044), then `--to 2.7.39` (0045), each in its own run after its own go; a run without `--to` with more than
+   one pending is refused ("runs alone", `cli_handlers` R1), not partly applied.
+2. `--to` leaves the later migrations out of `pending`, so `check_static`'s first-pending rule
+   sees the migration being applied.
+3. `applied_before` is unchanged; the only check the edit moves is the code digest.
+4. `upgrade/registry` is in this migration's import closure (scratchpad `c2_closure.py`); its list
+   and verdicts sha256 are unchanged.
+5. The re-gate's `verify_all` is reproduced, 0 regressions; an unapplied 0045 does not fail it;
+   verify and undo read only this migration's own receipts and tag.
+6. Registry-order tests: 0044's test asserts it follows 0043; 0045's test asserts it follows 0044.
+7. 0045's gate and outcome are separate and later; its clone has 0043 and 0044 applied and
+   recorded.
+8. The gate script applies the migration directly, so `--to` does not apply to the re-gate.
+9. The re-gate reproduces plan sha256 `9ae9d480…` and the measured rows exactly.
 
 ## 6. Build
 
