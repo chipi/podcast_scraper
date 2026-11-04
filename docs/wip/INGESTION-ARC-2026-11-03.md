@@ -47,10 +47,10 @@ taken fresh on the current labels.
 | A7 | #2253 `gi inspect` slices `.adfree.txt` spans from `.txt` | GH, open | **done** `5d9d011b`: the residual case, an absolute `transcript_ref` (7,481 quotes in 52 episodes on the snapshot). 8 quotes remain off their text in the right body: offset drift, not #2253 |
 | A8 | #2131 `parse_webvtt` / `parse_srt` never unescape entities | GH, open | **already fixed** `caa9987e` (#2131 still open on GitHub); 0 of 4,950 served raw transcripts carry an entity |
 | A9 | Mixed-voice majority is measured in seconds: into `CORPUS_CHANGE_METHOD.md` | handover §4 | **already done**: method guide, operator decisions 2026-10-26/27, item 1 |
-| A10 | Review budgets (method v0.9 §4a) are not enforced | handover §4 | **operator decision**: enforcing the review budget changes the method's gate (§7) |
+| A10 | Review budgets (method v0.9 §4a) are not enforced | handover §4 | **operator decision**: proposed a gate check of the step-8 block's minutes and a stated budget line, noted as self-reported (§7) |
 | A11 | #2180 203 integration tests carry no `integration` marker | GH, open | **done** `84ace6f6`: 239 tests in 14 files marked; `check_test_policy` rule I2 guards it |
-| A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | **on hold**: the eval-data checkout is on another session's branch; D1's clones are gone |
-| A13 | `server/routes/artifacts.py:85` lists artifacts with the same one-run-per-feed name rule A2 removed from the CIL readers | found in A2 | **operator decision**: the one-run rule there is deliberate for speed (9,531 files took 8.5 s on prod, 2026-10-15) |
+| A12 | eval-data: measuring scripts skip episodes with an absolute transcript path; recount D1's gold moves with the corrected script | ingestion session | **unblocked**: own clone at `eval-data/` (operator, 2026-11-04); the script fix is open. The D1 recount cannot run: D1's clones are gone |
+| A13 | `server/routes/artifacts.py:85` lists artifacts with the same one-run-per-feed name rule A2 removed from the CIL readers | found in A2 | **done** `d73856d4`: per-episode membership shared with the CIL readers, cached per corpus change (snapshot: 3,130 per kind, 1.45 s cold, 0.02 s warm). In the viewer, episodes eligible for the 7-day graph: 8 before, 104 after (22 shown, the cap) |
 
 ## Tier B: naming rules for new episodes
 
@@ -76,8 +76,19 @@ episode files to the current group spellings (`identity/refresh_guard.py`). A de
 ledger's join or display rules, or to a reviewed list, therefore rewrites stored files at the next
 refresh. Each is a corpus change: change record, prediction, and a clone gate counting what the
 respell writes (the near-spelling joins report, plus the ledger change-log's respell counts).
-**The deploy that carries any of these changes stored data.** Whether that fits "changes nothing
-about deployment" is the operator's call.
+**The deploy that carries any of these changes stored data.**
+
+**Decided (operator, 2026-11-04): in this arc, shipped switched off.** The rules are built as a new
+named rule mode beside today's (`identity/ledger.py` selects one through `PERSON_MODE =
+"cluster_person"`), through the full method, and measured on a snapshot clone: the ledger rebuilt
+in the new mode, diffed per group, the respell's writes counted, and the rules scored once on a
+fresh unseen split. `PERSON_MODE` stays on today's rules, so the deploy after the infra work
+changes no stored file. Switching on is its own one-line change and its own deploy, on the
+operator's go after reading the measured diff.
+
+**Scoring set (operator, 2026-11-04):** tiers B and L are scored on a fresh unseen split (seeded,
+excluding every existing cases folder, labelled blind by two agents, audited as val_v6 was), built
+before the first rule.
 
 | # | Item | Source |
 | --- | --- | --- |
