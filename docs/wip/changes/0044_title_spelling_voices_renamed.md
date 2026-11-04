@@ -217,6 +217,10 @@ Verdict: GO WITH CONDITIONS
 - **Condition 3:** the wrong-person voice the review found (episode
   `a02c151a-dde6-4804-9827-a3df80b8352c`) is not fixed by this migration; it needs its own list.
 
+Outcome: `src/podcast_scraper/upgrade/outcomes/0044_title_spelling_voices_renamed.json`, sha256
+`816bc81ec1d21936b5ee155750ec8d20c3a5394026f8a02b693c7aaff64bb857` (gate on `5d37558e`, dirty
+false, plan sha256 `9ae9d480…`).
+
 ## 9. Operator review
 
 _TODO_
