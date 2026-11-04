@@ -90,6 +90,31 @@ Three classes, each found by a committed or stated rule over the snapshot, then 
   (`m43_rec.py`, the replay as above). Reach: GI 0 / 0 / 0; KG Person nodes 20 (one per voice);
   `detected_guests` 0; roster entries 20; segment rows 228, ad-free 228; no episode shared with
   classes A / B. Talk share 0.004 to 0.024.
+- **The census (added 2026-11-04, after Review 2).** The three rules above are partial: the B6
+  replay compared old roster code with new, so a voice old code did not name either, yet stored
+  named by older code still, never showed. `scripts/measure/m0043_census.py` replays the current
+  tree's roster on every served episode's stored inputs with the corpus's signatures built in
+  memory (8 shards, about 160 s each, 3,130 episodes, 0 errors) and lists every stored-named voice
+  it unnames and types `commercial`: **120**. All 59 above are in it. Of the other 61:
+  - **group D, 52 voices**: non-hosts reading another show's or the publisher's promo, the same
+    kind as class B (four journalists' subscription promos on one daily show 34, one network's
+    promo for another show 11, the rest single voices);
+  - **group E, 8 voices on the show's own stated host name**: 2 host names on German-language ad
+    voices, 6 hosts reading their own show's promo or premium spot (4 of them are the ids section 4
+    first left out);
+  - 1 more stated host voice, found only by the committed census (its episode stores the
+    transcript path written at ingest, which the scratch census did not resolve).
+  The operator's call 3 (section 9): D joins class B (58), the 2 German-ad voices are class E, the
+  hosts' own-show promos keep their names. `scripts/measure/m0043_list.py` classifies the census
+  in that order and freezes the list: **113 listed** (A 33, B 58, C 20, E 2), 7 not listed (6 stated
+  hosts and the BizNews host by id). Checked against the per-class sets above: same 113 keys, same
+  classes. 0034 kept 108 of the 113 (`CORRECT`; basis `self_intro` 107, `undecidable` 1); 5 were
+  not on 0034's list.
+- **What the 113 names reach (`m43_impact113.py`, the snapshot):** every listed name leaves its
+  episode (no other voice carries it). Segment rows 1,172 (A 295, B 593, C 228, E 56), ad-free
+  1,155; KG Person nodes 78 in 68 episodes; `detected_guests` 44, `detected_hosts` 2 (class E: the
+  host's name leaves those 2 episodes' roster and KG too, since no other voice carries it there);
+  GI Person nodes 2, quotes 2, insights 1 (visible), all class B.
 
 ## 4. Prediction
 
@@ -116,6 +141,35 @@ On snapshot-prod-20261103, after apply on a clone:
 - **Population not reached:** the 4 ids above; voices typed commercial by none of the three rules;
   episodes ingested after the snapshot (the pipeline's own rules).
 
+### 4b. Restated after the census (supersedes the rows above)
+
+Dated: 2026-11-04T10:51
+
+`MISSED:` the migration module was written (uncommitted) before this restatement, against the
+59-voice prediction; the population changed, the code did not.
+
+- **Listed 113 voices in 103 episodes** (A 33 in 33, B 58 in 58, C 20 in 13, E 2 in 2; 3
+  episodes hold voices of two classes); **applied 113** if every verdict confirms; episodes
+  written 103.
+- **Own numbers:** served names on the listed voices 113 -> 0; roster entries removed 113 (the
+  names leave their episodes); KG Person nodes removed 78; `detected_guests` entries removed 44,
+  `detected_hosts` 2; segment rows typed `commercial` 1,172 and ad-free rows 1,155; GI Person nodes
+  removed 2, quotes unattributed 2 and typed `commercial`, insights hidden 1 (typed `commercial`).
+- **Scoreboard:** S2 32,488 -> **32,489** (commercial 95 -> **96**: the one insight; unknown and
+  unidentified unchanged); S1 18,589 unchanged (the insight is typed commercial, not unknown);
+  S10a 197 -> 197 or 198 (198 only if that insight was its episode's last visible one).
+- **Must not move:** S1 18,589; S1n 7; S1c 0; unknown 18,589; unidentified 13,804; S3 9,373; S10b
+  2; S12 6; A1 400 / 301; every file outside the 103 episodes byte-identical; no voice outside the
+  113 changes name, role or type.
+- **By identity:** the 113 frozen entries (episode id, voice; class in the evidence field) in
+  `upgrade/lists/0043_non_participant_names_removed.json`. Not listed, by id: stated hosts
+  `substack:post:196570345` SPEAKER_01, `61f3a12e-bcd4-4285-9f36-1e6ddbb3cdf6` SPEAKER_03,
+  `Buzzsprout-17024331` SPEAKER_00, `Buzzsprout-17503238` SPEAKER_00,
+  `ef347198-77cb-4bf9-8e08-118d52d75132` SPEAKER_00, `ea283f31-8b41-42a8-9147-b49f01293e32`
+  SPEAKER_00; the BizNews host `https://iono.fm/e/1726296` SPEAKER_00.
+- **Trade by identity:** the 2 class-E episodes (`743e06dc-a88d-11f1-a4dd-878b8bea9556`,
+  `47f783de-0450-4f3b-9a6c-251b63ddff6e`) lose their host's name: it sat only on the ad voice.
+
 ## 5. Acceptance
 
 Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
@@ -140,7 +194,26 @@ Spot checks for step 8:
 
 ## 6. Build
 
-_TODO_
+- **Migration** `upgrade/migrations/m0043_non_participant_names_removed.py`: 0034's reviewed-list
+  machinery (verdicts bound by the list's sha256, a listed voice without a verdict fails
+  `verify`, no verdicts file writes nothing) and 0029's voice-by-voice rewrite with 0031's derived
+  surfaces; on top, the listed voices' segment rows (raw and ad-free) and the GI nodes the
+  rewrite hides are typed `commercial`, the diagnostics voice and its summary census move to
+  `commercial`, and a name that leaves the episode leaves `detected_hosts` / `detected_guests`.
+  Its own verdict bases: `WRONG_PERSON` / `non_participant`, `CORRECT` / `participant`. The list
+  refuses an entry that renames, or names no class (A, B, C, E) and deciding segment. Not
+  registered until the verdicts exist.
+- **List** `upgrade/lists/0043_non_participant_names_removed.json` (113 entries) from
+  `scripts/measure/m0043_census.py` and `scripts/measure/m0043_list.py` (section 3).
+- **Tests:** `tests/unit/podcast_scraper/upgrade/test_m0043_non_participant_names_removed.py`
+  (every surface unnamed and typed commercial, census moved, `detected_guests` trimmed, verify and
+  undo; a `participant` verdict keeps the name; another question's basis is unusable; no verdicts
+  writes nothing; an unplaced statement keeps the name in `detected_guests`; the list's refusals;
+  its own backups; not registered). Mutation: each of the four added steps made a no-op fails a
+  test (4 of 4 killed). `tests/unit/scripts/measure/test_m0043_list.py` (class order, the host
+  and excluded ids, every entry loads) and `test_m0043_candidates.py`.
+- `MISSED:` the module tests were written after the module, not before; the mutation run is the
+  evidence that they test it.
 
 ## 7. Measure
 
@@ -158,6 +231,11 @@ _TODO_
 - **Open call 2:** class C (20 voices, 13 episodes, section 3) is the same ruling's keeps, found
   at step 5. Reverse those too (59 in all)?
   Operator accepted: 2026-11-04 0043 also reverses the 0034 keeps for the 20 class-C voices (59 in all).
+- **Open call 3:** the whole-corpus census (section 3) finds 52 more non-host promo voices
+  (group D, joined to class B) and 8 voices on the show's own host name (group E). Add D; of E,
+  only the 2 host names on German-language ad voices?
+  Operator accepted: 2026-11-04 0043 adds group D (52) and the 2 German-ad host-name voices of
+  group E (113 in all); the 6 hosts' own-show promo voices keep their names.
 
 ## 10. Before apply / deploy
 

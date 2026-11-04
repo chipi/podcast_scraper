@@ -1,0 +1,1022 @@
+{
+ "migration": "0043_non_participant_names_removed",
+ "voices": [
+  [
+   "0235c1af-ecf6-4d7e-ad5a-6d8319398a2c",
+   "SPEAKER_06",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 391"
+  ],
+  [
+   "08d6d2cc-b757-4226-8f0a-1ebeff3c3922",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 398"
+  ],
+  [
+   "0d5b552f-016f-47a7-8325-e993f48e9ea2",
+   "SPEAKER_08",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 174"
+  ],
+  [
+   "0dcb75ec-ecb0-43b2-946f-447a52790176",
+   "SPEAKER_01",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 233"
+  ],
+  [
+   "0ec506f0-e5ba-471b-99fd-4ba55d1622c7",
+   "SPEAKER_00",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 0"
+  ],
+  [
+   "10fe0293-3eff-4fdd-be3b-6020ff8b0e3a",
+   "SPEAKER_07",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 195"
+  ],
+  [
+   "1294ea90-59b0-4b49-b54d-e93d748b53c5",
+   "SPEAKER_03",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 359"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_16",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 131"
+  ],
+  [
+   "1350c524-d61c-11f0-9faa-57cdf1b79e75",
+   "SPEAKER_17",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 31"
+  ],
+  [
+   "13fcb6ee-12d5-48da-a00b-03a2306067f1",
+   "SPEAKER_05",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 172"
+  ],
+  [
+   "1abce225-afd1-4233-bb25-481995d56e63",
+   "SPEAKER_00",
+   "Ernie Carducci",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 721"
+  ],
+  [
+   "20992888-a881-48ed-b5bb-903ec0a34ba0",
+   "SPEAKER_06",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 90"
+  ],
+  [
+   "20e14ed3-7dd8-43ac-a467-7f9ab01a1858",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 44"
+  ],
+  [
+   "23620594-fbe9-4538-8ba8-86087587067e",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 33"
+  ],
+  [
+   "23a25459-0387-408d-9958-a70082454e95",
+   "SPEAKER_02",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 506"
+  ],
+  [
+   "29b52580-0f56-41a6-8b8a-288bd604bc01",
+   "SPEAKER_00",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 0"
+  ],
+  [
+   "2a3e72ef-8340-49d6-9a41-6f3c6377f200",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "2ede0e96-7f66-4650-a6a3-4f59acf99686",
+   "SPEAKER_02",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 447"
+  ],
+  [
+   "2ffbf42c-503f-4b51-9462-af3c5626c900",
+   "SPEAKER_09",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 67"
+  ],
+  [
+   "3123d890-70b4-4b6c-a461-27bb204089fe",
+   "SPEAKER_13",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 757"
+  ],
+  [
+   "38e573bd-bb50-4999-915e-5500caaf1396",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "3e537123-f463-4ed2-bbea-daf5665ea07f",
+   "SPEAKER_08",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 225"
+  ],
+  [
+   "4135c7ba-51c7-40ef-9776-0981339d05f1",
+   "SPEAKER_06",
+   "Winnalou",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 260"
+  ],
+  [
+   "41c26687-bb10-4fcd-9c93-3358cab25770",
+   "SPEAKER_04",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 327"
+  ],
+  [
+   "43627a93-796f-4805-89ae-76c7bed4997d",
+   "SPEAKER_19",
+   "Brittany Luce",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 600"
+  ],
+  [
+   "44783315-1fb8-4239-9164-2324ccf30293",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "46365717-63d4-4477-8d5f-256cfe49bfbd",
+   "SPEAKER_04",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 20"
+  ],
+  [
+   "4755719e-c0c6-49ea-927a-9f60c9113315",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "47f783de-0450-4f3b-9a6c-251b63ddff6e",
+   "SPEAKER_07",
+   "Michael Barbaro",
+   "host",
+   null,
+   null,
+   "class E: the host's name on a German-language ad; today's roster types it commercial; segment 0"
+  ],
+  [
+   "47f783de-0450-4f3b-9a6c-251b63ddff6e",
+   "SPEAKER_10",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 407"
+  ],
+  [
+   "4a8e203d-7e07-4a9c-b7ac-b1b8d8a24c05",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 72"
+  ],
+  [
+   "4bfd4240-1520-4434-9269-7fa7774f722e",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 215"
+  ],
+  [
+   "4e16892d-3e2a-423c-bd8d-f3e26194a309",
+   "SPEAKER_14",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 158"
+  ],
+  [
+   "50756e04-2fd5-49b1-be6f-c5de511b10e5",
+   "SPEAKER_06",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 138"
+  ],
+  [
+   "50b87109-f780-4c0d-aa33-2e91b4404b1d",
+   "SPEAKER_13",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 176"
+  ],
+  [
+   "52fe0cf1-8566-457b-aab0-b32791f4940f",
+   "SPEAKER_01",
+   "Sarah",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 1"
+  ],
+  [
+   "537b0f9c-14cf-4503-829f-683473110cc0",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 19"
+  ],
+  [
+   "56901d28-494c-4668-9159-070848c75dbd",
+   "SPEAKER_00",
+   "Joel Cherico",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 595"
+  ],
+  [
+   "5f2d7bdb-5340-4995-ae16-7fd05b548488",
+   "SPEAKER_08",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 161"
+  ],
+  [
+   "5fa389c6-e7b0-46b7-a4fd-271c048f61be",
+   "SPEAKER_08",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 117"
+  ],
+  [
+   "63b8eeb5-7de7-439d-8e88-5a05ef30ef17",
+   "SPEAKER_06",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 608"
+  ],
+  [
+   "644fa36a-c7c9-11f1-acb1-57e962f997d6",
+   "SPEAKER_06",
+   "Marina Hyde",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 166"
+  ],
+  [
+   "670ca1cd-b585-486b-b03a-b0caebbee694",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 260"
+  ],
+  [
+   "67c2241b-d7d3-471f-b4ff-0b05d2b3ead3",
+   "SPEAKER_03",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 127"
+  ],
+  [
+   "6baab6b1-70a4-4f0c-8031-ed0170be43ea",
+   "SPEAKER_03",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 239"
+  ],
+  [
+   "6c6072b1-273d-4957-b43e-0d81e5220f50",
+   "SPEAKER_01",
+   "Max Brown",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 290"
+  ],
+  [
+   "6cdee2c5-a4e5-49f4-ac41-ccf835b24794",
+   "SPEAKER_07",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 142"
+  ],
+  [
+   "72a3a37c-26d9-4944-a0ad-87741a081717",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "743e06dc-a88d-11f1-a4dd-878b8bea9556",
+   "SPEAKER_00",
+   "Jessica Mendoza",
+   "host",
+   null,
+   null,
+   "class E: the host's name on a German-language ad; today's roster types it commercial; segment 8"
+  ],
+  [
+   "7aabb5c6-c7c5-11f1-abe5-0fddc4ea7a14",
+   "SPEAKER_00",
+   "Marina Hyde",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 337"
+  ],
+  [
+   "7cf3416e-ce6d-48bc-981c-2d51b01fd71b",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 362"
+  ],
+  [
+   "7cfa1b97-c18b-442c-9a9f-5cbd5dc56da3",
+   "SPEAKER_08",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 273"
+  ],
+  [
+   "7dae09ac-f8ea-485d-9cdf-cbb7c913da62",
+   "SPEAKER_07",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 52"
+  ],
+  [
+   "7ee00723-453c-4054-b591-ee23ec884540",
+   "SPEAKER_04",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 8"
+  ],
+  [
+   "82c87af0-621b-4680-87eb-f7e8e5b5c949",
+   "SPEAKER_09",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 250"
+  ],
+  [
+   "86d2fbbb-2128-4107-b27a-2713bf6bf182",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "88fee8b7-98cf-46f0-9a69-e3f39cfe3979",
+   "SPEAKER_00",
+   "Lani Lum",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 941"
+  ],
+  [
+   "8b7fcdec-fc64-11f0-b7b7-37646c9e4077",
+   "SPEAKER_02",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 516"
+  ],
+  [
+   "8b7fcdec-fc64-11f0-b7b7-37646c9e4077",
+   "SPEAKER_06",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 299"
+  ],
+  [
+   "8b7fcdec-fc64-11f0-b7b7-37646c9e4077",
+   "SPEAKER_09",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 301"
+  ],
+  [
+   "8b954230-fc64-11f0-b7b7-a30da83d8f32",
+   "SPEAKER_00",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 302"
+  ],
+  [
+   "8b954230-fc64-11f0-b7b7-a30da83d8f32",
+   "SPEAKER_09",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 300"
+  ],
+  [
+   "8b954230-fc64-11f0-b7b7-a30da83d8f32",
+   "SPEAKER_11",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 416"
+  ],
+  [
+   "8bab77c6-fc64-11f0-b7b7-3bf334b610de",
+   "SPEAKER_08",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 451"
+  ],
+  [
+   "8e813358-f9df-4e62-bdb0-36c6fd5f9d0b",
+   "SPEAKER_05",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 21"
+  ],
+  [
+   "8f5e1454-6790-4e6c-891c-f71788c109dc",
+   "SPEAKER_14",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 225"
+  ],
+  [
+   "94561f1e-45a0-42eb-b138-08792d74fd3b",
+   "SPEAKER_05",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 355"
+  ],
+  [
+   "94855b15-9742-4344-bf6c-d6a1e0df51ea",
+   "SPEAKER_12",
+   "Dani Blum",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 182"
+  ],
+  [
+   "94b535a5-c226-4f43-b4c0-42d8b2c8c6af",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "955986ad-c79e-4bcc-8536-3a7280540ab0",
+   "SPEAKER_04",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 141"
+  ],
+  [
+   "9b82fa12-1ef5-11f1-b40d-63850382fe73",
+   "SPEAKER_11",
+   "William Durampo",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 309"
+  ],
+  [
+   "9ccd9014-ddf7-4970-91f6-8bd9073646cb",
+   "SPEAKER_02",
+   "Max Brown",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 310"
+  ],
+  [
+   "a11fa7a5-5ae0-4e30-9a22-bb588f5d7230",
+   "SPEAKER_02",
+   "Tracy Mumford",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 317"
+  ],
+  [
+   "a2226c4a-c4fe-48c0-b092-8333bcb869dc",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "a5194659-370d-42e0-bc0b-c320072b24e6",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 623"
+  ],
+  [
+   "acceb119-5645-4f38-a562-9c3b7198b254",
+   "SPEAKER_06",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 318"
+  ],
+  [
+   "b0b41894-e030-4c4b-af57-190dad1ecfe2",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "b0e586d9-8253-443e-93ea-b4d6dc8e1ae5",
+   "SPEAKER_04",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 127"
+  ],
+  [
+   "b1d68830-1f25-11f1-990b-839276c688a5",
+   "SPEAKER_10",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 489"
+  ],
+  [
+   "b260150a-1f25-11f1-990b-73ee76699165",
+   "SPEAKER_02",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 430"
+  ],
+  [
+   "b28f69e0-1f25-11f1-990b-37773ffde874",
+   "SPEAKER_07",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 745"
+  ],
+  [
+   "b36b086c-6a67-4e31-8360-67511439d497",
+   "SPEAKER_03",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 602"
+  ],
+  [
+   "b587b66a-193d-4669-af69-2003af848d97",
+   "SPEAKER_06",
+   "Dani Blum",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 296"
+  ],
+  [
+   "b5913515-9316-4a70-9ebf-2f538837323d",
+   "SPEAKER_06",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 376"
+  ],
+  [
+   "b7d968f5-b670-4f32-808b-3c45895accaf",
+   "SPEAKER_03",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 43"
+  ],
+  [
+   "b986e0d3-bcd4-45ab-a6de-d53d066c2a2b",
+   "SPEAKER_07",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 213"
+  ],
+  [
+   "bf077a0c-bf95-4cec-82c6-c4bb9ad6e4f4",
+   "SPEAKER_07",
+   "Jonathan Knight",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 393"
+  ],
+  [
+   "bf6646a8-cdd6-4d87-92bd-6d088fe36dc3",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 203"
+  ],
+  [
+   "c196b474-cd43-40c0-ab3a-2bed3756a248",
+   "SPEAKER_02",
+   "Winnalou",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 730"
+  ],
+  [
+   "c1b9decd-71f5-4fe5-bf64-ed311b0b40b8",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 290"
+  ],
+  [
+   "c1b9decd-71f5-4fe5-bf64-ed311b0b40b8",
+   "SPEAKER_03",
+   "Daniel Popper",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 613"
+  ],
+  [
+   "c2a1670f-c52f-4f65-aae8-9fb9605fe30c",
+   "SPEAKER_02",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 24"
+  ],
+  [
+   "c6f32fd4-8028-11f1-85af-8769a81aeba0",
+   "SPEAKER_00",
+   "Katty Kaye",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 290"
+  ],
+  [
+   "c85ca0b8-06a3-4135-96f2-dbe71a97651a",
+   "SPEAKER_04",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 170"
+  ],
+  [
+   "c89d8533-9397-49b1-9849-0bc560b5a443",
+   "SPEAKER_05",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 144"
+  ],
+  [
+   "ccc902c3-3887-455a-ac40-cb253f1cc533",
+   "SPEAKER_07",
+   "Leila Faldel",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 62"
+  ],
+  [
+   "cd854692-d51b-11f0-a46a-c7e480a2e1a9",
+   "SPEAKER_02",
+   "Sky Galloway",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 375"
+  ],
+  [
+   "cd854692-d51b-11f0-a46a-c7e480a2e1a9",
+   "SPEAKER_05",
+   "Phoebe Judge",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 682"
+  ],
+  [
+   "cd854692-d51b-11f0-a46a-c7e480a2e1a9",
+   "SPEAKER_06",
+   "Kara Swisher",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 373"
+  ],
+  [
+   "ceec8f42-d7d2-4f0b-bca7-8220f454eef2",
+   "SPEAKER_03",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 243"
+  ],
+  [
+   "d9759ebd-1c66-4ffd-907d-f40e391e2a01",
+   "SPEAKER_08",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 274"
+  ],
+  [
+   "d996026e-5911-457a-b63a-da9fac3ab5c1",
+   "SPEAKER_00",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 218"
+  ],
+  [
+   "db4aff8e-c7d1-11f1-be51-23df9a3eeb1f",
+   "SPEAKER_07",
+   "Marina Hyde",
+   "guest",
+   null,
+   null,
+   "class C: one of m0016's recurrence hits on the corpus's ad signatures; today's roster types it commercial; segment 385"
+  ],
+  [
+   "df217bd7-0033-426c-8474-ceff49fcf6e9",
+   "SPEAKER_01",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 179"
+  ],
+  [
+   "df217bd7-0033-426c-8474-ceff49fcf6e9",
+   "SPEAKER_03",
+   "Daniel Popper",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 383"
+  ],
+  [
+   "e8457907-7885-4f02-bcb4-f2a213d743cf",
+   "SPEAKER_18",
+   "Brian Chan",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 237"
+  ],
+  [
+   "e84a1455-bf13-4d7e-b178-e2f7b285850d",
+   "SPEAKER_00",
+   "Winnalou",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 279"
+  ],
+  [
+   "f1e95e09-16ed-4875-b4e9-61b3559d40dd",
+   "SPEAKER_05",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 268"
+  ],
+  [
+   "f28385d3-13db-4257-8ff3-c125f51c963d",
+   "SPEAKER_01",
+   "Daniel Atkinson",
+   "guest",
+   null,
+   null,
+   "class A: m0016 skipped it; stated only by the pre-1.2.0 detected_guests; today's roster types it commercial; segment 4"
+  ],
+  [
+   "f2a8f88f-35f7-4417-82d9-d4f57f343ce9",
+   "SPEAKER_05",
+   "Catherine Benhold",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 555"
+  ],
+  [
+   "f575756a-4e1e-11f1-8d69-1b8a204015dc",
+   "SPEAKER_03",
+   "William",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 371"
+  ],
+  [
+   "tag:soundcloud,2010:tracks/2178767775",
+   "SPEAKER_02",
+   "Mags McCarthy",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 22"
+  ],
+  [
+   "urn:bbc:podcast:p0p94prv",
+   "SPEAKER_02",
+   "Tom Gatti",
+   "guest",
+   null,
+   null,
+   "class B: another show's or the publisher's promo, or a supporter shout-out; today's roster types it commercial; segment 1"
+  ]
+ ]
+}
