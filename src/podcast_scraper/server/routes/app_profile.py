@@ -17,12 +17,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
-from filelock import FileLock
 from pydantic import BaseModel
 
 from podcast_scraper.server import app_user_store
 from podcast_scraper.server.app_user_store import is_safe_user_id, User
 from podcast_scraper.server.routes.app_auth import get_current_user
+from podcast_scraper.utils.privileges import match_data_owner, OwnedFileLock
 
 router = APIRouter(tags=["app"])
 
@@ -107,7 +107,7 @@ async def upload_avatar(
     # Serialize under a per-user lock (advisor L1) so two concurrent uploads can't leave two
     # avatar.* files, and write atomically via os.replace (advisor L2) so a concurrent GET never
     # serves a half-written image.
-    with FileLock(str(user_dir / ".avatar.lock"), timeout=_LOCK_TIMEOUT_S):
+    with OwnedFileLock(str(user_dir / ".avatar.lock"), timeout=_LOCK_TIMEOUT_S):
         for old in user_dir.glob("avatar.*"):
             old.unlink(missing_ok=True)
         final = user_dir / f"avatar.{ext}"
@@ -116,6 +116,7 @@ async def upload_avatar(
         tmp = user_dir / f".avatar.{ext}.tmp"
         tmp.write_bytes(data)
         os.replace(tmp, final)
+        match_data_owner(final)
 
     # Point the profile at the served route, version-stamped so the client (and PWA cache) refetch.
     served = f"/api/app/profile/{user.user_id}/avatar?v={int(time.time())}"

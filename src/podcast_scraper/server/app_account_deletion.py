@@ -33,6 +33,7 @@ from pathlib import Path
 from podcast_scraper.extensions import load_extensions
 from podcast_scraper.server import app_magic_link, app_outbox_store
 from podcast_scraper.server.app_user_store import _is_safe_user_id, delete_user, User
+from podcast_scraper.utils.privileges import match_data_owner
 
 _APPLE_TOKEN_FILE = "apple_token.json"
 
@@ -50,6 +51,7 @@ def store_apple_refresh_token(data_dir: Path, user_id: str, token: str) -> None:
     tmp.write_text(json.dumps({"refresh_token": token}), encoding="utf-8")
     os.chmod(tmp, 0o600)
     tmp.replace(path)
+    match_data_owner(path)
 
 
 def apple_refresh_token(data_dir: Path, user_id: str) -> str | None:

@@ -51,6 +51,7 @@ from podcast_scraper.server import (
     app_push_store,
 )
 from podcast_scraper.server.app_user_store import get_user, list_users, User
+from podcast_scraper.utils.privileges import match_data_owner
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,7 @@ def _write_ledger(data_dir: Path, user_id: str, doc: dict[str, Any]) -> None:
                 fh.flush()
                 os.fsync(fh.fileno())
             os.replace(tmp, path)
+            match_data_owner(path)
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)

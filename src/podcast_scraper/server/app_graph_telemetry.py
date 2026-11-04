@@ -18,6 +18,8 @@ import threading
 from pathlib import Path
 from typing import Any, Sequence
 
+from podcast_scraper.utils.privileges import match_data_owner
+
 #: The route handlers run in FastAPI's threadpool, so two requests can append at once: one lock per
 #: process keeps a batch's lines together (a multi-event batch is several writes).
 _APPEND_LOCK = threading.Lock()
@@ -41,6 +43,7 @@ def record_events(data_dir: Path, user_id: str, events: Sequence[Any]) -> int:
     with _APPEND_LOCK, path.open("a", encoding="utf-8") as fh:
         for ev in valid:
             fh.write(json.dumps(ev, ensure_ascii=False) + "\n")
+    match_data_owner(path)
     return len(valid)
 
 

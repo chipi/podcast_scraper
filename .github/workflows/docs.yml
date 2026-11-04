@@ -57,7 +57,9 @@ permissions:
   actions: read  # Required to download artifacts from other workflows
 
 concurrency:
-  group: "pages"
+  # Only the main pushes that deploy share "pages"; a PR's build-only run used to cancel main's
+  # deploy (67e0b9cc, 2026-11-04).
+  group: ${{ github.event_name == 'push' && 'pages' || format('docs-pr-{0}', github.ref) }}
   cancel-in-progress: true
 
 jobs:

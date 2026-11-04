@@ -26,6 +26,7 @@ from podcast_scraper.server.app_user_store import (
     set_disabled,
     set_mcp_access,
 )
+from podcast_scraper.utils.privileges import drop_root_to_owner
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -93,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     """Run the user-admin command; return a process exit code."""
     args = _build_parser().parse_args(argv)
     data_dir: Path = args.data_dir
+    drop_root_to_owner(data_dir)
 
     if args.cmd == "list":
         users = list_users(data_dir)

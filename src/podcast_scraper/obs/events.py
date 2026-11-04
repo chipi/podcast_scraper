@@ -230,6 +230,10 @@ def emit_event(
             out.parent.mkdir(parents=True, exist_ok=True)
             with out.open("a", encoding="utf-8") as fh:
                 fh.write(line + "\n")
+            if path is not None:  # an app-data log; corpus-dir sinks are not ours to chown
+                from ..utils.privileges import match_data_owner
+
+                match_data_owner(out)
         else:  # "log" (default)
             (logger or _event_logger).info("%s", line)
         return line

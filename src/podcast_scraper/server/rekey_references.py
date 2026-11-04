@@ -28,6 +28,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.utils.privileges import drop_root_to_owner
+
 RECEIPTS_FILE = "rekey_user_references.jsonl"
 
 
@@ -67,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     mode.add_argument("--undo", action="store_true", help="put back what the apply changed")
     args = ap.parse_args(argv)
+    drop_root_to_owner(args.appdata)
 
     from podcast_scraper.server import reference_integrity
 

@@ -17,9 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock
-
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import match_data_owner, OwnedFileLock
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +32,11 @@ def _state_path(data_dir: Path, user_id: str, name: str) -> Path:
     return data_dir / "users" / user_id / f"{name}.json"
 
 
-def _user_lock(data_dir: Path, user_id: str, name: str) -> FileLock:
+def _user_lock(data_dir: Path, user_id: str, name: str) -> OwnedFileLock:
     """A per-(user, file) write lock; serialises concurrent read-modify-write on that file."""
     path = _state_path(data_dir, user_id, name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(path.with_name(f".{name}.lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(path.with_name(f".{name}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 class UserStateUnreadable(RuntimeError):
@@ -659,6 +658,7 @@ def append_topic_exposure(
                     )
                     + "\n"
                 )
+        match_data_owner(path)
         _trim_exposure(data_dir, user_id, path)
         return len(entities)
     except OSError:
@@ -801,6 +801,7 @@ def append_moment_heard(data_dir: Path, user_id: str, rec: dict[str, Any], ts: i
                             return
             with path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+            match_data_owner(path)
     except OSError:
         logger.debug("moments write failed for %s", user_id, exc_info=True)
 
@@ -1460,6 +1461,7 @@ def record_interest_follow(data_dir: Path, user_id: str, token: str, ts: int) ->
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps({"token": str(token), "ts": int(ts)}, ensure_ascii=False) + "\n")
+    match_data_owner(path)
 
 
 # --- library (subscriptions; list of {feed_id, feed_url?, title?, added_at?}) ---

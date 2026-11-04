@@ -26,10 +26,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock
-
 from podcast_scraper.server import app_comms_store
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 _LOCK_TIMEOUT_S = 5.0
 
@@ -55,10 +54,10 @@ def _envelope_path(data_dir: Path, envelope_id: str) -> Path:
     return _outbox_dir(data_dir) / f"{digest}.json"
 
 
-def _lock(data_dir: Path, envelope_id: str) -> FileLock:
+def _lock(data_dir: Path, envelope_id: str) -> OwnedFileLock:
     path = _envelope_path(data_dir, envelope_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(path.with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(path.with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 #: How long a FINISHED envelope is kept (#2273). Kept forever before this: every digest sent, with

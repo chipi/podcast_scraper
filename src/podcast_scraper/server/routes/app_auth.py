@@ -33,6 +33,7 @@ from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 from podcast_scraper.server.routes.health import player_client_health
+from podcast_scraper.utils.privileges import match_data_owner
 
 logger = logging.getLogger(__name__)
 
@@ -716,6 +717,7 @@ def _throttled(data_dir: Path | None, email: str, *, now: int) -> bool:
             return True
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text(str(now), encoding="utf-8")
+        match_data_owner(marker)
     except OSError:
         # Throttle state is best-effort; failing to record it must not block a legitimate sign-in.
         return False

@@ -23,8 +23,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock
-
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.languages import translated_from_label
 from podcast_scraper.server import app_graph_refs, app_user_state
@@ -37,6 +35,7 @@ from podcast_scraper.server.app_capture_export import (
 from podcast_scraper.server.atomic_write import atomic_write_text
 from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.slugs import slug_for_row
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 _ROOT = "closelistening"
 
@@ -393,10 +392,10 @@ def _state_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / _STATE_FILE
 
 
-def _state_lock(data_dir: Path, user_id: str) -> FileLock:
+def _state_lock(data_dir: Path, user_id: str) -> OwnedFileLock:
     path = _state_path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(str(path.with_name(f".{_STATE_FILE}.lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str(path.with_name(f".{_STATE_FILE}.lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 def _new_epoch() -> str:

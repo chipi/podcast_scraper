@@ -583,3 +583,19 @@ def test_each_cycle_is_a_run_with_its_own_trace(
     assert len(seen) == 2
     assert all(r and r.startswith("board-summarizer-") for r in seen)
     assert correlation.get_run_id() is None  # nothing leaks past the cycle
+
+
+def test_the_storyline_backfill_drops_root_to_the_appdata_owner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _load(tmp_path, monkeypatch)
+    seen: list[Path] = []
+    from podcast_scraper.utils import privileges
+
+    monkeypatch.setattr(privileges, "drop_root_to_owner", seen.append)
+    monkeypatch.setattr(mod, "_startup", lambda: None)
+    monkeypatch.setattr(mod, "backfill_storylines", lambda apply: 0)
+    monkeypatch.setattr("sys.argv", ["runner", "--storylines-backfill"])
+    with pytest.raises(SystemExit):
+        mod.main()
+    assert seen == [tmp_path / "app"]

@@ -102,3 +102,10 @@ def test_grant_mcp_all_grants_the_old_default_and_skips_a_deliberate_revoke(
     assert _stored(tmp_path, has.user_id).mcp_access is True
     assert "skip    " + revoked.user_id in out.out
     assert "1 granted, 1 already had it, 1 skipped" in out.err
+
+
+def test_main_drops_root_to_the_data_dir_owner(tmp_path: Path, monkeypatch) -> None:
+    seen: list[Path] = []
+    monkeypatch.setattr(app_users_cli, "drop_root_to_owner", seen.append)
+    app_users_cli.main(["--data-dir", str(tmp_path), "list"])
+    assert seen == [tmp_path]

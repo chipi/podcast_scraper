@@ -23,9 +23,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable
 
-from filelock import FileLock
-
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.utils.privileges import OwnedFileLock
 
 _LOCK_TIMEOUT_S = 5.0
 _CLIENTS_FILE = "oauth_clients.json"
@@ -49,9 +48,9 @@ _ACCESS_PREFIX = "clp_mcpat_"
 _REFRESH_PREFIX = "clp_mcprt_"
 
 
-def _lock(data_dir: Path, name: str) -> FileLock:
+def _lock(data_dir: Path, name: str) -> OwnedFileLock:
     data_dir.mkdir(parents=True, exist_ok=True)
-    return FileLock(str((data_dir / name).with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
+    return OwnedFileLock(str((data_dir / name).with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
 
 
 def _read(data_dir: Path, name: str) -> dict[str, Any]:
