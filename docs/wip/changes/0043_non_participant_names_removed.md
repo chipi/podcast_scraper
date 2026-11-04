@@ -323,6 +323,25 @@ written on the clone and left for step 10 on prod: the search-index rows of the 
 commercial with 0 problems in 121,855 rows, S2 the only moving gating number (+1, as predicted),
 0 verify regressions, full undo byte-identical.
 
+**Ledger after 0043** (added 2026-11-04 after step 8, a derived surface the gate does not run: on
+prod `upgrade run` ends with the ledger refresh and, since 0041, its respell). On a fresh copy of
+the snapshot (`scratchpad m43_ledger.py`): a baseline refresh first wrote 0 files and changed 0 of
+652 joins; after the 0043 apply, the refresh `upgrade run` does wrote **0 files** (respell written
+0, refused 0) and the ledger went from 652 to **649 joins**, 0 display spellings changed. The 3
+joins removed are spelling variants whose group 0043 empties: `person:brian-chen`,
+`person:catherine-benholt` and `person:leila-faldil`. Residue: two promo voices today's roster
+still names stay outside 0043 (B10's recurrence blind spots): one Daily episode
+(`c89d8533-9397-49b1-9849-0bc560b5a443` SPEAKER_06, the variant spelling) and one Planet Money
+episode (`2ffbf42c-503f-4b51-9462-af3c5626c900` SPEAKER_05). After 0043 the first no longer joins
+the group and shows its own (variant) spelling at read time: 1 voice's displayed spelling moves.
+
+**Re-embed check** (`scratchpad m43_fp.py`, the indexer's own row builder and fingerprint, before
+vs after on the same copy): of the 101 written episodes, 100 change fingerprint, so prod's
+incremental `index` re-embeds them; 1 changes no embeddable row's text or metadata. Rows: 76
+removed (the KG entity rows of the removed Person nodes), 0 added, 4,751 with moved metadata, all
+inside re-embedded episodes; **0 episodes** with moved metadata and an unchanged fingerprint, so no
+search row stays stale and no in-place row edit is needed. Step 10 expects `reindexed` 100.
+
 ## 8. Verdict
 
 Verdict read 2026-11-04 by a fresh agent (reviewer, Sonnet; not the builder, not a step-5
