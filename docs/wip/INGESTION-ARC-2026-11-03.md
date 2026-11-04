@@ -189,6 +189,9 @@ the merge sha.
     path through `utils.run_relative`. Switching on: set the mode and `RULE_VERSION`, deploy, and
     measure the switch-on again on a fresh snapshot (its step 8, condition 2; the trace by id is
     done, 8b).
+6. C2's `upgrade rerun` and C4's gate row ship as tooling: nothing runs them, no stored file
+    changes. Each prod rerun is its own corpus change with its own record and go (record
+    `c2_episode_rerun`).
 
 **GitHub issues fixed here but still open** (closing is the operator's call; after the deploy
 proves each): #2131 (A8), #2180 (A11), #2253 (A7), #2363 (B5), #2364 (B6), #2123 (B8), #2136

@@ -232,6 +232,20 @@ above 1). Revision: the shares are computed from the total after the move.
   Not verified: whether the pipeline's own census counts an untyped voice's seconds; the fix assumes
   it counts every voice it lists.
 
+### 4e. Revision: 0044 is registered after 0043 (supersedes nothing above)
+
+Dated: 2026-11-04T16:48
+
+`upgrade/registry.py` gains one entry after 0043's (`0044_title_spelling_voices_renamed`, record
+`0044_title_spelling_voices_renamed.md`); 0043's own entry, list, verdicts and module do not change.
+
+- **No measured number of 0043 moves:** the gate applies 0043 alone; its plan reads 0043's own
+  list. The re-gate after the edit must give plan sha256 `d167d230…` and every 4c row exactly.
+- **The code digest moves** (the registry is in 0043's import closure), so 0043's outcome is
+  rebuilt after the re-gate, as each time code in its digest moved.
+- **On prod:** 0043 runs first (`--to 2.7.37`, alone, as the hook requires the first pending
+  migration), then 0044 in its own run after its own go.
+
 ## 5. Acceptance
 
 Fresh agent, 2026-11-04: `minutes 4, tokens ~45k`. Rows added above: the reading-list items below,
@@ -279,6 +293,28 @@ Fresh agent (reviewer), `minutes 3, tokens ~14k`: the fix is right for the state
 the total taken after the move, covers the sibling case (a previous type without a census
 bucket). Rows it asked for are in 4d (census row, identity, repro first, the pipeline-census
 assumption named). Spot check for step 8: measurement 3's census row.
+
+### 5d. Acceptance of revision 4e
+
+Dated: 2026-11-04T16:49
+
+Fresh agent (reviewer, Sonnet), `minutes 3`: rows added, each taken:
+
+1. `upgrade run` without `--to` on prod, with 0043 and 0044 pending, is refused ("runs alone",
+   `cli_handlers` R1), not a partial apply; the order is `--to 2.7.37` (0043), then `--to 2.7.38`
+   (0044) after its own go.
+2. `--to 2.7.37` leaves 0044 out of `pending`, so `check_static`'s first-pending rule sees 0043.
+3. 0043's `applied_before` is unchanged; the only check the edit moves is the code digest.
+4. `upgrade/registry` is in 0043's closure (measured 2026-11-04, scratchpad `c2_closure.py`);
+   0043's list and verdicts sha256 are unchanged.
+5. 0043's verify and undo read only its own receipts and tag; the re-gate's `verify_all` (42 ok,
+   0 regressions) is reproduced, and 0044 registered but unapplied must not fail it.
+6. The registry-order tests: 0043's test pins its predecessor only; 0044's test asserts it follows
+   0043.
+7. 0044's gate and outcome are separate and later; its clone has 0043 applied and recorded.
+8. Not taken as written: the reader asked for `--to` on the 0043 re-gate; the gate script applies
+   the migration directly (not through `upgrade run`) and checks only that the clone's ledger holds
+   every earlier migration, so `--to` does not apply to it.
 
 ## 6. Build
 

@@ -68,6 +68,9 @@ from .migrations.m0042_insight_cluster_quotes_resynced import (
 from .migrations.m0043_non_participant_names_removed import (
     NonParticipantNamesRemovedMigration,
 )
+from .migrations.m0044_title_spelling_voices_renamed import (
+    TitleSpellingVoicesRenamedMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -169,6 +172,9 @@ _MIGRATIONS: List[Migration] = [
     # 0043 takes the name off voices that only read an ad, a promo or a shout-out, typed
     # commercial as today's roster types them (frozen, reviewed list; #2123, #2364).
     NonParticipantNamesRemovedMigration(),
+    # 0044 gives stored voices their own episode title's spelling of their person, as B5 does for
+    # new episodes (frozen, reviewed list; #2363).
+    TitleSpellingVoicesRenamedMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
     # the id stays unused.
 ]
