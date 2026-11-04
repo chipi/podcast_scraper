@@ -6,6 +6,8 @@ issue: none (ingestion arc, tier L: L2, L3 ledger side, L4, L5, L6; #2056)
 touches:
   - src/podcast_scraper/identity/ledger.py
   - src/podcast_scraper/identity/guards.py
+  - src/podcast_scraper/identity/publisher_text.py
+  - src/podcast_scraper/kg/entity_clusters.py
   - tests/unit/podcast_scraper/identity/
 ---
 
@@ -206,7 +208,28 @@ snapshot; none of the 110 respelled files gives a voice another person's name;
 
 ## 6. Build
 
-_TODO_
+- `identity/publisher_text.py` (new, pure): `fold`, `soundex`, the surname tests, `text_spans`,
+  `verify_and_find` (V1, V2) and `host_route` (V3's routes A, B, C), each the prototype's run 4.
+- `identity/guards.py`: `collect_episode_evidence(root, mode=...)`; in `publisher_verified` each
+  episode's evidence carries V2's pairs, its host seats, its show and the show's verified names;
+  `host_join_pair_rule` answers `"join"` for V3's pairs over the reviewed pair rule. The
+  diagnostics path now resolves through `utils.run_relative` (it took the first occurrence of the
+  run's name; every other reader takes the last).
+- `kg/entity_clusters.py`: a pair rule's `"join"` matches a candidate to a cluster; the guards
+  still decide.
+- `identity/ledger.py`: `EVIDENCE_MODE = "extracted"` (shipped), `RULE_VERSION_BY_EVIDENCE`,
+  `build_ledger(root, evidence_mode=None)`; `_publisher_spellings` takes V2's pairs as the same
+  person. The default build passes `extracted` evidence and stamps today's `RULE_VERSION`.
+- Tests: `tests/unit/podcast_scraper/identity/test_publisher_verified_mode.py`, 21: the shipped
+  mode, unknown modes refused, spans without a possessive, V1 and V2 on one episode, V2's
+  ambiguity, the routes including the six measured failures as negatives, the join answer with a
+  guard still refusing, today's evidence on an ASR-host show, the verified evidence, the verified
+  build's join and spelling, the default build equal to the extracted build, and the Dara shape
+  only V2's pair reaches. Mutation (`scratchpad mut_l.py`): V1's filter, V2's spellings, V3's join
+  and V2's pair each made a no-op fail a test, 4 of 4 (the pair survived the first round; its
+  test was added). Identity and kg unit tests: 994 passed.
+- `MISSED:` the tests were written after the code (the prototype ran first); the mutation run is
+  the evidence they test it.
 
 ## 7. Measure
 

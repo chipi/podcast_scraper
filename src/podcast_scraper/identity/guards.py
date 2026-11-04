@@ -66,6 +66,13 @@ class EpisodeEvidence:
     publisher_names: Tuple[str, ...] = ()
     person_names: Mapping[str, str] = field(default_factory=dict)
     ner_only: FrozenSet[str] = frozenset()
+    #: Evidence mode ``publisher_verified`` only (record l_publisher_verified_mode): the
+    #: ``(publisher spelling, name)`` pairs (folded) V2 found in the text, the Person ids seated
+    #: as host here, the show's key, and the show's verified names this episode supports.
+    publisher_pairs: FrozenSet[Tuple[str, str]] = frozenset()
+    host_seated: FrozenSet[str] = frozenset()
+    show: str = ""
+    show_names: Tuple[str, ...] = ()
 
     @property
     def mention_only(self) -> FrozenSet[str]:
@@ -89,6 +96,10 @@ def episode_evidence(
     publisher_names: Iterable[str],
     *,
     ner_only: Iterable[str] = (),
+    publisher_pairs: Iterable[Tuple[str, str]] = (),
+    host_seated: Iterable[str] = (),
+    show: str = "",
+    show_names: Iterable[str] = (),
 ) -> EpisodeEvidence:
     """Evidence from one episode's KG Person nodes ``(id, name)``, roster ``(name, voices)`` and
     publisher-text names. A roster entry or a publisher name belongs to a Person node when the
@@ -121,6 +132,10 @@ def episode_evidence(
         publisher_names=tuple(publisher_names),
         person_names={pid: name for pid, name in people if name},
         ner_only=frozenset(ner_only),
+        publisher_pairs=frozenset(publisher_pairs),
+        host_seated=frozenset(host_seated),
+        show=show,
+        show_names=tuple(show_names),
     )
 
 
@@ -152,10 +167,21 @@ def guard_fires(
     return None
 
 
-def collect_episode_evidence(root: Path | str) -> Dict[str, EpisodeEvidence]:
+def collect_episode_evidence(
+    root: Path | str, mode: str = "extracted"
+) -> Dict[str, EpisodeEvidence]:
     """Evidence for every newest-run KG artifact of a corpus, keyed by the KG's ``episode_id`` (the
-    key the candidates' episodes use). The roster's voices follow m0025's placement rule."""
+    key the candidates' episodes use). The roster's voices follow m0025's placement rule.
+
+    ``mode`` (``identity.publisher_text.EVIDENCE_MODES``): ``extracted`` takes the diagnostics'
+    extracted names as the publisher's, as every build before record l_publisher_verified_mode;
+    ``publisher_verified`` keeps only those the publisher's own text contains, adds the text's own
+    spellings (V1, V2), and records each episode's host seats and show for V3."""
     from podcast_scraper.builders.bridge_builder import strip_layer_prefixes
+    from podcast_scraper.identity import publisher_text as PT
+
+    if mode not in PT.EVIDENCE_MODES:
+        raise ValueError(f"unknown evidence mode {mode!r}; one of {PT.EVIDENCE_MODES}")
     from podcast_scraper.kg.corpus import (
         load_kg_artifacts,
         newest_run_artifact_paths,
@@ -187,6 +213,7 @@ def collect_episode_evidence(root: Path | str) -> Dict[str, EpisodeEvidence]:
         roster: List[Tuple[str, Sequence[str]]] = []
         publisher: List[str] = []
         ner: List[str] = []
+        verified: Dict[str, object] = {}
         if isinstance(meta, dict):
             ep = NR.Episode("", eid, meta_path.parent.parent.name, meta_path, meta)
             label_voices = NR.segment_label_voices(ep.segments() or [])
@@ -199,13 +226,104 @@ def collect_episode_evidence(root: Path | str) -> Dict[str, EpisodeEvidence]:
                 for s in ep.roster()
             ]
             by_key = _publisher_names_by_key(meta, meta_path.parent.parent)
+            if mode == PT.PUBLISHER_VERIFIED:
+                speakers = (meta.get("content") or {}).get("speakers") or []
+                entries = [
+                    str(s.get("respelled_from") or s.get("name") or "")
+                    for s in speakers
+                    if isinstance(s, dict)
+                ]
+                by_key, pairs = PT.verify_and_find(meta, by_key, entries)
+                verified = {
+                    "publisher_pairs": pairs,
+                    "host_seated": _host_seated(data, strip_layer_prefixes),
+                    "show": str((meta.get("feed") or {}).get("feed_id") or "") or _kg_show(data),
+                    "show_names": [
+                        n
+                        for k in ("known_hosts", "metadata_named")
+                        for n in by_key.get(k, [])
+                        if len(PT.fold(n).split()) >= 2
+                    ],
+                }
             publisher = [n for k in PUBLISHER_KEYS for n in by_key.get(k, [])]
             stated = {
                 n for k in PUBLISHER_KEYS if k != "detected_guests" for n in by_key.get(k, [])
             }
             ner = [n for n in by_key.get("detected_guests", []) if n not in stated]
-        out[eid] = episode_evidence(people, roster, publisher, ner_only=ner)
+        out[eid] = episode_evidence(
+            people, roster, publisher, ner_only=ner, **verified  # type: ignore[arg-type]
+        )
     return out
+
+
+def _host_seated(kg: Mapping, strip) -> List[str]:
+    """The Person ids the episode's KG seats as host."""
+    return [
+        strip(str(n.get("id") or ""))
+        for n in kg.get("nodes") or []
+        if isinstance(n, dict)
+        and n.get("type") == "Person"
+        and (n.get("properties") or {}).get("role") == "host"
+    ]
+
+
+def _kg_show(kg: Mapping) -> str:
+    """The show key the KG's Episode node carries."""
+    for n in kg.get("nodes") or []:
+        if isinstance(n, dict) and n.get("type") == "Episode":
+            props = n.get("properties") or {}
+            return str(props.get("feed_id") or props.get("podcast_id") or "")
+    return ""
+
+
+def host_join_pair_rule(evidence: Mapping[str, EpisodeEvidence], base):
+    """V3 over ``base`` (the build's pair rule): ``"join"`` for a person candidate seated as host
+    in a show whose verified names hold one that :func:`publisher_text.host_route` matches, and
+    for that name's own id against it; otherwise ``base``'s answer (record
+    l_publisher_verified_mode)."""
+    from collections import defaultdict
+
+    from podcast_scraper.identity import publisher_text as PT
+    from podcast_scraper.identity.slugify import person_id
+
+    names: Dict[str, Dict[str, None]] = defaultdict(dict)
+    seats: Dict[str, set] = defaultdict(set)
+    own_name: Dict[str, str] = {}
+    for ev in evidence.values():
+        if not ev.show:
+            continue
+        for n in ev.show_names:
+            names[ev.show][n] = None
+        for pid in ev.host_seated:
+            seats[pid].add(ev.show)
+            own_name[pid] = ev.person_names.get(pid) or own_name.get(pid, "")
+    joins: set = set()
+    for show, hosts in names.items():
+        by_first: Dict[str, List[str]] = defaultdict(list)
+        for h in hosts:
+            by_first[PT.split_name(h)[0]].append(h)
+        for pid, shows in seats.items():
+            if show not in shows:
+                continue
+            own = own_name.get(pid, "")
+            for h in hosts:
+                if own and PT.host_route(h, own, by_first):
+                    try:
+                        joins.add(frozenset((pid, person_id(h))))
+                    except ValueError:
+                        continue
+
+    def rule(cand, member):
+        if (
+            cand.kind == "person"
+            and member.kind == "person"
+            and frozenset((cand.id, member.id)) in joins
+        ):
+            return "join"
+        return base(cand, member) if base is not None else None
+
+    rule.joins = joins  # type: ignore[attr-defined]
+    return rule
 
 
 def _publisher_names(meta: Mapping, run: Path) -> List[str]:
@@ -217,15 +335,9 @@ def _publisher_names(meta: Mapping, run: Path) -> List[str]:
 def _publisher_names_by_key(meta: Mapping, run: Path) -> Dict[str, List[str]]:
     """``{publisher key: names}`` from the episode's speakers diagnostics (``tried``)."""
     from podcast_scraper.quality import name_report as NR
+    from podcast_scraper.utils.run_relative import run_relative
 
-    rel = str((meta.get("content") or {}).get("transcript_file_path") or "")
-    path = Path(rel)
-    if path.is_absolute():
-        rel = (
-            str(Path(*path.parts[path.parts.index(run.name) + 1 :]))
-            if run.name in path.parts
-            else ""
-        )
+    rel = run_relative((meta.get("content") or {}).get("transcript_file_path"), run)
     if not rel.endswith(".txt"):
         return {}
     diag = NR._load_json(run / rel.replace(".txt", ".speakers.diagnostics.json"))

@@ -190,6 +190,14 @@ class _JoinTest:
         return _are_xep_variants(a.name, b.name, kind)
 
     def _matches(self, cand: EntityCandidate, cluster: List[EntityCandidate], kind: str) -> bool:
+        if (
+            kind == "person"
+            and self.pair_rule is not None
+            and any(self.pair_rule(cand, m) == "join" for m in cluster)
+        ):
+            # An evidence rule's join (record l_publisher_verified_mode, V3); the guards still
+            # run on it in __call__.
+            return True
         if kind == "person" and self.linkage == "complete":
             return all(self._match(cand, m, kind) for m in cluster)
         pool = cluster
@@ -263,7 +271,8 @@ def build_entity_canonical_map(
 
     ``pair_rule(candidate, member)`` (record s5d), for persons: ``"ignore"`` drops that member
     from the ones the candidate may match through; ``"apart"`` refuses the cluster, recorded in
-    ``blocked_joins`` as guard ``reviewed_apart``. The ledger build passes one.
+    ``blocked_joins`` as guard ``reviewed_apart``; ``"join"`` (record l_publisher_verified_mode)
+    matches it to the cluster, the guards still deciding. The ledger build passes one.
 
     The defaults keep today's build.
     """
