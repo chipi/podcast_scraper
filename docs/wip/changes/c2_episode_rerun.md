@@ -142,7 +142,33 @@ listed; lock held → dry run proceeds, real run refused.
 
 ## 7. Measure
 
-_TODO_
+On the gate copy of 0043 (snapshot-prod-20261103 with 0043 applied by the clone gate, code
+`c91191da`, outcome `584ff3c0…`), scratchpad `c2_measure.py`: 0043 recorded in the copy's
+ledger; the first 2 episodes of 0043's plan put back to the snapshot's bytes (a reprocess
+stand-in); scope = those 2 plus the 3rd planned episode, which 0043 had already fixed; a
+sha256 manifest of all 145,558 files before and after.
+
+| Row (4 / 5) | Predicted | Measured |
+| --- | --- | --- |
+| dry rerun, 2 planned + 1 fixed | plans the 2, diff empty | **`rerun plan: 2 of 3 named episode(s), 0 differ from the outcome`**, exit 0, nothing written |
+| real rerun | PASS | **exit 0, receipt `0043_…rerun-20261104T163920Z.json` verdict PASS, failures []**, `snapshot: none` |
+| files changed outside the 2 episodes | only the rerun's bookkeeping | **0** besides the rerun's own: 52 changed = 25 in the 2 episodes + 27 under `0043.rerun-<stamp>` backups, its receipts file and its outcome receipt |
+| the 2 episodes after the rerun | as the gate's apply left them | **31 of 31 files byte-identical** to the gate apply's bytes |
+| ledger, other migrations' receipts and outcome receipts | unchanged | **unchanged** (in the manifest, `other []`) |
+| default path | unchanged | 0043's re-gate on `c91191da`: plan sha256 `d167d230…` equal to every gate before C2 |
+
+- **First run, before the fix in `9d37253e`:** the same rerun failed closed (exit 5) with the
+  episodes correctly written: 0043 records some files as `run_x/../run_x/transcripts/…`, and the
+  leak check compared them unnormalised. Fixed in `files_outside` with a test from that shape.
+- Not measured: undoing one rerun on the copy (the per-file undo is 0029's tested
+  `undo_from_receipts` with the rerun's receipts and tag); a real rerun with the lock held by
+  another process; the index and bridge rows of the 2 episodes (their files are byte-identical
+  to the apply's, so they are what the apply's derived steps would see).
+- The "apply receipt untouched" check is empty on the gate copy: the clone gate applies 0043
+  directly, so no `0043_….json` receipt exists there to compare.
+
+**Builder: GO.** Deciding numbers: a correct rerun writes the named episodes byte-identically to
+the measured apply and nothing else; the default path's plan is unchanged.
 
 ## 8. Verdict
 
