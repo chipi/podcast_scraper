@@ -46,9 +46,9 @@
   "clone": "/work/closelistening/snapshots/snapshot-prod-20261103/extract/corpus",
   "code": {
     "dirty": false,
-    "sha": "26ed7d59a68a0908184341698b4a8059319bf917"
+    "sha": "b2c1ca9ab44aa008ea1a4f061a5c09501394417b"
   },
-  "code_digest": "da8352be6c33d1aee991e253df6c847eec0c08cf7e08696e1acb12892f0e2627",
+  "code_digest": "0e2d506770199dc9beb4be576f2eeab1da95f7492cc195921d8aebafbcc0fbf5",
   "computed_class": "full",
   "episode_deltas": {
     "feeds/rss_feeds.simplecast.com_999571cd/run_5f1b34a0-5bd3-4705-b06f-76c41ce6750f_20260812-062710_285e51f2/metadata/0001 - ICE Ramps Back Up_ With Deadly R_5f1b34a0-5bd3-4705-b06f-76c41ce6750f_20260812-062710_285e51f2.metadata.json": {
@@ -94,7 +94,7 @@
   "gating_moves": {
     "S2_hidden": 1
   },
-  "measured_at": "2026-11-04T14:52:16",
+  "measured_at": "2026-11-04T16:07:49",
   "migration": "0043_non_participant_names_removed",
   "plan": [
     {
@@ -4096,6 +4096,39 @@
     "quotes_ref_unresolved": 244
   },
   "snapshot": "snapshot-prod-20261103",
+  "targets": {
+    "after": {
+      "counts": {},
+      "episodes": 0
+    },
+    "before": {
+      "counts": {
+        "admaps_carried": 83,
+        "bridge_identities_removed": 77,
+        "cleaned_lines": 56,
+        "context_rebuilt": 100,
+        "detected_guests_removed": 43,
+        "detected_hosts_removed": 2,
+        "diagnostics_voices_renamed": 111,
+        "diagnostics_voices_typed_commercial": 111,
+        "entities_added": 44,
+        "entities_dropped": 99,
+        "gi_nodes_typed_commercial": 2,
+        "insights_reattributed": 1,
+        "kg_persons_removed": 76,
+        "metadata_counts_synced": 66,
+        "quotes_moved": 3011,
+        "quotes_reattributed": 1,
+        "quotes_retexted": 12,
+        "roster_entries_unnamed": 110,
+        "segments_relabelled": 2237,
+        "segments_typed_commercial": 2237,
+        "transcripts_rerendered": 201,
+        "turns_rebuilt": 30
+      },
+      "episodes": 101
+    }
+  },
   "verdicts_sha256": "fcfc4c284708fb6010f2ebd344f97826cc28d8c74c06e8e275ea350216ddb7a5",
   "verify": {
     "message": "every voice the review confirmed as a non-participant is unnamed and commercial",
