@@ -112,7 +112,8 @@ def test_the_migrate_engine_is_named_too(url: str, monkeypatch: pytest.MonkeyPat
 
 
 def test_the_release_is_the_deploys_release_id(monkeypatch: pytest.MonkeyPatch) -> None:
-    sdk = pytest.importorskip("sentry_sdk")
+    import sentry_sdk as sdk
+
     seen: dict[str, object] = {}
     monkeypatch.setattr(sdk, "init", lambda **kw: seen.update(kw))
     monkeypatch.setenv("PODCAST_SENTRY_DSN_API", "https://k@example.invalid/1")
