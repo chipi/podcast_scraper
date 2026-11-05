@@ -253,26 +253,25 @@ def test_the_emitted_sql_builds_the_same_table_the_upgrade_does(url: str) -> Non
 
 def _shape(conn) -> dict[str, list[tuple]]:  # type: ignore[no-untyped-def]
     """Every column, constraint and index of the player and shared schemas."""
-    where = "IN ('player', 'shared')"
     return {
         "columns": conn.execute(
             text(
                 "SELECT table_schema, table_name, column_name, data_type, is_nullable, "
                 "column_default FROM information_schema.columns "
-                f"WHERE table_schema {where} ORDER BY 1, 2, 3"
+                "WHERE table_schema IN ('player', 'shared') ORDER BY 1, 2, 3"
             )
         ).all(),
         "constraints": conn.execute(
             text(
                 "SELECT n.nspname, c.conname, pg_get_constraintdef(c.oid) FROM pg_constraint c "
-                f"JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname {where} "
-                "ORDER BY 1, 2"
+                "JOIN pg_namespace n ON n.oid = c.connamespace "
+                "WHERE n.nspname IN ('player', 'shared') ORDER BY 1, 2"
             )
         ).all(),
         "indexes": conn.execute(
             text(
-                f"SELECT schemaname, indexname, indexdef FROM pg_indexes WHERE schemaname {where} "
-                "ORDER BY 1, 2"
+                "SELECT schemaname, indexname, indexdef FROM pg_indexes "
+                "WHERE schemaname IN ('player', 'shared') ORDER BY 1, 2"
             )
         ).all(),
     }
