@@ -96,7 +96,9 @@ def test_only_an_admin_can_read_or_change_it(tmp_path: Path) -> None:
 def test_a_change_is_audited(tmp_path: Path) -> None:
     app = _app(tmp_path)
     _login(app, "boss").put(RELEASE, json={"player_version": "1.0.2"})
-    records = [json.loads(line) for line in (tmp_path / "audit.jsonl").read_text().splitlines()]
+    from podcast_scraper.server.app_audit import read_audit
+
+    records = read_audit(tmp_path / "audit.jsonl")
     assert any(
         r.get("action") == "player_release_set" and r.get("after") == "1.0.2" for r in records
     )
@@ -125,11 +127,20 @@ def test_the_operator_viewer_sets_the_version_the_player_serves(tmp_path: Path) 
     assert not (tmp_path / "player-appdata" / "player_release.json").exists()
 
 
-def test_without_a_release_dir_the_data_dir_holds_it(tmp_path: Path) -> None:
+def test_the_override_is_a_shared_row_not_a_file(tmp_path: Path) -> None:
+    from sqlalchemy import select
+
+    from podcast_scraper.db import ro_engine
+    from podcast_scraper.db.schema import app_releases
+
     app = _app(tmp_path)
     assert app.state.app_release_dir is None
     _login(app, "boss").put(RELEASE, json={"player_version": "1.0.2"})
-    assert (tmp_path / "appdata" / "player_release.json").is_file()
+    assert not (tmp_path / "appdata" / "player_release.json").exists()
+    with ro_engine().connect() as conn:
+        assert conn.execute(select(app_releases.c.app, app_releases.c.version)).all() == [
+            ("player", "1.0.2")
+        ]
 
 
 def test_each_app_has_its_own_version(tmp_path: Path) -> None:
@@ -151,20 +162,18 @@ def test_each_app_has_its_own_version(tmp_path: Path) -> None:
     assert TestClient(app).get("/api/health").json()["app_versions"] == {"player": "1.0.1"}
 
 
-def test_the_player_override_reads_and_writes_the_old_file_too(tmp_path: Path) -> None:
-    """An instance upgraded from before per-app versions keeps its override, and a rollback to
-    code that knows only ``player_release.json`` still sees what was set after the upgrade."""
+def test_the_old_files_are_the_importers_not_the_stores(tmp_path: Path) -> None:
+    """After the switch an old ``player_release.json`` changes nothing; ``db import`` reads it."""
     app = _app(tmp_path)
     data = tmp_path / "appdata"
     data.mkdir(parents=True)
     (data / "player_release.json").write_text(json.dumps({"player_version": "1.0.5"}))
-    assert _served(TestClient(app)) == ("1.0.5", "1.0.5")
+    assert _served(TestClient(app)) == ("1.0.1", "1.0.1")
 
     admin = _login(app, "boss")
     admin.put(RELEASE, json={"version": "1.0.6"})
-    assert json.loads((data / "player_release.json").read_text()) == {"player_version": "1.0.6"}
+    assert _served(TestClient(app)) == ("1.0.6", "1.0.6")
     admin.put(RELEASE, json={"version": None})
-    assert not (data / "player_release.json").exists()
     assert _served(TestClient(app)) == ("1.0.1", "1.0.1")
 
 

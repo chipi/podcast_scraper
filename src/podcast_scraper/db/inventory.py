@@ -62,42 +62,20 @@ def dir_files(dirname: str, file_regex: str, kind: Kind, owner: str) -> Claim:
 def _file_claims() -> list[Claim]:
     """The platform's own files that are still files, by owning store."""
     # Imported here: the server modules import the database layer.
-    from podcast_scraper.server import (
-        app_access_store,
-        app_account_deletion,
-        app_comms_store,
-        app_push_store,
-        app_user_preferences,
-    )
+    from podcast_scraper.server import app_push_store
     from podcast_scraper.server.routes import app_profile
 
     claims: list[Claim] = []
 
-    def per_user(owner: str, *names: str) -> None:
-        claims.extend(user_file(n, "file", owner) for n in names)
-
-    def at_root(owner: str, *names: str) -> None:
-        claims.extend(root_file(n, "file", owner) for n in names)
-
-    per_user("comms", app_comms_store._FILE_NAME)
-    per_user("graph_telemetry", "graph_events.jsonl")
-    per_user("push", app_push_store._FILE_NAME)
-    per_user("user_preferences", app_user_preferences._FILE_NAME)
-    per_user("account_deletion", app_account_deletion._APPLE_TOKEN_FILE)
+    # Avatars stay files until object storage (E12; the operator, 2026-11-05).
     claims.extend(
         Claim(re.compile(rf"users/[^/]+/avatar\.{re.escape(ext)}"), "file", "avatar")
         for ext, _media in app_profile._ALLOWED.values()
     )
 
-    at_root("access_policy", app_access_store._FILE_NAME)
-    at_root("audit", "audit.jsonl")
-    at_root("ranking_config", "ranking_config.json")
-    at_root("releases", "app_releases.json", "player_release.json")
-
-    # Dynamic names, each a shape the writing code produces.
-    claims.append(dir_files("outbox", r"[0-9a-f]{64}\.json", "file", "outbox"))
-    claims.append(dir_files("magic_link_used", r"[A-Za-z0-9_-]+\.json", "file", "magic_link"))
-    claims.append(dir_files("magic_link_recent", r"[0-9a-f]{32}\.txt", "file", "magic_link"))
+    # Player's store (closelistening_player.server.app_ranking_config_store), which its
+    # extension's app_data_files does not declare yet; it moves with the Player stores (E07).
+    claims.append(root_file("ranking_config.json", "file", "ranking_config (player)"))
 
     claims.extend(user_file(n, "retired", owner) for n, owner in RETIRED_USER_FILES.items())
     # A one-off manual prune of dead push tokens kept the old file beside the live one (one prod

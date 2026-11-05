@@ -430,8 +430,15 @@ def delete_user(data_dir: Path, user_id: str) -> bool:
         return False
     with rw_engine().begin() as conn:
         deleted = conn.execute(delete(users).where(users.c.user_id == user_id)).rowcount > 0
+    return remove_user_files(data_dir, user_id) or deleted
+
+
+def remove_user_files(data_dir: Path, user_id: str) -> bool:
+    """Remove ``users/<id>/``, the stores that are still files; whether it existed."""
+    if not _is_safe_user_id(user_id):
+        return False
     udir = data_dir / "users" / user_id
     had_dir = udir.is_dir()
     if had_dir:
         shutil.rmtree(udir, ignore_errors=True)
-    return deleted or had_dir
+    return had_dir

@@ -60,29 +60,34 @@ def test_a_profile_write_as_root_leaves_no_file_to_chown(
     assert chowned == []
 
 
-def test_audit_append_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
+def test_the_kernel_stores_write_rows_and_leave_no_file_to_chown(
+    tmp_path: Path, chowned: list[Path]
+) -> None:
+    """Audit, graph events, the Apple token and the magic-link markers are rows (ADR-169)."""
+    from podcast_scraper.server import app_account_deletion, app_graph_telemetry, app_magic_link
+    from podcast_scraper.server.app_audit import append_audit
+    from podcast_scraper.server.routes import app_auth
+    from tests._database import register_user
+
+    uid = "u_" + "a" * 24
+    register_user(uid)
+    append_audit(tmp_path / "audit.jsonl", {"action": "x"})
+    app_graph_telemetry.record_events(tmp_path, uid, [{"action": "open"}])
+    app_account_deletion.store_apple_refresh_token(tmp_path, uid, "tok")
+    app_auth._throttled(tmp_path, "a@x.com", now=10)
+    assert app_magic_link.consume(tmp_path, "tok-id", now=10)
+    assert list(tmp_path.iterdir()) == []
+    assert chowned == []
+
+
+def test_the_control_planes_audit_file_is_chowned(
+    tmp_path: Path, chowned: list[Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no database (the control-plane api) the audit trail is still the JSONL file."""
+    from podcast_scraper.db import reset_engines
     from podcast_scraper.server.app_audit import append_audit
 
+    reset_engines()
+    monkeypatch.delenv("PODCAST_DATABASE_URL", raising=False)
     append_audit(tmp_path / "audit.jsonl", {"action": "x"})
     assert tmp_path / "audit.jsonl" in chowned
-
-
-def test_graph_event_append_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server import app_graph_telemetry
-
-    app_graph_telemetry.record_events(tmp_path, "u1", [{"action": "open"}])
-    assert app_graph_telemetry._events_path(tmp_path, "u1") in chowned
-
-
-def test_apple_token_write_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server import app_account_deletion
-
-    app_account_deletion.store_apple_refresh_token(tmp_path, "u_" + "a" * 24, "tok")
-    assert any(p.parent == tmp_path / "users" / ("u_" + "a" * 24) for p in chowned)
-
-
-def test_magic_link_throttle_marker_is_chowned(tmp_path: Path, chowned: list[Path]) -> None:
-    from podcast_scraper.server.routes import app_auth
-
-    app_auth._throttled(tmp_path, "a@x.com", now=10)
-    assert app_auth._recent_request_marker(tmp_path, "a@x.com") in chowned

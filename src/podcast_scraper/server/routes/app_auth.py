@@ -33,7 +33,6 @@ from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 from podcast_scraper.server.routes.health import player_client_health
-from podcast_scraper.utils.privileges import match_data_owner
 
 logger = logging.getLogger(__name__)
 
@@ -696,32 +695,14 @@ def _magic_link_url(request: Request, token: str) -> str:
     return f"{request.url_for('app_auth_magic_verify')}?token={token}"
 
 
-def _recent_request_marker(data_dir: Path, email: str) -> Path:
-    import hashlib
-
-    digest = hashlib.sha256(email.encode("utf-8")).hexdigest()[:32]
-    return data_dir / "magic_link_recent" / f"{digest}.txt"
-
-
 def _throttled(data_dir: Path | None, email: str, *, now: int) -> bool:
     """True when a link was already sent to this address within the throttle window.
 
-    Keyed by a HASH of the address, not the address: this directory would otherwise become a list of
-    everyone who has ever asked for a link, including people who never had an account.
+    Keyed by a HASH of the address, not the address (``app_magic_link.request_throttled``).
     """
     if data_dir is None:
         return False
-    marker = _recent_request_marker(data_dir, email)
-    try:
-        if marker.is_file() and (now - int(marker.stat().st_mtime)) < _REQUEST_MIN_INTERVAL_S:
-            return True
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text(str(now), encoding="utf-8")
-        match_data_owner(marker)
-    except OSError:
-        # Throttle state is best-effort; failing to record it must not block a legitimate sign-in.
-        return False
-    return False
+    return app_magic_link.request_throttled(email, now=now, min_interval_s=_REQUEST_MIN_INTERVAL_S)
 
 
 @router.post("/auth/email/request", status_code=202)

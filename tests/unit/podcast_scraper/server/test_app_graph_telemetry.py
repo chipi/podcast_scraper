@@ -49,13 +49,22 @@ def test_read_absent_is_empty(tmp_path: Path) -> None:
     assert tel.read_events(tmp_path, "nobody") == []
 
 
-def test_read_skips_corrupt_lines(tmp_path: Path) -> None:
-    tel.record_events(tmp_path, "u1", [{"action": "a"}])
-    path = tmp_path / "users" / "u1" / "graph_events.jsonl"
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write("not json\n\n")
+def test_a_corrupt_log_line_is_skipped_as_the_file_store_did() -> None:
+    # The importer reads the old files line by line through this.
+    assert [tel.parse_line(x) for x in ("not json", "", '{"x": 1}', '{"action": "a"}')] == [
+        None,
+        None,
+        None,
+        {"action": "a"},
+    ]
+
+
+def test_signed_out_events_are_kept_and_are_not_an_account(tmp_path: Path) -> None:
+    tel.record_events(tmp_path, tel.ANON, [{"action": "a"}])
     tel.record_events(tmp_path, "u1", [{"action": "b"}])
-    assert [e["action"] for e in tel.read_events(tmp_path, "u1")] == ["a", "b"]
+    assert [e["action"] for e in tel.read_events(tmp_path, tel.ANON)] == ["a"]
+    assert [e["action"] for e in tel.read_all_events(tmp_path)] == ["a", "b"]
+    assert tel.users_with_events(tmp_path) == 1
 
 
 def test_aggregate_empty() -> None:

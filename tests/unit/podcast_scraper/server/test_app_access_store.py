@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_access_store import (
     effective_policy,
@@ -59,15 +61,41 @@ def test_persisted_policy_wins_over_env(tmp_path: Path) -> None:
 # --- malformed input must not fail open, and must not crash ------------------------------------
 
 
-def test_unparseable_file_falls_back_to_env_rather_than_denying_everyone(tmp_path: Path) -> None:
-    (tmp_path / "access_policy.json").write_text("{not json", encoding="utf-8")
+def test_the_old_file_is_not_read_by_the_store(tmp_path: Path) -> None:
+    """After the switch the row is the policy; the file is the importer's input only."""
+    (tmp_path / "access_policy.json").write_text(
+        json.dumps({"mode": "open", "allowed_emails": []}), encoding="utf-8"
+    )
     assert load_policy(tmp_path) is None
     assert effective_policy(tmp_path, ENV_POLICY) is ENV_POLICY
 
 
-def test_non_object_json_falls_back(tmp_path: Path) -> None:
-    (tmp_path / "access_policy.json").write_text("[1, 2, 3]", encoding="utf-8")
+def test_a_process_without_a_database_falls_back_to_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The control-plane api has no database: no persisted policy, as it had no file."""
+    from podcast_scraper.db import reset_engines
+
+    reset_engines()
+    monkeypatch.delenv("PODCAST_DATABASE_URL", raising=False)
     assert load_policy(tmp_path) is None
+    assert effective_policy(tmp_path, ENV_POLICY) is ENV_POLICY
+
+
+def test_a_database_error_is_raised_not_read_as_no_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading a failure as "no row" would fall back to env and re-admit revoked addresses."""
+    from sqlalchemy import exc as sa_exc
+
+    from podcast_scraper.server import app_access_store
+
+    def broken(_fn):  # type: ignore[no-untyped-def]
+        raise sa_exc.OperationalError("SELECT", {}, Exception("down"))
+
+    monkeypatch.setattr(app_access_store, "read_with_retry", broken)
+    with pytest.raises(sa_exc.OperationalError):
+        load_policy(tmp_path)
 
 
 def test_unknown_mode_denies_rather_than_opens() -> None:
@@ -110,13 +138,17 @@ def test_domain_rule_still_applies(tmp_path: Path) -> None:
     assert not loaded.is_allowed("someone@other.test")
 
 
-def test_file_is_stable_and_sorted(tmp_path: Path) -> None:
-    """Written twice from the same set, the bytes match — so the file diffs cleanly."""
+def test_a_second_save_replaces_the_one_row(tmp_path: Path) -> None:
+    from sqlalchemy import func, select
+
+    from podcast_scraper.db import ro_engine
+    from podcast_scraper.db.schema import access_policy
+
     save_policy(tmp_path, _policy("c@x.test", "a@x.test", "b@x.test"))
-    first = (tmp_path / "access_policy.json").read_text(encoding="utf-8")
-    save_policy(tmp_path, _policy("b@x.test", "c@x.test", "a@x.test"))
-    assert (tmp_path / "access_policy.json").read_text(encoding="utf-8") == first
-    assert json.loads(first)["allowed_emails"] == ["a@x.test", "b@x.test", "c@x.test"]
+    save_policy(tmp_path, _policy("b@x.test"))
+    with ro_engine().connect() as conn:
+        assert conn.execute(select(func.count()).select_from(access_policy)).scalar() == 1
+        assert conn.execute(select(access_policy.c.allowed_emails)).scalar() == ["b@x.test"]
 
 
 def test_to_dict_from_dict_round_trip() -> None:
@@ -124,7 +156,9 @@ def test_to_dict_from_dict_round_trip() -> None:
     assert policy_from_dict(policy_to_dict(original)) == original
 
 
-def test_save_creates_the_data_dir(tmp_path: Path) -> None:
+def test_save_writes_nothing_to_the_data_dir(tmp_path: Path) -> None:
     nested = tmp_path / "does" / "not" / "exist"
     save_policy(nested, _policy("a@x.test"))
-    assert (nested / "access_policy.json").is_file()
+    assert not nested.exists()
+    loaded = load_policy(nested)
+    assert loaded is not None and loaded.is_allowed("a@x.test")

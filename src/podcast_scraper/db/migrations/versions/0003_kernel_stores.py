@@ -87,7 +87,7 @@ def upgrade() -> None:
     op.create_table(
         "graph_events",
         sa.Column("id", sa.BigInteger(), sa.Identity(), primary_key=True),
-        sa.Column("user_id", sa.Text(), nullable=False),
+        sa.Column("user_id", sa.Text(), nullable=True),
         sa.Column("event", postgresql.JSONB(), nullable=False),
         _account(schema),
         schema=schema,

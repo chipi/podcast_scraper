@@ -6,6 +6,7 @@ plane; the kernel tables are defined without a schema and mapped onto the proces
 """
 
 from podcast_scraper.db.engines import (
+    database_available,
     init_engines,
     plane_schema,
     read_with_retry,
@@ -19,6 +20,7 @@ __all__ = [
     "DatabaseNotConfigured",
     "DatabaseSettings",
     "PLANES",
+    "database_available",
     "init_engines",
     "plane_schema",
     "read_with_retry",

@@ -163,24 +163,32 @@ def test_an_unknown_file_under_a_user_directory_is_unclaimed_and_fails(
     assert dry_code == 1 and f"UNCLAIMED users/{uid}/mystery.txt" in dry_out
 
 
-def test_known_not_yet_migrated_files_are_listed_and_exit_zero(
+def test_after_the_second_moment_only_the_avatars_are_still_files(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    import hashlib
+
     uid = user_id_for("google", "s1")
     _profile(tmp_path, uid, username="alpha", subject="s1")
     udir = tmp_path / "users" / uid
     (udir / "comms.json").write_text("{}")
     (udir / "push_subscriptions.json").write_text("[]")
     (udir / ".comms.lock").write_text("")
+    (udir / "avatar.png").write_bytes(b"\x89PNG")
     (tmp_path / "audit.jsonl").write_text("")
     (tmp_path / "outbox").mkdir()
-    (tmp_path / "outbox" / ("ab" * 32 + ".json")).write_text("{}")
+    envelope = {"id": "env-1", "channel": "email", "user_id": uid}
+    name = hashlib.sha256(b"env-1").hexdigest()
+    (tmp_path / "outbox" / f"{name}.json").write_text(
+        json.dumps({"envelope": envelope, "status": "pending", "detail": None, "updated_at": 1})
+    )
 
     code, out = _import(capsys, tmp_path)
 
     assert code == 0, out
-    assert "imported by a store: 1" in out
-    assert "still a file (not yet migrated): 4" in out
+    assert "imported by a store: 5" in out
+    assert "still a file (not yet migrated): 1" in out
+    assert "avatar: 1" in out
     assert "ignored (lock files): 1" in out
     assert "UNCLAIMED: 0" in out
 
@@ -246,5 +254,18 @@ def test_status_exits_two_when_behind_and_upgrade_fixes_it(
     assert run_db_cli(parse_db_argv(["status", "--plane", "operator"]), LOG) == 0
 
 
-def test_the_registry_has_the_users_importer() -> None:
-    assert list(registry()) == ["users"]
+def test_the_registry_runs_users_first() -> None:
+    """The per-user stores reference ``users``, so its importer runs before theirs."""
+    assert list(registry()) == [
+        "users",
+        "user_preferences",
+        "push",
+        "apple_tokens",
+        "comms",
+        "access_policy",
+        "releases",
+        "outbox",
+        "magic_link",
+        "audit",
+        "graph_events",
+    ]

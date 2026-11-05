@@ -51,9 +51,12 @@ class Importer(Protocol):
 
 
 def registry() -> dict[str, Importer]:
+    """Every importer, in run order: users first, since the per-user stores reference them."""
+    from podcast_scraper.db.importers.kernel import per_user_importers, table_importers
     from podcast_scraper.db.importers.users import UsersImporter
 
-    return {imp.name: imp for imp in (UsersImporter(),)}
+    ordered: list[Importer] = [UsersImporter(), *per_user_importers(), *table_importers()]
+    return {imp.name: imp for imp in ordered}
 
 
 def import_claims() -> list[Claim]:

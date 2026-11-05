@@ -15,7 +15,6 @@ The endpoint lives at ``/api/feeds/overrides`` beside the feed list, on the tail
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -73,10 +72,9 @@ def _p(tmp_path: Path, **extra: str) -> Dict[str, str]:
 
 
 def _audit(tmp_path: Path) -> List[Dict[str, Any]]:
-    path = tmp_path / "appdata" / "audit.jsonl"
-    if not path.is_file():
-        return []
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    from podcast_scraper.server.app_audit import read_audit
+
+    rows = read_audit(tmp_path / "appdata" / "audit.jsonl")
     return [r for r in rows if str(r.get("action", "")).startswith("override_")]
 
 

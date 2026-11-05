@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -56,10 +55,9 @@ def _as(app, role: str) -> tuple[TestClient, str]:
 
 
 def _audit(tmp_path: Path) -> List[Dict[str, Any]]:
-    path = tmp_path / "audit.jsonl"
-    if not path.is_file():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    from podcast_scraper.server.app_audit import read_audit
+
+    return read_audit(tmp_path / "audit.jsonl")
 
 
 # --- 1. topic-clusters rebuild is operator surface ------------------------------------------------

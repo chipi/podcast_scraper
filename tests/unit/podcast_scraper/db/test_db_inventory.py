@@ -30,15 +30,19 @@ def _classify(rel: str) -> str:
     return hit.kind if hit else "unclaimed"
 
 
-def test_every_literal_per_user_filename_in_the_server_code_is_declared() -> None:
+def test_no_kernel_store_writes_a_per_user_file_any_more() -> None:
+    """Since the second moment every kernel per-user store is a table (ADR-169); only avatars stay
+    files. A new per-user file in the server code is a store that belongs in the database, or one
+    the inventory must at least declare."""
+    assert _USER_LITERAL.search('data_dir / "users" / user_id / "comms.json"'), "pattern is stale"
     names = {
         m.group(1)
         for path in SERVER.rglob("*.py")
         for m in _USER_LITERAL.finditer(path.read_text())
     }
-    assert names, "the scan found nothing; the pattern is stale"
     undeclared = sorted(n for n in names if _classify(f"users/u_x/{n}") == "unclaimed")
     assert not undeclared, f"per-user files no inventory entry claims: {undeclared}"
+    assert names == set(), f"per-user files written by kernel code: {sorted(names)}"
 
 
 def test_declared_shapes() -> None:
@@ -47,11 +51,26 @@ def test_declared_shapes() -> None:
     assert _classify("users/u_x/.profile.lock") == "ignored"
     assert _classify("users/.handles.lock") == "ignored"
     assert _classify("oauth_clients.lock") == "ignored"
-    assert _classify("users/u_x/comms.json") == "file"
-    assert _classify("audit.jsonl") == "file"
-    assert _classify("outbox/" + "0" * 64 + ".json") == "file"
-    assert _classify("magic_link_recent/" + "f" * 32 + ".txt") == "file"
-    assert _classify("magic_link_used/abc_DEF-123.json") == "file"
+    # The second moment's stores (E02 PR 2).
+    for rel in (
+        "users/u_x/comms.json",
+        "users/u_x/push_subscriptions.json",
+        "users/u_x/preferences.json",
+        "users/u_x/apple_token.json",
+        "users/u_x/graph_events.jsonl",
+        "users/anon/graph_events.jsonl",
+        "access_policy.json",
+        "app_releases.json",
+        "player_release.json",
+        "audit.jsonl",
+        "outbox/" + "0" * 64 + ".json",
+        "magic_link_recent/" + "f" * 32 + ".txt",
+        "magic_link_used/abc_DEF-123.json",
+    ):
+        assert _classify(rel) == "imported", rel
+    assert _classify("outbox/" + "0" * 64 + ".lock") == "ignored"
+    assert _classify("magic_link_used/.abc_DEF-123.lock") == "ignored"
+    assert _classify("ranking_config.json") == "file"  # Player's, until E07
     # Shapes the writing code never produces are not waved through.
     assert _classify("outbox/notes.txt") == "unclaimed"
     assert _classify("users/u_x/sub/queue.json") == "unclaimed"
@@ -101,7 +120,7 @@ def test_an_installed_extensions_files_are_claimed() -> None:
         # Only the shapes it declared.
         assert _classify("users/u_x/fake_state.json.bak") == "unclaimed"
         assert _classify("fake_dir/ABC.json") == "unclaimed"
-        assert _classify("users/u_x/comms.json") == "file"
+        assert _classify("users/u_x/comms.json") == "imported"
     assert _classify("users/u_x/fake_state.json") == "unclaimed"
 
 
@@ -113,4 +132,4 @@ def test_scan_reports_a_not_installed_extensions_file_as_unclaimed(tmp_path: Pat
         assert inventory.scan(tmp_path).unclaimed == []
     inv = inventory.scan(tmp_path)
     assert inv.unclaimed == ["users/u_x/fake_state.json"]
-    assert inv.by_class["file"] == 1
+    assert inv.by_class["imported"] == 1

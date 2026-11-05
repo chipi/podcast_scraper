@@ -1,7 +1,8 @@
 """Delete an account and everything that names it (#2273) — App Store 5.1.1(v), Play data deletion.
 
-``app_user_store.delete_user`` removes ``users/<id>/``, which holds every per-user store. It is not
-the whole account: an audit (2026-10-04) found these OUTSIDE that directory, never pruned —
+The ``users`` row's foreign keys take every per-user kernel table with it (comms, push, preferences,
+the Apple token, graph events), and ``users/<id>/`` holds the stores that are still files. That is
+not the whole account: an audit (2026-10-04) found these elsewhere, never pruned —
 
 * the delivery **outbox** — every digest and push ever queued, with the address and push endpoint,
   and every sign-in email with the plaintext address (written before an account exists, so its
@@ -24,63 +25,57 @@ route, the admin route and the CLI, so they cannot drift apart. Deliberately lef
 
 from __future__ import annotations
 
-import hashlib
-import json
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db.schema import apple_tokens, users
 from podcast_scraper.extensions import load_extensions
 from podcast_scraper.server import app_magic_link, app_outbox_store
-from podcast_scraper.server.app_user_store import _is_safe_user_id, delete_user, User
-from podcast_scraper.utils.privileges import match_data_owner
+from podcast_scraper.server.app_user_store import _is_safe_user_id, remove_user_files, User
 
+#: The file the token was kept in before the database; the importer reads it.
 _APPLE_TOKEN_FILE = "apple_token.json"
 
 
 def store_apple_refresh_token(data_dir: Path, user_id: str, token: str) -> None:
     """Keep the account's Apple refresh token — only so deletion can revoke it (Apple requires it).
 
-    Inside ``users/<id>/``, so it goes with the account; owner-readable only.
+    An ``apple_tokens`` row, which goes with the account.
     """
     if not token or not _is_safe_user_id(user_id):
         return
-    path = data_dir / "users" / user_id / _APPLE_TOKEN_FILE
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"refresh_token": token}), encoding="utf-8")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    match_data_owner(path)
+    with rw_engine().begin() as conn:
+        conn.execute(
+            pg_insert(apple_tokens)
+            .values(user_id=user_id, refresh_token=token)
+            .on_conflict_do_update(
+                index_elements=[apple_tokens.c.user_id],
+                set_={"refresh_token": token, "updated_at": func.now()},
+            )
+        )
 
 
 def apple_refresh_token(data_dir: Path, user_id: str) -> str | None:
     """Return the stored Sign in with Apple refresh token for ``user_id``, or None.
 
-    None when the id is not a safe path segment, no token file exists, or it cannot be read.
+    None when the id is not a user id or no token is stored.
     """
     if not _is_safe_user_id(user_id):
         return None
-    path = data_dir / "users" / user_id / _APPLE_TOKEN_FILE
-    try:
-        token = json.loads(path.read_text(encoding="utf-8")).get("refresh_token")
-    except (OSError, ValueError, AttributeError):
-        return None
-    return str(token) if token else None
 
+    def read(engine: Any) -> str | None:
+        with engine.connect() as conn:
+            token = conn.execute(
+                select(apple_tokens.c.refresh_token).where(apple_tokens.c.user_id == user_id)
+            ).scalar()
+        return str(token) if token else None
 
-def _forget_throttle(data_dir: Path, email: str) -> int:
-    """Remove the magic-link throttle marker for this address (both spellings the route may use)."""
-    removed = 0
-    for form in {email, app_magic_link.normalise_email(email)}:
-        digest = hashlib.sha256(form.encode("utf-8")).hexdigest()[:32]
-        marker = data_dir / "magic_link_recent" / f"{digest}.txt"
-        try:
-            marker.unlink()
-            removed += 1
-        except FileNotFoundError:
-            pass
-    return removed
+    return read_with_retry(read)
 
 
 @dataclass(frozen=True)
@@ -95,20 +90,28 @@ class DeletionReport:
 
 
 def delete_account(data_dir: Path, user: User) -> DeletionReport:
-    """Remove the account and every record outside its directory that names it. Idempotent.
+    """Remove the account and every record that names it. Idempotent.
 
-    The directory goes LAST: the outbox purge matches on the address, which is read from the
-    profile the caller already holds, and nothing after this point may need it.
+    Extensions first: their hooks revoke credentials (an MCP refresh token), and if one fails the
+    account is still there to retry the deletion from. Then ONE transaction: the outbox envelopes
+    and the throttle row (no foreign key: a sign-in envelope predates its account) and the
+    ``users`` row, whose foreign keys cascade to every kernel table that names the account. The
+    directory of the stores that are still files goes last.
     """
-    outbox = app_outbox_store.purge_for_user(data_dir, user.user_id, user.email)
-    throttle = _forget_throttle(data_dir, user.email)
     counts: dict[str, int] = {}
     for ext in load_extensions():
         for hook in ext.account_deleted:
             counts.update(hook(data_dir, user))
+    if not _is_safe_user_id(user.user_id):
+        return DeletionReport(0, 0, False, counts)
+    with rw_engine().begin() as conn:
+        outbox = app_outbox_store.purge_rows(conn, user.user_id, user.email)
+        throttle = app_magic_link.forget_requests(conn, user.email)
+        deleted = conn.execute(delete(users).where(users.c.user_id == user.user_id)).rowcount > 0
+    had_files = remove_user_files(data_dir, user.user_id)
     return DeletionReport(
         outbox_envelopes=outbox,
         throttle_markers=throttle,
-        user_dir=delete_user(data_dir, user.user_id),
+        user_dir=deleted or had_files,
         extensions=counts,
     )

@@ -91,8 +91,9 @@ def test_writes_are_audited(tmp_path: Path) -> None:
     client = TestClient(app)
     client.put("/api/feeds", json={"feeds": []})  # denied
     client.put("/api/feeds", json={"feeds": []}, headers={"X-Operator-Key": "secret"})  # allowed
-    lines = (tmp_path / "audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    assert len(lines) >= 2
+    from podcast_scraper.server.app_audit import read_audit
+
+    assert len(read_audit(tmp_path / "audit.jsonl")) >= 2
 
 
 # --- bare deployment: neither auth nor key → prior network-only behavior -------------------------

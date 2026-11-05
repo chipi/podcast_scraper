@@ -137,6 +137,17 @@ def engines_open() -> bool:
     return _engines is not None
 
 
+def database_available() -> bool:
+    """Whether this process has app state in a database: engines open, or a URL to open them.
+
+    False only for a process deliberately run without one (the control-plane api), where the few
+    stores it touches behave as their absent file did.
+    """
+    from podcast_scraper.db.settings import is_configured
+
+    return engines_open() or is_configured()
+
+
 def _current() -> _Engines:
     if _engines is None:
         init_engines()

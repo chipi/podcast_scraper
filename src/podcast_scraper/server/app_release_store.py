@@ -1,33 +1,30 @@
-"""The released version of each client app, changeable at runtime — one JSON file per instance.
+"""The released version of each client app, changeable at runtime — rows in ``shared``.
 
 A released version is the newest app version people can install (TestFlight / Play); the native
 app prompts "update available" when it is higher than its own. The deploy sets a default per app
 (``APP_PLAYER_VERSION`` for the player), but a native-only release must not need a server
 restart, so an admin can override it here (``PUT /api/app/admin/release``) and every request reads
-the file. An absent or malformed entry means "no override" — the environment default applies —
-exactly as ``app_ranking_config_store`` falls back to its defaults.
+it. No row means "no override" — the environment default applies.
 
-One file holds every app (``app_releases.json``: ``{"versions": {"player": "1.0.2"}}``), because
-the kernel serves more than one client app (ADR-168). The player's override was stored on its own
-in ``player_release.json`` before that; it is still read when the new file has no player entry,
-and still written alongside, so a rollback to code that only knows the old file keeps the
-override.
-
-WHERE the file lives is ``APP_RELEASE_DIR`` when set, else the instance's ``APP_DATA_DIR`` (#2296).
-On prod the player and operator apis have separate data dirs, and the admin field is in the
-operator viewer: it wrote the operator's copy while phones read the player's. Both apis therefore
-mount one small shared dir and point ``APP_RELEASE_DIR`` at it — only this file is shared, never a
-stack's user data.
+One ``shared.app_releases`` row per app (ADR-169, the operator 2026-11-05), because the kernel
+serves more than one client app (ADR-168) and because both planes need the same value (#2296): the
+admin field is in the operator viewer and the phones read the player api. It used to be a file in
+a dir both apis mounted (``APP_RELEASE_DIR``): ``app_releases.json``, with the player's older
+``player_release.json`` beside it; the importer reads both. ``shared`` holds only this, never a
+plane's user data. A process with no database (the control plane) has no override.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server.atomic_write import atomic_write_text
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from podcast_scraper.db import database_available, read_with_retry, rw_engine
+from podcast_scraper.db.schema import app_releases
 
 #: Dotted numeric versions only (``1``, ``1.0``, ``1.0.1``, ``1.0.1.4``): the client compares them
 #: number by number, so anything else would be a prompt that fires wrongly or never.
@@ -39,18 +36,19 @@ _APP_ID = re.compile(r"[a-z][a-z0-9_]{0,31}")
 PLAYER = "player"
 
 
+#: The files the override was kept in before the database; the importer reads them.
+RELEASES_FILE = "app_releases.json"
+LEGACY_PLAYER_FILE = "player_release.json"
+
+
 def release_dir(state: Any) -> Path | None:
-    """The directory holding the release file: ``app_release_dir`` if set, else ``app_data_dir``."""
+    """The directory the release file was in: ``app_release_dir`` if set, else ``app_data_dir``.
+
+    Still the argument the store functions take (their signatures are the file store's); ``None``
+    means a process with no app data, which has no override.
+    """
     raw = getattr(state, "app_release_dir", None) or getattr(state, "app_data_dir", None)
     return Path(raw) if raw is not None else None
-
-
-def _releases_path(data_dir: Path) -> Path:
-    return data_dir / "app_releases.json"
-
-
-def _legacy_player_path(data_dir: Path) -> Path:
-    return data_dir / "player_release.json"
 
 
 def valid_player_version(value: str) -> bool:
@@ -63,34 +61,19 @@ def valid_app_id(value: str) -> bool:
     return bool(_APP_ID.fullmatch(value))
 
 
-def _read_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
 def load_released_versions(data_dir: Path | None) -> dict[str, str]:
-    """Every app's runtime override (absent, unreadable or malformed entries are left out)."""
-    if data_dir is None:
+    """Every app's runtime override (the table's CHECKs keep malformed values out)."""
+    if data_dir is None or not database_available():
         return {}
-    raw = _read_json(_releases_path(data_dir)).get("versions")
-    versions = {
-        app: value
-        for app, value in (raw.items() if isinstance(raw, dict) else ())
-        if isinstance(app, str)
-        and valid_app_id(app)
-        and isinstance(value, str)
-        and valid_player_version(value)
-    }
-    if PLAYER not in versions:
-        legacy = _read_json(_legacy_player_path(data_dir)).get("player_version")
-        if isinstance(legacy, str) and valid_player_version(legacy):
-            versions[PLAYER] = legacy
-    return versions
+
+    def read(engine: Any) -> dict[str, str]:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                select(app_releases.c.app, app_releases.c.version).order_by(app_releases.c.app)
+            ).all()
+        return {app: version for app, version in rows}
+
+    return read_with_retry(read)
 
 
 def load_released_version(data_dir: Path | None, app: str = PLAYER) -> str | None:
@@ -99,24 +82,23 @@ def load_released_version(data_dir: Path | None, app: str = PLAYER) -> str | Non
 
 
 def save_released_version(data_dir: Path, version: str | None, app: str = PLAYER) -> None:
-    """Persist one app's override atomically; ``None`` clears it (back to the deploy default)."""
+    """Persist one app's override; ``None`` clears it (back to the deploy default)."""
     if not valid_app_id(app):
         raise ValueError(f"not an app id: {app!r}")
     if version is not None and not valid_player_version(version):
         raise ValueError(f"not a dotted numeric version: {version!r}")
-    data_dir.mkdir(parents=True, exist_ok=True)
-    versions = load_released_versions(data_dir)
-    if version is None:
-        versions.pop(app, None)
-    else:
-        versions[app] = version
-    atomic_write_text(_releases_path(data_dir), json.dumps({"versions": versions}, indent=2))
-    if app == PLAYER:
-        legacy = _legacy_player_path(data_dir)
+    with rw_engine().begin() as conn:
         if version is None:
-            legacy.unlink(missing_ok=True)
-        else:
-            atomic_write_text(legacy, json.dumps({"player_version": version}, indent=2))
+            conn.execute(delete(app_releases).where(app_releases.c.app == app))
+            return
+        conn.execute(
+            pg_insert(app_releases)
+            .values(app=app, version=version)
+            .on_conflict_do_update(
+                index_elements=[app_releases.c.app],
+                set_={"version": version, "updated_at": func.now()},
+            )
+        )
 
 
 __all__ = [

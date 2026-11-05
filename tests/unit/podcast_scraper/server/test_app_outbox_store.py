@@ -187,14 +187,11 @@ def test_pending_excludes_expired_offset_form(tmp_path: Path) -> None:
     assert app_outbox_store.list_pending(tmp_path, channel="email", now=10**9) == []
 
 
-def test_path_injection_id_stays_in_outbox(tmp_path: Path) -> None:
-    # A traversal-style id (worker path param) can't escape the outbox dir — the filename is a hash.
+def test_a_traversal_style_id_is_only_a_key(tmp_path: Path) -> None:
+    # The id arrives as a worker path param; it is a row key, so nothing reaches the filesystem.
     _enable_digest(tmp_path)
     evil = "../../../etc/passwd"
     app_outbox_store.enqueue(tmp_path, _envelope(eid=evil))
-    outbox = tmp_path / "outbox"
-    files = list(outbox.glob("*.json"))
-    assert len(files) == 1  # written inside outbox/, nowhere else
+    assert not (tmp_path / "outbox").exists()
     assert not (tmp_path.parent / "passwd").exists()
-    # and it still round-trips by the original id
     assert app_outbox_store.record_status(tmp_path, evil, "delivered") == "delivered"

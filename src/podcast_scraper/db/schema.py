@@ -142,7 +142,8 @@ apple_tokens = Table(
     _updated_at(),
 )
 
-# Graph usage events (append-only). The account's events go with the account, as their file did.
+# Graph usage events (append-only). The account's events go with the account, as their file did;
+# NULL is a signed-out session (the route's ``anon`` bucket, which is not an account).
 graph_events = Table(
     "graph_events",
     metadata,
@@ -151,7 +152,7 @@ graph_events = Table(
         "user_id",
         Text,
         ForeignKey("users.user_id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     ),
     Column("event", JSONB, nullable=False),
     Index("graph_events_user_idx", "user_id", "id"),

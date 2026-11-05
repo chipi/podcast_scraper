@@ -62,7 +62,6 @@ def test_grant_mcp_all_grants_the_old_default_and_skips_a_deliberate_revoke(
     """Profiles from before the default-on change (2026-10-16) hold mcp_access=false for everyone
     never granted. grant-mcp-all fixes those, but not a user an admin revoked on purpose: the
     audit log's latest admin.user.mcp_access entry decides. Dry run writes nothing."""
-    import json as _json
 
     from podcast_scraper.server.app_user_store import get_or_create_user, set_mcp_access
     from podcast_scraper.server.app_users_cli import main as cli_main
@@ -89,7 +88,10 @@ def test_grant_mcp_all_grants_the_old_default_and_skips_a_deliberate_revoke(
         },
         {"event": "mcp.token.issued", "user": old.user_id},
     ]
-    (tmp_path / "audit.jsonl").write_text("\n".join(_json.dumps(r) for r in audit) + "\n")
+    from podcast_scraper.server.app_audit import append_audit
+
+    for record in audit:
+        append_audit(tmp_path / "audit.jsonl", record)
 
     assert cli_main(["--data-dir", str(tmp_path), "grant-mcp-all"]) == 0
     assert _stored(tmp_path, old.user_id).mcp_access is False  # dry run

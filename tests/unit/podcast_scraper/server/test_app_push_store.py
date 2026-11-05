@@ -7,10 +7,29 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server import app_push_store
+from tests._database import register_user
 
 pytestmark = pytest.mark.unit
 
 _UID = "u_0123456789abcdef01234567"
+
+
+@pytest.fixture(autouse=True)
+def _account() -> None:
+    """Subscriptions belong to an account: the rows reference ``users``."""
+    register_user(_UID)
+
+
+def test_a_resubscribe_moves_the_endpoint_to_the_end(tmp_path: Path) -> None:
+    for name in ("a", "b"):
+        app_push_store.add_subscription(
+            tmp_path, _UID, _sub(f"https://push.example.invalid/{name}")
+        )
+    app_push_store.add_subscription(tmp_path, _UID, _sub("https://push.example.invalid/a"))
+    assert [s["endpoint"] for s in app_push_store.list_subscriptions(tmp_path, _UID)] == [
+        "https://push.example.invalid/b",
+        "https://push.example.invalid/a",
+    ]
 
 
 def _sub(endpoint: str = "https://push.example.invalid/a") -> dict:
