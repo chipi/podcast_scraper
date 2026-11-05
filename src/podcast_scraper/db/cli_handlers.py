@@ -24,6 +24,7 @@ from typing import Sequence
 from sqlalchemy import create_engine
 
 from podcast_scraper.db import inventory, migrate
+from podcast_scraper.db.engines import application_name_args
 from podcast_scraper.db.importers import registry
 from podcast_scraper.db.settings import (
     DatabaseSettings,
@@ -112,6 +113,7 @@ def _import(args: argparse.Namespace, log: logging.Logger) -> int:
 
     engine = create_engine(
         DatabaseSettings.from_env().rw_url,
+        connect_args=application_name_args(),
         execution_options={"schema_translate_map": {None: args.plane}},
     )
     failed = False

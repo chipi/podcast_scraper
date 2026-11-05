@@ -14,6 +14,7 @@ from sqlalchemy import Connection, create_engine, text
 from sqlalchemy.schema import CreateSchema
 
 from podcast_scraper import build_info
+from podcast_scraper.db.engines import application_name_args
 from podcast_scraper.db.schema import schema_history
 from podcast_scraper.db.settings import normalize_url, validate_plane
 
@@ -64,7 +65,7 @@ def upgrade(url: str, plane: str, revision: str = "head") -> list[str]:
     in the same transaction as the upgrade. Returns the applied revisions, oldest first.
     """
     validate_plane(plane)
-    engine = create_engine(normalize_url(url))
+    engine = create_engine(normalize_url(url), connect_args=application_name_args())
     applied: list[tuple[str, int]] = []
     try:
         with engine.begin() as conn:
@@ -117,7 +118,7 @@ def history(conn: Connection, plane: str, limit: int = 5) -> list[dict[str, obje
 def status(url: str, plane: str) -> tuple[str | None, str]:
     """``(current, head)`` for one plane."""
     validate_plane(plane)
-    engine = create_engine(normalize_url(url))
+    engine = create_engine(normalize_url(url), connect_args=application_name_args())
     try:
         with engine.connect() as conn:
             return current_revision(conn, plane), head_revision()
@@ -128,7 +129,7 @@ def status(url: str, plane: str) -> tuple[str | None, str]:
 def history_rows(url: str, plane: str, limit: int = 5) -> list[dict[str, object]]:
     """``history`` over a fresh connection to ``url``, with ``applied_at`` in UTC."""
     validate_plane(plane)
-    engine = create_engine(normalize_url(url))
+    engine = create_engine(normalize_url(url), connect_args=application_name_args())
     try:
         with engine.connect() as conn:
             rows = history(conn, plane, limit)
@@ -150,7 +151,10 @@ def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None
     if start is None and url:
         engine = create_engine(
             normalize_url(url),
-            connect_args={"options": "-c default_transaction_read_only=on"},
+            connect_args={
+                "options": "-c default_transaction_read_only=on",
+                **application_name_args(),
+            },
         )
         try:
             with engine.connect() as conn:

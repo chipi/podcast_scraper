@@ -9,6 +9,7 @@ the process's plane schema.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -37,9 +38,23 @@ class _Engines:
 _lock = threading.Lock()
 _engines: _Engines | None = None
 
+ENV_APPLICATION_NAME = "PODCAST_DB_APPLICATION_NAME"
+
+
+def application_name_args() -> dict[str, str]:
+    """``application_name`` for the connection, so ``pg_stat_activity`` and the server log name
+    the container: ``PODCAST_DB_APPLICATION_NAME``, else ``OTEL_SERVICE_NAME``; none when both are
+    empty. Its own variable because services that share an OTEL name (board-summarizer reports as
+    ``podcast-pipeline``) must still be told apart here."""
+    name = (
+        os.environ.get(ENV_APPLICATION_NAME) or os.environ.get("OTEL_SERVICE_NAME") or ""
+    ).strip()
+    # Postgres truncates past NAMEDATALEN - 1 (63 bytes).
+    return {"application_name": name[:63]} if name else {}
+
 
 def _make_engine(url: str, plane: str, *, read_only: bool) -> Engine:
-    connect_args: dict[str, str] = {"connect_timeout": "5"}
+    connect_args: dict[str, str] = {"connect_timeout": "5", **application_name_args()}
     if read_only:
         connect_args["options"] = "-c default_transaction_read_only=on"
     return create_engine(
