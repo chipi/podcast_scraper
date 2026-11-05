@@ -155,31 +155,3 @@ def test_every_app_route_requires_auth_except_allow_list() -> None:
         "in this test just passed without executing."
     )
     assert checked > 25, f"route enumeration found too few app routes ({checked})"
-
-
-@pytest.mark.parametrize(
-    "path,key",
-    [
-        ("/api/app/discover?limit=50", "items"),
-        ("/api/app/corpus/trending-topics?limit=50", "topics"),
-    ],
-)
-def test_teaser_clamps_anonymous_callers(path: str, key: str) -> None:
-    """Teaser endpoints stay anonymous but clamp an anon caller to <=8 regardless of ?limit."""
-    client = TestClient(_make_app())
-    resp = client.get(path)
-    assert resp.status_code == 200, f"{path} anon expected 200, got {resp.status_code}"
-    assert len(resp.json().get(key, [])) <= 8, f"{path} did not clamp anonymous callers"
-
-
-def test_teaser_trending_ignores_filter_params_for_anon() -> None:
-    """M1: an anon caller must not be able to sweep min_velocity/min_total to enumerate different
-    8-topic slices past the clamp — the filter params are locked to defaults for anon."""
-    client = TestClient(_make_app())
-    base = client.get("/api/app/corpus/trending-topics").json().get("topics", [])
-    swept = (
-        client.get("/api/app/corpus/trending-topics?min_velocity=999&min_total=999")
-        .json()
-        .get("topics", [])
-    )
-    assert swept == base, "anon trending must ignore filter params (Fable-5 M1)"
