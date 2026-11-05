@@ -78,15 +78,20 @@ def check_ready(engines: _Engines) -> None:
                 conn.execute(text("SELECT 1"))
         except sa_exc.SQLAlchemyError as exc:
             raise DatabaseNotReady(f"database ({label}) is not reachable: {exc}") from exc
+    from podcast_scraper.db.schema import SHARED_SCHEMA
+
     with engines.rw.connect() as conn:
-        current = migrate.current_revision(conn, plane)
-    head = migrate.head_revision()
-    if current != head:
-        raise DatabaseNotReady(
-            f"plane {plane!r} is at revision {current or 'none'}, head is {head}; run "
-            f"`python -m podcast_scraper.cli db upgrade --plane {plane}` (prod: the dedicated "
-            "migrate step, never app start)"
-        )
+        found = [
+            (label, schema, migrate.current_revision(conn, schema), migrate.head_revision(schema))
+            for label, schema in (("plane", plane), ("schema", SHARED_SCHEMA))
+        ]
+    for label, schema, current, head in found:
+        if current != head:
+            raise DatabaseNotReady(
+                f"{label} {schema!r} is at revision {current or 'none'}, head is {head}; run "
+                f"`python -m podcast_scraper.cli db upgrade --plane {plane}` (prod: the dedicated "
+                "migrate step, never app start)"
+            )
 
 
 def init_engines(settings: DatabaseSettings | None = None, *, check: bool = True) -> None:

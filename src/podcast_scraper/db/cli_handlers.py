@@ -26,6 +26,7 @@ from sqlalchemy import create_engine
 from podcast_scraper.db import inventory, migrate
 from podcast_scraper.db.engines import application_name_args
 from podcast_scraper.db.importers import registry
+from podcast_scraper.db.schema import SHARED_SCHEMA
 from podcast_scraper.db.settings import (
     DatabaseSettings,
     DEFAULT_PLANE,
@@ -80,24 +81,35 @@ def _upgrade(args: argparse.Namespace, log: logging.Logger) -> int:
         print(migrate.upgrade_sql(url, args.plane, from_revision=args.from_revision), end="")
         return 0
     url = DatabaseSettings.from_env().rw_url
+    shared_applied = migrate.upgrade_shared(url)
     applied = migrate.upgrade(url, args.plane)
+    shared_current, shared_head = migrate.shared_status(url)
     current, head = migrate.status(url, args.plane)
+    print(f"schema {SHARED_SCHEMA}: {shared_current} (head {shared_head})")
+    print(f"applied: {', '.join(shared_applied) if shared_applied else 'nothing'}")
     print(f"plane {args.plane}: {current} (head {head})")
     print(f"applied: {', '.join(applied) if applied else 'nothing'}")
-    return 0 if current == head else 1
+    return 0 if current == head and shared_current == shared_head else 1
+
+
+def _print_history(url: str, schema: str) -> None:
+    for row in migrate.history_rows(url, schema):
+        release = f" release {row['release']} ({row['release_source']})" if row["release"] else ""
+        print(
+            f"  {row['applied_at']:%Y-%m-%d %H:%M:%S}Z  {row['revision']}  "
+            f"{row['duration_ms']} ms{release}"
+        )
 
 
 def _status(args: argparse.Namespace, log: logging.Logger) -> int:
     url = DatabaseSettings.from_env().rw_url
     current, head = migrate.status(url, args.plane)
     print(f"plane {args.plane}: current {current or 'none'}, head {head}")
-    for row in migrate.history_rows(url, args.plane):
-        release = f" release {row['release']} ({row['release_source']})" if row["release"] else ""
-        print(
-            f"  {row['applied_at']:%Y-%m-%d %H:%M:%S}Z  {row['revision']}  "
-            f"{row['duration_ms']} ms{release}"
-        )
-    return 0 if current == head else 2
+    _print_history(url, args.plane)
+    shared_current, shared_head = migrate.shared_status(url)
+    print(f"schema {SHARED_SCHEMA}: current {shared_current or 'none'}, head {shared_head}")
+    _print_history(url, SHARED_SCHEMA)
+    return 0 if current == head and shared_current == shared_head else 2
 
 
 def _import(args: argparse.Namespace, log: logging.Logger) -> int:

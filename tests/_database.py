@@ -25,7 +25,7 @@ from podcast_scraper.db import (
     reset_engines,
     rw_engine,
 )
-from podcast_scraper.db.schema import metadata
+from podcast_scraper.db.schema import app_releases, metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
 
 ENV_TEST_URL = "PODCAST_TEST_DATABASE_URL"
@@ -75,6 +75,7 @@ def empty_kernel_tables() -> None:
             planed = conn.execution_options(schema_translate_map={None: plane})
             for table in reversed(metadata.sorted_tables):
                 planed.execute(table.delete())
+        conn.execute(app_releases.delete())
 
 
 def database_fixture(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
