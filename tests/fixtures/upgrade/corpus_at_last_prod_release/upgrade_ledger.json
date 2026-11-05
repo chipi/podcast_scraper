@@ -179,7 +179,47 @@
       "at": "2026-10-29T21:53:04Z",
       "id": "0037_named_voices_corrected",
       "to_version": "2.7.31"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0038_raw_label_speakers_removed",
+      "to_version": "2.7.32"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0039_adfree_segment_offsets_realigned",
+      "to_version": "2.7.33"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0040_gi_quote_offsets_realigned",
+      "to_version": "2.7.34"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0041_joined_names_respelled",
+      "to_version": "2.7.35"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0042_insight_cluster_quotes_resynced",
+      "to_version": "2.7.36"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0043_non_participant_names_removed",
+      "to_version": "2.7.37"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0044_title_spelling_voices_renamed",
+      "to_version": "2.7.38"
+    },
+    {
+      "at": "2026-11-05T11:12:05Z",
+      "id": "0045_episode_voices_corrected",
+      "to_version": "2.7.39"
     }
   ],
-  "version": "2.7.31"
+  "version": "2.7.39"
 }

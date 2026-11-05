@@ -35,10 +35,18 @@
     "0034_talk_floor_names_removed",
     "0035_voice_identity_names",
     "0036_bridge_identities_restored",
-    "0037_named_voices_corrected"
+    "0037_named_voices_corrected",
+    "0038_raw_label_speakers_removed",
+    "0039_adfree_segment_offsets_realigned",
+    "0040_gi_quote_offsets_realigned",
+    "0041_joined_names_respelled",
+    "0042_insight_cluster_quotes_resynced",
+    "0043_non_participant_names_removed",
+    "0044_title_spelling_voices_renamed",
+    "0045_episode_voices_corrected"
   ],
   "code_version": "2.7.0.dev0",
-  "deployed_at": "2026-10-29",
+  "deployed_at": "2026-11-05",
   "note": "This marker tracks what is currently running on prod. Auto-updated by scripts/ops/bump_prod_marker.py (invoked by .github/workflows/deploy-prod.yml). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
-  "sha": "416f5a7"
+  "sha": "5c2e81c"
 }
