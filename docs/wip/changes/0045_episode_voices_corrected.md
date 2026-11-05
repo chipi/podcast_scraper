@@ -1,7 +1,7 @@
 ---
 id: 0045_episode_voices_corrected
 class: full
-status: open
+status: landed
 issue: "none (found by 0044's blind review; ingestion arc)"
 touches:
   - src/podcast_scraper/upgrade/migrations/m0045_episode_voices_corrected.py
@@ -208,11 +208,19 @@ on `3a4adaf47`).
 
 ## 10. Before apply / deploy
 
-_TODO_
+- **Deploy:** release `fb5bfb1` on prod, all three surfaces; `deploy.py podcast verify --release fb5bfb1` VERIFY PASS on all 10 containers (infra, 2026-11-05). Public pin `5c2e81c5` (#2423 as `a5191c10`, then #2425, tests only). This migration's code digest computed from `5c2e81c5` matches its outcome (ingestion's landing check in a worktree at that commit).
+- **Reported by the prod session**, which ran each step with the corpus-migration skill in the capped container of release fb5bfb1, corpus mounted read-only for every check; the numbers below are its report, not re-run here.
+- **After 0044 and its ledger refresh** (666 joins, 3 episodes / 9 files respelled).
+- **Prod's plan against the gate:** 1 and 1 episode, digest matches; 1 `differs` row, `inputs` only, `identity_ledger.json`.
+- **Would-be writes:** `writes_sha256 38adf2053872…`, 1 episode, 11 files, equal to the gate input's.
+- **Operator:** as 0044. Accept file: 1 entry.
 
 ## 11. After apply / deploy
 
-_TODO_
+- **Run:** `upgrade run --to 2.7.39 --accept-plan-diff …`, 11:03:00–11:12:05Z, exit 0: rewrote 1 episode, every counter equal to the gate's (segments_relabelled 542, insights_reattributed 9, quotes_reattributed 16, cleaned_lines 34, kg_roles_set 1). **Receipt PASS.** `upgrade status`: 2.7.39, no pending migrations.
+- **Checks:** `upgrade verify --only 0045` OK; `--only 0030` OK; ownership PASS.
+- **Ledger refresh:** 666 joins, 0 changed, 0 files respelled, as on the clone.
+- **Index:** incremental `index --output-dir /app/output` (no rebuild), pipeline-llm compose run, 11:15:45-about 11:39Z, EXIT=0, peak 5,243 MB, 0 kernel kills; re-embedded **135** episodes (fingerprints against the pre-0043 snapshot's: 3,152 before and after, 135 changed, 0 new, 0 dropped), against about 119 predicted (100 + 18 + 1). The prod session's reading of the extra 16, **not verified by id**: the snapshot's fingerprints predate the 11-04 04:00Z ledger refresh, which respelled 13 files, and 0044's refresh respelled 3 episodes; both change chunk text after that index. A larger count re-embeds more, it leaves no row stale.
 
 ## 12. Retrospective
 

@@ -1,7 +1,7 @@
 ---
 id: 0043_non_participant_names_removed
 class: full
-status: open
+status: landed
 issue: none (ingestion arc 2026-11-03, items B6 residual and B8 residual; #2364, #2123 shipped)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0043_non_participant_names_removed.py
@@ -538,11 +538,20 @@ PASS, 0 failures, 0 plan differences, `S1c_inconsistent` 0; 101 episodes with th
 
 ## 10. Before apply / deploy
 
-_TODO_
+- **Deploy:** release `fb5bfb1` on prod, all three surfaces; `deploy.py podcast verify --release fb5bfb1` VERIFY PASS on all 10 containers (infra, 2026-11-05). Public pin `5c2e81c5` (#2423 as `a5191c10`, then #2425, tests only). This migration's code digest computed from `5c2e81c5` matches its outcome (ingestion's landing check in a worktree at that commit).
+- **Reported by the prod session**, which ran each step with the corpus-migration skill in the capped container of release fb5bfb1, corpus mounted read-only for every check; the numbers below are its report, not re-run here.
+- **Preflight:** PASS (65 GB free, snapshot mount ok, nothing busy, pending exactly 0043, 0044, 0045).
+- **Prod's plan against the gate:** 101 and 101 episodes, code digest matches; **101 `differs` rows, field `inputs` only**, and in every one the only differing input is `identity_ledger.json`: prod's ledger was refreshed by the 2026-11-04 nightly (666 joins) after snapshot-prod-20261103. Every episode file's sha equals the gate's.
+- **Would-be writes:** the apply's writes built in memory on prod hash to the gate's: `writes_sha256 6fa784209bfc…`, 101 episodes, 1,155 files, 0 refused (scratchpad `write_digest_ro.py`; the same value twice on the snapshot).
+- **Operator, 2026-11-05 09:45Z, in the ingestion session**, asked whether to accept that difference: "Yes, accept and apply (Recommended)". Accept file: 101 entries with that cause, accept sha256 `8c66e637…`.
 
 ## 11. After apply / deploy
 
-_TODO_
+- **Run:** `upgrade run --to 2.7.37 --accept-plan-diff …`, 2026-11-05 10:12:39–10:18:45Z, pre-apply snapshot `/app/upgrade-snapshots/.corpus-upgrade-backup-2.7.36-20261105T101331Z`. **Exit 5: the hook's receipt says FAIL**, one failure: an episode whose `S2_hidden` rose by 1. That rise is this migration's measured change: prod's per-episode deltas equal the clone's (`{"S2_hidden": 1}` on that episode, nothing else), `S2_hidden` total 32,682 -> 32,683, every other gating total unchanged. Cause, the builder's: the accept file named all 101 episodes, and `compare()` fails any rise on an accepted episode without comparing it with the clone's delta. The apply stayed applied and recorded.
+- **Operator, 2026-11-05, in the ingestion session:** "Keep it and continue (Recommended)".
+- **Checks:** `upgrade verify --only 0043` OK ("every voice the review confirmed as a non-participant is unnamed and commercial"); `--only 0030` OK; ownership PASS.
+- **Ledger refresh** (the step the stopped run did not reach), `identity-ledger --output-dir /app/output`, 10:39:49–10:47:03Z: 663 joins, 0 added, 3 removed (the same 3 variant joins the clone dropped), respell 0 files, as on the clone.
+- **Index** (one run after 0045): incremental `index --output-dir /app/output` (no rebuild), pipeline-llm compose run, 11:15:45-about 11:39Z, EXIT=0, peak 5,243 MB, 0 kernel kills; re-embedded **135** episodes (fingerprints against the pre-0043 snapshot's: 3,152 before and after, 135 changed, 0 new, 0 dropped), against about 119 predicted (100 + 18 + 1). The prod session's reading of the extra 16, **not verified by id**: the snapshot's fingerprints predate the 11-04 04:00Z ledger refresh, which respelled 13 files, and 0044's refresh respelled 3 episodes; both change chunk text after that index. A larger count re-embeds more, it leaves no row stale.
 
 ## 12. Retrospective
 
