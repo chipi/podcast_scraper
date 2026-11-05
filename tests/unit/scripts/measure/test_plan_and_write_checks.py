@@ -50,11 +50,14 @@ def test_the_plan_report_is_the_hooks_own_diff(
     assert (rep["clone_episodes"], rep["prod_episodes"], rep["digest_matches"]) == (1, 2, True)
     assert rep["diff_kinds"] == {"differs": 1, "prod_only": 1}
     assert {e["meta"]: e["kind"] for e in rep["entries"]} == {"a": "differs", "b": "prod_only"}
+    corpus = tmp_path / "corpus"
+    (corpus / "feeds").mkdir(parents=True)
+    (corpus / "feeds" / "f.json").write_text("{}")
     out = tmp_path / "out.json"
-    before = _tree(tmp_path)
-    assert pd.main(["--migration", "0099_x", "--corpus", str(tmp_path), "--out", str(out)]) == 0
+    before = _tree(corpus)
+    assert pd.main(["--migration", "0099_x", "--corpus", str(corpus), "--out", str(out)]) == 0
     assert json.loads(out.read_text())["entries"] == rep["entries"]
-    assert {k: v for k, v in _tree(tmp_path).items() if k != "out.json"} == before
+    assert _tree(corpus) == before
 
 
 class _Ep:
@@ -91,3 +94,11 @@ def test_a_migration_without_a_scan_is_refused(
     monkeypatch.setattr(wd, "get_migrations", lambda: [SimpleNamespace(id="0099_x")])
     with pytest.raises(SystemExit, match="no _scan"):
         wd.write_digest("0099_x", tmp_path)
+
+
+def test_an_out_path_inside_the_corpus_is_refused(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    with pytest.raises(SystemExit, match="inside the corpus"):
+        pd.main(["--migration", "0099_x", "--corpus", str(corpus), "--out", str(corpus / "d.json")])
+    assert not (corpus / "d.json").exists()

@@ -51,6 +51,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--corpus", required=True, type=Path)
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
+    if args.out is not None and args.out.resolve().is_relative_to(args.corpus.resolve()):
+        raise SystemExit(f"--out {args.out} is inside the corpus; this check writes nothing there")
     rep = plan_report(args.migration, args.corpus)
     entries = rep.pop("entries")
     print(json.dumps(rep))

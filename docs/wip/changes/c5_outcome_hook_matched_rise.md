@@ -123,12 +123,38 @@ S1c check reached after the match; the two scripts read-only and tested.
 
 ## 8. Verdict
 
-_TODO_
+Verdict read 2026-11-05 by a fresh agent (reviewer, Sonnet; not the builder, not the step-5
+reader), inputs as file paths, ran the two test files only.
+
+Review budget: minutes 5, tokens 60000
+
+```text
+REVIEW c5_outcome_hook_matched_rise 2026-11-05 commit f2e5dff3 reviewer Sonnet (fresh) minutes 4
+PREDICTION vs MEASURE: matches; 68 passed (the two test files); mutation and snapshot figures are the builder's, not re-run
+REQUIRED ITEMS: 4b rows 1-13 each covered by a named test (rows 3b and 13 at the compare() level, which is unchanged)
+AFTER-STATE READ: compare() untouched; no accept file or non-inputs-only rows: unchanged; the change only tightens or equals outside the inputs-only class; exit-5 message only on HookOutcomeFailed; the scripts write nothing in the corpus, but --out was not guarded
+OPEN CALLS: --out could point inside the corpus; digest_matches reads false by design after this change; the accept file does not carry the write-digest proof (next arc)
+DOUBTED NUMBER: none
+VERDICT: GO WITH CONDITIONS (1) write_digest_ro.py on the gate clone and on prod for any migration whose rows are accepted as inputs-only; (2) guard --out against paths under --corpus, or document it
+```
+
+Conditions answered: (2) built: `plan_diff_ro.py` refuses an `--out` inside `--corpus`
+(`test_an_out_path_inside_the_corpus_is_refused`; the plan-report test now writes outside its
+corpus). (1) carried as a condition below.
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** an accept file whose rows are `differs` on `inputs` only is written only after
+  `scripts/measure/write_digest_ro.py` printed the same `writes_sha256` on the gate's clone and on
+  prod; the hook does not check the bytes itself until the accept file carries that proof.
+- **Condition 2:** after this change, `plan_diff_ro.py`'s `digest_matches` reads false for 0043 to
+  0045 (their outcomes were built on the previous hook); they are landed and not re-applied, so it
+  is expected, not a stop.
 
 ## 9. Operator review
 
-- Operator, 2026-11-05, in the ingestion session: "can you do hook fixed nore and also sent to
-  main asap?".
+- Operator, 2026-11-05, in the ingestion session (typos corrected): "can you do the hook fixes now
+  and also send to main asap?".
 
 ## 10. Before apply / deploy
 
