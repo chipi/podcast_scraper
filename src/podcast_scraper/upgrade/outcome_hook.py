@@ -307,6 +307,11 @@ def deltas(
     return out
 
 
+def _inputs_only(entry: Dict[str, Any]) -> bool:
+    """A plan-diff entry for an episode both plans hold whose only differing field is ``inputs``."""
+    return entry.get("kind") == "differs" and list(entry.get("fields") or []) == ["inputs"]
+
+
 def compare(
     prod: Dict[str, Dict[str, int]],
     clone: Dict[str, Dict[str, int]],
@@ -525,8 +530,14 @@ def measure(
             f"{mig.id}: applied, but the after-scoreboard failed ({exc}); {_hint(prepared)}"
         ) from exc
     prod = deltas(before, after, metrics)
-    differing = {e["meta"] for e in prepared.diff}
+    # An accepted row that differs only in its input hashes (the plan's counters are the gate's,
+    # e.g. an identity ledger a nightly refreshed) is held to the clone's delta exactly, as a
+    # matched episode: on 2026-11-05 the no-rise rule failed 0043's own measured S2 +1 on prod.
+    inputs_only = {e["meta"] for e in prepared.diff if _inputs_only(e)}
+    differing = {e["meta"] for e in prepared.diff} - inputs_only
     fails = compare(prod, prepared.outcome["episode_deltas"], differing, metrics)
+    if inputs_only:
+        receipt["inputs_only_matched"] = sorted(inputs_only)
     total_after = {m: sum(e.get(m, 0) for e in after.values()) for m in metrics}
     if total_after.get("S1c_inconsistent", 0):
         fails.append(f"S1c is {total_after['S1c_inconsistent']} after, not 0")

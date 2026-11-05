@@ -220,6 +220,155 @@ def test_the_after_check_is_exact_per_episode_and_on_differing_ones_no_rise() ->
     assert oh.compare({"e1": {"S1n_named_but_hidden": 1}}, clone, {"e1"}, metrics)  # a rise
 
 
+EP = "feeds/f/run_1/metadata/ep.metadata.json"
+OTHER = "feeds/f/run_1/metadata/other.metadata.json"
+NEW = "feeds/f/run_2/metadata/new.metadata.json"
+
+
+def _measured(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    clone_deltas: Dict[str, Dict[str, int]],
+    diff: List[Dict[str, Any]],
+    before: Dict[str, Dict[str, int]],
+    after: Dict[str, Dict[str, int]],
+) -> Dict[str, Any]:
+    """``measure()`` on a prepared run with this outcome delta and plan diff; the receipt."""
+    root = tmp_path / "corpus"
+    root.mkdir(exist_ok=True)
+    prep = oh.Prepared(Fake(), _outcome(episode_deltas=clone_deltas), "sha", diff)
+    scores = iter([before, after])
+    monkeypatch.setattr(oh, "score_by_episode", lambda r: next(scores))
+    try:
+        oh.measure(prep, root, lambda: None, None)
+    except oh.HookOutcomeFailed:
+        pass
+    receipt: Dict[str, Any] = json.loads(
+        (root / ".podcast_scraper/upgrade-outcomes/0099_fake.json").read_text()
+    )
+    return receipt
+
+
+def _row(meta: str, kind: str = "differs", fields: Any = ("inputs",)) -> Dict[str, Any]:
+    return {"meta": meta, "kind": kind, "fields": list(fields) if fields is not None else None}
+
+
+def test_an_inputs_only_row_passes_the_rise_the_clone_measured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """0043 on prod, 2026-11-05: every row accepted for a ledger-only input difference, and the
+    measured S2_hidden +1 failed though prod's delta was the clone's. Replayed: it passes now."""
+    r = _measured(
+        tmp_path,
+        monkeypatch,
+        {EP: {"S2_hidden": 1}},
+        [_row(EP)],
+        {EP: {"S2_hidden": 3}},
+        {EP: {"S2_hidden": 4}},
+    )
+    assert r["verdict"] == "PASS" and r["failures"] == []
+    assert r["inputs_only_matched"] == [EP]
+
+
+@pytest.mark.parametrize(
+    "clone, before, after, why",
+    [
+        (
+            {EP: {"S2_hidden": 1}},
+            {EP: {"S2_hidden": 0}},
+            {EP: {"S2_hidden": 1, "S12_quotes_off_text": 1}},
+            "S12_quotes_off_text",
+        ),
+        (
+            {EP: {"S2_hidden": 2}},
+            {EP: {"S2_hidden": 0}},
+            {EP: {"S2_hidden": 1}},
+            "S2_hidden changed +1, the clone's +2",
+        ),
+        (
+            {EP: {"S2_hidden": 1}},
+            {EP: {"S2_hidden": 1}},
+            {EP: {"S2_hidden": 0}},
+            "S2_hidden changed -1, the clone's +1",
+        ),
+        (
+            {EP: {"S2_hidden": 1}},
+            {EP: {"S2_hidden": 0}},
+            {EP: {"S2_hidden": 0}},
+            "S2_hidden changed +0, the clone's +1",
+        ),
+        (
+            {},
+            {EP: {"S2_hidden": 0}},
+            {EP: {"S2_hidden": 1}},
+            "S2_hidden changed +1, the clone's +0",
+        ),
+    ],
+    ids=["other-metric", "smaller", "fall-vs-rise", "not-made", "unmeasured"],
+)
+def test_an_inputs_only_row_is_held_to_the_clones_delta_exactly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clone, before, after, why
+) -> None:
+    r = _measured(tmp_path, monkeypatch, clone, [_row(EP)], before, after)
+    assert r["verdict"] == "FAIL"
+    assert len(r["failures"]) == 1 and why in r["failures"][0]
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        _row(EP, fields=("counts", "inputs")),
+        _row(NEW, kind="prod_only", fields=None),
+        _row(EP, kind="clone_only", fields=None),
+    ],
+    ids=["differs-counts", "prod_only", "clone_only"],
+)
+def test_other_diff_rows_keep_the_no_rise_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, row
+) -> None:
+    """An equal rise is no proof where the plan itself differs, or on a new episode."""
+    meta = row["meta"]
+    r = _measured(
+        tmp_path,
+        monkeypatch,
+        {meta: {"S2_hidden": 1}},
+        [row],
+        {meta: {"S2_hidden": 0}},
+        {meta: {"S2_hidden": 1}},
+    )
+    assert r["verdict"] == "FAIL" and "rose by 1" in r["failures"][0]
+    assert "inputs_only_matched" not in r
+
+
+def test_a_mixed_run_fails_only_the_mismatch_and_s1c_is_still_checked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clone = {EP: {"S2_hidden": 1}, OTHER: {"S1_hidden_unknown": -1}}
+    before = {EP: {"S2_hidden": 0}, OTHER: {"S1_hidden_unknown": 2}}
+    after = {EP: {"S2_hidden": 1}, OTHER: {"S1_hidden_unknown": 2}}
+    r = _measured(tmp_path, monkeypatch, clone, [_row(EP)], before, after)
+    assert r["verdict"] == "FAIL" and len(r["failures"]) == 1 and OTHER in r["failures"][0]
+    clone = {EP: {"S1c_inconsistent": 1}}
+    r = _measured(
+        tmp_path,
+        monkeypatch,
+        clone,
+        [_row(EP)],
+        {EP: {"S1c_inconsistent": 0}},
+        {EP: {"S1c_inconsistent": 1}},
+    )
+    assert r["failures"] == ["S1c is 1 after, not 0"], r["failures"]
+
+
+def test_a_non_gating_metric_is_never_compared(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = _measured(
+        tmp_path, monkeypatch, {}, [_row(EP)], {EP: {"not_gating": 0}}, {EP: {"not_gating": 9}}
+    )
+    assert r["verdict"] == "PASS"
+
+
 def test_measure_fails_loudly_and_keeps_the_apply(
     _reset: Path, tmp_path: Path, monkeypatch
 ) -> None:
@@ -338,6 +487,32 @@ def test_the_cli_returns_each_hook_exit_code(monkeypatch, tmp_path: Path) -> Non
             )
             == code
         )
+
+
+def test_an_outcome_failure_prints_the_ledger_refresh_it_skipped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """0043 on prod, 2026-11-05: exit 5 left the closing ledger refresh unrun and unsaid."""
+    from podcast_scraper.upgrade import cli_handlers as ch
+
+    class Status:
+        pending = [Fake()]
+
+    class Runner:
+        def status(self):
+            return Status()
+
+    args = argparse.Namespace(dry_run=False, yes=True, json=False)
+    for exc, said in ((oh.HookOutcomeFailed("f"), True), (oh.HookStopped("s"), False)):
+        monkeypatch.setattr(ch, "_snapshot_then_run", lambda *a, e=exc: (_ for _ in ()).throw(e))
+        ch._cmd_run(
+            cast(Any, Runner()),
+            MigrationContext(corpus_root=tmp_path),
+            args,
+            __import__("logging").getLogger(),
+        )
+        err = capsys.readouterr().err
+        assert (f"identity-ledger --output-dir {tmp_path} --dry-run" in err) is said
 
 
 def test_there_is_no_flag_that_skips_the_hook() -> None:

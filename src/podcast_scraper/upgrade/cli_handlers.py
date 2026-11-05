@@ -359,6 +359,15 @@ def _cmd_run(
     except outcome_hook.HookError as exc:
         log.error("Upgrade stopped by the outcome hook (exit %s): %s", exc.code, exc)
         print(f"OUTCOME HOOK: {exc}", file=sys.stderr)
+        if isinstance(exc, outcome_hook.HookOutcomeFailed):
+            # The apply stays, but the run stopped before its closing ledger refresh (0043 on prod,
+            # 2026-11-05): say how to run it once the outcome is judged.
+            print(
+                "The ledger refresh this run ends with did not run. Once the outcome is judged: "
+                f"podcast_scraper identity-ledger --output-dir {ctx.corpus_root} --dry-run, "
+                "then without --dry-run.",
+                file=sys.stderr,
+            )
         return exc.code
     except RuntimeError as exc:
         # An ingest or another migration holds the corpus lock. Nothing has been copied or
