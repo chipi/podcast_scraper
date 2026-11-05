@@ -78,6 +78,10 @@ _ANON_ALLOW = {
     "/api/app/mcp/oauth/token",
     "/.well-known/oauth-authorization-server",
     "/api/health",
+    # `/api/version` for the player's edge, which proxies only /api/app/*: the same public fields
+    # (release, API build, schema at head, corpus format) as `/api/health` already exposes, so the
+    # splash can show the server before sign-in. Admin-only fields need an admin session.
+    "/api/app/version",
 }
 # GET routes that require auth but answer via an OAuth redirect, not a 401 — excluded from the
 # strict 401 assertion (still NOT anonymous access).

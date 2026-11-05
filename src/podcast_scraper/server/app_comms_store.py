@@ -26,7 +26,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server.app_user_store import _is_safe_user_id
+from podcast_scraper.server.app_user_store import _is_safe_user_id, list_user_ids
 from podcast_scraper.server.atomic_write import atomic_write_text
 from podcast_scraper.utils.privileges import OwnedFileLock
 
@@ -227,23 +227,18 @@ def unsubscribe(data_dir: Path, ref: str, ntype: str = "digest") -> bool:
     """
     if not ref or ntype not in TYPES:
         return False
-    users_dir = data_dir / "users"
-    if not users_dir.is_dir():
-        return False
-    for child in sorted(users_dir.iterdir()):
-        if not child.is_dir():
-            continue
-        raw = _read_raw(data_dir, child.name)
+    for uid in list_user_ids(data_dir):
+        raw = _read_raw(data_dir, uid)
         if raw.get("unsubscribe_ref") == ref:
-            with _comms_lock(data_dir, child.name):
-                current = _merged(_read_raw(data_dir, child.name))
+            with _comms_lock(data_dir, uid):
+                current = _merged(_read_raw(data_dir, uid))
                 # Re-verify under the lock — the ref could have been rotated out between the
                 # unlocked scan and here; don't disable delivery for a stale/rotated ref.
                 if current.get("unsubscribe_ref") != ref:
                     return False
                 current["types"][ntype]["email"] = False
                 atomic_write_text(
-                    _comms_path(data_dir, child.name),
+                    _comms_path(data_dir, uid),
                     json.dumps(current, ensure_ascii=False, indent=2),
                 )
             return True

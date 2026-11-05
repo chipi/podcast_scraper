@@ -412,6 +412,14 @@ WORKDIR /app
 #              -v ./huggingface-cache:/home/podcast/.cache/huggingface \
 #              podcast-scraper:latest
 
+# What this image is, readable by the running process (``podcast_scraper.build_info`` serves it on
+# ``GET /api/version``). Last, so a new commit rebuilds only this layer.
+ARG BUILD_TIME=""
+RUN python -c "import datetime, json, os; from podcast_scraper import __version__; \
+json.dump({'component': 'pipeline', 'version': __version__, 'git_sha': os.environ.get('GIT_SHA') or None, \
+'built_at': os.environ.get('BUILD_TIME') or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}, \
+open('/app/VERSION.json', 'w'), indent=2)"
+
 # Switch to non-root user
 # Note: Supervisor may need root for some operations, but we'll run the service as non-root
 USER podcast

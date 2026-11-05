@@ -150,6 +150,7 @@ A typical airgapped run on a laptop: ~60–90 s for one short episode (Whisper t
 | Item | Where it lives | What happens on `stack-test-down` |
 | ---- | -------------- | --------------------------------- |
 | Corpus artifacts (transcripts, gi/kg JSON, run logs) | named volume `compose_corpus_data` mounted at `/app/output` | preserved unless you pass `STACK_TEST_DOWN_VOLUMES=1` |
+| User accounts (Postgres, ADR-169) | named volume `compose_postgres_data` | preserved unless you pass `STACK_TEST_DOWN_VOLUMES=1` |
 | Operator config (`viewer_operator.yaml`) + feeds (`feeds.spec.yaml`) | corpus root in `corpus_data` | preserved (same volume) |
 | Vue SPA build | baked into the `viewer` image | lost on image rebuild |
 | Pipeline job logs | `<corpus>/.viewer/jobs/<id>.log` in `corpus_data` | preserved |
@@ -244,11 +245,14 @@ make stack-test-down STACK_TEST_DOWN_VOLUMES=1   # also drop the corpus_data vol
 
 - **`viewer`** — Nginx serving the prebuilt Vue SPA. Proxies `/api/*` to the API container. Internal port 80; exposed on `STACK_TEST_VIEWER_PORT` (default 8090).
 - **`api`** — FastAPI (uvicorn). Reads/writes the corpus volume directly (operator-config, feeds.spec, jobs registry). Talks to the host Docker daemon via the bind-mounted socket to spawn pipeline jobs. Internal port 8000.
+- **`postgres`** — Postgres 18 holding app state (user accounts; ADR-169), on the `postgres_data` volume, reachable only on the compose network. The default password is for local and stack-test use; set `POSTGRES_PASSWORD` for anything else.
+- **`db-migrate`** — one-shot `db upgrade --plane player` that `api` waits for (`service_completed_successfully`). **Dev and stack-test only**: the API never migrates at start, and production runs `db upgrade` as its own dedicated step with the migrating role.
 - **`mock-feeds`** — small Nginx sidecar that serves bundled RSS fixtures, audio, and transcripts at `http://mock-feeds/...` on the compose network. Lets you exercise the platform without internet access. **Remove this service in production deployments** — see [Production hints](#production-hints).
 - **`pipeline`** / **`pipeline-llm`** — ephemeral. Built into `compose/docker-compose.stack.yml` under Compose profiles `pipeline` / `pipeline-llm`. Spawned by the API factory per job; not part of `compose up`.
 
 ### Volumes
 
+- **`postgres_data`** — the database cluster (user accounts). Dropped by `STACK_TEST_DOWN_VOLUMES=1`.
 - **`corpus_data`** — read-write on `api`, `pipeline`, and `pipeline-llm`. Holds operator config, feeds spec, run artifacts, transcripts, search index. The viewer reads it indirectly through the API.
 
 ### Network

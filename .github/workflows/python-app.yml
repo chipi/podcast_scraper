@@ -279,6 +279,22 @@ jobs:
       needs.lint.result == 'success' &&
       needs.build.result == 'success' &&
       (needs.viewer-unit.result == 'success' || needs.viewer-unit.result == 'skipped')
+    # App state is Postgres (ADR-169): the e2e API boots with PODCAST_DATABASE_URL (it upgrades the plane itself).
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PODCAST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
     steps:
     - uses: actions/checkout@v7
     # The viewer suite talks to a REAL API since #1619 moved it off route-fulfilled mocks.
@@ -484,6 +500,22 @@ jobs:
     # Python-only gate (path-A): viewer-only PRs run viewer-unit (Vitest)
     # instead; pytest doesn't apply to web/gi-kg-viewer/**.
     if: needs.detect-changes.outputs.python == 'true'
+    # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11
@@ -813,7 +845,22 @@ jobs:
     # ``test-unit`` added for fail-fast: don't run expensive integration on Python
     # unit-test failures. Path-A python gate skips this for viewer-only PRs.
     needs: [detect-changes, preload-ml-models, test-unit]
+    # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -943,7 +990,22 @@ jobs:
     # ``test-unit`` added for fail-fast (don't run integration on Python unit
     # failures). Path-A python gate skips this for viewer-only PRs.
     needs: [detect-changes, preload-ml-models, test-unit]
+    # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub

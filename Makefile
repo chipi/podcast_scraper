@@ -25,6 +25,10 @@ PYTHON ?= .venv/bin/python
 CODESPELL ?= .venv/bin/codespell
 endif
 PACKAGE = podcast_scraper
+# App state is Postgres (ADR-169). Local servers use PODCAST_DATABASE_URL, else the test database
+# `make test-db-up` printed (PODCAST_TEST_DATABASE_URL), and upgrade the player plane first (dev
+# only: the API never migrates at start, and prod runs `db upgrade` as its own step).
+DB_UP = export PODCAST_DATABASE_URL=$${PODCAST_DATABASE_URL:-$$PODCAST_TEST_DATABASE_URL} && $(PYTHON) -m $(PACKAGE).cli db upgrade --plane player
 
 # Fixture version: resolved from tests/fixtures/FIXTURES_VERSION (single source of truth).
 # Versioned fixture subdirs: tests/fixtures/{transcripts,audio}/$(FIXTURES_VERSION)/...
@@ -147,6 +151,8 @@ help:
 	@echo "  make check-spotlight    Verify Spotlight indexing is disabled (macOS ML safety)"
 	@echo ""
 	@echo "Test commands:"
+	@echo "  make test-db-up           Start the local postgres:18 the tests need; prints PODCAST_TEST_DATABASE_URL to export"
+	@echo "  make test-db-down         Remove that test database container (this checkout's only)"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
 	@echo "  make test-unit-dev-venv   Unit tests inside $(VENVDEV) (run venv-dev-init first; true CI parity)"
@@ -801,6 +807,7 @@ serve-api:
 		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
 		if [ -f .env.obs.dev ]; then set -a; . ./.env.obs.dev; set +a; echo "[obs] streaming to homelab as environment=dev instance=$(notdir $(CURDIR))-$${PODCAST_OBS_PORT:-8000}"; fi && \
 		export PODCAST_OBS_PORT=$${PODCAST_OBS_PORT:-8000} && \
+		$(DB_UP) && \
 		$(PYTHON) -m $(PACKAGE).cli serve --host "$(SERVE_HOST)" --port "$(SERVE_PORT)" --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
@@ -839,6 +846,7 @@ STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 # Inner quotes are NOT backslash-escaped — see the note on GIT_BUILD_ARGS; the escaped form
 # reports a dirty tree as clean instead of erroring loudly.
 GIT_BUILD_ENV = \
+	BUILD_TIME="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
 	GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
 	GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"
@@ -1483,7 +1491,9 @@ test-ui-e2e:
 # ~705 MB, a few minutes cold; layer-cached afterwards.
 e2e-api-image:
 	@echo "Building podcast-api:e2e-local (viewer e2e backend; the player's builds on it)..."
-	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile .
+	@DOCKER_BUILDKIT=1 docker build -t podcast-api:e2e-local -f docker/api/Dockerfile \
+		--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
+		--build-arg BUILD_TIME="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
 	@echo ""
 	@echo "✓ podcast-api:e2e-local ready — run: $(WEB_VIEWER_DIR)/e2e/run-local-stack.sh"
 # The viewer e2e suite against the real backend, image included. The stack script serves from a
@@ -1672,6 +1682,15 @@ check-spotlight:
 	else \
 		echo "mdutil not found (not macOS). Skipping."; \
 	fi
+
+# The test database (ADR-169): app-state tests read PODCAST_TEST_DATABASE_URL and FAIL without it.
+# One container per checkout, loopback only; down removes only that container.
+.PHONY: test-db-up test-db-down
+test-db-up:
+	@bash scripts/tools/test_db.sh up
+
+test-db-down:
+	@bash scripts/tools/test_db.sh down
 
 test-unit: cleanup-processes
 	# Unit tests: parallel execution for faster feedback
@@ -2668,6 +2687,7 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 # the backslashes reach `test` as literal arguments. That form dies with "test: too many
 # arguments" and, worse, falls through to `echo false`: a dirty tree silently reported clean.
 GIT_BUILD_ARGS = \
+	--build-arg BUILD_TIME="$$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 	--build-arg GIT_SHA="$$(git rev-parse HEAD 2>/dev/null || echo '')" \
 	--build-arg GIT_BRANCH="$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')" \
 	--build-arg GIT_DIRTY="$$(test -z "$$(git status --porcelain 2>/dev/null)" && echo false || echo true)"

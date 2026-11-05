@@ -13,11 +13,18 @@ from fastapi.testclient import TestClient
 from podcast_scraper.server import app_comms_store, app_outbox_store
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.app_access import AccessPolicy
+from tests._database import register_user
 
 pytestmark = pytest.mark.integration
 
 _UID = "u_0123456789abcdef01234567"
 _TOKEN = "tok-test-01"
+
+
+@pytest.fixture(autouse=True)
+def _account() -> None:
+    """Suppression and the unsubscribe scan act on an account that exists."""
+    register_user(_UID)
 
 
 def _app(tmp_path: Path, *, token: str = _TOKEN):

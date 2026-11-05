@@ -11,6 +11,7 @@ from podcast_scraper.server.app_user_store import (
     get_user,
     set_role,
 )
+from tests._database import register_user
 
 
 def test_role_vocabulary_and_rank() -> None:
@@ -101,14 +102,7 @@ def test_store_set_role_preserves_other_fields(tmp_path: Path) -> None:
 
 def test_store_legacy_profile_without_role_reads_as_listener(tmp_path: Path) -> None:
     # A profile written before #1128 has no 'role' key → must read back as listener.
-    import json
-
     legacy_id = "u_" + "0" * 24  # opaque user_id_for shape (pre-#1128 profile, no role)
-    udir = tmp_path / "users" / legacy_id
-    udir.mkdir(parents=True)
-    (udir / "profile.json").write_text(
-        json.dumps({"email": "old@x.com", "name": "Old", "provider": "google", "subject": "z"}),
-        encoding="utf-8",
-    )
+    register_user(legacy_id, email="old@x.com", name="Old", provider="google", subject="z")
     u = get_user(tmp_path, legacy_id)
     assert u is not None and u.role == "listener"

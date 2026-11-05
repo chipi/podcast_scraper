@@ -372,7 +372,12 @@ jobs:
 
           # Per-image build-args (secrets/vars come from the job env).
           BUILD_ARGS=()
+          # api and pipeline-llm bake /app/VERSION.json (served by GET /api/version).
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           case "${MATRIX_IMAGE}" in
+            api)
+              BUILD_ARGS+=(--build-arg "GIT_SHA=${GITHUB_SHA}" --build-arg "BUILD_TIME=${BUILD_TIME}")
+              ;;
             viewer)
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_SRC=${OPERATOR_UMAMI_SRC}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${OPERATOR_UMAMI_WEBSITE_ID}")
@@ -388,7 +393,7 @@ jobs:
               # ADR-132 provenance (#30): bake the exact commit into the image so
               # run manifests stop writing git_sha: null. The Dockerfile has
               # carried the GIT_SHA ARG since #30; nothing ever passed it.
-              BUILD_ARGS+=(--build-arg "GIT_SHA=${GITHUB_SHA}")
+              BUILD_ARGS+=(--build-arg "GIT_SHA=${GITHUB_SHA}" --build-arg "BUILD_TIME=${BUILD_TIME}")
               ;;
           esac
 

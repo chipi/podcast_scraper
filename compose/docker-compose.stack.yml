@@ -13,6 +13,38 @@
 #     (profiles ``pipeline`` / ``pipeline-llm``); they are spawned per-job.
 
 services:
+  # App state (users, ADR-169) lives in Postgres 18. Not published to the host: the api and the
+  # migrate step reach it over the compose network. The default password is for local/stack-test
+  # use; a deployment sets POSTGRES_PASSWORD in its own env.
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: podcast
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-podcast}
+      POSTGRES_DB: podcast
+    volumes:
+      # PG 18 keeps its cluster under a versioned subdirectory; mount the parent.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U podcast -d podcast"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # One-shot schema upgrade before the api serves. DEV / STACK-TEST ONLY: the api never migrates at
+  # start, and prod runs `db upgrade` as its own dedicated step with the migrating role.
+  db-migrate:
+    image: podcast-scraper-stack-api:latest
+    pull_policy: never
+    command: ["python", "-m", "podcast_scraper.cli", "db", "upgrade", "--plane", "player"]
+    restart: "no"
+    environment:
+      PODCAST_DATABASE_URL: postgresql://podcast:${POSTGRES_PASSWORD:-podcast}@postgres:5432/podcast
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   viewer:
     build:
       context: ..
@@ -62,6 +94,10 @@ services:
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
+      args:
+        # Baked into /app/VERSION.json (GET /api/version); ``make stack-build`` exports them.
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: podcast-scraper-stack-api:latest
     expose:
       - "8000"
@@ -75,12 +111,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
     environment:
       # Unbuffered stdout/stderr so tracebacks + progress surface in captured logs rather
       # than being lost on a crash (a spawned pipeline run exited 1 with an empty log
       # because Python buffered its output). Also on api for parity across services.
       PYTHONUNBUFFERED: "1"
       # Provider keys: empty defaults (set in repo-root ``.env`` for Compose substitution only).
+      # App state database (ADR-169); the plane this api serves is `player` (the default).
+      PODCAST_DATABASE_URL: postgresql://podcast:${POSTGRES_PASSWORD:-podcast}@postgres:5432/podcast
+      PODCAST_DB_PLANE: player
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -227,6 +271,7 @@ services:
         GIT_SHA: ${GIT_SHA:-}
         GIT_BRANCH: ${GIT_BRANCH:-}
         GIT_DIRTY: ${GIT_DIRTY:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: podcast-scraper-stack-pipeline-llm:latest
     volumes:
       - corpus_data:/app/output
@@ -290,6 +335,7 @@ services:
 
 volumes:
   corpus_data:
+  postgres_data:
   # HuggingFace model cache for the pipeline-llm ML enrichers (#1811 E3). Regenerable
   # (models re-download on miss) so a plain named volume — no host bind / backup needed.
   hf_cache:

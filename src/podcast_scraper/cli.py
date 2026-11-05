@@ -4013,6 +4013,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         serve_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_serve_argv(serve_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "db":
+        from .db.cli_handlers import parse_db_argv
+
+        return parse_db_argv(list(argv[1:]))
+
     if argv and len(argv) > 0 and argv[0] == "upgrade":
         from .upgrade.cli_handlers import parse_upgrade_argv
 
@@ -5196,6 +5201,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "corpus-status",
             "corpus-cost",
             "doctor",
+            "db",
             "enrich",
             "enrich-edges",
             "identity-ledger",
@@ -5349,6 +5355,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .server.cli_handlers import run_serve
 
         return run_serve(args, log)
+
+    if hasattr(args, "command") and args.command == "db":
+        from .db.cli_handlers import run_db_cli
+
+        return run_db_cli(args, log)
 
     if hasattr(args, "command") and args.command == "upgrade":
         from .upgrade.cli_handlers import run_upgrade_cli

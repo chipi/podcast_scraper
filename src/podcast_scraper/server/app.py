@@ -64,6 +64,7 @@ from podcast_scraper.server.routes import (
     scheduled_jobs as scheduled_jobs_route,
     search,
     usage as usage_routes,
+    version,
 )
 from podcast_scraper.server.spa import SpaStaticFiles
 from podcast_scraper.utils.access_log import AccessLogMiddleware
@@ -152,6 +153,22 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
     )
+
+
+def _open_app_database(app: FastAPI) -> None:
+    """Open the process's database engines at start, but only when a database URL is configured.
+
+    A server without one (the control-plane api, which never touches the users store) keeps
+    starting; engines otherwise open lazily on first use, and a store call with no URL raises the
+    named configuration error. With a URL, an unreachable or un-migrated database fails the start
+    (ADR-169). Prod migrates in its own step, never here.
+    """
+    from podcast_scraper.db.settings import is_configured
+
+    if is_configured():
+        from podcast_scraper.db import init_engines
+
+        init_engines()
 
 
 def _default_static_dir() -> Path | None:
@@ -244,6 +261,9 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
       gate** (``require_viewer_access``). ``index_rebuild`` / ``ops`` are NOT mounted here.
     """
     app.include_router(health.router, prefix="/api")
+    app.include_router(version.router, prefix="/api")
+    # The player's public edge proxies only /api/app/*, so the same route is reachable there.
+    app.include_router(version.router, prefix="/api/app", include_in_schema=False)
     if operator_public:
         gate = [Depends(app_auth.require_viewer_access)]
         for module in _OPERATOR_PUBLIC_READ_ROUTES:
@@ -564,6 +584,12 @@ def _install_metrics(app: FastAPI) -> None:
         _start_dev_metrics_pusher()
 
 
+def _install_version_metrics(app: FastAPI) -> None:
+    """``podcast_build_info`` and ``podcast_db_schema_info`` (see ``routes.version``)."""
+    if _env_truthy("PODCAST_METRICS_ENABLED"):
+        version.install_version_metrics(app)
+
+
 def _install_job_age_metrics(app: FastAPI) -> None:
     """Register ``podcast_pipeline_last_success_age_seconds`` from the job registry (#2119).
 
@@ -716,6 +742,7 @@ def create_app(
         # thread) can hand spawn callbacks back to FastAPI via
         # ``asyncio.run_coroutine_threadsafe``.
         app.state.event_loop = asyncio.get_running_loop()
+        _open_app_database(app)
         root = getattr(app.state, "output_dir", None)
         if root is not None and os.environ.get("PODCAST_SERVE_WARM_SEARCH", "1") != "0":
             threading.Thread(
@@ -796,6 +823,7 @@ def create_app(
     # (#2119); tests/integration/server/test_app_digest_health_wiring.py pins the order.
     run_app_configured(app)
     _install_job_age_metrics(app)
+    _install_version_metrics(app)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)
