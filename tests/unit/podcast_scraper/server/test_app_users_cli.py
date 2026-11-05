@@ -73,7 +73,7 @@ def test_grant_mcp_all_grants_the_old_default_and_skips_a_deliberate_revoke(
     has = get_or_create_user(tmp_path, provider="google", subject="has", email="h@x.com", name="H")
     set_mcp_access(tmp_path, old.user_id, False)  # as written by the old default
     set_mcp_access(tmp_path, revoked.user_id, False)
-    audit = [
+    audit: list[dict[str, object]] = [
         {
             "action": "admin.user.mcp_access",
             "by": "admin",
