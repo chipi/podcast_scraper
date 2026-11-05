@@ -48,6 +48,7 @@ def known_accounts(data_dir: Path, engine: Engine, *, dry_run: bool) -> set[str]
 
 
 def read_json(path: Path) -> Any:
+    """A JSON file, or ``Unreadable`` when it cannot be read or parsed."""
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:

@@ -13,7 +13,9 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 
+import psycopg.types.json  # noqa: F401
 import pytest
+import sqlalchemy.dialects.postgresql.psycopg  # noqa: F401
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -27,6 +29,13 @@ from podcast_scraper.db import (
 )
 from podcast_scraper.db.schema import app_releases, metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
+
+# ``psycopg.types.json`` and ``sqlalchemy.dialects.postgresql.psycopg`` are imported at the top
+# because they load lazily, on the first JSONB bind. If that bind happens inside a test's
+# ``patch.dict(sys.modules, …)`` window, the window's exit evicts them, the next use re-imports
+# them, and psycopg no longer knows the new ``Jsonb`` class ("cannot adapt type 'Jsonb'"). This
+# module is imported at collection (tests/conftest.py), before any window opens.
+
 
 ENV_TEST_URL = "PODCAST_TEST_DATABASE_URL"
 

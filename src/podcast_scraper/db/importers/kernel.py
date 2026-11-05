@@ -96,6 +96,7 @@ def _comms_back(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def per_user_importers() -> list[PerUserImporter]:
+    """The importers of the per-user JSON stores."""
     return [
         PerUserImporter(
             name="user_preferences",
@@ -199,6 +200,7 @@ class AccessPolicyImporter(_TableImporter):
     table = access_policy
 
     def claims(self) -> list[Claim]:
+        """The files this importer reads, for the inventory."""
         return [root_file(app_access_store._FILE_NAME, "imported", self.name)]
 
     def _read(self, data_dir: Path, report: StoreReport) -> dict[str, tuple[dict[str, Any], Any]]:
@@ -239,6 +241,7 @@ class ReleasesImporter(_TableImporter):
     table = app_releases
 
     def claims(self) -> list[Claim]:
+        """The files this importer reads, for the inventory."""
         return [
             root_file(app_release_store.RELEASES_FILE, "imported", self.name),
             root_file(app_release_store.LEGACY_PLAYER_FILE, "imported", self.name),
@@ -299,6 +302,7 @@ class OutboxImporter(_TableImporter):
     table = outbox
 
     def claims(self) -> list[Claim]:
+        """The files this importer reads, for the inventory."""
         return [dir_files("outbox", r"[0-9a-f]{64}\.json", "imported", self.name)]
 
     def _conflict_target(self) -> list[Any] | None:
@@ -355,12 +359,14 @@ class MagicLinkImporter(_TableImporter):
     table = magic_link_used
 
     def claims(self) -> list[Claim]:
+        """The files this importer reads, for the inventory."""
         return [
             dir_files(app_magic_link._USED_DIR, r"[A-Za-z0-9_-]+\.json", "imported", self.name),
             dir_files(app_magic_link._RECENT_DIR, r"[0-9a-f]{32}\.txt", "imported", self.name),
         ]
 
     def run(self, data_dir: Path, engine: Engine, *, dry_run: bool) -> StoreReport:
+        """Import the used tokens and the throttle markers, each with its time, then verify."""
         report = StoreReport(store=self.name)
         used: dict[str, datetime] = {}
         for path in sorted((data_dir / app_magic_link._USED_DIR).glob("*.json")):
@@ -473,6 +479,7 @@ class AuditImporter(_LogImporter):
     table = audit_log
 
     def claims(self) -> list[Claim]:
+        """The files this importer reads, for the inventory."""
         return [root_file("audit.jsonl", "imported", self.name)]
 
     def _files(self, data_dir: Path) -> list[tuple[str | None, Path]]:
@@ -507,6 +514,7 @@ class GraphEventsImporter(_LogImporter):
     table = graph_events
 
     def claims(self) -> list[Claim]:
+        """The files this importer reads, for the inventory."""
         return [user_file(app_graph_telemetry.EVENTS_FILE, "imported", self.name)]
 
     def _files(self, data_dir: Path) -> list[tuple[str | None, Path]]:
@@ -524,6 +532,7 @@ class GraphEventsImporter(_LogImporter):
         return out
 
     def run(self, data_dir: Path, engine: Engine, *, dry_run: bool) -> StoreReport:
+        """Refuse an account that has no row, else import the logs whole."""
         accounts = known_accounts(data_dir, engine, dry_run=dry_run)
         orphans = [
             owner
@@ -555,6 +564,7 @@ class GraphEventsImporter(_LogImporter):
 
 
 def table_importers() -> list[Any]:
+    """The importers of the root files, the outbox, the magic-link markers and the logs."""
     return [
         AccessPolicyImporter(),
         ReleasesImporter(),
