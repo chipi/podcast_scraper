@@ -1252,9 +1252,7 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         dest="dgx_tailnet_host",
         help=(
-            "MagicDNS hostname (or IP) for DGX (RFC-089 (not in this repository) / #814). "
-            "Overrides "
-            "any value "
+            "MagicDNS hostname (or IP) for DGX (#814). Overrides any value "
             "set by the profile. Used by tailnet_dgx_whisper + Stage B chaos tests."
         ),
     )

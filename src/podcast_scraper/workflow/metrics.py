@@ -404,8 +404,8 @@ class Metrics:
     # whether failures are JSON-shape (parse) vs schema (missing fields).
     llm_bundled_parse_failures_total: int = 0
     llm_bundled_parse_failures_by_kind: Dict[str, int] = field(default_factory=dict)
-    # RFC-089 (not in this repository) #5: summarization provider-swap fallback (e.g. DGX Ollama →
-    # Gemini). Per-run signal: True/non-empty if the run had to fall back at least once.
+    # RFC-089 (not in this repository) #5: summarization provider-swap fallback (DGX → Gemini).
+    # Per-run signal: True/non-empty if the run had to fall back at least once.
     llm_summary_fallback_active_count: int = 0
     llm_summary_fallback_provider: Optional[str] = None
     # #988: per-stage retry-reason attribution. Stage → reason → count.

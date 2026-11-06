@@ -1662,10 +1662,7 @@ class Config(BaseModel):
     dgx_tailnet_host: Optional[str] = Field(
         default=None,
         alias="dgx_tailnet_host",
-        description=(
-            "MagicDNS hostname for DGX Ollama (RFC-089, not in this repository), e.g. "
-            "my-dgx.tailnet.ts.net."
-        ),
+        description="MagicDNS hostname for DGX Ollama, e.g. my-dgx.tailnet.ts.net.",
     )
     dgx_ollama_port: int = Field(
         default=11434,
@@ -1682,8 +1679,7 @@ class Config(BaseModel):
         description=(
             "faster-whisper-server port on DGX (default 8000, #814). Separate from "
             "dgx_ollama_port because Whisper is served by a different service "
-            "(faster-whisper-server, OpenAI-compatible). Installed by the DGX "
-            "convergence in the infrastructure repository."
+            "(faster-whisper-server, OpenAI-compatible)."
         ),
     )
     dgx_whisper_model: str = Field(
@@ -1758,8 +1754,7 @@ class Config(BaseModel):
         alias="dgx_diarize_port",
         description=(
             "Port for the DGX-hosted pyannote diarization service (default 8001, "
-            "#926). The legacy embedding-shim slot reclaimed for diarize. "
-            "Installed by the DGX convergence in the infrastructure repository."
+            "#926). The legacy embedding-shim slot reclaimed for diarize."
         ),
     )
     dgx_diarize_model: str = Field(
@@ -2494,9 +2489,8 @@ class Config(BaseModel):
     translate_verify_served_model: bool = Field(
         default=True,
         alias="translate_verify_served_model",
-        description="Fail-closed (ADR-143/144, not in this repository): at initialize(), assert "
-        "GET /v1/models advertises the configured translate_model, so a wrong model on the :8005 "
-        "slot fails the run instead "
+        description="Fail-closed: at initialize(), assert GET /v1/models advertises "
+        "the configured translate_model, so a wrong model on the :8005 slot fails the run instead "
         "of producing a corpus attributed to a model that never ran. A corpus translated by the "
         "wrong model cannot be distinguished from a correct one after the fact. Unreachable "
         "endpoint only warns — that is not a mismatch. Set False for offline/unit contexts.",
