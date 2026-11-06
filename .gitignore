@@ -153,6 +153,8 @@ crash_dump_*.log
 
 # GI/KG viewer (Vite / Node / Playwright, RFC-062) — was web/gi-kg-viewer/.gitignore; rules live here
 web/gi-kg-viewer/node_modules/
+# No trailing slash: Studio's vite.config.ts makes this a symlink, which a `dir/` rule misses.
+web/gi-kg-viewer/node_modules
 # Catch-all: stray ``node_modules/`` at the repo root (or anywhere else) is always a
 # transient artifact. The legitimate Node project lives under ``web/gi-kg-viewer/``; a
 # root-level ``node_modules/`` typically appears when Vitest is invoked with CWD=repo
