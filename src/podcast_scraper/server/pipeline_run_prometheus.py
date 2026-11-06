@@ -39,6 +39,22 @@ _SECONDS_BUCKETS = (
     900.0,
 )
 
+# A whole job (every feed of a nightly) runs for hours, far past the per-feed buckets above.
+_JOB_WALL_BUCKETS = (
+    30.0,
+    60.0,
+    300.0,
+    600.0,
+    1800.0,
+    3600.0,
+    7200.0,
+    14400.0,
+    21600.0,
+    43200.0,
+)
+
+_TERMINAL_STATUSES = ("succeeded", "failed", "cancelled", "stale")
+
 
 def parse_iso_utc_z(value: str | None) -> datetime | None:
     """Parse API/registry ISO timestamps (``…Z`` or offset-aware)."""
@@ -158,7 +174,7 @@ def _ensure_prom_hist() -> None:
     )
     _PROM_STATE["run_episodes"] = Counter(
         "podcast_pipeline_run_episodes_total",
-        "Per-feed run.json: episodes scraped/processed.",
+        "Per-feed run.json: episodes_scraped_total (scraped, not necessarily processed).",
     )
     _PROM_STATE["run_gi_artifacts"] = Counter(
         "podcast_pipeline_run_gi_artifacts_total",
@@ -167,6 +183,17 @@ def _ensure_prom_hist() -> None:
     _PROM_STATE["run_kg_artifacts"] = Counter(
         "podcast_pipeline_run_kg_artifacts_total",
         "Per-feed run.json: KG artifacts generated.",
+    )
+    _PROM_STATE["run_wall"] = Histogram(
+        "podcast_pipeline_run_wall_seconds",
+        "Per job: wall time from the registry's started_at to ended_at (seconds).",
+        ["command_type"],
+        buckets=_JOB_WALL_BUCKETS,
+    )
+    _PROM_STATE["run_episodes_processed"] = Counter(
+        "podcast_pipeline_run_episodes_processed_total",
+        "Per job: episodes processed, summed over the job's run.json files.",
+        ["command_type"],
     )
     _PROM_STATE["done"] = True
 
@@ -181,6 +208,18 @@ def _float_metric_block(metrics: Mapping[str, Any], key: str) -> float | None:
             return x
         return None
     return None
+
+
+def _processed_episodes(metrics: Mapping[str, Any]) -> float:
+    """Episodes a run.json run processed: direct transcript downloads plus transcripts saved.
+
+    The same sum the orchestrator uses as its success count; ``episodes_scraped_total`` counts
+    what the feed offered, not what was processed.
+    """
+    return sum(
+        (_float_metric_block(metrics, k) or 0.0)
+        for k in ("transcripts_downloaded", "transcripts_transcribed")
+    )
 
 
 def _observe_metrics_mapping(metrics: Mapping[str, Any]) -> None:
@@ -258,18 +297,24 @@ def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any])
         return
 
     status = str(job.get("status") or "").strip().lower()
-    if status not in {"succeeded", "failed", "cancelled", "stale"}:
+    if status not in _TERMINAL_STATUSES:
         return
 
-    jobs_ctr.labels(status=status, command_type=_command_type_label(job)).inc()
-
-    if status != "succeeded":
-        return
+    command_type = _command_type_label(job)
+    jobs_ctr.labels(status=status, command_type=command_type).inc()
 
     _st = job.get("started_at")
     started = parse_iso_utc_z(_st if isinstance(_st, str) else None)
     _en = job.get("ended_at")
     ended = parse_iso_utc_z(_en if isinstance(_en, str) else None)
+    if started is not None and ended is not None:
+        wall = (ended - started).total_seconds()
+        if wall >= 0.0:
+            _PROM_STATE["run_wall"].labels(command_type=command_type).observe(wall)
+
+    if status != "succeeded":
+        return
+
     if ended is None:
         ended = datetime.now(timezone.utc)
     pad = 180.0
@@ -289,6 +334,7 @@ def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any])
         )
         return
 
+    processed = 0.0
     for p in paths:
         try:
             raw_any = json.loads(Path(p).read_text(encoding="utf-8"))
@@ -300,6 +346,9 @@ def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any])
         if not isinstance(metrics_any, dict):
             continue
         _observe_metrics_mapping(metrics_any)
+        processed += _processed_episodes(metrics_any)
+    if processed > 0.0:
+        _PROM_STATE["run_episodes_processed"].labels(command_type=command_type).inc(processed)
 
 
 def last_success_age_seconds(corpus_root: Path, now: float | None = None) -> dict[str, float]:
@@ -380,9 +429,33 @@ def install_job_age_metrics(corpus_root: Path) -> bool:
     return True
 
 
+def install_job_metrics() -> bool:
+    """Create the job series at API start so a restart does not hide the next increment.
+
+    Counters and histograms are otherwise created lazily at the first observation, and a series
+    that first appears at value 1 gives ``increase(...[1d])`` nothing to subtract: the first job
+    after every restart reads as no job. Every status x command_type child is created at 0.
+    Never raises: telemetry must not break the app (ADR-120).
+    """
+    try:
+        _ensure_prom_hist()
+        jobs_ctr = _PROM_STATE.get("jobs_finished")
+        if jobs_ctr is None:
+            return False
+        for command_type in [*sorted(_KNOWN_COMMAND_TYPES), "other"]:
+            for status in _TERMINAL_STATUSES:
+                jobs_ctr.labels(status=status, command_type=command_type)
+            _PROM_STATE["run_wall"].labels(command_type=command_type)
+            _PROM_STATE["run_episodes_processed"].labels(command_type=command_type)
+    except Exception:  # noqa: BLE001 — metrics extras absent or a registry clash
+        return False
+    return True
+
+
 __all__ = [
     "discover_run_json_paths_in_mtime_window",
     "install_job_age_metrics",
+    "install_job_metrics",
     "last_success_age_seconds",
     "observe_pipeline_terminal_metrics",
     "parse_iso_utc_z",

@@ -13,6 +13,21 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 
+def _emit_episode_failed(episode_id: str, stage: Optional[str], error_type: Optional[str]) -> None:
+    """Emit ``pipeline_episode.failed`` once, when an episode's status first turns ``failed``."""
+    try:
+        from ..obs.events import emit_event
+
+        emit_event(
+            "pipeline_episode.failed",
+            episode_id=episode_id,
+            stage=stage,
+            error_class=error_type,
+        )
+    except Exception:  # noqa: BLE001 — telemetry must never break the pipeline
+        logger.debug("pipeline_episode.failed emit failed", exc_info=True)
+
+
 # ---- Interval helpers (#1180 parallelism overlap math) --------------------
 
 
@@ -1418,9 +1433,11 @@ class Metrics:
             error_type: Type of error if status is "failed"
             error_message: Error message if status is "failed"
         """
+        newly_failed = False
         with self._episode_statuses_lock:
             for episode_status in self.episode_statuses:
                 if episode_status.episode_id == episode_id:
+                    newly_failed = status == "failed" and episode_status.status != "failed"
                     if status is not None:
                         episode_status.status = status
                     if stage is not None:
@@ -1429,19 +1446,24 @@ class Metrics:
                         episode_status.error_type = error_type
                     if error_message is not None:
                         episode_status.error_message = error_message
-                    return
-            # If not found, create new status (defensive fallback - should be rare
-            # after initialization)
-            logger.debug(f"Episode status not found for {episode_id}, creating new entry")
-            episode_status = EpisodeStatus(
-                episode_id=episode_id,
-                episode_number=0,  # Unknown number
-                status=status or "ok",
-                stage=stage,
-                error_type=error_type,
-                error_message=error_message,
-            )
-            self.episode_statuses.append(episode_status)
+                    break
+            else:
+                # Not found: create a new status (defensive fallback - should be rare
+                # after initialization)
+                logger.debug(f"Episode status not found for {episode_id}, creating new entry")
+                newly_failed = status == "failed"
+                self.episode_statuses.append(
+                    EpisodeStatus(
+                        episode_id=episode_id,
+                        episode_number=0,  # Unknown number
+                        status=status or "ok",
+                        stage=stage,
+                        error_type=error_type,
+                        error_message=error_message,
+                    )
+                )
+        if newly_failed:
+            _emit_episode_failed(episode_id, stage, error_type)
 
     def get_or_create_episode_metrics(self, episode_id: str, episode_number: int) -> EpisodeMetrics:
         """Get existing episode metrics or create new one (thread-safe).

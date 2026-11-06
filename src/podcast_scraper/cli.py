@@ -10,8 +10,10 @@ import copy
 import logging
 import os
 import sys
+import time
 import traceback
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
     Any,
@@ -46,6 +48,113 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 BYTES_PER_KB = 1024
+
+RUN_TRIGGERS = ("nightly", "manual", "reprocess", "backfill", "unknown")
+
+
+def _default_run_trigger() -> str:
+    env = os.environ.get("PODCAST_RUN_TRIGGER", "").strip()
+    return env if env in RUN_TRIGGERS else "unknown"
+
+
+class _PipelineRunEvents:
+    """``pipeline_run.started`` / ``pipeline_run.completed`` for one pipeline invocation.
+
+    ``main`` creates it empty and the pipeline branches call :meth:`begin`, so subcommands never
+    emit. Telemetry only: every emit is swallowed (ADR-120).
+    """
+
+    def __init__(self) -> None:
+        self._begun = False
+        self._multi = False
+        self._t0 = 0.0
+        self._run_id: Optional[str] = None
+        self._trigger = "unknown"
+        self._feeds = 0
+        self._results: Sequence[Any] = ()
+        self._single_episodes = 0
+        self._error_class: Optional[str] = None
+
+    def begin(
+        self, args: argparse.Namespace, feeds: int, results: Optional[Sequence[Any]] = None
+    ) -> None:
+        """Start the clock and emit ``started``; *results* is the multi-feed per-feed list."""
+        self._begun = True
+        self._t0 = time.monotonic()
+        run_id = getattr(args, "run_id", None)
+        self._run_id = run_id if run_id and run_id != "auto" else None
+        trigger = getattr(args, "trigger", None)
+        self._trigger = trigger if trigger in RUN_TRIGGERS else "unknown"
+        self._feeds = feeds
+        self._multi = results is not None
+        if results is not None:
+            self._results = results
+        self._emit("pipeline_run.started", started_at=datetime.now(timezone.utc).isoformat())
+
+    def set_single_feed_episodes(self, episodes: int) -> None:
+        self._single_episodes = episodes
+
+    def note_error(self, exc: BaseException) -> None:
+        """Remember an exception the caller swallows into an exit code."""
+        self._error_class = type(exc).__name__
+
+    def counts(self) -> Tuple[int, int, int, int]:
+        """``(ok, failed, not_started, episodes_processed)`` as the multi-feed summary logs them."""
+        results = self._results
+        return (
+            sum(1 for fr in results if fr.ok),
+            sum(1 for fr in results if not fr.ok),
+            self._feeds - len(results),
+            sum(fr.episodes_processed for fr in results),
+        )
+
+    def finish(self, exit_code: Optional[int], exc: Optional[BaseException] = None) -> None:
+        """Emit ``completed`` once; *exit_code* is None when the run ended on an exception."""
+        if not self._begun:
+            return
+        self._begun = False
+        try:
+            clean = exc is None and exit_code == 0
+            if self._multi:
+                ok, failed, not_started, episodes = self.counts()
+            else:
+                ok, failed, not_started = (1, 0, 0) if clean else (0, 1, 0)
+                episodes = self._single_episodes
+            if clean:
+                status = "partial" if failed else "succeeded"
+            else:
+                status = "partial" if ok else "failed"
+            error_class = None
+            if status == "failed":
+                error_class = (
+                    type(exc).__name__ if exc is not None else self._error_class or "NonZeroExit"
+                )
+            self._emit(
+                "pipeline_run.completed",
+                status=status,
+                ok=ok,
+                failed=failed,
+                not_started=not_started,
+                episodes_processed=episodes,
+                duration_s=round(time.monotonic() - self._t0, 3),
+                error_class=error_class,
+            )
+        except Exception:  # noqa: BLE001 - telemetry must never break the run
+            _LOGGER.debug("pipeline_run.completed failed", exc_info=True)
+
+    def _emit(self, event_type: str, **fields: Any) -> None:
+        try:
+            from .obs.events import emit_event
+
+            emit_event(
+                event_type,
+                run_id=self._run_id,
+                trigger=self._trigger,
+                feeds=self._feeds,
+                **fields,
+            )
+        except Exception:  # noqa: BLE001 - telemetry must never break the run
+            _LOGGER.debug("%s failed", event_type, exc_info=True)
 
 
 def _flush_log_streams() -> None:
@@ -697,6 +806,12 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--delay-ms", type=int, default=0, help="Delay between requests (ms)")
     parser.add_argument(
         "--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp"
+    )
+    parser.add_argument(
+        "--trigger",
+        choices=RUN_TRIGGERS,
+        default=_default_run_trigger(),
+        help="What started this run, for the pipeline_run.* events (env PODCAST_RUN_TRIGGER)",
     )
     parser.add_argument(
         "--seed",
@@ -5157,7 +5272,7 @@ def _extension_command(name: str) -> bool:
     return cli_command(name) is not None
 
 
-def main(  # noqa: C901 - main function handles multiple command paths
+def main(
     argv: Optional[Sequence[str]] = None,
     *,
     apply_log_level_fn: Optional[Callable[[str, Optional[str], bool], None]] = None,
@@ -5165,6 +5280,30 @@ def main(  # noqa: C901 - main function handles multiple command paths
     logger: Optional[logging.Logger] = None,
 ) -> int:
     """Entry point for the CLI; returns an exit status code."""
+    run_events = _PipelineRunEvents()
+    try:
+        rc = _main(
+            argv,
+            apply_log_level_fn=apply_log_level_fn,
+            run_pipeline_fn=run_pipeline_fn,
+            logger=logger,
+            run_events=run_events,
+        )
+    except BaseException as exc:
+        run_events.finish(None, exc)
+        raise
+    run_events.finish(rc)
+    return rc
+
+
+def _main(  # noqa: C901 - main function handles multiple command paths
+    argv: Optional[Sequence[str]],
+    *,
+    apply_log_level_fn: Optional[Callable[[str, Optional[str], bool], None]],
+    run_pipeline_fn: Optional[Callable[[config.Config], Tuple[int, str]]],
+    logger: Optional[logging.Logger],
+    run_events: _PipelineRunEvents,
+) -> int:
     if argv is None:
         argv = sys.argv[1:]
     # Sentry init runs early so any subsequent crash (validation,
@@ -5550,6 +5689,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
             corpus_parent,
             len(feed_targets),
         )
+        multi_results: List[Any] = []
+        run_events.begin(args, len(feed_targets), multi_results)
 
         from .utils.corpus_incidents import append_corpus_incident
         from .utils.corpus_lock import corpus_parent_lock
@@ -5564,7 +5705,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         try:
             with corpus_parent_lock(corpus_parent, logger=log):
                 any_hard_failed = False
-                batch_results: List[MultiFeedFeedResult] = []
+                batch_results: List[MultiFeedFeedResult] = multi_results
                 _inc_default = str(Path(corpus_parent) / "corpus_incidents.jsonl")
                 _inc_start = (
                     Path(_inc_default).stat().st_size if Path(_inc_default).is_file() else 0
@@ -5755,10 +5896,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     "Multi-feed run summary: feeds=%d ok=%d failed=%d not_started=%d "
                     "episodes_processed=%d",
                     len(feed_targets),
-                    sum(1 for fr in batch_results if fr.ok),
-                    sum(1 for fr in batch_results if not fr.ok),
-                    len(feed_targets) - len(batch_results),
-                    sum(fr.episodes_processed for fr in batch_results),
+                    *run_events.counts(),
                 )
                 has_feed_failure = any(not fr.ok for fr in batch_results)
                 strict = bool(getattr(base_cfg, "multi_feed_strict", False))
@@ -5817,6 +5955,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     apply_log_level_fn(cfg.log_level, resolved_log, cfg.json_logs)
 
     log.info("Starting podcast transcript scrape")
+    run_events.begin(args, 1)
     _log_configuration(cfg, log)
 
     from .utils.corpus_lock import corpus_parent_lock as _single_feed_corpus_lock
@@ -5833,6 +5972,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             except Exception as exc:  # pragma: no cover - defensive
                 # log.exception (not log.error) attaches the stack to structured sink / Sentry.
                 log.exception("Unexpected failure: %s", exc)
+                run_events.note_error(exc)
                 # AND write the traceback straight to stderr so it lands in the captured
                 # ``docker compose run`` job log — the logging handler can target a file /
                 # structured sink inside the ``--rm`` pipeline container (lost on exit), which
@@ -5847,6 +5987,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         return 1
 
     log.info(summary)
+    run_events.set_single_feed_episodes(int(episode_count))
 
     # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? This used to exist only on the multi-feed path,
     # and every API-dispatched job is single-feed — so for exactly the way repairs are run in prod

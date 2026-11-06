@@ -80,6 +80,8 @@ PIPELINE_STAGES_REPROCESS = frozenset(
     }
 )
 PIPELINE_STAGES_PARTIAL = frozenset({"audio_only", "download_only"})
+#: Mirrors ``cli.RUN_TRIGGERS`` (the CLI's ``--trigger`` choices); cli is too heavy to import here.
+RUN_TRIGGERS = frozenset({"nightly", "manual", "reprocess", "backfill", "unknown"})
 PIPELINE_STAGES_ALLOWED = PIPELINE_STAGES_REPROCESS | PIPELINE_STAGES_PARTIAL
 
 
@@ -512,6 +514,7 @@ def build_pipeline_argv(
     profile_override: str | None = None,
     pipeline_stage: str | None = None,
     reprocess_episode_ids: Sequence[str] | str | None = None,
+    trigger: str | None = None,
 ) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
 
@@ -548,6 +551,11 @@ def build_pipeline_argv(
     run does nothing while exiting 0. Verified end-to-end on 2026-09-01 ("Episodes to process:
     0 of 0"). Letting the API reproduce that silent no-op would undo the fix it exists to
     expose.
+
+    *trigger* (``nightly`` | ``manual`` | ``reprocess`` | ``backfill`` | ``unknown``) is passed as
+    ``--trigger`` for the pipeline's ``pipeline_run.*`` events. Being part of the persisted argv,
+    it survives :func:`argv_from_record`. A ``manual`` run of a reprocess stage is reported as
+    ``reprocess``.
     """
     # Local import — module-level would create a circular: profile_presets
     # imports nothing from server (today), but the codebase has had churn
@@ -624,6 +632,10 @@ def build_pipeline_argv(
             argv.extend(["--feeds-spec", str(spec.resolve())])
 
     stage = normalize_pipeline_stage(pipeline_stage)
+    if trigger in RUN_TRIGGERS:
+        if trigger == "manual" and stage in PIPELINE_STAGES_REPROCESS:
+            trigger = "reprocess"
+        argv.extend(["--trigger", str(trigger)])
     if stage:
         argv.extend(["--pipeline-stage", stage])
         if stage in PIPELINE_STAGES_REPROCESS and "--reprocess-existing-only" not in argv:
@@ -1142,10 +1154,13 @@ def enqueue_pipeline_job(
     profile_override: str | None = None,
     pipeline_stage: str | None = None,
     reprocess_episode_ids: Sequence[str] | str | None = None,
+    trigger: str = "manual",
 ) -> dict[str, Any]:
     """Append a new job; promote to *running* immediately when under the concurrency cap.
 
     When *feed_url* is given the run is scoped to that one feed (P1.4) — see build_pipeline_argv.
+    *trigger* is what started the job (the API default is ``manual``; the scheduler passes
+    ``nightly``); it is stored on the row and in the argv.
 
     2026-08-28: while the operator pause flag is set (#1785 stop endpoint), NEW submissions
     enqueue as *queued* instead of starting — before this, the pause only held promotion of
@@ -1174,17 +1189,20 @@ def enqueue_pipeline_job(
             profile_override=profile_override,
             pipeline_stage=pipeline_stage,
             reprocess_episode_ids=reprocess_episode_ids,
+            trigger=trigger,
         )
         cap = max_concurrent_jobs(operator_yaml)
         if not paused and _running_count(jobs) < cap:
             rec = _new_job_record(
                 job_id=job_id, argv=argv, log_relpath=log_relpath, status=STATUS_RUNNING
             )
+            rec["trigger"] = trigger
             jobs.append(rec)
             return rec
         rec = _new_job_record(
             job_id=job_id, argv=argv, log_relpath=log_relpath, status=STATUS_QUEUED
         )
+        rec["trigger"] = trigger
         rec["started_at"] = None
         jobs.append(rec)
         return rec
@@ -1722,7 +1740,9 @@ async def start_job_if_running_record(
     # Source of truth = the row's stored (command-typed) argv; rebuild only for
     # a legacy row that predates argv persistence. This is what lets an
     # enrichment (or any non-pipeline) job spawn its own CLI, not the pipeline.
-    argv = argv_from_record(job) or build_pipeline_argv(corpus_root, operator_yaml, run_id=job_id)
+    argv = argv_from_record(job) or build_pipeline_argv(
+        corpus_root, operator_yaml, run_id=job_id, trigger=job.get("trigger")
+    )
     log_abs = corpus_root / str(job.get("log_relpath", f".viewer/jobs/{job_id}.log"))
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)
