@@ -23,7 +23,11 @@ def _episode(root: Path, ep: str, person: str, name: str, publisher: List[str]) 
         json.dumps(
             {
                 "episode": {"episode_id": ep, "title": ep},
-                "feed": {"title": "show_a", "language": "en"},
+                "feed": {
+                    "title": "show_a",
+                    "description": " ".join(f"With {n}." for n in publisher),
+                    "language": "en",
+                },
                 "content": {"speakers": [], "transcript_file_path": f"transcripts/{ep}.txt"},
             }
         ),

@@ -1,6 +1,6 @@
 """The ``publisher_verified`` evidence mode (record l_publisher_verified_mode): V1 verifies the
 extracted names against the publisher's own text, V2 finds the text's own spelling, V3 joins a
-show's host-seat ASR spelling to its verified host. Shipped switched off."""
+show's host-seat ASR spelling to its verified host. Switched on 2026-11-06."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from podcast_scraper.kg.entity_clusters import build_entity_canonical_map, Entit
 pytestmark = pytest.mark.unit
 
 
-def test_the_shipped_mode_is_todays() -> None:
-    assert L.EVIDENCE_MODE == PT.EXTRACTED
-    assert L.RULE_VERSION_BY_EVIDENCE[PT.EXTRACTED] == L.RULE_VERSION
-    assert L.RULE_VERSION_BY_EVIDENCE[PT.PUBLISHER_VERIFIED] != L.RULE_VERSION
+def test_the_shipped_mode_is_publisher_verified_and_still_serves_the_extracted_ledger() -> None:
+    assert L.EVIDENCE_MODE == PT.PUBLISHER_VERIFIED
+    assert L.RULE_VERSION_BY_EVIDENCE[PT.PUBLISHER_VERIFIED] == L.RULE_VERSION
+    assert L.RULE_VERSION_BY_EVIDENCE[PT.EXTRACTED] == L.PREVIOUS_RULE_VERSION
 
 
 def test_an_unknown_mode_is_refused(tmp_path: Path) -> None:
@@ -166,11 +166,13 @@ def test_the_verified_mode_reads_the_text_and_records_the_seats(show: Path) -> N
 
 
 def test_the_verified_mode_joins_the_asr_host_and_shows_the_publishers_spelling(show: Path) -> None:
-    today = L.build_ledger(show)
+    today = L.build_ledger(show, evidence_mode=PT.EXTRACTED)
     verified = L.build_ledger(show, evidence_mode=PT.PUBLISHER_VERIFIED)
-    assert today["rule_version"] == L.RULE_VERSION
-    assert verified["rule_version"] == L.RULE_VERSION_BY_EVIDENCE[PT.PUBLISHER_VERIFIED]
-    assert L.ledger_id_map(today).get("person:elsa-martiz") is None
+    assert today["rule_version"] == L.RULE_VERSION_BY_EVIDENCE[PT.EXTRACTED]
+    assert verified["rule_version"] == L.RULE_VERSION
+    old_ids = L.ledger_id_map(today)
+    assert "person:elsa-martiz" not in old_ids and "person:elsa-mordas" not in old_ids
+    assert old_ids != L.ledger_id_map(verified)
     ids = L.ledger_id_map(verified)
     assert (
         ids.get("person:elsa-martiz") == "person:elsa-mordas"
@@ -182,8 +184,8 @@ def test_the_verified_mode_joins_the_asr_host_and_shows_the_publishers_spelling(
     assert "Elsa Mordas" in shown.values()
 
 
-def test_the_default_build_is_the_extracted_build(show: Path) -> None:
-    a, b = L.build_ledger(show), L.build_ledger(show, evidence_mode=PT.EXTRACTED)
+def test_the_default_build_is_the_publisher_verified_build(show: Path) -> None:
+    a, b = L.build_ledger(show), L.build_ledger(show, evidence_mode=PT.PUBLISHER_VERIFIED)
     for led in (a, b):
         led.pop("built_at")
     assert a == b
@@ -241,7 +243,7 @@ def test_the_publishers_spelling_reaches_a_group_only_v2_pairs_with_it(tmp_path:
     shown = lambda led: {  # noqa: E731
         c["canonical_id"]: c.get("display_name") for c in led["clusters_payload"]["clusters"]
     }
-    today = shown(L.build_ledger(root))
+    today = shown(L.build_ledger(root, evidence_mode=PT.EXTRACTED))
     verified = shown(L.build_ledger(root, evidence_mode=PT.PUBLISHER_VERIFIED))
     assert "Siun Ó Fearaigh" not in today.values()
     assert "Siun Ó Fearaigh" in verified.values()
