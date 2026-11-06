@@ -1,6 +1,6 @@
 ---
 name: local-gates
-description: Run the local checks that match what changed, and only those, each ending PASS or FAIL — black/isort/flake8/mypy/docstrings and the tests that name a changed module for Python, markdownlint with the repo config and the strict docs build for Markdown, vitest-related and vue-tsc for the two web apps, actionlint for workflows. Use when about to commit or push, or asked to "run the gates", "lint what I changed", "check this before pushing", or "is this ready".
+description: Run the local checks that match what changed, and only those, each ending PASS or FAIL — black/isort/flake8/mypy/docstrings and the tests that name a changed module for Python, markdownlint with the repo config and the strict docs build for Markdown, vitest-related and vue-tsc for the viewer, actionlint for workflows. Use when about to commit or push, or asked to "run the gates", "lint what I changed", "check this before pushing", or "is this ready".
 ---
 
 # local-gates

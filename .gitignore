@@ -315,7 +315,7 @@ WORKTREE.md
 # The consumer app's old in-tree folder: ignore leftovers in older checkouts.
 web/learning-player/
 # The viewer's equivalent. Since #1619 gave the viewer suite a real API, its webServer writes
-# per-user state here exactly as the player's does — and unlike the player's, this path was not
+# per-user state here, and this path was not
 # ignored, so a local run left runtime JSONL staged. It reached main in ef069c1e via `git add -A`.
 web/gi-kg-viewer/e2e/.app-state/
 # `make serve-for-app-validation` (the Tier-3 app walk's API) writes its users' state here, at the

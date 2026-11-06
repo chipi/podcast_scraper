@@ -2436,7 +2436,7 @@ _ci_body: format-check lint lint-markdown check-doc-structure type security comp
 	# ``ci`` does not include it for the same reason locally.
 
 # Sequential sub-makes + banners so long-quiet steps (especially mypy) never look like a hang.
-# BACKEND gate (operator 2026-10-06): pipeline, providers, data work. No viewer or player tests or
+# BACKEND gate (operator 2026-10-06): pipeline, providers, data work. No viewer tests or
 # builds at all — those live in `ci-ui-fast`. `ci` runs everything.
 ci-fast:
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
@@ -3066,7 +3066,7 @@ profiles-check:
 
 #: The local gates for what changed vs origin/main (or STAGED=1: the staged files), checks only:
 #: black/isort/flake8/mypy/docstrings + the tests naming a changed module, markdownlint, make docs,
-#: player/viewer vitest-related + vue-tsc, actionlint. Last line GATES: PASS|FAIL. Skill: local-gates.
+#: viewer vitest-related + vue-tsc, actionlint. Last line GATES: PASS|FAIL. Skill: local-gates.
 #: Rebuild the app validation corpus as committed (build, realign, corpus enrichers) and report
 #: the difference; WRITE=1 copies added/changed files in. README: tests/fixtures/app-validation-corpus.
 regen-fixtures:
