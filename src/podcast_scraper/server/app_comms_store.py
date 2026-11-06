@@ -1,9 +1,8 @@
 """Per-user comms / delivery consent — a per-TYPE × per-CHANNEL matrix (#1414 → wave-I).
 
 The consent a user has set for every notification TYPE (``digest`` / ``new_episodes`` /
-``product``) across every delivery CHANNEL (``email`` / ``push`` / ``in_app``). Same file-based
-per-user overlay as ``app_user_preferences`` (RFC-098 §3): one ``comms.json`` per user,
-FileLock-serialised read-modify-writes.
+``product``) across every delivery CHANNEL (``email`` / ``push`` / ``in_app``). One ``comms`` row
+per user (ADR-169), read-modify-writes under the row lock; it goes with the account.
 
 This store is the gate for delivery: a ``DeliveryEnvelope`` for ``(type, channel)`` is only sent
 when ``types[type][channel]`` is set (see :func:`channel_enabled`). ``digest_schedule`` holds the
@@ -21,16 +20,19 @@ is closed) and in-app (what's waiting when you return) are distinct surfaces, no
 from __future__ import annotations
 
 import copy
-import json
 import uuid
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server.app_user_store import _is_safe_user_id, list_user_ids
-from podcast_scraper.server.atomic_write import atomic_write_text
-from podcast_scraper.utils.privileges import OwnedFileLock
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Connection
 
-_LOCK_TIMEOUT_S = 5.0
+from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db.schema import comms
+from podcast_scraper.server.app_user_store import _is_safe_user_id
+
+#: The file the store kept before the database; the importer reads it.
 _FILE_NAME = "comms.json"
 
 #: The notification TYPES a user can tune, each independently per CHANNEL. Adding a type is a
@@ -85,25 +87,35 @@ DEFAULTS: dict[str, Any] = {
 }
 
 
-def _comms_path(data_dir: Path, user_id: str) -> Path:
-    return data_dir / "users" / user_id / _FILE_NAME
+def stored_document(settings: Any, unsubscribe_ref: str | None) -> dict[str, Any]:
+    """A ``comms`` row as the document the file held: the settings with the ref beside them."""
+    doc = dict(settings) if isinstance(settings, dict) else {}
+    if unsubscribe_ref:
+        doc["unsubscribe_ref"] = unsubscribe_ref
+    return doc
 
 
-def _comms_lock(data_dir: Path, user_id: str) -> OwnedFileLock:
-    path = _comms_path(data_dir, user_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return OwnedFileLock(str(path.with_name(f".{_FILE_NAME}.lock")), timeout=_LOCK_TIMEOUT_S)
+def row_values(merged: dict[str, Any]) -> dict[str, Any]:
+    """A merged document as ``comms`` column values: the ref in its own column."""
+    settings = {k: v for k, v in merged.items() if k != "unsubscribe_ref"}
+    return {"settings": settings, "unsubscribe_ref": merged.get("unsubscribe_ref") or None}
 
 
-def _read_raw(data_dir: Path, user_id: str) -> dict[str, Any]:
-    path = _comms_path(data_dir, user_id)
-    if not path.is_file():
-        return {}
-    try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    return doc if isinstance(doc, dict) else {}
+def _read_raw(conn: Connection, user_id: str, *, lock: bool = False) -> dict[str, Any]:
+    query = select(comms.c.settings, comms.c.unsubscribe_ref).where(comms.c.user_id == user_id)
+    row = conn.execute(query.with_for_update() if lock else query).first()
+    return stored_document(row.settings, row.unsubscribe_ref) if row is not None else {}
+
+
+def _write(conn: Connection, user_id: str, merged: dict[str, Any]) -> None:
+    values = row_values(merged)
+    conn.execute(
+        pg_insert(comms)
+        .values(user_id=user_id, **values)
+        .on_conflict_do_update(
+            index_elements=[comms.c.user_id], set_={**values, "updated_at": func.now()}
+        )
+    )
 
 
 def _merged(stored: dict[str, Any]) -> dict[str, Any]:
@@ -143,7 +155,12 @@ def get_comms(data_dir: Path, user_id: str) -> dict[str, Any]:
     """Return the user's comms settings merged onto defaults (read-only; no ref minted)."""
     if not _is_safe_user_id(user_id):
         return _merged({})
-    return _merged(_read_raw(data_dir, user_id))
+
+    def read(engine: Any) -> dict[str, Any]:
+        with engine.connect() as conn:
+            return _merged(_read_raw(conn, user_id))
+
+    return read_with_retry(read)
 
 
 def channel_enabled(comms: dict[str, Any], ntype: str, channel: str) -> bool:
@@ -174,8 +191,14 @@ def set_comms(
     """
     if not _is_safe_user_id(user_id):
         raise ValueError("unsafe user id")
-    with _comms_lock(data_dir, user_id):
-        current = _merged(_read_raw(data_dir, user_id))
+    with rw_engine().begin() as conn:
+        # A row to lock even on the first write, so two first writes cannot both read "none".
+        conn.execute(
+            pg_insert(comms)
+            .values(user_id=user_id, settings={})
+            .on_conflict_do_nothing(index_elements=[comms.c.user_id])
+        )
+        current = _merged(_read_raw(conn, user_id, lock=True))
         if types:
             for ntype, row in types.items():
                 if ntype in current["types"] and isinstance(row, dict):
@@ -198,9 +221,7 @@ def set_comms(
             current["timezone"] = str(timezone)
         if not current.get("unsubscribe_ref"):
             current["unsubscribe_ref"] = uuid.uuid4().hex
-        path = _comms_path(data_dir, user_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_text(path, json.dumps(current, ensure_ascii=False, indent=2))
+        _write(conn, user_id, current)
     return current
 
 
@@ -222,24 +243,22 @@ def unsubscribe(data_dir: Path, ref: str, ntype: str = "digest") -> bool:
     ``ntype`` is which email the one-click link came from (``digest`` default for back-compat, or
     ``daily_recap``, ...); the link governs that type's email channel only (never push / in-app),
     so unsubscribing from the daily recap does not silence the weekly digest and vice-versa. An
-    unknown ``ntype`` is a no-op that returns False. O(users) scan (RFC-101 OQ-1). Returns True when
-    a matching user was found and updated. Idempotent — re-hitting a used link still returns True.
+    unknown ``ntype`` is a no-op that returns False. One indexed lookup on the ref, which locks the
+    row it finds, so a ref rotated away concurrently matches nothing (RFC-101 OQ-1, the scan over
+    every user's file it replaces). Returns True when a matching user was found and updated.
+    Idempotent — re-hitting a used link still returns True.
     """
     if not ref or ntype not in TYPES:
         return False
-    for uid in list_user_ids(data_dir):
-        raw = _read_raw(data_dir, uid)
-        if raw.get("unsubscribe_ref") == ref:
-            with _comms_lock(data_dir, uid):
-                current = _merged(_read_raw(data_dir, uid))
-                # Re-verify under the lock — the ref could have been rotated out between the
-                # unlocked scan and here; don't disable delivery for a stale/rotated ref.
-                if current.get("unsubscribe_ref") != ref:
-                    return False
-                current["types"][ntype]["email"] = False
-                atomic_write_text(
-                    _comms_path(data_dir, uid),
-                    json.dumps(current, ensure_ascii=False, indent=2),
-                )
-            return True
-    return False
+    with rw_engine().begin() as conn:
+        row = conn.execute(
+            select(comms.c.user_id, comms.c.settings, comms.c.unsubscribe_ref)
+            .where(comms.c.unsubscribe_ref == ref)
+            .with_for_update()
+        ).first()
+        if row is None:
+            return False
+        current = _merged(stored_document(row.settings, row.unsubscribe_ref))
+        current["types"][ntype]["email"] = False
+        _write(conn, row.user_id, current)
+    return True

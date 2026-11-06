@@ -218,7 +218,7 @@ def test_a_misspelled_mode_is_rejected_rather_than_silently_coerced(tmp_path: Pa
 
 
 def test_the_audit_record_names_the_addresses(tmp_path: Path) -> None:
-    import json as _json
+    from podcast_scraper.server.app_audit import read_audit
 
     app = _app(tmp_path)
     audit = tmp_path / "audit.jsonl"
@@ -228,11 +228,7 @@ def test_the_audit_record_names_the_addresses(tmp_path: Path) -> None:
     admin.put(POLICY, json={"mode": "allowlist", "allowed_emails": [ADMIN, "keep@e2e.local"]})
     admin.put(POLICY, json={"mode": "allowlist", "allowed_emails": [ADMIN, "new@e2e.local"]})
 
-    records = [
-        _json.loads(line)
-        for line in audit.read_text(encoding="utf-8").splitlines()
-        if "access_policy" in line
-    ]
+    records = [r for r in read_audit(audit) if "access_policy" in str(r)]
     assert records, "no access-policy audit records were written"
     last = records[-1]
     assert last["removed_emails"] == ["keep@e2e.local"]

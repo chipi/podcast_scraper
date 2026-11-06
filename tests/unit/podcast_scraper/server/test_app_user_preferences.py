@@ -1,15 +1,24 @@
-"""Unit tests for the USERPREFS-1 file-backed preferences store."""
+"""Unit tests for the USERPREFS-1 preferences store (a ``user_preferences`` row per account)."""
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from podcast_scraper.server import app_user_preferences
+from tests._database import register_user
 
 USER = "u_test"
+
+
+@pytest.fixture(autouse=True)
+def _accounts() -> None:
+    """Preferences belong to an account: the row references ``users``."""
+    for uid in (USER, "alice", "bob"):
+        register_user(uid)
 
 
 def test_get_default_is_empty_dict_when_no_file(tmp_path: Path) -> None:
@@ -67,10 +76,22 @@ def test_users_are_isolated(tmp_path: Path) -> None:
     assert app_user_preferences.get_preferences(tmp_path, "bob") == {"theme": "light"}
 
 
-def test_malformed_json_on_disk_returns_empty(tmp_path: Path) -> None:
-    """Corrupted preferences.json should not brick the user's session — the
-    server returns empty and the client falls back to local defaults."""
-    path = tmp_path / "users" / USER / "preferences.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("{not json}", encoding="utf-8")
-    assert app_user_preferences.get_preferences(tmp_path, USER) == {}
+def test_concurrent_first_patches_both_land(tmp_path: Path) -> None:
+    """Two tabs' first writes at once: the row lock serialises them, neither key is lost."""
+    keys = [f"k{i}" for i in range(8)]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(
+            pool.map(
+                lambda k: app_user_preferences.patch_preferences(tmp_path, USER, {k: True}), keys
+            )
+        )
+    assert app_user_preferences.get_preferences(tmp_path, USER) == {k: True for k in keys}
+
+
+def test_preferences_go_with_the_account(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_user_store import delete_user
+
+    register_user("u_" + "a" * 24)
+    app_user_preferences.replace_preferences(tmp_path, "u_" + "a" * 24, {"theme": "dark"})
+    assert delete_user(tmp_path, "u_" + "a" * 24)
+    assert app_user_preferences.get_preferences(tmp_path, "u_" + "a" * 24) == {}

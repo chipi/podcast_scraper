@@ -7,12 +7,13 @@ redeploy** — while every other property of a user (role, disabled, deletion, M
 already editable at runtime through the admin API. The thing that actually decides whether someone
 can get in was the only thing that needed a deploy.
 
-This is the same shape as its sibling :mod:`app_ranking_config_store`: one
-JSON file in the data dir, written by an admin endpoint, **read per request**, with the env policy
-as the fallback when the file is absent or unreadable. An instance that never touches the endpoint
-behaves exactly as it did before, so the env var keeps working as the bootstrap seed.
+One ``access_policy`` row in the plane schema (ADR-169), written by an admin endpoint, **read per
+request**, with the env policy as the fallback when there is no row. An instance that never
+touches the endpoint behaves exactly as it did before, so the env var keeps working as the
+bootstrap seed. A process with no database (the control plane) has no persisted policy, exactly
+as it had no file.
 
-The file wins over env when present. That is deliberate: a merge would make it impossible to ever
+The row wins over env when present. That is deliberate: a merge would make it impossible to ever
 *remove* an address that came from env, and "revoke access" has to be achievable without a deploy
 for the same reason "grant access" does. The lockout risk that creates is handled at the endpoint
 by a self-lockout guard, mirroring the one in ``routes/app_admin.py``.
@@ -20,20 +21,21 @@ by a self-lockout guard, mirroring the one in ``routes/app_admin.py``.
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
+from typing import Any
 
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from podcast_scraper.db import database_available, read_with_retry, rw_engine
+from podcast_scraper.db.schema import access_policy
 from podcast_scraper.server.app_access import AccessPolicy
-from podcast_scraper.server.atomic_write import atomic_write_text
 
 logger = logging.getLogger(__name__)
 
+#: The file the policy was kept in before the database; the importer reads it.
 _FILE_NAME = "access_policy.json"
-
-
-def _policy_path(data_dir: Path) -> Path:
-    return data_dir / _FILE_NAME
 
 
 def policy_to_dict(policy: AccessPolicy) -> dict[str, object]:
@@ -72,51 +74,41 @@ def _clean(raw: object) -> frozenset[str]:
 def load_policy(data_dir: Path | None) -> AccessPolicy | None:
     """The persisted policy, or ``None`` when there isn't a usable one.
 
-    ``None`` means "fall back to the env policy" — it is NOT a policy that denies everyone. An
-    absent file is the normal state for an instance that has never used the admin endpoint.
+    ``None`` means "fall back to the env policy" — it is NOT a policy that denies everyone. No
+    row is the normal state for an instance that has never used the admin endpoint, and the only
+    state of a process with no database. A database error is raised, never read as "no row": that
+    would fall back to env and re-admit anyone revoked through the endpoint.
     """
-    if data_dir is None:
+    if data_dir is None or not database_available():
         return None
-    path = _policy_path(Path(data_dir))
-    if not path.is_file():
-        return None  # the normal state for an instance that never used the endpoint — silent
-    # A PRESENT but unreadable file is different, and it is loud.
-    #
-    # Falling back to env here re-admits anyone the operator revoked through the endpoint, because
-    # env still lists them. That is fail-open relative to their last expressed intent, so it must
-    # never happen quietly. It is still the right fallback rather than denying everyone: writes go
-    # through `atomic_write_text`, so this file cannot be torn by us — a corrupt one means external
-    # tampering or a hand-edit, and answering that by locking every admin out of the surface that
-    # repairs it trades a stale allowlist for a self-inflicted outage with no way back in.
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        logger.error(
-            "access policy at %s is unreadable (%s) — FALLING BACK TO THE ENV POLICY, which may "
-            "re-admit addresses revoked through the admin endpoint. Fix or delete the file.",
-            path,
-            exc,
+
+    def read(engine: Any) -> AccessPolicy | None:
+        with engine.connect() as conn:
+            row = conn.execute(select(access_policy)).mappings().first()
+        if row is None:
+            return None
+        return policy_from_dict(
+            {
+                "mode": row["mode"],
+                "allowed_emails": list(row["allowed_emails"]),
+                "allowed_domains": list(row["allowed_domains"]),
+            }
         )
-        return None
-    if not isinstance(data, dict):
-        logger.error(
-            "access policy at %s is %s, expected an object — FALLING BACK TO THE ENV POLICY, "
-            "which may re-admit revoked addresses. Fix or delete the file.",
-            path,
-            type(data).__name__,
-        )
-        return None
-    return policy_from_dict(data)
+
+    return read_with_retry(read)
 
 
 def save_policy(data_dir: Path, policy: AccessPolicy) -> AccessPolicy:
-    """Persist *policy* atomically; returns it for convenience."""
-    data_dir = Path(data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(
-        _policy_path(data_dir),
-        json.dumps(policy_to_dict(policy), indent=2, ensure_ascii=False) + "\n",
-    )
+    """Persist *policy* (the one row); returns it for convenience."""
+    values = policy_to_dict(policy)
+    with rw_engine().begin() as conn:
+        conn.execute(
+            pg_insert(access_policy)
+            .values(id=1, **values)
+            .on_conflict_do_update(
+                index_elements=[access_policy.c.id], set_={**values, "updated_at": func.now()}
+            )
+        )
     return policy
 
 

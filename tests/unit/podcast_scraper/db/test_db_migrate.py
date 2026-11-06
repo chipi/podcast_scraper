@@ -28,9 +28,10 @@ def url() -> str:
 
 
 def test_a_migrating_role_that_owns_the_schema_but_cannot_create_in_the_database(url: str) -> None:
-    """Prod: infra pre-creates ``player``/``operator``/``corpus`` owned by ``migrator``, which does
-    not hold CREATE on the database. ``CREATE SCHEMA IF NOT EXISTS`` needs that privilege even
-    when the schema exists, so ``upgrade`` must only create a schema that is missing."""
+    """Prod: infra pre-creates ``player``/``operator``/``shared``/``corpus`` owned by
+    ``migrator``, which does not hold CREATE on the database. ``CREATE SCHEMA IF NOT EXISTS``
+    needs that privilege even when the schema exists, so ``upgrade`` must only create a schema
+    that is missing."""
     admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
     role = f"migrator_{os.getpid()}"
     database = make_url(normalize_url(url)).database
@@ -38,8 +39,10 @@ def test_a_migrating_role_that_owns_the_schema_but_cannot_create_in_the_database
     try:
         with admin.connect() as conn:
             conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+            conn.execute(text("DROP SCHEMA IF EXISTS shared CASCADE"))
             conn.execute(text(f"CREATE ROLE {role} LOGIN PASSWORD 'migrator'"))
             conn.execute(text("CREATE SCHEMA operator AUTHORIZATION " + role))
+            conn.execute(text("CREATE SCHEMA shared AUTHORIZATION " + role))
             can_create = conn.execute(
                 text("SELECT has_database_privilege(:r, :d, 'CREATE')"), {"r": role, "d": database}
             ).scalar()
@@ -50,9 +53,11 @@ def test_a_migrating_role_that_owns_the_schema_but_cannot_create_in_the_database
 
         current, head = migrate.status(rendered, "operator")
         assert current == head
+        assert migrate.shared_status(rendered)[0] == migrate.head_revision("shared")
     finally:
         with admin.connect() as conn:
             conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+            conn.execute(text("DROP SCHEMA IF EXISTS shared CASCADE"))
             conn.execute(text(f"DROP ROLE IF EXISTS {role}"))
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -105,17 +110,30 @@ def test_the_cli_entry_point_upgrades_and_reports_status(url: str) -> None:
     behind = _cli("status", "--plane", "operator", url=url)
     assert behind.returncode == 2 and "current none" in behind.stdout, behind.stderr
 
+    head = migrate.head_revision()
+    shared_head = migrate.head_revision("shared")
     up = _cli("upgrade", "--plane", "operator", url=url)
-    assert (
-        up.returncode == 0
-        and "plane operator: 0002_schema_history (head 0002_schema_history)" in up.stdout
-    )
+    assert up.returncode == 0, up.stderr
+    assert f"plane operator: {head} (head {head})" in up.stdout
+    assert f"schema shared: {shared_head} (head {shared_head})" in up.stdout
 
     player = _cli("status", "--plane", "player", url=url)
-    assert (
-        player.returncode == 0
-        and "current 0002_schema_history, head 0002_schema_history" in player.stdout
-    )
+    assert player.returncode == 0
+    assert f"current {head}, head {head}" in player.stdout
+    assert f"schema shared: current {shared_head}, head {shared_head}" in player.stdout
+
+
+def test_status_is_behind_when_only_the_shared_schema_is_behind(url: str) -> None:
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS shared CASCADE"))
+        behind = _cli("status", "--plane", "player", url=url)
+        assert behind.returncode == 2
+        assert "schema shared: current none" in behind.stdout
+    finally:
+        admin.dispose()
+        migrate.upgrade_shared(url)
 
 
 def test_the_cli_fails_loudly_with_no_database_url() -> None:
@@ -158,8 +176,14 @@ def test_sql_for_a_fresh_plane_creates_the_plane_tables_and_nothing_in_public() 
     assert re.search(r'CREATE TABLE "?player"?\.alembic_version \(', out)
     assert re.search(r'INSERT INTO "?player"?\.alembic_version', out)
     assert "CREATE SCHEMA" not in out.upper()
-    for statement in re.findall(r"CREATE TABLE ([^ (]+)", out):
-        assert statement.strip('"').startswith("player."), statement
+    tables = [t.strip('"') for t in re.findall(r"CREATE TABLE ([^ (]+)", out)]
+    # The shared schema's history runs first, then the plane's; nothing else is touched.
+    assert sorted(t for t in tables if not t.startswith("player.")) == [
+        "shared.alembic_version",
+        "shared.app_releases",
+        "shared.schema_history",
+    ]
+    assert out.index("shared.alembic_version") < out.index("player.alembic_version")
     assert "public" not in out
 
 
@@ -209,30 +233,89 @@ def test_the_emitted_sql_builds_the_same_table_the_upgrade_does(url: str) -> Non
         scratch = create_engine(target, isolation_level="AUTOCOMMIT")
         with scratch.connect() as conn:
             conn.execute(text("CREATE SCHEMA player"))
+            conn.execute(text("CREATE SCHEMA shared"))
             raw = conn.connection.dbapi_connection
             assert raw is not None
             raw.execute(done.stdout)
-            columns_sql = conn.execute(
-                text(
-                    "SELECT column_name, data_type, is_nullable FROM information_schema.columns "
-                    "WHERE table_schema = 'player' AND table_name = 'users' ORDER BY column_name"
-                )
-            ).all()
+            shape_sql = _shape(conn)
         scratch.dispose()
         live = create_engine(normalize_url(url))
         with live.connect() as conn:
-            columns_live = conn.execute(
-                text(
-                    "SELECT column_name, data_type, is_nullable FROM information_schema.columns "
-                    "WHERE table_schema = 'player' AND table_name = 'users' ORDER BY column_name"
-                )
-            ).all()
+            shape_live = _shape(conn)
         live.dispose()
-        assert columns_sql == columns_live and columns_sql
+        assert shape_sql == shape_live
+        assert {t for (_s, t, *_rest) in shape_live["columns"]} >= {"users", "outbox", "comms"}
     finally:
         with admin.connect() as conn:
             conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
         admin.dispose()
+
+
+def _shape(conn) -> dict[str, list[tuple]]:  # type: ignore[no-untyped-def]
+    """Every column, constraint and index of the player and shared schemas."""
+    return {
+        "columns": conn.execute(
+            text(
+                "SELECT table_schema, table_name, column_name, data_type, is_nullable, "
+                "column_default FROM information_schema.columns "
+                "WHERE table_schema IN ('player', 'shared') ORDER BY 1, 2, 3"
+            )
+        ).all(),
+        "constraints": conn.execute(
+            text(
+                "SELECT n.nspname, c.conname, pg_get_constraintdef(c.oid) FROM pg_constraint c "
+                "JOIN pg_namespace n ON n.oid = c.connamespace "
+                "WHERE n.nspname IN ('player', 'shared') ORDER BY 1, 2"
+            )
+        ).all(),
+        "indexes": conn.execute(
+            text(
+                "SELECT schemaname, indexname, indexdef FROM pg_indexes "
+                "WHERE schemaname IN ('player', 'shared') ORDER BY 1, 2"
+            )
+        ).all(),
+    }
+
+
+def test_the_tables_the_stores_use_are_the_tables_the_migrations_build(url: str) -> None:
+    """``schema.py`` (what the stores query) and the revisions (what prod runs) must not drift."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.runtime.migration import MigrationContext
+
+    from podcast_scraper.db.schema import metadata, shared_metadata
+
+    engine = create_engine(normalize_url(url))
+    try:
+        with engine.connect() as conn:
+            for plane in ("player", "operator"):
+                conn.execute(text(f"SET search_path TO {plane}"))
+                ctx = MigrationContext.configure(
+                    conn,
+                    opts={
+                        "compare_type": True,
+                        "compare_server_default": True,
+                        "include_name": lambda name, kind, _parent: name != "alembic_version",
+                    },
+                )
+                assert compare_metadata(ctx, metadata) == [], plane
+            conn.execute(text("SET search_path TO public"))
+            ctx = MigrationContext.configure(
+                conn,
+                opts={
+                    "compare_type": True,
+                    "compare_server_default": True,
+                    "include_schemas": True,
+                    # schema_history is the kernel's table definition, written there by migrate.
+                    "include_name": lambda name, kind, _parent: (
+                        name == "shared"
+                        if kind == "schema"
+                        else name not in ("alembic_version", "schema_history")
+                    ),
+                },
+            )
+            assert compare_metadata(ctx, shared_metadata) == []
+    finally:
+        engine.dispose()
 
 
 # --- schema_history: what each upgrade applied --------------------------------------------------
@@ -255,16 +338,41 @@ def test_an_upgrade_from_empty_writes_a_history_row_per_revision_and_a_second_wr
     _fresh_operator(url)
     try:
         applied = migrate.upgrade(url, "operator")
-        assert applied == ["0001_users", "0002_schema_history"]
+        assert applied == ["0001_users", "0002_schema_history", "0003_kernel_stores"]
         rows = migrate.history_rows(url, "operator")
-        assert [r["revision"] for r in rows] == ["0002_schema_history", "0001_users"]
+        assert [r["revision"] for r in rows] == [
+            "0003_kernel_stores",
+            "0002_schema_history",
+            "0001_users",
+        ]
         assert {r["release"] for r in rows} == {"b5a243d"}
         assert {r["release_source"] for r in rows} == {"CL_RELEASE"}
         assert all(isinstance(r["duration_ms"], int) and r["duration_ms"] >= 0 for r in rows)
         assert all(r["applied_at"] is not None for r in rows)
 
         assert migrate.upgrade(url, "operator") == []
-        assert len(migrate.history_rows(url, "operator")) == 2
+        assert len(migrate.history_rows(url, "operator")) == 3
+    finally:
+        migrate.upgrade(url, "operator")
+
+
+def test_the_shared_schema_writes_its_own_history_once(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CL_RELEASE", "b5a243d")
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    with admin.connect() as conn:
+        conn.execute(text("DROP SCHEMA IF EXISTS shared CASCADE"))
+    admin.dispose()
+    try:
+        assert migrate.upgrade_shared(url) == ["shared_0001_app_releases"]
+        rows = migrate.history_rows(url, "shared")
+        assert [(r["revision"], r["release"]) for r in rows] == [
+            ("shared_0001_app_releases", "b5a243d")
+        ]
+        # A plane upgrade after it leaves shared alone.
+        migrate.upgrade(url, "player")
+        assert len(migrate.history_rows(url, "shared")) == 1
     finally:
         migrate.upgrade(url, "operator")
 
@@ -325,6 +433,7 @@ def test_status_on_a_plane_before_the_history_table_prints_no_rows(url: str) -> 
         migrate.upgrade(url, "operator", "0001_users")
         out = _cli("status", "--plane", "operator", url=url)
         assert out.returncode == 2 and "current 0001_users" in out.stdout
-        assert " ms" not in out.stdout
+        plane_part = out.stdout.split("schema shared:")[0]
+        assert " ms" not in plane_part
     finally:
         migrate.upgrade(url, "operator")

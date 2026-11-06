@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from podcast_scraper.server.app_account_deletion import delete_account
+from podcast_scraper.server.app_audit import read_audit
 from podcast_scraper.server.app_user_store import (
     get_user,
     list_users,
@@ -55,14 +56,7 @@ def _revoked_by_admin(data_dir: Path) -> set[str]:
     that tells a deliberate revoke apart from that old default, so it decides who is skipped.
     """
     latest: dict[str, bool] = {}
-    path = data_dir / "audit.jsonl"
-    if not path.exists():
-        return set()
-    for line in path.read_text(encoding="utf-8").splitlines():
-        try:
-            rec = json.loads(line)
-        except ValueError:
-            continue
+    for rec in read_audit(data_dir / "audit.jsonl"):
         if rec.get("action") == "admin.user.mcp_access" and rec.get("user"):
             latest[str(rec["user"])] = bool(rec.get("mcp_access"))
     return {uid for uid, granted in latest.items() if not granted}

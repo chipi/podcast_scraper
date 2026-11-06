@@ -28,9 +28,9 @@ def test_list_user_ids_is_sorted_and_needs_no_directories(tmp_path: Path) -> Non
 def test_graph_telemetry_reads_accounts_from_rows(tmp_path: Path) -> None:
     quiet = _account(tmp_path, "quiet")
     talker = _account(tmp_path, "talker")
-    ghost = "u_" + "8" * 24  # a directory with events but no account
+    ghost = "u_" + "8" * 24  # an id with no account: its events are refused, not stored
     app_graph_telemetry.record_events(tmp_path, talker, [{"action": "redraw", "ts": 1}])
-    app_graph_telemetry.record_events(tmp_path, ghost, [{"action": "redraw", "ts": 2}])
+    assert app_graph_telemetry.record_events(tmp_path, ghost, [{"action": "redraw", "ts": 2}]) == 0
     assert not (tmp_path / "users" / quiet).exists()
     assert [e["ts"] for e in app_graph_telemetry.read_all_events(tmp_path)] == [1]
 

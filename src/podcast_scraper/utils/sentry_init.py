@@ -129,6 +129,42 @@ def _fingerprint(event: dict) -> Optional[list]:
     return None
 
 
+def _database_error(hint: object) -> Optional[tuple[BaseException, BaseException]]:
+    """``(raised, driver_error)`` when the event's exception came from the database, else None.
+
+    ``driver_error`` is the psycopg error: SQLAlchemy wraps it as ``.orig``; a bare psycopg error is
+    its own driver error.
+    """
+    exc_info = hint.get("exc_info") if isinstance(hint, dict) else None
+    exc = exc_info[1] if isinstance(exc_info, tuple) and len(exc_info) > 1 else None
+    if not isinstance(exc, BaseException):
+        return None
+    from sqlalchemy.exc import DBAPIError
+
+    if isinstance(exc, DBAPIError) and isinstance(exc.orig, BaseException):
+        return exc, exc.orig
+    if type(exc).__module__.split(".", 1)[0] == "psycopg":
+        return exc, exc
+    return None
+
+
+def _group_database_error(event: dict, raised: BaseException, driver: BaseException) -> None:
+    """One issue per kind of database failure, with no SQL or parameters in what is sent.
+
+    The default grouping keys on the exception text, which for a database error carries the whole
+    statement and its parameters: one failure became one issue per statement (prod, 2026-11-05,
+    PLAYER-API-4 and -5). The key is the driver's error class plus the SQLSTATE, so a missing table
+    is one issue whichever query hit it; the value keeps only the server's first message line, which
+    names the object but not the row (the DETAIL line with key values and the SQL are dropped).
+    """
+    sqlstate = str(getattr(driver, "sqlstate", "") or "")
+    event["fingerprint"] = ["database", type(driver).__name__, sqlstate]
+    summary = (str(driver).strip().splitlines() or [""])[0][:200]
+    for value in (event.get("exception") or {}).get("values") or []:
+        if value.get("type") in (type(raised).__name__, type(driver).__name__):
+            value["value"] = f"[{sqlstate}] {summary}" if sqlstate else summary
+
+
 def _before_send(event: dict, hint: object) -> dict:
     """Scrub obviously-sensitive keys before an event leaves the app.
 
@@ -148,7 +184,10 @@ def _before_send(event: dict, hint: object) -> dict:
     except Exception:  # noqa: BLE001 — a scrub failure must not drop the event
         _LOGGER.debug("sentry before_send scrub skipped", exc_info=True)
     try:
-        if not event.get("fingerprint"):
+        database = _database_error(hint)
+        if database is not None:
+            _group_database_error(event, *database)
+        elif not event.get("fingerprint"):
             fingerprint = _fingerprint(event)
             if fingerprint:
                 event["fingerprint"] = fingerprint
@@ -202,7 +241,11 @@ def init_sentry(component: Component) -> bool:
         return False
 
     environment = os.environ.get("PODCAST_ENV", "dev").strip() or "dev"
-    release = os.environ.get("PODCAST_RELEASE", "").strip() or None
+    # The deploy's release id (CL_RELEASE) when set, so an event names the release a deploy shipped;
+    # else the image ref (PODCAST_RELEASE).
+    from podcast_scraper import build_info
+
+    release, _source = build_info.release()
     if not release:
         # Best-effort fallback to the package version so events at least
         # group by version.

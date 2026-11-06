@@ -25,25 +25,29 @@ Three properties, and why each is enforced here
    re-fetched link would otherwise work again and again until it expired. Email is replayed
    constantly by scanners, prefetchers and corporate link-rewriters, so this is not hypothetical.
    Enforcing it needs server state, which is the one thing the stateless session design avoided; it
-   is a small, self-pruning directory rather than a session store.
+   is a small, self-pruning table (``magic_link_used``) rather than a session store.
 3. **Purpose-bound.** The payload carries ``purpose``, so a session cookie can never be presented as
    a magic token or vice versa, even though both are signed with the same secret.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
-import os
+import re
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from filelock import Timeout
+from sqlalchemy import delete, exc as sa_exc
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Connection
 
+from podcast_scraper.db import rw_engine
+from podcast_scraper.db.schema import magic_link_requests, magic_link_used
 from podcast_scraper.server import app_sessions
-from podcast_scraper.server.atomic_write import atomic_write_text
-from podcast_scraper.utils.privileges import OwnedFileLock
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +58,21 @@ PURPOSE = "magic_link"
 #: How long a link stays usable. Short on purpose: the link IS the credential while it lives.
 TOKEN_TTL_SECONDS = 15 * 60
 
-#: Where consumed token ids are recorded, under the app data dir.
+#: Where consumed token ids were recorded before the database, under the app data dir (the
+#: importer reads them), and the send-throttle markers beside them.
 _USED_DIR = "magic_link_used"
+_RECENT_DIR = "magic_link_recent"
 
 #: Consumed-id records older than this are pruned. Must exceed TOKEN_TTL_SECONDS — a record only has
 #: to outlive the token it blocks, since an expired token is rejected on age anyway.
 _USED_RETENTION_SECONDS = 24 * 3600
 
-_LOCK_TIMEOUT_S = 5.0
+
+_TOKEN_ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
+
+
+def _at(epoch: int) -> datetime:
+    return datetime.fromtimestamp(epoch, tz=timezone.utc)
 
 
 def normalise_email(raw: str) -> str:
@@ -112,77 +123,108 @@ def parse(token: str | None, secret: str) -> dict[str, Any] | None:
     return payload
 
 
-def _used_dir(data_dir: Path) -> Path:
-    return Path(data_dir) / _USED_DIR
-
-
 def consume(data_dir: Path, token_id: str, *, now: int | None = None) -> bool:
     """Claim ``token_id`` exactly once. True on the first call, False on every later one.
 
-    The create-if-absent is done under a lock and checked AFTER taking it, so two clicks arriving
-    together cannot both win. A double-click on a link in a mail client is the ordinary case here,
-    not an attack, and it must not produce two sessions.
+    One ``INSERT … ON CONFLICT DO NOTHING``: of two clicks arriving together exactly one inserts the
+    row. A double-click on a link in a mail client is the ordinary case here, not an attack, and it
+    must not produce two sessions.
 
-    Fails CLOSED: if the directory cannot be written, this returns False and the sign-in is refused.
-    A single-use guarantee that silently degrades to unlimited-use on a disk error is not one.
+    Fails CLOSED: if the row cannot be written, this returns False and the sign-in is refused. A
+    single-use guarantee that silently degrades to unlimited-use on a database error is not one.
     """
     token_id = str(token_id or "")
-    if not token_id or "/" in token_id or "\\" in token_id or token_id.startswith("."):
+    # Only the shape ``issue`` mints (``secrets.token_urlsafe``); anything else was never ours.
+    if not _TOKEN_ID.fullmatch(token_id):
         return False
     stamp = int(time.time()) if now is None else now
     try:
-        directory = _used_dir(data_dir)
-        directory.mkdir(parents=True, exist_ok=True)
-        # normalize + prefix-check inline: CodeQL only honours the guard in this function
-        used_root = os.path.normpath(str(directory))
-        marker_s = os.path.normpath(os.path.join(used_root, f"{token_id}.json"))
-        if not marker_s.startswith(used_root + os.sep):
-            return False
-        marker = Path(marker_s)
-        with OwnedFileLock(str(directory / f".{token_id}.lock"), timeout=_LOCK_TIMEOUT_S):
-            if marker.exists():
-                return False
-            atomic_write_text(marker, f'{{"used_at": {stamp}}}')
-    except Timeout:
-        logger.warning("magic link: lock timeout claiming a token; refusing the sign-in")
-        return False
-    except OSError:
+        with rw_engine().begin() as conn:
+            claimed = conn.execute(
+                pg_insert(magic_link_used)
+                .values(token_id=token_id, used_at=_at(stamp))
+                .on_conflict_do_nothing(index_elements=[magic_link_used.c.token_id])
+                .returning(magic_link_used.c.token_id)
+            ).first()
+    except sa_exc.SQLAlchemyError:
         logger.warning(
             "magic link: could not record token use; refusing the sign-in", exc_info=True
         )
         return False
-    _prune(data_dir, now=stamp)
+    if claimed is None:
+        return False
+    _prune(now=stamp)
     return True
 
 
-def _prune(data_dir: Path, *, now: int) -> None:
+def _prune(*, now: int) -> None:
     """Drop consumed-id records older than the retention window. Best-effort, never raises.
 
-    Without this the directory grows forever — one file per successful sign-in, kept to block a
-    replay that stopped being possible the moment the token expired.
+    Without this the table grows forever — one row per successful sign-in, kept to block a replay
+    that stopped being possible the moment the token expired.
     """
     try:
-        directory = _used_dir(data_dir)
-        if not directory.is_dir():
-            return
-        cutoff = now - _USED_RETENTION_SECONDS
-        for path in directory.iterdir():
-            try:
-                if path.suffix == ".lock" or path.name.startswith("."):
-                    continue
-                if path.stat().st_mtime < cutoff:
-                    path.unlink(missing_ok=True)
-            except OSError:
-                continue
-    except OSError:
-        return
+        with rw_engine().begin() as conn:
+            conn.execute(
+                delete(magic_link_used).where(
+                    magic_link_used.c.used_at < _at(now - _USED_RETENTION_SECONDS)
+                )
+            )
+    except sa_exc.SQLAlchemyError:
+        logger.warning("magic link: pruning used tokens failed", exc_info=True)
+
+
+def email_hash(email: str) -> str:
+    """The throttle's key for an address: a hash, never the address, so the table is not a list
+    of everyone who asked for a link (people who never had an account included)."""
+    return hashlib.sha256(email.encode("utf-8")).hexdigest()[:32]
+
+
+def request_throttled(email: str, *, now: int, min_interval_s: int) -> bool:
+    """True when a link was already sent to this address within ``min_interval_s``; else records
+    this request and returns False.
+
+    One upsert that only moves the time forward once the window has passed, so two requests at once
+    cannot both get through. Best-effort: failing to record it must not block a legitimate sign-in.
+    """
+    stamp = _at(now)
+    try:
+        with rw_engine().begin() as conn:
+            recorded = conn.execute(
+                pg_insert(magic_link_requests)
+                .values(email_hash=email_hash(email), requested_at=stamp)
+                .on_conflict_do_update(
+                    index_elements=[magic_link_requests.c.email_hash],
+                    set_={"requested_at": stamp},
+                    where=magic_link_requests.c.requested_at
+                    <= stamp - timedelta(seconds=min_interval_s),
+                )
+                .returning(magic_link_requests.c.email_hash)
+            ).first()
+    except sa_exc.SQLAlchemyError:
+        logger.warning("magic link: could not record the request; not throttling", exc_info=True)
+        return False
+    return recorded is None
+
+
+def forget_requests(conn: Connection, email: str) -> int:
+    """Remove the throttle row for this address, both spellings the route may have used."""
+    hashes = {email_hash(email), email_hash(normalise_email(email))}
+    return int(
+        conn.execute(
+            delete(magic_link_requests).where(magic_link_requests.c.email_hash.in_(hashes))
+        ).rowcount
+    )
 
 
 __all__ = [
     "PURPOSE",
     "TOKEN_TTL_SECONDS",
     "consume",
+    "email_hash",
+    "forget_requests",
     "issue",
     "normalise_email",
     "parse",
+    "request_throttled",
 ]

@@ -375,8 +375,8 @@ def _guard_operator_public_open_signup(operator_public: bool, data_dir: Path | N
     # someone on a long detour when the env var already says allowlist and a persisted policy
     # file is overriding it.
     if persisted is not None:
-        source = f"the persisted access policy at {data_dir}/access_policy.json"
-        fix = "Delete that file, or PUT an allowlist policy to /api/app/admin/access-policy."
+        source = "the persisted access policy (the plane's access_policy row)"
+        fix = "PUT an allowlist policy to /api/app/admin/access-policy, or delete that row."
     else:
         source = "APP_SIGNUP_MODE=open"
         fix = "Set APP_SIGNUP_MODE=allowlist with APP_ALLOWED_EMAILS."

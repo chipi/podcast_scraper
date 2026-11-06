@@ -5,79 +5,108 @@ the graph changes** (ego changes, trail grow/prune, redraws, layout, handoff out
 UX can be measured — e.g. which features get used, where sessions stall, whether the load+trail
 actually helps or people re-centre instead.
 
-One JSON line per event in ``<data_dir>/users/<id>/graph_events.jsonl`` — append-only, never
-rewrites history (same contract as the listen + ranking logs). The viewer batches events and posts
-them fire-and-forget; aggregation reads the whole log offline. Each event carries at least an
-``action``; the rest of the payload is free-form so new event kinds don't need a schema change.
+One ``graph_events`` row per event (ADR-169) — append-only, never rewrites history (same contract
+as the listen logs); they go with the account. The viewer batches events and posts them
+fire-and-forget; aggregation reads the whole log. Each event carries at least an ``action``; the
+rest of the payload is free-form so new event kinds don't need a schema change. Before the
+database it was ``<data_dir>/users/<id>/graph_events.jsonl``; the importer reads those.
 """
 
 from __future__ import annotations
 
 import json
-import threading
 from pathlib import Path
 from typing import Any, Sequence
 
-from podcast_scraper.utils.privileges import match_data_owner
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
-#: The route handlers run in FastAPI's threadpool, so two requests can append at once: one lock per
-#: process keeps a batch's lines together (a multi-event batch is several writes).
-_APPEND_LOCK = threading.Lock()
+from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db.schema import graph_events
+
+#: The file the log was kept in before the database; the importer reads it.
+EVENTS_FILE = "graph_events.jsonl"
+
+#: The route's bucket for signed-out sessions; stored as NULL, since it is not an account.
+ANON = "anon"
 
 
-def _events_path(data_dir: Path, user_id: str) -> Path:
-    return data_dir / "users" / user_id / "graph_events.jsonl"
+def _owner(user_id: str) -> str | None:
+    return None if user_id == ANON else user_id
+
+
+def parse_line(line: str) -> dict[str, Any] | None:
+    """One JSONL line as an event, as the file store read it: a dict with an ``action``."""
+    stripped = line.strip()
+    if not stripped:
+        return None
+    try:
+        rec = json.loads(stripped)
+    except ValueError:
+        return None
+    return rec if isinstance(rec, dict) and rec.get("action") else None
 
 
 def record_events(data_dir: Path, user_id: str, events: Sequence[Any]) -> int:
     """Append a batch of graph events for *user_id*; returns how many were written.
 
     Each event must be a dict with a truthy ``action``; anything else (non-dicts, actionless dicts)
-    is skipped so one bad row can't drop the batch — hence the permissive ``Sequence[Any]``.
+    is skipped so one bad row can't drop the batch — hence the permissive ``Sequence[Any]``. One
+    insert, so a batch's events stay together in order.
     """
     valid = [e for e in events if isinstance(e, dict) and e.get("action")]
     if not valid:
         return 0
-    path = _events_path(data_dir, user_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with _APPEND_LOCK, path.open("a", encoding="utf-8") as fh:
-        for ev in valid:
-            fh.write(json.dumps(ev, ensure_ascii=False) + "\n")
-    match_data_owner(path)
+    try:
+        with rw_engine().begin() as conn:
+            conn.execute(
+                graph_events.insert(), [{"user_id": _owner(user_id), "event": ev} for ev in valid]
+            )
+    except IntegrityError:
+        # The id is not an account (a session outliving its deleted account): the batch is
+        # dropped, as the route promises the client never sees an error.
+        return 0
     return len(valid)
 
 
+def _read(where: Any = None) -> list[dict[str, Any]]:
+    query = select(graph_events.c.event).order_by(
+        graph_events.c.user_id.nulls_first(), graph_events.c.id
+    )
+    if where is not None:
+        query = query.where(where)
+
+    def read(engine: Any) -> list[dict[str, Any]]:
+        with engine.connect() as conn:
+            return [e for e in conn.execute(query).scalars() if isinstance(e, dict)]
+
+    return read_with_retry(read)
+
+
 def read_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
-    """All of one user's graph events (chronological as written); skips corrupt lines."""
-    path = _events_path(data_dir, user_id)
-    if not path.is_file():
-        return []
-    out: list[dict[str, Any]] = []
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        try:
-            rec = json.loads(stripped)
-        except ValueError:
-            continue
-        if isinstance(rec, dict) and rec.get("action"):
-            out.append(rec)
-    return out
+    """All of one user's graph events (chronological as written); ``anon`` reads the signed-out."""
+    owner = _owner(user_id)
+    return _read(
+        graph_events.c.user_id.is_(None) if owner is None else graph_events.c.user_id == owner
+    )
 
 
 def read_all_events(data_dir: Path) -> list[dict[str, Any]]:
-    """Every user's graph events, concatenated (each user's own order preserved)."""
-    from podcast_scraper.server.app_user_store import list_user_ids
+    """Every graph event, signed-out sessions included, concatenated per user in order."""
+    return _read()
 
-    out: list[dict[str, Any]] = []
-    for uid in list_user_ids(data_dir):
-        out.extend(read_events(data_dir, uid))
-    return out
+
+def users_with_events(data_dir: Path) -> int:
+    """How many accounts have recorded any graph event."""
+
+    def read(engine: Any) -> int:
+        with engine.connect() as conn:
+            return int(
+                conn.execute(select(func.count(func.distinct(graph_events.c.user_id)))).scalar()
+                or 0
+            )
+
+    return read_with_retry(read)
 
 
 def _stats(xs: list[int]) -> dict[str, float]:

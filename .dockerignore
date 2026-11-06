@@ -54,6 +54,12 @@ htmlcov/
 .test_outputs/
 .cache/
 
+# Host node_modules, as a directory or a link: the images run their own `npm ci`. Studio's
+# vite.config.ts links web/gi-kg-viewer/node_modules to its own when absent, and the viewer
+# image's `COPY web/gi-kg-viewer/ ./` then tried to copy that link over its node_modules cache
+# mount ("cannot replace to directory ... with file"; local stack-test-build, 2026-11-06).
+**/node_modules
+
 # CI/CD and build artifacts
 .build/
 site/
