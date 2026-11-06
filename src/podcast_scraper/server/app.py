@@ -615,6 +615,9 @@ def _install_job_age_metrics(app: FastAPI) -> None:
 
         pipeline_run_prometheus.install_job_age_metrics(Path(corpus_root))
         pipeline_run_prometheus.install_job_metrics()
+        from podcast_scraper.server import enrichment_run_prometheus
+
+        enrichment_run_prometheus.install_enrichment_metrics(Path(corpus_root))
     except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
         logger.exception("job age gauge failed to install — continuing without")
     # The naming coverage snapshot the batch finalize writes (#2304 S8); same corpus anchor.

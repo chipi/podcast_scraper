@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -174,3 +175,50 @@ class TestTriggerFlag:
     def test_rejects_unknown_choice(self) -> None:
         with pytest.raises(SystemExit):
             cli.parse_args([_A, "--output-dir", "/tmp/x", "--trigger", "cronjob"])
+
+
+def test_run_events_do_not_inherit_the_last_feed(tmp_path: Path) -> None:
+    from podcast_scraper.utils import correlation
+
+    seen: list[tuple[str, Any, Any]] = []
+
+    def record(event_type: str, **_: Any) -> None:
+        seen.append((event_type, correlation.get_feed_id(), correlation.get_episode_id()))
+
+    def fake_run(cfg: config.Config) -> tuple[int, str]:
+        correlation.set_feed_id(cfg.rss_url)
+        correlation.set_episode_id("ep-last")
+        return (1, "ok")
+
+    with patch(_EMIT, side_effect=record):
+        cli.main(
+            [_A, "--rss", _B, "--output-dir", str(tmp_path), "--max-episodes", "1"],
+            run_pipeline_fn=fake_run,
+        )
+    run_events = [s for s in seen if s[0].startswith("pipeline_run.")]
+    assert [s[0] for s in run_events] == ["pipeline_run.started", "pipeline_run.completed"]
+    assert all(feed is None and episode is None for _, feed, episode in run_events)
+
+
+def _finished(results: list[Any], exit_code: int) -> dict[str, Any]:
+    events = cli._PipelineRunEvents()
+    with patch(_EMIT) as emit:
+        events.begin(cli.argparse.Namespace(run_id=None, trigger=None), len(results), results)
+        events.finish(exit_code)
+    return _run_events(emit)[-1][1]
+
+
+def test_every_feed_failing_softly_is_failed_not_partial() -> None:
+    feeds = [SimpleNamespace(ok=False, episodes_processed=0) for _ in range(2)]
+    completed = _finished(feeds, 0)
+    assert completed["status"] == "failed"
+    assert (completed["ok"], completed["failed"]) == (0, 2)
+
+
+def test_a_count_that_is_not_a_number_never_raises() -> None:
+    events = cli._PipelineRunEvents()
+    events.set_single_feed_episodes(object())
+    with patch(_EMIT) as emit:
+        events.begin(cli.argparse.Namespace(run_id=None, trigger=None), 1)
+        events.finish(0)
+    assert _run_events(emit)[-1][1]["episodes_processed"] is None

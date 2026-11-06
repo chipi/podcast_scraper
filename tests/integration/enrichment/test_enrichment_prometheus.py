@@ -173,3 +173,38 @@ def test_enrichment_span_stamps_correlation_attributes(monkeypatch) -> None:
     assert captured["attributes"]["run_id"] == "r-1"
     assert captured["attributes"]["enricher_id"] == "org_web"
     assert captured["attributes"]["tier"] == "web"
+
+
+def test_install_creates_the_enrichment_series_at_zero_in_a_fresh_process(tmp_path: Path) -> None:
+    """A restarted API exports the series at 0 before the first enrichment, not at its first value.
+
+    A subprocess, because this process's registry already holds series other tests incremented.
+    """
+    import subprocess
+    import sys
+
+    summary = tmp_path / "enrichments" / "run_summary.json"
+    summary.parent.mkdir(parents=True)
+    summary.write_text(json.dumps({"per_enricher": {"insight_density": {"runs_ok": 3}}}))
+    code = (
+        "import sys\n"
+        "from prometheus_client import generate_latest\n"
+        "from podcast_scraper.server import enrichment_run_prometheus as erp\n"
+        "assert erp.install_enrichment_metrics(sys.argv[1]) is True\n"
+        "print(generate_latest().decode())\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code, str(tmp_path)], capture_output=True, text=True, check=True
+    ).stdout
+    for status in ("succeeded", "failed", "cancelled", "stale"):
+        assert f'podcast_enrichment_runs_total{{status="{status}"}} 0.0' in out
+    for outcome in erp._OUTCOME_KEYS.values():
+        line = (
+            "podcast_enrichment_enricher_runs_total"
+            f'{{enricher_id="insight_density",outcome="{outcome}"}} 0.0'
+        )
+        assert line in out, line
+
+
+def test_install_without_a_run_summary_still_creates_the_run_series(tmp_path: Path) -> None:
+    assert erp.install_enrichment_metrics(tmp_path) is True

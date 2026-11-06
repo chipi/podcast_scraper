@@ -172,3 +172,30 @@ def test_scheduled_fire_enqueues_with_the_nightly_trigger(tmp_path: Path) -> Non
         spawn("nightly-sweep", tmp_path, tmp_path / "viewer_operator.yaml")
         run_threadsafe.call_args.args[0].close()
     assert enqueue.call_args.kwargs["trigger"] == "nightly"
+
+
+@pytest.mark.parametrize("raw", ['{"jobs": ["x"]}', '{"jobs": "x"}', "[]", "not json"])
+def test_a_malformed_state_file_never_stops_the_scheduler(tmp_path: Path, raw: str) -> None:
+    path = tmp_path / SCHEDULER_STATE_RELPATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(raw, encoding="utf-8")
+    svc = _service(tmp_path)
+    with patch("podcast_scraper.obs.events.emit_event"):
+        svc.start()
+        try:
+            assert svc.running
+        finally:
+            svc.shutdown()
+
+
+def test_an_unwritable_state_still_reports_a_slot_once(tmp_path: Path) -> None:
+    two_years_ago = datetime.now(timezone.utc) - timedelta(days=730)
+    _write_state(tmp_path, since=_iso(two_years_ago), last_fire=_iso(two_years_ago))
+    svc = _service(tmp_path)
+    with (
+        patch("podcast_scraper.obs.events.emit_event") as emit,
+        patch.object(SchedulerService, "_save_state", lambda self, state: None),
+    ):
+        _start_stop(svc)
+        _start_stop(svc)  # a reload: the same service, the file never updated
+    assert len(_skipped(emit)) == 1

@@ -303,6 +303,9 @@ class SchedulerService:
         self._scheduler: Any | None = None
         self._jobs: list[ScheduledJobConfig] = []
         self._state_lock = threading.Lock()
+        # The last slot reported per job, also kept here: when the state file cannot be written
+        # (a read-only corpus), a reload must still not report the same slot again.
+        self._reported: dict[str, str] = {}
         _ensure_counters()
 
     @property
@@ -366,7 +369,10 @@ class SchedulerService:
             if not cfg.enabled:
                 continue
             self._add_apscheduler_job(sch, cfg)
-        self._report_missed_slots()
+        try:
+            self._report_missed_slots()
+        except Exception:  # noqa: BLE001 - missed-slot telemetry never blocks the nightly
+            logger.debug("scheduler: missed-slot report failed", exc_info=True)
         try:
             from apscheduler.events import EVENT_JOB_MISSED
 
@@ -443,7 +449,9 @@ class SchedulerService:
             jobs = raw.get("jobs") if isinstance(raw, dict) else None
         except (OSError, ValueError):
             return {}
-        return {k: v for k, v in jobs.items() if isinstance(v, dict)} if jobs else {}
+        if not isinstance(jobs, dict):
+            return {}
+        return {k: v for k, v in jobs.items() if isinstance(v, dict)}
 
     def _save_state(self, state: dict[str, dict[str, str]]) -> None:
         path = self._state_path()
@@ -489,6 +497,7 @@ class SchedulerService:
                     continue
                 entry = state.setdefault(cfg.name, {})
                 entry.setdefault("since", _iso_utc(now))
+                self._merge_reported(cfg.name, entry)
                 try:
                     trigger = CronTrigger.from_crontab(cfg.cron, timezone=_scheduler_timezone())
                     marks = [
@@ -505,9 +514,17 @@ class SchedulerService:
                 if slot is None:
                     continue
                 entry["last_reported_slot"] = _iso_utc(slot)
+                self._reported[cfg.name] = entry["last_reported_slot"]
                 _emit_skipped(cfg.name, cfg.kind, slot, _SKIP_NOT_RUNNING)
             if json.dumps(state, sort_keys=True) != before:
                 self._save_state(state)
+
+    def _merge_reported(self, name: str, entry: dict[str, str]) -> None:
+        """Take the in-memory last reported slot when it is later than the file's."""
+        mem = _parse_iso(self._reported.get(name))
+        disk = _parse_iso(entry.get("last_reported_slot"))
+        if mem is not None and (disk is None or mem > disk):
+            entry["last_reported_slot"] = self._reported[name]
 
     def _on_job_missed(self, event: Any) -> None:
         """APScheduler ``EVENT_JOB_MISSED`` listener: the slot was reached but past its grace."""
@@ -517,10 +534,12 @@ class SchedulerService:
             with self._state_lock:
                 state = self._load_state()
                 entry = state.setdefault(name, {})
+                self._merge_reported(name, entry)
                 reported = _parse_iso(entry.get("last_reported_slot"))
                 if reported is not None and reported >= slot:
                     return
                 entry["last_reported_slot"] = _iso_utc(slot)
+                self._reported[name] = entry["last_reported_slot"]
                 self._save_state(state)
             _emit_skipped(name, self._kind_for(name), slot, _SKIP_MISFIRE)
         except Exception:  # noqa: BLE001 - listener must not raise into APScheduler

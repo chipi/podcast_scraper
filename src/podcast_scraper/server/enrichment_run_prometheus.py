@@ -124,6 +124,31 @@ def _read_run_summary(corpus_root: Path) -> dict[str, Any] | None:
     return doc if isinstance(doc, dict) else None
 
 
+def install_enrichment_metrics(corpus_root: Path) -> bool:
+    """Create the enrichment series at API start so a restart does not hide the next increment.
+
+    The counters are otherwise created at the first observation, and a series that first appears
+    at value 1 gives ``increase(...)`` nothing to subtract: the first enrichment after every API
+    restart reads as none. Every terminal status, and every enricher x outcome the corpus's last
+    run summary names, is created at 0. Never raises: telemetry must not break the app (ADR-120).
+    """
+    try:
+        _ensure_prom()
+        runs_ctr = _PROM_STATE.get("runs")
+        if runs_ctr is None:
+            return False
+        for status in ("succeeded", "failed", "cancelled", "stale"):
+            runs_ctr.labels(status=status)
+        summary = _read_run_summary(Path(corpus_root)) or {}
+        per_enricher = summary.get("per_enricher")
+        for eid in sorted(per_enricher) if isinstance(per_enricher, dict) else ():
+            for outcome in _OUTCOME_KEYS.values():
+                _PROM_STATE["enricher_runs"].labels(enricher_id=str(eid), outcome=outcome)
+    except Exception:  # noqa: BLE001 — metrics extras absent or a registry clash
+        return False
+    return True
+
+
 def observe_enrichment_terminal_metrics(corpus_root: Path, job: Mapping[str, Any]) -> None:
     """Record Prometheus samples after ``jobs._finalize_job`` updates an enrichment *job*.
 

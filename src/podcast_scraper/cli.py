@@ -72,7 +72,7 @@ class _PipelineRunEvents:
         self._trigger = "unknown"
         self._feeds = 0
         self._results: Sequence[Any] = ()
-        self._single_episodes = 0
+        self._single_episodes: Optional[int] = 0
         self._error_class: Optional[str] = None
 
     def begin(
@@ -91,8 +91,11 @@ class _PipelineRunEvents:
             self._results = results
         self._emit("pipeline_run.started", started_at=datetime.now(timezone.utc).isoformat())
 
-    def set_single_feed_episodes(self, episodes: int) -> None:
-        self._single_episodes = episodes
+    def set_single_feed_episodes(self, episodes: Any) -> None:
+        try:
+            self._single_episodes = int(episodes)
+        except Exception:  # noqa: BLE001 - telemetry must never break the run
+            self._single_episodes = None
 
     def note_error(self, exc: BaseException) -> None:
         """Remember an exception the caller swallows into an exit code."""
@@ -115,15 +118,18 @@ class _PipelineRunEvents:
         self._begun = False
         try:
             clean = exc is None and exit_code == 0
+            episodes: Optional[int]
             if self._multi:
                 ok, failed, not_started, episodes = self.counts()
             else:
                 ok, failed, not_started = (1, 0, 0) if clean else (0, 1, 0)
                 episodes = self._single_episodes
-            if clean:
-                status = "partial" if failed else "succeeded"
+            if ok == 0 and (failed or not clean):
+                status = "failed"
+            elif failed or not clean:
+                status = "partial"
             else:
-                status = "partial" if ok else "failed"
+                status = "succeeded"
             error_class = None
             if status == "failed":
                 error_class = (
@@ -145,7 +151,12 @@ class _PipelineRunEvents:
     def _emit(self, event_type: str, **fields: Any) -> None:
         try:
             from .obs.events import emit_event
+            from .utils import correlation
 
+            # A run event is about the whole run: without this it inherits the feed (and episode)
+            # the walk last set in the shared correlation context.
+            correlation.set_feed_id(None)
+            correlation.set_episode_id(None)
             emit_event(
                 event_type,
                 run_id=self._run_id,
@@ -5987,7 +5998,7 @@ def _main(  # noqa: C901 - main function handles multiple command paths
         return 1
 
     log.info(summary)
-    run_events.set_single_feed_episodes(int(episode_count))
+    run_events.set_single_feed_episodes(episode_count)
 
     # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? This used to exist only on the multi-feed path,
     # and every API-dispatched job is single-feed — so for exactly the way repairs are run in prod

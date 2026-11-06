@@ -1227,7 +1227,7 @@ def _write_processing_manifest(
             pm.stage_block(
                 ran=False,
                 method=getattr(cfg, "diarization_provider", None),
-                method_version=pm.METHOD_VERSIONS["diarization"],
+                # No method_version: a reprocess selects on it, and a failed run is not done.
                 duration_s=diarization_elapsed,
                 error_class=diarization_error,
             ),

@@ -288,3 +288,19 @@ def test_stage_span_is_a_noop_without_tracing(monkeypatch):
     with m.stage_span("asr", episode_id="e", duration_s=1.0) as span:
         assert span is None
     assert os.environ.get("OTEL_TRACES_EXPORTER") is None
+
+
+def test_a_failed_diarization_block_carries_no_method_version(out_dir):
+    """A reprocess selects on method_version; a failed run must not read as done."""
+    with mock.patch("podcast_scraper.obs.events.emit_event"):
+        episode_processor._write_processing_manifest(
+            {"text": "x"},
+            _cfg(),
+            _job(),
+            REL,
+            out_dir,
+            diarization_elapsed=7.0,
+            diarization_error="OSError",
+        )
+    block = json.load(open(pm.manifest_path(out_dir, REL)))["stages"]["diarization"]
+    assert block.get("method_version") is None
