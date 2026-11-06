@@ -20,6 +20,8 @@ def run(metadata: MetaData) -> None:
     """Run the history in ``config.attributes["plane"]`` (the schema), online or offline."""
     config = context.config
     schema = config.attributes["plane"]
+    # A module's history keeps its own version table in the same schema (ADR-172).
+    version_table = config.attributes.get("version_table", "alembic_version")
     last_step_end = [time.monotonic()]
 
     def record_applied(
@@ -43,6 +45,7 @@ def run(metadata: MetaData) -> None:
             target_metadata=metadata,
             literal_binds=True,
             dialect_opts={"paramstyle": "named"},
+            version_table=version_table,
             version_table_schema=schema,
         )
         with context.begin_transaction():
@@ -56,6 +59,7 @@ def run(metadata: MetaData) -> None:
     context.configure(
         connection=connection,
         target_metadata=metadata,
+        version_table=version_table,
         version_table_schema=schema,
         on_version_apply=record_applied,
     )

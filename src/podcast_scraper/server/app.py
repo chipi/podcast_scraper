@@ -71,6 +71,9 @@ from podcast_scraper.utils.access_log import AccessLogMiddleware
 
 logger = logging.getLogger(__name__)
 
+#: Per-route request latency buckets (seconds), up to the slowest routes prod has shown.
+ROUTE_LATENCY_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60)
+
 
 def _env_truthy(name: str) -> bool:
     v = os.environ.get(name, "").strip().lower()
@@ -562,10 +565,14 @@ def _install_metrics(app: FastAPI) -> None:
             # distinguishable in dashboards. ``excluded_handlers`` keeps
             # the /metrics endpoint itself out of the request counter
             # (otherwise a Prometheus scrape inflates the count).
+            # The per-route histogram's default buckets end at 1 s, so every route slower
+            # than that read as p95 = 1 s on prod (2026-11-06, routes at 2-12 s mean).
             Instrumentator(
                 should_group_status_codes=False,
                 excluded_handlers=["/metrics"],
-            ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+            ).instrument(app, latency_lowr_buckets=ROUTE_LATENCY_BUCKETS).expose(
+                app, endpoint="/metrics", include_in_schema=False
+            )
         except Exception:  # noqa: BLE001 — telemetry must never break the app
             # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
             # A missing package (or any instrument/expose failure) must NOT down

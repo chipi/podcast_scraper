@@ -21,6 +21,7 @@ Seam v1.1 amendments implemented here:
 
 from __future__ import annotations
 
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -47,6 +48,33 @@ _SUPPRESSING: frozenset[str] = frozenset({"bounced", "complaint", "suppressed"})
 #: week"; a sign-in envelope, which also carries the (by then expired) link, goes after a day.
 _RETENTION_S = 30 * 86400
 _AUTH_LINK_RETENTION_S = 86400
+
+#: How often the retention purge runs. It rode every poll (the delivery worker polls each few
+#: seconds) and deleted nothing almost every time, with JSONB filters no index serves. Retention is
+#: a day at the shortest, so a purge a few minutes late is invisible.
+_PURGE_EVERY_S = 600
+
+_purge_lock = threading.Lock()
+_last_purge: int | None = None
+
+
+def reset_purge_clock() -> None:
+    """Make the next poll purge (tests that swap or empty the database)."""
+    global _last_purge
+    with _purge_lock:
+        _last_purge = None
+
+
+def _purge_due(now: int) -> bool:
+    """Whether this poll should purge, and if so note it. ``now`` is the poll's clock, so a clock
+    that moved back (or a test that jumps it) purges rather than waiting out the interval."""
+    global _last_purge
+    with _purge_lock:
+        if _last_purge is not None and 0 <= now - _last_purge < _PURGE_EVERY_S:
+            return False
+        _last_purge = now
+        return True
+
 
 #: Message types that are TRANSACTIONAL: sent because the recipient asked for them, in the moment,
 #: and meaningless to gate on consent.
@@ -150,7 +178,7 @@ def _consent_allows(comms_doc: dict[str, Any], envelope: dict[str, Any]) -> bool
 
 
 def _purge_past_retention(conn: Connection, now: int) -> None:
-    """Retention rides the worker's poll, as it did when the poll read every file: no scheduler."""
+    """Retention rides the worker's poll (at most every :data:`_PURGE_EVERY_S`): no scheduler."""
     transactional = outbox.c.envelope["type"].astext.in_(sorted(TRANSACTIONAL_TYPES))
     conn.execute(
         delete(outbox).where(
@@ -179,8 +207,13 @@ def list_pending(
     query reads the pending envelopes together with each one's consent row.
     """
     now = int(time.time()) if now is None else now
-    with rw_engine().begin() as conn:
-        _purge_past_retention(conn, now)
+    if _purge_due(now):
+        try:
+            with rw_engine().begin() as conn:
+                _purge_past_retention(conn, now)
+        except Exception:
+            reset_purge_clock()
+            raise
     query = (
         select(outbox.c.envelope, comms.c.settings, comms.c.unsubscribe_ref)
         .select_from(outbox.outerjoin(comms, comms.c.user_id == outbox.c.user_id))

@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
 
 import psycopg.types.json  # noqa: F401
 import pytest
 import sqlalchemy.dialects.postgresql.psycopg  # noqa: F401
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine, make_url
 
 from podcast_scraper.db import (
     engines as _engines,
@@ -27,8 +29,14 @@ from podcast_scraper.db import (
     reset_engines,
     rw_engine,
 )
+from podcast_scraper.db.migrate import with_kernel
 from podcast_scraper.db.schema import app_releases, metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
+
+# Bound at import, not inside the cleanup: a test that strips podcast_scraper from sys.modules
+# would otherwise make the cleanup re-import a second copy of the extensions module, whose
+# Extension class an installed extension's cached EXTENSION is not an instance of.
+from podcast_scraper.extensions import load_extensions
 
 # ``psycopg.types.json`` and ``sqlalchemy.dialects.postgresql.psycopg`` are imported at the top
 # because they load lazily, on the first JSONB bind. If that bind happens inside a test's
@@ -79,12 +87,44 @@ def worker_database_url() -> str | None:
 
 
 def empty_kernel_tables() -> None:
+    """Empty every kernel table and every installed module's tables that exist in each plane
+    (a module table with no foreign key to ``users`` would otherwise outlive the test)."""
+
+    modules = [ext.database for ext in load_extensions() if ext.database is not None]
     with rw_engine().begin() as conn:
         for plane in PLANES:
             planed = conn.execution_options(schema_translate_map={None: plane})
+            for module in modules:
+                if plane not in module.planes:
+                    continue
+                for table in reversed(with_kernel(module.metadata).sorted_tables):
+                    if table.name in module.metadata.tables and _exists(planed, plane, table.name):
+                        planed.execute(table.delete())
             for table in reversed(metadata.sorted_tables):
                 planed.execute(table.delete())
         conn.execute(app_releases.delete())
+    # In-process memory of what the emptied tables held (imported here: the server modules are
+    # heavy and the window comment above applies to them too).
+    from podcast_scraper.server import app_outbox_store, app_release_store
+
+    app_release_store.clear_cache()
+    app_outbox_store.reset_purge_clock()
+
+
+@contextmanager
+def captured_statements() -> Iterator[list[tuple[str, bool]]]:
+    """Every statement any engine runs while the block is open: ``(sql, ran_in_autocommit)``."""
+    seen: list[tuple[str, bool]] = []
+
+    def grab(conn: Any, cursor: Any, statement: str, *_a: Any) -> None:
+        autocommit = bool(conn.connection.driver_connection.autocommit)
+        seen.append((" ".join(statement.split()), autocommit))
+
+    event.listen(Engine, "before_cursor_execute", grab)
+    try:
+        yield seen
+    finally:
+        event.remove(Engine, "before_cursor_execute", grab)
 
 
 def database_fixture(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
@@ -133,3 +173,10 @@ def register_user(user_id: str, **fields: object) -> None:
     values: dict[str, object] = {"provider": "test", "subject": user_id, **fields}
     with rw_engine().begin() as conn:
         conn.execute(pg_insert(users).values(user_id=user_id, **values).on_conflict_do_nothing())
+
+
+def _exists(conn: object, plane: str, table: str) -> bool:
+    found = conn.execute(  # type: ignore[attr-defined]
+        text("SELECT to_regclass(:name)"), {"name": f'"{plane}".{table}'}
+    ).scalar()
+    return found is not None

@@ -14,6 +14,7 @@ be added later if the scan cost ever warrants it.
 from __future__ import annotations
 
 import hashlib
+from functools import lru_cache
 from pathlib import Path
 
 from podcast_scraper import perf_cache
@@ -36,6 +37,7 @@ def _feed_slug(feed_id: str) -> str:
         return "feed"
 
 
+@lru_cache(maxsize=65536)
 def episode_slug(feed_id: str, episode_id: str | None, metadata_relpath: str) -> str:
     """Deterministic, URL-safe slug ``{feed-slug}-{hash}`` for one episode.
 

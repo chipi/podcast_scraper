@@ -145,6 +145,30 @@ class ShareCardContribution:
 
 
 @dataclass(frozen=True)
+class DbModule:
+    """The tables an extension owns, with their own Alembic history (ADR-172).
+
+    ``name`` prefixes every table and every revision id (``<name>_…``) and names the version table
+    (``alembic_version_<name>``) in each plane schema in ``planes``. Tables carry no schema; they
+    may reference kernel tables (``users`` with ``ON DELETE CASCADE``), never the other way round.
+    ``scripts`` is the history's directory: an ``env.py`` that calls
+    ``podcast_scraper.db.migrations._env.run(metadata)`` and a ``versions/`` folder.
+    ``importers`` returns ``podcast_scraper.db.importers.Importer`` objects, run after the kernel's.
+    """
+
+    name: str
+    scripts: Path
+    #: The ``sqlalchemy.MetaData`` the history migrates to; compare it with ``migrate.with_kernel``,
+    #: since its tables reference kernel tables it does not hold.
+    metadata: Any
+    planes: tuple[str, ...] = ("player", "operator")
+    #: Modules whose histories must run first on a plane, because this one's tables reference
+    #: theirs. Each must be installed on every plane listed.
+    after: tuple[str, ...] = ()
+    importers: Callable[[], Sequence[Any]] = _none
+
+
+@dataclass(frozen=True)
 class CliCommand:
     """A ``podcast_scraper <name>`` subcommand. ``parse(argv)`` returns the namespace (with
     ``command`` set to the name); ``run(args, log)`` returns the exit code. Both import lazily."""
@@ -182,6 +206,9 @@ class Extension:
     #: claims (``user_file``, ``root_file``, ``dir_files``). ``db import --from-files`` fails on a
     #: file nobody claims, so an installed extension names its own here.
     app_data_files: Callable[[], Sequence[Claim]] = _no_claims
+    #: The extension's tables and their migration history; ``db upgrade`` runs it after the
+    #: kernel's, and the start-up check covers it.
+    database: DbModule | None = None
     #: What the module reports about itself on ``GET /api/version`` (admins only): ``() -> {...}``
     #: with at least ``version`` and ``git_sha`` and whatever refs it was built from. Cheap and
     #: free of I/O beyond a small file; a raising hook is reported as an error, never propagated.

@@ -297,6 +297,14 @@ def iter_cil_bridge_bundles(
         yield safe_bridge, bridge
 
 
+def _walk_and_register(
+    key: str, root_path: str, anchor_path: str
+) -> list[tuple[str, dict[str, Any]]]:
+    bundles = list(iter_cil_bridge_bundles(root_path, anchor_path))
+    _register_bundle_ids(key, bundles)
+    return bundles
+
+
 def _cached_bridge_bundles(root_path: str, anchor_path: str) -> list[tuple[str, dict[str, Any]]]:
     """The corpus's bridge bundles (``os.walk`` + read every ``*.bridge.json``), cached by mtime.
 
@@ -311,7 +319,7 @@ def _cached_bridge_bundles(root_path: str, anchor_path: str) -> list[tuple[str, 
         "cil_bridge_bundles",
         key,
         perf_cache.corpus_mtime(root_path),
-        lambda: list(iter_cil_bridge_bundles(root_path, anchor_path)),
+        lambda: _walk_and_register(key, root_path, anchor_path),
     )
     return bundles
 
@@ -411,7 +419,16 @@ def _bridge_gi_ids(bridge: dict[str, Any]) -> set[str]:
     return out
 
 
-def _bridge_all_ids(bridge: dict[str, Any]) -> set[str]:
+# id(bridge) -> (bridge, its ids) for the bridges held by ``_cached_bridge_bundles``. Every
+# per-topic and per-person query tests every bridge of the corpus against its ids (twice), and
+# building that set was most of a query's time (~13 s of 23 s over 200 topics on a 3,151-episode
+# corpus). The bridge is kept in the value so its id cannot be reused while the entry stands; a
+# rebuilt bundle list replaces its entries, so nothing outlives the list it describes.
+_BUNDLE_IDS: dict[int, tuple[dict[str, Any], frozenset[str]]] = {}
+_BUNDLE_IDS_OF_KEY: dict[str, list[int]] = {}
+
+
+def _compute_bridge_all_ids(bridge: dict[str, Any]) -> frozenset[str]:
     out: set[str] = set()
     for row in bridge.get("identities") or []:
         if not isinstance(row, dict):
@@ -419,7 +436,22 @@ def _bridge_all_ids(bridge: dict[str, Any]) -> set[str]:
         rid = row.get("id")
         if isinstance(rid, str) and rid.strip():
             out.add(rid.strip())
-    return out
+    return frozenset(out)
+
+
+def _register_bundle_ids(key: str, bundles: list[tuple[str, dict[str, Any]]]) -> None:
+    for old in _BUNDLE_IDS_OF_KEY.pop(key, []):
+        _BUNDLE_IDS.pop(old, None)
+    fresh = {id(b): (b, _compute_bridge_all_ids(b)) for _path, b in bundles}
+    _BUNDLE_IDS.update(fresh)
+    _BUNDLE_IDS_OF_KEY[key] = list(fresh)
+
+
+def _bridge_all_ids(bridge: dict[str, Any]) -> frozenset[str]:
+    hit = _BUNDLE_IDS.get(id(bridge))
+    if hit is not None and hit[0] is bridge:
+        return hit[1]
+    return _compute_bridge_all_ids(bridge)
 
 
 def _bridge_gi_topic_ids(bridge: dict[str, Any]) -> set[str]:

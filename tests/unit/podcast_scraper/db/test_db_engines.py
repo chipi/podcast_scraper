@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+import time
+import uuid
 from pathlib import Path
 
 import pytest
@@ -79,6 +82,82 @@ def test_readiness_fails_fast_on_an_unmigrated_plane(url: str) -> None:
     migrate.upgrade(url, "operator")
     init_engines(settings)
     assert plane_schema() == "operator"
+
+
+def _set_operator_revision(url: str, revision: str, *, recorded: bool) -> None:
+    with rw_engine_for(url).begin() as conn:
+        conn.execute(text("UPDATE operator.alembic_version SET version_num = :r"), {"r": revision})
+        if recorded:
+            conn.execute(
+                text("INSERT INTO operator.schema_history (revision) VALUES (:r)"), {"r": revision}
+            )
+
+
+@pytest.fixture
+def fresh_operator(url: str):
+    reset_engines()
+    with rw_engine_for(url).begin() as conn:
+        conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+    migrate.upgrade(url, "operator")
+    yield DatabaseSettings(rw_url=url, ro_url=url, plane="operator")
+    reset_engines()
+    with rw_engine_for(url).begin() as conn:
+        conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+    migrate.upgrade(url, "operator")
+
+
+def test_readiness_accepts_a_database_ahead_of_the_code(fresh_operator: DatabaseSettings) -> None:
+    # A later release migrated past this code's head (the rollback case, ADR-172).
+    _set_operator_revision(fresh_operator.rw_url, "9999_from_a_later_release", recorded=True)
+    init_engines(fresh_operator)
+    assert plane_schema() == "operator"
+
+
+def test_readiness_refuses_a_database_behind_the_code(fresh_operator: DatabaseSettings) -> None:
+    _set_operator_revision(fresh_operator.rw_url, "0001_users", recorded=False)
+    with pytest.raises(DatabaseNotReady, match="behind"):
+        init_engines(fresh_operator)
+
+
+def test_readiness_refuses_a_revision_not_descended_from_the_head(
+    fresh_operator: DatabaseSettings,
+) -> None:
+    # Unknown to the code and the code's head never applied here: not a later release of ours.
+    with rw_engine_for(fresh_operator.rw_url).begin() as conn:
+        conn.execute(text("DELETE FROM operator.schema_history"))
+    _set_operator_revision(fresh_operator.rw_url, "9999_somewhere_else", recorded=False)
+    with pytest.raises(DatabaseNotReady, match="does not know"):
+        init_engines(fresh_operator)
+
+
+def test_readiness_states(fresh_operator: DatabaseSettings) -> None:
+    eng = rw_engine_for(fresh_operator.rw_url)
+    head = migrate.head_revision()
+    with eng.connect() as conn:
+        assert migrate.readiness(conn, "operator") == ("at_head", head, head)
+    _set_operator_revision(fresh_operator.rw_url, "9999_later", recorded=True)
+    with eng.connect() as conn:
+        assert migrate.readiness(conn, "operator") == ("ahead", "9999_later", head)
+
+
+def test_readiness_without_read_on_the_history_is_unknown_not_a_crash(
+    fresh_operator: DatabaseSettings,
+) -> None:
+    # Prod's plane roles read shared.alembic_version but not shared.schema_history (roles.sql).
+    _set_operator_revision(fresh_operator.rw_url, "9999_later", recorded=True)
+    with rw_engine_for(fresh_operator.rw_url).connect() as conn:
+        conn.execute(text("DROP ROLE IF EXISTS readiness_probe"))
+        conn.execute(text("CREATE ROLE readiness_probe"))
+        conn.execute(text("GRANT USAGE ON SCHEMA operator TO readiness_probe"))
+        conn.execute(text("GRANT SELECT ON operator.alembic_version TO readiness_probe"))
+        conn.execute(text("SET ROLE readiness_probe"))
+        try:
+            assert migrate.readiness(conn, "operator")[0] == "unknown"
+        finally:
+            conn.execute(text("RESET ROLE"))
+            conn.execute(text("DROP OWNED BY readiness_probe"))
+            conn.execute(text("DROP ROLE readiness_probe"))
+            conn.commit()
 
 
 def rw_engine_for(url: str):
@@ -196,3 +275,173 @@ def test_one_account_is_one_provider_subject_pair(url: str) -> None:
 def test_email_is_not_unique(url: str) -> None:
     _insert_user("u_" + "a" * 24, email="same@x.com")
     _insert_user("u_" + "b" * 24, email="same@x.com")
+
+
+def test_a_failed_statement_does_not_carry_its_parameters(url: str) -> None:
+    bound_value = "token-hash-that-must-not-be-logged"
+    with pytest.raises(sa_exc.DBAPIError) as caught:
+        with rw_engine().begin() as conn:
+            conn.execute(text("SELECT CAST(:v AS text), 1 / 0"), {"v": bound_value})
+    assert bound_value not in str(caught.value)
+
+
+def test_connect_args_combine_the_timeouts_with_read_only() -> None:
+    cfg = DatabaseSettings(rw_url="x", ro_url="x", statement_timeout_ms=1234, idle_tx_timeout_ms=5)
+    rw = engines_mod.app_connect_args(cfg, read_only=False)
+    ro = engines_mod.app_connect_args(cfg, read_only=True)
+    assert rw["options"] == "-c statement_timeout=1234 -c idle_in_transaction_session_timeout=5"
+    assert ro["options"] == f"{rw['options']} -c default_transaction_read_only=on"
+    assert rw["prepare_threshold"] == 5
+    off = DatabaseSettings(rw_url="x", ro_url="x", prepare_threshold=None)
+    assert engines_mod.app_connect_args(off, read_only=False)["prepare_threshold"] is None
+
+
+def test_every_app_engine_carries_the_timeouts_and_the_migration_engine_none(url: str) -> None:
+    for engine in (rw_engine(), ro_engine()):
+        with engine.connect() as conn:
+            assert conn.execute(text("SHOW statement_timeout")).scalar() == "15s"
+            assert conn.execute(text("SHOW idle_in_transaction_session_timeout")).scalar() == "1min"
+    with ro_engine().connect() as conn:
+        assert conn.execute(text("SHOW default_transaction_read_only")).scalar() == "on"
+    with rw_engine().connect() as conn:
+        assert conn.execute(text("SHOW default_transaction_read_only")).scalar() == "off"
+    migration = migrate._engine(url)
+    try:
+        with migration.connect() as conn:
+            assert conn.execute(text("SHOW statement_timeout")).scalar() == "0"
+            assert conn.execute(text("SHOW idle_in_transaction_session_timeout")).scalar() == "0"
+    finally:
+        migration.dispose()
+
+
+def _tight_engine(url: str, **overrides):
+    cfg = DatabaseSettings(rw_url=url, ro_url=url, **overrides)
+    return engines_mod._make_engine(cfg, url, read_only=False)
+
+
+def test_a_statement_over_the_timeout_is_a_query_canceled_the_error_grouping_keys_on(
+    url: str,
+) -> None:
+    from podcast_scraper.utils.sentry_init import _group_database_error
+
+    engine = _tight_engine(url, statement_timeout_ms=100)
+    try:
+        with pytest.raises(sa_exc.OperationalError) as caught:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT pg_sleep(2)"))
+        driver = caught.value.orig
+        assert driver is not None
+        assert getattr(driver, "sqlstate", None) == "57014"
+        event: dict = {}
+        _group_database_error(event, caught.value, driver)
+        assert event["fingerprint"] == ["database", "QueryCanceled", "57014"]
+    finally:
+        engine.dispose()
+
+
+def test_a_session_idle_in_a_transaction_past_the_timeout_is_terminated(url: str) -> None:
+    engine = _tight_engine(url, idle_tx_timeout_ms=200)
+    try:
+        with pytest.raises(sa_exc.DBAPIError):
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                time.sleep(0.8)
+                conn.execute(text("SELECT 1"))
+    finally:
+        engine.dispose()
+
+
+def test_a_starved_pool_fails_within_the_pool_timeout(url: str) -> None:
+    engine = _tight_engine(url, pool_size=1, max_overflow=0, pool_timeout_s=0.5)
+    try:
+        with engine.connect():
+            started = time.monotonic()
+            with pytest.raises(sa_exc.TimeoutError, match="timed out"):
+                engine.connect()
+            assert time.monotonic() - started < 3
+    finally:
+        engine.dispose()
+
+
+def test_the_pool_size_comes_from_the_settings(url: str) -> None:
+    engine = _tight_engine(url, pool_size=2, max_overflow=1)
+    try:
+        assert (engine.pool.size(), engine.pool._max_overflow) == (2, 1)
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def role_with_default_timeouts(url: str):
+    """A login role carrying role-level timeouts, as infra sets on the plane roles."""
+    from sqlalchemy.engine import make_url
+
+    name = f"tmo_probe_{uuid.uuid4().hex[:10]}"
+    admin = rw_engine_for(url)
+    try:
+        with admin.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            try:
+                conn.execute(text(f"CREATE ROLE {name} LOGIN PASSWORD 'probe'"))
+            except sa_exc.ProgrammingError:
+                pytest.skip("the test database user cannot create roles")
+            conn.execute(text(f"ALTER ROLE {name} SET statement_timeout = '15s'"))
+            conn.execute(
+                text(f"ALTER ROLE {name} SET idle_in_transaction_session_timeout = '1min'")
+            )
+        yield make_url(url).set(username=name, password="probe").render_as_string(
+            hide_password=False
+        )
+    finally:
+        with admin.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text(f"DROP ROLE IF EXISTS {name}"))
+        admin.dispose()
+
+
+def _show_timeouts(engine) -> tuple[str, str]:
+    with engine.connect() as conn:
+        return (
+            conn.execute(text("SHOW statement_timeout")).scalar(),
+            conn.execute(text("SHOW idle_in_transaction_session_timeout")).scalar(),
+        )
+
+
+def test_the_role_default_applies_to_a_plain_connection(role_with_default_timeouts: str) -> None:
+    from sqlalchemy import create_engine
+
+    engine = create_engine(role_with_default_timeouts)
+    try:
+        assert _show_timeouts(engine) == ("15s", "1min")
+    finally:
+        engine.dispose()
+
+
+def test_the_migration_engine_overrides_a_role_default(role_with_default_timeouts: str) -> None:
+    engine = migrate._engine(role_with_default_timeouts)
+    try:
+        assert _show_timeouts(engine) == ("0", "0")
+    finally:
+        engine.dispose()
+
+
+def test_the_importer_connection_overrides_a_role_default(
+    role_with_default_timeouts: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import argparse
+    from types import SimpleNamespace
+
+    from podcast_scraper.db import cli_handlers
+
+    seen: list[tuple[str, str]] = []
+
+    class _Importer:
+        def run(self, data_dir, engine, *, dry_run):
+            seen.append(_show_timeouts(engine))
+            return SimpleNamespace(
+                store="probe", read=0, inserted=0, already_present=0, mismatches=[]
+            )
+
+    monkeypatch.setattr(cli_handlers, "registry", lambda plane: {"probe": _Importer()})
+    monkeypatch.setenv("PODCAST_DATABASE_URL", role_with_default_timeouts)
+    args = argparse.Namespace(from_files=tmp_path, plane="player", only=None, dry_run=True)
+    cli_handlers._import(args, logging.getLogger("test"))
+    assert seen == [("0", "0")]

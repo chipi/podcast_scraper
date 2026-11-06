@@ -28,7 +28,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import comms
 from podcast_scraper.server.app_user_store import _is_safe_user_id
 
@@ -157,7 +157,7 @@ def get_comms(data_dir: Path, user_id: str) -> dict[str, Any]:
         return _merged({})
 
     def read(engine: Any) -> dict[str, Any]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return _merged(_read_raw(conn, user_id))
 
     return read_with_retry(read)

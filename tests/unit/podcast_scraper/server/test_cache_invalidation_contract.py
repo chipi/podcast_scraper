@@ -28,11 +28,19 @@ SCANNED = ("server", "search")
 CONTRACT: dict[str, tuple[str, str]] = {
     "server/relational_view.py::_theme_ref_by_norm_at": ("token", "_token"),
     "server/relational_view.py::_storyline_ref_by_norm_at": ("token", "_token"),
+    "server/slugs.py::episode_slug": (
+        "static",
+        "a pure function of its three string arguments",
+    ),
     "server/og/card.py::_font": ("static", "a font file shipped with the code"),
     "server/app_audio_bridge.py::_https_cache": ("ttl", "1 h (_HTTPS_TTL_S)"),
     "server/routes/corpus_enrichments.py::_CATALOGUE_CACHE": (
         "mtime",
         "the enrichments directory mtime, checked on every read",
+    ),
+    "server/app_release_store.py::_cache_lock": (
+        "ttl",
+        "5 s (CACHE_SECONDS) for another process's write; dropped by save_released_version here",
     ),
     "search/index_source_mtime.py::_cache": (
         "ttl",

@@ -9,11 +9,12 @@ import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, MetaData, text
 from sqlalchemy.engine import make_url
 
 from podcast_scraper.db import migrate
 from podcast_scraper.db.settings import normalize_url
+from podcast_scraper.extensions import load_extensions
 from tests._database import worker_database_url
 
 REPO = Path(__file__).resolve().parents[4]
@@ -294,10 +295,12 @@ def test_the_tables_the_stores_use_are_the_tables_the_migrations_build(url: str)
                     opts={
                         "compare_type": True,
                         "compare_server_default": True,
-                        "include_name": lambda name, kind, _parent: name != "alembic_version",
+                        "include_name": lambda name, kind, _parent: not (name or "").startswith(
+                            "alembic_version"
+                        ),
                     },
                 )
-                assert compare_metadata(ctx, metadata) == [], plane
+                assert compare_metadata(ctx, _with_installed_modules(metadata, plane)) == [], plane
             conn.execute(text("SET search_path TO public"))
             ctx = MigrationContext.configure(
                 conn,
@@ -339,7 +342,7 @@ def test_an_upgrade_from_empty_writes_a_history_row_per_revision_and_a_second_wr
     try:
         applied = migrate.upgrade(url, "operator")
         assert applied == ["0001_users", "0002_schema_history", "0003_kernel_stores"]
-        rows = migrate.history_rows(url, "operator")
+        rows = _kernel_rows(migrate.history_rows(url, "operator"))
         assert [r["revision"] for r in rows] == [
             "0003_kernel_stores",
             "0002_schema_history",
@@ -351,7 +354,7 @@ def test_an_upgrade_from_empty_writes_a_history_row_per_revision_and_a_second_wr
         assert all(r["applied_at"] is not None for r in rows)
 
         assert migrate.upgrade(url, "operator") == []
-        assert len(migrate.history_rows(url, "operator")) == 3
+        assert len(_kernel_rows(migrate.history_rows(url, "operator"))) == 3
     finally:
         migrate.upgrade(url, "operator")
 
@@ -437,3 +440,24 @@ def test_status_on_a_plane_before_the_history_table_prints_no_rows(url: str) -> 
         assert " ms" not in plane_part
     finally:
         migrate.upgrade(url, "operator")
+
+
+def _with_installed_modules(kernel: MetaData, plane: str) -> MetaData:
+    """The kernel's tables plus those of every module installed on ``plane``: an editable install
+    of an extension package in the same venv migrates its tables into the test database too."""
+    combined = MetaData()
+    for table in kernel.tables.values():
+        table.to_metadata(combined)
+    for ext in load_extensions():
+        if ext.database is not None and plane in ext.database.planes:
+            for table in ext.database.metadata.tables.values():
+                table.to_metadata(combined)
+    return combined
+
+
+def _kernel_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """The kernel history's ``schema_history`` rows, without installed modules' rows."""
+    prefixes = tuple(
+        f"{ext.database.name}_" for ext in load_extensions() if ext.database is not None
+    )
+    return [r for r in rows if not str(r["revision"]).startswith(prefixes)]

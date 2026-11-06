@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import users
 from podcast_scraper.server import app_roles
 
@@ -148,7 +148,7 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         return None
 
     def read(engine: Any) -> User | None:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return _select_user(conn, user_id)
 
     return read_with_retry(read)

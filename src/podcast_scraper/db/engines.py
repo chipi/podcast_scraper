@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Callable, TypeVar
 
 from sqlalchemy import create_engine, Engine, exc as sa_exc, text
+from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.settings import DatabaseSettings
 
@@ -53,22 +54,52 @@ def application_name_args() -> dict[str, str]:
     return {"application_name": name[:63]} if name else {}
 
 
-def _make_engine(url: str, plane: str, *, read_only: bool) -> Engine:
-    connect_args: dict[str, str] = {"connect_timeout": "5", **application_name_args()}
+def app_connect_args(settings: DatabaseSettings, *, read_only: bool) -> dict[str, object]:
+    """libpq arguments for an app connection (ADR-173): the timeouts and, on the ro engine,
+    read-only, in one ``options`` string so none overwrites another."""
+    options = [
+        f"-c statement_timeout={settings.statement_timeout_ms}",
+        f"-c idle_in_transaction_session_timeout={settings.idle_tx_timeout_ms}",
+    ]
     if read_only:
-        connect_args["options"] = "-c default_transaction_read_only=on"
+        options.append("-c default_transaction_read_only=on")
+    return {
+        "connect_timeout": "5",
+        "options": " ".join(options),
+        "prepare_threshold": settings.prepare_threshold,
+        **application_name_args(),
+    }
+
+
+def unbounded_connect_args(*, read_only: bool = False) -> dict[str, str]:
+    """libpq arguments for migrations and importers: both timeouts explicitly off, because the
+    role the URL names may carry a role-level default (``ALTER ROLE ... SET statement_timeout``)
+    that a session-level ``options`` value overrides. A migration may legitimately run long."""
+    options = "-c statement_timeout=0 -c idle_in_transaction_session_timeout=0"
+    if read_only:
+        options += " -c default_transaction_read_only=on"
+    return {"options": options, **application_name_args()}
+
+
+def _make_engine(settings: DatabaseSettings, url: str, *, read_only: bool) -> Engine:
+    plane = settings.plane
+    connect_args = app_connect_args(settings, read_only=read_only)
     return create_engine(
         url,
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=5,
+        # A failed statement's parameters (token hashes, addresses) stay out of its error text,
+        # and so out of logs and GlitchTip.
+        hide_parameters=True,
+        pool_size=settings.pool_size,
+        max_overflow=settings.max_overflow,
+        pool_timeout=settings.pool_timeout_s,
         connect_args=connect_args,
         execution_options={"schema_translate_map": {None: plane}},
     )
 
 
 def check_ready(engines: _Engines) -> None:
-    """Fail fast: both engines connect and the plane's schema is at the head revision."""
+    """Fail fast: both engines connect, and every history on the plane is at its head or ahead."""
     from podcast_scraper.db import migrate
 
     plane = engines.settings.plane
@@ -80,17 +111,33 @@ def check_ready(engines: _Engines) -> None:
             raise DatabaseNotReady(f"database ({label}) is not reachable: {exc}") from exc
     from podcast_scraper.db.schema import SHARED_SCHEMA
 
+    checks = [("schema", SHARED_SCHEMA, migrate.SHARED), ("plane", plane, migrate.KERNEL)]
+    checks += [(f"module {h.name} on plane", plane, h) for h in migrate.modules(plane)]
     with engines.rw.connect() as conn:
         found = [
-            (label, schema, migrate.current_revision(conn, schema), migrate.head_revision(schema))
-            for label, schema in (("plane", plane), ("schema", SHARED_SCHEMA))
+            (label, schema, *migrate.readiness(conn, schema, hist))
+            for label, schema, hist in checks
         ]
-    for label, schema, current, head in found:
-        if current != head:
+    for label, schema, state, current, head in found:
+        if state == "ahead":
+            # A later release migrated past this code, expand-only: the rollback case (ADR-172).
+            logger.warning(
+                "%s %r is at revision %s, ahead of this code's head %s; starting",
+                label,
+                schema,
+                current,
+                head,
+            )
+        elif state == "behind":
             raise DatabaseNotReady(
-                f"{label} {schema!r} is at revision {current or 'none'}, head is {head}; run "
+                f"{label} {schema!r} is at revision {current or 'none'}, behind head {head}; run "
                 f"`python -m podcast_scraper.cli db upgrade --plane {plane}` (prod: the dedicated "
                 "migrate step, never app start)"
+            )
+        elif state == "unknown":
+            raise DatabaseNotReady(
+                f"{label} {schema!r} is at revision {current}, which this code does not know and "
+                f"whose history never applied this code's head {head}; refusing to start"
             )
 
 
@@ -107,8 +154,8 @@ def init_engines(settings: DatabaseSettings | None = None, *, check: bool = True
         cfg = settings or DatabaseSettings.from_env()
         opened = _Engines(
             settings=cfg,
-            rw=_make_engine(cfg.rw_url, cfg.plane, read_only=False),
-            ro=_make_engine(cfg.ro_url, cfg.plane, read_only=True),
+            rw=_make_engine(cfg, cfg.rw_url, read_only=False),
+            ro=_make_engine(cfg, cfg.ro_url, read_only=True),
         )
         if check:
             try:
@@ -168,6 +215,13 @@ def ro_engine() -> Engine:
 def plane_schema() -> str:
     """The schema this process serves (``player`` or ``operator``)."""
     return _current().settings.plane
+
+
+def read_connection(engine: Engine) -> Connection:
+    """A connection for a read of ONE statement: autocommit, so the read costs no BEGIN and no
+    ROLLBACK round trip. A read of several statements that must see one snapshot uses
+    ``engine.connect()`` instead."""
+    return engine.connect().execution_options(isolation_level="AUTOCOMMIT")
 
 
 def read_with_retry(fn: Callable[[Engine], T], *, attempts: int = 3, backoff_s: float = 0.1) -> T:

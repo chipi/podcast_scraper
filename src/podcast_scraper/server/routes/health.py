@@ -67,11 +67,12 @@ def player_client_health(st: Any) -> dict[str, Any]:
     auth_ready = not auth_configured or (
         bool(getattr(st, "session_secret", "")) and getattr(st, "app_data_dir", None) is not None
     )
+    app_versions = released_app_versions(st)
     return {
         "auth_ready": auth_ready,
         "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
-        "player_version": released_player_version(st),
-        "app_versions": released_app_versions(st),
+        "player_version": app_versions.get("player"),
+        "app_versions": app_versions,
     }
 
 

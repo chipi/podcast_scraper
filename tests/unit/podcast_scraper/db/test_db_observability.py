@@ -55,7 +55,9 @@ def test_one_kind_of_database_failure_is_one_issue(url: str) -> None:
 
 def test_no_sql_and_no_parameters_leave_the_app(url: str) -> None:
     exc = _raise("SELECT * FROM player.no_such_table WHERE email = :secret_param")
-    assert "SELECT" in str(exc) and "alice@example.com" in str(exc)
+    # The engine hides parameters (hide_parameters); the SQL still reaches the exception text,
+    # so the event scrubber is what keeps it in the app.
+    assert "SELECT" in str(exc) and "alice@example.com" not in str(exc)
     event = _before_send(_event_for(exc), {"exc_info": (type(exc), exc, None)})
     value = event["exception"]["values"][0]["value"]
     assert value == '[42P01] relation "player.no_such_table" does not exist'

@@ -19,6 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
 
+from podcast_scraper import perf_cache
 from podcast_scraper.search.groupings import (
     storyline_anchors,
     storyline_lifecycle,
@@ -150,6 +151,29 @@ def hosted_photo_urls(root: Path) -> dict[str, str]:
     so a small circular avatar hydrates consistently wherever a name appears. We expose only the
     served (our-domain) route, never the raw external URL — that would leak the viewer's IP to the
     source. Best-effort: an absent/malformed artifact → ``{}``."""
+    return dict(
+        perf_cache.get_or_compute(
+            _PHOTO_NS, str(Path(root).resolve()), _photo_token(root), lambda: _hosted_photos(root)
+        )
+    )
+
+
+_PHOTO_NS = "hosted_photo_urls"
+
+
+def _photo_token(root: Path) -> float:
+    """What the photo map reads: ``person_web.json`` on its own clock (an enrichment run rewrites it
+    without moving the corpus stamps) and the identity ledger the borrows come from, which
+    ``corpus_mtime`` includes."""
+    try:
+        st = (Path(root) / "enrichments" / "person_web.json").stat()
+        web = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        web = (-1, -1)
+    return float(hash((perf_cache.corpus_mtime(root), web)))
+
+
+def _hosted_photos(root: Path) -> dict[str, str]:
     doc = _person_web_payload(root)
     if doc is None:
         return {}

@@ -52,7 +52,9 @@ def _database_snapshot() -> dict[str, Any]:
         if engines.engines_open():
             engine = engines.ro_engine()
         else:
-            scratch = engine = create_engine(settings.ro_url, connect_args={"connect_timeout": "5"})
+            scratch = engine = create_engine(
+                settings.ro_url, connect_args=engines.app_connect_args(settings, read_only=True)
+            )
         head = migrate.head_revision()
         with engine.connect() as conn:
             current = migrate.current_revision(conn, settings.plane)

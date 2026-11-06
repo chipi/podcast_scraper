@@ -81,3 +81,49 @@ def test_is_configured_sees_the_secret_file(
     assert not is_configured()
     (tmp_path / "podcast_database_url").write_text("postgresql://u@h/db", encoding="utf-8")
     assert is_configured()
+
+
+_URL = {"PODCAST_DATABASE_URL": "postgresql://u@h/db"}
+
+
+def test_connection_settings_default_to_the_documented_values() -> None:
+    cfg = DatabaseSettings.from_env(_URL)
+    assert (cfg.statement_timeout_ms, cfg.idle_tx_timeout_ms) == (15_000, 60_000)
+    assert (cfg.pool_size, cfg.max_overflow, cfg.pool_timeout_s) == (5, 5, 10.0)
+    assert cfg.prepare_threshold == 5
+
+
+def test_connection_settings_read_the_environment() -> None:
+    cfg = DatabaseSettings.from_env(
+        {
+            **_URL,
+            "PODCAST_DB_STATEMENT_TIMEOUT_MS": "2500",
+            "PODCAST_DB_IDLE_TX_TIMEOUT_MS": "0",
+            "PODCAST_DB_POOL_SIZE": "8",
+            "PODCAST_DB_MAX_OVERFLOW": "0",
+            "PODCAST_DB_POOL_TIMEOUT_S": "2.5",
+            "PODCAST_DB_PREPARE_THRESHOLD": "None",
+        }
+    )
+    assert (cfg.statement_timeout_ms, cfg.idle_tx_timeout_ms) == (2500, 0)
+    assert (cfg.pool_size, cfg.max_overflow, cfg.pool_timeout_s) == (8, 0, 2.5)
+    assert cfg.prepare_threshold is None
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [
+        ("PODCAST_DB_STATEMENT_TIMEOUT_MS", "-1"),
+        ("PODCAST_DB_STATEMENT_TIMEOUT_MS", "fast"),
+        ("PODCAST_DB_IDLE_TX_TIMEOUT_MS", "1.5"),
+        ("PODCAST_DB_POOL_SIZE", "0"),
+        ("PODCAST_DB_MAX_OVERFLOW", "-2"),
+        ("PODCAST_DB_POOL_TIMEOUT_S", "0"),
+        ("PODCAST_DB_POOL_TIMEOUT_S", "soon"),
+        ("PODCAST_DB_PREPARE_THRESHOLD", "-1"),
+        ("PODCAST_DB_PREPARE_THRESHOLD", "off"),
+    ],
+)
+def test_a_bad_connection_setting_is_refused_naming_the_variable(name: str, value: str) -> None:
+    with pytest.raises(ValueError, match=name):
+        DatabaseSettings.from_env({**_URL, name: value})

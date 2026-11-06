@@ -1,6 +1,6 @@
 # RFC-051: Database Projection (GIL & Knowledge Graph)
 
-- **Status**: Draft
+- **Status**: Superseded by [ADR-169](../adr/ADR-169-the-database-is-the-source-of-truth.md) (2026-11-06). This RFC projected the file artifacts into Postgres as a read copy; ADR-169 makes the database the source of truth instead, so there is no projection to keep in step. The platform side is described in [Database architecture](../architecture/DATABASE.md). Kept as historical design record.
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, ML engineers, downstream
   consumers, power users

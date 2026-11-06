@@ -73,8 +73,9 @@ def _file_claims() -> list[Claim]:
         for ext, _media in app_profile._ALLOWED.values()
     )
 
-    # Player's store (closelistening_player.server.app_ranking_config_store), which its
-    # extension's app_data_files does not declare yet; it moves with the Player stores (E07).
+    # An installed extension's store. When the extension is installed its importer claims the
+    # file as imported, and importer claims are matched first (declared_claims); in an image
+    # without it the file, if present, stays a file instead of failing as UNCLAIMED.
     claims.append(root_file("ranking_config.json", "file", "ranking_config (player)"))
 
     claims.extend(user_file(n, "retired", owner) for n, owner in RETIRED_USER_FILES.items())
