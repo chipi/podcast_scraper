@@ -8,7 +8,7 @@ Architecture (RFC-089 (not in this repository) / ADR-096 (not in this repository
 - Fallback: owned by the stage factory's ``FallbackChainTranscriptionProvider``
   (RFC-106 / #1198), not by this provider. This tier tries DGX and RAISES on
   failure; the chain advances to the next tier (DGX-whisper -> cloud).
-  ADR-096 (not in this repository)'s
+  ADR-096's (not in this repository)
   "no hard-required-DGX path" still holds — it is just enforced one layer up now.
 
 Pre-#814 history: this provider targeted ``POST /api/transcribe`` on Ollama's

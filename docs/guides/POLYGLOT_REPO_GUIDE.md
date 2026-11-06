@@ -1,15 +1,14 @@
-# Polyglot repository layout (Python + two Node UI apps)
+# Polyglot repository layout (Python + a Node UI app)
 
 This repository is **Python-first**: the package, CLI, tests, and `Makefile` live at the **repo
-root**. On top of that, **two independent Node/Vue projects** live side-by-side under `web/`:
+root**. On top of that, **a Node/Vue project** lives under `web/`:
 
 - **GI/KG Viewer** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** inspection
   tool for knowledge-graph + grounded-insight artifacts. Under
   [`web/gi-kg-viewer/`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/).
 
-Different audiences, different design systems, different deploy targets — deliberately separate
-projects, both under `web/` for discoverability. Treat them as three toolchains (Python + two
-Node) that share one git tree, not one unified `npm` workspace (by design).
+Treat it as two toolchains (Python + Node) that share one git tree, not one unified `npm`
+workspace (by design).
 
 ---
 

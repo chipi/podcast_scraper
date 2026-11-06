@@ -139,7 +139,7 @@ def test_extract_self_introduced_host_still_accepts_a_real_mononym() -> None:
 @pytest.mark.parametrize(
     ("name", "publishable"),
     [
-        # Opener/stop-word leaks the final gate must reject (ADR-126 (not in this repository)).
+        # Opener/stop-word leaks the final gate must reject (ADR-126, not in this repository).
         ("But Sun", False),  # community-1 "Moonlake": opener + real surname
         ("So Nick", False),  # community-1 "Quantum": opener + real first name
         ("But", False),  # bare opener from "I'm But it"

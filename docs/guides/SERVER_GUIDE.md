@@ -142,7 +142,7 @@ This guide covers **running and extending** the server (below); the HTTP API Ref
 
 ## MCP server (agent tools)
 
-Separate from the HTTP API, the **generic MCP server** (PRD-034) exposes the
+Separate from the HTTP API, the **generic MCP server** exposes the
 platform's read capabilities as composable, read-only tools for agentic clients (Claude
 Desktop/Code, Cursor). It is **library-wrapped** (the corpus directory is the read context)
 and runs over **either transport** — the tool layer is transport-agnostic:

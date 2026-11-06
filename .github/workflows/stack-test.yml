@@ -259,7 +259,7 @@ jobs:
   # NEVER pushes pipeline-ml — that image bakes in models with
   # restrictive licenses (Llama 3.2 community license) and is
   # built on CI runners only for stack-test consumption.
-  # See RFC-081 §Layer 1 for the published-image-set decision.
+  # See RFC-081 (not in this repository) §Layer 1 for the published-image-set decision.
   #
   # Each image is built amd64/--load first, runs the no-secrets-in-image
   # assertion (scripts/check/no-secrets-in-image.sh), and then gets the
@@ -282,7 +282,7 @@ jobs:
       contents: read
       packages: write
     # One leg per image. fail-fast:false so a wedged/failed leg (e.g.
-    # learning-app) does NOT cancel the siblings — api/viewer/pipeline
+    # viewer) does NOT cancel the siblings — the other images
     # still publish. Each leg is bounded so a hang fails at 45m, not 6h.
     strategy:
       fail-fast: false
@@ -507,6 +507,6 @@ jobs:
             echo "native \`ubuntu-24.04-arm\` runner — never QEMU emulation."
             echo ""
             echo "The \`pipeline-ml\` image (with HuggingFace cache + SummLlama)"
-            echo "is intentionally NOT published — RFC-081 §Layer 1 license"
+            echo "is intentionally NOT published — RFC-081 (not in this repository) §Layer 1 license"
             echo "decision; never redistribute restricted-license model bundles."
           } >> "$GITHUB_STEP_SUMMARY"

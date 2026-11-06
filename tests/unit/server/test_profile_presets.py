@@ -53,7 +53,7 @@ def test_profile_directories_prefers_cwd_then_repo(
     assert "from_cwd_only" in names
 
 
-# --- PODCAST_AVAILABLE_PROFILES env allowlist (#692, RFC-081) -------------------
+# --- PODCAST_AVAILABLE_PROFILES env allowlist (#692, RFC-081, not in this repository) ---
 
 
 def test_env_allowlist_unset_returns_full_disk_set(

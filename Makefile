@@ -206,8 +206,6 @@ help:
 	@echo "  make coverage-enforce        Fast threshold check on existing .coverage (used by ci)"
 	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
 	@echo ""
-	@echo "Infrastructure (RFC-082 (not in this repository) prod VPS):"
-	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make docs-check      Run all documentation checks (linting + spelling + build)"
@@ -899,7 +897,7 @@ stack-test-build:
 	@# + GIL evidence). Drops SummLlama (Llama 3.2 license — never
 	@# publish), Pegasus, hybrid LongT5/FLAN-T5, Whisper base.en. This
 	@# saves ~2 GB on the resulting image and keeps the redistribution
-	@# story clean for the future GHCR publish step (RFC-081).
+	@# story clean for the future GHCR publish step (RFC-081, not in this repository).
 	@STACK_PIPELINE_PRELOAD_ML=true \
 		STACK_PIPELINE_PRELOAD_VARIANT=airgapped-thin \
 		$(STACK_TEST_COMPOSE) --profile pipeline build
@@ -2463,9 +2461,9 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
-# UI gate (operator 2026-10-06): the viewer and the player — unit tests, Playwright e2e, builds — plus
+# UI gate (operator 2026-10-06): the viewer — unit tests, Playwright e2e, build — plus
 # the same static checks as ci-fast and the fast Python tiers without Python e2e. The ONLY local
-# gate with app tests: ci-fast is backend-only. Longer than Vitest alone (Playwright).
+# gate with viewer tests: ci-fast is backend-only. Longer than Vitest alone (Playwright).
 ci-ui-fast:
 	# Note: ci-ui-fast skips coverage-enforce and Python tests/e2e; Playwright still needs browsers installed.
 	@set -e; \

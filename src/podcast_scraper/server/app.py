@@ -551,7 +551,7 @@ def _install_metrics(app: FastAPI) -> None:
     # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
     # so the default behaviour (no Grafana account, no agent running)
     # stays a no-op. Wired for the Grafana Cloud free-tier sink in
-    # pre-prod (RFC-081, Phase 1B). The instrumentator emits the
+    # pre-prod (RFC-081 (not in this repository), Phase 1B). The instrumentator emits the
     # standard FastAPI metrics: http_requests_total{method,route,status}
     # + http_request_duration_seconds histogram.
     if _env_truthy("PODCAST_METRICS_ENABLED"):

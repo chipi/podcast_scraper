@@ -10,7 +10,7 @@ from podcast_scraper.rss.licence import LicenceDeclaration, LicenceRecord
 
 
 class TranscriptSegment(BaseModel):
-    """One transcript segment in the player ``segments.json`` contract (PRD-036)."""
+    """One transcript segment in the player ``segments.json`` contract."""
 
     id: str = Field(description="Stable segment id within the episode.")
     start: float = Field(ge=0, description="Segment start time in seconds.")

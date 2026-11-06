@@ -7,7 +7,7 @@ rather than the opaque internal ``episode_id``. Keying on ``(feed_id, episode_id
 
 No new persistence: slugs are computed on the fly from the catalog (the same
 per-request scan the catalog/relational layers already do), consistent with the
-"plain files, no DB" decision (PRD-035 D2). A persisted ``episode_slugs`` index can
+"plain files, no DB" decision. A persisted ``episode_slugs`` index can
 be added later if the scan cost ever warrants it.
 """
 

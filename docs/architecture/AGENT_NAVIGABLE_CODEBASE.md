@@ -135,7 +135,7 @@ If you roll this out, roll out both halves.
 ## The mechanics
 
 **Tree-root READMEs.** One at each root where someone lands and needs orientation — not every
-directory. Here: the test tiers, the fixture trees, the two web apps, each app's e2e directory, and
+directory. Here: the test tiers, the fixture trees, the web app, its e2e directory, and
 the store/composable layers. Roughly 40–60 lines each:
 
 1. A one-line purpose.

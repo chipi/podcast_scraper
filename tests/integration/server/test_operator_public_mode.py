@@ -1,4 +1,4 @@
-"""``PODCAST_SERVE_OPERATOR_PUBLIC`` — the public operator surface (RFC-108 (not in this repository)).
+"""``PODCAST_SERVE_OPERATOR_PUBLIC`` — the public operator surface (RFC-108, not in this repository).
 
 `operator.closelistening.app` exposes a **curated read-only subset** of the operator
 routes, each mounted with a **router-level ≥creator gate**. `index_rebuild`, `ops`, and

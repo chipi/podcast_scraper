@@ -1,4 +1,4 @@
-"""HTTP embedding client for DGX embedding shim (RFC-089 (not in this repository))."""
+"""HTTP embedding client for DGX embedding shim (RFC-089, not in this repository)."""
 
 from __future__ import annotations
 

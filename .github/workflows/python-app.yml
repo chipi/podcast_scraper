@@ -207,12 +207,11 @@ jobs:
             - 'config/acceptance/**'
             - 'config/profiles/**'
             - 'compose/**'
-          # The two web apps, gated the same way (operator 2026-10-06). On a PULL REQUEST each app's
-          # unit tests run when its own tree changes, and its e2e when anything it runs against
-          # changes; on MAIN every one of them runs, always (see each job's `if`). The e2e suites
-          # boot the REAL api (`podcast_scraper.cli serve`) over a disposable copy of the committed
-          # app corpus, so the server and that corpus are dependencies of both. Python-only PRs
-          # used to skip the player's e2e entirely (#2285, #2286, #2288).
+          # The viewer (operator 2026-10-06). On a PULL REQUEST its unit tests run when its own
+          # tree changes, and its e2e when anything it runs against changes; on MAIN they always
+          # run (see each job's `if`). The e2e suite boots the REAL api
+          # (`podcast_scraper.cli serve`) over a disposable copy of the committed corpus, so the
+          # server and that corpus are its dependencies (#2285, #2286, #2288).
           viewer:
             - 'web/gi-kg-viewer/**'
             - 'docker/viewer/**'

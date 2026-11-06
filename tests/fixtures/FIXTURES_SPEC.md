@@ -418,8 +418,8 @@ re-measuring.**
   KnowledgePanel content, the "Insight now" card, and 124 indexed search documents. Nothing breaks;
   every insight surface in the fixture is simply exercised with the host saying hello, so a test
   asserting "insights render" proves the plumbing and nothing about the surface.
-- **The duration disagreements are inert today.** Nothing under `src/podcast_scraper/server/` or
-  `web/learning-player/src/` reads `duration_ms` at all — its only readers are the GI pipeline's
+- **The duration disagreements are inert today.** Nothing under `src/podcast_scraper/server/` (nor
+  the player app) reads `duration_ms` at all — its only readers are the GI pipeline's
   `position_hint` waterfall (step 1) and a migration, and in this fixture `position_hint` is
   authored directly by the builder, so that waterfall never runs. The density sidecar's `1800.0` is
   equally unreachable: the route exposes only an availability flag, and the player's density strip
@@ -1035,7 +1035,7 @@ app e2e can run against stable, version-pinned content:
   run-relative, `content.media_url`, raw canonical `*.segments.json`,
   `search/topic_clusters.json`). ~3 shows × 2 episodes; every episode is `ready`
   and carries GI insights + KG topics/people. The app's Playwright e2e
-  (`web/learning-player/playwright.config.ts`) serves it via the real consumer API with no build
+  serves it via the real consumer API with no build
   step. See `app-validation-corpus/README.md` for the show/episode list and the
   regenerate command.
 

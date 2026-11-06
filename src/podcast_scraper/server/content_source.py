@@ -7,7 +7,7 @@ episode it lists is effectively *ready*. When scrape-on-demand (#1069) lands, a
 ``DiscoverySource`` can implement the same Protocol to surface not-yet-processed content,
 with **no change** to the routes or the ``/api/app/episodes`` response shape.
 
-No new persistence (PRD-035 D2): everything is derived from the per-request corpus scan
+No new persistence: everything is derived from the per-request corpus scan
 the catalog/slug layers already perform.
 """
 

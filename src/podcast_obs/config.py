@@ -73,7 +73,7 @@ class TargetConfig:
     langfuse_public_key: Optional[str] = None
     langfuse_secret_key: Optional[str] = None
     langfuse_base_url: Optional[str] = None  # unset → Langfuse Cloud
-    # Umami (ADR-126 (not in this repository)) — the user-action lens for the operator surface.
+    # Umami (ADR-126, not in this repository) — the user-action lens for the operator surface.
     # Cookieless, self-hosted. The website_id is per-environment (operator-dev vs operator-prod)
     # exactly like the player's VITE_UMAMI_WEBSITE_ID; reading needs admin auth (token, or
     # username+password → login token).

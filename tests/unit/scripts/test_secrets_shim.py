@@ -1,4 +1,4 @@
-"""Behavioral tests for docker/secrets-shim.sh (ADR-115 (not in this repository)).
+"""Behavioral tests for docker/secrets-shim.sh (ADR-115, not in this repository).
 
 The shim is the ENTRYPOINT of the api + pipeline images: it exports every file in
 ``$SECRETS_DIR`` as an UPPERCASE env var, then ``exec``s the real entrypoint. A

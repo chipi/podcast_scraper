@@ -44,7 +44,7 @@ const app = createApp(App)
 // ``window.__PODCAST_DEFAULT_CORPUS_PATH__``. See
 // docker/viewer/default.conf.template.
 //
-// See RFC-081 §Layer 2 + issue #681. Pairs with the Python-side init
+// See RFC-081 (not in this repository) §Layer 2 + issue #681. Pairs with the Python-side init
 // in ``src/podcast_scraper/utils/sentry_init.py`` so api / pipeline /
 // viewer all stream into separate Sentry projects with
 // ``component=`` tags on each event.

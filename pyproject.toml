@@ -315,7 +315,7 @@ dev = [
   # resolve already lands past them — the floor is for every venv built before the fix existed,
   # which keeps the old version and fails pip-audit. Drop it once mcp requires >=2.15.0 itself.
   "pyjwt>=2.15.0",
-  # Generic MCP server (PRD-034) — a core dev/server capability, not a separate
+  # Generic MCP server — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer. Floor 1.30.0: CVE-2026-59951 is fixed
   # there, and a venv built earlier keeps 1.29.x and fails pip-audit (same reason as pyjwt).

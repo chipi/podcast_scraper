@@ -9,7 +9,7 @@ same fixtures so the two tracks cannot drift.
 Invariants asserted beyond raw schema validity:
 - **Carry the graph** (the moat rule): every digest item carries ``graph_refs`` + a
   ``deep_link`` — never a flat clip.
-- **Bridge-only audio**: no source-audio field anywhere in an envelope (PRD-035 Principle 4).
+- **Bridge-only audio**: no source-audio field anywhere in an envelope.
 - **Idempotency**: a non-empty ``id`` the delivery service dedupes on.
 - **Channel/recipient consistency**: email carries a verified address; push carries a
   subscription.

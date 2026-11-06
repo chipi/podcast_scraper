@@ -1,6 +1,6 @@
 /**
  * Vitest unit suite for ``operatorConfigApi`` parsing — focused on the
- * RFC-081 §Layer 1 ``default_profile`` field added in #692.
+ * RFC-081 (not in this repository) §Layer 1 ``default_profile`` field added in #692.
  *
  * The logic that uses ``default_profile`` lives in
  * ``components/shell/StatusBar.vue`` (operator-config dropdown

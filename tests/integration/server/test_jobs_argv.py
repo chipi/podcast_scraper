@@ -164,7 +164,7 @@ def test_argv_omits_profile_when_operator_has_none(
     assert "--config" in argv
 
 
-# --- env-default fallback (#692, RFC-081 §Layer 1) ---------------------------
+# --- env-default fallback (#692, RFC-081 (not in this repository) §Layer 1) ---------------------------
 
 
 def test_argv_uses_env_default_when_operator_has_no_profile(

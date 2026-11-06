@@ -1,4 +1,4 @@
-# ADR-098: Embedding provider as a profile axis, supersede RFC-089 (not in this repository) §D4
+# ADR-098: Embedding provider as a profile axis, supersede RFC-089 §D4
 
 - **Status**: Accepted
 - **Date**: 2026-06-06

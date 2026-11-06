@@ -52,7 +52,7 @@ class TestIdentity:
 
     def test_names_real_model_id_on_the_wire(self):
         # No served-name alias: the wire model is the real HF id (reproducibility,
-        # ADR-143 (not in this repository)/144).
+        # ADR-143/144 (not in this repository)).
         p = VLLMProvider(_vllm_cfg())
         assert p.summary_model == _MODEL
         assert "autoresearch" != p.summary_model

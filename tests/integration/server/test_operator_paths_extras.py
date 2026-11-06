@@ -9,7 +9,7 @@ import pytest
 
 from podcast_scraper.server import operator_paths as op
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
+# Moved from tests/unit/ — RFC-081 (not in this repository) PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 

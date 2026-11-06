@@ -17,7 +17,7 @@ set. The api reads ``PODCAST_SENTRY_DSN_API``; the pipeline reads
 ``PODCAST_SENTRY_DSN_PIPELINE``. Different DSNs keep frontend / backend
 event streams separable in the Sentry UI.
 
-See: RFC-081 §Layer 2, issue #681.
+See: RFC-081 (not in this repository) §Layer 2, issue #681.
 """
 
 from __future__ import annotations

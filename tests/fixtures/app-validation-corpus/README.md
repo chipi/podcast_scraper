@@ -295,8 +295,6 @@ these are what re-validate it; when you add a read surface, add a case here so i
 | --- | --- | --- |
 | **Corpus invariants** | `tests/integration/test_app_validation_corpus_invariants.py` | Every enrichment artifact is present + non-degenerate (similarity has neighbours, consensus has cross-person pairs, theme clusters + super-themes form, velocity/co-occurrence/grounding-rate discriminate, sentiment has spread, a topic spans ≥3 shows). Static JSON — no index needed. |
 | **Search capability** | `tests/integration/search/test_search_capability_against_fixture.py` | `structured_corpus_search` SSOT: two-tier stamping, tier filters, query classification, lift-stats shape, grounded/topic/speaker filters, + the `cluster_hits` / `consensus_pairs_for_hits` operators and two-subject `compare_subjects`. Builds the index at setup. |
-| **MCP pivot chain** | `tests/integration/test_mcp_pivot_chain_e2e.py` | The RFC-095 cross-surface chain: ids flow search → insight → graph → compare; episode-scoped tools (speaker roster, per-episode insights/enrichment, digest) return data. Builds the index at setup. |
-| **Player e2e** | `web/learning-player/playwright.config.ts` | Boots the real consumer API (`serve --output-dir …/v3`) over this corpus — no build step. Per-user runtime state is redirected to a gitignored `web/learning-player/e2e/.app-state/` via `APP_DATA_DIR`, so this committed tree is never mutated. |
 
 Run the two index-building Python layers:
 

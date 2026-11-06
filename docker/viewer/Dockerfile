@@ -16,7 +16,7 @@ ENV VITE_DEFAULT_GRAPH_LENS_DAYS=${VITE_DEFAULT_GRAPH_LENS_DAYS}
 
 # A baked Sentry DSN, for a local build that runs without this image's nginx. A deployed viewer
 # takes its DSN at container start instead (PODCAST_SENTRY_DSN_VIEWER, below), so CI passes
-# nothing here; main.ts reports nothing when neither is set. See RFC-081 §Layer 2 + issue #681.
+# nothing here; main.ts reports nothing when neither is set. See RFC-081 (not in this repository) §Layer 2 + issue #681.
 #   docker buildx build --build-arg VITE_SENTRY_DSN_VIEWER=...
 ARG VITE_SENTRY_DSN_VIEWER
 ENV VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}

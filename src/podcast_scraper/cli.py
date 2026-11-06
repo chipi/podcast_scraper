@@ -2109,7 +2109,7 @@ def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
     the PROFILE (``cloud_balanced.yaml`` pins the homelab gateway) and its only override
     layer was the box's ``viewer_operator.yaml`` — which ``reprocess-prod.yml`` bypasses
     entirely by passing ``--config <profile>``. A prod reprocess therefore had NO way to
-    reach the prod-VPS gateway (ADR-142 (not in this repository)) and would silently bill the
+    reach the prod-VPS gateway (ADR-142, not in this repository) and would silently bill the
     homelab one.
 
     Args:
@@ -4940,7 +4940,7 @@ def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
             "LiteLLM gateway base URL, overriding the profile's value. gi-repair builds its "
             "config from --config alone, and cloud_balanced pins the HOMELAB gateway — so "
             "without this a prod repair bills homelab instead of prod's own gateway "
-            "(ADR-142 (not in this repository))"
+            "(ADR-142, not in this repository)"
         ),
     )
     parser.add_argument(

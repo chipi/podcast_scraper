@@ -16,7 +16,7 @@ Sentry directly. The operator points it at whichever sink they want:
 Sinks subscribe to the same payload shape; the api stays decoupled from
 any specific destination's auth / rate-limit / retry semantics.
 
-See: RFC-081 §Layer 4, issue #682.
+See: RFC-081 (not in this repository) §Layer 4, issue #682.
 """
 
 from __future__ import annotations

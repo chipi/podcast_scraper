@@ -47,7 +47,7 @@ extractive + testable and lets delivery be operated (and delegated) independentl
 - **Consent model (FR1 / #1414) is a prerequisite** — nothing is enqueued for a user without
   `comms.digest.enabled` (or `comms.push.enabled`) and, for email, `email_verified`.
 - **Deliverability is not self-hostable cheaply** — the last mile goes through a reputation relay
-  (ADR-144 (not in this repository)). Web Push has no such problem and is fully self-hosted.
+  (ADR-144, not in this repository). Web Push has no such problem and is fully self-hosted.
 
 ## Design & Implementation
 
@@ -198,7 +198,7 @@ the queue** ADR-144 (not in this repository) wanted. Web Push subscription regis
 ## Rollout & Monitoring
 
 - Ship **Web Push first** (no new dep) to de-risk the loop, then email once Resend + deliverability
-  (ADR-144 (not in this repository)) are verified.
+  (ADR-144, not in this repository) are verified.
 - Opt-in + pausable; disabling the worker or pausing sends is a <5-min rollback.
 - Monitor: enqueue count, delivery success/bounce/complaint rate, unsubscribe rate.
 

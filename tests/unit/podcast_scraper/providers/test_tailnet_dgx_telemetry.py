@@ -1,4 +1,4 @@
-"""Unit tests for DGX fallback telemetry (ADR-096 (not in this repository))."""
+"""Unit tests for DGX fallback telemetry (ADR-096, not in this repository)."""
 
 from __future__ import annotations
 

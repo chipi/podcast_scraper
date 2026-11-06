@@ -33,8 +33,8 @@ step die with MODULE_NOT_FOUND (see the top of the Makefile).
 - **The pytest gate is a name match, not coverage.** A test reaching a module through another one
   is missed. The whole suite (`.venv/bin/python -m pytest tests/unit tests/integration -n 6`,
   ~6 min, ~21k tests) runs once at the end of an arc, before pushing, not after every edit.
-- **No app e2e** (Playwright) and no device tiers here: `make test-app-e2e`, `make test-ios`,
-  `make test-android` when the change is in those paths.
+- **No viewer e2e** (Playwright) here: `make test-ui-e2e` when the change is under
+  `web/gi-kg-viewer/`.
 - **CI runs slower than a laptop.** A test that takes seconds locally can hit a CI timeout (a
   vitest file ran ~50x slower on the shared runner, 2026-10-16). After pushing, watch it with the
   `ci-watch` skill.

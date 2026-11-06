@@ -1,5 +1,5 @@
 """Umami (self-hosted, cookieless) — the user-action lens for the control plane
-(ADR-126 (not in this repository)).
+(ADR-126, not in this repository).
 
 Where VictoriaLogs/Traces show what the BACKEND did, Umami shows what USERS did on the operator
 viewer / player: page views, visitors, and the typed custom events (search / explore / graph-handoff

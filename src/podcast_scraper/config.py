@@ -1663,7 +1663,7 @@ class Config(BaseModel):
         default=None,
         alias="dgx_tailnet_host",
         description=(
-            "MagicDNS hostname for DGX Ollama (RFC-089 (not in this repository)), e.g. "
+            "MagicDNS hostname for DGX Ollama (RFC-089, not in this repository), e.g. "
             "my-dgx.tailnet.ts.net."
         ),
     )
@@ -2494,7 +2494,7 @@ class Config(BaseModel):
     translate_verify_served_model: bool = Field(
         default=True,
         alias="translate_verify_served_model",
-        description="Fail-closed (ADR-143 (not in this repository)/144): at initialize(), assert "
+        description="Fail-closed (ADR-143/144, not in this repository): at initialize(), assert "
         "GET /v1/models advertises the configured translate_model, so a wrong model on the :8005 "
         "slot fails the run instead "
         "of producing a corpus attributed to a model that never ran. A corpus translated by the "
@@ -6805,7 +6805,7 @@ class Config(BaseModel):
                 "transcription_fallback_providers "
                 "(preferred) or the legacy transcription_fallback_provider."
             )
-        # ADR-096 (not in this repository)'s guarantee is a NON-DGX escape hatch. A plural chain
+        # ADR-096's (not in this repository) guarantee is a NON-DGX escape hatch. A plural chain
         # made only of DGX tiers (tailnet_dgx_whisper / moss) has "a fallback" on paper but
         # preserves a hard-required-DGX path in fact — reject it. The singular fallback is always a
         # non-DGX cloud/local provider.

@@ -14,7 +14,7 @@
 # Required for Docker job mode (api spawns ``pipeline-llm`` / ``pipeline``
 # via ``docker compose run``). Selects which compose service to spawn:
 #   ``llm`` → ``pipeline-llm`` (LLM-only, ~10× smaller image; the only
-#            image published in RFC-081 Phase 1 / RFC-082 (not in this repository) prod hosting)
+#            image published in RFC-081 (not in this repository) Phase 1 / RFC-082 (not in this repository) prod hosting)
 #   ``ml``  → ``pipeline``     (full ML: Whisper + speaker diarization;
 #            published only on hosts that opt into the heavy variant)
 # Harmless in native ``make serve-api`` mode — the api strips the key

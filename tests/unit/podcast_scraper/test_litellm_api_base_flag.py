@@ -8,7 +8,7 @@ grok / ollama). Its only override layer was the box's ``viewer_operator.yaml``.
 
 That gap was load-bearing, not cosmetic. ``reprocess-prod.yml`` invokes the CLI as
 ``--config <profile>``, which bypasses ``viewer_operator.yaml`` entirely — so a production
-reprocess had NO way to reach the prod-VPS gateway (ADR-142 (not in this repository))
+reprocess had NO way to reach the prod-VPS gateway (ADR-142, not in this repository)
 and would silently route every LLM call through the homelab gateway instead. Profiles are a
 generated view of the model registry (ADR-112) and must never be hand-edited, so editing the
 pin was never a sanctioned fix either.

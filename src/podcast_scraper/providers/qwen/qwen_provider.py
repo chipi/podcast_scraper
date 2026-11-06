@@ -19,7 +19,7 @@ There is NO ``_DEFAULT_API_BASE``: Qwen has no single vendor endpoint we commit 
 DashScope is explicitly out of scope), so the profile always names ``qwen_api_base`` — exactly like
 vllm. Like the model fields elsewhere in the vLLM/DeepSeek siblings, the model fields name the REAL
 model id on the wire (no ``--served-model-name`` alias) and are verified fail-closed against the
-served model at init (ADR-143 (not in this repository)/144).
+served model at init (ADR-143/144, not in this repository).
 
 The Qwen3 "thinking" toggle is host-specific and lives in ``qwen_extra_body`` (a self-hosted vLLM
 wants ``{chat_template_kwargs: {enable_thinking: false}}``; DashScope ``{enable_thinking: false}``;
@@ -125,7 +125,7 @@ class QwenProvider(OpenAICompatibleProvider):
         """Assert the endpoint actually serves the model this profile pins (real Qwen id).
 
         A wrong model behind the endpoint must fail the run, not produce a corpus attributed to the
-        wrong model (ADR-143 (not in this repository)/144). An UNREACHABLE endpoint only warns —
+        wrong model (ADR-143/144, not in this repository). An UNREACHABLE endpoint only warns —
         the real inference
         call surfaces a connection error anyway, and hard-failing here would make an offline import
         of the provider impossible. A REACHABLE endpoint serving a different model raises.

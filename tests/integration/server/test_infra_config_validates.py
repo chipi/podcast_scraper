@@ -3,8 +3,8 @@
 The edge/deploy configs were only ever hand-verified by one-off boots. These turn the
 safety-relevant properties into automated checks:
 
-* cheap content assertions (no tooling) — catch the regressions that matter (nginx only
-  proxies the consumer plane; preserves the forwarded scheme; Caddy admin API off);
+* cheap content assertions (no tooling) — catch the regressions that matter (the viewer
+  nginx preserves the forwarded scheme and rate-limits the API);
 * tool validations (skip when the tool is absent) — ``caddy validate``, ``nginx -t``,
   ``shellcheck`` on the shipped scripts.
 """
@@ -20,7 +20,6 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 REPO = Path(__file__).resolve().parents[3]
-NGINX_CONF = REPO / "web" / "learning-player" / "nginx.conf"
 VIEWER_NGINX_CONF = REPO / "docker" / "viewer" / "default.conf.template"
 SHELL_SCRIPTS = [
     REPO / "docker" / "secrets-shim.sh",

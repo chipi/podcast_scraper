@@ -8,7 +8,7 @@ This document lists **open work only** — items that are not yet fully implemen
 
 ## Current Status
 
-- **Open RFCs**: **6** (see [RFC index](rfc/index.md); includes Draft [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md), RFC-082 (not in this repository), RFC-083 (not in this repository), RFC-087)
+- **Open RFCs**: **6** (see [RFC index](rfc/index.md); includes Draft [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md), RFC-082 (not in this repository), RFC-083 (not in this repository), RFC-087 (not in this repository))
 - **Completed RFCs**: **62** (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS, [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) / [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) single-layer GIL/KG, `RFC-057` (moved to the private eval repo as RFC-002) per `ADR-073` (moved to the private eval repo as ADR-005), [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) backup manifest, [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) graph FSM, [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) test pyramid)
 - **Open PRDs**: **7** (see [PRD index](prd/index.md))
 
