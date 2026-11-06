@@ -113,5 +113,5 @@ episode-row; introduces no new tokens.
 
 ## Related
 
-UXS-001 (tokens), UXS-003 (episode row), the consumer app's design is for reference only — the
-operator uses UXS-001 density, **not** the consumer editorial system).
+UXS-001 (tokens), UXS-003 (episode row). The consumer app's design is for reference only: the
+operator uses UXS-001 density, **not** the consumer editorial system.

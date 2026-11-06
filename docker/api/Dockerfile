@@ -151,7 +151,7 @@ COPY config/search.yaml ./config/search.yaml
 
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-# ADR-115 C1: secret shim wraps the entrypoint — exports /run/secrets/* file
+# ADR-115 (not in this repository) C1: secret shim wraps the entrypoint — exports /run/secrets/* file
 # mounts as env, then execs the real entrypoint. Tolerant of an absent secrets
 # dir, so this is non-breaking pre-cutover.
 COPY docker/secrets-shim.sh /secrets-shim.sh

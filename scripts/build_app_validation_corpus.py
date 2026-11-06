@@ -1908,7 +1908,7 @@ def _tally_episode_content(
 def _content_series_data(
     topic_weeks: dict[str, list[str]], person_weeks: dict[str, list[str]]
 ) -> dict[str, Any]:
-    """The RFC-103 now-free content_series (per-topic + per-person weekly counts).
+    """The now-free content_series (per-topic + per-person weekly counts).
 
     Matches the ``temporal_velocity`` enricher's ``content_series`` shape, authored
     deterministically from the corpus's own ISO weeks so the momentum layer works over the fixture.
@@ -2524,7 +2524,7 @@ def main() -> int:
     corpus_topic_months: dict[str, list[str]] = {}
     # topic_id → episode ids (for the co-occurrence theme-cluster members).
     corpus_topic_episodes: dict[str, list[str]] = {}
-    # topic_id / person_id → ISO weeks (for the RFC-103 now-free content_series).
+    # topic_id / person_id → ISO weeks (for the now-free content_series).
     corpus_topic_weeks: dict[str, list[str]] = {}
     corpus_person_weeks: dict[str, list[str]] = {}
     # topic_consensus: topic_id → [(person_id, name)], authored deterministically from the
@@ -2921,7 +2921,7 @@ def main() -> int:
     # rising). Deterministic: derived from the authored per-episode publish dates (the #1148
     # offset schedule makes risk-management rise, per the corpus gold's ``heating_up``).
     tv = _temporal_velocity_data(corpus_topic_months)
-    # RFC-103 Phase 1: the durable, now-free content_series the momentum layer + trending endpoints
+    # The durable, now-free content_series the momentum layer + trending endpoints
     # read (per-topic + per-person weekly counts). Same shape the enricher emits in production.
     tv["content_series"] = _content_series_data(corpus_topic_weeks, corpus_person_weeks)
     (corpus_enrich_dir / "temporal_velocity.json").write_text(

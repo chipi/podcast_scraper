@@ -23,7 +23,7 @@
 > **Stabilization note (2026-05-30):** Rebased from an earlier draft (RFC-078) authored against a
 > different numbering universe. Module paths corrected to `src/podcast_scraper/…`; references to an
 > "enrichment" RFC and an "MCP integration" RFC corrected to RFC-088 and **[TBD — no MCP RFC
-> exists]**. The third signal, ML router, and context packs are split into RFC-091/092/093.
+> exists]**. The third signal, ML router and context packs are split into RFC-091/092 and a later context-pack design.
 > **Prerequisite reality check** (see Constraints): the entity resolver, in-memory KG access layer,
 > and most typed KG edges this pipeline's _additive_ signals assume **do not exist yet** — they are
 > the genuine survivors of issue #466 and are tracked in #849. RFC-090 itself
@@ -457,7 +457,7 @@ This RFC is the foundation of the Search initiative:
 **Key Distinction:**
 
 - **RFC-090 (this)**: Two-tier index, BM25 + vector, RRF fusion, compound dedup — shippable today.
-- **RFC-091/092/093**: Additive signals/routing/packaging — gated on prerequisites.
+- **RFC-091/092**: Additive signals/routing — gated on prerequisites.
 
 Other relationships:
 

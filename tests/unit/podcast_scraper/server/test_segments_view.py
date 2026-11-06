@@ -144,7 +144,7 @@ class TestToContractSegments:
 def test_segments_come_back_sorted_by_start() -> None:
     """The client binary-searches these. Unsorted input returns a plausible WRONG answer, silently.
 
-    `activeSegmentIndex` (web/learning-player/src/player/transcriptSync.ts) is a binary search whose
+    The player's `activeSegmentIndex` is a binary search whose
     comment says "the contract guarantees this" — a guarantee nothing enforced. An out-of-order
     artifact made highlight-follow track the wrong paragraph and tap-to-seek jump to the wrong
     moment, with no error to notice.

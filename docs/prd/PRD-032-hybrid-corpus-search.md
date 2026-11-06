@@ -34,7 +34,7 @@ This PRD covers the evolution to **hybrid corpus search**: a two-tier index (tra
 GIL insights) with two retrieval signals fused via RRF (BM25 + dense vector), intent-aware
 query routing, mixed-tier result ranking, and LITM-aware agent context packs. It is implemented by
 RFC-090 (core); RFC-091's KG-proximity signal was **evaluated and rejected** (Decision Record) —
-relational structure comes from typed edges instead (#874) — with RFC-092/093 additive.
+relational structure comes from typed edges instead (#874) — with RFC-092 additive.
 
 ## Background & Context
 
@@ -156,7 +156,7 @@ relational structure comes from typed edges instead (#874) — with RFC-092/093 
 ## Dependencies
 
 - **RFC-090** Hybrid Retrieval Pipeline — **Hard** — Draft.
-- **RFC-091/092/093** — **Soft/additive** — Draft; the KG and MCP features depend on prerequisites
+- **RFC-091/092** — **Soft/additive** — Draft; the KG and MCP features depend on prerequisites
   below.
 - **RFC-072** Canonical Identity — **Hard for KG proximity** — **Partial**: only
   `identity/slugify.py` exists; no entity resolver yet.

@@ -146,7 +146,7 @@ ADR-137–140 = host/guest role, ad-cleaning stage, text-normalization contract,
 profiles; ADR-149 = corpus reprocess methodology;
 ADR-147 = first-class vllm provider (real model ids + fail-closed served-model verification);
 ADR-136 = per-episode context digest). ADR-099 was a duplicate — the response-shape-guardrails file was
-renumbered to ADR-105 (2026-07-07); ADR-106/107/108 added the same day. ADR-116, ADR-119 and ADR-120 cover
+renumbered to ADR-105 (2026-07-07); ADR-106 and ADR-107 added the same day. ADR-116, ADR-119 and ADR-120 cover
 the privilege-split API and vendor-neutral observability. From the index table: **3** **Proposed** (**ADR-055** tied to Draft
 RFC-053, plus **ADR-109/111**; ADR-104 was promoted to Accepted with RFC-088 chunk 8, and ADR-110 was promoted to Accepted — shipped default-on this branch), **4** **Superseded** (**ADR-051**, by ADR-169 — the database is the source of truth; **ADR-056**,
 RFC-054 shipped in different shape — per-provider mocks rather than the centralized router this ADR

@@ -310,7 +310,7 @@ class AppEpisodeSummary(BaseModel):
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
     color: str | None = Field(
         default=None,
-        description="Per-user saved-item colour token, present only on favourited episodes "
+        description="Per-user saved-item colour token, present only on favourited episodes"
         ". Null on catalog cards — it is a personal annotation, not corpus data.",
     )
 
@@ -1189,14 +1189,12 @@ class AppInterestSearchResponse(BaseModel):
 
 
 class AppTrendingEntity(BaseModel):
-    """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
+    """One trending entity (momentum) — velocity (rising) + volume (recent level)."""
 
     entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
     kind: str = Field(description="topic|theme|storyline|person|episode|show|insight.")
     label: str = Field(description="Display label.")
-    velocity: float = Field(
-        description="Rising signal (RFC-103 R2): recent-window rate ÷ prior rate."
-    )
+    velocity: float = Field(description="Rising signal: recent-window rate ÷ prior rate.")
     volume: float = Field(description="Recent activity level (mentions in the window).")
     heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
     total: int = Field(

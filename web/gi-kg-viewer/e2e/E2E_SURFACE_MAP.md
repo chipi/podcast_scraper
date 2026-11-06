@@ -157,8 +157,7 @@ as scenarios harden; link new Playwright specs here under **Surfaces and owning 
 
 > **⚠️ This section is TEMPORARY.** It documents the *mocked* auth setup that exists only because 33
 > of 38 specs here still route-mock `**/api/**`. That is drift from the intended architecture — the
-> target is fixture-driven specs against a real backend bootstrapped from the synthetic corpus, as
-> `web/learning-player` already does. When
+> target is fixture-driven specs against a real backend bootstrapped from the synthetic corpus. When
 > [#1619](https://github.com/chipi/podcast_scraper/issues/1619) lands, `mockSignIn` and this section
 > are **deleted**, not maintained. Do not build on it.
 

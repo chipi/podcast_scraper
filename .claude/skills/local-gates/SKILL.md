@@ -22,7 +22,6 @@ rewrite files, `make format`.
 | `*.py` | + pytest on the changed test files and every `tests/**/test_*.py` that names a changed module (dotted path or file stem) |
 | `*.md` | markdownlint with `.markdownlint.json` |
 | `docs/**`, `mkdocs.yml` | `make docs` (strict) |
-| `web/learning-player/{src,e2e}` | `vitest related --run`, vue-tsc (app + test config) |
 | `web/gi-kg-viewer/{src,e2e}` | `vitest related --run`, vue-tsc (app config) |
 | `.github/workflows/*.yml` | actionlint |
 

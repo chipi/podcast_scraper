@@ -3,8 +3,7 @@ import surfaceMap from '../../e2e/E2E_SURFACE_MAP.md?raw'
 import appSrc from '../App.vue?raw'
 
 /**
- * Guardrail (#1606) — keeps `e2e/E2E_SURFACE_MAP.md` true. Sibling of the same check in
- * `web/learning-player/src/__checks__/surface-map.test.ts`.
+ * Guardrail (#1606) — keeps `e2e/E2E_SURFACE_MAP.md` true. The player app has the same check.
  *
  * The map is the **baseline of business rules the e2e suite is reconstructed from**, so a stale row
  * doesn't merely mislead a reader: a test rebuilt from it is wrong, and wrong *silently* — a retired

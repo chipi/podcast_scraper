@@ -72,7 +72,7 @@ it compounds the cross-show-synthesis moat.
   individual claims is v2, and v1 records the provenance it will need.
 - **Positions are already a read-time query, not a pipeline stage.** `position_arc`
   (`server/cil_queries.py:636`) builds the per-(person, topic) arc at request time from GI insights;
-  The `stance_timeline` enricher was retired on 2026-07-08 in favour of exactly this. That
+  the `stance_timeline` enricher was retired on 2026-07-08 in favour of exactly this. That
   is load-bearing for this PRD in two ways: a future gate is a read-path filter, so **v2 can add it
   retroactively over the whole corpus** with no re-extraction — which is why deferring it costs
   nothing — and **this feature has no dependency on shipping a stance-extraction stage**, because

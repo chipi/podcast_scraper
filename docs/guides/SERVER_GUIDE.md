@@ -523,8 +523,8 @@ line should be ingested as **one JSON log line**. The optional flag
 existing docker log pipeline of your log shipper
 can ship them with stable labels (for example **env**, **release**, **app**=`podcast_scraper`,
 compose **service** as **service_name**). Use LogQL
-`| json | event_type="run_finished"` in Explore or the imported dashboard
-`config/manual/grafana-dashboard-pipeline-execution.json`. Prometheus **`/metrics`** on the API container remains
+`| json | event_type="run_finished"` in Explore or the imported pipeline-execution dashboard (its JSON is in the infrastructure
+repository's Grafana dashboards). Prometheus **`/metrics`** on the API container remains
 separate from this JSONL path.
 
 ## Related docs

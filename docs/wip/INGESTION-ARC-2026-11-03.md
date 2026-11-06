@@ -126,7 +126,7 @@ with `--tag snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on
 
 ## The deploy and what follows it (inventory, 2026-11-04)
 
-**Order** (operator, 2026-11-04; in the database session's plan, Common `SEQUENCE.md`, "Then: the
+**Order** (operator, 2026-11-04; in the database session's plan, "Then: the
 ingestion deploy"): infra's PR B (#2420) merges and deploys first; then this branch, rebased onto
 main after it, with the 0043 apply and the targeted reindex; then the first database moment
 (#2417 and companions). PR B merges only on the operator's go; the session that owns it messages

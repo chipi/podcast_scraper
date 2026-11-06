@@ -172,7 +172,7 @@ resolve against [`server/schemas.py`][schemas-py].
 | GET | `/api/corpus/feed-signals` | `CorpusFeedSignalsResponse` | open | `path`, `feed_id`, `top_k`, `max_episodes` | Feed-level signals for one show (topic distribution, cadence). |
 | GET | `/api/corpus/media` | binary stream | open | `path`, `relpath` | Locally-persisted audio bytes (RFC-096). |
 | GET | `/api/corpus/storylines` | envelope | open | `path` | **Storylines** — topics discussed together (co-occurrence lift). Operator overlay over the `topic_theme_clusters` artifact; unlike `/api/app/storylines` it is unfloored by default. Distinct from `/api/corpus/topic-clusters`, which serves the *semantic* clusters the consumer calls **themes**. |
-| GET | `/api/corpus/trending` | `AppCorpusTrendingResponse` | open | `limit_per_kind` | Corpus-scope trending entities (RFC-103 momentum) — operator counterpart to `/api/app/trending`. |
+| GET | `/api/corpus/trending` | `AppCorpusTrendingResponse` | open | `limit_per_kind` | Corpus-scope trending entities (momentum) — operator counterpart to `/api/app/trending`. |
 | GET | `/api/index/timeseries` | `IndexTimeseriesResponse` | open | `path` | Historical index-rebuild + staleness stats over time. |
 | GET | `/api/jobs/subprocess-log` | plain text | open | `job_id`, `path` | Full stdout+stderr of a pipeline job's subprocess. |
 | GET | `/api/jobs/subprocess-log-tail` | `PipelineJobLogTailResponse` | open | `job_id`, `path`, `max_bytes` | Tail-slice + optional live polling of a running job's subprocess log. |

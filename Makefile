@@ -42,8 +42,6 @@ PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 # GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
-# Consumer Learning Player (Vue + Vite + Playwright; Epic 2). Separate top-level app.
-
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
 GIL_OFFSET_VERIFY_DIR ?= output
@@ -138,10 +136,6 @@ help:
 	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
 	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (needs npm install in that dir)"
 	@echo "  make build-viewer        Production viewer bundle (vue-tsc -b && vite build); catches strict-mode TS errors invisible to vitest/playwright"
-	@echo "  make serve-app-dev       API (mock OAuth) + Learning Player app in parallel — one-command local app env"
-	@echo "  make app-docker-build    Build the Learning Player Docker image"
-	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
-	@echo "  make app-stack-down      Tear down the stack + Learning Player overlay"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"

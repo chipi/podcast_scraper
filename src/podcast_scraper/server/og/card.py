@@ -22,7 +22,7 @@ from podcast_scraper.languages import translated_from_label
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from PIL import Image, ImageDraw, ImageFont
 
-# Design tokens — the default dark theme (web/learning-player/src/theme/directions.css), mirrored
+# Design tokens — the consumer app's default dark theme, mirrored
 # from the TS renderer. Literal hexes are correct here: this IS the single source that draws them.
 _CANVAS = "#07090a"
 _FG = "#d6e2d8"

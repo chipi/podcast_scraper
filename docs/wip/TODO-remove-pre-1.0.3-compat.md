@@ -40,7 +40,7 @@ the released-version floor in the operator viewer and the app-version mix in the
 
 - `getFavoritesPage`, `getFavoriteRefs`, `getHighlightsPage`, `getNotesPage` page (or derive)
   locally when the server ignores the paging parameters (no `total` in the answer, or 404).
-- `getEpisodesBatch` (`web/learning-player/src/services/api.ts`) falls back to one
+- `getEpisodesBatch` (the app's API client) falls back to one
   `GET /episodes/{slug}` per slug when `/episodes/batch` answers 404. That is only for the window
   where 1.0.3 is in the store and the server is not yet deployed. Delete the fallback after the
   deploy is confirmed.
@@ -50,7 +50,7 @@ the released-version floor in the operator viewer and the app-version mix in the
 Prod runs `sha-2ca8dac` (checked inside `player-api-1`: `/episodes/batch`, `/favorites/refs`,
 paged `/favorites` and `/playback` answer 401 unauthenticated, an unknown route 404 — the routes
 exist). 1.0.3 is the oldest client in use from 1.0.4 on. Read against 1.0.3's own code
-(`web/learning-player/src/services/api.ts` at `2ca8dac75`), the lists above are partly WRONG:
+(its API client at `2ca8dac75`), the lists above are partly WRONG:
 
 **NOT deletable while 1.0.3 is in use (it breaks 1.0.3):**
 

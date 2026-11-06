@@ -22,7 +22,3 @@ web/gi-kg-viewer/.claude/
 # with it, then Android fastlane landed and did not. `make lint-markdown` went red on 7 vendored
 # gem READMEs — invisible in CI, which clones fresh and never runs `bundle install` here, so it
 # only ever failed for someone who had actually built the Android app.
-web/learning-player/ios/vendor/
-web/learning-player/ios/fastlane/README.md
-web/learning-player/android/vendor/
-web/learning-player/android/fastlane/README.md
