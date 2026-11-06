@@ -336,17 +336,36 @@ Verdict: GO WITH CONDITIONS
   - **1 is a prototype defect the build avoids.** In `rss_rss.iono.fm_5cbbfd48` (run `c34e9535`)
     the prototype gave both placed voices `unplaced_*` ids and cut the first voice's surname. The
     build leaves the episode as stored.
-  - The second half (the switch-on measured again on a fresh snapshot) is still open. It belongs
-    to the switch-on change.
+  - **Second half, done 2026-11-06** on snapshot-prod-20261105 (0043-0045 applied, ledger 666
+    joins; the default build equals the stored ledger's joins): the mode adds the same 4 joins,
+    moves the same 18 shown spellings (12 new spellings, 6 rule label only) and leaves the same
+    40 blocked joins as on snapshot-prod-20261103. Prod ran the same builds read-only on the
+    live corpus after the 2026-11-06 nightly (683 joins): the same 4 joins, the same 12 new
+    spellings, the same 40 blocked. The switch-on on a copy respelled 102 episodes, 980 files,
+    0 refused, one backup per file. Every changed word was counted (scratchpad `l11_spans.py`):
+    each is a name of the 12 groups taking the publisher's spelling. The words that are also
+    common words change only inside the name: 'Brazil' only after 'Sam' (417 'in Brazil' kept),
+    'Lowe' only after 'Jeff' ('Zach Lowe' kept). In 29 episodes the roster's unplaced
+    `feed_statement` entry of the same host is folded into the placed one after the respell.
+    Not read: why 18 'Jeff Lowe' and 9 'Jeff Glow' stay after the respell. JSON files are
+    rewritten with non-ASCII characters unescaped (`C\u00e9dric` becomes `Cédric`): same
+    text, other bytes.
 
 ## 9. Operator review
 
 - **Scope call:** L1 and L3's pipeline half move out of tier L into their own forward changes
   (section 1).
+- **Switch-on, 2026-11-06:** the operator asked for the mode to be switched on in the next
+  deploy, after condition 2's re-measure.
 
 ## 10. Before apply / deploy
 
-_TODO_
+- The switch: `identity/ledger.py` `EVIDENCE_MODE = "publisher_verified"`, `RULE_VERSION`
+  the mode's version, `PREVIOUS_RULE_VERSION` the extracted mode's `/3`, so the api serves the
+  stored ledger (`ok_previous_rule`) from the deploy until the next refresh.
+- Tests: `pytest tests/unit tests/integration` with the test database, 19,916 passed.
+- After the deploy, at the first ledger refresh: expect about 4 joins added, 0 removed, 40
+  blocked, about 102 episodes respelled with 0 refused, ledger state `ok`.
 
 ## 11. After apply / deploy
 

@@ -38,13 +38,13 @@ LEDGER_SCHEMA_VERSION = "identity-ledger/1"
 
 #: The rules that decided the joins. Bump it whenever a rule or guard changes what joins, and move
 #: the old value to ``PREVIOUS_RULE_VERSION``.
-RULE_VERSION = "cluster-person-no-bridge-guarded/3"
+RULE_VERSION = "cluster-person-no-bridge-guarded-publisher-verified/1"
 
 #: The rule version one step back, still served (state ``ok_previous_rule``) until the rebuild.
 #: Without it a deploy that bumps the rule serves no joins between the new api starting and the
 #: ledger rebuild, and a rebuild before the deploy is refused by the api still running (RFC-131
 #: S5a). Any older version is refused: no joins.
-PREVIOUS_RULE_VERSION = "cluster-person-no-bridge-guarded/2"
+PREVIOUS_RULE_VERSION = "cluster-person-no-bridge-guarded/3"
 
 #: The person rule the ledger's joins use (RFC-131 S4): mode ``cluster_person`` (one-word names
 #: join only as one spelling), no one-word bridge between full names, and the guards (ADR-167).
@@ -54,11 +54,10 @@ PERSON_LINKAGE = "no_one_word_bridge"
 #: Where the ledger's publisher evidence comes from (record ``l_publisher_verified_mode``):
 #: ``extracted``, the diagnostics' extracted names as every build before it, or
 #: ``publisher_verified``, checked against and supplemented from the publisher's own text, with
-#: its host-seat joins. Shipped ``extracted`` (operator, 2026-11-04: tier L ships switched off).
-#: Switching on is its own change: set this, set ``RULE_VERSION`` to the mode's version below and
-#: move the old one to ``PREVIOUS_RULE_VERSION``, and deploy; the next refresh respells the files.
+#: its host-seat joins. Shipped ``extracted`` on 2026-11-05, switched on by the operator on
+#: 2026-11-06; the first refresh after the deploy respells the files.
 #: A build is stamped with its own mode's version, whichever mode ships.
-EVIDENCE_MODE = "extracted"
+EVIDENCE_MODE = "publisher_verified"
 RULE_VERSION_BY_EVIDENCE = {
     "extracted": "cluster-person-no-bridge-guarded/3",
     "publisher_verified": "cluster-person-no-bridge-guarded-publisher-verified/1",
