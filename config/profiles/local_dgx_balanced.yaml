@@ -3,7 +3,8 @@
 
 profile: local_dgx_balanced
 
-# Profile: local_dgx_balanced — DGX-hosted Ollama with cloud degradation fallback (RFC-089)
+# Profile: local_dgx_balanced — DGX-hosted Ollama with cloud degradation fallback (RFC-089 (not in
+# this repository))
 #
 # Point ollama_api_base / dgx_tailnet_host at your DGX MagicDNS name before running.
 # The DGX runbook is operator documentation and is not in this repository.
@@ -86,8 +87,8 @@ vector_embedding_provider: sentence_transformers
 # (transcription_fallback_provider: openai), not the LLM layer — prod's LLM
 # primary is already cloud Gemini.
 #
-# The FallbackAwareSummarizationProvider wrapper (RFC-089 #5) stays available;
-# any profile that opts in via degradation_policy.fallback_provider_on_failure
+# The FallbackAwareSummarizationProvider wrapper (RFC-089 (not in this repository) #5) stays
+# available; any profile that opts in via degradation_policy.fallback_provider_on_failure
 # gets it. local_dgx_balanced just doesn't opt in.
 degradation_policy:
   continue_on_stage_failure: true

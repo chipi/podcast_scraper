@@ -145,8 +145,9 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
             target, "llm_cost", surface="pipeline", window=window, limit=200
         )
     if name in ("operator", "player"):
-        # The user-action lens (ADR-126 Umami): what people actually DID on this frontend — the
-        # typed custom events, page/visitor totals, and who's live now — from THIS frontend's site.
+        # The user-action lens (ADR-126 (not in this repository) Umami): what people actually DID on
+        # this frontend — the typed custom events, page/visitor totals, and who's live now — from
+        # THIS frontend's site.
         site = _umami_site(target, name)
         probes["user_actions"] = lambda: umami.events(site, window=window)
         probes["page_analytics"] = lambda: umami.stats(site, window=window)
@@ -166,7 +167,8 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
 
 
 def analytics(target: TargetConfig, *, window: str = "24h", frontend: Optional[str] = None) -> dict:
-    """Umami user-action analytics — what people DID on a frontend (ADR-126), joined in one call.
+    """Umami user-action analytics — what people DID on a frontend
+    (ADR-126 (not in this repository)), joined in one call.
 
     The direct verb behind ``surface operator``'s Umami signals: the typed custom events (user
     actions), page/visitor totals, and who's live now. The website_id is per-environment

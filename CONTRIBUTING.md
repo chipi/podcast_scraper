@@ -488,15 +488,13 @@ pulls from explicit arg → `DGX_TAILNET_HOST` env var → a fail-fast
 sentinel.
 
 **Env example files**: use the angle-bracket placeholders above or the
-`your-dgx.tailnet.ts.net` marker. See `infra/.env.dgx.local.example` and
-`infra/.env.local.example` for the canonical patterns.
+`your-dgx.tailnet.ts.net` marker. The infrastructure repository's example
+env files show the canonical patterns.
 
 **Exceptions** (paths excluded from the deny-list gate — do NOT scrub):
 
 - `tests/**` — assert literal FQDNs to prove resolver behaviour; scrubbing
   breaks the suite.
-- `tailscale/policy.hujson` — live ACL GitOps source; editing may break
-  the deploy pipeline.
 
 **Performance validation (`data/profiles/`):**
 

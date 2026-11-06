@@ -265,7 +265,8 @@ def _create_summarization_provider(
                     format_exception_for_log(exc),
                 )
                 # Don't fail - models will load on first use, just slower
-        # RFC-089 #5: wrap with cloud-fallback if degradation_policy declares one.
+        # RFC-089 (not in this repository) #5: wrap with cloud-fallback if degradation_policy
+        # declares one.
         from ..summarization.fallback import (
             log_fallback_chain_preflight,
             wrap_with_fallback_if_configured,

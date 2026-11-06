@@ -37,7 +37,7 @@ const app = createApp(App)
 // works for a local build that runs without that nginx.
 //
 // ``environment`` is RUNTIME-injected via nginx ``sub_filter`` (Item 1 /
-// RFC-082 follow-up) so ONE viewer image serves prod + preprod with the
+// RFC-082 (not in this repository) follow-up) so ONE viewer image serves prod + preprod with the
 // right Sentry env tag. nginx rewrites the served index.html on its way
 // out, prepending a ``<script>`` that sets ``window.__PODCAST_ENV__``,
 // ``window.__PODCAST_RELEASE__``, and optionally

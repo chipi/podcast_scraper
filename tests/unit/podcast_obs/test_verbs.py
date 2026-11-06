@@ -40,7 +40,8 @@ def test_surface_api_has_metrics_no_pipeline_extras(monkeypatch) -> None:
 
 
 def test_surface_operator_adds_umami_user_actions(monkeypatch) -> None:
-    # The operator (and player) surface carries the Umami user-action lens (ADR-126).
+    # The operator (and player) surface carries the Umami user-action lens
+    # (ADR-126 (not in this repository)).
     for fn in ("red_metrics", "recent_logs", "traces_recent"):
         monkeypatch.setattr(aggregate.victoria, fn, _ok(fn))
     monkeypatch.setattr(aggregate.sentry, "recent_errors", _ok("errors"))

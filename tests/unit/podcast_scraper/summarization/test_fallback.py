@@ -1,4 +1,4 @@
-"""Unit tests for FallbackAwareSummarizationProvider (RFC-089 #5).
+"""Unit tests for FallbackAwareSummarizationProvider (RFC-089 (not in this repository) #5).
 
 Validates the provider-swap fallback contract:
 - Primary OK → no fallback, no metric, fallback is never instantiated.
@@ -229,7 +229,8 @@ class TestPrimaryRaisesFallbackSucceeds:
 
 
 class TestGiEvidenceMethodsFallBack:
-    """RFC-089 #5 extension: extract_quotes / score_entailment must fall back too.
+    """RFC-089 (not in this repository) #5 extension: extract_quotes / score_entailment must fall
+    back too.
 
     Without this coverage, GI evidence would silently lose its grounding
     when DGX is down — the same wrapped instance serves the summary / quote /
@@ -419,7 +420,7 @@ class TestWrapWithFallbackIfConfigured:
 
 
 class TestLiteLlmGatewayOutageFailsOverToDirectDeepseek:
-    """RFC-111 (#1482) repro: the litellm gateway (obs.test:4001 -> OpenRouter) drops the
+    """#1482 repro: the litellm gateway (obs.test:4001 -> OpenRouter) drops the
     connection — an APIConnectionError, not a model-side 503 — and cloud_balanced's
     ``summary_fallback_providers: [deepseek]`` must route to DIRECT DeepSeek (bypassing the
     dead gateway entirely). No network: both providers are mocked.

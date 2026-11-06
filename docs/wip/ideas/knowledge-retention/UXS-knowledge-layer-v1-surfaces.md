@@ -209,7 +209,7 @@ it hits.
 
 **Data binding.** `GET /advise/episodes` returns per-episode `{ l2_touch_count,
 conflict_count, hit_nodes:[ref] }`. v1 ordering stays chronological (PRD-029); the
-**ranking** ("feeds your map" sort) is deferred to RFC-083 — the badge ships, the re-sort
+**ranking** ("feeds your map" sort) is deferred to RFC-083 (not in this repository) — the badge ships, the re-sort
 does not.
 
 ---

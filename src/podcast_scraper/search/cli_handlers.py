@@ -849,7 +849,8 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
         choices=["sentence_transformers", "ollama"],
         help=(
             "Override vector_embedding_provider for this run. Default: read from "
-            "profile / Config. ADR-098 supersedes the RFC-089 §D4 shim path; "
+            "profile / Config. ADR-098 supersedes the RFC-089 (not in this repository) §D4 shim "
+            "path; "
             "use 'ollama' for DGX-served embeddings."
         ),
     )
@@ -860,7 +861,8 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
             "Base URL for remote embedding provider. With --embedding-provider=ollama, "
             "this is the Ollama base URL (e.g. http://dgx:11434) and /api/embed is "
             "appended internally. With sentence_transformers, an endpoint is treated "
-            "as the legacy shim /embed URL (RFC-089 §D4, deprecated; superseded by ADR-098)."
+            "as the legacy shim /embed URL (RFC-089 (not in this repository) §D4, deprecated; "
+            "superseded by ADR-098)."
         ),
     )
     parser.add_argument(

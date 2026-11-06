@@ -208,8 +208,9 @@ class TestThePromptComesFromTheStore:
 
 class TestTheServedModelCheck:
     def test_a_different_model_on_the_slot_raises(self) -> None:
-        """ADR-143/144: a corpus attributed to the wrong translation model cannot be told from a
-        correct one afterwards, so this fails the run rather than producing one."""
+        """ADR-143 (not in this repository)/144: a corpus attributed to the wrong translation model
+        cannot be told from a correct one afterwards, so this fails the run rather than
+        producing one."""
         p = _provider(served=["some/other-model"], verify=True)
         with pytest.raises(TranslateServedModelMismatch, match="not 'google/translategemma"):
             p.translate("Hola.", source_language="es")

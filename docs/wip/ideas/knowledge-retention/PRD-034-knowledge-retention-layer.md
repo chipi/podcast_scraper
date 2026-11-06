@@ -478,13 +478,13 @@ personal layer is never read from a stored copy.
 - **Dial A — trigger tier (turn in parallel):** **on-demand → batch digest** is a new
   *driver* around the identical `reconcile()` join — implementation, not a new RFC (ADR at
   most). **→ live event-triggered** is the one tier that earns its own focused RFC (future
-  RFC-082): it adds the reverse index `node_ref → users` and the RFC-065 event-spine
+  RFC-082 (not in this repository)): it adds the reverse index `node_ref → users` and the RFC-065 event-spine
   fan-out that RFC-081 deliberately deferred. Gated on RFC-065 + v2.7 enricher registry.
 - **Later:** frontier prompts; implicit deposit heuristics; possible shared/comparative
   subgraphs.
 
 **What earns a new document, so the trajectory is unambiguous:** lower Dial-A tiers
-(on-demand→batch) = implementation; the live tier = future RFC-082; every Dial-B change-
+(on-demand→batch) = implementation; the live tier = future RFC-082 (not in this repository); every Dial-B change-
 type = enricher-registry work. The reconciliation design (RFC-081) is **not** re-opened to
 walk up the matrix.
 

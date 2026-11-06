@@ -1,5 +1,5 @@
 /**
- * T3 — Architectural-invariant contract tests (HANDOFF_MATRIX.md / ADR-079).
+ * T3 — Architectural-invariant contract tests (HANDOFF_MATRIX.md / ADR-079 (not in this repository)).
  *
  * Each test pins ONE entry surface's contract: "surface X fires FSM event Y
  * with envelope.source === Z and envelope.loadSource === W." If a future

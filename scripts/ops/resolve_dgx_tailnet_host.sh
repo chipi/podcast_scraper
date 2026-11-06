@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Resolve the live DGX MagicDNS hostname for Ollama / embedding shim (RFC-089).
+# Resolve the live DGX MagicDNS hostname for Ollama / embedding shim (RFC-089 (not in this
+# repository)).
 #
 # Env:
 #   DGX_TAILNET_FQDN (required) — e.g. dgx-llm-1.tail-xxxx.ts.net

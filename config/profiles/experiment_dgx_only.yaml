@@ -12,9 +12,9 @@
 #   diarization    pyannote community-1 (v4) — beat 3.1 on the 45-fixture RTTM ground truth
 #   transcription  faster-whisper large-v3 on the DGX
 #
-# There is deliberately no cloud fallback: ADR-096 requires *a* fallback, so transcription falls
-# back to the LOCAL whisper. A DGX outage degrades to our own hardware; it can never silently
-# start billing an API.
+# There is deliberately no cloud fallback: ADR-096 (not in this repository) requires *a* fallback,
+# so transcription falls back to the LOCAL whisper. A DGX outage degrades to our own hardware; it
+# can never silently start billing an API.
 #
 # Registry-driven: this file is a thin VIEWER over the `experiment_dgx_only` preset. Models AND
 # params (insight ceiling, chunking, dedupe, value gate, temperature) come from the registry, and

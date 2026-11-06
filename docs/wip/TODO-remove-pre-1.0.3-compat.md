@@ -61,7 +61,7 @@ exist). 1.0.3 is the oldest client in use from 1.0.4 on. Read against 1.0.3's ow
   ("1.0.3 ignores both answers" above is true of the store, not of the api call.)
 - `GET /podcasts` unpaged: `useCorpusLanguages` (the #2301 language badge) reads the whole catalogue.
 - `GET /highlights?episode=` and `GET /notes?target=&target_id=` unpaged: the capture store loads one
-  episode's / target's rows with them (`stores/capture.ts`); a default page would cut them.
+  episode's / target's rows with them; a default page would cut them.
 
 To drop the write answers later, 1.0.4 must first ACCEPT the new shapes (refs-only, 204), and the
 server change waits for the release after everyone is on 1.0.4.
@@ -75,7 +75,7 @@ not checked yet.
 
 **Client side (1.0.4), now that the deployment has the routes:** the `total === undefined` local-paging
 branches and the `/episodes/batch` / `/favorites/refs` 404 fallbacks. Caveat: the `page…Locally`
-functions are ALSO the unit tests' fake server (`src/test/apiViaSpies.ts`, 14 spec files), so
+functions are ALSO the unit tests' fake server (14 spec files), so
 removing the fallbacks means moving those functions under `src/test/`, not deleting them.
 
 ## Not deletable

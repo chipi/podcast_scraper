@@ -24,7 +24,7 @@ schema_version 2 (2026-07-21), every scenario matches the **shipped**
 | Scenario | Exercises |
 | --- | --- |
 | `compound-lift` | RFC-072 KL1 — transcript hit with `lifted` block (Insight + speaker + topic + quote timestamps) |
-| `operator-compare` | RFC-107 §S8 (Search v3 §S8) — `POST /api/search/compare` returning `{pack_a, pack_b, judge_summary}`; each pack is one `build_briefing_pack` output (RFC-093) with `subject`, `top_insight_*`, `coverage_summary`, `confidence_p50`, `grounded` fields; judge summary is deterministic (no LLM) and muted when either side reports `grounded=false` |
+| `operator-compare` | RFC-107 §S8 (Search v3 §S8) — `POST /api/search/compare` returning `{pack_a, pack_b, judge_summary}`; each pack is one `build_briefing_pack` output with `subject`, `top_insight_*`, `coverage_summary`, `confidence_p50`, `grounded` fields; judge summary is deterministic (no LLM) and muted when either side reports `grounded=false` |
 | `operator-compare-insight-types` | RFC-107 §S8 + RFC-072 GIL v1.1 — same `POST /api/search/compare` shape with the request's `insight_types: ["claim"]` filter set; both packs narrowed symmetrically to the claim subset (lower `result_count` / `episode_count` than the unfiltered `operator-compare` scenario) |
 | `temporal-intent` | RFC-092 taxonomy — `query_type: "temporal_tracking"`; IntentChip in `WorkspaceHeader` renders "Temporal tracking" |
 

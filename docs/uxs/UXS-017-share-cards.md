@@ -2,8 +2,7 @@
 
 - **Status**: Active — the design SSOT for the card
 - **Authored**: 2026-09-11 · promoted out of `docs/wip/` on 2026-09-27
-- **Related**: UXS-014 (§Sharing — the interaction spec),
-  UXS-011 (tokens), issue #2036
+- **Related**: issue #2036
 
 Design record for the shareable "collectible" card. Captures the aesthetic decision, the one that
 was rejected and *why*, the exact tokens, the layout, and what is built versus left.
@@ -12,7 +11,7 @@ was rejected and *why*, the exact tokens, the layout, and what is built versus l
 Share menu's **Share card** and for the `og:image` a shared link unfurls as (operator 2026-10-05).
 There used to be a second, client-side canvas card (`entityShareCard.ts`) kept in step "by eye"; it
 was not — the server card got artwork, topics and per-kind layouts while the button kept sharing a
-black page with a title — so it was deleted, and `__checks__/share-card-single-source.test.ts` keeps
+black page with a title — so it was deleted, and a test keeps
 a second card from growing back. The **highlight quote card** moved to the same renderer the same
 day: `build_highlight_card`, served signed-in at `/api/app/highlights/{id}/card.png` (a highlight is
 private — never an unfurl) — the quote as the hero (up to 7 lines), `— speaker · at 1:05`, the
@@ -37,7 +36,7 @@ restraint. A generated decorative frame is the wrong tool — the app's own desi
 **Modern, minimal, few colors.** The card is the app's own language rendered beautifully; **no
 generated frame**. Quote-led editorial layout (operator pick over stat-led / type-only).
 
-### Tokens (default dark theme — `theme/directions.css`)
+### Tokens (default dark theme)
 
 | Role | Value |
 | --- | --- |
@@ -79,13 +78,13 @@ Generous negative space is deliberate — the empty middle is the "editorial" re
   share sheet as a file on the phones, the browser's file share or a download on the web. Needs the
   network — no card offline, and the menu says so when it cannot make one.
 - **Bridge-only:** the card carries transcript-derived text + KG metadata only, never audio.
-- **Share menu** (`components/ShareMenu.vue`): one affordance → **Share card** (PNG via Web Share →
+- **Share menu**: one affordance → **Share card** (PNG via Web Share →
   download), **Copy link** (the public URL, to the clipboard) and **Copy text** (name — what it is,
-  then the link, to the clipboard) — see UXS-014 for the 2026-10-05 change.
+  then the link, to the clipboard) (changed 2026-10-05).
 
 ## Built (`feat/player-improvements`)
 
-- **Share menu** (`components/ShareMenu.vue`) wired on the **entity card** (topic / person / org),
+- **Share menu** wired on the **entity card** (topic / person / org),
   the **episode** (PlayerView), the **show** (PodcastView), the **storyline** (StorylineView) and the
   **theme** (ThemeView) — each passes only `kind` + `id` + its name.
 - **Theme card** (2026-10-05): member topics, "Topics that mean the same thing", N topics · N
@@ -164,4 +163,3 @@ handle portrait better. A photo-background episode PNG can approach WhatsApp's ~
 ## Refs
 
 - Rejected concept + chosen previews: `test-results/shots/2036-*` (local, untracked).
-- Interaction spec: `docs/uxs/UXS-014-interaction-patterns.md` §Sharing.

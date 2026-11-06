@@ -337,14 +337,14 @@ join as they come online.
 3. **Dial A (turn in parallel)** — `OnDemand → Batch` is a new *driver* over the identical
    `reconcile()` core: **implementation, ADR at most.** `→ Live` (`EventDrivenReconciler` +
    reverse index `node_ref → users` + RFC-065 fan-out) is the one deferred piece of real
-   machinery and **earns a focused future RFC (RFC-082)**.
+   machinery and **earns a focused future RFC (RFC-082 (not in this repository))**.
 
 ### What earns a new document
 
 | Change | Artifact |
 |---|---|
 | on-demand → batch driver | implementation (optional ADR) |
-| live / event-triggered tier | **future RFC-082** (reverse index + RFC-065 fan-out) |
+| live / event-triggered tier | **future RFC-082 (not in this repository)** (reverse index + RFC-065 fan-out) |
 | any new `change_type` (contradiction/evolution/…) | enricher-registry work, **not** a reconciliation RFC |
 | new consumer surface | rides R1; no reconciliation change |
 

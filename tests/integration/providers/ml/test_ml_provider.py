@@ -1225,7 +1225,7 @@ class TestMLProviderGILEvidence(unittest.TestCase):
 
 @pytest.mark.integration
 class TestMLProviderSummaryUseCase:
-    """RFC-127: BART/LED take a document, not instructions, so a board summary on the
+    """BART/LED take a document, not instructions, so a board summary on the
     ``transformers`` provider is the use case's material written as prose, summarised by this same
     map/reduce within the use case's budget. Without a use case nothing changes."""
 

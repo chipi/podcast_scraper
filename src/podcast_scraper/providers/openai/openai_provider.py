@@ -547,7 +547,7 @@ class OpenAICompatibleProvider:
     # so a subclass changes identity by overriding these three, not by copying method bodies. ---
     _CONFIG_NS: str = "openai"  # config-field prefix: {ns}_summary_model, {ns}_api_base, …
     _TELEMETRY_PROVIDER: str = "openai"  # provider/service label in metrics + guardrails
-    # The prompt folder a use case's logical prompt names resolve under (RFC-127); the family's
+    # The prompt folder a use case's logical prompt names resolve under; the family's
     # summarization prompts live under openai/ too, whatever the sibling.
     _PROMPT_NS: str = "openai"
     _PROVIDER_LABEL: str = "OpenAI"  # human label for log_provider_metadata
@@ -2033,7 +2033,7 @@ class OpenAICompatibleProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
-        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its own
+        # A summary other than the episode's (a board's) runs this same flow with its own
         # prompts, stage and budget; absent, this is the episode summary exactly as before.
         use_case = use_case_from_params(params)
         max_length = reply_budget(
@@ -2231,7 +2231,7 @@ class OpenAICompatibleProvider:
             }
             user_params.update(self.cfg.summary_prompt_params)
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
-            # A use case records its own templates (RFC-127); the episode summary keeps the above.
+            # A use case records its own templates; the episode summary keeps the above.
             prompt_metadata = use_case_prompt_metadata(self._PROMPT_NS, use_case) or prompt_metadata
 
             return {
@@ -3685,7 +3685,7 @@ class OpenAICompatibleProvider:
             max_length: Maximum summary length in tokens
             min_length: Minimum summary length in tokens
             custom_prompt: Optional custom prompt (overrides default)
-            use_case: A summary other than the episode's (RFC-127): its own prompts
+            use_case: A summary other than the episode's: its own prompts
 
         Returns:
             Tuple of (system_prompt, user_prompt, system_prompt_name,

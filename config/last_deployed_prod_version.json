@@ -47,6 +47,6 @@
   ],
   "code_version": "2.7.0.dev0",
   "deployed_at": "2026-11-05",
-  "note": "This marker tracks what is currently running on prod. Auto-updated by scripts/ops/bump_prod_marker.py (invoked by .github/workflows/deploy-prod.yml). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
+  "note": "This marker tracks what is currently running on prod. Auto-updated by the prod deploy workflow (in the infrastructure repository). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
   "sha": "5c2e81c"
 }

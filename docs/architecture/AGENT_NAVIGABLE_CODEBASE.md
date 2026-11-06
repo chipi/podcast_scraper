@@ -48,8 +48,7 @@ lived in `web/`, and there were no links across.
 
 Two further findings from the same audit:
 
-- The app's own `README.md` had **six dead spec links** — PRD-035, PRD-038, PRD-039, RFC-099,
-  UXS-011, PLATFORM_API — in the file a new contributor opens first. Every one had been broken for
+- The app's own `README.md` had **six dead spec links** in the file a new contributor opens first. Every one had been broken for
   months. Nothing failed, so nobody knew.
 - A comment in the corpus generator asserted *"the player never decodes it in e2e."* That had become
   false. It read as justification and **actively corroborated the wrong premise**. It cost more than

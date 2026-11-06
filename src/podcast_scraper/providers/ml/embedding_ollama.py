@@ -1,4 +1,5 @@
-"""HTTP embedding client for Ollama-served models (#897 supersedes RFC-089 §D4).
+"""HTTP embedding client for Ollama-served models (#897 supersedes RFC-089 (not in this repository)
+§D4).
 
 Posts to ``{base_url}/api/embed`` (newer Ollama, batch) and falls back to the
 older ``/api/embeddings`` (one-text-at-a-time) on 404. Ollama does not L2-normalize

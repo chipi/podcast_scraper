@@ -5,7 +5,7 @@
 - **Owner**: Marko
 
 > **Numbering caveat (read first).** `PRD-034`, `RFC-081`, and all reserved downstream
-> numbers (`RFC-082`+) are **proposed placeholders** — they were not verified against the
+> numbers (`RFC-082` (not in this repository)+) are **proposed placeholders** — they were not verified against the
 > live `docs/prd/`, `docs/rfc/`, `docs/uxs/` trees. Confirm the next free numbers and
 > renumber before merge. The UXS and PLAN docs are name-based pending number assignment.
 
@@ -148,8 +148,8 @@ written:
 
 | Reserved | Type | Scope | When |
 |---|---|---|---|
-| `RFC-082` | RFC | Live / event-triggered reconcile: reverse index `node_ref → users` + RFC-065 fan-out | when live tier is warranted |
-| `RFC-083` | RFC | L2 advise ranking: salience-weighted touch score + frontier topology | fast-follow |
+| `RFC-082` (not in this repository) | RFC | Live / event-triggered reconcile: reverse index `node_ref → users` + RFC-065 fan-out | when live tier is warranted |
+| `RFC-083` (not in this repository) | RFC | L2 advise ranking: salience-weighted touch score + frontier topology | fast-follow |
 | `RFC-084` | RFC | Auto-threads: clustering over the anchor set | fast-follow |
 | `RFC-085` | RFC | Active-recall: grounded question-gen + double opt-in | later, gated |
 | `RFC-078/079 +` | addendum | `/connect` neighborhood endpoint (save-time connect) | **v1 — small addition, not a new RFC** |

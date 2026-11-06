@@ -15,7 +15,8 @@ collide.
 
 **Packaged image:** the Docker/prod deploy does NOT set these env vars, so this
 module does nothing — the Alloy collector ships everything exactly as before
-(ADR-119 / ADR-121). No daemon, no new dependency (stdlib ``urllib`` only), one
+(ADR-119 / ADR-121 (not in this repository)). No daemon, no new dependency (stdlib ``urllib``
+only), one
 bounded background queue for logs, one timer thread for metrics. Errors are
 swallowed — telemetry must never break the app.
 """

@@ -6,8 +6,8 @@
  * active. Two-slot picker seeded from the current visible hits (persons /
  * topics / episodes / feeds discoverable in metadata). "Run compare"
  * emits ``run-compare`` with the two picker slots; the store fires
- * ``POST /api/search/compare`` (wrapping ``build_briefing_pack`` twice,
- * RFC-093). Response renders as a 2-column briefing view; the
+ * ``POST /api/search/compare`` (wrapping ``build_briefing_pack`` twice).
+ * Response renders as a 2-column briefing view; the
  * deterministic judge summary is muted when either side is ungrounded.
  */
 import { computed, ref, watch } from 'vue'

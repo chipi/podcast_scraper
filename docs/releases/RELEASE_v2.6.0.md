@@ -10,7 +10,7 @@ v2.6.0 is a **minor release** that ships three substantial bodies of work on top
 
 1. **A full browser surface** for exploring processed corpora — a **Vue 3 + Vite** GI/KG viewer on a **FastAPI** server, **semantic corpus search** (FAISS) exposed in the UI and CLI, **Corpus Library**, **Digest**, **Graph**, and **Dashboard** experiences, and a **graph exploration toolkit** for Cytoscape-based GI/KG views.
 2. **A hardened pipeline-to-viewer experience** — **graph handoff orchestrator** (8-state FSM with envelope contract and generation-token concurrency across 13 entry points, ADR-094 / RFC-085), **viewer test pyramid** (Tier-1 mocks → Tier-2 production-shaped fixtures → Tier-3 real corpus, ADR-095 / RFC-086), and viewer performance tail trims (#767/#768/#769).
-3. **Operator maturity** — **corpus snapshot backup manifest + version-aware restore** (RFC-084, ADR-092, `make restore-corpus` / `restore-corpus-prod`), **canonical stack contract + environment adapters** (ADR-093), and the **AGENTS.md** canonicalization (PR #786 — single source of truth across all AI assistants).
+3. **Operator maturity** — **corpus snapshot backup manifest + version-aware restore** (RFC-084, ADR-092, `make restore-corpus` / `restore-corpus-prod`), **canonical stack contract + environment adapters** (ADR-093 (not in this repository)), and the **AGENTS.md** canonicalization (PR #786 — single source of truth across all AI assistants).
 
 On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles**, sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
 
@@ -192,11 +192,11 @@ browser-observable demos under `web/gi-kg-viewer/e2e/perf/`.
 A backup is now self-describing. Every snapshot writes a `snapshot.manifest.json`
 recording app version, schema version, included paths, and SHA-256 hashes; restore is
 version-aware and refuses incompatible combinations rather than silently corrupting
-state. Tooling lives under `scripts/ops/corpus_snapshot/` with `make restore-corpus` and
+state. Tooling ships with `make restore-corpus` and
 `make restore-corpus-prod` entry points. GitHub Actions ship matching `backup-corpus.yml`
 and restore workflows.
 
-### Canonical stack contract vs. environment adapters (ADR-093)
+### Canonical stack contract vs. environment adapters (ADR-093 (not in this repository))
 
 One topology, one health surface, one `stack-test` discipline across local dev, codespace,
 pre-prod VPS, and (eventually) prod. Per-environment differences are confined to

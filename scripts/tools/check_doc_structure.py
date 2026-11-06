@@ -11,7 +11,7 @@ concludes the thing does not exist.
 That is not hypothetical. On 2026-08-13 an agent searched one directory for fixture audio, found
 none, and hand-built an MP3 encoder rather than looking one level up where 46 real files sat. The
 answer was already written in three documents it never opened, and the app's own README had **six
-dead spec links** — PRD-035, PRD-038, PRD-039, RFC-099, UXS-011, PLATFORM_API — in the file a new
+dead spec links** — PRD-035, PLATFORM_API — in the file a new
 contributor opens first. A stale pointer is worse than a missing one, because it is trusted.
 
 Checks

@@ -1,4 +1,4 @@
-# Profile: cloud_with_dgx_primary — prod Whisper + pyannote on DGX, cloud fallback (ADR-096, #814, #926)
+# Profile: cloud_with_dgx_primary — prod Whisper + pyannote on DGX, cloud fallback (ADR-096 (not in this repository), #814, #926)
 #
 # Renamed from cloud_with_dgx_whisper_primary on 2026-06-09 when pyannote
 # diarization on DGX (#926) joined Whisper on DGX (#814) as the second
@@ -85,7 +85,7 @@ summary_provider: litellm
 # tailnet IP in its operator YAML.
 # LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
 # on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
-# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
+# (the D4 pin). See ADR-142 (not in this repository) + AGENTS.md 'Deployment topology'.
 litellm_api_base: ${LITELLM_API_BASE}
 litellm_insight_model: podcast-flash-0731
 litellm_temperature: 0.3

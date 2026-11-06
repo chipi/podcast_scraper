@@ -243,8 +243,8 @@ jobs:
   # ``timeout-minutes`` so a wedged build fails fast instead of at 6h.
   #
   # AMD64-ONLY (2026-08-20): these images are consumed ONLY by the
-  # prod VPS, which is amd64 (Hetzner ``cx43`` — see
-  # infra/terraform/variables.tf). The operator's Apple-Silicon Mac
+  # prod VPS, which is amd64 (Hetzner ``cx43``, set in the infrastructure
+  # repository's terraform). The operator's Apple-Silicon Mac
   # builds these images NATIVELY from source for local work
   # (``make stack-test-build`` off compose/docker-compose.stack.yml),
   # so it never pulls arm64 from GHCR. Nothing consumes the arm64

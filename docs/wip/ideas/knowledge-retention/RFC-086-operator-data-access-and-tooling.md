@@ -9,7 +9,7 @@
     join, changelog, L2 derivation) reused read-only
   - `RFC-072-canonical-identity-layer.md` — canonical refs for impact preview
 - **Relates to**:
-  - `RFC-082` (reserved) — the *maintained* reverse index for the live tier; this RFC's
+  - `RFC-082` (not in this repository) (reserved) — the *maintained* reverse index for the live tier; this RFC's
     reverse lookups are read-only/on-demand and do not require it
 
 > **Proposed numbering** — `RFC-086` / `PRD-035` are placeholders; verify and renumber.
@@ -49,7 +49,7 @@ per-user endpoints.
 4. **Gate + audit cross-user / PII reads.** Any read that crosses user boundaries or exposes
    a user's L2 is operator-role-gated and logged.
 5. **On-demand over maintained where possible in v1.** Reverse lookups are computed on demand;
-   the maintained reverse index is deferred to the live tier (RFC-082).
+   the maintained reverse index is deferred to the live tier (RFC-082 (not in this repository)).
 
 ---
 
@@ -68,7 +68,7 @@ gate.
 Needed by **CIL impact preview** and **inspect**. In v1 this is an **on-demand** query over
 the `anchors` table (`WHERE node_ref ∈ targets`), not a maintained index. It is read-only and
 bounded by how many anchors reference a node. The *maintained* reverse index (`node_ref →
-active users`) is a different object owned by RFC-082 (live fan-out) — do not build it here.
+active users`) is a different object owned by RFC-082 (not in this repository) (live fan-out) — do not build it here.
 
 ### λ/θ simulation (pure, no commit)
 
@@ -160,7 +160,7 @@ Metrics (FR-DB1) read the existing Langfuse/Umami stores; no new endpoint.
    `sandbox_id`: reuses code paths, minimal schema, easy teardown.)
 2. **Reverse lookup cost** — on-demand `WHERE node_ref ∈ targets` is fine until anchor volume
    on hot nodes grows; define the threshold at which a cached/maintained index (borrowing from
-   RFC-082) becomes warranted.
+   RFC-082 (not in this repository)) becomes warranted.
 3. **Audit model** — store location + retention for inspect-as-user audit, consistent with the
    private-data posture.
 4. **inspect-as-user redaction default** — full L2 vs structure-only by default.

@@ -3,11 +3,7 @@
 - **Status**: Draft
 - **Authors**: Marko, Claude (Opus 4.8)
 - **Stakeholders**: Consumer App, Server API, Infra/Delivery
-- **Related PRDs**:
-  - `docs/prd/PRD-046-delivery-and-curation.md` (product requirements)
-  - `docs/prd/PRD-041-consolidation.md` (the substrate this distributes)
 - **Related RFCs**:
-  - `docs/rfc/RFC-101-personal-knowledge-corpus.md` (resurfacing selection reused here)
   - `docs/rfc/RFC-068-corpus-digest-api-viewer.md` (the **corpus-wide** operator digest — explicitly NOT reused; different scope)
 - **Related ADRs**:
   - `ADR-144 (not in this repository)` (queue + last-mile decision)
@@ -26,7 +22,7 @@ join deterministically.
 
 ## Problem Statement
 
-PRD-041's resurfacing is computed **on read** and is **pull-only**. To become a habit (the Readwise
+Resurfacing is computed **on read** and is **pull-only**. To become a habit (the Readwise
 loop) it must be **pushed** to the user. But delivery drags in concerns the app must not own:
 HTML/MJML rendering, SMTP/relay, IP reputation, VAPID signing, retries, bounce/complaint handling,
 unsubscribe. Folding those into the consumer API would couple product logic to deliverability
@@ -47,11 +43,11 @@ extractive + testable and lets delivery be operated (and delegated) independentl
 - **D6**: the payload handed across the seam is fully pre-assembled + extractive; the delivery
   service renders + sends only.
 - **File-based per-user store**: the outbox and the digest fan-out are O(users) scans; acceptable
-  now (RFC-101 OQ-1 materialization deferred).
+  now (materialization deferred).
 - **Consent model (FR1 / #1414) is a prerequisite** — nothing is enqueued for a user without
   `comms.digest.enabled` (or `comms.push.enabled`) and, for email, `email_verified`.
 - **Deliverability is not self-hostable cheaply** — the last mile goes through a reputation relay
-  (ADR-144). Web Push has no such problem and is fully self-hosted.
+  (ADR-144 (not in this repository)). Web Push has no such problem and is fully self-hosted.
 
 ## Design & Implementation
 
@@ -106,8 +102,7 @@ token-gated, mounted at `/internal`), `app_digest_personal` (the extractive asse
 digest + push nudges → `enqueue_due_digests`), the **scheduler `digest` job kind** (an operator
 schedules it in `viewer_operator.yaml` like any sweep — fires `enqueue_due_digests` on cadence), and
 the **Web Push** path: `app_push_store` + `POST/DELETE /api/app/push/subscribe` +
-`GET /api/app/push/vapid-key`, the browser `usePushSubscription` composable, and the SW push handler
-(`public/push-sw.js`). The only external inputs left are infra-owned: the **VAPID keypair**
+`GET /api/app/push/vapid-key`, the browser `usePushSubscription` composable, and the SW push handler. The only external inputs left are infra-owned: the **VAPID keypair**
 (`APP_VAPID_PUBLIC_KEY` for the app, private half in the worker), the **`INTERNAL_OUTBOX_TOKEN`**,
 and the **Resend** worker itself.
 
@@ -155,13 +150,13 @@ reusing `user_episode_set()` + the resurfacing due-selection + interest profile 
 deltas + auto-picks. Emit a `DeliveryEnvelope`. Wired into the existing in-process APScheduler
 (`scheduler.py`, today feed-sweep-only) as a per-user digest cron. Extractive only (D6).
 
-### 5. Infra side — the delivery service (#1412; specified in ADR-144, revised to Resend)
+### 5. Infra side — the delivery service (#1412; specified in ADR-144 (not in this repository), revised to Resend)
 
 A **thin stateless worker** in the deployment's private network, egress-only. Drains the outbox →
 renders (`template` → Jinja) → delivers (Web Push via VAPID; email via the **Resend HTTP API**) →
 reports status (§2). Bounce/complaint via **cursor-based polling of Resend's events API** (no public
 webhook — the service has no public ingress). No Listmonk/Postgres/Redis: the **app outbox already is
-the queue** ADR-144 wanted. Web Push subscription registration is `POST /api/app/push/subscribe`
+the queue** ADR-144 (not in this repository) wanted. Web Push subscription registration is `POST /api/app/push/subscribe`
 (app-owned endpoint, infra-owned worker).
 
 ### 6. Channels
@@ -175,7 +170,7 @@ the queue** ADR-144 wanted. Web Push subscription registration is `POST /api/app
 ## Key Decisions
 
 1. **The seam is a channel-agnostic outbox, not per-channel API calls** — ADR-145.
-2. **Self-host the queue, outsource the last mile** — ADR-144.
+2. **Self-host the queue, outsource the last mile** — ADR-144 (not in this repository).
 3. **Payload is extractive + graph-carrying** — the digest never generates prose (D6) and never
    ships a flat clip (moat rule).
 4. **Reuse resurfacing selection, not RFC-068** — the corpus-wide digest is a different scope.
@@ -184,7 +179,7 @@ the queue** ADR-144 wanted. Web Push subscription registration is `POST /api/app
 
 - **App calls a transactional email API directly (Resend/Postmark) per send.** Simplest, but couples
   product code to a SaaS + reputation, puts a mail dependency in the app's CI, and offers no clean
-  delegation boundary. Rejected — ADR-144.
+  delegation boundary. Rejected — ADR-144 (not in this repository).
 - **Per-channel handoff (app calls "send email" / "send push" endpoints).** Leaks channel specifics
   into the app and forces the app to render. The channel-agnostic envelope keeps rendering on the
   infra side. Rejected — ADR-145.
@@ -203,7 +198,7 @@ the queue** ADR-144 wanted. Web Push subscription registration is `POST /api/app
 ## Rollout & Monitoring
 
 - Ship **Web Push first** (no new dep) to de-risk the loop, then email once Resend + deliverability
-  (ADR-144) are verified.
+  (ADR-144 (not in this repository)) are verified.
 - Opt-in + pausable; disabling the worker or pausing sends is a <5-min rollback.
 - Monitor: enqueue count, delivery success/bounce/complaint rate, unsubscribe rate.
 
@@ -215,4 +210,4 @@ the queue** ADR-144 wanted. Web Push subscription registration is `POST /api/app
 
 ## References
 
-- PRD-046; ADR-144; ADR-145; RFC-101 (§5 resurfacing); epic #1413.
+- ADR-144 (not in this repository); ADR-145; epic #1413.

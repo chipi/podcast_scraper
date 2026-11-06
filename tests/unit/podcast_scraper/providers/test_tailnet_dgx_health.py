@@ -1,4 +1,4 @@
-"""Unit tests for tailnet DGX health helpers (RFC-089 / #814).
+"""Unit tests for tailnet DGX health helpers (RFC-089 (not in this repository) / #814).
 
 Two services share the tailnet host:
 

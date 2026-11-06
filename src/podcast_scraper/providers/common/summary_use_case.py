@@ -1,4 +1,4 @@
-"""A summary other than the episode's, made by the same ``summarize`` (RFC-127).
+"""A summary other than the episode's, made by the same ``summarize``.
 
 The episode summary is one use of a provider's ``summarize``: its prompts, its parameters, its cost
 stage. A board summary is another — "just another use case" (operator 2026-10-13) — so it goes

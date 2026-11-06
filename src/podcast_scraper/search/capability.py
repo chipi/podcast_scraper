@@ -1,4 +1,4 @@
-"""Shared search-capability core (RFC-095 §3).
+"""Shared search-capability core.
 
 Lifts the structured-search assembly out of the HTTP route so **both** the
 ``GET /api/search`` handler and the MCP ``search_corpus`` tool call one tested function.

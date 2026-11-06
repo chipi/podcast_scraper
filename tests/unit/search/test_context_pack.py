@@ -1,4 +1,4 @@
-"""Unit tests for LITM briefing packs (RFC-093, #861)."""
+"""Unit tests for LITM briefing packs (#861)."""
 
 from __future__ import annotations
 

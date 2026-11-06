@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-10-31
 - **Authors**: Marko Dragoljevic
-- **See Also**: `src/podcast_scraper/extensions.py`, `tests/integration/server/test_extensions.py`,
+- **See Also**: `src/podcast_scraper/extensions.py`,
   [ADR-104](ADR-104-enrichment-layer-boundary-vs-kg-direct.md)
 
 ## Context & Problem Statement
@@ -71,7 +71,7 @@ newer build of an extension over the platform therefore runs that build.
 
 - **Positive**: surfaces can be added without editing the platform; a second client app reuses
   sign-in, users and sessions; the extension boundary is explicit and tested
-  (`tests/integration/server/test_extensions.py` uses a fake extension).
+  (with a fake extension).
 - **Negative**: one level of indirection when reading where a route or job comes from
   (`extensions.py` is the place to look).
 - **Neutral**: behaviour with the in-tree extensions only is unchanged.

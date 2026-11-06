@@ -1,4 +1,5 @@
-"""Config validation tests for RFC-089 / ADR-096 DGX fields."""
+"""Config validation tests for RFC-089 (not in this repository) /
+ADR-096 (not in this repository) DGX fields."""
 
 from __future__ import annotations
 

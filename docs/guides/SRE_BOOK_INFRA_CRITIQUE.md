@@ -129,7 +129,7 @@ returns digest for episode X”).
 
 - Single step that flips prod with no prior gate on representative workload
 - No documented rollback or rollback untested
-- CI green but no path that exercises prod-like compose (see ADR-082, [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md))
+- CI green but no path that exercises prod-like compose (see ADR-082 (not in this repository), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md))
 
 **Pass:** Change is batched, gated, observable, reversible; blast radius is understood.
 **Warn:** Good habits on paper; occasional exceptions without review.

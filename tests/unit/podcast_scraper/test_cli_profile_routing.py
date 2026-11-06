@@ -45,7 +45,7 @@ CLOUD_BALANCED_EXPECTED = {
     "transcription_provider": "deepgram",
     "deepgram_model": "nova-3",
     "audio_preprocessing_profile": "speech_optimal_v1",
-    # RFC-111 (#1482): single-pass Deepgram ASR self-diarizes (diarize:false — no separate
+    # #1482: single-pass Deepgram ASR self-diarizes (diarize:false — no separate
     # diarization pass / model), and speaker/summary/quote/entailment all moved onto litellm
     # (podcast-flash-0731) so the same wrapped gateway provider backs every LLM role, letting the
     # RFC-106 failover chain (summary_fallback_providers below) cover them together.
@@ -98,7 +98,7 @@ CLOUD_BALANCED_EXPECTED = {
     # LLM grounding and quietly ground with local DeBERTa instead.
     "quote_extraction_provider": "litellm",
     "entailment_provider": "litellm",
-    # RFC-111: diarize:false — Deepgram's single ASR pass self-diarizes, no separate model.
+    # diarize:false — Deepgram's single ASR pass self-diarizes, no separate model.
     "diarize": False,
     "generate_kg": True,
     "kg_extraction_source": "provider",

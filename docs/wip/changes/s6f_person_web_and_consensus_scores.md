@@ -82,7 +82,7 @@ Dated: 2026-11-01T12:35
 
 ## 6. Build
 
-Tests (`tests/unit/podcast_scraper/server/test_app_relational_view.py`, `search/test_operators.py`):
+Tests:
 - a joined person's bio and photo come from another id under the group's spelling, never from a
   row under another name, and the photo routes to the id that hosts it;
 - with no ledger nothing is borrowed;

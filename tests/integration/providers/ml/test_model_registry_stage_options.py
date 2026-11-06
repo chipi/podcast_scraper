@@ -191,7 +191,7 @@ class TestResolveProfileToSettings:
         assert settings["summary_model"] == "qwen3.5:35b"
 
     def test_cloud_balanced_resolves_to_litellm_podcast_flash(self) -> None:
-        """RFC-111 (#1482): summary moved onto litellm (podcast-flash-0731) so the
+        """#1482: summary moved onto litellm (podcast-flash-0731) so the
         RFC-106 failover chain can cover it alongside quote/entailment/speaker
         roles on the same wrapped gateway provider."""
         settings = resolve_profile_to_settings("cloud_balanced")

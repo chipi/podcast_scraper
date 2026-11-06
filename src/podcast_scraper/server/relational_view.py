@@ -1,4 +1,4 @@
-"""Consumer relational projections — person/topic cards from KG co-occurrence (PRD-043 FR2/FR3).
+"""Consumer relational projections — person/topic cards from KG co-occurrence.
 
 Read-only aggregation over each episode's ``*.kg.json`` (the same view the entities endpoint
 uses via :func:`entities_from_kg`). *KG-grounded*: an entity *appears in* — and a topic *is
@@ -69,7 +69,7 @@ from podcast_scraper.server.slugs import slug_for_row
 
 _DEFAULT_TOP_K = 12
 
-# topic_id -> {cluster_id, cluster_label, cluster_size}; from search/topic_clusters.json.
+# topic_id -> {cluster_id, cluster_label, cluster_size}; from the corpus's topic-cluster file.
 ClusterMap = dict[str, dict[str, object]]
 
 
@@ -84,12 +84,12 @@ def _person_web_payload(root: Path) -> dict[str, Any] | None:
 
     The executor writes every enrichment artifact as an envelope
     (``{derived, status, data:{provider, persons}, …}``), so the payload the card reads lives under
-    ``data`` — the same convention every other enrichment reader uses (routes/app_enrichment.py,
-    routes/corpus_storylines.py, cil_queries.py). Reading the top level instead found nothing
-    on a real corpus (only the hand-written flat test fixtures matched), so bios/photos never
-    surfaced. Tolerates an already-flat dict too. Uncached: the corpus-mtime token keys on
-    corpus_run_summary.json, which an enrichment run does not bump, so a cached miss would hide
-    freshly-enriched rows until the next ingest; person_web.json is small, read it live."""
+    ``data`` — the same convention every other enrichment reader uses (cil_queries.py). Reading
+    the top level instead found nothing on a real corpus (only the hand-written flat test
+    fixtures matched), so bios/photos never surfaced. Tolerates an already-flat dict too.
+    Uncached: the corpus-mtime token keys on corpus_run_summary.json, which an enrichment run
+    does not bump, so a cached miss would hide freshly-enriched rows until the next ingest;
+    person_web.json is small, read it live."""
     doc = load_json_artifact(root, "enrichments/person_web.json")
     if not isinstance(doc, dict):
         return None
@@ -424,7 +424,7 @@ def _storyline_ref_by_norm_at(root: Path, _token: float) -> Mapping[str, AppEnti
         norm = normalize_label(label)
         if norm:
             out.setdefault(norm, AppEntityRef(id=anchor, kind="storyline", label=label))
-    # A name a storyline had before (RFC-128) resolves to it under its current name — after every
+    # A name a storyline had before resolves to it under its current name — after every
     # current name, so no old name can take a name another storyline holds now.
     lifecycle = storyline_lifecycle(root)
     for s in top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
@@ -766,7 +766,7 @@ def _build_cluster_card(
     else:
         ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
     # A storyline's anchor is the topic its page is routed by, kept by the storyline registry
-    # (RFC-128); the card must flag that one, not whichever member leads on lift this run.
+    # the card must flag that one, not whichever member leads on lift this run.
     if anchor in ordered:
         ordered = [anchor, *(t for t in ordered if t != anchor)]
     # The split is the grouping's OWN median episode date, not a fixed window: a six-month corpus
@@ -1245,7 +1245,7 @@ def _node_to_app_insight(
     episode + the supporting quote's start moment (#2032); both are annotated onto the node by
     ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere. The
     supporting quote itself (``_quote_text`` / ``_quote_end_ms``, 2026-10-11) becomes the insight's
-    one quote, so a quote card shows the transcript's words, not the paraphrase (ADR-163 §4).
+    one quote, so a quote card shows the transcript's words, not the paraphrase.
     """
     props = node.get("properties") or {}
     text = props.get("text") or props.get("title") or ""

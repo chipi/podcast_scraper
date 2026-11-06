@@ -86,7 +86,7 @@ def create_gil_evidence_providers(
     if needs_summary_instance and effective_summary is None:
         # Lazy-built summary instance: orchestration normally hands one in (already
         # wrapped); when it doesn't, wrap here so the GI evidence path still gets
-        # the RFC-089 #5 fallback contract.
+        # the RFC-089 (not in this repository) #5 fallback contract.
         effective_summary = create_summarization_provider(cfg)
         if hasattr(effective_summary, "initialize"):
             effective_summary.initialize()

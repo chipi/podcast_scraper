@@ -4,7 +4,7 @@
 - **Surface:** `web/gi-kg-viewer` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
   panels registered at `adminPanels`, `ReleaseAdminView`, `GraphAnalyticsAdminView`)
 - **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator design system — tokens, type, density)
-- **Related:** #1128 (viewer roles, user management), ADR-113 (resilience), ADR-142 (LLM gateway),
+- **Related:** #1128 (viewer roles, user management), ADR-113 (resilience), ADR-142 (not in this repository) (LLM gateway),
   #11 B2 (discovery ranking)
 
 These are the operator's control surfaces. Until this spec they had unit tests but no UXS and no
@@ -147,7 +147,7 @@ player's deploy default, so what this view shows is what phones are served.
 ## Decided
 
 - **User deletion keeps the browser's native `window.confirm`** (operator, 2026-10-06). The consumer
-  app uses an in-app dialog with Cancel focused first (UXS-014). The operator viewer deliberately
+  app uses an in-app dialog with Cancel focused first. The operator viewer deliberately
   does not need to match it.
 - **Test runs never see production data** (operator, 2026-10-06). Both e2e API servers set
   `PODCAST_DEV_OBS_ENV=0`. That skips the dev observability env file (`.env.obs.dev`) and the

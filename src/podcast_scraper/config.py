@@ -1535,7 +1535,7 @@ class Config(BaseModel):
         alias="transcription_fallback_provider",
         description=(
             "Cloud/local fallback when transcription_provider is tailnet_dgx_whisper "
-            "(mandatory for DGX-primary prod profiles per ADR-096)."
+            "(mandatory for DGX-primary prod profiles per ADR-096 (not in this repository))."
         ),
     )
     # RFC-106 (#1198): ordered per-stage failover ladders, registry-governed and emitted into the
@@ -1662,7 +1662,10 @@ class Config(BaseModel):
     dgx_tailnet_host: Optional[str] = Field(
         default=None,
         alias="dgx_tailnet_host",
-        description="MagicDNS hostname for DGX Ollama (RFC-089), e.g. my-dgx.tailnet.ts.net.",
+        description=(
+            "MagicDNS hostname for DGX Ollama (RFC-089 (not in this repository)), e.g. "
+            "my-dgx.tailnet.ts.net."
+        ),
     )
     dgx_ollama_port: int = Field(
         default=11434,
@@ -1679,8 +1682,8 @@ class Config(BaseModel):
         description=(
             "faster-whisper-server port on DGX (default 8000, #814). Separate from "
             "dgx_ollama_port because Whisper is served by a different service "
-            "(faster-whisper-server, OpenAI-compatible). See "
-            "infra/dgx/converge/deploy.py."
+            "(faster-whisper-server, OpenAI-compatible). Installed by the DGX "
+            "convergence in the infrastructure repository."
         ),
     )
     dgx_whisper_model: str = Field(
@@ -1755,8 +1758,8 @@ class Config(BaseModel):
         alias="dgx_diarize_port",
         description=(
             "Port for the DGX-hosted pyannote diarization service (default 8001, "
-            "#926). The legacy embedding-shim slot reclaimed for diarize. See "
-            "infra/dgx/converge/deploy.py."
+            "#926). The legacy embedding-shim slot reclaimed for diarize. "
+            "Installed by the DGX convergence in the infrastructure repository."
         ),
     )
     dgx_diarize_model: str = Field(
@@ -2103,7 +2106,7 @@ class Config(BaseModel):
             "and max_words_per_bullet for shared bullet templates; optional bullet_max caps count."
         ),
     )
-    # RFC-127: the board summary, a use case of the same `summarize` (providers/common/
+    # The board summary, a use case of the same `summarize` (providers/common/
     # summary_use_case.py). Logical names, resolved like every summarization prompt: under the
     # provider's own folder (<ns>/summarization/...), else prompts/shared/summarization/. A new
     # version is a new file and a change of these names.
@@ -2491,8 +2494,9 @@ class Config(BaseModel):
     translate_verify_served_model: bool = Field(
         default=True,
         alias="translate_verify_served_model",
-        description="Fail-closed (ADR-143/144): at initialize(), assert GET /v1/models advertises "
-        "the configured translate_model, so a wrong model on the :8005 slot fails the run instead "
+        description="Fail-closed (ADR-143 (not in this repository)/144): at initialize(), assert "
+        "GET /v1/models advertises the configured translate_model, so a wrong model on the :8005 "
+        "slot fails the run instead "
         "of producing a corpus attributed to a model that never ran. A corpus translated by the "
         "wrong model cannot be distinguished from a correct one after the fact. Unreachable "
         "endpoint only warns — that is not a mismatch. Set False for offline/unit contexts.",
@@ -3914,8 +3918,8 @@ class Config(BaseModel):
         le=1.0,
         alias="topic_cluster_threshold",
         description=(
-            "Minimum mean cosine similarity for merging topic clusters in "
-            "``search/topic_clusters.py``. 0.70 measured on the REAL corpus, twice and "
+            "Minimum mean cosine similarity for merging topic clusters. "
+            "0.70 measured on the REAL corpus, twice and "
             "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
             "sweep on the 1,066-episode corpus (2026-09-02; the exact topic count is "
             "quoted inconsistently across this work and is approximate). "
@@ -3990,7 +3994,8 @@ class Config(BaseModel):
             "vector_embedding_provider: when 'ollama', this is the Ollama base "
             "URL (e.g. http://dgx:11434) and the client appends /api/embed; when "
             "'sentence_transformers' and an endpoint is also set, it's treated "
-            "as a legacy shim /embed URL (RFC-089 §D4, superseded by ADR-098)."
+            "as a legacy shim /embed URL (RFC-089 (not in this repository) §D4, superseded by "
+            "ADR-098)."
         ),
     )
     vector_embedding_provider: Literal["sentence_transformers", "ollama"] = Field(
@@ -4000,7 +4005,8 @@ class Config(BaseModel):
             "Which embedding backend serves vectors for the corpus index. "
             "'sentence_transformers' loads the model in-process (default, used by "
             "local/cloud profiles). 'ollama' POSTs to vector_embedding_endpoint's "
-            "Ollama API (DGX profiles; ADR-098 supersedes RFC-089 §D4). When 'ollama' "
+            "Ollama API (DGX profiles; ADR-098 supersedes RFC-089 (not in this repository) §D4). "
+            "When 'ollama' "
             "is selected, vector_embedding_model is an Ollama tag (e.g. nomic-embed-text), "
             "NOT a HuggingFace id."
         ),
@@ -4930,8 +4936,8 @@ class Config(BaseModel):
         # validators in reverse definition order, making cross-validator ordering
         # fragile when one depends on the output of another.
         merged = cls._merge_audio_preprocessing_preset(merged)
-        # Same reasoning: nested ``transcription: {primary, fallback}`` (ADR-096)
-        # in the profile YAML needs flattening to flat fields, but the
+        # Same reasoning: nested ``transcription: {primary, fallback}`` (ADR-096 (not in this
+        # repository)) in the profile YAML needs flattening to flat fields, but the
         # ``_flatten_dgx_stage_routing`` validator can't reliably observe the
         # merged dict in reverse-order. Call the plain helper here.
         merged = cls._apply_dgx_stage_routing_flatten(merged)
@@ -6776,29 +6782,33 @@ class Config(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _flatten_dgx_stage_routing(cls, data: Any) -> Any:
-        """Allow ADR-096 nested transcription.primary / fallback in YAML profiles."""
+        """Allow ADR-096 (not in this repository) nested transcription.primary / fallback in YAML
+        profiles."""
         return cls._apply_dgx_stage_routing_flatten(data)
 
     @model_validator(mode="after")
     def _validate_tailnet_dgx_transcription_contract(self) -> "Config":
-        """ADR-096: DGX-primary transcription requires a fallback and a host.
+        """ADR-096 (not in this repository): DGX-primary transcription requires a fallback and a
+        host.
 
         RFC-106 (#1198): the requirement is satisfied by the plural
         ``transcription_fallback_providers`` chain as well as the legacy singular
         ``transcription_fallback_provider`` — either one keeps the "no hard-required-DGX path"
-        guarantee that ADR-096 exists to enforce.
+        guarantee that ADR-096 (not in this repository) exists to enforce.
         """
         if self.transcription_provider != "tailnet_dgx_whisper":
             return self
         if not self.transcription_fallback_provider and not self.transcription_fallback_providers:
             raise ValueError(
                 "A transcription fallback is required when transcription_provider is "
-                "tailnet_dgx_whisper (ADR-096 / RFC-106): set transcription_fallback_providers "
+                "tailnet_dgx_whisper (ADR-096 (not in this repository) / RFC-106): set "
+                "transcription_fallback_providers "
                 "(preferred) or the legacy transcription_fallback_provider."
             )
-        # ADR-096's guarantee is a NON-DGX escape hatch. A plural chain made only of DGX tiers
-        # (tailnet_dgx_whisper / moss) has "a fallback" on paper but preserves a hard-required-DGX
-        # path in fact — reject it. The singular fallback is always a non-DGX cloud/local provider.
+        # ADR-096 (not in this repository)'s guarantee is a NON-DGX escape hatch. A plural chain
+        # made only of DGX tiers (tailnet_dgx_whisper / moss) has "a fallback" on paper but
+        # preserves a hard-required-DGX path in fact — reject it. The singular fallback is always a
+        # non-DGX cloud/local provider.
         _dgx_transcription = {"tailnet_dgx_whisper", "moss"}
         if self.transcription_fallback_providers and all(
             p in _dgx_transcription for p in self.transcription_fallback_providers
@@ -6806,7 +6816,7 @@ class Config(BaseModel):
             raise ValueError(
                 "transcription_fallback_providers must include at least one non-DGX tier "
                 "(cloud or local whisper) — a DGX-only chain re-introduces the hard-required-DGX "
-                "path ADR-096 forbids."
+                "path ADR-096 (not in this repository) forbids."
             )
         _host = str(self.dgx_tailnet_host or "").strip()
         if not _host:

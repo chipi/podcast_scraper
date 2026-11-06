@@ -1,4 +1,4 @@
-"""Episode slug contract for the consumer Learning Platform API (#1067, RFC-098 §4).
+"""Episode slug contract for the consumer Learning Platform API (#1067).
 
 Derives a stable, URL-safe ``slug`` per episode from *stable* inputs — the feed id
 and episode id — so the consumer API (``/api/app/*``) can address episodes by slug

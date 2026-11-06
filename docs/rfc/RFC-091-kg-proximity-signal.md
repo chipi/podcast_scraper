@@ -18,7 +18,7 @@
 
 > **Stabilization note (2026-05-30):** Split out of an earlier combined draft (RFC-079) that bundled
 > KG proximity, the ML router, and LITM context packs under one number. This RFC is the KG-proximity
-> third signal only; the router is RFC-092 and the packs are RFC-093. **This RFC is the most
+> third signal only; the router is RFC-092 and the packs are a separate RFC. **This RFC is the most
 > prerequisite-heavy of the three** — see Constraints. Its core dependencies (an in-memory KG access
 > layer, typed traversal edges, and a freeform-text → canonical-ID entity resolver) are the genuine
 > survivors of issue #466 and **do not exist in the codebase yet**.
@@ -306,7 +306,7 @@ This RFC is signal 3 of 3 in the Search initiative.
 
 - **RFC-090**: BM25 + vector + RRF foundation (the slot).
 - **RFC-091 (this)**: KG proximity signal (fills the slot) — gated on KG/resolver prerequisites.
-- **RFC-092 / RFC-093**: router and context packs (independent of this RFC's prerequisites).
+- **RFC-092**: router and context packs (independent of this RFC's prerequisites).
 
 | RFC | Relationship |
 | --- | --- |

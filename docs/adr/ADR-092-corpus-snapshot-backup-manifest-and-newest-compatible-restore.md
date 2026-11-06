@@ -68,7 +68,7 @@ artifact** metadata on **`snapshot.tgz`**.
 - **Workflows** (current tree): `backup-corpus-prod.yml`, `backup-corpus.yml`,
   `drill-restore-corpus.yml`, `prod-restore-corpus.yml` (paths may change; RFC remains source for
   behavior).
-- **Code**: landed in `scripts/ops/corpus_snapshot/`, thin **`make`** targets, and the workflows
+- **Code**: landed in the corpus snapshot scripts, thin **`make`** targets, and the workflows
   above; index **Code** column reads **Yes** ([#763](https://github.com/chipi/podcast_scraper/issues/763)).
 
 ## References

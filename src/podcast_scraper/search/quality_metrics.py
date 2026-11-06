@@ -238,7 +238,7 @@ def count_consensus_pairs_in_topk(
     """``(pairs touching top-K, of those, pairs flagged grounded)``.
 
     A pair "touches" top-K when either of its insight ids appears in ``doc_ids``
-    (RFC-088 tuple shape per ADR-108). ``grounded`` defaults to True because the shipped
+    (RFC-088 tuple shape). ``grounded`` defaults to True because the shipped
     enricher only emits pairs whose both sides are grounded.
     """
     if not pairs or not doc_ids:

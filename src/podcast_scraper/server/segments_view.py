@@ -1,6 +1,6 @@
 """Map on-disk Whisper segment artifacts to the player ``segments.json`` contract.
 
-Contract (PRD-036 / RFC-098): ``{id, start, end, text, speaker?, speaker_kind?, speaker_index?}``
+Contract (PRD-036): ``{id, start, end, text, speaker?, speaker_kind?, speaker_index?}``
 per segment, with ``start``/``end`` in seconds. Pure functions — unit-tested without HTTP or disk.
 """
 

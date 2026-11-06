@@ -82,7 +82,7 @@ def test_from_yaml_multitarget_and_secret_env(tmp_path, monkeypatch: pytest.Monk
 def test_discover_default_config_finds_cwd_homelab_yaml(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Zero-config dev default: a placed ``config/observability.homelab.yaml`` under the cwd is
+    """Zero-config dev default: a placed homelab observability config under the cwd is
     auto-discovered so ``podcast_obs`` needs no ``PODCAST_OBS_CONFIG`` on a developer box."""
     (tmp_path / "config").mkdir()
     yaml = tmp_path / "config" / "observability.homelab.yaml"
@@ -253,7 +253,7 @@ def test_operator_key_absent_is_none(monkeypatch) -> None:
 def test_operator_key_from_yaml(tmp_path, monkeypatch) -> None:
     """The YAML path must carry the key too.
 
-    ``load()`` auto-discovers ``config/observability.homelab.yaml`` BEFORE falling back to
+    ``load()`` auto-discovers the homelab observability config BEFORE falling back to
     ``from_env``, so a key wired only into ``from_env`` is inert on any box that has the
     committed YAML — which is where the 403s were observed in the first place.
     """

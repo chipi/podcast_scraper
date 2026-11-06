@@ -8,8 +8,8 @@
   - [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) — language routing, source-language transcription, translation stage
   - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — translation provenance (v1); source verification, labelling, the read-time gate and quality estimation (all v2)
   - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
-- **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint), ADR-108 (stance-over-time is a read-time query)
-- **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), PRD-036 (player `segments.json` contract), PRD-039 (player), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
+- **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint)
+- **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
 - **Arc notes**: [MULTILINGUAL_ARC](../architecture/MULTILINGUAL_ARC.md) — arc shape, the slice plan (§4), decisions and running notes
 - **Scope**: pipeline (ingest → transcript → translation → ad-free base → existing intelligence layers), player transcript/quote surfaces, language visibility and filtering, operator feed config. No non-English UI.
 
@@ -72,7 +72,7 @@ it compounds the cross-show-synthesis moat.
   individual claims is v2, and v1 records the provenance it will need.
 - **Positions are already a read-time query, not a pipeline stage.** `position_arc`
   (`server/cil_queries.py:636`) builds the per-(person, topic) arc at request time from GI insights;
-  ADR-108's 2026-07-08 update retired the `stance_timeline` enricher in favour of exactly this. That
+  The `stance_timeline` enricher was retired on 2026-07-08 in favour of exactly this. That
   is load-bearing for this PRD in two ways: a future gate is a read-path filter, so **v2 can add it
   retroactively over the whole corpus** with no re-extraction — which is why deferring it costs
   nothing — and **this feature has no dependency on shipping a stance-extraction stage**, because
@@ -439,7 +439,7 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 
 **Not dependencies (corrected):**
 
-- **A stance-extraction stage.** Positions are a read-time CIL query over GI insights (ADR-108,
+- **A stance-extraction stage.** Positions are a read-time CIL query over GI insights (since
   2026-07-08), so there is no extraction stage to ship first and Phase 3 is not blocked on one.
 - **A QE model or its calibration.** Deferred to v2 (RFC-125 §7). v1's trust mechanism is source
   verification, which needs no per-language threshold fitting.

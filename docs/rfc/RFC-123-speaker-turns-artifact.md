@@ -5,7 +5,6 @@
 - **Stakeholders**: Pipeline (diarization, GI), search, player (segments contract), Positions (read-time CIL arc)
 - **Related PRDs**:
   - `docs/prd/PRD-047-multilingual-ingest.md` — consumer: translation units and confidence citation
-  - `docs/prd/PRD-036-foundation-identity.md` — player `segments.json` contract
   - `docs/prd/PRD-028-position-tracker.md` — consumer: the per-(person, topic) arc
 - **Related RFCs**:
   - `docs/rfc/RFC-058-audio-speaker-diarization.md` — upstream: speaker assignment per segment

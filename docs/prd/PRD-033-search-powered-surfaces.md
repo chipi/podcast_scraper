@@ -152,7 +152,7 @@ shipped-capability value now and adds these affordances if/when they land.
 | Orthogonal capability | Surfaces that would add an affordance | Status |
 | --- | --- | --- |
 | **Contradiction edges** | Digest contradiction indicator; Graph contradiction edge type; Topic Entity View "where they disagree" | not built; separate capability/RFC |
-| **MCP / LITM briefing packs** (RFC-093) | Dashboard briefing cards + "view evidence" | not built; `[TBD]` |
+| **MCP / LITM briefing packs** | Dashboard briefing cards + "view evidence" | not built; `[TBD]` |
 | **Corpus-impact / coverage surface** | Explore coverage card; Library coverage-gap indicator; Dashboard coverage-gaps card | not built; `[TBD]` |
 
 When one lands, the relevant surface gains the affordance — additive, never blocking.
@@ -216,8 +216,7 @@ Issue #674 identified five cross-surface flow gaps. The shipped foundation addre
 ## Related Work
 
 - `docs/prd/PRD-031-search.md`, `docs/prd/PRD-032-hybrid-corpus-search.md`
-- `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-091-kg-proximity-signal.md`,
-  `docs/rfc/RFC-093-litm-context-packs.md`
+- `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-091-kg-proximity-signal.md`
 - `docs/rfc/RFC-080-graph-visualization-extensions.md`
 - GitHub issues #658, #669, #670, #671, #672, #673, #674 (all CLOSED).
 

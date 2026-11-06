@@ -536,7 +536,7 @@ Not a chart. A structured text summary using the digest API data.
 A compact grid of **retrieval-grounded** briefing cards — one per top topic, ranked by
 retrieval signal (best hit score lifted by insight density + distinct-show breadth).
 Each card is grounded in a *direct query*, **not** a briefing pack (the MCP briefing-pack
-form is orthogonal, RFC-093): the digest topic bands are already built by running a
+form is orthogonal): the digest topic bands are already built by running a
 semantic search per topic, so each card surfaces:
 
 - Topic label (a `topic-briefing-card-link` button when the topic maps to a KG node →

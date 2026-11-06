@@ -97,7 +97,7 @@ def test_a_preset_with_no_ladder_emits_no_fallback_keys() -> None:
     """``airgapped`` carries no ``*_fallback`` tuples, so the resolver must not invent chains.
 
     The preset under test has moved twice, and each move was a real ladder being ADDED rather than
-    this guard weakening: cloud_balanced gained one in RFC-111 (#1482), then cloud_qwen gained one
+    this guard weakening: cloud_balanced gained one (#1482), then cloud_qwen gained one
     in #1657 (46a67179) — a single-vendor DashScope stack loses every stage on any Qwen outage, so
     it now falls over to direct DeepSeek.
 
@@ -132,7 +132,7 @@ def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
 
 
 def test_cloud_balanced_summary_ladder_fails_over_to_direct_deepseek() -> None:
-    """RFC-111 (#1482): a obs.test:4001 LiteLLM gateway CONNECTION outage (not a model-side 503)
+    """#1482: a obs.test:4001 LiteLLM gateway CONNECTION outage (not a model-side 503)
     must fail over to DIRECT DeepSeek (api.deepseek.com), bypassing the dead gateway entirely —
     same model (deepseek-v4-flash) as the litellm-routed primary, just a different wire path."""
     resolved = resolve_profile_to_settings("cloud_balanced")

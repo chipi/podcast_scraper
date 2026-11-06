@@ -1,4 +1,4 @@
-"""Tests for the per-(provider, model) resilience profile + cfg override (#1482 RFC-111 follow-up).
+"""Tests for the per-(provider, model) resilience profile + cfg override (#1482 follow-up).
 
 A homelab LiteLLM gateway outage (APIConnectionError) exhausted retry_with_metrics' short default
 window (~12s) before the operator could react. The fix is a config-driven retry window: short

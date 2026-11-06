@@ -528,7 +528,8 @@ class TestCreateSummarizationProvider(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.orchestration._get_factory_function")
     def test_no_fallback_wrap_when_policy_absent(self, mock_get_factory):
-        """RFC-089 #5: no wrapping if degradation_policy.fallback_provider_on_failure is unset."""
+        """RFC-089 (not in this repository) #5: no wrapping if
+        degradation_policy.fallback_provider_on_failure is unset."""
         mock_provider = Mock()
         mock_provider.initialize = Mock()
         mock_get_factory.return_value = Mock(return_value=mock_provider)
@@ -544,7 +545,8 @@ class TestCreateSummarizationProvider(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.orchestration._get_factory_function")
     def test_fallback_wraps_when_policy_set(self, mock_get_factory):
-        """RFC-089 #5: wrap with FallbackAwareSummarizationProvider when configured."""
+        """RFC-089 (not in this repository) #5: wrap with FallbackAwareSummarizationProvider when
+        configured."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             generate_summaries=True,

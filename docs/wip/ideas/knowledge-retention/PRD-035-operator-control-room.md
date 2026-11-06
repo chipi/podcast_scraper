@@ -82,7 +82,7 @@ The operator control room exists to make all three legible.
 - **Not** an OSS surface — this is internal/Pro tooling.
 - **Not** a write path into user L1/L2 as ground truth (operator edits to CIL/enrichers flow
   through their existing pipelines; the operator does not hand-edit users' anchors).
-- **Not** the live-reconcile reverse index (RFC-082) — operator reverse lookups are
+- **Not** the live-reconcile reverse index (RFC-082 (not in this repository)) — operator reverse lookups are
   read-only and may be computed on demand in v1.
 
 ---
@@ -234,7 +234,7 @@ those milestones are debugged. Treat them as part of the v1 build loop.
 - **RFC-081** — the substrate being observed (decay fn, reconcile join, changelog, L2
   derivation reused read-only).
 - **RFC-072 (CIL)** — impact preview reads canonical refs + the reverse lookup.
-- **RFC-082 (reserved)** — the *maintained* reverse index for the live tier; operator
+- **RFC-082 (not in this repository) (reserved)** — the *maintained* reverse index for the live tier; operator
   reverse lookups are read-only/on-demand and do **not** require it in v1.
 - **`gi-kg-viewer` + RFC-077** — host + graph modes for the overlay.
 - **No new UXS** in v1 — operator surface anatomy is carried here; spawn a UXS only if a

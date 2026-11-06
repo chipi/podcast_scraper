@@ -17,7 +17,7 @@ Implementation: `podcast_scraper.prompts.store._resolve_template_path`.
 
 **If you change the JSON/schema shape:** Treat that as a pipeline + schema change, not only a template edit.
 
-**Board summaries (RFC-127):** `board_system_v1.j2` + `board_user_v1.j2` are the chat prompts for a
+**Board summaries:** `board_system_v1.j2` + `board_user_v1.j2` are the chat prompts for a
 board summary; `board_document_v1.j2` writes the same material as plain prose for the seq2seq
 summarizer (BART/LED), which follows no instructions. They render board material, never a
 transcript, and are passed as a use case of each provider's `summarize`

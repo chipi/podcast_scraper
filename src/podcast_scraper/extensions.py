@@ -83,7 +83,8 @@ class RouterMount:
 
     router: APIRouter
     plane: Plane
-    #: Operator-plane routers only: also mount on the curated public operator surface (RFC-108).
+    #: Operator-plane routers only: also mount on the curated public operator surface (RFC-108 (not
+    #: in this repository)).
     operator_public: bool = False
 
     @property

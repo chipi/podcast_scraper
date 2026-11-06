@@ -1,4 +1,4 @@
-"""The summary use case's helpers (RFC-127): each is a no-op for the episode summary, so a
+"""The summary use case's helpers: each is a no-op for the episode summary, so a
 provider's ``summarize`` behaves exactly as before when no use case is passed."""
 
 from __future__ import annotations

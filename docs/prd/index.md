@@ -75,7 +75,7 @@ Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers —
 ([PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) -- distinct from viewer
 [PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md)), viewer operator surface
 ([PRD-030](PRD-030-viewer-feed-sources-and-pipeline-jobs.md)), and the Consumer Learning Platform
-roll-out (PRD-035–042 / RFC-098–101). Several Draft PRDs not indexed: experiments (PRD-007),
+roll-out. Several Draft PRDs not indexed: experiments (PRD-007),
 governance (PRD-015), Postgres projection (PRD-018), diarization (PRD-020), topic view (PRD-026),
 enriched search (PRD-027), position tracker (PRD-028), person profile (PRD-029).
 

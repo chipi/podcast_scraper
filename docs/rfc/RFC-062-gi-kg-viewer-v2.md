@@ -956,8 +956,7 @@ v2.7 (#50, #347)
 ├── src/podcast_scraper/server/
 │   ├── app.py (enable_viewer=True, enable_platform=True)
 │   └── routes/ (+ feeds, episodes, jobs, status)
-├── web/gi-kg-viewer/
-│   └── src/views/ (+ FeedsView, EpisodesView, JobsView, SettingsView)
+├── web/gi-kg-viewer/ (+ FeedsView, EpisodesView, JobsView, SettingsView)
 └── podcast serve --output-dir --platform
 
 v2.7+ (#46, megasketch)

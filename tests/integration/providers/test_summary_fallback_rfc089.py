@@ -1,4 +1,4 @@
-"""Integration test for RFC-089 #5 summarization provider-swap fallback.
+"""Integration test for RFC-089 (not in this repository) #5 summarization provider-swap fallback.
 
 Verifies the full path: profile → orchestration._create_summarization_provider →
 FallbackAwareSummarizationProvider wrapper → fallback provider invoked when
@@ -220,7 +220,7 @@ class TestRfc089SummaryFallbackWiring:
 
 @pytest.mark.integration
 class TestRfc089GiEvidenceFallbackWiring:
-    """RFC-089 #5 also applies to GI evidence quote / entailment providers.
+    """RFC-089 (not in this repository) #5 also applies to GI evidence quote / entailment providers.
 
     Three cases:
 

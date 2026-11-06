@@ -122,7 +122,7 @@ invariant intact for fallback too.
 `transcription: moss → dgx-whisper → local whisper → openai`;
 `diarization: dgx pyannote → local pyannote → deepgram`. `is_infra_failure` cascades on
 timeouts/5xx/connection-blips/guardrail-garbage and stops on content-deterministic failures
-(payload-limit, non-429 4xx). The LLM chain keeps RFC-089's cascade-on-any contract.
+(payload-limit, non-429 4xx). The LLM chain keeps RFC-089 (not in this repository)'s cascade-on-any contract.
 
 ## Non-goals
 

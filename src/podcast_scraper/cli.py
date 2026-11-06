@@ -1252,7 +1252,9 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         dest="dgx_tailnet_host",
         help=(
-            "MagicDNS hostname (or IP) for DGX (RFC-089 / #814). Overrides any value "
+            "MagicDNS hostname (or IP) for DGX (RFC-089 (not in this repository) / #814). "
+            "Overrides "
+            "any value "
             "set by the profile. Used by tailnet_dgx_whisper + Stage B chaos tests."
         ),
     )
@@ -2107,7 +2109,8 @@ def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
     the PROFILE (``cloud_balanced.yaml`` pins the homelab gateway) and its only override
     layer was the box's ``viewer_operator.yaml`` — which ``reprocess-prod.yml`` bypasses
     entirely by passing ``--config <profile>``. A prod reprocess therefore had NO way to
-    reach the prod-VPS gateway (ADR-142) and would silently bill the homelab one.
+    reach the prod-VPS gateway (ADR-142 (not in this repository)) and would silently bill the
+    homelab one.
 
     Args:
         parser: Argument parser to add arguments to
@@ -2118,7 +2121,8 @@ def _add_litellm_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "LiteLLM gateway base URL, overriding the profile's value "
-            "(e.g. the prod-VPS gateway per ADR-142, instead of the homelab gateway)"
+            "(e.g. the prod-VPS gateway per ADR-142 (not in this repository), instead of the "
+            "homelab gateway)"
         ),
     )
     parser.add_argument(
@@ -4423,8 +4427,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # The field validator will load it from DEEPSEEK_API_KEY env var if available
     # But allow CLI override if provided
     payload["deepseek_api_key"] = getattr(args, "deepseek_api_key", None)
-    # LiteLLM gateway base override (ADR-142: prod runs its own gateway; the profile pins
-    # homelab). Guarded on ``is not None`` so the payload never carries an explicit None.
+    # LiteLLM gateway base override (ADR-142 (not in this repository): prod runs its own gateway;
+    # the profile pins homelab). Guarded on ``is not None`` so the payload never carries an explicit
+    # None.
     #
     # NOT because the unguarded ``ollama_api_base`` write below is broken — it is not, and that
     # was measured before this comment was written: ``_load_and_merge_config`` calls
@@ -4529,9 +4534,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # only have come from the config. This kills the silent-default class of bugs where a key nobody
     # hand-copied reverted to its code default: this repo shipped resilience_* dropping to
     # serve/failover and transcript_cache_enabled un-disable-able, both via exactly this gap. The
-    # old curated allowlist (llm_pipeline_mode, the DGX routing + ADR-096 fields, …) is subsumed.
-    # A key the file wrote as ``null`` is carried as None (D20): the profile is resolved again by
-    # ``model_validate`` below, so leaving it out silently restored the profile's value.
+    # old curated allowlist (llm_pipeline_mode, the DGX routing + ADR-096 (not in this repository)
+    # fields, …) is subsumed. A key the file wrote as ``null`` is carried as None (D20): the profile
+    # is resolved again by ``model_validate`` below, so leaving it out silently restored the
+    # profile's value.
     _file_nulls: frozenset[str] = getattr(args, "_config_yaml_null_keys", frozenset())
     for _name, _field_info in config.Config.model_fields.items():
         if _name in payload:
@@ -4933,7 +4939,8 @@ def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:
         help=(
             "LiteLLM gateway base URL, overriding the profile's value. gi-repair builds its "
             "config from --config alone, and cloud_balanced pins the HOMELAB gateway — so "
-            "without this a prod repair bills homelab instead of prod's own gateway (ADR-142)"
+            "without this a prod repair bills homelab instead of prod's own gateway "
+            "(ADR-142 (not in this repository))"
         ),
     )
     parser.add_argument(

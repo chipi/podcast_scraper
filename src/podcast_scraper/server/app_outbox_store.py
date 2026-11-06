@@ -3,7 +3,7 @@
 The app enqueues ``DeliveryEnvelope``s here; the infra delivery worker (#1412) drains them over
 ``/internal/outbox/*`` (see ``routes/internal_outbox``), renders + delivers, and reports terminal
 status back. This store is the **single source of truth + the only suppression authority** — there
-is no external queue (Listmonk was dropped, ADR-144 revision).
+is no external queue (Listmonk was dropped, ADR-144 (not in this repository) revision).
 
 Layout: one ``outbox`` row per envelope (ADR-169), keyed by the envelope ``id``: the envelope, its
 status, detail and last change. ``enqueue`` dedupes on the id (re-running the same digest period is

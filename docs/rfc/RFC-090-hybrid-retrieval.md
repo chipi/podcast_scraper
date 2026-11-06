@@ -13,7 +13,6 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — third RRF signal (additive)
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router (additive)
-  - `docs/rfc/RFC-093-litm-context-packs.md` — LITM context packs (additive)
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical identity
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — enrichment layer
 - **Related UX specs**:
@@ -453,7 +452,7 @@ This RFC is the foundation of the Search initiative:
 1. **RFC-091 KG Proximity Signal** — fills the reserved third-signal slot; adds the KG-access and
    entity-resolver dependencies (which do not exist yet).
 2. **RFC-092 ML Query Router** — replaces the rules-based router once eval data exists.
-3. **RFC-093 LITM Context Packs** — consumes `RetrievalLayer` output for agent-facing MCP packs.
+3. **LITM Context Packs** — consumes `RetrievalLayer` output for agent-facing MCP packs.
 
 **Key Distinction:**
 
@@ -499,8 +498,7 @@ Other relationships:
 ## References
 
 - **Related PRD**: `docs/prd/PRD-032-hybrid-corpus-search.md`, `docs/prd/PRD-031-search.md`
-- **Related RFC**: `docs/rfc/RFC-091-kg-proximity-signal.md`, `docs/rfc/RFC-092-ml-query-router.md`,
-  `docs/rfc/RFC-093-litm-context-packs.md`
+- **Related RFC**: `docs/rfc/RFC-091-kg-proximity-signal.md`, `docs/rfc/RFC-092-ml-query-router.md`
 - **Source Code**: `src/podcast_scraper/search/` (existing FAISS pipeline, chunker, indexer),
   `src/podcast_scraper/gi/contracts.py` (insight grounding quotes)
 - **Prerequisites**: issue #849 · **Parent epic**: issue #466 (GI/KG depth roadmap — superseded)

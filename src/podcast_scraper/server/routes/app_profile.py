@@ -88,7 +88,7 @@ async def upload_avatar(
     type / oversize / content-type mismatch."""
     # Fast-fail on a declared oversize before reading the spooled body (advisor M3). This is
     # defence-in-depth; the authoritative pre-spool cap is at the edge — `request_body max_size 3MB`
-    # scoped to this path in infra/caddy/player.caddy (Caddy 413s a multi-GB body before the app).
+    # scoped to this path in the Caddy edge config (Caddy 413s a multi-GB body before the app).
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > _MAX_BYTES + 65536:
         raise HTTPException(status_code=413, detail="Image too large (max 2 MB).")

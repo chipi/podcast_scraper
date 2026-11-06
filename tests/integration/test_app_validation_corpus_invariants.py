@@ -31,7 +31,7 @@ def _data(name: str) -> dict:
 
 def test_all_corpus_level_enricher_artifacts_present() -> None:
     """Every corpus-scope enricher a surface reads must have a committed artifact — no mock-only
-    surfaces. (topic_similarity is the ADR-108-round fixture gap this PR closes.)"""
+    surfaces. (topic_similarity is the fixture gap this PR closes.)"""
     required = {
         "temporal_velocity",
         "topic_theme_clusters",

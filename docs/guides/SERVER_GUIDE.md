@@ -142,7 +142,7 @@ This guide covers **running and extending** the server (below); the HTTP API Ref
 
 ## MCP server (agent tools)
 
-Separate from the HTTP API, the **generic MCP server** (PRD-034 / RFC-095) exposes the
+Separate from the HTTP API, the **generic MCP server** (PRD-034) exposes the
 platform's read capabilities as composable, read-only tools for agentic clients (Claude
 Desktop/Code, Cursor). It is **library-wrapped** (the corpus directory is the read context)
 and runs over **either transport** — the tool layer is transport-agnostic:
@@ -153,7 +153,7 @@ podcast mcp --corpus /path/to/corpus                 # stdio (local; no auth; ag
 podcast mcp --corpus /path/to/corpus --transport http --host 127.0.0.1 --port 8009   # remote
 ```
 
-**Remote transport (RFC-112).** `--transport http` serves Streamable HTTP behind a bearer-auth
+**Remote transport.** `--transport http` serves Streamable HTTP behind a bearer-auth
 ASGI middleware: every connection presents an OAuth 2.1 access token or a personal-access token,
 which the server verifies against the app's private-network-only `/internal/mcp/verify` seam (it never
 mounts the user store) and 401s otherwise. It also serves the public RFC 9728 protected-resource
@@ -162,7 +162,7 @@ with `APP_MCP_RESOURCE_URL` (discovery), and optional `APP_MCP_ALLOWED_ORIGINS` 
 production this runs as the `mcp` container fronted by `mcp.<domain>` — see
 Player launch — MCP + PLATFORM_API — MCP access.
 
-**Tools (RFC-095):** `resolve_entity` (name → canonical id — call first) and
+**Tools:** `resolve_entity` (name → canonical id — call first) and
 `search_corpus` (hybrid two-tier; tiers + intent + grounded evidence) from slice 1; plus
 the relational traversals (slice 2): `person_positions`, `who_said_about_topic`,
 `cross_show_synthesis`, `insights_about_entity`, `topic_entities`, `related_insights`,
@@ -173,7 +173,7 @@ result-set operators (`cluster_search`, `consensus_search`), enrichment signals,
 (`entity_neighborhood`, `ego_network`, `bridge`, …), and composites (`entity_dossier`,
 `episode_digest`) — **38 tools** total (`grep -c '@server.tool()' src/podcast_scraper/mcp/server.py`).
 (`corpus_digest` is intentionally omitted — agents compose `search_corpus` + `list_episodes`
-instead of a recency view.) Full catalogue: RFC-095.
+instead of a recency view.)
 
 ## Route conventions
 

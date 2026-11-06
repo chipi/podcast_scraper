@@ -177,7 +177,8 @@ class TestTheHashIsLabelFree:
 
     def test_it_changes_with_the_model(self) -> None:
         """Two runs of the same source through different models are different translations, and
-        the corpus has to be able to tell — ADR-143/144's reasoning, at claim level."""
+        the corpus has to be able to tell — ADR-143 (not in this repository)/144's
+        reasoning, at claim level."""
         assert target_units_sha256(_doc()) != target_units_sha256(
             _doc(model="google/translategemma-27b-it")
         )

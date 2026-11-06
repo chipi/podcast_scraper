@@ -1,4 +1,4 @@
-"""Infra config validation gate (#1163 / #1160 / ADR-114..111).
+"""Infra config validation gate (#1163 / #1160 / ADR-114 (not in this repository)..111).
 
 The edge/deploy configs were only ever hand-verified by one-off boots. These turn the
 safety-relevant properties into automated checks:
@@ -70,7 +70,7 @@ _HAS_SHELLCHECK = shutil.which("shellcheck") is not None
 
 
 def test_viewer_nginx_preserves_forwarded_proto() -> None:
-    # RFC-108: the operator-public viewer sits behind Caddy (TLS) on a plain-http
+    # RFC-108 (not in this repository): the operator-public viewer sits behind Caddy (TLS) on a plain-http
     # loopback hop, so nginx's own $scheme is always "http". Forwarding that
     # verbatim makes the api build an http:// OAuth redirect_uri → Google
     # redirect_uri_mismatch. It must preserve Caddy's X-Forwarded-Proto instead.
@@ -99,7 +99,7 @@ def test_viewer_dsn_is_injected_at_container_start() -> None:
 
 
 def test_viewer_nginx_rate_limits_api() -> None:
-    # RFC-108 / T-06: the operator-public viewer must rate-limit like the player nginx,
+    # RFC-108 (not in this repository) / T-06: the operator-public viewer must rate-limit like the player nginx,
     # keyed on the REAL client IP (real_ip recovers it from XFF), with a tighter zone on
     # the auth endpoints. Without this the operator API has no per-IP origin throttle.
     conf = VIEWER_NGINX_CONF.read_text()

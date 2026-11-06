@@ -1,6 +1,6 @@
 # RFC-043: Automated Metrics Alerts
 
-- **Status**: Completed via redirect (v2.7) — proactive alerting moved to operator-side wiring on Sentry + Grafana + Langfuse (the deployed o11y surface). The original RFC plan to ship `scripts/generate_pr_comment.py` + `scripts/send_webhook_alert.py` was abandoned in favour of letting alert thresholds live where the signal lives (vendor side). The codebase already emits everything alerts need; operator-facing alerting recipes (Sentry error/perf rules, Grafana panel alerts on `metrics/history.jsonl`, Langfuse cost alerts) live in `docs/guides/OBSERVABILITY_EXTENSIONS.md` §Operator alerting. The nightly `alerts[]` detection in `scripts/dashboard/generate_metrics.py` (`detect_deviations()`) still ships and feeds into the Grafana panels. RFC body kept as historical design record.
+- **Status**: Completed via redirect (v2.7) — proactive alerting moved to operator-side wiring on Sentry + Grafana + Langfuse (the deployed o11y surface). The original RFC plan to ship `scripts/generate_pr_comment.py` + `scripts/send_webhook_alert.py` was abandoned in favour of letting alert thresholds live where the signal lives (vendor side). The codebase already emits everything alerts need; operator-facing alerting recipes (Sentry error/perf rules, Grafana panel alerts on `metrics/history.jsonl`, Langfuse cost alerts) live in the infrastructure repository's observability extensions guide (§Operator alerting). The nightly `alerts[]` detection in `scripts/dashboard/generate_metrics.py` (`detect_deviations()`) still ships and feeds into the Grafana panels. RFC body kept as historical design record.
 - **Related ADRs**:
   - [ADR-047: Proactive Metric Regression Alerting](../adr/ADR-047-proactive-metric-regression-alerting.md)
 - **Authors**:
@@ -418,9 +418,8 @@ Repository secrets to add:
 ### Files to Update
 
 1. `docs/ci/METRICS.md` - Add PR comment and webhook sections
-2. `docs/ci/WORKFLOWS.md` - Document alert workflow steps
-3. `docs/rfc/RFC-026-metrics-consumption-and-dashboards.md` - Update to reference RFC-040 for Phase 4
-4. `README.md` - Optional: Add note about PR metric comments
+2. `docs/rfc/RFC-026-metrics-consumption-and-dashboards.md` - Update to reference RFC-040 for Phase 4
+3. `README.md` - Optional: Add note about PR metric comments
 
 ### Example Documentation
 

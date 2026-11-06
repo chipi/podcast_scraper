@@ -172,7 +172,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 - **7 deterministic** (pure Python over KG/GI, no model / no network): `grounding_rate`, `guest_coappearance`, `insight_density` (episode), `insight_sentiment` (episode — per-Insight VADER compound + neg/neu/pos, the conversation-timeline colour layer), `temporal_velocity`, `topic_cooccurrence_corpus`, `topic_theme_clusters`.
 - **1 embedding**: `topic_similarity` (per-Topic Top-K cosine neighbours; validated recall@10 99%, top_k tuned to 7, #1105).
-- **1 ML — `topic_consensus` (promoted)**: the ADR-108 reimagining of the retired 0%-precision `nli_contradiction` — cross-Person corroboration via a composite of **embedding cosine + low NLI contradiction** (no LLM); precision 0.91 on prod-v2, so the accuracy gate admits it. Its sibling `stance_disagreement`/`stance_timeline` was **retired**: the eval showed the stance signal is genuinely absent on factual insights, and per-person / per-topic stance-over-time is better served as a **read-time CIL query** (`conversation-arc` / `position-arc`) coloured by `insight_sentiment` — not a gated ML enricher. See ADR-108.
+- **1 ML — `topic_consensus` (promoted)**: the reimagining of the retired 0%-precision `nli_contradiction` — cross-Person corroboration via a composite of **embedding cosine + low NLI contradiction** (no LLM); precision 0.91 on prod-v2, so the accuracy gate admits it. Its sibling `stance_disagreement`/`stance_timeline` was **retired**: the eval showed the stance signal is genuinely absent on factual insights, and per-person / per-topic stance-over-time is better served as a **read-time CIL query** (`conversation-arc` / `position-arc`) coloured by `insight_sentiment` — not a gated ML enricher.
 - **1 query enricher**: `query_topic_relatedness` decorates `/api/search` hits with `topic_similarity` neighbours inline (per-request, not a batch envelope).
 
 **Accuracy gate (data-driven admission):** an enricher may declare an `accuracy_gate` (a precision floor) on its manifest. `enrichment/eval/admission.py` reads the latest `data/eval/enrichment/<id>/gate_metrics.json` and, through `profile_sets._admit`, filters the registry → profiles → UI: a gated enricher stays **dark** until an eval records passing precision, and auto-promotes with no code edit once one does. Profiles list *candidates*; the gate decides membership. This is the firewall that keeps the 0%-precision disagreement detectors from surfacing fabricated signals. The live cross-speaker surface is instead **`perspectives`** (#1146) — a CIL query over the GI (not an enricher, so it sidesteps the gate).
@@ -244,7 +244,7 @@ multi-feed semantics, and behavioral details see the
 | `workflow/` | Orchestration, stages, degradation, corpus ops, run tracking | [Pipeline Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
 | `rss/` | RSS parsing (`defusedxml`), HTTP downloads, feed cache | [RSS Guide](../guides/RSS_GUIDE.md) |
 | `providers/` | 9 unified providers (ML, Hybrid, 7 LLM); factories, capabilities, prompts | [Provider Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) |
-| `providers/tailnet_dgx/` | Self-hosted GPU inference providers: whisper transcription + pyannote diarization over a private network | ADR-096 |
+| `providers/tailnet_dgx/` | Self-hosted GPU inference providers: whisper transcription + pyannote diarization over a private network | ADR-096 (not in this repository) |
 | `providers/resilience/` | Deployment-agnostic primitives: `CircuitBreaker`, `TimeoutLike`, `run_with_watchdog`, `hardened_http_client` (TCP keepalive + `Connection: close`). Used by `tailnet_dgx/*` today; available to any provider that needs connection-level resilience. | [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md) |
 | `providers/guardrails/` | Response-shape sanity checks: `check_chat_response`, `check_whisper_response`, `check_diarization_response` — raise `GuardrailViolation` when a `200 OK` response contains semantically-corrupted content (empty, thinking-prose, `finish_reason=length`, malformed JSON). Wired at every chat-completion call site across cloud + self-hosted providers. | [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md), [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md) |
 | `gi/` | Grounded Insight Layer extraction (PRD-017) | [GI Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) |
@@ -336,17 +336,12 @@ graph TB
         CorpusScope[search/corpus_scope.py]
     end
 
-    subgraph "Corpus Topic Clustering (RFC-075)"
-        TopicClusters[search/topic_clusters.py]
-    end
-
     subgraph "Server Layer"
         ServerApp[server/app.py]
         ServerRoutes[server/routes/]
         ServerSchemas[server/schemas.py]
         CorpusCatalog[server/corpus_catalog.py]
         CorpusDigest[server/corpus_digest.py]
-        CorpusTopicClusters[server/routes/corpus_topic_clusters.py]
         IndexRebuild[server/index_rebuild.py]
         IndexStaleness[server/index_staleness.py]
     end
@@ -387,7 +382,6 @@ graph TB
     ServerRoutes --> ServerSchemas
     ServerRoutes --> CorpusCatalog
     ServerRoutes --> CorpusDigest
-    ServerRoutes --> CorpusTopicClusters
     ServerRoutes --> CorpusSearch
     ServerRoutes --> IndexRebuild
     ServerRoutes --> IndexStaleness
@@ -399,7 +393,6 @@ graph TB
     SearchIndexer --> Chunker
     CorpusSearch --> LanceBackend
     CorpusSimilar --> CorpusSearch
-    LanceBackend -. optional read .-> TopicClusters
     Workflow --> RSSParser
     Workflow --> EpisodeProc
     Workflow --> Downloader

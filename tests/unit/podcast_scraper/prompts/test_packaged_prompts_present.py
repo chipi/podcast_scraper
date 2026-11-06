@@ -35,7 +35,7 @@ def _prompts_root() -> Path:
 @pytest.mark.parametrize(
     "rel_path",
     [
-        # Board summaries (RFC-127): the board-summarizer sidecar runs on a wheel-installed image.
+        # Board summaries: the board-summarizer sidecar runs on a wheel-installed image.
         "shared/summarization/board_system_v1.j2",
         "shared/summarization/board_user_v1.j2",
         "shared/summarization/board_document_v1.j2",

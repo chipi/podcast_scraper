@@ -648,7 +648,7 @@ def test_transcription_performance(benchmark):
 - [ ] `make deps-check-cycles` detects circular imports
 - [ ] Nightly CI includes dependency analysis
 - [ ] `make pre-release` validates release readiness
-- [ ] All tools documented in ci/WORKFLOWS.md
+- [ ] All tools documented
 
 ## Related Documentation
 

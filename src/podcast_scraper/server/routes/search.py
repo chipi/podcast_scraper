@@ -272,7 +272,7 @@ async def search_compare(
 ) -> SearchCompareResponse:
     """Search v3 §S8 — Compare 2 subjects.
 
-    Wraps ``search.compare.compare_subjects`` (which itself wraps the RFC-093
+    Wraps ``search.compare.compare_subjects`` (which itself wraps the
     ``build_briefing_pack`` twice — one call per side). Judge summary is
     deterministic (no LLM) and muted when either side is ungrounded.
     """

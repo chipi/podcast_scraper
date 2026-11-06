@@ -3,7 +3,7 @@
  * PRD-033 FR6.1 — retrieval-grounded topic briefing cards (#888).
  *
  * Each card is grounded in a *direct retrieval query*, not a briefing pack
- * (the MCP briefing-pack form is orthogonal, RFC-093): the digest topic bands are
+ * (the MCP briefing-pack form is orthogonal): the digest topic bands are
  * already built by running a semantic search per topic (`run_corpus_search`), so each
  * band's best-scored hit is the top segment + score. For topics that map to a KG node
  * we additionally pull the top cross-show insight from the relational layer

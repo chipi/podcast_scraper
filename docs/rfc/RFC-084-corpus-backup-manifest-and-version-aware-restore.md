@@ -7,17 +7,14 @@
 - **Tracking**: [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763)
 - **Related RFCs**:
   - RFC-081 — Phase 1E corpus backup context
-  - RFC-082 — always-on host backup story
+  - RFC-082 (not in this repository) — always-on host backup story
   - [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) — **`corpus_manifest.json`** at corpus parent (distinct from **snapshot** manifest)
   - [RFC-004](RFC-004-filesystem-layout.md) — on-disk layout evolution
 - **Related ADRs**:
   - [ADR-074](../adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md) — operational corpus parent artifacts (not tarball metadata)
   - [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) — accepted policy and contract for this RFC
 - **Related Documents**:
-  - `.github/workflows/backup-corpus-prod.yml`, `backup-corpus.yml`
-  - `.github/workflows/drill-restore-corpus.yml`, `prod-restore-corpus.yml`
-  - `docs/guides/DR_DRILL_RUNBOOK.md`, `docs/guides/PROD_RUNBOOK.md`
-  - `docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md` — **operator hub**: local `make` vs GitHub Actions (prod, pre-prod, DR)
+  - the backup and restore workflows, the DR drill and production runbooks, and the corpus snapshot operator hub (local `make` vs GitHub Actions: prod, pre-prod, DR) live in the infrastructure repository
 
 ## Abstract
 
@@ -197,7 +194,7 @@ Given deploy **reader** compatibility `[min,max]` and a list of backup candidate
 
 | Layer | Responsibility |
 | ----- | -------------- |
-| **Repo scripts** | Canonical helpers under `scripts/ops/corpus_snapshot/`: **`emit_manifest.sh`**, **`finalize_backup_bundle.sh`**, **`validate_snapshot_manifest.sh`**, **`select_release_tag.sh`**, **`download_and_verify_snapshot.sh`**, **`restore_corpus_release.sh`**; prod workflows call **`resolve_latest_snapshot_prod_tag.sh`**. |
+| **Repo scripts** | Canonical helpers (in the infrastructure repository): **`emit_manifest.sh`**, **`finalize_backup_bundle.sh`**, **`validate_snapshot_manifest.sh`**, **`select_release_tag.sh`**, **`download_and_verify_snapshot.sh`**, **`restore_corpus_release.sh`**; prod workflows call **`resolve_latest_snapshot_prod_tag.sh`**. |
 | **Makefile** | **`corpus-snapshot-manifest-validate`**, **`corpus-snapshot-select-tag`**, **`corpus-snapshot-select-tag-prod`**, **`corpus-snapshot-selftest`**, **`restore-corpus`** (codespace layout), **`restore-corpus-prod`** (VPS layout). Unset **`PODCAST_BACKUP_TAG`** → newest-compatible selection; set pin → skip scan but still validate when a sibling manifest exists. **`codespace-backup-cloud`** / **`backup-corpus.yml`** own cloud emit. |
 | **Workflows** | **`backup-corpus-prod.yml`**, **`backup-corpus.yml`**: after tarball build, **`finalize_backup_bundle.sh`**, upload **`snapshot.tgz`** + sibling **`snapshot.manifest.json`** when **`dry_run`** is false. **`drill-restore-corpus.yml`**, **`prod-restore-corpus.yml`**: **`resolve_latest_snapshot_prod_tag.sh`** (or pin), runner **`download_and_verify_snapshot.sh`**, host restore via **`restore_corpus_from_tarball_host.sh`**. |
 | **CI** | Optional: **`make`**-driven check job (or workflow step) that runs manifest validation on fixtures and/or tests the selection helper with golden JSON; optional path guard when “breaking” corpus layout paths change without a documented `corpus_format_version` bump (see §9). |
@@ -208,7 +205,7 @@ Given deploy **reader** compatibility `[min,max]` and a list of backup candidate
 
 ### 6. Backup workflows
 
-**Scope**: `.github/workflows/backup-corpus-prod.yml`, `backup-corpus.yml`, and any drill-specific
+**Scope**: the `backup-corpus-prod.yml` and `backup-corpus.yml` workflows, and any drill-specific
 backup if present.
 
 **Steps (conceptual)**
@@ -224,7 +221,7 @@ risk is high; schema and RFC can land earlier.
 
 ### 7. Restore workflows and scripts
 
-**Scope**: `.github/workflows/drill-restore-corpus.yml`, `prod-restore-corpus.yml`, shared restore
+**Scope**: the `drill-restore-corpus.yml` and `prod-restore-corpus.yml` workflows, shared restore
 scripts called by them, and **`restore-corpus`** / **`restore-corpus-prod`** in the `Makefile`.
 
 1. Resolve reader supported range (from env baked into image, or from a small repo file read by the
@@ -273,7 +270,7 @@ scripts called by them, and **`restore-corpus`** / **`restore-corpus-prod`** in 
 Resolved in implementation:
 
 1. **`snapshot.manifest.json` at tarball archive root** (alongside `corpus/` or `.codespace_corpus/`).
-2. **Drill restore** uses **`snapshot-prod-*`** tags via `scripts/ops/resolve_latest_snapshot_prod_tag.sh` (same as prod).
+2. **Drill restore** uses **`snapshot-prod-*`** tags via `resolve_latest_snapshot_prod_tag.sh` (same as prod).
 3. **Reader range** in `config/corpus_snapshot_reader_support.json`; producer format in `config/corpus_snapshot_format.json`.
 
 ## References

@@ -42,7 +42,7 @@ PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 # GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
-# Consumer Learning Player (Vue + Vite + Playwright; Epic 2 / RFC-099). Separate top-level app.
+# Consumer Learning Player (Vue + Vite + Playwright; Epic 2). Separate top-level app.
 
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
@@ -212,7 +212,7 @@ help:
 	@echo "  make coverage-enforce        Fast threshold check on existing .coverage (used by ci)"
 	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
 	@echo ""
-	@echo "Infrastructure (RFC-082 prod VPS):"
+	@echo "Infrastructure (RFC-082 (not in this repository) prod VPS):"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
@@ -3181,7 +3181,7 @@ validate-files-unit:
 
 
 dgx-smoke:
-	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
+	@# RFC-089 (not in this repository): probe DGX Ollama via tailnet (non-fatal when DGX offline).
 	@# Auto-sources infra/.env.dgx.local (added with #897 / ADR-098) if present.
 	@if [ -f infra/.env.dgx.local ]; then set -a && . ./infra/.env.dgx.local && set +a; fi; \
 		if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \

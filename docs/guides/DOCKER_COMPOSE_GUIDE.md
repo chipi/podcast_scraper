@@ -351,7 +351,7 @@ make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 The `compose/docker-compose.stack.yml` + `compose/docker-compose.stack-test.yml` setup ships everything you need for a single-corpus, single-host deployment. To take it production-ish:
 
 1. **Drop the `mock-feeds` service.** Remove `compose/docker-compose.stack-test.yml` from your `-f` chain (or write a thin overlay that omits it). Real RSS URLs go in `feeds.spec.yaml` directly via the UI.
-2. **Add restart policies.** Merge [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) — adds `restart: unless-stopped` for `api` and `viewer`.
+2. **Add restart policies.** Merge a production overlay — adds `restart: unless-stopped` for `api` and `viewer`.
 3. **Externalise the corpus volume.** Change `corpus_data` to an external named volume so it survives `docker compose down -v`. Or bind-mount a host path.
 4. **Front the viewer with HTTPS.** Put a reverse proxy (Caddy, Traefik, Nginx) in front of `viewer:80` — the SPA itself doesn't terminate TLS.
 5. **Lock down the API.** The current setup assumes the viewer host is trusted. Add network policies or an authenticating proxy if `:8090` is reachable from anywhere outside the host.

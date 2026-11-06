@@ -1,4 +1,4 @@
-"""Unit tests for the segments contract mapper (#1067, RFC-098 §5).
+"""Unit tests for the segments contract mapper (#1067).
 
 Pure functions — no HTTP, no disk.
 """

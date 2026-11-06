@@ -1,4 +1,4 @@
-"""Unit tests for embedding_loader remote DGX path (RFC-089)."""
+"""Unit tests for embedding_loader remote DGX path (RFC-089 (not in this repository))."""
 
 from __future__ import annotations
 

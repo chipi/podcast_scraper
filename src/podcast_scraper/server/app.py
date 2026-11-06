@@ -89,7 +89,7 @@ def serve_feature_kwargs_from_environ() -> dict[str, bool | str | None]:
 
 
 def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None:
-    """Set consumer-platform auth/session state from env (RFC-098 §2; #1063).
+    """Set consumer-platform auth/session state from env (#1063).
 
     Auth stays inert until a session secret + OAuth creds are configured — the routes
     return 401/503 otherwise. Per-user data lives under ``APP_DATA_DIR`` (or
@@ -116,7 +116,7 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # Seed a fixed dev roster (1 admin / 2 creators / 2 listeners, mock identities) when
     # APP_SEED_USERS_FILE is set — so a fresh local platform has known users in the admin surface.
     seed_from_env(app.state.app_data_dir)
-    # Personalized discovery ranking (PRD-043 FR4 / #1098) — OFF by default; the discovery feed
+    # Personalized discovery ranking (#1098) — OFF by default; the discovery feed
     # falls back to recency until this toggle is flipped (gated until the score is tuned).
     app.state.personalized_ranking = _env_truthy("APP_PERSONALIZED_RANKING")
     # Derived interests (#1139) — when ON (and personalization is on), discovery also ranks by
@@ -206,8 +206,8 @@ _OPERATOR_READ_ROUTES = (
     # Deliberately NOT in _OPERATOR_PUBLIC_READ_ROUTES (mutates) and NOT mounted on the player.
     corpus_rollback,
 )
-# RFC-108: the CURATED subset of operator-read routers safe for the PUBLIC operator
-# surface (operator.closelistening.app). This is ``_OPERATOR_READ_ROUTES`` MINUS the ones
+# RFC-108 (not in this repository): the CURATED subset of operator-read routers safe for the PUBLIC
+# operator surface (operator.closelistening.app). This is ``_OPERATOR_READ_ROUTES`` MINUS the ones
 # that mutate / control:
 #   - ``index_rebuild`` (rebuilds the index — compute/write)
 #   - ``ops`` (operational controls)
@@ -235,7 +235,7 @@ _OPERATOR_PUBLIC_READ_ROUTES = (
     corpus_enrichments,
     cil,
 )
-# Consumer Learning Platform API (RFC-098): slug-addressed routes under their own
+# Consumer Learning Platform API: slug-addressed routes under their own
 # ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted. These are the platform's own:
 # sign-in, accounts, preferences, profile and the graph-event log the operator viewer also uses.
 # The player's routes come from its extension (ADR-168).
@@ -256,8 +256,8 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
     - **full** (tailnet operator, default): all ``_OPERATOR_READ_ROUTES``, **ungated** —
       tailnet privacy is the gate.
     - **app_only** (public player, #1163 / ADR-116): none of them — low-privilege backend.
-    - **operator_public** (RFC-108, public operator surface): only the CURATED
-      ``_OPERATOR_PUBLIC_READ_ROUTES`` subset, each mounted with a **router-level ≥creator
+    - **operator_public** (RFC-108 (not in this repository), public operator surface): only the
+      CURATED ``_OPERATOR_PUBLIC_READ_ROUTES`` subset, each mounted with a **router-level ≥creator
       gate** (``require_viewer_access``). ``index_rebuild`` / ``ops`` are NOT mounted here.
     """
     app.include_router(health.router, prefix="/api")
@@ -355,11 +355,11 @@ def _start_dev_metrics_pusher() -> None:
 
 
 def _guard_operator_public_open_signup(operator_public: bool, data_dir: Path | None = None) -> None:
-    """RFC-108 hardening: the operator-public viewer self-grants ``creator`` via its
-    ``?grant=creator`` login hint, so the email allowlist is the ONLY authZ boundary on
-    the operator-read corpus. ``APP_SIGNUP_MODE=open`` drops that boundary and would expose
-    the corpus to any authenticated Google account — refuse to boot rather than silently
-    serve it wide open (one env flip should not open the whole surface).
+    """RFC-108 (not in this repository) hardening: the operator-public viewer self-grants
+    ``creator`` via its ``?grant=creator`` login hint, so the email allowlist is the ONLY authZ
+    boundary on the operator-read corpus. ``APP_SIGNUP_MODE=open`` drops that boundary and
+    would expose the corpus to any authenticated Google account — refuse to boot rather than
+    silently serve it wide open (one env flip should not open the whole surface).
 
     Checks the EFFECTIVE policy, not just env (#2190). The runtime policy file overrides env at
     sign-in, so a persisted ``mode: open`` opens this surface exactly as the env flag would — and
@@ -792,8 +792,9 @@ def create_app(
     # here too, belt-and-suspenders, so the privileged surface can never mount on a
     # public deployment even if a flag env leaks in.
     app_only = _env_truthy("PODCAST_SERVE_APP_ONLY")
-    # RFC-108: public operator surface — curated operator-read subset, each ≥creator-gated.
-    # A separate least-privilege deployment (no docker.sock, no keys) like the player.
+    # RFC-108 (not in this repository): public operator surface — curated operator-read subset, each
+    # ≥creator-gated. A separate least-privilege deployment (no docker.sock, no keys) like the
+    # player.
     operator_public = _env_truthy("PODCAST_SERVE_OPERATOR_PUBLIC")
     if app_only or operator_public:
         # Public deployments never mount the privileged flag-gated routers
@@ -812,15 +813,16 @@ def create_app(
     app.state.output_dir = resolved_output
     _configure_platform_auth(app, resolved_output)
 
-    # RFC-108 hardening — refuse operator-public boot under open signup (see the helper). AFTER
-    # _configure_platform_auth because it now inspects the PERSISTED policy too, which needs
-    # app_data_dir resolved; a persisted `mode: open` opens this surface exactly as the env flag
-    # would, and used to boot clean because the guard read only the environment (#2190).
+    # RFC-108 (not in this repository) hardening — refuse operator-public boot under open signup
+    # (see the helper). AFTER _configure_platform_auth because it now inspects the PERSISTED policy
+    # too, which needs app_data_dir resolved; a persisted `mode: open` opens this surface exactly as
+    # the env flag would, and used to boot clean because the guard read only the environment
+    # (#2190).
     _guard_operator_public_open_signup(operator_public, app.state.app_data_dir)
 
     # MUST stay below _configure_platform_auth: extensions read app.state.app_data_dir here. The
     # digest gauges once shipped reading None from a call placed above it, and exported nothing
-    # (#2119); tests/integration/server/test_app_digest_health_wiring.py pins the order.
+    # (#2119); a test pins the order.
     run_app_configured(app)
     _install_job_age_metrics(app)
     _install_version_metrics(app)

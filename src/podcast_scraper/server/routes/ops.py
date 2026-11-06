@@ -59,9 +59,9 @@ def ops_cache_stats() -> dict:
     return {"namespaces": perf_cache.stats(), **extension_cache_stats()}
 
 
-#: The 11 credentials deploy-prod stages into tmpfs (ADR-115) — mirrors
-#: .github/actions/stage-prod-secrets. On 2026-08-18 the ENTIRE staging dir was missing and it
-#: took ~5 hours, two wrong diagnoses, a deleted live key and three deploys to establish that.
+#: The 11 credentials deploy-prod stages into tmpfs (ADR-115 (not in this repository)) — mirrors
+#: the deploy workflow's secret-staging action. On 2026-08-18 the ENTIRE staging dir was missing and
+#: it took ~5 hours, two wrong diagnoses, a deleted live key and three deploys to establish that.
 #: GET /api/ops/secrets/status answers it in one request (#1690).
 _EXPECTED_SECRETS = (
     "openai_api_key",

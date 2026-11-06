@@ -638,7 +638,7 @@ in `docs/architecture/MULTILINGUAL_ARC_V2.md` §10 and triggered by tier 2.
 
 ### 6. API, player and search
 
-- **Segments contract** (`GET /api/app/episodes/{slug}/segments`, `server/routes/app_episodes.py:463`)
+- **Segments contract** (`GET /api/app/episodes/{slug}/segments`)
   gains `?lang=`: default source-language segments (unchanged for English); `lang=en` on a translated
   episode serves English unit-level cues. `SegmentsResponse` gains additive `language`,
   `machine_translated` and `translation_model` (it is a plain `BaseModel`, so this is safe).

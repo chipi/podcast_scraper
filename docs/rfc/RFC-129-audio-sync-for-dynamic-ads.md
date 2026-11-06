@@ -3,9 +3,6 @@
 - **Status**: Implemented (2026-10-16), not yet deployed; not yet tried on an iOS or Android device
 - **Authors**: Marko, Claude (Opus 5.5)
 - **Stakeholders**: Consumer App (player, iOS, Android, web), Server API, Ops (audio archive)
-- **Related RFCs**:
-  - `docs/rfc/RFC-126-discover-rails-reasons-paging-and-reels.md` (short listens and Learn stitch
-    clips across episodes; they need clip times that are right for the listener)
 - **Related Documents**:
   - the audio archive (deployment side; the archive this design reads its reference from)
   - `docs/recipes/audio-timing-drift.md` (the runbook: the one-off backfill, checks, diagnosis)

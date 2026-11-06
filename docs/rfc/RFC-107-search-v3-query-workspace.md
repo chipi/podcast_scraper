@@ -8,7 +8,7 @@
   - [RFC-090](RFC-090-hybrid-retrieval.md) — hybrid retrieval (**do not re-enable native combine**; #1205)
   - [RFC-094](RFC-094-search-powered-surfaces-query-layer.md) — relational query layer + `activeSearchContext` + `PanelRetrievalStore` (**shipped**; Search v3 composes with, does not replace)
   - [RFC-088](RFC-088-enrichment-layer-architecture.md) — enrichment layer + `QueryEnricher` (**shipped**)
-  - RFC-093 — `build_briefing_pack` (**shipped**; Compare operator source)
+  - `build_briefing_pack` (**shipped**; Compare operator source)
   - [RFC-092](RFC-092-ml-query-router.md) — query router (5-class intent taxonomy)
   - [RFC-091](RFC-091-kg-proximity-signal.md) — KG proximity as retrieval signal (**REJECTED** 2026-06-03; do NOT use)
   - [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) — canonical identity + compound-lift contract (KL1 shipped; KL5 CONTRADICTS is v3+)
@@ -17,7 +17,6 @@
 - **Related ADRs**:
   - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
   - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
-  - ADR-108 — `topic_consensus` activated; `stance_*` retired
   - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's Section 8 conforms)
 - **Related incident**: #1205 — LanceDB native hybrid combine SIGSEGV (fix `0fe0854b`)
 
@@ -33,7 +32,7 @@ See PRD-045 §Background. Concretely:
 
 1. **IA**: search sits in a 288 px left column with a slide mode-switch (`shell.leftPanelSurface`) that hides Explore behind Search or vice-versa. It is not addressable as a top-level tab; from Digest/Library/Graph/Dashboard, the operator must scroll to a sidebar to query.
 2. **UX**: result cards have no set-level operators; the enriched-answer panel is spec'd but gated behind an Advanced dialog; there is no shell-wide "quick query"; rails have no search launcher.
-3. **Substrate under-used**: RFC-094 (relational + `activeSearchContext` + `PanelRetrievalStore`), RFC-088 (`QueryEnricher` + `enrich_results` wiring on `/api/search`), RFC-093 (`build_briefing_pack`), ADR-108 (`topic_consensus`), the shipped intent router (RFC-092) — all shipped, all thinly surfaced.
+3. **Substrate under-used**: RFC-094 (relational + `activeSearchContext` + `PanelRetrievalStore`), RFC-088 (`QueryEnricher` + `enrich_results` wiring on `/api/search`), `build_briefing_pack`, `topic_consensus`, the shipped intent router (RFC-092) — all shipped, all thinly surfaced.
 4. **Test/eval/perf**: no synthetic-corpus search tier-3, no labelled query set, no CDP-based perf baseline.
 5. **Reliability**: #1205 (SIGSEGV) proved that the native LanceDB hybrid combine path is not safe under our workload. The v3 changes MUST NOT reintroduce that call chain.
 6. **Persistence**: an initial draft of §8 proposed per-corpus JSON for saved queries; ADR-119 explicitly rejects that (corpus is transient). Saved queries must be per-user via USERPREFS-1.
@@ -127,11 +126,11 @@ Operator bar (`ResultSetOperatorBar.vue`) sits above the result list. Each opera
 
 | Operator | Backend module (shipped) | Client action |
 | --- | --- | --- |
-| **Cluster** | `search/insight_clusters.py` + `search/storylines.py` | Server groups hits by cluster; UI renders `ClusterGroupCard`. Fetch `top_k * 3` when Cluster is active (default; config `search.cluster.overfetch_factor`). |
+| **Cluster** | `search/insight_clusters.py` | Server groups hits by cluster; UI renders `ClusterGroupCard`. Fetch `top_k * 3` when Cluster is active (default; config `search.cluster.overfetch_factor`). |
 | **Show on graph** | client — reuse `subjectStore.focusHit` per hit; union bbox in `App.vue` graph camera | Compute the union of derived node ids; call graph camera with a set-focus request (new `graphNavigation.focusSet(ids)`). |
 | **Timeline** | client — bucket hits by `publish_date` month | Renders `SubjectTimelineChart` with hit counts; bucket-click filters `WorkspaceResults` client-side. |
-| **Compare (2 subjects)** | `search/context_pack.py::build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` (RFC-093 **shipped API**) | Client picks 2 subjects; server runs hybrid scoped to each, calls `build_briefing_pack` twice, returns two `CorpusBriefingPack`s (each with `top_insight`, `supporting_segments`, `coverage_summary`, `confidence_p50`). 2-column view. Judge summary from `search/judged_eval.py` muted below when available. **Optional `insight_type` filter** (RFC-072 GIL v1.1 — `claim` / `recommendation` / `observation` / `question`) narrows both sides symmetrically. |
-| **Consensus** | `topic_consensus` enricher (ADR-108, precision 0.91) — reads the enricher output already produced per-corpus (`nli_contradiction → topic_consensus` per RFC-088 §Reimagining note) | Given hits about the same Topic, show cross-speaker corroboration pairs — each `(topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score)`. Text of the two Insights rendered inline with a "corroborates" anchor. **NOT contradictions** — that requires typed CONTRADICTS edges (RFC-072 KL5, v3+, out of scope). |
+| **Compare (2 subjects)** | `search/context_pack.py::build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` (**shipped API**) | Client picks 2 subjects; server runs hybrid scoped to each, calls `build_briefing_pack` twice, returns two `CorpusBriefingPack`s (each with `top_insight`, `supporting_segments`, `coverage_summary`, `confidence_p50`). 2-column view. Judge summary from `search/judged_eval.py` muted below when available. **Optional `insight_type` filter** (RFC-072 GIL v1.1 — `claim` / `recommendation` / `observation` / `question`) narrows both sides symmetrically. |
+| **Consensus** | `topic_consensus` enricher (precision 0.91) — reads the enricher output already produced per-corpus (`nli_contradiction → topic_consensus` per RFC-088 §Reimagining note) | Given hits about the same Topic, show cross-speaker corroboration pairs — each `(topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score)`. Text of the two Insights rendered inline with a "corroborates" anchor. **NOT contradictions** — that requires typed CONTRADICTS edges (RFC-072 KL5, v3+, out of scope). |
 
 None of these introduce a new native pyarrow.compute call site — every server-side step runs in Python after `rrf_fuse` returns. `make lint-search-v3` (see §S) guards against regressions.
 
@@ -234,7 +233,7 @@ In-episode search (`EpisodeDetailPanel` inline field): renders `WorkspaceResults
 - Tier coverage rate (fraction of queries that return ≥ 1 Insight AND ≥ 1 Transcript in top-10).
 - Compound-lift rate (fraction of transcript hits that carry `lifted`).
 - Enriched-answer groundedness rate (fraction of enriched-answer sources with `grounded: true`).
-- `topic_consensus` precision on the labelled subset (shipped baseline: 0.91 on prod-v2 per ADR-108).
+- `topic_consensus` precision on the labelled subset (shipped baseline: 0.91 on prod-v2).
 
 **CI target**: `make eval-search` (offline, uses the checked-in synthetic corpus). Baseline captured on `search-v3` HEAD **before** any UI-facing change lands; per-slice deltas required in PR body.
 
@@ -307,8 +306,8 @@ Search v3 does not create these; it inherits them from shipped substrate and mus
 - **KL2 — Cross-episode Person merge / alias registry (RFC-072 open):** the same real person can appear as different `person:{slug}` IDs across episodes (`sam-altman` vs `samuel-altman`). Consequences: **Rail launcher "Search this person"** may miss aliased variants; **Compare (2 persons)** may split the same person's evidence into two halves; **Consensus** may miss a corroboration pair that spans aliased persons. UI must display a muted "may miss aliased variants" hint on rail-launch and compare surfaces. Fix landed only when KL2 lands.
 - **KL3 — Topic dedup (RFC-072 open):** same story for topics (`ai-regulation` vs `ai-policy`). Same UI hint on topic-scoped launches + Consensus + Timeline. Fix landed only when KL3 lands.
 - **KL4 — Episode duration availability (RFC-072 open):** `position_hint` is `null` when RSS omits `<itunes:duration>` and audio was not inspected. Consequences: **Timeline operator** bucketing by `publish_date` unaffected; intra-episode `position_hint` sort in `build_briefing_pack` (Compare) treats null as `0.0` — Insights without a hint sort to the beginning. No UI hint needed; degradation is invisible and graceful.
-- **KL5 — Typed CONTRADICTS edges (RFC-072 v3+):** a full "Contradictions" operator (contradicts-as-assertion) is blocked. Search v3 ships **Consensus** only (via `topic_consensus`, shipped ADR-108). Documented as Non-Goal in PRD-045.
-- **RFC-088 `topic_consensus` schema:** the enricher output is a raw base layer (`topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score` — the `contradiction_score` name is legacy, semantically the composite consensus signal per ADR-108). UI must NOT synthesize summaries; render Insight text extractively. Any future summarization is a follow-up analysis layer (RFC-088 §Reimagining note).
+- **KL5 — Typed CONTRADICTS edges (RFC-072 v3+):** a full "Contradictions" operator (contradicts-as-assertion) is blocked. Search v3 ships **Consensus** only (via `topic_consensus`, shipped). Documented as Non-Goal in PRD-045.
+- **RFC-088 `topic_consensus` schema:** the enricher output is a raw base layer (`topic_id, person_a_id, person_b_id, insight_a_id, insight_b_id, contradiction_score` — the `contradiction_score` name is legacy, semantically the composite consensus signal). UI must NOT synthesize summaries; render Insight text extractively. Any future summarization is a follow-up analysis layer (RFC-088 §Reimagining note).
 
 These limitations become obsolete when their upstream fixes land; Search v3 slices should NOT try to work around them (the workaround belongs upstream).
 
@@ -328,7 +327,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 5. **Per-corpus JSON at `<corpus_root>/.viewer/saved_queries.json`.** Rejected — the corpus is transient (moving to a DB). ADR-119 formalizes the rule; §8 uses USERPREFS-1 instead.
 6. **New database table for saved queries.** Rejected — USERPREFS-1 already exists, is battle-tested for graph-lenses / theme / lp.interests / lp.audioSyncOffsets / corpusLensPreset, and adding a feature to it is a client-side namespace addition with no server work.
 7. **Use `kg_proximity` scope pre-fill for graph-selection search launcher.** Rejected — RFC-091 formally rejected KG proximity as a retrieval signal (measured negative effect on nDCG and cross-show diversity, 2026-06-03). §10 uses selection → union-of-natural-scopes instead.
-8. **Full "Contradictions" operator (contradicts-as-assertion).** Rejected in this epic — requires typed CONTRADICTS edges (RFC-072 KL5) which are v3+; the shipped `nli_contradiction` was disabled at 0 % precision and reimagined as `topic_consensus` (ADR-108). §6 ships Consensus, not Contradictions.
+8. **Full "Contradictions" operator (contradicts-as-assertion).** Rejected in this epic — requires typed CONTRADICTS edges (RFC-072 KL5) which are v3+; the shipped `nli_contradiction` was disabled at 0 % precision and reimagined as `topic_consensus`. §6 ships Consensus, not Contradictions.
 9. **Streaming enriched answer in v1.** Rejected — blocking-then-render is enough for baseline; streaming as follow-up (OQ3).
 
 ## Open questions
@@ -359,14 +358,13 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [RFC-090](RFC-090-hybrid-retrieval.md) — hybrid retrieval (native combine forbidden — #1205)
 - [RFC-094](RFC-094-search-powered-surfaces-query-layer.md) — relational layer + `activeSearchContext` + `PanelRetrievalStore` (shipped substrate)
 - [RFC-088](RFC-088-enrichment-layer-architecture.md) — enrichment layer + QueryEnricher (shipped)
-- RFC-093 — `build_briefing_pack` (shipped; Compare source)
+- `build_briefing_pack` (shipped; Compare source)
 - [RFC-092](RFC-092-ml-query-router.md) — intent taxonomy
 - [RFC-091](RFC-091-kg-proximity-signal.md) — **REJECTED**; do NOT use for retrieval or scope pre-fill
 - [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) — compound-lift contract (KL1)
 - [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md) — v2 edges; CONTRADICTS is v3+
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
-- ADR-108 — `topic_consensus` activated; `stance_*` retired
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)

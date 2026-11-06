@@ -27,12 +27,13 @@ import { umamiOptOut } from './analytics-opt-out'
  */
 const secret = process.env.PLAYER_APP_SESSION_SECRET || ''
 const creatorId = process.env.OPERATOR_SMOKE_CREATOR_USER_ID || ''
-// The coming-soon gate's PRIMARY mechanism is the cl_op_preview COOKIE (infra/caddy/operator.caddy
-// `@preview_ok`), sent on XHR/API alike; basic-auth is only a curl fallback. A Bearer call must
-// therefore clear the gate via the cookie — an explicit `Authorization: Bearer` would override the
-// Basic that httpCredentials sends. So each request test primes /preview first (httpCredentials
-// satisfies the basic-auth challenge, the gate Set-Cookies cl_op_preview into the shared jar), then
-// the Bearer calls pass the gate by cookie. Needs the gate password present, hence it gates the skip.
+// The coming-soon gate's PRIMARY mechanism is the cl_op_preview COOKIE (the `@preview_ok`
+// matcher in the infrastructure repository's operator Caddy config), sent on XHR/API
+// alike; basic-auth is only a curl fallback. A Bearer call must therefore clear the gate via the
+// cookie — an explicit `Authorization: Bearer` would override the Basic that httpCredentials sends.
+// So each request test primes /preview first (httpCredentials satisfies the basic-auth challenge,
+// the gate Set-Cookies cl_op_preview into the shared jar), then the Bearer calls pass the gate by
+// cookie. Needs the gate password present, hence it gates the skip.
 const gatePass = process.env.OPERATOR_PREVIEW_PASS || process.env.PLAYER_PREVIEW_PASS || ''
 
 /** Mint the app's session token — byte-matches app_sessions.sign (urlsafe-b64, HMAC-SHA256,

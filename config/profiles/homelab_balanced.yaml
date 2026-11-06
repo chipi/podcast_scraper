@@ -49,7 +49,7 @@ auto_speakers: true
 summary_provider: litellm
 # LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
 # on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
-# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
+# (the D4 pin). See ADR-142 (not in this repository) + AGENTS.md 'Deployment topology'.
 litellm_api_base: ${LITELLM_API_BASE}
 litellm_temperature: 0.3
 litellm_verify_served_model: true
@@ -62,7 +62,7 @@ litellm_extra_body:
       - deepinfra
     allow_fallbacks: true
 
-# RFC-111 gateway resilience — HOLD only. cloud_balanced follows the hold with a FAILOVER to
+# Gateway resilience — HOLD only. cloud_balanced follows the hold with a FAILOVER to
 # direct DeepSeek (api.deepseek.com), which needs DEEPSEEK_API_KEY. No such key exists in this
 # environment, so the failover tier is removed rather than left declared-but-dead: a configured
 # fallback that cannot authenticate turns a clear gateway error into a confusing auth error.

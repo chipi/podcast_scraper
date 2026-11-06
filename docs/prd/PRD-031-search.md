@@ -75,7 +75,7 @@ product layer over the retrieval backend specified in RFC-090 and PRD-032.
   - The corpus scope bar and coverage intent surface this at query time.
 - **Agent (future)**: Autoresearch / MCP consumer issuing programmatic queries.
   - Needs shaped, intent-aware results rather than raw lists.
-  - Served by the briefing-pack tool specified in RFC-093 **[TBD — MCP tool layer not yet built]**.
+  - Served by a briefing-pack tool **[TBD — MCP tool layer not yet built]**.
 
 ## User Stories
 
@@ -214,7 +214,7 @@ Each result card is a grounded insight card, not a text snippet.
 - **RFC-088** Enrichment Layer Architecture (contradiction signals) — **Soft** — contradiction
   badge degrades gracefully; typed contradiction edges are **not yet built**.
 - **MCP tool layer** — **[TBD — not yet specified]** — required only for the agent-facing
-  briefing pack (RFC-093), not for the viewer.
+  briefing pack, not for the viewer.
 
 ## Constraints & Assumptions
 

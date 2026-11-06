@@ -2,7 +2,7 @@
 
 The e2e test servers set it. Twin of `tests/unit/podcast_scraper/test_dev_obs_env_switch.py`, which
 covers `podcast_scraper.config`; this side covers the `.env.obs.dev` loader AND the auto-discovered
-`config/observability.homelab.yaml` the Ops routes read their targets from.
+homelab observability config the Ops routes read their targets from.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def test_the_switch_also_skips_the_committed_homelab_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The Ops routes read their targets from `ObservabilityConfig.load()`, which auto-discovers
-    `config/observability.homelab.yaml`; with the env file alone switched off, a test server still
+    the homelab observability config; with the env file alone switched off, a test server still
     showed `"target": "homelab"` and live production gateway spend.
 
     The YAML is written here rather than relied on in the tree: the operator's homelab file is

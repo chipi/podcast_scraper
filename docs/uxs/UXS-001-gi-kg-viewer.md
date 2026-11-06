@@ -10,9 +10,7 @@
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Shell information architecture (regions, axes, persistence):**
   [VIEWER_IA.md](VIEWER_IA.md)
-- **Consumer app design system:** separate, by design — see the
-  [token vocabulary cross-map](TOKEN-VOCABULARY-CROSSMAP.md) for the token names it shares with
-  this one and what each means in each system (notably `accent`).
+- **Consumer app design system:** separate, by design.
 - **Playwright / E2E**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
 - **Feature UX specs** (each viewer surface has its own UXS):
@@ -575,7 +573,7 @@ search overlay.
 | 2026-04-03 | Blueprint gray scale, shadcn pairing, intent/domain split, Inter + JetBrains Mono, chart series tokens, design-reference citations |
 | 2026-04-03 | Added Tunable parameters section (frozen vs open knobs); RFC-062 and PRD cross-references updated to document theme preset system |
 | 2026-04-06 | Status Active — viewer v2 implements this contract per RFC-062 |
-| 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs |
+| 2026-04-13 | UXS-001 hub; UXS-002 onward for feature specs |
 | 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment) |
 | 2026-04-19 | Summary pointer to InsightCard subsection for discoverability |
 | 2026-04-17 | Open tunables for graph COSE semantics, label zoom tiers, Topic degree heat cap (`VIEWER_GRAPH_SPEC`) |

@@ -6,7 +6,7 @@ root**. On top of that, **two independent Node/Vue projects** live side-by-side 
 - **GI/KG Viewer** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** inspection
   tool for knowledge-graph + grounded-insight artifacts. Under
   [`web/gi-kg-viewer/`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/).
-- **Learning Player** (RFC-099) — the
+- **Learning Player** — the
   **consumer** PWA for listening + capture + consolidation. Under
   [`web/learning-player/`](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/).
 

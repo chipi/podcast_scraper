@@ -42,10 +42,10 @@ transcription_provider: tailnet_dgx_whisper
 dgx_whisper_model: deepdml/faster-whisper-large-v3-turbo-ct2
 dgx_whisper_port: 8000
 transcript_cache_enabled: false
-# ADR-096 requires a declared fallback for the DGX whisper provider. Under the reprocess/hold
-# posture below it is NEVER used — a DGX outage HALTS the batch (visible) rather than silently
-# degrading to local whisper and yielding a MIXED-BACKEND corpus, which would break the single
-# variable. So this is a config requirement, not an active failover path.
+# ADR-096 (not in this repository) requires a declared fallback for the DGX whisper provider. Under
+# the reprocess/hold posture below it is NEVER used — a DGX outage HALTS the batch (visible) rather
+# than silently degrading to local whisper and yielding a MIXED-BACKEND corpus, which would break
+# the single variable. So this is a config requirement, not an active failover path.
 transcription_fallback_provider: whisper
 # v2.2 reprocess (#1190): this profile is cloud_balanced with EXACTLY ONE change — the diarize pass
 # is routed to the self-hosted DGX pyannote community-1 server instead of Deepgram, so the corpus

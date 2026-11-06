@@ -22,7 +22,7 @@ pytestmark = [pytest.mark.integration]
 
 
 def _client(root: Path) -> tuple[TestClient, User]:
-    """Authed client + the seeded user (RFC-120: graph-events now requires auth)."""
+    """Authed client + the seeded user (graph-events requires auth)."""
     data_dir = root / "appdata"
     app = create_app(root, static_dir=False)
     app.state.session_secret = "test-secret"
@@ -36,7 +36,7 @@ def _client(root: Path) -> tuple[TestClient, User]:
 
 
 def test_graph_events_anonymous_logged_under_anon(tmp_path: Path) -> None:
-    # RFC-120 made this route require auth; events now log under the authed user's id.
+    # This route requires auth; events log under the authed user's id.
     client, user = _client(tmp_path)
     resp = client.post(
         "/api/app/graph-events",

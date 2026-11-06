@@ -60,7 +60,7 @@ class EmbeddingProvider(Protocol):
 
 @dataclass(frozen=True)
 class ConsensusSignal:
-    """Composite cross-Person *agreement* signal for one Insight pair (ADR-108).
+    """Composite cross-Person *agreement* signal for one Insight pair.
 
     ``cosine`` — embedding cosine similarity of the two insight texts (the
     *shared-question* gate: are they about the same proposition). ``contradiction``

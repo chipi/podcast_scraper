@@ -65,8 +65,8 @@ on:
       # actionlint, `make check-test-policy`. With
       # only python-app.yml listed, a commit touching any OTHER workflow ran none of
       # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
-      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
-      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # ADR-115 (not in this repository) violation in sweep-prod-audio.yml and triggered NOTHING —
+      # no lint to confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
       # no image publish either, which stalled a corpus repair waiting on the build.
       # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
       # lint + build and skips every heavy test job and coverage-unified.
@@ -94,8 +94,8 @@ on:
       # actionlint, `make check-test-policy`. With
       # only python-app.yml listed, a commit touching any OTHER workflow ran none of
       # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
-      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
-      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # ADR-115 (not in this repository) violation in sweep-prod-audio.yml and triggered NOTHING —
+      # no lint to confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
       # no image publish either, which stalled a corpus repair waiting on the build.
       # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
       # lint + build and skips every heavy test job and coverage-unified.
@@ -352,7 +352,7 @@ jobs:
       env:
         # Only the embedding model is needed. Skip whisper/spaCy/transformers preload — they
         # aren't installed under [dev,search]. index_corpus runs allow_download=False, so the
-        # model MUST be in the HF cache before e2e/globalSetup.ts builds the index.
+        # model MUST be in the HF cache before the e2e global setup builds the index.
         SKIP_WHISPER: "1"
         SKIP_SPACY: "1"
         SKIP_TRANSFORMERS: "1"

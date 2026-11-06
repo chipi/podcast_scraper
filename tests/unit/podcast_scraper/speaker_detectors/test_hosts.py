@@ -113,9 +113,10 @@ def test_extract_self_introduced_host_only_scans_intro_window() -> None:
 
 
 def test_extract_self_introduced_host_rejects_a_single_opener_token() -> None:
-    # ADR-126 opener-leak: ASR renders a disfluency as "I'm But it …"; the "I'm <Cap>" regex
-    # captures a bare "But". The 1-token branch used to return it unchecked (its sibling
-    # ``distinct_self_introductions`` already guarded this); now a sentence-opener is refused.
+    # ADR-126 (not in this repository) opener-leak: ASR renders a disfluency as "I'm But it …"; the
+    # "I'm <Cap>" regex captures a bare "But". The 1-token branch used to return it unchecked
+    # (its sibling ``distinct_self_introductions`` already guarded this); now a
+    # sentence-opener is refused.
     assert extract_self_introduced_host("Well, I'm But it, so let's get started.") is None
 
 
@@ -138,7 +139,7 @@ def test_extract_self_introduced_host_still_accepts_a_real_mononym() -> None:
 @pytest.mark.parametrize(
     ("name", "publishable"),
     [
-        # Opener/stop-word leaks the final gate must reject (ADR-126).
+        # Opener/stop-word leaks the final gate must reject (ADR-126 (not in this repository)).
         ("But Sun", False),  # community-1 "Moonlake": opener + real surname
         ("So Nick", False),  # community-1 "Quantum": opener + real first name
         ("But", False),  # bare opener from "I'm But it"

@@ -32,8 +32,8 @@ corpus-scope enrichers re-derived over the **whole 678-episode corpus**:
 | `insight_density`, `insight_sentiment` | episode | per-episode |
 
 7 of 9 enrichers are corpus-scope. The executor discovers all bundles and passes the full
-`all_bundles` to each (`enrichment/executor.py`; `enrichers/topic_similarity.py:58`
-`for b in all_bundles`). The only optimisation today is a per-**enricher** staleness gate
+`all_bundles` to each (`enrichment/executor.py`; the topic-similarity enricher's
+`for b in all_bundles` loop). The only optimisation today is a per-**enricher** staleness gate
 (`enrichment/staleness.py` docstring: *"staleness decisions select enrichers, never episodes;
 a 16-episode ingest triggers a full-corpus pass"*). There is no per-**episode** delta.
 

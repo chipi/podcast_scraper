@@ -5,7 +5,7 @@ from config files and both got it wrong, one nearly shipping a change to the hom
 repo for a problem that lives entirely on the prod VPS. AGENTS.md now states the topology as
 ground truth; these tests make the concrete bad fixes fail loudly instead of looking reasonable.
 
-What is actually true (see AGENTS.md "Deployment topology" and ADR-142): the homelab hosts
+What is actually true (see AGENTS.md "Deployment topology" and ADR-142 (not in this repository)): the homelab hosts
 observability only and is never on an LLM path. Since 2026-10-29 the profiles name no gateway
 host at all: ``litellm_api_base`` is ``${LITELLM_API_BASE}``, filled from the environment by the
 profile's own expansion, with no default; each deployment sets it.

@@ -34,7 +34,7 @@ Component = Literal["api", "pipeline", "mcp"]
 _DSN_ENV = {
     "api": "PODCAST_SENTRY_DSN_API",
     "pipeline": "PODCAST_SENTRY_DSN_PIPELINE",
-    # The remote MCP server (RFC-112) — its own GlitchTip project, per the per-surface DSN split.
+    # The remote MCP server — its own GlitchTip project, per the per-surface DSN split.
     "mcp": "PODCAST_SENTRY_DSN_MCP",
 }
 

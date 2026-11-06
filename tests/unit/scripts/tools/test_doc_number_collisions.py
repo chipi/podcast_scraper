@@ -46,7 +46,7 @@ class TestTheNumberPattern:
         assert m.group(1) == "ADR-156"
         assert m.group(2) == "156"
 
-    @pytest.mark.parametrize("name", ["ADR-157-x.md", "RFC-124-y.md", "PRD-042-z.md"])
+    @pytest.mark.parametrize("name", ["ADR-157-x.md", "RFC-124-y.md", "PRD-999-z.md"])
     def test_all_three_families(self, mod: Any, name: str) -> None:
         assert mod.NUMBERED_DOC.match(name) is not None
 

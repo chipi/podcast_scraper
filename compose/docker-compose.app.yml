@@ -1,4 +1,4 @@
-# Consumer Learning Player overlay (Epic 2 / RFC-099 §10).
+# Consumer Learning Player overlay (Epic 2).
 #
 # Adds the consumer app as its OWN container, independent of the operator viewer + API
 # images. It serves the PWA on its own port and proxies /api → the `api` service over the

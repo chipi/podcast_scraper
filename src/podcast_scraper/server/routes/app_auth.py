@@ -1,4 +1,4 @@
-"""Consumer platform auth routes + ``get_current_user`` (#1063, RFC-098 §2).
+"""Consumer platform auth routes + ``get_current_user`` (#1063).
 
 ``/api/app/auth/{login,callback,logout}`` runs a single-provider OAuth code flow and sets
 a stdlib HMAC-signed session cookie; ``get_current_user`` is the dependency that gates the
@@ -158,7 +158,8 @@ def get_admin_user(request: Request) -> User:
 
 
 def require_viewer_access(request: Request) -> User:
-    """Require a signed-in user with **at least ``creator``** (RFC-108 operator surfaces).
+    """Require a signed-in user with **at least ``creator``** (RFC-108 (not in this repository)
+    operator surfaces).
 
     Mounted as a router-level dependency on the operator-read routers **only** in the
     public operator serve mode (``PODCAST_SERVE_OPERATOR_PUBLIC``); the tailnet-only
@@ -176,7 +177,7 @@ def _safe_return_to(value: str | None) -> str | None:
 
     Allow ONLY a same-origin *relative* path (single leading ``/``). Rejects protocol-relative
     (``//host``), absolute URLs, backslashes, and CRLF so a poisoned ``return_to`` can't bounce
-    the post-login redirect off-site. Used by the MCP ``/authorize`` bounce (RFC-112): an
+    the post-login redirect off-site. Used by the MCP ``/authorize`` bounce: an
     unauthenticated remote-client authorize is sent through Google sign-in and back here.
     """
     if not value or not isinstance(value, str):
@@ -448,7 +449,7 @@ def _complete_callback(
         resp = RedirectResponse(deep_link, status_code=status)
         resp.delete_cookie(app_sessions.STATE_COOKIE)
         return resp
-    # Return to where login was initiated (e.g. the MCP /authorize consent, RFC-112) when a
+    # Return to where login was initiated (e.g. the MCP /authorize consent) when a
     # guarded same-origin return_to rode the state cookie; otherwise the player home.
     dest = _safe_return_to(saved.get("return_to")) or "/"
     resp = RedirectResponse(dest, status_code=status)
@@ -481,7 +482,7 @@ def _user_dict(user: User) -> dict[str, object]:
         "image": user.image,  # avatar URL (OAuth-captured or uploaded)
         "role": user.role,
         "disabled": user.disabled,
-        "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI
+        "mcp_access": user.mcp_access,  # gates the MCP connection UI
         # #2267: which OAuth provider this identity came from, for the `auth_completed` analytics
         # event. The client cannot know it otherwise — the provider is server-configured, and the
         # login UI only knows whether the MOCK one is active.

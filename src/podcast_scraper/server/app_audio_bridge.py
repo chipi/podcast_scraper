@@ -1,4 +1,4 @@
-"""Audio-bridge freshness/redirect resolution for the consumer player (#1070, RFC-100).
+"""Audio-bridge freshness/redirect resolution for the consumer player (#1070).
 
 The default audio-source path returns the persisted origin URL for **direct** client
 playback (bridge, never rehost). This module adds an *opt-in* freshness check: a HEAD that

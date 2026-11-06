@@ -3,9 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-10-11
 - **Authors**: Marko Dragoljevic
-- **See Also**: ADR-163 §4 (the extractive reason),
-  RFC-126,
-  `tests/fixtures/app-validation-corpus/README.md`, `tests/fixtures/FIXTURES_SPEC.md`
+- **See Also**: `tests/fixtures/app-validation-corpus/README.md`, `tests/fixtures/FIXTURES_SPEC.md`
 
 ## Context & Problem Statement
 
@@ -18,7 +16,7 @@ what the player's e2e suite, the rail evals and the screenshots run on. Measured
 - 31 "insights" were host questions and 2 were ad reads: transcript lines, not claims.
 - Authored quotes were stamped at 0 ms; 7 of the 16 were paraphrases, not transcript text.
 
-Surfaces built to be extractive (ADR-163 §4) therefore showed ad reads and greetings as the reason
+Surfaces built to be extractive therefore showed ad reads and greetings as the reason
 an episode was recommended, and a topic reel had almost nothing it could honestly play.
 
 ## Decision

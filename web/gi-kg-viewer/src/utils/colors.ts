@@ -6,7 +6,7 @@
  * Entity_person now reads amber (humans-as-warm), TopicCluster keeps
  * a distinct violet. Callers of ``graphNodeTypeChrome`` (chips, legend,
  * CIL topic pill) shift with the graph — the palette is a single
- * source of truth per UXS-014.
+ * source of truth.
  */
 export const GRAPH_NODE_UNKNOWN_FILL = "#868e96"
 

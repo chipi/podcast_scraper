@@ -32,7 +32,7 @@ def corpus_root_or_503(request: Request) -> Path:
     """Resolve the single shared corpus root, or 503 if the platform has no corpus.
 
     FastAPI is imported here and not at the top: the artifact readers below are also used by the
-    board-summarizer sidecar (RFC-127), which runs on the pipeline image, where FastAPI is not
+    board-summarizer sidecar, which runs on the pipeline image, where FastAPI is not
     installed. Called directly by the routes, never as a ``Depends``, so the annotation needs no
     runtime name."""
     from fastapi import HTTPException

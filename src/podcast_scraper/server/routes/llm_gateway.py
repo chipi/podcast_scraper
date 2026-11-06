@@ -1,4 +1,5 @@
-"""GET /api/ops/llm-gateway — prod LiteLLM gateway per-key spend (#53 / #1357, ADR-142).
+"""GET /api/ops/llm-gateway — prod LiteLLM gateway per-key spend (#53 / #1357,
+ADR-142 (not in this repository)).
 
 Feeds the Ops view's Prod-LLM card. Reads ``litellm_key_spend_usd`` /
 ``litellm_key_max_budget_usd`` / ``litellm_key_budget_burn_ratio{box="prod"}`` from homelab

@@ -187,9 +187,9 @@ gi_value_gate_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 # would nest it a second time).
 #
 # Credentials are NOT here and must never be: deploy-prod.yml stages RCLONE_CONFIG_AUDIOARCHIVE_*
-# into the box .env unconditionally (ADR-115), i.e. they were already present the whole time this
-# profile was ignoring them. Misconfiguration fails loud at config load; per-episode upload is
-# best-effort and ERROR-logged, so one rclone hiccup cannot break ingestion.
+# into the box .env unconditionally (ADR-115 (not in this repository)), i.e. they were already
+# present the whole time this profile was ignoring them. Misconfiguration fails loud at config load;
+# per-episode upload is best-effort and ERROR-logged, so one rclone hiccup cannot break ingestion.
 #
 # `corpus_media_link_mode` is deliberately NOT set: its default is already "copy", which is what
 # a remote backend requires (there is no local cache inode to hardlink against, so "hardlink"

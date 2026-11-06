@@ -167,7 +167,7 @@ reinforces; empty Contradicted section does not special-case.
   anchors); inline strip with reasons; cold-start state. *(Formalise endpoint into
   RFC-078/079.)*
 - **L2-relevance badge:** `GET /advise/episodes` per-episode touch count + (inert) conflict
-  slot; "why" popover. **No re-sort in v1** (ordering stays chronological; ranking = RFC-083
+  slot; "why" popover. **No re-sort in v1** (ordering stays chronological; ranking = RFC-083 (not in this repository)
   later).
 
 **Acceptance.** Connect returns relevant anchors with reasons at deposit, non-blocking;

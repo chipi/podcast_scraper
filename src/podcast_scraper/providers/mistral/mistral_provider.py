@@ -921,7 +921,7 @@ class MistralProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
-        # RFC-127: a summary other than the episode's (a board's) runs this same flow with its
+        # A summary other than the episode's (a board's) runs this same flow with its
         # own prompts, stage and budget; absent, this is the episode summary exactly as before.
         use_case = use_case_from_params(params)
         max_length = reply_budget(
@@ -1085,7 +1085,7 @@ class MistralProvider:
             user_params.update(self.cfg.summary_prompt_params)
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
-            # A use case records its own templates (RFC-127); the episode summary keeps the above.
+            # A use case records its own templates; the episode summary keeps the above.
             prompt_metadata = use_case_prompt_metadata("mistral", use_case) or prompt_metadata
             return {
                 "summary": summary,
@@ -1534,7 +1534,7 @@ class MistralProvider:
         """Build system and user prompts for summarization using prompt_store."""
         from ...prompts.store import render_prompt
 
-        if use_case is not None:  # RFC-127: a use case's own prompts
+        if use_case is not None:  # a use case's own prompts
             system, user, system_name, user_name = build_use_case_prompts("mistral", use_case)
             return system, user, system_name, user_name, 0, 0
 

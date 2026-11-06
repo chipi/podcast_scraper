@@ -5521,8 +5521,8 @@ def generate_episode_metadata(  # noqa: C901
             if use_summary_instance:
                 kg_provider_arg = summary_provider
             else:
-                # RFC-089 #5: KG built fresh with a different backend than summary —
-                # wrap with the same fallback contract as summary so DGX outages
+                # RFC-089 (not in this repository) #5: KG built fresh with a different backend than
+                # summary — wrap with the same fallback contract as summary so DGX outages
                 # don't take KG extraction down silently.
                 from ..summarization.fallback import wrap_with_fallback_if_configured
 

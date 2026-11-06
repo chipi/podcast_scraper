@@ -246,11 +246,12 @@ def _two_voice_interview() -> DiarizationResult:
 
 
 def test_the_final_gate_demotes_an_opener_laden_name_reaching_the_roster() -> None:
-    """ADR-126 opener-leak. community-1's finer clustering surfaced turn-boundary openers the ASR
-    capitalised ("But Sun", "So Nick") that slipped a per-path filter; the guest-detection path in
-    particular gates only on token count, so a two-token "But Sun" reaches the roster. The final
-    plausibility gate in ``resolve_speaker_roster`` is the last line: it must demote such a name
-    back to the raw SPEAKER_NN — a wrong label is worse than an unnamed voice. (Bypassing the gate
+    """ADR-126 (not in this repository) opener-leak. community-1's finer
+    clustering surfaced turn-boundary openers the ASR capitalised ("But Sun", "So Nick") that
+    slipped a per-path filter; the guest-detection path in particular gates only on token
+    count, so a two-token "But Sun" reaches the roster. The final plausibility gate in
+    ``resolve_speaker_roster`` is the last line: it must demote such a name back to the raw
+    SPEAKER_NN — a wrong label is worse than an unnamed voice. (Bypassing the gate
     republishes "But Sun", so this is not a vacuous assertion.)
     """
     roster = resolve_speaker_roster(

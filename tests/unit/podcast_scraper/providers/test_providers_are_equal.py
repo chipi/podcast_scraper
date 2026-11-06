@@ -239,7 +239,7 @@ def test_thin_sibling_prompts_reuse_a_parity_covered_namespace(provider: str) ->
         )
 
 
-# RFC-127: a summary other than the episode's (a board's) is a use case of ``summarize`` itself,
+# A summary other than the episode's (a board's) is a use case of ``summarize`` itself,
 # so it gets the same retries, guardrails, cost record and prompt metadata on every provider. Each
 # piece below is one place a provider could quietly fall back to the episode behaviour.
 _USE_CASE_HOOKS = {
@@ -260,7 +260,7 @@ def test_every_provider_runs_a_summary_use_case(provider: str, method: str) -> N
     missing = [hook for hook in _USE_CASE_HOOKS[method] if f"{hook}(" not in body]
     assert not missing, (
         f"{provider}.{method} does not call {missing}: a board summary on {provider} would run the "
-        f"EPISODE prompts, budget or cost stage (RFC-127)."
+        f"EPISODE prompts, budget or cost stage."
     )
 
 
@@ -274,12 +274,12 @@ def test_summllama_runs_a_summary_use_case_too() -> None:
     }
     for method, needed in hooks.items():
         missing = [h for h in needed if f"{h}(" not in funcs.get(method, "")]
-        assert not missing, f"summllama.{method} does not call {missing} (RFC-127)"
+        assert not missing, f"summllama.{method} does not call {missing}"
 
 
 def test_the_seq2seq_provider_runs_a_summary_use_case_too() -> None:
     """BART/LED (ml/ml_provider.py) take a document, not instructions: the use case's material is
-    written as prose and summarised by the same map/reduce (RFC-127)."""
+    written as prose and summarised by the same map/reduce."""
     funcs = _funcs_in(SRC / "ml" / "ml_provider.py")
     hooks = {
         "summarize": ["use_case_from_params", "_use_case_input", "use_case_prompt_metadata"],
@@ -287,4 +287,4 @@ def test_the_seq2seq_provider_runs_a_summary_use_case_too() -> None:
     }
     for method, needed in hooks.items():
         missing = [h for h in needed if f"{h}(" not in funcs.get(method, "")]
-        assert not missing, f"transformers.{method} does not call {missing} (RFC-127)"
+        assert not missing, f"transformers.{method} does not call {missing}"
