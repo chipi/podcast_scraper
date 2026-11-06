@@ -101,7 +101,7 @@ ledger build and the read-time map):
 - **Surfaces fed by the served map:**
   - `search/corpus_graph.py` org nodes;
   - `server/cil_queries.py`;
-  - `server/reference_integrity.py`'s resolver;
+  - the reference-integrity resolver;
   - `server/routes/corpus_persons.py`.
   `server/app_kg_index.py` keeps only `person:` entries, so the app's org cards don't move.
   Predicted:
@@ -109,9 +109,9 @@ ledger build and the read-time map):
     its own org;
   - the 4 moved orgs resolve to their new canonical.
 - **Caches:** the map is cached per corpus mtime, and the ledger file is part of that token, so the
-  rebuild re-keys every cache without a restart (`server/app_cache_warm.py` re-warms).
+  rebuild re-keys every cache without a restart (the cache warm-up re-warms).
 - **Reference integrity:** org is not a reference subject kind (`SUBJECT_KINDS` in
-  `server/reference_integrity.py` is topic, person, theme, storyline). The pass neither re-keys nor
+  the reference-integrity module is topic, person, theme, storyline). The pass neither re-keys nor
   flags org ids, so no stored listener reference changes target through this change.
 - **The real code must give the prototype's org map sha.** Any difference is explained before step
   7.

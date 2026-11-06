@@ -14,7 +14,8 @@
 # from the native arm, which was verified live against api.deepseek.com.
 #
 # WHAT YOU LOSE by bypassing the gateway — real, and the reason this is not the default:
-#   * spend accounting + budget walls (the gateway owns per-key budgets, ADR-142)
+#   * spend accounting + budget walls (the gateway owns per-key budgets, ADR-142 (not in this
+#   repository))
 #   * Langfuse trace capture (RFC-0001) — calls made here are not captured
 #   * provider failover across OpenRouter's pool (the novita/deepinfra ordering is gateway-side)
 #   * one place to swap models without touching profiles
@@ -100,8 +101,9 @@ summary_provider: deepseek
 #
 # Still true and worth keeping from the original: the homelab gateway is a LAPTOP-DEV route, not
 # where prod routes. Prod pins its own VPS gateway into viewer_operator.yaml on every deploy (the
-# D4 pin) — the homelab is never on prod's LLM path. See ADR-142 + AGENTS.md 'Deployment topology'.
-# (deepseek has no _insight_model override — GI insights use the summary model.)
+# D4 pin) — the homelab is never on prod's LLM path. See ADR-142 (not in this repository) +
+# AGENTS.md 'Deployment topology'. (deepseek has no _insight_model override — GI insights use the
+# summary model.)
 deepseek_cleaning_model: deepseek-v4-flash
 deepseek_temperature: 0.3
 # Reasoning OFF on the native API. `reasoning_effort: none` is the switch DeepSeek's own API
@@ -111,7 +113,7 @@ deepseek_temperature: 0.3
 # an OpenRouter routing concept and means nothing when talking to DeepSeek directly.
 # (the deepseek_* settings themselves are consolidated further down — one block, not three)
 
-# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient <host>:4001 ->
+# Gateway resilience (#1482) — root-caused 2026-08-07: a transient <host>:4001 ->
 # OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
 # exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
 # operator could react, and the whole grounding pass for that insight was lost. Two layers, in
@@ -160,8 +162,9 @@ deepseek_extra_body:
 # summary_fallback_providers above); the primary is native api.deepseek.com. Prod never routes
 # LLM calls through the homelab: it pins its own VPS gateway into viewer_operator.yaml on every
 # deploy (`vars.PROD_LITELLM_API_BASE`, the D4 pin) and the homelab is observability-only.
-# See ADR-142 + AGENTS.md 'Deployment topology'. A bare host:port line with no note is exactly
-# what makes a reader conclude the opposite, which is why the comment is required, not optional.
+# See ADR-142 (not in this repository) + AGENTS.md 'Deployment topology'. A bare host:port line with
+# no note is exactly what makes a reader conclude the opposite, which is why the comment is
+# required, not optional.
 litellm_api_base: ${LITELLM_API_BASE}
 litellm_summary_model: podcast-flash-0731
 litellm_speaker_model: podcast-flash-0731
@@ -286,8 +289,9 @@ corpus_media_link_mode: copy
 # the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
 #
 # Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
-# container env by the deployment, ADR-115) — never in this file. The remote is SFTP to a storage
-# box the deployment configures; rclone is baked into the pipeline image.
+# container env by the deployment, ADR-115 (not in this repository)) — never in this file. The
+# remote is SFTP to a storage box the deployment configures; rclone is baked into the pipeline
+# image.
 #
 # Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
 # upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.

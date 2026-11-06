@@ -11,7 +11,7 @@ Source of truth ([[feedback_profiles_are_source_of_truth]]):
 - ``test_default`` runs no enrichers (CI isolation).
 - ``airgapped_thin`` runs only the 6 deterministic enrichers.
 - ``airgapped`` adds ``topic_similarity`` (local CPU embedding).
-- ``cloud_thin`` adds the ML-tier CANDIDATE ``topic_consensus`` (the ADR-108
+- ``cloud_thin`` adds the ML-tier CANDIDATE ``topic_consensus`` (the
   reimagining of the retired nli_contradiction — a composite of embedding cosine
   + low NLI contradiction) on top — but membership is data-driven, NOT a hard
   list: the RFC-088 accuracy gate (``eval/admission``) filters candidates by
@@ -147,14 +147,13 @@ def _with_topic_similarity() -> list[str]:
 
 def _cloud_ml_tier_set() -> list[str]:
     # The full ML-tier CANDIDATE set. Membership is not hand-maintained: the reimagined
-    # ``topic_consensus`` (ADR-108, a composite of embedding cosine + low NLI contradiction that
+    # ``topic_consensus`` (a composite of embedding cosine + low NLI contradiction that
     # replaced the 0%-precision ``nli_contradiction``) is listed here and admitted / excluded by
     # its manifest ``accuracy_gate`` via ``_admit`` below — NOT by commenting it out. It stays dark
     # until an eval records passing precision in
     # ``<eval root>/enrichment/<id>/gate_metrics.json`` (it has, 0.91 on prod-v2,
     # so it is admitted). Per-person / per-topic stance-over-time is now a
-    # read-time CIL query (conversation-arc / position-arc), not a gated enricher — see ADR-108's
-    # 2026-07-08 update on why stance-over-time is a read-time query, not a gated enricher.
+    # read-time CIL query (conversation-arc / position-arc), not a gated enricher.
     return _installed(
         [
             *all_deterministic_enricher_ids(),

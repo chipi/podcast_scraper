@@ -55,15 +55,18 @@ class TestTheDgxProfilesHold:
     def test_the_chain_still_satisfies_adr_096(self, name: str) -> None:
         """The chain stays POPULATED even though `hold` never traverses it.
 
-        ADR-096's validator rejects a DGX-only chain — it requires a non-DGX escape hatch, and
-        that invariant is about deployment topology, not about which strategy a run picks. Emptying
-        the chain to express "no failover" would fail config load; `hold` expresses it correctly.
+        ADR-096's (not in this repository) validator rejects a DGX-only chain — it requires a
+        non-DGX escape hatch, and that invariant is about deployment topology, not about which
+        strategy a run picks. Emptying the chain to express "no failover" would fail config
+        load; `hold` expresses it correctly.
         """
         chain = _profile(name).get("transcription_fallback_providers") or []
-        assert chain, f"{name} has an empty chain, which ADR-096's validator rejects"
+        assert (
+            chain
+        ), f"{name} has an empty chain, which ADR-096's (not in this repository) validator rejects"
         assert any(
             p not in {"tailnet_dgx_whisper", "moss"} for p in chain
-        ), f"{name}'s chain is DGX-only, which ADR-096 forbids"
+        ), f"{name}'s chain is DGX-only, which ADR-096 (not in this repository) forbids"
 
     def test_a_dgx_profile_actually_loads(self) -> None:
         """The config validator is what would reject an over-eager version of this change."""

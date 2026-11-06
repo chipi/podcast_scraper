@@ -1189,7 +1189,7 @@ class EnrichmentExecutor:
             path = corpus_enrichment_path(self._corpus_root, manifest.writes)
         try:
             # Atomic: a crash mid-write must leave the previous envelope, never a truncated one.
-            # The next run reads its own previous output (the storyline registry, RFC-128, lives
+            # The next run reads its own previous output (the storyline registry lives
             # in it), and a half-written file would read as "no previous run".
             write_json_atomic(path, payload, indent=2)
         except OSError as exc:

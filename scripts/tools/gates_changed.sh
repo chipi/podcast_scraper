@@ -56,7 +56,6 @@ py=$(pick '\.py$' | grep -vE '^(web|infra)/' || true)
 src_py=$(printf '%s\n' "$py" | grep -E '^src/' || true)
 md=$(pick '\.md$' | grep -vE '(^|/)node_modules/|/vendor/' || true)
 docs=$(pick '^(docs/|mkdocs\.yml$)')
-lp=$(pick '^web/learning-player/(src|e2e)/.*\.(ts|vue|tsx|js)$')
 viewer=$(pick '^web/gi-kg-viewer/(src|e2e)/.*\.(ts|vue|tsx|js)$')
 workflows=$(pick '^\.github/workflows/.*\.ya?ml$')
 
@@ -96,12 +95,6 @@ if [ -n "$md" ]; then
 fi
 if [ -n "$docs" ]; then
   gate docs make --no-print-directory docs
-fi
-if [ -n "$lp" ]; then
-  rel=$(printf '%s\n' "$lp" | sed 's#^web/learning-player/##')
-  # shellcheck disable=SC2086
-  gate "player vitest (related)" bash -c "cd web/learning-player && node_modules/.bin/vitest related --run ${rel//$'\n'/ }"
-  gate "player vue-tsc" bash -c "cd web/learning-player && node_modules/.bin/vue-tsc --noEmit -p tsconfig.app.json && node_modules/.bin/vue-tsc --noEmit -p tsconfig.test.json"
 fi
 if [ -n "$viewer" ]; then
   rel=$(printf '%s\n' "$viewer" | sed 's#^web/gi-kg-viewer/##')

@@ -172,12 +172,12 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 - **7 deterministic** (pure Python over KG/GI, no model / no network): `grounding_rate`, `guest_coappearance`, `insight_density` (episode), `insight_sentiment` (episode — per-Insight VADER compound + neg/neu/pos, the conversation-timeline colour layer), `temporal_velocity`, `topic_cooccurrence_corpus`, `topic_theme_clusters`.
 - **1 embedding**: `topic_similarity` (per-Topic Top-K cosine neighbours; validated recall@10 99%, top_k tuned to 7, #1105).
-- **1 ML — `topic_consensus` (promoted)**: the ADR-108 reimagining of the retired 0%-precision `nli_contradiction` — cross-Person corroboration via a composite of **embedding cosine + low NLI contradiction** (no LLM); precision 0.91 on prod-v2, so the accuracy gate admits it. Its sibling `stance_disagreement`/`stance_timeline` was **retired**: the eval showed the stance signal is genuinely absent on factual insights, and per-person / per-topic stance-over-time is better served as a **read-time CIL query** (`conversation-arc` / `position-arc`) coloured by `insight_sentiment` — not a gated ML enricher. See ADR-108.
+- **1 ML — `topic_consensus` (promoted)**: the reimagining of the retired 0%-precision `nli_contradiction` — cross-Person corroboration via a composite of **embedding cosine + low NLI contradiction** (no LLM); precision 0.91 on prod-v2, so the accuracy gate admits it. Its sibling `stance_disagreement`/`stance_timeline` was **retired**: the eval showed the stance signal is genuinely absent on factual insights, and per-person / per-topic stance-over-time is better served as a **read-time CIL query** (`conversation-arc` / `position-arc`) coloured by `insight_sentiment` — not a gated ML enricher.
 - **1 query enricher**: `query_topic_relatedness` decorates `/api/search` hits with `topic_similarity` neighbours inline (per-request, not a batch envelope).
 
 **Accuracy gate (data-driven admission):** an enricher may declare an `accuracy_gate` (a precision floor) on its manifest. `enrichment/eval/admission.py` reads the latest `data/eval/enrichment/<id>/gate_metrics.json` and, through `profile_sets._admit`, filters the registry → profiles → UI: a gated enricher stays **dark** until an eval records passing precision, and auto-promotes with no code edit once one does. Profiles list *candidates*; the gate decides membership. This is the firewall that keeps the 0%-precision disagreement detectors from surfacing fabricated signals. The live cross-speaker surface is instead **`perspectives`** (#1146) — a CIL query over the GI (not an enricher, so it sidesteps the gate).
 
-**Surfacing:** envelopes reach the **operator viewer** (`web/gi-kg-viewer/`) via `/api/corpus/enrichments/*` (topic/person node-rail signals, episode density bars, the Dashboard trending + multi-perspective cards, the graph enrichment-edges panel) and the **consumer app** (`web/learning-player/`) via `/api/app/corpus/enrichment` (entity-card EntitySignals: grounding, co-appears, momentum, similar, discussed-alongside) + `/api/app/episodes/{slug}/enrichment` (density). Operator control (run / status / health / config / re-enable) is `/api/enrichment/*`. Full reference: [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) + [Enrichment Layer API](../api/ENRICHMENT_LAYER_API.md); spec in [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md).
+**Surfacing:** envelopes reach the **operator viewer** (`web/gi-kg-viewer/`) via `/api/corpus/enrichments/*` (topic/person node-rail signals, episode density bars, the Dashboard trending + multi-perspective cards, the graph enrichment-edges panel) and the **consumer app** via `/api/app/corpus/enrichment` (entity-card EntitySignals: grounding, co-appears, momentum, similar, discussed-alongside) + `/api/app/episodes/{slug}/enrichment` (density). Operator control (run / status / health / config / re-enable) is `/api/enrichment/*`. Full reference: [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) + [Enrichment Layer API](../api/ENRICHMENT_LAYER_API.md); spec in [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md).
 
 ## Architectural Decisions (ADRs)
 
@@ -207,7 +207,7 @@ The following architectural principles govern this system. For the full history 
 - **Quality**: Three-tier test pyramid ([ADR-019](../adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](../adr/ADR-023-public-operational-metrics.md)). The viewer applies its own three-tier variant with production-shaped fixtures ([ADR-095](../adr/ADR-095-viewer-test-pyramid.md), [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)) so cross-surface graph handoffs land in a contract test before any fix merges.
 - **Viewer graph handoff orchestrator (FSM)**: a single 8-state machine owns every cross-surface graph handoff — Library, Digest, Search, Dashboard, Episode panel, canvas, mini-map ([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)). Generation tokens supersede stale work, a 5s wall-clock detector surfaces stuck handoffs via a visible error strip, and a `layoutstop`-driven invariant repairs filteredArtifact ↔ Cytoscape divergence in production. See [VIEWER_GRAPH_SPEC](VIEWER_GRAPH_SPEC.md) and [VIEWER_FRONTEND_ARCHITECTURE](VIEWER_FRONTEND_ARCHITECTURE.md) for the orchestrator wiring.
 - **Compose, CI gates, CIL, autoresearch v2, macOS ML safety**: [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md) (full-stack Compose), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (ephemeral stack-test on `main`), [ADR-086](../adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) (CIL + `bridge.json`), `ADR-087` autoresearch Track A v2 (moved to the private eval repo as ADR-006), [ADR-088](../adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) (local ML process safety); normative specs in [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md), [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md), `RFC-073` (moved to the private eval repo as RFC-003), [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md).
-- **Cross-surface stack contract (audit table, steady vs recovery):** STACK_CONTRACT (not in this repository) (ADR-093).
+- **Cross-surface stack contract (audit table, steady vs recovery):** STACK_CONTRACT and ADR-093 (both not in this repository).
 - **Process Safety** ([RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md)): ML model loading (spaCy, Transformers, Whisper) triggers heavy APFS filesystem I/O that can cause macOS kernel lock contention. Mitigations: no ML imports at Makefile parse time, filesystem-only cache checks, pre-commit hook timeout (120s), `cleanup-processes` prerequisite on `ci`/`ci-fast`, offline-mode enforcement (`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE`), and agent rules preventing overlapping `make ci` runs. Diagnostic targets: `make check-zombie` (detects unkillable UE-state processes) and `make check-spotlight` (verifies Spotlight indexing status).
 
 ### Reproducibility & Operational Hardening (Issue #379)
@@ -244,7 +244,7 @@ multi-feed semantics, and behavioral details see the
 | `workflow/` | Orchestration, stages, degradation, corpus ops, run tracking | [Pipeline Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
 | `rss/` | RSS parsing (`defusedxml`), HTTP downloads, feed cache | [RSS Guide](../guides/RSS_GUIDE.md) |
 | `providers/` | 9 unified providers (ML, Hybrid, 7 LLM); factories, capabilities, prompts | [Provider Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) |
-| `providers/tailnet_dgx/` | Self-hosted GPU inference providers: whisper transcription + pyannote diarization over a private network | ADR-096 |
+| `providers/tailnet_dgx/` | Self-hosted GPU inference providers: whisper transcription + pyannote diarization over a private network | ADR-096 (not in this repository) |
 | `providers/resilience/` | Deployment-agnostic primitives: `CircuitBreaker`, `TimeoutLike`, `run_with_watchdog`, `hardened_http_client` (TCP keepalive + `Connection: close`). Used by `tailnet_dgx/*` today; available to any provider that needs connection-level resilience. | [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md) |
 | `providers/guardrails/` | Response-shape sanity checks: `check_chat_response`, `check_whisper_response`, `check_diarization_response` — raise `GuardrailViolation` when a `200 OK` response contains semantically-corrupted content (empty, thinking-prose, `finish_reason=length`, malformed JSON). Wired at every chat-completion call site across cloud + self-hosted providers. | [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md), [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md) |
 | `gi/` | Grounded Insight Layer extraction (PRD-017) | [GI Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) |
@@ -336,17 +336,12 @@ graph TB
         CorpusScope[search/corpus_scope.py]
     end
 
-    subgraph "Corpus Topic Clustering (RFC-075)"
-        TopicClusters[search/topic_clusters.py]
-    end
-
     subgraph "Server Layer"
         ServerApp[server/app.py]
         ServerRoutes[server/routes/]
         ServerSchemas[server/schemas.py]
         CorpusCatalog[server/corpus_catalog.py]
         CorpusDigest[server/corpus_digest.py]
-        CorpusTopicClusters[server/routes/corpus_topic_clusters.py]
         IndexRebuild[server/index_rebuild.py]
         IndexStaleness[server/index_staleness.py]
     end
@@ -387,7 +382,6 @@ graph TB
     ServerRoutes --> ServerSchemas
     ServerRoutes --> CorpusCatalog
     ServerRoutes --> CorpusDigest
-    ServerRoutes --> CorpusTopicClusters
     ServerRoutes --> CorpusSearch
     ServerRoutes --> IndexRebuild
     ServerRoutes --> IndexStaleness
@@ -399,7 +393,6 @@ graph TB
     SearchIndexer --> Chunker
     CorpusSearch --> LanceBackend
     CorpusSimilar --> CorpusSearch
-    LanceBackend -. optional read .-> TopicClusters
     Workflow --> RSSParser
     Workflow --> EpisodeProc
     Workflow --> Downloader

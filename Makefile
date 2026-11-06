@@ -42,8 +42,6 @@ PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 # GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
-# Consumer Learning Player (Vue + Vite + Playwright; Epic 2 / RFC-099). Separate top-level app.
-
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
 GIL_OFFSET_VERIFY_DIR ?= output
@@ -138,10 +136,6 @@ help:
 	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
 	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (needs npm install in that dir)"
 	@echo "  make build-viewer        Production viewer bundle (vue-tsc -b && vite build); catches strict-mode TS errors invisible to vitest/playwright"
-	@echo "  make serve-app-dev       API (mock OAuth) + Learning Player app in parallel — one-command local app env"
-	@echo "  make app-docker-build    Build the Learning Player Docker image"
-	@echo "  make app-stack-up        Stack + Learning Player container (api proxied; APP_PORT, default 8081)"
-	@echo "  make app-stack-down      Tear down the stack + Learning Player overlay"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -211,8 +205,6 @@ help:
 	@echo "  make coverage-check-combined Check combined coverage >= $(COVERAGE_THRESHOLD_COMBINED)%"
 	@echo "  make coverage-enforce        Fast threshold check on existing .coverage (used by ci)"
 	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
-	@echo ""
-	@echo "Infrastructure (RFC-082 prod VPS):"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
@@ -905,7 +897,7 @@ stack-test-build:
 	@# + GIL evidence). Drops SummLlama (Llama 3.2 license — never
 	@# publish), Pegasus, hybrid LongT5/FLAN-T5, Whisper base.en. This
 	@# saves ~2 GB on the resulting image and keeps the redistribution
-	@# story clean for the future GHCR publish step (RFC-081).
+	@# story clean for the future GHCR publish step (RFC-081, not in this repository).
 	@STACK_PIPELINE_PRELOAD_ML=true \
 		STACK_PIPELINE_PRELOAD_VARIANT=airgapped-thin \
 		$(STACK_TEST_COMPOSE) --profile pipeline build
@@ -2444,7 +2436,7 @@ _ci_body: format-check lint lint-markdown check-doc-structure type security comp
 	# ``ci`` does not include it for the same reason locally.
 
 # Sequential sub-makes + banners so long-quiet steps (especially mypy) never look like a hang.
-# BACKEND gate (operator 2026-10-06): pipeline, providers, data work. No viewer or player tests or
+# BACKEND gate (operator 2026-10-06): pipeline, providers, data work. No viewer tests or
 # builds at all — those live in `ci-ui-fast`. `ci` runs everything.
 ci-fast:
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
@@ -2469,9 +2461,9 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
-# UI gate (operator 2026-10-06): the viewer and the player — unit tests, Playwright e2e, builds — plus
+# UI gate (operator 2026-10-06): the viewer — unit tests, Playwright e2e, build — plus
 # the same static checks as ci-fast and the fast Python tiers without Python e2e. The ONLY local
-# gate with app tests: ci-fast is backend-only. Longer than Vitest alone (Playwright).
+# gate with viewer tests: ci-fast is backend-only. Longer than Vitest alone (Playwright).
 ci-ui-fast:
 	# Note: ci-ui-fast skips coverage-enforce and Python tests/e2e; Playwright still needs browsers installed.
 	@set -e; \
@@ -3074,7 +3066,7 @@ profiles-check:
 
 #: The local gates for what changed vs origin/main (or STAGED=1: the staged files), checks only:
 #: black/isort/flake8/mypy/docstrings + the tests naming a changed module, markdownlint, make docs,
-#: player/viewer vitest-related + vue-tsc, actionlint. Last line GATES: PASS|FAIL. Skill: local-gates.
+#: viewer vitest-related + vue-tsc, actionlint. Last line GATES: PASS|FAIL. Skill: local-gates.
 #: Rebuild the app validation corpus as committed (build, realign, corpus enrichers) and report
 #: the difference; WRITE=1 copies added/changed files in. README: tests/fixtures/app-validation-corpus.
 regen-fixtures:
@@ -3181,7 +3173,7 @@ validate-files-unit:
 
 
 dgx-smoke:
-	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
+	@# RFC-089 (not in this repository): probe DGX Ollama via tailnet (non-fatal when DGX offline).
 	@# Auto-sources infra/.env.dgx.local (added with #897 / ADR-098) if present.
 	@if [ -f infra/.env.dgx.local ]; then set -a && . ./infra/.env.dgx.local && set +a; fi; \
 		if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \

@@ -65,8 +65,8 @@ on:
       # actionlint, `make check-test-policy`. With
       # only python-app.yml listed, a commit touching any OTHER workflow ran none of
       # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
-      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
-      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # ADR-115 (not in this repository) violation in sweep-prod-audio.yml and triggered NOTHING —
+      # no lint to confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
       # no image publish either, which stalled a corpus repair waiting on the build.
       # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
       # lint + build and skips every heavy test job and coverage-unified.
@@ -94,8 +94,8 @@ on:
       # actionlint, `make check-test-policy`. With
       # only python-app.yml listed, a commit touching any OTHER workflow ran none of
       # those, so a broken prod workflow could land unseen. 2026-08-22: 12bd791d fixed an
-      # ADR-115 violation in sweep-prod-audio.yml and triggered NOTHING — no lint to
-      # confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
+      # ADR-115 (not in this repository) violation in sweep-prod-audio.yml and triggered NOTHING —
+      # no lint to confirm the fix, and (because Stack test is workflow_run-gated on this workflow)
       # no image publish either, which stalled a corpus repair waiting on the build.
       # Cheap: detect-changes.python is `**.py` only, so a workflow-only change runs
       # lint + build and skips every heavy test job and coverage-unified.
@@ -207,12 +207,11 @@ jobs:
             - 'config/acceptance/**'
             - 'config/profiles/**'
             - 'compose/**'
-          # The two web apps, gated the same way (operator 2026-10-06). On a PULL REQUEST each app's
-          # unit tests run when its own tree changes, and its e2e when anything it runs against
-          # changes; on MAIN every one of them runs, always (see each job's `if`). The e2e suites
-          # boot the REAL api (`podcast_scraper.cli serve`) over a disposable copy of the committed
-          # app corpus, so the server and that corpus are dependencies of both. Python-only PRs
-          # used to skip the player's e2e entirely (#2285, #2286, #2288).
+          # The viewer (operator 2026-10-06). On a PULL REQUEST its unit tests run when its own
+          # tree changes, and its e2e when anything it runs against changes; on MAIN they always
+          # run (see each job's `if`). The e2e suite boots the REAL api
+          # (`podcast_scraper.cli serve`) over a disposable copy of the committed corpus, so the
+          # server and that corpus are its dependencies (#2285, #2286, #2288).
           viewer:
             - 'web/gi-kg-viewer/**'
             - 'docker/viewer/**'
@@ -352,7 +351,7 @@ jobs:
       env:
         # Only the embedding model is needed. Skip whisper/spaCy/transformers preload — they
         # aren't installed under [dev,search]. index_corpus runs allow_download=False, so the
-        # model MUST be in the HF cache before e2e/globalSetup.ts builds the index.
+        # model MUST be in the HF cache before the e2e global setup builds the index.
         SKIP_WHISPER: "1"
         SKIP_SPACY: "1"
         SKIP_TRANSFORMERS: "1"

@@ -3,7 +3,7 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helper
 
 /**
  * Operator profile dropdown filtering + default-profile preselection
- * (#692, RFC-081 §Layer 1).
+ * (#692, RFC-081 (not in this repository) §Layer 1).
  *
  * The api filters ``available_profiles`` (intersected with
  * ``PODCAST_AVAILABLE_PROFILES`` env) and may surface a

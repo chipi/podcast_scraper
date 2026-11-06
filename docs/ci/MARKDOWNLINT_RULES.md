@@ -52,7 +52,7 @@ Both are structural rather than stylistic. Re-enable only if we standardise on m
 
 ### `MD025` — single top-level H1 per file (2 violations, both fixed)
 
-**Re-enabled 2026-07-19.** The 2 violations were an accidental duplicate `# CI/CD Pipeline` H1 in `docs/ci/OVERVIEW.md` and `docs/ci/WORKFLOWS.md`. Each file's title was correct (`# CI/CD Overview`, `# CI/CD Workflows`); a stray `# CI/CD Pipeline` heading appeared before the first `## Overview` section. Both fixed inline this PR by removing the redundant H1.
+**Re-enabled 2026-07-19.** The 2 violations were an accidental duplicate `# CI/CD Pipeline` H1 in `docs/ci/OVERVIEW.md` and the CI workflows guide. Each file's title was correct (`# CI/CD Overview`, `# CI/CD Workflows`); a stray `# CI/CD Pipeline` heading appeared before the first `## Overview` section. Both fixed inline this PR by removing the redundant H1.
 
 ## How to re-run the audit
 

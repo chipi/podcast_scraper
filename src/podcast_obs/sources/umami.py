@@ -1,4 +1,5 @@
-"""Umami (self-hosted, cookieless) — the user-action lens for the control plane (ADR-126).
+"""Umami (self-hosted, cookieless) — the user-action lens for the control plane
+(ADR-126, not in this repository).
 
 Where VictoriaLogs/Traces show what the BACKEND did, Umami shows what USERS did on the operator
 viewer / player: page views, visitors, and the typed custom events (search / explore / graph-handoff
@@ -93,7 +94,8 @@ def stats(target: TargetConfig, *, window: str = "24h") -> dict:
 
 
 def events(target: TargetConfig, *, window: str = "24h") -> dict:
-    """User-action counts by event name — the operator "what did users DO" view (ADR-126 events)."""
+    """User-action counts by event name — the operator "what did users DO" view
+    (ADR-126 (not in this repository) events)."""
     headers, error = _prepare(target, _EVENTS)
     if error:
         return error

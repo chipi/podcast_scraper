@@ -211,7 +211,7 @@ def _dominant_storylines(
     """Storylines the show's topics fall into, by overlap, each with its reach and lift.
 
     Reads the ``topic_theme_clusters`` artifact, whose FILENAME keeps the old spelling because
-    renaming it would force a re-enrichment of every corpus including prod (UXS-013).
+    renaming it would force a re-enrichment of every corpus including prod.
     """
     data = _read_enrichment_data(root, "topic_theme_clusters")
     if not data:

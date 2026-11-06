@@ -10,7 +10,7 @@ from podcast_scraper.rss.licence import LicenceDeclaration, LicenceRecord
 
 
 class TranscriptSegment(BaseModel):
-    """One transcript segment in the player ``segments.json`` contract (PRD-036)."""
+    """One transcript segment in the player ``segments.json`` contract."""
 
     id: str = Field(description="Stable segment id within the episode.")
     start: float = Field(ge=0, description="Segment start time in seconds.")
@@ -218,7 +218,7 @@ class AppEpisodeBatchResponse(BaseModel):
 
 
 class AppEpisodeSummary(BaseModel):
-    """One episode card in the consumer catalog (PRD-038; list-item shape).
+    """One episode card in the consumer catalog (list-item shape).
 
     Lightweight by design: it carries the fields the catalog scan already produces.
     Per-artifact depth counts (insight_count, speaker_count) are intentionally NOT
@@ -310,8 +310,8 @@ class AppEpisodeSummary(BaseModel):
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
     color: str | None = Field(
         default=None,
-        description="Per-user saved-item colour token, present only on favourited episodes "
-        "(RFC-121 ph. 4). Null on catalog cards — it is a personal annotation, not corpus data.",
+        description="Per-user saved-item colour token, present only on favourited episodes"
+        ". Null on catalog cards — it is a personal annotation, not corpus data.",
     )
 
 
@@ -562,7 +562,7 @@ class AppEntity(BaseModel):
 
 
 class AppTopic(BaseModel):
-    """A KG topic discussed in an episode (RFC-102: cluster fields for cluster-first grouping)."""
+    """A KG topic discussed in an episode (cluster fields for cluster-first grouping)."""
 
     id: str = Field(description="Canonical topic id (topic:{slug}).")
     label: str = Field(description="Topic display label.")
@@ -592,7 +592,7 @@ class AppTopic(BaseModel):
 
 
 class AppStorylineRef(BaseModel):
-    """A storyline an episode belongs to, as a navigable reference (RFC-122).
+    """A storyline an episode belongs to, as a navigable reference.
 
     Addressed by ``id`` = the cluster's anchor topic id, which is the param the client storyline
     route takes (``/storyline/:id``) — not the ``thc:`` id.
@@ -603,7 +603,7 @@ class AppStorylineRef(BaseModel):
 
 
 class AppEpisodeRecap(BaseModel):
-    """Response for GET /api/app/episodes/{slug}/recap — the post-episode recap (RFC-122).
+    """Response for GET /api/app/episodes/{slug}/recap — the post-episode recap.
 
     One reinforcement model assembled from artifacts we already produce: the episode's summary key
     points, its top salience-ranked insights, the single strongest attributed quote (the emotional
@@ -663,7 +663,7 @@ class AppEntitiesResponse(BaseModel):
 
 
 class AppEntityRef(BaseModel):
-    """A resolved person/topic/org/storyline reference for entity-in-search (PRD-043 FR3 / 3.4)."""
+    """A resolved person/topic/org/storyline reference for entity-in-search."""
 
     id: str = Field(
         description=(
@@ -754,7 +754,7 @@ class AppPersonWeb(BaseModel):
 
 
 class AppPersonCard(BaseModel):
-    """Person profile card (PRD-043 FR2; GET /api/app/persons/{id}).
+    """Person profile card (GET /api/app/persons/{id}).
 
     KG-grounded over the whole corpus: ``episodes`` are those whose KG asserts this person's
     node; ``related_people`` / ``related_topics`` are the entities co-occurring most often
@@ -986,7 +986,7 @@ class AppClusterCard(BaseModel):
     aliases: list[str] = Field(
         default_factory=list,
         description=(
-            "Storylines only: names this storyline had before (RFC-128 — a name changes only "
+            "Storylines only: names this storyline had before (a name changes only "
             "after another led for 60 days). Empty for a theme."
         ),
     )
@@ -1021,7 +1021,7 @@ class AppTopShow(BaseModel):
 
 
 class AppTopicCard(BaseModel):
-    """Topic card (PRD-043 FR3; GET /api/app/topics/{id}).
+    """Topic card (GET /api/app/topics/{id}).
 
     KG-grounded: ``episodes`` are those whose KG asserts this topic; ``sibling_topics`` are the
     other members of this topic's corpus cluster (same theme, from ``topic_clusters.json``);
@@ -1124,7 +1124,7 @@ class AppTopicPerspectivesResponse(BaseModel):
 
 
 class AppTopicConversationArcResponse(BaseModel):
-    """Consumer projection of a topic's conversation arc — weekly volume × sentiment (ADR-108)."""
+    """Consumer projection of a topic's conversation arc — weekly volume × sentiment."""
 
     topic_id: str = Field(description="Canonical topic id.")
     weeks: list[CilTopicConversationArcWeek] = Field(
@@ -1133,7 +1133,7 @@ class AppTopicConversationArcResponse(BaseModel):
 
 
 class AppInterestCluster(BaseModel):
-    """One selectable interest cluster for the discovery picker (PRD-043 FR4 / 3.5)."""
+    """One selectable interest cluster for the discovery picker."""
 
     id: str = Field(description="Cluster id (graph_compound_parent_id, e.g. 'tc:…').")
     label: str = Field(description="Cluster canonical label.")
@@ -1189,14 +1189,12 @@ class AppInterestSearchResponse(BaseModel):
 
 
 class AppTrendingEntity(BaseModel):
-    """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
+    """One trending entity (momentum) — velocity (rising) + volume (recent level)."""
 
     entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
     kind: str = Field(description="topic|theme|storyline|person|episode|show|insight.")
     label: str = Field(description="Display label.")
-    velocity: float = Field(
-        description="Rising signal (RFC-103 R2): recent-window rate ÷ prior rate."
-    )
+    velocity: float = Field(description="Rising signal: recent-window rate ÷ prior rate.")
     volume: float = Field(description="Recent activity level (mentions in the window).")
     heating_up: bool = Field(description="velocity ≥ τ AND total ≥ floor.")
     total: int = Field(
@@ -1233,7 +1231,7 @@ class AppTrendingEntity(BaseModel):
 
 
 class AppReasonQuote(BaseModel):
-    """A quote said in an episode, and where — the grounding of a reason (ADR-163 §4)."""
+    """A quote said in an episode, and where — the grounding of a reason."""
 
     text: str = Field(description="The quote, verbatim from the transcript (cut for a card).")
     episode_slug: str = Field(description="The episode it is said in.")
@@ -1260,7 +1258,7 @@ class AppReasonCapture(BaseModel):
 
 
 class AppReason(BaseModel):
-    """Why a recommendation is here — the shape every Discover rail carries (ADR-163).
+    """Why a recommendation is here — the shape every Discover rail carries.
 
     Extractive only: the parts, never a written sentence (the client writes the words). ``quote``
     is null when nothing grounds the recommendation; the client then shows no quote rather than an
@@ -1274,7 +1272,7 @@ class AppReason(BaseModel):
     events: int | None = Field(
         default=None,
         description="most_engaged: distinct listeners who finished, captured, saved or opened it "
-        "over the window (ADR-163 §5).",
+        "over the window.",
     )
 
 
@@ -1293,7 +1291,7 @@ class AppTrendingEpisodesResponse(BaseModel):
 
 
 class AppDiscoverRail(BaseModel):
-    """One page of one Discover rail (ADR-163; paged on the server, operator 2026-10-11)."""
+    """One page of one Discover rail (paged on the server, operator 2026-10-11)."""
 
     rail: str = Field(description="quotes | captured | thread | people | another_view.")
     items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
@@ -1502,7 +1500,7 @@ class AppReelTopicsResponse(BaseModel):
 
 
 class AppSuggestLessItem(BaseModel):
-    """One subject the listener asked Discover to suggest less of (ADR-163 §6)."""
+    """One subject the listener asked Discover to suggest less of."""
 
     token: str = Field(description="topic: / person: / thc: / tc: id the card's reason named.")
     label: str = Field(description="Its display name when it was hidden, for Profile's list.")
@@ -1577,7 +1575,7 @@ class FavoriteAdd(BaseModel):
     """Body for PUT /api/app/favorites — save an item (idempotent on kind+ref).
 
     ``insight`` is NOT a favorite kind: an insight is a capture, saved via the highlights
-    path, so a ``kind=insight`` PUT fails validation with a 422 (RFC-121 / #1593).
+    path, so a ``kind=insight`` PUT fails validation with a 422 (#1593).
     """
 
     kind: Literal["episode", "person", "topic", "show", "storyline", "theme"] = Field(
@@ -1687,7 +1685,7 @@ class InterestsUpdate(BaseModel):
     items: list[str] = Field(default_factory=list, description="Cluster ids to save.")
 
 
-# --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+# --- P2 Capture: highlights + notes ---
 
 
 _CLIENT_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
@@ -2012,7 +2010,7 @@ class AppEntitySignalsResponse(BaseModel):
     )
 
 
-# --- P3 Consolidation: spaced resurfacing + derived interests (RFC-101 §5-6 / #1123) ---
+# --- P3 Consolidation: spaced resurfacing + derived interests (#1123) ---
 
 
 class ResurfacingItem(BaseModel):
@@ -2052,7 +2050,7 @@ class ResurfacingSettings(BaseModel):
 
 
 class DerivedInterest(BaseModel):
-    """An implicit interest token derived from the user's corpus (RFC-101 §6)."""
+    """An implicit interest token derived from the user's corpus."""
 
     token: str = Field(description="`person:<id>` / `topic:<id>` — same scheme as explicit follows")
     kind: Literal["person", "topic"] = Field(description="Entity kind.")
@@ -2077,13 +2075,13 @@ class DerivedInterestsResponse(BaseModel):
     items: list[DerivedInterest] = Field(default_factory=list)
 
 
-# --- Personal corpus — the unified definition (RFC-114 Phase 1, #1470) ---
+# --- Personal corpus — the unified definition (#1470) ---
 
 
 class CorpusSummary(BaseModel):
     """GET /api/app/corpus — faceted membership counts + the current revision."""
 
-    revision: int = Field(ge=0, description="Current corpus revision (RFC-114 change-log counter).")
+    revision: int = Field(ge=0, description="Current corpus revision (change-log counter).")
     experienced_count: int = Field(ge=0, description="Heard ∪ highlights ∪ notes ∪ saved-insights.")
     saved_count: int = Field(ge=0, description="Whole-episode favorites not in `experienced`.")
     top_entities: list[DerivedInterest] = Field(
@@ -2121,19 +2119,19 @@ class CorpusChangesResponse(BaseModel):
 
 
 class CorpusRankedEpisode(BaseModel):
-    """One experienced episode with its strength score (RFC-114 Phase 2)."""
+    """One experienced episode with its strength score."""
 
     slug: str = Field(description="Episode slug.")
     strength: float = Field(ge=0.0, le=1.0, description="Corpus strength in [0,1] (within-user).")
 
 
 class CorpusRankedResponse(BaseModel):
-    """GET /api/app/corpus/ranked — experienced episodes, strongest first (RFC-114 Phase 2)."""
+    """GET /api/app/corpus/ranked — experienced episodes, strongest first."""
 
     items: list[CorpusRankedEpisode] = Field(default_factory=list)
 
 
-# --- MCP personal-access tokens (RFC-112 slice 1, #1471) ---
+# --- MCP personal-access tokens (#1471) ---
 
 
 class McpTokenMeta(BaseModel):
@@ -2187,7 +2185,7 @@ class McpConnectionsResponse(BaseModel):
 
 
 class McpConnectionConfig(BaseModel):
-    """Connector wiring for the 'Connected agents' UI (GET /api/app/mcp/config, RFC-112 §5)."""
+    """Connector wiring for the 'Connected agents' UI (GET /api/app/mcp/config)."""
 
     connector_url: str | None = Field(
         default=None, description="The remote MCP server URL to paste into a client, or null."
@@ -2382,7 +2380,7 @@ class VapidKeyResponse(BaseModel):
     key: str = Field(description="URL-safe base64 VAPID public key.")
 
 
-# --- Collections / boards — the curation layer (#1417, PRD-046 FR4 / RFC-111 §1) ---
+# --- Collections / boards — the curation layer (#1417) ---
 
 
 class CollectionReorder(BaseModel):
@@ -2463,7 +2461,7 @@ class CollectionsResponse(BaseModel):
 
 
 class CollectionItemBody(BaseModel):
-    """POST /api/app/collections/{id}/items body — a typed reference (RFC-119)."""
+    """POST /api/app/collections/{id}/items body — a typed reference."""
 
     kind: Literal[
         "highlight",
@@ -2549,7 +2547,7 @@ class AppBoardSubject(BaseModel):
 
 
 class AppBoardSummary(BaseModel):
-    """One paragraph on what a board is about, made by the board-summarizer sidecar (RFC-127)."""
+    """One paragraph on what a board is about, made by the board-summarizer sidecar."""
 
     text: str
     created_at: int = Field(description="When it was written (unix seconds).")
@@ -2598,7 +2596,7 @@ class AppBoardThread(BaseModel):
 
 
 class AppBoardBrief(BaseModel):
-    """GET /api/app/collections/{id}/brief — a board's Brief (RFC-119 amendment 2026-10-12).
+    """GET /api/app/collections/{id}/brief — a board's Brief.
 
     Built only from what is saved on the board: a saved show, topic or person is not expanded into
     its episodes. Empty lists on a board with no episodes; the client then shows no Brief.
@@ -2609,7 +2607,7 @@ class AppBoardBrief(BaseModel):
     holds: AppBoardHolds
     summary: AppBoardSummary | None = Field(
         default=None,
-        description="The board's summary, written in the background (RFC-127); null until one is.",
+        description="The board's summary, written in the background; null until one is.",
     )
     voices: list[AppBoardVoice] = Field(
         default_factory=list, description="Top voices: who speaks in most of its episodes."
@@ -2778,7 +2776,7 @@ class UserPreferencesPatch(BaseModel):
 
 
 class StatPoint(BaseModel):
-    """One day bucket of a listening sparkline (UXS-014)."""
+    """One day bucket of a listening sparkline."""
 
     date: str = Field(description="UTC calendar day, ISO 'YYYY-MM-DD'.")
     count: int = Field(ge=0, description="Opens on that day.")
@@ -2818,7 +2816,7 @@ class MomentHeard(BaseModel):
 
 
 class UserStatsResponse(BaseModel):
-    """The signed-in user's own listening summary — GET /api/app/me/stats (PRD-043 / RFC-102)."""
+    """The signed-in user's own listening summary — GET /api/app/me/stats."""
 
     episodes: int = Field(ge=0, description="Distinct episodes opened / in progress.")
     shows: int = Field(ge=0, description="Distinct shows listened to.")
@@ -2873,7 +2871,7 @@ class UserStatsResponse(BaseModel):
 
 
 class EpisodeStatsResponse(BaseModel):
-    """Cross-user reach for one episode — GET /api/app/episodes/{slug}/stats (PRD-043 / RFC-102)."""
+    """Cross-user reach for one episode — GET /api/app/episodes/{slug}/stats."""
 
     slug: str = Field(description="Episode slug.")
     #: NULL below the k-anonymity floor (#1923) — with a handful of users an exact count
@@ -3041,7 +3039,7 @@ class RecapTheme(BaseModel):
 
 
 class RecapStrongEpisode(BaseModel):
-    """An episode ranked by engagement strength (RFC-114), not by play count."""
+    """An episode ranked by engagement strength, not by play count."""
 
     slug: str = Field(description="Episode slug.")
     strength: float = Field(description="Heard-fraction, captures, favourites and relistens.")
@@ -3748,7 +3746,7 @@ class SearchClusterGroupModel(BaseModel):
 
 
 class SearchConsensusPairModel(BaseModel):
-    """One cross-Person corroboration pair from ``operator=consensus`` (ADR-108).
+    """One cross-Person corroboration pair from ``operator=consensus``.
 
     Sourced from the shipped ``enrichments/topic_consensus.json`` — the enricher
     hit precision ~0.91 on prod-v2. Server filters the pair list to the topics
@@ -3783,7 +3781,7 @@ class SearchConsensusPairModel(BaseModel):
         description="Text of insight_b (from the enricher's serialized pair).",
     )
     contradiction_score: float = Field(
-        description="NLI contradiction score (0-1); lower ⇒ stronger agreement (per ADR-108).",
+        description="NLI contradiction score (0-1); lower ⇒ stronger agreement.",
     )
     cosine_similarity: float | None = Field(
         default=None,
@@ -3890,7 +3888,7 @@ class CompareSubjectRefModel(BaseModel):
 class CompareBriefingPackModel(BaseModel):
     """One side of a Compare response (Search v3 §S8).
 
-    Wraps a single ``build_briefing_pack`` call — the RFC-093 API used
+    Wraps a single ``build_briefing_pack`` call — the API used
     unchanged. ``rendered`` is the LITM-positioned text (critical /
     supporting / caveats) the caller can paste into a summary card.
     ``grounded`` is True when the pack has a top insight; the judge

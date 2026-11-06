@@ -6,8 +6,7 @@ workflow, deploy-contract or package-layout change, and nothing that counts as f
 it runs on prod or the DGX. Code here ships with a later deploy; it adds no step to that deploy's
 runbook unless an item says so.
 
-Sources: `HANDOVER-NAMING-2026-11-03.md` (§2, §4), the deleted `INGESTION-ARC-2026-10-19.md`
-(`git show 775b09c8^:docs/wip/INGESTION-ARC-2026-10-19.md`), eval-data
+Sources: `HANDOVER-NAMING-2026-11-03.md` (§2, §4), the earlier ingestion arc note (deleted; in git history before 775b09c8), eval-data
 `docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md`, open GH issues, and the ingestion session's
 pointers (2026-11-03). Every issue state below is from `gh issue view` on 2026-11-03.
 
@@ -110,8 +109,8 @@ before the first rule.
 | M4 | V3 S7, roster vs voices: `quality/name_report.py` measures R5 (`listed_not_heard_entries`); the operator's decision on how a listed-but-unheard name shows was never asked, so no read-time fix exists | **Measured, closed with no read-time change** (below): on snapshot-prod-20261103, 3,889 listed-but-unheard names in 1,983 of 3,130 episodes |
 
 Measuring tiers L, B and M locally needs a snapshot copy; none is on this machine. Source: the
-backup repo, `scripts/ops/corpus_snapshot/download_and_verify_snapshot.sh --tag
-snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on), then `upgrade run --to
+backup repo, through the infrastructure repository's snapshot download script
+with `--tag snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on), then `upgrade run --to
 2.7.36 --no-snapshot` to bring it to D2's state, or a newer daily snapshot. A working copy is about
 8.3 GB, one base plus a gate copy per run. D2's gate chain: eval-data
 `data/eval/name-consolidation/d2out/scripts/chain5.sh`.
@@ -127,7 +126,7 @@ snapshot-prod-20261030` (about 10 GB; the one D1/D2 were measured on), then `upg
 
 ## The deploy and what follows it (inventory, 2026-11-04)
 
-**Order** (operator, 2026-11-04; in the database session's plan, Common `SEQUENCE.md`, "Then: the
+**Order** (operator, 2026-11-04; in the database session's plan, "Then: the
 ingestion deploy"): infra's PR B (#2420) merges and deploys first; then this branch, rebased onto
 main after it, with the 0043 apply and the targeted reindex; then the first database moment
 (#2417 and companions). PR B merges only on the operator's go; the session that owns it messages

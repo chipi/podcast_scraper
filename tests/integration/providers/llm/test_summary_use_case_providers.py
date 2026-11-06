@@ -1,4 +1,4 @@
-"""The board summary is a use case of every provider's own ``summarize`` (RFC-127).
+"""The board summary is a use case of every provider's own ``summarize``.
 
 Mirrors each provider's ``test_summarize_success`` (the SDK client mocked, nothing on the network),
 but renders the REAL prompt templates through the prompt store, so the test fails if a provider

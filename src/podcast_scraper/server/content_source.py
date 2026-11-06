@@ -1,13 +1,13 @@
-"""Pluggable content source for the consumer catalog (#1078, RFC-099 §3).
+"""Pluggable content source for the consumer catalog (#1078).
 
 The catalog list endpoints read episodes through a :class:`ContentSource` so the backend
 can evolve without reshaping the API. The MVP implementation, :class:`LocalCorpusSource`,
-enumerates the **already-processed local corpus** (PRD-038 local-content MVP) — every
+enumerates the **already-processed local corpus** (the local-content MVP) — every
 episode it lists is effectively *ready*. When scrape-on-demand (#1069) lands, a
 ``DiscoverySource`` can implement the same Protocol to surface not-yet-processed content,
 with **no change** to the routes or the ``/api/app/episodes`` response shape.
 
-No new persistence (PRD-035 D2): everything is derived from the per-request corpus scan
+No new persistence: everything is derived from the per-request corpus scan
 the catalog/slug layers already perform.
 """
 

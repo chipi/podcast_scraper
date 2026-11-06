@@ -89,7 +89,7 @@ def test_full_login_callback_me_logout(tmp_path: Path) -> None:
 def test_login_return_to_round_trips_through_callback(tmp_path: Path) -> None:
     """A safe same-origin ``return_to`` on /auth/login is honoured by the callback redirect.
 
-    This is what makes the MCP /authorize bounce (RFC-112) land back on the consent screen
+    This is what makes the MCP /authorize bounce land back on the consent screen
     after Google sign-in instead of dumping the user on the player home.
     """
     client = TestClient(_app(tmp_path))

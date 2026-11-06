@@ -2,8 +2,7 @@ import { fetchWithTimeout } from './httpClient'
 
 /**
  * Mirrors ``podcast_scraper.server.jobs.COMMAND_*`` constants — keep in
- * lockstep with the Python side (see tests/unit/podcast_obs/test_mcp_server.py
- * for the cross-package match assertion).
+ * lockstep with the Python side.
  */
 export const COMMAND_FULL_INCREMENTAL_PIPELINE = 'full_incremental_pipeline'
 export const COMMAND_CORPUS_ENRICHMENT = 'corpus_enrichment'

@@ -104,7 +104,7 @@ export async function resetResilience(scope: 'all' | 'llm' | 'rss' = 'all'): Pro
   }
 }
 
-/** One virtual key's spend / budget / burn on the prod LiteLLM gateway (#53 / ADR-142). */
+/** One virtual key's spend / budget / burn on the prod LiteLLM gateway (#53 / ADR-142 (not in this repository)). */
 export interface LlmGatewayKey {
   key_alias: string
   spend_usd?: number

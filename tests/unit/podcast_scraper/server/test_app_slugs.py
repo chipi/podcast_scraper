@@ -1,4 +1,4 @@
-"""Unit tests for the consumer episode slug contract (#1067, RFC-098 §4).
+"""Unit tests for the consumer episode slug contract (#1067).
 
 Pure functions over plain strings — no HTTP, no disk, no `[dev]` extras.
 """

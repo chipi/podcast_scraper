@@ -7,7 +7,7 @@
   - [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) — the per-episode
     artifact + logical-union corpus model that "the pipeline is ingestion" relies on.
 - **Related RFCs**:
-  - RFC-037 / PRD-037 — discovery / scrape-on-demand, whose
+  - RFC-037 — discovery / scrape-on-demand, whose
     phase-1 "ingestion primitive" this ADR retires.
 
 ## Context

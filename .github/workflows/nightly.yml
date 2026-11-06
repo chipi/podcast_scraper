@@ -670,7 +670,7 @@ jobs:
       env:
         # Only the embedding model is needed. Skip whisper/spaCy/transformers preload — they
         # aren't installed under [dev,search]. index_corpus runs allow_download=False, so the
-        # model MUST be in the HF cache before e2e/globalSetup.ts builds the index.
+        # model MUST be in the HF cache before the e2e global setup builds the index.
         SKIP_WHISPER: "1"
         SKIP_SPACY: "1"
         SKIP_TRANSFORMERS: "1"

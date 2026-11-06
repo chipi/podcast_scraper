@@ -21,7 +21,7 @@ SHARED_TEMPLATES_REQUIRE_TRANSCRIPT: Final[tuple[str, ...]] = (
 SHARED_TEMPLATES_FORBID_TRANSCRIPT: Final[tuple[str, ...]] = (
     "shared/summarization/bundled_clean_summary_system_v1",
     "shared/summarization/system_bullets_v1",
-    # Board summaries (RFC-127): written from the episodes' Briefs and saved moments, never from a
+    # Board summaries: written from the episodes' Briefs and saved moments, never from a
     # transcript — the board's material is too large for one, and the Briefs are what it shows.
     "shared/summarization/board_system_v1",
     "shared/summarization/board_user_v1",
@@ -40,7 +40,7 @@ SUMMARIZATION_TRANSCRIPT_EXCLUDE_FILENAMES: Final[frozenset[str]] = frozenset(
         # role + output contract; the matching long_no_thinking_v1.j2 carries
         # the transcript. See #961.
         "system_no_thinking_v1.j2",
-        # Board summaries (RFC-127): material, not a transcript, in a provider's own copy too.
+        # Board summaries: material, not a transcript, in a provider's own copy too.
         "board_system_v1.j2",
         "board_user_v1.j2",
         "board_document_v1.j2",

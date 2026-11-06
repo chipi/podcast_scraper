@@ -315,7 +315,7 @@ an external delivery-worker component; its packaging is
 under reevaluation ([#2077](https://github.com/chipi/podcast_scraper/issues/2077)).
 
 Full walkthrough: **Notifications & Delivery Guide**.
-Design: ADR-144,
+Design: ADR-144 (not in this repository),
 [ADR-145](../adr/ADR-145-channel-agnostic-outbox-seam.md),
 [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md).
 

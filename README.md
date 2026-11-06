@@ -573,8 +573,8 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | [Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
 | Experiment Guide (moved to the private eval repo) | Eval datasets, baselines, experiments (`data/eval/`) |
 | Performance Profiles (moved to the private eval repo) | Per-release stage timing snapshots (`data/profiles/`) |
-| Production Runbook | Always-on VPS operator playbook (RFC-082) |
-| VPS Multi-App Onboarding | Hosting additional compose stacks on the same VPS (RFC-087) |
+| Production Runbook | Always-on VPS operator playbook (RFC-082, not in this repository) |
+| VPS Multi-App Onboarding | Hosting additional compose stacks on the same VPS (RFC-087, not in this repository) |
 | [Viewer Graph Spec](docs/architecture/VIEWER_GRAPH_SPEC.md) | Graph handoff orchestrator + canvas contract (ADR-094) |
 | [AGENTS.md](AGENTS.md) | Canonical contributor + AI-assistant guide (single source of truth) |
 | [Guides](docs/guides/) | Development, testing, and usage guides |

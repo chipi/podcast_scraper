@@ -97,7 +97,7 @@ only. Speaker/Quote shape live-verify pending on a corpus that emits them.
 The **same palette** feeds the graph, the Types chip, the CIL legend, the
 topic pill on the reader — one source of truth.
 
-**Why one palette:** UXS-014 says surface visuals must not drift. If Person is
+**Why one palette:** surface visuals must not drift. If Person is
 amber `#c49a28` in the graph, it must be amber in the Types chip and in the
 CIL topic list. Hand-editing hexes across three files caused a collision
 before (`Entity_person` and `TopicCluster` were both `#9775fa`); the fix
@@ -651,8 +651,7 @@ and `stores/graphFilters.ts`.
 "SuperTheme unchecked" filter state.
 
 **Code:** `web/gi-kg-viewer/src/stores/graphFilters.ts` — top-down routing
-plus SuperTheme force-through. Test:
-`web/gi-kg-viewer/src/stores/graphFilters.test.ts`.
+plus SuperTheme force-through.
 
 ---
 
@@ -740,8 +739,6 @@ approach.
 **Code:**
 
 - Slice derivation: `web/gi-kg-viewer/src/utils/topDownSlice.ts`.
-- Store: `web/gi-kg-viewer/src/stores/graphTopDown.ts`,
-  `stores/graphLoadMode.ts`.
 - Search auto-expand: `GraphCanvas.vue::maybeExpandTopDownForPendingFocus`.
 - Filter routing: `stores/graphFilters.ts`.
 
@@ -802,8 +799,6 @@ Full store map for the graph:
 | ------- | ------ | --------------- |
 | `useGraphLensesStore` | `stores/graphLenses.ts` | 9 lens flags + resetToDefaults; localStorage + USERPREFS-1 |
 | `useGraphFiltersStore` | `stores/graphFilters.ts` | `allowedTypes`, `filteredArtifact`, top-down routing, SuperTheme force-through |
-| `useGraphLoadModeStore` | `stores/graphLoadMode.ts` | `'everything'` vs `'top-down'`; localStorage + USERPREFS-1 |
-| `useGraphTopDownStore` | `stores/graphTopDown.ts` | `expandedSuperThemeIds`; drives top-down slice re-derivation |
 | `useGraphThemeFocusStore` | `stores/graphThemeFocus.ts` | Single focus bus for legend interaction |
 | `useGraphExplorerStore` | `stores/graphExplorer.ts` | Ego expansion, cross-episode re-scope |
 | `useGraphHandoffStore` | `stores/graphHandoff.ts` | Handoff FSM (see `VIEWER_GRAPH_SPEC.md`) |
@@ -862,13 +857,8 @@ files:
   degree-heat selector, palette hex.
 - `utils/cyGraphLensOverlays.test.ts` — 21 tests, all 8 apply/clear
   overlay functions via MockCore.
-- `utils/topicClustersOverlay.test.ts` — episode_ids tagging, one-hop /
-  two-hop propagation, first-cluster-wins, type allowlist.
 - `stores/graphLenses.test.ts` — every flag, resetToDefaults, USERPREFS-1
   round-trip, legacy-key migration.
-- `stores/graphFilters.test.ts` — top-down routing, SuperTheme
-  force-through, filtersActive computed.
-- `stores/graphLoadMode.test.ts`, `stores/graphTopDown.test.ts`.
 - `utils/parsing.test.ts` — `DEFAULT_HIDDEN_TYPES`, `filtersActive` corner
   cases.
 - `utils/colors.test.ts` — brand-palette collision guard.
@@ -921,11 +911,6 @@ main and in `ci-ui-full` locally.
 
 - The HD1–HD20 harden pass audit + fixes (WIP doc, now removed; open items tracked in issue #1219).
 - Running the enrichers end-to-end against a corpus to reproduce the on-screen state (WIP doc, now removed).
-
-**Related consumer surface:**
-
-- `docs/guides/CONSUMER_LEARNING_PLAYER_GUIDE.md` — where sentiment lives
-  (arc-tint), why it's not a graph lens.
 
 ---
 

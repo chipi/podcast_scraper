@@ -123,4 +123,3 @@ nDCG@10 skipped        nDCG@10 detects DRIFT            nDCG@10 detects
 - `make eval-search` — the CI target.
 - RFC-107 §T2 — the metric spec.
 - RFC-092 — the intent taxonomy.
-- ADR-108 — `topic_consensus` context for the precision metric.

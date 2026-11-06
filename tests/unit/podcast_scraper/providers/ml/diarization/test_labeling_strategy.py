@@ -1,4 +1,4 @@
-"""Provider-specific speaker-labeling strategies (ADR-126).
+"""Provider-specific speaker-labeling strategies (ADR-126, not in this repository).
 
 community-1's finer clustering breaks assumptions the Deepgram-tuned heuristics baked in: it splits
 hosts into their own clusters (garbled self-intros), leaves cold-open promo readers as their own

@@ -45,7 +45,7 @@ product layer over the retrieval backend specified in RFC-090 and PRD-032.
   named-entity recall, relational context, corpus-level behavior. Search is the product
   framing of that next step.
 - **How it relates to existing features.** Search consumes the hybrid retrieval backend
-  (RFC-090 plus the additive signals in RFC-091/092/093) and the canonical identity layer
+  (RFC-090 plus the additive signals in RFC-091/092) and the canonical identity layer
   (RFC-072). It is complementary to the Graph surface, not a replacement.
 
 ## Goals
@@ -75,7 +75,7 @@ product layer over the retrieval backend specified in RFC-090 and PRD-032.
   - The corpus scope bar and coverage intent surface this at query time.
 - **Agent (future)**: Autoresearch / MCP consumer issuing programmatic queries.
   - Needs shaped, intent-aware results rather than raw lists.
-  - Served by the briefing-pack tool specified in RFC-093 **[TBD — MCP tool layer not yet built]**.
+  - Served by a briefing-pack tool **[TBD — MCP tool layer not yet built]**.
 
 ## User Stories
 
@@ -214,7 +214,7 @@ Each result card is a grounded insight card, not a text snippet.
 - **RFC-088** Enrichment Layer Architecture (contradiction signals) — **Soft** — contradiction
   badge degrades gracefully; typed contradiction edges are **not yet built**.
 - **MCP tool layer** — **[TBD — not yet specified]** — required only for the agent-facing
-  briefing pack (RFC-093), not for the viewer.
+  briefing pack, not for the viewer.
 
 ## Constraints & Assumptions
 
@@ -264,7 +264,7 @@ Each result card is a grounded insight card, not a text snippet.
 - PRD-021: `docs/prd/PRD-021-semantic-corpus-search.md` — predecessor.
 - PRD-026: `docs/prd/PRD-026-topic-entity-view.md` — Topic Entity View panel.
 - PRD-029: `docs/prd/PRD-029-person-profile.md` — Person profile content.
-- RFC-090/091/092/093 — the retrieval backend and additive signals.
+- RFC-090/091/092 — the retrieval backend and additive signals.
 - Issue #849: Search retrieval prerequisites (survivors of #466).
 - Issue #466: GI + KG depth roadmap (CLOSED, superseded).
 - Issues #671, #672, #673, #674 (all CLOSED).

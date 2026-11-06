@@ -87,8 +87,7 @@ episode-row; introduces no new tokens.
 
 ## Cross-surface flow (visual)
 
-- Grid card → detail: in-panel replace (no modal, no new backdrop — one-surface rule, operator memory /
-  UXS-014). Back returns to grid at prior scroll.
+- Grid card → detail: in-panel replace (no modal, no new backdrop — one-surface rule, operator memory). Back returns to grid at prior scroll.
 - Episode row → graph: click routes through the existing `focusEpisode` path; the Library tab yields to
   the Graph tab (existing transition), so no new visual affordance is introduced here.
 
@@ -114,5 +113,5 @@ episode-row; introduces no new tokens.
 
 ## Related
 
-UXS-001 (tokens), UXS-003 (episode row), UXS-011/012 (consumer parallel for reference only — the
-operator uses UXS-001 density, **not** the consumer editorial system).
+UXS-001 (tokens), UXS-003 (episode row). The consumer app's design is for reference only: the
+operator uses UXS-001 density, **not** the consumer editorial system.

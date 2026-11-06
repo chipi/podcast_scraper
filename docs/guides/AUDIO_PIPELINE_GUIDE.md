@@ -28,7 +28,7 @@ Design specs: [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) (diarizatio
 | Provider | Config value | When to use |
 | -------- | ------------- | ----------- |
 | Local Whisper | `whisper` | Default local path; supports screenplay + neural diarization |
-| Self-hosted GPU Whisper (private network) | `tailnet_dgx_whisper` | Self-hosted GPU primary with cloud fallback (ADR-096); same diarize/screenplay rules as local Whisper |
+| Self-hosted GPU Whisper (private network) | `tailnet_dgx_whisper` | Self-hosted GPU primary with cloud fallback (ADR-096, not in this repository); same diarize/screenplay rules as local Whisper |
 | OpenAI | `openai` | Cloud STT (`whisper-1`); plain text output; no local diarization |
 | Gemini | `gemini` | Cloud STT |
 | Mistral | `mistral` | Cloud STT |

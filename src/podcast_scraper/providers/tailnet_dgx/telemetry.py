@@ -1,4 +1,4 @@
-"""Sentry breadcrumbs for DGX fallback events (ADR-096)."""
+"""Sentry breadcrumbs for DGX fallback events (ADR-096, not in this repository)."""
 
 from __future__ import annotations
 

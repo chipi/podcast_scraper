@@ -137,7 +137,7 @@ async function onUsageGroupByChange(dim: typeof usageGroupBy.value): Promise<voi
   await refreshUsage()
 }
 
-// --- Prod LiteLLM gateway (#53 / ADR-142): per-key spend/budget/burn from VictoriaMetrics ---
+// --- Prod LiteLLM gateway (#53 / ADR-142 (not in this repository)): per-key spend/budget/burn from VictoriaMetrics ---
 const llmGateway = ref<LlmGatewaySnapshot | null>(null)
 const llmGatewayError = ref<string | null>(null)
 
@@ -239,7 +239,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Prod LiteLLM gateway (#53 / ADR-142): per-key spend + the budget wall, from the
+    <!-- Prod LiteLLM gateway (#53 / ADR-142 (not in this repository)): per-key spend + the budget wall, from the
          gateway's metered spend pushed to homelab VictoriaMetrics. -->
     <div class="rounded-sm border border-border bg-elevated p-3" data-testid="llm-gateway-panel">
       <div class="flex items-center justify-between">

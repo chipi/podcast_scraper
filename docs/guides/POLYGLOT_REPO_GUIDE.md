@@ -1,18 +1,14 @@
-# Polyglot repository layout (Python + two Node UI apps)
+# Polyglot repository layout (Python + a Node UI app)
 
 This repository is **Python-first**: the package, CLI, tests, and `Makefile` live at the **repo
-root**. On top of that, **two independent Node/Vue projects** live side-by-side under `web/`:
+root**. On top of that, **a Node/Vue project** lives under `web/`:
 
 - **GI/KG Viewer** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** inspection
   tool for knowledge-graph + grounded-insight artifacts. Under
   [`web/gi-kg-viewer/`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/).
-- **Learning Player** (RFC-099) — the
-  **consumer** PWA for listening + capture + consolidation. Under
-  [`web/learning-player/`](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/).
 
-Different audiences, different design systems, different deploy targets — deliberately separate
-projects, both under `web/` for discoverability. Treat them as three toolchains (Python + two
-Node) that share one git tree, not one unified `npm` workspace (by design).
+Treat it as two toolchains (Python + Node) that share one git tree, not one unified `npm`
+workspace (by design).
 
 ---
 
@@ -22,16 +18,10 @@ Node) that share one git tree, not one unified `npm` workspace (by design).
 | ---- | -------- | ------------- |
 | **Python app** (CLI, pipeline, FastAPI server) | Repo root (`pyproject.toml`, `src/`) | `python3 -m venv .venv`, `source .venv/bin/activate`, `make init` or `pip install -e ".[…]"` |
 | **GI/KG Viewer** (Vue 3 + Vite + TS — operator) | `web/gi-kg-viewer/` (`package.json`) | `cd web/gi-kg-viewer && npm install`; `npm run dev` / `npm run build` / `npm run test:*` |
-| **Learning Player** (Vue 3 + Vite + TS — consumer, PWA) | `web/learning-player/` (`package.json`) | `cd web/learning-player && npm install`; `npm run dev` / `npm run build` / `npm run test:*` |
 
 **End-to-end viewer (API + built SPA in one process):** install `[dev]`, build `dist/` under
 `web/gi-kg-viewer`, then `python -m podcast_scraper.cli serve --output-dir …`. See
 [Server Guide](SERVER_GUIDE.md) and [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
-
-**End-to-end player (real API + preview + PWA install path):** install `[dev]`, build under
-`web/learning-player`, then run its `npm run preview` proxying to `podcast_scraper serve`. See
-[web/learning-player/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/learning-player/README.md)
-and CONSUMER_LEARNING_PLAYER_GUIDE.
 
 ---
 

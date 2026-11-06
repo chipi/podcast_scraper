@@ -31,7 +31,7 @@ Detail manuals (load on demand by any agent):
 ## Deployment topology — GROUND TRUTH, never re-derived from config files
 
 - **LLM path (prod):** app -> LiteLLM gateway **on the prod VPS** -> OpenRouter -> vendor
-  (ADR-142, one gateway per failure domain). DGX variant: the same prod gateway, or
+  (ADR-142 (not in this repository), one gateway per failure domain). DGX variant: the same prod gateway, or
   direct vllm per profile, -> DGX. the deployment's gateway config (not in this
   repository) is the gateway of record.
 - **The homelab hosts OBSERVABILITY ONLY** (Langfuse, GlitchTip, VictoriaMetrics/Logs/
@@ -267,7 +267,7 @@ forever than have this violated. Full failure-mode analysis lives in
     agent cannot see what's actually changing or why.
 
     Operating rules:
-    - Route infra / IaC / `tailscale/policy.hujson` changes through a **PR**,
+    - Route infra / IaC / tailnet ACL policy changes through a **PR**,
       not direct-to-main, so `infra-ci.yml` posts the plan as a PR comment for
       human review. Direct-to-main bypasses the only pre-apply review surface.
     - Reading a plan: before any apply, search the plan output for the literal
@@ -880,9 +880,9 @@ can hide a drift-induced native crash that only surfaces in CI.
 
 - Backend diff (pipeline, providers, data, server): `make ci-fast` — static checks, fast Python
   tiers incl. the fast Python e2e, docs, build. It runs NO viewer or player tests or builds.
-- UI diff (`web/gi-kg-viewer/`, `web/learning-player/`), or a backend change the apps depend on:
-  `make ci-ui-fast` — the same static checks, fast Python tiers without Python e2e, and both apps'
-  unit tests, Playwright e2e and builds.
+- UI diff (`web/gi-kg-viewer/`), or a backend change the viewer depends on:
+  `make ci-ui-fast` — the same static checks, fast Python tiers without Python e2e, and the
+  viewer's unit tests, Playwright e2e and build.
 - `make ci` runs everything (the `main` equivalent).
 - Skip a duplicate full run when the same target already passed in this
   session and no substantive edits were made after.
@@ -1202,8 +1202,8 @@ See:
 ### vLLM-on-GB10 model sweeps — consult & maintain `PER_MODEL_OPTIMAL_PARAMS.md`
 
 Before dispatching any multi-model vLLM sweep on the DGX-GB10 autoresearch
-slot, **read `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`** (lives next to
-`autoresearch/README.md` and `autoresearch/MODEL_PLAYBOOK.md` — the
+slot, **read `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`** (the
+compendium sits beside the autoresearch README and model playbook — the
 three-doc pair that describes *how to run autoresearch*).
 It is the canonical per-model flag compendium — every model that has
 ever booted on `nvcr.io/nvidia/vllm:26.05-py3` has a row recording the

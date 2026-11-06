@@ -1,4 +1,4 @@
-"""Shared relational-capability core (RFC-095 §3).
+"""Shared relational-capability core.
 
 Lifts the hybrid re-rank out of the HTTP route so **both** the ``/api/relational/*``
 handlers and the MCP relational tools layer the same entity-scoped hybrid ranking over

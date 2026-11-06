@@ -534,7 +534,7 @@ def build_pipeline_argv(
        through cloud_thin (or any preprod default) even if the operator
        triggered a job before clicking Save in the profile menu.
     3. No ``--profile`` flag at all (CLI falls back to ``Config._resolve_profile``
-       defaults — same as today's pre-RFC-081 behavior).
+       defaults — same as today's pre-RFC-081 (not in this repository) behavior).
 
     *pipeline_stage* selects a REPROCESS mode (``rederive_only``, ``relabel_only``,
     ``retranscript_only``, ``translate_only``, ``repunctuate_only``,
@@ -1654,7 +1654,7 @@ async def monitor_subprocess(
     # Fire-and-forget downstream notification. No-op when
     # PODCAST_JOB_WEBHOOK_URL is unset (default). Failures are logged
     # but never propagate — webhook outages must not break finalize.
-    # See src/podcast_scraper/server/job_webhook.py + RFC-081 §Layer 4.
+    # See src/podcast_scraper/server/job_webhook.py + RFC-081 (not in this repository) §Layer 4.
     rec_after = await asyncio.to_thread(get_job, corpus_root, job_id)
     if rec_after is not None:
         try:

@@ -164,7 +164,7 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 - **Delivery worker (separate component):** the delivery templates render the label.
   Its vendored schema has the two new fields.
 - **Deploy order: either is safe.** The worker does not check envelopes against the schema; only
-  the contract test does (`delivery/envelope.py`). It ignores unknown fields, so an older worker
+  the contract test does. It ignores unknown fields, so an older worker
   renders a translated item without its label.
 - **After the podcast deploy, read-only checks:**
   - Open a translated episode: the label shows under its quotes. An English episode shows none.

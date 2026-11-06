@@ -12,7 +12,6 @@
   - `docs/rfc/RFC-109-per-episode-observability-manifest.md`
 - **Related ADRs**:
   - `docs/adr/ADR-155-pin-every-model-checkpoint.md` — the verification model is pinned
-  - `docs/adr/ADR-108-nli-disagreement-enrichers-gated-dark.md` — the 2026-07-08 update that made stance-over-time a read-time query rather than an enricher; this RFC gates that query
 - **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` (§4 slice plan, D-5, D-6)
 
 ## Abstract
@@ -69,8 +68,8 @@ deliberately is none:
   `topic_conversation_arc` (`:842`) build the per-(person, topic) arc at request time from GI
   insights, their supporting quotes and KG episode metadata. `enrichment/profile_sets.py:144-146`
   records the decision in the code itself: "Per-person / per-topic stance-over-time is now a
-  read-time CIL query (conversation-arc / position-arc), not a gated enricher." ADR-108's 2026-07-08
-  update removed the `stance_timeline` enricher for exactly this reason.
+  read-time CIL query (conversation-arc / position-arc), not a gated enricher." The 2026-07-08
+  removal of the `stance_timeline` enricher was for exactly this reason.
 
 So there is one writer (the GI artifact builder) and any gate belongs in the **read path**. That is what
 makes deferring it safe: a read-path gate applies to every episode already in the corpus the moment
@@ -260,7 +259,7 @@ deliverable of the slice rather than a claim in this document:
 | `topic_timeline_merged` | def `:891` | the same insights across multiple topics |
 | `person_profile` insights-by-topic | defs `:709`, `:752` | a position surface in all but name |
 | `topic_perspective_leaders` | def `:984` | ranks people by their claims on a topic; counts over **edge ids** and never materialises insight nodes, so a node-property predicate needs an id→node map first |
-| `topic_perspectives` | `:1041-1147` | "who holds which take", served to the **consumer app** (`relational_view.build_topic_perspectives` ← `routes/app_relational.py:178`) **and to OG share images** (`server/og/build.py:217`, where a claim becomes the headline quote with a person's byline) |
+| `topic_perspectives` | `:1041-1147` | "who holds which take", served to the **consumer app** (`relational_view.build_topic_perspectives`) **and to OG share images** (`server/og/build.py:217`, where a claim becomes the headline quote with a person's byline) |
 | `gi_view` episode stance display | `server/gi_view.py:116` | §2.3 says contradicted claims are excluded from episode stance display; this is that surface |
 | `search/relational_queries.positions_of` and neighbours | `:170`, plus `who_said`, `cross_show_synthesis`, `related_insights` | served at `routes/relational.py` and via MCP; these read `CorpusGraph`, not `gi.json` nodes, so whether the `translation` block even reaches them depends on the graph builder — verify before assuming the filter can be applied |
 | `enrichment/enrichers/topic_consensus.py` | — | **write time.** No read-time filter reaches it. Needs provenance at extraction, or it corroborates unverified translated claims |
@@ -491,6 +490,5 @@ regardless of whether a band is present. Arc note D-6 and slice V2.1.
 - `src/podcast_scraper/gi/pipeline.py` — `_speaker_for_insight`, `_apply_route_and_tag` (`surfaceable`, `routing_tag`, `salience`)
 - `src/podcast_scraper/server/cil_queries.py:636,842` — `position_arc`, `topic_conversation_arc`
 - `src/podcast_scraper/enrichment/profile_sets.py:144-146` — stance-over-time is a read-time query
-- `docs/adr/ADR-108-nli-disagreement-enrichers-gated-dark.md` — 2026-07-08 update retiring the `stance_timeline` enricher
 - `docs/rfc/RFC-124-multilingual-transcription-and-translation.md` — `translation.json` schema, `resolve_units_for_span`, bake-off (§7)
 - `docs/architecture/MULTILINGUAL_ARC.md` — arc notes, slice plan, decisions D-5 / D-6

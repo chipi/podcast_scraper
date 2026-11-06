@@ -6,8 +6,8 @@ import { liveCorpusRoot, mainViewsNav, SHELL_HEADING_RE, signInAsAdmin, statusBa
  *
  * Library and Digest are kept alive and reloaded only on a corpus-path or health change, so a job
  * run from the Dashboard left them showing the corpus as it was before the job — and once the fix
- * existed, it only fired while the Dashboard was open. Same shape as the player's
- * `e2e/cross-surface.spec.ts`: open the READER first, make the change elsewhere, come back IN-APP.
+ * existed, it only fired while the Dashboard was open. Shape: open the READER first,
+ * make the change elsewhere, come back IN-APP.
  *
  * Only `/api/jobs` is stubbed (a job seen running, then succeeded) — the corpus reads are live, so
  * what is asserted is that Library ASKED the server again, which is the whole contract.

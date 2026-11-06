@@ -8,7 +8,7 @@ import pytest
 
 from podcast_scraper.config import Config
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
+# Moved from tests/unit/ — RFC-081 (not in this repository) PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 
@@ -106,7 +106,7 @@ class TestSummLlamaSummarize:
         assert provider._model.generate.call_args.kwargs["max_new_tokens"] == 600
 
     def test_a_board_use_case_runs_the_same_flow_with_its_own_prompts_and_budget(self, monkeypatch):
-        """RFC-127: SummLlama is a local chat model, so the board summary is a use case of its
+        """SummLlama is a local chat model, so the board summary is a use case of its
         ``summarize`` exactly as on every LLM provider."""
         import sys
 

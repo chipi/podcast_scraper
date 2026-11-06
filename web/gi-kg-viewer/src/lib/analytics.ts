@@ -4,7 +4,7 @@
  * runs on the self-hosted Umami (the player + orrery already do), so dev/prod
  * telemetry is separable and nothing leaves for a third-party cloud.
  *
- * ── Enablement (mirrors the player, web/learning-player/src/main.ts) ──────────
+ * ── Enablement (mirrors the player app's) ──────────
  * Gated on VITE_UMAMI_SRC (the tracking-script URL) + VITE_UMAMI_WEBSITE_ID
  * being baked at build time. A prod build sets both (docker build-args) → live.
  * A non-dev build with neither → true no-op (fork-silent by construction).

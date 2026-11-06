@@ -1,4 +1,4 @@
-"""Transcription factory tests for tailnet_dgx_whisper (ADR-096)."""
+"""Transcription factory tests for tailnet_dgx_whisper (ADR-096, not in this repository)."""
 
 from __future__ import annotations
 

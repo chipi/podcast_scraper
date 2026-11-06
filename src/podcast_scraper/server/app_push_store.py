@@ -1,4 +1,4 @@
-"""Per-user Web-Push subscriptions (#1415, PRD-046 FR1 / RFC-110 §6), on Postgres (ADR-169).
+"""Per-user Web-Push subscriptions (#1415), on Postgres (ADR-169).
 
 A user may have several push subscriptions (one per browser/device). Each is a W3C
 ``PushSubscription`` JSON (``{endpoint, expirationTime, keys:{p256dh,auth}}``), stored opaquely —

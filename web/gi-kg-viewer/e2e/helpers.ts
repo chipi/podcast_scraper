@@ -236,8 +236,7 @@ export async function liveDigestRows(page: Page): Promise<LiveDigestRow[]> {
 
 /**
  * Sign in as an ISOLATED mock identity, unique per (spec, project).
- * Same shape as ``web/learning-player/e2e/helpers.ts::signInIsolated`` —
- * the player and viewer tier-3 walks share this pattern.
+ * The player's tier-3 walks use the same pattern (``signInIsolated``).
  *
  * The mock OAuth provider honours the ``?as=`` hint (dev/e2e only) and
  * self-completes as ``e2e-<hint>`` — so parallel specs don't share one

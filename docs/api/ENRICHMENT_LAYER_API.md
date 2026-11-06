@@ -179,7 +179,7 @@ match each enricher's ``manifest.config_schema`` properties — see
 
 > **Accuracy gate:** an enricher declaring an `accuracy_gate` on its manifest is excluded
 > until an eval records precision ≥ 0.5, regardless of config. Today the one gated ML enricher is
-> `topic_consensus` (ADR-108, the reimagining of the retired 0%-precision `nli_contradiction`); it
+> `topic_consensus` (the reimagining of the retired 0%-precision `nli_contradiction`); it
 > **cleared** its gate (precision 0.91 on prod-v2) so it is admitted. `GET
 > /api/enrichment/config/admission` reports the promote/gate decision per enricher. See the guide's
 > accuracy-gate section.

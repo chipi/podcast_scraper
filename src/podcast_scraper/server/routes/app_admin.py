@@ -6,7 +6,7 @@ every mutation is appended to the audit log. A **self-lockout guard** prevents a
 demoting, deactivating, or deleting their own account (so the platform can't be locked out of
 administration).
 
-Auth/session is the *same* mechanism the Learning Player uses (RFC-098 §2); the viewer reuses it via
+Auth/session is the *same* mechanism the Learning Player uses; the viewer reuses it via
 the shared ``lp_session`` cookie. Mounted at the ``/api/app`` prefix alongside ``app_auth``.
 """
 
@@ -258,11 +258,12 @@ def admin_put_access_policy(
     able to lock itself out of its own administration.
     """
     policy = app_access_store.policy_from_dict(body.model_dump())
-    # RFC-108: on the operator-public deployment the allowlist is the ONLY authZ boundary — any
-    # signed-in account self-grants `creator` over the operator-read corpus via `?grant=creator`
-    # (`app_roles.resolve_login_role`). `app.py` refuses to BOOT that surface under open signup for
-    # exactly this reason; without this check the same surface could be opened at runtime through
-    # an endpoint, and would then boot again clean because the guard used to read only env.
+    # RFC-108 (not in this repository): on the operator-public deployment the allowlist is the ONLY
+    # authZ boundary — any signed-in account self-grants `creator` over the operator-read corpus via
+    # `?grant=creator` (`app_roles.resolve_login_role`). `app.py` refuses to BOOT that surface under
+    # open signup for exactly this reason; without this check the same surface could be opened at
+    # runtime through an endpoint, and would then boot again clean because the guard used to read
+    # only env.
     if policy.mode == "open" and getattr(request.app.state, "operator_public", False):
         raise HTTPException(
             status_code=400,

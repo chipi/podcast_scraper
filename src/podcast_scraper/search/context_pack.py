@@ -1,4 +1,4 @@
-"""LITM-aware corpus briefing packs (RFC-093 / #861).
+"""LITM-aware corpus briefing packs (#861).
 
 Reshapes ``RetrievalLayer`` output into a structured, token-budgeted document
 positioned for attention: critical grounding at the start, supporting evidence in
@@ -8,8 +8,8 @@ contexts). The builder is plain Python.
 **Consumers (2026-06-25):**
 
 - The ``corpus_briefing_pack`` MCP tool
-  (``mcp/tools/briefing_pack.py``) wraps this builder for agents on
-  Claude Desktop / Cursor; registered in the existing RFC-095 server.
+  wraps this builder for agents on
+  Claude Desktop / Cursor; registered in the existing MCP server.
 - The autoresearch loop can consume it directly when ready — the
   pack-builder is an independent Python module with no MCP coupling.
 
@@ -111,7 +111,7 @@ def _date_range(results: Sequence[Result]) -> Optional[str]:
 
 
 def _count_tokens(text: str) -> int:
-    # Word-count approximation; a canonical tokenizer is RFC-093 OQ-3.
+    # Word-count approximation; a canonical tokenizer is an open question.
     return len(text.split())
 
 

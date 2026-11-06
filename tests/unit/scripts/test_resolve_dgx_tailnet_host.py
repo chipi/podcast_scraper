@@ -1,4 +1,4 @@
-"""Tests for scripts/ops/resolve_dgx_tailnet_host.sh (RFC-089)."""
+"""Tests for scripts/ops/resolve_dgx_tailnet_host.sh (RFC-089, not in this repository)."""
 
 from __future__ import annotations
 

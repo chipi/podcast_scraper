@@ -1239,7 +1239,7 @@ class MLProvider:
 
     def _build_use_case_document(self, use_case: SummaryUseCase) -> Tuple[str, str]:
         """The use case's material written as prose (its ``document_prompt``), resolved under
-        ``transformers/`` with the ``shared/`` fallback, as every prompt is (RFC-127)."""
+        ``transformers/`` with the ``shared/`` fallback, as every prompt is."""
         return build_use_case_document("transformers", use_case)
 
     def _use_case_input(
@@ -1305,7 +1305,7 @@ class MLProvider:
                 capability="summarization",
             )
 
-        # RFC-127: a summary other than the episode's (a board's). BART/LED follow no instructions,
+        # A summary other than the episode's (a board's). BART/LED follow no instructions,
         # so the use case's material, written as prose, is the document this same map/reduce
         # summarises, within the use case's budget; absent, this is the episode summary as before.
         use_case = use_case_from_params(params)

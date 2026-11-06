@@ -1,6 +1,6 @@
 /**
  * Pure helper for the self-healing invariant in the graph handoff orchestrator
- * (decision #5 / ADR-079 § Self-healing reconciliation).
+ * (decision #5 / ADR-079 (not in this repository) § Self-healing reconciliation).
  *
  * The invariant: every node in the logical artifact's `viewWithEgo(focusNodeId)`
  * exists in Cytoscape's `core.nodes()`. Violations get one targeted

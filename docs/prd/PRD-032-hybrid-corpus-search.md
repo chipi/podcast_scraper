@@ -13,7 +13,6 @@
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — two-tier index + BM25 + vector + RRF (implements core)
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — KG proximity signal
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router
-  - `docs/rfc/RFC-093-litm-context-packs.md` — LITM-aware context packs
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical identity
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — enrichment layer
 - **Related issues**: #849 (Search retrieval prerequisites), #466 (GI/KG depth roadmap — CLOSED, superseded), #484 (Semantic Corpus Search — CLOSED, predecessor), #485 (Topic nodes + ABOUT edges — CLOSED)
@@ -35,7 +34,7 @@ This PRD covers the evolution to **hybrid corpus search**: a two-tier index (tra
 GIL insights) with two retrieval signals fused via RRF (BM25 + dense vector), intent-aware
 query routing, mixed-tier result ranking, and LITM-aware agent context packs. It is implemented by
 RFC-090 (core); RFC-091's KG-proximity signal was **evaluated and rejected** (Decision Record) —
-relational structure comes from typed edges instead (#874) — with RFC-092/093 additive.
+relational structure comes from typed edges instead (#874) — with RFC-092 additive.
 
 ## Background & Context
 
@@ -63,7 +62,7 @@ relational structure comes from typed edges instead (#874) — with RFC-092/093 
 - **Clean backend abstraction.** A `SearchBackend` protocol makes the backend swappable; LanceDB
   embedded is the initial implementation. Cloud backends require no retrieval-logic changes.
 - **Agent-ready context packs.** MCP search tools return LITM-aware, compressed, grounded context,
-  not raw lists (RFC-093).
+  not raw lists.
 
 ## Non-Goals
 
@@ -140,7 +139,7 @@ relational structure comes from typed edges instead (#874) — with RFC-092/093 
 
 ### FR6: Agent Context Packs
 
-- **FR6.1**: MCP search tools return LITM-aware, token-budgeted context packs (RFC-093).
+- **FR6.1**: MCP search tools return LITM-aware, token-budgeted context packs.
   _Requires an MCP tool layer, which **does not exist yet** — **[TBD]**._
 
 ## Success Metrics
@@ -157,7 +156,7 @@ relational structure comes from typed edges instead (#874) — with RFC-092/093 
 ## Dependencies
 
 - **RFC-090** Hybrid Retrieval Pipeline — **Hard** — Draft.
-- **RFC-091/092/093** — **Soft/additive** — Draft; the KG and MCP features depend on prerequisites
+- **RFC-091/092** — **Soft/additive** — Draft; the KG and MCP features depend on prerequisites
   below.
 - **RFC-072** Canonical Identity — **Hard for KG proximity** — **Partial**: only
   `identity/slugify.py` exists; no entity resolver yet.
@@ -215,7 +214,6 @@ Risks and their mitigations (tracked as open until validated):
 - `docs/rfc/RFC-090-hybrid-retrieval.md`
 - `docs/rfc/RFC-091-kg-proximity-signal.md`
 - `docs/rfc/RFC-092-ml-query-router.md`
-- `docs/rfc/RFC-093-litm-context-packs.md`
 - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
 - `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/prd/PRD-031-search.md`

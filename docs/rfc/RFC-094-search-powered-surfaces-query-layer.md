@@ -1,6 +1,6 @@
 # RFC-094: Search-Powered Surfaces — Relational-Query Layer + Front-End Retrieval State
 
-- **Status**: Completed (v2.6.0–v2.7) — relational query layer shipped via #882–#888 (PR #890); OQ-1 panel cache shipped via #1075 chunk 4 (PR #1089); OQ-2 `activeSearchContext` Pinia store + OQ-3 skeleton-first async cards live on main (`web/gi-kg-viewer/src/stores/activeSearchContext.ts` consumed by `LibraryView.vue` + `GraphCanvas.vue`; `PersonLandingView.vue` + `TopicEntityView.vue` render skeleton-first with stale-gating). MCP exposure landed via PRD-034 / RFC-095 (16 tools, stdio).
+- **Status**: Completed (v2.6.0–v2.7) — relational query layer shipped via #882–#888 (PR #890); OQ-1 panel cache shipped via #1075 chunk 4 (PR #1089); OQ-2 `activeSearchContext` Pinia store + OQ-3 skeleton-first async cards live on main (`web/gi-kg-viewer/src/stores/activeSearchContext.ts` consumed by `LibraryView.vue` + `GraphCanvas.vue`; `PersonLandingView.vue` + `TopicEntityView.vue` render skeleton-first with stale-gating). MCP exposure landed later (16 tools, stdio).
 - **v2 closure (RFC-097, 2026-06-20)**: stable `person:` / `topic:` / `org:` IDs formalized via CIL (RFC-072 + RFC-097); v2-materialized ABOUT + MENTIONS_PERSON + MENTIONS_ORG edges enable `who_said_what_about(topic)`, `insights_about(person)`, `mentions_of_person(org)` queries against per-artifact data (no CorpusGraph composition required).
 - **Authors**: Marko
 - **Stakeholders**: Core team
@@ -10,7 +10,6 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — hybrid retrieval backend (ranking)
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — KG proximity **rejected as a retrieval signal**; relational structure comes from edges, not proximity
-  - `docs/rfc/RFC-093-litm-context-packs.md` — MCP briefing packs (orthogonal; Dashboard)
 - **Related ADRs**:
   - _(none yet)_
 
@@ -60,7 +59,7 @@ ad hoc.
 
 - The surface UIs (per-surface issues).
 - New edges or extraction (contradiction, etc. are orthogonal — PRD-033 §Orthogonal capabilities).
-- The MCP briefing-pack layer (RFC-093) — Dashboard's richest cards are orthogonal.
+- The MCP briefing-pack layer — Dashboard's richest cards are orthogonal.
 
 ## Design & Implementation
 
@@ -87,7 +86,7 @@ queries degrade gracefully (empty result, never raise) and are bounded by `k`.
 
 Thin FastAPI routes wrapping the layer, one per query, e.g. `GET /api/relational/positions?person=…`.
 Same auth/middleware as `/api/search`. (MCP-tool exposure of the same functions is a later,
-orthogonal step — RFC-093.)
+orthogonal step.)
 
 ### 3. Front-end retrieval state (resolves PRD-033 OQ-1/2/3)
 
@@ -108,7 +107,7 @@ orthogonal step — RFC-093.)
 | Detail — Topic Entity View | `cross_show_synthesis` + `who_said` + `insights_about` |
 | Detail — Episode Detail | `related_insights(episode)` |
 | Graph | node/edge signals from the layer; node click → populated Detail (above) |
-| Dashboard | `related_insights(topic)` for cards (briefing-pack form is orthogonal, RFC-093) |
+| Dashboard | `related_insights(topic)` for cards (briefing-pack form is orthogonal) |
 
 ## Rollout & Sequencing
 
@@ -121,7 +120,7 @@ orthogonal step — RFC-093.)
 
 1. **OQ-A Caching scope.** Per-corpus process cache for `CorpusGraph` already exists (#849); the
    panel TTL is front-end. Confirm no server-side per-query cache is needed at current scale.
-2. **OQ-B MCP exposure.** Whether the same functions are surfaced as MCP tools now or with RFC-093.
+2. **OQ-B MCP exposure.** Whether the same functions are surfaced as MCP tools now or with the briefing-pack work.
    Default: routes now, MCP with the briefing-pack work.
 
 ## Benefits

@@ -11,7 +11,6 @@ nav:
   - Guides:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
-      - AI-Driven Visual Design Runbook: guides/AI_DESIGN_RUNBOOK.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
@@ -155,7 +154,6 @@ nav:
       - UXS-016 Query Workspace: uxs/UXS-016-query-workspace.md
       - UXS-017 Shareable Cards: uxs/UXS-017-share-cards.md
       - UXS-018 Operator Ops and Admin: uxs/UXS-018-operator-ops-and-admin.md
-      - Token Vocabulary Cross-map: uxs/TOKEN-VOCABULARY-CROSSMAP.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -346,7 +344,6 @@ nav:
       - RFC-094 Search-Powered Surfaces Query Layer: rfc/RFC-094-search-powered-surfaces-query-layer.md
       - RFC-096 Audio Pipeline Separation and Viewer Media: rfc/RFC-096-audio-pipeline-separation-and-viewer-media.md
       - RFC-097 Unified KG + GI Ontology v2: rfc/RFC-097-unified-kg-gi-ontology-v2.md
-      - RFC-103 Momentum Layer (Trending): rfc/RFC-103-momentum-layer.md
       - RFC-104 Operator Shows Library: rfc/RFC-104-operator-shows-library.md
       - RFC-105 Cross-feed audio↔LLM pipelining: rfc/RFC-105-cross-feed-audio-llm-pipelining.md
       - RFC-106 Tiered DGX Service Fallback: rfc/RFC-106-tiered-dgx-service-fallback.md

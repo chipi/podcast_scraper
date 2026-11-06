@@ -3,7 +3,7 @@
 The operator API — ``/api/feeds``, ``/api/operator-config``, ``/api/ops``, ``/api/jobs*``,
 ``/api/scheduled-jobs``, ``/api/enrichment/config``, ``/api/index/rebuild`` — backs the viewer's
 **admin-only** surfaces (Dashboard, Ops, Configuration). These are network-gated (Tailscale,
-RFC-082) and this middleware adds an application-layer gate on top:
+RFC-082 (not in this repository)) and this middleware adds an application-layer gate on top:
 
 - **Access rule (read *and* write):** allow when the request carries a valid **admin session**
   (the shared ``lp_session`` cookie → ``role == admin``) **OR** a valid operator **key**
@@ -127,7 +127,8 @@ def _is_admin_session(request: Request, secret: str, data_dir: object) -> bool:
 
 
 class OperatorWriteGuard(BaseHTTPMiddleware):
-    """Admin-session-or-key gate + audit for the operator API (RFC-082; #1128)."""
+    """Admin-session-or-key gate + audit for the operator API (RFC-082 (not in this
+    repository); #1128)."""
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]

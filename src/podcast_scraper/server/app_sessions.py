@@ -1,4 +1,4 @@
-"""Stateless HMAC-signed cookie sessions for the consumer platform (#1063, RFC-098 §2).
+"""Stateless HMAC-signed cookie sessions for the consumer platform (#1063).
 
 A minimal signed cookie carrying the user id — no server-side session store and no new
 dependency (stdlib ``hmac``/``hashlib``/``base64``). Tamper-evident: a wrong or invalid

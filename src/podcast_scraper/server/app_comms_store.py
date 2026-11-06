@@ -36,7 +36,7 @@ from podcast_scraper.server.app_user_store import _is_safe_user_id
 _FILE_NAME = "comms.json"
 
 #: The notification TYPES a user can tune, each independently per CHANNEL. Adding a type is a
-#: single entry here (+ its emitter + a Profile-UI row). ``daily_recap`` (RFC-122 #2039) is the
+#: single entry here (+ its emitter + a Profile-UI row). ``daily_recap`` (#2039) is the
 #: end-of-day recap of the episodes a listener finished that day — independent of the weekly
 #: ``digest`` (Your Week), so a user can have either, both, or neither.
 TYPES: tuple[str, ...] = ("digest", "daily_recap", "new_episodes", "product")
@@ -244,7 +244,7 @@ def unsubscribe(data_dir: Path, ref: str, ntype: str = "digest") -> bool:
     ``daily_recap``, ...); the link governs that type's email channel only (never push / in-app),
     so unsubscribing from the daily recap does not silence the weekly digest and vice-versa. An
     unknown ``ntype`` is a no-op that returns False. One indexed lookup on the ref, which locks the
-    row it finds, so a ref rotated away concurrently matches nothing (RFC-101 OQ-1, the scan over
+    row it finds, so a ref rotated away concurrently matches nothing (the scan over
     every user's file it replaces). Returns True when a matching user was found and updated.
     Idempotent — re-hitting a used link still returns True.
     """

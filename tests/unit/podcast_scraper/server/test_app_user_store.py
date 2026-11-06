@@ -319,7 +319,7 @@ def test_a_raising_on_created_does_not_fail_the_sign_in(tmp_path: Path) -> None:
 
 def test_new_accounts_get_mcp_access_by_default_and_a_revoke_sticks(tmp_path: Path) -> None:
     """MCP is on for every user by default (operator, 2026-10-16: a beta user who joined the day
-    before had no access, because the RFC-112 default was off and only an admin could grant it).
+    before had no access, because the default was off and only an admin could grant it).
     An admin's per-user revoke is still a revoke: an explicit false on a profile stays false."""
     from podcast_scraper.server.app_user_store import set_mcp_access
 

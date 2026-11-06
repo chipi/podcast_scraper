@@ -16,7 +16,7 @@
  *
  * Each is a full-stack scenario with real containers, real fixtures,
  * and ~3-5 min per test of wall-clock cost. Implementation is
- * deferred to follow-up PRs once Phase 1 of RFC-081 stabilises;
+ * deferred to follow-up PRs once Phase 1 of RFC-081 (not in this repository) stabilises;
  * the skipped tests below are intentional placeholders so the
  * gaps stay visible in test discovery output.
  *

@@ -155,10 +155,10 @@ operator used.
 | deterministic | `insight_density` | episode | `.gi.json`, `.metadata.json` | `metadata/enrichments/{stem}.insight_density.json` | ✅ |
 | deterministic | `insight_sentiment` | episode | `.gi.json` | `metadata/enrichments/{stem}.insight_sentiment.json` | ✅ (VADER — timeline colour) |
 | embedding | `topic_similarity` | corpus | `.kg.json` | `enrichments/topic_similarity.json` | ✅ (needs a provider) |
-| ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | ✅ promoted (precision 0.91, ADR-108 composite) |
+| ml | `topic_consensus` | corpus | `.gi.json` | `enrichments/topic_consensus.json` | ✅ promoted (precision 0.91, composite) |
 | query | `query_topic_relatedness` | per-request | `enrichments/topic_similarity.json` | annotates search hits | ✅ |
 
-> **Note (ADR-108):** the one gated ML enricher is `topic_consensus` — the reimagining of the retired
+> **Note:** the one gated ML enricher is `topic_consensus` — the reimagining of the retired
 > 0%-precision `nli_contradiction`, a **composite** (embedding cosine + low NLI contradiction) that
 > cleared its eval and is admitted. Its sibling stance enricher (`stance_disagreement`/`stance_timeline`)
 > was **retired**: per-person / per-topic stance over time is a read-time CIL query
@@ -171,8 +171,7 @@ The one gated ML enricher (`topic_consensus`) is wired and registered, and its p
 decided by a data-driven accuracy gate (`enrichment/eval/admission.py` → `profile_sets._admit`), not a
 hand-toggle. It declares an `accuracy_gate` (precision ≥ 0.5) on its manifest; until an eval records a
 passing precision under `data/eval/enrichment/<id>/gate_metrics.json`, the gate excludes it from the
-registry → profiles → UI. **`topic_consensus` cleared it** — precision 0.91 on prod-v2 (ADR-108
-composite) → admitted to the cloud / dgx / dev / local profiles. A candidate with no passing eval
+registry → profiles → UI. **`topic_consensus` cleared it** — precision 0.91 on prod-v2 (composite) → admitted to the cloud / dgx / dev / local profiles. A candidate with no passing eval
 auto-promotes with no code edit once one is recorded. The live multi-speaker surface users also see is
 **perspectives** (#1146), a CIL query over the GI, **not** an enricher, so it sidesteps the gate. `GET
 /api/enrichment/config/admission` reports each enricher's promote/gate decision and reason.
@@ -302,7 +301,7 @@ types (`sentence_transformer_local`, `fake_for_test`, ...) — see
 
 ### `topic_consensus` (ml, corpus scope)
 
-The ADR-108 reimagining of `nli_contradiction`: detect cross-Person **corroboration** per Topic —
+The reimagining of `nli_contradiction`: detect cross-Person **corroboration** per Topic —
 "what the corpus agrees on". Real-corpus eval showed *symmetric NLI entailment* has ~0 recall (genuine
 agreement is phrased differently), so the emit rule is a **composite** over the injected
 ``ConsensusScorer``: **embedding cosine ≥ `cos_threshold`** (the shared-question gate — same
@@ -334,7 +333,7 @@ Deterministic tier → **no accuracy gate** (unlike a stance *score*, sentiment 
 neutral factual insight is a fine grey). The CIL timeline queries (`position-arc`, `topic-timeline`,
 `conversation-arc`) join it by `insight_id` to tint each insight.
 
-> **Retired: `stance_timeline` / `stance_disagreement`.** An earlier ADR-108 cut tried to *auto-score*
+> **Retired: `stance_timeline` / `stance_disagreement`.** An earlier cut tried to *auto-score*
 > a −1..+1 stance per (person, topic) via NLI-entailment vs "{topic} is good/bad" anchors. Real-corpus
 > eval showed the stance signal is ~0 on factual insights, so the score was the wrong frame. Per-person
 > / per-topic stance **over time** is now a **read-time CIL query** — `GET /api/persons/{id}/positions`

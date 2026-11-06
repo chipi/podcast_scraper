@@ -4,10 +4,10 @@
 - **Authors**: Marko
 - **Target Release**: v2.8
 - **Parent PRD**: [PRD-031](PRD-031-search.md) (Search product surface), [PRD-033](PRD-033-search-powered-surfaces.md) (Search-powered surfaces)
-- **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), RFC-093 (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
+- **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), the briefing-pack builder (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
 - **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies the enriched answer; shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Related RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) (technical design)
-- **Related ADRs**: ADR-108 (`topic_consensus` activated, `stance_*` retired), [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
+- **Related ADRs**: [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
 - **Related epic**: [#1229](https://github.com/chipi/podcast_scraper/issues/1229)
 - **Scope**: operator viewer only (`web/gi-kg-viewer`). Consumer learning-player search is **out of scope** for this PRD.
 
@@ -23,7 +23,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 
 ## Background & Context
 
-- The operator viewer has 30+ backend search modules (`src/podcast_scraper/search/`) plus a shipped relational + panel-cache layer (RFC-094 shipped v2.6.0–v2.7) plus a shipped enrichment layer (RFC-088 shipped v2.6/v2.7 with ongoing accuracy-gated iteration — ADR-108) plus a shipped LITM briefing-pack builder (RFC-093 shipped v2.7). The viewer surfaces ~5 of these end-user-visibly. The gap is UX, not backend.
+- The operator viewer has 30+ backend search modules (`src/podcast_scraper/search/`) plus a shipped relational + panel-cache layer (RFC-094 shipped v2.6.0–v2.7) plus a shipped enrichment layer (RFC-088 shipped v2.6/v2.7 with ongoing accuracy-gated iteration) plus a shipped LITM briefing-pack builder (shipped v2.7). The viewer surfaces ~5 of these end-user-visibly. The gap is UX, not backend.
 - The left panel is a fixed `w-72` (288 px) column that shares its real estate with **Explore** via a slide mode-switch (`shell.leftPanelSurface`). Two overlapping query UIs, one column, one visible at a time — cognitive tax with no ergonomic upside.
 - Main tabs answer *browse* questions (Digest / Library / Graph / Dashboard). "What am I trying to find out?" is not a first-class question in the shell.
 - Result cards have handoffs OUT (`G` graph focus, `L` library episode, entity → rail) but almost no handoffs IN — Digest, Library, Graph, Dashboard, and the subject rails don't launch scoped searches. Search is a place, not a verb.
@@ -108,7 +108,7 @@ Bar above the result list with operators that act on the **returned result set**
 - **FR4.2 Show on graph** — extend today's per-hit `G` to a **set** projection: focus the graph camera on the union bbox of all hit-derived nodes, highlight the subgraph.
 - **FR4.3 Timeline** — plot the hit set on the shared date lens (`corpusLens`), one bar per bucket; hit count on hover; click a bucket to filter the list.
 - **FR4.4 Compare (2 subjects)** — pick two subjects from the hit set → open a compare view sourced from the shipped `search/context_pack.py`. Contract: for each side, run hybrid scoped to that subject, then `build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)`; render the two `CorpusBriefingPack`s side-by-side. Judge summary (from `search/judged_eval.py`) muted below when available.
-- **FR4.5 Consensus** — surface the shipped `topic_consensus` enricher (ADR-108, precision 0.91 on prod-v2): given a set of hits about the same Topic, show cross-speaker corroboration pairs. **Not "Contradictions"** — that requires typed CONTRADICTS edges (KL5, v3+, out of scope; see Non-Goals).
+- **FR4.5 Consensus** — surface the shipped `topic_consensus` enricher (precision 0.91 on prod-v2): given a set of hits about the same Topic, show cross-speaker corroboration pairs. **Not "Contradictions"** — that requires typed CONTRADICTS edges (KL5, v3+, out of scope; see Non-Goals).
 
 ### FR5 — Enriched-answer hero
 
@@ -212,14 +212,13 @@ Slices missing any of these get rejected at review, not deferred.
 - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — hybrid retrieval (do not touch native combine — #1205)
 - [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational query layer + `activeSearchContext` + `PanelRetrievalStore` (shipped substrate)
 - [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) — enrichment layer + QueryEnricher (shipped)
-- RFC-093 — `build_briefing_pack` (shipped; Compare operator source)
+- `build_briefing_pack` (shipped; Compare operator source)
 - [RFC-092](../rfc/RFC-092-ml-query-router.md) — query router intent taxonomy
 - [RFC-091](../rfc/RFC-091-kg-proximity-signal.md) — **REJECTED** (KG proximity as retrieval signal)
 - [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — canonical identity / chunk-to-Insight lift (compound-card contract)
 - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — v2 materialized descriptive edges (typed CONTRADICTS remains v3+)
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier test pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
-- ADR-108 — `topic_consensus` activated; `stance_*` retired
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab order + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — extended (compact launcher role)

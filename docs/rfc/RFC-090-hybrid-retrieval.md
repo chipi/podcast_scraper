@@ -13,7 +13,6 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — third RRF signal (additive)
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router (additive)
-  - `docs/rfc/RFC-093-litm-context-packs.md` — LITM context packs (additive)
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical identity
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — enrichment layer
 - **Related UX specs**:
@@ -24,7 +23,7 @@
 > **Stabilization note (2026-05-30):** Rebased from an earlier draft (RFC-078) authored against a
 > different numbering universe. Module paths corrected to `src/podcast_scraper/…`; references to an
 > "enrichment" RFC and an "MCP integration" RFC corrected to RFC-088 and **[TBD — no MCP RFC
-> exists]**. The third signal, ML router, and context packs are split into RFC-091/092/093.
+> exists]**. The third signal, ML router and context packs are split into RFC-091/092 and a later context-pack design.
 > **Prerequisite reality check** (see Constraints): the entity resolver, in-memory KG access layer,
 > and most typed KG edges this pipeline's _additive_ signals assume **do not exist yet** — they are
 > the genuine survivors of issue #466 and are tracked in #849. RFC-090 itself
@@ -453,12 +452,12 @@ This RFC is the foundation of the Search initiative:
 1. **RFC-091 KG Proximity Signal** — fills the reserved third-signal slot; adds the KG-access and
    entity-resolver dependencies (which do not exist yet).
 2. **RFC-092 ML Query Router** — replaces the rules-based router once eval data exists.
-3. **RFC-093 LITM Context Packs** — consumes `RetrievalLayer` output for agent-facing MCP packs.
+3. **LITM Context Packs** — consumes `RetrievalLayer` output for agent-facing MCP packs.
 
 **Key Distinction:**
 
 - **RFC-090 (this)**: Two-tier index, BM25 + vector, RRF fusion, compound dedup — shippable today.
-- **RFC-091/092/093**: Additive signals/routing/packaging — gated on prerequisites.
+- **RFC-091/092**: Additive signals/routing — gated on prerequisites.
 
 Other relationships:
 
@@ -499,8 +498,7 @@ Other relationships:
 ## References
 
 - **Related PRD**: `docs/prd/PRD-032-hybrid-corpus-search.md`, `docs/prd/PRD-031-search.md`
-- **Related RFC**: `docs/rfc/RFC-091-kg-proximity-signal.md`, `docs/rfc/RFC-092-ml-query-router.md`,
-  `docs/rfc/RFC-093-litm-context-packs.md`
+- **Related RFC**: `docs/rfc/RFC-091-kg-proximity-signal.md`, `docs/rfc/RFC-092-ml-query-router.md`
 - **Source Code**: `src/podcast_scraper/search/` (existing FAISS pipeline, chunker, indexer),
   `src/podcast_scraper/gi/contracts.py` (insight grounding quotes)
 - **Prerequisites**: issue #849 · **Parent epic**: issue #466 (GI/KG depth roadmap — superseded)

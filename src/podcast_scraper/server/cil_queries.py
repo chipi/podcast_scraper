@@ -1235,7 +1235,7 @@ def topics_perspectives(
                 if isinstance(end_ms, int):
                     annotated["_quote_end_ms"] = end_ms
                 # The quote's own words (2026-10-11): a quote card must show what was SAID, and
-                # the insight's text is a paraphrase (ADR-163 §4).
+                # the insight's text is a paraphrase.
                 qtext = qprops.get("text")
                 if isinstance(qtext, str) and qtext.strip():
                     annotated["_quote_text"] = qtext

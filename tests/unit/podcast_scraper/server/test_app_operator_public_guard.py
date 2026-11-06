@@ -1,4 +1,5 @@
-"""Unit coverage for the operator-public open-signup boot guard (app.py, RFC-108).
+"""Unit coverage for the operator-public open-signup boot guard (app.py,
+RFC-108 (not in this repository)).
 
 ``create_app`` refuses to boot the public operator surface under ``APP_SIGNUP_MODE=open``:
 the viewer self-grants ``creator`` via its ``?grant=creator`` login hint, so the email

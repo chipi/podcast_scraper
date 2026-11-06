@@ -55,7 +55,7 @@ library tab (App.vue)
 
 `ShowsBrowse` is the only stateful new piece: a `selectedFeedId: string | null` ref. `null` → render
 `ShowsView` (grid); non-null → render `ShowDetailView` for that feed. Selecting a show sets it;
-"Back to shows" clears it. This is **replace-in-panel** (house pattern, per UXS-014 / operator memory),
+"Back to shows" clears it. This is **replace-in-panel** (house pattern, per operator memory),
 not a modal or stacked overlay.
 
 ### §2 Data flow (all client-side over existing endpoints)

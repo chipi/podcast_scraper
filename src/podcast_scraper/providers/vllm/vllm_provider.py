@@ -8,7 +8,8 @@ class only changes *identity* (config namespace + telemetry), *auth* (a local vL
 optional), and the OpenAI-native *heuristics* that do not apply to open models.
 
 Unlike the ``openai`` provider, the model fields name the **real HF model id** on the wire — there
-is no ``--served-model-name`` alias — so a profile is self-describing and reproducible (ADR-143).
+is no ``--served-model-name`` alias — so a profile is self-describing and reproducible
+(ADR-143, not in this repository).
 The fail-closed served-model verification against ``GET /v1/models`` is wired in a follow-up step.
 """
 
@@ -208,7 +209,8 @@ class VLLMProvider(OpenAICompatibleProvider):
         """Assert the DGX slot actually serves the model this profile pins (real HF id).
 
         A wrong model loaded on the slot must fail the run, not silently produce a corpus attributed
-        to the wrong model (ADR-143/144). An UNREACHABLE endpoint only warns — the real inference
+        to the wrong model (ADR-143/144, not in this repository). An UNREACHABLE endpoint only
+        warns — the real inference
         call surfaces a connection error anyway, and hard-failing here would make an offline import
         of the provider impossible. A REACHABLE endpoint serving a different model raises.
         """

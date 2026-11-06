@@ -6,9 +6,10 @@
 # Secrets never live in this file — use `<field>_env: ENV_VAR_NAME` indirection.
 #
 # NOTE (2026-07): the stack ships to SELF-HOSTED VictoriaMetrics/VictoriaLogs + Grafana on
-# the HOMELAB box (tailnet-only) — Grafana Cloud is RETIRED (no SaaS egress). See ADR-117
-# (amended) + ADR-119. Point `grafana.url` at the homelab Grafana with a service-account
-# token, and read logs from homelab VictoriaLogs (:9428); errors go to homelab GlitchTip.
+# the HOMELAB box (tailnet-only) — Grafana Cloud is RETIRED (no SaaS egress). See ADR-117 (not in
+# this repository) (amended) + ADR-119. Point `grafana.url` at the homelab Grafana with a
+# service-account token, and read logs from homelab VictoriaLogs (:9428); errors go to homelab
+# GlitchTip.
 
 default_target: local
 

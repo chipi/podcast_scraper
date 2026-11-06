@@ -1,4 +1,4 @@
-"""Sign-in access control for the consumer platform (#1064, RFC-098).
+"""Sign-in access control for the consumer platform (#1064).
 
 Default-deny: an allowlist of permitted emails (and/or domains) gates sign-in, so the platform
 isn't open to the whole internet once deployed. ``open`` mode disables the gate (any successful

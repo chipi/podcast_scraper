@@ -1,7 +1,7 @@
 # PRD-044: Operator Shows Library (shows-first browse)
 
 **Status:** Draft
-**Related:** PRD-042 (consumer Home "Your shows"), UXS-003 (operator Library, episode-first),
+**Related:** UXS-003 (operator Library, episode-first),
 UXS-015 (this feature), RFC-104 (this feature), [VIEWER_IA](../uxs/VIEWER_IA.md)
 **Surfaces:** `web/gi-kg-viewer` (operator viewer) — the `library` main tab
 
@@ -53,7 +53,7 @@ surfaced; here the *data path* is built but the shows-first *browse* is not.
 - **NG1** — No new server endpoints or data model changes (feeds/episodes already expose everything).
 - **NG2** — Not replacing the episode-first Library (UXS-003) — the shows-first browse is an
   **additional mode** in the same tab; the flat list stays for cross-show/date scans.
-- **NG3** — No per-user state (favourites/queue) — that's the consumer's personal Library (PRD-042);
+- **NG3** — No per-user state (favourites/queue) — that's the consumer's personal Library;
   the operator browses the whole corpus.
 - **NG4** — No editing of show metadata (title/art/description) — read-only browse. Feed *overrides*
   remain in the existing `FeedOverrideEditor` (admin), out of scope here.
@@ -137,6 +137,6 @@ No new endpoints. Reuses:
 
 ## References
 
-- PRD-042 (consumer Home "Your shows"), UXS-003 (operator Library), UXS-015 + RFC-104 (this feature)
+- UXS-003 (operator Library), UXS-015 + RFC-104 (this feature)
 - [VIEWER_IA](../uxs/VIEWER_IA.md) — operator shell IA
 - `corpusLibraryApi.ts` (`fetchCorpusFeeds`, `fetchCorpusEpisodes`) · `PodcastCover.vue`

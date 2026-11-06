@@ -74,7 +74,8 @@ _VLLM_DUMMY_BEARER = "EMPTY"
 
 
 class TranslateServedModelMismatch(RuntimeError):
-    """The endpoint serves a different model than the profile pins (ADR-143/144).
+    """The endpoint serves a different model than the profile pins
+    (ADR-143/144, not in this repository).
 
     Fail-closed: a corpus attributed to the wrong translation model cannot be distinguished from
     a correct one after the fact.
@@ -163,7 +164,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             raise TranslateServedModelMismatch(
                 f"the translate endpoint serves {sorted(served)!r}, not {expected!r}. Refusing "
                 "to translate: a corpus attributed to the wrong translation model cannot be "
-                "distinguished from a correct one after the fact (ADR-143/144)."
+                "distinguished from a correct one after the fact "
+                "(ADR-143/144, not in this repository)."
             )
         self._served_verified = True
 

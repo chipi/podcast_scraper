@@ -3,7 +3,7 @@
 - **Status**: Draft — Phase 1 partially landed on `fix/pipeline-resilience-supervision`, unverified by CI
 - **Authors**: Marko Dragoljevic (chipi), Claude
 - **Stakeholders**: Operator (sign-off), pipeline + platform maintainers
-- **Related ADRs**: [ADR-150](../adr/ADR-150-supervision-bounds-and-absence-detection.md) (the decisions this RFC argues for), [ADR-119](../adr/ADR-119-vendor-neutral-event-emission.md) (pipeline is an events source), ADR-142 (prod-local gateway)
+- **Related ADRs**: [ADR-150](../adr/ADR-150-supervision-bounds-and-absence-detection.md) (the decisions this RFC argues for), [ADR-119](../adr/ADR-119-vendor-neutral-event-emission.md) (pipeline is an events source), ADR-142 (not in this repository) (prod-local gateway)
 - **Related Documents**: INCREMENTAL-ROLLOUT-FOLLOWUPS-2026-08-11 (not in this repository) (incident log, F1–F15 + G1/G2)
 - **Anchors**: [#1620](https://github.com/chipi/podcast_scraper/issues/1620) (this programme), [#379](https://github.com/chipi/podcast_scraper/issues/379) (the timeout that never worked), [#429](https://github.com/chipi/podcast_scraper/issues/429) (fail-fast / max-failures)
 

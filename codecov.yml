@@ -26,7 +26,6 @@ ignore:
   - "docs/**"
   - "config/**"
   - "web/**"   # viewer frontend (Vue) — gated by its own vitest + Playwright, not python codecov
-  - "web/learning-player/**"   # consumer Learning Player frontend (Vue) — same: own vitest + no-mock e2e in CI
   - "**.md"
   - "**.yaml"
   - "**.yml"

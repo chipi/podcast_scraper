@@ -217,8 +217,7 @@ Rules:
 
 - Skills (`.claude/skills/`) auto-load when their trigger conditions match.
   Read the skill description before invoking. This repo's own: `local-gates`
-  (`make gates-changed` before a commit or push), `mobile-release` (TestFlight, Play internal, device
-  tiers). The workstation's (`~/.claude/skills/`, indexed in `~/.config/AGENTS.md`)
+  (`make gates-changed` before a commit or push). The workstation's (`~/.claude/skills/`, indexed in `~/.config/AGENTS.md`)
   include `ship` (every push, then `ci-watch`), `docs-preflight` (every docs commit),
   `perf-diagnose`, `o11y-review` and `browser-live-check`: check that index before
   starting a task, not after.

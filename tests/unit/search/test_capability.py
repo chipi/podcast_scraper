@@ -1,4 +1,4 @@
-"""Unit tests for the shared search-capability core (RFC-095 §3)."""
+"""Unit tests for the shared search-capability core."""
 
 from __future__ import annotations
 

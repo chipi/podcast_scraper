@@ -58,7 +58,7 @@ returns, every promotable job has been spawned and its pid recorded.
 ### 3. A pid is evidence only for the boot that recorded it
 
 This is the load-bearing decision, and it is a direct consequence of ADR-084. In Docker exec
-mode — what production runs (`compose/docker-compose.prod.yml`) — the pid stored on a job row
+mode — what production runs — the pid stored on a job row
 belongs to the `docker compose run` **client** process inside the API container. The work runs
 in a container on the host daemon. Therefore:
 

@@ -8,7 +8,7 @@
     "Schema-v1 predated the S4/S5 landing (RFC-107 planned enriched.answer + operator_result.clusters); v2 matches what the code actually returns.",
     "The build-script --search-slice mode captures these same shapes from a real corpus + running API when the operator regenerates locally (see README.md).",
     "Anchored to episode_ids present in the parent fixture's manifest.json so hit-card handoffs to Library / Graph resolve cleanly.",
-    "Shape contract sources: RFC-107 §2 (SearchResponse), RFC-072 §6 (lifted compound), ADR-108 (consensus_pairs), RFC-093 (build_briefing_pack for compare), server/schemas.py (CorpusSearchApiResponse / SearchCompareResponse)."
+    "Shape contract sources: RFC-107 §2 (SearchResponse), RFC-072 §6 (lifted compound), consensus_pairs, build_briefing_pack for compare, server/schemas.py (CorpusSearchApiResponse / SearchCompareResponse)."
   ],
   "anchor_feeds": [
     {
@@ -84,7 +84,7 @@
       }
     },
     "operator-compare": {
-      "description": "Result-set operator Compare (Search v3 §S8, RFC-107 §S8). Server wraps context_pack.build_briefing_pack (RFC-093) twice — one subject-scoped structured_corpus_search per side; response is {pack_a, pack_b, judge_summary?}. Judge summary is deterministic (no LLM) and muted when either pack reports grounded=false. Subject kinds map to search scope on the server: person → speaker=, topic → topic=, episode → episode_id=, feed → feed=.",
+      "description": "Result-set operator Compare (Search v3 §S8, RFC-107 §S8). Server wraps context_pack.build_briefing_pack twice — one subject-scoped structured_corpus_search per side; response is {pack_a, pack_b, judge_summary?}. Judge summary is deterministic (no LLM) and muted when either pack reports grounded=false. Subject kinds map to search scope on the server: person → speaker=, topic → topic=, episode → episode_id=, feed → feed=.",
       "request": {
         "endpoint": "POST /api/search/compare",
         "body": {

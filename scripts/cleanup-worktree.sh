@@ -26,9 +26,9 @@
 #                          torch/whisper/spacy) + long sweeps.
 #        * uvicorn/gunicorn — named server workers the CLI serve may spawn.
 #        * pytest        — the bare `.venv/bin/pytest` entrypoint.
-#        * playwright    — viewer / learning-player / stack-test E2E (node).
+#        * playwright    — viewer / stack-test E2E (node).
 #        * vitest        — viewer unit tests.
-#        * vite/esbuild  — viewer + learning-player dev server & build (serve-ui/app).
+#        * vite/esbuild  — viewer dev server & build (serve-ui).
 #        * ffmpeg        — audio pipeline (transcode / segment).
 #        * caffeinate    — the backgrounded keep-awake for long sweeps (AGENTS.md
 #                          warns it can outlive the session — this reaps it).
@@ -195,7 +195,7 @@ owned=()        # Path A: cwd inside this worktree, + descendants
 orphan_roots=() # Path B: unattributable orphaned automation browsers
 
 # ── A. runners whose cwd is inside this worktree, + their descendants ─────────
-# podcast_scraper stack: python backend/pipeline + viewer & learning-player (node) +
+# podcast_scraper stack: python backend/pipeline + viewer (node) +
 # audio (ffmpeg) + long-sweep caffeinate. The cwd guard is what makes a broad match
 # (e.g. bare `python`, which covers serve-api / pytest / mkdocs / ML jobs) safe — only
 # processes rooted in THIS worktree are touched; MCP / lean-ctx / language-servers are

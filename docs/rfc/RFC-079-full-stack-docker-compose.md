@@ -69,7 +69,7 @@ This works for local dev but has no path to deployment:
 5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile)) with minimal changes
 6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
 7. **Health checks** on all long-running containers
-8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses stack-test overlay + optional `compose/docker-compose.prod.yml` (see OQ2).
+8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses stack-test overlay + an optional production overlay (see OQ2).
 9. **Document and track** the gap between viewer-triggered jobs and the `pipeline` service,
    closed by **[GitHub #660](https://github.com/chipi/podcast_scraper/issues/660)** once the stack exists
 
@@ -519,8 +519,8 @@ Design alternatives evaluated during planning (historical context only):
    `stack-up` and manual browser test; validate `docker compose run` for `pipeline`.
 2. **Jobs / Docker** — **[#660](https://github.com/chipi/podcast_scraper/issues/660):** Implemented Option B — `pipeline_docker_factory` + host socket + `docker compose run`; native subprocess unchanged (see §Native vs Docker).
 3. **RFC-078 smoke:** Add `compose/docker-compose.stack-test.yml` and wire into CI smoke workflow (orthogonal to #660; can land in parallel). **Not tracked in this RFC as orphan work** — open **GitHub issues** for RFC-078 execution; **[#659](https://github.com/chipi/podcast_scraper/issues/659)** only carries the stack handoff checklist.
-4. **Phase 3** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Shipped starter
-   [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) (restart policies + commented VPS / external volume hints). Operators fork or extend for real prod.
+4. **Phase 3** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Shipped a starter
+   production overlay (restart policies + commented VPS / external volume hints). Operators fork or extend for real prod.
 
 **Success Criteria:**
 
@@ -587,7 +587,7 @@ Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_
 | Native vs Docker jobs | [§Native vs Docker](#native-vs-docker); [#660](https://github.com/chipi/podcast_scraper/issues/660) |
 | Profile ↔ image tier | `scripts/tools/validate_profile_docker_tier.py`; RFC-079 [§Pipeline image tiers](#pipeline-image-tiers) |
 | Ephemeral CI smoke | [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md), `compose/docker-compose.stack-test.yml`, `make stack-test-*` |
-| Prod-style merge (restart, VPS notes) | [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) + `DOCKER_SERVICE_GUIDE` § RFC-079 backlog |
+| Prod-style merge (restart, VPS notes) | `DOCKER_SERVICE_GUIDE` § RFC-079 backlog |
 
 ## Open Questions
 

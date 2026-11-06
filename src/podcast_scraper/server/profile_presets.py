@@ -3,11 +3,11 @@
 Discovery order matches ``Config._resolve_profile`` directory candidates: cwd-relative
 ``config/profiles`` first, then repo-root ``config/profiles`` (union, de-duplicated).
 
-Filtering: when ``PODCAST_AVAILABLE_PROFILES`` is set (comma-separated allowlist of
-profile names), the returned list is intersected with the allowlist. Used by the
-pre-prod overlay (RFC-081) to restrict the operator UI to profiles whose backing
-pipeline image is actually published to GHCR — Phase 1 publishes ``pipeline-llm``
-only, so the env defaults to ``cloud_thin``. Unset env = no filtering (dev / CI).
+Filtering: when ``PODCAST_AVAILABLE_PROFILES`` is set (comma-separated allowlist of profile
+names), the returned list is intersected with the allowlist. Used by the pre-prod overlay
+(RFC-081, not in this repository) to restrict the operator UI to profiles whose backing pipeline
+image is actually published to GHCR — Phase 1 publishes ``pipeline-llm`` only, so the env
+defaults to ``cloud_thin``. Unset env = no filtering (dev / CI).
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def _env_allowlist() -> set[str] | None:
 
 
 def env_default_profile() -> str | None:
-    """Resolve ``PODCAST_DEFAULT_PROFILE`` env var (RFC-081 §Layer 1).
+    """Resolve ``PODCAST_DEFAULT_PROFILE`` env var (RFC-081 (not in this repository) §Layer 1).
 
     Returns the profile name when the env var is set to a non-empty,
     on-disk profile name AND that profile passes the allowlist filter.
@@ -87,7 +87,7 @@ def env_default_profile() -> str | None:
 def validate_operator_profile_allowed(operator_yaml: Path) -> str | None:
     """Reject job submission when operator's profile is outside the allowlist.
 
-    Defense-in-depth for RFC-081 §Layer 1: even if a stale viewer bundle
+    Defense-in-depth for RFC-081 (not in this repository) §Layer 1: even if a stale viewer bundle
     sends a profile that's hidden in the operator-config dropdown, the api
     must still refuse to enqueue a pipeline run that would crash several
     minutes in (no published image for that profile / wrong extras tier).
@@ -150,11 +150,11 @@ def list_packaged_profile_names() -> list[str]:
     (cwd-relative then repo — mirrors ``Config._resolve_profile`` lookup roots).
     Excludes ``*.example.yaml`` (stem ends with ``.example``).
 
-    When ``PODCAST_AVAILABLE_PROFILES`` is set, the list is intersected with that
-    allowlist — used by pre-prod (RFC-081 §Layer 1) to hide profiles whose backing
-    pipeline image isn't published. The intersection is taken **after** the on-disk
-    discovery so we never advertise a profile that doesn't exist on disk, even if
-    the operator typo'd a name into the env var.
+    When ``PODCAST_AVAILABLE_PROFILES`` is set, the list is intersected with that allowlist —
+    used by pre-prod (RFC-081 §Layer 1, not in this repository) to hide profiles whose backing
+    pipeline image isn't published. The intersection is taken **after** the on-disk discovery so
+    we never advertise a profile that doesn't exist on disk, even if the operator typo'd a name
+    into the env var.
     """
     names: set[str] = set()
     for d in _profile_directories():

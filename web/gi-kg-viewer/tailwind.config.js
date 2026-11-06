@@ -39,7 +39,7 @@ export default {
         'kg-foreground': 'var(--ps-kg-foreground)',
         // Knowledge-domain tokens used across ShowRailPanel,
         // NodeDetail, GraphCanvas, admin surfaces, search-result
-        // icons (UXS-013 + UXS-015). Backed by --ps-grounded /
+        // icons. Backed by --ps-grounded /
         // --ps-topic / --ps-person in tokens.css: grounded aliases
         // GI; topic (teal) and person (peach) have their own hues.
         grounded: 'var(--ps-grounded)',

@@ -3,9 +3,6 @@
 - **Status**: Implemented (2026-10-16), not yet deployed; not yet tried on an iOS or Android device
 - **Authors**: Marko, Claude (Opus 5.5)
 - **Stakeholders**: Consumer App (player, iOS, Android, web), Server API, Ops (audio archive)
-- **Related RFCs**:
-  - `docs/rfc/RFC-126-discover-rails-reasons-paging-and-reels.md` (short listens and Learn stitch
-    clips across episodes; they need clip times that are right for the listener)
 - **Related Documents**:
   - the audio archive (deployment side; the archive this design reads its reference from)
   - `docs/recipes/audio-timing-drift.md` (the runbook: the one-off backfill, checks, diagnosis)
@@ -144,7 +141,7 @@ measurement above shows they often don't.
 3. **Result, for this playback only.** What fills a break changes within hours, so a map is not kept
    across playbacks. Exception: a downloaded episode keeps its own map, measured on its file. It
    is the same structure the player already uses (`audio_time_map`, pairs of transcript
-   second and offset, `web/learning-player/src/player/audioTimeMap.ts`). Seeks, `?t=` links,
+   second and offset). Seeks, `?t=` links,
    transcript follow, insight steps and scrubber marks already go through it.
 4. **Reels across episodes** (short listens, Learn): before each clip, one range around the clip's
    start confirms its window in this listener's stream. A clip that falls across a break that
@@ -352,7 +349,5 @@ on a listener's stream (checked from a second location).
 
 - Issue #2359 (clip timing on hosts with dynamic ads)
 - `src/podcast_scraper/audio_sync/`, `src/podcast_scraper/server/app_audio_drift.py`
-- `web/learning-player/src/player/audioSync.ts`, `audioFingerprint.ts`, `audioSyncRegistry.ts`
 - `docs/recipes/audio-timing-drift.md`
-- `web/learning-player/src/player/audioTimeMap.ts`
 - the audio archive (deployment side)

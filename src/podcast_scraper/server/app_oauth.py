@@ -1,10 +1,10 @@
-"""OAuth identity providers for the consumer platform (#1063, RFC-098 §2).
+"""OAuth identity providers for the consumer platform (#1063).
 
 A small protocol so the auth routes don't hard-code a vendor and tests can inject a stub
 (no real OAuth call in CI). The real providers (Google, Apple) reach the registry below through
 extensions (ADR-168).
 
-``MockOAuthProvider`` (#1079, RFC-099 §1) is a local, network-free provider for dev and
+``MockOAuthProvider`` (#1079) is a local, network-free provider for dev and
 e2e: it self-completes the code flow with a fixed dev identity. It is selected **only**
 when ``APP_OAUTH_PROVIDER=mock`` is set explicitly (never the default), so it can never
 ship to production by accident.

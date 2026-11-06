@@ -691,7 +691,7 @@ class TestRetryWithMetricsPerStageAttribution(unittest.TestCase):
 
 class TestSetBreakerConfigFromCfgResilienceProfile(unittest.TestCase):
     """set_breaker_config_from_cfg's resolved _resilience_profile reflects cfg's llm_retry_*
-    knobs (RFC-111 gateway-outage follow-up, #1482): a prod cfg with a long hold window must
+    knobs (gateway-outage follow-up, #1482): a prod cfg with a long hold window must
     resolve to that window, and the default cfg must resolve to today's unchanged behaviour
     (3 retries / 1.0s / 30.0s) — asserted on the RESOLVED values only, never wall-clock sleep.
     """

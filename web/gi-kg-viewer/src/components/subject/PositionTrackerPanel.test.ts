@@ -7,7 +7,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ADR-108 sentiment tint fetches the corpus-wide position arc; mock it (default: no sentiment,
+// The sentiment tint fetches the corpus-wide position arc; mock it (default: no sentiment,
 // so the existing UXS-009 tests are unaffected — cards fall back to the neutral tint).
 const fetchPersonPositions = vi.fn()
 vi.mock('../../api/cilApi', () => ({
@@ -98,7 +98,7 @@ describe('PositionTrackerPanel (#1049)', () => {
     fetchPersonPositions.mockResolvedValue({ path: '/c', person_id: '', topic_id: '', episodes: [] })
   })
 
-  it('ADR-108: tints each arc card by its insight sentiment (best-effort join)', async () => {
+  it('tints each arc card by its insight sentiment (best-effort join)', async () => {
     // Server arc drives both the rows AND the tint — insights carry properties + sentiment.
     fetchPersonPositions.mockResolvedValue({
       path: '/c',
@@ -138,7 +138,7 @@ describe('PositionTrackerPanel (#1049)', () => {
     expect(obs?.classes()).toContain('bg-rose-900/10') // negative
   })
 
-  it('ADR-108 fix: renders rows from the server arc even when the loaded graph has no matching insights', async () => {
+  it('renders rows from the server arc even when the loaded graph has no matching insights', async () => {
     // The bug: the tracker computed rows off the loaded graph slice, so a (person, topic) the corpus
     // has but the current slice doesn't → empty tracker (+ invisible sentiment tint). Now the server
     // arc is the row source, so it renders regardless of what's loaded into the graph.

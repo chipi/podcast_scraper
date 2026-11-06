@@ -440,7 +440,7 @@ async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
       availableProfiles.value = o.available_profiles ?? []
       const sp = splitOperatorYamlProfile(o.content)
       // Preselect the env-driven default profile when the corpus has no
-      // saved profile yet (#692, RFC-081 §Layer 1). Server only sets
+      // saved profile yet (#692, RFC-081 (not in this repository) §Layer 1). Server only sets
       // ``default_profile`` when ``PODCAST_DEFAULT_PROFILE`` is on AND the
       // value is in ``available_profiles`` — so this is safe to assign
       // unconditionally without re-validating client-side.

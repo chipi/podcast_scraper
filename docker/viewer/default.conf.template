@@ -7,7 +7,7 @@
 # ``$uri`` etc. (single-dollar form) are left alone, and would also be
 # left alone by the filter even if they used ``${...}`` form.
 #
-# Runtime env injection (Item 1 / RFC-082 follow-up):
+# Runtime env injection (Item 1 / RFC-082 (not in this repository) follow-up):
 #   The viewer SPA needs PODCAST_ENV at runtime so Sentry events from
 #   prod tag ``env=prod`` and codespace events tag ``env=preprod`` —
 #   both running the SAME image. ``sub_filter`` rewrites the served
@@ -32,12 +32,12 @@ map $http_x_forwarded_proto $viewer_forwarded_proto {
 # Recover the REAL client IP from Caddy's X-Forwarded-For so rate limiting keys on the
 # client, not on Caddy. This container is loopback-bound (127.0.0.1:OPERATOR_PORT) and only
 # the trusted Caddy edge reaches it, so trusting XFF from the immediate peer is safe here.
-# (Mirrors the player nginx; T-06 / RFC-108 rate-limit parity.)
+# (T-06 / RFC-108 (not in this repository) rate-limit parity.)
 set_real_ip_from 0.0.0.0/0;
 real_ip_header X-Forwarded-For;
 real_ip_recursive on;
 
-# Rate limiting (T-06 / RFC-108) — per real client IP. A normal API rate for the operator
+# Rate limiting (T-06 / RFC-108 (not in this repository)) — per real client IP. A normal API rate for the operator
 # read plane, and a tighter one on the auth endpoints (login/callback) to blunt abuse.
 # op_api sized for the viewer's COLD-LOAD burst: opening the SPA fans out ~20 read calls
 # (auth/health/enrichment×5/digest/feeds/index-stats/artifacts/clusters) in one tick, and the

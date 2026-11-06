@@ -321,7 +321,7 @@ function onPrefillSearch(): void {
       >
         {{ subjectDescription }}
       </p>
-      <!-- ADR-108 — how this topic's conversation evolved: weekly volume × sentiment
+      <!-- How this topic's conversation evolved: weekly volume × sentiment
            (aggregate-first, so a big topic renders as a shape not a 1000-card list). -->
       <TopicConversationArc
         v-if="subjectId"

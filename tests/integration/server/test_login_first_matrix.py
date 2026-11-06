@@ -1,4 +1,4 @@
-"""RFC-120 (#2009) login-first release gate.
+"""Login-first release gate (#2009).
 
 Auto-enumerates the consumer app's routes and asserts every ``/api/app`` GET requires a
 session EXCEPT the explicit anonymous allow-list (the teaser lure + protocol-anonymous

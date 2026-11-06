@@ -15,7 +15,7 @@ export interface Me {
   name: string
   role: Role
   disabled: boolean
-  /** RFC-112: holds the MCP entitlement (used by the private MCP surface, ADR-170). */
+  /** Holds the MCP entitlement (used by the private MCP surface, ADR-170). */
   mcp_access?: boolean
 }
 

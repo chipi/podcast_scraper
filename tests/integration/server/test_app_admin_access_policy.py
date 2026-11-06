@@ -162,7 +162,7 @@ def test_a_written_policy_revokes_an_address_the_env_allowed(tmp_path: Path) -> 
     )
 
 
-# --- RFC-108: the operator-public surface must not be openable at runtime ------------------------
+# --- RFC-108 (not in this repository): the operator-public surface must not be openable at runtime ------------------------
 
 
 def test_put_open_is_refused_on_the_operator_public_surface(tmp_path: Path) -> None:

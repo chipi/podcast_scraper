@@ -48,8 +48,7 @@ lived in `web/`, and there were no links across.
 
 Two further findings from the same audit:
 
-- The app's own `README.md` had **six dead spec links** — PRD-035, PRD-038, PRD-039, RFC-099,
-  UXS-011, PLATFORM_API — in the file a new contributor opens first. Every one had been broken for
+- The app's own `README.md` had **six dead spec links** in the file a new contributor opens first. Every one had been broken for
   months. Nothing failed, so nobody knew.
 - A comment in the corpus generator asserted *"the player never decodes it in e2e."* That had become
   false. It read as justification and **actively corroborated the wrong premise**. It cost more than
@@ -136,7 +135,7 @@ If you roll this out, roll out both halves.
 ## The mechanics
 
 **Tree-root READMEs.** One at each root where someone lands and needs orientation — not every
-directory. Here: the test tiers, the fixture trees, the two web apps, each app's e2e directory, and
+directory. Here: the test tiers, the fixture trees, the web app, its e2e directory, and
 the store/composable layers. Roughly 40–60 lines each:
 
 1. A one-line purpose.

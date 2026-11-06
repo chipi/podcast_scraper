@@ -76,7 +76,7 @@ summary_provider: litellm
 # host (tailnet) AND carrying the OpenRouter key. If the gateway is down, LLM stages fail.
 # LAPTOP-DEV DEFAULT, not where prod routes. The homelab is observability-only and is never
 # on an LLM path; prod pins its own VPS gateway into viewer_operator.yaml on every deploy
-# (the D4 pin). See ADR-142 + AGENTS.md 'Deployment topology'.
+# (the D4 pin). See ADR-142 (not in this repository) + AGENTS.md 'Deployment topology'.
 litellm_api_base: ${LITELLM_API_BASE}
 litellm_insight_model: podcast-flash-0731
 litellm_temperature: 0.3
@@ -90,7 +90,7 @@ litellm_extra_body:
     allow_fallbacks: true
 litellm_verify_served_model: true
 
-# RFC-111 (#1482) gateway resilience — root-caused 2026-08-07: a transient <host>:4001 ->
+# Gateway resilience (#1482) — root-caused 2026-08-07: a transient <host>:4001 ->
 # OpenRouter connection failure (APIConnectionError, gateway unreachable, not a model-side 503)
 # exhausted retry_with_metrics' short default window (~12s: 4 tries, 0.9s->2s->4s) before the
 # operator could react, and the whole grounding pass for that insight was lost. Two layers, in
@@ -224,8 +224,9 @@ corpus_media_link_mode: copy
 # the 2026-08-18 incident). The local audio-cache/ directory stops being written entirely.
 #
 # Credentials live in the host rclone config (RCLONE_CONFIG_AUDIOARCHIVE_* staged into the
-# container env by the deployment, ADR-115) — never in this file. The remote is SFTP to a storage
-# box the deployment configures; rclone is baked into the pipeline image.
+# container env by the deployment, ADR-115 (not in this repository)) — never in this file. The
+# remote is SFTP to a storage box the deployment configures; rclone is baked into the pipeline
+# image.
 #
 # Fail-loud on misconfig (empty remote name / missing rclone binary raises at load); per-episode
 # upload is best-effort (ERROR-logged, never silent) so one rclone hiccup cannot break ingestion.

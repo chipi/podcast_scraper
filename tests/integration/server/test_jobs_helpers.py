@@ -26,7 +26,7 @@ from podcast_scraper.server.jobs import (
 )
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
+# Moved from tests/unit/ — RFC-081 (not in this repository) PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 

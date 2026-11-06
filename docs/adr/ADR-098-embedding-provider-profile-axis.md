@@ -3,12 +3,12 @@
 - **Status**: Accepted
 - **Date**: 2026-06-06
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: RFC-089 (§D4 superseded)
+- **Related RFCs**: RFC-089 (not in this repository) (§D4 superseded)
 - **Related issues**: [#897](https://github.com/chipi/podcast_scraper/issues/897) (implementation)
 
 ## Context
 
-RFC-089 §D4 introduced a custom FastAPI service on a GPU host — the "embedding shim" — to wrap `sentence-transformers/all-MiniLM-L6-v2` and expose `POST /embed` on a dedicated port. The shim existed because Ollama doesn't serve sentence-transformers checkpoints out of the box, and at the time RFC-089 was written, the corpus index was built against MiniLM and had to keep working.
+RFC-089 (not in this repository) §D4 introduced a custom FastAPI service on a GPU host — the "embedding shim" — to wrap `sentence-transformers/all-MiniLM-L6-v2` and expose `POST /embed` on a dedicated port. The shim existed because Ollama doesn't serve sentence-transformers checkpoints out of the box, and at the time RFC-089 was written, the corpus index was built against MiniLM and had to keep working.
 
 During GPU-host bring-up (#810), the operator observed that two HTTP services on the GPU host (the LLM server + the embedding shim) felt wrong. On audit, the framing was right: the shim is a stack-compatibility adapter, not a design choice. It has no functional reason to exist beyond "MiniLM was the model we'd already committed to."
 
@@ -20,7 +20,7 @@ The initial plan was to replace the shim with Ollama-served `nomic-embed-text`. 
 
 **`sentence_transformers` remains the default for every profile, including those that use a GPU host.** Ollama-served embeddings are available via the new axis but not enabled in any shipped profile. The Ollama embedding client exists; the door is open; no profile crosses it today.
 
-**The shim is deleted.** The embedding shim is removed; RFC-089 §D4 is marked superseded. The GPU host serves only LLM stages (summary, GI, KG, autoresearch) and Whisper for transcription; embeddings stay in-process on whatever host runs the pipeline.
+**The shim is deleted.** The embedding shim is removed; RFC-089 (not in this repository) §D4 is marked superseded. The GPU host serves only LLM stages (summary, GI, KG, autoresearch) and Whisper for transcription; embeddings stay in-process on whatever host runs the pipeline.
 
 **Vector indexes record their provider** in `index_meta.json`. The staleness checker has a new `REASON_EMBEDDING_PROVIDER_MISMATCH` reason; switching `vector_embedding_provider` invalidates existing indexes and triggers a rebuild on next index run. This is correct: vectors are not comparable across providers even when the model id is nominally the same.
 
@@ -64,7 +64,7 @@ The three modes together show a useful methodological lesson worth preserving wi
 
 ## Alternatives considered
 
-1. **Keep the shim.** Status-quo of RFC-089 §D4. Rejected: it was a stack-compatibility adapter without an architectural rationale. The shim is gone regardless of which provider wins.
+1. **Keep the shim.** Status-quo of RFC-089 (not in this repository) §D4. Rejected: it was a stack-compatibility adapter without an architectural rationale. The shim is gone regardless of which provider wins.
 2. **Switch GPU-host profiles to Ollama + `nomic-embed-text` as default.** Initial plan based on MTEB and the truncation hypothesis. Rejected after the empirical A/B: nomic loses to MiniLM under production-realistic chunking on this corpus, and the HTTP+model latency is real.
 3. **Run embeddings on laptop CPU forever, no abstraction.** Rejected: the abstraction is cheap and gives operators a clean knob to retest periodically as new embedding models ship.
 

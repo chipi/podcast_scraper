@@ -1,4 +1,4 @@
-"""Unit tests for TailnetDgxWhisperTranscriptionProvider (ADR-096)."""
+"""Unit tests for TailnetDgxWhisperTranscriptionProvider (ADR-096, not in this repository)."""
 
 from __future__ import annotations
 

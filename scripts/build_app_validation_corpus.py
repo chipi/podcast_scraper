@@ -1908,7 +1908,7 @@ def _tally_episode_content(
 def _content_series_data(
     topic_weeks: dict[str, list[str]], person_weeks: dict[str, list[str]]
 ) -> dict[str, Any]:
-    """The RFC-103 now-free content_series (per-topic + per-person weekly counts).
+    """The now-free content_series (per-topic + per-person weekly counts).
 
     Matches the ``temporal_velocity`` enricher's ``content_series`` shape, authored
     deterministically from the corpus's own ISO weeks so the momentum layer works over the fixture.
@@ -2142,7 +2142,7 @@ def _topic_consensus_data(
     cos_threshold: float = 0.70,
     max_rows: int = 12,
 ) -> dict[str, Any]:
-    """Author the ``topic_consensus`` payload (ADR-108 composite) — cross-Person corroboration.
+    """Author the ``topic_consensus`` payload (a composite) — cross-Person corroboration.
 
     Deterministic: for each topic with ≥2 distinct persons, emit one corroborating pair between the
     two earliest-seen persons. Claim texts are templated on the topic label (clean synthetic
@@ -2524,10 +2524,10 @@ def main() -> int:
     corpus_topic_months: dict[str, list[str]] = {}
     # topic_id → episode ids (for the co-occurrence theme-cluster members).
     corpus_topic_episodes: dict[str, list[str]] = {}
-    # topic_id / person_id → ISO weeks (for the RFC-103 now-free content_series).
+    # topic_id / person_id → ISO weeks (for the now-free content_series).
     corpus_topic_weeks: dict[str, list[str]] = {}
     corpus_person_weeks: dict[str, list[str]] = {}
-    # ADR-108 topic_consensus: topic_id → [(person_id, name)], authored deterministically from the
+    # topic_consensus: topic_id → [(person_id, name)], authored deterministically from the
     # episode's own persons × topics (like content_series).
     corpus_topic_persons: dict[str, list[tuple[str, str]]] = {}
     corpus_topic_person_insights: dict[tuple[str, str], list[str]] = {}
@@ -2700,7 +2700,7 @@ def main() -> int:
                 + "\n",
                 encoding="utf-8",
             )
-            # ADR-108 conversation-timeline colour: per-Insight VADER sentiment sidecar (the CIL
+            # Conversation-timeline colour: per-Insight VADER sentiment sidecar (the CIL
             # timeline/arc queries join it by insight_id).
             (enrich_dir / f"{ep_label}.insight_sentiment.json").write_text(
                 json.dumps(_insight_sentiment_envelope(gi, episode_id), indent=2, sort_keys=True)
@@ -2719,7 +2719,7 @@ def main() -> int:
                 weeks=corpus_topic_weeks,
                 person_weeks=corpus_person_weeks,
             )
-            # ADR-108: fold this episode's persons × topics into the topic_consensus accumulator.
+            # Fold this episode's persons × topics into the topic_consensus accumulator.
             _accumulate_topic_persons(
                 _episode_persons(kg),
                 topic_ids,
@@ -2921,7 +2921,7 @@ def main() -> int:
     # rising). Deterministic: derived from the authored per-episode publish dates (the #1148
     # offset schedule makes risk-management rise, per the corpus gold's ``heating_up``).
     tv = _temporal_velocity_data(corpus_topic_months)
-    # RFC-103 Phase 1: the durable, now-free content_series the momentum layer + trending endpoints
+    # The durable, now-free content_series the momentum layer + trending endpoints
     # read (per-topic + per-person weekly counts). Same shape the enricher emits in production.
     tv["content_series"] = _content_series_data(corpus_topic_weeks, corpus_person_weeks)
     (corpus_enrich_dir / "temporal_velocity.json").write_text(
@@ -2947,7 +2947,7 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    # topic_consensus — the reimagined NLI enricher (ADR-108). Authored deterministically from the
+    # topic_consensus — the reimagined NLI enricher. Authored deterministically from the
     # corpus's own persons × topics so the operator viewer's Consensus edges + Person "Consensus"
     # surfaces render + pivot on the fixture. (Per-person / per-topic stance over time is a
     # read-time CIL query — conversation-arc / position-arc — not an enricher artifact.)

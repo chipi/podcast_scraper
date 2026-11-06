@@ -1,4 +1,4 @@
-"""``PODCAST_SERVE_OPERATOR_PUBLIC`` — the public operator surface (RFC-108).
+"""``PODCAST_SERVE_OPERATOR_PUBLIC`` — the public operator surface (RFC-108, not in this repository).
 
 `operator.closelistening.app` exposes a **curated read-only subset** of the operator
 routes, each mounted with a **router-level ≥creator gate**. `index_rebuild`, `ops`, and
@@ -64,7 +64,7 @@ def test_operator_public_mounts_curated_read_subset(tmp_path, monkeypatch) -> No
 
 
 def test_operator_public_refuses_open_signup(tmp_path, monkeypatch) -> None:
-    """RFC-108 hardening: operator-public self-grants ``creator`` via the viewer's login
+    """RFC-108 (not in this repository) hardening: operator-public self-grants ``creator`` via the viewer's login
     hint, so the email allowlist is the only authZ boundary. ``APP_SIGNUP_MODE=open`` would
     drop it and expose the corpus to any Google account — create_app must REFUSE to boot."""
     monkeypatch.delenv("PODCAST_SERVE_APP_ONLY", raising=False)
@@ -107,7 +107,7 @@ def test_operator_public_subset_excludes_the_mutating_operator_routes() -> None:
     full = set(app_mod._OPERATOR_READ_ROUTES)
     assert public < full, "public subset must be strictly smaller than the full read set"
     # The excluded set = the mutating/control routes PLUS the tailnet-only observability
-    # routes. `llm_gateway` (ADR-142, #53) is read-only but carries per-key LLM *spend* —
+    # routes. `llm_gateway` (ADR-142 (not in this repository), #53) is read-only but carries per-key LLM *spend* —
     # cost data that stays on the tailnet control plane, exactly like `ops`, never the
     # public operator surface.
     assert full - public == {

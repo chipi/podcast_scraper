@@ -1,4 +1,4 @@
-"""Per-user identity store for the consumer platform (#1063/#1064, RFC-098 §3), on Postgres.
+"""Per-user identity store for the consumer platform (#1063/#1064), on Postgres.
 
 Users live in the ``users`` table of the process's plane schema (ADR-169). The user id is derived
 deterministically from the OAuth identity ``(provider, subject)``, so ``get_or_create_user`` is
@@ -46,7 +46,7 @@ class User:
     image: str | None = None
     disabled: bool = False
     role: str = app_roles.DEFAULT_ROLE
-    #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
+    #: (#1471) May connect an external agent to the MCP server. Orthogonal to ``role`` (a
     #: listener may have it, an admin may not), not a rank. **Default on** since 2026-10-16
     #: (operator: every user gets MCP; a beta user who joined the day before had no access).
     #: An admin can still revoke it per user, and an explicit ``false`` stays revoked.
@@ -419,7 +419,7 @@ def set_role(data_dir: Path, user_id: str, role: str) -> bool:
 
 
 def set_mcp_access(data_dir: Path, user_id: str, mcp_access: bool) -> bool:
-    """Grant/revoke a user's MCP-access entitlement (RFC-112). Returns False for unknown users."""
+    """Grant/revoke a user's MCP-access entitlement. Returns False for unknown users."""
     return _update_user(user_id, mcp_access=bool(mcp_access))
 
 

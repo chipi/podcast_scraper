@@ -604,7 +604,7 @@ covers it end-to-end.
 - **Umami telemetry**: `graph_handoff_started/applied/failed/stuck` events fire
   from `stores/graphHandoff.ts` via `lib/analytics.ts` `track()`. Use to track
   handoff success rates per source in production. (Migrated off PostHog Cloud →
-  self-hosted Umami; see ADR-126.)
+  self-hosted Umami; see ADR-126 (not in this repository).)
 
 ---
 

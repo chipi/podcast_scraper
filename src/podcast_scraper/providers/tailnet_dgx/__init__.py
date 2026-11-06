@@ -1,4 +1,5 @@
-"""Tailnet-routed DGX providers (RFC-089 / ADR-096 / #814 / #926)."""
+"""Tailnet-routed DGX providers (RFC-089 (not in this repository) /
+ADR-096 (not in this repository) / #814 / #926)."""
 
 from .diarization_provider import TailnetDgxDiarizationProvider
 from .health import (

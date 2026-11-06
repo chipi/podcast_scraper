@@ -25,9 +25,7 @@
   - `docs/rfc/RFC-090-hybrid-retrieval.md` (orthogonal; LanceDB-first stands)
   - `docs/rfc/RFC-091-kg-proximity-signal.md` (REJECTED 2026-06-03; v2 confirms)
   - `docs/rfc/RFC-092-ml-query-router.md` (intent taxonomy may extend post-v2)
-  - `docs/rfc/RFC-093-litm-context-packs.md` (richer packs via insight_type/position_hint)
   - `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` (relational queries stabilized via CIL)
-  - `docs/rfc/RFC-095-generic-mcp-server.md` (CIL prerequisite for stable tool schemas)
 - **Related UX specs**:
   - PRD-028 / PRD-029 cover the viewer Position Tracker + Person Profile surfaces
 - **Related Documents**:
@@ -181,7 +179,7 @@ that never made it into a release.
   prompt change. Cost validated by a small accuracy sweep before
   full silver regen (chunk 5).
 - Semantic-match threshold for ABOUT / MENTIONS_PERSON / MENTIONS_ORG
-  emission can reuse `search/topic_clusters.py`'s Pareto-0.75
+  emission can reuse the topic-cluster Pareto-0.75
   pattern from #1035 NER pre-pass. Precision over recall.
 - The reference v2 corpus (99 episodes) is intact and migration-ready.
 
@@ -314,7 +312,7 @@ GI pipeline gains a post-pass after Insight extraction that:
    canonical Topic / Person / Organization IDs
 2. Semantic-matches each Insight against the episode's
    Topics / Persons / Orgs (sentence-transformer similarity or
-   LLM judge; reuses `search/topic_clusters.py` Pareto-0.75
+   LLM judge; reuses the topic-cluster Pareto-0.75
    threshold pattern from #1035 NER pre-pass)
 3. Emits `ABOUT` / `MENTIONS_PERSON` / `MENTIONS_ORG` edges with
    confidence scores
@@ -628,14 +626,14 @@ corpus-ontology consolidation effort that includes:
 8. **RFC-092 (ML query router)** — orthogonal; intent taxonomy may
    gain classes if new node types enable new intent classes
    post-v2.
-9. **RFC-093 (LITM context packs)** — `CorpusBriefingPack` builder
-   gets richer inputs (`insight_type`, `position_hint`); MCP tool
-   layer (RFC-095) remains the publish gate.
+9. **LITM context packs** — `CorpusBriefingPack` builder
+   gets richer inputs (`insight_type`, `position_hint`); the MCP tool
+   layer remains the publish gate.
 10. **RFC-094 (relational query layer)** — v2 CIL ensures stable
     `person:` / `topic:` / `org:` IDs; `who_said_what_about`,
     `insights_about`, `mentions_of_person` queries newly viable
     against per-artifact edges.
-11. **RFC-095 (generic MCP server)** — v2 CIL is prerequisite for
+11. **Generic MCP server** — v2 CIL is prerequisite for
     stable tool schemas; MCP layer itself unchanged.
 
 **Key Distinction:**
@@ -716,7 +714,7 @@ Together they provide:
 
 - **Related PRDs**: PRD-017, PRD-019, PRD-026 through PRD-029, PRD-031
 - **Related RFCs**: RFC-049, RFC-050, RFC-055, RFC-056, RFC-072,
-  RFC-088, RFC-090, RFC-091, RFC-092, RFC-093, RFC-094, RFC-095
+  RFC-088, RFC-090, RFC-091, RFC-092, RFC-094
 - **Live ontology design**: `docs/architecture/corpus/ontology.md` (shipped in chunk 1). The
   round-1/2/3 design specs were WIP archaeology and have been removed — their history is in git.
 - **GH anchor**: #1036 (issue body updated to reflect round-3 framing)
@@ -830,36 +828,16 @@ to find them.
 - **Companion-doc annotation**: informational cross-ref noting
   intent taxonomy may extend post-v2.
 
-### `docs/rfc/RFC-093-litm-context-packs.md` — Draft
-
-- **Closed by v2**: `CorpusBriefingPack` builder gains richer
-  inputs (`insight_type` for filtering, `position_hint` for
-  temporal sorting).
-- **Remains open**: MCP tool wrapper (RFC-095 prerequisite);
-  `top_contradiction` content (needs CONTRADICTS edges);
-  `coverage_gaps` surface (corpus-impact surface TBD).
-- **Companion-doc annotation**: v2 enablement note for builder
-  inputs.
-
 ### `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` — Draft
 
 - **Closed by v2**: stable `person:` / `topic:` / `org:` IDs for
   relational queries (RFC-072 CIL formalized in RFC-097); ABOUT
   + MENTIONS_PERSON + MENTIONS_ORG edges per-artifact enable
   `who_said_what_about`, `insights_about`, `mentions_of_person`.
-- **Remains open**: MCP exposure of relational queries (RFC-095);
+- **Remains open**: MCP exposure of relational queries;
   panel caching (OQ-1); coverage-aware query filtering.
 - **Companion-doc annotation**: v2 prerequisite note for query
   layer.
-
-### `docs/rfc/RFC-095-generic-mcp-server.md` — Draft
-
-- **Closed by v2**: nothing directly (prerequisite: stable CIL IDs
-  for tool inputs).
-- **Remains open**: HTTP/SSE transport (OQ-1); MCP resource layer
-  (OQ-2); QueryEnricher tool (RFC-088 Phase 4).
-- **Companion-doc annotation**: prerequisite note pointing to
-  RFC-097 §3 (CIL formalization).
 
 ### `docs/prd/PRD-017-grounded-insight-layer.md` — Partially implemented
 
@@ -943,7 +921,7 @@ Pinned so the chunked execution doesn't accidentally do them:
 4. Phase 5 chunk-to-Insight lift (RFC-072 KL1)
 5. Natural-language query layer
 6. Enrichment workers (RFC-088 territory)
-7. MCP tool layer (RFC-095 territory)
+7. MCP tool layer
 8. ML query intent router (RFC-092 territory)
 9. KG proximity-based retrieval (RFC-091 stays REJECTED)
 

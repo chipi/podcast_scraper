@@ -5,8 +5,8 @@
 - **Authors**: Marko Dragoljevic
 - **Supersedes**: [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) ("CLI mode
   requires no database"), the "files remain the canonical source of truth" part of
-  [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md), and decision D2 of
-  PRD-035 ("no persistence layer")
+  [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md), and the player's earlier
+  "no persistence layer" decision
 - **Related**: [ADR-116](ADR-116-privilege-split-public-control-api.md),
   [ADR-168](ADR-168-installed-extensions.md), [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md),
   [ADR-099](ADR-099-lancedb-first-single-index-search.md)
@@ -18,12 +18,11 @@ behind file locks; the corpus is per-episode JSON artifacts in run directories, 
 time; operator config and the job queue are files too. That has reached its limits:
 
 - **Cross-user and cross-item queries are directory walks**, several on request paths (episode
-  stats over every user's listen events in `server/app_stats.py`, unsubscribe lookup in
+  stats over every user's listen events, unsubscribe lookup in
   `server/app_comms_store.py`, handle allocation in `server/app_user_store.py`, the outbox poll in
   `server/app_outbox_store.py`, the catalog parse in `server/catalog_cache.py`).
 - **Concurrency rests on per-directory file locks**: some writers take none, a per-feed job locks
-  a different directory from a corpus-wide one, and appends are check-then-write without a lock
-  (`server/app_user_state.py`).
+  a different directory from a corpus-wide one, and appends are check-then-write without a lock.
 - **Caches are keyed on the mtimes of a few stamp files** (`perf_cache.py`); a writer that touches
   none of them serves stale data.
 - **One fact is copied into many files** (feed metadata into every episode, speaker names into
@@ -107,5 +106,4 @@ one of these problems on the write side.
   [ADR-099](ADR-099-lancedb-first-single-index-search.md),
   [ADR-116](ADR-116-privilege-split-public-control-api.md),
   [ADR-168](ADR-168-installed-extensions.md)
-- [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md),
-  PRD-035
+- [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)

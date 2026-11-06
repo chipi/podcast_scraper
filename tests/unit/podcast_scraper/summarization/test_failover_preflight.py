@@ -157,7 +157,8 @@ def test_an_exploding_factory_is_caught_not_propagated(monkeypatch):
 
 
 def test_the_legacy_single_tier_policy_is_checked_too(patched_factory):
-    """RFC-089 profiles predate the registry chain; they must not silently skip the check."""
+    """RFC-089 (not in this repository) profiles predate the registry chain; they must not
+    silently skip the check."""
     patched_factory({"gemini": "GEMINI_API_KEY missing"})
     cfg = _Cfg("openai", [])
     cfg.degradation_policy = {"fallback_provider_on_failure": "gemini"}

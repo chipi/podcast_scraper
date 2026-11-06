@@ -1,6 +1,6 @@
 #!/bin/sh
-# ADR-115 C1 secret shim. Exports file-mounted secrets as env vars, then hands
-# off to the image's real entrypoint.
+# ADR-115 (not in this repository) C1 secret shim. Exports file-mounted secrets as env vars, then
+# hands off to the image's real entrypoint.
 #
 # Runs as the container's initial user (root for api, podcast for pipeline);
 # exported vars survive the real entrypoint's su-exec/setpriv drop. Each file in

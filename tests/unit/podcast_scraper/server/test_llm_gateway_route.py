@@ -1,4 +1,4 @@
-"""Unit tests for GET /api/ops/llm-gateway (#53 / #1357, ADR-142).
+"""Unit tests for GET /api/ops/llm-gateway (#53 / #1357, ADR-142 (not in this repository)).
 
 The handler reads the prod LiteLLM gateway's per-key spend from homelab VictoriaMetrics via
 ``podcast_obs``. These tests stub ``podcast_obs`` so no network is touched — covering the

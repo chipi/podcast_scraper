@@ -3,12 +3,12 @@
 - **Status**: Accepted — 2026-08-04 (operator ratified the seam as the app↔infra boundary). **App side implemented** (epic #1413: `app_outbox_store`, `routes/internal_outbox`, `app_digest_personal`, the scheduler `digest` job, the Web Push path). The infra delivery worker (#1412) is the remaining half.
 - **Date**: 2026-08-04
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
-- **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (full schema + endpoints), the delivery worker (external, what runs on the other side of the seam), PRD-046, the D6 no-request-time-LLM rule
+- **Related**: [RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md) (full schema + endpoints), the delivery worker (external, what runs on the other side of the seam), the D6 no-request-time-LLM rule
 - **Tracking**: epic #1413 (app slices #1414/#1415 produce it; infra slice #1412 consumes it)
 
 ## Context
 
-Delivery (PRD-046) splits cleanly into two responsibilities with very different concerns and
+Delivery splits cleanly into two responsibilities with very different concerns and
 lifecycles:
 
 - **App** — *what/when/who*: assemble the digest payload (extractive, D6), enforce consent + cadence,

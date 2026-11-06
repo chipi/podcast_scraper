@@ -1,4 +1,4 @@
-"""CLI handler tests for DGX embedding endpoint wiring (RFC-089)."""
+"""CLI handler tests for DGX embedding endpoint wiring (RFC-089, not in this repository)."""
 
 from __future__ import annotations
 

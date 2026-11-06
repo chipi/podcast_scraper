@@ -2,7 +2,7 @@
 
 Post-#382 Phase E: local sentence-transformers loading + cache lives on
 :class:`EmbeddingEvidenceBackend` (in :mod:`.hf_evidence_backend`). The
-remote/provider dispatch (Ollama endpoint, RFC-089 legacy endpoint) stays
+remote/provider dispatch (Ollama endpoint, RFC-089 (not in this repository) legacy endpoint) stays
 here because it is orthogonal to the local backend abstraction.
 
 Public API preserved: :func:`load_embedding_model`, :func:`get_embedding_model`,
@@ -156,7 +156,8 @@ def encode(
     """Encode text(s) to embedding vectors — local, Ollama, or legacy remote endpoint.
 
     See :func:`load_embedding_model` for the local-load kwargs. Ollama /
-    RFC-089-legacy dispatch happens here and doesn't touch the local backend.
+    RFC-089 (not in this repository)-legacy dispatch happens here and doesn't touch the local
+    backend.
     """
     resolved_provider = (provider or "sentence_transformers").strip().lower()
 
@@ -179,7 +180,8 @@ def encode(
     if isinstance(remote_endpoint, str) and remote_endpoint.strip():
         logger.warning(
             "vector_embedding_endpoint set without provider='ollama' — using legacy DGX "
-            "shim path (RFC-089 §D4, superseded by ADR-098). Switch profile to "
+            "shim path (RFC-089 (not in this repository) §D4, superseded by ADR-098). Switch "
+            "profile to "
             "vector_embedding_provider: ollama for the new path."
         )
         from .embedding_remote import encode_via_endpoint

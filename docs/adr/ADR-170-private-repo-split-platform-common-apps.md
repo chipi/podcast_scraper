@@ -4,8 +4,7 @@
 - **Date**: 2026-10-07 (revised the same day with the probe's measurements)
 - **Authors**: Marko Dragoljevic
 - **See Also**: [Splitting a surface into a private repo](../guides/SPLITTING_A_SURFACE_INTO_A_PRIVATE_REPO.md),
-  [Mounting the private eval research repo](../guides/EVAL_RESEARCH_MOUNT.md),
-  ADR-153
+  [Mounting the private eval research repo](../guides/EVAL_RESEARCH_MOUNT.md)
 
 ## Context & Problem Statement
 
@@ -246,7 +245,7 @@ documents, listed but not edited in round 1.
 References across the boundary run one way only:
 
 - **Private → public: allowed, by ID, never as a link.** A private document names a public one by
-  its identifier ("ADR-170", "PRD-039", "RFC-088"), not by a relative path or URL. A path breaks
+  its identifier ("ADR-170", "PRD-031", "RFC-088"), not by a relative path or URL. A path breaks
   as soon as either repo's layout changes, which is how the copied player docs failed the doc
   check.
 - **Public → private: not allowed.** No public document, comment or code names a private

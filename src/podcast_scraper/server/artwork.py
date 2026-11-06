@@ -1,4 +1,4 @@
-"""Consumer artwork serving + URL helpers (#1078 follow-up, RFC-099).
+"""Consumer artwork serving + URL helpers (#1078 follow-up).
 
 The consumer app serves the podcast art **we already downloaded at ingest** (into the
 corpus-art store) — it never re-fetches graphics from the origin host at request time. This

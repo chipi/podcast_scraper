@@ -1,13 +1,14 @@
 """DGX-hosted Whisper via faster-whisper-server with mandatory cloud fallback.
 
-Architecture (RFC-089 / ADR-096 / #814):
+Architecture (RFC-089 (not in this repository) / ADR-096 (not in this repository) / #814):
 
 - Whisper service on DGX: faster-whisper-server (#814), OpenAI-compatible,
-  listening on ``:8000``. Installed by ``infra/dgx/converge/deploy.py`` via
-  pyinfra. Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
+  listening on ``:8000``. Installed by the DGX convergence (infrastructure
+  repository) via pyinfra. Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
 - Fallback: owned by the stage factory's ``FallbackChainTranscriptionProvider``
   (RFC-106 / #1198), not by this provider. This tier tries DGX and RAISES on
-  failure; the chain advances to the next tier (DGX-whisper -> cloud). ADR-096's
+  failure; the chain advances to the next tier (DGX-whisper -> cloud).
+  ADR-096's (not in this repository)
   "no hard-required-DGX path" still holds — it is just enforced one layer up now.
 
 Pre-#814 history: this provider targeted ``POST /api/transcribe`` on Ollama's

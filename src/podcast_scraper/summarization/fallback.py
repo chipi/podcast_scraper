@@ -1,4 +1,4 @@
-"""Provider-swap fallback for LLM provider calls (RFC-089 #5).
+"""Provider-swap fallback for LLM provider calls (RFC-089 (not in this repository) #5).
 
 When an operator runs a DGX-hosted (or otherwise local) LLM and the local
 backend becomes unreachable, the pipeline must fall back to a cloud provider
@@ -144,7 +144,8 @@ class FallbackAwareSummarizationProvider:
         cfg: config.Config,
     ) -> None:
         # RFC-106 (#1198): the fallback is an ORDERED chain, tried in sequence. A bare string is
-        # accepted for back-compat (the RFC-089 single-fallback shape) and normalised to one tier.
+        # accepted for back-compat (the RFC-089 (not in this repository) single-fallback shape) and
+        # normalised to one tier.
         if isinstance(fallback_provider_names, str):
             fallback_provider_names = [fallback_provider_names]
         self._primary = primary
@@ -257,7 +258,8 @@ class FallbackAwareSummarizationProvider:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return primary_fn(*args, **kwargs)
-            except Exception as primary_exc:  # noqa: BLE001 — fallback contract (RFC-089/RFC-106)
+            # Fallback contract (RFC-089 (not in this repository)/RFC-106).
+            except Exception as primary_exc:  # noqa: BLE001
                 # One exception class does not belong to the chain: a failure the CALLER can fix
                 # by resending a smaller request. Failing over answers it from a weaker model
                 # when the primary was willing and able — strictly worse than the caller's own
@@ -275,8 +277,9 @@ class FallbackAwareSummarizationProvider:
                     )
                     raise
                 # Walk the ordered chain; the first tier that succeeds wins. This preserves the
-                # RFC-089 contract of falling back on ANY primary failure (the LLM stage does not
-                # apply is_infra_failure — a DGX-down summary retries on cloud regardless).
+                # RFC-089 (not in this repository) contract of falling back on ANY primary failure
+                # (the LLM stage does not apply is_infra_failure — a DGX-down summary retries on
+                # cloud regardless).
                 return self._walk_fallback_chain(method_name, primary_exc, args, kwargs)
 
         wrapper.__name__ = method_name
@@ -312,9 +315,10 @@ def _summary_fallback_chain(cfg: config.Config, primary_name: Optional[str] = No
     """The ordered LLM/summary failover ladder for ``cfg`` (RFC-106 / #1198).
 
     Prefers the registry-emitted ``summary_fallback_providers`` (the source of truth). Falls back to
-    the legacy ``degradation_policy.fallback_provider_on_failure`` (RFC-089) as a one-element chain
-    for profiles that predate the registry chain. Any tier equal to the primary is dropped — there
-    is no point failing over to the provider that just failed.
+    the legacy ``degradation_policy.fallback_provider_on_failure`` (RFC-089 (not in this
+    repository)) as a one-element chain for profiles that predate the registry chain. Any tier
+    equal to the primary is dropped — there is no point failing
+    over to the provider that just failed.
 
     ``primary_name`` names the provider being wrapped. It defaults to ``cfg.summary_provider``
     because this ladder began as a summary-only feature, but the wrapper now protects the speaker

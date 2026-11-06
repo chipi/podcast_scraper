@@ -8,7 +8,7 @@
 - **Related RFCs**:
   - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — technical design
   - [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — shipped `activeSearchContext` + `PanelRetrievalStore` (composed with, not replaced)
-  - RFC-093 — `build_briefing_pack` (Compare operator source)
+  - `build_briefing_pack` (Compare operator source)
   - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — hybrid retrieval
   - [RFC-092](../rfc/RFC-092-ml-query-router.md) — intent taxonomy
 - **Related ADRs**:
@@ -71,7 +71,7 @@ SearchTab.vue                                    [w-full main area]
 | --- | --- | --- |
 | On graph | `search-op-graph` | Union bbox of derived node ids → graph camera set-focus (`graphNavigation.focusSet`). Camera-fit invariant preserved. |
 | Timeline | `search-op-timeline` | Client bucket by `publish_date` month → `SubjectTimelineChart`; bucket-click filters `WorkspaceResults` client-side. |
-| Compare | `search-op-compare` | Enabled when ≥ 2 subject types are present in the hit set. Opens a 2-column view sourced from `build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` per side (RFC-093 shipped API). Judge summary muted below when available. |
+| Compare | `search-op-compare` | Enabled when ≥ 2 subject types are present in the hit set. Opens a 2-column view sourced from `build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` per side (shipped API). Judge summary muted below when available. |
 
 Operator bar `aria-role="toolbar"`; buttons `aria-role="button"` with visible focus ring. Toolbar disappears when there are 0 hits.
 

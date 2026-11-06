@@ -1,4 +1,5 @@
-"""Config validation tests for RFC-089 / ADR-096 DGX fields."""
+"""Config validation tests for RFC-089 (not in this repository) /
+ADR-096 (not in this repository) DGX fields."""
 
 from __future__ import annotations
 
@@ -15,6 +16,18 @@ def test_dgx_requires_host() -> None:
                 "transcription_provider": "tailnet_dgx_whisper",
                 "transcription_fallback_provider": "openai",
                 "openai_api_key": "sk-test",
+            }
+        )
+
+
+def test_dgx_only_fallback_chain_is_refused() -> None:
+    with pytest.raises(ValueError, match="at least one non-DGX tier"):
+        Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "transcription_provider": "tailnet_dgx_whisper",
+                "transcription_fallback_providers": ["moss"],
+                "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
             }
         )
 

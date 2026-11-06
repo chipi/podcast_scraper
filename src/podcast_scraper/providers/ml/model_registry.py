@@ -993,7 +993,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-08-07",
         tier="primary",
     ),
-    # RFC-111 (#1482) gateway-outage fallback tier: DIRECT to api.deepseek.com, bypassing the
+    # Gateway-outage (#1482) fallback tier: DIRECT to api.deepseek.com, bypassing the
     # <host>:4001 LiteLLM gateway entirely. Root-caused 2026-08-07 — a gateway CONNECTION failure
     # (APIConnectionError, not a model-side 503) exhausted the short retry window before the
     # operator could react. Same model as the litellm-routed primary above (deepseek-v4-flash), just
@@ -1003,7 +1003,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="deepseek_native_flash",
         provider="deepseek",
         model="deepseek-v4-flash",
-        headline_metric="Direct-DeepSeek fallback tier for a homelab gateway outage (RFC-111)",
+        headline_metric="Direct-DeepSeek fallback tier for a homelab gateway outage",
         measured_at="2026-08-07",
         tier="fallback",
     ),
@@ -1655,7 +1655,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
 # 0.85}. The current default of 0.75 is Pareto-optimal: max cross-feed
 # parent clusters (4) at the lowest tc:* total (6). No Config field exposes
 # this knob today — the threshold is a function-default in
-# ``search/topic_clusters.py`` + ``search/insight_clusters.py``. The
+# the topic and insight clustering modules (``search/insight_clusters.py``). The
 # registry entry is documentation/provenance until a config surface lands;
 # ``resolve_profile_to_settings`` does NOT yet plumb a clustering field
 # into runtime settings.
@@ -1897,7 +1897,8 @@ _PREFERRED_GATE_MODEL: Dict[str, str] = {
     # (deepseek-v4-flash); this is its stronger sibling on the SAME alias namespace. The gateway
     # must
     # advertise it before a profile names it — litellm_verify_served_model=true fails the run
-    # otherwise, so infra/litellm/config.yaml leads any deploy that touches this.
+    # otherwise, so the infrastructure repository's LiteLLM config leads any deploy that touches
+    # this.
     "litellm": "podcast-pro-0829",
     # claude-sonnet-4-6 is deliberately absent from known_models.yaml (unresolved status), so the
     # allowlist would fail this closed. 4-5 is the listed stronger sibling of haiku-4-5.
@@ -2161,13 +2162,13 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # provider_chunked_gated_v3 superseded.
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
-        # RFC-111 (#1482): a <host>:4001 gateway CONNECTION outage must fail over to direct
+        # Gateway outage (#1482): a <host>:4001 gateway CONNECTION outage must fail over to direct
         # DeepSeek (same model, different wire path) rather than lose the whole LLM stack.
         summary_fallback=("deepseek_native_flash",),
         notes="Production cloud default: Deepgram nova-3 single-pass ASR+diarization (speakers "
         "reused from the transcription, no 2nd call) + DeepSeek-v4-flash LLM (v2.5 finale cloud "
         "winner, via the LiteLLM gateway). Needs DEEPGRAM_API_KEY + the homelab gateway reachable "
-        "(RFC-111: falls over to direct api.deepseek.com if the gateway connection itself fails).",
+        "(falls over to direct api.deepseek.com if the gateway connection itself fails).",
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",
@@ -2304,8 +2305,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # backends, so the chain is never traversed. ADR-122's 2026-07-21 update makes this
         # explicitly supported for a serve deployment. THE TRADE: a sustained DGX outage stops
         # ingest instead of degrading -- a halted run is recoverable, a corpus of confidently wrong
-        # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
-        # validator; with `hold` it is inert.
+        # transcripts is not. The chain stays populated to satisfy ADR-096 (not in this
+        # repository)'s non-DGX-escape-hatch validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
         # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
@@ -2381,8 +2382,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # backends, so the chain is never traversed. ADR-122's 2026-07-21 update makes this
         # explicitly supported for a serve deployment. THE TRADE: a sustained DGX outage stops
         # ingest instead of degrading -- a halted run is recoverable, a corpus of confidently wrong
-        # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
-        # validator; with `hold` it is inert.
+        # transcripts is not. The chain stays populated to satisfy ADR-096 (not in this
+        # repository)'s non-DGX-escape-hatch validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
         # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
         # #2342: through the LiteLLM gateway (exact pass-through routes to the DGX :8005), so
@@ -2397,8 +2398,8 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_corpus_0_70",
         gi="provider_chunked_gated_v3",
         diarization="tailnet_dgx_diarization_community1",
-        # ADR-147: airgapped local-only transcription fallback (ADR-096 requires a fallback for
-        # tailnet_dgx_whisper); local in-process whisper, no cloud.
+        # ADR-147: airgapped local-only transcription fallback (ADR-096 (not in this repository)
+        # requires a fallback for tailnet_dgx_whisper); local in-process whisper, no cloud.
         transcription_fallback=("local_mps_large_v3",),
         notes=(
             "Internal autoresearch eval-loop default. Uses Moonlight-16B-A3B "

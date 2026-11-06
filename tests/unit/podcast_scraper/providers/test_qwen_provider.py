@@ -55,7 +55,8 @@ class TestIdentity:
         assert p.get_capabilities().provider_name == "qwen"
 
     def test_names_real_model_id_on_the_wire(self):
-        # No served-name alias: the wire model is the real Qwen id (reproducibility, ADR-143/144).
+        # No served-name alias: the wire model is the real Qwen id (reproducibility,
+        # ADR-143/144 (not in this repository)).
         p = QwenProvider(_qwen_cfg())
         assert p.summary_model == _MODEL
         assert p.cfg.qwen_api_base == "http://dgx:8003/v1"

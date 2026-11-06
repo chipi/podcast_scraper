@@ -1,4 +1,4 @@
-"""Health checks for tailnet DGX services (RFC-089 / #814).
+"""Health checks for tailnet DGX services (RFC-089 (not in this repository) / #814).
 
 Two services live on DGX behind the tailnet ACL:
 

@@ -1,6 +1,6 @@
 ---
 name: local-gates
-description: Run the local checks that match what changed, and only those, each ending PASS or FAIL — black/isort/flake8/mypy/docstrings and the tests that name a changed module for Python, markdownlint with the repo config and the strict docs build for Markdown, vitest-related and vue-tsc for the two web apps, actionlint for workflows. Use when about to commit or push, or asked to "run the gates", "lint what I changed", "check this before pushing", or "is this ready".
+description: Run the local checks that match what changed, and only those, each ending PASS or FAIL — black/isort/flake8/mypy/docstrings and the tests that name a changed module for Python, markdownlint with the repo config and the strict docs build for Markdown, vitest-related and vue-tsc for the viewer, actionlint for workflows. Use when about to commit or push, or asked to "run the gates", "lint what I changed", "check this before pushing", or "is this ready".
 ---
 
 # local-gates
@@ -22,7 +22,6 @@ rewrite files, `make format`.
 | `*.py` | + pytest on the changed test files and every `tests/**/test_*.py` that names a changed module (dotted path or file stem) |
 | `*.md` | markdownlint with `.markdownlint.json` |
 | `docs/**`, `mkdocs.yml` | `make docs` (strict) |
-| `web/learning-player/{src,e2e}` | `vitest related --run`, vue-tsc (app + test config) |
 | `web/gi-kg-viewer/{src,e2e}` | `vitest related --run`, vue-tsc (app config) |
 | `.github/workflows/*.yml` | actionlint |
 
@@ -34,8 +33,8 @@ step die with MODULE_NOT_FOUND (see the top of the Makefile).
 - **The pytest gate is a name match, not coverage.** A test reaching a module through another one
   is missed. The whole suite (`.venv/bin/python -m pytest tests/unit tests/integration -n 6`,
   ~6 min, ~21k tests) runs once at the end of an arc, before pushing, not after every edit.
-- **No app e2e** (Playwright) and no device tiers here: `make test-app-e2e`, `make test-ios`,
-  `make test-android` when the change is in those paths.
+- **No viewer e2e** (Playwright) here: `make test-ui-e2e` when the change is under
+  `web/gi-kg-viewer/`.
 - **CI runs slower than a laptop.** A test that takes seconds locally can hit a CI timeout (a
   vitest file ran ~50x slower on the shared runner, 2026-10-16). After pushing, watch it with the
   `ci-watch` skill.
