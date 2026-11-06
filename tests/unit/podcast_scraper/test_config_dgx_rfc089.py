@@ -20,6 +20,18 @@ def test_dgx_requires_host() -> None:
         )
 
 
+def test_dgx_only_fallback_chain_is_refused() -> None:
+    with pytest.raises(ValueError, match="at least one non-DGX tier"):
+        Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "transcription_provider": "tailnet_dgx_whisper",
+                "transcription_fallback_providers": ["moss"],
+                "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            }
+        )
+
+
 def test_gemini_fallback_accepts_with_api_key() -> None:
     cfg = Config.model_validate(
         {
