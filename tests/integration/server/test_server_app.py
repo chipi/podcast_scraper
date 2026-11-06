@@ -54,7 +54,17 @@ def test_api_health_ok_with_metrics_enabled(
     try:
         client = TestClient(create_app(tmp_path, static_dir=False))
         assert client.get("/api/health").status_code == 200
-        assert client.get("/metrics").status_code == 200
+        metrics = client.get("/metrics")
+        assert metrics.status_code == 200
+        # Per-route latency reaches past 1 s (prod routes run 2-12 s).
+        route_buckets = [
+            line
+            for line in metrics.text.splitlines()
+            if line.startswith("http_request_duration_seconds_bucket{")
+            and 'handler="/api/health"' in line
+        ]
+        assert any('le="10.0"' in line for line in route_buckets), route_buckets
+        assert any('le="60.0"' in line for line in route_buckets), route_buckets
     finally:
         for collector in set(REGISTRY._collector_to_names) - before:
             REGISTRY.unregister(collector)

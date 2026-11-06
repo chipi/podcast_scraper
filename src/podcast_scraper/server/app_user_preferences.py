@@ -22,7 +22,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import user_preferences
 
 #: The file the store kept before the database; the importer reads it.
@@ -33,7 +33,7 @@ def get_preferences(data_dir: Path, user_id: str) -> dict[str, Any]:
     """Return the user's preferences payload, or ``{}`` when unset."""
 
     def read(engine: Any) -> dict[str, Any]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             payload = conn.execute(
                 select(user_preferences.c.payload).where(user_preferences.c.user_id == user_id)
             ).scalar()

@@ -70,7 +70,9 @@ def test_declared_shapes() -> None:
         assert _classify(rel) == "imported", rel
     assert _classify("outbox/" + "0" * 64 + ".lock") == "ignored"
     assert _classify("magic_link_used/.abc_DEF-123.lock") == "ignored"
-    assert _classify("ranking_config.json") == "file"  # Player's, until E07
+    assert (
+        _classify("ranking_config.json") == "file"
+    )  # an installed extension's importer claims it first
     # Shapes the writing code never produces are not waved through.
     assert _classify("outbox/notes.txt") == "unclaimed"
     assert _classify("users/u_x/sub/queue.json") == "unclaimed"

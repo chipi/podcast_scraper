@@ -24,7 +24,7 @@ from typing import Sequence
 from sqlalchemy import create_engine
 
 from podcast_scraper.db import inventory, migrate
-from podcast_scraper.db.engines import application_name_args
+from podcast_scraper.db.engines import unbounded_connect_args
 from podcast_scraper.db.importers import registry
 from podcast_scraper.db.schema import SHARED_SCHEMA
 from podcast_scraper.db.settings import (
@@ -81,15 +81,21 @@ def _upgrade(args: argparse.Namespace, log: logging.Logger) -> int:
         print(migrate.upgrade_sql(url, args.plane, from_revision=args.from_revision), end="")
         return 0
     url = DatabaseSettings.from_env().rw_url
-    shared_applied = migrate.upgrade_shared(url)
-    applied = migrate.upgrade(url, args.plane)
+    applied = migrate.upgrade_all(url, args.plane)
     shared_current, shared_head = migrate.shared_status(url)
     current, head = migrate.status(url, args.plane)
-    print(f"schema {SHARED_SCHEMA}: {shared_current} (head {shared_head})")
-    print(f"applied: {', '.join(shared_applied) if shared_applied else 'nothing'}")
-    print(f"plane {args.plane}: {current} (head {head})")
-    print(f"applied: {', '.join(applied) if applied else 'nothing'}")
-    return 0 if current == head and shared_current == shared_head else 1
+    found = [
+        (f"schema {SHARED_SCHEMA}", shared_current, shared_head, applied[migrate.SHARED.name]),
+        (f"plane {args.plane}", current, head, applied[migrate.KERNEL.name]),
+    ]
+    found += [
+        (f"module {name} on plane {args.plane}", cur, hd, applied[name])
+        for name, cur, hd in migrate.module_status(url, args.plane)
+    ]
+    for label, cur, hd, revs in found:
+        print(f"{label}: {cur} (head {hd})")
+        print(f"applied: {', '.join(revs) if revs else 'nothing'}")
+    return 0 if all(cur == hd for _, cur, hd, _ in found) else 1
 
 
 def _print_history(url: str, schema: str) -> None:
@@ -109,7 +115,11 @@ def _status(args: argparse.Namespace, log: logging.Logger) -> int:
     shared_current, shared_head = migrate.shared_status(url)
     print(f"schema {SHARED_SCHEMA}: current {shared_current or 'none'}, head {shared_head}")
     _print_history(url, SHARED_SCHEMA)
-    return 0 if current == head and shared_current == shared_head else 2
+    behind = current != head or shared_current != shared_head
+    for name, cur, hd in migrate.module_status(url, args.plane):
+        print(f"module {name} on plane {args.plane}: current {cur or 'none'}, head {hd}")
+        behind = behind or cur != hd
+    return 2 if behind else 0
 
 
 def _import(args: argparse.Namespace, log: logging.Logger) -> int:
@@ -117,7 +127,7 @@ def _import(args: argparse.Namespace, log: logging.Logger) -> int:
     if not data_dir.is_dir():
         log.error("not a directory: %s", data_dir)
         return 1
-    importers = registry()
+    importers = registry(args.plane)
     if args.only is not None and args.only not in importers:
         log.error("unknown store %r; importers: %s", args.only, ", ".join(sorted(importers)))
         return 1
@@ -125,7 +135,7 @@ def _import(args: argparse.Namespace, log: logging.Logger) -> int:
 
     engine = create_engine(
         DatabaseSettings.from_env().rw_url,
-        connect_args=application_name_args(),
+        connect_args=unbounded_connect_args(),
         execution_options={"schema_translate_map": {None: args.plane}},
     )
     failed = False
