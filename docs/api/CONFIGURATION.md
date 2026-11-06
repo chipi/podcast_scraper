@@ -1330,6 +1330,23 @@ These variables are read once per process. `podcast_scraper db --help` lists the
 - **`PODCAST_TEST_DATABASE_URL`**: tests only. `make test-db-up` starts a local `postgres:18` and
   prints the URL to export; each pytest process creates its own database on that server.
 
+`make serve-api` (and `make serve`, `make serve-app-dev`) runs the API through
+`scripts/tools/dev_db.py`, which needs no docker. It starts a dev PostgreSQL for the checkout,
+migrates both planes, loads the dev fixtures once, and stops the server when the API stops. With
+`PODCAST_DATABASE_URL` set it uses that database as is: migrated, no fixtures, never started or
+stopped. The test database is no longer picked up implicitly; export its URL as
+`PODCAST_DATABASE_URL` to serve against it.
+
+- **`PODCAST_DEV_DB`**: `embedded` (default) runs PostgreSQL 18.6 from the `[dev]` extra's
+  `embedded-postgres` wheel; `native` runs your own, with `initdb` and `pg_ctl` on `PATH`. Both
+  listen on a Unix socket only, never on a TCP port.
+- **`PODCAST_DEV_DB_BIN`**: with `native`, the directory holding `initdb` and `pg_ctl`.
+- **`PODCAST_DEV_DB_DIR`**: where the data lives (default `.devdata/postgres`, ignored by git);
+  `embedded` and `native` keep separate clusters there. Delete it to start over.
+- **`PODCAST_DEV_DB_FIXTURES`**: the app-state files imported (`db import --from-files`, player
+  plane) the first time a data dir is used. Default: the viewer validation corpus's `.app` (10
+  users, the dev seed roster among them, preferences, 1,255 graph events); `0` loads none.
+
 `db upgrade` appends one row per revision it applied to `<plane>.schema_history` (`revision`,
 `applied_at`, `release`, `release_source`, `duration_ms`), in the upgrade's transaction. A run that
 applies nothing writes nothing, and `db upgrade --sql` prints the table's DDL but no rows.
