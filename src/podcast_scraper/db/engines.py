@@ -82,15 +82,29 @@ def check_ready(engines: _Engines) -> None:
 
     with engines.rw.connect() as conn:
         found = [
-            (label, schema, migrate.current_revision(conn, schema), migrate.head_revision(schema))
+            (label, schema, *migrate.readiness(conn, schema))
             for label, schema in (("plane", plane), ("schema", SHARED_SCHEMA))
         ]
-    for label, schema, current, head in found:
-        if current != head:
+    for label, schema, state, current, head in found:
+        if state == "ahead":
+            # A later release migrated past this code, expand-only: the rollback case (ADR-172).
+            logger.warning(
+                "%s %r is at revision %s, ahead of this code's head %s; starting",
+                label,
+                schema,
+                current,
+                head,
+            )
+        elif state == "behind":
             raise DatabaseNotReady(
-                f"{label} {schema!r} is at revision {current or 'none'}, head is {head}; run "
+                f"{label} {schema!r} is at revision {current or 'none'}, behind head {head}; run "
                 f"`python -m podcast_scraper.cli db upgrade --plane {plane}` (prod: the dedicated "
                 "migrate step, never app start)"
+            )
+        elif state == "unknown":
+            raise DatabaseNotReady(
+                f"{label} {schema!r} is at revision {current}, which this code does not know and "
+                f"whose history never applied this code's head {head}; refusing to start"
             )
 
 

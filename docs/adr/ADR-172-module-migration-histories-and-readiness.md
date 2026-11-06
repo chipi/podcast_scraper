@@ -1,6 +1,6 @@
 # ADR-172: Module-owned migration histories, and a readiness check that allows a database ahead
 
-- **Status**: Proposed (2026-11-06)
+- **Status**: Proposed (2026-11-06); decision 5 (readiness) implemented in `podcast_scraper/db/migrate.py` (`readiness`)
 - **Date**: 2026-11-06
 - **Authors**: Marko Dragoljevic
 - **Related**: [ADR-169](ADR-169-the-database-is-the-source-of-truth.md),
@@ -36,10 +36,13 @@ of their own, so they will own tables of their own. Two things follow.
 4. **Extension tables carry the extension's prefix** in the plane schema and may reference
    kernel tables (`users` with `ON DELETE CASCADE`), so account deletion stays one transaction
    across every installed extension. Kernel tables never reference extension tables.
-5. **Readiness, per history**: a process starts when, for each history it knows, the code's head
-   is the database's revision **or an ancestor of it** (walking `down_revision` from the database's
-   revision); it refuses only when the database is behind, or at a revision the code does not
-   know. A history the code does not have is ignored (an extension installed in a later release).
+5. **Readiness, per history**: a process starts when, for each history it knows, the database is
+   at the code's head **or ahead of it**. Ahead means the database's revision is one the code does
+   not ship and the code's head has a `schema_history` row in that schema (the code cannot walk
+   newer revisions; they are not in its script directory). It refuses when the database is behind,
+   or at an unknown revision whose history it cannot show held the head, including when its role
+   may not read that `schema_history`. A history the code does not have is ignored (an extension
+   installed in a later release).
 6. **Migrations are expand-only within a release**: a release only adds; a destructive change
    ships a release later, so the previous release keeps working on the migrated database and is
    the rollback.
@@ -64,8 +67,9 @@ rollback, which is what the first two releases did.
 
 - **Positive**: modules migrate independently; account deletion stays one transaction; a
   rollback to the previous release works once this rule is in the release being rolled back to.
-- **Negative**: more histories to run and check; the readiness check must walk revisions, and a
-  migration that is not expand-only breaks the rollback silently, so reviews check it.
+- **Negative**: more histories to run and check; the readiness check reads each history's
+  `schema_history`, so the plane roles need SELECT on it (`shared`'s included); a migration that
+  is not expand-only breaks the rollback silently, so reviews check it.
 - **Neutral**: the first release with this rule cannot be rolled back to one without it: the
   releases before it still refuse a database that is ahead.
 

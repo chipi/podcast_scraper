@@ -61,8 +61,8 @@ flowchart LR
    `schema_translate_map={None: plane}`, a small pool and `pool_pre_ping`, and `application_name`
    from `PODCAST_DB_APPLICATION_NAME` (else `OTEL_SERVICE_NAME`), so `pg_stat_activity` and the
    server log name the container.
-3. **Readiness at start**: both engines connect, and each schema's revision is checked against the
-   code's head. See the known defect below.
+3. **Readiness at start**: both engines connect, and each schema must be at the code's head or
+   ahead of it (see Gotchas).
 4. **Stores keep their functions**: a store module's functions keep the names and signatures they
    had as file stores (`data_dir` stays the first argument); the database comes from the engine
    registry. Reads go through `read_with_retry` on the read-only engine; writes open a
@@ -120,12 +120,14 @@ flowchart LR
 
 ## Gotchas
 
-- **Known defect: readiness refuses a database that is ahead.** `check_ready` refuses whenever a
-  schema's revision differs from the code's head, a database ahead included, so the previous
-  release does not start on a migrated database. The fix (accept the code's head as an ancestor of
-  the database's revision) is [ADR-172](../adr/ADR-172-module-migration-histories-and-readiness.md);
-  until a release carrying it is the rollback target, a rollback goes to the last release before
-  the database, on the frozen files.
+- **Readiness allows a database ahead, from this release on.** `check_ready` starts when each
+  schema is at the code's head or ahead of it: at a revision the code does not ship, with the
+  code's head in that schema's `schema_history`
+  ([ADR-172](../adr/ADR-172-module-migration-histories-and-readiness.md)). The releases before it
+  (f3606a2 and earlier) refuse any mismatch, so they are a rollback target only while nothing has
+  migrated past them. The check reads `schema_history` as the plane role: without SELECT on a
+  schema's `schema_history` (`shared`'s too), an ahead database reads as unknown and the process
+  refuses to start.
 - **`schema_translate_map` maps only `None`.** A kernel table given a schema escapes the plane; a
   `shared` table without one lands in the plane. `test_db_migrate.py` checks the migrations name
   only the schema they are given, and `compare_metadata` checks `schema.py` against them.

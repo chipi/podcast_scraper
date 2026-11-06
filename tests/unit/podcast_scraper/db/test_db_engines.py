@@ -81,6 +81,82 @@ def test_readiness_fails_fast_on_an_unmigrated_plane(url: str) -> None:
     assert plane_schema() == "operator"
 
 
+def _set_operator_revision(url: str, revision: str, *, recorded: bool) -> None:
+    with rw_engine_for(url).begin() as conn:
+        conn.execute(text("UPDATE operator.alembic_version SET version_num = :r"), {"r": revision})
+        if recorded:
+            conn.execute(
+                text("INSERT INTO operator.schema_history (revision) VALUES (:r)"), {"r": revision}
+            )
+
+
+@pytest.fixture
+def fresh_operator(url: str):
+    reset_engines()
+    with rw_engine_for(url).begin() as conn:
+        conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+    migrate.upgrade(url, "operator")
+    yield DatabaseSettings(rw_url=url, ro_url=url, plane="operator")
+    reset_engines()
+    with rw_engine_for(url).begin() as conn:
+        conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
+    migrate.upgrade(url, "operator")
+
+
+def test_readiness_accepts_a_database_ahead_of_the_code(fresh_operator: DatabaseSettings) -> None:
+    # A later release migrated past this code's head (the rollback case, ADR-172).
+    _set_operator_revision(fresh_operator.rw_url, "9999_from_a_later_release", recorded=True)
+    init_engines(fresh_operator)
+    assert plane_schema() == "operator"
+
+
+def test_readiness_refuses_a_database_behind_the_code(fresh_operator: DatabaseSettings) -> None:
+    _set_operator_revision(fresh_operator.rw_url, "0001_users", recorded=False)
+    with pytest.raises(DatabaseNotReady, match="behind"):
+        init_engines(fresh_operator)
+
+
+def test_readiness_refuses_a_revision_not_descended_from_the_head(
+    fresh_operator: DatabaseSettings,
+) -> None:
+    # Unknown to the code and the code's head never applied here: not a later release of ours.
+    with rw_engine_for(fresh_operator.rw_url).begin() as conn:
+        conn.execute(text("DELETE FROM operator.schema_history"))
+    _set_operator_revision(fresh_operator.rw_url, "9999_somewhere_else", recorded=False)
+    with pytest.raises(DatabaseNotReady, match="does not know"):
+        init_engines(fresh_operator)
+
+
+def test_readiness_states(fresh_operator: DatabaseSettings) -> None:
+    eng = rw_engine_for(fresh_operator.rw_url)
+    head = migrate.head_revision()
+    with eng.connect() as conn:
+        assert migrate.readiness(conn, "operator") == ("at_head", head, head)
+    _set_operator_revision(fresh_operator.rw_url, "9999_later", recorded=True)
+    with eng.connect() as conn:
+        assert migrate.readiness(conn, "operator") == ("ahead", "9999_later", head)
+
+
+def test_readiness_without_read_on_the_history_is_unknown_not_a_crash(
+    fresh_operator: DatabaseSettings,
+) -> None:
+    # Prod's plane roles read shared.alembic_version but not shared.schema_history (roles.sql).
+    _set_operator_revision(fresh_operator.rw_url, "9999_later", recorded=True)
+    with rw_engine_for(fresh_operator.rw_url).connect() as conn:
+        conn.execute(text("DROP ROLE IF EXISTS readiness_probe"))
+        conn.execute(text("CREATE ROLE readiness_probe"))
+        conn.execute(text("GRANT USAGE ON SCHEMA operator TO readiness_probe"))
+        conn.execute(text("GRANT SELECT ON operator.alembic_version TO readiness_probe"))
+        conn.execute(text("SET ROLE readiness_probe"))
+        try:
+            assert migrate.readiness(conn, "operator")[0] == "unknown"
+        finally:
+            conn.execute(text("RESET ROLE"))
+            conn.execute(text("DROP OWNED BY readiness_probe"))
+            conn.execute(text("DROP ROLE readiness_probe"))
+            conn.commit()
+
+
 def rw_engine_for(url: str):
     from sqlalchemy import create_engine
 

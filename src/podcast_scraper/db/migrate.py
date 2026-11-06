@@ -15,7 +15,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Connection, create_engine, Engine, text
+from alembic.util import CommandError
+from sqlalchemy import Connection, create_engine, Engine, select, text
 from sqlalchemy.schema import CreateSchema
 
 from podcast_scraper import build_info
@@ -53,6 +54,37 @@ def current_revision(connection: Connection, schema: str) -> str | None:
     """The schema's applied revision, or None when it has never been upgraded."""
     ctx = MigrationContext.configure(connection, opts={"version_table_schema": schema})
     return ctx.get_current_revision()
+
+
+def readiness(connection: Connection, schema: str) -> tuple[str, str | None, str]:
+    """``(state, current, head)``: ``at_head``, ``ahead``, ``behind`` or ``unknown`` (ADR-172).
+
+    A revision the code does not ship is ``ahead`` only when this code's head was applied to the
+    schema before it (its ``schema_history`` row): a later release migrated past it, expand-only.
+    The code cannot walk the newer revisions themselves; they are not in its script directory.
+    """
+    head = head_revision(schema)
+    current = current_revision(connection, schema)
+    if current == head:
+        return "at_head", current, head
+    if current is None:
+        return "behind", current, head
+    scripts = ScriptDirectory.from_config(_config(schema))
+    try:
+        scripts.get_revision(current)
+    except CommandError:
+        if (
+            _can_read_history(connection, schema)
+            and connection.execute(
+                select(schema_history.c.id)
+                .where(schema_history.c.revision == head)
+                .limit(1)
+                .execution_options(schema_translate_map={None: schema})
+            ).first()
+        ):
+            return "ahead", current, head
+        return "unknown", current, head
+    return "behind", current, head
 
 
 def _ensure_schema(conn: Connection, schema: str) -> None:
@@ -131,6 +163,17 @@ def _has_history_table(conn: Connection, schema: str) -> bool:
         text("SELECT to_regclass(:name)"), {"name": f'"{schema}".schema_history'}
     ).scalar()
     return found is not None
+
+
+def _can_read_history(conn: Connection, schema: str) -> bool:
+    """The table exists and this role may read it (the plane roles may not read ``shared``'s)."""
+    return bool(
+        _has_history_table(conn, schema)
+        and conn.execute(
+            text("SELECT has_table_privilege(:name, 'SELECT')"),
+            {"name": f'"{schema}".schema_history'},
+        ).scalar()
+    )
 
 
 def history(conn: Connection, schema: str, limit: int = 5) -> list[dict[str, object]]:
