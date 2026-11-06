@@ -1,6 +1,6 @@
 # ADR-172: Module-owned migration histories, and a readiness check that allows a database ahead
 
-- **Status**: Proposed (2026-11-06); decision 5 (readiness) implemented in `podcast_scraper/db/migrate.py` (`readiness`)
+- **Status**: Accepted (2026-11-06); implemented in `podcast_scraper/extensions.py` (`DbModule`) and `podcast_scraper/db/migrate.py`
 - **Date**: 2026-11-06
 - **Authors**: Marko Dragoljevic
 - **Related**: [ADR-169](ADR-169-the-database-is-the-source-of-truth.md),
@@ -26,14 +26,16 @@ of their own, so they will own tables of their own. Two things follow.
 
 ## Decision
 
-1. **Each installed extension that owns tables declares its own Alembic history** through a field
-   on `Extension` (its script location and its metadata), and its importers through another.
+1. **Each installed extension that owns tables declares its own Alembic history** in
+   `Extension.database`, a `DbModule`: its name, script location, metadata, the planes it runs
+   on, and its importers (run by `db import` after the kernel's).
 2. **Each history has its own version table** in the plane schema
    (`alembic_version_<extension>`) and writes `schema_history` rows naming itself.
 3. **`db upgrade --plane P` runs, in order**: `shared`, the kernel, then each installed
    extension's history on the plane. `db status` reports every history and exits 2 when any is
    behind.
-4. **Extension tables carry the extension's prefix** in the plane schema and may reference
+4. **Extension tables and revision ids carry the extension's prefix** (`<name>_`, checked by
+   `validate_module`; tables name no schema) in the plane schema and may reference
    kernel tables (`users` with `ON DELETE CASCADE`), so account deletion stays one transaction
    across every installed extension. Kernel tables never reference extension tables.
 5. **Readiness, per history**: a process starts when, for each history it knows, the database is
@@ -70,6 +72,8 @@ rollback, which is what the first two releases did.
 - **Negative**: more histories to run and check; the readiness check reads each history's
   `schema_history`, so the plane roles need SELECT on it (`shared`'s included); a migration that
   is not expand-only breaks the rollback silently, so reviews check it.
+- **Deploy**: the grant step narrows each module's `alembic_version_<name>` to SELECT for the
+  plane role, as it does the kernel's `alembic_version`.
 - **Neutral**: the first release with this rule cannot be rolled back to one without it: the
   releases before it still refuse a database that is ahead.
 

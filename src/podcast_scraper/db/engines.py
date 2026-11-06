@@ -68,7 +68,7 @@ def _make_engine(url: str, plane: str, *, read_only: bool) -> Engine:
 
 
 def check_ready(engines: _Engines) -> None:
-    """Fail fast: both engines connect and the plane's schema is at the head revision."""
+    """Fail fast: both engines connect, and every history on the plane is at its head or ahead."""
     from podcast_scraper.db import migrate
 
     plane = engines.settings.plane
@@ -80,10 +80,12 @@ def check_ready(engines: _Engines) -> None:
             raise DatabaseNotReady(f"database ({label}) is not reachable: {exc}") from exc
     from podcast_scraper.db.schema import SHARED_SCHEMA
 
+    checks = [("schema", SHARED_SCHEMA, migrate.SHARED), ("plane", plane, migrate.KERNEL)]
+    checks += [(f"module {h.name} on plane", plane, h) for h in migrate.modules(plane)]
     with engines.rw.connect() as conn:
         found = [
-            (label, schema, *migrate.readiness(conn, schema))
-            for label, schema in (("plane", plane), ("schema", SHARED_SCHEMA))
+            (label, schema, *migrate.readiness(conn, schema, hist))
+            for label, schema, hist in checks
         ]
     for label, schema, state, current, head in found:
         if state == "ahead":

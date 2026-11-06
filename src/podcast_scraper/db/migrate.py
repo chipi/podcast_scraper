@@ -1,13 +1,17 @@
-"""Run and inspect the Alembic histories (ADR-169), never at app start.
+"""Run and inspect the Alembic histories (ADR-169, ADR-172), never at app start.
 
-Two histories: the kernel's, run once per plane schema, and the ``shared`` schema's (the rows both
-planes read and write). ``upgrade --plane P`` brings ``shared`` to its head first, in its own
-transaction, then the plane; a failed plane upgrade leaves ``shared`` where it got to.
+The kernel's history runs once per plane schema; the ``shared`` schema's once (the rows both
+planes read and write); each installed extension's module history (``Extension.database``) on the
+planes it names, with its own version table. ``upgrade --plane P`` runs ``shared``, then the
+kernel, then each module, each in its own transaction; a failed step leaves the earlier ones
+where they got to.
 """
 
 from __future__ import annotations
 
 import io
+import re
+from dataclasses import dataclass
 from datetime import timezone
 from pathlib import Path
 
@@ -27,15 +31,37 @@ from podcast_scraper.db.settings import normalize_url, validate_plane
 _HERE = Path(__file__).parent
 _PLANE_SCRIPTS = _HERE / "migrations"
 _SHARED_SCRIPTS = _HERE / "migrations_shared"
+_VERSION_TABLE = "alembic_version"
+_MODULE_NAME = re.compile(r"^[a-z][a-z0-9]{1,30}$")
+_RESERVED = frozenset({"kernel", "shared", "alembic", "schema"})
 
 
-def _scripts(schema: str | None) -> Path:
-    return _SHARED_SCRIPTS if schema == SHARED_SCHEMA else _PLANE_SCRIPTS
+@dataclass(frozen=True)
+class History:
+    """One Alembic history: where its scripts are and which version table it keeps."""
+
+    name: str
+    scripts: Path
+    version_table: str = _VERSION_TABLE
 
 
-def _config(schema: str | None = None, connection: Connection | None = None) -> Config:
+KERNEL = History("kernel", _PLANE_SCRIPTS)
+SHARED = History("shared", _SHARED_SCRIPTS)
+
+
+def _default(schema: str | None) -> History:
+    return SHARED if schema == SHARED_SCHEMA else KERNEL
+
+
+def _config(
+    schema: str | None = None,
+    connection: Connection | None = None,
+    history: History | None = None,
+) -> Config:
+    hist = history or _default(schema)
     cfg = Config()
-    cfg.set_main_option("script_location", str(_scripts(schema)))
+    cfg.set_main_option("script_location", str(hist.scripts))
+    cfg.attributes["version_table"] = hist.version_table
     if schema is not None:
         cfg.attributes["plane"] = schema
     if connection is not None:
@@ -43,33 +69,89 @@ def _config(schema: str | None = None, connection: Connection | None = None) -> 
     return cfg
 
 
-def head_revision(schema: str | None = None) -> str:
-    """The head of the shipped history: the kernel's (any plane), or ``shared``'s."""
-    head = ScriptDirectory.from_config(_config(schema)).get_current_head()
+def module_history(module: object) -> History:
+    """The :class:`History` of an extension's ``DbModule``, after :func:`validate_module`."""
+    validate_module(module)
+    name = getattr(module, "name")
+    return History(name, Path(getattr(module, "scripts")), f"{_VERSION_TABLE}_{name}")
+
+
+def validate_module(module: object) -> None:
+    """Refuse a module whose name, revisions or tables break the ADR-172 rules.
+
+    Names are short lowercase words, not a reserved one; every revision id and every table starts
+    with ``<name>_``; tables carry no schema (the plane places them), so one module cannot write
+    into ``shared`` or reach another plane, and its revisions cannot collide with the kernel's in
+    ``schema_history``.
+    """
+    name = getattr(module, "name")
+    if not _MODULE_NAME.match(name) or name in _RESERVED:
+        raise ValueError(f"module name {name!r}: lowercase letters and digits, not {_RESERVED}")
+    prefix = f"{name}_"
+    for table in getattr(module, "metadata").tables.values():
+        if table.schema is not None or not table.name.startswith(prefix):
+            raise ValueError(
+                f"module {name}: table {table.fullname!r} must be named {prefix}… with no schema"
+            )
+    scripts = ScriptDirectory(str(getattr(module, "scripts")))
+    for rev in scripts.walk_revisions():
+        if not rev.revision.startswith(prefix):
+            raise ValueError(f"module {name}: revision {rev.revision!r} must start with {prefix}")
+    for plane in getattr(module, "planes"):
+        validate_plane(plane)
+
+
+def modules(plane: str) -> list[History]:
+    """The installed extensions' module histories that run on ``plane``, in load order."""
+    from podcast_scraper.extensions import load_extensions
+
+    return [
+        module_history(ext.database)
+        for ext in load_extensions()
+        if ext.database is not None and plane in ext.database.planes
+    ]
+
+
+def plane_histories(plane: str) -> list[History]:
+    """Every history that runs on ``plane``: the kernel's, then each module's."""
+    return [KERNEL, *modules(plane)]
+
+
+def head_revision(schema: str | None = None, history: History | None = None) -> str:
+    """The head of a shipped history: by default the kernel's (any plane), or ``shared``'s."""
+    head = ScriptDirectory.from_config(_config(schema, history=history)).get_current_head()
     assert head is not None
     return head
 
 
-def current_revision(connection: Connection, schema: str) -> str | None:
-    """The schema's applied revision, or None when it has never been upgraded."""
-    ctx = MigrationContext.configure(connection, opts={"version_table_schema": schema})
+def current_revision(
+    connection: Connection, schema: str, history: History | None = None
+) -> str | None:
+    """The history's applied revision in the schema, or None when it has never been upgraded."""
+    hist = history or _default(schema)
+    ctx = MigrationContext.configure(
+        connection, opts={"version_table_schema": schema, "version_table": hist.version_table}
+    )
     return ctx.get_current_revision()
 
 
-def readiness(connection: Connection, schema: str) -> tuple[str, str | None, str]:
+def readiness(
+    connection: Connection, schema: str, history: History | None = None
+) -> tuple[str, str | None, str]:
     """``(state, current, head)``: ``at_head``, ``ahead``, ``behind`` or ``unknown`` (ADR-172).
 
     A revision the code does not ship is ``ahead`` only when this code's head was applied to the
     schema before it (its ``schema_history`` row): a later release migrated past it, expand-only.
     The code cannot walk the newer revisions themselves; they are not in its script directory.
     """
-    head = head_revision(schema)
-    current = current_revision(connection, schema)
+    hist = history or _default(schema)
+    head = head_revision(schema, hist)
+    current = current_revision(connection, schema, hist)
     if current == head:
         return "at_head", current, head
     if current is None:
         return "behind", current, head
-    scripts = ScriptDirectory.from_config(_config(schema))
+    scripts = ScriptDirectory.from_config(_config(schema, history=hist))
     try:
         scripts.get_revision(current)
     except CommandError:
@@ -105,13 +187,15 @@ def _engine(url: str) -> Engine:
     return create_engine(normalize_url(url), connect_args=application_name_args())
 
 
-def _upgrade_schema(engine: Engine, schema: str, revision: str) -> list[str]:
+def _upgrade_schema(
+    engine: Engine, schema: str, revision: str, history: History | None = None
+) -> list[str]:
     """One history on one schema, with its ``schema_history`` rows, in one transaction."""
     applied: list[tuple[str, int]] = []
     with engine.begin() as conn:
         _ensure_schema(conn, schema)
     with engine.connect() as conn:
-        cfg = _config(schema, conn)
+        cfg = _config(schema, conn, history)
         cfg.attributes["applied"] = applied
         command.upgrade(cfg, revision)
         _record_history(conn, schema, applied)
@@ -119,13 +203,30 @@ def _upgrade_schema(engine: Engine, schema: str, revision: str) -> list[str]:
     return [rev for rev, _ in applied]
 
 
+def upgrade_all(url: str, plane: str) -> dict[str, list[str]]:
+    """``shared``, the plane's kernel, then each installed module, to head: applied, by history."""
+    validate_plane(plane)
+    histories = plane_histories(plane)
+    engine = _engine(url)
+    try:
+        applied = {SHARED.name: _upgrade_schema(engine, SHARED_SCHEMA, "head", SHARED)}
+        for hist in histories:
+            applied[hist.name] = _upgrade_schema(engine, plane, "head", hist)
+        return applied
+    finally:
+        engine.dispose()
+
+
 def upgrade(url: str, plane: str, revision: str = "head") -> list[str]:
-    """Bring ``shared`` to its head, then the plane to ``revision`` (schemas created if missing).
+    """Bring ``shared`` to its head, the plane's kernel to ``revision``, and, at ``head``, each
+    installed module to its head (schemas created if missing).
 
     Appends one ``schema_history`` row per revision each run applied (none when already there),
-    in the same transaction as that upgrade. Returns the plane's applied revisions, oldest first;
-    :func:`upgrade_shared` reports ``shared``'s.
+    in the same transaction as that upgrade. Returns the kernel's applied revisions, oldest first;
+    :func:`upgrade_all` reports every history's.
     """
+    if revision == "head":
+        return upgrade_all(url, plane)[KERNEL.name]
     validate_plane(plane)
     engine = _engine(url)
     try:
@@ -199,7 +300,7 @@ def _status(url: str, schema: str) -> tuple[str | None, str]:
 
 
 def status(url: str, plane: str) -> tuple[str | None, str]:
-    """``(current, head)`` for one plane."""
+    """``(current, head)`` of the kernel's history on one plane."""
     validate_plane(plane)
     return _status(url, plane)
 
@@ -207,6 +308,22 @@ def status(url: str, plane: str) -> tuple[str | None, str]:
 def shared_status(url: str) -> tuple[str | None, str]:
     """``(current, head)`` for the ``shared`` schema."""
     return _status(url, SHARED_SCHEMA)
+
+
+def module_status(url: str, plane: str) -> list[tuple[str, str | None, str]]:
+    """``(module, current, head)`` for each installed module history on ``plane``."""
+    validate_plane(plane)
+    found = modules(plane)
+    if not found:
+        return []
+    engine = _engine(url)
+    try:
+        with engine.connect() as conn:
+            return [
+                (h.name, current_revision(conn, plane, h), head_revision(plane, h)) for h in found
+            ]
+    finally:
+        engine.dispose()
 
 
 def history_rows(url: str, schema: str, limit: int = 5) -> list[dict[str, object]]:
@@ -224,11 +341,11 @@ def history_rows(url: str, schema: str, limit: int = 5) -> list[dict[str, object
     return rows
 
 
-def _render(schema: str, start: str | None, label: str) -> str:
-    head = head_revision(schema)
+def _render(schema: str, start: str | None, label: str, history: History | None = None) -> str:
+    head = head_revision(schema, history)
     if start == head:
         return f"-- {label} {schema} is already at {head}; nothing to run\n"
-    cfg = _config(schema)
+    cfg = _config(schema, history=history)
     buffer = io.StringIO()
     cfg.output_buffer = buffer
     command.upgrade(cfg, f"{start or 'base'}:{head}", sql=True)
@@ -241,13 +358,16 @@ def _render(schema: str, start: str | None, label: str) -> str:
 def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None) -> str:
     """The SQL ``upgrade`` would run for ``plane``, as text; nothing is executed.
 
-    ``shared`` first, then the plane, as ``upgrade`` runs them. Each starts from its current
-    revision, read with a read-only query when a URL is configured, else from base;
-    ``from_revision`` overrides the plane's start. Already at head: a comment line.
+    ``shared`` first, then the plane's kernel, then each installed module, as ``upgrade`` runs
+    them. Each starts from its current revision, read with a read-only query when a URL is
+    configured, else from base; ``from_revision`` overrides the kernel's start. Already at head:
+    a comment line.
     """
     validate_plane(plane)
+    found = modules(plane)
     start: str | None = None
     shared_start: str | None = None
+    module_starts: dict[str, str | None] = {}
     if url:
         engine = create_engine(
             normalize_url(url),
@@ -260,8 +380,12 @@ def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None
             with engine.connect() as conn:
                 start = current_revision(conn, plane)
                 shared_start = current_revision(conn, SHARED_SCHEMA)
+                module_starts = {h.name: current_revision(conn, plane, h) for h in found}
         finally:
             engine.dispose()
     if from_revision is not None:
         start = from_revision
-    return _render(SHARED_SCHEMA, shared_start, "schema") + _render(plane, start, "plane")
+    rendered = _render(SHARED_SCHEMA, shared_start, "schema") + _render(plane, start, "plane")
+    for h in found:
+        rendered += _render(plane, module_starts.get(h.name), f"module {h.name} on plane", h)
+    return rendered

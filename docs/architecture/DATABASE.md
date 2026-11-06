@@ -80,9 +80,14 @@ flowchart LR
   upgrades as the migrating role, then re-applies the grants.
 - **Expand-only within a release**, so the previous release keeps working on the migrated
   database.
-- **Module histories** (proposed, [ADR-172](../adr/ADR-172-module-migration-histories-and-readiness.md)):
-  each installed extension that owns tables brings its own history and version table, run after
-  the kernel's.
+- **Module histories** ([ADR-172](../adr/ADR-172-module-migration-histories-and-readiness.md)):
+  an installed extension that owns tables sets `Extension.database` to a `DbModule` (name,
+  scripts, metadata, planes, importers). Its history runs after the kernel's on each plane it
+  names, keeps `alembic_version_<name>` in the plane schema, and writes the plane's
+  `schema_history`. Its tables and revision ids start with `<name>_` and name no schema
+  (`validate_module` refuses anything else); its tables may reference `users` with
+  `ON DELETE CASCADE`, so deleting an account stays one transaction. `db status`, `db upgrade
+  --sql` and the start-up check cover every module history.
 
 ## How file stores are imported
 
@@ -140,7 +145,8 @@ flowchart LR
   when it is missing, because Postgres checks `CREATE` before `IF NOT EXISTS`. The deploy creates
   the schemas.
 - **Grants must not depend on run order.** The deploy grants each plane role DML on its tables and
-  then narrows the bookkeeping to SELECT in the same step.
+  then narrows the bookkeeping to SELECT in the same step. Each module's `alembic_version_<name>` is
+  bookkeeping too and gets the same narrowing.
 - **Tests: import psycopg's JSON adapter at collection.** `tests/_database.py` imports
   `psycopg.types.json` and SQLAlchemy's psycopg dialect up front, because a module first imported
   inside a test's `patch.dict(sys.modules, …)` window is evicted at its exit, and psycopg then
