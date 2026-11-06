@@ -299,6 +299,11 @@ dev = [
   # floor is raised to >=8.0.1 below to guarantee that fix is present. Verified
   # /api/health green on fastapi 0.141 + instrumentator 8.0.2.
   "fastapi>=0.141.1,<0.142.0",
+  # The dev database `make serve` starts without docker (scripts/tools/dev_db.py): PostgreSQL 18.6,
+  # prod's version, as a wheel, listening on a Unix socket only. Pinned exactly: a young project
+  # (2026-09), reviewed at this version (built from postgresql.org's 18.6 source, PyPI provenance
+  # from its own workflow). Wheels: Linux x86_64/aarch64 (glibc 2.27+), macOS 11+ arm64/x86_64.
+  "embedded-postgres==18.6.3",
   # Security floors for transitive deps pip-audit flagged (Fable-5 pre-PR audit): gitpython
   # (pulled by streamlit's tooling) carried 20+ 2026 advisories fixed by 3.1.59; msgpack (via
   # CacheControl) is fixed at 1.2.1. Pinned up so every dev/CI venv resolves past them; drop when a
