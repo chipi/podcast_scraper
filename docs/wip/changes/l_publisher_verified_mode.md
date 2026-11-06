@@ -345,11 +345,34 @@ Verdict: GO WITH CONDITIONS
     0 refused, one backup per file. Every changed word was counted (scratchpad `l11_spans.py`):
     each is a name of the 12 groups taking the publisher's spelling. The words that are also
     common words change only inside the name: 'Brazil' only after 'Sam' (417 'in Brazil' kept),
-    'Lowe' only after 'Jeff' ('Zach Lowe' kept). In 29 episodes the roster's unplaced
-    `feed_statement` entry of the same host is folded into the placed one after the respell.
-    Not read: why 18 'Jeff Lowe' and 9 'Jeff Glow' stay after the respell. JSON files are
+    'Lowe' only after 'Jeff' ('Zach Lowe' kept). In 30 episodes the roster loses one entry of
+    the same person after the respell (29 an unplaced `feed_statement` entry, 1 an
+    `episode_metadata` one; reviewer count). The 18 'Jeff Lowe' stay in one episode the respell
+    does not write (its text already says 'Jeff Guo' 40 times; its kg keeps a separate
+    `person:jeff-lowe`). Prose that names the person in running text (4 transcript lines, 4 kg
+    summaries) and the diagnostics keep the old spelling. JSON files are
     rewritten with non-ASCII characters unescaped (`C\u00e9dric` becomes `Cédric`): same
     text, other bytes.
+
+### 8c. Switch-on review (2026-11-06)
+
+Read by a fresh agent (reviewer, Sonnet; not the builder), on the copy and its snapshot. It
+re-derived joins 666 -> 670 (the same 4), 0 removed, 40 blocked (same set), 980 files in 102
+episodes, 0 refused; read every written file at word level (113 distinct substitutions, each
+a person-name token of the same person); checked 46,898 turn offsets and 4,215 quote offsets
+against the after text; ran both undos on scratch copies (`undo_respell`: 980 restored,
+byte-identical; `restore_previous`: `/3`, 666 joins).
+
+Verdict: GO WITH CONDITIONS
+
+- **Condition 1:** the extracted-vs-verified ledger test builds `today` in the extracted mode
+  and asserts it does not join the ASR host. Done: identity unit suite 354 passed.
+- **Condition 2:** the undo text says the order (code first, then files by stamp, then the
+  ledger). Done: section 10 and the message to prod.
+- **Condition 3:** prod copies `identity_ledger.json` before the first refresh after the
+  deploy. Asked of prod.
+- **Condition 4:** 30 folded rosters, not 29, and the live counts unknown until the dry run.
+  Done: sections 8b and 10.
 
 ## 9. Operator review
 
@@ -364,8 +387,29 @@ Verdict: GO WITH CONDITIONS
   the mode's version, `PREVIOUS_RULE_VERSION` the extracted mode's `/3`, so the api serves the
   stored ledger (`ok_previous_rule`) from the deploy until the next refresh.
 - Tests: `pytest tests/unit tests/integration` with the test database, 19,916 passed.
+- **Outcome table** (2026-11-06; before = the default build, after = the switched-on build and its
+  respell, on a copy of snapshot-prod-20261105 at `/work/closelistening/snapshots/l11-switch`;
+  live = prod's read-only builds on the corpus after the 2026-11-06 nightly):
+
+  | Row | Predicted | Before (copy) | After (copy) | Live, before / after |
+  | --- | --- | --- | --- | --- |
+  | joins | +4 | 666 | 670 | 683 / 687 |
+  | joins removed | 0 | | 0 | 0 |
+  | blocked joins | 40, same set | 40 | 40, same set | 40 / 40, same set |
+  | new shown spellings | 12 | | 12 | 12 |
+  | episodes respelled | about 102 | | 102 | not run (a write) |
+  | files written | about 980 | | 980, one backup each | not run |
+  | refused | 0 | | 0 | not run |
+
 - After the deploy, at the first ledger refresh: expect about 4 joins added, 0 removed, 40
-  blocked, about 102 episodes respelled with 0 refused, ledger state `ok`.
+  blocked, 0 refused, ledger state `ok`. The live episode and file counts are not known until
+  the dry run after the deploy: the live corpus has the 2026-11-06 nightly on top of the copy.
+- **Undo** (reviewer, 2026-11-06): `--restore-previous` alone does not hold, since every ledger
+  write moves the current ledger to `.previous` and the next refresh rebuilds in the new mode.
+  In order: set `EVIDENCE_MODE = "extracted"` (revert the commit) and deploy; run
+  `identity.respell.undo_respell(root, stamp)` for the respell's stamp (it refuses a file
+  changed since); then restore the copied `/3` ledger or rebuild it. Prod copies
+  `identity_ledger.json` (the `/3` ledger) before the first refresh after the deploy.
 
 ## 11. After apply / deploy
 

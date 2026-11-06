@@ -166,11 +166,13 @@ def test_the_verified_mode_reads_the_text_and_records_the_seats(show: Path) -> N
 
 
 def test_the_verified_mode_joins_the_asr_host_and_shows_the_publishers_spelling(show: Path) -> None:
-    today = L.build_ledger(show)
+    today = L.build_ledger(show, evidence_mode=PT.EXTRACTED)
     verified = L.build_ledger(show, evidence_mode=PT.PUBLISHER_VERIFIED)
-    assert today["rule_version"] == L.RULE_VERSION
-    assert verified["rule_version"] == L.RULE_VERSION_BY_EVIDENCE[PT.PUBLISHER_VERIFIED]
-    assert L.ledger_id_map(today).get("person:elsa-martiz") is None
+    assert today["rule_version"] == L.RULE_VERSION_BY_EVIDENCE[PT.EXTRACTED]
+    assert verified["rule_version"] == L.RULE_VERSION
+    old_ids = L.ledger_id_map(today)
+    assert "person:elsa-martiz" not in old_ids and "person:elsa-mordas" not in old_ids
+    assert old_ids != L.ledger_id_map(verified)
     ids = L.ledger_id_map(verified)
     assert (
         ids.get("person:elsa-martiz") == "person:elsa-mordas"
