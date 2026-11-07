@@ -172,11 +172,12 @@ class TestTheBatchOwnsTheLedger:
 
         done: list = []
         cfg = SimpleNamespace(enrichment={"enabled": enabled})
-        with patch.object(
-            refresh_guard,
-            "refresh_ledger_after",
-            side_effect=lambda root, **kw: done.append((Path(root), kw["after"])) or True,
-        ):
+
+        def _refresh(root: Any, **kw: Any) -> bool:
+            done.append((Path(root), kw["after"]))
+            return True
+
+        with patch.object(refresh_guard, "refresh_ledger_after", side_effect=_refresh):
             assert refresh_guard.refresh_ledger_after_batch(tmp_path / "corpus", cfg)
         return done
 
