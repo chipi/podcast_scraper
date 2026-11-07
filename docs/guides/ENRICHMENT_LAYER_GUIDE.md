@@ -16,8 +16,8 @@ JSONL surface itself is documented in
 
 Set `enrichment.enabled: true` in `viewer_operator.yaml`. The
 pipeline's finalize step then **enqueues** a `corpus_enrichment` job
-(it does not spawn a process) after every successful pipeline run; in a
-multi-feed batch it also enqueues one at the corpus root. Properties:
+(it does not spawn a process) after every successful pipeline run; a
+multi-feed batch enqueues one, at the corpus root, for all its feeds. Properties:
 
 - The job lands as **QUEUED** in the shared jobs registry. The API
   server promotes it when a slot frees, so it is serialised against

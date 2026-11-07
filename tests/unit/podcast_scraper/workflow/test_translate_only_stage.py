@@ -53,6 +53,18 @@ class TestTheStageExists:
         cfg = config.Config(rss="https://e.com/f.xml", pipeline_stage="translate_only")
         assert cfg.transcribe_missing is True
 
+    def test_it_reaches_the_transcription_stage_when_the_profile_says_not_to_transcribe(
+        self,
+    ) -> None:
+        """The test above passes on the default alone. `fixture_validation*.yaml` set
+        `transcribe_missing: false`; the stage must still coerce it, or the episode never reaches
+        the dispatch and ends with no transcript. The coercion sat behind an early return that
+        left translate_only out, so it never ran."""
+        cfg = config.Config(
+            rss="https://e.com/f.xml", pipeline_stage="translate_only", transcribe_missing=False
+        )
+        assert cfg.transcribe_missing is True
+
     def test_the_cli_offers_it(self) -> None:
         from pathlib import Path as _P
 

@@ -5228,6 +5228,7 @@ class Config(BaseModel):
             "rediarize_only",
             "retranscript_only",
             "repunctuate_only",
+            "translate_only",
         ):
             return merged
         message: Optional[str] = None

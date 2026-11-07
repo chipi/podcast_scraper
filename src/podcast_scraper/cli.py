@@ -5886,6 +5886,10 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                     incident_log_path=_inc_default,
                     incident_log_start_offset=_inc_start,
                 )
+                if batch_results:
+                    from .identity.refresh_guard import refresh_ledger_after_batch
+
+                    refresh_ledger_after_batch(corpus_parent, base_cfg, log)
 
                 # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? A run given a work-list now says so
                 # against its own denominator instead of leaving it to a later audit. No-op when

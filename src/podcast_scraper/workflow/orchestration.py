@@ -1925,6 +1925,13 @@ def _finalize_pipeline(
     # build a throwaway run-local index and the episode never weaves into the corpus. See
     # ``_corpus_finalize_dir_for``.
     _corpus_finalize_dir = _corpus_finalize_dir_for(cfg, effective_output_dir)
+    # One feed's step of a multi-feed batch: its finalize dir is its run dir, and
+    # finalize_multi_feed_batch does the corpus-root work once for the whole batch. Without
+    # this every feed wrote a stamp, a ledger, a delta and an enrichment job into its run dir,
+    # where nothing reads them (80 orphaned enrichment rows a nightly, through 2026-11-07).
+    from podcast_scraper.workflow.corpus_operations import is_multi_feed_batch_child
+
+    _batch_child = is_multi_feed_batch_child(cfg)
     _vidx_t0 = time.perf_counter()
     if getattr(cfg, "vector_search", True):
         from podcast_scraper.search.indexer import maybe_index_corpus
@@ -1942,13 +1949,21 @@ def _finalize_pipeline(
         # the completeness gate catches missing edges), never fire-and-forget. Under the
         # vector_search guard because the edge walker imports search.indexer (numpy) — the
         # incremental-add profile cloud_balanced ships it; cloud_thin does not and skips indexing.
-        _finalize_enrich_edges(_corpus_finalize_dir, pipeline_metrics)
+        _finalize_enrich_edges(
+            _corpus_finalize_dir, pipeline_metrics, defer_corpus_writes=_batch_child
+        )
         # RFC-118: the shared delta backbone. Computed ONCE per run — AFTER enrich-edges (so
         # the gi hashes reflect the freshly derived edges) and BEFORE any derivation consumes
         # it. Every corpus derivation below scopes/reports against this one definition of
         # "what changed"; the manifest advances only after the synchronous derivations
         # succeed, so a failed finalize re-derives next run instead of stale-skipping.
-        _corpus_delta = _compute_corpus_delta_safe(_corpus_finalize_dir, pipeline_metrics)
+        # A batch child builds no index or clusters here (skip_auto_vector_index), so a delta of
+        # its run dir would scope nothing; the batch computes one at the corpus root.
+        _corpus_delta = (
+            None
+            if _batch_child
+            else _compute_corpus_delta_safe(_corpus_finalize_dir, pipeline_metrics)
+        )
         # Incremental upsert (skips unchanged episodes) — NOT a full rebuild. Adding one
         # episode stats the corpus and upserts only the new vectors.
         maybe_index_corpus(
@@ -2008,8 +2023,10 @@ def _finalize_pipeline(
     # RFC-088 chunk-9 follow-up: enqueue the enrichment-layer pass as a QUEUED job in the
     # shared jobs registry, which the API server promotes when a slot is free. The pipeline
     # does not wait for it, so its wall-clock is unaffected; the job tracks itself via the
-    # registry, JSONL and run_summary. Gated on cfg.enrichment.enabled (default off).
-    _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
+    # registry, JSONL and run_summary. Gated on cfg.enrichment.enabled (default off). A batch
+    # child leaves it to finalize_multi_feed_batch, which enqueues once at the corpus root.
+    if not _batch_child:
+        _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
     _build_audio_references(_corpus_finalize_dir, effective_output_dir)
     _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
@@ -2072,27 +2089,25 @@ def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_
 
 
 def _maybe_spawn_enrichment_after_pipeline(cfg: config.Config, effective_output_dir: str) -> None:
-    """Spawn ``python -m podcast_scraper.cli enrich`` as a detached
-    background subprocess (RFC-088 chunk 9 — Mode B integration).
+    """Enqueue a ``corpus_enrichment`` job for ``effective_output_dir`` (RFC-088 chunk 9).
 
     This is the automatic ingest → enrich chain: when the pipeline finalizes and
     ``enrichment.enabled`` is set, enrichment runs over the just-ingested corpus.
-    It invokes the same ``enrich`` main-CLI verb as a manual / scheduled run
+    The job runs the same ``enrich`` main-CLI verb as a manual / scheduled run
     (#1069 consistency).
 
-    The pipeline doesn't block on enrichment. The subprocess writes its
-    JSONL + run_summary + envelopes under the same corpus root and tracks
-    itself via the shared jobs registry (``command_type=corpus_enrichment``)
-    so the viewer Dashboard's "Pipeline runs" strip surfaces it
-    automatically.
+    The pipeline doesn't block on enrichment. The row lands QUEUED in
+    ``<effective_output_dir>/.viewer/jobs.jsonl`` and the API server promotes it
+    when a slot frees, so it must be the corpus root the API serves. A multi-feed
+    batch child does not call this; ``finalize_multi_feed_batch`` calls it once at
+    the corpus root.
 
     Gate: ``cfg.enrichment.enabled == True``. Default off — operators
     opt in per-profile via the ``enrichment:`` block in
     ``viewer_operator.yaml`` (or per-run via the CLI's --profile flag).
 
-    Failures inside the spawn (e.g. python not on PATH, output_dir
-    permissions) never break the pipeline — they're logged at WARNING
-    and the pipeline returns normally.
+    A failed enqueue (import error, unwritable registry, bad value) never breaks
+    the pipeline: it is logged at WARNING and the pipeline returns normally.
     """
     block = getattr(cfg, "enrichment", None) or {}
     if not (isinstance(block, dict) and block.get("enabled")):
@@ -2208,8 +2223,9 @@ def _corpus_finalize_dir_for(cfg: config.Config, effective_output_dir: str) -> s
     target the shared CORPUS ROOT so an incremental add weaves into the corpus rather than building
     a throwaway run-local index that search never reads. Returns the corpus root when it resolves,
     else the run's own output dir — all non-corpus-layout runs (legacy single-feed, and each
-    multi-feed per-feed step, which defers corpus integration to ``finalize_multi_feed_batch``)
-    keep their existing scope.
+    multi-feed per-feed step) keep their existing scope. A per-feed step's edge pass stays
+    run-scoped; its corpus-root work is skipped in ``_finalize_pipeline`` and done once by
+    ``finalize_multi_feed_batch`` (``is_multi_feed_batch_child``).
     """
     if getattr(cfg, "single_feed_uses_corpus_layout", False):
         from podcast_scraper.workflow.corpus_operations import (
@@ -2222,18 +2238,29 @@ def _corpus_finalize_dir_for(cfg: config.Config, effective_output_dir: str) -> s
     return effective_output_dir
 
 
-def _finalize_enrich_edges(output_dir: str, pipeline_metrics: Any) -> None:
+def _finalize_enrich_edges(
+    output_dir: str, pipeline_metrics: Any, *, defer_corpus_writes: bool = False
+) -> None:
     """Run the idempotent enrich-edges pass inline (HAS_EPISODE / MENTIONS / SPOKEN_BY → gi.json).
 
     Surfaced, not fire-and-forget: sets ``pipeline_metrics.edges_enriched`` and logs at ERROR on
     failure so a broken pass is visible (and the completeness gate flags the missing edges) rather
     than silently leaving a fresh add without its relational edges.
+
+    ``defer_corpus_writes``: a multi-feed batch child's ``output_dir`` is its run dir, so the
+    cache stamp and the identity ledger are left to the batch (see ``run_enrich_edges_cli``).
     """
     from argparse import Namespace
 
     from podcast_scraper.search.cli_handlers import run_enrich_edges_cli
 
-    args = Namespace(output_dir=output_dir, no_speaker=False, use_ner=False, retro_audit=False)
+    args = Namespace(
+        output_dir=output_dir,
+        no_speaker=False,
+        use_ner=False,
+        retro_audit=False,
+        defer_corpus_writes=defer_corpus_writes,
+    )
     try:
         rc = run_enrich_edges_cli(args, logger)
         pipeline_metrics.edges_enriched = rc == 0
