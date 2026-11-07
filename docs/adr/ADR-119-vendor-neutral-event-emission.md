@@ -5,7 +5,7 @@
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Context**: each tenant owns its app telemetry; this ADR fixes *how* the app emits it
 - **Tracking**: app-surface o11y (see `OBSERVABILITY_ARCHITECTURE.md`)
-- **Correction (2026-11)**: no `ml_inference` event is emitted. The pipeline run events are `pipeline_stage`, `pipeline_progress`, `run_timing` and `llm_cost`; enrichment emits `enrichment.run.*` and `enrichment.enricher.*`. Mentions of `ml_inference` below are historical.
+- **Correction (2026-11)**: no `ml_inference` event is emitted. The events actually emitted are listed in the observability docs. Mentions of `ml_inference` below are historical.
 
 ## Context
 

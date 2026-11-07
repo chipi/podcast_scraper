@@ -10,7 +10,7 @@ operational fields. Supply those via CLI flags.
 
 | Profile | Purpose | Provider shape |
 | ------- | ------- | -------------- |
-| [`cloud_balanced.yaml`](cloud_balanced.yaml) | Production default, best compound score | Deepgram transcription (speakers labeled in the same call, `diarize: false`), LiteLLM gateway for speaker detection and summary |
+| [`cloud_balanced.yaml`](cloud_balanced.yaml) | Cloud profile with the best compound score (prod uses `prod_dgx_full`) | Deepgram transcription (speakers labeled in the same call, `diarize: false`), LiteLLM gateway for speaker detection and summary |
 | [`cloud_quality.yaml`](cloud_quality.yaml) | Maximum cloud quality, ~2x cost | DeepSeek summary, spaCy trf NER, Whisper API |
 | [`cloud_thin.yaml`](cloud_thin.yaml) | Minimal cloud stack for Compose | Gemini + OpenAI Whisper API |
 | [`local.yaml`](local.yaml) | Fully local / privacy-first, $0 | Whisper small.en + spaCy trf + qwen3.5:9b bundled |

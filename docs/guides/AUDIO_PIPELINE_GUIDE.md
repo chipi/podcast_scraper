@@ -39,8 +39,10 @@ Design specs: [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) (diarizatio
 `transcription_fallback_provider(s)` adds a fallback chain behind the primary provider.
 
 **Screenplay + diarization** are available for `whisper`, `tailnet_dgx_whisper`, `openai`, `groq`,
-`deepgram` and `moss`. The other providers (`gemini`, `mistral`) coerce `screenplay: false` and
-`diarize: false` at config validation. The diarizer is chosen with `diarization_provider`:
+`deepgram` and `moss`. `diarize` defaults on for `whisper` and `tailnet_dgx_whisper` and off for the
+other eligible providers unless set. `gemini` and `mistral` cannot diarize: an explicit
+`diarize: true` with them raises a config error (`PODCAST_SCRAPER_DIARIZE_LAX=1` restores the
+deprecated silent coercion). The diarizer is chosen with `diarization_provider`:
 `local` (pyannote, the default), `tailnet_dgx`, `gemini`, `deepgram` or `moss`.
 
 ---
@@ -70,7 +72,7 @@ voice embeddings, aligned to Whisper segments by maximum overlap.
 
 | Setting | Default | Notes |
 | ------- | ------- | ----- |
-| `diarize` | `true` | Coerced to `false` for transcription providers that cannot diarize (`gemini`, `mistral`) |
+| `diarize` | `true` for `whisper` and `tailnet_dgx_whisper`; `false` for `openai`, `groq`, `deepgram`, `moss` unless set | An explicit `diarize: true` with `gemini` or `mistral` raises a config error (unless `PODCAST_SCRAPER_DIARIZE_LAX=1`, deprecated) |
 | `screenplay` | auto-enabled when `diarize=true` on Whisper paths | Explicit `screenplay: false` still respected |
 | `hf_token` | from `HF_TOKEN` env or `~/.huggingface/token` | Required for gated pyannote models |
 | `diarization_num_speakers` | auto | Set when speaker count is known |
@@ -273,7 +275,7 @@ in the processing stage is the sole progress indicator during local Whisper runs
 | ------- | ------------- | ------ |
 | Diarization skipped with warning | No usable `HF_TOKEN`: both the default `community-1` and the `3.1` fallback are gated | Export `HF_TOKEN` for an account that accepted the model's terms; a fine-grained token also needs "public gated repositories" |
 | `ProviderDependencyError` for pyannote | `[ml]` not installed | `pip install -e ".[ml]"` |
-| `diarize` false despite YAML `true` | `gemini` or `mistral` transcription provider | Expected — those providers emit plain text |
+| Config error `diarize=true requires a transcription_provider…` | `diarize: true` with `gemini` or `mistral` | Use an eligible provider (`whisper`, `tailnet_dgx_whisper`, `openai`, `groq`, `deepgram`, `moss`) or drop `diarize` |
 | Deepgram validation error | Missing API key | Set `DEEPGRAM_API_KEY` |
 | Oversize API upload still fails | File exceeds chunk merge limits | Check ffmpeg; see chunker logs; lower preprocessing bitrate |
 

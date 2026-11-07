@@ -28,7 +28,7 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | Cleaned transcript | `feeds/<stable>/run_*/transcripts/<base>.cleaned.txt` | cleaning (summary path) | summarization, GI, KG | n/a (text) | n/a |
 | Context digest | `feeds/<stable>/run_*/metadata/<base>.context.json` | context digest builder | pipeline | n/a | n/a |
 | Show record | `feeds/<stable>/show.json` (events in `show_events/<run>.jsonl`) | feed finalize | pipeline | n/a | n/a |
-| Identity ledger | `identity_ledger.json` | refreshed after the enrichment job | enrichment, API | n/a | n/a |
+| Identity ledger | `identity_ledger.json` | refreshed after the enrichment job, and after the edge pass inside a run when it rewrote files | enrichment, API | n/a | n/a |
 | Derivation fingerprints | `derivation_fingerprints.json` | feed finalize | corpus delta | n/a | n/a |
 | Ad signatures | `search/ad_signatures.json` | feed / batch finalize | pipeline | n/a | n/a |
 | GIL artifacts | `feeds/<stable>/run_*/metadata/*.gi.json` | GI pipeline | graph, library, detail, artifacts API | yes (`2.0`) | 2.4+ |

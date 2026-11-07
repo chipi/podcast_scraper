@@ -1129,7 +1129,7 @@ follow with `make upgrade-corpus CORPUS_DIR=...` before pointing anything at the
 
 Within one `run_pipeline(feed)` the pipeline runs three concurrent threads
 with queue handoffs (`_process_episodes_with_threading` in
-`workflow/orchestration.py`, the thread setup near lines 2510-2564): main
+`workflow/orchestration.py`): main
 (speaker detection + downloads) → TranscriptionProcessor (audio
 preprocessing, ASR, diarization, naming, transcript IO) → ProcessingProcessor
 (metadata + translation + summary + GI + KG). Audio

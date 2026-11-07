@@ -21,7 +21,7 @@ multi-feed batch it also enqueues one at the corpus root. Properties:
 
 - The job lands as **QUEUED** in the shared jobs registry. The API
   server promotes it when a slot frees, so it is serialised against
-  `max_concurrent_jobs` and never runs alongside an ingest.
+  `max_concurrent_jobs` and, at the default `max_concurrent_jobs` of 1, never runs alongside an ingest.
 - The pipeline returns its own count/summary immediately — wall-clock
   unaffected.
 - The queued job runs `python -m podcast_scraper.cli enrich`, writes its
