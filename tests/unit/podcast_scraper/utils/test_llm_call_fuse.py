@@ -154,8 +154,8 @@ def test_run_pipeline_installs_the_run_fuse() -> None:
 def test_generate_episode_metadata_installs_the_episode_fuse() -> None:
     """The per-episode ceiling must be installed where a single-episode LLM storm actually runs
     (generate_episode_metadata: cleaning + GI + KG). Otherwise a ~3,500-call bundled-evidence storm
-    slips under the coarser run ceiling (default 8000) and the fuse never fires for the very
-    incident it exists to stop."""
+    slips under the coarser run ceiling (``llm_max_calls_per_run``) and the fuse never fires for
+    the very incident it exists to stop."""
     import inspect
 
     from podcast_scraper.workflow import metadata_generation

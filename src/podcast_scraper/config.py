@@ -4583,8 +4583,8 @@ class Config(BaseModel):
             "then relabel. For episodes whose stored transcript lost its speaker structure on "
             "the way in (the WebVTT `<v Speaker N>` spans the cue parser used to strip); the "
             "text was never wrong, only its speakers. No audio, no ASR, no GPU.\n"
-            "  translate_only  — RE-TRANSLATE from the on-disk source transcript, then re-resolve "
-            "speaker names from the fresh English render and cascade GI/KG. No audio, no ASR, no "
+            "  translate_only  — RE-TRANSLATE from the on-disk source transcript (naming re-runs "
+            "on the source first) and cascade GI/KG. No audio, no ASR, no "
             "re-diarize. This is the retry path RFC-124 §5.2 names for a `translation_pending` "
             "episode and for a partial failure: the content-keyed translation memory (D-33) is "
             "KEPT, so already-translated units cost no GPU and only the missing ones are sent. "
@@ -5228,6 +5228,7 @@ class Config(BaseModel):
             "rediarize_only",
             "retranscript_only",
             "repunctuate_only",
+            "translate_only",
         ):
             return merged
         message: Optional[str] = None
@@ -5279,7 +5280,7 @@ class Config(BaseModel):
             merged["transcribe_missing"] = True
             message = (
                 "pipeline_stage=translate_only: re-translating from the on-disk source "
-                "transcript, then re-resolving names from the fresh English render "
+                "transcript after naming re-runs on the source "
                 "(no audio, no re-ASR, no re-diarize)."
             )
         elif stage == "rediarize_only":

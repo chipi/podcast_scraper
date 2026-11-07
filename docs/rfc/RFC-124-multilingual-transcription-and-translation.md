@@ -1,5 +1,10 @@
 # RFC-124: Multilingual Transcription and English Translation Stage
 
+> **Note (shipped layout).** The shipped file layout differs from the one this RFC sketches.
+> English is the canonical transcript with no language suffix; translation swaps it into `<base>.txt`
+> and moves the source body to `<base>.<lang>.*`. `.en.*` names below are historical. See
+> [Multilingual Arc](../architecture/MULTILINGUAL_ARC.md) and `translation/artifacts.py`.
+
 - **Status**: Draft
 - **Authors**: Marko
 - **Stakeholders**: Pipeline (transcription, diarization, translation, ad-free base, summary/GI/KG), model serving, player (segments contract), search, operator feed curation

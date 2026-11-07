@@ -15,22 +15,24 @@ JSONL surface itself is documented in
 ### Hands-free mode — run after every pipeline run (RFC-088 chunk 9)
 
 Set `enrichment.enabled: true` in `viewer_operator.yaml`. The
-pipeline's finalize step then spawns
-`python -m podcast_scraper.cli enrich` as a **detached background
-subprocess** after every successful pipeline run. Three properties:
+pipeline's finalize step then **enqueues** a `corpus_enrichment` job
+(it does not spawn a process) after every successful pipeline run; a
+multi-feed batch enqueues one, at the corpus root, for all its feeds. Properties:
 
+- The job lands as **QUEUED** in the shared jobs registry. The API
+  server promotes it when a slot frees, so it is serialised against
+  `max_concurrent_jobs` and, at the default `max_concurrent_jobs` of 1, never runs alongside an ingest.
 - The pipeline returns its own count/summary immediately — wall-clock
   unaffected.
-- The enrichment subprocess writes its own `run.jsonl` + envelopes +
-  registers in the shared jobs registry, so the viewer's
-  **Dashboard → Pipeline runs** strip surfaces it alongside pipeline
-  jobs (badge `[enrich]`).
-- Detached: SIGINT to the parent pipeline doesn't kill enrichment.
-  Output streams to `<corpus>/.viewer/enrichment_pipeline_spawn.log`
-  — `tail -f` it if you want.
+- The queued job runs `python -m podcast_scraper.cli enrich`, writes its
+  own `run.jsonl` + envelopes, and shows in `GET /api/jobs` and the
+  viewer's **Dashboard → Pipeline runs** strip (badge `[enrich]`), where
+  it can be listed and cancelled like any other job.
+- The identity ledger is refreshed after the enrichment job finishes.
 
-Failures inside the spawn (PATH, output_dir permissions, etc.) log a
-WARNING and the pipeline returns normally.
+If the job cannot be enqueued (import or permission error), the pipeline
+logs a WARNING and returns normally; enrichment must then be queued
+manually.
 
 ### Run an enrichment pass
 
@@ -41,8 +43,8 @@ python -m podcast_scraper.cli enrich \
 ```
 
 Or from the viewer: **Configuration → Enrichment tab → Run enrichment
-now**. The same path drives `POST /api/jobs/enrichment` which spawns
-the CLI in a subprocess and tracks it through the shared jobs
+now**. The same path drives `POST /api/jobs/enrichment` which starts or queues
+the job and tracks it through the shared jobs
 registry alongside pipeline runs.
 
 ### Inspect a run

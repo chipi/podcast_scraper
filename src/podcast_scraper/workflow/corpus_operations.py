@@ -256,6 +256,26 @@ def corpus_parent_for_manifest_stamp_from_cfg(cfg: "config.Config") -> Optional[
     return None
 
 
+def is_multi_feed_batch_child(cfg: "config.Config") -> bool:
+    """True for one feed's step of a multi-feed batch.
+
+    Both batch loops (``cli.py``'s and ``service.run_multi_feed``) rebase the step's
+    ``output_dir`` to ``<corpus>/feeds/<slug>`` with the corpus-layout flag off. A scoped
+    ``--single-feed-uses-corpus-layout`` add gets the same shape from the validator, but it owns
+    its own corpus-root follow-ups, so the flag tells them apart. For a batch child,
+    :func:`finalize_multi_feed_batch` owns the corpus-root work: the enrichment enqueue, the
+    identity ledger, the index and the clusters.
+    """
+    from podcast_scraper.utils import filesystem
+
+    if getattr(cfg, "single_feed_uses_corpus_layout", False) or not getattr(
+        cfg, "output_dir", None
+    ):
+        return False
+    out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+    return out.parent.name == "feeds" and bool(out.parent.parent.name)
+
+
 def upsert_corpus_manifest_feed(
     corpus_parent: str,
     feed_result: MultiFeedFeedResult,

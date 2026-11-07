@@ -42,7 +42,7 @@ result = service.run_from_config_file("config.yaml")
 
 **Append / resume (GitHub #444):** If `Config.append` is true, each inner run uses a stable `run_append_*` directory and skips episodes that are already complete on disk (metadata `episode_id` + required artifacts). Incompatible with `clean_output`. See [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
 
-**Corpus lock (multi-feed):** While two or more feeds are processed, `service.run` acquires an **advisory** exclusive lock file **`.podcast_scraper.lock`** under the corpus parent (`output_dir`) using `filelock`. If another process already holds the lock, the call returns immediately with **`success=False`**, **`episodes_processed=0`**, and **`error`** describing the lock conflict. Disable locking with environment variable **`PODCAST_SCRAPER_CORPUS_LOCK=0`** (tests, advanced workflows). Single-feed `service.run` does not use this lock.
+**Corpus lock:** `service.run` acquires an **advisory** exclusive lock file **`.podcast_scraper.lock`** under the corpus parent (`output_dir`) using `filelock`. If another process already holds the lock, the call returns immediately with **`success=False`**, **`episodes_processed=0`**, and **`error`** describing the lock conflict. Disable locking with environment variable **`PODCAST_SCRAPER_CORPUS_LOCK=0`** (tests, advanced workflows). Single-feed `service.run` takes the same lock (`corpus_parent_lock` on `output_dir`) around the pipeline run.
 
 ## API Reference
 

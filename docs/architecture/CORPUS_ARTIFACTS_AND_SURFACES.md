@@ -21,7 +21,16 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | `feeds.spec.yaml` | top-level | operator / seed | `GET/PUT /api/feeds`, pipeline | n/a | n/a |
 | `viewer_operator.yaml` | top-level | operator | `GET/PUT /api/operator-config`, jobs | n/a | n/a |
 | Episode metadata | `feeds/<stable>/run_*/metadata/*.metadata.json` | pipeline | library, digest, detail, graph | partial (episode fields) | 2.0+ |
-| Transcripts | `feeds/<stable>/run_*/metadata/*.txt` (and segments JSON when enabled) | pipeline / transcription | episode detail | n/a (text) | 2.0+ |
+| Transcripts | `feeds/<stable>/run_*/transcripts/<base>.txt` | pipeline / transcription | episode detail | n/a (text) | 2.0+ |
+| Transcript sidecars | `feeds/<stable>/run_*/transcripts/<base>.{segments,asr,turns}.json`, `.speakers.diagnostics.json`, `.anon.txt`, `.adfree.*` | pipeline / transcription | reprocess modes, episode detail | n/a | n/a |
+| Processing manifest | `feeds/<stable>/run_*/transcripts/<base>.manifest.json` | pipeline (per-episode `asr`, `diarization`, `naming`, `turns`, `translation`, `summary`, `gi`, `kg` blocks, [ADR-132](../adr/ADR-132-per-episode-processing-manifest-schema.md)) | reprocess queries | yes | n/a |
+| Translation record and source files | `feeds/<stable>/run_*/transcripts/<base>.translation.json`, `<base>.<lang>.*` | translation stage ([Multilingual Arc](MULTILINGUAL_ARC.md)) | reprocess, episode detail | n/a | n/a |
+| Cleaned transcript | `feeds/<stable>/run_*/transcripts/<base>.cleaned.txt` | cleaning (summary path) | summarization, GI, KG | n/a (text) | n/a |
+| Context digest | `feeds/<stable>/run_*/metadata/<base>.context.json` | context digest builder | pipeline | n/a | n/a |
+| Show record | `feeds/<stable>/show.json` (events in `show_events/<run>.jsonl`) | feed finalize | pipeline | n/a | n/a |
+| Identity ledger | `identity_ledger.json` | refreshed after the enrichment job; after the edge pass of a single-feed run when it rewrote files; at the end of a multi-feed batch that queued no enrichment | enrichment, API | n/a | n/a |
+| Derivation fingerprints | `derivation_fingerprints.json` | feed finalize | corpus delta | n/a | n/a |
+| Ad signatures | `search/ad_signatures.json` | feed / batch finalize | pipeline | n/a | n/a |
 | GIL artifacts | `feeds/<stable>/run_*/metadata/*.gi.json` | GI pipeline | graph, library, detail, artifacts API | yes (`2.0`) | 2.4+ |
 | KG artifacts | `feeds/<stable>/run_*/metadata/*.kg.json` | KG pipeline | graph, library, detail, artifacts API | yes (`1.2`) | 2.4+ |
 | Bridge artifacts | `feeds/<stable>/run_*/metadata/*.bridge.json` | CIL bridge step | library filters, node-episodes, graph | implicit (bridge builder) | 2.5+ |

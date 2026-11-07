@@ -1,7 +1,7 @@
 """D-40: the pre-naming render is kept as `<base>.anon.txt`.
 
-WHY. With naming moved after translation (D-34) the order becomes diarize → write anonymous →
-translate → name → re-render, and that final re-render overwrites `.txt`. The anonymous
+WHY. The order is diarize → write anonymous → name → re-render, and that final re-render
+overwrites `.txt`. The anonymous
 screenplay is the only human-readable view of what the pipeline saw BEFORE it decided who was
 speaking, and it is the first thing anyone debugging a naming failure asks for. D-40's rule is
 that no stage overwrites another stage's output.

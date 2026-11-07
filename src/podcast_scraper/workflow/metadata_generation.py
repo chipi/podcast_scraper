@@ -4971,10 +4971,11 @@ def generate_episode_metadata(  # noqa: C901
 
     # Per-episode LLM call fuse: bound ONE episode's spend. This is where the ~3,500-call incident
     # lives — a bundled evidence (GI) call failing into a per-pair fallback storm — and the run fuse
-    # (default 8000) is too coarse to catch a single-episode storm below it. The GI evidence path is
-    # sequential-in-thread (no internal pool), so this contextvar scope is visible to every tick()
-    # during the storm, in whatever worker runs this episode. Re-installed per episode (overwrite),
-    # mirroring the eval harness; the process-global run fuse still bounds the whole run.
+    # (``llm_max_calls_per_run``) is too coarse to catch a single-episode storm below it. The GI
+    # evidence path is sequential-in-thread (no internal pool), so this contextvar scope is
+    # visible to every tick() during the storm, in whatever worker runs this episode.
+    # Re-installed per episode (overwrite), mirroring the eval harness; the process-global run
+    # fuse still bounds the whole run.
     llm_call_fuse.install_episode(getattr(cfg, "llm_max_calls_per_episode", 0), episode_id)
     # #1053 / o11y: bind the correlation episode id too, so summary / GI / KG LOG lines (not just
     # the cost-fuse fallback) carry it. Covers inline ProcessingProcessor + transcription-consumer +
@@ -5042,9 +5043,10 @@ def generate_episode_metadata(  # noqa: C901
     # where "has this episode been translated yet" can be asked once. It runs BEFORE the summary
     # and everything after it, because every stage from here on reads English.
     #
-    # It performs no translation in this slice; it decides, records the manifest block, and
-    # credits its own wall time back to the deadline `processing.py` observes around this whole
-    # call, so a future overrun alert keeps meaning "summary + GI + KG were slow".
+    # It decides whether the episode needs a translation, translates it when it does, records
+    # the manifest block, and credits its own wall time back to the deadline `processing.py`
+    # observes around this whole call, so a future overrun alert keeps meaning "summary + GI +
+    # KG were slow".
     # #2369: an episode the ASR identified as another language than its show's is translated (and
     # gated) in that language; the run's own config describes the show.
     episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)

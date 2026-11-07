@@ -45,18 +45,18 @@ logger = logging.getLogger(__name__)
 ADFREE_SUFFIX = ".adfree"
 CLEANED_SUFFIX = ".cleaned"
 
-#: The English-derived variant (RFC-124 / S2.1b). Inserted BEFORE ``.adfree``, so the four bodies
-#: an episode can have are ``<base>.txt``, ``<base>.adfree.txt``, ``<base><base>.txt`` and
-#: ``<base><base>.adfree.txt`` -- source-language canonical, source-language ad-free, English
-#: canonical, English ad-free.
+#: Languages (D-44): ``<base>.txt`` is always the English body, ASR's own on an English episode
+#: and the translation on a translated one; a translated episode's source body moves to
+#: ``<base>.<lang>.txt`` (``translation.artifacts.source_text_relpath``). There is no English
+#: variant suffix to resolve.
 
 #: The pre-naming render: the screenplay as it stood when only the diarizer had spoken, with
 #: anonymous ``SPEAKER_NN`` labels (D-40).
 #:
-#: WHY IT IS KEPT. With naming moved after translation (D-34) the sequence is diarize → write
-#: anonymous → translate → name → re-render, and the naming re-render overwrites ``.txt``. That
-#: destroys the only human-readable view of what the pipeline saw BEFORE it decided who was
-#: speaking, which is the first thing anyone debugging a naming failure wants. It is
+#: WHY IT IS KEPT. The sequence is diarize → write anonymous → name → re-render, and the naming
+#: re-render overwrites ``.txt``. That destroys the only human-readable view of what the
+#: pipeline saw BEFORE it decided who was speaking, which is the first thing anyone debugging a
+#: naming failure wants. It is
 #: reconstructible from ``.segments.json``'s ``speaker`` field — the frozen voice id, which naming
 #: never touches; only ``speaker_label`` is updated — so this is cheapness and clarity rather than
 #: recoverability.

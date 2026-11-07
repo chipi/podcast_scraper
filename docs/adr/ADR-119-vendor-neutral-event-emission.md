@@ -5,6 +5,7 @@
 - **Authors**: Marko Dragoljevic, Claude (Opus 4.8)
 - **Context**: each tenant owns its app telemetry; this ADR fixes *how* the app emits it
 - **Tracking**: app-surface o11y (see `OBSERVABILITY_ARCHITECTURE.md`)
+- **Correction (2026-11)**: no `ml_inference` event is emitted. The events actually emitted are listed in the observability docs. Mentions of `ml_inference` below are historical.
 
 ## Context
 
@@ -30,7 +31,7 @@ nothing else. **Shipping is a separate, pluggable layer.**
      shape; consumers key on `event_type`.
    - Two channels via `sink=`: `"log"` → one JSON line to the
      `podcast_scraper.events` logger → **process stdout** (for ephemeral pipeline
-     runs — llm_cost, ml_inference, pipeline_stage); `"file"` → append to a
+     runs — llm_cost, pipeline_stage); `"file"` → append to a
      **per-corpus JSONL** (for serve-side events that must persist without an agent
      attached — search_query, listen, job).
    - Telemetry **never breaks the caller** (every path swallows errors).
