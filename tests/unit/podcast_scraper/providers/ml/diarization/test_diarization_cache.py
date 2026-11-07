@@ -89,16 +89,20 @@ def test_apply_diarization_uses_cache_on_hit(
         "text": "hello",
         "segments": [{"start": 0.0, "end": 2.0, "text": "hello"}],
     }
+    timings: dict[str, float] = {}
     enriched = apply_diarization_to_result(
         result,
         "/tmp/audio.wav",
         cfg,
         ["Host"],
         cache_dir=str(cache_dir),
+        timings=timings,
     )
 
     mock_create_provider.assert_not_called()
     assert enriched["segments"][0]["speaker"] == "SPEAKER_01"
+    # The caller splits the call's time into diarization and naming with this.
+    assert timings["diarize_s"] >= 0.0
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")

@@ -26,8 +26,12 @@ per-schedule overrides (``profile``, ``feeds``, ``max_episodes``) remain V2 work
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import tempfile
+import threading
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -215,6 +219,58 @@ def _record_failed(name: str, reason: str) -> None:
         pass
 
 
+# --- Missed-slot detection ----------------------------------------------
+
+#: Per-job fire/report times, beside the job registry. APScheduler's in-memory jobstore forgets
+#: every slot that passed while the process was down, so this file is the only record of it.
+SCHEDULER_STATE_RELPATH = ".viewer/scheduler_state.json"
+_SLOT_SCAN_LIMIT = 20000
+_SKIP_NOT_RUNNING = "scheduler_not_running_at_slot"
+_SKIP_MISFIRE = "misfire"
+
+
+def _iso_utc(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_iso(raw: Any) -> Optional[datetime]:
+    if not isinstance(raw, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _last_slot_between(trigger: Any, start: datetime, now: datetime) -> Optional[datetime]:
+    """The latest cron slot in ``[start, now)``, or None."""
+    last: Optional[datetime] = None
+    slot = trigger.get_next_fire_time(None, start)
+    for _ in range(_SLOT_SCAN_LIMIT):
+        if slot is None or slot >= now:
+            break
+        last = slot
+        slot = trigger.get_next_fire_time(slot, slot + timedelta(microseconds=1))
+    return last
+
+
+def _emit_skipped(job: str, kind: str, slot: datetime, reason: str) -> None:
+    try:
+        from podcast_scraper.obs.events import emit_event
+
+        emit_event(
+            "pipeline_run.skipped",
+            job=job,
+            kind=kind,
+            slot_at=_iso_utc(slot),
+            reason=reason,
+            detected_at=_iso_utc(datetime.now(timezone.utc)),
+        )
+    except Exception:  # noqa: BLE001 - telemetry must never break the scheduler
+        logger.debug("scheduler: pipeline_run.skipped emit failed", exc_info=True)
+
+
 # --- SchedulerService ---------------------------------------------------
 
 
@@ -246,6 +302,10 @@ class SchedulerService:
         self._spawn = spawn
         self._scheduler: Any | None = None
         self._jobs: list[ScheduledJobConfig] = []
+        self._state_lock = threading.Lock()
+        # The last slot reported per job, also kept here: when the state file cannot be written
+        # (a read-only corpus), a reload must still not report the same slot again.
+        self._reported: dict[str, str] = {}
         _ensure_counters()
 
     @property
@@ -309,6 +369,16 @@ class SchedulerService:
             if not cfg.enabled:
                 continue
             self._add_apscheduler_job(sch, cfg)
+        try:
+            self._report_missed_slots()
+        except Exception:  # noqa: BLE001 - missed-slot telemetry never blocks the nightly
+            logger.debug("scheduler: missed-slot report failed", exc_info=True)
+        try:
+            from apscheduler.events import EVENT_JOB_MISSED
+
+            sch.add_listener(self._on_job_missed, EVENT_JOB_MISSED)
+        except ImportError:  # pragma: no cover - apscheduler imported above
+            pass
         sch.start()
         self._scheduler = sch
         logger.info(
@@ -370,6 +440,111 @@ class SchedulerService:
             replace_existing=True,
         )
 
+    def _state_path(self) -> Path:
+        return self._corpus_root / SCHEDULER_STATE_RELPATH
+
+    def _load_state(self) -> dict[str, dict[str, str]]:
+        try:
+            raw = json.loads(self._state_path().read_text(encoding="utf-8"))
+            jobs = raw.get("jobs") if isinstance(raw, dict) else None
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(jobs, dict):
+            return {}
+        return {k: v for k, v in jobs.items() if isinstance(v, dict)}
+
+    def _save_state(self, state: dict[str, dict[str, str]]) -> None:
+        path = self._state_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".scheduler_state.")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    json.dump({"jobs": state}, fh, sort_keys=True)
+                os.replace(tmp, path)
+            except BaseException:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
+        except OSError as exc:
+            logger.warning("scheduler: could not write %s (%s)", path, exc.__class__.__name__)
+
+    def _record_fire(self, name: str) -> None:
+        with self._state_lock:
+            state = self._load_state()
+            state.setdefault(name, {})["last_fire"] = _iso_utc(datetime.now(timezone.utc))
+            self._save_state(state)
+
+    def _report_missed_slots(self) -> None:
+        """Emit ``pipeline_run.skipped`` for each enabled job whose latest slot never fired.
+
+        A job seen for the first time only looks at slots after that moment, so enabling a new
+        schedule reports nothing. A disabled job's entry is dropped so re-enabling it starts fresh.
+        """
+        try:
+            from apscheduler.triggers.cron import CronTrigger
+        except ImportError:
+            return
+        now = datetime.now(timezone.utc)
+        with self._state_lock:
+            state = self._load_state()
+            before = json.dumps(state, sort_keys=True)
+            for cfg in self._jobs:
+                if not cfg.enabled:
+                    state.pop(cfg.name, None)
+                    continue
+                entry = state.setdefault(cfg.name, {})
+                entry.setdefault("since", _iso_utc(now))
+                self._merge_reported(cfg.name, entry)
+                try:
+                    trigger = CronTrigger.from_crontab(cfg.cron, timezone=_scheduler_timezone())
+                    marks = [
+                        _parse_iso(entry.get(k))
+                        for k in ("since", "last_fire", "last_reported_slot")
+                    ]
+                    start = max(m for m in marks if m is not None) + timedelta(microseconds=1)
+                    slot = _last_slot_between(trigger, start, now)
+                except Exception:  # noqa: BLE001 - never block scheduler start on detection
+                    logger.debug(
+                        "scheduler: missed-slot scan failed for %r", cfg.name, exc_info=True
+                    )
+                    continue
+                if slot is None:
+                    continue
+                entry["last_reported_slot"] = _iso_utc(slot)
+                self._reported[cfg.name] = entry["last_reported_slot"]
+                _emit_skipped(cfg.name, cfg.kind, slot, _SKIP_NOT_RUNNING)
+            if json.dumps(state, sort_keys=True) != before:
+                self._save_state(state)
+
+    def _merge_reported(self, name: str, entry: dict[str, str]) -> None:
+        """Take the in-memory last reported slot when it is later than the file's."""
+        mem = _parse_iso(self._reported.get(name))
+        disk = _parse_iso(entry.get("last_reported_slot"))
+        if mem is not None and (disk is None or mem > disk):
+            entry["last_reported_slot"] = self._reported[name]
+
+    def _on_job_missed(self, event: Any) -> None:
+        """APScheduler ``EVENT_JOB_MISSED`` listener: the slot was reached but past its grace."""
+        try:
+            name = str(event.job_id)
+            slot = event.scheduled_run_time
+            with self._state_lock:
+                state = self._load_state()
+                entry = state.setdefault(name, {})
+                self._merge_reported(name, entry)
+                reported = _parse_iso(entry.get("last_reported_slot"))
+                if reported is not None and reported >= slot:
+                    return
+                entry["last_reported_slot"] = _iso_utc(slot)
+                self._reported[name] = entry["last_reported_slot"]
+                self._save_state(state)
+            _emit_skipped(name, self._kind_for(name), slot, _SKIP_MISFIRE)
+        except Exception:  # noqa: BLE001 - listener must not raise into APScheduler
+            logger.debug("scheduler: misfire listener failed", exc_info=True)
+
     def _kind_for(self, name: str) -> str:
         """The configured job kind (``pipeline`` | ``enrichment``) for a schedule."""
         for job in self._jobs:
@@ -384,6 +559,10 @@ class SchedulerService:
         the error→counter→log flow ourselves.
         """
         _record_triggered(name)
+        try:
+            self._record_fire(name)
+        except Exception:  # noqa: BLE001 - bookkeeping must not stop the fire
+            logger.debug("scheduler: could not record fire of %r", name, exc_info=True)
         try:
             self._spawn(name, self._corpus_root, self._operator_yaml, self._kind_for(name))
         except Exception as exc:
@@ -449,7 +628,7 @@ def make_app_spawn_callback(app: Any) -> Any:
         if kind == JOB_KIND_ENRICHMENT:
             rec = enqueue_enrichment_job(corpus_root, operator_yaml=operator_yaml)
         else:
-            rec = enqueue_pipeline_job(corpus_root, operator_yaml)
+            rec = enqueue_pipeline_job(corpus_root, operator_yaml, trigger="nightly")
         logger.info(
             "scheduler: job %r fired -> %s job_id=%s status=%s",
             name,

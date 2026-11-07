@@ -22,6 +22,9 @@ import importlib
 import logging
 import os
 import sys
+import threading
+import time
+from collections import OrderedDict
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, Optional
 
@@ -153,8 +156,60 @@ def init_otel(default_service_name: str = "podcast-pipeline") -> bool:
     return True
 
 
+# One trace per episode. The download, transcription and metadata work of an episode run on
+# different threads (executor workers do not inherit the submitter's OTEL context), so each used
+# to open its own root span and land in its own trace: the prod trace of one episode held HTTP,
+# ``episode.metadata`` and jinja spans and none of the stages that ran on the other threads. The
+# first ``episode_span`` of an episode remembers its span context here; a later span for the same
+# episode, opened where no span is current, parents itself on it.
+_EPISODE_ROOTS_MAX = 2048
+_episode_roots: "OrderedDict[str, Any]" = OrderedDict()
+_episode_roots_lock = threading.Lock()
+
+
+def _remember_episode_root(episode_id: Optional[str], span: Any) -> None:
+    if not episode_id or span is None:
+        return
+    try:
+        ctx = span.get_span_context()
+    except Exception:  # noqa: BLE001 — telemetry must never break the work it observes
+        return
+    if not getattr(ctx, "is_valid", False):
+        return
+    with _episode_roots_lock:
+        _episode_roots.setdefault(episode_id, ctx)
+        while len(_episode_roots) > _EPISODE_ROOTS_MAX:
+            _episode_roots.popitem(last=False)
+
+
+def _episode_parent_context(trace: Any, episode_id: Optional[str]) -> Any:
+    """The OTEL context of the episode's root span, or ``None`` when a span is already current.
+
+    ``None`` leaves the SDK's default (the current context) in charge, so nesting inside a live
+    span on the same thread is untouched.
+    """
+    if not episode_id:
+        return None
+    try:
+        if trace.get_current_span().get_span_context().is_valid:
+            return None
+        with _episode_roots_lock:
+            root = _episode_roots.get(episode_id)
+        if root is None:
+            return None
+        return trace.set_span_in_context(trace.NonRecordingSpan(root))
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @contextmanager
-def _span(trace: Any, tracer_name: str, name: str, attributes: dict[str, Any]) -> Iterator[Any]:
+def _span(
+    trace: Any,
+    tracer_name: str,
+    name: str,
+    attributes: dict[str, Any],
+    context: Any = None,
+) -> Iterator[Any]:
     """Open a span without ever replacing the caller's exception.
 
     The span used to be opened INSIDE a ``try`` whose ``except`` also guarded the ``yield``. An
@@ -164,7 +219,12 @@ def _span(trace: Any, tracer_name: str, name: str, attributes: dict[str, Any]) -
     the block's own exceptions pass through untouched (the span records them on the way out).
     """
     try:
-        cm = trace.get_tracer(tracer_name).start_as_current_span(name, attributes=attributes)
+        tracer = trace.get_tracer(tracer_name)
+        # ``context`` only when there is a parent to give: every other span opens exactly as before.
+        if context is None:
+            cm = tracer.start_as_current_span(name, attributes=attributes)
+        else:
+            cm = tracer.start_as_current_span(name, context=context, attributes=attributes)
         span = cm.__enter__()
     except Exception:  # noqa: BLE001 — telemetry must never break the work it observes
         _LOGGER.debug("span %s failed to open", name, exc_info=True)
@@ -287,8 +347,78 @@ def episode_span(
         )
         if v
     }
-    with _span(trace, "podcast_scraper.pipeline", name, attributes) as span:
+    parent = _episode_parent_context(trace, episode_id)
+    with _span(trace, "podcast_scraper.pipeline", name, attributes, context=parent) as span:
+        _remember_episode_root(episode_id, span)
         yield span
+
+
+@contextmanager
+def stage_span(
+    stage: str,
+    *,
+    episode_id: Optional[str] = None,
+    feed_id: Optional[str] = None,
+    run_id: Optional[str] = None,
+    duration_s: Optional[float] = None,
+    status: Optional[str] = None,
+    error_class: Optional[str] = None,
+) -> Iterator[Any]:
+    """Span ``stage.<stage>`` for one finished pipeline stage, in the episode's trace.
+
+    A stage records its measured ``duration_s`` when it finishes, at sites (nested loops, several
+    returns) that cannot be re-indented under a ``with``. So the span is opened at the moment of
+    the write with its start backdated by that duration, and events emitted inside the block carry
+    its ``trace_id``. Parent: the current span, else the episode's root span (a stage that runs on
+    a worker thread has no current span).
+
+    A TRUE no-op unless OTEL tracing is active; never raises.
+    """
+    if not otel_tracing_enabled():
+        yield None
+        return
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        yield None
+        return
+    attributes = {
+        k: v
+        for k, v in (
+            ("stage", stage),
+            ("run_id", run_id),
+            ("episode_id", episode_id),
+            ("feed_id", feed_id),
+            ("status", status),
+            ("duration_s", duration_s),
+            ("error_class", error_class),
+        )
+        if v is not None and v != ""
+    }
+    try:
+        start_ns = time.time_ns() - int(max(float(duration_s or 0.0), 0.0) * 1e9)
+        span = trace.get_tracer("podcast_scraper.pipeline").start_span(
+            f"stage.{stage}",
+            context=_episode_parent_context(trace, episode_id),
+            attributes=attributes,
+            start_time=start_ns,
+        )
+        cm = trace.use_span(span, end_on_exit=False)
+        cm.__enter__()
+    except Exception:  # noqa: BLE001 — telemetry must never break the work it observes
+        _LOGGER.debug("stage span %s failed to open", stage, exc_info=True)
+        yield None
+        return
+    try:
+        yield span
+    finally:
+        try:
+            cm.__exit__(None, None, None)
+            if status == "failed":
+                mark_span_failed(span, error_class or "stage failed")
+            span.end()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("stage span %s failed to close", stage, exc_info=True)
 
 
 def mark_span_failed(span: Any, reason: str) -> None:

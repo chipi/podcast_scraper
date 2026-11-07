@@ -272,11 +272,15 @@ def stage_block(
     metrics: Optional[Mapping[str, Any]] = None,
     failover: Any = None,
     warnings: Optional[Sequence[str]] = None,
+    error_class: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build one stage's block in the common shape, dropping keys the stage did not set.
 
     ``ran`` is always present; every other key is included only when the owning stage supplies it,
     so absence is honest (nobody owns it) rather than a config-derived default.
+
+    ``error_class`` marks a stage that was attempted and raised: the block then carries
+    ``status: "failed"`` next to it. Without it a failed stage was visible only as a missing block.
 
     ``cost_usd`` is the exception and is ALWAYS present, because cost has three states and the
     other two are already spoken for: ``0.0`` means measured and free, a number means measured,
@@ -301,6 +305,9 @@ def stage_block(
         block["failover"] = failover
     if warnings:
         block["warnings"] = list(warnings)
+    if error_class:
+        block["status"] = "failed"
+        block["error_class"] = error_class
     return block
 
 
@@ -456,25 +463,50 @@ def _emit_stage_event(
     """
     try:
         from ..obs.events import emit_event
+        from ..utils import otel_init
 
-        emit_event(
-            "pipeline_stage",
-            stage=stage,
+        status = block.get("status") or ("ok" if block.get("ran") else "skipped")
+        with otel_init.stage_span(
+            stage,
             episode_id=data.get("episode_id"),
             feed_id=data.get("feed_id"),
             run_id=data.get("run_id"),
-            git_sha=data.get("git_sha"),
-            # NB: pipeline_composition_version is deliberately NOT emitted per-stage — it is
-            # recomputed on every RMW, so it would ship a different (partial) value on each of an
-            # episode's stage events and poison any GROUP BY (advisor #7). File-only.
-            ran=block.get("ran"),
-            method=block.get("method"),
-            model=block.get("model"),
-            method_version=block.get("method_version"),
             duration_s=block.get("duration_s"),
-            cost_usd=block.get("cost_usd"),
-            metrics=block.get("metrics") or None,
-            quality_flags=list(flags) or None,
-        )
+            status=status,
+            error_class=block.get("error_class"),
+        ):
+            _emit_stage_event_inner(emit_event, stage, block, data, flags, status)
     except Exception:  # noqa: BLE001 — telemetry must never break the manifest write
         logger.debug("processing_manifest: pipeline_stage emit failed", exc_info=True)
+
+
+def _emit_stage_event_inner(
+    emit_event: Any,
+    stage: str,
+    block: Dict[str, Any],
+    data: Mapping[str, Any],
+    flags: Sequence[str],
+    status: str,
+) -> None:
+    """The ``emit_event`` call of :func:`_emit_stage_event`, run inside the stage's span."""
+    emit_event(
+        "pipeline_stage",
+        stage=stage,
+        episode_id=data.get("episode_id"),
+        feed_id=data.get("feed_id"),
+        run_id=data.get("run_id"),
+        git_sha=data.get("git_sha"),
+        # NB: pipeline_composition_version is deliberately NOT emitted per-stage — it is
+        # recomputed on every RMW, so it would ship a different (partial) value on each of an
+        # episode's stage events and poison any GROUP BY (advisor #7). File-only.
+        ran=block.get("ran"),
+        status=status,
+        error_class=block.get("error_class"),
+        method=block.get("method"),
+        model=block.get("model"),
+        method_version=block.get("method_version"),
+        duration_s=block.get("duration_s"),
+        cost_usd=block.get("cost_usd"),
+        metrics=block.get("metrics") or None,
+        quality_flags=list(flags) or None,
+    )

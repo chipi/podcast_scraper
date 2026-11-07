@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import threading
+import time
 from pathlib import Path
 from typing import AbstractSet, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -1215,6 +1216,7 @@ def apply_diarization_to_result(
     feed_hosts: Optional[List[str]] = None,
     unbindable_hosts: Optional[List[str]] = None,
     bypass_cache_read: bool = False,
+    timings: Optional[Dict[str, float]] = None,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
     detection_ran: Optional[bool] = None,
@@ -1264,6 +1266,7 @@ def apply_diarization_to_result(
     # rediarize_only (v2.2) passes bypass_cache_read=True so a re-diarize is genuinely fresh even
     # when the diarizer config is unchanged — otherwise the audio-hash cache would return the old
     # diarization and the re-diarize would no-op. The fresh result is still cached below.
+    diarize_t0 = time.monotonic()
     if diarization is None and resolved_cache_dir and not bypass_cache_read:
         cache_path = diarization_cache_path(audio_path, cfg, resolved_cache_dir)
         diarization = load_cached_diarization(cache_path)
@@ -1283,6 +1286,8 @@ def apply_diarization_to_result(
                 diarization_cache_path(audio_path, cfg, resolved_cache_dir),
                 diarization,
             )
+    if timings is not None:
+        timings["diarize_s"] = time.monotonic() - diarize_t0
 
     if not diarization.segments:
         # No speaker turns (silent/music-only audio, or a pyannote no-op). Returning

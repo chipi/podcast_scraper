@@ -164,3 +164,32 @@ def test_naming_coverage_gauges_serve_the_batch_snapshot(tmp_path: Path, monkeyp
     assert sample.value == 221 and sample.labels == {"language": "en"}
     assert got["podcast_corpus_naming_episodes"][0].value == 2604
     assert got["podcast_corpus_naming_coverage_age_seconds"][0].value < 60
+
+
+def test_job_series_are_created_when_the_real_app_is_built(tmp_path: Path, monkeypatch) -> None:
+    """The series must exist after create_app, before any job — not appear at the first one."""
+    import podcast_scraper.server.pipeline_run_prometheus as prm
+
+    calls: list[bool] = []
+
+    def _install() -> bool:
+        calls.append(True)
+        return True
+
+    monkeypatch.setattr(prm, "install_job_metrics", _install)
+    _build(tmp_path, monkeypatch, jobs=[])
+    assert calls == [True]
+
+
+def test_job_series_not_created_when_metrics_disabled(tmp_path: Path, monkeypatch) -> None:
+    import podcast_scraper.server.pipeline_run_prometheus as prm
+
+    calls: list[bool] = []
+
+    def _install() -> bool:
+        calls.append(True)
+        return True
+
+    monkeypatch.setattr(prm, "install_job_metrics", _install)
+    _build(tmp_path, monkeypatch, metrics=False, jobs=[])
+    assert calls == []

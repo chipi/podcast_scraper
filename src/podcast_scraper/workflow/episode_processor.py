@@ -1045,6 +1045,21 @@ def _episode_naming_cost(pipeline_metrics: Any, job: Any) -> Optional[float]:
     return None if value is None else float(value)
 
 
+def _split_diarize_naming(
+    total_s: float, timings: Mapping[str, float]
+) -> Tuple[float, Optional[float]]:
+    """Split one apply_diarization_to_result call's time into (diarization, naming).
+
+    The call diarizes and then names the voices; it reports the first part as ``diarize_s``.
+    Without it (the call failed before diarizing), the whole time is diarization's and naming
+    has none.
+    """
+    diarize_s = timings.get("diarize_s")
+    if diarize_s is None:
+        return total_s, None
+    return diarize_s, max(0.0, total_s - diarize_s)
+
+
 def _write_processing_manifest(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -1054,6 +1069,9 @@ def _write_processing_manifest(
     asr_elapsed: Optional[float] = None,
     asr_call_metrics: Any = None,
     pipeline_metrics: Any = None,
+    diarization_elapsed: Optional[float] = None,
+    diarization_error: Optional[str] = None,
+    naming_elapsed: Optional[float] = None,
 ) -> None:
     """RFC-109 / ADR-132: write the per-episode processing manifest's ASR/diarization/naming blocks.
 
@@ -1200,9 +1218,27 @@ def _write_processing_manifest(
     # --- Diarization: speaker count + speech seconds, from the diarizer's own result ---
     num_spk = result.get("diarization_num_speakers")
     speech_s = result.get("diarization_speech_seconds")
-    if num_spk is not None or speech_s is not None:
+    if diarization_error and num_spk is None and speech_s is None:
+        # Attempted and raised: without a block the failure was only a missing event.
+        pm.update_stage(
+            effective_output_dir,
+            rel_transcript_path,
+            "diarization",
+            pm.stage_block(
+                ran=False,
+                method=getattr(cfg, "diarization_provider", None),
+                # No method_version: a reprocess selects on it, and a failed run is not done.
+                duration_s=diarization_elapsed,
+                error_class=diarization_error,
+            ),
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=run_id,
+        )
+    elif num_spk is not None or speech_s is not None:
         diar = pm.stage_block(
             ran=True,
+            duration_s=diarization_elapsed,
             method=getattr(cfg, "diarization_provider", None),
             # ADR-132 provenance: the ACTUAL served model (from the DiarizationResult), falling back
             # to the configured field for the provider — so the diar block records WHICH model, not
@@ -1264,6 +1300,7 @@ def _write_processing_manifest(
         naming = pm.stage_block(
             ran=True,
             method_version=pm.METHOD_VERSIONS["naming"],
+            duration_s=naming_elapsed,
             cost_usd=naming_cost,
             metrics={
                 "num_speakers": summary.get("num_speakers"),
@@ -1567,6 +1604,7 @@ def _write_turns_artifacts(
     from .turns_artifact import turns_manifest_metrics, write_turns_artifact
 
     language = transcription_language(cfg)
+    turns_t0 = time.monotonic()
     try:
         raw_outcome = write_turns_artifact(
             text, segments, rel_transcript_path, effective_output_dir, language=language
@@ -1603,6 +1641,7 @@ def _write_turns_artifacts(
         pm.stage_block(
             ran=True,
             method_version=pm.METHOD_VERSIONS["turns"],
+            duration_s=time.monotonic() - turns_t0,
             # Measured and genuinely free: pure Python, milliseconds per episode. Not ``None``,
             # which would mean nobody measured it.
             cost_usd=0.0,
@@ -3693,6 +3732,7 @@ def _relabel_existing_transcript(
             sibling_hosts,
             live_hosts,
         )
+    naming_t0 = time.monotonic()
     result = apply_diarization_to_result(
         result,
         "",
@@ -3712,6 +3752,7 @@ def _relabel_existing_transcript(
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
     )
+    naming_elapsed = time.monotonic() - naming_t0
     # AND THEY SURVIVE THE NEXT RELABEL TOO. The roster is handed a stripped
     # ``{start, end, text}`` view, so whatever it returns carries no ``stated_speaker`` — writing
     # that straight back would make the FIRST relabel keep the publisher's names and the SECOND
@@ -3746,7 +3787,9 @@ def _relabel_existing_transcript(
     # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
     # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
     # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
-    _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
+    _write_processing_manifest(
+        result, cfg, job, rel_path, effective_output_dir, naming_elapsed=naming_elapsed
+    )
     logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
 
@@ -4135,6 +4178,8 @@ def _rediarize_existing_transcript(
     media = _preprocess_audio_if_needed(job, cfg, audio_path, pipeline_metrics)
     # No precomputed diarization + bypass_cache_read -> apply_diarization diarizes the AUDIO fresh
     # with the profile's diarizer and aligns the new voices to result["segments"] (the ASR text).
+    dz_t0 = time.monotonic()
+    dz_timings: Dict[str, float] = {}
     result = apply_diarization_to_result(
         result,
         media,
@@ -4149,7 +4194,9 @@ def _rediarize_existing_transcript(
         bypass_cache_read=True,
         detection_report=_detection_report_of(job),
         speaker_renames=_operator_renames(job),
+        timings=dz_timings,
     )
+    dz_elapsed, naming_elapsed = _split_diarize_naming(time.monotonic() - dz_t0, dz_timings)
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
     )
@@ -4175,7 +4222,14 @@ def _rediarize_existing_transcript(
     # invisible in diarization_* metrics and the manifest keeps the old versions.
     _record_episode_diarization(pipeline_metrics, result)
     _write_processing_manifest(
-        result, cfg, job, rel_path, effective_output_dir, pipeline_metrics=pipeline_metrics
+        result,
+        cfg,
+        job,
+        rel_path,
+        effective_output_dir,
+        pipeline_metrics=pipeline_metrics,
+        diarization_elapsed=dz_elapsed,
+        naming_elapsed=naming_elapsed,
     )
     logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
@@ -5473,10 +5527,15 @@ def transcribe_media_to_text(
                 refused=True,
             )
             return False, None, bytes_downloaded
+        dz_elapsed: Optional[float] = None
+        dz_naming_elapsed: Optional[float] = None
+        dz_error: Optional[str] = None
         if cfg.diarize:
             from ..exceptions import ProviderDependencyError
             from ..providers.ml.diarization.pipeline import apply_diarization_to_result
 
+            dz_t0 = time.monotonic()
+            dz_timings: Dict[str, float] = {}
             try:
                 result = apply_diarization_to_result(
                     result,
@@ -5500,6 +5559,7 @@ def transcribe_media_to_text(
                         else None
                     ),
                     recover_silent_gaps=cfg.transcription_recover_silent_gaps,
+                    timings=dz_timings,
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
@@ -5515,6 +5575,10 @@ def transcribe_media_to_text(
                     format_exception_for_log(exc),
                 )
                 _capture_stage_exception(exc, stage="diarization")
+                dz_error = type(exc).__name__
+            dz_elapsed, dz_naming_elapsed = _split_diarize_naming(
+                time.monotonic() - dz_t0, dz_timings
+            )
             # ADR-131: speech-normalized quality gate — re-transcribe on the failover model if the
             # diarized transcript covers too little of the diarizer's SPEECH (music/ads excluded).
             # No-op unless configured + diarization produced a speech denominator.
@@ -5594,6 +5658,9 @@ def transcribe_media_to_text(
             asr_elapsed=tc_elapsed,
             asr_call_metrics=call_metrics,
             pipeline_metrics=pipeline_metrics,
+            diarization_elapsed=dz_elapsed,
+            diarization_error=dz_error,
+            naming_elapsed=dz_naming_elapsed,
         )
 
         return True, rel_path, bytes_downloaded

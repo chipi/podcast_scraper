@@ -321,9 +321,20 @@ letters, digits, `-`, `_`. Names must be unique within a corpus.
   Save.
 - **App shutdown**: scheduler stops cleanly via the same lifespan hook.
 
-Misfire grace is **1 hour**: a schedule whose trigger time was missed
-(host suspended / rebooting) will fire on wakeup if within 1 h of the
-nominal time, then skip silently if not.
+An optional `kind` per schedule picks what it runs: `pipeline` (the
+default, the same job as `POST /api/jobs`, enqueued with trigger `nightly`)
+or `enrichment` (the same job as `POST /api/jobs/enrichment`).
+
+A slot the scheduler never fired is reported, not skipped silently.
+APScheduler keeps no memory of slots that pass while the API is down, so
+the scheduler records each fire in `<corpus>/.viewer/scheduler_state.json`.
+On every start it compares that record with the cron and emits one
+`pipeline_run.skipped` event (fields `job`, `kind`, `slot_at`, `reason`,
+`detected_at`) for the latest slot that never ran, with reason
+`scheduler_not_running_at_slot`. A slot that is reached while the API is up
+but runs past APScheduler's 1-hour misfire grace is reported the same way,
+with reason `misfire`. Each slot is reported once. A schedule seen for the
+first time reports nothing older than that start.
 
 ### Inspecting state
 
