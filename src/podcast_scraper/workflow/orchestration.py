@@ -2005,11 +2005,10 @@ def _finalize_pipeline(
     from .cost_monitoring import maybe_emit_run_cost_sentry_alert
 
     maybe_emit_run_cost_sentry_alert(cfg, pipeline_metrics)
-    # RFC-088 chunk-9 follow-up: spawn the enrichment-layer pass as a
-    # detached background subprocess. Mode B — the pipeline doesn't wait
-    # for enrichment to finish, so its existing wall-clock is unaffected;
-    # the enrichment job tracks itself via the shared jobs registry +
-    # JSONL + run_summary. Gated on cfg.enrichment.enabled (default off).
+    # RFC-088 chunk-9 follow-up: enqueue the enrichment-layer pass as a QUEUED job in the
+    # shared jobs registry, which the API server promotes when a slot is free. The pipeline
+    # does not wait for it, so its wall-clock is unaffected; the job tracks itself via the
+    # registry, JSONL and run_summary. Gated on cfg.enrichment.enabled (default off).
     _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
     _build_audio_references(_corpus_finalize_dir, effective_output_dir)
     _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
@@ -2994,16 +2993,19 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     The pipeline executes the following stages:
 
-    1. Setup output directory (with optional run ID subdirectory)
-    2. Fetch and parse RSS feed
-    3. Detect speakers (if auto-detection enabled)
-    4. Process episodes concurrently:
-       - Download published transcripts
-       - Or queue media for Whisper transcription
-    5. Transcribe queued media files sequentially (if Whisper enabled)
-    6. Generate metadata documents (if enabled)
-    7. Generate episode summaries (if enabled)
-    8. Clean up temporary files
+    1. Set up the run directory, metrics, budgets and the run manifest
+    2. Fetch and parse the RSS feed and select the episodes
+    3. Detect hosts and guests (if auto-detection is enabled)
+    4. Process episodes, with three workers running at once:
+       - downloads: publisher transcripts, or media queued for transcription
+       - transcription (its own thread, a pool of ``transcription_parallelism``):
+         preprocessing, ASR, diarization and speaker naming, the transcript and its
+         sidecars (segments, turns, ad-free base)
+       - processing (its own thread, a pool of ``processing_parallelism``): metadata,
+         translation, summary, GI, KG, bridge and context digest
+    5. Summarize any episodes still without a summary (if enabled)
+    6. Finalize the run: run.json, index.json, metrics, the search index when
+       ``vector_search`` is on, and the enrichment job enqueue
 
     Args:
         cfg: Configuration object with all pipeline settings. See `Config` for available options.

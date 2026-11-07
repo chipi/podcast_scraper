@@ -14,8 +14,8 @@ Two sinks (``sink=``):
 
 - ``"log"`` — one JSON line to the ``podcast_scraper.events`` logger → process
   stdout. Use for events emitted where there is no persistent corpus to write to:
-  the ephemeral pipeline-runner containers (``llm_cost``, ``ml_inference``,
-  ``pipeline_stage``). A collection agent captures the container stdout.
+  the ephemeral pipeline-runner containers (``llm_cost``, ``pipeline_stage``,
+  ``run_timing``). A collection agent captures the container stdout.
 - ``"file"`` — append the line to a per-corpus JSONL file. Use for serve-side
   events tied to a corpus that must persist for volume roll-ups even with no agent
   attached (``search_query``, ``listen``, ``job``).

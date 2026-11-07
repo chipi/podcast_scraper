@@ -9,10 +9,11 @@ insertion points would mean two places for the decision to drift, and the drift 
 an episode translated on one path and not the other looks identical on disk until an English
 stage reads Spanish.
 
-WHAT THIS SLICE DOES AND DOES NOT DO. S2.2 is the STAGE SLOT: the decision, the manifest block,
-and the deadline accounting. It performs no translation — S2.3 brings the vLLM client and S2.4
-the artifacts. So a non-English episode with the flag on records ``pending`` here, which is the
-honest state: the pipeline knows it owes a translation and has not produced one.
+WHAT THIS STAGE DOES. The decision, the translation, the manifest block and the deadline
+accounting. A non-English episode that needs translating is ``pending`` after the decision;
+``_translate_episode`` then translates it through the configured provider and writes the
+artifacts, ending ``translated`` or ``failed``. An episode stays ``pending`` only when the
+translation cannot run here (no output directory or transcript path to work from).
 
 EVERY EPISODE GETS A LEDGER ENTRY. THERE IS ONE PIPELINE, NOT A PER-LANGUAGE ONE.
 
@@ -857,9 +858,8 @@ def _record(
                 ran=outcome.ran,
                 method_version=pm.METHOD_VERSIONS["translation"],
                 duration_s=outcome.duration_s,
-                # Local GPU, so a measured zero rather than an unmeasured None — and it stays
-                # honest for now because no translation is performed. S2.10 measures the real
-                # GPU cost and this becomes a real number.
+                # Local GPU, so a measured zero rather than an unmeasured None. The GPU time is
+                # not costed (S2.10 would make this a real number).
                 cost_usd=0.0,
                 metrics=outcome.to_metrics(),
             ),
