@@ -1,6 +1,6 @@
 # RFC-123: Speaker Turns as a First-Class Artifact
 
-- **Status**: Draft
+- **Status**: Completed — the `<stem>.turns.json` sidecar ships (method version `turns-1`, always produced after the transcript is saved)
 - **Authors**: Marko
 - **Stakeholders**: Pipeline (diarization, GI), search, player (segments contract), Positions (read-time CIL arc)
 - **Related PRDs**:

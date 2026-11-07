@@ -8,6 +8,12 @@
 - **Related ADRs**: [ADR-133](ADR-133-metadata-vs-manifest-source-of-truth.md) (metadata vs manifest
   SoT), [ADR-131](ADR-131-speech-normalized-coverage-gate.md) (the `.asr.json` seed)
 
+> **Note (current method versions).** The method versions in the examples below (`naming-3`,
+> `gi-2`, `kg-2`, `sum-mega-bundled-1`) are historical. The current versions, from
+> `METHOD_VERSIONS` in `workflow/processing_manifest.py`, are: `asr` `asr-gate-1`, `diarization`
+> `diar-1`, `naming` `naming-4`, `turns` `turns-1`, `translation` `translation-1`, `summary`
+> `summary-1`, `gi` `gi-1`, `kg` `kg-1`.
+
 ## Context & Problem Statement
 
 RFC-109 calls for a per-episode observability record that is complete, versioned, and queryable, and

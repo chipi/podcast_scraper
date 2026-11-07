@@ -224,11 +224,17 @@ The following architectural principles govern this system. For the full history 
 ## Pipeline and Workflow
 
 The pipeline processes podcast feeds through a sequence of stages: RSS
-acquisition, episode selection, transcript download (or Whisper transcription),
-optional metadata generation, optional summarization, optional GIL/KG
+acquisition, episode selection, transcript download (or ASR transcription),
+diarization and speaker naming, optional metadata generation, translation to English, optional summarization, optional GIL/KG
 extraction, and optional LanceDB vector indexing. Multi-feed corpora run the inner
 pipeline per feed with a single parent index pass. Append/resume mode skips
 already-processed episodes.
+
+Per feed, episodes flow through three threads joined by queues: the main thread
+detects speakers and downloads, the TranscriptionProcessor thread preprocesses
+audio and runs ASR, diarization and naming, and the ProcessingProcessor thread
+runs metadata, translation, summaries, GI and KG. After the episodes, the feed
+is finalized (index, metrics, search index, a queued enrichment job).
 
 For the **full stage-by-stage walkthrough**, pipeline flow diagram, module roles,
 multi-feed semantics, and behavioral details see the
@@ -487,7 +493,7 @@ The following diagram shows which functions call which in the pipeline entry poi
 - **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability. Retry counts and backoff factors are configurable via `Config` fields (`http_retry_total`, `http_backoff_factor`, `rss_retry_total`, `rss_backoff_factor`) with resilient defaults (8 retries / 1.0 s backoff for media; 10 retries / 2.0 s backoff for RSS). An additional application-level episode retry (`episode_retry_max`, default 1) re-runs the full episode download on transient network errors after urllib3 retries are exhausted. Model loading operations use `retry_with_exponential_backoff` for transient errors (network failures, timeouts). See [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience).
 - **Response-shape guardrails** (ADR-099 / ADR-100): A second layer of defense above transport-level resilience. `providers/guardrails/` runs content-aware sanity checks on every `200 OK` response from chat-completion providers (cloud + self-hosted) and from the self-hosted whisper / pyannote services. A response that fails the check (empty content, thinking-prose markers, `finish_reason=length`, mid-truncated JSON, single-speaker labels for multi-speaker audio) raises `GuardrailViolation`, which the `FallbackAwareSummarizationProvider` wrapper routes the same way it routes connection-level failures. Per-stage policy: summary / GI / KG / speaker fail-up; cleaning degrades gracefully to the original transcript. Violations emit a Prometheus counter (`inference_guardrail_violations_total{service, reason}`) for alerting. See [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md) (self-hosted), [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md) (cloud).
 - **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. Whisper remains sequential to avoid GPU/CPU thrashing and to keep the UX predictable.
-- **Deterministic filesystem layout**: Output folders follow `output/rss_<host>_<hash>` conventions. Optional `run_id` and Whisper suffixes create run-scoped subdirectories while `sanitize_filename` protects against filesystem hazards.
+- **Deterministic filesystem layout**: A run writes to `run_<suffix>/` (single feed) or `feeds/rss_<host>_<hash>/run_<suffix>/` (corpus layout), each with `transcripts/` and `metadata/`. Optional `run_id` and Whisper suffixes create run-scoped subdirectories while `sanitize_filename` protects against filesystem hazards.
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
 - **Pluggable progress/UI**: A narrow `ProgressFactory` abstraction lets embedding applications replace the default `tqdm` progress without touching business logic.
 - **Optional Whisper dependency**: Whisper is imported lazily and guarded so environments without GPU support or `openai-whisper` can still run transcript-only workloads.
@@ -951,7 +957,7 @@ flowchart TD
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing.
 - Transcript filenames follow `<####> - <episode_title>[ _<run_suffix>].<ext>` with extensions inferred from declared types, HTTP headers, or URL heuristics.
-- Whisper output names append the Whisper model/run identifier to differentiate multiple experimental runs inside the same base directory. Screenplay formatting uses detected speaker names when available.
+- Transcripts are written to `transcripts/` and metadata documents to `metadata/` inside the run directory; the run suffix distinguishes runs. Screenplay formatting uses detected speaker names when available.
 - Temporary media downloads land in `<output>/ .tmp_media/` and always get cleaned up (best effort) after transcription completes.
 - Episode metadata documents (per PRD-004/RFC-011)
   are generated when `generate_metadata` is enabled,
@@ -975,33 +981,27 @@ flowchart TD
 
 ### Filesystem Layout
 
+A single-feed run writes to `<output>/run_<suffix>/`. A multi-feed corpus (and a single feed run with the corpus layout) writes each feed to `<corpus>/feeds/rss_<host>_<hash>/run_<suffix>/`. Each run directory has a `transcripts/` and a `metadata/` subdirectory plus the run-level files. Corpus-level files sit at the corpus root.
+
 ```mermaid
 
 graph TD
-    Root[output/rss_hostname_hash/] --> RunDir{Run ID<br/>Specified?}
-    RunDir -->|Yes| RunSubdir[run_id/]
-    RunDir -->|No| BaseDir[Base Directory]
-    RunSubdir --> Episodes[Episode Files]
-    BaseDir --> Episodes
-    Episodes --> Transcript1["0001 - Episode Title.txt"]
-    Episodes --> Transcript2["0002 - Episode Title.txt"]
-    Episodes --> WhisperDir{Whisper<br/>Used?}
-    WhisperDir -->|Yes| WhisperSubdir[whisper_model_run/]
-    WhisperSubdir --> WhisperFiles["0001 - Episode Title_whisper_base.txt"]
-    Episodes --> Metadata{Metadata<br/>Enabled?}
-    Metadata -->|Yes| MetaFiles["0001 - Episode Title.json<br/>0001 - Episode Title.yaml"]
-    Episodes --> GIL{GIL<br/>Enabled?}
-    GIL -->|Yes| GIFile["gi.json<br/>Insights + Quotes + Edges"]
-    Episodes --> KGCheck{KG<br/>Enabled?}
-    KGCheck -->|Yes| KGFile["kg.json<br/>Topic Graph"]
-    Root --> TempDir[.tmp_media/]
-    TempDir --> TempFiles[Temporary Media Files<br/>Cleaned Up After Use]
+    Corpus[corpus root] --> Feeds["feeds/rss_host_hash/"]
+    Corpus --> CorpusFiles["corpus_manifest.json<br/>corpus_run_summary.json<br/>identity_ledger.json<br/>search/"]
+    Feeds --> ShowFiles["show.json<br/>show_events/"]
+    Feeds --> Run["run_suffix/"]
+    Run --> Transcripts["transcripts/<br/>base.txt, .segments.json, .asr.json<br/>.turns.json, .manifest.json<br/>.translation.json, .cleaned.txt"]
+    Run --> Metadata["metadata/<br/>base.metadata.json, .gi.json<br/>.kg.json, .bridge.json, .context.json"]
+    Run --> RunFiles["run_manifest.json, run.jsonl<br/>metrics.json, index.json, run.json"]
+    Run --> TempDir[".tmp_media/ (cleaned up after use)"]
 
-    style Root fill:#e1f5ff
-    style Episodes fill:#fff3cd
+    style Corpus fill:#e1f5ff
+    style Run fill:#fff3cd
     style TempDir fill:#f8d7da
     style Metadata fill:#d1ecf1
 ```
+
+See [Corpus Artifacts and Surfaces](CORPUS_ARTIFACTS_AND_SURFACES.md) for the full artifact list.
 
 - RSS and HTTP failures raise `ValueError` early with descriptive messages; CLI wraps these in exit codes for scripting.
 - Transcript/Media downloads log warnings rather than hard-fail the pipeline, allowing other episodes to proceed.

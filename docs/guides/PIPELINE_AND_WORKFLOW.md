@@ -6,22 +6,27 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML from **`--config`**, named preset from **`--profile`**, and feed lists from **`--feeds-spec`** / **`--rss-file`** / argv) into a validated `Config` object and applies global logging preferences. Human-oriented overview: [CLI.md — Quick Start](../api/CLI.md#quick-start).
 2. **Multi-feed outer loop (GitHub #440)**: When `Config.rss_urls` contains **two or more** feeds, `cli.main` and `service.run` iterate feeds sequentially: for each URL they derive a child `output_dir` under `<corpus_parent>/feeds/<stable_feed_id>/` and invoke the same inner pipeline with a single-feed sub-config. Failures are logged per feed; the overall process exit code reflects whether any feed failed.
-3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, **episode selection** (`prepare_episodes_from_feed`: `episode_order`, optional `episode_since` / `episode_until`, `episode_offset`, `max_episodes`; see [CONFIGURATION.md — Episode selection](../api/CONFIGURATION.md#episode-selection-github-521)), episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup. When **`Config.monitor`** is true (**`--monitor`**), a child process samples the pipeline PID and renders a live **RSS/CPU/stage** view (or plain **`.monitor.log`** when stderr is not a TTY) while updating **`.pipeline_status.json`**; the parent may start a stdin listener for optional **py-spy** (**`f`**) when **`.[monitor]`** is installed (see [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md), RFC-065).
-4. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
-5. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy via **`speaker_detectors/`** (#269). Manual speaker names are only used as fallback when detection fails. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
-6. **Audio Preprocessing** (RFC-040, GitHub #561): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to the configured rate (default 16 kHz), silence removed via VAD, loudness normalized, then encoded to **MP3** (`libmp3lame`). Default MP3 bitrate is **auto**: **64 kbps** for local transcription (for example Whisper) and **48 kbps** for **OpenAI** / **Gemini** to reduce payload size. If a cached or freshly encoded file is still over the shared post-preprocess cap for those providers, the pipeline may run additional FFmpeg re-encodes at lower standard bitrates until under a target size or the minimum bitrate. The preprocessing cache key includes the MP3 bitrate so different rungs do not collide. Preprocessing runs in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio.
-7. **Transcription**: When Whisper fallback is enabled, `workflow.episode_processor.download_media_for_transcription` downloads media to a temp area and `workflow.episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. **API providers** may route oversized audio through **`AudioChunker`** (#286). After local Whisper, optional **pyannote diarization** runs when `diarize=true` (default for `whisper` / `tailnet_dgx_whisper`). Detected speaker names are integrated into screenplay formatting (neural or gap-based fallback). See [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).
-8. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-9. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`; the **hybrid_ml** provider (MAP with LongT5 + REDUCE via Ollama, llama.cpp, or transformers; **layered cleaning** with `transcript_cleaning_strategy` + internal preprocessing profiles per [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419)); or any of 7 LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
-10. **Run Tracking** (Issue #379): Run manifests capture system state at pipeline start. Per-episode stage timings track processing duration. Run summaries combine manifest and metrics. Episode index files list all processed episodes with status.
-11. **Progress/UI**: All long-running operations report progress through the pluggable factory in `utils.progress`, defaulting to `rich` in the CLI.
-12. **GIL Extraction** (PRD-017): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../architecture/ARCHITECTURE.md) for details.
-13. **KG Extraction** (RFC-055): When enabled, Knowledge Graph extraction produces structured topic graphs from transcripts and summaries, writing `*.kg.json` per episode. See [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) for details.
+3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, **episode selection** (`prepare_episodes_from_feed`: `episode_order`, optional `episode_since` / `episode_until`, `episode_offset`, `max_episodes`; see [CONFIGURATION.md — Episode selection](../api/CONFIGURATION.md#episode-selection-github-521)), episode materialization, transcript download, optional transcription, diarization and speaker naming, optional metadata generation, translation and summarization, and cleanup. When **`Config.monitor`** is true (**`--monitor`**), a child process samples the pipeline PID and renders a live **RSS/CPU/stage** view (or plain **`.monitor.log`** when stderr is not a TTY) while updating **`.pipeline_status.json`**; the parent may start a stdin listener for optional **py-spy** (**`f`**) when **`.[monitor]`** is installed (see [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md), RFC-065).
+4. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing publisher transcript or enqueues the media for transcription.
+5. **Speaker detection** (RFC-010): When automatic speaker detection is enabled (`auto_speakers`), host and guest names are detected from the feed and episode metadata before the episode is processed, by NER (spaCy) or one of the LLM speaker-detection providers via **`speaker_detectors/`**. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
+6. **Audio Preprocessing** (RFC-040, GitHub #561): When preprocessing is enabled (`preprocessing_enabled`), audio files are optimized before transcription: converted to mono, resampled to the configured rate (default 16 kHz), silence removed via VAD, loudness normalized, then encoded to **MP3** (`libmp3lame`). Default MP3 bitrate is **auto**: **64 kbps** for local transcription (for example Whisper) and **48 kbps** for **OpenAI** / **Gemini** to reduce payload size. If a cached or freshly encoded file is still over the shared post-preprocess cap for those providers, the pipeline may run additional FFmpeg re-encodes at lower standard bitrates until under a target size or the minimum bitrate. The preprocessing cache key includes the MP3 bitrate so different rungs do not collide. Preprocessing runs on the **TranscriptionProcessor** thread (`_preprocess_audio_if_needed` in `workflow.episode_processor`), just before the provider receives the audio.
+7. **Transcription (ASR)**: When transcription of missing transcripts is enabled (`transcribe_missing`), the media is downloaded to a temp area and transcribed by the configured provider (`whisper`, `openai`, `gemini`, `mistral`, `deepgram`, `groq`, `tailnet_dgx_whisper`, `moss`; an optional fallback chain via `transcription_fallback_provider(s)`). **API providers** may route oversized audio through **`AudioChunker`** (#286). A transcript in the wrong language is refused. See [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).
+8. **Diarization and speaker naming**: When `diarize=true` (default), speaker turns are computed (`local` pyannote, `tailnet_dgx`, `gemini`, `deepgram` or `moss`) and the speakers are named. `deepgram` and `moss` return a native speaker roster. The result is formatted as a screenplay (`screenplay`) and saved as `<base>.txt` together with `.asr.json`, `.segments.json` and speaker diagnostics.
+9. **Transcript sidecars**: Next to the transcript the pipeline writes an ad-free copy (`save_adfree_transcript`, default on; English only), an anonymous render, and the speaker-turns artifact `.turns.json` ([RFC-123](../rfc/RFC-123-speaker-turns-artifact.md)). The per-episode processing manifest (`.manifest.json`) records the `asr`, `diarization` and `naming` blocks.
+10. **Metadata generation** (PRD-004/RFC-011): When enabled (`generate_metadata`, default on), per-episode metadata documents are generated on the **ProcessingProcessor** thread, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format. `metadata.json` is written last, after the stages below.
+11. **Translation** (RFC-124): When the transcript language differs from the target language and `translate_api_base` and `translate_model` are set, the translation stage produces the English transcript (provider `gemma_translate`). English is the canonical transcript; the source-language files move to `<base>.<lang>.*`. See [Multilingual Arc](../architecture/MULTILINGUAL_ARC.md).
+12. **Summarization** (PRD-005/RFC-012): When enabled (`generate_summaries`, default off), episode transcripts are cleaned (`transcript_cleaning_strategy`) and summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`; the **hybrid_ml** provider (MAP with LongT5 + REDUCE via Ollama, llama.cpp, or transformers; **layered cleaning** with `transcript_cleaning_strategy` + internal preprocessing profiles per [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419)); or one of the LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama and others) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
+13. **Run Tracking** (Issue #379): Run manifests capture system state at pipeline start. Per-episode stage timings track processing duration. Run summaries combine manifest and metrics. Episode index files list all processed episodes with status.
+14. **Progress/UI**: All long-running operations report progress through the pluggable factory in `utils.progress`, defaulting to `rich` in the CLI.
+15. **GIL Extraction** (PRD-017): When enabled (`generate_gi`, default off), the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../architecture/ARCHITECTURE.md) for details.
+16. **KG Extraction** (RFC-055): When enabled (`generate_kg`, default off), Knowledge Graph extraction produces structured topic graphs from transcripts and summaries, writing `*.kg.json` per episode. See [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) for details.
+17. **Bridge and context digest**: When GI or KG ran, a `.bridge.json` joins their identifiers; a `.context.json` context digest is built last.
+18. **After the episodes (feed finalize)**: Per feed, the run writes `index.json`, `show.json`, `metrics.json` and `run.json`; with `vector_search` it updates the search index; and, when `enrichment.enabled`, it enqueues a corpus **enrichment job** (a queued job the API promotes, not a detached subprocess). A multi-feed batch then writes `corpus_manifest.json` and `corpus_run_summary.json`, enqueues enrichment at the corpus root, and, with `vector_search`, indexes the corpus in a subprocess. The identity ledger is refreshed after the queued enrichment job, not inside `run_pipeline`.
 
 ## Pipeline Flow Diagram
 
 **The per-episode work is not linear.** The pipeline runs three concurrent
-threads with queue handoffs so audio work (Whisper / diarization / preprocessing)
+threads with queue handoffs so audio work (preprocessing / ASR / diarization)
 overlaps with LLM work (metadata / summary / GI / KG). The linear flow below is
 a per-episode logical order; below it is the concurrency swim-lane showing how
 those steps distribute across threads at runtime.
@@ -36,38 +41,43 @@ flowchart TD
     Setup --> FetchRSS[Fetch & Parse RSS Feed]
     FetchRSS --> ExtractEpisodes[Select items then extract episode metadata]
     ExtractEpisodes --> DetectSpeakers{Speaker Detection Enabled?}
-    DetectSpeakers -->|Yes| ExtractHosts[Extract Host Names from RSS]
-    ExtractHosts --> ExtractGuests[Extract Guest Names via NER]
+    DetectSpeakers -->|Yes| ExtractHosts[Detect hosts and guests]
     DetectSpeakers -->|No| ProcessEpisodes[Process Episodes]
-    ExtractGuests --> ProcessEpisodes
+    ExtractHosts --> ProcessEpisodes
     ProcessEpisodes --> CheckTranscript{Transcript Available?}
-    CheckTranscript -->|Yes| DownloadTranscript[Download Transcript]
-    CheckTranscript -->|No| QueueWhisper[Queue for Whisper]
-    DownloadTranscript --> SaveTranscript[Save Transcript File]
-    QueueWhisper --> DownloadMedia[Download Media File]
+    CheckTranscript -->|Yes| DownloadTranscript[Download Publisher Transcript]
+    CheckTranscript -->|No| QueueASR[Queue for ASR]
+    QueueASR --> DownloadMedia[Download Media File]
     DownloadMedia --> Preprocess{Preprocessing Enabled?}
-    Preprocess -->|Yes| PreprocessAudio[Preprocess Audio: Mono, 16kHz, VAD, Normalize, Opus]
+    Preprocess -->|Yes| PreprocessAudio[Preprocess Audio: Mono, 16kHz, VAD, Normalize, MP3]
     Preprocess -->|No| Transcribe
-    PreprocessAudio --> Transcribe[Whisper Transcription]
-    Transcribe --> FormatScreenplay[Format with Speaker Names]
-    FormatScreenplay --> SaveTranscript
+    PreprocessAudio --> Transcribe[ASR Transcription]
+    Transcribe --> Diarize{Diarization Enabled?}
+    Diarize -->|Yes| DiarizeName[Diarize + Name Speakers]
+    Diarize -->|No| SaveTranscript
+    DiarizeName --> FormatScreenplay[Format Screenplay]
+    FormatScreenplay --> SaveTranscript[Save Transcript + Sidecars + Turns]
+    DownloadTranscript --> SaveTranscript
     SaveTranscript --> GenerateMetadata{Metadata Generation?}
     GenerateMetadata -->|Yes| CreateMetadata[Generate Metadata JSON/YAML]
     GenerateMetadata -->|No| Cleanup
-    CreateMetadata --> GenerateSummary{Summarization Enabled?}
-    GenerateSummary -->|Yes| Summarize[Generate Summary]
+    CreateMetadata --> TranslateCheck{Translation Needed?}
+    TranslateCheck -->|Yes| Translate[Translate to English]
+    TranslateCheck -->|No| GenerateSummary
+    Translate --> GenerateSummary{Summarization Enabled?}
+    GenerateSummary -->|Yes| Summarize[Clean + Summarize]
     GenerateSummary -->|No| GILCheck
-    Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
-    AddSummaryToMetadata --> GILCheck{GIL Extraction?}
+    Summarize --> GILCheck{GIL Extraction?}
     GILCheck -->|Yes| ExtractGIL[Extract Insights + Quotes]
     GILCheck -->|No| KGCheck
     ExtractGIL --> GroundInsights[Ground Insights with Quotes]
     GroundInsights --> WriteGI[Write gi.json]
     WriteGI --> KGCheck{KG Extraction?}
     KGCheck -->|Yes| ExtractKG[Extract Topic Graph]
-    KGCheck -->|No| Cleanup
+    KGCheck -->|No| Bridge
     ExtractKG --> WriteKG[Write kg.json]
-    WriteKG --> Cleanup[Cleanup Temp Files]
+    WriteKG --> Bridge[Bridge + metadata.json + Context Digest]
+    Bridge --> Cleanup[Cleanup Temp Files]
     Cleanup --> End([Complete])
 
     style Start fill:#e1f5ff
@@ -85,31 +95,36 @@ flowchart TD
 flowchart LR
     subgraph M[Main thread]
         direction TB
-        M1[Download Media] --> M2[Preprocess Audio]
+        M1[Speaker detection + download] --> M2[Publisher transcript or queue media]
     end
     subgraph T[TranscriptionProcessor thread]
         direction TB
-        T1[Whisper transcription] --> T2[Format screenplay + save transcript]
+        T1[Preprocess audio] --> T2[ASR + diarization + naming]
+        T2 --> T3[Screenplay, transcript + sidecars]
     end
     subgraph P[ProcessingProcessor thread]
         direction TB
-        P1[Metadata generation] --> P2[Summary]
-        P2 --> P3[GI extraction + grounding]
-        P3 --> P4[KG extraction]
+        P1[Metadata generation] --> P2[Translation]
+        P2 --> P3[Cleaning + summary]
+        P3 --> P4[GI extraction + grounding]
+        P4 --> P5[KG extraction]
+        P5 --> P6[Bridge + metadata.json + context digest]
     end
 
     M2 -.transcription_jobs queue.-> T1
-    T2 -.processing_jobs queue.-> P1
+    T3 -.processing_jobs queue.-> P1
 ```
 
-- **Main thread** drives downloads + preprocessing. Backpressure via
+- **Main thread** (`process_episodes`, sequential or a `workers` pool) drives
+  speaker detection and downloads. Backpressure via
   ``cfg.transcription_queue_size`` on the transcription queue.
-- **TranscriptionProcessor thread** consumes the transcription queue at
+- **TranscriptionProcessor thread** (started when `transcribe_missing` is on
+  and it is not a dry run) consumes the transcription queue at
   ``cfg.transcription_parallelism`` (default **1**; API providers can safely
-  bump).
-- **ProcessingProcessor thread** consumes the processing queue at
-  ``cfg.processing_parallelism`` (default **2**). This is where all LLM-side
-  work lands per episode.
+  bump). Audio preprocessing, ASR, diarization and naming run here.
+- **ProcessingProcessor thread** (started when `generate_metadata` is on)
+  consumes the processing queue at ``cfg.processing_parallelism`` (default
+  **2**). This is where all LLM-side work lands per episode.
 - **Queue handoff** — the moment a transcript is saved to disk, the
   transcription thread queues a `ProcessingJob` (`stages/transcription.py`
   ProcessingJob enqueue). The processing thread picks it up while the next

@@ -1128,9 +1128,11 @@ follow with `make upgrade-corpus CORPUS_DIR=...` before pointing anything at the
 ### Pipeline parallelism (audio ↔ LLM overlap) — where to look
 
 Within one `run_pipeline(feed)` the pipeline runs three concurrent threads
-with queue handoffs (`workflow/orchestration.py:1974-2036`): main
-(downloads + preprocessing) → TranscriptionProcessor (Whisper /
-transcript IO) → ProcessingProcessor (metadata + summary + GI + KG). Audio
+with queue handoffs (`_process_episodes_with_threading` in
+`workflow/orchestration.py`, the thread setup near lines 2510-2564): main
+(speaker detection + downloads) → TranscriptionProcessor (audio
+preprocessing, ASR, diarization, naming, transcript IO) → ProcessingProcessor
+(metadata + translation + summary + GI + KG). Audio
 and LLM overlap by design.
 
 - Two knobs: `cfg.transcription_parallelism` (default 1; local Whisper
@@ -1138,7 +1140,9 @@ and LLM overlap by design.
 - Overlap serializes only under `should_serialize_mps` (Apple MPS shared
   by Whisper + local LLM).
 - Cross-feed pipelining is currently absent — feeds run sequentially in
-  `corpus_operations.py`. Separate RFC when we get there.
+  the multi-feed loops in `cli.main` (`cli.py`) and `service._run_multi_feed`
+  (`service.py`); `corpus_operations.py` only finalizes the batch. Separate RFC
+  when we get there.
 
 Every run reports the six #1180 parallelism metrics in the summary JSON
 (`processing_overlap_ratio`, `processing_thread_busy_ratio`,

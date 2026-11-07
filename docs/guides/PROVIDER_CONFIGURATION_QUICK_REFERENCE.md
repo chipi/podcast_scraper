@@ -17,14 +17,14 @@ The podcast scraper uses a **Unified Provider** pattern where a single class imp
 6. **`MistralProvider` (API)**: Handles Mistral-based summarization only (EU data residency).
 7. **`DeepSeekProvider` (API)**: Handles DeepSeek-based summarization only (ultra low-cost).
 8. **`GrokProvider` (API)**: Handles Grok-based summarization only (real-time information access).
-9. **`OllamaProvider` (Local)**: Handles Ollama-based transcription, speaker detection, and summarization (self-hosted LLMs).
+9. **`OllamaProvider` (Local)**: Handles Ollama-based speaker detection and summarization (self-hosted LLMs). Ollama is not a transcription provider.
 
 ### Transcription Providers
 
 - **`whisper`** (default): Local Whisper models (via `MLProvider`)
 - **`openai`**: OpenAI Whisper API (via `OpenAIProvider`)
 - **`gemini`**: Google Gemini API (via `GeminiProvider`)
-- **`ollama`**: Local Ollama LLMs (via `OllamaProvider`)
+- **`mistral`**, **`deepgram`**, **`groq`**, **`tailnet_dgx_whisper`**, **`moss`**: further transcription providers (see [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md#transcription-providers)). `ollama` is not a transcription provider.
 
 ### Speaker Detection Providers
 
@@ -191,7 +191,7 @@ output_dir: ./transcripts
 
 # Provider configuration
 
-transcription_provider: whisper  # or "openai", "gemini", "ollama"
+transcription_provider: whisper  # or "openai", "gemini", "mistral", "deepgram", "groq", "tailnet_dgx_whisper", "moss"
 speaker_detector_provider: spacy  # or "ollama"
 summary_provider: transformers  # or "hybrid_ml", "openai", "gemini", "anthropic", "mistral", "deepseek", "grok", "ollama"
 
@@ -529,7 +529,7 @@ openai_api_key: sk-your-key-here
 ### Pattern 4: All Ollama (Local Self-Hosted)
 
 ```yaml
-transcription_provider: ollama
+transcription_provider: whisper  # Ollama does not transcribe; use a transcription provider
 speaker_detector_provider: ollama
 summary_provider: ollama
 ollama_api_base: http://localhost:11434/v1  # Default, can be omitted
@@ -580,7 +580,7 @@ Invalid provider types will raise `ValueError`:
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
-    transcription_provider="invalid",  # Not "whisper", "openai", or "gemini"
+    transcription_provider="invalid",  # Not a valid transcription provider
 )
 
 # Valid
