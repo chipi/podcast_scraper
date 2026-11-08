@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-import multiprocessing
+import fcntl
 import os
+import signal
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -12,14 +15,6 @@ import pytest
 from podcast_scraper.server import leader
 
 pytestmark = [pytest.mark.unit]
-
-
-def _hold(path: str, ready: "multiprocessing.synchronize.Event") -> None:  # pragma: no cover
-    lead = leader.Leadership(Path(path), lambda: None)
-    lead.start()
-    assert lead.is_leader
-    ready.set()
-    time.sleep(60)
 
 
 def test_one_worker_leads_and_the_next_follows(tmp_path: Path) -> None:
@@ -40,28 +35,60 @@ def test_one_worker_leads_and_the_next_follows(tmp_path: Path) -> None:
     second.stop()
 
 
+def _held_by_another(path: Path) -> bool:
+    with open(path, "ab") as fd:
+        try:
+            fcntl.flock(fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(fd.fileno(), fcntl.LOCK_UN)
+        return False
+
+
+#: The leader that dies: a Python child holding the lock with leader.Leadership, then waiting.
+_HOLD = (
+    "import sys, time\n"
+    "from pathlib import Path\n"
+    "from podcast_scraper.server import leader\n"
+    "lead = leader.Leadership(Path(sys.argv[1]), lambda: None)\n"
+    "lead.start()\n"
+    "assert lead.is_leader\n"
+    "time.sleep(30)\n"
+)
+
+
+def _without_coverage(env: dict[str, str]) -> dict[str, str]:
+    """The child's environment without pytest-cov's subprocess hooks. Under them the child leaves a
+    ``.coverage.*`` data file, and CI's ``coverage combine`` then takes that file for the unit job's
+    whole coverage (47% instead of 83% on PR #2444's first runs)."""
+    return {k: v for k, v in env.items() if not k.startswith(("COV_CORE_", "COVERAGE_"))}
+
+
 def test_the_lock_is_released_when_the_leaders_process_dies(tmp_path: Path) -> None:
     lock = tmp_path / "lead.lock"
-    ctx = multiprocessing.get_context("spawn")
-    ready = ctx.Event()
-    proc = ctx.Process(target=_hold, args=(str(lock), ready))
-    proc.start()
+    proc = subprocess.Popen(
+        [sys.executable, "-c", _HOLD, str(lock)], env=_without_coverage(dict(os.environ))
+    )
     try:
-        assert ready.wait(30)
+        deadline = time.monotonic() + 30
+        while not _held_by_another(lock) and time.monotonic() < deadline:
+            assert proc.poll() is None, "the leader child exited before taking the lock"
+            time.sleep(0.05)
+        assert _held_by_another(lock)
         follower = leader.Leadership(lock, lambda: None, retry_seconds=0.05)
         follower.start()
         assert not follower.is_leader
-        assert proc.pid is not None
-        os.kill(proc.pid, 9)
-        proc.join(10)
+        os.kill(proc.pid, signal.SIGKILL)
+        proc.wait(10)
         deadline = time.monotonic() + 3
         while not follower.is_leader and time.monotonic() < deadline:
             time.sleep(0.02)
         assert follower.is_leader
         follower.stop()
     finally:
-        if proc.is_alive():
+        if proc.poll() is None:
             proc.kill()
+            proc.wait(10)
 
 
 def test_a_leader_whose_work_fails_gives_the_lock_back(tmp_path: Path) -> None:
