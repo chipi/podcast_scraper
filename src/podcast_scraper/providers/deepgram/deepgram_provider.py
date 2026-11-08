@@ -214,9 +214,10 @@ class DeepgramTranscriptionProvider:
         ``speaker``. Map those to detected names (first-appearance order; falls
         back to ``Speaker N``) and reuse the shared screenplay formatter. Returns
         ``None`` when there is nothing diarized to format so the caller falls back
-        to the plain transcript.
+        to the plain transcript. The rendering is the speaker stage's: without one installed
+        there is no screenplay (operator decision 8.1: public writes the plain transcript).
         """
-        from ..ml.diarization.formatting import format_diarized_screenplay_from_segments
+        from ... import stage_hooks
 
         names = list(speaker_names or [])
         speaker_to_name: Dict[Any, str] = {}
@@ -240,7 +241,7 @@ class DeepgramTranscriptionProvider:
 
         if not labelled:
             return None
-        return format_diarized_screenplay_from_segments(labelled) or None
+        return stage_hooks.render_speakers(labelled) or None
 
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text from ``transcribe_with_segments``."""

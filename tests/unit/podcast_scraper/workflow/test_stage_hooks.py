@@ -723,3 +723,12 @@ def test_the_built_in_detector_is_the_speaker_detector_factory() -> None:
     ):
         assert stage_hooks.create_speaker_detector("cfg") == "detector"
     make.assert_called_once_with("cfg")
+
+
+def test_without_a_speaker_stage_deepgram_writes_no_screenplay() -> None:
+    from podcast_scraper.providers.deepgram.deepgram_provider import DeepgramTranscriptionProvider
+
+    segments = [{"start": 0.0, "end": 1.0, "text": "hi", "speaker": 0}]
+    provider = DeepgramTranscriptionProvider.__new__(DeepgramTranscriptionProvider)
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert provider.format_screenplay_from_segments(segments, None, ["Maya"]) is None
