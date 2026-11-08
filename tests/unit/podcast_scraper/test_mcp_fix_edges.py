@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 
@@ -122,7 +123,8 @@ def test_explore_keeps_the_files_speakers_without_a_ledger(tmp_path, monkeypatch
     monkeypatch.setattr(D, "person_display", boom_display)
     with caplog.at_level(logging.WARNING, logger=E.logger.name):
         assert E._person_id_map(tmp_path) == {}
-        assert E._ledger_speakers(tmp_path, ["unchanged"], {}) == ["unchanged"]
+        unchanged: Any = ["unchanged"]  # any list: the fallback returns it untouched
+        assert E._ledger_speakers(tmp_path, unchanged, {}) is unchanged
     assert "identity map unavailable" in caplog.text
     assert "ledger spellings unavailable" in caplog.text
 
@@ -131,7 +133,7 @@ def test_explore_changes_nothing_with_nothing_to_apply(tmp_path, monkeypatch) ->
     from podcast_scraper.gi import explore as E
 
     monkeypatch.setattr(D, "person_display", lambda root: D.PersonDisplay({}))
-    sentinel = [object()]
+    sentinel: Any = [object()]
     assert E._ledger_speakers(tmp_path, sentinel, {}) is sentinel
     assert E._speaker_group(None, {"a": "b"}) == set()
     assert E._speaker_group("person:z", {"person:a": "person:b"}) == set()
