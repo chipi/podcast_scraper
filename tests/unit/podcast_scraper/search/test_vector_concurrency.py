@@ -1,8 +1,8 @@
-"""Vector searches in one process take turns (``PODCAST_SEARCH_VECTOR_CONCURRENCY``, default 1).
+"""Vector searches per process, capped by ``PODCAST_SEARCH_VECTOR_CONCURRENCY`` (off by default).
 
-A vector query over rows no ANN index covers scans their embeddings whole: +1.8 GB per query on a
-prod-sized segment table, +5.9 GB for four at once (2026-11-08), past the API's memory cap. These
-pin how many run at once for each setting.
+A vector query over rows no ANN index covers scans their embeddings whole, with memory growing with
+the rows; the cap bounds how many such scans run at once. These pin how many run at once for each
+setting.
 """
 
 from __future__ import annotations
@@ -48,8 +48,12 @@ def _most_at_once(monkeypatch: pytest.MonkeyPatch, setting: str | None, callers:
     return most[0]
 
 
-def test_one_at_a_time_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert _most_at_once(monkeypatch, None) == 1
+def test_no_cap_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _most_at_once(monkeypatch, None) == 6
+
+
+def test_one_is_one_at_a_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _most_at_once(monkeypatch, "1") == 1
 
 
 def test_the_setting_is_the_limit(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -61,7 +65,9 @@ def test_zero_turns_the_cap_off(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_keyword_search_is_not_capped(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv(lancedb_backend.VECTOR_CONCURRENCY_ENV, raising=False)
+    monkeypatch.setenv(
+        lancedb_backend.VECTOR_CONCURRENCY_ENV, "1"
+    )  # cap on: bm25 still bypasses it
     calls: list[str] = []
     monkeypatch.setattr(
         LanceDBBackend, "_run", lambda self, q, *, query_type, score_key: calls.append(query_type)

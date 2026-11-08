@@ -2,10 +2,8 @@
 it exists and how many rows it does not cover.
 
 A dense table with no vector index, or with many rows outside it, is searched by a full scan of
-its embeddings: on a prod-sized segment table one such query took +1.8 GB for half a second and
-four at once +5.9 GB (2026-11-08), past the API's memory cap. The OOM kills of 2026-10-26/27 were
-sub-second jumps of that size. These gauges make that state visible before it kills a process;
-the O11Y ``database`` surface reads them.
+its embeddings, slower and with memory growing with the rows. These gauges show that state
+(prod, 2026-11-08: every table indexed, 0 unindexed rows); the O11Y ``database`` surface reads them.
 
 Measured at scrape time, at most once a minute (opening the tables and reading their index
 statistics is cheap, but a scrape every few seconds need not repeat it). Never raises (ADR-120).

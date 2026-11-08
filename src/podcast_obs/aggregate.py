@@ -178,8 +178,7 @@ def _database_queries(window: str) -> dict[str, str]:
         "locks": f"sum by (datname, mode) (pg_locks_count{{{_PG}}}) > 0",
         "database_size_bytes": f"pg_database_size_bytes{{{_PG}}}",
         # The search index (LanceDB), from the API's own gauges (search/index_metrics.py): a dense
-        # table with no vector index, or rows outside it, is scanned whole by every vector query
-        # (+1.8 GB per query on a prod-sized segment table, 2026-11-08).
+        # table with no vector index, or rows outside it, is scanned whole by every vector query.
         "search_index_rows": f"max by (table) (podcast_search_index_rows{{{_API}}})",
         "search_index_missing": (
             f"max by (table, index) (podcast_search_index_present{{{_API}}}) == 0"

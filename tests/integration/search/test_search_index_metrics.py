@@ -1,7 +1,7 @@
 """The search index's coverage, as the backend reads it and as ``/metrics`` exports it.
 
-A dense table with no vector index, or rows outside it, is scanned whole by every vector query
-(+1.8 GB per query on a prod-sized segment table, 2026-11-08). These pin that the gauges say so.
+A dense table with no vector index, or rows outside it, is scanned whole by every vector query.
+These pin that the gauges say so.
 """
 
 from __future__ import annotations

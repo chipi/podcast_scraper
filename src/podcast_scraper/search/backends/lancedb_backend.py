@@ -181,7 +181,9 @@ def _exact_vectors() -> bool:
 
 
 VECTOR_CONCURRENCY_ENV = "PODCAST_SEARCH_VECTOR_CONCURRENCY"
-_DEFAULT_VECTOR_CONCURRENCY = 1
+#: Off by default: prod's tables are indexed (2026-11-08, 0 unindexed rows), and the cap only
+#: earns its queueing when a large table loses its index.
+_DEFAULT_VECTOR_CONCURRENCY = 0
 _vector_slots: Optional[threading.BoundedSemaphore] = None
 _vector_slots_size: Optional[int] = None
 _vector_slots_lock = threading.Lock()
@@ -216,11 +218,10 @@ def _observe_vector_wait(seconds: float) -> None:
 def _vector_slot() -> "Iterator[None]":
     """Hold one of the process's vector-search slots for the duration of a search.
 
-    A vector query over rows no ANN index covers scans their embeddings whole: on a prod-sized
-    segment table (2.25 M rows x 384) one query took +1.8 GB for half a second and four at once
-    +5.9 GB (2026-11-08). The API's OOM kills of 2026-10-26/27 were sub-second jumps of that size
-    during app-launch bursts of ``/related`` requests. One slot keeps the worst case at one scan;
-    with the index present a query holds its slot for well under a second. ``0`` or less: no cap.
+    A vector query over rows no ANN index covers scans their embeddings whole, and that scan's
+    memory grows with the rows: on a local 2.25 M-row x 384 table one query took +1.8 GB, four at
+    once +4.8 to +5.9 GB; with the IVF index, +62 to +127 MB (2026-11-08). A cap of N keeps the
+    worst case at N scans at once. ``0`` or less (the default): no cap.
     """
     global _vector_slots, _vector_slots_size
     size = _vector_concurrency()
@@ -434,9 +435,8 @@ class LanceDBBackend:
                 table.create_index(vector_column_name="embedding", replace=True)
             except Exception as exc:  # noqa: BLE001 - the build must not fail on it, but say so
                 # Above the floor a missing ANN index is not harmless: every vector query then
-                # scans the whole embedding column. On a prod-sized segment table (2.25 M rows x
-                # 384) one such query took +1.8 GB for half a second and four at once +5.9 GB
-                # (2026-11-08), past the API's memory cap.
+                # scans the whole embedding column, slower and with memory growing with the rows
+                # (+1.8 GB per query on a local 2.25 M-row table, 2026-11-08).
                 logger.warning(
                     "LanceDB vector index NOT built for the %s table (%d rows): every vector "
                     "query on it is a full scan until the next build succeeds: %s",
@@ -451,8 +451,7 @@ class LanceDBBackend:
 
         Rows a vector index does not cover are searched by a full scan of their embeddings, and a
         dense table above the ANN floor with no vector index is scanned whole on every vector
-        query (2026-11-08: +1.8 GB per query on a prod-sized segment table). Unreadable tables
-        are left out.
+        query. Unreadable tables are left out.
         """
         out: List[Dict[str, Any]] = []
         for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):

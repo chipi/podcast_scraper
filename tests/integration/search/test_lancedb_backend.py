@@ -142,8 +142,7 @@ def test_exact_vectors_builds_no_ann_index(tmp_path, monkeypatch):
 
 def test_a_failed_ann_build_is_logged_not_swallowed(tmp_path, monkeypatch, caplog):
     """Above the floor a missing ANN index makes every vector query a full scan of the embedding
-    column (+1.8 GB per query on a prod-sized table, 2026-11-08); the build still succeeds, but
-    the failure is said."""
+    column; the build still succeeds, but the failure is said."""
     monkeypatch.delenv("PODCAST_SEARCH_EXACT_VECTORS", raising=False)
     b = _segments_above_ann_floor(tmp_path)
     real_open = b._open_if_exists
