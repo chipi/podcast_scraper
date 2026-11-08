@@ -30,6 +30,7 @@ import pytest
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
     from podcast_scraper import config
     from podcast_scraper.rss import parser as rss_parser
+    from podcast_scraper.speaker_stage import record
     from podcast_scraper.workflow import metadata_generation as metadata
 
 # Import from parent conftest explicitly to avoid conflicts
@@ -3163,7 +3164,7 @@ class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
 
     def test_a_raw_diarization_label_never_becomes_a_person(self):
         # Taken literally, an abstained host seat publishes "SPEAKER_00" as a host Person node.
-        hosts, guests = metadata._speaker_lists_for_graph(
+        hosts, guests = record._speaker_lists_for_graph(
             [self._sp("SPEAKER_00", "host"), self._sp("SPEAKER_01", "host")],
             "A Show",
         )
@@ -3175,7 +3176,7 @@ class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
         # graph as `host` when the roster abstained on which voice was which. Under the one-record
         # rule a person is cast only if a voice was matched to them; the abstained hosts are kept in
         # the speaker record as `placed: false`, where no surface reads them as speakers.
-        hosts, guests = metadata._speaker_lists_for_graph(
+        hosts, guests = record._speaker_lists_for_graph(
             [
                 self._sp("SPEAKER_00", "host"),
                 self._sp("SPEAKER_01", "host"),

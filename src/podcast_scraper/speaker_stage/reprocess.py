@@ -94,7 +94,7 @@ def _rewrite_speaker_record_in_place(
     import json as _json
 
     from podcast_scraper.identity.roster_provenance import roster_source
-    from podcast_scraper.workflow.metadata_generation import _build_speaker_record
+    from podcast_scraper.speaker_stage.record import _build_speaker_record
 
     stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
     md_dir = txt_path.parent.parent / filesystem.METADATA_SUBDIR

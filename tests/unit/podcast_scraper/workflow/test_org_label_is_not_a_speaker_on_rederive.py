@@ -20,7 +20,7 @@ from podcast_scraper.speaker_detectors.entity_kind_votes import (
     votes_for_output_dir,
     votes_from_kg_payloads,
 )
-from podcast_scraper.workflow.metadata_generation import _build_speaker_record
+from podcast_scraper.speaker_stage.record import _build_speaker_record
 
 pytestmark = [pytest.mark.unit]
 

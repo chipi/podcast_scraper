@@ -23,8 +23,8 @@ from podcast_scraper.identity.roster_provenance import (
     roster_provenance,
     roster_source,
 )
+from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 from podcast_scraper.workflow.metadata_generation import (
-    _speaker_lists_for_graph,
     ContentMetadata,
     EpisodeMetadata,
     EpisodeMetadataDocument,

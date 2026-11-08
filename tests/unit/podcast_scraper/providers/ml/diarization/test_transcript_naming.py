@@ -191,7 +191,7 @@ def test_an_answer_for_a_voice_not_asked_is_kept_under_its_own_key() -> None:
 
 def test_a_name_the_model_confirms_keeps_the_ladders_source() -> None:
     # The record keeps a host named like the show only when the voice introduced itself
-    # (metadata_generation._build_speaker_record): confirming the name must not erase that.
+    # (speaker_stage.record._build_speaker_record): confirming the name must not erase that.
     roster = SpeakerRoster(
         by_voice={
             "SPEAKER_00": SpeakerRole(

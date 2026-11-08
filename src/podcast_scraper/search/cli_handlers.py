@@ -1694,7 +1694,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     from podcast_scraper.gi.speakers import add_spoken_by_edges
     from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
     from podcast_scraper.search.indexer import _gi_path, _load_metadata_file, _transcript_path
-    from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
+    from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 
     # #1076 chunk 4-A — operator-controlled flag. ``--use-ner`` on the
     # CLI flips the typed-MENTIONS post-pass to also run a spaCy PERSON

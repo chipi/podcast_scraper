@@ -43,7 +43,7 @@ class TestTheShowNameGuardNeedsATitle:
     def test_the_answer_changes_when_the_title_is_supplied(self) -> None:
         from types import SimpleNamespace
 
-        from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
+        from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 
         roster = [SimpleNamespace(name="Africa Tech Summit", role="host")]
         without, _ = _speaker_lists_for_graph(roster)
@@ -158,7 +158,7 @@ class TestTheseTestsWouldHaveCaughtTheRealDefects:
         from types import SimpleNamespace
 
         from podcast_scraper.speaker_detectors import hosts
-        from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
+        from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 
         # Simulate the #2064 regression: the predicate exists but never fires.
         monkeypatch.setattr(hosts, "names_the_show", lambda *a, **k: False)

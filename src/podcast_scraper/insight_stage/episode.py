@@ -11,11 +11,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from podcast_scraper import config_constants
 from podcast_scraper.exceptions import GILGroundingUnsatisfiedError
+from podcast_scraper.speaker_stage.record import _self_introduced_names
 from podcast_scraper.workflow.metadata_generation import (
     _capture_stage_exception,
     _determine_gi_path,
     _normalize_whitespace,
-    _self_introduced_names,
     GroundedInsightsMetadata,
 )
 

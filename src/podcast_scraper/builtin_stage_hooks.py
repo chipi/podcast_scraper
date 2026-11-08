@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .languages import transcription_language
-from .stage_hooks import PipelineHooks
+from .stage_hooks import PipelineHooks, RosterSourceValue
 
 logger = logging.getLogger(__name__)
 
@@ -485,6 +485,40 @@ def _gi_kg_passes(**context: Any) -> Tuple[Any, ...]:
     return passes.run_gi_kg_passes(**context)
 
 
+def _speaker_record(
+    output_dir: Optional[str],
+    transcript_file_path: Optional[str],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    feed_title: Optional[str],
+    language: Optional[str] = None,
+) -> Tuple[List[Any], Optional[int]]:
+    from podcast_scraper.speaker_stage import record
+
+    return record._build_speaker_record(
+        output_dir,
+        transcript_file_path,
+        detected_hosts,
+        detected_guests,
+        feed_title,
+        language=language,
+    )
+
+
+def _speaker_lists_for_graph(
+    speakers: Any, feed_title: Optional[str] = None, language: Optional[str] = None
+) -> Tuple[List[str], List[str]]:
+    from podcast_scraper.speaker_stage import record
+
+    return record._speaker_lists_for_graph(speakers, feed_title=feed_title, language=language)
+
+
+def _roster_source(speakers: Any, *, diarized: bool) -> Optional[RosterSourceValue]:
+    from podcast_scraper.identity.roster_provenance import roster_source
+
+    return roster_source(speakers, diarized=diarized)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -512,6 +546,9 @@ BUILTIN = PipelineHooks(
     carry_speaker_identity=_carry_speaker_identity,
     episode_insights=_episode_insights,
     gi_kg_passes=_gi_kg_passes,
+    speaker_record=_speaker_record,
+    speaker_lists_for_graph=_speaker_lists_for_graph,
+    roster_source=_roster_source,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

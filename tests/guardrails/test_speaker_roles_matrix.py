@@ -43,7 +43,7 @@ import pytest
 
 from podcast_scraper.kg.entity_clusters import _are_xep_variants
 from podcast_scraper.kg.speaker_coherence import same_person
-from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
+from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 
 pytestmark = pytest.mark.unit
 

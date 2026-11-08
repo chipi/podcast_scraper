@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from podcast_scraper.workflow.metadata_generation import _unplaced_speakers
+from podcast_scraper.speaker_stage.record import _unplaced_speakers
 
 pytestmark = pytest.mark.unit
 

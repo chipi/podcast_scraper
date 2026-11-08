@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper.gi.pipeline import _resolve_quote_speaker
-from podcast_scraper.workflow.metadata_generation import (
+from podcast_scraper.speaker_stage.record import (
     _build_speaker_record,
     _self_introduced_names,
     _speaker_lists_for_graph,

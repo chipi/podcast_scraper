@@ -14,7 +14,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -113,6 +125,18 @@ EpisodeInsights = Callable[..., Tuple[Any, ...]]
 #: alignment), then the bridge and the context digest. One owner; without one, ``None``: the
 #: payloads are kept as they are and no bridge is written.
 GiKgPasses = Callable[..., Tuple[Any, ...]]
+#: ``(output_dir, transcript_file_path, detected_hosts, detected_guests, feed_title, language) ->
+#: (speakers, num_speakers)``: the episode's speaker record (``content.speakers``). One owner;
+#: without one the record is empty.
+SpeakerRecord = Callable[..., Tuple[List[Any], Optional[int]]]
+#: ``(speakers, feed_title, language) -> (hosts, guests)``: the people a voice was matched to, for
+#: the graph. One owner; without one, none.
+SpeakerListsForGraph = Callable[..., Tuple[List[str], List[str]]]
+#: Where a speaker record came from: resolved from the audio, or the pre-diarization guess.
+RosterSourceValue = Literal["diarized", "hint"]
+#: ``(speakers, *, diarized) -> RosterSourceValue | None``: where the record came from. One owner;
+#: without one, ``None`` (no roster to claim an origin for).
+RosterSourceHook = Callable[..., Optional[RosterSourceValue]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -161,6 +185,9 @@ class PipelineHooks:
     carry_speaker_identity: Optional[CarrySpeakerIdentity] = None
     episode_insights: Optional[EpisodeInsights] = None
     gi_kg_passes: Optional[GiKgPasses] = None
+    speaker_record: Optional[SpeakerRecord] = None
+    speaker_lists_for_graph: Optional[SpeakerListsForGraph] = None
+    roster_source: Optional[RosterSourceHook] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -459,6 +486,43 @@ def gi_kg_passes(**context: Any) -> Optional[Tuple[Any, ...]]:
     return None
 
 
+def speaker_record(
+    output_dir: Optional[str],
+    transcript_file_path: Optional[str],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    feed_title: Optional[str],
+    language: Optional[str] = None,
+) -> Tuple[List[Any], Optional[int]]:
+    for hooks in _all():
+        if hooks.speaker_record is not None:
+            return hooks.speaker_record(
+                output_dir,
+                transcript_file_path,
+                detected_hosts,
+                detected_guests,
+                feed_title,
+                language=language,
+            )
+    return [], None
+
+
+def speaker_lists_for_graph(
+    speakers: Any, feed_title: Optional[str] = None, language: Optional[str] = None
+) -> Tuple[List[str], List[str]]:
+    for hooks in _all():
+        if hooks.speaker_lists_for_graph is not None:
+            return hooks.speaker_lists_for_graph(speakers, feed_title=feed_title, language=language)
+    return [], []
+
+
+def roster_source(speakers: Any, *, diarized: bool) -> Optional[RosterSourceValue]:
+    for hooks in _all():
+        if hooks.roster_source is not None:
+            return hooks.roster_source(speakers, diarized=diarized)
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -488,9 +552,13 @@ __all__ = [
     "PersonVoiceLabel",
     "PipelineHooks",
     "RenderSpeakers",
+    "RosterSourceHook",
+    "RosterSourceValue",
     "SamePerson",
     "Screenplay",
     "SpeakerTurns",
+    "SpeakerListsForGraph",
+    "SpeakerRecord",
     "SpeakerReprocess",
     "SpeakersAfterAsr",
     "SplitPersonList",
@@ -515,12 +583,15 @@ __all__ = [
     "native_roster",
     "person_voice_label",
     "render_speakers",
+    "roster_source",
     "run_completed",
     "run_finalized",
     "run_started",
     "person_matcher",
     "same_person",
     "screenplay",
+    "speaker_lists_for_graph",
+    "speaker_record",
     "speaker_reprocess",
     "speaker_turns",
     "speakers_after_asr",

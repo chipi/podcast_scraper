@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from podcast_scraper.builders import context_digest_builder as digest
 from podcast_scraper.kg import speaker_coherence
 from podcast_scraper.search.cli_handlers import _speaker_infos
+from podcast_scraper.speaker_stage import record
 from podcast_scraper.upgrade.migrations import m0009_backfill_speaker_roles as m0009
 from podcast_scraper.workflow import metadata_generation as mg
 
@@ -52,7 +53,7 @@ def _episode(
 
 def _record(tmp: Path, hosts=None, guests=None, feed_title="A Show", **kw) -> List[mg.SpeakerInfo]:
     out = _episode(tmp, **kw)
-    speakers, _n = mg._build_speaker_record(out, REL, hosts, guests, feed_title)
+    speakers, _n = record._build_speaker_record(out, REL, hosts, guests, feed_title)
     return speakers
 
 
@@ -270,17 +271,17 @@ def _ns(entries):
 
 class TestTheGraphIsCastOnlyFromPlacedVoices:
     def test_an_unplaced_person_is_never_a_host_or_guest(self) -> None:
-        hosts, guests = mg._speaker_lists_for_graph(_ns(RECORD), "The Daily")
+        hosts, guests = record._speaker_lists_for_graph(_ns(RECORD), "The Daily")
         assert hosts == ["Michael Barbaro"]
         assert guests == []
 
     def test_a_record_with_nobody_placed_never_falls_back_to_the_guess(self) -> None:
         only_named = [e for e in RECORD if e["placed"] is False]
-        hosts, guests = mg._speaker_lists_for_graph(_ns(only_named), "The Daily")
+        hosts, guests = record._speaker_lists_for_graph(_ns(only_named), "The Daily")
         assert (hosts, guests) == ([], [])
 
     def test_a_pre_record_artifact_keeps_its_old_behaviour(self) -> None:
-        hosts, guests = mg._speaker_lists_for_graph(_ns(LEGACY), "The Daily")
+        hosts, guests = record._speaker_lists_for_graph(_ns(LEGACY), "The Daily")
         assert (hosts, guests) == (["Michael Barbaro"], ["Matina Stevis-Gridneff"])
 
 
@@ -290,7 +291,7 @@ class TestEnrichEdgesKeepsTheFlag:
         assert [i.placed for i in infos] == [True, False, False, None]
 
     def test_and_so_enrich_edges_casts_only_placed_voices(self) -> None:
-        hosts, guests = mg._speaker_lists_for_graph(_speaker_infos(RECORD), "The Daily")
+        hosts, guests = record._speaker_lists_for_graph(_speaker_infos(RECORD), "The Daily")
         assert (hosts, guests) == (["Michael Barbaro"], [])
 
 

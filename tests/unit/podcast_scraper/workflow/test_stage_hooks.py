@@ -601,3 +601,45 @@ def test_metadata_generation_imports_no_gi_or_identity_merge_code() -> None:
         or m.startswith(("gi.", "podcast_scraper.gi."))
         or m.endswith(("intra_episode_merge", "ner_postpass"))
     }
+
+
+def test_without_a_speaker_stage_the_record_is_empty_and_claims_no_origin() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.speaker_record("/o", "t.txt", ["Host"], ["Guest"], "Show") == ([], None)
+        assert stage_hooks.speaker_lists_for_graph([object()], "Show", "en") == ([], [])
+        assert stage_hooks.roster_source([object()], diarized=True) is None
+
+
+def test_the_built_in_speaker_record_is_todays_code() -> None:
+    with (
+        patch(
+            "podcast_scraper.speaker_stage.record._build_speaker_record", return_value=(["s"], 2)
+        ) as build,
+        patch(
+            "podcast_scraper.speaker_stage.record._speaker_lists_for_graph",
+            return_value=(["h"], ["g"]),
+        ) as lists,
+        patch(
+            "podcast_scraper.identity.roster_provenance.roster_source", return_value="diarized"
+        ) as source,
+        use_extensions([]),
+    ):
+        assert stage_hooks.speaker_record("/o", "t", ["H"], ["G"], "S", language="es") == (["s"], 2)
+        assert stage_hooks.speaker_lists_for_graph(["sp"], "S", "es") == (["h"], ["g"])
+        assert stage_hooks.roster_source(["sp"], diarized=True) == "diarized"
+    build.assert_called_once_with("/o", "t", ["H"], ["G"], "S", language="es")
+    lists.assert_called_once_with(["sp"], feed_title="S", language="es")
+    source.assert_called_once_with(["sp"], diarized=True)
+
+
+def test_metadata_generation_imports_no_speaker_code() -> None:
+    src = (Path(stage_hooks.__file__).parent / "workflow" / "metadata_generation.py").read_text(
+        encoding="utf-8"
+    )
+    modules = {(n.module or "") for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom)}
+    assert not {
+        m
+        for m in modules
+        for s in ("speaker_detectors", "diarization.roster", "ladder_rescues", "roster_provenance")
+        if s in m
+    }

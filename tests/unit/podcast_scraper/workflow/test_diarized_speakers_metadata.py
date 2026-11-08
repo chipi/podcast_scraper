@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.workflow.metadata_generation import (
-    _build_speakers_from_diarized_segments,
-)
+from podcast_scraper.speaker_stage.record import _build_speakers_from_diarized_segments
 
 pytestmark = pytest.mark.unit
 
