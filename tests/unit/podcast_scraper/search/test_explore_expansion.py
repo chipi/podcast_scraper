@@ -6,7 +6,7 @@ import json
 import logging
 from pathlib import Path
 
-from podcast_scraper.search.cli_handlers import (
+from podcast_scraper.insight_stage.cluster_cli import (
     run_cluster_browse_cli,
     run_topic_insights_cli,
 )

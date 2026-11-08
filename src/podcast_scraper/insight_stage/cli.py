@@ -26,15 +26,15 @@ def _run_gi(args: argparse.Namespace, log: Optional[logging.Logger] = None) -> i
     if sub == "explore":
         return _run_gi_explore(args, logger=logger)
     if sub == "clusters":
-        from podcast_scraper.search.cli_handlers import run_cluster_browse_cli
+        from podcast_scraper.insight_stage.cluster_cli import run_cluster_browse_cli
 
         return run_cluster_browse_cli(args, logger)
     if sub == "explore-quotes":
-        from podcast_scraper.search.cli_handlers import run_explore_quotes_cli
+        from podcast_scraper.insight_stage.cluster_cli import run_explore_quotes_cli
 
         return run_explore_quotes_cli(args, logger)
     if sub == "topic-insights":
-        from podcast_scraper.search.cli_handlers import run_topic_insights_cli
+        from podcast_scraper.insight_stage.cluster_cli import run_topic_insights_cli
 
         return run_topic_insights_cli(args, logger)
     if sub == "query":
@@ -328,7 +328,7 @@ def _run_gi_show_insight(args: argparse.Namespace, logger: logging.Logger) -> in
 
 def _sort_by_evidence_density(insights: list, out_path: Path) -> list:
     """Re-sort insights by evidence density (cluster_size × quote_count)."""
-    from podcast_scraper.search.insight_cluster_context import load_insight_clusters
+    from podcast_scraper.insight_stage.insight_cluster_context import load_insight_clusters
 
     ic_index = load_insight_clusters(out_path / "search" / "insight_clusters.json")
 
@@ -413,7 +413,7 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     expand_clusters = getattr(args, "expand_clusters", False)
     cluster_lookup: dict = {}
     if expand_clusters:
-        from podcast_scraper.search.insight_cluster_context import (
+        from podcast_scraper.insight_stage.insight_cluster_context import (
             expand_with_cluster_context,
             load_insight_clusters,
         )
@@ -483,7 +483,9 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
                 )
             # Show cluster context if expanded
             if expand_clusters and ins.insight_id in cluster_lookup:
-                from podcast_scraper.search.insight_cluster_context import format_cluster_context
+                from podcast_scraper.insight_stage.insight_cluster_context import (
+                    format_cluster_context,
+                )
 
                 ctx = format_cluster_context({"cluster": cluster_lookup[ins.insight_id]})
                 if ctx:

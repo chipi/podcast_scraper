@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from podcast_scraper.search.insight_cluster_context import (
+from podcast_scraper.insight_stage.insight_cluster_context import (
     expand_with_cluster_context,
     format_cluster_context,
     load_insight_clusters,

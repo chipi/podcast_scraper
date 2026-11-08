@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from podcast_scraper.search.insight_clusters import (
+from podcast_scraper.insight_stage.insight_clusters import (
     build_insight_clusters_payload,
     collect_insight_rows_from_corpus,
     INSIGHT_CLUSTERS_SCHEMA_VERSION,

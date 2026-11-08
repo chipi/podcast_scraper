@@ -3936,7 +3936,7 @@ class Config(BaseModel):
         alias="insight_cluster_threshold",
         description=(
             "Minimum mean cosine similarity for merging insight clusters in "
-            "``search/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
+            "``insight_stage/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
             "default; conceptually independent and may be tuned separately when "
             "insight-side autoresearch motivates it."
         ),

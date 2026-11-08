@@ -3231,12 +3231,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
             parsed: argparse.Namespace = extension_command.parse(list(argv[1:]))
             return parsed
 
-    if argv and len(argv) > 0 and argv[0] == "insight-clusters":
-        from .search.cli_handlers import parse_insight_clusters_argv
-
-        ic_argv = list(argv[1:]) if len(argv) > 1 else []
-        return parse_insight_clusters_argv(ic_argv)
-
     if argv and len(argv) > 0 and argv[0] == "corpus-cost":
         # Pre-dispatch for the `corpus-cost` subcommand (#650). Re-aggregates
         # per-stage costs from a corpus's run_*/metrics.json files and either
@@ -4476,11 +4470,6 @@ def _main(  # noqa: C901 - main function handles multiple command paths
         extension_command = cli_command(args.command)
         if extension_command is not None:
             return extension_command.run(args, log)
-
-    if hasattr(args, "command") and args.command == "insight-clusters":
-        from .search.cli_handlers import run_insight_clusters_cli
-
-        return run_insight_clusters_cli(args, log)
 
     if hasattr(args, "command") and args.command == "corpus-cost":
         return _run_corpus_cost_cli(args, log)

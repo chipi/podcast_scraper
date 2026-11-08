@@ -71,6 +71,18 @@ def _run_cluster_corpus_topics(args: Any, log: Any) -> int:
     return topic_clustering_cli.run_cluster_corpus_topics_cli(args, log)
 
 
+def _parse_insight_clusters(argv: Any) -> Any:
+    from podcast_scraper.insight_stage import cluster_cli
+
+    return cluster_cli.parse_insight_clusters_argv(list(argv))
+
+
+def _run_insight_clusters(args: Any, log: Any) -> int:
+    from podcast_scraper.insight_stage import cluster_cli
+
+    return cluster_cli.run_insight_clusters_cli(args, log)
+
+
 def _refresh_ledger_after_batch(corpus_parent: Any, cfg: Any, log: Any) -> None:
     from podcast_scraper.identity.refresh_guard import refresh_ledger_after_batch
 
@@ -88,6 +100,7 @@ CLI_COMMANDS: Dict[str, CliCommand] = {
     "gi-repair": CliCommand(parse=_parse_gi_repair, run=_run_gi_repair),
     "identity-ledger": CliCommand(parse=_parse_identity_ledger, run=_run_identity_ledger),
     "enrich-edges": CliCommand(parse=_parse_enrich_edges, run=_run_enrich_edges),
+    "insight-clusters": CliCommand(parse=_parse_insight_clusters, run=_run_insight_clusters),
     "cluster-corpus-topics": CliCommand(
         parse=_parse_cluster_corpus_topics, run=_run_cluster_corpus_topics
     ),

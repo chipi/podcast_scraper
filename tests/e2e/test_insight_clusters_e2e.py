@@ -24,7 +24,7 @@ except ImportError:
 if not _has_st:
     pytest.skip("sentence-transformers not available", allow_module_level=True)
 
-from podcast_scraper.search.insight_clusters import (
+from podcast_scraper.insight_stage.insight_clusters import (
     build_insight_clusters_for_corpus,
     build_insight_clusters_payload,
 )
@@ -265,7 +265,7 @@ def test_build_insight_clusters_end_to_end(tmp_path: Path) -> None:
 
 def test_cluster_context_expansion_with_cli_artifacts(tmp_path: Path) -> None:
     """Cluster context expansion works with real clustering output."""
-    from podcast_scraper.search.insight_cluster_context import (
+    from podcast_scraper.insight_stage.insight_cluster_context import (
         expand_with_cluster_context,
         load_insight_clusters,
     )
@@ -313,7 +313,7 @@ def test_cluster_browse_on_real_clusters(tmp_path: Path, capsys) -> None:
     """Build real clusters, then browse them via CLI handler."""
     import logging
 
-    from podcast_scraper.search.cli_handlers import run_cluster_browse_cli
+    from podcast_scraper.insight_stage.cluster_cli import run_cluster_browse_cli
 
     _write_gi_artifact(
         tmp_path, "ep1", [{"id": "ins1", "text": "Index funds beat active managers"}]
@@ -336,7 +336,7 @@ def test_topic_insights_on_real_data(tmp_path: Path, capsys) -> None:
     """Build clusters with ABOUT edges, query by topic via CLI handler."""
     import logging
 
-    from podcast_scraper.search.cli_handlers import run_topic_insights_cli
+    from podcast_scraper.insight_stage.cluster_cli import run_topic_insights_cli
 
     _write_gi_artifact(
         tmp_path,
