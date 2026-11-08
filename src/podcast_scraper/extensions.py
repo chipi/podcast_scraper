@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from podcast_scraper.db.inventory import Claim
     from podcast_scraper.search.groupings import TopicGroupings
     from podcast_scraper.server.app_user_store import User
+    from podcast_scraper.workflow.stage_hooks import PipelineHooks
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,9 @@ class Extension:
     #: with at least ``version`` and ``git_sha`` and whatever refs it was built from. Cheap and
     #: free of I/O beyond a small file; a raising hook is reported as an error, never propagated.
     version_info: Callable[[], Mapping[str, Any]] | None = None
+    #: The pipeline stages the extension owns, on the run's and the batch's stage hooks
+    #: (``podcast_scraper.workflow.stage_hooks``).
+    pipeline_hooks: PipelineHooks | None = None
 
 
 _override: list[Extension] | None = None

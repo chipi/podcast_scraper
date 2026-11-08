@@ -42,7 +42,7 @@ from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
 )
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
-from . import apply_overrides
+from . import apply_overrides, stage_hooks
 from .episode_processor import (
     _unsupported_language_skip_reason,
     process_episode_download as _process_episode_download_original,
@@ -1988,9 +1988,7 @@ def _finalize_pipeline(
                 threshold=getattr(cfg, "topic_cluster_threshold", None),
                 delta=_corpus_delta,
             )
-            from podcast_scraper.providers.ml.diarization.ad_signatures import write_for_corpus
-
-            write_for_corpus(Path(_corpus_finalize_dir))
+            stage_hooks.corpus_derived(Path(_corpus_finalize_dir))
         if _corpus_delta is not None:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 
@@ -2027,23 +2025,11 @@ def _finalize_pipeline(
     # child leaves it to finalize_multi_feed_batch, which enqueues once at the corpus root.
     if not _batch_child:
         _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
-    _build_audio_references(_corpus_finalize_dir, effective_output_dir)
+    stage_hooks.run_finalized(_corpus_finalize_dir, effective_output_dir)
     _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
-
-
-def _build_audio_references(corpus_root: str, run_dir: str) -> None:
-    """Each new episode's audio reference, from the audio it was just transcribed from (RFC-129,
-    #2359). Before eviction: that is the last moment the exact audio is on local disk. Never
-    fatal: a run without numpy or ffmpeg simply has no references."""
-    try:
-        from ..audio_sync.references import write_for_run
-
-        write_for_run(corpus_root, run_dir)
-    except Exception:  # pragma: no cover - a finalize step must never break a finished run
-        logger.warning("audio references: end-of-run pass failed (non-fatal)", exc_info=True)
 
 
 def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_dir: str) -> None:
@@ -3176,9 +3162,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         )
 
     try:
-        from ..gi.deps import validate_gil_grounding_dependencies
-
-        validate_gil_grounding_dependencies(cfg)
+        stage_hooks.run_started(cfg)
 
         # Initialize JSONL emitter if enabled
         jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)

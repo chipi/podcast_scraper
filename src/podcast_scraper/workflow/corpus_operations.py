@@ -13,6 +13,7 @@ from podcast_scraper import __version__
 from podcast_scraper.corpus_version import build_produced_by
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.audio_payload_limits import is_provider_audio_payload_limit_error
+from podcast_scraper.workflow import stage_hooks
 
 if TYPE_CHECKING:
     from podcast_scraper import config
@@ -617,11 +618,7 @@ def finalize_multi_feed_batch(
     if not feed_results:
         return summary_doc
 
-    # The served corpus's naming coverage, once per batch, for the API's /metrics (#2304 S8).
-    # Absolute, not a diff: an episode no code version names was invisible to every other check.
-    from podcast_scraper.quality.naming_coverage import measure_and_record
-
-    measure_and_record(Path(corpus_parent))
+    stage_hooks.batch_finalized(Path(corpus_parent))
 
     # Enqueue the corpus-level enrichment follow-up against the CORPUS ROOT (#1811 E4).
     #
@@ -644,11 +641,9 @@ def finalize_multi_feed_batch(
 
     _maybe_spawn_enrichment_after_pipeline(template_cfg, corpus_parent)
 
-    # Cross-show ad signatures (ad_signatures.py): read segments, not the LanceDB index, so built
-    # before the vector_search guard. Never raises; a missing or stale file makes the rule abstain.
-    from podcast_scraper.providers.ml.diarization.ad_signatures import write_for_corpus
-
-    write_for_corpus(Path(corpus_parent))
+    # Corpus-wide derivations read segments, not the LanceDB index, so they run before the
+    # vector_search guard.
+    stage_hooks.corpus_derived(Path(corpus_parent))
     if template_cfg.vector_search is not True:
         return summary_doc
 
