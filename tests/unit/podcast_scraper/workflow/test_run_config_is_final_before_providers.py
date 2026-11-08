@@ -123,9 +123,10 @@ class TestTheGuardStillReadsTheCapturedConfig:
     """
 
     def test_ml_provider_resolves_the_s2_14_language_from_self_cfg(self) -> None:
-        from podcast_scraper.providers.ml import ml_provider
+        from podcast_scraper.providers.ml.ml_provider import MLProvider
 
-        src = Path(inspect.getsourcefile(ml_provider) or "").read_text(encoding="utf-8")
+        # The method's own source, wherever it lives (S1 moved it to ml_provider_gi_naming).
+        src = inspect.getsource(MLProvider.detect_speakers)
         assert "text_language=transcription_language(self.cfg)" in src, (
             "ml_provider no longer feeds the S2.14 guard from its STORED cfg. If the language is "
             "now threaded in per call, the capture hazard is gone and this module should be "
