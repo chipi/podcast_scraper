@@ -455,6 +455,18 @@ def _render_speakers(segments: List[Dict[str, Any]]) -> Optional[str]:
     return format_diarized_screenplay_from_segments(segments)
 
 
+def _person_voice_label(label: str) -> bool:
+    from podcast_scraper.providers.ml.diarization.roster import _is_person_voice_label
+
+    return _is_person_voice_label(label)
+
+
+def _native_roster(result: Dict[str, Any], cfg: Any, **context: Any) -> Dict[str, Any]:
+    from podcast_scraper.speaker_stage import native
+
+    return native._roster_native_segments(result, cfg, **context)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -477,6 +489,8 @@ BUILTIN = PipelineHooks(
     speakers_after_asr=_speakers_after_asr,
     anon_transcript=_anon_transcript,
     render_speakers=_render_speakers,
+    person_voice_label=_person_voice_label,
+    native_roster=_native_roster,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

@@ -35,6 +35,7 @@ import pytest
 
 from podcast_scraper import config as config_module
 from podcast_scraper.models.entities import Episode
+from podcast_scraper.speaker_stage import native
 from podcast_scraper.transcript_formats import parse_webvtt
 from podcast_scraper.workflow import episode_processor as epx
 
@@ -85,7 +86,7 @@ def _episode() -> Any:
 
 def _roster(vtt: str, *, feed_hosts: Optional[List[str]] = None) -> Tuple[dict, List[dict]]:
     plain, segments = parse_webvtt(vtt)
-    out = epx._roster_native_segments(
+    out = native._roster_native_segments(
         {"text": plain, "segments": segments},
         config_module.Config(),
         idx=1,
@@ -681,7 +682,7 @@ def _spy_detection_ran(monkeypatch) -> dict:
         seen.update(kwargs)
         return result
 
-    monkeypatch.setattr(epx, "_roster_native_segments", _fake)
+    monkeypatch.setattr(native, "_roster_native_segments", _fake)
     return seen
 
 

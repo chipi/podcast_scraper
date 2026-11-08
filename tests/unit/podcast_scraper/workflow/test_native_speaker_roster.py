@@ -12,8 +12,8 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.speaker_stage.native import _apply_native_speaker_roster
 from podcast_scraper.workflow.episode_processor import (
-    _apply_native_speaker_roster,
     _segments_carry_native_speakers,
 )
 

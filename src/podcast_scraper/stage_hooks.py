@@ -94,6 +94,12 @@ AnonTranscript = Callable[[List[Dict[str, Any]], str, str], Optional[str]]
 #: ``(segments) -> text | None``: roster-labelled segments rendered as speaker lines. One owner;
 #: without one, ``None`` (the caller keeps the plain transcript).
 RenderSpeakers = Callable[[List[Dict[str, Any]]], Optional[str]]
+#: ``(label) -> bool``: whether a transcript's voice label names a person. One owner; without one
+#: no label does.
+PersonVoiceLabel = Callable[[str], bool]
+#: ``(result, cfg, **context) -> result``: the roster pass over a transcript that names its own
+#: speakers (a publisher's ``<v Name>`` cues). One owner; without one the result is kept as it came.
+NativeRoster = Callable[..., Dict[str, Any]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -137,6 +143,8 @@ class PipelineHooks:
     speakers_after_asr: Optional[SpeakersAfterAsr] = None
     anon_transcript: Optional[AnonTranscript] = None
     render_speakers: Optional[RenderSpeakers] = None
+    person_voice_label: Optional[PersonVoiceLabel] = None
+    native_roster: Optional[NativeRoster] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -400,6 +408,20 @@ def render_speakers(segments: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+def person_voice_label(label: str) -> bool:
+    for hooks in _all():
+        if hooks.person_voice_label is not None:
+            return hooks.person_voice_label(label)
+    return False
+
+
+def native_roster(result: Dict[str, Any], cfg: Any, **context: Any) -> Dict[str, Any]:
+    for hooks in _all():
+        if hooks.native_roster is not None:
+            return hooks.native_roster(result, cfg, **context)
+    return result
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -421,7 +443,9 @@ __all__ = [
     "CorpusDerivedHook",
     "KgGraphPass",
     "KgPromptHints",
+    "NativeRoster",
     "PersonMatcher",
+    "PersonVoiceLabel",
     "PipelineHooks",
     "RenderSpeakers",
     "SamePerson",
@@ -445,6 +469,8 @@ __all__ = [
     "feed_hosts",
     "kg_graph_passes",
     "kg_prompt_hints",
+    "native_roster",
+    "person_voice_label",
     "render_speakers",
     "run_completed",
     "run_finalized",

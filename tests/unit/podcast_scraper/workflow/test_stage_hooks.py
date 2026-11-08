@@ -480,3 +480,41 @@ def test_the_built_in_speaker_stage_renders_and_writes_the_anon_transcript_with_
         assert stage_hooks.anon_transcript([{"x": 1}], "t.txt", "/o") == "t.anon.txt"
     render.assert_called_once_with([{"x": 1}])
     anon.assert_called_once_with([{"x": 1}], "t.txt", "/o")
+
+
+def test_without_a_speaker_stage_no_voice_label_is_a_person_and_cues_are_kept() -> None:
+    result = {"text": "hi", "segments": [{"speaker": "Jane Roe", "text": "hi"}]}
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.person_voice_label("Jane Roe") is False
+        assert stage_hooks.native_roster(result, None, idx=1) is result
+
+
+def test_the_built_in_native_roster_and_voice_check_are_todays_code() -> None:
+    with (
+        patch(
+            "podcast_scraper.providers.ml.diarization.roster._is_person_voice_label",
+            return_value=True,
+        ) as is_person,
+        patch(
+            "podcast_scraper.speaker_stage.native._roster_native_segments",
+            return_value={"segments": []},
+        ) as roster,
+        use_extensions([]),
+    ):
+        assert stage_hooks.person_voice_label("Jane Roe") is True
+        assert stage_hooks.native_roster({"text": ""}, "cfg", idx=3) == {"segments": []}
+    is_person.assert_called_once_with("Jane Roe")
+    roster.assert_called_once_with({"text": ""}, "cfg", idx=3)
+
+
+def test_the_episode_processor_imports_no_diarization_roster_pipeline_or_base() -> None:
+    src = (Path(stage_hooks.__file__).parent / "workflow" / "episode_processor.py").read_text(
+        encoding="utf-8"
+    )
+    imported = {(n.module or "") for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom)}
+    assert not {
+        m
+        for m in imported
+        for s in ("diarization.roster", "diarization.pipeline", "diarization.base")
+        if m.endswith(s)
+    }

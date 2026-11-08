@@ -11,9 +11,9 @@ from typing import Any, Dict, Optional, Tuple
 
 from podcast_scraper import config
 from podcast_scraper.models import TranscriptionJob
+from podcast_scraper.speaker_stage.native import _apply_native_speaker_roster
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.workflow.episode_processor import (
-    _apply_native_speaker_roster,
     _capture_stage_exception,
     _detection_report_of,
     _gap_clip_transcriber,
