@@ -602,6 +602,25 @@ def _gi_index_rows(
     )
 
 
+def _gi_index_source(episode_root: Path, metadata_path: Path, doc: Dict[str, Any]) -> List[Path]:
+    from podcast_scraper.search.indexer import _gi_path
+
+    return [_gi_path(episode_root, metadata_path, doc)]
+
+
+def _insight_grounding(
+    episode_root: Path, metadata_path: Path, doc: Dict[str, Any]
+) -> Tuple[Dict[str, str], Dict[str, Tuple[float, Optional[float]]]]:
+    from podcast_scraper.insight_stage import grounding_links
+    from podcast_scraper.search.indexer import _gi_path
+
+    gi_path = _gi_path(episode_root, metadata_path, doc)
+    return (
+        grounding_links._insight_grounding_quote_texts(gi_path),
+        grounding_links._insight_grounding_quotes(gi_path),
+    )
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -609,6 +628,8 @@ BUILTIN = PipelineHooks(
     batch_finalized=(_measure_naming_coverage,),
     run_finalized=(_build_audio_references,),
     index_rows=(_gi_index_rows,),
+    insight_grounding=_insight_grounding,
+    index_source_paths=(_gi_index_source,),
     run_completed=(_cluster_corpus_topics,),
     kg_prompt_hints=_resolve_ner_prepass,
     adfree_base=_adfree_base,

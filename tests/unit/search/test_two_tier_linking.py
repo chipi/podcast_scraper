@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from podcast_scraper.search.two_tier_indexer import _insight_grounding_quotes
+from podcast_scraper.insight_stage.grounding_links import _insight_grounding_quotes
 
 pytestmark = pytest.mark.unit
 

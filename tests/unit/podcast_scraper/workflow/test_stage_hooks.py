@@ -748,3 +748,27 @@ def test_a_labeling_profile_typo_still_fails_config_and_without_a_speaker_stage_
             config.Config(labeling_profile="naming-3-legac")
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         assert config.Config(labeling_profile="naming-3-legac").labeling_profile == "naming-3-legac"
+
+
+def test_without_an_insight_stage_the_index_takes_no_gi_rows(tmp_path: Path) -> None:
+    meta = tmp_path / "ep.metadata.json"
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        rows = stage_hooks.index_rows(
+            tmp_path, meta, {}, scope_tag="t", episode_id="e", raw_feed_id="f", published=None
+        )
+        assert rows == []
+        assert stage_hooks.insight_grounding(tmp_path, meta, {}) == ({}, {})
+        assert stage_hooks.index_source_paths(tmp_path, meta, {}) == []
+
+
+def test_index_rows_come_from_every_owner_built_in_first(tmp_path: Path) -> None:
+    def rows_of(tag: str) -> Any:
+        return lambda *a, **k: [(f"{tag}:1", tag, {"doc_type": tag})]
+
+    ext = Extension(name="x", pipeline_hooks=PipelineHooks(name="x", index_rows=(rows_of("ext"),)))
+    builtin = PipelineHooks(name="b", index_rows=(rows_of("builtin"),))
+    with patch.object(builtin_stage_hooks, "BUILTIN", builtin), use_extensions([ext]):
+        rows = stage_hooks.index_rows(
+            tmp_path, tmp_path, {}, scope_tag="t", episode_id="e", raw_feed_id="f", published=None
+        )
+    assert [r[0] for r in rows] == ["builtin:1", "ext:1"]

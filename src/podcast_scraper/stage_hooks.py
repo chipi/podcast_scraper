@@ -44,6 +44,14 @@ RunFinalizedHook = Callable[[str, str], None]
 #: ``(episode_root, metadata_path, doc, *, scope_tag, episode_id, raw_feed_id, published) ->
 #: [(doc_id, text, metadata)]``: search-index rows a stage adds for its own artifacts.
 IndexRowsHook = Callable[..., List[Tuple[str, str, Dict[str, Any]]]]
+#: ``(episode_root, metadata_path, doc) -> [path]``: a stage's artifacts the search index is built
+#: from, so a newer one makes the index stale.
+IndexSourcePathsHook = Callable[[Path, Path, Dict[str, Any]], List[Path]]
+#: ``(episode_root, metadata_path, doc) -> (quote_text_by_insight, quote_times_by_insight)``.
+InsightGrounding = Callable[
+    [Path, Path, Dict[str, Any]],
+    Tuple[Dict[str, str], Dict[str, Tuple[float, Optional[float]]]],
+]
 #: ``(cfg, output_dir)``. After every episode of the run is finalized and on disk, before the
 #: run is marked done. Must not raise.
 RunCompletedHook = Callable[[Any, str], None]
@@ -202,6 +210,8 @@ class PipelineHooks:
     batch_finalized: Sequence[BatchFinalizedHook] = field(default_factory=tuple)
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
     index_rows: Sequence[IndexRowsHook] = field(default_factory=tuple)
+    insight_grounding: Optional[InsightGrounding] = None
+    index_source_paths: Sequence[IndexSourcePathsHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
     adfree_base: Optional[AdfreeBase] = None
@@ -298,6 +308,27 @@ def index_rows(
                 )
             )
     return rows
+
+
+def index_source_paths(episode_root: Path, metadata_path: Path, doc: Dict[str, Any]) -> List[Path]:
+    """Every ``index_source_paths`` stage hook's paths, built-in first, then each extension's;
+    without one, none (staleness follows public's own artifacts)."""
+    out: List[Path] = []
+    for hooks in _all():
+        for hook in hooks.index_source_paths:
+            out.extend(hook(episode_root, metadata_path, doc))
+    return out
+
+
+def insight_grounding(
+    episode_root: Path, metadata_path: Path, doc: Dict[str, Any]
+) -> Tuple[Dict[str, str], Dict[str, Tuple[float, Optional[float]]]]:
+    """Each insight's grounding quote, ``(text by insight id, (start_s, end_s) by insight id)``:
+    the first owner that sets it answers; without one, none (no insight is linked)."""
+    for hooks in _all():
+        if hooks.insight_grounding is not None:
+            return hooks.insight_grounding(episode_root, metadata_path, doc)
+    return {}, {}
 
 
 def run_finalized(corpus_root: str, run_dir: str) -> None:
@@ -760,6 +791,8 @@ __all__ = [
     "anon_transcript",
     "batch_finalized",
     "index_rows",
+    "index_source_paths",
+    "insight_grounding",
     "bundled_naming",
     "carry_speaker_identity",
     "corpus_derived",
