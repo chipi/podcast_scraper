@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, cast, List, Tuple
 from unittest.mock import patch
 
 import pytest
@@ -400,7 +400,9 @@ def test_without_a_speaker_stage_a_reprocess_is_refused_and_counted(mode: str) -
         patch.object(ep, "_record_unresolved_transcript", _record),
     ):
         assert stage_hooks.speaker_reprocess(mode, _Job(), None, None, "/o", None, None) is None
-        got = ep._speaker_reprocess(mode, _Job(), None, None, "/out", None, None)
+        got = ep._speaker_reprocess(
+            mode, cast(Any, _Job()), cast(Any, None), None, "/out", None, None
+        )
     assert got == (False, None, 0)
     assert recorded == [(f"{mode}_only", "NoSpeakerStage")]
 
