@@ -52,9 +52,18 @@ code, and a wait for a free connection of 30 s (SQLAlchemy's default). Three que
    disable), default unchanged at psycopg's 5.
 5. **At scale out, PgBouncer in transaction mode** sits between the workers and Postgres once
    workers x pool would exceed what Postgres should hold. Then `PODCAST_DB_PREPARE_THRESHOLD=none`
-   is set, and the timeouts are kept: PgBouncer is configured to accept the `options` startup
-   parameter (its setting and version support are to be confirmed then), or the timeouts are set
-   per role (`ALTER ROLE ... SET`) instead.
+   is set, and the timeouts are kept in one of two ways:
+   - **Through `options`:** PgBouncer 1.20.0 or later, with `track_extra_parameters =
+     statement_timeout, idle_in_transaction_session_timeout`. Confirmed against PgBouncer's own
+     documentation on 2026-11-08, not yet run:
+     - 1.20.0 added both the `options` startup parameter and `track_extra_parameters`;
+     - by default PgBouncer allows only the parameters it tracks, and
+       `default_transaction_read_only` is tracked by default;
+     - the settings inside `options` are accepted when listed in `track_extra_parameters`, while
+       `options` itself cannot be listed.
+   - **Per role:** set the timeouts with `ALTER ROLE ... SET` instead. Where a deployment already
+     sets a role-level copy, check it on the roles before relying on it.
+
    Until then the app connects to Postgres directly.
 
 ## Rationale
