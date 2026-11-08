@@ -25,16 +25,21 @@ FORBIDDEN = [
     (re.compile(r"\bCREATE\s+(GLOBAL\s+|LOCAL\s+)?TEMP(ORARY)?\s+TABLE\b", re.I), "temp table"),
     (re.compile(r"\bWITH\s+HOLD\b", re.I), "WITH HOLD cursor"),
     (re.compile(r"\bset_config\s*\([^)]*,\s*(false|'f'|0)\s*\)", re.I), "session set_config"),
-    # SET is matched upper-case only: error text and prose say "Set FOO=bar".
+    # SET is matched upper-case and lower-case, never title-case: error text and prose say
+    # "Set FOO=bar to ...".
     (re.compile(r"^\s*SET\s+(SESSION\s+)?(ROLE|SESSION\s+AUTHORIZATION)\b"), "session SET"),
     (
         re.compile(r"^\s*SET\s+(SESSION\s+)?(?!LOCAL\b|TRANSACTION\b)[A-Za-z_][\w.]*\s*(=|TO\b)"),
         "session SET",
     ),
+    (re.compile(r"^\s*set\s+(?i:(session\s+)?(role|session\s+authorization))\b"), "session SET"),
+    (
+        re.compile(r"^\s*set\s+(?i:(session\s+)?(?!local\b|transaction\b)[a-z_][\w.]*\s*(=|to\b))"),
+        "session SET",
+    ),
 ]
 
 #: ``relative/path.py`` -> reason. Empty: nothing in app code needs session state.
-# A lower-case "set x = 1" in SQL would slip through; the repo writes SQL keywords upper-case.
 ALLOWED: dict[str, str] = {}
 
 
@@ -78,6 +83,10 @@ def _app_sources() -> list[Path]:
         "SET search_path TO player",
         "SET SESSION lock_timeout = '1s'",
         "SET ROLE migrator",
+        "set search_path to player",
+        "set session lock_timeout = '1s'",
+        "set role migrator",
+        "set statement_timeout = 0",
         "LISTEN events",
         "NOTIFY events, 'x'",
         "CREATE TEMP TABLE t (x int)",
@@ -97,6 +106,9 @@ def test_the_scanner_catches_session_state(sql: str) -> None:
         "SELECT set_config('x', 'y', true)",
         "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
         "Set the value of the thing to one",
+        "Set auto_speakers=True to enable speaker detection",
+        "set local statement_timeout = 5",
+        "set transaction isolation level serializable",
     ],
 )
 def test_the_scanner_passes_transaction_scoped_forms(sql: str) -> None:

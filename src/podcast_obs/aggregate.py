@@ -114,13 +114,71 @@ def _umami_site(target: TargetConfig, frontend: Optional[str]) -> TargetConfig:
     return dataclasses.replace(target, umami_website_id=site) if site else target
 
 
+#: The Postgres exporter's scrape job.
+_PG = 'job="postgres"'
+#: The exporter's own statements, left out of the top lists: they are its scrape, not the app.
+_NOT_EXPORTER = 'user!="monitor"'
+
+
+def _database_queries(window: str) -> dict[str, str]:
+    """``{signal: PromQL}`` for the database surface, from the Postgres exporter's series.
+
+    Statements carry ``queryid``, ``user`` and ``datname``, not the SQL text (the exporter does not
+    export it). A ``queryid`` maps to its text with
+    ``SELECT query FROM pg_stat_statements WHERE queryid = <id>`` on the server.
+    """
+    st = f"{_PG},{_NOT_EXPORTER}"
+    by_stmt = "queryid, user, datname"
+    time_rate = f"sum by ({by_stmt}) (rate(pg_stat_statements_seconds_total{{{st}}}[{window}]))"
+    calls_rate = f"sum by ({by_stmt}) (rate(pg_stat_statements_calls_total{{{st}}}[{window}]))"
+    return {
+        "up": f"pg_up{{{_PG}}}",
+        "exporter_error": f"pg_exporter_last_scrape_error{{{_PG}}}",
+        "max_connections": f"pg_settings_max_connections{{{_PG}}}",
+        "connections": f"sum by (datname, state) (pg_stat_activity_count{{{_PG}}}) > 0",
+        "longest_transaction_seconds": (
+            f"max by (datname, state) (pg_stat_activity_max_tx_duration{{{_PG}}}) > 0"
+        ),
+        "statements_by_time": f"topk(10, {time_rate} > 0)",
+        "statements_by_calls": f"topk(10, {calls_rate} > 0)",
+        "statements_by_mean_seconds": f"topk(10, ({time_rate}) / ({calls_rate}) > 0)",
+        "tables_by_size_bytes": (
+            f"topk(15, pg_stat_user_tables_table_size_bytes{{{_PG}}}"
+            f" + pg_stat_user_tables_index_size_bytes{{{_PG}}})"
+        ),
+        "tables_by_dead_rows": f"topk(10, pg_stat_user_tables_n_dead_tup{{{_PG}}} > 0)",
+        "tables_by_seq_rows_read": (
+            f"topk(10, rate(pg_stat_user_tables_seq_tup_read{{{_PG}}}[{window}]) > 0)"
+        ),
+        "locks": f"sum by (datname, mode) (pg_locks_count{{{_PG}}}) > 0",
+        "database_size_bytes": f"pg_database_size_bytes{{{_PG}}}",
+    }
+
+
+def database_surface(target: TargetConfig, *, window: str = "1h") -> dict:
+    """The database as a surface: is it up, who is connected, which statements cost the most,
+    which tables are large, bloated or scanned whole, what is locked. Each signal is one PromQL
+    query over the exporter's series and degrades on its own."""
+    probes: dict[str, Callable[[], dict]] = {
+        name: partial(victoria.metrics_instant, target, query)
+        for name, query in _database_queries(window).items()
+    }
+    return ok(
+        "surface",
+        {"target": target.name, "surface": "database", "window": window, **_collect(probes)},
+    )
+
+
 def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
-    """Observe ONE surface (api / pipeline / player / operator): its five-signal snapshot.
+    """Observe ONE surface (api / pipeline / player / operator / database): its snapshot.
 
     The literal "observe the API" / "observe the pipeline" verb — RED metrics (VictoriaMetrics),
     recent errors (GlitchTip), error-ish logs (VictoriaLogs), recent traces (VictoriaTraces), and
     for the pipeline the per-stage `pipeline_stage` rollup + LLM cost. Each degrades independently.
+    ``database`` is the Postgres server instead (:func:`database_surface`).
     """
+    if name == "database":
+        return database_surface(target, window=window)
     mapping = _SURFACE.get(name, {"job": name, "trace": name})
     job, trace_service = mapping["job"], (mapping["trace"] or name)
     probes: dict[str, Callable[[], dict]] = {

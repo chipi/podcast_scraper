@@ -617,6 +617,9 @@ def _observe_state(state: str) -> None:
             "Identity ledger state the server read (1 = current); ok and ok_previous_rule serve "
             "joins (the second until a rebuild), any other state means no joins.",
             ["state"],
+            # With several server workers, the state the latest worker read (one series per
+            # state, not one per process). Ignored in a single process.
+            multiprocess_mode="mostrecent",
         )
     gauge = _GAUGE["gauge"]
     if gauge is None:

@@ -89,12 +89,26 @@ class DeletionReport:
     extensions: dict[str, int] = field(default_factory=dict)
 
 
+def _address_shared(conn: Any, user: User) -> bool:
+    """Whether another account has this account's email address."""
+    address = user.email.strip().lower()
+    if not address:
+        return False
+    other = conn.execute(
+        select(users.c.user_id)
+        .where(func.lower(func.trim(users.c.email)) == address, users.c.user_id != user.user_id)
+        .limit(1)
+    ).first()
+    return other is not None
+
+
 def delete_account(data_dir: Path, user: User) -> DeletionReport:
     """Remove the account and every record that names it. Idempotent.
 
     Extensions first: their hooks revoke credentials (an MCP refresh token), and if one fails the
     account is still there to retry the deletion from. Then ONE transaction: the outbox envelopes
-    and the throttle row (no foreign key: a sign-in envelope predates its account) and the
+    and the throttle row (no foreign key: a sign-in envelope predates its account; matched by
+    address only when no other account has the address) and the
     ``users`` row, whose foreign keys cascade to every kernel table that names the account. The
     directory of the stores that are still files goes last.
     """
@@ -105,8 +119,11 @@ def delete_account(data_dir: Path, user: User) -> DeletionReport:
     if not _is_safe_user_id(user.user_id):
         return DeletionReport(0, 0, False, counts)
     with rw_engine().begin() as conn:
-        outbox = app_outbox_store.purge_rows(conn, user.user_id, user.email)
-        throttle = app_magic_link.forget_requests(conn, user.email)
+        # Another account on the same address (another provider) still owns the records matched by
+        # address alone: its sign-in envelopes and the address's throttle row.
+        address = "" if _address_shared(conn, user) else user.email
+        outbox = app_outbox_store.purge_rows(conn, user.user_id, address)
+        throttle = app_magic_link.forget_requests(conn, address) if address else 0
         deleted = conn.execute(delete(users).where(users.c.user_id == user.user_id)).rowcount > 0
     had_files = remove_user_files(data_dir, user.user_id)
     return DeletionReport(

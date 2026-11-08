@@ -419,6 +419,29 @@ def _start_background_services(app: FastAPI) -> list[Callable[[], None]]:
     return stops
 
 
+def _start_scheduler_on_leader(app: FastAPI) -> Callable[[], None]:
+    """Start the cron scheduler in one worker of the host (``server/leader.py``): with
+    ``serve --workers N`` every worker would otherwise fire each scheduled job. One worker (the
+    default) always leads. Returns the stop callback, which also hands the lock back."""
+    from podcast_scraper.server import leader
+
+    def start() -> None:
+        scheduler = getattr(app.state, "scheduler", None)
+        if scheduler is not None:
+            scheduler.start()
+
+    if leader.worker_count() == 1:
+        try:
+            start()
+        except Exception as exc:
+            logger.warning("scheduler startup failed: %s", exc)
+        return lambda: None
+    lock = Path(os.environ.get(leader.ENV_LOCK_FILE) or leader.default_lock_file(0))
+    leadership = leader.Leadership(lock, start)
+    leadership.start()
+    return leadership.stop
+
+
 def _stop_background_services(stops: list[Callable[[], None]]) -> None:
     """Call every stop callback; one that raises does not keep the others from running."""
     for stop in stops:
@@ -567,12 +590,17 @@ def _install_metrics(app: FastAPI) -> None:
             # (otherwise a Prometheus scrape inflates the count).
             # The per-route histogram's default buckets end at 1 s, so every route slower
             # than that read as p95 = 1 s on prod (2026-11-06, routes at 2-12 s mean).
-            Instrumentator(
+            instrumented = Instrumentator(
                 should_group_status_codes=False,
                 excluded_handlers=["/metrics"],
-            ).instrument(app, latency_lowr_buckets=ROUTE_LATENCY_BUCKETS).expose(
-                app, endpoint="/metrics", include_in_schema=False
-            )
+            ).instrument(app, latency_lowr_buckets=ROUTE_LATENCY_BUCKETS)
+            if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+                # serve --workers N: every worker's samples, scrape-time collectors kept.
+                from podcast_scraper.server import metrics_multiprocess
+
+                metrics_multiprocess.install(app)
+            else:
+                instrumented.expose(app, endpoint="/metrics", include_in_schema=False)
         except Exception:  # noqa: BLE001 — telemetry must never break the app
             # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
             # A missing package (or any instrument/expose failure) must NOT down
@@ -760,12 +788,8 @@ def create_app(
                 target=_warm_search, args=(root,), name="search-warmup", daemon=True
             ).start()
         background_stops = _start_background_services(app)
-        scheduler = getattr(app.state, "scheduler", None)
-        if scheduler is not None:
-            try:
-                scheduler.start()
-            except Exception as exc:
-                logger.warning("scheduler startup failed: %s", exc)
+        background_stops.append(_start_scheduler_on_leader(app))
+        # Every worker sweeps the queue: the sweep takes the job registry's cross-process lock.
         sweeper_task = await _start_queue_sweeper_guarded(app)
         try:
             yield
@@ -929,13 +953,18 @@ def create_app(
 
 
 def create_app_for_uvicorn() -> FastAPI:
-    """Factory entry point for ``uvicorn --factory`` (reload mode)."""
+    """Factory entry point for ``uvicorn --factory`` (reload mode, and ``serve --workers N``)."""
     raw = os.environ.get("PODCAST_SERVE_OUTPUT_DIR")
     if not raw:
         raise RuntimeError("PODCAST_SERVE_OUTPUT_DIR is not set")
+    # Each worker is its own process: the logging serve set up in the parent is not inherited.
+    from podcast_scraper.server.cli_handlers import _ensure_app_logging
+
+    _ensure_app_logging()
     kw = serve_feature_kwargs_from_environ()
     return create_app(
         Path(raw),
+        static_dir=False if _env_truthy("PODCAST_SERVE_NO_STATIC") else None,
         enable_feeds_api=bool(kw["enable_feeds_api"]),
         enable_operator_config_api=bool(kw["enable_operator_config_api"]),
         enable_jobs_api=bool(kw["enable_jobs_api"]),

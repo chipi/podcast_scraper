@@ -117,7 +117,8 @@ def purge_rows(conn: Connection, user_id: str, email: str) -> int:
 
     Matched by ``user_id`` and ALSO by recipient address: a sign-in envelope is written before an
     account exists and carries no ``user_id`` but the plaintext address, so the id alone would
-    leave exactly those behind. Runs in the caller's transaction (account deletion).
+    leave exactly those behind. An empty ``email`` matches by ``user_id`` alone, which account
+    deletion passes when another account has the same address. Runs in the caller's transaction.
     """
     wanted_email = email.strip().lower()
     matches = []

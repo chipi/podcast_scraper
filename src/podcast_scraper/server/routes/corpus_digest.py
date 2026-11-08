@@ -15,12 +15,12 @@ from podcast_scraper.graph_id_utils import (
     topic_node_id_from_slug,
 )
 from podcast_scraper.search.corpus_search import run_corpus_search
+from podcast_scraper.server import catalog_cache
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
 )
 from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows,
     CatalogEpisodeRow,
     episode_list_summary_preview,
     feed_description_by_feed_id,
@@ -65,18 +65,17 @@ _MAX_HITS_PER_TOPIC = 8
 # Central perf_cache namespaces (see podcast_scraper.perf_cache):
 #  * digest_bands — the expensive topic-band searches (one hybrid LanceDB search
 #    per configured topic; only changes on REINDEX → lance-mtime token).
-#  * catalog_rows — build_catalog_rows scan for the digest window (changes on
-#    INGEST → corpus-mtime token); cached at THIS route level, not the shared
-#    builder, so other callers still get fresh reads.
+#  * the catalog rows come from the shared last-run catalog cache
+#    (``catalog_cache.cached_catalog_last_run``, corpus-mtime token): one copy for
+#    every route, not a second one here.
 _BANDS_NS = "digest_bands"
-_ROWS_NS = "catalog_rows"
 
 
 def clear_digest_topics_cache() -> None:
     """Drop the digest band + catalog-rows caches (tests / explicit hooks). The
     caches also self-invalidate via their mtime tokens."""
     perf_cache.clear(_BANDS_NS)
-    perf_cache.clear(_ROWS_NS)
+    perf_cache.clear(catalog_cache.CATALOG_LAST_RUN_NS)
 
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path:
@@ -256,16 +255,9 @@ def corpus_digest(
     row_cap = default_cap if max_rows is None else int(max_rows)
     row_cap = max(1, min(row_cap, abs_cap))
 
-    # Catalog rows are a full metadata scan (~100 ms of Python) that only changes
-    # on INGEST — cache at this route via the corpus-mtime token so it doesn't
-    # contend (GIL) with a concurrent search on the single worker. The shared
-    # build_catalog_rows stays uncached for other callers.
-    catalog = perf_cache.get_or_compute(
-        _ROWS_NS,
-        str(root.resolve()),
-        perf_cache.corpus_mtime(root),
-        lambda: build_catalog_rows(root),
-    )
+    # Catalog rows are a full metadata scan that only changes on INGEST: the shared
+    # last-run cache (corpus-mtime token), the same rows build_catalog_rows returns.
+    catalog = catalog_cache.cached_catalog_last_run(root)
     in_window = filter_rows_in_window(catalog, start, end)
     picked = diversify_digest_rows(
         in_window,

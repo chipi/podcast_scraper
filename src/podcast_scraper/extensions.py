@@ -209,6 +209,10 @@ class Extension:
     #: The extension's tables and their migration history; ``db upgrade`` runs it after the
     #: kernel's, and the start-up check covers it.
     database: DbModule | None = None
+    #: The extension's corpus migrations (``podcast_scraper.upgrade.migration.Migration``
+    #: instances), merged into the one registry by id. Ids are one sequence across every
+    #: package (``NNNN_name``): a duplicate fails when the registry loads.
+    corpus_migrations: Callable[[], Sequence[Any]] = _none
     #: What the module reports about itself on ``GET /api/version`` (admins only): ``() -> {...}``
     #: with at least ``version`` and ``git_sha`` and whatever refs it was built from. Cheap and
     #: free of I/O beyond a small file; a raising hook is reported as an error, never propagated.

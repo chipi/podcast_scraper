@@ -8,9 +8,10 @@ For each regime migration ``upgrade run`` (not a dry run), under the corpus lock
 
 1. **static checks** (``check_static``): the shipped outcome ``upgrade/outcomes/<id>.json`` exists,
    has every field, carries a GO / GO WITH CONDITIONS verdict, was measured on clean code, and its
-   code digest equals the installed code's (the migration module and every ``podcast_scraper``
-   module it imports, plus its verdicts file); the migration is the first pending one and prod's
-   applied set equals the clone's. Any failure: ``HookRefused``, nothing written.
+   code digest equals the installed code's (the migration module and every module it imports, in
+   this package or in the extension's package that adds it, plus its verdicts file); the
+   migration is the first pending one and prod's applied set equals the clone's. Any failure:
+   ``HookRefused``, nothing written.
 2. **plan** (``plan_diff``): prod's per-episode plan (``dry_run_report``, rows with every counter
    and their input files' sha256) against the shipped one. Any difference: ``HookStopped``, with
    every difference written to ``.podcast_scraper/upgrade-outcomes/<id>.plan-diff.json``, the one
@@ -31,6 +32,7 @@ import ast
 import hashlib
 import importlib
 import importlib.resources
+import importlib.util
 import json
 import posixpath
 import sys
@@ -137,70 +139,97 @@ def load_outcome(migration_id: str, path: Optional[Path] = None) -> Tuple[Dict[s
     return doc, hashlib.sha256(raw).hexdigest()
 
 
-def _imports(path: Path, package: str) -> Set[str]:
-    """``podcast_scraper`` modules a source file imports (absolute and relative)."""
+def _package_roots(module_name: str) -> Dict[str, Path]:
+    """``{top-level package: its directory}`` a migration's closure follows: this package, and the
+    migration's own when an installed extension adds it (``Extension.corpus_migrations``). For a
+    migration of this package it is this package alone, as before."""
+    roots = {"podcast_scraper": PACKAGE_ROOT}
+    top = module_name.split(".")[0]
+    if top not in roots:
+        spec = importlib.util.find_spec(top)
+        if spec is not None and spec.submodule_search_locations:
+            roots[top] = Path(next(iter(spec.submodule_search_locations))).resolve()
+    return roots
+
+
+def _imports(path: Path, package: str, tops: FrozenSet[str]) -> Set[str]:
+    """Modules of the packages in ``tops`` a source file imports (absolute and relative)."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     out: Set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            out |= {a.name for a in node.names if a.name.startswith("podcast_scraper")}
+            out |= {a.name for a in node.names if a.name.split(".")[0] in tops}
         elif isinstance(node, ast.ImportFrom):
             if node.level:
                 base = package.split(".")[: len(package.split(".")) - node.level + 1]
                 mod = ".".join(base + ([node.module] if node.module else []))
             else:
                 mod = node.module or ""
-            if mod.startswith("podcast_scraper"):
+            if mod.split(".")[0] in tops:
                 out.add(mod)
                 out |= {f"{mod}.{a.name}" for a in node.names}
     return out
 
 
-def _module_file(name: str) -> Optional[Path]:
-    parts = name.split(".")[1:]
+def _module_file(name: str, roots: Dict[str, Path]) -> Optional[Path]:
+    top, *parts = name.split(".")
+    root = roots.get(top)
+    if root is None:
+        return None
     if not parts:  # the package itself
-        return PACKAGE_ROOT / "__init__.py"
+        return root / "__init__.py"
     rel = Path(*parts)
-    for cand in (PACKAGE_ROOT / rel.with_suffix(".py"), PACKAGE_ROOT / rel / "__init__.py"):
+    for cand in (root / rel.with_suffix(".py"), root / rel / "__init__.py"):
         if cand.is_file():
             return cand
     return None
 
 
 def module_closure(module_name: str) -> Dict[str, Path]:
-    """``{module: file}``: the module and every ``podcast_scraper`` module it reaches by import.
+    """``{module: file}``: the module and every module it reaches by import in this package, or in
+    its own package when an extension adds it.
 
     Importing ``a.b.c`` runs ``a/__init__.py`` and ``a/b/__init__.py`` first, so every parent
     package is in the closure too, with what it imports."""
+    roots = _package_roots(module_name)
+    tops = frozenset(roots)
     seen: Dict[str, Path] = {}
     todo = [module_name]
     while todo:
         name = todo.pop()
-        f = _module_file(name)
+        f = _module_file(name, roots)
         if f is None or name in seen:
             continue
         seen[name] = f
         parts = name.split(".")
         todo.extend(".".join(parts[:i]) for i in range(1, len(parts)))
         pkg = name if f.name == "__init__.py" else name.rsplit(".", 1)[0]
-        todo.extend(_imports(f, pkg) - set(seen))
+        todo.extend(_imports(f, pkg, tops) - set(seen))
     return seen
 
 
+def _digest_path(f: Path, roots: Dict[str, Path]) -> str:
+    """A file's name in the digest: relative to the directory holding its package."""
+    for root in roots.values():
+        try:
+            return str(f.relative_to(root.parent))
+        except ValueError:
+            continue
+    return f.name
+
+
 def code_digest(module_name: str, extra: Optional[List[Path]] = None) -> str:
-    """sha256 over the migration module and every ``podcast_scraper`` module it reaches by import,
+    """sha256 over the migration module and every module it reaches by import (``module_closure``),
     sorted by path, plus ``extra`` files (its verdicts file): the code the outcome was measured on.
     """
+    roots = _package_roots(module_name)
     h = hashlib.sha256()
     files = sorted(
         {p.resolve() for p in module_closure(module_name).values()}
         | {p.resolve() for p in extra or []}
     )
     for f in files:
-        try:
-            rel = str(f.relative_to(PACKAGE_ROOT.parent))
-        except ValueError:
-            rel = f.name
+        rel = _digest_path(f, roots)
         h.update(rel.encode())
         h.update(b"\0")
         h.update(f.read_bytes())
