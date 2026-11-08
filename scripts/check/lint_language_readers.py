@@ -88,7 +88,9 @@ WHITELIST: Dict[str, str] = {
     # are not the S0.6 defect — that was transcription being TOLD the wrong input language — but
     # they are reads, so they are named here rather than hidden by a pattern that cannot see
     # `getattr`.
-    "providers/grok/grok_provider.py": "output language for the bundled prompt, not the input",
+    "providers/grok/grok_provider_gi_naming.py": (
+        "output language for the bundled prompt, not the input"
+    ),
     "providers/anthropic/anthropic_provider.py": (
         "output language for the bundled prompt, not the input"
     ),

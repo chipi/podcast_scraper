@@ -106,9 +106,13 @@ class TestTheRealTreeIsFullyAccountedFor:
 
     def test_the_providers_that_were_MISSING_are_present(self, lint: Any) -> None:
         """Pinned by name. These two were invisible to the pattern AND absent from the
-        whitelist, so nothing anywhere recorded that they read the run-global."""
-        assert "providers/grok/grok_provider.py" in lint.WHITELIST
-        assert "providers/anthropic/anthropic_provider.py" in lint.WHITELIST
+        whitelist, so nothing anywhere recorded that they read the run-global. Pinned by provider,
+        not file: the read moves with its method (S1 put the GI and naming methods of a provider
+        in ``<provider>_provider_gi_naming.py``)."""
+        for provider in ("grok", "anthropic"):
+            assert any(
+                rel.startswith(f"providers/{provider}/") for rel in lint.WHITELIST
+            ), f"no {provider} read is recorded"
 
 
 class TestProseIsNotARead:
