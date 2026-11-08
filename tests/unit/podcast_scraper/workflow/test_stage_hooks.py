@@ -383,16 +383,26 @@ def test_show_metadata_no_longer_imports_host_rules() -> None:
 
 
 @pytest.mark.parametrize("mode", ["relabel", "rediarize"])
-def test_without_a_speaker_stage_a_reprocess_does_nothing_and_says_why(
-    mode: str, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_without_a_speaker_stage_a_reprocess_is_refused_and_counted(mode: str) -> None:
+    from podcast_scraper.workflow import episode_processor as ep
+
     class _Job:
         idx = 7
 
-    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
-        got = stage_hooks.speaker_reprocess(mode, _Job(), None, None, "/out", None, None)
+    recorded: List[Tuple[Any, ...]] = []
+
+    def _record(job: Any, cfg: Any, metrics: Any, stage: str, **kw: Any) -> None:
+        recorded.append((stage, kw.get("error_type")))
+
+    with (
+        patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")),
+        use_extensions([]),
+        patch.object(ep, "_record_unresolved_transcript", _record),
+    ):
+        assert stage_hooks.speaker_reprocess(mode, _Job(), None, None, "/o", None, None) is None
+        got = ep._speaker_reprocess(mode, _Job(), None, None, "/out", None, None)
     assert got == (False, None, 0)
-    assert f"[7] {mode}: no speaker stage is installed" in caplog.text
+    assert recorded == [(f"{mode}_only", "NoSpeakerStage")]
 
 
 @pytest.mark.parametrize(

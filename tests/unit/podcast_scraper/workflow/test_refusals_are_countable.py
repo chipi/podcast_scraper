@@ -36,6 +36,17 @@ MODULE = (
     / "episode_processor.py"
 )
 
+#: Every module a refusal can live in: the episode processor, and the speaker reprocess stages
+#: that moved out of it (E04 S2) — a refusal there is just as invisible without its row.
+SCANNED = (
+    MODULE,
+    Path(__file__).resolve().parents[4]
+    / "src"
+    / "podcast_scraper"
+    / "speaker_stage"
+    / "reprocess.py",
+)
+
 RECORDER = "_record_unresolved_transcript"
 # A policy skip (provider payload limit) writes its row as "skipped", not "failed"; it is a ledger
 # write all the same. So is a reprocess stage's "looked at it, nothing to do" (repunctuate_only).
@@ -47,6 +58,8 @@ REFUSAL_RETURNS = {"(False, None, 0)", "False, None, 0"}
 
 EXPECTED_ERROR_TYPES = {
     "NoSpeakerIdentity",
+    # E04 S2: a speaker reprocess asked of a platform with no speaker stage installed.
+    "NoSpeakerStage",
     "NoAudio",
     "NoSegments",
     "NoTranscriptUrl",
@@ -87,7 +100,10 @@ EXPECTED_NOTHING_TO_DO_TYPES = {
 
 
 def _tree():
-    return ast.parse(MODULE.read_text(encoding="utf-8"))
+    body = []
+    for path in SCANNED:
+        body += ast.parse(path.read_text(encoding="utf-8")).body
+    return ast.Module(body=body, type_ignores=[])
 
 
 def _is_refusal_return(node: ast.AST) -> bool:
@@ -155,7 +171,8 @@ def test_every_refusal_return_is_accompanied_by_a_ledger_write():
                 unaccounted.append(getattr(stmt, "lineno", "?"))
     assert not unaccounted, (
         "refusal return(s) with no ledger write in the same block, at "
-        f"episode_processor.py lines {sorted(unaccounted)} — the episode will land in neither "
+        f"episode_processor.py / speaker_stage/reprocess.py lines {sorted(unaccounted)} — the "
+        "episode will land in neither "
         "ok nor failed, exactly the 2026-09-23 silent-underwork shape"
     )
 

@@ -12,12 +12,9 @@ moves to an extension, its built-in entry goes and the extension's ``pipeline_ho
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
-
-logger = logging.getLogger(__name__)
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -83,7 +80,8 @@ PersonMatcher = Callable[[], SamePerson]
 #: ``(mode, job, cfg, run_suffix, output_dir, transcription_provider, pipeline_metrics) ->
 #: (ok, transcript_relpath, bytes)``: a speaker reprocess of an episode already on disk, ``mode``
 #: ``relabel`` (frozen diarization, names re-resolved) or ``rediarize`` (voices from the audio
-#: again). One owner; without one the episode is not reprocessed: ``(False, None, 0)``.
+#: again). One owner; without one :func:`speaker_reprocess` returns ``None`` and the caller
+#: records the refusal.
 SpeakerReprocess = Callable[..., Tuple[bool, Optional[str], int]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -338,18 +336,13 @@ def speaker_reprocess(
     output_dir: str,
     transcription_provider: Any,
     pipeline_metrics: Any,
-) -> Tuple[bool, Optional[str], int]:
+) -> Optional[Tuple[bool, Optional[str], int]]:
     for hooks in _all():
         if hooks.speaker_reprocess is not None:
             return hooks.speaker_reprocess(
                 mode, job, cfg, run_suffix, output_dir, transcription_provider, pipeline_metrics
             )
-    logger.warning(
-        "[%s] %s: no speaker stage is installed, so the episode is not reprocessed",
-        getattr(job, "idx", "?"),
-        mode,
-    )
-    return False, None, 0
+    return None
 
 
 def kg_graph_passes(

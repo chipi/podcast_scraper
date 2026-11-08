@@ -3757,7 +3757,7 @@ def _refetch_and_reparse_transcript(
     )
 
     # ...and now the ordinary naming path, which finally has voices to name.
-    return stage_hooks.speaker_reprocess(
+    return _speaker_reprocess(
         "relabel",
         job,
         cfg,
@@ -3766,6 +3766,30 @@ def _refetch_and_reparse_transcript(
         transcription_provider,
         pipeline_metrics,
     )
+
+
+def _speaker_reprocess(
+    mode: str,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """A speaker reprocess (``relabel`` / ``rediarize``) through the speaker stage. Without one
+    installed the episode is refused and COUNTED (``NoSpeakerStage``), never passed on to normal
+    transcription, which would re-run ASR the mode exists to avoid."""
+    done = stage_hooks.speaker_reprocess(
+        mode, job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
+    if done is not None:
+        return done
+    logger.warning("[%s] %s_only: no speaker stage is installed", job.idx, mode)
+    _record_unresolved_transcript(
+        job, cfg, pipeline_metrics, f"{mode}_only", error_type="NoSpeakerStage"
+    )
+    return False, None, 0
 
 
 def _maybe_dispatch_reprocess_stage(
@@ -3784,7 +3808,7 @@ def _maybe_dispatch_reprocess_stage(
     transcription.
     """
     if cfg.pipeline_stage == "relabel_only":
-        return stage_hooks.speaker_reprocess(
+        return _speaker_reprocess(
             "relabel",
             job,
             cfg,
@@ -3794,7 +3818,7 @@ def _maybe_dispatch_reprocess_stage(
             pipeline_metrics,
         )
     if cfg.pipeline_stage == "rediarize_only":
-        return stage_hooks.speaker_reprocess(
+        return _speaker_reprocess(
             "rediarize",
             job,
             cfg,
@@ -3903,7 +3927,7 @@ def _retranslate_existing_transcript(
             job.idx,
         )
 
-    return stage_hooks.speaker_reprocess(
+    return _speaker_reprocess(
         "relabel",
         job,
         cfg,
