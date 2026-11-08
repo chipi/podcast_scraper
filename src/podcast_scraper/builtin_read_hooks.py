@@ -107,7 +107,7 @@ def _served_id_map(root: Path) -> Dict[str, str]:
 def _bridge_node_episodes(
     root: str, anchor: str, node_id: str, *, max_episodes: Optional[int]
 ) -> NodeEpisodes:
-    from podcast_scraper.server.cil_queries import (
+    from podcast_scraper.insight_stage.cil_queries import (
         canonical_cil_entity_id,
         episodes_for_bridge_node_id,
     )
@@ -153,7 +153,7 @@ def ROUTERS() -> Sequence[Any]:
     All three are on the curated public operator surface, as they were in ``server.app``'s
     tuples."""
     from podcast_scraper.extensions import RouterMount
-    from podcast_scraper.server.routes import cil, corpus_persons, explore
+    from podcast_scraper.insight_stage.routes import cil, corpus_persons, explore
 
     return tuple(
         RouterMount(router=m.router, plane="operator", operator_public=True)

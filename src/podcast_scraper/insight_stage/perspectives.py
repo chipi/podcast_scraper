@@ -82,7 +82,7 @@ def speaker_perspectives(
 ) -> list[dict[str, Any]]:
     """The topics' grounded insights grouped by speaker, each group's insights projected and ranked
     for display (``topics_perspectives``' groups, ``insights`` as :class:`AppInsight`)."""
-    from podcast_scraper.server.cil_queries import topics_perspectives
+    from podcast_scraper.insight_stage.cil_queries import topics_perspectives
 
     groups = topics_perspectives(str(root), str(root), topic_ids, keep_episode_ids=keep_episode_ids)
     return [

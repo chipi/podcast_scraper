@@ -109,7 +109,7 @@ def _canonical_person_ids(root: Path) -> dict[str, str]:
     and ``same_show_required=True`` already permits them — the two ids share a show. Nothing was
     wrong with the matcher. It was simply never consulted on this surface: ``iter_kg_entities``
     reads ids straight out of each ``*.kg.json``, and only ``search/corpus_graph`` and
-    ``server/cil_queries`` apply ``build_entity_id_map``.
+    ``insight_stage/cil_queries`` apply ``build_entity_id_map``.
 
     IT IS NOT FREE, and an earlier version of this docstring said it was ("costs nothing per
     request"). The map is a full corpus scan — 90 seconds over the 2,257-episode production

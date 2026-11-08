@@ -251,7 +251,7 @@ class TestServerViewerExplorePatched:
             )
 
         monkeypatch.setattr(
-            "podcast_scraper.server.routes.explore.run_uc5_insight_explorer",
+            "podcast_scraper.insight_stage.routes.explore.run_uc5_insight_explorer",
             fake_uc5,
         )
         http_client = TestClient(create_app(corpus, static_dir=False))

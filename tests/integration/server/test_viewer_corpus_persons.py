@@ -168,7 +168,7 @@ def test_corpus_persons_top_scans_gi_once_per_ingest(tmp_path: Path, monkeypatch
     (corpus_run_summary mtime bump) may trigger a rescan.
     """
     from podcast_scraper import perf_cache
-    from podcast_scraper.server.routes import corpus_persons
+    from podcast_scraper.insight_stage.routes import corpus_persons
 
     perf_cache.clear()
     meta = tmp_path / "metadata"
@@ -211,7 +211,7 @@ def test_a_joined_members_quotes_count_for_the_group(tmp_path: Path, monkeypatch
     """
     import podcast_scraper.kg.entity_clusters as EC
     from podcast_scraper import perf_cache
-    from podcast_scraper.server.routes import corpus_persons
+    from podcast_scraper.insight_stage.routes import corpus_persons
 
     meta = tmp_path / "metadata"
     meta.mkdir()

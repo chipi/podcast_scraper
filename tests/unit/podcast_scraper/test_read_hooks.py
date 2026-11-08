@@ -69,7 +69,7 @@ def test_without_an_insight_stage_a_topic_has_no_perspectives(tmp_path: Path) ->
 
 
 def test_the_built_in_routers_are_the_stage_routes_on_the_public_operator_surface() -> None:
-    from podcast_scraper.server.routes import cil, corpus_persons, explore
+    from podcast_scraper.insight_stage.routes import cil, corpus_persons, explore
 
     mounts = read_hooks.builtin_routers()
     assert [m.router for m in mounts] == [explore.router, corpus_persons.router, cil.router]
@@ -78,7 +78,7 @@ def test_the_built_in_routers_are_the_stage_routes_on_the_public_operator_surfac
 
 def test_the_bridge_hook_answers_the_canonical_id() -> None:
     with patch(
-        "podcast_scraper.server.cil_queries.episodes_for_bridge_node_id",
+        "podcast_scraper.insight_stage.cil_queries.episodes_for_bridge_node_id",
         return_value=([{"gi_relative_path": "a"}], False, None),
     ) as listing:
         canon, rows, truncated, total = read_hooks.bridge_node_episodes(

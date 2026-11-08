@@ -206,7 +206,7 @@ def test_explore_respells_each_quote_to_its_group(tmp_path, monkeypatch) -> None
 def test_top_persons_counts_a_members_quotes_for_the_group(tmp_path, monkeypatch) -> None:
     """Same contract as the integration test, without the HTTP client."""
     from podcast_scraper import perf_cache
-    from podcast_scraper.server.routes import corpus_persons
+    from podcast_scraper.insight_stage.routes import corpus_persons
 
     meta = tmp_path / "metadata"
     meta.mkdir()

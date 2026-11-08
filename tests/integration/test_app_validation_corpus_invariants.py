@@ -224,7 +224,7 @@ def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
     that flaked perspectives.spec). Guard the canonical contested topic: exactly the cross-show
     risk-management speakers, and the engineered opposition (Daniel Cho / Scott Bessent) present.
     """
-    from podcast_scraper.server.cil_queries import topic_perspectives
+    from podcast_scraper.insight_stage.cil_queries import topic_perspectives
 
     persp = topic_perspectives(str(_V3), str(_V3), "topic:risk-management")
     names = {str(p.get("person_name") or "") for p in persp}
