@@ -37,7 +37,7 @@ def identification_clips(
     as ``declared``, spread early / middle / late; ``[]`` when there are fewer such stretches."""
     from ..languages import primary_language
     from ..languages_guard import DECLARED_LANGUAGE_MIN_SHARE
-    from ..providers.ml.diarization.ad_signatures import FUNCTION_WORDS, words
+    from ..text_language import FUNCTION_WORDS, words
 
     own = FUNCTION_WORDS.get(primary_language(declared) or "")
     if not own:
