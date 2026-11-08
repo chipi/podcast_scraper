@@ -518,3 +518,23 @@ def test_the_episode_processor_imports_no_diarization_roster_pipeline_or_base() 
         for s in ("diarization.roster", "diarization.pipeline", "diarization.base")
         if m.endswith(s)
     }
+
+
+def test_without_a_speaker_stage_repaired_segments_come_back_unlabelled_copies() -> None:
+    new = [{"start": 0.0, "end": 1.0, "text": "Hi."}]
+    old = [{"start": 0.0, "end": 1.0, "text": "hi", "speaker_label": "Jane Roe"}]
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        got = stage_hooks.carry_speaker_identity(new, old)
+    assert got == new and got[0] is not new[0]
+
+
+def test_the_built_in_carry_is_todays_alignment() -> None:
+    with (
+        patch(
+            "podcast_scraper.providers.ml.diarization.alignment.carry_speaker_identity",
+            return_value=[{"speaker_label": "A"}],
+        ) as carry,
+        use_extensions([]),
+    ):
+        assert stage_hooks.carry_speaker_identity(["n"], ["o"]) == [{"speaker_label": "A"}]
+    carry.assert_called_once_with(["n"], ["o"])

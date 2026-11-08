@@ -467,6 +467,12 @@ def _native_roster(result: Dict[str, Any], cfg: Any, **context: Any) -> Dict[str
     return native._roster_native_segments(result, cfg, **context)
 
 
+def _carry_speaker_identity(new: Any, old: Any) -> List[Dict[str, Any]]:
+    from podcast_scraper.providers.ml.diarization.alignment import carry_speaker_identity
+
+    return carry_speaker_identity(new, old)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -491,6 +497,7 @@ BUILTIN = PipelineHooks(
     render_speakers=_render_speakers,
     person_voice_label=_person_voice_label,
     native_roster=_native_roster,
+    carry_speaker_identity=_carry_speaker_identity,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

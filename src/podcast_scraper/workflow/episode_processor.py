@@ -3952,7 +3952,6 @@ def _splice_repunctuated_segments(
     speaker identity from the old segments they overlap. Every segment loses ``char_start`` /
     ``char_end``: they index the text before the splice.
     """
-    from ..providers.ml.diarization.alignment import carry_speaker_identity
     from ..transcription.invented_lines import drop_invented_lines
 
     original_ids = {id(seg) for seg in original}
@@ -3960,7 +3959,9 @@ def _splice_repunctuated_segments(
     fresh = [seg for seg in merged if id(seg) not in original_ids]
     checked = drop_invented_lines({"text": "", "segments": fresh})
     kept = list(checked.get("segments") or [])
-    labelled = {id(src): dst for src, dst in zip(kept, carry_speaker_identity(kept, original))}
+    labelled = {
+        id(src): dst for src, dst in zip(kept, stage_hooks.carry_speaker_identity(kept, original))
+    }
     segments: List[Dict[str, Any]] = []
     for seg in merged:
         out = dict(seg) if id(seg) in original_ids else labelled.get(id(seg))

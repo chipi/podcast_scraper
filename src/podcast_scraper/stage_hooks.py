@@ -100,6 +100,10 @@ PersonVoiceLabel = Callable[[str], bool]
 #: ``(result, cfg, **context) -> result``: the roster pass over a transcript that names its own
 #: speakers (a publisher's ``<v Name>`` cues). One owner; without one the result is kept as it came.
 NativeRoster = Callable[..., Dict[str, Any]]
+#: ``(new_segments, old_segments) -> new_segments``: each new segment (one per input, in order)
+#: takes the speaker identity of the old segments it overlaps. One owner; without one the new
+#: segments come back as copies, unlabelled.
+CarrySpeakerIdentity = Callable[[Sequence[Any], Sequence[Any]], List[Dict[str, Any]]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -145,6 +149,7 @@ class PipelineHooks:
     render_speakers: Optional[RenderSpeakers] = None
     person_voice_label: Optional[PersonVoiceLabel] = None
     native_roster: Optional[NativeRoster] = None
+    carry_speaker_identity: Optional[CarrySpeakerIdentity] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -422,6 +427,13 @@ def native_roster(result: Dict[str, Any], cfg: Any, **context: Any) -> Dict[str,
     return result
 
 
+def carry_speaker_identity(new: Sequence[Any], old: Sequence[Any]) -> List[Dict[str, Any]]:
+    for hooks in _all():
+        if hooks.carry_speaker_identity is not None:
+            return hooks.carry_speaker_identity(new, old)
+    return [dict(seg) for seg in new]
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -440,6 +452,7 @@ __all__ = [
     "FeedHosts",
     "NoAdExcision",
     "BatchFinalizedHook",
+    "CarrySpeakerIdentity",
     "CorpusDerivedHook",
     "KgGraphPass",
     "KgPromptHints",
@@ -462,6 +475,7 @@ __all__ = [
     "adfree_base",
     "anon_transcript",
     "batch_finalized",
+    "carry_speaker_identity",
     "corpus_derived",
     "episode_hosts",
     "episode_speakers",
