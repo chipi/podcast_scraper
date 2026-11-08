@@ -267,11 +267,27 @@ def _write_variant_corpus(tmp_path):
 def test_identity_map_collapses_variant_nodes(tmp_path):
     corpus = _write_variant_corpus(tmp_path)
     g = CorpusGraph.build(corpus, identity_map={"org:cargil": "org:cargill"})
-    assert g.get_node("org:cargil") is None  # variant collapsed
-    assert g.get_node("org:cargill") is not None
+    # Variant collapsed: it has no node of its own; looked up, it is the canonical's node.
+    assert "org:cargil" not in g.nodes_by_type(g.get_node("org:cargill").type)
+    assert g.get_node("org:cargil").id == "org:cargill"
     # The remapped node reaches BOTH episodes (its own + the variant's).
     nbrs = set(g.neighbors("org:cargill"))
     assert {"episode:e1", "episode:e2"} <= nbrs
+
+
+def test_a_joined_member_id_finds_the_groups_node_everywhere(tmp_path):
+    """Prod 2026-11-08: `resolve_entity` returned a ledger member id, and every graph tool then
+    answered "not in corpus", because the graph holds only canonical ids and looked the member
+    up as given."""
+    g = CorpusGraph.build(
+        _write_variant_corpus(tmp_path), identity_map={"org:cargil": "org:cargill"}
+    )
+    assert set(g.neighbors("org:cargil")) == set(g.neighbors("org:cargill"))
+    assert g.typed_neighbors("org:cargil", "MENTIONS") == g.typed_neighbors(
+        "org:cargill", "MENTIONS"
+    )
+    assert g.degree("org:cargil") == g.degree("org:cargill") > 0
+    assert g.bfs("org:cargil", max_hops=1) == g.bfs("org:cargill", max_hops=1)
 
 
 def test_no_identity_map_keeps_variants_separate(tmp_path):
@@ -293,7 +309,7 @@ def test_get_corpus_graph_canonicalizes_entities_by_default(tmp_path):
     write_ledger(corpus, build_ledger(corpus))
     clear_corpus_graph_cache()
     g = get_corpus_graph(corpus)  # canonicalize_entities=True by default
-    assert g.get_node("org:cargil") is None  # auto-merged into the canonical
+    assert g.get_node("org:cargil").id == "org:cargill"  # auto-merged: no node of its own
     assert g.get_node("org:cargill") is not None
     clear_corpus_graph_cache()
     g_off = get_corpus_graph(corpus, canonicalize_entities=False)
@@ -378,7 +394,8 @@ def test_reconcile_collapses_host_spelling_variants():
         ),
     )
     g._reconcile_feed_hosts()
-    assert g.get_node("person:erika-barris") is None  # minority variant collapsed
+    # Minority variant collapsed: no node of its own; looked up, it is the dominant's node.
+    assert g.get_node("person:erika-barris").id == "person:erica-barris"
     dom = g.get_node("person:erica-barris")
     assert dom is not None and dom.payload["name"] == "Erica Barris"
     assert "episode:p3" in g.neighbors("person:erica-barris")  # inherits the variant's episode

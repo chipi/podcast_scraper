@@ -33,7 +33,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
-from ..graph_id_utils import is_numbered_speaker_label as _looks_like_speaker_label
+from ..graph_id_utils import (
+    is_numbered_speaker_label as _looks_like_speaker_label,
+    is_unresolved_speaker_placeholder,
+)
 from ..identity.person_match import host_variants
 
 logger = logging.getLogger(__name__)
@@ -422,10 +425,10 @@ class CorpusGraph:
         (e.g. from entity canonicalization) applied at ingest so cross-episode
         spelling variants collapse to one node.
         """
-        from ..gi.corpus import load_gi_artifacts
+        from ..gi.corpus import iter_gi_artifacts
         from ..gi.explore import scan_artifact_paths as scan_gi_paths
         from ..kg.corpus import (
-            load_kg_artifacts,
+            iter_kg_artifacts,
             newest_run_artifact_paths,
             scan_kg_artifact_paths,
         )
@@ -438,16 +441,19 @@ class CorpusGraph:
         _kg_paths = newest_run_artifact_paths(
             corpus_dir, scan_kg_artifact_paths(corpus_dir), ".kg.json"
         )
-        for _path, data in load_kg_artifacts(_kg_paths, validate=validate):
+        for _path, data in iter_kg_artifacts(_kg_paths, validate=validate):
             graph._ingest(data, "kg")
         _gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
-        for _path, data in load_gi_artifacts(_gi_paths, validate=validate):
+        for _path, data in iter_gi_artifacts(_gi_paths, validate=validate):
             graph._ingest(data, "gi")
         if derive_speaker_links:
             graph._derive_speaker_links()
         if reconcile_hosts:
             graph._reconcile_feed_hosts()
         graph._spell_people()  # after any merge, so it sees the final ids
+        from ..utils.memory import release_freed_memory
+
+        release_freed_memory()
         logger.debug(
             "Built corpus graph: %d nodes, %d adjacency entries",
             len(graph._nodes),
@@ -456,16 +462,28 @@ class CorpusGraph:
         return graph
 
     # --- access ----------------------------------------------------------------
+    #
+    # Every lookup takes an id through the identity map first. The graph holds only canonical ids,
+    # so a joined member's id (what an agent gets from a file or an older answer) finds the
+    # group's node instead of nothing. An unresolved speaker placeholder (``person:speaker-03``)
+    # is not: host reconciliation maps one per episode, and the same placeholder names a
+    # different voice in every episode, so a bare one names nobody.
+
+    def canonical(self, node_id: str) -> str:
+        """The id this graph holds for *node_id*: the ledger canonical of a joined member."""
+        if is_unresolved_speaker_placeholder(node_id):
+            return node_id
+        return self._canon(node_id)
 
     def get_node(self, node_id: Optional[str]) -> Optional[Node]:
         """Return the node for *node_id*, or ``None`` if absent/``None``."""
         if node_id is None:
             return None
-        return self._nodes.get(node_id)
+        return self._nodes.get(self.canonical(node_id))
 
     def neighbors(self, node_id: str) -> List[str]:
         """Undirected neighbors of *node_id* (sorted for determinism)."""
-        return sorted(self._adj.get(node_id, set()))
+        return sorted(self._adj.get(self.canonical(node_id), set()))
 
     def typed_neighbors(self, node_id: str, edge_type: str) -> List[str]:
         """Neighbors reached from *node_id* by an edge of *edge_type* (RFC-094 / #882).
@@ -476,12 +494,16 @@ class CorpusGraph:
         insights that mention the entity, even though both are person/org↔insight pairs.
         """
         return sorted(
-            {nbr for nbr, etype in self._typed_adj.get(node_id, ()) if etype == edge_type}
+            {
+                nbr
+                for nbr, etype in self._typed_adj.get(self.canonical(node_id), ())
+                if etype == edge_type
+            }
         )
 
     def degree(self, node_id: str) -> int:
         """Number of (undirected) neighbors of *node_id*."""
-        return len(self._adj.get(node_id, ()))
+        return len(self._adj.get(self.canonical(node_id), ()))
 
     def nodes_by_type(self, node_type: str) -> List[str]:
         """Sorted ids of all nodes whose normalized type is *node_type*."""
@@ -494,6 +516,7 @@ class CorpusGraph:
         ``max_hops`` (start at hop 0). The primitive RFC-091 scores as
         ``1 / (hop + 1)``.
         """
+        start_id = self.canonical(start_id)
         if start_id not in self._adj and start_id not in self._nodes:
             return {}
         dist: Dict[str, int] = {start_id: 0}

@@ -79,7 +79,14 @@ def events(
     # `event_type:` filter returns 0 against real pushed data.
     # Since 2026-10-15 prod's Alloy parses the JSON line into fields and leaves no `_msg`, so the
     # phrase alone matched nothing there while 1,151 pipeline_stage events landed on 10-18.
-    filters = [f"(event_type:{_q(event_type)} OR _msg:{_q(event_type)})", f"_time:{window}"]
+    # A trailing ``*`` is a prefix: ``pipeline_run.*`` is every run event (started, completed,
+    # skipped). LogsQL's prefix form is ``field:"prefix"*`` (live-verified 2026-11-08).
+    if event_type.endswith("*"):
+        stem = _q(event_type[:-1])
+        type_filter = f"(event_type:{stem}* OR _msg:{stem}*)"
+    else:
+        type_filter = f"(event_type:{_q(event_type)} OR _msg:{_q(event_type)})"
+    filters = [type_filter, f"_time:{window}"]
     if surface:
         filters.append(f"(surface:{_q(surface)} OR component:{_q(surface)})")
     # SAME TWO SHIPPING PATHS AS ``event_type`` ABOVE, and the field-only filter failed for the
@@ -236,22 +243,29 @@ def metrics_instant(target: TargetConfig, query: str) -> dict:
     return ok(_METRICS, {"query": query, "series": series})
 
 
-def red_metrics(target: TargetConfig, job: str, *, window: str = "5m") -> dict:
+def red_metrics(
+    target: TargetConfig, job: str, *, window: str = "5m", service: Optional[str] = None
+) -> dict:
     """RED-ish snapshot for a surface: request rate, 5xx error rate, p95 latency.
 
-    Filtered by the Prometheus ``job`` label (live-verified: the instrumentator series
-    ``http_requests_total`` / ``http_request_duration_seconds_bucket`` carry ``job="api"`` etc.,
-    not a ``service`` label). A surface with no HTTP metrics (the pipeline subprocess) returns empty
-    series — honest, not an error. Each sub-query degrades independently.
+    Filtered by the Prometheus ``job`` label and, when given, ``service``. Prod scrapes the podcast,
+    player and operator APIs under one ``job="api"`` and tells them apart by ``service``
+    (``podcast-api`` / ``player-api`` / ``operator-public-api``, live-verified 2026-11-08), so a job
+    filter alone sums all three. A surface with no HTTP metrics (the pipeline subprocess) returns
+    empty series — honest, not an error. Each sub-query degrades independently.
     """
     if not target.victoriametrics_url:
         return err(_METRICS, "victoriametrics_url not configured", configured=False)
     j = job.replace(chr(92), "").replace('"', "")
-    q_rate = f'sum(rate(http_requests_total{{job="{j}"}}[{window}]))'
-    q_err = f'sum(rate(http_requests_total{{job="{j}",status=~"5.."}}[{window}]))'
+    sel = f'job="{j}"'
+    if service:
+        s = service.replace(chr(92), "").replace('"', "")
+        sel += f',service="{s}"'
+    q_rate = f"sum(rate(http_requests_total{{{sel}}}[{window}]))"
+    q_err = f'sum(rate(http_requests_total{{{sel},status=~"5.."}}[{window}]))'
     q_p95 = (
         "histogram_quantile(0.95, sum(rate("
-        f'http_request_duration_seconds_bucket{{job="{j}"}}[{window}])) by (le))'
+        f"http_request_duration_seconds_bucket{{{sel}}}[{window}])) by (le))"
     )
     return ok(
         _METRICS,

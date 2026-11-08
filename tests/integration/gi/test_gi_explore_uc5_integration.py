@@ -97,3 +97,42 @@ def test_run_uc1_filters_by_topic_substring(tmp_path: Path) -> None:
     texts = [i.text or "" for i in out.insights]
     assert any("energy" in t.lower() for t in texts)
     assert not any("economics" in t.lower() for t in texts)
+
+
+def _spoken_gi(episode_id: str, person: str, name: str) -> dict:
+    gi = _minimal_gi(episode_id, f"Said in {episode_id}")
+    gi["nodes"].append({"id": person, "type": "Person", "properties": {"name": name}})
+    gi["edges"].append({"type": "SPOKEN_BY", "from": "quote-1", "to": person})
+    gi["nodes"][1]["properties"]["speaker_id"] = person
+    return gi
+
+
+def test_run_uc5_treats_a_joined_person_as_one_speaker(tmp_path: Path, monkeypatch) -> None:
+    """Prod 2026-11-08 (tier L): `explore_insights` matched the speaker as a raw id substring and
+    showed each file's own spelling, so one joined person was two speakers."""
+    import podcast_scraper.identity.display as D
+    import podcast_scraper.kg.entity_clusters as EC
+
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    for ep, pid, name in (
+        ("ep-a", "person:tracy", "Tracy Aloway"),
+        ("ep-b", "person:tracey-alloway", "Tracey Alloway"),
+    ):
+        (meta / f"{ep}.gi.json").write_text(json.dumps(_spoken_gi(ep, pid, name)), encoding="utf-8")
+    monkeypatch.setattr(
+        EC, "cached_entity_id_map", lambda root, **kw: {"person:tracy": "person:tracey-alloway"}
+    )
+    monkeypatch.setattr(
+        D,
+        "person_display",
+        lambda root: D.PersonDisplay(
+            {"person:tracy": "Tracey Alloway", "person:tracey-alloway": "Tracey Alloway"}
+        ),
+    )
+
+    out = run_uc5_insight_explorer(tmp_path, speaker="person:tracy", limit=20)
+    assert {i.episode_id for i in out.insights} == {"ep-a", "ep-b"}
+    quotes = [q for i in out.insights for q in i.supporting_quotes]
+    assert {q.speaker_id for q in quotes} == {"person:tracey-alloway"}
+    assert {q.speaker_name for q in quotes} == {"Tracey Alloway"}

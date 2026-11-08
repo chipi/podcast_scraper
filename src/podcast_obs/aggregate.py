@@ -23,12 +23,34 @@ from .sources import enrichment, github, grafana, langfuse, prod_api, sentry, um
 # ``logs`` is the surface's LogsQL selector. The log label ``surface`` is a sub-part of an app
 # (api/mcp/app/obs/pipeline/web, LOG-STANDARD), so the MCP surface name is not a log filter:
 # ``surface:player`` matched nothing and ``surface:api`` mixed the podcast and player APIs.
+# ``job``/``service`` select the RED metrics: one scrape job ``api`` covers the three APIs, told
+# apart by ``service`` (live-verified 2026-11-08; there is no ``job="player"`` or ``"operator"``).
 _SURFACE: dict[str, dict[str, str | None]] = {
-    "api": {"job": "api", "trace": "podcast-api", "logs": "app:podcast AND surface:api"},
-    "pipeline": {"job": None, "trace": "podcast-pipeline", "logs": "surface:pipeline"},
-    "player": {"job": "player", "trace": "player-api", "logs": "app:player"},
-    "operator": {"job": "operator", "trace": "operator-public-api", "logs": "app:operator"},
+    "api": {
+        "job": "api",
+        "service": "podcast-api",
+        "trace": "podcast-api",
+        "logs": "app:podcast AND surface:api",
+    },
+    "pipeline": {
+        "job": None,
+        "service": None,
+        "trace": "podcast-pipeline",
+        "logs": "surface:pipeline",
+    },
+    "player": {"job": "api", "service": "player-api", "trace": "player-api", "logs": "app:player"},
+    "operator": {
+        "job": "api",
+        "service": "operator-public-api",
+        "trace": "operator-public-api",
+        "logs": "app:operator",
+    },
 }
+
+#: Every pipeline run event: ``pipeline_run.started`` / ``.completed`` (status succeeded, partial
+#: or failed) from the run, ``.skipped`` from the scheduler (which runs in the api process, so no
+#: surface filter).
+RUN_EVENTS = "pipeline_run.*"
 
 # (label, probe) — each probe takes a TargetConfig and returns a result envelope.
 # Sources whose credentials aren't set for a target return ``configured=False`` and land in the
@@ -194,8 +216,10 @@ def surface(target: TargetConfig, name: str, *, window: str = "1h") -> dict:
         "traces": lambda: victoria.traces_recent(target, trace_service, window=window, limit=10),
     }
     if job:  # a surface with no HTTP metrics (the pipeline subprocess) skips RED
-        probes["metrics"] = lambda: victoria.red_metrics(target, job, window="5m")
+        service = mapping.get("service")
+        probes["metrics"] = lambda: victoria.red_metrics(target, job, window="5m", service=service)
     if name == "pipeline":
+        probes["runs"] = lambda: victoria.events(target, RUN_EVENTS, window=window, limit=50)
         probes["pipeline_stage"] = lambda: victoria.events(
             target, "pipeline_stage", surface="pipeline", window=window, limit=50
         )
@@ -296,6 +320,9 @@ def investigate(
         probes["pipeline_stage"] = lambda: victoria.events(
             target, "pipeline_stage", run_id=run_id, window=window, limit=200
         )
+        probes["run_events"] = lambda: victoria.events(
+            target, RUN_EVENTS, run_id=run_id, window=window, limit=20
+        )
     if episode_id:
         probes["ep_pipeline_stage"] = lambda: victoria.events(
             target, "pipeline_stage", episode_id=episode_id, window=window, limit=200
@@ -377,6 +404,10 @@ def correlate(target: TargetConfig, run_id: str) -> dict:
     This is what lets an agent take a run and see what it did, what it cost, and whether it
     errored — in one call.
     """
+    # An empty id drops every run filter below and returns the whole window's signals as if they
+    # were this run's.
+    if not (run_id or "").strip():
+        return err("correlate", "run_id is required")
     signals: dict[str, dict] = {}
     for label, probe in _CORRELATORS:
         try:

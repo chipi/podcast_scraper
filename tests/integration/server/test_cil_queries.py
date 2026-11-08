@@ -830,6 +830,38 @@ def test_cil_queries_apply_cross_episode_canonical_map(tmp_path: Path, monkeypat
     assert set(persons) == {"person:tracy", "person:tracey-alloway"}
 
 
+def test_a_joined_person_is_one_speaker_and_one_profile(tmp_path: Path, monkeypatch) -> None:
+    """Prod 2026-11-08 (tier L): one person under two joined ids counted as two speakers in
+    `topic_perspective_leaders`, and `person_profile` did not say which id the group is."""
+    meta = tmp_path / "metadata"
+    for stem, person, iid, qid in (
+        ("a", "person:tracy", "i1", "q1"),
+        ("b", "person:tracey-alloway", "i2", "q2"),
+    ):
+        _write_bundle(
+            meta,
+            stem,
+            episode_id=f"episode:{stem}",
+            publish_date="2024-01-10",
+            person=person,
+            topic="topic:cargill",
+            insight_id=iid,
+            quote_id=qid,
+            insight_text=f"from {stem}",
+        )
+    id_map = {"person:tracy": "person:tracey-alloway"}
+    monkeypatch.setattr(cil_queries, "_cil_entity_id_map", lambda root: id_map)
+    root = str(tmp_path)
+
+    leaders = cil_queries.topic_perspective_leaders(root, root)
+    assert all(r["topic_id"] != "topic:cargill" for r in leaders), leaders  # one speaker, not two
+
+    brief = cil_queries.person_profile(root, root, "person:tracy")
+    assert brief["person_id"] == "person:tracy"  # the input, as before
+    assert brief["canonical_id"] == "person:tracey-alloway"
+    assert brief["member_ids"] == ["person:tracy"]
+
+
 # ---------------------------------------------------------------------------
 # RFC-097 v3.0 phase-3 "3.4" — full-vocabulary cross-layer fixture (no
 # deferrals; every data point asserted in one canonical flow per
