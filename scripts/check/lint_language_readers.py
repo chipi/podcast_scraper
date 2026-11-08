@@ -94,7 +94,7 @@ WHITELIST: Dict[str, str] = {
     "providers/grok/grok_provider_gi_naming.py": (
         "output language for the bundled prompt, not the input"
     ),
-    "providers/anthropic/anthropic_provider.py": (
+    "providers/anthropic/anthropic_provider_gi_naming.py": (
         "output language for the bundled prompt, not the input"
     ),
     # Local Whisper: same fallback shape, plus the init-time model-name resolution. S0.7 removes
