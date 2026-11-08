@@ -45,6 +45,9 @@ from tests.conftest import (  # noqa: E402
     TEST_TRANSCRIPT_URL,
 )
 
+#: ``os.path.exists`` before any test patches it.
+_REAL_EXISTS = os.path.exists
+
 
 class TestMetadataIDGeneration(unittest.TestCase):
     """Tests for metadata ID generation functions."""
@@ -1405,7 +1408,10 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.cfg = create_test_config(generate_metadata=True, skip_existing=True)
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
-        mock_exists.return_value = True
+        # Only the metadata file "exists": every other path gets the real answer. A blanket True
+        # also reached a first `import torch` inside the call (summary provider metadata) on an
+        # xdist worker that had not imported it yet, and torch's own file probes then failed.
+        mock_exists.side_effect = lambda path: path == metadata_path or _REAL_EXISTS(path)
 
         result = metadata.generate_episode_metadata(
             feed=self.feed,
@@ -1428,7 +1434,10 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.cfg = create_test_config(generate_metadata=True, skip_existing=True)
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
-        mock_exists.return_value = True
+        # Only the metadata file "exists": every other path gets the real answer. A blanket True
+        # also reached a first `import torch` inside the call (summary provider metadata) on an
+        # xdist worker that had not imported it yet, and torch's own file probes then failed.
+        mock_exists.side_effect = lambda path: path == metadata_path or _REAL_EXISTS(path)
 
         result = metadata.generate_episode_metadata(
             feed=self.feed,

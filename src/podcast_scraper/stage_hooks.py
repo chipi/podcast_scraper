@@ -104,6 +104,10 @@ NativeRoster = Callable[..., Dict[str, Any]]
 #: takes the speaker identity of the old segments it overlaps. One owner; without one the new
 #: segments come back as copies, unlabelled.
 CarrySpeakerIdentity = Callable[[Sequence[Any], Sequence[Any]], List[Dict[str, Any]]]
+#: ``(**context) -> (bridge_gi_payload, gi_artifact_path, gi_cost, gi_elapsed, gi_meta, gi_path)``:
+#: the episode's grounded insights (``gi.json``), built and written. One owner; without one,
+#: ``None``: no GI, and the metadata record carries none.
+EpisodeInsights = Callable[..., Tuple[Any, ...]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -150,6 +154,7 @@ class PipelineHooks:
     person_voice_label: Optional[PersonVoiceLabel] = None
     native_roster: Optional[NativeRoster] = None
     carry_speaker_identity: Optional[CarrySpeakerIdentity] = None
+    episode_insights: Optional[EpisodeInsights] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -434,6 +439,13 @@ def carry_speaker_identity(new: Sequence[Any], old: Sequence[Any]) -> List[Dict[
     return [dict(seg) for seg in new]
 
 
+def episode_insights(**context: Any) -> Optional[Tuple[Any, ...]]:
+    for hooks in _all():
+        if hooks.episode_insights is not None:
+            return hooks.episode_insights(**context)
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -447,6 +459,7 @@ __all__ = [
     "AnonTranscript",
     "AdfreeBase",
     "EpisodeHosts",
+    "EpisodeInsights",
     "EpisodeSpeakers",
     "ExciseAds",
     "FeedHosts",
@@ -478,6 +491,7 @@ __all__ = [
     "carry_speaker_identity",
     "corpus_derived",
     "episode_hosts",
+    "episode_insights",
     "episode_speakers",
     "excise_ads",
     "feed_hosts",

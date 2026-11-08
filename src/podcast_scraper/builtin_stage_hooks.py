@@ -473,6 +473,12 @@ def _carry_speaker_identity(new: Any, old: Any) -> List[Dict[str, Any]]:
     return carry_speaker_identity(new, old)
 
 
+def _episode_insights(**context: Any) -> Tuple[Any, ...]:
+    from podcast_scraper.insight_stage import episode
+
+    return episode.build_episode_insights(**context)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -498,6 +504,7 @@ BUILTIN = PipelineHooks(
     person_voice_label=_person_voice_label,
     native_roster=_native_roster,
     carry_speaker_identity=_carry_speaker_identity,
+    episode_insights=_episode_insights,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

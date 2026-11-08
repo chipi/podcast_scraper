@@ -538,3 +538,36 @@ def test_the_built_in_carry_is_todays_alignment() -> None:
     ):
         assert stage_hooks.carry_speaker_identity(["n"], ["o"]) == [{"speaker_label": "A"}]
     carry.assert_called_once_with(["n"], ["o"])
+
+
+def test_without_an_insight_stage_no_gi_is_built() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.episode_insights(cfg=None, episode=None) is None
+
+
+def test_the_built_in_insight_stage_gets_the_whole_context() -> None:
+    with (
+        patch(
+            "podcast_scraper.insight_stage.episode.build_episode_insights",
+            return_value=("payload", "p", 0.1, 2.0, "meta", "p"),
+        ) as build,
+        use_extensions([]),
+    ):
+        got = stage_hooks.episode_insights(cfg="cfg", episode="e", gi_meta=None)
+    build.assert_called_once_with(cfg="cfg", episode="e", gi_meta=None)
+    assert got == ("payload", "p", 0.1, 2.0, "meta", "p")
+
+
+def test_metadata_generation_no_longer_builds_gi_itself() -> None:
+    src = (Path(stage_hooks.__file__).parent / "workflow" / "metadata_generation.py").read_text(
+        encoding="utf-8"
+    )
+    names = {
+        (n.module or "", a.name)
+        for n in ast.walk(ast.parse(src))
+        if isinstance(n, ast.ImportFrom)
+        for a in n.names
+    }
+    # The GI build itself (the GI + KG passes that still follow it are a later slice).
+    assert not {(m, a) for m, a in names if a == "build_artifact" and m.endswith("gi")}
+    assert not {(m, a) for m, a in names if m.endswith("gi.provenance")}
