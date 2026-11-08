@@ -168,6 +168,9 @@ CreateSpeakerDetector = Callable[[Any], Any]
 #: ``(profile_id) -> None``: raise ValueError when a labeling profile id is not registered. One
 #: owner; without one every id is accepted (no speaker stage reads it).
 ValidateLabelingProfile = Callable[[str], None]
+#: ``(corpus_parent, cfg, log)``: once a multi-feed batch with results is finalized, from the CLI
+#: (the identity ledger refresh); run by :func:`podcast_scraper.cli_hooks.batch_completed`.
+BatchCompletedHook = Callable[[Any, Any, Any], Any]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -224,6 +227,7 @@ class PipelineHooks:
     ner_model: Optional[NerModel] = None
     create_speaker_detector: Optional[CreateSpeakerDetector] = None
     validate_labeling_profile: Optional[ValidateLabelingProfile] = None
+    batch_completed: Sequence[BatchCompletedHook] = field(default_factory=tuple)
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -615,6 +619,7 @@ __all__ = [
     "FeedHosts",
     "GiKgPasses",
     "NoAdExcision",
+    "BatchCompletedHook",
     "BatchFinalizedHook",
     "BundledNaming",
     "BundledNamingHook",

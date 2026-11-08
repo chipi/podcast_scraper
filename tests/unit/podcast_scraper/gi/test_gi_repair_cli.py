@@ -18,8 +18,8 @@ from typing import Any, Dict, List
 
 import pytest
 
-from podcast_scraper.cli import _parse_gi_repair_argv, _run_gi_repair_cli
 from podcast_scraper.gi.corpus import LEGACY_PLACEHOLDER_INSIGHT_TEXT
+from podcast_scraper.insight_stage.cli import _parse_gi_repair_argv, _run_gi_repair_cli
 
 pytestmark = [pytest.mark.unit]
 

@@ -193,4 +193,8 @@ class TestTheBatchOwnsTheLedger:
         src = Path(corpus_operations.__file__).resolve().parents[1] / rel
         text = src.read_text(encoding="utf-8")
         after = text[text.index("finalize_multi_feed_batch(\n") :]
-        assert "refresh_ledger_after_batch(" in after[:800], rel
+        # Through the CLI hooks (E04 S7), whose built-in owner is the refresh itself.
+        assert "cli_hooks.batch_completed(" in after[:800], rel
+        from podcast_scraper import builtin_cli_hooks
+
+        assert builtin_cli_hooks._refresh_ledger_after_batch in builtin_cli_hooks.BATCH_COMPLETED
