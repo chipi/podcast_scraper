@@ -32,6 +32,7 @@ def _recording(calls: List[Tuple[str, Tuple[Any, ...]]], who: str) -> PipelineHo
         corpus_derived=(rec("corpus_derived"),),
         batch_finalized=(rec("batch_finalized"),),
         run_finalized=(rec("run_finalized"),),
+        run_completed=(rec("run_completed"),),
     )
 
 
@@ -50,6 +51,7 @@ def test_built_in_hooks_run_before_each_extension_in_load_order(tmp_path: Path) 
         stage_hooks.corpus_derived(tmp_path)
         stage_hooks.batch_finalized(tmp_path)
         stage_hooks.run_finalized("root", "run")
+        stage_hooks.run_completed("cfg", "out")
 
     assert calls == [
         ("builtin.run_started", ("cfg",)),
@@ -64,6 +66,9 @@ def test_built_in_hooks_run_before_each_extension_in_load_order(tmp_path: Path) 
         ("builtin.run_finalized", ("root", "run")),
         ("a.run_finalized", ("root", "run")),
         ("b.run_finalized", ("root", "run")),
+        ("builtin.run_completed", ("cfg", "out")),
+        ("a.run_completed", ("cfg", "out")),
+        ("b.run_completed", ("cfg", "out")),
     ]
 
 
@@ -115,7 +120,15 @@ def test_a_failing_audio_reference_pass_never_fails_the_run(
 @pytest.mark.parametrize(
     "module, moved",
     [
-        ("orchestration.py", {"gi.deps", "audio_sync.references", "diarization.ad_signatures"}),
+        (
+            "orchestration.py",
+            {
+                "gi.deps",
+                "audio_sync.references",
+                "diarization.ad_signatures",
+                "kg.topic_clustering",
+            },
+        ),
         ("corpus_operations.py", {"quality.naming_coverage", "diarization.ad_signatures"}),
     ],
 )
@@ -123,3 +136,39 @@ def test_the_run_and_the_batch_no_longer_import_the_hooked_stages(module: str, m
     tree = ast.parse((_WORKFLOW / module).read_text(encoding="utf-8"))
     imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
     assert not {m for m in imported for s in moved if m.endswith(s)}
+
+
+class _Cfg:
+    def __init__(self, on: bool, dry_run: bool = False) -> None:
+        self.kg_topic_corpus_clustering = on
+        self.dry_run = dry_run
+
+
+@pytest.mark.parametrize("cfg", [_Cfg(False), _Cfg(True, dry_run=True)])
+def test_corpus_topic_clustering_runs_only_when_on_and_not_a_dry_run(cfg: _Cfg) -> None:
+    with (
+        patch("podcast_scraper.kg.topic_clustering.cluster_and_apply_corpus_topics") as cluster,
+        use_extensions([]),
+    ):
+        stage_hooks.run_completed(cfg, "out")
+    cluster.assert_not_called()
+
+
+def test_corpus_topic_clustering_runs_and_a_failure_is_not_fatal(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with (
+        patch("podcast_scraper.kg.topic_clustering.cluster_and_apply_corpus_topics") as cluster,
+        use_extensions([]),
+    ):
+        stage_hooks.run_completed(_Cfg(True), "out")
+    cluster.assert_called_once_with(Path("out"))
+    with (
+        patch(
+            "podcast_scraper.kg.topic_clustering.cluster_and_apply_corpus_topics",
+            side_effect=RuntimeError("boom"),
+        ),
+        use_extensions([]),
+    ):
+        stage_hooks.run_completed(_Cfg(True), "out")
+    assert "corpus topic clustering failed (non-fatal): boom" in caplog.text

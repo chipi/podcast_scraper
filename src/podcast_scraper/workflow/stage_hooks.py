@@ -28,6 +28,9 @@ BatchFinalizedHook = Callable[[Path], None]
 #: ``(corpus_root, run_dir)``. End of a run, before local audio is evicted: the last moment the
 #: run's audio is on local disk. Must not raise.
 RunFinalizedHook = Callable[[str, str], None]
+#: ``(cfg, output_dir)``. After every episode of the run is finalized and on disk, before the
+#: run is marked done. Must not raise.
+RunCompletedHook = Callable[[Any, str], None]
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,7 @@ class PipelineHooks:
     corpus_derived: Sequence[CorpusDerivedHook] = field(default_factory=tuple)
     batch_finalized: Sequence[BatchFinalizedHook] = field(default_factory=tuple)
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
+    run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
 
 
 def _all() -> Iterator[PipelineHooks]:
@@ -76,14 +80,22 @@ def run_finalized(corpus_root: str, run_dir: str) -> None:
             hook(corpus_root, run_dir)
 
 
+def run_completed(cfg: Any, output_dir: str) -> None:
+    for hooks in _all():
+        for hook in hooks.run_completed:
+            hook(cfg, output_dir)
+
+
 __all__ = [
     "BatchFinalizedHook",
     "CorpusDerivedHook",
     "PipelineHooks",
+    "RunCompletedHook",
     "RunFinalizedHook",
     "RunStartedHook",
     "batch_finalized",
     "corpus_derived",
+    "run_completed",
     "run_finalized",
     "run_started",
 ]
