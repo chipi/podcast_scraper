@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,13 @@ class ReadHooks:
     entity_id_map: Optional[Callable[[Path], Dict[str, str]]] = None
     #: ``(corpus_root) -> assessment``: the GI integrity report the ops route returns.
     gi_integrity: Optional[Callable[[Path], Dict[str, Any]]] = None
+    #: ``(root, topic_ids, *, keep_episode_ids, slug_by_episode) -> [group]``: what speakers said
+    #: about the topics, one group per speaker with its insights as ``AppInsight``.
+    topic_perspectives: Optional[Callable[..., List[Dict[str, Any]]]] = None
+    #: ``(root, person_rows) -> (bio_from, photo_from)``: which joined member lends its bio / photo.
+    group_borrows: Optional[Callable[[Path, List[Any]], Tuple[Dict[str, str], Dict[str, str]]]] = (
+        None
+    )
 
 
 def _all() -> Iterator[ReadHooks]:
@@ -90,12 +97,37 @@ def gi_integrity(root: Path) -> Optional[Dict[str, Any]]:
     return fn(root) if fn is not None else None
 
 
+def topic_perspectives(
+    root: Path,
+    topic_ids: Sequence[str],
+    *,
+    keep_episode_ids: Optional[Set[str]],
+    slug_by_episode: Dict[str, str],
+) -> List[Dict[str, Any]]:
+    """What speakers said about the topics; without an insight stage, nothing (honest-empty)."""
+    fn = _owner("topic_perspectives")
+    if fn is None:
+        return []
+    out: List[Dict[str, Any]] = fn(
+        root, topic_ids, keep_episode_ids=keep_episode_ids, slug_by_episode=slug_by_episode
+    )
+    return out
+
+
+def group_borrows(root: Path, rows: List[Any]) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """Which joined member lends its bio / photo; without the identity stage, none is borrowed."""
+    fn = _owner("group_borrows")
+    return fn(root, rows) if fn is not None else ({}, {})
+
+
 __all__ = [
     "ReadHooks",
     "ad_reads",
     "entity_id_map",
     "gi_integrity",
+    "group_borrows",
     "looks_like_publisher",
     "segment_speaker",
+    "topic_perspectives",
     "unidentified_label",
 ]

@@ -1,4 +1,5 @@
-"""Public modules the split keeps must import without loading the speaker stage (E04 S2).
+"""Public modules the split keeps must import without loading a stage that moves (E04 S2,
+S3: the speaker, insight and identity-ledger stages).
 
 Checked in a fresh interpreter: inside this test process other tests have long since imported
 the diarization package, so `sys.modules` here proves nothing.
@@ -20,13 +21,27 @@ SRC = Path(__file__).resolve().parents[3] / "src"
 
 #: Public modules whose import must not reach the speaker stage.
 PUBLIC = [
+    "podcast_scraper.cli_hooks",
     "podcast_scraper.providers.resilience.fallback",
     "podcast_scraper.providers.tailnet_dgx",
+    "podcast_scraper.read_hooks",
+    "podcast_scraper.server.app_episode_search",
+    "podcast_scraper.server.feed_signals",
+    "podcast_scraper.server.kg_index",
+    "podcast_scraper.server.relational_view",
+    "podcast_scraper.server.routes.ops",
+    "podcast_scraper.server.segments_view",
     "podcast_scraper.stage_hooks",
     "podcast_scraper.text_language",
 ]
-#: Module prefixes that belong to the speaker stage.
+#: Module prefixes that belong to a stage that moves. ``identity`` keeps three public modules
+#: (slugify, bare_name_scope, display), so only its ledger side is listed.
 SPEAKER_STAGE = (
+    "podcast_scraper.gi",
+    "podcast_scraper.identity.ledger",
+    "podcast_scraper.identity.web_borrows",
+    "podcast_scraper.insight_stage",
+    "podcast_scraper.kg.entity_clusters",
     "podcast_scraper.providers.ml.diarization",
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.speaker_stage",

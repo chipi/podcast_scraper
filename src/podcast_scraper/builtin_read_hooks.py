@@ -7,7 +7,7 @@ its code moves to an extension, which then contributes it through ``Extension.re
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from .read_hooks import ReadHooks
 
@@ -48,6 +48,26 @@ def _gi_integrity(root: Path) -> Dict[str, Any]:
     return assess_gi_integrity(root)
 
 
+def _topic_perspectives(
+    root: Path,
+    topic_ids: Sequence[str],
+    *,
+    keep_episode_ids: Optional[Set[str]],
+    slug_by_episode: Dict[str, str],
+) -> List[Dict[str, Any]]:
+    from podcast_scraper.insight_stage.perspectives import speaker_perspectives
+
+    return speaker_perspectives(
+        root, topic_ids, keep_episode_ids=keep_episode_ids, slug_by_episode=slug_by_episode
+    )
+
+
+def _group_borrows(root: Path, rows: List[Any]) -> Tuple[Dict[str, str], Dict[str, str]]:
+    from podcast_scraper.identity.web_borrows import _group_borrows as borrows
+
+    return borrows(root, rows)
+
+
 BUILTIN = ReadHooks(
     name="builtin",
     segment_speaker=_segment_speaker,
@@ -56,4 +76,6 @@ BUILTIN = ReadHooks(
     looks_like_publisher=_looks_like_publisher,
     entity_id_map=_entity_id_map,
     gi_integrity=_gi_integrity,
+    topic_perspectives=_topic_perspectives,
+    group_borrows=_group_borrows,
 )

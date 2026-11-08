@@ -25,6 +25,13 @@ def test_without_any_stage_each_hook_answers_its_plain_default() -> None:
         assert read_hooks.looks_like_publisher("NPR") is False
         assert read_hooks.entity_id_map(Path("/c")) == {}
         assert read_hooks.gi_integrity(Path("/c")) is None
+        assert (
+            read_hooks.topic_perspectives(
+                Path("/c"), ["topic:ai"], keep_episode_ids=None, slug_by_episode={}
+            )
+            == []
+        )
+        assert read_hooks.group_borrows(Path("/c"), []) == ({}, {})
 
 
 def test_without_the_built_in_an_extension_owns_the_hook() -> None:
@@ -45,3 +52,10 @@ def test_the_publisher_reader_gets_the_language() -> None:
     ) as reader:
         assert read_hooks.looks_like_publisher("Rádio Senado", "pt") is True
     reader.assert_called_once_with("Rádio Senado", "pt")
+
+
+def test_without_an_insight_stage_a_topic_has_no_perspectives(tmp_path: Path) -> None:
+    from podcast_scraper.server.relational_view import build_topic_perspectives
+
+    with patch.object(builtin_read_hooks, "BUILTIN", _NONE):
+        assert build_topic_perspectives(tmp_path, "topic:ai") is None
