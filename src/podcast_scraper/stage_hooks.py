@@ -162,6 +162,9 @@ BundledNamingHook = Callable[..., Optional[BundledNaming]]
 DefaultSpeakerNames = Callable[[], Sequence[str]]
 #: ``(cfg) -> nlp | None``: the configured spaCy NER model. One owner; without one, None.
 NerModel = Callable[[Any], Any]
+#: ``(cfg) -> detector``: the speaker detector the run uses for hosts and guests. One owner;
+#: without one, None (no detector).
+CreateSpeakerDetector = Callable[[Any], Any]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -216,6 +219,7 @@ class PipelineHooks:
     bundled_naming: Optional[BundledNamingHook] = None
     default_speaker_names: Optional[DefaultSpeakerNames] = None
     ner_model: Optional[NerModel] = None
+    create_speaker_detector: Optional[CreateSpeakerDetector] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -574,6 +578,13 @@ def ner_model(cfg: Any) -> Any:
     return None
 
 
+def create_speaker_detector(cfg: Any) -> Any:
+    for hooks in _all():
+        if hooks.create_speaker_detector is not None:
+            return hooks.create_speaker_detector(cfg)
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -598,6 +609,7 @@ __all__ = [
     "BundledNamingHook",
     "CarrySpeakerIdentity",
     "CorpusDerivedHook",
+    "CreateSpeakerDetector",
     "DefaultSpeakerNames",
     "KgGraphPass",
     "KgPromptHints",
@@ -628,6 +640,7 @@ __all__ = [
     "bundled_naming",
     "carry_speaker_identity",
     "corpus_derived",
+    "create_speaker_detector",
     "default_speaker_names",
     "episode_hosts",
     "episode_insights",

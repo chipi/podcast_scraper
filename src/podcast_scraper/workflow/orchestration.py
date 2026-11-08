@@ -75,13 +75,18 @@ def extract_episode_description(item):  # noqa: F811
 
 
 from ..monitor.status import maybe_update_pipeline_status
-from ..speaker_detectors.factory import create_speaker_detector as _create_speaker_detector_factory
 from ..summarization.factory import (
     create_summarization_provider as _create_summarization_provider_factory,
 )
 from ..transcription.factory import (
     create_transcription_provider as _create_transcription_provider_factory,
 )
+
+
+def _create_speaker_detector_factory(cfg: config.Config) -> Optional[Any]:
+    """The speaker stage's detector for ``cfg``, or None when no speaker stage is installed."""
+    return stage_hooks.create_speaker_detector(cfg)
+
 
 # Re-export factory functions for testability
 create_summarization_provider = _create_summarization_provider_factory
@@ -201,6 +206,8 @@ def _create_speaker_detector(
             "create_speaker_detector", _create_speaker_detector_factory
         )
         detector = factory_func(cfg)
+        if detector is None:
+            return None
         detector.initialize()
         logger.debug(
             "Speaker detector initialized: %s",

@@ -567,6 +567,12 @@ def _ner_model(cfg: Any) -> Any:
     return get_ner_model(cfg)
 
 
+def _create_speaker_detector(cfg: Any) -> Any:
+    from podcast_scraper.speaker_detectors import factory
+
+    return factory.create_speaker_detector(cfg)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -600,6 +606,7 @@ BUILTIN = PipelineHooks(
     bundled_naming=_bundled_naming,
     default_speaker_names=_default_speaker_names,
     ner_model=_ner_model,
+    create_speaker_detector=_create_speaker_detector,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

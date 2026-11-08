@@ -699,3 +699,27 @@ def test_the_built_in_default_names_and_ner_model_are_todays() -> None:
         assert list(stage_hooks.default_speaker_names()) == list(DEFAULT_SPEAKER_NAMES)
         assert stage_hooks.ner_model("cfg") == "nlp"
     get.assert_called_once_with("cfg")
+
+
+def test_without_a_speaker_stage_the_run_has_no_speaker_detector() -> None:
+    from podcast_scraper.workflow import orchestration
+
+    class _Cfg:
+        auto_speakers = True
+        dry_run = False
+
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.create_speaker_detector(_Cfg()) is None
+        assert orchestration._create_speaker_detector(_Cfg()) is None  # type: ignore[arg-type]
+
+
+def test_the_built_in_detector_is_the_speaker_detector_factory() -> None:
+    with (
+        patch(
+            "podcast_scraper.speaker_detectors.factory.create_speaker_detector",
+            return_value="detector",
+        ) as make,
+        use_extensions([]),
+    ):
+        assert stage_hooks.create_speaker_detector("cfg") == "detector"
+    make.assert_called_once_with("cfg")
