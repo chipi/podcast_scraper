@@ -244,30 +244,40 @@ def _all() -> Iterator[PipelineHooks]:
 
 
 def run_started(cfg: Any) -> None:
+    """Run every ``run_started`` stage hook: the built-in ones, then each extension's, in load
+    order."""
     for hooks in _all():
         for hook in hooks.run_started:
             hook(cfg)
 
 
 def corpus_derived(corpus_root: Path) -> None:
+    """Run every ``corpus_derived`` stage hook: the built-in ones, then each extension's, in load
+    order."""
     for hooks in _all():
         for hook in hooks.corpus_derived:
             hook(corpus_root)
 
 
 def batch_finalized(corpus_parent: Path) -> None:
+    """Run every ``batch_finalized`` stage hook: the built-in ones, then each extension's, in
+    load order."""
     for hooks in _all():
         for hook in hooks.batch_finalized:
             hook(corpus_parent)
 
 
 def run_finalized(corpus_root: str, run_dir: str) -> None:
+    """Run every ``run_finalized`` stage hook: the built-in ones, then each extension's, in load
+    order."""
     for hooks in _all():
         for hook in hooks.run_finalized:
             hook(corpus_root, run_dir)
 
 
 def run_completed(cfg: Any, output_dir: str) -> None:
+    """Run every ``run_completed`` stage hook: the built-in ones, then each extension's, in load
+    order."""
     for hooks in _all():
         for hook in hooks.run_completed:
             hook(cfg, output_dir)
@@ -276,6 +286,8 @@ def run_completed(cfg: Any, output_dir: str) -> None:
 def kg_prompt_hints(
     transcript_text: str, cfg: Any, kg_extraction_provider: Any, max_entities: int
 ) -> Tuple[List[Dict[str, str]], str]:
+    """The ``kg_prompt_hints`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``([], 'v4')``."""
     for hooks in _all():
         if hooks.kg_prompt_hints is not None:
             return hooks.kg_prompt_hints(transcript_text, cfg, kg_extraction_provider, max_entities)
@@ -290,6 +302,8 @@ def adfree_base(
     *,
     extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[Tuple[str, Any]]:
+    """The ``adfree_base`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.adfree_base is not None:
             return hooks.adfree_base(
@@ -305,6 +319,9 @@ def adfree_base(
 def excise_ads(
     text: str, *, segments: Optional[List[Dict[str, Any]]] = None
 ) -> Tuple[str, Optional[List[Dict[str, Any]]], Any]:
+    """The ``excise_ads`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``(text, segments,
+    NoAdExcision(source_length=len(text)))``."""
     for hooks in _all():
         if hooks.excise_ads is not None:
             return hooks.excise_ads(text, segments=segments)
@@ -321,6 +338,8 @@ def write_variant_turns(
     adfree: Any = None,
     episode: Any = None,
 ) -> None:
+    """Run every ``write_variant_turns`` stage hook: the built-in ones, then each extension's, in
+    load order."""
     for hooks in _all():
         if hooks.variant_turns is not None:
             hooks.variant_turns(
@@ -330,6 +349,8 @@ def write_variant_turns(
 
 
 def screenplay(segments: List[Dict[str, Any]]) -> Optional[Tuple[str, List[Dict[str, Any]]]]:
+    """The ``screenplay`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.screenplay is not None:
             return hooks.screenplay(segments)
@@ -339,6 +360,8 @@ def screenplay(segments: List[Dict[str, Any]]) -> Optional[Tuple[str, List[Dict[
 def speaker_turns(
     offset_segments: List[Dict[str, Any]], *, screenplay_text: str, max_sentence_words: int
 ) -> Any:
+    """The ``speaker_turns`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.speaker_turns is not None:
             return hooks.speaker_turns(
@@ -350,6 +373,8 @@ def speaker_turns(
 
 
 def split_person_list(text: str) -> List[str]:
+    """The ``split_person_list`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``[text]``."""
     for hooks in _all():
         if hooks.split_person_list is not None:
             return hooks.split_person_list(text)
@@ -364,6 +389,9 @@ def feed_hosts(
     *,
     speaker_detector: Any = None,
 ) -> Any:
+    """The ``feed_hosts`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``HostDetectionResult(cached_hosts=set(),
+    heuristics=None)``."""
     for hooks in _all():
         if hooks.feed_hosts is not None:
             return hooks.feed_hosts(
@@ -377,6 +405,8 @@ def feed_hosts(
 def episode_hosts(
     host_detection_result: Any, episode: Any, episode_people: Iterable[str] = ()
 ) -> Set[str]:
+    """The ``episode_hosts`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``set()``."""
     for hooks in _all():
         if hooks.episode_hosts is not None:
             return hooks.episode_hosts(host_detection_result, episode, episode_people)
@@ -393,6 +423,8 @@ def episode_speakers(
     skip_reason: Optional[str] = None,
     skip_detail: Optional[Dict[str, Any]] = None,
 ) -> Any:
+    """The ``episode_speakers`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.episode_speakers is not None:
             return hooks.episode_speakers(
@@ -410,6 +442,8 @@ def episode_speakers(
 def stated_show_hosts(
     title: Any, description: Any, language: str, authors: List[str]
 ) -> List[Tuple[str, str]]:
+    """The ``stated_show_hosts`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``[]``."""
     for hooks in _all():
         if hooks.stated_show_hosts is not None:
             return hooks.stated_show_hosts(title, description, language, authors)
@@ -430,6 +464,8 @@ def _identical(a: str, b: str) -> bool:
 
 
 def same_person(a: str, b: str) -> bool:
+    """Run every ``same_person`` stage hook: the built-in ones, then each extension's, in load
+    order."""
     return person_matcher()(a, b)
 
 
@@ -442,6 +478,8 @@ def speaker_reprocess(
     transcription_provider: Any,
     pipeline_metrics: Any,
 ) -> Optional[Tuple[bool, Optional[str], int]]:
+    """The ``speaker_reprocess`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.speaker_reprocess is not None:
             return hooks.speaker_reprocess(
@@ -460,6 +498,8 @@ def speakers_after_asr(
     episode_duration_seconds: Any,
     transcription_provider: Any,
 ) -> Tuple[Any, Optional[float], Optional[float], Optional[str]]:
+    """The ``speakers_after_asr`` stage hook: the first owner that sets it answers (built-in,
+    then extensions in load order); without one, ``(result, None, None, None)``."""
     for hooks in _all():
         if hooks.speakers_after_asr is not None:
             return hooks.speakers_after_asr(
@@ -478,6 +518,8 @@ def speakers_after_asr(
 def anon_transcript(
     segments: List[Dict[str, Any]], rel_transcript_path: str, output_dir: str
 ) -> Optional[str]:
+    """The ``anon_transcript`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.anon_transcript is not None:
             return hooks.anon_transcript(segments, rel_transcript_path, output_dir)
@@ -485,6 +527,8 @@ def anon_transcript(
 
 
 def render_speakers(segments: List[Dict[str, Any]]) -> Optional[str]:
+    """The ``render_speakers`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.render_speakers is not None:
             return hooks.render_speakers(segments)
@@ -492,6 +536,8 @@ def render_speakers(segments: List[Dict[str, Any]]) -> Optional[str]:
 
 
 def person_voice_label(label: str) -> bool:
+    """The ``person_voice_label`` stage hook: the first owner that sets it answers (built-in,
+    then extensions in load order); without one, ``False``."""
     for hooks in _all():
         if hooks.person_voice_label is not None:
             return hooks.person_voice_label(label)
@@ -499,6 +545,8 @@ def person_voice_label(label: str) -> bool:
 
 
 def native_roster(result: Dict[str, Any], cfg: Any, **context: Any) -> Dict[str, Any]:
+    """The ``native_roster`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``result``."""
     for hooks in _all():
         if hooks.native_roster is not None:
             return hooks.native_roster(result, cfg, **context)
@@ -506,6 +554,8 @@ def native_roster(result: Dict[str, Any], cfg: Any, **context: Any) -> Dict[str,
 
 
 def carry_speaker_identity(new: Sequence[Any], old: Sequence[Any]) -> List[Dict[str, Any]]:
+    """The ``carry_speaker_identity`` stage hook: the first owner that sets it answers (built-in,
+    then extensions in load order); without one, ``[dict(seg) for seg in new]``."""
     for hooks in _all():
         if hooks.carry_speaker_identity is not None:
             return hooks.carry_speaker_identity(new, old)
@@ -513,6 +563,8 @@ def carry_speaker_identity(new: Sequence[Any], old: Sequence[Any]) -> List[Dict[
 
 
 def episode_insights(**context: Any) -> Optional[Tuple[Any, ...]]:
+    """The ``episode_insights`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.episode_insights is not None:
             return hooks.episode_insights(**context)
@@ -520,6 +572,8 @@ def episode_insights(**context: Any) -> Optional[Tuple[Any, ...]]:
 
 
 def gi_kg_passes(**context: Any) -> Optional[Tuple[Any, ...]]:
+    """The ``gi_kg_passes`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.gi_kg_passes is not None:
             return hooks.gi_kg_passes(**context)
@@ -534,6 +588,8 @@ def speaker_record(
     feed_title: Optional[str],
     language: Optional[str] = None,
 ) -> Tuple[List[Any], Optional[int]]:
+    """The ``speaker_record`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``([], None)``."""
     for hooks in _all():
         if hooks.speaker_record is not None:
             return hooks.speaker_record(
@@ -550,6 +606,8 @@ def speaker_record(
 def speaker_lists_for_graph(
     speakers: Any, feed_title: Optional[str] = None, language: Optional[str] = None
 ) -> Tuple[List[str], List[str]]:
+    """The ``speaker_lists_for_graph`` stage hook: the first owner that sets it answers
+    (built-in, then extensions in load order); without one, ``([], [])``."""
     for hooks in _all():
         if hooks.speaker_lists_for_graph is not None:
             return hooks.speaker_lists_for_graph(speakers, feed_title=feed_title, language=language)
@@ -557,6 +615,8 @@ def speaker_lists_for_graph(
 
 
 def roster_source(speakers: Any, *, diarized: bool) -> Optional[RosterSourceValue]:
+    """The ``roster_source`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.roster_source is not None:
             return hooks.roster_source(speakers, diarized=diarized)
@@ -566,6 +626,8 @@ def roster_source(speakers: Any, *, diarized: bool) -> Optional[RosterSourceValu
 def bundled_naming(
     cfg: Any, pipeline_mode: str, output_dir: str, transcript_file_path: Optional[str]
 ) -> Optional[BundledNaming]:
+    """The ``bundled_naming`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.bundled_naming is not None:
             return hooks.bundled_naming(cfg, pipeline_mode, output_dir, transcript_file_path)
@@ -573,6 +635,8 @@ def bundled_naming(
 
 
 def default_speaker_names() -> Sequence[str]:
+    """The ``default_speaker_names`` stage hook: the first owner that sets it answers (built-in,
+    then extensions in load order); without one, ``()``."""
     for hooks in _all():
         if hooks.default_speaker_names is not None:
             return hooks.default_speaker_names()
@@ -580,6 +644,8 @@ def default_speaker_names() -> Sequence[str]:
 
 
 def ner_model(cfg: Any) -> Any:
+    """The ``ner_model`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.ner_model is not None:
             return hooks.ner_model(cfg)
@@ -587,6 +653,8 @@ def ner_model(cfg: Any) -> Any:
 
 
 def create_speaker_detector(cfg: Any) -> Any:
+    """The ``create_speaker_detector`` stage hook: the first owner that sets it answers
+    (built-in, then extensions in load order); without one, ``None``."""
     for hooks in _all():
         if hooks.create_speaker_detector is not None:
             return hooks.create_speaker_detector(cfg)
@@ -594,6 +662,8 @@ def create_speaker_detector(cfg: Any) -> Any:
 
 
 def validate_labeling_profile(profile_id: str) -> None:
+    """Run every ``validate_labeling_profile`` stage hook: the built-in ones, then each
+    extension's, in load order."""
     for hooks in _all():
         if hooks.validate_labeling_profile is not None:
             hooks.validate_labeling_profile(profile_id)
@@ -603,6 +673,8 @@ def validate_labeling_profile(profile_id: str) -> None:
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Run every ``kg_graph_passes`` stage hook: the built-in ones, then each extension's, in
+    load order."""
     for hooks in _all():
         for graph_pass in hooks.kg_graph_passes:
             nodes, edges = graph_pass(nodes, edges)
