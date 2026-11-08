@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
-from .read_hooks import ReadHooks
+from .read_hooks import NodeEpisodes, ReadHooks
 
 
 def _segment_speaker(raw: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
@@ -86,6 +86,40 @@ def _quote_speaker_name(
     return gi_view.quote_speaker_name(artifact, quote_props, spoken_by_id, people)
 
 
+def _served_id_map(root: Path) -> Dict[str, str]:
+    from podcast_scraper.identity.ledger import served_id_map
+
+    return served_id_map(root)
+
+
+def _bridge_node_episodes(
+    root: str, anchor: str, node_id: str, *, max_episodes: Optional[int]
+) -> NodeEpisodes:
+    from podcast_scraper.server.cil_queries import (
+        canonical_cil_entity_id,
+        episodes_for_bridge_node_id,
+    )
+
+    rows, truncated, total = episodes_for_bridge_node_id(
+        root, anchor, node_id, max_episodes=max_episodes
+    )
+    return canonical_cil_entity_id(node_id), rows, truncated, total
+
+
+def ROUTERS() -> Sequence[Any]:
+    """The operator-plane routers of the insight / identity stages: GI explore, person pages, CIL.
+
+    All three are on the curated public operator surface, as they were in ``server.app``'s
+    tuples."""
+    from podcast_scraper.extensions import RouterMount
+    from podcast_scraper.server.routes import cil, corpus_persons, explore
+
+    return tuple(
+        RouterMount(router=m.router, plane="operator", operator_public=True)
+        for m in (explore, corpus_persons, cil)
+    )
+
+
 BUILTIN = ReadHooks(
     name="builtin",
     segment_speaker=_segment_speaker,
@@ -98,4 +132,6 @@ BUILTIN = ReadHooks(
     group_borrows=_group_borrows,
     insights_from_gi=_insights_from_gi,
     quote_speaker_name=_quote_speaker_name,
+    served_id_map=_served_id_map,
+    bridge_node_episodes=_bridge_node_episodes,
 )

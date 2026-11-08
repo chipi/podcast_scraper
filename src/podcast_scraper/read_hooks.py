@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
+#: ``(canonical_id, rows, truncated, total_matched)``.
+NodeEpisodes = Tuple[str, List[Dict[str, Any]], bool, Optional[int]]
+
 
 @dataclass(frozen=True)
 class ReadHooks:
@@ -45,6 +48,11 @@ class ReadHooks:
     insights_from_gi: Optional[Callable[..., List[Any]]] = None
     #: ``(gi_artifact, quote_props, spoken_by_id, people) -> name``: who a quote names as speaker.
     quote_speaker_name: Optional[Callable[..., Optional[str]]] = None
+    #: ``(root) -> {entity_id: canonical_id}``: the identity map the server applies (ADR-166).
+    served_id_map: Optional[Callable[[Path], Dict[str, str]]] = None
+    #: ``(root, anchor, node_id, *, max_episodes) -> (canonical_id, rows, truncated, total)``: the
+    #: episodes whose cross-layer bridge lists a node.
+    bridge_node_episodes: Optional[Callable[..., NodeEpisodes]] = None
 
 
 def _all() -> Iterator[ReadHooks]:
@@ -149,9 +157,37 @@ def quote_speaker_name(
     return fn(artifact, quote_props, spoken_by_id, people) if fn is not None else None
 
 
+def served_id_map(root: Path) -> Dict[str, str]:
+    """The identity map the server applies; without the identity stage, no joins."""
+    fn = _owner("served_id_map")
+    return fn(root) if fn is not None else {}
+
+
+def bridge_node_episodes(
+    root: str, anchor: str, node_id: str, *, max_episodes: Optional[int] = None
+) -> NodeEpisodes:
+    """Episodes whose bridge lists *node_id*; without the cross-layer stage, the id as given and
+    none."""
+    fn = _owner("bridge_node_episodes")
+    if fn is None:
+        return node_id, [], False, None
+    out: NodeEpisodes = fn(root, anchor, node_id, max_episodes=max_episodes)
+    return out
+
+
+def builtin_routers() -> Sequence[Any]:
+    """The in-tree stage routers (``RouterMount``), mounted like an extension's, before them."""
+    from .builtin_read_hooks import ROUTERS
+
+    return ROUTERS()
+
+
 __all__ = [
     "ReadHooks",
+    "NodeEpisodes",
     "ad_reads",
+    "bridge_node_episodes",
+    "builtin_routers",
     "entity_id_map",
     "gi_integrity",
     "group_borrows",
@@ -159,6 +195,7 @@ __all__ = [
     "looks_like_publisher",
     "quote_speaker_name",
     "segment_speaker",
+    "served_id_map",
     "topic_perspectives",
     "unidentified_label",
 ]

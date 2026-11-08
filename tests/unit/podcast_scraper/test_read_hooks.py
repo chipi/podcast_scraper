@@ -32,6 +32,13 @@ def test_without_any_stage_each_hook_answers_its_plain_default() -> None:
             == []
         )
         assert read_hooks.group_borrows(Path("/c"), []) == ({}, {})
+        assert read_hooks.served_id_map(Path("/c")) == {}
+        assert read_hooks.bridge_node_episodes("/c", "/c", "g:topic:ai") == (
+            "g:topic:ai",
+            [],
+            False,
+            None,
+        )
 
 
 def test_without_the_built_in_an_extension_owns_the_hook() -> None:
@@ -59,3 +66,23 @@ def test_without_an_insight_stage_a_topic_has_no_perspectives(tmp_path: Path) ->
 
     with patch.object(builtin_read_hooks, "BUILTIN", _NONE):
         assert build_topic_perspectives(tmp_path, "topic:ai") is None
+
+
+def test_the_built_in_routers_are_the_stage_routes_on_the_public_operator_surface() -> None:
+    from podcast_scraper.server.routes import cil, corpus_persons, explore
+
+    mounts = read_hooks.builtin_routers()
+    assert [m.router for m in mounts] == [explore.router, corpus_persons.router, cil.router]
+    assert {(m.plane, m.operator_public) for m in mounts} == {("operator", True)}
+
+
+def test_the_bridge_hook_answers_the_canonical_id() -> None:
+    with patch(
+        "podcast_scraper.server.cil_queries.episodes_for_bridge_node_id",
+        return_value=([{"gi_relative_path": "a"}], False, None),
+    ) as listing:
+        canon, rows, truncated, total = read_hooks.bridge_node_episodes(
+            "/c", "/a", "g:k:topic:ai", max_episodes=5
+        )
+    assert (canon, rows, truncated, total) == ("topic:ai", [{"gi_relative_path": "a"}], False, None)
+    listing.assert_called_once_with("/c", "/a", "g:k:topic:ai", max_episodes=5)
