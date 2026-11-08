@@ -77,6 +77,9 @@ WHITELIST: Dict[str, str] = {
     # Cloud transcription providers: `language` arrives resolved from the call site; cfg is only
     # consulted when the caller passed nothing at all.
     "providers/openai/openai_provider.py": "fallback when the caller passes no language",
+    "providers/openai/openai_provider_gi_naming.py": (
+        "output language for the bundled extraction prompts, not the input"
+    ),
     "providers/gemini/gemini_provider.py": "fallback when the caller passes no language",
     "providers/gemini/gemini_provider_gi_naming.py": (
         "output language for the bundled extraction prompt, not the input"
