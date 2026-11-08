@@ -3,11 +3,10 @@ job age, extensions' gauges) beside the workers' samples (``server/metrics_multi
 
 from __future__ import annotations
 
+import prometheus_client
 import pytest
 
 pytestmark = [pytest.mark.unit]
-
-prometheus_client = pytest.importorskip("prometheus_client")
 
 
 class _ScrapeTime:
