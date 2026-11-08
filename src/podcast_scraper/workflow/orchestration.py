@@ -37,12 +37,13 @@ if TYPE_CHECKING:
 else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
+from .. import stage_hooks
 from ..providers.capabilities import get_provider_capabilities, is_local_provider
 from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
 )
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
-from . import apply_overrides, stage_hooks
+from . import apply_overrides
 from .episode_processor import (
     _unsupported_language_skip_reason,
     process_episode_download as _process_episode_download_original,

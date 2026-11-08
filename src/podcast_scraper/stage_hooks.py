@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterator, Sequence
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -31,6 +31,16 @@ RunFinalizedHook = Callable[[str, str], None]
 #: ``(cfg, output_dir)``. After every episode of the run is finalized and on disk, before the
 #: run is marked done. Must not raise.
 RunCompletedHook = Callable[[Any, str], None]
+#: ``(transcript_text, cfg, kg_extraction_provider, max_entities) -> (hints, prompt_version)``.
+#: Entity hints for the KG extraction prompt. One owner answers: the first that is set. Without
+#: one the prompt is the plain ``v4`` with no hints.
+KgPromptHints = Callable[[str, Any, Any, int], Tuple[List[Dict[str, str]], str]]
+#: ``(nodes, edges) -> (nodes, edges)``. A pass over one episode's KG graph before the final
+#: dedup; each pass gets the previous one's output.
+KgGraphPass = Callable[
+    [List[Dict[str, Any]], List[Dict[str, Any]]],
+    Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
+]
 
 
 @dataclass(frozen=True)
@@ -43,6 +53,8 @@ class PipelineHooks:
     batch_finalized: Sequence[BatchFinalizedHook] = field(default_factory=tuple)
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
+    kg_prompt_hints: Optional[KgPromptHints] = None
+    kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
 
 
 def _all() -> Iterator[PipelineHooks]:
@@ -86,15 +98,37 @@ def run_completed(cfg: Any, output_dir: str) -> None:
             hook(cfg, output_dir)
 
 
+def kg_prompt_hints(
+    transcript_text: str, cfg: Any, kg_extraction_provider: Any, max_entities: int
+) -> Tuple[List[Dict[str, str]], str]:
+    for hooks in _all():
+        if hooks.kg_prompt_hints is not None:
+            return hooks.kg_prompt_hints(transcript_text, cfg, kg_extraction_provider, max_entities)
+    return [], "v4"
+
+
+def kg_graph_passes(
+    nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    for hooks in _all():
+        for graph_pass in hooks.kg_graph_passes:
+            nodes, edges = graph_pass(nodes, edges)
+    return nodes, edges
+
+
 __all__ = [
     "BatchFinalizedHook",
     "CorpusDerivedHook",
+    "KgGraphPass",
+    "KgPromptHints",
     "PipelineHooks",
     "RunCompletedHook",
     "RunFinalizedHook",
     "RunStartedHook",
     "batch_finalized",
     "corpus_derived",
+    "kg_graph_passes",
+    "kg_prompt_hints",
     "run_completed",
     "run_finalized",
     "run_started",

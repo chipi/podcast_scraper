@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from podcast_scraper.kg.pipeline import _collapse_mentions_into_speakers
+from podcast_scraper.builtin_stage_hooks import _collapse_mentions_into_speakers
 
 pytestmark = [pytest.mark.unit]
 

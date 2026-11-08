@@ -9,11 +9,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
 
-from podcast_scraper import __version__
+from podcast_scraper import __version__, stage_hooks
 from podcast_scraper.corpus_version import build_produced_by
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.audio_payload_limits import is_provider_audio_payload_limit_error
-from podcast_scraper.workflow import stage_hooks
 
 if TYPE_CHECKING:
     from podcast_scraper import config

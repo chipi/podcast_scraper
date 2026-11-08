@@ -10,13 +10,13 @@ from unittest.mock import patch
 
 import pytest
 
+from podcast_scraper import builtin_stage_hooks, stage_hooks
 from podcast_scraper.extensions import Extension, use_extensions
-from podcast_scraper.workflow import builtin_stage_hooks, stage_hooks
-from podcast_scraper.workflow.stage_hooks import PipelineHooks
+from podcast_scraper.stage_hooks import PipelineHooks
 
 pytestmark = pytest.mark.unit
 
-_WORKFLOW = Path(stage_hooks.__file__).parent
+_WORKFLOW = Path(stage_hooks.__file__).parent / "workflow"
 
 
 def _recording(calls: List[Tuple[str, Tuple[Any, ...]]], who: str) -> PipelineHooks:
@@ -172,3 +172,42 @@ def test_corpus_topic_clustering_runs_and_a_failure_is_not_fatal(
     ):
         stage_hooks.run_completed(_Cfg(True), "out")
     assert "corpus topic clustering failed (non-fatal): boom" in caplog.text
+
+
+def test_kg_prompt_hints_take_the_first_owner_and_default_to_plain_v4() -> None:
+    def owner(answer: Tuple[List[Any], str]) -> Any:
+        return lambda text, cfg, provider, max_entities: answer
+
+    first = PipelineHooks(name="first", kg_prompt_hints=owner(([{"name": "A"}], "v5")))
+    second = Extension(
+        name="second",
+        pipeline_hooks=PipelineHooks(name="second", kg_prompt_hints=owner(([], "never"))),
+    )
+    with patch.object(builtin_stage_hooks, "BUILTIN", first), use_extensions([second]):
+        assert stage_hooks.kg_prompt_hints("t", None, None, 5) == ([{"name": "A"}], "v5")
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.kg_prompt_hints("t", None, None, 5) == ([], "v4")
+
+
+def test_kg_graph_passes_chain_each_output_into_the_next() -> None:
+    def add(tag: str) -> Any:
+        return lambda nodes, edges: (nodes + [{"id": tag}], edges + [{"from": tag}])
+
+    builtin = PipelineHooks(name="b", kg_graph_passes=(add("b1"), add("b2")))
+    ext = Extension(name="x", pipeline_hooks=PipelineHooks(name="x", kg_graph_passes=(add("x"),)))
+    with patch.object(builtin_stage_hooks, "BUILTIN", builtin), use_extensions([ext]):
+        nodes, edges = stage_hooks.kg_graph_passes([], [])
+    assert [n["id"] for n in nodes] == ["b1", "b2", "x"]
+    assert [e["from"] for e in edges] == ["b1", "b2", "x"]
+
+
+def test_the_kg_pipeline_no_longer_imports_the_advanced_kg_passes() -> None:
+    kg_pipeline = Path(stage_hooks.__file__).parent / "kg" / "pipeline.py"
+    tree = ast.parse(kg_pipeline.read_text(encoding="utf-8"))
+    imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert not {
+        m
+        for m in imported
+        for s in ("ner_prepass", "speaker_coherence", "speaker_detection")
+        if m.endswith(s)
+    }
