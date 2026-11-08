@@ -21,6 +21,7 @@ SRC = Path(__file__).resolve().parents[3] / "src"
 
 #: Public modules whose import must not reach the speaker stage.
 PUBLIC = [
+    "podcast_scraper",
     "podcast_scraper.cli_hooks",
     "podcast_scraper.providers.resilience.fallback",
     "podcast_scraper.providers.tailnet_dgx",
@@ -89,3 +90,11 @@ def test_the_dgx_diarization_provider_is_still_importable_from_the_package() -> 
     )
 
     assert TailnetDgxDiarizationProvider is direct
+
+
+def test_the_package_no_longer_hands_out_the_speaker_stage() -> None:
+    """S8: ``podcast_scraper.speaker_detection`` was a lazy alias for the speaker stage's module."""
+    import podcast_scraper
+
+    with pytest.raises(AttributeError):
+        getattr(podcast_scraper, "speaker_detection")

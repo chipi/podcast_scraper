@@ -173,7 +173,7 @@ class TestCacheClearingFallback(unittest.TestCase):
         # clear_cache() is now a no-op (cache was removed)
         detector.clear_cache()  # Should work without fallback
 
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection._load_spacy_model")
     def test_ner_detector_cache_clearing(self, mock_load_spacy):
         """Test that NER detector clear_cache() works correctly (no-op)."""
         # Mock spaCy model loading to prevent network calls
