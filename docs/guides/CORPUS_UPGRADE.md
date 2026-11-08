@@ -106,8 +106,12 @@ X.Y this was checked" — future migrations can rely on that history.
    must be a no-op the second time. Include the retro-active detection (how
    do you know this migration has already been applied to a file that
    predates the ledger entry?).
-2. **Register it.** Add to `upgrade/registry.py` — the runner sorts by id, so
-   pick `mNNNN` = the next integer.
+2. **Register it.** Add to `upgrade/registry.py`. The runner sorts by id, so
+   pick `mNNNN` = the next integer. An installed extension registers its own
+   through `Extension.corpus_migrations` instead ([ADR-174](../adr/ADR-174-extension-corpus-migrations.md)).
+   The numbering is one sequence across every package, so take the next number
+   no installed package uses. The registry refuses a number used twice and the
+   retired `0032`.
 3. **Bump the producer format version.** Edit
    `config/corpus_snapshot_format.json` and increment `corpus_format_version`
    when the migration is user-visible in the on-disk corpus (any change a

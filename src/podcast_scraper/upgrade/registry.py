@@ -3,10 +3,14 @@
 Future migrations (index rebuilds, the entity canonical-map rebuild #852, schema
 deltas, or a files → DB move) append here with the next ``mNNNN_`` id. The runner
 applies any registered migration whose id is not yet in the corpus ledger.
+
+Installed extensions add theirs through ``Extension.corpus_migrations``. They join the same
+sequence: one numbering across every package, checked when the registry loads.
 """
 
 from __future__ import annotations
 
+import re
 from typing import List
 
 from .migration import Migration
@@ -186,6 +190,51 @@ _MIGRATIONS: List[Migration] = [
 ]
 
 
+#: Numbers that were used and must never be again: a corpus's ledger may already name them.
+RETIRED_NUMBERS = frozenset({"0032"})
+
+_ID = re.compile(r"^(\d{4})_[a-z0-9_]+$")
+
+
+class RegistryError(ValueError):
+    """The installed migrations do not form one ordered sequence."""
+
+
+def extension_migrations() -> List[Migration]:
+    """The corpus migrations installed extensions add (``Extension.corpus_migrations``)."""
+    from podcast_scraper.extensions import load_extensions
+
+    out: List[Migration] = []
+    for ext in load_extensions():
+        for m in ext.corpus_migrations():
+            if not isinstance(m, Migration):
+                raise RegistryError(f"extension {ext.name!r}: {m!r} is not a Migration")
+            out.append(m)
+    return out
+
+
+def validate(migrations: List[Migration]) -> None:
+    """Refuse an id not shaped ``NNNN_name``, a retired number, or a number used twice. Two
+    migrations cannot share a number: the ledger records ids as applied, and a shared number makes
+    the order ambiguous across the packages that add them."""
+    owner: dict[str, str] = {}
+    for m in migrations:
+        match = _ID.match(m.id)
+        if match is None:
+            raise RegistryError(f"{m.id!r} ({type(m).__module__}): an id is NNNN_name")
+        number = match.group(1)
+        if number in RETIRED_NUMBERS:
+            raise RegistryError(f"{m.id!r} ({type(m).__module__}): {number} is retired")
+        if number in owner:
+            raise RegistryError(
+                f"{m.id!r} ({type(m).__module__}): {number} is already {owner[number]!r}"
+            )
+        owner[number] = m.id
+
+
 def get_migrations() -> List[Migration]:
-    """All registered migrations, sorted by id (lexicographic == apply order)."""
-    return sorted(_MIGRATIONS, key=lambda m: m.id)
+    """All registered migrations, this package's and the installed extensions', sorted by id
+    (lexicographic == apply order)."""
+    migrations = [*_MIGRATIONS, *extension_migrations()]
+    validate(migrations)
+    return sorted(migrations, key=lambda m: m.id)
