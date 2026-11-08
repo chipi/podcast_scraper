@@ -259,7 +259,7 @@ def _naming_response_json(
     return json.dumps({"voices": voices})
 
 
-# Transcript naming inside a bundled call (workflow/bundled_speaker_naming.py): a bundled,
+# Transcript naming inside a bundled call (speaker_stage/bundled_speaker_naming.py): a bundled,
 # mega- or extraction-bundle prompt that ends its field list with "SPEAKER LABELS TO JUDGE:".
 # Answered with a complete bundle plus "speakers": a label that is a name is that person (host),
 # a raw SPEAKER_xx label is null. Recorded like the standalone naming requests.

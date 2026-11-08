@@ -23,7 +23,7 @@ from podcast_scraper.providers.common.megabundle_parser import (
     parse_megabundle_response,
 )
 from podcast_scraper.providers.ml.diarization import transcript_naming as tn
-from podcast_scraper.workflow import bundled_speaker_naming as bsn
+from podcast_scraper.speaker_stage import bundled_speaker_naming as bsn
 
 pytestmark = pytest.mark.unit
 

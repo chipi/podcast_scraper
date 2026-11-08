@@ -822,7 +822,7 @@ def _ask_transcript_naming(
         getattr(provider, f"summarize_{mode}", None)
     ):
         # The bundled call that reads the whole transcript answers instead (one call, not two):
-        # workflow/bundled_speaker_naming.py. A provider without that call falls back to the
+        # speaker_stage/bundled_speaker_naming.py. A provider without that call falls back to the
         # staged path, so it asks here.
         return None
 

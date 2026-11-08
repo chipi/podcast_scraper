@@ -519,6 +519,54 @@ def _roster_source(speakers: Any, *, diarized: bool) -> Optional[RosterSourceVal
     return roster_source(speakers, diarized=diarized)
 
 
+class _BundledNaming:
+    """Today's bundled transcript naming (speaker_stage.bundled_speaker_naming), for one call."""
+
+    def __init__(
+        self, cfg: Any, output_dir: str, transcript_file_path: Optional[str], labels: List[str]
+    ) -> None:
+        self._cfg, self._output_dir, self._transcript = cfg, output_dir, transcript_file_path
+        self._labels = labels
+
+    def params(self) -> Dict[str, Any]:
+        from podcast_scraper.providers.ml.diarization.transcript_naming import PARAMS_LABELS
+
+        return {PARAMS_LABELS: self._labels}
+
+    def record(self, call: str, speakers: Any) -> None:
+        from podcast_scraper.speaker_stage import bundled_speaker_naming as bsn
+
+        bsn.record(self._cfg, self._output_dir, self._transcript, call, speakers)
+
+    def take_speakers(self, result: Any) -> Any:
+        from podcast_scraper.speaker_stage import bundled_speaker_naming as bsn
+
+        return bsn.take_speakers(result)
+
+
+def _bundled_naming(
+    cfg: Any, pipeline_mode: str, output_dir: str, transcript_file_path: Optional[str]
+) -> Optional[_BundledNaming]:
+    from podcast_scraper.speaker_stage import bundled_speaker_naming as bsn
+
+    labels = bsn.labels_for_call(cfg, pipeline_mode, output_dir, transcript_file_path)
+    if not labels:
+        return None
+    return _BundledNaming(cfg, output_dir, transcript_file_path, labels)
+
+
+def _default_speaker_names() -> List[str]:
+    from podcast_scraper.providers.ml.speaker_detection import DEFAULT_SPEAKER_NAMES
+
+    return list(DEFAULT_SPEAKER_NAMES)
+
+
+def _ner_model(cfg: Any) -> Any:
+    from podcast_scraper.providers.ml.speaker_detection import get_ner_model
+
+    return get_ner_model(cfg)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -549,6 +597,9 @@ BUILTIN = PipelineHooks(
     speaker_record=_speaker_record,
     speaker_lists_for_graph=_speaker_lists_for_graph,
     roster_source=_roster_source,
+    bundled_naming=_bundled_naming,
+    default_speaker_names=_default_speaker_names,
+    ner_model=_ner_model,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

@@ -23,6 +23,7 @@ from typing import (
     List,
     Literal,
     Optional,
+    Protocol,
     Sequence,
     Set,
     Tuple,
@@ -137,6 +138,30 @@ RosterSourceValue = Literal["diarized", "hint"]
 #: ``(speakers, *, diarized) -> RosterSourceValue | None``: where the record came from. One owner;
 #: without one, ``None`` (no roster to claim an origin for).
 RosterSourceHook = Callable[..., Optional[RosterSourceValue]]
+
+
+class BundledNaming(Protocol):
+    """Transcript naming inside one bundled summary call."""
+
+    def params(self) -> Dict[str, Any]:
+        """What to add to the call's params (the speaker labels to judge)."""
+
+    def record(self, call: str, speakers: Any) -> None:
+        """Write the call's answer into the speaker sidecar. Never raises."""
+
+    def take_speakers(self, result: Any) -> Any:
+        """Pop the speakers answer from a bundled result, in place."""
+
+
+#: ``(cfg, pipeline_mode, output_dir, transcript_file_path) -> BundledNaming | None``: a naming
+#: session for this bundled call, or None when there is nothing to judge. One owner; without one,
+#: None (no prompt changes).
+BundledNamingHook = Callable[..., Optional[BundledNaming]]
+#: ``() -> names``: the names the speaker detector writes when it fails. One owner; without one,
+#: none.
+DefaultSpeakerNames = Callable[[], Sequence[str]]
+#: ``(cfg) -> nlp | None``: the configured spaCy NER model. One owner; without one, None.
+NerModel = Callable[[Any], Any]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -188,6 +213,9 @@ class PipelineHooks:
     speaker_record: Optional[SpeakerRecord] = None
     speaker_lists_for_graph: Optional[SpeakerListsForGraph] = None
     roster_source: Optional[RosterSourceHook] = None
+    bundled_naming: Optional[BundledNamingHook] = None
+    default_speaker_names: Optional[DefaultSpeakerNames] = None
+    ner_model: Optional[NerModel] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -523,6 +551,29 @@ def roster_source(speakers: Any, *, diarized: bool) -> Optional[RosterSourceValu
     return None
 
 
+def bundled_naming(
+    cfg: Any, pipeline_mode: str, output_dir: str, transcript_file_path: Optional[str]
+) -> Optional[BundledNaming]:
+    for hooks in _all():
+        if hooks.bundled_naming is not None:
+            return hooks.bundled_naming(cfg, pipeline_mode, output_dir, transcript_file_path)
+    return None
+
+
+def default_speaker_names() -> Sequence[str]:
+    for hooks in _all():
+        if hooks.default_speaker_names is not None:
+            return hooks.default_speaker_names()
+    return ()
+
+
+def ner_model(cfg: Any) -> Any:
+    for hooks in _all():
+        if hooks.ner_model is not None:
+            return hooks.ner_model(cfg)
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -543,11 +594,15 @@ __all__ = [
     "GiKgPasses",
     "NoAdExcision",
     "BatchFinalizedHook",
+    "BundledNaming",
+    "BundledNamingHook",
     "CarrySpeakerIdentity",
     "CorpusDerivedHook",
+    "DefaultSpeakerNames",
     "KgGraphPass",
     "KgPromptHints",
     "NativeRoster",
+    "NerModel",
     "PersonMatcher",
     "PersonVoiceLabel",
     "PipelineHooks",
@@ -570,8 +625,10 @@ __all__ = [
     "adfree_base",
     "anon_transcript",
     "batch_finalized",
+    "bundled_naming",
     "carry_speaker_identity",
     "corpus_derived",
+    "default_speaker_names",
     "episode_hosts",
     "episode_insights",
     "episode_speakers",
@@ -581,6 +638,7 @@ __all__ = [
     "kg_graph_passes",
     "kg_prompt_hints",
     "native_roster",
+    "ner_model",
     "person_voice_label",
     "render_speakers",
     "roster_source",

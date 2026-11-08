@@ -643,3 +643,59 @@ def test_metadata_generation_imports_no_speaker_code() -> None:
         for s in ("speaker_detectors", "diarization.roster", "ladder_rescues", "roster_provenance")
         if s in m
     }
+
+
+def test_without_a_speaker_stage_no_naming_rides_on_the_summary_and_no_ner_loads() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.bundled_naming(None, "bundled", "/o", "t.txt") is None
+        assert list(stage_hooks.default_speaker_names()) == []
+        assert stage_hooks.ner_model(None) is None
+
+
+def test_the_built_in_bundled_naming_is_todays_sidecar_and_param_key() -> None:
+    from podcast_scraper.providers.ml.diarization.transcript_naming import PARAMS_LABELS
+
+    with (
+        patch(
+            "podcast_scraper.speaker_stage.bundled_speaker_naming.labels_for_call",
+            return_value=["SPEAKER_00"],
+        ),
+        patch("podcast_scraper.speaker_stage.bundled_speaker_naming.record") as record,
+        patch(
+            "podcast_scraper.speaker_stage.bundled_speaker_naming.take_speakers",
+            return_value={"SPEAKER_00": "Jane"},
+        ) as take,
+        use_extensions([]),
+    ):
+        naming = stage_hooks.bundled_naming("cfg", "bundled", "/o", "t.txt")
+        assert naming is not None
+        assert naming.params() == {PARAMS_LABELS: ["SPEAKER_00"]}
+        assert naming.take_speakers({"summary": "{}"}) == {"SPEAKER_00": "Jane"}
+        naming.record("bundled", {"SPEAKER_00": "Jane"})
+    take.assert_called_once_with({"summary": "{}"})
+    record.assert_called_once_with("cfg", "/o", "t.txt", "bundled", {"SPEAKER_00": "Jane"})
+
+
+def test_no_labels_means_no_naming_session() -> None:
+    with (
+        patch(
+            "podcast_scraper.speaker_stage.bundled_speaker_naming.labels_for_call",
+            return_value=None,
+        ),
+        use_extensions([]),
+    ):
+        assert stage_hooks.bundled_naming("cfg", "staged", "/o", "t.txt") is None
+
+
+def test_the_built_in_default_names_and_ner_model_are_todays() -> None:
+    from podcast_scraper.providers.ml.speaker_detection import DEFAULT_SPEAKER_NAMES
+
+    with (
+        patch(
+            "podcast_scraper.providers.ml.speaker_detection.get_ner_model", return_value="nlp"
+        ) as get,
+        use_extensions([]),
+    ):
+        assert list(stage_hooks.default_speaker_names()) == list(DEFAULT_SPEAKER_NAMES)
+        assert stage_hooks.ner_model("cfg") == "nlp"
+    get.assert_called_once_with("cfg")

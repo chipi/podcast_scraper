@@ -1906,14 +1906,12 @@ def _build_qa_flags(
     Returns:
         QAFlags object with quality assurance information
     """
-    # Import DEFAULT_SPEAKER_NAMES here to avoid circular imports
-    from ..providers.ml.speaker_detection import DEFAULT_SPEAKER_NAMES
-
     # Check if defaults were injected
     defaults_injected = False
     if speakers:
         speaker_names = {s.name for s in speakers}
-        defaults_injected = any(name in DEFAULT_SPEAKER_NAMES for name in speaker_names)
+        default_names = stage_hooks.default_speaker_names()
+        defaults_injected = any(name in default_names for name in speaker_names)
 
     # Determine speaker detection status — from the voices that were actually placed. A pre-1.2.0
     # entry carries no flag and was the diarization's own output, so it counts as placed.
@@ -2616,17 +2614,13 @@ def _generate_episode_summary(  # noqa: C901
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
-            # Transcript naming inside the bundled call (bundled_speaker_naming): the speaker
-            # labels to judge, or None, in which case no prompt changes.
-            from . import bundled_speaker_naming as _bsn
-
-            _naming_labels = _bsn.labels_for_call(
+            # Transcript naming inside the bundled call: the speaker stage's session for this
+            # call, or None, in which case no prompt changes.
+            _naming = stage_hooks.bundled_naming(
                 cfg, pipeline_mode, output_dir, transcript_file_path
             )
-            if _naming_labels:
-                from ..providers.ml.diarization.transcript_naming import PARAMS_LABELS
-
-                params[PARAMS_LABELS] = _naming_labels
+            if _naming is not None:
+                params.update(_naming.params())
             # ADR-148: a thunk that re-issues the SAME summary request on the SAME
             # provider, set by whichever generation path produced `result`. Used for
             # one bounded in-place re-roll when the downstream schema parse fails on a
@@ -2673,10 +2667,8 @@ def _generate_episode_summary(  # noqa: C901
                         )
                         if not isinstance(mr, MegaBundleResult):
                             return None
-                        if _naming_labels:
-                            _bsn.record(
-                                cfg, output_dir, transcript_file_path, "mega_bundled", mr.speakers
-                            )
+                        if _naming is not None:
+                            _naming.record("mega_bundled", mr.speakers)
                         return {
                             "summary": json.dumps(mr.to_summary_artifact()),
                             "summary_short": None,
@@ -2738,14 +2730,8 @@ def _generate_episode_summary(  # noqa: C901
                     )
                     if isinstance(extr_result, MegaBundleResult):
                         extraction_partial = extr_result.to_extraction_partial()
-                        if _naming_labels:
-                            _bsn.record(
-                                cfg,
-                                output_dir,
-                                transcript_file_path,
-                                "extraction_bundled",
-                                extr_result.speakers,
-                            )
+                        if _naming is not None:
+                            _naming.record("extraction_bundled", extr_result.speakers)
                     else:
                         # Provider contract violation — warn + record fallback so
                         # ops notices the downgrade instead of silently reverting
@@ -2795,14 +2781,8 @@ def _generate_episode_summary(  # noqa: C901
                             pipeline_metrics=pipeline_metrics,
                             call_metrics=call_metrics,
                         )
-                        if _naming_labels:
-                            _bsn.record(
-                                cfg,
-                                output_dir,
-                                transcript_file_path,
-                                "bundled",
-                                _bsn.take_speakers(r),
-                            )
+                        if _naming is not None:
+                            _naming.record("bundled", _naming.take_speakers(r))
                         return r
 
                     _resummarize = _bundled_call
@@ -3707,9 +3687,7 @@ def _get_nlp_model_for_reconciliation(
 
     # Fallback: load model if not available from provider (should be rare)
     try:
-        from ..providers.ml.speaker_detection import get_ner_model
-
-        nlp = get_ner_model(cfg)
+        nlp = stage_hooks.ner_model(cfg)
         if nlp is not None:
             logger.warning(
                 "[%s] Loaded spaCy model for entity reconciliation (fallback - "
