@@ -1,8 +1,7 @@
 """Where the server's read side reaches a stage it does not own (E04 S3).
 
-Apart from :mod:`podcast_scraper.stage_hooks` for the same reason as :mod:`.cli_hooks`: corpus
-migrations reach the pipeline's registry, and a migration's measured code is everything it
-reaches. What a request shows is not something a migration runs.
+Apart from :mod:`podcast_scraper.stage_hooks`, so the pipeline's registry does not import the
+server's read models (the pipeline does not show anything; a request does).
 
 Each point has one owner: the built-in one (:mod:`.builtin_read_hooks`, today's in-tree code),
 else the first installed extension whose ``read_hooks`` sets it, else the plain default below.
@@ -41,6 +40,11 @@ class ReadHooks:
     group_borrows: Optional[Callable[[Path, List[Any]], Tuple[Dict[str, str], Dict[str, str]]]] = (
         None
     )
+    #: ``(gi_artifact, *, limit, unattributed_fallback, people) -> [AppInsight]``: an episode's
+    #: insights as its surfaces show them.
+    insights_from_gi: Optional[Callable[..., List[Any]]] = None
+    #: ``(gi_artifact, quote_props, spoken_by_id, people) -> name``: who a quote names as speaker.
+    quote_speaker_name: Optional[Callable[..., Optional[str]]] = None
 
 
 def _all() -> Iterator[ReadHooks]:
@@ -120,13 +124,40 @@ def group_borrows(root: Path, rows: List[Any]) -> Tuple[Dict[str, str], Dict[str
     return fn(root, rows) if fn is not None else ({}, {})
 
 
+def insights_from_gi(
+    artifact: Any,
+    *,
+    limit: Optional[int] = None,
+    unattributed_fallback: bool = False,
+    people: Any = None,
+) -> List[Any]:
+    """An episode's insights as its surfaces show them; without an insight stage, none."""
+    fn = _owner("insights_from_gi")
+    if fn is None:
+        return []
+    out: List[Any] = fn(
+        artifact, limit=limit, unattributed_fallback=unattributed_fallback, people=people
+    )
+    return out
+
+
+def quote_speaker_name(
+    artifact: Any, quote_props: Any, spoken_by_id: Any = None, people: Any = None
+) -> Optional[str]:
+    """Who a quote names as its speaker; without an insight stage, nobody."""
+    fn = _owner("quote_speaker_name")
+    return fn(artifact, quote_props, spoken_by_id, people) if fn is not None else None
+
+
 __all__ = [
     "ReadHooks",
     "ad_reads",
     "entity_id_map",
     "gi_integrity",
     "group_borrows",
+    "insights_from_gi",
     "looks_like_publisher",
+    "quote_speaker_name",
     "segment_speaker",
     "topic_perspectives",
     "unidentified_label",

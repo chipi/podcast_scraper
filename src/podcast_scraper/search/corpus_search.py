@@ -316,7 +316,7 @@ class _InsightScope(NamedTuple):
 def _insight_scopes_from_gi(
     episode_id: str, artifact: Dict[str, Any], id_map: Optional[Dict[str, str]] = None
 ) -> List[_InsightScope]:
-    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.read_hooks import insights_from_gi
 
     nodes = {n.get("id"): n for n in artifact.get("nodes") or [] if isinstance(n, dict)}
     shown = {i.id for i in insights_from_gi(artifact)}

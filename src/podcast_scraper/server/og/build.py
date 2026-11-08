@@ -461,8 +461,8 @@ def _theme(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
 
 
 def _episode(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
+    from podcast_scraper.read_hooks import insights_from_gi
     from podcast_scraper.server.corpus_access import load_json_artifact
-    from podcast_scraper.server.gi_view import insights_from_gi
     from podcast_scraper.server.slugs import resolve_slug
 
     row = resolve_slug(root, ident)

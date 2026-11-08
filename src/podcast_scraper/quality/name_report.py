@@ -229,7 +229,7 @@ class EpisodeResult:
 
 def measure_episode(ep: Episode) -> EpisodeResult:
     """Run the app's builders on one episode and record what they show."""
-    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.read_hooks import insights_from_gi
     from podcast_scraper.server.kg_view import entities_from_kg
     from podcast_scraper.server.segments_view import to_contract_segments
 

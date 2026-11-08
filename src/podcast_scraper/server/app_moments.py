@@ -32,12 +32,13 @@ from pathlib import Path
 from typing import AbstractSet, Any, Sequence, TYPE_CHECKING
 
 from podcast_scraper import perf_cache
+from podcast_scraper.read_hooks import insights_from_gi
 from podcast_scraper.server.corpus_access import load_json_artifact
-from podcast_scraper.server.gi_view import insights_from_gi
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 if TYPE_CHECKING:
     from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
+
 from podcast_scraper.server.schemas import AppInsight, AppQuote
 
 _DEFAULT_WEIGHTS = {"depth": 0.30, "centrality": 0.25, "kind": 0.20, "speaker": 0.10, "clip": 0.15}

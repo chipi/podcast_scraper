@@ -571,7 +571,7 @@ class TestThePlaceholderRuleIsOneDecisionNotTwo:
     PID = f"person:unresolved-host-{EP}"
 
     def test_the_episode_surface_names_it(self) -> None:
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         artifact = {"nodes": [{"id": self.PID, "type": "Person", "properties": {"name": "Host"}}]}
         assert _speaker_name(artifact, self.PID) == "Host", (
@@ -592,7 +592,7 @@ class TestThePlaceholderRuleIsOneDecisionNotTwo:
         from podcast_scraper.enrichment.enrichers._loaders import (
             is_unresolved_speaker_placeholder,
         )
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         artifact = {
             "nodes": [
@@ -778,7 +778,7 @@ class TestTheShowNeverREADSAsTheSpeaker:
             _resolve_quote_speaker,
             UNNAMED_SPEAKER_LABEL,
         )
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         pid, display, _vt = _resolve_quote_speaker(
             self._Q(),
@@ -800,7 +800,7 @@ class TestTheShowNeverREADSAsTheSpeaker:
 
     def test_a_real_person_still_reads_as_themselves(self) -> None:
         from podcast_scraper.gi.pipeline import _attach_person_for_quote, _resolve_quote_speaker
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         pid, display, _vt = _resolve_quote_speaker(
             self._Q(), "Kevin Roose", "ep:hf-1", None, None, "Hard Fork"

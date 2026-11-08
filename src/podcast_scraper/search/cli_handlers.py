@@ -229,7 +229,7 @@ def _quotes_for_insight(
     """The insight's supporting quotes, each with the name the episode view shows for its speaker
     (``speaker_name``, spelled through ``people``; RFC-131 S6c). ``speaker_id`` stays the episode's.
     """
-    from podcast_scraper.server.gi_view import quote_speaker_name
+    from podcast_scraper.read_hooks import quote_speaker_name
 
     quotes: List[Dict[str, Any]] = []
     nodes = {n.get("id"): n for n in artifact.get("nodes") or [] if isinstance(n, dict)}

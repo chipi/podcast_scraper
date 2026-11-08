@@ -245,10 +245,11 @@ def test_r1_detects_both_raw_shapes_when_a_surface_shows_them(
     corpus: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The report must catch what the app shows; here the pre-S3 behaviour is restored by fakes."""
-    from podcast_scraper.server import gi_view, segments_view
+    from podcast_scraper.insight_stage import gi_view
+    from podcast_scraper.server import segments_view
     from podcast_scraper.server.schemas import AppInsight, AppQuote, TranscriptSegment
 
-    def fake_insights(gi, *, limit=None, unattributed_fallback=False):
+    def fake_insights(gi, *, limit=None, unattributed_fallback=False, people=None):
         names = sorted(
             n["properties"]["name"]
             for n in gi.get("nodes", [])

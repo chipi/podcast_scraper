@@ -68,6 +68,24 @@ def _group_borrows(root: Path, rows: List[Any]) -> Tuple[Dict[str, str], Dict[st
     return borrows(root, rows)
 
 
+def _insights_from_gi(
+    artifact: Any, *, limit: Optional[int], unattributed_fallback: bool, people: Any
+) -> List[Any]:
+    from podcast_scraper.insight_stage import gi_view
+
+    return gi_view.insights_from_gi(
+        artifact, limit=limit, unattributed_fallback=unattributed_fallback, people=people
+    )
+
+
+def _quote_speaker_name(
+    artifact: Any, quote_props: Any, spoken_by_id: Any, people: Any
+) -> Optional[str]:
+    from podcast_scraper.insight_stage import gi_view
+
+    return gi_view.quote_speaker_name(artifact, quote_props, spoken_by_id, people)
+
+
 BUILTIN = ReadHooks(
     name="builtin",
     segment_speaker=_segment_speaker,
@@ -78,4 +96,6 @@ BUILTIN = ReadHooks(
     gi_integrity=_gi_integrity,
     topic_perspectives=_topic_perspectives,
     group_borrows=_group_borrows,
+    insights_from_gi=_insights_from_gi,
+    quote_speaker_name=_quote_speaker_name,
 )
