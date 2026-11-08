@@ -380,6 +380,41 @@ def _episode_speakers(
     )
 
 
+def _stated_show_hosts(
+    title: Any, description: Any, language: str, authors: List[str]
+) -> List[Tuple[str, str]]:
+    """The feed statement's hosts (sorted), the names it refused, then each author tag's people
+    that are neither the show nor an organisation: the order ``show.json`` lists them in."""
+    from podcast_scraper.speaker_detectors.hosts import (
+        hosts_from_feed_statement,
+        is_network_or_org_author,
+        names_the_show,
+        refused_feed_statement_names,
+        split_author_names,
+    )
+
+    out: List[Tuple[str, str]] = []
+    for name in sorted(hosts_from_feed_statement(title, description, language)):
+        out.append((name, "feed_statement"))
+    for name in refused_feed_statement_names(title, description, language):
+        out.append((name, "feed_statement_refused"))
+    for tag in authors:
+        for name in split_author_names(tag, language or None):
+            if (
+                name
+                and not names_the_show(name, title, language or None)
+                and not is_network_or_org_author(name, language or None)
+            ):
+                out.append((name, "author_tag"))
+    return out
+
+
+def _person_matcher() -> Any:
+    from podcast_scraper.kg.speaker_coherence import same_person
+
+    return same_person
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -396,6 +431,8 @@ BUILTIN = PipelineHooks(
     feed_hosts=_feed_hosts,
     episode_hosts=_episode_hosts,
     episode_speakers=_episode_speakers,
+    stated_show_hosts=_stated_show_hosts,
+    person_matcher=_person_matcher,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

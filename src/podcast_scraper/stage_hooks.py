@@ -68,6 +68,15 @@ EpisodeHosts = Callable[..., Set[str]]
 #: skip_reason, skip_detail) -> DetectedSpeakers | None``: the episode's guests and every stated
 #: name. One owner; without one, ``None`` (nothing detected).
 EpisodeSpeakers = Callable[..., Any]
+#: ``(title, description, language, authors) -> [(name, source), ...]``: the hosts a feed
+#: states, in order, each with the field that states it (``feed_statement``,
+#: ``feed_statement_refused``, ``author_tag``). One owner; without one, none.
+StatedShowHosts = Callable[[Any, Any, str, List[str]], List[Tuple[str, str]]]
+#: ``(a, b) -> bool``: whether two spellings name one person.
+SamePerson = Callable[[str, str], bool]
+#: ``() -> SamePerson``: the person match, built once so a caller comparing names in a loop
+#: pays no lookup per pair. One owner; without one, only an identical string matches.
+PersonMatcher = Callable[[], SamePerson]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -105,6 +114,8 @@ class PipelineHooks:
     feed_hosts: Optional[FeedHosts] = None
     episode_hosts: Optional[EpisodeHosts] = None
     episode_speakers: Optional[EpisodeSpeakers] = None
+    stated_show_hosts: Optional[StatedShowHosts] = None
+    person_matcher: Optional[PersonMatcher] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -284,6 +295,32 @@ def episode_speakers(
     return None
 
 
+def stated_show_hosts(
+    title: Any, description: Any, language: str, authors: List[str]
+) -> List[Tuple[str, str]]:
+    for hooks in _all():
+        if hooks.stated_show_hosts is not None:
+            return hooks.stated_show_hosts(title, description, language, authors)
+    return []
+
+
+def person_matcher() -> SamePerson:
+    """The owner's person match, resolved once: a caller comparing names in a loop calls this
+    once and the returned function per pair."""
+    for hooks in _all():
+        if hooks.person_matcher is not None:
+            return hooks.person_matcher()
+    return _identical
+
+
+def _identical(a: str, b: str) -> bool:
+    return a == b
+
+
+def same_person(a: str, b: str) -> bool:
+    return person_matcher()(a, b)
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -304,10 +341,13 @@ __all__ = [
     "CorpusDerivedHook",
     "KgGraphPass",
     "KgPromptHints",
+    "PersonMatcher",
     "PipelineHooks",
+    "SamePerson",
     "Screenplay",
     "SpeakerTurns",
     "SplitPersonList",
+    "StatedShowHosts",
     "VariantTurns",
     "RunCompletedHook",
     "RunFinalizedHook",
@@ -324,8 +364,11 @@ __all__ = [
     "run_completed",
     "run_finalized",
     "run_started",
+    "person_matcher",
+    "same_person",
     "screenplay",
     "speaker_turns",
     "split_person_list",
+    "stated_show_hosts",
     "write_variant_turns",
 ]

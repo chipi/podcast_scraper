@@ -357,3 +357,26 @@ def test_the_processing_stages_no_longer_import_host_or_guest_detection(module: 
         for s in ("speaker_detectors", "speaker_coherence", "diarization.roster")
         if s in m
     }
+
+
+def test_without_a_speaker_stage_a_show_states_no_hosts_and_names_match_only_exactly() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.stated_show_hosts("T", "Hosted by Jane Roe", "en", ["Jane Roe"]) == []
+        match = stage_hooks.person_matcher()
+        assert match("Jane Roe", "Jane Roe") and not match("Joe Weisenthal", "Joe Wiesenthal")
+
+
+def test_the_built_in_person_matcher_is_todays_same_person_itself() -> None:
+    from podcast_scraper.kg.speaker_coherence import same_person
+
+    with use_extensions([]):
+        assert stage_hooks.person_matcher() is same_person
+        assert stage_hooks.same_person("Joe Weisenthal", "Joe Wiesenthal")
+
+
+def test_show_metadata_no_longer_imports_host_rules() -> None:
+    src = (Path(stage_hooks.__file__).parent / "workflow" / "show_metadata.py").read_text(
+        encoding="utf-8"
+    )
+    imported = {(n.module or "") for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom)}
+    assert not {m for m in imported if "speaker_detectors" in m or "speaker_coherence" in m}
