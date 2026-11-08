@@ -10,8 +10,10 @@
 import { reactive, ref, watch } from 'vue'
 
 import { fetchTopicPerspectives, type CilTopicPerspective } from '../../api/cilApi'
+import { useShellStore } from '../../stores/shell'
 
 const props = defineProps<{ corpusPath: string; topicId: string }>()
+const shell = useShellStore()
 
 const PREVIEW = 4
 
@@ -39,14 +41,14 @@ function toggle(personId: string): void {
 }
 
 watch(
-  () => [props.corpusPath, props.topicId] as const,
+  () => [props.corpusPath, props.topicId, shell.cilQueriesApiAvailable] as const,
   () => {
     const path = props.corpusPath.trim()
     const tid = props.topicId.trim()
     perspectives.value = []
     failed.value = false
     expanded.clear()
-    if (!path || !tid) return
+    if (!path || !tid || !shell.cilQueriesApiAvailable) return
     loading.value = true
     fetchTopicPerspectives(path, tid)
       .then((r) => {
@@ -64,7 +66,11 @@ watch(
 </script>
 
 <template>
-  <div data-testid="node-topic-perspectives" class="flex flex-col gap-2 text-sm">
+  <div
+    v-if="shell.cilQueriesApiAvailable"
+    data-testid="node-topic-perspectives"
+    class="flex flex-col gap-2 text-sm"
+  >
     <p v-if="loading" class="text-slate-400">Loading perspectives…</p>
     <p v-else-if="failed" class="text-slate-400">Couldn't load perspectives.</p>
     <p v-else-if="!perspectives.length" class="text-slate-400">

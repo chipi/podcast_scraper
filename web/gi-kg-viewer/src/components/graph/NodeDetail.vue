@@ -844,8 +844,18 @@ watch([mentionsSortOrder, mentionsEpisodeFilter, () => inlineTimelinePayload.val
   mentionsPage.value = 1
 })
 
+/** The server has no CIL routes (KG-only corpus): a note in place of the inline timeline. */
+const inlineTimelineUnavailable = ref(false)
+
 async function loadInlineTimeline(): Promise<void> {
   const path = (shell.resolvedCorpusPath ?? shell.corpusPath).trim()
+  if (path && shell.healthStatus && shell.cilQueriesApiAvailable === false) {
+    inlineTimelineError.value = null
+    inlineTimelinePayload.value = null
+    inlineTimelineUnavailable.value = true
+    return
+  }
+  inlineTimelineUnavailable.value = false
   if (!path || cilTimelineApiUnavailable.value) {
     inlineTimelineError.value = "Set corpus path and ensure CIL API is available."
     inlineTimelinePayload.value = null
@@ -2102,6 +2112,13 @@ const graphConnectionsCenterInView = computed((): boolean => {
               data-testid="node-detail-inline-timeline-loading"
             >
               Loading timeline...
+            </p>
+            <p
+              v-else-if="inlineTimelineUnavailable"
+              class="text-[10px] text-muted"
+              data-testid="node-detail-inline-timeline-unavailable"
+            >
+              Not available for this corpus: it has knowledge-graph data only (no insights).
             </p>
             <p
               v-else-if="inlineTimelineError"

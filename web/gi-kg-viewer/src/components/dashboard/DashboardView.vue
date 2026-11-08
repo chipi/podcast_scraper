@@ -100,7 +100,7 @@ async function openPipelineRunHistory(): Promise<void> {
 
 async function fetchTopPersons(): Promise<void> {
   const root = shell.corpusPath.trim()
-  if (!root || !shell.healthStatus) {
+  if (!root || !shell.healthStatus || !shell.corpusPersonsApiAvailable) {
     topPersons.value = []
     return
   }

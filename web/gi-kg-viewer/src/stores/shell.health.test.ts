@@ -380,4 +380,38 @@ describe('useShellStore /api/health discovery flags', () => {
     // Unknown is not "broken" — an unreachable server is a different problem from a dead secret.
     expect(shell.authDegraded).toBe(false)
   })
+
+  it('reads a KG-only server: no GI artifacts, no top-persons route', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'ok',
+          corpus_persons_api: false,
+          cil_queries_api: false,
+          artifact_kinds: ['kg'],
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.giArtifactsAvailable).toBe(false)
+    expect(shell.corpusPersonsApiAvailable).toBe(false)
+    expect(shell.cilQueriesApiAvailable).toBe(false)
+  })
+
+  it('assumes GI and top persons when an older server omits the new fields', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ status: 'ok' }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.giArtifactsAvailable).toBe(true)
+    expect(shell.corpusPersonsApiAvailable).toBe(true)
+  })
 })

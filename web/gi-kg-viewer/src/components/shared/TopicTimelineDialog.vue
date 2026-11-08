@@ -198,6 +198,9 @@ const sortedEpisodes = computed((): CilArcEpisodeBlock[] => {
   return arr
 })
 
+/** True when the server has no CIL routes (KG-only corpus): a note, not an error. */
+const unavailable = ref(false)
+
 async function load(): Promise<void> {
   const path = (shell.resolvedCorpusPath ?? shell.corpusPath).trim()
   if (!path) {
@@ -205,6 +208,13 @@ async function load(): Promise<void> {
       'Set a corpus path and load artifacts so the server can resolve the corpus root.'
     return
   }
+  if (!shell.cilQueriesApiAvailable) {
+    errorText.value = null
+    payload.value = null
+    unavailable.value = true
+    return
+  }
+  unavailable.value = false
   const seq = timelineLoadGate.bump()
   loading.value = true
   errorText.value = null
@@ -390,7 +400,14 @@ defineExpose({ open, openCluster, close })
         data-testid="topic-timeline-body"
       >
         <p
-          v-if="loading"
+          v-if="unavailable"
+          class="text-muted"
+          data-testid="topic-timeline-unavailable"
+        >
+          Not available for this corpus: it has knowledge-graph data only (no insights).
+        </p>
+        <p
+          v-else-if="loading"
           class="text-muted"
           data-testid="topic-timeline-loading"
         >

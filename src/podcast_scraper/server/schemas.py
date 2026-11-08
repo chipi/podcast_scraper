@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -3325,6 +3325,17 @@ class HealthResponse(BaseModel):
     cil_queries_api: bool = Field(
         default=True,
         description="True when cross-layer CIL query routes are mounted (GitHub #527).",
+    )
+    corpus_persons_api: bool = Field(
+        default=True,
+        description="True when GET /api/corpus/persons/top (dashboard top voices) is mounted.",
+    )
+    artifact_kinds: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Per-episode artifact kinds this server writes and serves (``kg``, plus ``gi`` and "
+            "``bridge`` with the insight stage). Absent on older servers: assume all three."
+        ),
     )
     feeds_api: bool = Field(
         default=False,

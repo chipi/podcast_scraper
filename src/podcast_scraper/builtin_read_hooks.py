@@ -155,9 +155,25 @@ def ROUTERS() -> Sequence[Any]:
     from podcast_scraper.extensions import RouterMount
     from podcast_scraper.insight_stage.routes import cil, corpus_persons, explore
 
-    return tuple(
-        RouterMount(router=m.router, plane="operator", operator_public=True)
-        for m in (explore, corpus_persons, cil)
+    return (
+        RouterMount(
+            router=explore.router,
+            plane="operator",
+            operator_public=True,
+            advertises=("explore_api",),
+        ),
+        RouterMount(
+            router=corpus_persons.router,
+            plane="operator",
+            operator_public=True,
+            advertises=("corpus_persons_api",),
+        ),
+        RouterMount(
+            router=cil.router,
+            plane="operator",
+            operator_public=True,
+            advertises=("cil_queries_api",),
+        ),
     )
 
 

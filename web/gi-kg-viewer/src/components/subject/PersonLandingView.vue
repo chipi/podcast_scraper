@@ -300,7 +300,7 @@ function topicDisplayName(topicId: string): string {
 async function loadCorpusQuotes(rawId: string): Promise<void> {
   const id = rawId.trim()
   const root = shell.corpusPath?.trim()
-  if (!id || !root || !shell.healthStatus) {
+  if (!id || !root || !shell.healthStatus || !shell.cilQueriesApiAvailable) {
     corpusQuotes.value = []
     briefTopicGroups.value = []
     corpusError.value = null

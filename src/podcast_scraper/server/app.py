@@ -285,15 +285,22 @@ def _mount_extension_routers(app: FastAPI, *, app_only: bool, operator_public: b
     """
     mounts = [*read_hooks.builtin_routers()]
     mounts += [mount for ext in load_extensions() for mount in ext.routers()]
+    advertised: set[str] = set()
     for mount in mounts:
         if mount.plane != "operator":
             app.include_router(mount.router, prefix=mount.prefix)
         elif operator_public:
-            if mount.operator_public:
-                gate = [Depends(app_auth.require_viewer_access)]
-                app.include_router(mount.router, prefix=mount.prefix, dependencies=gate)
+            if not mount.operator_public:
+                continue
+            gate = [Depends(app_auth.require_viewer_access)]
+            app.include_router(mount.router, prefix=mount.prefix, dependencies=gate)
         elif not app_only:
             app.include_router(mount.router, prefix=mount.prefix)
+        else:
+            continue
+        advertised.update(mount.advertises)
+    # /api/health reports a stage router's flags from this set (true only when mounted here).
+    app.state.stage_routes_advertised = frozenset(advertised)
 
 
 # Shared with the MCP server (podcast_scraper.utils.access_log); the old name stays for callers.

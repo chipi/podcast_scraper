@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, TYPE_CHECKING
+from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
@@ -88,6 +88,9 @@ class RouterMount:
     #: Operator-plane routers only: also mount on the curated public operator surface (RFC-108 (not
     #: in this repository)).
     operator_public: bool = False
+    #: The ``/api/health`` flags this router serves (``"cil_queries_api"``): true only when it is
+    #: mounted in the running serve posture, so a client never calls a route that is not there.
+    advertises: Tuple[str, ...] = ()
 
     @property
     def prefix(self) -> str:
