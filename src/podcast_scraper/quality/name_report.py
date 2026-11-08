@@ -303,7 +303,7 @@ def _read_model_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     from podcast_scraper.gi.load import build_inspect_output
     from podcast_scraper.graph_id_utils import is_raw_label_person_id
-    from podcast_scraper.search import transcript_chunk_lift as lift
+    from podcast_scraper.insight_stage import transcript_chunk_lift as lift
 
     rows: List[Dict[str, Any]] = []
     try:

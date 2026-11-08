@@ -7,11 +7,11 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
-from podcast_scraper import perf_cache
-from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
+from podcast_scraper import perf_cache, read_hooks
 from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
     _hit_passes_cli_filters,
@@ -31,10 +31,6 @@ from podcast_scraper.search.hybrid_search import (
     QueryEmbeddingError,
 )
 from podcast_scraper.search.protocol import SearchResult
-from podcast_scraper.search.transcript_chunk_lift import (
-    lift_row_if_transcript,
-    TranscriptLiftGiCache,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -228,26 +224,13 @@ def _enrich_lift_and_slice(
         )
         for h in filtered
     ]
-    lift_overrides = load_cil_lift_overrides(output_dir)
-    lift_cache = TranscriptLiftGiCache()
-    for row in enriched:
-        meta = row.get("metadata")
-        if not isinstance(meta, dict) or meta.get("doc_type") != "transcript":
-            continue
-        ep = meta.get("episode_id")
-        if not isinstance(ep, str) or not ep.strip():
-            continue
-        gpath = gi_cache.get(ep.strip())
-        if gpath is not None and gpath.is_file():
-            lift_row_if_transcript(
-                row,
-                output_dir,
-                gpath,
-                lift_cache,
-                lift_overrides,
-                visible=None if visible is None else _visible_in(visible, ep.strip()),
-                people=people,
-            )
+    read_hooks.lift_transcript_hits(
+        enriched,
+        output_dir,
+        gi_cache,
+        visible_for=None if visible is None else partial(_visible_in, visible),
+        people=people,
+    )
     if dedupe_kg_surfaces:
         enriched = dedupe_kg_surface_rows(enriched)
     _attach_topic_cluster_metadata(enriched, output_dir)
@@ -375,9 +358,7 @@ def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
     hit = _SCOPES_BY_PATH_MAP.get(id(paths))
     if hit is not None and hit[0] is paths:
         return hit[1]
-    from podcast_scraper.kg.entity_clusters import cached_entity_id_map
-
-    id_map = cached_entity_id_map(output_dir)
+    id_map = read_hooks.entity_id_map(output_dir)
     rows: List[_InsightScope] = []
     for episode_id, path in paths.items():
         try:
@@ -588,9 +569,7 @@ def _filter_and_enrich(
     gi_cache = cached_episode_gi_paths(output_dir)
     rel_by_scope = cached_metadata_relpath_by_scope(output_dir)
     visible = _visible_insights(output_dir)
-    from podcast_scraper.kg.entity_clusters import cached_entity_id_map
-
-    id_map = cached_entity_id_map(output_dir)
+    id_map = read_hooks.entity_id_map(output_dir)
     filtered: List[SearchResult] = []
     for h in hits:
         dt = h.metadata.get("doc_type")

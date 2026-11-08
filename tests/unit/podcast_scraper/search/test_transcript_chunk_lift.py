@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from podcast_scraper.search.cil_lift_overrides import CilLiftOverrides
-from podcast_scraper.search.transcript_chunk_lift import (
+from podcast_scraper.insight_stage.transcript_chunk_lift import (
     bridge_path_next_to_gi,
     lift_row_if_transcript,
     TranscriptLiftGiCache,
     try_lift_transcript_chunk_from_gi,
 )
+from podcast_scraper.search.cil_lift_overrides import CilLiftOverrides
 
 
 def test_bridge_path_next_to_gi() -> None:

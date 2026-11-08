@@ -243,7 +243,7 @@ class TestTheLiftPathSkipsTheSourceLayer:
     def test_a_source_layer_row_is_never_lifted(self, tmp_path: Path) -> None:
         """A char-range overlap against the English-derived GI artifact would attach Spanish
         text as the evidence under an English insight, and the overlap would look valid."""
-        from podcast_scraper.search.transcript_chunk_lift import (
+        from podcast_scraper.insight_stage.transcript_chunk_lift import (
             lift_row_if_transcript,
             TranscriptLiftGiCache,
         )

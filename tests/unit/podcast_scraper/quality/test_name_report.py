@@ -396,7 +396,7 @@ def test_languages_and_lossy_person_ids_are_reported(tmp_path: Path) -> None:
 def test_r1_detects_raw_labels_on_search(corpus: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The read-model and lifted-speaker surfaces, with the pre-S3 behaviour restored."""
     from podcast_scraper.gi import load
-    from podcast_scraper.search import transcript_chunk_lift as lift
+    from podcast_scraper.insight_stage import transcript_chunk_lift as lift
 
     def old_meta(artifact, quote_node_id):
         for e in artifact.get("edges", []):

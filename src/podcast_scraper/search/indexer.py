@@ -134,8 +134,9 @@ def _chunk_timestamps_from_segments(
     transcript sat beside it. ``load_transcript`` returns the same ANALYSIS body
     ``_transcript_path`` resolves, with the segments that belong to it. Spans: the segments' own
     char offsets (the ad-free base) or cumulative lengths when they line up
-    (``_segment_char_spans``, the mapping GI times quotes with); otherwise each segment's text
-    found in order in the body (a raw transcript puts separators between segments).
+    (``transcript_spans._segment_char_spans``, the mapping GI times quotes with); otherwise each
+    segment's text found in order in the body (a raw transcript puts separators between
+    segments).
     """
     rel = (doc.get("content") or {}).get("transcript_file_path")
     if not isinstance(rel, str) or not rel.strip():
@@ -159,7 +160,7 @@ def body_timestamps(
     text: str, segments: Optional[List[Dict[str, Any]]]
 ) -> Optional[List[Dict[str, Any]]]:
     """Char span -> time for ``text`` from its own ``segments``, in the chunker's shape."""
-    from podcast_scraper.gi.pipeline import _segment_char_spans
+    from podcast_scraper.transcript_spans import _segment_char_spans
 
     if not text or not segments:
         return None

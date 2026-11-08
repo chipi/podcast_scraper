@@ -86,3 +86,25 @@ def test_the_bridge_hook_answers_the_canonical_id() -> None:
         )
     assert (canon, rows, truncated, total) == ("topic:ai", [{"gi_relative_path": "a"}], False, None)
     listing.assert_called_once_with("/c", "/a", "g:k:topic:ai", max_episodes=5)
+
+
+def test_without_the_stages_search_reads_kg_alone(tmp_path: Path) -> None:
+    rows = [{"metadata": {"doc_type": "transcript", "episode_id": "e1"}}]
+    with patch.object(builtin_read_hooks, "BUILTIN", _NONE):
+        read_hooks.lift_transcript_hits(rows, tmp_path, {"e1": tmp_path / "e1.gi.json"})
+        assert rows == [{"metadata": {"doc_type": "transcript", "episode_id": "e1"}}]
+        assert list(read_hooks.graph_artifacts(tmp_path)) == []
+        assert read_hooks.host_variants("Erica Barris", "Erika Barris") is False
+
+
+def test_the_graph_hook_streams_the_gi_layer(tmp_path: Path) -> None:
+    with (
+        patch("podcast_scraper.gi.explore.scan_artifact_paths", return_value=[]),
+        patch(
+            "podcast_scraper.gi.corpus.iter_gi_artifacts",
+            return_value=iter([(tmp_path / "a.gi.json", {"nodes": []})]),
+        ),
+    ):
+        layers = read_hooks.graph_artifacts(tmp_path)
+        assert not isinstance(layers, list)
+        assert list(layers) == [("gi", {"nodes": []})]

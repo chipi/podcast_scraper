@@ -7,7 +7,19 @@ its code moves to an extension, which then contributes it through ``Extension.re
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 from .read_hooks import NodeEpisodes, ReadHooks
 
@@ -36,7 +48,7 @@ def _looks_like_publisher(name: str, language: Optional[str]) -> bool:
     return looks_like_publisher(name, language)
 
 
-def _entity_id_map(root: Path) -> Dict[str, str]:
+def _entity_id_map(root: Union[Path, str]) -> Dict[str, str]:
     from podcast_scraper.kg.entity_clusters import cached_entity_id_map
 
     return cached_entity_id_map(root)
@@ -106,6 +118,35 @@ def _bridge_node_episodes(
     return canonical_cil_entity_id(node_id), rows, truncated, total
 
 
+def _lift_transcript_hits(
+    rows: List[Dict[str, Any]],
+    corpus_root: Path,
+    gi_paths: Mapping[str, Path],
+    *,
+    visible_for: Optional[Callable[[str], Callable[[str], bool]]],
+    people: Any,
+) -> None:
+    from podcast_scraper.insight_stage.transcript_chunk_lift import lift_transcript_rows
+
+    lift_transcript_rows(rows, corpus_root, gi_paths, visible_for=visible_for, people=people)
+
+
+def _graph_artifacts(corpus_dir: Path, *, validate: bool) -> Iterator[Tuple[str, Dict[str, Any]]]:
+    from podcast_scraper.gi.corpus import iter_gi_artifacts
+    from podcast_scraper.gi.explore import scan_artifact_paths as scan_gi_paths
+    from podcast_scraper.kg.corpus import newest_run_artifact_paths
+
+    gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
+    for _path, data in iter_gi_artifacts(gi_paths, validate=validate):
+        yield "gi", data
+
+
+def _host_variants(a: str, b: str) -> bool:
+    from podcast_scraper.identity.person_match import host_variants
+
+    return host_variants(a, b)
+
+
 def ROUTERS() -> Sequence[Any]:
     """The operator-plane routers of the insight / identity stages: GI explore, person pages, CIL.
 
@@ -134,4 +175,7 @@ BUILTIN = ReadHooks(
     quote_speaker_name=_quote_speaker_name,
     served_id_map=_served_id_map,
     bridge_node_episodes=_bridge_node_episodes,
+    lift_transcript_hits=_lift_transcript_hits,
+    graph_artifacts=_graph_artifacts,
+    host_variants=_host_variants,
 )

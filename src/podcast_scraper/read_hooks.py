@@ -11,7 +11,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 #: ``(canonical_id, rows, truncated, total_matched)``.
 NodeEpisodes = Tuple[str, List[Dict[str, Any]], bool, Optional[int]]
@@ -33,7 +46,7 @@ class ReadHooks:
     #: ``(name, language) -> bool``: whether a name is a publisher rather than a person.
     looks_like_publisher: Optional[Callable[[str, Optional[str]], bool]] = None
     #: ``(corpus_root) -> {entity_id: canonical_id}``: joined entities, for de-duplicated cards.
-    entity_id_map: Optional[Callable[[Path], Dict[str, str]]] = None
+    entity_id_map: Optional[Callable[[Union[Path, str]], Dict[str, str]]] = None
     #: ``(corpus_root) -> assessment``: the GI integrity report the ops route returns.
     gi_integrity: Optional[Callable[[Path], Dict[str, Any]]] = None
     #: ``(root, topic_ids, *, keep_episode_ids, slug_by_episode) -> [group]``: what speakers said
@@ -53,6 +66,14 @@ class ReadHooks:
     #: ``(root, anchor, node_id, *, max_episodes) -> (canonical_id, rows, truncated, total)``: the
     #: episodes whose cross-layer bridge lists a node.
     bridge_node_episodes: Optional[Callable[..., NodeEpisodes]] = None
+    #: ``(rows, corpus_root, gi_paths, *, visible_for, people) -> None``: set ``lifted`` on the
+    #: transcript hits a GI quote covers (in place).
+    lift_transcript_hits: Optional[Callable[..., None]] = None
+    #: ``(corpus_dir, *, validate) -> [(source, artifact)]``: graph layers beyond KG, ingested
+    #: after it (GI: newest run per episode).
+    graph_artifacts: Optional[Callable[..., Iterable[Tuple[str, Dict[str, Any]]]]] = None
+    #: ``(name_a, name_b) -> bool``: whether two host spellings name one person.
+    host_variants: Optional[Callable[[str, str], bool]] = None
 
 
 def _all() -> Iterator[ReadHooks]:
@@ -97,7 +118,7 @@ def looks_like_publisher(name: str, language: Optional[str] = None) -> bool:
     return bool(fn(name, language)) if fn is not None else False
 
 
-def entity_id_map(root: Path) -> Dict[str, str]:
+def entity_id_map(root: Union[Path, str]) -> Dict[str, str]:
     """Joined entities' canonical ids; without the identity stage, none (each shows as itself)."""
     fn = _owner("entity_id_map")
     return fn(root) if fn is not None else {}
@@ -175,6 +196,38 @@ def bridge_node_episodes(
     return out
 
 
+def lift_transcript_hits(
+    rows: List[Dict[str, Any]],
+    corpus_root: Path,
+    gi_paths: Mapping[str, Path],
+    *,
+    visible_for: Optional[Callable[[str], Callable[[str], bool]]] = None,
+    people: Any = None,
+) -> None:
+    """Lift transcript hits to the insights that quote them; without an insight stage, none are."""
+    fn = _owner("lift_transcript_hits")
+    if fn is not None:
+        fn(rows, corpus_root, gi_paths, visible_for=visible_for, people=people)
+
+
+def graph_artifacts(
+    corpus_dir: Path, *, validate: bool = False
+) -> Iterable[Tuple[str, Dict[str, Any]]]:
+    """Graph layers beyond KG, in ingest order and streamed (never held together); without an
+    insight stage, none (the graph is KG)."""
+    fn = _owner("graph_artifacts")
+    if fn is None:
+        return ()
+    out: Iterable[Tuple[str, Dict[str, Any]]] = fn(corpus_dir, validate=validate)
+    return out
+
+
+def host_variants(a: str, b: str) -> bool:
+    """Whether two host spellings name one person; without the identity stage, never."""
+    fn = _owner("host_variants")
+    return bool(fn(a, b)) if fn is not None else False
+
+
 def builtin_routers() -> Sequence[Any]:
     """The in-tree stage routers (``RouterMount``), mounted like an extension's, before them."""
     from .builtin_read_hooks import ROUTERS
@@ -190,8 +243,11 @@ __all__ = [
     "builtin_routers",
     "entity_id_map",
     "gi_integrity",
+    "graph_artifacts",
     "group_borrows",
+    "host_variants",
     "insights_from_gi",
+    "lift_transcript_hits",
     "looks_like_publisher",
     "quote_speaker_name",
     "segment_speaker",

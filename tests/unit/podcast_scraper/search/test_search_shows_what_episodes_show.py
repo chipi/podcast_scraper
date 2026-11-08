@@ -9,10 +9,10 @@ from typing import Any, Dict
 import pytest
 
 from podcast_scraper.identity.display import PersonDisplay
+from podcast_scraper.insight_stage.transcript_chunk_lift import try_lift_transcript_chunk_from_gi
 from podcast_scraper.search import corpus_search as CS
 from podcast_scraper.search.cli_handlers import _enrich_hit
 from podcast_scraper.search.protocol import SearchResult
-from podcast_scraper.search.transcript_chunk_lift import try_lift_transcript_chunk_from_gi
 
 pytestmark = pytest.mark.unit
 
