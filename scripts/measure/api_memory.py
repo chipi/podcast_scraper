@@ -4,7 +4,7 @@
 Builds the app the way ``serve`` does (installed extensions included) on a corpus, then:
 
 1. ``import``: after importing the app factory;
-2. ``startup``: after the lifespan (``server_started`` hooks, the cache warmer) has run and RSS
+2. ``startup``: after the cache warmer has logged its first pass (``cache warm done``) and RSS
    has stopped growing;
 3. ``routes``: after one request to each listed route.
 
@@ -38,7 +38,9 @@ tracemalloc.start(int(os.environ.get("API_MEMORY_FRAMES", "10")))
 import argparse  # noqa: E402
 import json  # noqa: E402
 import linecache  # noqa: E402
+import logging  # noqa: E402
 import sys  # noqa: E402
+import threading  # noqa: E402
 import time  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Any  # noqa: E402
@@ -109,6 +111,37 @@ def settle(seconds: float, limit: float = 300.0) -> None:
             return
 
 
+class _WarmDone(logging.Handler):
+    """Set when the cache warmer logs its one ``cache warm done`` line (``app_cache_warm``)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.done = threading.Event()
+        self.line = ""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        msg = record.getMessage()
+        if msg.startswith("cache warm done"):
+            self.line = msg
+            self.done.set()
+
+
+def wait_for_warm(handler: _WarmDone, limit: float) -> None:
+    """Wait for the warmer's first pass, so ``startup`` is the same state on every run.
+
+    Settling on RSS alone stopped while the reel clips were still being scored in their child (the
+    api's RSS is flat then, for a minute on the prod-shaped corpus), so two runs' totals differed by
+    how far the warm had got.
+    """
+    if os.environ.get("APP_CACHE_WARMING", "1") == "0":
+        print("cache warming is off (APP_CACHE_WARMING=0); not waiting for it", flush=True)
+        return
+    if handler.done.wait(limit):
+        print(handler.line, flush=True)
+    else:
+        print(f"the cache warm had not finished after {limit:.0f}s; measuring anyway", flush=True)
+
+
 def _app_label(filename: str) -> str | None:
     parts = Path(filename).parts
     idx = [i for i, p in enumerate(parts) if p.startswith(APP_PACKAGES)]
@@ -155,6 +188,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--route", action="append", default=None)
     parser.add_argument("--settle-seconds", type=float, default=20.0)
+    parser.add_argument(
+        "--warm-timeout",
+        type=float,
+        default=1800.0,
+        help="seconds to wait for the cache warmer's first pass before the startup stage",
+    )
     parser.add_argument("--top", type=int, default=25)
     parser.add_argument(
         "--sign-in-as",
@@ -175,6 +214,10 @@ def main(argv: list[str] | None = None) -> int:
     from podcast_scraper.server.cli_handlers import _load_create_app
 
     stage("import", stages)
+    warm = _WarmDone()
+    logging.getLogger().addHandler(warm)
+    if logging.getLogger().getEffectiveLevel() > logging.INFO:
+        logging.getLogger().setLevel(logging.INFO)
     kw = serve_feature_kwargs_from_environ()
     app = _load_create_app()(
         args.output_dir.resolve(),
@@ -186,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     statuses: dict[str, int] = {}
     with TestClient(app) as client:
+        wait_for_warm(warm, args.warm_timeout)
         settle(args.settle_seconds)
         stage("startup", stages)
         if args.sign_in_as:
