@@ -29,6 +29,7 @@ import importlib.util
 from pathlib import Path
 
 from podcast_scraper import config, models
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import metrics, orchestration as workflow
 from podcast_scraper.workflow.stages import setup
 
@@ -1001,7 +1002,7 @@ class TestNoDuplicateAliases(unittest.TestCase):
         self.assertTrue(hasattr(stages.scraping, "fetch_and_parse_feed"))
         self.assertTrue(hasattr(stages.scraping, "extract_feed_metadata_for_generation"))
         self.assertTrue(hasattr(stages.scraping, "prepare_episodes_from_feed"))
-        self.assertTrue(hasattr(stages.processing, "detect_feed_hosts_and_patterns"))
+        self.assertTrue(hasattr(detection, "detect_feed_hosts_and_patterns"))
         self.assertTrue(hasattr(stages.processing, "setup_processing_resources"))
         self.assertTrue(hasattr(stages.processing, "prepare_episode_download_args"))
         self.assertTrue(hasattr(stages.processing, "process_episodes"))
@@ -1028,7 +1029,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
     """Tests for prepare_episode_download_args function."""
 
     @patch("podcast_scraper.workflow.stages.processing.http_head")
-    @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")
+    @patch("podcast_scraper.speaker_stage.detection.create_speaker_detector")
     def test_speaker_detection_still_runs_when_media_exceeds_the_upload_limit(
         self, mock_create_detector, mock_http_head
     ):
@@ -1131,7 +1132,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         self.assertEqual(ledger["speaker_detection"]["outcome"], "ran")
 
     @patch("podcast_scraper.workflow.stages.processing.http_head")
-    @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")
+    @patch("podcast_scraper.speaker_stage.detection.create_speaker_detector")
     def test_prepare_episode_download_args_no_content_length_header(
         self, mock_create_detector, mock_http_head
     ):
@@ -1197,7 +1198,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_detector.detect_speakers.assert_called_once()
 
     @patch("podcast_scraper.workflow.stages.processing.http_head")
-    @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")
+    @patch("podcast_scraper.speaker_stage.detection.create_speaker_detector")
     def test_prepare_episode_download_args_head_request_failed(
         self, mock_create_detector, mock_http_head
     ):
@@ -1261,7 +1262,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_detector.detect_speakers.assert_called_once()
 
     @patch("podcast_scraper.workflow.stages.processing.http_head")
-    @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")
+    @patch("podcast_scraper.speaker_stage.detection.create_speaker_detector")
     def test_prepare_episode_download_args_invalid_content_length(
         self, mock_create_detector, mock_http_head
     ):

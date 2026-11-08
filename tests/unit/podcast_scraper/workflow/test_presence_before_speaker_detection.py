@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper import Config, models
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import episode_processor, run_index
 from podcast_scraper.workflow.helpers import get_episode_id_from_episode
 from podcast_scraper.workflow.stages import processing
@@ -189,7 +190,7 @@ def test_prepare_runs_no_per_episode_work_for_a_present_episode(tmp_path):
         patch.object(
             processing, "_check_episode_size_skip", return_value=processing._NO_SIZE_SKIP
         ) as size_probe,
-        patch.object(processing, "_detect_speakers_for_episode", return_value=None) as detect,
+        patch.object(detection, "_detect_speakers_for_episode", return_value=None) as detect,
     ):
         args = processing.prepare_episode_download_args(
             [present, new],

@@ -12,8 +12,8 @@ So these tests are organised by SOURCE, not by function. Four independent paths 
 ``known_hosts``:
 
     1. the deterministic feed parse          (hosts.detect_hosts_from_feed)
-    2. the LLM provider                      (processing._sanitize_detected_hosts)
-    3. episode-level <itunes:author> tags    (processing._fallback_to_episode_authors)
+    2. the LLM provider                      (detection._sanitize_detected_hosts)
+    3. episode-level <itunes:author> tags    (detection._fallback_to_episode_authors)
     4. config known_hosts                    (detect_feed_hosts_and_patterns, two sites)
 
 Every one is asserted against the same real composite, and ``TestNoPathCanBypassTheGate``
@@ -50,7 +50,7 @@ from podcast_scraper.speaker_detectors.hosts import (
     detect_hosts_from_feed,
     normalize_host_names,
 )
-from podcast_scraper.workflow.stages import processing
+from podcast_scraper.speaker_stage import detection
 
 pytestmark = [pytest.mark.unit]
 
@@ -90,14 +90,14 @@ class TestEverySeedingPathSplitsTheComposite:
         assert hosts == EXPECTED
 
     def test_path_2_llm_provider(self) -> None:
-        assert processing._sanitize_detected_hosts({COMPOSITE}) == EXPECTED
+        assert detection._sanitize_detected_hosts({COMPOSITE}) == EXPECTED
 
     def test_path_3_episode_level_author_tags(self) -> None:
         """THE path that actually fired on the acceptance run, and the one the first fix
         missed. It previously applied ``is_network_or_org_author`` and nothing else — and that
         predicate returns False for a three-person string, since it is neither a mononym nor
         org-marked, so the composite passed the only check there was."""
-        out = processing._fallback_to_episode_authors(_Cfg(), [_Episode(COMPOSITE)])
+        out = detection._fallback_to_episode_authors(_Cfg(), [_Episode(COMPOSITE)])
         assert out == EXPECTED
 
     def test_path_4_config_known_hosts(self) -> None:
@@ -114,9 +114,9 @@ class TestTheCompositeNeverSurvives:
         "produce",
         [
             pytest.param(lambda: detect_hosts_from_feed("S", "", [COMPOSITE]), id="feed_parse"),
-            pytest.param(lambda: processing._sanitize_detected_hosts({COMPOSITE}), id="provider"),
+            pytest.param(lambda: detection._sanitize_detected_hosts({COMPOSITE}), id="provider"),
             pytest.param(
-                lambda: processing._fallback_to_episode_authors(_Cfg(), [_Episode(COMPOSITE)]),
+                lambda: detection._fallback_to_episode_authors(_Cfg(), [_Episode(COMPOSITE)]),
                 id="episode_authors",
             ),
             pytest.param(lambda: normalize_host_names([COMPOSITE]), id="config_known_hosts"),
@@ -128,7 +128,7 @@ class TestTheCompositeNeverSurvives:
     def test_the_slug_that_reached_the_corpus_is_unreachable(self) -> None:
         """``person:erik-torenberg-ben-horowitz-travis-kalanick`` is what a composite becomes
         downstream. No emitted name may contain more than one person's worth of tokens."""
-        for name in processing._fallback_to_episode_authors(_Cfg(), [_Episode(COMPOSITE)]):
+        for name in detection._fallback_to_episode_authors(_Cfg(), [_Episode(COMPOSITE)]):
             assert len(name.split()) <= 3, f"{name!r} looks like more than one person"
 
 
@@ -144,22 +144,23 @@ class TestNoPathCanBypassTheGate:
         assert callable(normalize_host_names)
 
     def test_processing_routes_every_path_through_it(self) -> None:
-        src = self._source(processing)
+        src = self._source(detection)
         assert src.count("normalize_host_names(") >= 4, (
-            "a host-name source in processing.py does not go through normalize_host_names — "
+            "a host-name source in speaker_stage/detection.py does not go through "
+            "normalize_host_names — "
             "check _sanitize_detected_hosts, _fallback_to_episode_authors, and BOTH "
             "cfg.known_hosts sites"
         )
 
     def test_no_path_re_wraps_known_hosts_raw(self) -> None:
         """``set(cfg.known_hosts)`` is the un-normalised shortcut both config sites used."""
-        src = self._source(processing)
+        src = self._source(detection)
         assert "set(cfg.known_hosts)" not in src
 
     def test_episode_authors_no_longer_hand_rolls_its_filter(self) -> None:
         """It used to add authors one at a time behind a bare org check. If that shape comes
         back, the split is bypassed again."""
-        src = self._source(processing)
+        src = self._source(detection)
         assert "episode_authors.add(author)" not in src
 
 
@@ -221,12 +222,12 @@ class TestTheLogSaysWhichPathActuallyFired:
             def debug(*_a: Any, **_k: Any) -> None:
                 return None
 
-        original = processing.logger
-        processing.logger = _Logger()  # type: ignore[assignment]
+        original = detection.logger
+        detection.logger = _Logger()  # type: ignore[assignment]
         try:
-            processing._log_detected_hosts(cached, _Feed(), episode_authors, cfg)
+            detection._log_detected_hosts(cached, _Feed(), episode_authors, cfg)
         finally:
-            processing.logger = original
+            detection.logger = original
         return records[-1] if records else ""
 
     def test_episode_authors_are_not_labelled_rss_author_tags(self) -> None:
@@ -269,19 +270,19 @@ class TestTheLogSaysWhichPathActuallyFired:
             def debug(*_a: Any, **_k: Any) -> None:
                 return None
 
-        original = processing.logger
-        processing.logger = _Logger()  # type: ignore[assignment]
+        original = detection.logger
+        detection.logger = _Logger()  # type: ignore[assignment]
         try:
-            processing._log_detected_hosts(
+            detection._log_detected_hosts(
                 EXPECTED, _Feed(), set(), _Cfg(), source="episode-level authors"
             )
         finally:
-            processing.logger = original
+            detection.logger = original
         assert "episode-level authors" in records[-1]
 
     def test_the_real_caller_threads_the_source_instead_of_inferring(self) -> None:
         """Structural: if detect_feed_hosts_and_patterns stops passing ``source=``, every case
         silently reverts to the guess that caused the misdiagnosis."""
-        src = Path(processing.__file__).read_text(encoding="utf-8")
+        src = Path(detection.__file__).read_text(encoding="utf-8")
         assert "source=host_source" in src
         assert 'host_source = "episode-level authors"' in src

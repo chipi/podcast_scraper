@@ -923,9 +923,7 @@ class TestSetupPipelineResources(unittest.TestCase):
     @patch(
         "podcast_scraper.workflow.orchestration.wf_stages.transcription.setup_transcription_resources"  # noqa: E501
     )
-    @patch(
-        "podcast_scraper.workflow.orchestration.wf_stages.processing.detect_feed_hosts_and_patterns"
-    )
+    @patch("podcast_scraper.speaker_stage.detection.detect_feed_hosts_and_patterns")
     @patch("podcast_scraper.workflow.orchestration.time.time")
     def test_setup_pipeline_resources_success(
         self, mock_time, mock_detect_hosts, mock_setup_transcription, mock_setup_processing

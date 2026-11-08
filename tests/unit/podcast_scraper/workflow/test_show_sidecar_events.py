@@ -146,7 +146,7 @@ def test_a_huge_message_is_bounded(bound: Path) -> None:
 
 
 def test_feed_host_detection_records_the_hosts_and_their_source(bound: Path) -> None:
-    from podcast_scraper.workflow.stages.processing import _record_hosts_detected
+    from podcast_scraper.speaker_stage.detection import _record_hosts_detected
 
     _record_hosts_detected({"Dana Shipley"}, "RSS author tags", {"Dana Shipley"}, {"Mercer Inc"})
     (event,) = _events(bound)

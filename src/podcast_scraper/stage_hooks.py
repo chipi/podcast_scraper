@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -58,6 +58,16 @@ SpeakerTurns = Callable[..., Any]
 #: ``(text) -> names``: the people one extracted person name lists (``Kahneman and Tversky``).
 #: Called only for a name with a conjunction. One owner; without one it stays one name.
 SplitPersonList = Callable[[str], List[str]]
+#: ``(cfg, feed, episodes, pipeline_metrics, *, speaker_detector) -> HostDetectionResult``: the
+#: feed's hosts and the patterns per-episode detection reads. One owner; without one, no hosts.
+FeedHosts = Callable[..., Any]
+#: ``(host_detection_result, episode, episode_people) -> set of names``: the hosts one episode
+#: is anchored on. One owner; without one, none.
+EpisodeHosts = Callable[..., Set[str]]
+#: ``(episode, cfg, host_detection_result, pipeline_metrics, *, skip_speaker_detection,
+#: skip_reason, skip_detail) -> DetectedSpeakers | None``: the episode's guests and every stated
+#: name. One owner; without one, ``None`` (nothing detected).
+EpisodeSpeakers = Callable[..., Any]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -92,6 +102,9 @@ class PipelineHooks:
     variant_turns: Optional[VariantTurns] = None
     screenplay: Optional[Screenplay] = None
     speaker_turns: Optional[SpeakerTurns] = None
+    feed_hosts: Optional[FeedHosts] = None
+    episode_hosts: Optional[EpisodeHosts] = None
+    episode_speakers: Optional[EpisodeSpeakers] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -220,6 +233,57 @@ def split_person_list(text: str) -> List[str]:
     return [text]
 
 
+def feed_hosts(
+    cfg: Any,
+    feed: Any,
+    episodes: List[Any],
+    pipeline_metrics: Any = None,
+    *,
+    speaker_detector: Any = None,
+) -> Any:
+    for hooks in _all():
+        if hooks.feed_hosts is not None:
+            return hooks.feed_hosts(
+                cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
+            )
+    from podcast_scraper.workflow.types import HostDetectionResult
+
+    return HostDetectionResult(cached_hosts=set(), heuristics=None)
+
+
+def episode_hosts(
+    host_detection_result: Any, episode: Any, episode_people: Iterable[str] = ()
+) -> Set[str]:
+    for hooks in _all():
+        if hooks.episode_hosts is not None:
+            return hooks.episode_hosts(host_detection_result, episode, episode_people)
+    return set()
+
+
+def episode_speakers(
+    episode: Any,
+    cfg: Any,
+    host_detection_result: Any,
+    pipeline_metrics: Any,
+    *,
+    skip_speaker_detection: bool = False,
+    skip_reason: Optional[str] = None,
+    skip_detail: Optional[Dict[str, Any]] = None,
+) -> Any:
+    for hooks in _all():
+        if hooks.episode_speakers is not None:
+            return hooks.episode_speakers(
+                episode,
+                cfg,
+                host_detection_result,
+                pipeline_metrics,
+                skip_speaker_detection=skip_speaker_detection,
+                skip_reason=skip_reason,
+                skip_detail=skip_detail,
+            )
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -231,7 +295,10 @@ def kg_graph_passes(
 
 __all__ = [
     "AdfreeBase",
+    "EpisodeHosts",
+    "EpisodeSpeakers",
     "ExciseAds",
+    "FeedHosts",
     "NoAdExcision",
     "BatchFinalizedHook",
     "CorpusDerivedHook",
@@ -248,7 +315,10 @@ __all__ = [
     "adfree_base",
     "batch_finalized",
     "corpus_derived",
+    "episode_hosts",
+    "episode_speakers",
     "excise_ads",
+    "feed_hosts",
     "kg_graph_passes",
     "kg_prompt_hints",
     "run_completed",

@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from podcast_scraper.workflow.stages.processing import hosts_for_episode
+from podcast_scraper.speaker_stage.detection import hosts_for_episode
 from podcast_scraper.workflow.types import HostDetectionResult
 
 pytestmark = pytest.mark.unit

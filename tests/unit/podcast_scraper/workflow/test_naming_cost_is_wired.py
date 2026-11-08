@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pytest
 
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import episode_processor, metrics
 from podcast_scraper.workflow.stages import processing
 
@@ -75,12 +76,12 @@ class _Episode:
 
 @pytest.fixture(autouse=True)
 def _stub_description(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(processing, "extract_episode_description", lambda _item: "A description.")
+    monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "A description.")
 
 
 def _detect(detector: _Detector, m: metrics.Metrics, idx: int = 1, **cfg_kw: Any) -> None:
     hd = processing.HostDetectionResult(set(), {}, detector)
-    processing._detect_speakers_for_episode(
+    detection._detect_speakers_for_episode(
         _Episode(idx), _Cfg(**cfg_kw), hd, m  # type: ignore[arg-type]
     )
 
@@ -174,7 +175,7 @@ class TestTheSeamCannotSilentlyComeApart:
     missing; these fail if either end reverts."""
 
     def test_the_detection_stage_wraps_a_probe(self) -> None:
-        src = Path(processing.__file__).read_text(encoding="utf-8")
+        src = Path(detection.__file__).read_text(encoding="utf-8")
         assert "EpisodeCostProbe" in src, "naming is not wrapped, so its cost is never captured"
         assert "_record_naming_cost(" in src
 
@@ -188,7 +189,7 @@ class TestTheSeamCannotSilentlyComeApart:
         """
         import inspect
 
-        src = inspect.getsource(processing._detect_speakers_for_episode)
+        src = inspect.getsource(detection._detect_speakers_for_episode)
         assert "pipeline_metrics=detect_metrics" in src
         assert "pipeline_metrics=pipeline_metrics," not in src
 

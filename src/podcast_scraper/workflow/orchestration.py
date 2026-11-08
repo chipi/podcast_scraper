@@ -1475,7 +1475,7 @@ def _setup_pipeline_resources(
         episode_total=len(episodes),
     )
     normalizing_start = time.time()
-    host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
+    host_detection_result = stage_hooks.feed_hosts(
         cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
     )
 

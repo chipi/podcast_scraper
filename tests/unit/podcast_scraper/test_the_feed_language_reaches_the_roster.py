@@ -248,7 +248,7 @@ class TestThePublishGateIsAskedInTheFeedsLanguage:
     def test_the_feed_language_rides_on_the_host_detection_result(self) -> None:
         from types import SimpleNamespace
 
-        from podcast_scraper.workflow.stages.processing import hosts_for_episode
+        from podcast_scraper.speaker_stage.detection import hosts_for_episode
         from podcast_scraper.workflow.types import HostDetectionResult
 
         result = HostDetectionResult(
@@ -421,7 +421,7 @@ class TestAnAuthorTagIsJudgedInTheFeedsLanguage:
         assert is_network_or_org_author("Pushkin Industries Media")
 
     def test_every_pipeline_call_passes_the_feeds_language(self) -> None:
-        path = Path(roster.__file__).parents[3] / "workflow" / "stages" / "processing.py"
+        path = Path(roster.__file__).parents[3] / "speaker_stage" / "detection.py"
         calls = _calls_in(path, "is_network_or_org_author")
         assert calls
         missing = [c.lineno for c in calls if not any(kw.arg == "language" for kw in c.keywords)]

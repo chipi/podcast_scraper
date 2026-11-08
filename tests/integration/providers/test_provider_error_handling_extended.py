@@ -340,7 +340,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
                                 "podcast_scraper.workflow.stages.scraping.prepare_episodes_from_feed"
                             ) as mock_prepare:
                                 with patch(
-                                    "podcast_scraper.workflow.stages.processing.detect_feed_hosts_and_patterns"
+                                    "podcast_scraper.speaker_stage.detection.detect_feed_hosts_and_patterns"
                                 ):
                                     with patch(
                                         "podcast_scraper.workflow.stages.transcription.setup_transcription_resources"

@@ -117,7 +117,7 @@ class TestTheLanguageGateWithEpisodeOverrides:
 
 class TestDerivedFields:
     def test_an_episode_hosts_override_replaces_the_pool(self) -> None:
-        from podcast_scraper.workflow.stages.processing import hosts_for_episode
+        from podcast_scraper.speaker_stage.detection import hosts_for_episode
         from podcast_scraper.workflow.types import HostDetectionResult
 
         ep = _episode()
@@ -148,7 +148,7 @@ class TestDerivedFields:
         assert _apply_speaker_renames(roster, {}) is roster
 
     def test_an_episode_guests_override_replaces_detection(self) -> None:
-        from podcast_scraper.workflow.stages.processing import _detect_speakers_for_episode
+        from podcast_scraper.speaker_stage.detection import _detect_speakers_for_episode
         from podcast_scraper.workflow.types import HostDetectionResult
 
         ep = _episode()

@@ -341,6 +341,45 @@ def _split_person_list(text: str) -> List[str]:
     return parts
 
 
+def _feed_hosts(
+    cfg: Any, feed: Any, episodes: List[Any], pipeline_metrics: Any = None, *, speaker_detector: Any
+) -> Any:
+    from podcast_scraper.speaker_stage import detection
+
+    return detection.detect_feed_hosts_and_patterns(
+        cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
+    )
+
+
+def _episode_hosts(host_detection_result: Any, episode: Any, episode_people: Any = ()) -> Any:
+    from podcast_scraper.speaker_stage import detection
+
+    return detection.hosts_for_episode(host_detection_result, episode, episode_people)
+
+
+def _episode_speakers(
+    episode: Any,
+    cfg: Any,
+    host_detection_result: Any,
+    pipeline_metrics: Any,
+    *,
+    skip_speaker_detection: bool = False,
+    skip_reason: Optional[str] = None,
+    skip_detail: Optional[Dict[str, Any]] = None,
+) -> Any:
+    from podcast_scraper.speaker_stage import detection
+
+    return detection._detect_speakers_for_episode(
+        episode,
+        cfg,
+        host_detection_result,
+        pipeline_metrics,
+        skip_speaker_detection=skip_speaker_detection,
+        skip_reason=skip_reason,
+        skip_detail=skip_detail,
+    )
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -354,6 +393,9 @@ BUILTIN = PipelineHooks(
     variant_turns=_write_turns_artifacts,
     screenplay=_screenplay,
     speaker_turns=_speaker_turns,
+    feed_hosts=_feed_hosts,
+    episode_hosts=_episode_hosts,
+    episode_speakers=_episode_speakers,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

@@ -22,8 +22,8 @@ import pytest
 
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.entity_kind_votes import corpus_kind_votes, votes_for_cfg
+from podcast_scraper.speaker_stage.detection import hosts_for_episode
 from podcast_scraper.utils import filesystem
-from podcast_scraper.workflow.stages.processing import hosts_for_episode
 from podcast_scraper.workflow.types import HostDetectionResult
 
 pytestmark = [pytest.mark.integration]

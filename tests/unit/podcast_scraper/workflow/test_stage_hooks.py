@@ -298,3 +298,62 @@ def test_turn_and_screenplay_callers_no_longer_import_them(
     tree = ast.parse((Path(stage_hooks.__file__).parent / module).read_text(encoding="utf-8"))
     imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
     assert not {m for m in imported if m.endswith(moved)}
+
+
+def test_without_a_speaker_stage_a_feed_has_no_hosts_and_an_episode_no_speakers() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        result = stage_hooks.feed_hosts(object(), object(), [], None, speaker_detector=None)
+        assert result.cached_hosts == set() and result.heuristics is None
+        assert stage_hooks.episode_hosts(result, object(), ["Jane Roe"]) == set()
+        assert stage_hooks.episode_speakers(object(), object(), result, None) is None
+
+
+def test_the_built_in_speaker_stage_detects_with_todays_code() -> None:
+    with (
+        patch(
+            "podcast_scraper.speaker_stage.detection.detect_feed_hosts_and_patterns",
+            return_value="feed",
+        ) as feed,
+        patch(
+            "podcast_scraper.speaker_stage.detection.hosts_for_episode", return_value={"A"}
+        ) as hosts,
+        patch(
+            "podcast_scraper.speaker_stage.detection._detect_speakers_for_episode",
+            return_value="speakers",
+        ) as speakers,
+        use_extensions([]),
+    ):
+        assert stage_hooks.feed_hosts("cfg", "f", [], "m", speaker_detector="d") == "feed"
+        assert stage_hooks.episode_hosts("r", "e", ["p"]) == {"A"}
+        got = stage_hooks.episode_speakers("e", "cfg", "r", "m", skip_reason="big")
+    feed.assert_called_once_with("cfg", "f", [], "m", speaker_detector="d")
+    hosts.assert_called_once_with("r", "e", ["p"])
+    speakers.assert_called_once_with(
+        "e",
+        "cfg",
+        "r",
+        "m",
+        skip_speaker_detection=False,
+        skip_reason="big",
+        skip_detail=None,
+    )
+    assert got == "speakers"
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        "workflow/stages/processing.py",
+        "workflow/stages/metadata.py",
+        "workflow/stages/transcription.py",
+    ],
+)
+def test_the_processing_stages_no_longer_import_host_or_guest_detection(module: str) -> None:
+    tree = ast.parse((Path(stage_hooks.__file__).parent / module).read_text(encoding="utf-8"))
+    imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert not {
+        m
+        for m in imported
+        for s in ("speaker_detectors", "speaker_coherence", "diarization.roster")
+        if s in m
+    }
