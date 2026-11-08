@@ -79,6 +79,9 @@ WHITELIST: Dict[str, str] = {
     "providers/openai/openai_provider.py": "fallback when the caller passes no language",
     "providers/gemini/gemini_provider.py": "fallback when the caller passes no language",
     "providers/mistral/mistral_provider.py": "fallback when the caller passes no language",
+    "providers/mistral/mistral_provider_gi_naming.py": (
+        "output language for the bundled extraction prompt, not the input"
+    ),
     "providers/deepgram/deepgram_provider.py": "fallback when the caller passes no language",
     # A FIFTH legitimate kind, invisible until the getattr half of the pattern existed: the
     # bundled-prompt builders pass `language=` as the language the MODEL SHOULD ANSWER IN, which
