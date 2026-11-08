@@ -140,10 +140,13 @@ def _umami_site(target: TargetConfig, frontend: Optional[str]) -> TargetConfig:
 _PG = 'job="postgres"'
 #: The exporter's own statements, left out of the top lists: they are its scrape, not the app.
 _NOT_EXPORTER = 'user!="monitor"'
+#: The API's scrape: its search-index gauges (podcast_scraper/search/index_metrics.py).
+_API = 'job="api"'
 
 
 def _database_queries(window: str) -> dict[str, str]:
-    """``{signal: PromQL}`` for the database surface, from the Postgres exporter's series.
+    """``{signal: PromQL}`` for the database surface: the Postgres exporter's series, and the
+    search index's coverage from the API's gauges.
 
     Statements carry ``queryid``, ``user`` and ``datname``, not the SQL text (the exporter does not
     export it). A ``queryid`` maps to its text with
@@ -174,6 +177,16 @@ def _database_queries(window: str) -> dict[str, str]:
         ),
         "locks": f"sum by (datname, mode) (pg_locks_count{{{_PG}}}) > 0",
         "database_size_bytes": f"pg_database_size_bytes{{{_PG}}}",
+        # The search index (LanceDB), from the API's own gauges (search/index_metrics.py): a dense
+        # table with no vector index, or rows outside it, is scanned whole by every vector query
+        # (+1.8 GB per query on a prod-sized segment table, 2026-11-08).
+        "search_index_rows": f"max by (table) (podcast_search_index_rows{{{_API}}})",
+        "search_index_missing": (
+            f"max by (table, index) (podcast_search_index_present{{{_API}}}) == 0"
+        ),
+        "search_index_unindexed_rows": (
+            f"max by (table, index) (podcast_search_index_unindexed_rows{{{_API}}}) > 0"
+        ),
     }
 
 

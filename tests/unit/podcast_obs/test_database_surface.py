@@ -26,7 +26,9 @@ def test_every_signal_is_one_query_on_the_exporters_job(monkeypatch) -> None:
     assert set(data["live"]) == set(aggregate._database_queries("30m"))
     assert data["failed"] == [] and data["unconfigured"] == []
     assert len(asked) == len(data["live"])
-    assert all('job="postgres"' in q for q in asked)
+    index = [q for q in asked if "podcast_search_index_" in q]
+    assert len(index) == 3 and all('job="api"' in q for q in index)
+    assert all('job="postgres"' in q for q in asked if q not in index)
     statements = [q for q in asked if "pg_stat_statements" in q]
     assert statements and all('user!="monitor"' in q and "[30m]" in q for q in statements)
 
