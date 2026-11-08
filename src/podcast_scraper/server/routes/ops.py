@@ -222,9 +222,11 @@ def _corpus_root(request: Request) -> Path:
 @router.get("/ops/corpus/integrity")
 def ops_corpus_integrity(request: Request) -> dict:
     """GI integrity for every corpus-member episode — counts, defect lists, verdict."""
-    from podcast_scraper.gi.integrity import assess_gi_integrity
+    from podcast_scraper import read_hooks
 
-    a = assess_gi_integrity(_corpus_root(request))
+    a = read_hooks.gi_integrity(_corpus_root(request))
+    if a is None:
+        raise HTTPException(status_code=404, detail="no GI stage is installed")
     defects = (
         len(a["legacy_placeholders"])
         + len(a["episodes_without_gi_block"])

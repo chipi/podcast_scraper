@@ -122,9 +122,9 @@ def _canonical_person_ids(root: Path) -> dict[str, str]:
     the status quo. Failing the whole index would take the cards down with it.
     """
     try:
-        from ..kg.entity_clusters import cached_entity_id_map
+        from .. import read_hooks
 
-        return {k: v for k, v in cached_entity_id_map(root).items() if k.startswith("person:")}
+        return {k: v for k, v in read_hooks.entity_id_map(root).items() if k.startswith("person:")}
     except Exception:  # noqa: BLE001 — a duplicate person must not cost the reader their cards
         logger.warning("entity canonicalisation unavailable; cards may show variant duplicates")
         return {}

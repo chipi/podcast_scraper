@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from fastapi import APIRouter
 
     from podcast_scraper.db.inventory import Claim
+    from podcast_scraper.read_hooks import ReadHooks
     from podcast_scraper.search.groupings import TopicGroupings
     from podcast_scraper.server.app_user_store import User
     from podcast_scraper.stage_hooks import PipelineHooks
@@ -221,6 +222,8 @@ class Extension:
     #: The pipeline stages the extension owns, on the run's and the batch's stage hooks
     #: (``podcast_scraper.stage_hooks``).
     pipeline_hooks: PipelineHooks | None = None
+    #: What the server's read side asks the extension (``podcast_scraper.read_hooks``).
+    read_hooks: ReadHooks | None = None
 
 
 _override: list[Extension] | None = None
