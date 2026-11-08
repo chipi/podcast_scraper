@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -371,7 +372,53 @@ def test_get_metrics_returns_empty_payload_for_fresh_corpus(app: FastAPI, corpus
     client = TestClient(app)
     r = client.get("/api/enrichment/metrics", params={"path": str(corpus)})
     assert r.status_code == 200
-    assert r.json() == {"window": "24h", "per_enricher": {}}
+    assert r.json() == {"window": "24h", "per_enricher": {}, "window_rollup": {}}
+
+
+def test_get_metrics_rolls_up_the_window_from_the_event_log(app: FastAPI, corpus: Path) -> None:
+    """The window was echoed and ignored: the payload was the last run's summary whatever window
+    was asked. ``window_rollup`` aggregates ``enricher.completed`` events inside the window."""
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+
+    def ev(hours_ago: float, enricher: str, status: str, ms: int) -> str:
+        ts = (now - timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return json.dumps(
+            {
+                "event_type": "enrichment.enricher.completed",
+                "ts": ts,
+                "enricher_id": enricher,
+                "status": status,
+                "duration_ms": ms,
+                "records_written": 3,
+                "retries": 1 if status != "ok" else 0,
+            }
+        )
+
+    lines = [
+        ev(1, "insight_density", "ok", 100),
+        ev(2, "insight_density", "failed", 300),
+        ev(30, "insight_density", "ok", 9000),  # outside 24h
+        ev(3, "grounding_rate", "ok", 50),
+        json.dumps({"event_type": "enrichment.run.started", "ts": now.isoformat()}),
+    ]
+    (corpus / "enrichments").mkdir(parents=True, exist_ok=True)
+    (corpus / "enrichments" / "run.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    client = TestClient(app)
+    body = client.get("/api/enrichment/metrics", params={"path": str(corpus)}).json()
+    roll = body["window_rollup"]
+    assert set(roll) == {"insight_density", "grounding_rate"}
+    assert roll["insight_density"]["runs"] == 2
+    assert roll["insight_density"]["failed"] == 1
+    assert roll["insight_density"]["mean_duration_ms"] == 200
+    assert roll["insight_density"]["records_written"] == 6
+    assert roll["insight_density"]["retries"] == 1
+    one = client.get(
+        "/api/enrichment/metrics", params={"path": str(corpus), "window": "90m"}
+    ).json()["window_rollup"]
+    assert one["insight_density"]["runs"] == 1
 
 
 def test_get_metrics_with_window_param(app: FastAPI, corpus: Path) -> None:
@@ -584,3 +631,59 @@ def test_submit_enrichment_job_202_with_profile(app: FastAPI, corpus: Path) -> N
         "/api/jobs/enrichment", params={"path": str(corpus)}, json={"corpus_only": True}
     )
     assert r.status_code == 202
+
+
+@pytest.mark.app
+def test_a_malformed_window_is_a_400() -> None:
+    from fastapi import HTTPException
+
+    from podcast_scraper.server.routes.enrichment import _window_seconds
+
+    assert _window_seconds("90m") == 5400 and _window_seconds(" 7d ") == 604800
+    with pytest.raises(HTTPException) as e:
+        _window_seconds("yesterday")
+    assert e.value.status_code == 400
+
+
+@pytest.mark.app
+def test_the_rollup_skips_lines_it_cannot_use(tmp_path) -> None:
+    from podcast_scraper.server.routes.enrichment import _window_rollup
+
+    assert _window_rollup(tmp_path, "24h", None) == {}  # no event log at all
+    now = datetime.now(timezone.utc)
+    ok_ts = (now - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%S")  # naive: taken as UTC
+    lines = [
+        "not json",
+        json.dumps(["a", "list"]),
+        json.dumps({"event_type": "enrichment.enricher.completed", "ts": ok_ts, "enricher_id": 7}),
+        json.dumps(
+            {"event_type": "enrichment.enricher.completed", "ts": "garbage", "enricher_id": "a"}
+        ),
+        json.dumps(
+            {
+                "event_type": "enrichment.enricher.completed",
+                "ts": ok_ts,
+                "enricher_id": "b",
+                "status": "ok",
+                "duration_ms": 10,
+            }
+        ),
+        json.dumps(
+            {
+                "event_type": "enrichment.enricher.completed",
+                "ts": ok_ts,
+                "enricher_id": "a",
+                "status": "ok",
+                "duration_ms": 30,
+            }
+        ),
+    ]
+    (tmp_path / "enrichments").mkdir()
+    (tmp_path / "enrichments" / "run.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    roll = _window_rollup(tmp_path, "1h", "a")
+    assert set(roll) == {"a"}
+    assert (roll["a"]["runs"], roll["a"]["mean_duration_ms"], roll["a"]["max_duration_ms"]) == (
+        1,
+        30,
+        30,
+    )

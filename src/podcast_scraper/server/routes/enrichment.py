@@ -352,18 +352,21 @@ async def get_enrichment_metrics(
     enricher_id: str | None = Query(default=None, description="Narrow to a single enricher id."),
     window: str = Query(default="24h", description="Time window (e.g. 1h / 24h / 7d)."),
 ) -> dict[str, Any]:
-    """Return per-enricher windowed metrics.
+    """Per-enricher metrics: the last run's summary, and a rollup over ``window``.
 
-    Chunk 1 ships the route + empty payload (no metrics history yet);
-    chunk 6 viewer consumes; chunks 2-4 populate as enrichers ship.
+    ``per_enricher`` is the last completed run's summary (``run_summary.json``), as before.
+    ``window_rollup`` aggregates every ``enrichment.enricher.completed`` event in
+    ``enrichments/run.jsonl`` newer than ``window`` (``90m`` / ``24h`` / ``7d``): runs, failed,
+    mean and max duration, records written and retries per enricher. The window used to be
+    echoed and ignored.
     """
     corpus, _op = _corpus_and_operator(request, path)
-    # The current run_summary provides the most-recent shape;
-    # window/aggregation comes in a later chunk.
     summary_payload = await asyncio.to_thread(_read_run_summary, corpus)
+    rollup = await asyncio.to_thread(_window_rollup, corpus, window, enricher_id)
     out: dict[str, Any] = {
         "window": window,
         "per_enricher": {},
+        "window_rollup": rollup,
     }
     per_enricher = (summary_payload or {}).get("per_enricher") or {}
     if enricher_id is not None:
@@ -458,6 +461,70 @@ async def get_enrichment_events(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+_WINDOW_UNITS = {"m": 60, "h": 3600, "d": 86400}
+
+
+def _window_seconds(window: str) -> int:
+    """``90m`` / ``24h`` / ``7d`` in seconds; 400 on anything else."""
+    import re
+
+    m = re.fullmatch(r"\s*(\d+)\s*([mhd])\s*", window or "")
+    if not m:
+        raise HTTPException(status_code=400, detail="window must look like 90m, 24h or 7d")
+    return int(m.group(1)) * _WINDOW_UNITS[m.group(2)]
+
+
+def _window_rollup(corpus: Path, window: str, enricher_id: str | None) -> dict[str, Any]:
+    """Per-enricher totals of the ``enricher.completed`` events newer than ``window``."""
+    from datetime import datetime, timedelta, timezone
+
+    from podcast_scraper.enrichment.events import EVENT_ENRICHER_COMPLETED
+
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=_window_seconds(window))
+    path = corpus / "enrichments" / "run.jsonl"
+    acc: dict[str, dict[str, Any]] = {}
+    try:
+        fh = path.open(encoding="utf-8")
+    except OSError:
+        return {}
+    with fh:
+        for line in fh:
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(ev, dict) or ev.get("event_type") != EVENT_ENRICHER_COMPLETED:
+                continue
+            eid = ev.get("enricher_id")
+            if not isinstance(eid, str) or (enricher_id is not None and eid != enricher_id):
+                continue
+            try:
+                ts = datetime.fromisoformat(str(ev.get("ts")).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts < cutoff:
+                continue
+            row = acc.setdefault(
+                eid,
+                {"runs": 0, "failed": 0, "duration_ms": [], "records_written": 0, "retries": 0},
+            )
+            row["runs"] += 1
+            if ev.get("status") != "ok":
+                row["failed"] += 1
+            row["duration_ms"].append(int(ev.get("duration_ms") or 0))
+            row["records_written"] += int(ev.get("records_written") or 0)
+            row["retries"] += int(ev.get("retries") or 0)
+    out: dict[str, Any] = {}
+    for eid, row in acc.items():
+        durations = row.pop("duration_ms")
+        row["mean_duration_ms"] = round(sum(durations) / len(durations)) if durations else 0
+        row["max_duration_ms"] = max(durations) if durations else 0
+        out[eid] = row
+    return out
 
 
 def _health_to_dict(h: Any) -> dict[str, Any]:

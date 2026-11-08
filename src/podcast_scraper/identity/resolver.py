@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,6 +49,12 @@ CIL_PREFIXES = ("person:", "org:", "object:", "topic:")
 _TYPE_PRECEDENCE = ("person", "org", "topic")
 DEFAULT_FUZZY_THRESHOLD = 0.75
 DEFAULT_EMBED_MODEL_ID = "minilm-l6"
+
+#: A refresh in flight longer than this no longer blocks the next one, and the build lock is waited
+#: for no longer than this. A cold build is 2-3 minutes on prod (2026-10-13); prod 2026-11-08 kept
+#: serving pre-respell names for hours, and while a refresh is in flight every later one is
+#: skipped, so one that never finished would have blocked them all until a restart.
+REFRESH_STALL_SECONDS = 900.0
 
 
 def _norm(text: str) -> str:
@@ -102,6 +109,7 @@ class EntityRegistry:
                 "display_name": display,
                 "aliases": aliases,
                 "freq": int(freq.get(cid, 0)),
+                "members": sorted(m for m in rec.get("members") or [] if isinstance(m, str)),
             }
             records[cid] = record
 
@@ -146,16 +154,18 @@ class EntityRegistry:
         try:
             import numpy as np
 
+            # float32: the model's own precision. float64 doubled the matrix to 150 MiB for 51k
+            # names on a prod snapshot, for no change in which name scores highest.
             if self._embedder is not None:
                 matrix = np.asarray(
-                    self._embedder.encode(names, normalize_embeddings=True), dtype=float
+                    self._embedder.encode(names, normalize_embeddings=True), dtype=np.float32
                 )
             else:
                 from ..providers.ml.embedding_loader import encode
 
                 matrix = np.asarray(
                     encode(names, self._model_id, normalize=True, return_numpy=True),
-                    dtype=float,
+                    dtype=np.float32,
                 )
         except Exception as exc:  # noqa: BLE001 — fuzzy is best-effort
             logger.debug("Fuzzy index unavailable; exact-only resolution: %s", exc)
@@ -192,9 +202,9 @@ class EntityRegistry:
 
 def _iter_loaded(corpus_dir: Path):
     """Yield ``(source, artifact_dict)`` for every GI and KG artifact under *corpus_dir*."""
-    from ..gi.corpus import load_gi_artifacts
+    from ..gi.corpus import iter_gi_artifacts
     from ..gi.explore import scan_artifact_paths as scan_gi_paths
-    from ..kg.corpus import load_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
+    from ..kg.corpus import iter_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
 
     # NEWEST RUN PER EPISODE. This registry answers the MCP `resolve` tool, so a superseded run
     # reaches a user: after a `relabel_only` repair the OLD run still holds the pre-repair roster
@@ -206,10 +216,79 @@ def _iter_loaded(corpus_dir: Path):
     # which artifacts ARE the corpus.
     kg_paths = newest_run_artifact_paths(corpus_dir, scan_kg_artifact_paths(corpus_dir), ".kg.json")
     gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
-    for _path, data in load_kg_artifacts(kg_paths):
+    for _path, data in iter_kg_artifacts(kg_paths):
         yield "kg", data
-    for _path, data in load_gi_artifacts(gi_paths):
+    for _path, data in iter_gi_artifacts(gi_paths):
         yield "gi", data
+
+
+def _fold_joined_members(
+    corpus_dir: Path, identities: Dict[str, Dict[str, Any]], freq: Counter
+) -> None:
+    """Fold each ledger member into its group's canonical record (ADR-166).
+
+    The served graph holds only canonical ids, so an id this registry hands out must be one: a
+    member id resolved to itself and then found nothing in every graph tool. A member's names
+    become the canonical's aliases, so a query in any member's spelling resolves to the group.
+    """
+    from ..kg.entity_clusters import cached_entity_id_map
+
+    try:
+        id_map = cached_entity_id_map(corpus_dir)
+    except Exception as exc:  # noqa: BLE001 — no joins is the ledger's own fallback (ADR-166)
+        logger.warning("entity registry: identity map unavailable, no joins applied: %s", exc)
+        return
+    for member, canonical in id_map.items():
+        if member == canonical or member not in identities:
+            continue
+        rec = identities.pop(member)
+        target = identities.setdefault(
+            canonical,
+            {
+                "id": canonical,
+                "type": rec.get("type", ""),
+                "display_name": rec.get("display_name", ""),
+                "aliases": [],
+                "sources": dict(rec.get("sources") or {}),
+            },
+        )
+        names = [rec.get("display_name"), *(rec.get("aliases") or [])]
+        aliases = [a for a in target.get("aliases") or [] if isinstance(a, str)]
+        for name in names:
+            if isinstance(name, str) and name and name != target.get("display_name"):
+                if name not in aliases:
+                    aliases.append(name)
+        target["aliases"] = aliases
+        target["members"] = sorted({*(target.get("members") or []), member})
+        freq[canonical] += freq.pop(member, 0)
+
+
+def _spell_people(corpus_dir: Path, identities: Dict[str, Dict[str, Any]]) -> None:
+    """Show each joined person under the ledger's group spelling, as every app surface does.
+
+    The files' own name (picked from the nodes by ``bridge_builder``'s longest-name rule) stays an
+    alias, so a query in either spelling resolves. Without a ledger, or for an unjoined person,
+    nothing changes.
+    """
+    from . import display
+
+    try:
+        people = display.person_display(corpus_dir)
+    except Exception as exc:  # noqa: BLE001 — the files' names are a correct fallback
+        logger.warning("entity registry: ledger spellings unavailable, file names kept: %s", exc)
+        return
+    for cid, rec in identities.items():
+        if not cid.startswith("person:"):
+            continue
+        shown = people.name_of(cid)
+        own = str(rec.get("display_name") or "")
+        if not shown or shown == own:
+            continue
+        aliases = [a for a in rec.get("aliases") or [] if isinstance(a, str)]
+        if own and own not in aliases:
+            aliases.append(own)
+        rec["aliases"] = aliases
+        rec["display_name"] = shown
 
 
 def build_entity_registry(
@@ -249,6 +328,8 @@ def build_entity_registry(
             fuzzy_reconcile(identities, threshold=fuzzy_threshold, embedder=embedder)
         except Exception as exc:  # noqa: BLE001 — reconciliation is best-effort
             logger.debug("Corpus fuzzy reconciliation skipped: %s", exc)
+    _fold_joined_members(corpus_dir, identities, freq)
+    _spell_people(corpus_dir, identities)
 
     return EntityRegistry.from_identities(
         identities,
@@ -337,7 +418,8 @@ class EntityResolver:
 _entity_registries: Dict[Tuple[str, float, str], Tuple[float, EntityRegistry]] = {}
 _entity_registries_lock = threading.Lock()
 _entity_build_lock = threading.Lock()
-_refreshing: set = set()
+#: Keys with a refresh in flight, and when it started (``time.monotonic``).
+_refreshing: Dict[Tuple[str, float, str], float] = {}
 _last_refresh: Optional[threading.Thread] = None
 
 
@@ -364,6 +446,9 @@ def _build_and_store(
     )
     with _entity_registries_lock:
         _entity_registries[key] = (token, registry)
+    from ..utils.memory import release_freed_memory
+
+    release_freed_memory()
     return registry
 
 
@@ -376,20 +461,47 @@ def _refresh_in_background(
 ) -> None:
     global _last_refresh
 
+    now = time.monotonic()
     with _entity_registries_lock:
-        if key in _refreshing:
-            return
-        _refreshing.add(key)
+        started = _refreshing.get(key)
+        if started is not None:
+            if now - started < REFRESH_STALL_SECONDS:
+                return
+            logger.warning(
+                "entity registry refresh for %s started %.0fs ago has not finished; starting "
+                "another",
+                key[0],
+                now - started,
+            )
+        _refreshing[key] = now
 
     def run() -> None:
+        t0 = time.monotonic()
+        logger.info("entity registry refresh started for %s", key[0])
+        got = _entity_build_lock.acquire(timeout=REFRESH_STALL_SECONDS)
+        if not got:
+            logger.warning(
+                "entity registry refresh: the build lock has been held for over %.0fs; "
+                "building without it",
+                REFRESH_STALL_SECONDS,
+            )
         try:
-            with _entity_build_lock:
-                _build_and_store(key, corpus_dir, embedder, model_id, fuzzy_threshold)
+            registry = _build_and_store(key, corpus_dir, embedder, model_id, fuzzy_threshold)
+            logger.info(
+                "entity registry refreshed in %.1fs for %s: %d records",
+                time.monotonic() - t0,
+                key[0],
+                len(registry.records),
+            )
         except Exception as exc:  # noqa: BLE001 — the stale registry keeps serving
             logger.warning("entity registry refresh failed: %s", exc)
         finally:
+            if got:
+                _entity_build_lock.release()
             with _entity_registries_lock:
-                _refreshing.discard(key)
+                # A stalled refresh finishing late must not clear the marker of the one after it.
+                if _refreshing.get(key) == now:
+                    del _refreshing[key]
 
     thread = threading.Thread(target=run, name="entity-registry-refresh", daemon=True)
     _last_refresh = thread

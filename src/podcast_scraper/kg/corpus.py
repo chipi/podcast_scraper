@@ -6,7 +6,7 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.log_redaction import format_exception_for_log
@@ -104,6 +104,22 @@ def collect_kg_paths_from_inputs(paths: List[Path]) -> List[Path]:
         for child in corpus_rglob(p, "*.kg.json"):
             result.append(child)
     return sorted(set(result))
+
+
+def iter_kg_artifacts(
+    paths: List[Path],
+    *,
+    validate: bool = False,
+    strict: bool = False,
+) -> Iterator[Tuple[Path, Dict[str, Any]]]:
+    """Like :func:`load_kg_artifacts`, one artifact at a time.
+
+    A corpus-wide build (the entity registry, the corpus graph) holds only the artifact it is
+    reading: the list form kept every artifact of the corpus in memory at once (1.4 GB of Python
+    heap on a prod snapshot, 2026-11-08), and the allocator kept most of it after the build.
+    """
+    for path in paths:
+        yield from load_kg_artifacts([path], validate=validate, strict=strict)
 
 
 def load_kg_artifacts(

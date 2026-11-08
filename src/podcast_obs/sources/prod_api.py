@@ -38,6 +38,7 @@ _RUN_FIELDS = (
     "exit_code",
     "command_type",
     "error_reason",
+    "trigger",
 )
 
 

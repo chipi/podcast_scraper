@@ -198,12 +198,15 @@ def emit_event(
         # Run context first so an event's OWN fields win — a stage that knows it used a
         # different provider than the run default must be able to say so.
         record.update(_RUN_CONTEXT)
-        # #1873: episode/feed from the shared correlation context, so an event whose caller
+        # #1873: run/episode/feed from the shared correlation context, so an event whose caller
         # forgot to pass them is still attributable. Same precedence — explicit fields win.
+        # run_id too (2026-11-08): `run_timing` passes none, and an event without the field was
+        # findable by no run query once Alloy stopped keeping the `[run=…]` text in `_msg`.
         try:
             from podcast_scraper.utils import correlation as _corr
 
             for _k, _v in (
+                ("run_id", _corr.get_run_id()),
                 ("episode_id", _corr.get_episode_id()),
                 ("feed_id", _corr.get_feed_id()),
             ):

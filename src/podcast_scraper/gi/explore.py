@@ -746,6 +746,58 @@ def explore_output_to_rfc_dict(out: ExploreOutput) -> Dict[str, Any]:
 # --- Explore use-case helpers (programmatic; CLI uses collect + sort + build) ---
 
 
+def _person_id_map(output_dir: Path) -> Dict[str, str]:
+    """The ledger's member -> canonical map ({} without a ledger: no joins, ADR-166)."""
+    try:
+        from ..kg.entity_clusters import cached_entity_id_map
+
+        return dict(cached_entity_id_map(output_dir))
+    except Exception as exc:  # noqa: BLE001 — no joins is the ledger's own fallback
+        logger.warning("explore: identity map unavailable, no joins applied: %s", exc)
+        return {}
+
+
+def _speaker_group(speaker: Optional[str], id_map: Dict[str, str]) -> Set[str]:
+    """Every id of a joined person, when ``speaker`` is one of them; else empty."""
+    if not speaker or not id_map:
+        return set()
+    key = speaker.strip()
+    canonical = id_map.get(key, key)
+    group = {m for m, c in id_map.items() if c == canonical}
+    return group | {canonical} if group else set()
+
+
+def _ledger_speakers(
+    output_dir: Path, insights: List[InsightSummary], id_map: Dict[str, str]
+) -> List[InsightSummary]:
+    """Each quote's speaker as the ledger group: the canonical id and the group's spelling."""
+    try:
+        from ..identity.display import person_display
+
+        people = person_display(output_dir)
+    except Exception as exc:  # noqa: BLE001 — the files' names are a correct fallback
+        logger.warning("explore: ledger spellings unavailable, file names kept: %s", exc)
+        return insights
+    if not id_map and not len(people):
+        return insights
+    out: List[InsightSummary] = []
+    for ins in insights:
+        quotes = []
+        for q in ins.supporting_quotes:
+            sid = q.speaker_id
+            if sid:
+                canonical = id_map.get(sid, sid)
+                q = q.model_copy(
+                    update={
+                        "speaker_id": canonical,
+                        "speaker_name": people.shown(canonical, q.speaker_name),
+                    }
+                )
+            quotes.append(q)
+        out.append(ins.model_copy(update={"supporting_quotes": quotes}))
+    return out
+
+
 def run_uc5_insight_explorer(
     output_dir: Path,
     *,
@@ -767,18 +819,27 @@ def run_uc5_insight_explorer(
     paths = newest_run_artifact_paths(output_dir, scan_artifact_paths(output_dir), ".gi.json")
     if not paths:
         return build_explore_output([], 0, topic=topic, speaker_filter=speaker, topics=[])
+    id_map = _person_id_map(output_dir)
+    group = _speaker_group(speaker, id_map)
     insights, _semantic_ranked, loaded, ep_count = explore_resolve_insights_and_loaded(
         output_dir,
         paths,
         topic=topic,
-        speaker=speaker,
+        # A joined person's id matches the quotes of every id in their group; both collection
+        # paths run with no limit, so filtering after them selects the same insights.
+        speaker=None if group else speaker,
         grounded_only=grounded_only,
         min_confidence=min_confidence,
         sort_by=sort_by,
         strict=strict,
     )
+    if group:
+        insights = [
+            ins for ins in insights if any(q.speaker_id in group for q in ins.supporting_quotes)
+        ]
     if limit > 0:
         insights = insights[:limit]
+    insights = _ledger_speakers(output_dir, insights, id_map)
     topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     return build_explore_output(
         insights,

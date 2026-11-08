@@ -102,6 +102,12 @@ class TestEvents:
         record = json.loads(emit_event("llm_cost", episode_id="other-ep"))
         assert record["episode_id"] == "other-ep"
 
+    def test_an_event_names_its_run(self, wired):
+        """`run_timing` and the other events that pass no run_id were findable by no run query
+        (2026-11-08 o11y review): the run id is a field, as episode and feed already were."""
+        assert json.loads(emit_event("run_timing", run_duration_sec=1.0))["run_id"] == RUN
+        assert json.loads(emit_event("llm_cost", run_id="other-run"))["run_id"] == "other-run"
+
 
 class TestErrors:
     def test_sentry_tags_include_feed_and_profile(self, wired, monkeypatch):

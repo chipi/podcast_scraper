@@ -201,3 +201,29 @@ def test_corpus_persons_top_scans_gi_once_per_ingest(tmp_path: Path, monkeypatch
     assert scans[0] == 2, "invalidation did not trigger a rescan after ingest"
 
     perf_cache.clear()
+
+
+def test_a_joined_members_quotes_count_for_the_group(tmp_path: Path, monkeypatch) -> None:
+    """An episode that names the person under a ledger member id still counts for the group.
+
+    The id was mapped to the canonical before the quotes were matched, and SPOKEN_BY still points
+    at the member id (the respell changes names, never ids), so that episode counted nothing.
+    """
+    import podcast_scraper.kg.entity_clusters as EC
+    from podcast_scraper import perf_cache
+    from podcast_scraper.server.routes import corpus_persons
+
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    stem = meta / "ep99"
+    (stem.with_suffix(".metadata.json")).write_text(json.dumps(_episode_doc()), encoding="utf-8")
+    (stem.with_suffix(".gi.json")).write_text(json.dumps(_minimal_gi()), encoding="utf-8")
+    monkeypatch.setattr(
+        EC, "cached_entity_id_map", lambda root, **kw: {"person:alice": "person:alyce"}
+    )
+    perf_cache.clear()
+
+    body = corpus_persons.top_persons(tmp_path, 5)
+    assert [p["person_id"] for p in body["persons"]] == ["person:alyce"]
+    assert body["persons"][0]["insight_count"] == 1
+    assert body["persons"][0]["episode_count"] == 1

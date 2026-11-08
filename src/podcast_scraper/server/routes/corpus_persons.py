@@ -141,6 +141,9 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
         eid = (row.episode_id or "").strip() or os.path.basename(gi_rel).replace(".gi.json", "")
 
         persons_here: set[str] = set()
+        # The ids this episode gives each person: SPOKEN_BY points at them, not at the canonical
+        # (a respell changes names, never ids), so quotes are matched against all of them.
+        ids_here: DefaultDict[str, set[str]] = defaultdict(set)
         for n in gi.get("nodes") or []:
             if not isinstance(n, dict):
                 continue
@@ -156,6 +159,7 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
             if not pid:
                 continue
             # Variant -> canonical, so two spellings of one human rank as one person.
+            ids_here[canonical_by_id.get(pid, pid)].update({str(raw_id), pid})
             pid = canonical_by_id.get(pid, pid)
             persons_here.add(pid)
             all_person_ids.add(pid)
@@ -167,7 +171,7 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
                 ) or found
 
         for pid in persons_here:
-            spoken = _quote_ids_spoken_by_person(gi, {pid})
+            spoken = _quote_ids_spoken_by_person(gi, ids_here[pid] | {pid})
             supported = _insight_ids_supported_by_quotes(gi, spoken)
             if not supported:
                 continue

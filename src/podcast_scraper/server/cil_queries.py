@@ -839,8 +839,13 @@ def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict
             continue
         _person_profile_append_for_episode(bridge, gi, equiv, by_topic, all_quotes)
 
+    id_map = _cil_entity_id_map(root_path) or {}
+    canonical = id_map.get(person, person)
     return {
         "person_id": person,
+        # The ledger group (ADR-166): the id the graph tools hold, and the other ids of the person.
+        "canonical_id": canonical,
+        "member_ids": sorted(e for e in equiv if e != canonical),
         "topics": by_topic,
         "quotes": all_quotes,
     }
@@ -1078,6 +1083,8 @@ def topic_perspective_leaders(
     speakers: dict[str, set[str]] = defaultdict(set)
     counts: dict[str, int] = defaultdict(int)
     label: dict[str, str] = {}
+    # A joined person is one speaker however many ids the episodes give them (ADR-166).
+    id_map = _cil_entity_id_map(root_path) or {}
     for _safe_bridge, _bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         about: dict[str, set[str]] = defaultdict(set)
         insight_quote: dict[str, str] = {}
@@ -1103,7 +1110,7 @@ def topic_perspective_leaders(
                 qid = insight_quote.get(iid)
                 pid = quote_person.get(qid) if qid else None
                 if pid:
-                    speakers[tid].add(pid)
+                    speakers[tid].add(id_map.get(pid, pid))
                     counts[tid] += 1
     out: list[dict[str, Any]] = [
         {
