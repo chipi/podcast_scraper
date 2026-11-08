@@ -20,10 +20,13 @@ import pytest
 
 from podcast_scraper import config
 from podcast_scraper.models import Episode, TranscriptionJob
-from podcast_scraper.workflow import episode_processor as ep_mod
-from podcast_scraper.workflow.episode_processor import (
+from podcast_scraper.speaker_stage import reprocess
+from podcast_scraper.speaker_stage.reprocess import (
     _feed_hosts_from_sibling_metadata,
     _relabel_existing_transcript,
+)
+from podcast_scraper.workflow import episode_processor as ep_mod
+from podcast_scraper.workflow.episode_processor import (
     download_media_for_transcription,
     transcribe_media_to_text,
 )
@@ -429,7 +432,7 @@ def test_transcribe_media_to_text_dispatches_to_relabel(tmp_path: Path, monkeypa
         seen["dispatched"] = True
         return sentinel
 
-    monkeypatch.setattr(ep_mod, "_relabel_existing_transcript", _fake_relabel)
+    monkeypatch.setattr(reprocess, "_relabel_existing_transcript", _fake_relabel)
 
     result = transcribe_media_to_text(
         _job(),
@@ -557,7 +560,7 @@ def test_rediarize_reruns_diarization_and_aligns(tmp_path: Path) -> None:
         DiarizationResult,
         DiarizationSegment,
     )
-    from podcast_scraper.workflow.episode_processor import _rediarize_existing_transcript
+    from podcast_scraper.speaker_stage.reprocess import _rediarize_existing_transcript
 
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"
@@ -595,7 +598,7 @@ def test_rediarize_reruns_diarization_and_aligns(tmp_path: Path) -> None:
 
 
 def test_rediarize_skips_when_no_audio(tmp_path: Path) -> None:
-    from podcast_scraper.workflow.episode_processor import _rediarize_existing_transcript
+    from podcast_scraper.speaker_stage.reprocess import _rediarize_existing_transcript
 
     job = TranscriptionJob(idx=1, ep_title="Ep", ep_title_safe="Ep", temp_media="")  # no audio
     ok, _, _ = _rediarize_existing_transcript(job, _cfg(), "tag", str(tmp_path), None, None)
@@ -610,7 +613,7 @@ def test_transcribe_dispatches_to_rediarize(tmp_path: Path, monkeypatch) -> None
         seen["hit"] = True
         return sentinel
 
-    monkeypatch.setattr(ep_mod, "_rediarize_existing_transcript", _fake)
+    monkeypatch.setattr(reprocess, "_rediarize_existing_transcript", _fake)
     result = transcribe_media_to_text(
         _job(), _cfg("rediarize_only"), None, "tag", str(tmp_path), None, None
     )
@@ -827,7 +830,7 @@ def test_rediarize_refuses_when_the_downloaded_audio_is_not_the_transcribed_one(
     import json
     from unittest.mock import MagicMock, patch
 
-    from podcast_scraper.workflow.episode_processor import _rediarize_existing_transcript
+    from podcast_scraper.speaker_stage.reprocess import _rediarize_existing_transcript
 
     base = tmp_path / "feed"
     run_tag = "20260101-000000_t"

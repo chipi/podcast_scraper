@@ -12,9 +12,12 @@ moves to an extension, its built-in entry goes and the extension's ``pipeline_ho
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
+
+logger = logging.getLogger(__name__)
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -77,6 +80,11 @@ SamePerson = Callable[[str, str], bool]
 #: ``() -> SamePerson``: the person match, built once so a caller comparing names in a loop
 #: pays no lookup per pair. One owner; without one, only an identical string matches.
 PersonMatcher = Callable[[], SamePerson]
+#: ``(mode, job, cfg, run_suffix, output_dir, transcription_provider, pipeline_metrics) ->
+#: (ok, transcript_relpath, bytes)``: a speaker reprocess of an episode already on disk, ``mode``
+#: ``relabel`` (frozen diarization, names re-resolved) or ``rediarize`` (voices from the audio
+#: again). One owner; without one the episode is not reprocessed: ``(False, None, 0)``.
+SpeakerReprocess = Callable[..., Tuple[bool, Optional[str], int]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -116,6 +124,7 @@ class PipelineHooks:
     episode_speakers: Optional[EpisodeSpeakers] = None
     stated_show_hosts: Optional[StatedShowHosts] = None
     person_matcher: Optional[PersonMatcher] = None
+    speaker_reprocess: Optional[SpeakerReprocess] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -321,6 +330,28 @@ def same_person(a: str, b: str) -> bool:
     return person_matcher()(a, b)
 
 
+def speaker_reprocess(
+    mode: str,
+    job: Any,
+    cfg: Any,
+    run_suffix: Optional[str],
+    output_dir: str,
+    transcription_provider: Any,
+    pipeline_metrics: Any,
+) -> Tuple[bool, Optional[str], int]:
+    for hooks in _all():
+        if hooks.speaker_reprocess is not None:
+            return hooks.speaker_reprocess(
+                mode, job, cfg, run_suffix, output_dir, transcription_provider, pipeline_metrics
+            )
+    logger.warning(
+        "[%s] %s: no speaker stage is installed, so the episode is not reprocessed",
+        getattr(job, "idx", "?"),
+        mode,
+    )
+    return False, None, 0
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -346,6 +377,7 @@ __all__ = [
     "SamePerson",
     "Screenplay",
     "SpeakerTurns",
+    "SpeakerReprocess",
     "SplitPersonList",
     "StatedShowHosts",
     "VariantTurns",
@@ -367,6 +399,7 @@ __all__ = [
     "person_matcher",
     "same_person",
     "screenplay",
+    "speaker_reprocess",
     "speaker_turns",
     "split_person_list",
     "stated_show_hosts",

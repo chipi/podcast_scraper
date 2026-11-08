@@ -200,7 +200,11 @@ class TestWhatItActuallyDOES:
 
         txt = self._episode(tmp_path)
         monkeypatch.setattr(ep, "_existing_transcript_for", lambda *a, **k: txt)
-        monkeypatch.setattr(ep, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 1))
+        from podcast_scraper.speaker_stage import reprocess
+
+        monkeypatch.setattr(
+            reprocess, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 1)
+        )
         cfg = config.Config(
             rss="https://e.com/f.xml",
             pipeline_stage="translate_only",
@@ -297,10 +301,10 @@ class TestARelabelOfATranslatedEpisodeReadsTheSource:
 
     def test_the_naming_reads_the_spanish_source(self, tmp_path: Path, monkeypatch: Any) -> None:
         from podcast_scraper.providers.ml.diarization import pipeline as dp
-        from podcast_scraper.workflow import episode_processor as ep
+        from podcast_scraper.speaker_stage import reprocess
 
         txt = self._translated_episode(tmp_path)
-        monkeypatch.setattr(ep, "_existing_transcript_for", lambda *a, **k: txt)
+        monkeypatch.setattr(reprocess, "_existing_transcript_for", lambda *a, **k: txt)
         seen: list = []
 
         class _Stop(Exception):
@@ -323,7 +327,9 @@ class TestARelabelOfATranslatedEpisodeReadsTheSource:
             ep_title = "t"
 
         with pytest.raises(_Stop):
-            ep._relabel_existing_transcript(cast(Any, _Job()), cfg, None, str(tmp_path), None, None)
+            reprocess._relabel_existing_transcript(
+                cast(Any, _Job()), cfg, None, str(tmp_path), None, None
+            )
         assert seen, "the naming step was never reached"
         texts = " ".join(str(s.get("text", "")) for s in seen[0]["segments"])
         assert "soy Ana Ruiz" in texts and "I'm" not in texts

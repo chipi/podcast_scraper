@@ -415,6 +415,24 @@ def _person_matcher() -> Any:
     return same_person
 
 
+def _speaker_reprocess(
+    mode: str,
+    job: Any,
+    cfg: Any,
+    run_suffix: Optional[str],
+    output_dir: str,
+    transcription_provider: Any,
+    pipeline_metrics: Any,
+) -> Tuple[bool, Optional[str], int]:
+    from podcast_scraper.speaker_stage import reprocess
+
+    run = {
+        "relabel": reprocess._relabel_existing_transcript,
+        "rediarize": reprocess._rediarize_existing_transcript,
+    }[mode]
+    return run(job, cfg, run_suffix, output_dir, transcription_provider, pipeline_metrics)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -433,6 +451,7 @@ BUILTIN = PipelineHooks(
     episode_speakers=_episode_speakers,
     stated_show_hosts=_stated_show_hosts,
     person_matcher=_person_matcher,
+    speaker_reprocess=_speaker_reprocess,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

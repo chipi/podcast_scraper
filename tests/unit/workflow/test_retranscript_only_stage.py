@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.speaker_stage import reprocess
 from podcast_scraper.workflow import episode_processor as ep
 
 VTT_WITH_VOICES = """WEBVTT
@@ -81,7 +82,7 @@ class TestItRepairsWhatItIsFor:
         )
         relabelled = {}
         monkeypatch.setattr(
-            ep,
+            reprocess,
             "_relabel_existing_transcript",
             lambda *a, **k: (relabelled.update(yes=True), (True, "rel", 2))[1],
         )
@@ -116,7 +117,9 @@ class TestItRepairsWhatItIsFor:
         monkeypatch.setattr(
             ep, "_fetch_transcript_content", lambda u, c: (bodies[u].encode(), "text/vtt")
         )
-        monkeypatch.setattr(ep, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 2))
+        monkeypatch.setattr(
+            reprocess, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 2)
+        )
         ep._refetch_and_reparse_transcript(job, SimpleNamespace(), None, str(tmp_path), None, None)
         segs = json.loads((tmp_path / "0001 - Episode.segments.json").read_text(encoding="utf-8"))
         assert {s.get("speaker") for s in segs} == {"Joe Wiesenthal", "Tracy Alloway"}
@@ -133,7 +136,7 @@ class TestItRefusesRatherThanPretending:
             ep, "_fetch_transcript_content", lambda u, c: (VTT_WITHOUT_VOICES.encode(), "text/vtt")
         )
         monkeypatch.setattr(
-            ep,
+            reprocess,
             "_relabel_existing_transcript",
             lambda *a, **k: pytest.fail("must not relabel an unrepaired transcript"),
         )

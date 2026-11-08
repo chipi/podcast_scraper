@@ -380,3 +380,30 @@ def test_show_metadata_no_longer_imports_host_rules() -> None:
     )
     imported = {(n.module or "") for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom)}
     assert not {m for m in imported if "speaker_detectors" in m or "speaker_coherence" in m}
+
+
+@pytest.mark.parametrize("mode", ["relabel", "rediarize"])
+def test_without_a_speaker_stage_a_reprocess_does_nothing_and_says_why(
+    mode: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    class _Job:
+        idx = 7
+
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        got = stage_hooks.speaker_reprocess(mode, _Job(), None, None, "/out", None, None)
+    assert got == (False, None, 0)
+    assert f"[7] {mode}: no speaker stage is installed" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "mode, fn",
+    [("relabel", "_relabel_existing_transcript"), ("rediarize", "_rediarize_existing_transcript")],
+)
+def test_the_built_in_reprocess_runs_todays_stage_for_the_mode(mode: str, fn: str) -> None:
+    with (
+        patch(f"podcast_scraper.speaker_stage.reprocess.{fn}", return_value=(True, "r", 3)) as run,
+        use_extensions([]),
+    ):
+        got = stage_hooks.speaker_reprocess(mode, "job", "cfg", "sfx", "/out", "prov", "m")
+    run.assert_called_once_with("job", "cfg", "sfx", "/out", "prov", "m")
+    assert got == (True, "r", 3)

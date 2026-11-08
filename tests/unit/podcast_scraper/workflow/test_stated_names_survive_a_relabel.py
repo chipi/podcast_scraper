@@ -36,6 +36,7 @@ import pytest
 from podcast_scraper import config as config_module
 from podcast_scraper.models import TranscriptionJob
 from podcast_scraper.models.entities import Episode
+from podcast_scraper.speaker_stage import reprocess
 from podcast_scraper.transcript_formats import parse_webvtt
 from podcast_scraper.workflow import episode_processor as epx
 
@@ -196,7 +197,7 @@ def _relabel(base: Path, run_tag: str, new_tag: str) -> Tuple[bool, List[Dict[st
             base / f"run_{run_tag}" / "transcripts" / f"0001 - Ep_{run_tag}.txt"
         ),
     )
-    ok, _rel, _n = epx._relabel_existing_transcript(
+    ok, _rel, _n = reprocess._relabel_existing_transcript(
         _job(episode), _cfg(pipeline_stage="relabel_only"), run_tag, str(new_run), None, None
     )
     stem = f"0001 - Ep_{run_tag}"
