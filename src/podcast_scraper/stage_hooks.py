@@ -88,6 +88,12 @@ SpeakerReprocess = Callable[..., Tuple[bool, Optional[str], int]]
 #: stage on a fresh ASR result. One owner; without one the result is kept as it came (no
 #: speakers) and nothing is timed.
 SpeakersAfterAsr = Callable[..., Tuple[Any, Optional[float], Optional[float], Optional[str]]]
+#: ``(segments, rel_transcript_path, output_dir) -> relpath | None``: the pre-naming render,
+#: ``<base>.anon.txt`` (D-40). One owner; without one none is written.
+AnonTranscript = Callable[[List[Dict[str, Any]], str, str], Optional[str]]
+#: ``(segments) -> text | None``: roster-labelled segments rendered as speaker lines. One owner;
+#: without one, ``None`` (the caller keeps the plain transcript).
+RenderSpeakers = Callable[[List[Dict[str, Any]]], Optional[str]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -129,6 +135,8 @@ class PipelineHooks:
     person_matcher: Optional[PersonMatcher] = None
     speaker_reprocess: Optional[SpeakerReprocess] = None
     speakers_after_asr: Optional[SpeakersAfterAsr] = None
+    anon_transcript: Optional[AnonTranscript] = None
+    render_speakers: Optional[RenderSpeakers] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -376,6 +384,22 @@ def speakers_after_asr(
     return result, None, None, None
 
 
+def anon_transcript(
+    segments: List[Dict[str, Any]], rel_transcript_path: str, output_dir: str
+) -> Optional[str]:
+    for hooks in _all():
+        if hooks.anon_transcript is not None:
+            return hooks.anon_transcript(segments, rel_transcript_path, output_dir)
+    return None
+
+
+def render_speakers(segments: List[Dict[str, Any]]) -> Optional[str]:
+    for hooks in _all():
+        if hooks.render_speakers is not None:
+            return hooks.render_speakers(segments)
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -386,6 +410,7 @@ def kg_graph_passes(
 
 
 __all__ = [
+    "AnonTranscript",
     "AdfreeBase",
     "EpisodeHosts",
     "EpisodeSpeakers",
@@ -398,6 +423,7 @@ __all__ = [
     "KgPromptHints",
     "PersonMatcher",
     "PipelineHooks",
+    "RenderSpeakers",
     "SamePerson",
     "Screenplay",
     "SpeakerTurns",
@@ -410,6 +436,7 @@ __all__ = [
     "RunFinalizedHook",
     "RunStartedHook",
     "adfree_base",
+    "anon_transcript",
     "batch_finalized",
     "corpus_derived",
     "episode_hosts",
@@ -418,6 +445,7 @@ __all__ = [
     "feed_hosts",
     "kg_graph_passes",
     "kg_prompt_hints",
+    "render_speakers",
     "run_completed",
     "run_finalized",
     "run_started",

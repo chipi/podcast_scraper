@@ -439,6 +439,22 @@ def _speakers_after_asr(*args: Any) -> Tuple[Any, Optional[float], Optional[floa
     return after_asr.speakers_after_asr(*args)
 
 
+def _anon_transcript(
+    segments: List[Dict[str, Any]], rel_transcript_path: str, output_dir: str
+) -> Optional[str]:
+    from podcast_scraper.speaker_stage import sidecars
+
+    return sidecars._write_anon_transcript(segments, rel_transcript_path, output_dir)
+
+
+def _render_speakers(segments: List[Dict[str, Any]]) -> Optional[str]:
+    from podcast_scraper.providers.ml.diarization.formatting import (
+        format_diarized_screenplay_from_segments,
+    )
+
+    return format_diarized_screenplay_from_segments(segments)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -459,6 +475,8 @@ BUILTIN = PipelineHooks(
     person_matcher=_person_matcher,
     speaker_reprocess=_speaker_reprocess,
     speakers_after_asr=_speakers_after_asr,
+    anon_transcript=_anon_transcript,
+    render_speakers=_render_speakers,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

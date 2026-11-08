@@ -451,3 +451,32 @@ def test_transcription_no_longer_imports_the_diarization_pipeline() -> None:
     )
     imported = {(n.module or "") for n in ast.walk(fn) if isinstance(n, ast.ImportFrom)}
     assert not {m for m in imported if "diarization" in m}
+
+
+def test_without_a_speaker_stage_no_anon_render_and_no_speaker_lines(tmp_path: Path) -> None:
+    segs = [{"start": 0.0, "end": 1.0, "text": "hi", "speaker_label": "SPEAKER_00"}]
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.anon_transcript(segs, "t.txt", str(tmp_path)) is None
+        assert stage_hooks.render_speakers(segs) is None
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_built_in_speaker_stage_renders_and_writes_the_anon_transcript_with_todays_code() -> (
+    None
+):
+    with (
+        patch(
+            "podcast_scraper.providers.ml.diarization.formatting."
+            "format_diarized_screenplay_from_segments",
+            return_value="A: hi",
+        ) as render,
+        patch(
+            "podcast_scraper.speaker_stage.sidecars._write_anon_transcript",
+            return_value="t.anon.txt",
+        ) as anon,
+        use_extensions([]),
+    ):
+        assert stage_hooks.render_speakers([{"x": 1}]) == "A: hi"
+        assert stage_hooks.anon_transcript([{"x": 1}], "t.txt", "/o") == "t.anon.txt"
+    render.assert_called_once_with([{"x": 1}])
+    anon.assert_called_once_with([{"x": 1}], "t.txt", "/o")
