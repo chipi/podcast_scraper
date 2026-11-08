@@ -1,20 +1,19 @@
-"""The person name a surface shows: one spelling per joined person, from the ledger (RFC-131 S6a).
+"""The person name a surface shows, through the display seam (E04 split line, decision 3).
 
-A joined person shows their group's ``display_name``, which the ledger records with its evidence
-(ADR-166 decision 1). Anyone else shows the name their own episode gives them. With no valid ledger
-there are no joins (ADR-166), so every name is the episode's own; a ledger without spellings (one
-built before S6a) changes nothing either.
+``person_display(root)`` is what every surface reads: a ``PersonDisplay`` whose ``shown(id, own)``
+gives the spelling to show for one person id. Which spelling that is comes from the display
+builder for the corpus. The built-in builder is the identity ledger's (``ledger_display``, RFC-131
+S6a): a joined person shows their group's ``display_name``, anyone else the name their own episode
+gives them. ``set_display_builder`` replaces it; ``plain_display`` is the builder with no joins,
+where every name is the episode's own.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 _NS = "identity_person_display"
-
-#: Group spelling rules that choose none (records s6g, s6h): the card shows the canonical's name.
-UNDECIDED = frozenset({"tie", "plurality", "publisher_tie"})
 
 
 class PersonDisplay:
@@ -39,35 +38,43 @@ class PersonDisplay:
         return len(self._spelling_of)
 
 
-def _build(root: Path) -> PersonDisplay:
-    from .ledger import read_ledger
+#: Builds the view for one corpus root.
+DisplayBuilder = Callable[[Path], PersonDisplay]
 
-    ledger, _state = read_ledger(root)
-    return display_from_ledger(ledger)
+_builder: Optional[DisplayBuilder] = None
+
+
+def plain_display(root: Path) -> PersonDisplay:
+    """The builder with no joins: every surface shows each episode's own name."""
+    return PersonDisplay({})
+
+
+def set_display_builder(builder: Optional[DisplayBuilder]) -> None:
+    """Replace the display builder (``None``: back to the built-in ledger builder).
+
+    Set once at startup, before any request: views already cached under another builder are not
+    served under this one (the builder is part of the cache key).
+    """
+    global _builder
+    _builder = builder
+
+
+def _current_builder() -> DisplayBuilder:
+    if _builder is not None:
+        return _builder
+    from .ledger_display import build_from_ledger
+
+    return build_from_ledger
 
 
 def display_from_ledger(ledger: Optional[Dict[str, Any]]) -> PersonDisplay:
-    """The view a ledger gives (None: no joins, every episode's own name)."""
-    spelling_of: Dict[str, str] = {}
-    if ledger is not None:
-        for cluster in (ledger.get("clusters_payload") or {}).get("clusters") or []:
-            shown = cluster.get("display_name")
-            canonical = str(cluster.get("canonical_id") or "")
-            if not canonical.startswith("person:"):
-                continue
-            if not shown:
-                # A tie (record s6g): the card shows the canonical's own name, and each member
-                # keeps its episode's spelling.
-                if (cluster.get("display_evidence") or {}).get("rule") in UNDECIDED and cluster.get(
-                    "canonical_name"
-                ):
-                    spelling_of[canonical] = str(cluster["canonical_name"])
-                continue
-            for member in cluster.get("members") or []:
-                if member.get("id"):
-                    spelling_of[str(member["id"])] = str(shown)
-            spelling_of[canonical] = str(shown)
-    return PersonDisplay(spelling_of)
+    """The view a ledger gives (None: no joins, every episode's own name).
+
+    Kept here for its callers (migration 0041); the code is ``ledger_display``'s.
+    """
+    from .ledger_display import display_from_ledger as _from_ledger
+
+    return _from_ledger(ledger)
 
 
 def person_display(root: Path | str) -> PersonDisplay:
@@ -76,8 +83,9 @@ def person_display(root: Path | str) -> PersonDisplay:
     from ..perf_cache import corpus_mtime, get_or_compute
 
     root = Path(root)
+    builder = _current_builder()
     view: PersonDisplay = get_or_compute(
-        _NS, str(root.resolve()), corpus_mtime(root), lambda: _build(root)
+        _NS, (str(root.resolve()), builder), corpus_mtime(root), lambda: builder(root)
     )
     return view
 
