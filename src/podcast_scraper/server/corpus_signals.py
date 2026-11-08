@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
+from podcast_scraper.server.corpus_access import cached_json_artifact
 from podcast_scraper.identity.display import person_display, spell_enrichment_people
 from podcast_scraper.identity.ledger import served_id_map
 
@@ -63,8 +64,13 @@ def read_corpus_signals(root: Path, wanted: set[str]) -> dict[str, Any]:
             continue
         if path.stem not in wanted:  # filename-first — do not parse files we would only discard
             continue
-        parsed = parse_envelope(path)
-        if parsed is None or parsed.get("data") is None:
+        # Through the per-file artifact cache, so an envelope another reader holds (momentum reads
+        # temporal_velocity.json the same way) is one parsed copy, not two (40 MB each on a
+        # 3,128-episode corpus, 2026-11-08). Shared: read-only, like every cached envelope.
+        parsed = cached_json_artifact(root, f"enrichments/{path.name}")
+        if parsed is None or parsed.get("status") not in (None, "ok"):
+            continue
+        if parsed.get("data") is None:
             continue
         enricher_id = str(parsed.get("enricher_id") or path.stem)
         if enricher_id in wanted:
