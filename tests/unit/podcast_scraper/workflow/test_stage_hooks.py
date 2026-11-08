@@ -773,3 +773,16 @@ def test_index_rows_come_from_every_owner_built_in_first(tmp_path: Path) -> None
             tmp_path, tmp_path, {}, scope_tag="t", episode_id="e", raw_feed_id="f", published=None
         )
     assert [r[0] for r in rows] == ["builtin:1", "ext:1"]
+
+
+def test_artifact_kinds_are_public_kg_plus_each_stages(tmp_path: Path) -> None:
+    from podcast_scraper.search.corpus_scope import episode_artifact_kinds
+
+    assert episode_artifact_kinds() == [
+        ("kg", ".kg.json"),
+        ("gi", ".gi.json"),
+        ("bridge", ".bridge.json"),
+    ]
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.artifact_kinds() == []
+        assert episode_artifact_kinds() == [("kg", ".kg.json")]

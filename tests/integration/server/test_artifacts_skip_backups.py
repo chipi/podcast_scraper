@@ -125,3 +125,25 @@ def test_every_member_episode_is_listed_newest_copy_only(tmp_path: Path) -> None
     assert resp.status_code == 200
     gi = {a["relative_path"] for a in resp.json()["artifacts"] if a["kind"] == "gi"}
     assert gi == {f"{older}/only_old.gi.json", f"{newer}/both.gi.json", f"{newer}/only_new.gi.json"}
+
+
+def test_without_the_insight_stage_only_kg_artifacts_are_listed(tmp_path: Path) -> None:
+    from unittest.mock import patch
+
+    from podcast_scraper import builtin_stage_hooks
+    from podcast_scraper.extensions import use_extensions
+    from podcast_scraper.stage_hooks import PipelineHooks
+
+    for suffix in (".gi.json", ".kg.json", ".bridge.json", ".metadata.json"):
+        path = tmp_path / f"{LIVE}{suffix}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
+    with (
+        patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")),
+        use_extensions([]),
+    ):
+        client = TestClient(create_app(tmp_path, static_dir=False))
+        resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
+        assert {a["relative_path"] for a in resp.json()["artifacts"]} == {f"{LIVE}.kg.json"}
+        gi = client.get(f"/api/artifacts/{LIVE}.gi.json", params={"path": str(tmp_path)})
+        assert gi.status_code == 400

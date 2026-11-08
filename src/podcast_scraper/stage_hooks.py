@@ -47,6 +47,8 @@ IndexRowsHook = Callable[..., List[Tuple[str, str, Dict[str, Any]]]]
 #: ``(episode_root, metadata_path, doc) -> [path]``: a stage's artifacts the search index is built
 #: from, so a newer one makes the index stale.
 IndexSourcePathsHook = Callable[[Path, Path, Dict[str, Any]], List[Path]]
+#: ``(kind, suffix)``: a per-episode artifact kind a stage writes (``("gi", ".gi.json")``).
+ArtifactKind = Tuple[str, str]
 #: ``(args, log) -> exit code``: the enrich-edges pass over a corpus (``args`` as the CLI parses).
 EnrichEdges = Callable[[Any, Any], int]
 #: ``(episode_root, metadata_path, doc) -> (quote_text_by_insight, quote_times_by_insight)``.
@@ -214,6 +216,7 @@ class PipelineHooks:
     index_rows: Sequence[IndexRowsHook] = field(default_factory=tuple)
     insight_grounding: Optional[InsightGrounding] = None
     enrich_edges: Optional[EnrichEdges] = None
+    artifact_kinds: Sequence[ArtifactKind] = field(default_factory=tuple)
     index_source_paths: Sequence[IndexSourcePathsHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
@@ -321,6 +324,12 @@ def index_source_paths(episode_root: Path, metadata_path: Path, doc: Dict[str, A
         for hook in hooks.index_source_paths:
             out.extend(hook(episode_root, metadata_path, doc))
     return out
+
+
+def artifact_kinds() -> List[ArtifactKind]:
+    """Every stage's per-episode artifact kinds, built-in first, then each extension's; without a
+    stage, none (corpus readers see public's own kinds only)."""
+    return [kind for hooks in _all() for kind in hooks.artifact_kinds]
 
 
 def enrich_edges(args: Any, log: Any) -> Optional[int]:
@@ -801,6 +810,7 @@ __all__ = [
     "RunStartedHook",
     "adfree_base",
     "anon_transcript",
+    "artifact_kinds",
     "batch_finalized",
     "enrich_edges",
     "index_rows",

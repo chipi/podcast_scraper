@@ -384,11 +384,21 @@ def dedupe_metadata_paths_newest_run_per_episode(
     return sorted(set(keep))
 
 
-_ARTIFACT_SUFFIXES = (".bridge.json", ".gi.json", ".kg.json")
+#: The per-episode artifact kinds public writes itself, as ``(kind, suffix)``.
+PUBLIC_ARTIFACT_KINDS: Tuple[Tuple[str, str], ...] = (("kg", ".kg.json"),)
+
+
+def episode_artifact_kinds() -> List[Tuple[str, str]]:
+    """``(kind, suffix)`` of every per-episode artifact kind: public's, then each stage's
+    (``stage_hooks.artifact_kinds``; the insight stage adds ``gi`` and ``bridge``)."""
+    from podcast_scraper import stage_hooks
+
+    return [*PUBLIC_ARTIFACT_KINDS, *stage_hooks.artifact_kinds()]
 
 
 def member_episode_artifacts(corpus_root: Path, artifact_paths: List[Path]) -> List[Path]:
-    """The per-episode artifacts (bridge, GI, KG) of the corpus's MEMBER episodes, in input order.
+    """The per-episode artifacts (every kind in :func:`episode_artifact_kinds`) of the corpus's
+    MEMBER episodes, in input order.
 
     An artifact whose ``<stem>.metadata.json`` sibling exists is kept exactly when that file is a
     member under :func:`dedupe_metadata_paths_newest_run_per_episode`: every episode of every run,
@@ -404,9 +414,10 @@ def member_episode_artifacts(corpus_root: Path, artifact_paths: List[Path]) -> L
     """
     root = Path(corpus_root)
     meta_of: dict[Path, Path] = {}
+    suffixes = tuple(s for _kind, s in episode_artifact_kinds())
     for p in artifact_paths:
         name = p.name
-        suffix = next((s for s in _ARTIFACT_SUFFIXES if name.endswith(s)), None)
+        suffix = next((s for s in suffixes if name.endswith(s)), None)
         if suffix is None:
             continue
         meta = p.with_name(name[: -len(suffix)] + ".metadata.json")

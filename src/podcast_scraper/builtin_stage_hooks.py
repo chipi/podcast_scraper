@@ -636,6 +636,7 @@ BUILTIN = PipelineHooks(
     index_rows=(_gi_index_rows,),
     insight_grounding=_insight_grounding,
     enrich_edges=_enrich_edges,
+    artifact_kinds=(("gi", ".gi.json"), ("bridge", ".bridge.json")),
     index_source_paths=(_gi_index_source,),
     run_completed=(_cluster_corpus_topics,),
     kg_prompt_hints=_resolve_ner_prepass,
