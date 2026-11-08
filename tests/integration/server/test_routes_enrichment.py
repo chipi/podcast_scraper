@@ -371,7 +371,53 @@ def test_get_metrics_returns_empty_payload_for_fresh_corpus(app: FastAPI, corpus
     client = TestClient(app)
     r = client.get("/api/enrichment/metrics", params={"path": str(corpus)})
     assert r.status_code == 200
-    assert r.json() == {"window": "24h", "per_enricher": {}}
+    assert r.json() == {"window": "24h", "per_enricher": {}, "window_rollup": {}}
+
+
+def test_get_metrics_rolls_up_the_window_from_the_event_log(app: FastAPI, corpus: Path) -> None:
+    """The window was echoed and ignored: the payload was the last run's summary whatever window
+    was asked. ``window_rollup`` aggregates ``enricher.completed`` events inside the window."""
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+
+    def ev(hours_ago: float, enricher: str, status: str, ms: int) -> str:
+        ts = (now - timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return json.dumps(
+            {
+                "event_type": "enrichment.enricher.completed",
+                "ts": ts,
+                "enricher_id": enricher,
+                "status": status,
+                "duration_ms": ms,
+                "records_written": 3,
+                "retries": 1 if status != "ok" else 0,
+            }
+        )
+
+    lines = [
+        ev(1, "insight_density", "ok", 100),
+        ev(2, "insight_density", "failed", 300),
+        ev(30, "insight_density", "ok", 9000),  # outside 24h
+        ev(3, "grounding_rate", "ok", 50),
+        json.dumps({"event_type": "enrichment.run.started", "ts": now.isoformat()}),
+    ]
+    (corpus / "enrichments").mkdir(parents=True, exist_ok=True)
+    (corpus / "enrichments" / "run.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    client = TestClient(app)
+    body = client.get("/api/enrichment/metrics", params={"path": str(corpus)}).json()
+    roll = body["window_rollup"]
+    assert set(roll) == {"insight_density", "grounding_rate"}
+    assert roll["insight_density"]["runs"] == 2
+    assert roll["insight_density"]["failed"] == 1
+    assert roll["insight_density"]["mean_duration_ms"] == 200
+    assert roll["insight_density"]["records_written"] == 6
+    assert roll["insight_density"]["retries"] == 1
+    one = client.get(
+        "/api/enrichment/metrics", params={"path": str(corpus), "window": "90m"}
+    ).json()["window_rollup"]
+    assert one["insight_density"]["runs"] == 1
 
 
 def test_get_metrics_with_window_param(app: FastAPI, corpus: Path) -> None:
