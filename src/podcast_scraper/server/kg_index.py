@@ -22,7 +22,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, NamedTuple, Sequence
+from typing import Any, Iterator, NamedTuple, Sequence, TypeVar
 
 from podcast_scraper import perf_cache
 from podcast_scraper.identity.display import person_display
@@ -130,6 +130,20 @@ def _canonical_person_ids(root: Path) -> dict[str, str]:
         return {}
 
 
+_E = TypeVar("_E", AppEntity, AppTopic)
+
+
+def _pooled(pool: dict[tuple[type, str], Any], items: list[_E]) -> list[_E]:
+    """``items`` with each one replaced by the first equal entity the index already holds.
+
+    A person, org or topic recurs across episodes as equal objects: on the prod-shaped corpus 17554
+    person, 19122 org and 31036 topic objects were 10784, 8583 and 27025 distinct (2026-11-08). The
+    index is shared read-only (cards ``model_copy`` before changing one), so equal entities can be
+    one object.
+    """
+    return [pool.setdefault((type(m), repr(m)), m) for m in items]
+
+
 def build_kg_index(root: Path) -> KgEntityIndex:
     """One full pass over the corpus KGs → the inverted index (called once per ingest via cache).
 
@@ -145,6 +159,7 @@ def build_kg_index(root: Path) -> KgEntityIndex:
     person_ref_by_norm: dict[str, AppEntityRef] = {}
     topic_ref_by_norm: dict[str, AppEntityRef] = {}
     org_ref_by_norm: dict[str, AppEntityRef] = {}
+    pool: dict[tuple[type, str], Any] = {}
 
     for row, persons, orgs, topics in iter_kg_entities(root, cached_catalog(root)):
         i = len(episodes)
@@ -165,6 +180,7 @@ def build_kg_index(root: Path) -> KgEntityIndex:
                 else:
                     rewritten.append(p.model_copy(update={"id": cid, "name": shown}))
             persons = rewritten
+        persons, topics, orgs = _pooled(pool, persons), _pooled(pool, topics), _pooled(pool, orgs)
         episodes.append(EpisodeEntities(row=row, persons=persons, topics=topics, orgs=orgs))
         for p in persons:
             person_to_eps[p.id].append(i)
