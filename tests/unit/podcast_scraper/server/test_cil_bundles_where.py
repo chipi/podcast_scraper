@@ -46,7 +46,53 @@ def test_yields_exactly_what_the_plain_walk_keeps(root: str) -> None:
     ]
     lazy = list(cil_queries.iter_cil_episode_bundles_where(root, root, keep))
     assert plain, "the topic matched no episode, so the comparison proves nothing"
-    assert json.dumps(lazy, sort_keys=True) == json.dumps(plain, sort_keys=True)
+    # The cached bridge is the slim one (test_the_slim_bridge_reads_as_the_whole_one); the paths,
+    # GI and KG are the plain walk's.
+    assert [p for p, _b, _g, _k in lazy] == [p for p, _b, _g, _k in plain]
+    assert json.dumps([(g, k) for _p, _b, g, k in lazy], sort_keys=True) == json.dumps(
+        [(g, k) for _p, _b, g, k in plain], sort_keys=True
+    )
+
+
+def test_the_slim_bridge_reads_as_the_whole_one(root: str) -> None:
+    """Every helper that reads a cached bridge gives the same answer on the slim copy as on the
+    bridge read from disk, for every bridge in the fixture. The fixture bridges carry no `sources`,
+    so the GI flag is exercised by the next test."""
+    helpers = (
+        cil_queries._compute_bridge_all_ids,
+        cil_queries._bridge_gi_ids,
+        cil_queries._bridge_gi_topic_ids,
+        cil_queries._episode_id_from_bridge,
+    )
+    whole = list(cil_queries.iter_cil_bridge_bundles(root, root))
+    assert whole, "the fixture has no bridges"
+    for path, bridge in whole:
+        slim = cil_queries._slim_bridge(bridge)
+        for helper in helpers:
+            assert helper(slim) == helper(bridge), (path, helper.__name__)
+
+
+def test_odd_identity_rows_read_the_same_slim() -> None:
+    bridge = {
+        "episode_id": "  ep-1 ",
+        "identities": [
+            {"id": " topic:padded ", "sources": {"gi": True}},
+            {"id": "topic:kg-only", "sources": {"gi": False, "kg": True}},
+            {"id": "person:no-sources"},
+            {"id": "person:odd-sources", "sources": ["gi"]},
+            {"id": "", "sources": {"gi": True}},
+            {"id": 7, "sources": {"gi": True}},
+            "not-a-row",
+        ],
+    }
+    slim = cil_queries._slim_bridge(bridge)
+    for helper in (
+        cil_queries._compute_bridge_all_ids,
+        cil_queries._bridge_gi_ids,
+        cil_queries._bridge_gi_topic_ids,
+        cil_queries._episode_id_from_bridge,
+    ):
+        assert helper(slim) == helper(bridge), helper.__name__
 
 
 def test_never_reads_gi_or_kg_for_a_rejected_episode(

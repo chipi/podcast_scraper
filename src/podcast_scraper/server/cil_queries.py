@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import threading
 from datetime import date
 from pathlib import Path
@@ -353,9 +354,35 @@ def iter_cil_bridge_bundles(
 def _walk_and_register(
     key: str, root_path: str, anchor_path: str
 ) -> list[tuple[str, dict[str, Any]]]:
-    bundles = list(iter_cil_bridge_bundles(root_path, anchor_path))
+    bundles = [
+        (path, _slim_bridge(b)) for path, b in iter_cil_bridge_bundles(root_path, anchor_path)
+    ]
     _register_bundle_ids(key, bundles)
     return bundles
+
+
+_GI_SOURCE: dict[str, Any] = {"gi": True}
+_NOT_GI_SOURCE: dict[str, Any] = {"gi": False}
+
+
+def _slim_bridge(bridge: dict[str, Any]) -> dict[str, Any]:
+    """The part of a bridge the cached-bundle readers use: ``episode_id`` and each identity's ``id``
+    and whether GI asserts it (``sources.gi``).
+
+    Every reader of the cache goes through ``_bridge_all_ids``, ``_bridge_gi_ids``,
+    ``_bridge_gi_topic_ids`` and ``_episode_id_from_bridge``, which read nothing else; the display
+    names, aliases, types and fuzzy merges are kept on disk only. The whole bridges took 62.8 MB in
+    each serving process on the prod-shaped corpus (3130 bridges), this 17.5 MB (2026-11-08). Ids
+    are interned: the same id recurs across episodes.
+    """
+    rows = []
+    for row in bridge.get("identities") or []:
+        if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+            continue
+        src = row.get("sources")
+        gi = isinstance(src, dict) and bool(src.get("gi"))
+        rows.append({"id": sys.intern(row["id"]), "sources": _GI_SOURCE if gi else _NOT_GI_SOURCE})
+    return {"episode_id": bridge.get("episode_id"), "identities": rows}
 
 
 def _cached_bridge_bundles(root_path: str, anchor_path: str) -> list[tuple[str, dict[str, Any]]]:
