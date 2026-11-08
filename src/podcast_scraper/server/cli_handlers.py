@@ -104,6 +104,15 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
         help="Dev only: restart workers when Python files change.",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=int(os.environ.get("PODCAST_SERVE_WORKERS") or 1),
+        help=(
+            "Worker processes (default 1, or PODCAST_SERVE_WORKERS). With more than one, the cron "
+            "scheduler runs in one leader per host, and metrics need PROMETHEUS_MULTIPROC_DIR."
+        ),
+    )
+    parser.add_argument(
         "--no-static",
         action="store_true",
         help="Do not mount built SPA assets from web/gi-kg-viewer/dist even if present.",
@@ -137,6 +146,51 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
     return args
 
 
+def _run_workers(
+    uvicorn: Any, args: Namespace, forwarded_allow_ips: str, log: logging.Logger
+) -> int:
+    """``serve --workers N`` (N > 1): uvicorn starts N processes, each building the app from the
+    environment ``_sync_reload_environ`` set. With metrics on, ``PROMETHEUS_MULTIPROC_DIR`` must be
+    an empty-able directory: each worker writes its samples there and ``/metrics`` adds them up.
+    It is emptied here, before any worker starts, or a restart would add old samples to new."""
+    from podcast_scraper.server import leader
+
+    metrics_on = os.environ.get("PODCAST_METRICS_ENABLED", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    multiproc = os.environ.get("PROMETHEUS_MULTIPROC_DIR", "").strip()
+    if metrics_on and not multiproc:
+        log.error(
+            "serve --workers %d with PODCAST_METRICS_ENABLED needs PROMETHEUS_MULTIPROC_DIR "
+            "(a directory per container): without it /metrics shows one worker's counts only.",
+            args.workers,
+        )
+        return 2
+    if multiproc:
+        mdir = Path(multiproc)
+        mdir.mkdir(parents=True, exist_ok=True)
+        for stale in mdir.glob("*.db"):
+            stale.unlink()
+    os.environ[leader.ENV_WORKERS] = str(args.workers)
+    os.environ.setdefault(leader.ENV_LOCK_FILE, str(leader.default_lock_file(args.port)))
+    if getattr(args, "no_static", False):
+        os.environ["PODCAST_SERVE_NO_STATIC"] = "1"
+    log.info("serve: %d workers on %s:%d", args.workers, args.host, args.port)
+    uvicorn.run(
+        "podcast_scraper.server.app:create_app_for_uvicorn",
+        factory=True,
+        host=args.host,
+        port=args.port,
+        workers=args.workers,
+        proxy_headers=True,
+        forwarded_allow_ips=forwarded_allow_ips,
+        access_log=False,
+    )
+    return 0
+
+
 def run_serve(args: Namespace, log: logging.Logger) -> int:
     """Start uvicorn with :func:`podcast_scraper.server.app.create_app`."""
     try:
@@ -162,6 +216,9 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
     # a proxied deployment opts in via ``FORWARDED_ALLOW_IPS`` (e.g. ``*`` when the
     # backend is only reachable through its own trusted proxy — see player-public).
     forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1")
+
+    if getattr(args, "workers", 1) > 1 and not args.reload:
+        return _run_workers(uvicorn, args, forwarded_allow_ips, log)
 
     if args.reload:
         uvicorn.run(
