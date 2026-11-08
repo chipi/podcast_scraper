@@ -312,7 +312,7 @@ class TestTranscriptionFactoryExperimentMode(unittest.TestCase):
 
 
 class TestTranscriptionFactoryConfigBranches(unittest.TestCase):
-    """Test config-mode branches for gemini, mistral, and anthropic."""
+    """Test config-mode branches for gemini and mistral, and that anthropic is refused."""
 
     @patch(
         "podcast_scraper.providers.gemini.gemini_provider.GeminiProvider.__init__",
@@ -346,15 +346,11 @@ class TestTranscriptionFactoryConfigBranches(unittest.TestCase):
         self.assertIsNotNone(provider)
         mock_init.assert_called_once()
 
-    @patch(
-        "podcast_scraper.providers.anthropic.anthropic_provider.AnthropicProvider.__init__",
-        return_value=None,
-    )
-    def test_config_anthropic_creates_anthropic_provider(self, mock_init):
-        """Config with transcription_provider='anthropic' creates AnthropicProvider.
+    def test_config_anthropic_is_not_a_transcription_provider(self):
+        """'anthropic' has no audio transcription: the factory refuses it like any unknown type.
 
-        Config validation doesn't allow 'anthropic' directly, so we use a
-        mock config (same pattern as test_create_invalid_provider).
+        Config validation already rejects it, so a mock config reaches the factory directly
+        (same pattern as test_create_invalid_provider).
         """
         from unittest.mock import MagicMock
 
@@ -362,9 +358,9 @@ class TestTranscriptionFactoryConfigBranches(unittest.TestCase):
         mock_cfg.transcription_provider = "anthropic"
         mock_cfg.__class__ = config.Config
 
-        provider = create_transcription_provider(mock_cfg)
-        self.assertIsNotNone(provider)
-        mock_init.assert_called_once()
+        with self.assertRaises(ValueError) as ctx:
+            create_transcription_provider(mock_cfg)
+        self.assertIn("Unsupported transcription provider", str(ctx.exception))
 
     def test_config_with_params_raises_type_error(self):
         """Passing params alongside a Config object raises TypeError."""

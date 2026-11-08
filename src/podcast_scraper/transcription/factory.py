@@ -372,30 +372,6 @@ def create_transcription_provider(  # noqa: C901
 
         verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
         return provider
-    elif provider_type == "anthropic":
-        from ..providers.anthropic.anthropic_provider import AnthropicProvider
-
-        if experiment_mode:
-            # Create a minimal Config from params for experiment mode
-            from ..config import Config
-
-            # After conversion above, params is guaranteed to be TranscriptionParams
-            assert isinstance(params, TranscriptionParams)
-            cfg = Config(
-                rss="",  # Dummy, not used for transcription (use alias)
-                transcription_provider="anthropic",
-                anthropic_transcription_model=(
-                    params.model_name if params.model_name else "claude-3-5-sonnet-20241022"
-                ),
-                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
-            )
-            provider = AnthropicProvider(cfg)
-        else:
-            provider = AnthropicProvider(cfg)
-
-        # Runtime protocol verification (dev-mode only)
-        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
-        return provider
     elif provider_type == "tailnet_dgx_whisper":
         from ..providers.tailnet_dgx.whisper_provider import (
             TailnetDgxWhisperTranscriptionProvider,
@@ -424,5 +400,5 @@ def create_transcription_provider(  # noqa: C901
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
             "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', 'deepgram', "
-            "'anthropic', 'tailnet_dgx_whisper', 'moss'"
+            "'groq', 'tailnet_dgx_whisper', 'moss'"
         )

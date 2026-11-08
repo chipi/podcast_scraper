@@ -9,7 +9,7 @@ own a slice of the how, and this document is where the arc's **shape**, its **sl
   [MULTILINGUAL_ARC_V2](MULTILINGUAL_ARC_V2.md), with its slices and the reason it was deferred.
   Nothing was dropped.
 - **Opened**: 2026-09-28
-- **Status**: design — nothing implemented
+- **Status**: v1 translation stage shipped; this page keeps the design record, and the file layout is the shipped one noted in §1
 - **Branch**: `feat/multilingual-ingest`
 - **Documents**: [PRD-047](../prd/PRD-047-multilingual-ingest.md) · [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) · [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) · [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md)
 - **Review state**: six adversarial reviews have run over these documents. §5.4 records every claim
@@ -24,18 +24,25 @@ The corpus is English-only by configuration, not by architecture. The bet is tha
 non-English show, keep **what was actually said** as the canonical record, and derive an English layer
 that every existing intelligence stage reads without a per-language fork.
 
+> **Shipped layout (differs from the sketch in the original design below).** English is the
+> canonical transcript and carries no language suffix. When translation runs, it swaps the English
+> text into `ep1.txt` and the source-language body moves to `<base>.<lang>.*` (for example
+> `ep1.es.txt`). The code that names these files is `translation/artifacts.py` (D-44). The `.en.`
+> names in the design sections of this page are historical.
+
 ```text
 audio (any enabled language)
   │
-  ├─ transcribe + diarize IN SOURCE LANGUAGE ──────► ep1.txt            ← canonical, full timeline
+  ├─ transcribe + diarize IN SOURCE LANGUAGE ──────► ep1.txt            ← source text until translated
   │   └─ speaker naming (on the source)              ep1.segments.json
   │                                                  ep1.turns.json     ← RFC-123
   │
   ├─ TRANSLATE every turn-bounded unit ────────────► ep1.translation.json  ← the traceability map
-  │   (before summary — D-19)                        ep1.en.txt            ← derived, full timeline
-  │                                                  ep1.en.segments.json  ← doubles as subtitles
+  │   (before summary — D-19)                        ep1.txt            ← now the English, canonical
+  │                                                  ep1.segments.json  ← English; doubles as subtitles
+  │                                                  ep1.es.txt, ep1.es.segments.json  ← the source, moved
   │
-  ├─ ad-detect + excise ON THE ENGLISH ────────────► ep1.en.adfree.txt   ← THE ANALYSIS TRANSCRIPT
+  ├─ ad-detect + excise ON THE ENGLISH ────────────► ep1.adfree.txt     ← THE ANALYSIS TRANSCRIPT
   │
   ├─ summary → GI → KG, all reading that file ─────► single-path, English
   │
@@ -44,8 +51,9 @@ audio (any enabled language)
 
 Three properties make it work:
 
-1. **The source is canonical, the English is derived.** A translation is an interpretation; the record
-   is what was said. Every English span maps back to source text, source speaker and source audio time.
+1. **English is canonical, the source is kept.** A translation is an interpretation; the record
+   of what was said stays on disk as `<base>.<lang>.*`. Every English span maps back to source text,
+   source speaker and source audio time.
 2. **Analysis reads one transcript.** Every transcript reader resolves through one function, so no
    stage decides for itself what "the transcript" means. That is **not** true today (§5.4 C-1) and
    making it true is part of the work, not a property the design can assume.

@@ -209,6 +209,10 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
                     incident_log_path=incident_log_default,
                     incident_log_start_offset=incident_log_start,
                 )
+                if batch:
+                    from .identity.refresh_guard import refresh_ledger_after_batch
+
+                    refresh_ledger_after_batch(parent, template, logger)
         except RuntimeError as exc:
             return ServiceResult(
                 episodes_processed=0,

@@ -2022,8 +2022,8 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "retranscript_only: RE-FETCH the publisher's own transcript, re-parse it with the "
             "fixed cue parser, then relabel — for episodes whose stored transcript lost its "
             "speaker spans on the way in; no audio, no ASR, no GPU. "
-            "translate_only: RE-TRANSLATE from the on-disk source transcript, then re-resolve "
-            "names from the fresh English render and cascade GI/KG; no audio, no ASR, no "
+            "translate_only: RE-TRANSLATE from the on-disk source transcript (naming re-runs "
+            "on the source first) and cascade GI/KG; no audio, no ASR, no "
             "re-diarize. The content-keyed translation memory is KEPT so only missing units are "
             "sent — add --fresh-translation to discard it after a model change. "
             "repunctuate_only: re-transcribe ONLY the windows still flagged unpunctuated from the "
@@ -5886,6 +5886,10 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                     incident_log_path=_inc_default,
                     incident_log_start_offset=_inc_start,
                 )
+                if batch_results:
+                    from .identity.refresh_guard import refresh_ledger_after_batch
+
+                    refresh_ledger_after_batch(corpus_parent, base_cfg, log)
 
                 # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? A run given a work-list now says so
                 # against its own denominator instead of leaving it to a later audit. No-op when

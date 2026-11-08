@@ -46,3 +46,24 @@ def refresh_ledger_after(
         RESPELL_MIGRATION,
     )
     return True
+
+
+def refresh_ledger_after_batch(
+    corpus_parent: Path | str, template_cfg: object, log: Optional[logging.Logger] = None
+) -> bool:
+    """The identity ledger refresh a multi-feed batch owns, called after its finalize.
+
+    A batch's feeds walk their run dirs only, so their edge passes leave the ledger to the batch
+    (``is_multi_feed_batch_child``). When the batch queued an enrichment, that run refreshes the
+    ledger when it finishes, and a refresh here would invalidate every API cache once more for
+    the same joins; so it refreshes only when no enrichment was queued. True when nothing was
+    needed or the ledger was written.
+
+    Called from the batch loops (``cli.py``, ``service.py``), not from
+    ``finalize_multi_feed_batch``: that module is inside the D2 migrations' measured code, and
+    this one must stay outside it.
+    """
+    block = getattr(template_cfg, "enrichment", None)
+    if isinstance(block, dict) and block.get("enabled"):
+        return True
+    return refresh_ledger_after(corpus_parent, after="multi-feed batch", log=log)

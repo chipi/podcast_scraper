@@ -1653,6 +1653,26 @@ def _write_edges_stamp(corpus: Path, totals: Dict[str, int], logger: logging.Log
         logger.warning("enrich-edges: could not write the cache-invalidation stamp: %s", exc)
 
 
+def _write_corpus_followups(
+    corpus: Path, totals: Dict[str, int], logger: logging.Logger, *, defer: bool
+) -> bool:
+    """Stamp the cache token and refresh the identity ledger after a pass; True if the ledger
+    refresh failed.
+
+    ``defer``: a multi-feed batch child walks only its run dir, so both would land in the run
+    dir, not the corpus root. The batch's ``corpus_run_summary.json`` moves the cache token, and
+    the batch (or the enrichment it queues) refreshes the ledger.
+    """
+    if defer:
+        return False
+    _write_edges_stamp(corpus, totals, logger)
+    if not (totals.get("gi_rewritten") or totals.get("kg_scoped")):
+        return False
+    from podcast_scraper.identity.ledger import refresh_ledger
+
+    return not refresh_ledger(corpus, after="enrich-edges", log=logger)
+
+
 def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     """Derive relational edges into each gi.json (#874): Podcast→HAS_EPISODE→Episode,
     Insight→MENTIONS→Entity, and (unless --no-speaker) Quote→SPOKEN_BY→Person.
@@ -1865,12 +1885,9 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     _log_quote_alignment(quote_alignment, logger)
     print(msg)
 
-    _write_edges_stamp(corpus, totals, logger)
-    ledger_failed = False
-    if totals.get("gi_rewritten") or totals.get("kg_scoped"):
-        from podcast_scraper.identity.ledger import refresh_ledger
-
-        ledger_failed = not refresh_ledger(corpus, after="enrich-edges", log=logger)
+    ledger_failed = _write_corpus_followups(
+        corpus, totals, logger, defer=bool(getattr(args, "defer_corpus_writes", False))
+    )
 
     if retro_audit and retro_rows:
         if retro_summary_path_arg:

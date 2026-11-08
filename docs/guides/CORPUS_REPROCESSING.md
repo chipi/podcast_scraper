@@ -27,6 +27,8 @@ same pipeline that produced the corpus**, scoped to the episodes already on disk
 | **Fix speakers / full rebuild** (correct diarization + named screenplays, current ASR, re-clean, re-extract) | full reprocess | yes | yes | `make migrate-diarization` |
 | **Re-name speakers only** (re-resolve names on the FROZEN diarization; re-render + cascade GI/KG) | `--pipeline-stage relabel_only` | no | no | see [Re-name / re-diarize only](#re-name-re-diarize-only) |
 | **Re-diarize only** (fresh diarization aligned to the existing ASR; no re-transcribe; re-name + cascade) | `--pipeline-stage rediarize_only` | no | yes | see [Re-name / re-diarize only](#re-name-re-diarize-only) |
+| **Re-fetch the publisher transcript** (re-fetch and re-parse the publisher's own transcript, then relabel; no audio, no ASR) | `--pipeline-stage retranscript_only` | no | no | `--pipeline-stage retranscript_only --reprocess-existing-only` |
+| **Re-translate only** (restore the source transcript, relabel, re-translate to English; the translation memory is kept unless `--fresh-translation`) | `--pipeline-stage translate_only` | no | no | `--pipeline-stage translate_only --reprocess-existing-only` |
 | **Re-punctuate only** (re-decode just the 10-minute windows still flagged unpunctuated, from the archived audio; splice the accepted ones in; speakers carried over; cascade summary/GI/KG) | `--pipeline-stage repunctuate_only` | clips only | no | see [Re-punctuate only](#re-punctuate-only) |
 | **Re-extract only** (reuse transcript + diarization; re-run cleaning + GI + KG on the existing base) | `--pipeline-stage rederive_only` | no | no | see [Re-extract only](#re-extract-only) |
 | **Enrich gaps** (fill missing corpus-level enrichments) | `cli enrich` | no | no | `make enrich CORPUS=<corpus>` |
@@ -318,11 +320,12 @@ Confirm the override fired — this line per episode is the proof:
 
 If it is absent, skip-existing won and the run is a no-op regardless of exit code.
 
-### A `full` run writes a NEW run dir; `relabel_only` writes back into the old one
+### A `full` run writes a NEW run dir; the reprocess stages write back into the old one
 
-`_existing_metadata_path_for_reprocess` returns a path only for the
-never-transcribe stages (`relabel_only`, `rediarize_only`, `retranscript_only`) and
-`rederive_only`. A `full` run creates `run_<ts>/` fresh, and newest-run-per-episode makes
+`_existing_metadata_path_for_reprocess` returns a path for the stages in
+`STAGES_REUSING_ON_DISK_ARTIFACTS`: the six reprocess stages `relabel_only`, `rediarize_only`,
+`retranscript_only`, `translate_only`, `repunctuate_only` and `rederive_only`. A `full` run creates
+`run_<ts>/` fresh, and newest-run-per-episode makes
 it win for every reader — which is why repair-first / cleanup-after is safe and you never
 need to mutate the damaged records in place.
 

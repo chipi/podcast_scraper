@@ -91,8 +91,8 @@ When using `service.run` / `run_from_config_file` with multi-feed config, the sa
 ## Partial batches and unified index
 
 If one feed fails, the batch still **writes** manifest and summary, sets `overall_ok` to false, and
-(if `vector_search` is true) still runs **`index_corpus` on the
-corpus parent** so completed feeds contribute to `<corpus_parent>/search`. Failed feeds contribute
+(if `vector_search` is true) still runs the **`index_corpus`** pass (in a subprocess, so an index-layer crash cannot take down the run) on the
+corpus parent so completed feeds contribute to `<corpus_parent>/search`. Failed feeds contribute
 no new metadata until a later successful run.
 
 ## Hybrid `metadata/` layout (indexing)

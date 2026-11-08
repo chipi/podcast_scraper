@@ -141,7 +141,7 @@ procedure, modes, and gotchas. The relevant flags:
 
 - `--reprocess-existing-only` — scope to the corpus's on-disk GUIDs (do **not** scrape the live feed).
 - `--reprocess-source whisper_transcription` — force-reprocess the matching episodes (overrides `--skip-existing`).
-- `--pipeline-stage {full,enrich_only,audio_only,download_only}` — `enrich_only` reuses on-disk transcripts (no re-ASR).
+- `--pipeline-stage {full,audio_only,download_only,rederive_only,relabel_only,rediarize_only,retranscript_only,translate_only,repunctuate_only}` — the reprocess modes reuse what is on disk and do not re-transcribe the whole episode; see [Corpus Reprocessing](../guides/CORPUS_REPROCESSING.md) for what each re-runs. `enrich_only` is a deprecated alias for `rederive_only`.
 - `--no-transcribe-missing` — never transcribe episodes lacking a transcript.
 
 Canonical entry point: `make migrate-diarization CORPUS_DIR=<corpus> PROFILE=<profile>.yaml`.

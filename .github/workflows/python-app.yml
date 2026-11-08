@@ -1010,7 +1010,6 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'pull_request' &&
-      !contains(github.event.pull_request.head.ref, 'docs/') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
     - uses: actions/checkout@v7
@@ -1128,7 +1127,6 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'pull_request' &&
-      !contains(github.event.pull_request.head.ref, 'docs/') &&
       needs.detect-changes.outputs.python == 'true'
     steps:
     - uses: actions/checkout@v7

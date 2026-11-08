@@ -1339,8 +1339,8 @@ def _write_anon_transcript(
 ) -> Optional[str]:
     """Write the PRE-NAMING render, ``<base>.anon.txt`` (D-40). Returns its relpath, or ``None``.
 
-    WHY IT EXISTS. With naming moved after translation (D-34) the order is diarize → write
-    anonymous → translate → name → re-render, and the naming re-render overwrites ``.txt``. That
+    WHY IT EXISTS. The order is diarize → write anonymous → name → re-render, and the naming
+    re-render overwrites ``.txt``. That
     would destroy the only human-readable view of what the pipeline saw BEFORE it decided who was
     speaking — the first thing anyone debugging a naming failure wants.
 
@@ -4430,11 +4430,11 @@ def _retranslate_existing_transcript(
 
     1. swap the SOURCE back here, so the translation stage sees an untranslated episode;
     2. hand off to `_relabel_existing_transcript`, which loads the on-disk transcript and its
-       frozen `SPEAKER_NN` diarization and re-runs naming — and for a non-English episode that
-       naming is DEFERRED (D-34), so the re-rendered source carries anonymous labels again,
-       which is exactly what the translator must be given;
-    3. `generate_episode_metadata` then re-translates at the seam, names from the fresh English
-       render, and cascades GI/KG.
+       frozen `SPEAKER_NN` diarization and re-runs naming on the SOURCE (naming runs before
+       translation since D-34 was reverted, #2234). On a non-English episode naming declines
+       (the S2.14 English-only guard), so the re-rendered source carries anonymous labels;
+    3. `generate_episode_metadata` then re-translates that source at the seam and
+       cascades GI/KG.
 
     So no audio, no ASR, no re-diarize — and the content-keyed memory means the units that
     already succeeded are not sent again.
