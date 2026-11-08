@@ -51,6 +51,7 @@ def test_the_lock_is_released_when_the_leaders_process_dies(tmp_path: Path) -> N
         follower = leader.Leadership(lock, lambda: None, retry_seconds=0.05)
         follower.start()
         assert not follower.is_leader
+        assert proc.pid is not None
         os.kill(proc.pid, 9)
         proc.join(10)
         deadline = time.monotonic() + 3

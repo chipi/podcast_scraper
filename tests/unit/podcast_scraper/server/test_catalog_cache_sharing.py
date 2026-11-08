@@ -3,6 +3,7 @@ same rows as an uncached build."""
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,7 @@ CORPUS = Path(__file__).resolve().parents[4] / "tests/fixtures/viewer-validation
 
 
 @pytest.fixture(autouse=True)
-def _empty_caches() -> None:
+def _empty_caches() -> Iterator[None]:
     perf_cache.clear()
     yield
     perf_cache.clear()

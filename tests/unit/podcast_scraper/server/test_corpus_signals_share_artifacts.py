@@ -3,6 +3,7 @@ as parsing each file, and one parsed copy shared with every other reader of that
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,7 @@ WANTED = {"temporal_velocity", "topic_cooccurrence_corpus", "guest_coappearance"
 
 
 @pytest.fixture(autouse=True)
-def _empty_caches() -> None:
+def _empty_caches() -> Iterator[None]:
     perf_cache.clear()
     yield
     perf_cache.clear()
@@ -44,5 +45,6 @@ def test_overlapping_requests_and_other_readers_share_one_copy() -> None:
     a = cs.corpus_signals(CORPUS, {"temporal_velocity", "guest_coappearance"})
     b = cs.corpus_signals(CORPUS, {"temporal_velocity"})
     artifact = cached_json_artifact(CORPUS, "enrichments/temporal_velocity.json")
+    assert artifact is not None
     assert "temporal_velocity" in a
     assert a["temporal_velocity"] is b["temporal_velocity"] is artifact["data"]

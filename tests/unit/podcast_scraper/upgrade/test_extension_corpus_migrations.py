@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -70,7 +71,7 @@ def test_an_object_that_is_not_a_migration_is_refused() -> None:
 
 
 @pytest.fixture
-def fake_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+def fake_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """An installed package ``fakeext_s5`` with one migration that imports a helper of its own and
     a module of this package."""
     pkg = tmp_path / "fakeext_s5"
