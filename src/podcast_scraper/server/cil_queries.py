@@ -250,6 +250,59 @@ def iter_cil_episode_bundles_where(
         yield safe_bridge, bridge, siblings[0], siblings[1]
 
 
+def iter_cil_episode_bundles_naming(
+    root_path: str,
+    anchor_path: str,
+    ids: set[str],
+) -> Iterator[tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]]:
+    """``iter_cil_episode_bundles_where(root, anchor, lambda b: bool(ids & _bridge_all_ids(b)))``,
+    visiting only the bridges that name one of ``ids``.
+
+    The filter form tests every bridge of the corpus once per call, and the Mine rails ask for the
+    quotes of hundreds of topics: 1.96 M bridge tests, 1.5 s of six listeners' first Mine rails on
+    the prod-shaped corpus (2026-11-08). An inverted index over the same cached bundles answers
+    which bridges name an id; the hits are visited in the bundle order, so the yield is identical.
+    """
+    if not ids:
+        return
+    bundles, positions = _bridge_id_positions(root_path, anchor_path)
+    hits = sorted({i for x in ids for i in positions.get(x, ())})
+    root_prefix = os.path.normpath(root_path) + os.sep
+    for i in hits:
+        safe_bridge, bridge = bundles[i]
+        if not safe_bridge.startswith(root_prefix):
+            continue
+        siblings = _sibling_gi_kg(safe_bridge, root_prefix)
+        if siblings is None:
+            continue
+        yield safe_bridge, bridge, siblings[0], siblings[1]
+
+
+def _bridge_id_positions(
+    root_path: str, anchor_path: str
+) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, tuple[int, ...]]]:
+    """Each id a bridge names -> the positions of those bridges in the cached bundle list.
+
+    The list rides in the same cache value as its index, so a corpus change between the two reads
+    cannot pair an index with the wrong list.
+    """
+    key = os.path.normpath(root_path) + "::" + os.path.normpath(anchor_path)
+
+    def build() -> tuple[list[tuple[str, dict[str, Any]]], dict[str, tuple[int, ...]]]:
+        bundles = _cached_bridge_bundles(root_path, anchor_path)
+        positions: dict[str, list[int]] = {}
+        for i, (_path, bridge) in enumerate(bundles):
+            for x in _bridge_all_ids(bridge):
+                positions.setdefault(x, []).append(i)
+        return bundles, {x: tuple(v) for x, v in positions.items()}
+
+    value: tuple[list[tuple[str, dict[str, Any]]], dict[str, tuple[int, ...]]]
+    value = perf_cache.get_or_compute(
+        "cil_bridge_id_positions", key, perf_cache.corpus_mtime(root_path), build
+    )
+    return value
+
+
 def iter_cil_bridge_bundles(
     root_path: str,
     anchor_path: str,
@@ -862,8 +915,8 @@ def topic_timeline(
     equiv = _canonical_equivalents(root_path, topic)  # #852 cross-episode variants
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_where(
-        root_path, anchor_path, lambda b: bool(equiv & _bridge_all_ids(b))
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_naming(
+        root_path, anchor_path, equiv
     ):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
@@ -997,8 +1050,8 @@ def topic_timeline_merged(
 
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_where(
-        root_path, anchor_path, lambda b: bool(topics_set & _bridge_all_ids(b))
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_naming(
+        root_path, anchor_path, topics_set
     ):
         bridge_ids = _bridge_all_ids(bridge)
         active = topics_set & bridge_ids
@@ -1223,8 +1276,8 @@ def topics_perspectives(
     people = person_display(root_path)
     by_person: dict[str, dict[str, Any]] = {}
     person_name: dict[str, str] = {}
-    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_where(
-        root_path, anchor_path, lambda b: bool(equiv & _bridge_all_ids(b))
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_naming(
+        root_path, anchor_path, equiv
     ):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
@@ -1327,8 +1380,8 @@ def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> lis
     topic = canonical_cil_entity_id(target_topic)
     equiv = _canonical_equivalents(root_path, topic)  # #852 cross-episode variants
     persons: set[str] = set()
-    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_where(
-        root_path, anchor_path, lambda b: bool(equiv & _bridge_all_ids(b))
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_naming(
+        root_path, anchor_path, equiv
     ):
         if not (equiv & _bridge_all_ids(bridge)):
             continue

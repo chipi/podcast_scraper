@@ -544,11 +544,33 @@ def _enrich_topic(
     return topic.model_copy(update=update) if update else topic
 
 
+def _newest_first(publish_date: str | None) -> tuple[bool, str]:
+    """Sort key, used with ``reverse=True``: newest first, undated episodes last."""
+    return (publish_date is not None, publish_date or "")
+
+
 def _sorted_episode_cards(root: Path, rows: list[CatalogEpisodeRow]) -> list[AppEpisodeSummary]:
     """Project rows to episode cards, newest-first (undated episodes sort last)."""
     cards = [row_to_summary(root, r) for r in rows]
-    cards.sort(key=lambda c: (c.publish_date is not None, c.publish_date or ""), reverse=True)
+    cards.sort(key=lambda c: _newest_first(c.publish_date), reverse=True)
     return cards
+
+
+def person_episode_slugs(root: Path, person_id: str) -> list[str]:
+    """The slugs of ``build_person_card(root, person_id).episodes``, in the same order.
+
+    Without the card: each episode card reads that episode's GI for its moments flag, and a caller
+    that needs only which episodes (the people rail's quotes) paid that for every episode of every
+    person on the rail: 3.2 s of six listeners' first Mine rails on the prod-shaped corpus
+    (2026-11-08).
+    """
+    rows = [
+        row
+        for row, persons, _topics in _person_episodes(root, person_id, None)
+        if any(p.id == person_id for p in persons)
+    ]
+    rows.sort(key=lambda r: _newest_first(r.publish_date), reverse=True)
+    return [slug_for_row(r) for r in rows]
 
 
 # Role precedence for the aggregate card badge: a person who hosts anywhere is a "host",

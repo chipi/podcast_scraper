@@ -72,8 +72,55 @@ def test_topic_perspectives_matches_the_full_walk(
     topic = _a_topic(root)
     lazy = cil_queries.topic_perspectives(root, root, topic)
 
-    def full_walk(r: str, a: str, keep):  # the pre-fix behaviour: parse everything, filter after
-        return (t for t in cil_queries.iter_cil_episode_bundles(r, a) if keep(t[1]))
+    def full_walk(r: str, a: str, ids: set[str]):  # parse everything, filter after
+        return (
+            t
+            for t in cil_queries.iter_cil_episode_bundles(r, a)
+            if ids & cil_queries._bridge_all_ids(t[1])
+        )
 
-    monkeypatch.setattr(cil_queries, "iter_cil_episode_bundles_where", full_walk)
+    monkeypatch.setattr(cil_queries, "iter_cil_episode_bundles_naming", full_walk)
     assert cil_queries.topic_perspectives(root, root, topic) == lazy
+
+
+def test_naming_yields_what_the_filter_yields_in_the_same_order(root: str) -> None:
+    """The indexed iterator against the filter it replaces (Mine rails, 2026-11-08): every id the
+    fixture's bridges name, alone and in unions, same tuples in the same order."""
+    ids = sorted(
+        {
+            x
+            for _p, b in cil_queries.iter_cil_bridge_bundles(root, root)
+            for x in cil_queries._bridge_all_ids(b)
+        }
+    )
+    cases = [{x} for x in ids] + [set(ids[i : i + 5]) for i in range(0, len(ids), 5)]
+    cases += [{"topic:no-such-topic"}, set()]
+    several = 0
+    for case in cases:
+
+        def keep(b: dict, c: set[str] = case) -> bool:
+            return bool(c & cil_queries._bridge_all_ids(b))
+
+        want = list(cil_queries.iter_cil_episode_bundles_where(root, root, keep))
+        got = list(cil_queries.iter_cil_episode_bundles_naming(root, root, case))
+        several += len(want) >= 2
+        assert [(p, id(b), g, k) for p, b, g, k in got] == [
+            (p, id(b), g, k) for p, b, g, k in want
+        ], sorted(case)
+    assert several, "no id is named by two bridges, so order is not compared"
+
+
+def test_naming_never_reads_gi_or_kg_for_an_unnamed_episode(
+    root: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    list(cil_queries.iter_cil_episode_bundles_naming(root, root, {"topic:warm"}))  # warm the index
+    reads: list[str] = []
+    real = cil_queries._read_json
+
+    def spy(path: str) -> dict | None:
+        reads.append(path)
+        return real(path)
+
+    monkeypatch.setattr(cil_queries, "_read_json", spy)
+    assert list(cil_queries.iter_cil_episode_bundles_naming(root, root, {"topic:no-such"})) == []
+    assert reads == []
