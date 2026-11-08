@@ -1,8 +1,8 @@
 """AnthropicProvider's GI and naming methods (E04 split line, S1).
 
-Moved verbatim out of ``AnthropicProvider`` (``anthropic_provider``), which inherits this class: insight
-extraction, grounding and its quotes, entailment scoring, insight classification, speaker
-and host detection, and the bundled summary calls that carry naming fields. They leave
+Moved verbatim out of ``AnthropicProvider`` (``anthropic_provider``), which inherits this class:
+insight extraction, grounding and its quotes, entailment scoring, insight classification,
+speaker and host detection, and the bundled summary calls that carry naming fields. They leave
 public with GI and naming in the core release; the provider keeps its call surface.
 """
 
