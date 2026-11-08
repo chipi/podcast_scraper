@@ -479,6 +479,12 @@ def _episode_insights(**context: Any) -> Tuple[Any, ...]:
     return episode.build_episode_insights(**context)
 
 
+def _gi_kg_passes(**context: Any) -> Tuple[Any, ...]:
+    from podcast_scraper.insight_stage import passes
+
+    return passes.run_gi_kg_passes(**context)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -505,6 +511,7 @@ BUILTIN = PipelineHooks(
     native_roster=_native_roster,
     carry_speaker_identity=_carry_speaker_identity,
     episode_insights=_episode_insights,
+    gi_kg_passes=_gi_kg_passes,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

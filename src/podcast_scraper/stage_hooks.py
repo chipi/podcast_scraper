@@ -108,6 +108,11 @@ CarrySpeakerIdentity = Callable[[Sequence[Any], Sequence[Any]], List[Dict[str, A
 #: the episode's grounded insights (``gi.json``), built and written. One owner; without one,
 #: ``None``: no GI, and the metadata record carries none.
 EpisodeInsights = Callable[..., Tuple[Any, ...]]
+#: ``(**context) -> (bridge_gi_payload, bridge_kg_payload)``: once both layers exist, the passes
+#: that join them (KG organisations, person-id scoping and merges, typed mentions, topic
+#: alignment), then the bridge and the context digest. One owner; without one, ``None``: the
+#: payloads are kept as they are and no bridge is written.
+GiKgPasses = Callable[..., Tuple[Any, ...]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -155,6 +160,7 @@ class PipelineHooks:
     native_roster: Optional[NativeRoster] = None
     carry_speaker_identity: Optional[CarrySpeakerIdentity] = None
     episode_insights: Optional[EpisodeInsights] = None
+    gi_kg_passes: Optional[GiKgPasses] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -446,6 +452,13 @@ def episode_insights(**context: Any) -> Optional[Tuple[Any, ...]]:
     return None
 
 
+def gi_kg_passes(**context: Any) -> Optional[Tuple[Any, ...]]:
+    for hooks in _all():
+        if hooks.gi_kg_passes is not None:
+            return hooks.gi_kg_passes(**context)
+    return None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -463,6 +476,7 @@ __all__ = [
     "EpisodeSpeakers",
     "ExciseAds",
     "FeedHosts",
+    "GiKgPasses",
     "NoAdExcision",
     "BatchFinalizedHook",
     "CarrySpeakerIdentity",
@@ -495,6 +509,7 @@ __all__ = [
     "episode_speakers",
     "excise_ads",
     "feed_hosts",
+    "gi_kg_passes",
     "kg_graph_passes",
     "kg_prompt_hints",
     "native_roster",

@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.workflow.metadata_generation import (
+from podcast_scraper.insight_stage.passes import (
     _write_scoped_artifacts_both_or_neither as write_pair,
 )
 

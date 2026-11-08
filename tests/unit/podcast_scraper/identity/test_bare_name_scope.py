@@ -292,9 +292,9 @@ class TestThePipelineRunsTheScopingPassBeforeTypedMentions:
     def _source() -> str:
         from pathlib import Path
 
-        import podcast_scraper.workflow.metadata_generation as mg
+        import podcast_scraper.insight_stage.passes as passes
 
-        return Path(mg.__file__).read_text(encoding="utf-8")
+        return Path(passes.__file__).read_text(encoding="utf-8")
 
     def test_the_pass_is_actually_called(self) -> None:
         src = self._source()

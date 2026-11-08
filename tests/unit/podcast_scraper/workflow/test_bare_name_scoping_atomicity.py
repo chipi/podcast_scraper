@@ -14,9 +14,11 @@ import pytest
 
 import podcast_scraper.gi.io as gi_io
 import podcast_scraper.gi.schema as gi_schema
+from podcast_scraper.insight_stage.passes import (
+    _write_scoped_artifacts_both_or_neither as write_pair,
+)
 from podcast_scraper.workflow.metadata_generation import (
     _resolve_scope_write_targets as resolve_targets,
-    _write_scoped_artifacts_both_or_neither as write_pair,
 )
 
 pytestmark = pytest.mark.unit

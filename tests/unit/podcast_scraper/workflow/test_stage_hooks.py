@@ -571,3 +571,33 @@ def test_metadata_generation_no_longer_builds_gi_itself() -> None:
     # The GI build itself (the GI + KG passes that still follow it are a later slice).
     assert not {(m, a) for m, a in names if a == "build_artifact" and m.endswith("gi")}
     assert not {(m, a) for m, a in names if m.endswith("gi.provenance")}
+
+
+def test_without_an_insight_stage_no_gi_kg_passes_run_and_no_bridge_is_written() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.gi_kg_passes(bridge_gi_payload=None, bridge_kg_payload={}) is None
+
+
+def test_the_built_in_gi_kg_passes_get_the_whole_context() -> None:
+    with (
+        patch(
+            "podcast_scraper.insight_stage.passes.run_gi_kg_passes", return_value=("gi", "kg")
+        ) as run,
+        use_extensions([]),
+    ):
+        assert stage_hooks.gi_kg_passes(cfg="cfg", kg_path=None) == ("gi", "kg")
+    run.assert_called_once_with(cfg="cfg", kg_path=None)
+
+
+def test_metadata_generation_imports_no_gi_or_identity_merge_code() -> None:
+    src = (Path(stage_hooks.__file__).parent / "workflow" / "metadata_generation.py").read_text(
+        encoding="utf-8"
+    )
+    modules = {(n.module or "") for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom)}
+    assert not {
+        m
+        for m in modules
+        if m in ("gi", "podcast_scraper.gi")
+        or m.startswith(("gi.", "podcast_scraper.gi."))
+        or m.endswith(("intra_episode_merge", "ner_postpass"))
+    }
