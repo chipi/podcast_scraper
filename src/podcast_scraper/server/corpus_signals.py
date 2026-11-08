@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
-from podcast_scraper.server.corpus_access import cached_json_artifact
 from podcast_scraper.identity.display import person_display, spell_enrichment_people
 from podcast_scraper.identity.ledger import served_id_map
+from podcast_scraper.server.corpus_access import cached_json_artifact
 
 #: Files in ``enrichments/`` that are run bookkeeping, not an enricher's envelope.
 _SUMMARY_FILES = {"run_summary.json"}

@@ -15,11 +15,11 @@ from podcast_scraper.graph_id_utils import (
     topic_node_id_from_slug,
 )
 from podcast_scraper.search.corpus_search import run_corpus_search
+from podcast_scraper.server import catalog_cache
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
 )
-from podcast_scraper.server import catalog_cache
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
     episode_list_summary_preview,
