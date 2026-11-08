@@ -573,6 +573,12 @@ def _create_speaker_detector(cfg: Any) -> Any:
     return factory.create_speaker_detector(cfg)
 
 
+def _validate_labeling_profile(profile_id: str) -> None:
+    from podcast_scraper.providers.ml.diarization.labeling_profile import get_profile
+
+    get_profile(profile_id)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -607,6 +613,7 @@ BUILTIN = PipelineHooks(
     default_speaker_names=_default_speaker_names,
     ner_model=_ner_model,
     create_speaker_detector=_create_speaker_detector,
+    validate_labeling_profile=_validate_labeling_profile,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

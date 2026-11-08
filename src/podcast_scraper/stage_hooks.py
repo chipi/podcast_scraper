@@ -165,6 +165,9 @@ NerModel = Callable[[Any], Any]
 #: ``(cfg) -> detector``: the speaker detector the run uses for hosts and guests. One owner;
 #: without one, None (no detector).
 CreateSpeakerDetector = Callable[[Any], Any]
+#: ``(profile_id) -> None``: raise ValueError when a labeling profile id is not registered. One
+#: owner; without one every id is accepted (no speaker stage reads it).
+ValidateLabelingProfile = Callable[[str], None]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -220,6 +223,7 @@ class PipelineHooks:
     default_speaker_names: Optional[DefaultSpeakerNames] = None
     ner_model: Optional[NerModel] = None
     create_speaker_detector: Optional[CreateSpeakerDetector] = None
+    validate_labeling_profile: Optional[ValidateLabelingProfile] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -585,6 +589,13 @@ def create_speaker_detector(cfg: Any) -> Any:
     return None
 
 
+def validate_labeling_profile(profile_id: str) -> None:
+    for hooks in _all():
+        if hooks.validate_labeling_profile is not None:
+            hooks.validate_labeling_profile(profile_id)
+            return
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -627,6 +638,7 @@ __all__ = [
     "SpeakerListsForGraph",
     "SpeakerRecord",
     "SpeakerReprocess",
+    "ValidateLabelingProfile",
     "SpeakersAfterAsr",
     "SplitPersonList",
     "StatedShowHosts",
@@ -667,6 +679,7 @@ __all__ = [
     "speaker_turns",
     "speakers_after_asr",
     "split_person_list",
+    "validate_labeling_profile",
     "stated_show_hosts",
     "write_variant_turns",
 ]

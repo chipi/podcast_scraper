@@ -734,3 +734,17 @@ def test_without_a_speaker_stage_deepgram_writes_no_screenplay() -> None:
     provider = DeepgramTranscriptionProvider.__new__(DeepgramTranscriptionProvider)
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         assert provider.format_screenplay_from_segments(segments, None, ["Maya"]) is None
+
+
+def test_a_labeling_profile_typo_still_fails_config_and_without_a_speaker_stage_any_id_passes() -> (
+    None
+):
+    from pydantic import ValidationError
+
+    from podcast_scraper import config
+
+    with use_extensions([]):
+        with pytest.raises(ValidationError, match="naming-3-legac"):
+            config.Config(labeling_profile="naming-3-legac")
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert config.Config(labeling_profile="naming-3-legac").labeling_profile == "naming-3-legac"
