@@ -47,6 +47,8 @@ IndexRowsHook = Callable[..., List[Tuple[str, str, Dict[str, Any]]]]
 #: ``(episode_root, metadata_path, doc) -> [path]``: a stage's artifacts the search index is built
 #: from, so a newer one makes the index stale.
 IndexSourcePathsHook = Callable[[Path, Path, Dict[str, Any]], List[Path]]
+#: ``(args, log) -> exit code``: the enrich-edges pass over a corpus (``args`` as the CLI parses).
+EnrichEdges = Callable[[Any, Any], int]
 #: ``(episode_root, metadata_path, doc) -> (quote_text_by_insight, quote_times_by_insight)``.
 InsightGrounding = Callable[
     [Path, Path, Dict[str, Any]],
@@ -211,6 +213,7 @@ class PipelineHooks:
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
     index_rows: Sequence[IndexRowsHook] = field(default_factory=tuple)
     insight_grounding: Optional[InsightGrounding] = None
+    enrich_edges: Optional[EnrichEdges] = None
     index_source_paths: Sequence[IndexSourcePathsHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
@@ -318,6 +321,15 @@ def index_source_paths(episode_root: Path, metadata_path: Path, doc: Dict[str, A
         for hook in hooks.index_source_paths:
             out.extend(hook(episode_root, metadata_path, doc))
     return out
+
+
+def enrich_edges(args: Any, log: Any) -> Optional[int]:
+    """The ``enrich_edges`` stage hook's exit code: the first owner that sets it answers;
+    without one, ``None`` (there is no ``gi.json`` to enrich)."""
+    for hooks in _all():
+        if hooks.enrich_edges is not None:
+            return hooks.enrich_edges(args, log)
+    return None
 
 
 def insight_grounding(
@@ -790,6 +802,7 @@ __all__ = [
     "adfree_base",
     "anon_transcript",
     "batch_finalized",
+    "enrich_edges",
     "index_rows",
     "index_source_paths",
     "insight_grounding",

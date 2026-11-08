@@ -13,8 +13,8 @@ from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
 from podcast_scraper.builders import context_digest_builder as digest
+from podcast_scraper.insight_stage.edges_cli import _speaker_infos
 from podcast_scraper.kg import speaker_coherence
-from podcast_scraper.search.cli_handlers import _speaker_infos
 from podcast_scraper.speaker_stage import record
 from podcast_scraper.upgrade.migrations import m0009_backfill_speaker_roles as m0009
 from podcast_scraper.workflow import metadata_generation as mg

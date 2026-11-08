@@ -759,6 +759,7 @@ def test_without_an_insight_stage_the_index_takes_no_gi_rows(tmp_path: Path) -> 
         assert rows == []
         assert stage_hooks.insight_grounding(tmp_path, meta, {}) == ({}, {})
         assert stage_hooks.index_source_paths(tmp_path, meta, {}) == []
+        assert stage_hooks.enrich_edges(object(), None) is None
 
 
 def test_index_rows_come_from_every_owner_built_in_first(tmp_path: Path) -> None:

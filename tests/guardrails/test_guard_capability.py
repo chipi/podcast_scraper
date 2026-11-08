@@ -741,7 +741,7 @@ class TestTheKgWriterIsTheKgWriter:
         """The capability: a changed KG payload actually reaches disk, not the failure counter."""
         import json
 
-        from podcast_scraper.search.cli_handlers import _persist_scoped_kg, _stable_json
+        from podcast_scraper.insight_stage.edges_cli import _persist_scoped_kg, _stable_json
 
         target = tmp_path / "x.kg.json"
         target.write_text(json.dumps(self._real_kg_payload()), encoding="utf-8")

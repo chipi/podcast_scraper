@@ -151,7 +151,7 @@ class TestEveryCallerPassesTheFeedTitle:
         # and this omission is invisible: the function returns a plausible answer either way.
         import inspect
 
-        from podcast_scraper.search import cli_handlers
+        from podcast_scraper.insight_stage import edges_cli as cli_handlers
 
         src = inspect.getsource(cli_handlers)
         idx = src.index("_speaker_lists_for_graph(")

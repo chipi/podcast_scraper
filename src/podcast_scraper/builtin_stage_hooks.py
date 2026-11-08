@@ -608,6 +608,12 @@ def _gi_index_source(episode_root: Path, metadata_path: Path, doc: Dict[str, Any
     return [_gi_path(episode_root, metadata_path, doc)]
 
 
+def _enrich_edges(args: Any, log: Any) -> int:
+    from podcast_scraper.insight_stage import edges_cli
+
+    return edges_cli.run_enrich_edges_cli(args, log)
+
+
 def _insight_grounding(
     episode_root: Path, metadata_path: Path, doc: Dict[str, Any]
 ) -> Tuple[Dict[str, str], Dict[str, Tuple[float, Optional[float]]]]:
@@ -629,6 +635,7 @@ BUILTIN = PipelineHooks(
     run_finalized=(_build_audio_references,),
     index_rows=(_gi_index_rows,),
     insight_grounding=_insight_grounding,
+    enrich_edges=_enrich_edges,
     index_source_paths=(_gi_index_source,),
     run_completed=(_cluster_corpus_topics,),
     kg_prompt_hints=_resolve_ner_prepass,

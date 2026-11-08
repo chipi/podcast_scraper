@@ -87,7 +87,7 @@ def run(root: Path, apply: bool, logger: logging.Logger) -> Dict[str, Any]:
     stats["by_type"] = by_type
     if apply and receipts:
         append_receipts(root, RECEIPTS_FILE, {"tag": TAG, "files": len(receipts)}, receipts)
-        from podcast_scraper.search.cli_handlers import _write_edges_stamp
+        from podcast_scraper.insight_stage.edges_cli import _write_edges_stamp
 
         _write_edges_stamp(
             root, {"gi_rewritten": stats["gi_files"], "kg_scoped": stats["kg_files"]}, logger

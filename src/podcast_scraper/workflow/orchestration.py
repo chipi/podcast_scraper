@@ -2246,8 +2246,6 @@ def _finalize_enrich_edges(
     """
     from argparse import Namespace
 
-    from podcast_scraper.search.cli_handlers import run_enrich_edges_cli
-
     args = Namespace(
         output_dir=output_dir,
         no_speaker=False,
@@ -2256,7 +2254,9 @@ def _finalize_enrich_edges(
         defer_corpus_writes=defer_corpus_writes,
     )
     try:
-        rc = run_enrich_edges_cli(args, logger)
+        rc = stage_hooks.enrich_edges(args, logger)
+        if rc is None:  # no insight stage: no gi.json to enrich (E04 S4)
+            return
         pipeline_metrics.edges_enriched = rc == 0
         if rc != 0:
             logger.error(

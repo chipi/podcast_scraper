@@ -3185,7 +3185,8 @@ def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
-    # Subcommands a stage owns (gi, gi-repair, identity-ledger): the stage parses them (E04 S7).
+    # Subcommands a stage owns (gi, gi-repair, identity-ledger, enrich-edges,
+    # cluster-corpus-topics): the stage parses them (E04 S7, S4).
     if argv and len(argv) > 0 and not argv[0].startswith("-"):
         from . import cli_hooks
 
@@ -3221,18 +3222,6 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
         tt_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_index_two_tier_argv(tt_argv)
-
-    if argv and len(argv) > 0 and argv[0] == "enrich-edges":
-        from .search.cli_handlers import parse_enrich_edges_argv
-
-        ee_argv = list(argv[1:]) if len(argv) > 1 else []
-        return parse_enrich_edges_argv(ee_argv)
-
-    if argv and len(argv) > 0 and argv[0] == "cluster-corpus-topics":
-        from .search.cli_handlers import parse_cluster_corpus_topics_argv
-
-        cct_argv = list(argv[1:]) if len(argv) > 1 else []
-        return parse_cluster_corpus_topics_argv(cct_argv)
 
     if argv and not argv[0].startswith("-"):
         from .extensions import cli_command
@@ -4480,16 +4469,6 @@ def _main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_index_two_tier_cli
 
         return run_index_two_tier_cli(args, log)
-
-    if hasattr(args, "command") and args.command == "enrich-edges":
-        from .search.cli_handlers import run_enrich_edges_cli
-
-        return run_enrich_edges_cli(args, log)
-
-    if hasattr(args, "command") and args.command == "cluster-corpus-topics":
-        from .search.cli_handlers import run_cluster_corpus_topics_cli
-
-        return run_cluster_corpus_topics_cli(args, log)
 
     if isinstance(getattr(args, "command", None), str):
         from .extensions import cli_command

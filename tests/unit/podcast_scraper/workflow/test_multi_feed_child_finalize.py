@@ -26,7 +26,7 @@ from unittest.mock import patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.search.cli_handlers import parse_enrich_edges_argv, run_enrich_edges_cli
+from podcast_scraper.insight_stage.edges_cli import parse_enrich_edges_argv, run_enrich_edges_cli
 from podcast_scraper.workflow import corpus_operations, metrics, orchestration
 from podcast_scraper.workflow.corpus_operations import (
     is_multi_feed_batch_child,

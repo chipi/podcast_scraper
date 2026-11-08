@@ -86,8 +86,8 @@ def test_finalize_enrich_edges_populates_gi_edges(tmp_path):
 
 
 def test_finalize_enrich_edges_surfaces_nonzero_rc(monkeypatch, tmp_path):
-    # _finalize_enrich_edges imports run_enrich_edges_cli from cli_handlers at call time.
-    from podcast_scraper.search import cli_handlers
+    # The built-in enrich-edges verb looks run_enrich_edges_cli up on edges_cli at call time.
+    from podcast_scraper.insight_stage import edges_cli as cli_handlers
 
     monkeypatch.setattr(cli_handlers, "run_enrich_edges_cli", lambda *a, **k: 2)
     metrics = SimpleNamespace()
@@ -96,7 +96,7 @@ def test_finalize_enrich_edges_surfaces_nonzero_rc(monkeypatch, tmp_path):
 
 
 def test_finalize_enrich_edges_surfaces_exception_without_raising(monkeypatch, tmp_path):
-    from podcast_scraper.search import cli_handlers
+    from podcast_scraper.insight_stage import edges_cli as cli_handlers
 
     def _boom(*_a, **_k):
         raise RuntimeError("edge derivation exploded")
@@ -115,7 +115,7 @@ def test_finalize_enrich_edges_calls_with_output_dir(monkeypatch, tmp_path):
         captured["no_speaker"] = args.no_speaker
         return 0
 
-    from podcast_scraper.search import cli_handlers
+    from podcast_scraper.insight_stage import edges_cli as cli_handlers
 
     monkeypatch.setattr(cli_handlers, "run_enrich_edges_cli", _rec)
     metrics = SimpleNamespace()
