@@ -45,6 +45,19 @@ AdfreeBase = Callable[..., Optional[Tuple[str, Any]]]
 #: transcript held in memory. One owner; without one the text is returned as it came, with
 #: :class:`NoAdExcision`.
 ExciseAds = Callable[..., Tuple[str, Optional[List[Dict[str, Any]]], Any]]
+#: ``(cfg, text, segments, rel_transcript_path, output_dir, *, adfree, episode)``. Writes each
+#: transcript variant's ``turns.json`` and the manifest's ``turns`` block (RFC-123 §3). Without an
+#: owner no turns are written.
+VariantTurns = Callable[..., None]
+#: ``(segments) -> (text, offset_segments)``: segments rendered as speaker lines, with each
+#: segment's char range in that text. One owner; without one there is no screenplay.
+Screenplay = Callable[[List[Dict[str, Any]]], Tuple[str, List[Dict[str, Any]]]]
+#: ``(offset_segments, *, screenplay_text, max_sentence_words) -> turns``: the turns of a
+#: screenplay. One owner.
+SpeakerTurns = Callable[..., Any]
+#: ``(text) -> names``: the people one extracted person name lists (``Kahneman and Tversky``).
+#: Called only for a name with a conjunction. One owner; without one it stays one name.
+SplitPersonList = Callable[[str], List[str]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -76,7 +89,11 @@ class PipelineHooks:
     kg_prompt_hints: Optional[KgPromptHints] = None
     adfree_base: Optional[AdfreeBase] = None
     excise_ads: Optional[ExciseAds] = None
+    variant_turns: Optional[VariantTurns] = None
+    screenplay: Optional[Screenplay] = None
+    speaker_turns: Optional[SpeakerTurns] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
+    split_person_list: Optional[SplitPersonList] = None
 
 
 def _all() -> Iterator[PipelineHooks]:
@@ -158,6 +175,51 @@ def excise_ads(
     return text, segments, NoAdExcision(source_length=len(text))
 
 
+def write_variant_turns(
+    cfg: Any,
+    text: str,
+    segments: List[Dict[str, Any]],
+    rel_transcript_path: str,
+    output_dir: str,
+    *,
+    adfree: Any = None,
+    episode: Any = None,
+) -> None:
+    for hooks in _all():
+        if hooks.variant_turns is not None:
+            hooks.variant_turns(
+                cfg, text, segments, rel_transcript_path, output_dir, adfree=adfree, episode=episode
+            )
+            return
+
+
+def screenplay(segments: List[Dict[str, Any]]) -> Optional[Tuple[str, List[Dict[str, Any]]]]:
+    for hooks in _all():
+        if hooks.screenplay is not None:
+            return hooks.screenplay(segments)
+    return None
+
+
+def speaker_turns(
+    offset_segments: List[Dict[str, Any]], *, screenplay_text: str, max_sentence_words: int
+) -> Any:
+    for hooks in _all():
+        if hooks.speaker_turns is not None:
+            return hooks.speaker_turns(
+                offset_segments,
+                screenplay_text=screenplay_text,
+                max_sentence_words=max_sentence_words,
+            )
+    raise RuntimeError("no speaker stage builds turns")
+
+
+def split_person_list(text: str) -> List[str]:
+    for hooks in _all():
+        if hooks.split_person_list is not None:
+            return hooks.split_person_list(text)
+    return [text]
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -176,6 +238,10 @@ __all__ = [
     "KgGraphPass",
     "KgPromptHints",
     "PipelineHooks",
+    "Screenplay",
+    "SpeakerTurns",
+    "SplitPersonList",
+    "VariantTurns",
     "RunCompletedHook",
     "RunFinalizedHook",
     "RunStartedHook",
@@ -188,4 +254,8 @@ __all__ = [
     "run_completed",
     "run_finalized",
     "run_started",
+    "screenplay",
+    "speaker_turns",
+    "split_person_list",
+    "write_variant_turns",
 ]

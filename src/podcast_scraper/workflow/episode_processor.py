@@ -1472,7 +1472,9 @@ def _produce_transcript_sidecars(
     if language is not None and language != "en":
         _invalidate_translation(rel_transcript_path, effective_output_dir, language)
 
-    _write_turns_artifacts(
+    from .. import stage_hooks
+
+    stage_hooks.write_variant_turns(
         cfg,
         text,
         segments,
@@ -1582,74 +1584,6 @@ def _invalidate_translation(
     logger.info(
         "    swapped the source back to %s; the stale translation was discarded",
         rel_transcript_path,
-    )
-
-
-def _write_turns_artifacts(
-    cfg: config.Config,
-    text: str,
-    segments: List[Dict[str, Any]],
-    rel_transcript_path: str,
-    effective_output_dir: str,
-    *,
-    adfree: Any = None,
-    episode: Any = None,
-) -> None:
-    """Write ``turns.json`` for each variant and record the manifest ``turns`` block (RFC-123 §3).
-
-    Best-effort as a whole: turns have no consumers in v1, so nothing here may cost an episode.
-    """
-    from . import processing_manifest as pm
-    from .transcript_resolution import adfree_transcript_relpath
-    from .turns_artifact import turns_manifest_metrics, write_turns_artifact
-
-    language = transcription_language(cfg)
-    turns_t0 = time.monotonic()
-    try:
-        raw_outcome = write_turns_artifact(
-            text, segments, rel_transcript_path, effective_output_dir, language=language
-        )
-        adfree_outcome = None
-        if adfree is not None:
-            adfree_rel = adfree_transcript_relpath(rel_transcript_path)
-            adfree_outcome = write_turns_artifact(
-                adfree.text,
-                adfree.segments,
-                adfree_rel,
-                effective_output_dir,
-                language=language,
-            )
-    except Exception:  # noqa: BLE001 - a sidecar with no readers must never lose an episode
-        logger.warning("turns: could not build turns for %s", rel_transcript_path, exc_info=True)
-        return
-
-    if raw_outcome.relpath:
-        logger.info(
-            "    saved turns artifact: %s (%d turns)", raw_outcome.relpath, raw_outcome.count
-        )
-    episode_id = None
-    if episode is not None:
-        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
-
-        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
-    from ..utils import correlation
-
-    pm.update_stage(
-        effective_output_dir,
-        rel_transcript_path,
-        "turns",
-        pm.stage_block(
-            ran=True,
-            method_version=pm.METHOD_VERSIONS["turns"],
-            duration_s=time.monotonic() - turns_t0,
-            # Measured and genuinely free: pure Python, milliseconds per episode. Not ``None``,
-            # which would mean nobody measured it.
-            cost_usd=0.0,
-            metrics=turns_manifest_metrics(raw_outcome, adfree_outcome),
-        ),
-        episode_id=episode_id,
-        feed_id=getattr(cfg, "rss_url", None),
-        run_id=correlation.get_run_id() or getattr(cfg, "run_id", None),
     )
 
 

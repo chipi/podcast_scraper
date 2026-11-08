@@ -17,6 +17,7 @@ from unittest import mock
 
 import pytest
 
+from podcast_scraper import builtin_stage_hooks
 from podcast_scraper.utils import correlation
 from podcast_scraper.workflow import episode_processor, processing_manifest as pm
 from podcast_scraper.workflow.metrics import Metrics
@@ -114,7 +115,7 @@ def test_turns_event_carries_duration(out_dir):
             return_value={"turns": 3},
         ),
     ):
-        episode_processor._write_turns_artifacts(
+        builtin_stage_hooks._write_turns_artifacts(
             _cfg(), "hello", [{"start": 0.0, "end": 1.0, "text": "hello"}], REL, out_dir
         )
     turns = _stage_events(emit)["turns"]

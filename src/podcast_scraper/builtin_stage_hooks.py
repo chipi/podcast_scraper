@@ -7,9 +7,12 @@ entry goes when its stage moves to an extension, which then contributes it inste
 from __future__ import annotations
 
 import logging
+import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .languages import transcription_language
 from .stage_hooks import PipelineHooks
 
 logger = logging.getLogger(__name__)
@@ -230,6 +233,114 @@ def _excise_ads(
     return excise_ad_regions(text, segments=segments)
 
 
+def _write_turns_artifacts(
+    cfg: Any,
+    text: str,
+    segments: List[Dict[str, Any]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    *,
+    adfree: Any = None,
+    episode: Any = None,
+) -> None:
+    """Write ``turns.json`` for each variant and record the manifest ``turns`` block (RFC-123 §3).
+
+    Best-effort as a whole: turns have no consumers in v1, so nothing here may cost an episode.
+    """
+    from podcast_scraper.workflow import processing_manifest as pm
+    from podcast_scraper.workflow.transcript_resolution import adfree_transcript_relpath
+    from podcast_scraper.workflow.turns_artifact import turns_manifest_metrics, write_turns_artifact
+
+    language = transcription_language(cfg)
+    turns_t0 = time.monotonic()
+    try:
+        raw_outcome = write_turns_artifact(
+            text, segments, rel_transcript_path, effective_output_dir, language=language
+        )
+        adfree_outcome = None
+        if adfree is not None:
+            adfree_rel = adfree_transcript_relpath(rel_transcript_path)
+            adfree_outcome = write_turns_artifact(
+                adfree.text,
+                adfree.segments,
+                adfree_rel,
+                effective_output_dir,
+                language=language,
+            )
+    except Exception:  # noqa: BLE001 - a sidecar with no readers must never lose an episode
+        logger.warning("turns: could not build turns for %s", rel_transcript_path, exc_info=True)
+        return
+
+    if raw_outcome.relpath:
+        logger.info(
+            "    saved turns artifact: %s (%d turns)", raw_outcome.relpath, raw_outcome.count
+        )
+    episode_id = None
+    if episode is not None:
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    from podcast_scraper.utils import correlation
+
+    pm.update_stage(
+        effective_output_dir,
+        rel_transcript_path,
+        "turns",
+        pm.stage_block(
+            ran=True,
+            method_version=pm.METHOD_VERSIONS["turns"],
+            duration_s=time.monotonic() - turns_t0,
+            # Measured and genuinely free: pure Python, milliseconds per episode. Not ``None``,
+            # which would mean nobody measured it.
+            cost_usd=0.0,
+            metrics=turns_manifest_metrics(raw_outcome, adfree_outcome),
+        ),
+        episode_id=episode_id,
+        feed_id=getattr(cfg, "rss_url", None),
+        run_id=correlation.get_run_id() or getattr(cfg, "run_id", None),
+    )
+
+
+def _screenplay(segments: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
+    from podcast_scraper.providers.ml.diarization.formatting import (
+        format_diarized_screenplay_with_offsets,
+    )
+
+    return format_diarized_screenplay_with_offsets(segments)
+
+
+def _speaker_turns(
+    offset_segments: List[Dict[str, Any]], *, screenplay_text: str, max_sentence_words: int
+) -> Any:
+    from podcast_scraper.providers.ml.diarization.turns import build_turns
+
+    return build_turns(
+        offset_segments, screenplay_text=screenplay_text, max_sentence_words=max_sentence_words
+    )
+
+
+#: A single token with a dot INSIDE it, e.g. ``Latent.Space``. Only applied to split fragments.
+_DOMAIN_TOKEN = re.compile(r"^[^\s.]+(?:\.[^\s.]+)+$")
+
+
+def _split_person_list(text: str) -> List[str]:
+    """A person name with a conjunction, split by the host-name splitter (#2197): a suffix stays
+    with its name, an organisation or domain-shaped fragment is dropped, repeats collapse, and
+    a name that does not split stays whole."""
+    from podcast_scraper.speaker_detectors.hosts import has_org_markers, split_author_names
+
+    parts: List[str] = []
+    for part in split_author_names(text):
+        if not any(ch.isalpha() for ch in part) or has_org_markers(part):
+            continue
+        if _DOMAIN_TOKEN.match(part) or part in parts:
+            continue
+        parts.append(part)
+    if len(split_author_names(text)) < 2:
+        return [text]
+    return parts
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -240,5 +351,9 @@ BUILTIN = PipelineHooks(
     kg_prompt_hints=_resolve_ner_prepass,
     adfree_base=_adfree_base,
     excise_ads=_excise_ads,
+    variant_turns=_write_turns_artifacts,
+    screenplay=_screenplay,
+    speaker_turns=_speaker_turns,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
+    split_person_list=_split_person_list,
 )

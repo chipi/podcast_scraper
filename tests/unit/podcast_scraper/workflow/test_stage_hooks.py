@@ -255,3 +255,46 @@ def test_ad_cleaning_callers_no_longer_import_the_ad_stage(module: str) -> None:
     tree = ast.parse((Path(stage_hooks.__file__).parent / module).read_text(encoding="utf-8"))
     imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
     assert not {m for m in imported if m.endswith(("adfree_transcript", "gi.ad_regions"))}
+
+
+def test_without_a_speaker_stage_there_are_no_turns_and_no_screenplay() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.screenplay([{"speaker": "A", "text": "hi"}]) is None
+        stage_hooks.write_variant_turns(None, "hi", [], "t.txt", "/out")
+        with pytest.raises(RuntimeError, match="no speaker stage"):
+            stage_hooks.speaker_turns([], screenplay_text="", max_sentence_words=0)
+
+
+def test_the_built_in_speaker_stage_renders_and_builds_turns_with_todays_code() -> None:
+    with (
+        patch(
+            "podcast_scraper.providers.ml.diarization.formatting."
+            "format_diarized_screenplay_with_offsets",
+            return_value=("A: hi", [{"char_start": 0}]),
+        ) as render,
+        patch(
+            "podcast_scraper.providers.ml.diarization.turns.build_turns", return_value="turns"
+        ) as build,
+        use_extensions([]),
+    ):
+        assert stage_hooks.screenplay([{"x": 1}]) == ("A: hi", [{"char_start": 0}])
+        got = stage_hooks.speaker_turns([{"y": 2}], screenplay_text="A: hi", max_sentence_words=7)
+    render.assert_called_once_with([{"x": 1}])
+    build.assert_called_once_with([{"y": 2}], screenplay_text="A: hi", max_sentence_words=7)
+    assert got == "turns"
+
+
+@pytest.mark.parametrize(
+    "module, moved",
+    [
+        ("workflow/episode_processor.py", ("turns_artifact", "diarization.turns")),
+        ("workflow/translation_stage.py", ("diarization.turns", "diarization.formatting")),
+        ("translation/artifacts.py", ("diarization.turns", "diarization.formatting")),
+    ],
+)
+def test_turn_and_screenplay_callers_no_longer_import_them(
+    module: str, moved: Tuple[str, ...]
+) -> None:
+    tree = ast.parse((Path(stage_hooks.__file__).parent / module).read_text(encoding="utf-8"))
+    imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert not {m for m in imported if m.endswith(moved)}
