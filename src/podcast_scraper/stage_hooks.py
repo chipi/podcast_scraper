@@ -83,6 +83,11 @@ PersonMatcher = Callable[[], SamePerson]
 #: again). One owner; without one :func:`speaker_reprocess` returns ``None`` and the caller
 #: records the refusal.
 SpeakerReprocess = Callable[..., Tuple[bool, Optional[str], int]]
+#: ``(result, media, cfg, job, output_dir, pipeline_metrics, episode_duration_seconds,
+#: transcription_provider) -> (result, diarization_s, naming_s, diarization_error)``: the speaker
+#: stage on a fresh ASR result. One owner; without one the result is kept as it came (no
+#: speakers) and nothing is timed.
+SpeakersAfterAsr = Callable[..., Tuple[Any, Optional[float], Optional[float], Optional[str]]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -123,6 +128,7 @@ class PipelineHooks:
     stated_show_hosts: Optional[StatedShowHosts] = None
     person_matcher: Optional[PersonMatcher] = None
     speaker_reprocess: Optional[SpeakerReprocess] = None
+    speakers_after_asr: Optional[SpeakersAfterAsr] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
 
@@ -345,6 +351,31 @@ def speaker_reprocess(
     return None
 
 
+def speakers_after_asr(
+    result: Any,
+    media_for_transcription: Any,
+    cfg: Any,
+    job: Any,
+    output_dir: str,
+    pipeline_metrics: Any,
+    episode_duration_seconds: Any,
+    transcription_provider: Any,
+) -> Tuple[Any, Optional[float], Optional[float], Optional[str]]:
+    for hooks in _all():
+        if hooks.speakers_after_asr is not None:
+            return hooks.speakers_after_asr(
+                result,
+                media_for_transcription,
+                cfg,
+                job,
+                output_dir,
+                pipeline_metrics,
+                episode_duration_seconds,
+                transcription_provider,
+            )
+    return result, None, None, None
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -371,6 +402,7 @@ __all__ = [
     "Screenplay",
     "SpeakerTurns",
     "SpeakerReprocess",
+    "SpeakersAfterAsr",
     "SplitPersonList",
     "StatedShowHosts",
     "VariantTurns",
@@ -394,6 +426,7 @@ __all__ = [
     "screenplay",
     "speaker_reprocess",
     "speaker_turns",
+    "speakers_after_asr",
     "split_person_list",
     "stated_show_hosts",
     "write_variant_turns",

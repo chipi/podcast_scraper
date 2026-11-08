@@ -433,6 +433,12 @@ def _speaker_reprocess(
     return run(job, cfg, run_suffix, output_dir, transcription_provider, pipeline_metrics)
 
 
+def _speakers_after_asr(*args: Any) -> Tuple[Any, Optional[float], Optional[float], Optional[str]]:
+    from podcast_scraper.speaker_stage import after_asr
+
+    return after_asr.speakers_after_asr(*args)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -452,6 +458,7 @@ BUILTIN = PipelineHooks(
     stated_show_hosts=_stated_show_hosts,
     person_matcher=_person_matcher,
     speaker_reprocess=_speaker_reprocess,
+    speakers_after_asr=_speakers_after_asr,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
 )

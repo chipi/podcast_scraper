@@ -417,3 +417,37 @@ def test_the_built_in_reprocess_runs_todays_stage_for_the_mode(mode: str, fn: st
         got = stage_hooks.speaker_reprocess(mode, "job", "cfg", "sfx", "/out", "prov", "m")
     run.assert_called_once_with("job", "cfg", "sfx", "/out", "prov", "m")
     assert got == (True, "r", 3)
+
+
+def test_without_a_speaker_stage_the_asr_result_is_kept_as_it_came() -> None:
+    result = {"segments": [{"start": 0.0, "end": 1.0, "text": "hi", "speaker": "SPEAKER_00"}]}
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        got = stage_hooks.speakers_after_asr(result, "a.wav", None, None, "/o", None, 60.0, None)
+    assert got == (result, None, None, None)
+    assert got[0] is result
+
+
+def test_the_built_in_speaker_stage_after_asr_gets_every_input() -> None:
+    args = ("result", "a.wav", "cfg", "job", "/o", "metrics", 60.0, "provider")
+    with (
+        patch(
+            "podcast_scraper.speaker_stage.after_asr.speakers_after_asr",
+            return_value=("r2", 1.0, 0.5, None),
+        ) as run,
+        use_extensions([]),
+    ):
+        assert stage_hooks.speakers_after_asr(*args) == ("r2", 1.0, 0.5, None)
+    run.assert_called_once_with(*args)
+
+
+def test_transcription_no_longer_imports_the_diarization_pipeline() -> None:
+    src = (Path(stage_hooks.__file__).parent / "workflow" / "episode_processor.py").read_text(
+        encoding="utf-8"
+    )
+    fn = next(
+        n
+        for n in ast.parse(src).body
+        if isinstance(n, ast.FunctionDef) and n.name == "transcribe_media_to_text"
+    )
+    imported = {(n.module or "") for n in ast.walk(fn) if isinstance(n, ast.ImportFrom)}
+    assert not {m for m in imported if "diarization" in m}

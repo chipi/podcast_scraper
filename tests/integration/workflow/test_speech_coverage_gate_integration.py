@@ -16,6 +16,7 @@ from podcast_scraper import config as podcast_config
 from podcast_scraper.models.entities import TranscriptionJob
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
 from podcast_scraper.providers.ml.diarization.pipeline import apply_diarization_to_result
+from podcast_scraper.speaker_stage import after_asr
 from podcast_scraper.workflow import episode_processor
 
 pytestmark = pytest.mark.integration
@@ -70,7 +71,7 @@ def test_music_heavy_episode_does_not_failover() -> None:
     result = _diarized(diar, trans)
     assert result["diarization_speech_seconds"] == 400.0
 
-    out = episode_processor._maybe_speech_coverage_failover(
+    out = after_asr._maybe_speech_coverage_failover(
         result, "/tmp/a.wav", _cfg(), _job(), "/out", None, 1200.0
     )
     assert "speech_coverage_failover" not in out  # ~0.975 speech coverage -> no re-transcription
@@ -101,7 +102,7 @@ def test_long_episode_speech_drop_failovers() -> None:
     with (
         patch(f"{_PIPELINE}.apply_diarization_to_result", return_value=fo_enriched),
         patch.object(
-            episode_processor,
+            after_asr,
             "_transcribe_with_segments_maybe_chunked",
             return_value=(dict(fo_enriched), 1.0),
         ),
@@ -110,7 +111,7 @@ def test_long_episode_speech_drop_failovers() -> None:
             return_value=MagicMock(),
         ),
     ):
-        out = episode_processor._maybe_speech_coverage_failover(
+        out = after_asr._maybe_speech_coverage_failover(
             result, "/tmp/a.wav", _cfg(), _job(), "/out", None, 1200.0
         )
     assert out["speech_coverage_failover"]["primary_speech_coverage"] == 0.4
@@ -156,7 +157,7 @@ def test_speech_gate_failover_routes_to_moss_provider() -> None:
     with (
         patch(f"{_PIPELINE}.apply_diarization_to_result", return_value=fo_enriched),
         patch.object(
-            episode_processor,
+            after_asr,
             "_transcribe_with_segments_maybe_chunked",
             return_value=(dict(fo_enriched), 1.0),
         ),
@@ -165,7 +166,7 @@ def test_speech_gate_failover_routes_to_moss_provider() -> None:
             side_effect=_capture,
         ),
     ):
-        episode_processor._maybe_speech_coverage_failover(
+        after_asr._maybe_speech_coverage_failover(
             result, "/tmp/a.wav", cfg, _job(), "/out", None, 1200.0
         )
     # Routed to the MOSS provider with the MOSS model — never to the whisper endpoint.
