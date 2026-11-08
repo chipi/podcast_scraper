@@ -634,7 +634,7 @@ def write_analysis_base(
     Called only after the English render exists, so it cannot produce an ad-free base for a
     translation that was withheld.
     """
-    from ..workflow.adfree_transcript import produce_adfree_artifacts
+    from .. import stage_hooks
 
     en_rel = english_text_relpath(rel_transcript_path)
     en_path = os.path.join(effective_output_dir, en_rel)
@@ -650,7 +650,7 @@ def write_analysis_base(
     if not isinstance(en_segments, list) or not en_segments:
         return None
 
-    produced = produce_adfree_artifacts(
+    produced = stage_hooks.adfree_base(
         en_text, en_segments, en_rel, effective_output_dir, extra_cue_patterns=extra_cue_patterns
     )
     if produced is None:

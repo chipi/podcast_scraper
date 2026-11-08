@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .stage_hooks import PipelineHooks
 
@@ -207,6 +207,29 @@ def _collapse_mentions_into_speakers(
     return _remap_nodes(nodes, edges, remap)
 
 
+def _adfree_base(
+    text: str,
+    segments: Optional[List[Dict[str, Any]]],
+    rel_transcript_path: str,
+    output_dir: str,
+    *,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> Optional[Tuple[str, Any]]:
+    from podcast_scraper.workflow.adfree_transcript import produce_adfree_artifacts
+
+    return produce_adfree_artifacts(
+        text, segments, rel_transcript_path, output_dir, extra_cue_patterns=extra_cue_patterns
+    )
+
+
+def _excise_ads(
+    text: str, *, segments: Optional[List[Dict[str, Any]]] = None
+) -> Tuple[str, Optional[List[Dict[str, Any]]], Any]:
+    from podcast_scraper.gi.ad_regions import excise_ad_regions
+
+    return excise_ad_regions(text, segments=segments)
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -215,5 +238,7 @@ BUILTIN = PipelineHooks(
     run_finalized=(_build_audio_references,),
     run_completed=(_cluster_corpus_topics,),
     kg_prompt_hints=_resolve_ner_prepass,
+    adfree_base=_adfree_base,
+    excise_ads=_excise_ads,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
 )

@@ -1435,9 +1435,9 @@ def _produce_transcript_sidecars(
     # `language is None or language == "en"` had drifted into three slightly different
     # conditions; this is the one that also treats a whitespace-only tag as unknown.
     if cfg.save_adfree_transcript and is_target_language(language):
-        from .adfree_transcript import produce_adfree_artifacts
+        from .. import stage_hooks
 
-        produced = produce_adfree_artifacts(
+        produced = stage_hooks.adfree_base(
             text,
             segments,
             rel_transcript_path,

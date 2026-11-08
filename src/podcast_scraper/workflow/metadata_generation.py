@@ -5253,9 +5253,9 @@ def generate_episode_metadata(  # noqa: C901
                 # Legacy fallback (no ad-free base on disk): excise in-memory like #663.
                 # Staged-mode GI re-reads the raw transcript (not the summarization-cleaned
                 # one); without this, sponsor pre-rolls leak into insights and quotes.
-                from ..gi.ad_regions import excise_ad_regions
+                from .. import stage_hooks
 
-                transcript_text, transcript_segments_arg, ad_meta = excise_ad_regions(
+                transcript_text, transcript_segments_arg, ad_meta = stage_hooks.excise_ads(
                     transcript_text, segments=transcript_segments_arg
                 )
                 if pipeline_metrics is not None and ad_meta.chars_removed:
@@ -5489,9 +5489,9 @@ def generate_episode_metadata(  # noqa: C901
             elif transcript_text_kg:
                 # Legacy: #663 excise pre-roll / post-roll ads so KG entity/topic
                 # extraction doesn't pick up sponsor names (Ramp, WorkOS) as content.
-                from ..gi.ad_regions import excise_ad_regions
+                from .. import stage_hooks
 
-                transcript_text_kg, _, _ = excise_ad_regions(transcript_text_kg)
+                transcript_text_kg, _, _ = stage_hooks.excise_ads(transcript_text_kg)
         publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
         # ADR-156 / #2164: summary bullets are NOT a topic source. This block used to hand the
         # episode's bullets to the KG as ``topic_labels`` — verbatim, with no shortening, unlike the

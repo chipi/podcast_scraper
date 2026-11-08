@@ -56,8 +56,7 @@ class PatternBasedCleaner:
             Cleaned transcript text
         """
         # Import here to avoid circular dependency
-        from .. import preprocessing
-        from ..gi.ad_regions import excise_ad_regions
+        from .. import preprocessing, stage_hooks
 
         cleaned: str = preprocessing.clean_for_summarization(  # type: ignore[attr-defined]
             text,
@@ -66,7 +65,7 @@ class PatternBasedCleaner:
             confidence_threshold=self._confidence_threshold,
             crosspromo_cue_patterns=crosspromo_cue_patterns,
         )
-        cleaned, _, meta = excise_ad_regions(cleaned)
+        cleaned, _, meta = stage_hooks.excise_ads(cleaned)
         if meta.chars_removed:
             logger.debug(
                 "PatternBasedCleaner: excised %d ad chars " "(preroll=%s, postroll=%s, hits=%d/%d)",

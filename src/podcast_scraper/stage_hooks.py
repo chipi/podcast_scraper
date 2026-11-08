@@ -37,10 +37,30 @@ RunCompletedHook = Callable[[Any, str], None]
 KgPromptHints = Callable[[str, Any, Any, int], Tuple[List[Dict[str, str]], str]]
 #: ``(nodes, edges) -> (nodes, edges)``. A pass over one episode's KG graph before the final
 #: dedup; each pass gets the previous one's output.
+#: ``(text, segments, rel_transcript_path, output_dir, *, extra_cue_patterns) ->
+#: (adfree_relpath, artifacts) | None``. Builds and saves the episode's ``<base>.adfree.*`` (D-44).
+#: One owner; without one no ad-free base is written.
+AdfreeBase = Callable[..., Optional[Tuple[str, Any]]]
+#: ``(text, *, segments) -> (text, segments, metadata)``: pre-roll and post-roll ads cut from a
+#: transcript held in memory. One owner; without one the text is returned as it came, with
+#: :class:`NoAdExcision`.
+ExciseAds = Callable[..., Tuple[str, Optional[List[Dict[str, Any]]], Any]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
 ]
+
+
+@dataclass(frozen=True)
+class NoAdExcision:
+    """What :func:`excise_ads` reports when no stage cuts ads: nothing was removed."""
+
+    source_length: int = 0
+    preroll_cut_end: Optional[int] = None
+    postroll_cut_start: Optional[int] = None
+    chars_removed: int = 0
+    preroll_pattern_hits: int = 0
+    postroll_pattern_hits: int = 0
 
 
 @dataclass(frozen=True)
@@ -54,6 +74,8 @@ class PipelineHooks:
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
+    adfree_base: Optional[AdfreeBase] = None
+    excise_ads: Optional[ExciseAds] = None
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
 
 
@@ -107,6 +129,35 @@ def kg_prompt_hints(
     return [], "v4"
 
 
+def adfree_base(
+    text: str,
+    segments: Optional[List[Dict[str, Any]]],
+    rel_transcript_path: str,
+    output_dir: str,
+    *,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> Optional[Tuple[str, Any]]:
+    for hooks in _all():
+        if hooks.adfree_base is not None:
+            return hooks.adfree_base(
+                text,
+                segments,
+                rel_transcript_path,
+                output_dir,
+                extra_cue_patterns=extra_cue_patterns,
+            )
+    return None
+
+
+def excise_ads(
+    text: str, *, segments: Optional[List[Dict[str, Any]]] = None
+) -> Tuple[str, Optional[List[Dict[str, Any]]], Any]:
+    for hooks in _all():
+        if hooks.excise_ads is not None:
+            return hooks.excise_ads(text, segments=segments)
+    return text, segments, NoAdExcision(source_length=len(text))
+
+
 def kg_graph_passes(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -117,6 +168,9 @@ def kg_graph_passes(
 
 
 __all__ = [
+    "AdfreeBase",
+    "ExciseAds",
+    "NoAdExcision",
     "BatchFinalizedHook",
     "CorpusDerivedHook",
     "KgGraphPass",
@@ -125,8 +179,10 @@ __all__ = [
     "RunCompletedHook",
     "RunFinalizedHook",
     "RunStartedHook",
+    "adfree_base",
     "batch_finalized",
     "corpus_derived",
+    "excise_ads",
     "kg_graph_passes",
     "kg_prompt_hints",
     "run_completed",

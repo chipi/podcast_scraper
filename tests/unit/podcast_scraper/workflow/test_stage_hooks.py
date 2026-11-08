@@ -211,3 +211,47 @@ def test_the_kg_pipeline_no_longer_imports_the_advanced_kg_passes() -> None:
         for s in ("ner_prepass", "speaker_coherence", "speaker_detection")
         if m.endswith(s)
     }
+
+
+def test_without_an_ad_stage_no_ad_free_base_is_written_and_nothing_is_cut() -> None:
+    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
+        assert stage_hooks.adfree_base("text", [], "t.txt", "/out") is None
+        segs = [{"text": "x"}]
+        text, out_segs, meta = stage_hooks.excise_ads("sponsored by x", segments=segs)
+    assert (text, out_segs) == ("sponsored by x", segs)
+    assert meta == stage_hooks.NoAdExcision(source_length=len("sponsored by x"))
+    assert meta.chars_removed == 0 and meta.preroll_cut_end is None
+
+
+def test_the_built_in_ad_stage_calls_todays_code() -> None:
+    with (
+        patch(
+            "podcast_scraper.workflow.adfree_transcript.produce_adfree_artifacts",
+            return_value=("t.adfree.txt", "artifacts"),
+        ) as produce,
+        patch(
+            "podcast_scraper.gi.ad_regions.excise_ad_regions", return_value=("cut", None, "meta")
+        ) as excise,
+        use_extensions([]),
+    ):
+        got = stage_hooks.adfree_base("text", [], "t.txt", "/out", extra_cue_patterns=["p"])
+        cut = stage_hooks.excise_ads("text", segments=None)
+    assert got == ("t.adfree.txt", "artifacts")
+    produce.assert_called_once_with("text", [], "t.txt", "/out", extra_cue_patterns=["p"])
+    assert cut == ("cut", None, "meta")
+    excise.assert_called_once_with("text", segments=None)
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        "workflow/episode_processor.py",
+        "translation/artifacts.py",
+        "cleaning/pattern_based.py",
+        "workflow/metadata_generation.py",
+    ],
+)
+def test_ad_cleaning_callers_no_longer_import_the_ad_stage(module: str) -> None:
+    tree = ast.parse((Path(stage_hooks.__file__).parent / module).read_text(encoding="utf-8"))
+    imported = {(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert not {m for m in imported if m.endswith(("adfree_transcript", "gi.ad_regions"))}
