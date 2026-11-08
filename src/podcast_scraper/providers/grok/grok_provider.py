@@ -59,7 +59,9 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
-from ._grok_provider_calls import _record_grok_llm_call  # re-exported
+from ._grok_provider_calls import (  # noqa: F401 - re-exported: moved there with S1
+    _record_grok_llm_call,
+)
 from .grok_provider_gi_naming import GrokProviderGiNamingMethods
 
 # Pricing for Grok models lives in ``config/pricing_assumptions.yaml`` (#651).

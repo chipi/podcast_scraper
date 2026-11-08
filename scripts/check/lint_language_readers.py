@@ -78,6 +78,9 @@ WHITELIST: Dict[str, str] = {
     # consulted when the caller passed nothing at all.
     "providers/openai/openai_provider.py": "fallback when the caller passes no language",
     "providers/gemini/gemini_provider.py": "fallback when the caller passes no language",
+    "providers/gemini/gemini_provider_gi_naming.py": (
+        "output language for the bundled extraction prompt, not the input"
+    ),
     "providers/mistral/mistral_provider.py": "fallback when the caller passes no language",
     "providers/mistral/mistral_provider_gi_naming.py": (
         "output language for the bundled extraction prompt, not the input"

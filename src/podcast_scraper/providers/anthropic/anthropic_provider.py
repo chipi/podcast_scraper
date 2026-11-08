@@ -56,8 +56,7 @@ from ..common.transcript_cache import anthropic_style_system as _anthropic_style
 
 logger = logging.getLogger(__name__)
 
-# Default speaker names when detection fails
-from ._anthropic_provider_calls import (  # re-exported
+from ._anthropic_provider_calls import (  # noqa: F401 - re-exported: moved there with S1
     _anthropic_finish_reason,
     _record_anthropic_llm_call,
 )
