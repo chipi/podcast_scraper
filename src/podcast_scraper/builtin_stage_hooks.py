@@ -579,12 +579,36 @@ def _validate_labeling_profile(profile_id: str) -> None:
     get_profile(profile_id)
 
 
+def _gi_index_rows(
+    episode_root: Path,
+    metadata_path: Path,
+    doc: Dict[str, Any],
+    *,
+    scope_tag: str,
+    episode_id: str,
+    raw_feed_id: Any,
+    published: Any,
+) -> List[Tuple[str, str, Dict[str, Any]]]:
+    from podcast_scraper.insight_stage.index_rows import gi_index_rows
+
+    return gi_index_rows(
+        episode_root,
+        metadata_path,
+        doc,
+        scope_tag=scope_tag,
+        episode_id=episode_id,
+        raw_feed_id=raw_feed_id,
+        published=published,
+    )
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
     corpus_derived=(_write_ad_signatures,),
     batch_finalized=(_measure_naming_coverage,),
     run_finalized=(_build_audio_references,),
+    index_rows=(_gi_index_rows,),
     run_completed=(_cluster_corpus_topics,),
     kg_prompt_hints=_resolve_ner_prepass,
     adfree_base=_adfree_base,

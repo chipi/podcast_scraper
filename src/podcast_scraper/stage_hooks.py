@@ -41,6 +41,9 @@ BatchFinalizedHook = Callable[[Path], None]
 #: ``(corpus_root, run_dir)``. End of a run, before local audio is evicted: the last moment the
 #: run's audio is on local disk. Must not raise.
 RunFinalizedHook = Callable[[str, str], None]
+#: ``(episode_root, metadata_path, doc, *, scope_tag, episode_id, raw_feed_id, published) ->
+#: [(doc_id, text, metadata)]``: search-index rows a stage adds for its own artifacts.
+IndexRowsHook = Callable[..., List[Tuple[str, str, Dict[str, Any]]]]
 #: ``(cfg, output_dir)``. After every episode of the run is finalized and on disk, before the
 #: run is marked done. Must not raise.
 RunCompletedHook = Callable[[Any, str], None]
@@ -198,6 +201,7 @@ class PipelineHooks:
     corpus_derived: Sequence[CorpusDerivedHook] = field(default_factory=tuple)
     batch_finalized: Sequence[BatchFinalizedHook] = field(default_factory=tuple)
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
+    index_rows: Sequence[IndexRowsHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
     adfree_base: Optional[AdfreeBase] = None
@@ -265,6 +269,35 @@ def batch_finalized(corpus_parent: Path) -> None:
     for hooks in _all():
         for hook in hooks.batch_finalized:
             hook(corpus_parent)
+
+
+def index_rows(
+    episode_root: Path,
+    metadata_path: Path,
+    doc: Dict[str, Any],
+    *,
+    scope_tag: str,
+    episode_id: str,
+    raw_feed_id: Any,
+    published: Any,
+) -> List[Tuple[str, str, Dict[str, Any]]]:
+    """Every ``index_rows`` stage hook's rows, the built-in ones first, then each extension's, in
+    load order; without a stage that adds rows, none (the index holds public's own)."""
+    rows: List[Tuple[str, str, Dict[str, Any]]] = []
+    for hooks in _all():
+        for hook in hooks.index_rows:
+            rows.extend(
+                hook(
+                    episode_root,
+                    metadata_path,
+                    doc,
+                    scope_tag=scope_tag,
+                    episode_id=episode_id,
+                    raw_feed_id=raw_feed_id,
+                    published=published,
+                )
+            )
+    return rows
 
 
 def run_finalized(corpus_root: str, run_dir: str) -> None:
@@ -726,6 +759,7 @@ __all__ = [
     "adfree_base",
     "anon_transcript",
     "batch_finalized",
+    "index_rows",
     "bundled_naming",
     "carry_speaker_identity",
     "corpus_derived",
