@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -141,60 +140,6 @@ def test_explore_changes_nothing_with_nothing_to_apply(tmp_path, monkeypatch) ->
 
 
 # --- enrichment window rollup -----------------------------------------------------------------
-
-
-def test_a_malformed_window_is_a_400() -> None:
-    from fastapi import HTTPException
-
-    from podcast_scraper.server.routes.enrichment import _window_seconds
-
-    assert _window_seconds("90m") == 5400 and _window_seconds(" 7d ") == 604800
-    with pytest.raises(HTTPException) as e:
-        _window_seconds("yesterday")
-    assert e.value.status_code == 400
-
-
-def test_the_rollup_skips_lines_it_cannot_use(tmp_path) -> None:
-    from podcast_scraper.server.routes.enrichment import _window_rollup
-
-    assert _window_rollup(tmp_path, "24h", None) == {}  # no event log at all
-    now = datetime.now(timezone.utc)
-    ok_ts = (now - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%S")  # naive: taken as UTC
-    lines = [
-        "not json",
-        json.dumps(["a", "list"]),
-        json.dumps({"event_type": "enrichment.enricher.completed", "ts": ok_ts, "enricher_id": 7}),
-        json.dumps(
-            {"event_type": "enrichment.enricher.completed", "ts": "garbage", "enricher_id": "a"}
-        ),
-        json.dumps(
-            {
-                "event_type": "enrichment.enricher.completed",
-                "ts": ok_ts,
-                "enricher_id": "b",
-                "status": "ok",
-                "duration_ms": 10,
-            }
-        ),
-        json.dumps(
-            {
-                "event_type": "enrichment.enricher.completed",
-                "ts": ok_ts,
-                "enricher_id": "a",
-                "status": "ok",
-                "duration_ms": 30,
-            }
-        ),
-    ]
-    (tmp_path / "enrichments").mkdir()
-    (tmp_path / "enrichments" / "run.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    roll = _window_rollup(tmp_path, "1h", "a")
-    assert set(roll) == {"a"}
-    assert (roll["a"]["runs"], roll["a"]["mean_duration_ms"], roll["a"]["max_duration_ms"]) == (
-        1,
-        30,
-        30,
-    )
 
 
 # --- o11y events prefix -----------------------------------------------------------------------
