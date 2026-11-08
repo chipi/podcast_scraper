@@ -61,7 +61,10 @@ print(json.dumps(sorted(m for m in sys.modules if m.startswith(prefixes))))
 
 @pytest.mark.parametrize("module", PUBLIC)
 def test_importing_it_loads_no_speaker_stage_module(module: str) -> None:
-    env = dict(os.environ, PYTHONPATH=str(SRC) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("COV_CORE_", "COVERAGE_"))}
+    # a child under pytest-cov leaves a .coverage.* file that CI's `coverage combine` takes for the
+    # whole unit coverage (PR #2444); the probe measures imports, not code
+    env["PYTHONPATH"] = str(SRC) + os.pathsep + os.environ.get("PYTHONPATH", "")
     out = subprocess.run(
         [sys.executable, "-c", _PROBE, module, *SPEAKER_STAGE],
         check=True,
