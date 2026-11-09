@@ -140,6 +140,34 @@ def test_exact_vectors_builds_no_ann_index(tmp_path, monkeypatch):
     assert res and res[0].doc_id == "s0"
 
 
+def test_a_failed_ann_build_is_logged_not_swallowed(tmp_path, monkeypatch, caplog):
+    """Above the floor a missing ANN index makes every vector query a full scan of the embedding
+    column; the build still succeeds, but the failure is said."""
+    monkeypatch.delenv("PODCAST_SEARCH_EXACT_VECTORS", raising=False)
+    b = _segments_above_ann_floor(tmp_path)
+    real_open = b._open_if_exists
+
+    class _NoAnn:
+        def __init__(self, table):
+            self._table = table
+
+        def __getattr__(self, name):
+            return getattr(self._table, name)
+
+        def create_index(self, *a, **k):
+            raise RuntimeError("ivf training failed")
+
+    def open_without_ann(tier):
+        table = real_open(tier)
+        return _NoAnn(table) if table is not None else None
+
+    monkeypatch.setattr(b, "_open_if_exists", open_without_ann)
+    with caplog.at_level("WARNING"):
+        b.create_indices()  # must not raise
+    lines = [r.getMessage() for r in caplog.records if "vector index NOT built" in r.getMessage()]
+    assert lines and "segment" in lines[0] and "ivf training failed" in lines[0]
+
+
 @pytest.mark.critical_path
 def test_create_indices_noop_when_no_tables(tmp_path):
     # A fresh backend has no tier tables on disk: every tier short-circuits on the

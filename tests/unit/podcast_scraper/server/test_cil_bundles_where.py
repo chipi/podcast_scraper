@@ -46,7 +46,53 @@ def test_yields_exactly_what_the_plain_walk_keeps(root: str) -> None:
     ]
     lazy = list(cil_queries.iter_cil_episode_bundles_where(root, root, keep))
     assert plain, "the topic matched no episode, so the comparison proves nothing"
-    assert json.dumps(lazy, sort_keys=True) == json.dumps(plain, sort_keys=True)
+    # The cached bridge is the slim one (test_the_slim_bridge_reads_as_the_whole_one); the paths,
+    # GI and KG are the plain walk's.
+    assert [p for p, _b, _g, _k in lazy] == [p for p, _b, _g, _k in plain]
+    assert json.dumps([(g, k) for _p, _b, g, k in lazy], sort_keys=True) == json.dumps(
+        [(g, k) for _p, _b, g, k in plain], sort_keys=True
+    )
+
+
+def test_the_slim_bridge_reads_as_the_whole_one(root: str) -> None:
+    """Every helper that reads a cached bridge gives the same answer on the slim copy as on the
+    bridge read from disk, for every bridge in the fixture. The fixture bridges carry no `sources`,
+    so the GI flag is exercised by the next test."""
+    helpers = (
+        cil_queries._compute_bridge_all_ids,
+        cil_queries._bridge_gi_ids,
+        cil_queries._bridge_gi_topic_ids,
+        cil_queries._episode_id_from_bridge,
+    )
+    whole = list(cil_queries.iter_cil_bridge_bundles(root, root))
+    assert whole, "the fixture has no bridges"
+    for path, bridge in whole:
+        slim = cil_queries._slim_bridge(bridge)
+        for helper in helpers:
+            assert helper(slim) == helper(bridge), (path, helper.__name__)
+
+
+def test_odd_identity_rows_read_the_same_slim() -> None:
+    bridge = {
+        "episode_id": "  ep-1 ",
+        "identities": [
+            {"id": " topic:padded ", "sources": {"gi": True}},
+            {"id": "topic:kg-only", "sources": {"gi": False, "kg": True}},
+            {"id": "person:no-sources"},
+            {"id": "person:odd-sources", "sources": ["gi"]},
+            {"id": "", "sources": {"gi": True}},
+            {"id": 7, "sources": {"gi": True}},
+            "not-a-row",
+        ],
+    }
+    slim = cil_queries._slim_bridge(bridge)
+    for helper in (
+        cil_queries._compute_bridge_all_ids,
+        cil_queries._bridge_gi_ids,
+        cil_queries._bridge_gi_topic_ids,
+        cil_queries._episode_id_from_bridge,
+    ):
+        assert helper(slim) == helper(bridge), helper.__name__
 
 
 def test_never_reads_gi_or_kg_for_a_rejected_episode(
@@ -72,8 +118,55 @@ def test_topic_perspectives_matches_the_full_walk(
     topic = _a_topic(root)
     lazy = cil_queries.topic_perspectives(root, root, topic)
 
-    def full_walk(r: str, a: str, keep):  # the pre-fix behaviour: parse everything, filter after
-        return (t for t in cil_queries.iter_cil_episode_bundles(r, a) if keep(t[1]))
+    def full_walk(r: str, a: str, ids: set[str]):  # parse everything, filter after
+        return (
+            t
+            for t in cil_queries.iter_cil_episode_bundles(r, a)
+            if ids & cil_queries._bridge_all_ids(t[1])
+        )
 
-    monkeypatch.setattr(cil_queries, "iter_cil_episode_bundles_where", full_walk)
+    monkeypatch.setattr(cil_queries, "iter_cil_episode_bundles_naming", full_walk)
     assert cil_queries.topic_perspectives(root, root, topic) == lazy
+
+
+def test_naming_yields_what_the_filter_yields_in_the_same_order(root: str) -> None:
+    """The indexed iterator against the filter it replaces (Mine rails, 2026-11-08): every id the
+    fixture's bridges name, alone and in unions, same tuples in the same order."""
+    ids = sorted(
+        {
+            x
+            for _p, b in cil_queries.iter_cil_bridge_bundles(root, root)
+            for x in cil_queries._bridge_all_ids(b)
+        }
+    )
+    cases = [{x} for x in ids] + [set(ids[i : i + 5]) for i in range(0, len(ids), 5)]
+    cases += [{"topic:no-such-topic"}, set()]
+    several = 0
+    for case in cases:
+
+        def keep(b: dict, c: set[str] = case) -> bool:
+            return bool(c & cil_queries._bridge_all_ids(b))
+
+        want = list(cil_queries.iter_cil_episode_bundles_where(root, root, keep))
+        got = list(cil_queries.iter_cil_episode_bundles_naming(root, root, case))
+        several += len(want) >= 2
+        assert [(p, id(b), g, k) for p, b, g, k in got] == [
+            (p, id(b), g, k) for p, b, g, k in want
+        ], sorted(case)
+    assert several, "no id is named by two bridges, so order is not compared"
+
+
+def test_naming_never_reads_gi_or_kg_for_an_unnamed_episode(
+    root: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    list(cil_queries.iter_cil_episode_bundles_naming(root, root, {"topic:warm"}))  # warm the index
+    reads: list[str] = []
+    real = cil_queries._read_json
+
+    def spy(path: str) -> dict | None:
+        reads.append(path)
+        return real(path)
+
+    monkeypatch.setattr(cil_queries, "_read_json", spy)
+    assert list(cil_queries.iter_cil_episode_bundles_naming(root, root, {"topic:no-such"})) == []
+    assert reads == []

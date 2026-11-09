@@ -9,13 +9,16 @@ instantiating the backend requires the dependency.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import logging
 import os
 import re
+import threading
+import time
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, Iterator, List, Optional, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +178,67 @@ EXACT_VECTORS_ENV = "PODCAST_SEARCH_EXACT_VECTORS"
 
 def _exact_vectors() -> bool:
     return os.environ.get(EXACT_VECTORS_ENV, "").strip().lower() in {"1", "true", "yes"}
+
+
+VECTOR_CONCURRENCY_ENV = "PODCAST_SEARCH_VECTOR_CONCURRENCY"
+#: Off by default: prod's tables are indexed (2026-11-08, 0 unindexed rows), and the cap only
+#: earns its queueing when a large table loses its index.
+_DEFAULT_VECTOR_CONCURRENCY = 0
+_vector_slots: Optional[threading.BoundedSemaphore] = None
+_vector_slots_size: Optional[int] = None
+_vector_slots_lock = threading.Lock()
+_VECTOR_WAIT: Dict[str, Any] = {}
+
+
+def _vector_concurrency() -> int:
+    raw = os.environ.get(VECTOR_CONCURRENCY_ENV, "").strip()
+    try:
+        return int(raw) if raw else _DEFAULT_VECTOR_CONCURRENCY
+    except ValueError:
+        return _DEFAULT_VECTOR_CONCURRENCY
+
+
+def _observe_vector_wait(seconds: float) -> None:
+    """``podcast_search_vector_wait_seconds``: what the cap costs a query. Never raises."""
+    try:
+        if "h" not in _VECTOR_WAIT:
+            from prometheus_client import Histogram
+
+            _VECTOR_WAIT["h"] = Histogram(
+                "podcast_search_vector_wait_seconds",
+                "Seconds a vector search waited for a slot (PODCAST_SEARCH_VECTOR_CONCURRENCY).",
+                buckets=(0.005, 0.025, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+            )
+        _VECTOR_WAIT["h"].observe(seconds)
+    except Exception:  # noqa: BLE001 - telemetry never breaks a search (ADR-120)
+        pass
+
+
+@contextlib.contextmanager
+def _vector_slot() -> "Iterator[None]":
+    """Hold one of the process's vector-search slots for the duration of a search.
+
+    A vector query over rows no ANN index covers scans their embeddings whole, and that scan's
+    memory grows with the rows: on a local 2.25 M-row x 384 table one query took +1.8 GB, four at
+    once +4.8 to +5.9 GB; with the IVF index, +62 to +127 MB (2026-11-08). A cap of N keeps the
+    worst case at N scans at once. ``0`` or less (the default): no cap.
+    """
+    global _vector_slots, _vector_slots_size
+    size = _vector_concurrency()
+    if size <= 0:
+        yield
+        return
+    with _vector_slots_lock:
+        if _vector_slots is None or _vector_slots_size != size:
+            _vector_slots, _vector_slots_size = threading.BoundedSemaphore(size), size
+        slots = _vector_slots
+    started = time.monotonic()
+    slots.acquire()
+    _observe_vector_wait(time.monotonic() - started)
+    try:
+        yield
+    finally:
+        slots.release()
 
 
 class LanceDBBackend:
@@ -369,8 +433,54 @@ class LanceDBBackend:
                 continue  # brute-force search below the ANN training floor, or when asked for
             try:
                 table.create_index(vector_column_name="embedding", replace=True)
-            except Exception:  # noqa: BLE001 - small tables use brute force; index optional
-                pass
+            except Exception as exc:  # noqa: BLE001 - the build must not fail on it, but say so
+                # Above the floor a missing ANN index is not harmless: every vector query then
+                # scans the whole embedding column, slower and with memory growing with the rows
+                # (+1.8 GB per query on a local 2.25 M-row table, 2026-11-08).
+                logger.warning(
+                    "LanceDB vector index NOT built for the %s table (%d rows): every vector "
+                    "query on it is a full scan until the next build succeeds: %s",
+                    tier,
+                    n_rows,
+                    exc,
+                )
+
+    def index_coverage(self) -> List[Dict[str, Any]]:
+        """Per table: its rows, and for each index kind (``vector``, ``fts``) whether it exists and
+        how many rows it does not cover yet. Read-only.
+
+        Rows a vector index does not cover are searched by a full scan of their embeddings, and a
+        dense table above the ANN floor with no vector index is scanned whole on every vector
+        query. Unreadable tables are left out.
+        """
+        out: List[Dict[str, Any]] = []
+        for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
+            table = self._open_if_exists(tier)
+            if table is None:
+                continue
+            try:
+                rows = int(table.count_rows())
+                found: Dict[str, Optional[int]] = {"vector": None, "fts": None}
+                for idx in table.list_indices():
+                    kind = "fts" if "fts" in str(idx.index_type).lower() else "vector"
+                    stats = table.index_stats(idx.name)
+                    found[kind] = int(getattr(stats, "num_unindexed_rows", 0) or 0)
+            except Exception as exc:  # noqa: BLE001 - coverage is advisory; skip the table
+                logger.debug("index coverage skipped for %s: %s", tier, exc)
+                continue
+            for kind, unindexed in found.items():
+                if kind == "vector" and tier in self.KEYWORD_ONLY_TIERS:
+                    continue  # no embedding column: a vector index is not expected
+                out.append(
+                    {
+                        "table": self.TABLES[tier],
+                        "index": kind,
+                        "rows": rows,
+                        "present": unindexed is not None,
+                        "unindexed_rows": rows if unindexed is None else unindexed,
+                    }
+                )
+        return out
 
     def compact(self) -> None:
         """Compact data fragments + prune old versions on every table.
@@ -546,8 +656,10 @@ class LanceDBBackend:
         return self._run(query, query_type="fts", score_key="_score")
 
     def search_vector(self, query: SearchQuery) -> List[ScoredResult]:
-        """Dense-vector results over the query's tier(s) (signal ``vector``)."""
-        return self._run(query, query_type="vector", score_key="_distance")
+        """Dense-vector results over the query's tier(s) (signal ``vector``), at most
+        ``PODCAST_SEARCH_VECTOR_CONCURRENCY`` at once in this process (:func:`_vector_slot`)."""
+        with _vector_slot():
+            return self._run(query, query_type="vector", score_key="_distance")
 
     # NOTE: there is deliberately no ``search_hybrid``. LanceDB's native in-engine hybrid combine
     # (``_normalize_scores`` -> native ``pyarrow.compute``) hard-SIGSEGVs the api under the digest
