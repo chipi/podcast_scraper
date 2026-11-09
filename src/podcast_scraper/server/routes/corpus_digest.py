@@ -113,10 +113,8 @@ def _topic_band_for_query(
 ) -> CorpusDigestTopicBand | None:
     """Run one semantic search; map hits to catalog rows inside the digest window.
 
-    No timeout. A 0.8 s one ran the search in an executor whose ``with`` exit waited for it anyway,
-    so it bounded nothing and dropped the band whenever the search took longer: on a prod-sized
-    index a band takes about 0.4-1 s warm and seconds cold, so digests lost topics at random, and
-    the cache kept the incomplete digest until the next reindex (2026-11-09).
+    Waits for the search: a band dropped for being slow would leave the digest missing a topic until
+    the next reindex, since the digest is cached against the index.
     """
     outcome = run_corpus_search(
         root,
