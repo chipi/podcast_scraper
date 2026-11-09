@@ -515,3 +515,66 @@ def test_collect_insights_semantic_topic_substring_filters_vector_hits(tmp_path:
     assert "xyzneedle789" in (insights[0].text or "").lower()
     assert len(gi_paths) == 1
     assert gi_paths[0].resolve() == gi_b.resolve()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("minimum", "kept"), [(0.5, True), (0.95, False)])
+def test_collect_insights_semantic_applies_the_minimum_confidence(
+    tmp_path: Path, minimum: float, kept: bool
+) -> None:
+    """The semantic path filters on confidence like the plain path."""
+    artifact = _minimal_gi_insight_only("ep_a", "needle text")
+    artifact["nodes"][0]["confidence"] = 0.9  # explore reads it on the node (gi/load.py)
+    gi = tmp_path / "metadata" / "ep_a.gi.json"
+    gi.parent.mkdir()
+    gi.write_text(json.dumps(artifact), encoding="utf-8")
+    loaded = [(gi.resolve(), read_artifact(gi, validate=False, strict=False))]
+    outcome = CorpusSearchOutcome(
+        results=[{"metadata": {"episode_id": "ep_a", "source_id": "insight-1"}, "score": 0.9}]
+    )
+    with patch("podcast_scraper.search.corpus_search.run_corpus_search", return_value=outcome):
+        insights, _ = _collect_insights_semantic(
+            tmp_path,
+            loaded,
+            topic="needle",
+            speaker=None,
+            grounded_only=False,
+            min_confidence=minimum,
+            limit=10,
+            index_dir=tmp_path / "search",
+            strict=False,
+        )
+    assert len(insights) == (1 if kept else 0)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("confidence", "minimum", "kept"),
+    [
+        (None, 0.0, True),  # a minimum of 0 sets no lower bound: unscored insights stay
+        (None, 0.5, False),  # nothing shows an unscored insight meets a positive minimum
+        (0.7, 0.5, True),
+        (0.3, 0.5, False),
+    ],
+)
+def test_min_confidence_zero_keeps_unscored_insights(
+    tmp_path, confidence: object, minimum: float, kept: bool
+) -> None:
+    artifact = build_artifact(
+        "ep:1",
+        "Text.",
+        prompt_version="v1",
+        insight_texts=["A real insight extracted from the transcript."],
+    )
+    for n in artifact["nodes"]:
+        if n.get("type") == "Insight":
+            if confidence is None:
+                n.pop("confidence", None)
+            else:
+                n["confidence"] = confidence
+    (tmp_path / "metadata").mkdir()
+    gi_path = tmp_path / "metadata" / "ep1.gi.json"
+    write_artifact(gi_path, artifact, validate=False)
+    loaded = load_artifacts([gi_path], validate=False)
+    insights, _ = collect_insights(loaded, min_confidence=minimum)
+    assert (len(insights) == 1) is kept

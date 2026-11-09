@@ -8,16 +8,29 @@ summary creates one handle, GI reuses it at ~93% cache, cleanup deletes it.
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from typing import Iterator
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from podcast_scraper import config as cfgmod
+from podcast_scraper.providers.gemini import gemini_provider
 from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 
 pytestmark = pytest.mark.unit
 
 TRANSCRIPT = ("HOST: welcome. GUEST: reliable durable software for small teams. " * 120).strip()
+
+
+@pytest.fixture(autouse=True)
+def _gemini_sdk_stand_in() -> Iterator[None]:
+    # CI's unit job has no LLM SDK ([llm] extra): the provider's SDK names are patched here so
+    # this module does not depend on another test module having stubbed the SDK first.
+    with (
+        patch.object(gemini_provider, "genai", MagicMock()),
+        patch.object(gemini_provider, "genai_types", MagicMock()),
+    ):
+        yield
 
 
 def _provider(*, enabled: bool) -> GeminiProvider:
@@ -65,6 +78,15 @@ def test_gemini_cache_on_uses_cached_content_and_removes_transcript() -> None:
     assert "system_instruction" not in config  # instructions folded into contents, not system
     # the transcript is in the cache, NOT in the request contents
     assert TRANSCRIPT not in str(kwargs["contents"])
+
+
+def test_gemini_without_the_sdk_types_uses_the_legacy_layout() -> None:
+    """No google.genai types, no cache config to build: the cache step falls back, never raises."""
+    p = _provider(enabled=True)
+    p.client = _mock_client()
+    with patch.object(gemini_provider, "genai_types", None):
+        assert p._gemini_cache_for(TRANSCRIPT, "gemini-2.5-flash") is None
+    p.client.caches.create.assert_not_called()
 
 
 def test_gemini_cache_off_is_legacy() -> None:

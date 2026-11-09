@@ -716,7 +716,10 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         type=float,
         default=None,
         metavar="0..1",
-        help="Minimum insight confidence (0.0-1.0)",
+        help=(
+            "Minimum insight confidence (0.0-1.0). Above 0, insights with no confidence are "
+            "left out; 0 keeps them"
+        ),
     )
     explore_parser.add_argument(
         "--sort",

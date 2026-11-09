@@ -716,12 +716,12 @@ class GeminiProvider(GeminiProviderGiNamingMethods):
         existing = self._gemini_cache_handles.get(key)
         if existing:
             return existing
+        if genai_types is None:
+            return None
         try:
-            from google.genai import types
-
             cache = self.client.caches.create(
                 model=model,
-                config=types.CreateCachedContentConfig(
+                config=genai_types.CreateCachedContentConfig(
                     contents=cast(Any, [canonical]), ttl=f"{self._gemini_cache_ttl_s}s"
                 ),
             )
