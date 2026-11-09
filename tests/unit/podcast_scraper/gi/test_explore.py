@@ -518,6 +518,36 @@ def test_collect_insights_semantic_topic_substring_filters_vector_hits(tmp_path:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(("minimum", "kept"), [(0.5, True), (0.95, False)])
+def test_collect_insights_semantic_applies_the_minimum_confidence(
+    tmp_path: Path, minimum: float, kept: bool
+) -> None:
+    """The semantic path filters on confidence like the plain path."""
+    artifact = _minimal_gi_insight_only("ep_a", "needle text")
+    artifact["nodes"][0]["confidence"] = 0.9  # explore reads it on the node (gi/load.py)
+    gi = tmp_path / "metadata" / "ep_a.gi.json"
+    gi.parent.mkdir()
+    gi.write_text(json.dumps(artifact), encoding="utf-8")
+    loaded = [(gi.resolve(), read_artifact(gi, validate=False, strict=False))]
+    outcome = CorpusSearchOutcome(
+        results=[{"metadata": {"episode_id": "ep_a", "source_id": "insight-1"}, "score": 0.9}]
+    )
+    with patch("podcast_scraper.search.corpus_search.run_corpus_search", return_value=outcome):
+        insights, _ = _collect_insights_semantic(
+            tmp_path,
+            loaded,
+            topic="needle",
+            speaker=None,
+            grounded_only=False,
+            min_confidence=minimum,
+            limit=10,
+            index_dir=tmp_path / "search",
+            strict=False,
+        )
+    assert len(insights) == (1 if kept else 0)
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("confidence", "minimum", "kept"),
     [

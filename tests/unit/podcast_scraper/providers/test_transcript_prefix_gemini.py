@@ -80,6 +80,15 @@ def test_gemini_cache_on_uses_cached_content_and_removes_transcript() -> None:
     assert TRANSCRIPT not in str(kwargs["contents"])
 
 
+def test_gemini_without_the_sdk_types_uses_the_legacy_layout() -> None:
+    """No google.genai types, no cache config to build: the cache step falls back, never raises."""
+    p = _provider(enabled=True)
+    p.client = _mock_client()
+    with patch.object(gemini_provider, "genai_types", None):
+        assert p._gemini_cache_for(TRANSCRIPT, "gemini-2.5-flash") is None
+    p.client.caches.create.assert_not_called()
+
+
 def test_gemini_cache_off_is_legacy() -> None:
     p = _provider(enabled=False)
     p.client = _mock_client()
