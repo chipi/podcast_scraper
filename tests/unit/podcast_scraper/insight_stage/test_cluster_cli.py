@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+from argparse import Namespace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -102,8 +103,7 @@ def test_insight_clusters_maps_failures_to_exit_codes(
 
 def test_insight_clusters_needs_an_output_dir() -> None:
     assert (
-        cluster_cli.run_insight_clusters_cli(SimpleNamespace(output_dir=None), LOG)
-        == EXIT_INVALID_ARGS
+        cluster_cli.run_insight_clusters_cli(Namespace(output_dir=None), LOG) == EXIT_INVALID_ARGS
     )
 
 
@@ -176,10 +176,10 @@ def test_explore_quotes_maps_search_errors(tmp_path: Path, error: str, code: int
 
 def test_explore_quotes_needs_a_query_and_a_corpus() -> None:
     assert (
-        cluster_cli.run_explore_quotes_cli(SimpleNamespace(query=" ", output_dir="x"), LOG)
+        cluster_cli.run_explore_quotes_cli(Namespace(query=" ", output_dir="x"), LOG)
         == EXIT_INVALID_ARGS
     )
     assert (
-        cluster_cli.run_explore_quotes_cli(SimpleNamespace(query="q", output_dir=None), LOG)
+        cluster_cli.run_explore_quotes_cli(Namespace(query="q", output_dir=None), LOG)
         == EXIT_INVALID_ARGS
     )
