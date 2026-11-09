@@ -553,11 +553,88 @@
             "speaker_name": {
               "type": "string",
               "description": "Friendly label for a non-person voice (\"Unidentified speaker\"). No Person node exists."
+            },
+            "translation": {
+              "$ref": "#/$defs/translation_provenance"
             }
           }
         }
       },
       "description": "A verbatim transcript span used as evidence for an Insight"
+    },
+    "translation_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "translated",
+        "source_language",
+        "unit_ids",
+        "en_sha256"
+      ],
+      "properties": {
+        "translated": {
+          "const": true
+        },
+        "source_language": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ISO language of the source text the English span was translated from"
+        },
+        "model": {
+          "description": "Translation model of the units the span covers; a list when they disagree",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Translation units the span covers"
+        },
+        "en_sha256": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Hash of the label-free English unit texts (D-40)"
+        },
+        "prompt_sha256": {
+          "description": "Hash of the translation prompt; a list when the covered units disagree",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "description": "Set on a quote whose text is a translation (RFC-124; translation.provenance.build_provenance_block): the source language, model, prompt and units that produced the English it quotes."
     },
     "edge": {
       "type": "object",

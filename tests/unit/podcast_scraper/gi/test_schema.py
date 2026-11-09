@@ -244,3 +244,33 @@ class TestGILSchema:
             ],
         }
         validate_artifact(data, strict=True)
+
+
+def _translated_episode() -> dict:
+    """A real translated episode: its quotes carry the ``translation`` provenance block."""
+    import json
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[3]
+        / "fixtures/app-validation-corpus/v3/feeds/p10/run_20260101-000000/metadata/p10_e01.gi.json"
+    )
+    data: dict = json.loads(path.read_text(encoding="utf-8"))
+    return data
+
+
+def test_a_translated_quote_validates_strictly() -> None:
+    """translation.provenance stamps a ``translation`` block on every translated quote; the schema
+    refused it, so ``gi validate --strict`` and ``gi explore --strict`` failed every translated
+    episode."""
+    data = _translated_episode()
+    assert any("translation" in (n.get("properties") or {}) for n in data["nodes"])
+    validate_artifact(data, strict=True)
+
+
+def test_the_translation_block_takes_no_unknown_key() -> None:
+    data = _translated_episode()
+    quote = next(n for n in data["nodes"] if "translation" in (n.get("properties") or {}))
+    quote["properties"]["translation"]["unexpected"] = 1
+    with pytest.raises(ValueError):
+        validate_artifact(data, strict=True)

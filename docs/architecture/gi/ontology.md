@@ -262,6 +262,9 @@ Optional:
 
 - `speaker_id` (string, nullable) - **`person:{slug}`** when diarization aligns (legacy
   **`speaker:{slug}`** until migration; see [Development Guide — GI quote `speaker_id`](../../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id))
+- `translation` (object) - Set when the quote's text is a translation (RFC-124): `translated`,
+  `source_language`, `model`, `unit_ids`, `en_sha256`, `prompt_sha256`, as
+  `translation.provenance.build_provenance_block` writes them
 
 ---
 
