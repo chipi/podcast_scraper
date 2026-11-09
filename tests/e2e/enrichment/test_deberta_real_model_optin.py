@@ -29,14 +29,32 @@ import pytest
 pytestmark = [pytest.mark.ml_models, pytest.mark.integration]
 
 
-def test_deberta_loads_and_scores_a_contradiction_pair() -> None:
-    """End-to-end: load model, score a known-contradiction pair, assert
-    contradiction probability > neutral + entailment.
+def _require_cached_model() -> None:
+    """Skip unless the [ml] extra is installed and the pinned model is in the HF cache.
+
+    Both are this opt-in test's preconditions: the suite runs offline, so a missing model cannot
+    be fetched, and the scorer then raises ModelLoadError, which is its correct offline behaviour.
     """
     pytest.importorskip(
         "sentence_transformers",
         reason="install [ml] extra (sentence-transformers) to run this test",
     )
+    from huggingface_hub import try_to_load_from_cache
+
+    from podcast_scraper.config_constants import get_pinned_revision_for_model
+    from podcast_scraper.enrichment.scorers.nli import DeBERTaNliScorer
+
+    model_id = DeBERTaNliScorer.model_id
+    revision = get_pinned_revision_for_model(model_id)
+    if not isinstance(try_to_load_from_cache(model_id, "config.json", revision=revision), str):
+        pytest.skip(f"{model_id}@{revision} is not in HF_HUB_CACHE; see the module docstring")
+
+
+def test_deberta_loads_and_scores_a_contradiction_pair() -> None:
+    """End-to-end: load model, score a known-contradiction pair, assert
+    contradiction probability > neutral + entailment.
+    """
+    _require_cached_model()
     from podcast_scraper.enrichment.scorers.nli import DeBERTaNliScorer
 
     scorer = DeBERTaNliScorer()
@@ -57,10 +75,7 @@ def test_deberta_loads_and_scores_a_contradiction_pair() -> None:
 
 def test_deberta_loads_and_scores_an_entailment_pair() -> None:
     """End-to-end: paraphrase pair should score entailment-dominant."""
-    pytest.importorskip(
-        "sentence_transformers",
-        reason="install [ml] extra (sentence-transformers) to run this test",
-    )
+    _require_cached_model()
     from podcast_scraper.enrichment.scorers.nli import DeBERTaNliScorer
 
     scorer = DeBERTaNliScorer()
@@ -79,10 +94,7 @@ def test_deberta_loads_and_scores_an_entailment_pair() -> None:
 def test_deberta_lazy_load_only_fires_on_first_call() -> None:
     """The lazy-load contract: instantiation must NOT load weights;
     only ``score()`` triggers the model load."""
-    pytest.importorskip(
-        "sentence_transformers",
-        reason="install [ml] extra (sentence-transformers) to run this test",
-    )
+    _require_cached_model()
     from podcast_scraper.enrichment.scorers.nli import DeBERTaNliScorer
 
     scorer = DeBERTaNliScorer()
