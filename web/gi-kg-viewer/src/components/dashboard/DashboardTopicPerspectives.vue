@@ -18,12 +18,12 @@ const loading = ref(false)
 const failed = ref(false)
 
 watch(
-  () => shell.corpusPath,
+  () => [shell.corpusPath, shell.cilQueriesApiAvailable] as const,
   () => {
     const root = shell.corpusPath.trim()
     topics.value = []
     failed.value = false
-    if (!root) return
+    if (!root || !shell.cilQueriesApiAvailable) return
     loading.value = true
     fetchTopicPerspectiveLeaders(root, 10)
       .then((r) => {
@@ -46,6 +46,7 @@ watch(
 
 <template>
   <section
+    v-if="shell.cilQueriesApiAvailable"
     data-testid="dashboard-topic-perspectives"
     class="rounded-lg border border-slate-700 bg-slate-800/40 p-3"
   >

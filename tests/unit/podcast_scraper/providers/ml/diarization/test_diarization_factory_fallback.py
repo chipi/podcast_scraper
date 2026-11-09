@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from podcast_scraper import Config
 from podcast_scraper.providers.ml.diarization import factory as diar_factory
-from podcast_scraper.providers.resilience.fallback import FallbackChainDiarizationProvider
+from podcast_scraper.providers.ml.diarization.fallback import FallbackChainDiarizationProvider
 
 
 def _dgx_cfg_with_ladder() -> Config:

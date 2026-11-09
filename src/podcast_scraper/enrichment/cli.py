@@ -431,9 +431,9 @@ async def run_cli(args: argparse.Namespace) -> int:
     if result.status not in ("ok", "skipped"):
         return 1
     if not getattr(args, "no_identity_ledger", False):
-        from podcast_scraper.identity.refresh_guard import refresh_ledger_after
+        from podcast_scraper import cli_hooks
 
-        if not refresh_ledger_after(corpus_root, after="enrichment", log=logger):
+        if not cli_hooks.ledger_refresh(corpus_root, after="enrichment", log=logger):
             print("enrichment: identity ledger refresh FAILED; the previous ledger stays")
             return 4
     return 0

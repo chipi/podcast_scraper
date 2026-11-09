@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server import cil_queries
+from podcast_scraper.insight_stage import cil_queries
 
 FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
 

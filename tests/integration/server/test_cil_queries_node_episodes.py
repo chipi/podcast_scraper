@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server.cil_queries import episodes_for_bridge_node_id
+from podcast_scraper.insight_stage.cil_queries import episodes_for_bridge_node_id
 
 # Moved from tests/unit/ — RFC-081 (not in this repository) PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.

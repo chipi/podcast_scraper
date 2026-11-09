@@ -16,7 +16,7 @@ import types
 import pytest
 
 from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
-from podcast_scraper.workflow import episode_processor as ep
+from podcast_scraper.speaker_stage import reprocess
 
 
 class _Captured(Exception):
@@ -55,18 +55,18 @@ def _setup(tmp_path, monkeypatch):
         captured.update(kwargs)
         raise _Captured()
 
-    monkeypatch.setattr(ep, "_preprocess_audio_if_needed", fake_preprocess)
-    monkeypatch.setattr(ep, "_existing_transcript_for", lambda *a, **k: txt)
-    monkeypatch.setattr(ep, "_feed_hosts_from_sibling_metadata", lambda *a, **k: [])
-    monkeypatch.setattr(ep, "_detection_report_of", lambda *a, **k: None)
-    monkeypatch.setattr(ep, "_operator_renames", lambda *a, **k: None)
+    monkeypatch.setattr(reprocess, "_preprocess_audio_if_needed", fake_preprocess)
+    monkeypatch.setattr(reprocess, "_existing_transcript_for", lambda *a, **k: txt)
+    monkeypatch.setattr(reprocess, "_feed_hosts_from_sibling_metadata", lambda *a, **k: [])
+    monkeypatch.setattr(reprocess, "_detection_report_of", lambda *a, **k: None)
+    monkeypatch.setattr(reprocess, "_operator_renames", lambda *a, **k: None)
     monkeypatch.setattr(diar_pipeline, "apply_diarization_to_result", fake_apply)
     return job, raw, pre, preprocess_calls, captured
 
 
 def _run(job, tmp_path):
     with pytest.raises(_Captured):
-        ep._rediarize_existing_transcript(
+        reprocess._rediarize_existing_transcript(
             job, types.SimpleNamespace(), None, str(tmp_path), None, None
         )
 

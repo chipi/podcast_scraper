@@ -5,7 +5,7 @@ average-linkage algorithm as topic clustering. Each cluster
 aggregates supporting quotes from multiple episodes/speakers.
 
 Usage:
-    from podcast_scraper.search.insight_clusters import build_insight_clusters_for_corpus
+    from podcast_scraper.insight_stage.insight_clusters import build_insight_clusters_for_corpus
     payload = build_insight_clusters_for_corpus(output_dir, threshold=0.75)
 """
 
@@ -18,12 +18,11 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from podcast_scraper.utils.corpus_walk import corpus_rglob
-
-from .cluster_math import (
+from podcast_scraper.search.cluster_math import (
     cluster_labels_by_threshold,
     pick_centroid_closest_label,
 )
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 logger = logging.getLogger(__name__)
 

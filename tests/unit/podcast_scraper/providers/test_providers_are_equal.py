@@ -89,12 +89,26 @@ def _is_thin_sibling(provider: str, src: str) -> bool:
     return False
 
 
+def _with_methods_module(path: Path) -> list:
+    """A provider module and, when present, the module its GI and naming methods moved to
+    (``<stem>_gi_naming.py``, E04 split line S1); the class inherits them from there."""
+    moved = path.with_name(f"{path.stem}_gi_naming.py")
+    return [moved, path] if moved.exists() else [path]
+
+
+def _merged(read, paths: list) -> dict:
+    out: dict = {}
+    for p in paths:  # later wins: the provider module's own definitions over its moved methods
+        out.update(read(p))
+    return out
+
+
 def _functions(provider: str) -> dict:
     path = SRC / provider / f"{provider}_provider.py"
-    own = _funcs_in(path)
+    own = _merged(_funcs_in, _with_methods_module(path))
     if _is_thin_sibling(provider, path.read_text()):
         # Own overrides win; the base fills in every inherited capability method.
-        return {**_funcs_in(_BASE_FILE), **own}
+        return {**_merged(_funcs_in, _with_methods_module(_BASE_FILE)), **own}
     return own
 
 
@@ -103,9 +117,9 @@ def _nodes(provider: str) -> dict:
 
     For a thin sibling the inherited methods come from the shared base file (ADR-147)."""
     path = SRC / provider / f"{provider}_provider.py"
-    own = _nodes_in(path)
+    own = _merged(_nodes_in, _with_methods_module(path))
     if _is_thin_sibling(provider, path.read_text()):
-        return {**_nodes_in(_BASE_FILE), **own}
+        return {**_merged(_nodes_in, _with_methods_module(_BASE_FILE)), **own}
     return own
 
 

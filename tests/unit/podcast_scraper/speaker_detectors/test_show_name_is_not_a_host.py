@@ -180,13 +180,13 @@ class TestTheProviderPath:
     """
 
     def test_a_provider_answer_that_names_the_show_is_dropped(self) -> None:
-        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+        from podcast_scraper.speaker_stage.detection import _sanitize_detected_hosts
 
         got = _sanitize_detected_hosts({"Africa Tech Summit"}, "Africa Tech Summit Podcast")
         assert got == set()
 
     def test_a_provider_answer_naming_a_real_person_survives(self) -> None:
-        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+        from podcast_scraper.speaker_stage.detection import _sanitize_detected_hosts
 
         got = _sanitize_detected_hosts({"Eric Olander"}, "The China-Global South Project")
         assert got == {"Eric Olander"}
@@ -194,13 +194,13 @@ class TestTheProviderPath:
     def test_without_a_title_the_old_behaviour_is_unchanged(self) -> None:
         # The title is optional so every existing caller keeps working; the guard simply cannot
         # fire without it, which is the honest outcome rather than a guess.
-        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+        from podcast_scraper.speaker_stage.detection import _sanitize_detected_hosts
 
         assert _sanitize_detected_hosts({"Africa Tech Summit"}) == {"Africa Tech Summit"}
 
     def test_the_composite_split_still_works(self) -> None:
         # The a16z case this function exists for must not regress.
-        from podcast_scraper.workflow.stages.processing import _sanitize_detected_hosts
+        from podcast_scraper.speaker_stage.detection import _sanitize_detected_hosts
 
         got = _sanitize_detected_hosts(
             {"Erik Torenberg, Ben Horowitz, Travis Kalanick"}, "The a16z Show"

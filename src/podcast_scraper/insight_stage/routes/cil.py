@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from podcast_scraper.server import cil_queries
+from podcast_scraper.insight_stage import cil_queries
 from podcast_scraper.server.pathutil import resolve_corpus_path_param, resolved_corpus_root_str
 from podcast_scraper.server.schemas import (
     CilArcEpisodeBlock,

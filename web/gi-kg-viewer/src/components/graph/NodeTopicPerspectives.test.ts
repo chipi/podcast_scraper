@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchTopicPerspectives } from '../../api/cilApi'
+import { useShellStore } from '../../stores/shell'
 import NodeTopicPerspectives from './NodeTopicPerspectives.vue'
 
 vi.mock('../../api/cilApi', () => ({
@@ -20,6 +22,10 @@ function mountFor(topicId: string) {
 }
 
 describe('NodeTopicPerspectives (#1146)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   it('renders each speaker with their grounded insights', async () => {
     fetchMock.mockResolvedValue({
       path: '/corpus',
@@ -97,5 +103,14 @@ describe('NodeTopicPerspectives (#1146)', () => {
     await flushPromises()
     expect(w.text()).toContain("Couldn't load perspectives")
     expect(w.findAll('[data-testid="node-topic-perspective"]')).toHaveLength(0)
+  })
+
+  it('neither fetches nor renders when the server has no CIL routes (KG-only corpus)', async () => {
+    useShellStore().cilQueriesApiAvailable = false
+    vi.mocked(fetchTopicPerspectives).mockClear()
+    const w = mount(NodeTopicPerspectives, { props: { corpusPath: '/c', topicId: 'topic:ai' } })
+    await flushPromises()
+    expect(fetchTopicPerspectives).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="node-topic-perspectives"]').exists()).toBe(false)
   })
 })

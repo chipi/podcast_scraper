@@ -69,6 +69,7 @@ async function load(): Promise<void> {
   rows.value = []
   error.value = null
   if (!root || !tid) return
+  if (!shell.cilQueriesApiAvailable) return
   loading.value = true
   try {
     const [arc, tl] = await Promise.all([

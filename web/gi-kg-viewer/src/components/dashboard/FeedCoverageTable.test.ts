@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { CoverageFeedItem } from '../../api/corpusCoverageApi'
+import { useShellStore } from '../../stores/shell'
 import FeedCoverageTable from './FeedCoverageTable.vue'
 
 const rows: CoverageFeedItem[] = [
@@ -11,6 +13,10 @@ const rows: CoverageFeedItem[] = [
 ]
 
 describe('FeedCoverageTable', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   it('shows the empty state when there are no feeds', () => {
     const w = mount(FeedCoverageTable, { props: { rows: [], feedsIndexed: [] } })
     expect(w.text()).toContain('No feeds in catalog.')
@@ -79,5 +85,16 @@ describe('FeedCoverageTable', () => {
       await c.trigger('click')
     }
     expect(w.emitted('select-feed')).toEqual(Array(5).fill(['f2']))
+  })
+
+  it('writes no GI-coverage insight on a KG-only corpus (no insight stage)', () => {
+    useShellStore().giArtifactsAvailable = false
+    const w = mount(FeedCoverageTable, {
+      props: {
+        rows: [{ feed_id: 'f', display_title: 'Feed', total: 4, with_gi: 0, with_kg: 4 }],
+        feedsIndexed: [],
+      },
+    })
+    expect(w.text()).not.toContain('lowest GI coverage')
   })
 })

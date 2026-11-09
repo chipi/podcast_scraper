@@ -533,7 +533,7 @@ def _translate_episode(
     resolver keys on file presence, not writing the render IS the gate — a partial render would
     be consumed as though it were whole by every stage and by the listener (D-36/D-38).
     """
-    from ..providers.ml.diarization.turns import build_turns
+    from .. import stage_hooks
     from ..translation.artifacts import (
         load_translation_json,
         translation_metrics,
@@ -580,14 +580,15 @@ def _translate_episode(
     # Turns are rebuilt rather than read from `turns.json`: the artifact stores no sentence text,
     # and rebuilding from the segments we just resolved guarantees the offsets index the body
     # we hold rather than a body written at some other time.
-    from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
-
-    rebuilt, offset_segments = format_diarized_screenplay_with_offsets(list(source_segments))
-    if rebuilt != source_text:
+    # Without a speaker stage there is no screenplay to translate turn by turn (operator,
+    # 2026-11-08: public alone does not translate).
+    rendered = stage_hooks.screenplay(list(source_segments))
+    if rendered is None or rendered[0] != source_text:
         outcome.status = STATUS_SKIPPED
         outcome.reason = "not_a_diarized_screenplay"
         return outcome
-    turns = build_turns(
+    rebuilt, offset_segments = rendered
+    turns = stage_hooks.speaker_turns(
         offset_segments,
         screenplay_text=rebuilt,
         max_sentence_words=int(getattr(cfg, "translation_max_sentence_words", 0) or 0),

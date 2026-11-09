@@ -41,7 +41,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from podcast_scraper.workflow.stages import processing
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow.types import HostDetectionResult
 
 pytestmark = [pytest.mark.unit]
@@ -113,7 +113,7 @@ def _run(exc: BaseException) -> Tuple[Optional[Any], List[Tuple[str, Optional[st
         cached_hosts=set(), heuristics=None, speaker_detector=_RaisingDetector(exc)
     )
     spy = _LedgerSpy()
-    result = processing._detect_speakers_for_episode(episode, cfg, hdr, spy)
+    result = detection._detect_speakers_for_episode(episode, cfg, hdr, spy)
     return result, spy.rows
 
 

@@ -43,7 +43,7 @@ class TestTheShowNameGuardNeedsATitle:
     def test_the_answer_changes_when_the_title_is_supplied(self) -> None:
         from types import SimpleNamespace
 
-        from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
+        from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 
         roster = [SimpleNamespace(name="Africa Tech Summit", role="host")]
         without, _ = _speaker_lists_for_graph(roster)
@@ -158,7 +158,7 @@ class TestTheseTestsWouldHaveCaughtTheRealDefects:
         from types import SimpleNamespace
 
         from podcast_scraper.speaker_detectors import hosts
-        from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
+        from podcast_scraper.speaker_stage.record import _speaker_lists_for_graph
 
         # Simulate the #2064 regression: the predicate exists but never fires.
         monkeypatch.setattr(hosts, "names_the_show", lambda *a, **k: False)
@@ -571,7 +571,7 @@ class TestThePlaceholderRuleIsOneDecisionNotTwo:
     PID = f"person:unresolved-host-{EP}"
 
     def test_the_episode_surface_names_it(self) -> None:
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         artifact = {"nodes": [{"id": self.PID, "type": "Person", "properties": {"name": "Host"}}]}
         assert _speaker_name(artifact, self.PID) == "Host", (
@@ -592,7 +592,7 @@ class TestThePlaceholderRuleIsOneDecisionNotTwo:
         from podcast_scraper.enrichment.enrichers._loaders import (
             is_unresolved_speaker_placeholder,
         )
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         artifact = {
             "nodes": [
@@ -741,7 +741,7 @@ class TestTheKgWriterIsTheKgWriter:
         """The capability: a changed KG payload actually reaches disk, not the failure counter."""
         import json
 
-        from podcast_scraper.search.cli_handlers import _persist_scoped_kg, _stable_json
+        from podcast_scraper.insight_stage.edges_cli import _persist_scoped_kg, _stable_json
 
         target = tmp_path / "x.kg.json"
         target.write_text(json.dumps(self._real_kg_payload()), encoding="utf-8")
@@ -778,7 +778,7 @@ class TestTheShowNeverREADSAsTheSpeaker:
             _resolve_quote_speaker,
             UNNAMED_SPEAKER_LABEL,
         )
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         pid, display, _vt = _resolve_quote_speaker(
             self._Q(),
@@ -800,7 +800,7 @@ class TestTheShowNeverREADSAsTheSpeaker:
 
     def test_a_real_person_still_reads_as_themselves(self) -> None:
         from podcast_scraper.gi.pipeline import _attach_person_for_quote, _resolve_quote_speaker
-        from podcast_scraper.server.gi_view import _speaker_name
+        from podcast_scraper.insight_stage.gi_view import _speaker_name
 
         pid, display, _vt = _resolve_quote_speaker(
             self._Q(), "Kevin Roose", "ep:hf-1", None, None, "Hard Fork"

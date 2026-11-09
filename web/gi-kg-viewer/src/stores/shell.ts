@@ -140,6 +140,14 @@ export const useShellStore = defineStore('shell', () => {
   const corpusMetricsApiAvailable = ref(true)
   /** True when /api/health reports CIL query routes. */
   const cilQueriesApiAvailable = ref(true)
+  /** True when /api/health reports GET /api/corpus/persons/top (dashboard top voices). */
+  const corpusPersonsApiAvailable = ref(true)
+  /**
+   * True when the server serves GI artifacts (``artifact_kinds`` includes ``gi``). Without the
+   * insight stage a corpus is KG-only, which is a normal state, not an error. Older servers omit
+   * ``artifact_kinds``: assume GI.
+   */
+  const giArtifactsAvailable = ref(true)
   /** True only when GET/PUT /api/feeds is advertised (strict). */
   const feedsApiAvailable = ref(false)
   /** True only when GET/PUT /api/operator-config is advertised (strict). */
@@ -217,6 +225,8 @@ export const useShellStore = defineStore('shell', () => {
         index_routes_api?: boolean
         corpus_metrics_api?: boolean
         cil_queries_api?: boolean
+        corpus_persons_api?: boolean
+        artifact_kinds?: string[] | null
         feeds_api?: boolean
         operator_config_api?: boolean
         jobs_api?: boolean
@@ -252,6 +262,10 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = healthAdvertisesRoute(body.index_routes_api)
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
+      corpusPersonsApiAvailable.value = healthAdvertisesRoute(body.corpus_persons_api)
+      giArtifactsAvailable.value = Array.isArray(body.artifact_kinds)
+        ? body.artifact_kinds.includes('gi')
+        : true
       feedsApiAvailable.value = body.feeds_api === true
       operatorConfigApiAvailable.value = body.operator_config_api === true
       jobsApiAvailable.value = body.jobs_api === true
@@ -273,6 +287,9 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = false
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
+      corpusPersonsApiAvailable.value = false
+      // Unknown is not KG-only: keep assuming GI, as before this flag existed.
+      giArtifactsAvailable.value = true
       feedsApiAvailable.value = false
       operatorConfigApiAvailable.value = false
       jobsApiAvailable.value = false
@@ -363,6 +380,8 @@ export const useShellStore = defineStore('shell', () => {
     indexRoutesApiAvailable,
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,
+    corpusPersonsApiAvailable,
+    giArtifactsAvailable,
     feedsApiAvailable,
     operatorConfigApiAvailable,
     jobsApiAvailable,

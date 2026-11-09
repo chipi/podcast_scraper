@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 
 import pytest
 
-from podcast_scraper.search.cli_handlers import (
+from podcast_scraper.kg.topic_clustering_cli import (
     parse_cluster_corpus_topics_argv,
     run_cluster_corpus_topics_cli,
 )

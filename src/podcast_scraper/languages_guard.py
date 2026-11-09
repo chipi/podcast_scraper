@@ -123,7 +123,7 @@ def transcript_language_contradiction(text: str, declared: Optional[str]) -> Opt
     wrong would put source-language text through every English stage, labelled English.
 
     The text is the only witness left, so this reads it with the function-word counts
-    :mod:`ad_signatures` already uses on the corpus. It fails on either signal:
+    :mod:`text_language` keeps. It fails on either signal:
 
     * the text confidently reads as ANOTHER language (``detect_language``), or
     * the declared language's own function words are under :data:`DECLARED_LANGUAGE_MIN_SHARE`
@@ -132,7 +132,7 @@ def transcript_language_contradiction(text: str, declared: Optional[str]) -> Opt
     It does not judge what it cannot: a declared language with no word list, or a transcript
     under :data:`TRANSCRIPT_LANGUAGE_MIN_WORDS`, passes.
     """
-    from .providers.ml.diarization.ad_signatures import detect_language, FUNCTION_WORDS, words
+    from .text_language import detect_language, FUNCTION_WORDS, words
 
     lang = primary_language(declared)
     if lang not in FUNCTION_WORDS:

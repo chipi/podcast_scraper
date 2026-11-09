@@ -8,7 +8,7 @@ from argparse import Namespace
 
 import pytest
 
-from podcast_scraper.search.cli_handlers import parse_enrich_edges_argv, run_enrich_edges_cli
+from podcast_scraper.insight_stage.edges_cli import parse_enrich_edges_argv, run_enrich_edges_cli
 
 pytestmark = pytest.mark.unit
 

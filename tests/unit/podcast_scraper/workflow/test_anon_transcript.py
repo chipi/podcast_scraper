@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 
 import pytest
 
-from podcast_scraper.workflow.episode_processor import _write_anon_transcript
+from podcast_scraper.speaker_stage.sidecars import _write_anon_transcript
 from podcast_scraper.workflow.transcript_resolution import (
     anon_transcript_relpath,
     text_relpath_candidates,

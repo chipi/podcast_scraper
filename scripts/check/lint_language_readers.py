@@ -77,8 +77,17 @@ WHITELIST: Dict[str, str] = {
     # Cloud transcription providers: `language` arrives resolved from the call site; cfg is only
     # consulted when the caller passed nothing at all.
     "providers/openai/openai_provider.py": "fallback when the caller passes no language",
+    "providers/openai/openai_provider_gi_naming.py": (
+        "output language for the bundled extraction prompts, not the input"
+    ),
     "providers/gemini/gemini_provider.py": "fallback when the caller passes no language",
+    "providers/gemini/gemini_provider_gi_naming.py": (
+        "output language for the bundled extraction prompt, not the input"
+    ),
     "providers/mistral/mistral_provider.py": "fallback when the caller passes no language",
+    "providers/mistral/mistral_provider_gi_naming.py": (
+        "output language for the bundled extraction prompt, not the input"
+    ),
     "providers/deepgram/deepgram_provider.py": "fallback when the caller passes no language",
     # A FIFTH legitimate kind, invisible until the getattr half of the pattern existed: the
     # bundled-prompt builders pass `language=` as the language the MODEL SHOULD ANSWER IN, which
@@ -88,8 +97,10 @@ WHITELIST: Dict[str, str] = {
     # are not the S0.6 defect — that was transcription being TOLD the wrong input language — but
     # they are reads, so they are named here rather than hidden by a pattern that cannot see
     # `getattr`.
-    "providers/grok/grok_provider.py": "output language for the bundled prompt, not the input",
-    "providers/anthropic/anthropic_provider.py": (
+    "providers/grok/grok_provider_gi_naming.py": (
+        "output language for the bundled prompt, not the input"
+    ),
+    "providers/anthropic/anthropic_provider_gi_naming.py": (
         "output language for the bundled prompt, not the input"
     ),
     # Local Whisper: same fallback shape, plus the init-time model-name resolution. S0.7 removes

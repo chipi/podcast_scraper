@@ -266,7 +266,7 @@ def test_enrich_edges_reports_misaligned_quotes_once_for_the_whole_pass(caplog):
     WARNING, not one per episode per run (#2276: the same 11 episodes re-warned in every job)."""
     import logging
 
-    from podcast_scraper.search.cli_handlers import _log_quote_alignment
+    from podcast_scraper.insight_stage.edges_cli import _log_quote_alignment
 
     log = logging.getLogger("enrich-edges-test")
     with caplog.at_level(logging.INFO, logger="enrich-edges-test"):

@@ -106,7 +106,7 @@ def test_an_existing_reference_is_kept_unless_forced(
 
 
 def test_an_ingest_run_writes_a_reference_from_the_audio_it_transcribed(tmp_path: Path) -> None:
-    """End of a pipeline run (``workflow.orchestration._build_audio_references``): an episode whose
+    """End of a pipeline run (the built-in ``run_finalized`` stage hook): an episode whose
     audio is still in the run's ``media/`` gets a reference; one without audio gets none."""
     root = tmp_path / "corpus"
     shutil.copytree(CORPUS / "feeds" / "p01", root / "feeds" / "p01")

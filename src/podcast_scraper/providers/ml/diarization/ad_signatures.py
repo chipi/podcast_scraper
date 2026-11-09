@@ -27,13 +27,18 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time
 import zlib
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set
+
+from ....text_language import (  # noqa: F401 - m0016 reads words here
+    detect_language,
+    FUNCTION_WORDS,
+    words,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,32 +56,6 @@ AD_LANGUAGE_MIN_RECUR_SHARE = 0.5
 #: Rebuild at most this often; the corpus grows by a few episodes per run.
 MAX_AGE_S = 6 * 3600
 
-_WORD = re.compile(r"[^\W\d_]+")
-
-# Function words per language, kept only where UNIQUE to that language: shared short words ("a",
-# "de", "no", "as") read English and German as Portuguese and taught the corpus a false ad language.
-_FUNCTION_WORDS_RAW: Dict[str, List[str]] = {
-    "en": "the and is that you this with was are have they what but not".split(),
-    "de": (
-        "der die das und ist nicht für mit sie auf dem ein eine wir sich auch noch ich du".split()
-    ),
-    "es": "el los las por para con del una pero muy está porque nosotros también y".split(),
-    "pt": "os não uma você também do da na isso muito ele com".split(),
-    "fr": "le les des et une pour avec pas qui est du au je nous vous ce".split(),
-    "it": "il che di della gli sono anche per è non".split(),
-    "nl": "het een van dat op te voor niet zijn ook ik je".split(),
-}
-_ALL_FUNCTION_WORDS = Counter(w for ws in _FUNCTION_WORDS_RAW.values() for w in ws)
-FUNCTION_WORDS: Dict[str, FrozenSet[str]] = {
-    lang: frozenset(w for w in ws if _ALL_FUNCTION_WORDS[w] == 1)
-    for lang, ws in _FUNCTION_WORDS_RAW.items()
-}
-
-
-def words(text: str) -> List[str]:
-    """Lowercased word tokens of ``text``."""
-    return _WORD.findall((text or "").lower())
-
 
 def shingles(ws: List[str]) -> Set[int]:
     """Stable 32-bit ids of every ``SHINGLE_WORDS``-word run (stable across processes)."""
@@ -84,18 +63,6 @@ def shingles(ws: List[str]) -> Set[int]:
         zlib.crc32(" ".join(ws[i : i + SHINGLE_WORDS]).encode("utf-8"))
         for i in range(len(ws) - SHINGLE_WORDS + 1)
     }
-
-
-def detect_language(ws: List[str]) -> Optional[str]:
-    """Best-guess language from function words, or ``None`` when the text does not say clearly."""
-    if len(ws) < VOICE_MIN_WORDS:
-        return None
-    scored = sorted(
-        ((sum(w in fw for w in ws) / len(ws), lang) for lang, fw in FUNCTION_WORDS.items()),
-        reverse=True,
-    )
-    (best, lang), (second, _) = scored[0], scored[1]
-    return lang if best >= 0.06 and best >= 2 * second else None
 
 
 def _judged(ws: List[str]) -> bool:

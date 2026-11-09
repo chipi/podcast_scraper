@@ -14,12 +14,12 @@ from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
 from podcast_scraper.identity.display import person_display, PersonDisplay
-from podcast_scraper.server.catalog_cache import cached_catalog_last_run
-from podcast_scraper.server.cil_queries import (
+from podcast_scraper.insight_stage.cil_queries import (
     _insight_ids_supported_by_quotes,
     _quote_ids_spoken_by_person,
     canonical_cil_entity_id,
 )
+from podcast_scraper.server.catalog_cache import cached_catalog_last_run
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
 from podcast_scraper.server.schemas import CorpusTopPersonsResponse, TopPersonItem

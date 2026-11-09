@@ -6,6 +6,7 @@ import type { IndexStatsEnvelope } from '../../api/indexStatsApi'
 import { formatDashboardRunDurationSeconds } from '../../utils/formatDuration'
 import { formatRelativeRunAge } from '../../utils/dashboardTime'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
+import { useShellStore } from '../../stores/shell'
 
 const props = defineProps<{
   runs: CorpusRunSummaryItem[]
@@ -166,7 +167,19 @@ const actionItems = computed(() => {
   const noGi = props.coverage?.with_neither ?? 0
   const wg = props.coverage?.with_gi ?? 0
   const t = props.coverage?.total_episodes ?? 0
-  if (t > 0 && giRate.value != null && giRate.value < GI_WARN) {
+  if (!useShellStore().giArtifactsAvailable) {
+    // KG-only corpus: no GI is expected, so only an episode with neither artifact is news.
+    if (noGi > 0 && out.length === 0) {
+      out.push({
+        text: `${noGi} episode${noGi === 1 ? '' : 's'} have no KG artifacts`,
+        primary: 'View in Library',
+        onPrimary: () => {
+          dashNav.setHandoff({ kind: 'library' })
+          emit('open-library')
+        },
+      })
+    }
+  } else if (t > 0 && giRate.value != null && giRate.value < GI_WARN) {
     const n = t - wg
     out.push({
       text: `${n} episode${n === 1 ? '' : 's'} have no GI artifacts`,

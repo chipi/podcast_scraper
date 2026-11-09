@@ -3936,7 +3936,7 @@ class Config(BaseModel):
         alias="insight_cluster_threshold",
         description=(
             "Minimum mean cosine similarity for merging insight clusters in "
-            "``search/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
+            "``insight_stage/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
             "default; conceptually independent and may be tuned separately when "
             "insight-side autoresearch motivates it."
         ),
@@ -5424,14 +5424,15 @@ class Config(BaseModel):
     @classmethod
     def _validate_labeling_profile(cls, value: str) -> str:
         """ADR-140: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
-        HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). Lazy
-        import — config is imported by the diarization package, so a top-level import would cycle.
+        HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). The
+        profiles are the speaker stage's, so it is the one that checks (E04 S6). Lazy import —
+        config is imported by the diarization package, so a top-level import would cycle.
         """
         if not value:
             return value
-        from podcast_scraper.providers.ml.diarization.labeling_profile import get_profile
+        from podcast_scraper import stage_hooks
 
-        get_profile(value)  # raises ValueError on an unregistered id -> pydantic ValidationError
+        stage_hooks.validate_labeling_profile(value)  # raises ValueError on an unregistered id
         return value
 
     @field_validator("rss_urls", mode="before")

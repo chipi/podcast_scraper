@@ -39,7 +39,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..languages import primary_language
-from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
 from .units import pack_stats, TranslationUnit
 
 logger = logging.getLogger(__name__)
@@ -441,7 +440,13 @@ def render_target_text(
     # No tie-breaking nudge. `sorted()` is stable, so cues with equal start times already keep
     # document order — an earlier version added `i * 1e-6` to every start "to be safe", which
     # persisted into the artifact and gave a zero-duration sentence `start > end`.
-    return format_diarized_screenplay_with_offsets(pseudo)
+    from .. import stage_hooks
+
+    rendered = stage_hooks.screenplay(pseudo)
+    if rendered is None:
+        # Translation only runs on a screenplay, which only a speaker stage renders.
+        raise RuntimeError("translation: no speaker stage to render the English screenplay")
+    return rendered
 
 
 def write_translated_artifacts(
@@ -634,7 +639,7 @@ def write_analysis_base(
     Called only after the English render exists, so it cannot produce an ad-free base for a
     translation that was withheld.
     """
-    from ..workflow.adfree_transcript import produce_adfree_artifacts
+    from .. import stage_hooks
 
     en_rel = english_text_relpath(rel_transcript_path)
     en_path = os.path.join(effective_output_dir, en_rel)
@@ -650,7 +655,7 @@ def write_analysis_base(
     if not isinstance(en_segments, list) or not en_segments:
         return None
 
-    produced = produce_adfree_artifacts(
+    produced = stage_hooks.adfree_base(
         en_text, en_segments, en_rel, effective_output_dir, extra_cue_patterns=extra_cue_patterns
     )
     if produced is None:

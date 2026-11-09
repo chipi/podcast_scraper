@@ -29,7 +29,7 @@ from podcast_scraper.providers.ml.diarization.cache import (
     save_diarization_cache,
 )
 from podcast_scraper.providers.ml.diarization.pipeline import voice_embeddings_block
-from podcast_scraper.workflow.episode_processor import _embeddings_carried_over
+from podcast_scraper.speaker_stage.reprocess import _embeddings_carried_over
 
 pytestmark = pytest.mark.unit
 

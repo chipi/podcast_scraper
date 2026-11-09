@@ -5,7 +5,7 @@ expands each insight with cross-episode cluster context — additional quotes
 from other episodes that support the same claim.
 
 Usage:
-    from podcast_scraper.search.insight_cluster_context import (
+    from podcast_scraper.insight_stage.insight_cluster_context import (
         expand_with_cluster_context,
     )
     expanded = expand_with_cluster_context(insights, clusters_path)

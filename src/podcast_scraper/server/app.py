@@ -17,7 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from podcast_scraper import __version__
+from podcast_scraper import __version__, read_hooks
 from podcast_scraper.extensions import load_extensions, run_app_configured, run_server_started
 from podcast_scraper.server import app_access_store, app_roles
 from podcast_scraper.server.app_access import policy_from_env
@@ -34,7 +34,6 @@ from podcast_scraper.server.routes import (
     app_profile,
     app_user_preferences,
     artifacts,
-    cil,
     corpus_binary,
     corpus_coverage,
     corpus_digest,
@@ -42,12 +41,10 @@ from podcast_scraper.server.routes import (
     corpus_library,
     corpus_media,
     corpus_metrics,
-    corpus_persons,
     corpus_rollback,
     corpus_text_file,
     enrichment as enrichment_route,
     enrichment_config as enrichment_config_route,
-    explore,
     feed_overrides,
     feeds,
     health,
@@ -191,17 +188,14 @@ _OPERATOR_READ_ROUTES = (
     search,
     relational,
     query_activity,
-    explore,
     corpus_library,
     corpus_binary,
     corpus_media,
     corpus_text_file,
     corpus_metrics,
     corpus_coverage,
-    corpus_persons,
     corpus_digest,
     corpus_enrichments,
-    cil,
     ops,
     llm_gateway,
     # Destructive operator rollback (DELETE runs/episodes) — tailnet operator plane only, gated by
@@ -226,17 +220,14 @@ _OPERATOR_PUBLIC_READ_ROUTES = (
     search,
     relational,
     query_activity,
-    explore,
     corpus_library,
     corpus_binary,
     corpus_media,
     corpus_text_file,
     corpus_metrics,
     corpus_coverage,
-    corpus_persons,
     corpus_digest,
     corpus_enrichments,
-    cil,
 )
 # Consumer Learning Platform API: slug-addressed routes under their own
 # ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted. These are the platform's own:
@@ -285,22 +276,31 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
 
 
 def _mount_extension_routers(app: FastAPI, *, app_only: bool, operator_public: bool) -> None:
-    """Routers from installed extensions (ADR-168), under the same serve postures as the core.
+    """Stage routers (the in-tree ones first, ``read_hooks.builtin_routers``), then those of
+    installed extensions (ADR-168), under the same serve postures as the core.
 
     Operator-plane routers follow ``_OPERATOR_READ_ROUTES``: none on the player, the gated curated
     set on the public operator surface (only those marked ``operator_public``), all of them on the
     tailnet operator serve.
     """
-    for ext in load_extensions():
-        for mount in ext.routers():
-            if mount.plane != "operator":
-                app.include_router(mount.router, prefix=mount.prefix)
-            elif operator_public:
-                if mount.operator_public:
-                    gate = [Depends(app_auth.require_viewer_access)]
-                    app.include_router(mount.router, prefix=mount.prefix, dependencies=gate)
-            elif not app_only:
-                app.include_router(mount.router, prefix=mount.prefix)
+    mounts = [*read_hooks.builtin_routers()]
+    mounts += [mount for ext in load_extensions() for mount in ext.routers()]
+    advertised: set[str] = set()
+    for mount in mounts:
+        if mount.plane != "operator":
+            app.include_router(mount.router, prefix=mount.prefix)
+        elif operator_public:
+            if not mount.operator_public:
+                continue
+            gate = [Depends(app_auth.require_viewer_access)]
+            app.include_router(mount.router, prefix=mount.prefix, dependencies=gate)
+        elif not app_only:
+            app.include_router(mount.router, prefix=mount.prefix)
+        else:
+            continue
+        advertised.update(mount.advertises)
+    # /api/health reports a stage router's flags from this set (true only when mounted here).
+    app.state.stage_routes_advertised = frozenset(advertised)
 
 
 # Shared with the MCP server (podcast_scraper.utils.access_log); the old name stays for callers.

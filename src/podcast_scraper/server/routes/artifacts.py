@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import cast, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
-from podcast_scraper.search.corpus_scope import member_episode_artifacts
+from podcast_scraper.search.corpus_scope import episode_artifact_kinds, member_episode_artifacts
 from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_artifact_listing
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
@@ -51,13 +51,15 @@ def _mtime_utc_iso(st_mtime: float) -> str:
 
 
 def _kind_for_suffix(name: str) -> Literal["gi", "kg", "bridge"] | None:
-    if name.endswith(".gi.json"):
-        return "gi"
-    if name.endswith(".kg.json"):
-        return "kg"
-    if name.endswith(".bridge.json"):
-        return "bridge"
+    """The artifact kind of *name*, among the kinds public and the installed stages write."""
+    for kind, suffix in episode_artifact_kinds():
+        if name.endswith(suffix):
+            return cast(Literal["gi", "kg", "bridge"], kind)
     return None
+
+
+def _suffixes() -> tuple[str, ...]:
+    return tuple(suffix for _kind, suffix in episode_artifact_kinds())
 
 
 @router.get("/artifacts", response_model=ArtifactListResponse)
@@ -65,7 +67,8 @@ def list_artifacts(
     request: Request,
     path: str = Query(..., description="Corpus output directory to scan."),
 ) -> ArtifactListResponse:
-    """List ``*.gi.json``, ``*.kg.json``, and ``*.bridge.json`` under the directory (recursive)."""
+    """List the per-episode artifacts under the directory (recursive): ``*.kg.json``, and each
+    installed stage's kinds (``*.gi.json`` and ``*.bridge.json`` from the insight stage)."""
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
     # Concurrent callers for one corpus share ONE listing (single_flight.py: retries piled up), and
@@ -84,10 +87,10 @@ def list_artifacts(
 
 
 def _list_artifacts(base: Path) -> ArtifactListResponse:
-    # One walk for all three kinds, then the membership filter BEFORE any per-file work, so a
+    # One walk for every kind, then the membership filter BEFORE any per-file work, so a
     # superseded copy never costs a publish date (2026-10-15: a date for each of 9,531 files).
     found: dict[str, Path] = {}
-    for p in corpus_files_with_suffixes(base, (".gi.json", ".kg.json", ".bridge.json")):
+    for p in corpus_files_with_suffixes(base, _suffixes()):
         try:
             found.setdefault(p.relative_to(base).as_posix(), p)
         except ValueError:
@@ -134,7 +137,7 @@ def get_artifact(
     if _kind_for_suffix(target.name) is None:
         raise HTTPException(
             status_code=400,
-            detail="Not a .gi.json, .kg.json, or .bridge.json file.",
+            detail="Not an artifact file (" + ", ".join(_suffixes()) + ").",
         )
     try:
         # lgtm[py/path-injection] -- ``target`` built only under anchor-sanitized ``base``.

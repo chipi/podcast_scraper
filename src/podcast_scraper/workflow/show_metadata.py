@@ -248,14 +248,9 @@ def _fold_events(feed_dir: Path) -> Dict[str, Any]:
 
 def build_show_metadata(feed_dir: Path) -> Optional[Dict[str, Any]]:
     """Derive the show metadata from the feed's newest-run episodes. None if there are none."""
-    from ..kg.speaker_coherence import same_person
-    from ..speaker_detectors.hosts import (
-        hosts_from_feed_statement,
-        is_network_or_org_author,
-        names_the_show,
-        refused_feed_statement_names,
-        split_author_names,
-    )
+    from .. import stage_hooks
+
+    same_person = stage_hooks.person_matcher()
 
     episodes: List[tuple[Path, Dict[str, Any]]] = []
     for path in _episode_files(feed_dir):
@@ -281,18 +276,8 @@ def build_show_metadata(feed_dir: Path) -> Optional[Dict[str, Any]]:
         sources[name] = [source]
 
     language = str(feed.get("language") or "")
-    for name in sorted(hosts_from_feed_statement(title, description, language)):
-        _add(name, "feed_statement")
-    for name in refused_feed_statement_names(title, description, language):
-        _add(name, "feed_statement_refused")
-    for tag in authors:
-        for name in split_author_names(tag, language or None):
-            if (
-                name
-                and not names_the_show(name, title, language or None)
-                and not is_network_or_org_author(name, language or None)
-            ):
-                _add(name, "author_tag")
+    for name, source in stage_hooks.stated_show_hosts(title, description, language, authors):
+        _add(name, source)
     used: Counter = Counter()
     for path, doc in episodes:
         for name in _pipeline_hosts(path, doc):

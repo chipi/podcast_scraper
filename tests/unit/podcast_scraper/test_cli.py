@@ -24,6 +24,7 @@ if PROJECT_ROOT not in sys.path:
 import pytest
 
 from podcast_scraper import cli, config
+from podcast_scraper.insight_stage import cli as gi_cli
 from podcast_scraper.rss.feeds_spec import RssFeedEntry
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_cli]
@@ -2485,21 +2486,21 @@ class TestGiSubcommand(unittest.TestCase):
 
     def test_parse_gi_args_validate(self):
         """Test _parse_gi_args for validate subcommand (parity with kg validate)."""
-        args = cli._parse_gi_args(["validate", "/tmp/sample.gi.json", "--strict"])
+        args = gi_cli._parse_gi_args(["validate", "/tmp/sample.gi.json", "--strict"])
         self.assertEqual(args.gi_subcommand, "validate")
         self.assertEqual(args.paths, ["/tmp/sample.gi.json"])
         self.assertTrue(args.strict)
 
     def test_parse_gi_args_inspect(self):
         """Test _parse_gi_args for inspect subcommand."""
-        args = cli._parse_gi_args(["inspect", "--episode-path", "x.gi.json"])
+        args = gi_cli._parse_gi_args(["inspect", "--episode-path", "x.gi.json"])
         self.assertEqual(args.gi_subcommand, "inspect")
         self.assertEqual(args.episode_path, "x.gi.json")
         self.assertTrue(args.stats)
 
     def test_parse_gi_args_inspect_feed_id(self):
         """inspect accepts --feed-id for multi-feed corpus parents."""
-        args = cli._parse_gi_args(
+        args = gi_cli._parse_gi_args(
             [
                 "inspect",
                 "--output-dir",
@@ -2529,7 +2530,7 @@ class TestGiSubcommand(unittest.TestCase):
 
     def test_parse_gi_args_show_insight(self):
         """Test _parse_gi_args for show-insight subcommand."""
-        args = cli._parse_gi_args(["show-insight", "--id", "insight:1:0"])
+        args = gi_cli._parse_gi_args(["show-insight", "--id", "insight:1:0"])
         self.assertEqual(args.gi_subcommand, "show-insight")
         self.assertEqual(getattr(args, "id"), "insight:1:0")
 
@@ -2672,7 +2673,7 @@ class TestGiSubcommand(unittest.TestCase):
 
     def test_parse_gi_args_export(self):
         """gi export parses --output-dir and --format merged."""
-        args = cli._parse_gi_args(
+        args = gi_cli._parse_gi_args(
             ["export", "--output-dir", "/out", "--format", "merged", "--out", "/tmp/b.json"]
         )
         self.assertEqual(args.gi_subcommand, "export")
@@ -3390,7 +3391,7 @@ class TestGiValidateAndExportCli(unittest.TestCase):
             "podcast_scraper.gi.io.collect_gi_paths_from_inputs",
             side_effect=ValueError("synthetic path error"),
         ):
-            rc = cli._run_gi_validate(args, log)
+            rc = gi_cli._run_gi_validate(args, log)
         self.assertEqual(rc, EXIT_INVALID_ARGS)
 
     def test_run_gi_export_load_artifacts_failure_returns_one(self):
@@ -3416,7 +3417,7 @@ class TestGiValidateAndExportCli(unittest.TestCase):
                     side_effect=RuntimeError("synthetic load failure"),
                 ),
             ):
-                rc = cli._run_gi_export(args, log)
+                rc = gi_cli._run_gi_export(args, log)
         self.assertEqual(rc, 1)
 
 

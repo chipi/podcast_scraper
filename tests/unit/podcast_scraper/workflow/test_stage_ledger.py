@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import metrics as metrics_mod
 from podcast_scraper.workflow.metadata_generation import _extract_episode_stage_ledger, StageOutcome
 from podcast_scraper.workflow.stages import processing
@@ -68,7 +69,7 @@ def _size_skip(cfg: Any, episode: Any) -> Any:
 
 
 def _detect(episode: Any, cfg: Any, host_result: Any, m: Any, **kwargs: Any) -> Any:
-    return processing._detect_speakers_for_episode(episode, cfg, host_result, m, **kwargs)
+    return detection._detect_speakers_for_episode(episode, cfg, host_result, m, **kwargs)
 
 
 class TestRecordStageOutcome:
@@ -249,7 +250,7 @@ class TestDetectSpeakersRecordsEveryExit:
         assert _ledger_for(m)["speaker_detection"]["reason"] == "dry_run"
 
     def test_missing_detector_is_recorded_with_the_configured_provider(self, monkeypatch) -> None:
-        monkeypatch.setattr(processing, "_get_speaker_detector", lambda *a, **k: None)
+        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: None)
         m = metrics_mod.Metrics()
         self._run(_Cfg(speaker_detector_provider="litellm"), m)
         record = _ledger_for(m)["speaker_detection"]
@@ -260,9 +261,9 @@ class TestDetectSpeakersRecordsEveryExit:
     def test_successful_detection_records_ran_with_proposal_counts(self, monkeypatch) -> None:
         detector = MagicMock()
         detector.detect_speakers.return_value = (["Sarah Sachs", "Simon Last"], set(), True, False)
-        monkeypatch.setattr(processing, "_get_speaker_detector", lambda *a, **k: detector)
-        monkeypatch.setattr(processing, "extract_episode_description", lambda _item: "desc")
-        monkeypatch.setattr(processing, "corroborate_guests", lambda proposed, **k: proposed[:1])
+        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: detector)
+        monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "desc")
+        monkeypatch.setattr(detection, "corroborate_guests", lambda proposed, **k: proposed[:1])
 
         m = metrics_mod.Metrics()
         self._run(_Cfg(), m)
@@ -287,8 +288,8 @@ class TestDetectSpeakersRecordsEveryExit:
         """
         detector = MagicMock()
         detector.detect_speakers.return_value = ([], set(), False, False)
-        monkeypatch.setattr(processing, "_get_speaker_detector", lambda *a, **k: detector)
-        monkeypatch.setattr(processing, "extract_episode_description", lambda _item: "desc")
+        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: detector)
+        monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "desc")
 
         m = metrics_mod.Metrics()
         self._run(_Cfg(), m)
@@ -303,8 +304,8 @@ class TestDetectSpeakersRecordsEveryExit:
     def test_fallback_to_configured_names_is_degraded_not_ran(self, monkeypatch) -> None:
         detector = MagicMock()
         detector.detect_speakers.return_value = ([], set(), False, False)
-        monkeypatch.setattr(processing, "_get_speaker_detector", lambda *a, **k: detector)
-        monkeypatch.setattr(processing, "extract_episode_description", lambda _item: "desc")
+        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: detector)
+        monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "desc")
 
         m = metrics_mod.Metrics()
         self._run(_Cfg(screenplay_speaker_names=["Host", "Guest"]), m)

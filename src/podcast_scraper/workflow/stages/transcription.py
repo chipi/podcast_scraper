@@ -29,15 +29,13 @@ from ..episode_processor import transcribe_media_to_text as factory_transcribe_m
 
 
 def _hosts_for_episode(result: Any, job: Any) -> Set[str]:
-    """Late import: ``processing`` imports this module's siblings at load time.
-
-    The episode's stated participants go in too, so a guest the description names next to a host
-    cue is never added to the pool (the replay measures exactly this input).
+    """The episode's stated participants go in too, so a guest the description names next to a
+    host cue is never added to the pool (the replay measures exactly this input).
     """
-    from .processing import hosts_for_episode
+    from ... import stage_hooks
 
     people = list(job.metadata_named or ()) + list(job.detected_speaker_names or ())
-    return hosts_for_episode(result, job.episode, people)
+    return stage_hooks.episode_hosts(result, job.episode, people)
 
 
 from ..helpers import update_metric_safely

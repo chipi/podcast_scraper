@@ -12,9 +12,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper import perf_cache
+from podcast_scraper import perf_cache, read_hooks
 from podcast_scraper.identity.display import person_display, spell_enrichment_people
-from podcast_scraper.identity.ledger import served_id_map
 from podcast_scraper.server.corpus_access import cached_json_artifact
 
 #: Files in ``enrichments/`` that are run bookkeeping, not an enricher's envelope.
@@ -139,7 +138,7 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
 
     if kind == "person":
         # grounding_rate deliberately absent — see _PERSON_ENRICHERS (#1927).
-        _person_rows(raw, out, id, served_id_map(root), people)
+        _person_rows(raw, out, id, read_hooks.served_id_map(root), people)
     else:
         _filtered("temporal_velocity", "topics", lambda r: _hit(r.get("topic_id")))
         _filtered("topic_similarity", "topics", lambda r: _hit(r.get("topic_id")))

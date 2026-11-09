@@ -740,6 +740,7 @@ Rows that sat in **Coverage gaps** below until the UXS audit pass covered them:
 | **Admin — discovery ranking** (`ranking-config-*`, `ranking-signal-*`, `ranking-enabled-*`, `ranking-weight-*`, `ranking-param-*`) | `ops-and-admin.spec.ts` (live API, restored after) — toggle, weight and numeric param saved; Saved cleared by an edit |
 | **Admin — released app version** (`release-admin`, `release-served`, `release-deploy-default`, `release-input`, `release-save`, `release-saved`, `release-clear`, `release-error`) | `ops-and-admin.spec.ts` (live API, restored after) — override saved and served at once on `/api/app/auth/status`, cleared back to the deploy default. Spec: [UXS-018](../../../docs/uxs/UXS-018-operator-ops-and-admin.md) |
 | **Admin — graph analytics** (`graph-analytics-admin`, `ga-*`) | `ops-and-admin.spec.ts` (mocked: a fresh corpus has no events) — totals, size table, sorted lists, breakage, session timeline in words, Replay into the Graph tab, empty states |
+| **KG-only corpus, no insight stage** (`/api/health` `artifact_kinds: ["kg"]`, `cil_queries_api` / `corpus_persons_api` false) | `kg-only-corpus.spec.ts` (mocked: the fixture corpus has GI for every episode and the live server mounts the insight routes) — the dashboard and its Intelligence tab call no CIL / top-persons / explore route, show no "no GI artifacts" or "lowest GI coverage" warning, and render no `dashboard-topic-perspectives` |
 
 ## Coverage gaps
 

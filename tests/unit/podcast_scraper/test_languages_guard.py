@@ -240,11 +240,12 @@ class TestTheGuardIsActuallyREACHABLE:
         Nothing translates feed metadata, so English NER over a Spanish title is a live hazard
         for a translated episode too.
         """
-        from pathlib import Path
+        import inspect
 
-        source = (
-            Path(__file__).resolve().parents[3] / "src/podcast_scraper/providers/ml/ml_provider.py"
-        ).read_text(encoding="utf-8")
+        from podcast_scraper.providers.ml.ml_provider import MLProvider
+
+        # The method's own source, wherever it lives (S1 moved it to ml_provider_gi_naming).
+        source = inspect.getsource(MLProvider.detect_speakers)
         assert "text_language=transcription_language(self.cfg)" in source
 
     def test_the_three_hazard_sites_share_ONE_predicate(self) -> None:

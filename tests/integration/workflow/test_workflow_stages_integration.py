@@ -24,6 +24,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper.rss import feed_cache
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow.helpers import (
     cleanup_pipeline,
     generate_pipeline_summary,
@@ -530,7 +531,7 @@ class TestProcessingStage(unittest.TestCase):
     def test_detect_feed_hosts_and_patterns_disabled(self):
         """Test detect_feed_hosts_and_patterns returns empty when disabled."""
         cfg = create_test_config(auto_speakers=False)
-        result = processing.detect_feed_hosts_and_patterns(cfg, self.feed, self.episodes)
+        result = detection.detect_feed_hosts_and_patterns(cfg, self.feed, self.episodes)
         self.assertEqual(len(result.cached_hosts), 0)
         self.assertIsNone(result.heuristics)
         self.assertIsNone(result.speaker_detector)
@@ -538,7 +539,7 @@ class TestProcessingStage(unittest.TestCase):
     def test_detect_feed_hosts_and_patterns_dry_run(self):
         """Test detect_feed_hosts_and_patterns skips in dry run."""
         cfg = create_test_config(auto_speakers=True, dry_run=True)
-        result = processing.detect_feed_hosts_and_patterns(cfg, self.feed, self.episodes)
+        result = detection.detect_feed_hosts_and_patterns(cfg, self.feed, self.episodes)
         # In dry run, hosts may still be detected from RSS author tags (no ML needed)
         # So cached_hosts may not be empty if feed has authors
         # The important thing is that speaker_detector is None (no ML model initialized)
@@ -604,7 +605,7 @@ class TestProcessingStage(unittest.TestCase):
         )
 
         with patch("inspect.signature", side_effect=mock_signature):
-            result = processing.detect_feed_hosts_and_patterns(cfg, feed_no_authors, self.episodes)
+            result = detection.detect_feed_hosts_and_patterns(cfg, feed_no_authors, self.episodes)
 
         # Validation should pass since both hosts appear in first episode
         # feed_hosts = {"Alice Smith", "Bob Jones"}

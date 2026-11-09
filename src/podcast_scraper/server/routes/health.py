@@ -15,6 +15,7 @@ from podcast_scraper.corpus_version import (
     corpus_code_version,
     MIN_SUPPORTED_CORPUS_CODE_VERSION,
 )
+from podcast_scraper.search.corpus_scope import episode_artifact_kinds
 from podcast_scraper.server.app_release_store import load_released_versions, release_dir
 from podcast_scraper.server.pathutil import (
     CorpusPathRequestError,
@@ -190,5 +191,20 @@ async def health(
             "feeds_api": bool(getattr(st, "feeds_api_enabled", False)),
             "operator_config_api": bool(getattr(st, "operator_config_api_enabled", False)),
             "jobs_api": bool(getattr(st, "jobs_api_enabled", False)),
+            **_stage_route_flags(st),
+            "artifact_kinds": [kind for kind, _suffix in episode_artifact_kinds()],
         }
     )
+
+
+#: Health flags a stage router serves (``RouterMount.advertises``), reported from what is mounted.
+_STAGE_ROUTE_FLAGS = ("explore_api", "cil_queries_api", "corpus_persons_api")
+
+
+def _stage_route_flags(st: Any) -> dict[str, bool]:
+    """Each stage flag: true exactly when a router advertising it is mounted in this app. An app
+    built without ``_mount_extension_routers`` (a bare test app) keeps the schema defaults."""
+    mounted = getattr(st, "stage_routes_advertised", None)
+    if mounted is None:
+        return {}
+    return {flag: flag in mounted for flag in _STAGE_ROUTE_FLAGS}

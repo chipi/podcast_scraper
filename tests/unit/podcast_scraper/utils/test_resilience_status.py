@@ -9,18 +9,32 @@ from __future__ import annotations
 
 import pytest
 
-from podcast_scraper.utils import llm_circuit_breaker as breaker
+from podcast_scraper.rss import http_policy
 from podcast_scraper.utils.llm_circuit_breaker import LLMCircuitBreakerConfig, record_failure
 from podcast_scraper.utils.resilience_status import reset_resilience, resilience_snapshot
 
 pytestmark = pytest.mark.unit
 
 
+def _close_every_breaker() -> None:
+    # Every breaker the snapshot reports, not only the LLM ones: the RSS breaker's open-feed list
+    # is module state, and a feed an earlier test tripped on the same xdist worker read as
+    # any_open (full unit run, 2026-11-08).
+    reset_resilience("all")
+
+
 @pytest.fixture(autouse=True)
 def _clean_breakers():
-    breaker.reset_all()
+    _close_every_breaker()
     yield
-    breaker.reset_all()
+    _close_every_breaker()
+
+
+def test_a_feed_breaker_an_earlier_test_tripped_is_closed_before_each_test() -> None:
+    http_policy.record_circuit_trip("https://feeds.example.com/left-open.xml")
+    assert resilience_snapshot()["any_open"] is True
+    _close_every_breaker()
+    assert resilience_snapshot()["any_open"] is False
 
 
 def test_snapshot_lists_every_provider_even_when_all_closed() -> None:

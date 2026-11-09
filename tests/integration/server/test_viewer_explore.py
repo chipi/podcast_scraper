@@ -37,7 +37,7 @@ def test_explore_filter_mode_mocked(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         return build_explore_output([], 4, topic="climate", speaker_filter=None, topics=[])
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.explore.run_uc5_insight_explorer",
+        "podcast_scraper.insight_stage.routes.explore.run_uc5_insight_explorer",
         fake_uc5,
     )
 
@@ -65,11 +65,11 @@ def test_explore_natural_language_mocked(tmp_path: Path, monkeypatch: pytest.Mon
         }
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.explore.scan_artifact_paths",
+        "podcast_scraper.insight_stage.routes.explore.scan_artifact_paths",
         lambda _p: [Path("dummy.gi.json")],
     )
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.explore.run_uc4_semantic_qa",
+        "podcast_scraper.insight_stage.routes.explore.run_uc4_semantic_qa",
         fake_qa,
     )
 
@@ -89,7 +89,7 @@ def test_explore_natural_language_mocked(tmp_path: Path, monkeypatch: pytest.Mon
 
 def test_explore_nl_no_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.explore.scan_artifact_paths",
+        "podcast_scraper.insight_stage.routes.explore.scan_artifact_paths",
         lambda _p: [],
     )
 
@@ -107,11 +107,11 @@ def test_explore_nl_no_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 def test_explore_nl_no_pattern(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.explore.scan_artifact_paths",
+        "podcast_scraper.insight_stage.routes.explore.scan_artifact_paths",
         lambda _p: [Path("dummy.gi.json")],
     )
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.explore.run_uc4_semantic_qa",
+        "podcast_scraper.insight_stage.routes.explore.run_uc4_semantic_qa",
         lambda *a, **k: None,
     )
 

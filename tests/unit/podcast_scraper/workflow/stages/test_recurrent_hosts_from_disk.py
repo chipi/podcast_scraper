@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from podcast_scraper.workflow.stages.processing import (
+from podcast_scraper.speaker_stage.detection import (
     _newest_run_transcripts,
     _recurrent_hosts_from_disk,
 )

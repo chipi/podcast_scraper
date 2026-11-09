@@ -24,6 +24,7 @@ if PROJECT_ROOT not in sys.path:
 import pytest
 
 from podcast_scraper import Config, models
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import metrics as workflow_metrics
 from podcast_scraper.workflow.stages import processing
 from podcast_scraper.workflow.types import HostDetectionResult, TranscriptionResources
@@ -47,10 +48,10 @@ class TestHandleDryRunHostDetection(unittest.TestCase):
             base_url="https://example.com",
         )
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_handle_dry_run_host_detection_with_authors(self, mock_logger):
         """Test dry-run host detection with RSS authors."""
-        result = processing._handle_dry_run_host_detection(self.feed)
+        result = detection._handle_dry_run_host_detection(self.feed)
 
         self.assertIsInstance(result, HostDetectionResult)
         self.assertEqual(result.cached_hosts, {"Jane Doe", "John Smith"})
@@ -58,7 +59,7 @@ class TestHandleDryRunHostDetection(unittest.TestCase):
         self.assertIsNone(result.speaker_detector)
         mock_logger.info.assert_called()
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_handle_dry_run_host_detection_without_authors(self, mock_logger):
         """Test dry-run host detection without RSS authors."""
         feed = models.RssFeed(
@@ -68,14 +69,14 @@ class TestHandleDryRunHostDetection(unittest.TestCase):
             base_url="https://example.com",
         )
 
-        result = processing._handle_dry_run_host_detection(feed)
+        result = detection._handle_dry_run_host_detection(feed)
 
         self.assertIsInstance(result, HostDetectionResult)
         self.assertEqual(result.cached_hosts, set())
         self.assertIsNone(result.heuristics)
         self.assertIsNone(result.speaker_detector)
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_handle_dry_run_host_detection_with_empty_authors(self, mock_logger):
         """Test dry-run host detection with empty authors list."""
         feed = models.RssFeed(
@@ -85,7 +86,7 @@ class TestHandleDryRunHostDetection(unittest.TestCase):
             base_url="https://example.com",
         )
 
-        result = processing._handle_dry_run_host_detection(feed)
+        result = detection._handle_dry_run_host_detection(feed)
 
         self.assertIsInstance(result, HostDetectionResult)
         self.assertEqual(result.cached_hosts, set())
@@ -102,11 +103,11 @@ class TestCreateSpeakerDetectorIfNeeded(unittest.TestCase):
     def test_create_speaker_detector_if_needed_with_existing(self):
         """Test that existing speaker detector is returned."""
         mock_detector = Mock()
-        result = processing._create_speaker_detector_if_needed(self.cfg, mock_detector)
+        result = detection._create_speaker_detector_if_needed(self.cfg, mock_detector)
 
         self.assertEqual(result, mock_detector)
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     @patch("podcast_scraper.speaker_detectors.factory.create_speaker_detector")
     def test_create_speaker_detector_if_needed_creates_new(self, mock_create_detector, mock_logger):
         """Test that new speaker detector is created when None provided."""
@@ -120,13 +121,13 @@ class TestCreateSpeakerDetectorIfNeeded(unittest.TestCase):
             del mock_workflow.create_speaker_detector  # Attribute doesn't exist
             mock_modules.get.return_value = mock_workflow
 
-            result = processing._create_speaker_detector_if_needed(self.cfg, None)
+            result = detection._create_speaker_detector_if_needed(self.cfg, None)
 
             self.assertEqual(result, mock_detector)
             mock_detector.initialize.assert_called_once()
             mock_logger.warning.assert_called()
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     @patch("podcast_scraper.speaker_detectors.factory.create_speaker_detector")
     def test_create_speaker_detector_if_needed_handles_exception(
         self, mock_create_detector, mock_logger
@@ -134,7 +135,7 @@ class TestCreateSpeakerDetectorIfNeeded(unittest.TestCase):
         """Test that exception during creation is handled gracefully."""
         mock_create_detector.side_effect = RuntimeError("Init failed")
 
-        result = processing._create_speaker_detector_if_needed(self.cfg, None)
+        result = detection._create_speaker_detector_if_needed(self.cfg, None)
 
         self.assertIsNone(result)
         mock_logger.error.assert_called()
@@ -164,7 +165,7 @@ class TestDetectHostsFromFeed(unittest.TestCase):
 
     def test_detect_hosts_from_feed_success(self):
         """Test successful host detection from feed."""
-        result = processing._detect_hosts_from_feed(self.feed, self.speaker_detector)
+        result = detection._detect_hosts_from_feed(self.feed, self.speaker_detector)
 
         self.assertEqual(result, {"Ada Lovelace", "Grace Hopper"})
         self.speaker_detector.detect_hosts.assert_called_once_with(
@@ -182,7 +183,7 @@ class TestDetectHostsFromFeed(unittest.TestCase):
             base_url="https://example.com",
         )
 
-        result = processing._detect_hosts_from_feed(feed, self.speaker_detector)
+        result = detection._detect_hosts_from_feed(feed, self.speaker_detector)
 
         self.assertEqual(result, {"Ada Lovelace", "Grace Hopper"})
         self.speaker_detector.detect_hosts.assert_called_once_with(
@@ -229,7 +230,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
         )
 
         feed_hosts = {"Host 1", "Host 2"}
-        result = processing._validate_hosts_with_first_episode(
+        result = detection._validate_hosts_with_first_episode(
             feed_hosts, feed, [self.episode], self.speaker_detector, None
         )
 
@@ -239,7 +240,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
     def test_validate_hosts_with_first_episode_skips_when_no_hosts(self):
         """Test that validation is skipped when no hosts detected."""
         feed_hosts = set()
-        result = processing._validate_hosts_with_first_episode(
+        result = detection._validate_hosts_with_first_episode(
             feed_hosts, self.feed, [self.episode], self.speaker_detector, None
         )
 
@@ -249,7 +250,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
     def test_validate_hosts_with_first_episode_skips_when_no_episodes(self):
         """Test that validation is skipped when no episodes."""
         feed_hosts = {"Host 1", "Host 2"}
-        result = processing._validate_hosts_with_first_episode(
+        result = detection._validate_hosts_with_first_episode(
             feed_hosts, self.feed, [], self.speaker_detector, None
         )
 
@@ -259,7 +260,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
     def test_validate_hosts_with_first_episode_validates_successfully(self):
         """Test successful host validation."""
         feed_hosts = {"Host 1", "Host 2"}
-        result = processing._validate_hosts_with_first_episode(
+        result = detection._validate_hosts_with_first_episode(
             feed_hosts, self.feed, [self.episode], self.speaker_detector, None
         )
 
@@ -275,7 +276,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
             return_value=(["Host 1", "Host 2"], set(), True, False)
         )
 
-        result = processing._validate_hosts_with_first_episode(
+        result = detection._validate_hosts_with_first_episode(
             feed_hosts, self.feed, [self.episode], self.speaker_detector, None
         )
 
@@ -307,7 +308,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
             ]
         )
 
-        result = processing._validate_hosts_with_first_episode(
+        result = detection._validate_hosts_with_first_episode(
             feed_hosts, self.feed, [self.episode], self.speaker_detector, pipeline_metrics
         )
 
@@ -360,7 +361,7 @@ class TestStatementFirstHostDetection(unittest.TestCase):
         )
         cfg = create_test_config(auto_speakers=True)
         detector = self._detector({"The New York Times"})
-        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        result = detection.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
         self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
         detector.detect_hosts.assert_not_called()  # statement won; provider not consulted
 
@@ -375,7 +376,7 @@ class TestStatementFirstHostDetection(unittest.TestCase):
         )
         cfg = create_test_config(auto_speakers=True)
         detector = self._detector({"Priya Producer"})
-        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        result = detection.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
         self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton", "Priya Producer"})
 
     def test_no_host_in_description_stays_empty_no_invention(self):
@@ -384,7 +385,7 @@ class TestStatementFirstHostDetection(unittest.TestCase):
         feed, ep = self._feed_and_episode("News about GPUs and AI.", ["NVIDIA"])
         cfg = create_test_config(auto_speakers=True)
         detector = self._detector({"NVIDIA"})
-        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        result = detection.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
         self.assertEqual(result.cached_hosts, set())
 
     def test_provider_used_when_no_statement_and_it_finds_a_person(self):
@@ -393,7 +394,7 @@ class TestStatementFirstHostDetection(unittest.TestCase):
         feed, ep = self._feed_and_episode("A wide-ranging conversation about AI.", [])
         cfg = create_test_config(auto_speakers=True)
         detector = self._detector({"Real Person"})
-        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
+        result = detection.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
         self.assertEqual(result.cached_hosts, {"Real Person"})
         detector.detect_hosts.assert_called_once()
 
@@ -404,7 +405,7 @@ class TestStatementFirstHostDetection(unittest.TestCase):
             "Hosted by Kevin Roose and Casey Newton.", ["The New York Times"]
         )
         cfg = create_test_config(auto_speakers=True, dry_run=True)
-        result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, None)
+        result = detection.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, None)
         self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
 
 
@@ -436,7 +437,7 @@ class TestFallbackToEpisodeAuthors(unittest.TestCase):
         """Test that empty set is returned when auto_speakers is disabled."""
         cfg = create_test_config(auto_speakers=False)
 
-        result = processing._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
+        result = detection._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
 
         self.assertEqual(result, set())
 
@@ -444,7 +445,7 @@ class TestFallbackToEpisodeAuthors(unittest.TestCase):
         """Test that empty set is returned when no episodes."""
         cfg = create_test_config(auto_speakers=True)
 
-        result = processing._fallback_to_episode_authors(cfg, [])
+        result = detection._fallback_to_episode_authors(cfg, [])
 
         self.assertEqual(result, set())
 
@@ -455,7 +456,7 @@ class TestFallbackToEpisodeAuthors(unittest.TestCase):
 
         cfg = create_test_config(auto_speakers=True)
 
-        result = processing._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
+        result = detection._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
 
         self.assertEqual(result, {"Jane Smith", "John Roberts"})
         self.assertEqual(mock_extract_authors.call_count, 2)
@@ -468,7 +469,7 @@ class TestFallbackToEpisodeAuthors(unittest.TestCase):
 
         cfg = create_test_config(auto_speakers=True)
 
-        result = processing._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
+        result = detection._fallback_to_episode_authors(cfg, [self.episode1, self.episode2])
 
         # NPR should be filtered out (organization)
         self.assertEqual(result, {"John Doe"})
@@ -481,7 +482,7 @@ class TestFallbackToEpisodeAuthors(unittest.TestCase):
 
         cfg = create_test_config(auto_speakers=True)
 
-        processing._fallback_to_episode_authors(cfg, episodes)
+        detection._fallback_to_episode_authors(cfg, episodes)
 
         # Should only call extract_episode_authors 3 times (first 3 episodes)
         self.assertEqual(mock_extract_authors.call_count, 3)
@@ -500,20 +501,20 @@ class TestLogDetectedHosts(unittest.TestCase):
             base_url="https://example.com",
         )
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_log_detected_hosts_from_feed_authors(self, mock_logger):
         """Test logging hosts detected from feed authors."""
         cached_hosts = {"Host 1", "Host 2"}
         episode_authors = set()
 
-        processing._log_detected_hosts(cached_hosts, self.feed, episode_authors, None)
+        detection._log_detected_hosts(cached_hosts, self.feed, episode_authors, None)
 
         # Verify log was called with correct source
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
         feed_log_found = any("RSS author tags" in str(call) for call in log_calls)
         self.assertTrue(feed_log_found, "Should log hosts from RSS author tags")
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_log_detected_hosts_from_episode_authors(self, mock_logger):
         """Test logging hosts detected from episode authors."""
         feed = models.RssFeed(
@@ -525,14 +526,14 @@ class TestLogDetectedHosts(unittest.TestCase):
         cached_hosts = {"Host 1"}
         episode_authors = {"Host 1"}
 
-        processing._log_detected_hosts(cached_hosts, feed, episode_authors, None)
+        detection._log_detected_hosts(cached_hosts, feed, episode_authors, None)
 
         # Verify log was called with episode-level authors source
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
         episode_log_found = any("episode-level authors" in str(call) for call in log_calls)
         self.assertTrue(episode_log_found, "Should log hosts from episode-level authors")
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_log_detected_hosts_from_config(self, mock_logger):
         """Test logging hosts detected from config known_hosts."""
         cfg = create_test_config(known_hosts=["Host 1", "Host 2"])
@@ -545,14 +546,14 @@ class TestLogDetectedHosts(unittest.TestCase):
         cached_hosts = {"Host 1", "Host 2"}
         episode_authors = set()
 
-        processing._log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
+        detection._log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
 
         # Verify log was called with config source
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
         config_log_found = any("config known_hosts" in str(call) for call in log_calls)
         self.assertTrue(config_log_found, "Should log hosts from config known_hosts")
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_log_detected_hosts_from_ner(self, mock_logger):
         """Test logging hosts detected from NER (default source)."""
         feed = models.RssFeed(
@@ -565,14 +566,14 @@ class TestLogDetectedHosts(unittest.TestCase):
         episode_authors = set()
         cfg = create_test_config(auto_speakers=True)
 
-        processing._log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
+        detection._log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
 
         # Verify log was called with feed metadata (NER) source
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
         ner_log_found = any("feed metadata (NER)" in str(call) for call in log_calls)
         self.assertTrue(ner_log_found, "Should log hosts from feed metadata (NER)")
 
-    @patch("podcast_scraper.workflow.stages.processing.logger")
+    @patch("podcast_scraper.speaker_stage.detection.logger")
     def test_log_detected_hosts_empty(self, mock_logger):
         """Test logging when no hosts detected."""
         feed = models.RssFeed(
@@ -585,7 +586,7 @@ class TestLogDetectedHosts(unittest.TestCase):
         episode_authors = set()
         cfg = create_test_config(auto_speakers=True)
 
-        processing._log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
+        detection._log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
 
         # Should log debug message about no hosts
         log_calls = [str(call) for call in mock_logger.debug.call_args_list]
@@ -774,16 +775,16 @@ class TestFlattenSpeakerNameEntries(unittest.TestCase):
 
     def test_flatten_nested_strings(self) -> None:
         """Nested lists are flattened to strings."""
-        out = processing._flatten_speaker_name_entries(["a", ["b", "c"]])
+        out = detection._flatten_speaker_name_entries(["a", ["b", "c"]])
         self.assertEqual(out, ["a", "b", "c"])
 
     def test_empty_and_whitespace(self) -> None:
         """Empty strings skipped."""
-        self.assertEqual(processing._flatten_speaker_name_entries(["  ", "x"]), ["x"])
+        self.assertEqual(detection._flatten_speaker_name_entries(["  ", "x"]), ["x"])
 
     def test_speaker_names_to_str_set(self) -> None:
         """Set membership works with mixed nesting."""
-        s = processing._speaker_names_to_str_set([["Host"], "Guest"])
+        s = detection._speaker_names_to_str_set([["Host"], "Guest"])
         self.assertEqual(s, {"Host", "Guest"})
 
 

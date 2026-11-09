@@ -230,7 +230,7 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     import json as _json
 
     from podcast_scraper.builders.bridge_builder import build_bridge
-    from podcast_scraper.server import cil_queries
+    from podcast_scraper.insight_stage import cil_queries
 
     bridge = build_bridge("episode:p01-multi-e01", gi, kg)
     bridge_blob = _json.dumps(bridge).lower()

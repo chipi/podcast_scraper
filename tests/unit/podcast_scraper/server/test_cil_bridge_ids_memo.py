@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from podcast_scraper import perf_cache
-from podcast_scraper.server import cil_queries
+from podcast_scraper.insight_stage import cil_queries
 
 pytestmark = [pytest.mark.unit]
 

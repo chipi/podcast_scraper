@@ -15,6 +15,7 @@ pytestmark = pytest.mark.integration
 
 pytest.importorskip("lancedb")
 
+from podcast_scraper.insight_stage import grounding_links  # noqa: E402
 from podcast_scraper.search import hybrid_search as hs, two_tier_indexer as tti  # noqa: E402
 from podcast_scraper.search.backends import lancedb_backend as lancedb_backend  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
@@ -178,7 +179,7 @@ def test_linking_populates_compounds(tmp_path, monkeypatch):
     monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep1"}})
     monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
     monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
-    monkeypatch.setattr(tti, "_gi_path", lambda root, mp, doc: gi)
+    monkeypatch.setattr("podcast_scraper.search.indexer._gi_path", lambda root, mp, doc: gi)
 
     lance = corpus / "search" / "lance_index"
     stats = tti.build_two_tier_index(corpus, lance)
@@ -491,7 +492,7 @@ def test_grounding_quote_texts_links_insight_to_segment(tmp_path, monkeypatch):
     monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep1"}})
     monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
     monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
-    monkeypatch.setattr(tti, "_gi_path", lambda root, mp, doc: gi)
+    monkeypatch.setattr("podcast_scraper.search.indexer._gi_path", lambda root, mp, doc: gi)
 
     stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
     assert stats.linked == 1  # insight linked to the segment via verbatim quote text
@@ -501,19 +502,19 @@ def test_grounding_quote_texts_handles_unreadable_gi(tmp_path):
     """_insight_grounding_quote_texts returns {} for a missing or malformed gi.json
     (covers the is_file()=False and the OSError/ValueError guards)."""
     # Missing file -> {}.
-    assert tti._insight_grounding_quote_texts(tmp_path / "nope.gi.json") == {}
+    assert grounding_links._insight_grounding_quote_texts(tmp_path / "nope.gi.json") == {}
     # Malformed JSON -> the try/except returns {}.
     bad = tmp_path / "bad.gi.json"
     bad.write_text("{not json", encoding="utf-8")
-    assert tti._insight_grounding_quote_texts(bad) == {}
+    assert grounding_links._insight_grounding_quote_texts(bad) == {}
 
 
 def test_grounding_quotes_handles_unreadable_gi(tmp_path):
     """_insight_grounding_quotes (timestamp variant) returns {} for missing/malformed gi.json."""
-    assert tti._insight_grounding_quotes(tmp_path / "nope.gi.json") == {}
+    assert grounding_links._insight_grounding_quotes(tmp_path / "nope.gi.json") == {}
     bad = tmp_path / "bad.gi.json"
     bad.write_text("{not json", encoding="utf-8")
-    assert tti._insight_grounding_quotes(bad) == {}
+    assert grounding_links._insight_grounding_quotes(bad) == {}
 
 
 @requires("sentence_transformers")  # builds a real LanceDB index / embeds text
@@ -595,7 +596,7 @@ def test_grounding_quote_text_edge_without_matching_quote(tmp_path):
         ),
         encoding="utf-8",
     )
-    assert tti._insight_grounding_quote_texts(gi) == {}
+    assert grounding_links._insight_grounding_quote_texts(gi) == {}
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff

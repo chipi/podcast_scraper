@@ -20,6 +20,7 @@ from podcast_scraper.providers.ml.diarization import pipeline as P
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
 from podcast_scraper.speaker_detectors.corroboration import corroborate_guests
 from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow.stages import processing
 
 pytestmark = pytest.mark.unit
@@ -170,13 +171,13 @@ class _Episode:
 
 def _detect(detector: _Detector, monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
     monkeypatch.setattr(
-        processing,
+        detection,
         "extract_episode_description",
         lambda _item: f"{GUEST} joins {HOST}. We also discuss Ada Quill's old book.",
     )
     ep = _Episode()
     hd = processing.HostDetectionResult(set(), {}, detector)
-    processing._detect_speakers_for_episode(ep, _Cfg(), hd, None)  # type: ignore[arg-type]
+    detection._detect_speakers_for_episode(ep, _Cfg(), hd, None)  # type: ignore[arg-type]
     assert ep.speaker_detection_report is not None
     return ep.speaker_detection_report
 
@@ -212,7 +213,7 @@ class TestDetectionIsRecordedOnTheEpisode:
         cfg.auto_speakers = False  # type: ignore[misc]
         ep = _Episode()
         hd = processing.HostDetectionResult(set(), {}, _Detector([], set(), None))
-        processing._detect_speakers_for_episode(ep, cfg, hd, None)  # type: ignore[arg-type]
+        detection._detect_speakers_for_episode(ep, cfg, hd, None)  # type: ignore[arg-type]
         assert ep.speaker_detection_report == {
             "outcome": "skipped",
             "reason": "auto_speakers_disabled",
@@ -278,11 +279,11 @@ def test_a_person_the_detector_names_only_as_a_speaker_is_stated_never_a_guest(
 
     det.detect_speakers = detect  # type: ignore[method-assign]
     monkeypatch.setattr(
-        processing, "extract_episode_description", lambda _item: f"{GUEST} joins {HOST}."
+        detection, "extract_episode_description", lambda _item: f"{GUEST} joins {HOST}."
     )
     ep = _Episode()
     hd = processing.HostDetectionResult(set(), {}, det)
-    out = processing._detect_speakers_for_episode(ep, _Cfg(), hd, None)  # type: ignore[arg-type]
+    out = detection._detect_speakers_for_episode(ep, _Cfg(), hd, None)  # type: ignore[arg-type]
     assert out is not None
     assert "Cleo Marsh" in out.stated and "Cleo Marsh" not in out.guests
     assert ep.speaker_detection_report is not None

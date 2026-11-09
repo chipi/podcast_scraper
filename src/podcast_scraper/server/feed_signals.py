@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper import read_hooks
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
     node_label,
@@ -47,7 +48,6 @@ from podcast_scraper.server.schemas import (
     FeedSignalTopic,
     FeedSignalTrend,
 )
-from podcast_scraper.speaker_detectors.hosts import looks_like_publisher
 
 
 def _read_kg_artifact(root: str, relpath: str) -> dict[str, Any] | None:
@@ -140,7 +140,8 @@ def _accumulate_kg_entities(
         name = node_label(n) or pid
         if is_unresolved_speaker_placeholder(pid, name):
             continue
-        if looks_like_publisher(name):  # publisher mislabelled a person on older data (#2)
+        # publisher mislabelled a person on older data (#2)
+        if read_hooks.looks_like_publisher(name):
             continue
         _, eps = person_eps.setdefault(pid, (name, set()))
         eps.add(ep_key)

@@ -37,7 +37,7 @@ def _corpus(root: Path, mtime: float) -> None:
 
 class TestTheCilEntityMapFollowsTheCorpus:
     def test_a_changed_corpus_yields_a_fresh_map(self, tmp_path: Path) -> None:
-        from podcast_scraper.server import cil_queries
+        from podcast_scraper.insight_stage import cil_queries
 
         cil_queries._cil_id_maps.clear()
         _corpus(tmp_path, 1000.0)
@@ -53,7 +53,7 @@ class TestTheCilEntityMapFollowsTheCorpus:
 
     def test_an_unchanged_corpus_is_served_from_cache(self, tmp_path: Path) -> None:
         # The cache must still BE a cache — this is a hot serving path.
-        from podcast_scraper.server import cil_queries
+        from podcast_scraper.insight_stage import cil_queries
 
         cil_queries._cil_id_maps.clear()
         _corpus(tmp_path, 1000.0)

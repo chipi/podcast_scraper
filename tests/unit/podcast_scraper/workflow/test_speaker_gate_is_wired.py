@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any, List, Set, Tuple
 from unittest.mock import MagicMock, patch
 
-from podcast_scraper.workflow.stages.processing import _detect_speakers_for_episode
+from podcast_scraper.speaker_stage.detection import _detect_speakers_for_episode
 
 TITLE = "OpenAI's Big Reset + A.I. in the Doctor's Office"
 DESCRIPTION = (
@@ -63,11 +63,11 @@ def _run() -> Any:
     host_result.cached_hosts = set()
     with (
         patch(
-            "podcast_scraper.workflow.stages.processing._get_speaker_detector",
+            "podcast_scraper.speaker_stage.detection._get_speaker_detector",
             return_value=_HallucinatingDetector(),
         ),
         patch(
-            "podcast_scraper.workflow.stages.processing.extract_episode_description",
+            "podcast_scraper.speaker_stage.detection.extract_episode_description",
             return_value=DESCRIPTION,
         ),
     ):

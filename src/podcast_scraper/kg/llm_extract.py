@@ -179,8 +179,6 @@ _PERSON_PLACEHOLDER = re.compile(
     r"(?i)^(?:speaker[ _-]?\d+|unknown[ _-]?(?:guest|speaker|host)[ _-]?\d*)$"
 )
 _PERSON_CONJUNCTION = re.compile(r"(?i)\s(?:and|&)\s")
-#: A single token with a dot INSIDE it, e.g. ``Latent.Space``. Only applied to split fragments.
-_DOMAIN_TOKEN = re.compile(r"^[^\s.]+(?:\.[^\s.]+)+$")
 
 
 def person_entity_names(name: str) -> List[str]:
@@ -206,23 +204,14 @@ def person_entity_names(name: str) -> List[str]:
     against all 6,926 KG person names served on prod: every change it makes is one of the classes
     above; no real name is split.
     """
-    from podcast_scraper.speaker_detectors.hosts import has_org_markers, split_author_names
+    from podcast_scraper import stage_hooks
 
     text = (name or "").strip()
     if not text or _PERSON_PLACEHOLDER.match(text) or not any(ch.isalpha() for ch in text):
         return []
     if not _PERSON_CONJUNCTION.search(text):
         return [text]
-    parts: List[str] = []
-    for part in split_author_names(text):
-        if not any(ch.isalpha() for ch in part) or has_org_markers(part):
-            continue
-        if _DOMAIN_TOKEN.match(part) or part in parts:
-            continue
-        parts.append(part)
-    if len(split_author_names(text)) < 2:
-        return [text]
-    return parts
+    return stage_hooks.split_person_list(text)
 
 
 def clean_entity_display_name(name: Optional[str]) -> str:

@@ -36,6 +36,7 @@ from podcast_scraper.models import Episode, TranscriptionJob
 from podcast_scraper.providers.ml.diarization.formatting import (
     format_diarized_screenplay_from_segments,
 )
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.transcription import punctuation_repair
 from podcast_scraper.utils import audio_cache
 from podcast_scraper.workflow import (
@@ -999,7 +1000,7 @@ def _prepare(disk: Disk, episodes: List[Episode], cfg: config.Config):
     )
     with (
         patch.object(processing, "_check_episode_size_skip", return_value=processing._NO_SIZE_SKIP),
-        patch.object(processing, "_detect_speakers_for_episode", return_value=None) as detect,
+        patch.object(detection, "_detect_speakers_for_episode", return_value=None) as detect,
     ):
         args = processing.prepare_episode_download_args(
             episodes,

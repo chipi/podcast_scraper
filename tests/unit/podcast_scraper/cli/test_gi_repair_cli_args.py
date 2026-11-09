@@ -12,8 +12,8 @@ import logging
 
 import pytest
 
-from podcast_scraper import cli
 from podcast_scraper.gi import repair as repair_mod
+from podcast_scraper.insight_stage import cli as gi_cli
 
 
 def _run(tmp_path, ids_path, monkeypatch):
@@ -46,8 +46,8 @@ def _run(tmp_path, ids_path, monkeypatch):
     argv = ["--output-dir", str(tmp_path), "--dry-run"]
     if ids_path is not None:
         argv += ["--episode-ids", str(ids_path)]
-    args = cli._parse_gi_repair_argv(argv)
-    rc = cli._run_gi_repair_cli(args, logging.getLogger("test.gi_repair"))
+    args = gi_cli._parse_gi_repair_argv(argv)
+    rc = gi_cli._run_gi_repair_cli(args, logging.getLogger("test.gi_repair"))
     return rc, captured
 
 

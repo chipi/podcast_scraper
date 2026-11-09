@@ -173,7 +173,7 @@ def create_diarization_provider(
             )
             _warn_if_hold_drops_retry(backend, tiers)
         elif tiers:
-            from ...resilience.fallback import FallbackChainDiarizationProvider
+            from .fallback import FallbackChainDiarizationProvider
 
             # Pass BUILDERS, not instances: the chain constructs each tier lazily on first use, so a
             # never-reached fallback tier never crashes a healthy-DGX run when its credential (HF

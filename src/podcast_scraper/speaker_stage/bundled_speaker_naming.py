@@ -44,7 +44,7 @@ def labels_for_call(
     cfg: Any, pipeline_mode: str, output_dir: str, transcript_file_path: Optional[str]
 ) -> Optional[List[str]]:
     """The speaker labels a bundled call should judge, or None (then nothing is added)."""
-    from ..providers.ml.diarization import transcript_naming as tn
+    from podcast_scraper.providers.ml.diarization import transcript_naming as tn
 
     if tn.mode_of(cfg) == "off" or pipeline_mode not in tn.BUNDLED_MODES:
         return None
@@ -80,8 +80,8 @@ def record(
     speakers: Optional[Mapping[str, Any]],
 ) -> None:
     """Write a bundled call's answer into the sidecar. Never raises."""
-    from ..languages import transcription_language
-    from ..providers.ml.diarization import transcript_naming as tn
+    from podcast_scraper.languages import transcription_language
+    from podcast_scraper.providers.ml.diarization import transcript_naming as tn
 
     if not transcript_file_path:
         return

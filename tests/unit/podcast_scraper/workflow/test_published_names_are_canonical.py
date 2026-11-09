@@ -12,7 +12,7 @@ import pytest
 from podcast_scraper.gi.pipeline import _attach_person_for_quote
 from podcast_scraper.identity.slugify import person_id
 from podcast_scraper.kg.pipeline import _typed_person_org_node
-from podcast_scraper.workflow.metadata_generation import _unplaced_speakers
+from podcast_scraper.speaker_stage.record import _unplaced_speakers
 
 pytestmark = [pytest.mark.unit]
 

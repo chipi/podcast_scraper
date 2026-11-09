@@ -229,7 +229,7 @@ class EpisodeResult:
 
 def measure_episode(ep: Episode) -> EpisodeResult:
     """Run the app's builders on one episode and record what they show."""
-    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.read_hooks import insights_from_gi
     from podcast_scraper.server.kg_view import entities_from_kg
     from podcast_scraper.server.segments_view import to_contract_segments
 
@@ -303,7 +303,7 @@ def _read_model_rows(ep: Episode, gi: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     from podcast_scraper.gi.load import build_inspect_output
     from podcast_scraper.graph_id_utils import is_raw_label_person_id
-    from podcast_scraper.search import transcript_chunk_lift as lift
+    from podcast_scraper.insight_stage import transcript_chunk_lift as lift
 
     rows: List[Dict[str, Any]] = []
     try:

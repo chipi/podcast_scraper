@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pytest
 
+from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow.stages import processing
 
 pytestmark = [pytest.mark.unit]
@@ -115,7 +116,7 @@ def _stub_description(monkeypatch: pytest.MonkeyPatch) -> None:
     my mock instead of the code under test.
     """
     monkeypatch.setattr(
-        processing, "extract_episode_description", lambda _item: "A story about life insurance."
+        detection, "extract_episode_description", lambda _item: "A story about life insurance."
     )
 
 
@@ -123,7 +124,7 @@ def _run(detector: _Detector, cfg: Optional[_Cfg] = None) -> _Metrics:
     """Call with the REAL signature: (episode, cfg, host_detection_result, pipeline_metrics)."""
     m = _Metrics()
     hd = processing.HostDetectionResult(set(), {}, detector)
-    processing._detect_speakers_for_episode(
+    detection._detect_speakers_for_episode(
         _Episode(), cfg or _Cfg(), hd, m  # type: ignore[arg-type]
     )
     return m
@@ -164,7 +165,7 @@ class TestARealFailureIsStillFailed:
         m = _Metrics()
         hd = processing.HostDetectionResult(set(), {}, det)
         with pytest.raises(RuntimeError):
-            processing._detect_speakers_for_episode(
+            detection._detect_speakers_for_episode(
                 _Episode(), _Cfg(), hd, m  # type: ignore[arg-type]
             )
         rec = [r for r in m.records if r["stage"] == "speaker_detection"][-1]
@@ -177,7 +178,7 @@ class TestARealFailureIsStillFailed:
         det = _Detector(set(), [], raises=ValueError("boom"))
         hd = processing.HostDetectionResult(set(), {}, det)
         with pytest.raises(ValueError):
-            processing._detect_speakers_for_episode(
+            detection._detect_speakers_for_episode(
                 _Episode(), _Cfg(), hd, _Metrics()  # type: ignore[arg-type]
             )
 
@@ -186,7 +187,7 @@ class TestARealFailureIsStillFailed:
         m = _Metrics()
         hd = processing.HostDetectionResult(set(), {}, det)
         with pytest.raises(RuntimeError):
-            processing._detect_speakers_for_episode(
+            detection._detect_speakers_for_episode(
                 _Episode(), _Cfg(), hd, m  # type: ignore[arg-type]
             )
         assert m.stage_did_run("speaker_detection", 1) is False

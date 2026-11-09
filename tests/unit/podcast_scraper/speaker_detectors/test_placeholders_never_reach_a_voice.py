@@ -17,7 +17,7 @@ from podcast_scraper.speaker_detectors.normalization import (
     filter_default_speaker_names,
     is_default_speaker_name,
 )
-from podcast_scraper.workflow.metadata_generation import _unplaced_speakers
+from podcast_scraper.speaker_stage.record import _unplaced_speakers
 
 
 class TestTheConstantIsStillThere:

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CoverageFeedItem } from '../../api/corpusCoverageApi'
+import { useShellStore } from '../../stores/shell'
 
 const props = defineProps<{
   rows: CoverageFeedItem[]
@@ -22,7 +23,7 @@ function pct(n: number, d: number): number {
 
 const insight = computed(() => {
   const r = props.rows[0]
-  if (!r || !r.total) {
+  if (!r || !r.total || !useShellStore().giArtifactsAvailable) {
     return undefined
   }
   const gi = pct(r.with_gi, r.total)

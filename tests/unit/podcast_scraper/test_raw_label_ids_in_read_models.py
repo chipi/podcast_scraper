@@ -95,6 +95,6 @@ def test_the_read_model_keeps_a_named_speaker_and_a_host() -> None:
     ],
 )
 def test_the_lifted_search_speaker_is_never_a_raw_label(pid, name, want) -> None:
-    from podcast_scraper.search.transcript_chunk_lift import _lifted_speaker
+    from podcast_scraper.insight_stage.transcript_chunk_lift import _lifted_speaker
 
     assert _lifted_speaker(pid, name) == want

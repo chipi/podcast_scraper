@@ -180,7 +180,7 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         self.assertIn("feed_description", params)
         self.assertIn("feed_authors", params)
 
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection._load_spacy_model")
     def test_detect_hosts_returns_set(self, mock_load_spacy):
         """Test that detect_hosts() returns a Set[str]."""
         mock_load_spacy.return_value = Mock()
@@ -195,7 +195,7 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         for item in result:
             self.assertIsInstance(item, str)
 
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection._load_spacy_model")
     def test_detect_hosts_with_authors(self, mock_load_spacy):
         """Test detect_hosts() with feed_authors (preferred source)."""
         mock_load_spacy.return_value = Mock()
@@ -317,7 +317,7 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
         # Parameters should be empty or only have optional params
         self.assertEqual(len(params), 0)
 
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection._load_spacy_model")
     def test_ner_detector_clear_cache_is_noop(self, mock_load_spacy):
         """Test that NER detector clear_cache() is a no-op (cache was removed in issue #164)."""
         # Mock spaCy model loading to prevent network calls

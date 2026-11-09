@@ -19,7 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
 
-from podcast_scraper import perf_cache
+from podcast_scraper import perf_cache, read_hooks
 from podcast_scraper.search.groupings import (
     storyline_anchors,
     storyline_lifecycle,
@@ -35,7 +35,6 @@ from podcast_scraper.search.groupings import (
 )
 from podcast_scraper.server.app_umbrellas import umbrella_tokens
 from podcast_scraper.server.catalog_cache import cached_catalog
-from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
 from podcast_scraper.server.content_source import row_to_summary
 from podcast_scraper.server.corpus_access import load_json_artifact
 from podcast_scraper.server.corpus_catalog import (
@@ -53,14 +52,12 @@ from podcast_scraper.server.schemas import (
     AppEntity,
     AppEntityRef,
     AppEpisodeSummary,
-    AppInsight,
     AppInterestHit,
     AppOrgCard,
     AppOrgWeb,
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
-    AppQuote,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -96,52 +93,6 @@ def _person_web_payload(root: Path) -> dict[str, Any] | None:
         return None
     inner = doc.get("data")
     return inner if isinstance(inner, dict) else doc
-
-
-def _group_borrows(root: Path, rows: list[Any]) -> tuple[dict[str, str], dict[str, str]]:
-    """``(bio_from, photo_from)``: for each id of a joined person's group whose own row has no bio
-    (no hosted photo), the member id whose row it may borrow (record s6f_person_web).
-
-    A row is borrowed only when its ``name`` is the group's spelling: the enricher looked each id up
-    by its own spelling, so a member's row under another name may describe someone else. The
-    member with the most episodes wins. No valid ledger: nothing is borrowed (today's behaviour)."""
-    from podcast_scraper.identity.ledger import _fold, read_ledger
-
-    ledger, _state = read_ledger(root)
-    if ledger is None:
-        return {}, {}
-    by_id = {str(r.get("person_id")): r for r in rows if isinstance(r, dict) and r.get("person_id")}
-
-    def has_bio(pid: str) -> bool:
-        bio = (by_id.get(pid) or {}).get("bio")
-        return isinstance(bio, str) and bool(bio.strip())
-
-    def has_photo(pid: str) -> bool:
-        return bool((by_id.get(pid) or {}).get("image_hosted"))
-
-    bio_from: dict[str, str] = {}
-    photo_from: dict[str, str] = {}
-    for cluster in (ledger.get("clusters_payload") or {}).get("clusters") or []:
-        canonical = str(cluster.get("canonical_id") or "")
-        shown = cluster.get("display_name") or cluster.get("canonical_name")
-        if not canonical.startswith("person:") or not shown:
-            continue
-        members = sorted(
-            (m for m in cluster.get("members") or [] if m.get("id")),
-            key=lambda m: (-int(m.get("episode_count") or 0), str(m["id"])),
-        )
-        ids = [canonical] + [str(m["id"]) for m in members if m["id"] != canonical]
-        named = [
-            i for i in ids if _fold(str((by_id.get(i) or {}).get("name") or "")) == _fold(shown)
-        ]
-        for kind, has, out in (("bio", has_bio, bio_from), ("photo", has_photo, photo_from)):
-            source = next((i for i in named if has(i)), None)
-            if source is None:
-                continue
-            for i in ids:
-                if i != source and not has(i):
-                    out[i] = source
-    return bio_from, photo_from
 
 
 def hosted_photo_urls(root: Path) -> dict[str, str]:
@@ -186,7 +137,7 @@ def _hosted_photos(root: Path) -> dict[str, str]:
         if isinstance(pid, str) and pid:
             out[pid] = _photo_route(pid)
     # A joined person's other ids show the photo hosted under the id that has it (s6f).
-    for pid, source in _group_borrows(root, rows)[1].items():
+    for pid, source in read_hooks.group_borrows(root, rows)[1].items():
         out.setdefault(pid, _photo_route(source))
     return out
 
@@ -216,7 +167,7 @@ def _person_web(root: Path, person_id: str) -> AppPersonWeb | None:
     own_bio = (own or {}).get("bio")
     if not isinstance(own_bio, str) or not own_bio.strip():
         # No bio of its own: another id of the person's group, under the group's spelling (s6f).
-        borrowed = _group_borrows(root, rows)[0].get(person_id)
+        borrowed = read_hooks.group_borrows(root, rows)[0].get(person_id)
         if borrowed is not None:
             person_id = borrowed
     for row in rows:
@@ -1138,11 +1089,13 @@ def build_cluster_perspectives(
             for r in cached_catalog(root)
             if r.episode_id and slug_for_row(r) in mine_slugs
         }
-    groups = topics_perspectives(str(root), str(root), members, keep_episode_ids=keep)
+    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
+    groups = read_hooks.topic_perspectives(
+        root, members, keep_episode_ids=keep, slug_by_episode=slug_by_episode
+    )
     if not groups:
         return None
     photos = hosted_photo_urls(root)
-    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
@@ -1150,9 +1103,7 @@ def build_cluster_perspectives(
             image_url=photos.get(str(g["person_id"])),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
-            insights=_rank_for_display(
-                [_node_to_app_insight(n, slug_by_episode) for n in g["insights"]]
-            ),
+            insights=g["insights"],
         )
         for g in groups
     ]
@@ -1282,69 +1233,6 @@ def build_org_card(
     )
 
 
-def _node_to_app_insight(
-    node: dict[str, Any], slug_by_episode: dict[str, str] | None = None
-) -> AppInsight:
-    """Project a GI Insight node to AppInsight (grounded).
-
-    ``slug_by_episode`` maps episode id -> slug so a perspective insight carries its source
-    episode + the supporting quote's start moment (#2032); both are annotated onto the node by
-    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere. The
-    supporting quote itself (``_quote_text`` / ``_quote_end_ms``, 2026-10-11) becomes the insight's
-    one quote, so a quote card shows the transcript's words, not the paraphrase.
-    """
-    props = node.get("properties") or {}
-    text = props.get("text") or props.get("title") or ""
-    conf = props.get("confidence")
-    itype = props.get("insight_type") or props.get("type")
-    phint = props.get("position_hint")
-    sal = props.get("salience")
-    rnk = props.get("rank")
-    rtag = props.get("routing_tag")
-    tier = props.get("tier")
-    ep_id = node.get("_episode_id")
-    start_ms = node.get("_quote_start_ms")
-    lang = node.get("_quote_translated_from")
-    end_ms = node.get("_quote_end_ms")
-    qtext = node.get("_quote_text")
-    quotes = (
-        [
-            AppQuote(
-                text=qtext,
-                speaker=None,
-                start_ms=start_ms if isinstance(start_ms, int) else None,
-                end_ms=end_ms if isinstance(end_ms, int) else None,
-            )
-        ]
-        if isinstance(qtext, str) and qtext.strip()
-        else []
-    )
-    episode_slug = (slug_by_episode or {}).get(str(ep_id)) if ep_id else None
-    return AppInsight(
-        id=str(node.get("id") or ""),
-        text=str(text),
-        grounded=True,
-        insight_type=str(itype) if isinstance(itype, str) and itype.strip() else None,
-        confidence=float(conf) if isinstance(conf, (int, float)) else None,
-        position_hint=str(phint) if phint is not None else None,
-        salience=float(sal) if isinstance(sal, (int, float)) else None,
-        rank=int(rnk) if isinstance(rnk, int) else None,
-        routing_tag=str(rtag) if isinstance(rtag, str) and rtag.strip() else None,
-        tier=int(tier) if isinstance(tier, int) else None,
-        episode_slug=episode_slug,
-        start_ms=start_ms if isinstance(start_ms, int) else None,
-        quotes=quotes,
-        translated_from=lang if isinstance(lang, str) and lang else None,
-    )
-
-
-def _rank_for_display(insights: list[AppInsight]) -> list[AppInsight]:
-    """ADR-135/#1191: drop `drop`-tagged, sort by salience desc (stable for ties / pre-3.1)."""
-    kept = [i for i in insights if i.routing_tag != "drop"]
-    kept.sort(key=lambda i: i.salience if i.salience is not None else 0.0, reverse=True)
-    return kept
-
-
 def build_topic_perspectives(
     root: Path, topic_id: str, *, mine_slugs: set[str] | None = None
 ) -> AppTopicPerspectivesResponse | None:
@@ -1358,12 +1246,14 @@ def build_topic_perspectives(
     if mine_slugs is not None:
         rows = cached_catalog(root)
         keep = {r.episode_id for r in rows if r.episode_id and slug_for_row(r) in mine_slugs}
-    groups = topic_perspectives(str(root), str(root), topic_id, keep_episode_ids=keep)
+    # episode id -> slug, so each perspective insight can carry a jump-to-moment link (#2032).
+    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
+    groups = read_hooks.topic_perspectives(
+        root, [topic_id], keep_episode_ids=keep, slug_by_episode=slug_by_episode
+    )
     if not groups:
         return None
     photos = hosted_photo_urls(root)
-    # episode id -> slug, so each perspective insight can carry a jump-to-moment link (#2032).
-    slug_by_episode = {r.episode_id: slug_for_row(r) for r in cached_catalog(root) if r.episode_id}
     perspectives = [
         AppTopicPerspective(
             person_id=str(g["person_id"]),
@@ -1371,9 +1261,7 @@ def build_topic_perspectives(
             image_url=photos.get(str(g["person_id"])),
             insight_count=int(g["insight_count"]),
             episode_count=int(g["episode_count"]),
-            insights=_rank_for_display(
-                [_node_to_app_insight(n, slug_by_episode) for n in g["insights"]]
-            ),
+            insights=g["insights"],
         )
         for g in groups
     ]

@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, cast, Dict, List, Optional, Set
 
-from .. import config_constants
+from .. import config_constants, stage_hooks
 from ..graph_id_utils import (
     canonical_person_name,
     entity_node_id,
@@ -142,56 +142,6 @@ def _apply_kg_filters(
     return llm_partial
 
 
-def _resolve_ner_prepass(
-    transcript_text: str,
-    cfg: Optional[Any],
-    kg_extraction_provider: Any,
-    max_entities: int,
-) -> tuple[List[Dict[str, str]], str]:
-    """#1035 — NER pre-pass: returns (hints, prompt_version).
-
-    When ``cfg.kg_extraction_use_ner_prepass`` is False (the Field default is
-    ``True``; see config.py) or the NER pipeline isn't available, returns
-    ``([], "v4")`` — caller renders the v4 prompt with no hints. When enabled
-    and the spaCy model resolves, returns the deduped + capped PERSON+ORG
-    candidate list and prompt ``"v5"``.
-
-    NB (#1540): the shipped cloud image is ``[llm,search]`` — spaCy lives only
-    in ``[ml]`` — so on cloud_balanced this pass load-fails and silently
-    downgrades to v4. Whether that materially hurts cloud KG entity recall
-    (the #1035 0%→100% win was measured on DGX models, not the litellm cloud
-    model) is an open question tracked in the ML-opt-in discussion issue.
-
-    Reuses ``kg_extraction_provider._spacy_nlp`` when cached (Issue #387)
-    or falls back to a fresh ``get_ner_model(cfg)`` load. Any failure
-    silently downgrades to v4 — entity recall stays at the pre-#1035
-    baseline, never worse.
-    """
-    if cfg is None or not getattr(cfg, "kg_extraction_use_ner_prepass", False):
-        return [], "v4"
-    nlp = getattr(kg_extraction_provider, "_spacy_nlp", None)
-    if nlp is None:
-        try:
-            from ..providers.ml.speaker_detection import get_ner_model
-
-            nlp = get_ner_model(cfg)
-        except Exception as exc:
-            logger.warning(
-                "#1035 NER pre-pass: could not load spaCy model (%s); falling back to v4 prompt",
-                exc,
-            )
-            return [], "v4"
-    if nlp is None:
-        logger.debug("#1035 NER pre-pass: cfg.ner_model not set; falling back to v4 prompt")
-        return [], "v4"
-
-    from .ner_prepass import extract_kg_ner_hints
-
-    cap = max(1, min(int(max_entities) * 3, 40))
-    hints = extract_kg_ner_hints(transcript_text, nlp, max_candidates=cap)
-    return hints, "v5"
-
-
 def _usable_partial(partial: Optional[Dict[str, Any]]) -> bool:
     """A KG partial is usable only if it actually carries topics or entities."""
     if not partial or not isinstance(partial, dict):
@@ -254,7 +204,7 @@ def _try_provider_extraction(
     params: Dict[str, Any] = {}
     if cfg is not None and getattr(cfg, "kg_extraction_model", None):
         params["kg_extraction_model"] = cfg.kg_extraction_model
-    ner_hints, prompt_version = _resolve_ner_prepass(
+    ner_hints, prompt_version = stage_hooks.kg_prompt_hints(
         transcript_text, cfg, kg_extraction_provider, max_e
     )
     if ner_hints:
@@ -539,7 +489,7 @@ def build_artifact(
     # from different sites with no cross-site check at all. Two nodes sharing an id crashed the
     # whole corpus reindex on 2026-08-26 (LanceDB refuses ambiguous merges). Last-writer's
     # properties fill gaps; an explicit host/guest role always beats 'mentioned'.
-    nodes, edges = _collapse_mentions_into_speakers(nodes, edges)
+    nodes, edges = stage_hooks.kg_graph_passes(nodes, edges)
     nodes, edges = _collapse_persons_named_as_orgs(nodes, edges)
     nodes = _dedupe_nodes_by_id(nodes)
     # The same name-vs-slug collision mints a second MENTIONS edge with each second node
@@ -561,87 +511,6 @@ def build_artifact(
         "nodes": nodes,
         "edges": edges,
     }
-
-
-def _collapse_mentions_into_speakers(
-    nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """A person MENTIONED in the episode they also SPOKE in is one Person node, not two.
-
-    MEASURED on 400 sampled prod episodes: 20 distinct pairs where one spelling is a speaker and
-    a near-identical one is a `mentioned` Person in the SAME episode —
-
-        Joe Weisenthal (host) / Joe Wiesenthal      x5   Odd Lots
-        Peter Attia, MD (host) / Peter Attia        x4   The Peter Attia Drive
-        Tracy Alloway (host) / Tracy Allaway        x3   Odd Lots
-        Theo Jaffe / Theo Jaffee                    x3   The a16z Show
-        Mark Galeotti (host) / Mark Galliotti       x2   In Moscow's Shadows
-        ...15 more
-
-    Neither existing mechanism closes this. `_one_name_per_person` (the roster) operates on
-    diarized VOICES and never sees a mention; `_dedupe_nodes_by_id` merges only nodes that already
-    share a slug, and `joe-weisenthal` / `joe-wiesenthal` do not.
-
-    THE SPEAKER'S SPELLING WINS. A voice is established evidence — somebody spoke and the roster
-    resolved who. A mention is a name extracted from prose, where the ASR's rendering is whatever
-    it heard. So the mention is rewritten onto the speaker's id, and every edge that referenced it
-    is remapped rather than left dangling.
-
-    THREE GUARDS, because merging two real people is worse than leaving a duplicate (#876):
-
-    * only mention -> SPEAKER, never mention -> mention. The dangerous shape is several mentions of
-      one family: in `ChinaTalk — "North Korea's Messiah"`, `Kim Jong-il`, `Kim Jong-un` and
-      `Kim Il-sung` are three different people, all mentions, and `same_person` scores the first
-      two at 0.857. Comparing only against speakers keeps them apart — that episode's only speaker
-      is Jordan Schneider.
-    * exactly ONE speaker may match. Two matches means nothing says which, and a guess there is
-      precisely the failure this guards.
-    * a generational disagreement settles it outright. `same_person`'s subset rule reads
-      `Sam Lee` as `Sam Lee Jr`, but that suffix exists to tell a father from a son.
-    """
-    from ..graph_id_utils import GENERATIONAL_SUFFIXES
-    from .speaker_coherence import same_person
-
-    def _generation(name: str) -> str:
-        toks = [x for x in name.lower().replace(".", " ").replace(",", " ").split() if x]
-        return toks[-1] if toks and toks[-1] in GENERATIONAL_SUFFIXES else ""
-
-    people = [n for n in nodes if isinstance(n, dict) and n.get("type") == "Person"]
-    speakers = [
-        n for n in people if str((n.get("properties") or {}).get("role") or "") in ("host", "guest")
-    ]
-    if not speakers:
-        return nodes, edges
-
-    remap: Dict[str, str] = {}
-    for node in people:
-        props = node.get("properties") or {}
-        if str(props.get("role") or "") in ("host", "guest"):
-            continue
-        name = str(props.get("name") or "").strip()
-        nid = str(node.get("id") or "")
-        if not name or not nid:
-            continue
-        hits = [
-            s
-            for s in speakers
-            if _generation(name) == _generation(str((s.get("properties") or {}).get("name") or ""))
-            and same_person(name, str((s.get("properties") or {}).get("name") or ""))
-        ]
-        if len(hits) != 1:
-            continue
-        target = str(hits[0].get("id") or "")
-        if target and target != nid:
-            remap[nid] = target
-            logger.info(
-                "kg build_artifact: %r (mentioned) is %r (%s) — collapsing onto %s",
-                name,
-                (hits[0].get("properties") or {}).get("name"),
-                (hits[0].get("properties") or {}).get("role"),
-                target,
-            )
-
-    return _remap_nodes(nodes, edges, remap)
 
 
 def _collapse_persons_named_as_orgs(

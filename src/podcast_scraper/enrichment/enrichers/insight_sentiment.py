@@ -15,7 +15,7 @@ no accuracy gate, always admitted. Reads ``*.gi.json`` (Insight nodes); writes
 
 **Consumption is indirect — do not expect a frontend reader.** No viewer/player
 component reads this artifact directly. The read-time CIL layer joins it:
-``cil_queries._attach_sentiment`` (``server/cil_queries.py``) reads the
+``cil_queries._attach_sentiment`` (``insight_stage/cil_queries.py``) reads the
 ``{stem}.insight_sentiment.json`` sidecar and tags each Insight node with
 ``sentiment: {compound, label}`` so the conversation-arc / position-arc responses
 carry the tint. So the enricher → server-join → arc-tint chain is easy to break

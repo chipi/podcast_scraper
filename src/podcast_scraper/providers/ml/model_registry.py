@@ -1655,7 +1655,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
 # 0.85}. The current default of 0.75 is Pareto-optimal: max cross-feed
 # parent clusters (4) at the lowest tc:* total (6). No Config field exposes
 # this knob today — the threshold is a function-default in
-# the topic and insight clustering modules (``search/insight_clusters.py``). The
+# the topic and insight clustering modules (``insight_stage/insight_clusters.py``). The
 # registry entry is documentation/provenance until a config surface lands;
 # ``resolve_profile_to_settings`` does NOT yet plumb a clustering field
 # into runtime settings.

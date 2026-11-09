@@ -14,10 +14,10 @@ import pytest
 
 from podcast_scraper.providers.guardrails.exceptions import GuardrailViolation
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
+from podcast_scraper.providers.ml.diarization.fallback import FallbackChainDiarizationProvider
 from podcast_scraper.providers.resilience.fallback import (
     _segment_coverage,
     CoverageGatedTranscriptionProvider,
-    FallbackChainDiarizationProvider,
     FallbackChainTranscriptionProvider,
     is_infra_failure,
 )

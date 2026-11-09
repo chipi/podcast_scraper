@@ -15,8 +15,8 @@ from typing import Any, Callable, cast, List, Optional, Tuple
 import pytest
 
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
+from podcast_scraper.providers.ml.diarization.fallback import FallbackChainDiarizationProvider
 from podcast_scraper.providers.resilience.fallback import (
-    FallbackChainDiarizationProvider,
     FallbackChainTranscriptionProvider,
 )
 

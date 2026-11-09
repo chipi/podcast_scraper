@@ -9,16 +9,13 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper import read_hooks
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.server.catalog_cache import cached_catalog, cached_catalog_last_run
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
     row_matches_library_topic_cluster_filter,
-)
-from podcast_scraper.server.cil_queries import (
-    canonical_cil_entity_id,
-    episodes_for_bridge_node_id,
 )
 from podcast_scraper.server.corpus_catalog import (
     aggregate_feeds,
@@ -220,8 +217,7 @@ def corpus_node_episodes(
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
     anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
-    canon = canonical_cil_entity_id(body.node_id)
-    rows, truncated, total_matched = episodes_for_bridge_node_id(
+    canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
         root_s,
         anchor_path,
         body.node_id,

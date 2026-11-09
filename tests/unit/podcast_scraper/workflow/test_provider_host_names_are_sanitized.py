@@ -28,7 +28,7 @@ from typing import Any, Optional, Set
 
 import pytest
 
-from podcast_scraper.workflow.stages import processing
+from podcast_scraper.speaker_stage import detection
 
 pytestmark = [pytest.mark.unit]
 
@@ -51,7 +51,7 @@ class _Detector:
 
 
 def _hosts(returns: Set[str], feed: Optional[_Feed] = None) -> Set[str]:
-    return processing._detect_hosts_from_feed(feed or _Feed(), _Detector(returns))
+    return detection._detect_hosts_from_feed(feed or _Feed(), _Detector(returns))
 
 
 class TestCompositeNamesAreSplit:
@@ -117,7 +117,7 @@ class TestTheDeterministicPathStillWins:
             def detect_hosts(self, **_kw: Any) -> Set[str]:
                 raise AssertionError("provider consulted despite a stated host")
 
-        out = processing._detect_hosts_from_feed(feed, _Exploding())
+        out = detection._detect_hosts_from_feed(feed, _Exploding())
         assert "Kevin Roose" in out and "Casey Newton" in out
 
 
@@ -187,7 +187,7 @@ class TestAMissingPackageDegradesButNothingElseDoes:
             raise self._exc
 
     def _detect(self, exc: BaseException) -> Set[str]:
-        return processing._detect_hosts_from_feed(_Feed(), self._Raiser(exc))
+        return detection._detect_hosts_from_feed(_Feed(), self._Raiser(exc))
 
     def test_a_bare_module_not_found_degrades_to_no_hosts(self) -> None:
         """The exact shape ``import spacy`` raises: no cause, no context."""
@@ -217,7 +217,7 @@ class TestAMissingPackageDegradesButNothingElseDoes:
             "Hosted by Kevin Roose and Casey Newton, journalists at the Times.",
         )
         detector = self._Raiser(ModuleNotFoundError("No module named 'spacy'"))
-        assert processing._detect_hosts_from_feed(feed, detector) == {
+        assert detection._detect_hosts_from_feed(feed, detector) == {
             "Kevin Roose",
             "Casey Newton",
         }

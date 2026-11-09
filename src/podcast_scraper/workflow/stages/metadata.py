@@ -63,10 +63,10 @@ def call_generate_metadata(
     """
     # Build detected_hosts and detected_guests lists
     # #2197: this episode's own hosts — the episode-author fallback contributes THIS episode's
-    # authors, never another episode's (see stages.processing.hosts_for_episode).
-    from .processing import hosts_for_episode
+    # authors, never another episode's (see speaker_stage.detection.hosts_for_episode).
+    from ... import stage_hooks
 
-    episode_hosts = hosts_for_episode(host_detection_result, episode, detected_names or ())
+    episode_hosts = stage_hooks.episode_hosts(host_detection_result, episode, detected_names or ())
     detected_hosts = sorted(episode_hosts) if episode_hosts else None
     detected_guests = (
         [name for name in detected_names if not episode_hosts or name not in episode_hosts]

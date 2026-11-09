@@ -15,9 +15,8 @@ from podcast_scraper.search.cil_lift_overrides import (
     CilLiftOverrides,
     resolve_id_alias,
 )
+from podcast_scraper.search.indexer import is_source_layer_chunk
 from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
-
-from .indexer import is_source_layer_chunk
 
 logger = logging.getLogger(__name__)
 
@@ -348,3 +347,38 @@ def lift_row_if_transcript(
     )
     if lifted is not None:
         row["lifted"] = lifted
+
+
+def lift_transcript_rows(
+    rows: List[Dict[str, Any]],
+    corpus_root: Path,
+    gi_paths: Mapping[str, Path],
+    *,
+    visible_for: Optional[Callable[[str], Callable[[str], bool]]] = None,
+    people: Any = None,
+) -> None:
+    """Set ``lifted`` on each transcript hit whose chunk overlaps a GI quote (moved from
+    ``search.corpus_search``, E04 S3/S4). ``gi_paths`` maps episode id to its ``gi.json``;
+    ``visible_for(episode_id)`` answers which of that episode's insights the reader may see."""
+    from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
+
+    lift_overrides = load_cil_lift_overrides(corpus_root)
+    lift_cache = TranscriptLiftGiCache()
+    for row in rows:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict) or meta.get("doc_type") != "transcript":
+            continue
+        ep = meta.get("episode_id")
+        if not isinstance(ep, str) or not ep.strip():
+            continue
+        gpath = gi_paths.get(ep.strip())
+        if gpath is not None and gpath.is_file():
+            lift_row_if_transcript(
+                row,
+                corpus_root,
+                gpath,
+                lift_cache,
+                lift_overrides,
+                visible=None if visible_for is None else visible_for(ep.strip()),
+                people=people,
+            )

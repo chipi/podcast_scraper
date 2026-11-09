@@ -14,6 +14,4 @@ Direct-import paths (still public API):
   - ``from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend``
   - ``from podcast_scraper.search.indexer import index_corpus, IndexRunStats, maybe_index_corpus``
   - ``from podcast_scraper.search.protocol import IndexStats, SearchResult, VectorStore``
-  - ``from podcast_scraper.search.insight_clusters import build_insight_clusters_for_corpus``
-  - ``from podcast_scraper.search.insight_cluster_context import expand_with_cluster_context``
 """

@@ -17,7 +17,8 @@ from podcast_scraper.providers.ml.diarization.roster import (
     _snap_near_identical_host,
     SpeakerRole,
 )
-from podcast_scraper.workflow.metadata_generation import _unplaced_speakers, SpeakerInfo
+from podcast_scraper.speaker_stage.record import _unplaced_speakers
+from podcast_scraper.workflow.metadata_generation import SpeakerInfo
 
 pytestmark = [pytest.mark.unit]
 

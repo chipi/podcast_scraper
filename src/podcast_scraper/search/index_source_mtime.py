@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
+from podcast_scraper import stage_hooks
 from podcast_scraper.search import indexer as _indexer
 from podcast_scraper.search.corpus_scope import (
     discover_metadata_files,
@@ -41,10 +42,10 @@ def _compute_newest_index_source_mtime_epoch(corpus_root: Path) -> Optional[floa
         doc = _indexer._load_metadata_file(meta_path)
         if doc is not None:
             episode_root = episode_root_from_metadata_path(meta_path)
-            gi = _indexer._gi_path(episode_root, meta_path, doc)
-            gi_s = normpath_if_under_root(str(gi), corpus_s)
-            if gi_s and os.path.isfile(gi_s):
-                paths.append(gi_s)
+            for stage_path in stage_hooks.index_source_paths(episode_root, meta_path, doc):
+                stage_s = normpath_if_under_root(str(stage_path), corpus_s)
+                if stage_s and os.path.isfile(stage_s):
+                    paths.append(stage_s)
             kg = _indexer._kg_path(episode_root, meta_path, doc)
             kg_s = normpath_if_under_root(str(kg), corpus_s)
             if kg_s and os.path.isfile(kg_s):

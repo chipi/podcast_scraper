@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search.insight_clusters import (
+from podcast_scraper.insight_stage.insight_clusters import (
     collect_insight_rows_from_corpus,
 )
 

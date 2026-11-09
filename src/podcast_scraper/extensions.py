@@ -23,14 +23,16 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, TYPE_CHECKING
+from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
 
     from podcast_scraper.db.inventory import Claim
+    from podcast_scraper.read_hooks import ReadHooks
     from podcast_scraper.search.groupings import TopicGroupings
     from podcast_scraper.server.app_user_store import User
+    from podcast_scraper.stage_hooks import PipelineHooks
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,9 @@ class RouterMount:
     #: Operator-plane routers only: also mount on the curated public operator surface (RFC-108 (not
     #: in this repository)).
     operator_public: bool = False
+    #: The ``/api/health`` flags this router serves (``"cil_queries_api"``): true only when it is
+    #: mounted in the running serve posture, so a client never calls a route that is not there.
+    advertises: Tuple[str, ...] = ()
 
     @property
     def prefix(self) -> str:
@@ -217,6 +222,11 @@ class Extension:
     #: with at least ``version`` and ``git_sha`` and whatever refs it was built from. Cheap and
     #: free of I/O beyond a small file; a raising hook is reported as an error, never propagated.
     version_info: Callable[[], Mapping[str, Any]] | None = None
+    #: The pipeline stages the extension owns, on the run's and the batch's stage hooks
+    #: (``podcast_scraper.stage_hooks``).
+    pipeline_hooks: PipelineHooks | None = None
+    #: What the server's read side asks the extension (``podcast_scraper.read_hooks``).
+    read_hooks: ReadHooks | None = None
 
 
 _override: list[Extension] | None = None

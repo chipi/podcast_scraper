@@ -32,12 +32,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from .. import read_hooks
 from ..builders.bridge_builder import strip_layer_prefixes
 from ..graph_id_utils import (
     is_numbered_speaker_label as _looks_like_speaker_label,
     is_unresolved_speaker_placeholder,
 )
-from ..identity.person_match import host_variants
 
 logger = logging.getLogger(__name__)
 
@@ -326,8 +326,9 @@ class CorpusGraph:
 
     @staticmethod
     def _same_person_variant(a: str, b: str) -> bool:
-        """The ``host_variant`` rule of :mod:`podcast_scraper.identity.person_match` (#1190)."""
-        return host_variants(a, b)
+        """The ``host_variant`` rule of the identity stage (#1190); without it, no two spellings are
+        one person."""
+        return read_hooks.host_variants(a, b)
 
     def _collapse_host_name_variants(
         self, named: "Dict[str, Dict[str, Set[str]]]"
@@ -425,8 +426,6 @@ class CorpusGraph:
         (e.g. from entity canonicalization) applied at ingest so cross-episode
         spelling variants collapse to one node.
         """
-        from ..gi.corpus import iter_gi_artifacts
-        from ..gi.explore import scan_artifact_paths as scan_gi_paths
         from ..kg.corpus import (
             iter_kg_artifacts,
             newest_run_artifact_paths,
@@ -443,9 +442,8 @@ class CorpusGraph:
         )
         for _path, data in iter_kg_artifacts(_kg_paths, validate=validate):
             graph._ingest(data, "kg")
-        _gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
-        for _path, data in iter_gi_artifacts(_gi_paths, validate=validate):
-            graph._ingest(data, "gi")
+        for source, data in read_hooks.graph_artifacts(corpus_dir, validate=validate):
+            graph._ingest(data, source)
         if derive_speaker_links:
             graph._derive_speaker_links()
         if reconcile_hosts:
@@ -587,9 +585,8 @@ def get_corpus_graph(
             people = None
             if canonicalize_entities:
                 from ..identity.display import person_display
-                from ..kg.entity_clusters import cached_entity_id_map
 
-                identity_map = cached_entity_id_map(corpus_dir)
+                identity_map = read_hooks.entity_id_map(corpus_dir)
                 people = person_display(corpus_dir)
             _corpus_graphs[key] = CorpusGraph.build(
                 corpus_dir,

@@ -38,6 +38,7 @@ else:
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
+from .. import stage_hooks
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
 from ..languages_guard import is_target_language, transcript_language_contradiction
@@ -719,11 +720,7 @@ def _format_transcript_if_needed(
             # one, so roster-resolved names win. (No ``diarize=false`` path emits speaker_label
             # except a roster pass, so this stays inert for plain provider screenplays.)
             if has_diarized_labels:
-                from ..providers.ml.diarization.formatting import (
-                    format_diarized_screenplay_from_segments,
-                )
-
-                formatted = format_diarized_screenplay_from_segments(segments)
+                formatted = stage_hooks.render_speakers(segments)
             elif transcription_provider and hasattr(
                 transcription_provider, "format_screenplay_from_segments"
             ):
@@ -1332,70 +1329,6 @@ def _write_processing_manifest(
         )
 
 
-def _write_anon_transcript(
-    segments: List[Dict[str, Any]],
-    rel_transcript_path: str,
-    effective_output_dir: str,
-) -> Optional[str]:
-    """Write the PRE-NAMING render, ``<base>.anon.txt`` (D-40). Returns its relpath, or ``None``.
-
-    WHY IT EXISTS. The order is diarize → write anonymous → name → re-render, and the naming
-    re-render overwrites ``.txt``. That
-    would destroy the only human-readable view of what the pipeline saw BEFORE it decided who was
-    speaking — the first thing anyone debugging a naming failure wants.
-
-    RENDERED FROM ``speaker``, NOT ``speaker_label``. The voice id is frozen at diarization and
-    naming never touches it; only ``speaker_label`` is updated. So this is derivable at any point
-    after diarization, and writing it here is cheapness and clarity rather than recoverability.
-
-    ``None`` WHEN IT WOULD CARRY NOTHING NEW: undiarized segments (no ``speaker``), or a render
-    byte-identical to the named one because naming resolved no voice. An identical copy is not a
-    second artifact, and writing one for every unnamed episode would double the transcript corpus
-    to say nothing.
-
-    NEVER A RESOLUTION CANDIDATE. ``text_relpath_candidates`` does not list ``.anon.txt`` for
-    either purpose, deliberately: a reader that resolved to it would show ``SPEAKER_01`` where a
-    person's name belongs.
-    """
-    from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
-    from .transcript_resolution import anon_transcript_relpath
-
-    anonymous = []
-    for seg in segments:
-        if not isinstance(seg, dict):
-            continue
-        voice = seg.get("speaker")
-        if not voice:
-            return None
-        anonymous.append({**seg, "speaker_label": str(voice)})
-    if not anonymous:
-        return None
-
-    anon_text, _offsets = format_diarized_screenplay_with_offsets(anonymous)
-    if not anon_text.strip():
-        return None
-
-    named_text, _named_offsets = format_diarized_screenplay_with_offsets(
-        [s for s in segments if isinstance(s, dict)]
-    )
-    if anon_text == named_text:
-        # Naming resolved nothing, so the two renders are the same file.
-        return None
-
-    rel = anon_transcript_relpath(rel_transcript_path)
-    out_path = os.path.join(effective_output_dir, rel)
-    try:
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as fh:
-            fh.write(anon_text)
-    except OSError as exc:
-        # NOT fatal. This is a debugging view; losing it must not cost the episode, whose real
-        # artifacts are already on disk by the time this runs.
-        logger.warning("could not write the pre-naming transcript %s: %s", rel, exc)
-        return None
-    return rel
-
-
 def _produce_transcript_sidecars(
     cfg: config.Config,
     text: str,
@@ -1435,9 +1368,7 @@ def _produce_transcript_sidecars(
     # `language is None or language == "en"` had drifted into three slightly different
     # conditions; this is the one that also treats a whitespace-only tag as unknown.
     if cfg.save_adfree_transcript and is_target_language(language):
-        from .adfree_transcript import produce_adfree_artifacts
-
-        produced = produce_adfree_artifacts(
+        produced = stage_hooks.adfree_base(
             text,
             segments,
             rel_transcript_path,
@@ -1459,7 +1390,7 @@ def _produce_transcript_sidecars(
     # not a processing base whose absence changes which text NLP reads, it is a description of
     # what diarization saw, and `_write_anon_transcript` returns None when it would carry
     # nothing `.txt` does not already say.
-    anon_rel = _write_anon_transcript(segments, rel_transcript_path, effective_output_dir)
+    anon_rel = stage_hooks.anon_transcript(segments, rel_transcript_path, effective_output_dir)
     if anon_rel:
         logger.info("    saved the pre-naming transcript: %s", anon_rel)
 
@@ -1472,7 +1403,7 @@ def _produce_transcript_sidecars(
     if language is not None and language != "en":
         _invalidate_translation(rel_transcript_path, effective_output_dir, language)
 
-    _write_turns_artifacts(
+    stage_hooks.write_variant_turns(
         cfg,
         text,
         segments,
@@ -1582,74 +1513,6 @@ def _invalidate_translation(
     logger.info(
         "    swapped the source back to %s; the stale translation was discarded",
         rel_transcript_path,
-    )
-
-
-def _write_turns_artifacts(
-    cfg: config.Config,
-    text: str,
-    segments: List[Dict[str, Any]],
-    rel_transcript_path: str,
-    effective_output_dir: str,
-    *,
-    adfree: Any = None,
-    episode: Any = None,
-) -> None:
-    """Write ``turns.json`` for each variant and record the manifest ``turns`` block (RFC-123 §3).
-
-    Best-effort as a whole: turns have no consumers in v1, so nothing here may cost an episode.
-    """
-    from . import processing_manifest as pm
-    from .transcript_resolution import adfree_transcript_relpath
-    from .turns_artifact import turns_manifest_metrics, write_turns_artifact
-
-    language = transcription_language(cfg)
-    turns_t0 = time.monotonic()
-    try:
-        raw_outcome = write_turns_artifact(
-            text, segments, rel_transcript_path, effective_output_dir, language=language
-        )
-        adfree_outcome = None
-        if adfree is not None:
-            adfree_rel = adfree_transcript_relpath(rel_transcript_path)
-            adfree_outcome = write_turns_artifact(
-                adfree.text,
-                adfree.segments,
-                adfree_rel,
-                effective_output_dir,
-                language=language,
-            )
-    except Exception:  # noqa: BLE001 - a sidecar with no readers must never lose an episode
-        logger.warning("turns: could not build turns for %s", rel_transcript_path, exc_info=True)
-        return
-
-    if raw_outcome.relpath:
-        logger.info(
-            "    saved turns artifact: %s (%d turns)", raw_outcome.relpath, raw_outcome.count
-        )
-    episode_id = None
-    if episode is not None:
-        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
-
-        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
-    from ..utils import correlation
-
-    pm.update_stage(
-        effective_output_dir,
-        rel_transcript_path,
-        "turns",
-        pm.stage_block(
-            ran=True,
-            method_version=pm.METHOD_VERSIONS["turns"],
-            duration_s=time.monotonic() - turns_t0,
-            # Measured and genuinely free: pure Python, milliseconds per episode. Not ``None``,
-            # which would mean nobody measured it.
-            cost_usd=0.0,
-            metrics=turns_manifest_metrics(raw_outcome, adfree_outcome),
-        ),
-        episode_id=episode_id,
-        feed_id=getattr(cfg, "rss_url", None),
-        run_id=correlation.get_run_id() or getattr(cfg, "run_id", None),
     )
 
 
@@ -3186,162 +3049,6 @@ def _identify_episode_language(
     return agreed_language(answers)
 
 
-def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
-    """Read the feed-stated host names from a transcript's sibling metadata JSON.
-
-    ``<run>/transcripts/<name>.txt`` -> ``<run>/metadata/<name>.metadata.json``. The feed blurb
-    usually names the hosts; ``detect_hosts_from_feed`` extracts them. Any failure (missing file,
-    malformed JSON, no feed block) returns ``[]`` — the roster then falls back to self-intro only.
-    """
-    import json as _json
-
-    from ..speaker_detectors.hosts import detect_hosts_from_feed
-
-    stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
-    md_path = txt_path.parent.parent / filesystem.METADATA_SUBDIR / f"{stem}.metadata.json"
-    try:
-        feed = _json.loads(md_path.read_text(encoding="utf-8")).get("feed", {})
-    except (OSError, ValueError):
-        return []
-    if not isinstance(feed, dict):
-        return []
-    return sorted(
-        detect_hosts_from_feed(
-            feed.get("title"),
-            feed.get("description"),
-            feed.get("authors") or [],
-            language=str(feed.get("language") or ""),
-        )
-    )
-
-
-def _rewrite_speaker_record_in_place(
-    txt_path: Path,
-    job: TranscriptionJob,  # type: ignore[valid-type]
-    effective_output_dir: str,
-    rel_path: str,
-    stage: str,
-    feed_hosts: Sequence[str],
-) -> bool:
-    """Rewrite ``content.speakers`` from the labels this reprocess stage just wrote (#2075).
-
-    THE RECORD IS THE POINT OF THIS ARC, and until now no reprocess stage touched it. `relabel_only`
-    (and through it `rediarize_only` / `retranscript_only`) rewrote the transcript, the segments,
-    the diagnostics, the ad-free and cleaned copies and the manifest — and left `metadata.json`
-    exactly as it was. Measured on two DGX episodes: `metadata.json` byte-identical before and
-    after, still the pre-1.2.0 ``{id, name, role}`` shape with no ``placed``/``voices``. A relabel
-    that CHANGED a name would therefore leave the record naming the old person, which is precisely
-    the divergence the record exists to prevent.
-
-    Rebuilt through the SAME path a full run uses, reading the segments and diagnostics this stage
-    has just written to disk, so the two cannot drift. Only the three roster keys are touched: a
-    frozen stage has no new information about anything else in the artifact, and a wider write
-    would re-open summaries and derived fields it deliberately skipped.
-
-    Returns True when the record was rewritten. Never raises: a failure here must not lose the
-    relabel that already succeeded — it is logged, and the audit reports the stale record.
-    """
-    import json as _json
-
-    from ..identity.roster_provenance import roster_source
-    from .metadata_generation import _build_speaker_record
-
-    stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
-    md_dir = txt_path.parent.parent / filesystem.METADATA_SUBDIR
-    md_path = md_dir / f"{stem}.metadata.json"
-    if not md_path.is_file():
-        # THE TWO FILENAMES DO NOT HAVE TO MATCH. The metadata name truncates the title and the
-        # transcript name does not, so on a downloaded transcript the stems differ by the title's
-        # tail alone — 280 of 2,298 records on the production snapshot. Deriving the record from
-        # the transcript stem therefore missed them silently ("no sibling metadata"), and a
-        # relabel that renamed a speaker left the record naming the old person: the exact
-        # divergence this function exists to prevent. Same predicate the audit and the transcript
-        # resolver use, so all three agree on what "the same episode" means.
-        match = next(
-            (
-                candidate
-                for candidate in sorted(md_dir.glob("*.metadata.json"))
-                if filesystem.names_the_same_episode(candidate.name[: -len(".metadata.json")], stem)
-            ),
-            None,
-        )
-        if match is None:
-            logger.warning(
-                "[%s] %s: no metadata in %s names the same episode as %s — "
-                "the speaker record was NOT updated",
-                job.idx,
-                stage,
-                md_dir,
-                stem,
-            )
-            return False
-        md_path = match
-    try:
-        payload = _json.loads(md_path.read_text(encoding="utf-8"))
-        feed_block = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
-        content = payload.get("content")
-        if not isinstance(content, dict):
-            raise ValueError("artifact has no content block")
-        speakers, num_speakers = _build_speaker_record(
-            effective_output_dir,
-            rel_path,
-            # THE SAME host anchor the relabel itself resolved with, not the live one. The stage
-            # prefers the frozen sibling metadata over live feed detection so a relabel of a stored
-            # corpus is reproducible; rebuilding the record from `job.feed_hosts` would describe a
-            # different resolution from the one that produced the labels on disk.
-            list(feed_hosts or []),
-            list(job.detected_speaker_names or []),
-            (feed_block or {}).get("title"),
-        )
-        before = content.get("speakers")
-        content["speakers"] = [sp.model_dump(exclude_none=False) for sp in speakers]
-        source = roster_source(speakers, diarized=any(sp.placed for sp in speakers))
-        if source is not None:
-            content["speakers_source"] = source
-        if num_speakers is not None:
-            content["diarization_num_speakers"] = num_speakers
-        # REPOINT THE RECORD AT THE TRANSCRIPT WE ACTUALLY JUST WROTE. On a #2082 episode the
-        # stored pointer names another episode's file; the resolver now refuses to follow it, but
-        # leaving it in place means the pairing audit keeps reporting the episode forever and
-        # "done when the audit exits 0" is unreachable by repair. The value is relative to the RUN
-        # dir, which is the metadata file's grandparent — the same join the audit reads it back
-        # with.
-        run_dir = md_path.parent.parent
-        try:
-            pointer = str(Path(txt_path).resolve().relative_to(run_dir.resolve()))
-        except ValueError:
-            pointer = ""
-        if pointer and content.get("transcript_file_path") != pointer:
-            logger.info(
-                "[%s] %s: repointing transcript_file_path %r -> %r",
-                job.idx,
-                stage,
-                content.get("transcript_file_path"),
-                pointer,
-            )
-            content["transcript_file_path"] = pointer
-        md_path.write_text(_json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        logger.warning(
-            "[%s] %s: could not rewrite the speaker record at %s (%s) — the transcript was "
-            "relabelled but the record still describes the OLD naming",
-            job.idx,
-            stage,
-            md_path,
-            exc,
-        )
-        return False
-    logger.info(
-        "[%s] %s: speaker record rewritten — %d entries (%d placed), was %d",
-        job.idx,
-        stage,
-        len(speakers),
-        sum(1 for sp in speakers if sp.placed),
-        len(before or []) if isinstance(before, list) else 0,
-    )
-    return True
-
-
 def _record_unresolved_transcript(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -3542,258 +3249,6 @@ def _existing_transcript_for(
     return matches[0]
 
 
-def _embeddings_carried_over(
-    txt_path: Path, cluster_ids: Mapping[str, str]
-) -> Tuple[Dict[str, List[float]], str]:
-    """The stored voice embeddings, re-keyed to the voice ids a relabel assigns.
-
-    A relabel rewrites the diagnostics sidecar from a fresh roster, and it renumbers the voices
-    (``_anon``: first appearance order), so without this it would silently drop the embeddings
-    the original diarization stored. Only a voice whose stored id is in ``cluster_ids`` keeps its
-    vector; a corpus whose segments carry names instead of raw ids never had any. Returns the
-    vectors and the model that made them (vectors of different models are not comparable).
-    """
-    import json as _json
-
-    from ..providers.ml.diarization.base import clean_embeddings
-
-    sidecar = txt_path.with_name(txt_path.name[: -len(".txt")] + ".speakers.diagnostics.json")
-    try:
-        stored = _json.loads(sidecar.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}, ""
-    block = stored.get("voice_embeddings") if isinstance(stored, dict) else None
-    if not isinstance(block, dict):
-        return {}, ""
-    vectors = clean_embeddings(block.get("by_voice"))
-    carried = {cluster_ids[v]: vec for v, vec in vectors.items() if v in cluster_ids}
-    return carried, str(block.get("model_name") or "") if carried else ""
-
-
-def _relabel_existing_transcript(
-    job: TranscriptionJob,  # type: ignore[valid-type]
-    cfg: config.Config,
-    run_suffix: Optional[str],
-    effective_output_dir: str,
-    transcription_provider,
-    pipeline_metrics,
-) -> tuple[bool, Optional[str], int]:
-    """pipeline_stage=relabel_only: re-resolve speaker names on the existing on-disk
-    transcript + frozen ``SPEAKER_NN`` diarization, re-render the screenplay, and overwrite
-    the transcript / segments / ad-free base in place. No audio, no re-ASR, no re-diarize.
-    """
-    import json as _json
-
-    from ..providers.ml.diarization.base import DiarizationResult, DiarizationSegment
-    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
-
-    # effective_output_dir is the *new* run dir this invocation created; the existing corpus
-    # transcript lives in a sibling run_<old-tag>/transcripts/, and this stage OVERWRITES it in
-    # place. Which file that is comes from the episode's own metadata record — see
-    # `_existing_transcript_for` for why searching for it by index prefix was wrong.
-    txt_path = _existing_transcript_for(job, effective_output_dir, "relabel_only")
-    if txt_path is None:
-        _record_unresolved_transcript(job, cfg, pipeline_metrics, "relabel_only")
-        return False, None, 0
-    # SWAP THE SOURCE BACK FIRST. On a translated episode the canonical pair is the ENGLISH render
-    # (D-44): reading it named the speakers on English text with the source language's vocabulary,
-    # and the post-processing swap-back then moved that English aside — the relabel's work with
-    # it. Radio Ambulante (es, 2026-10-09) ended a relabel with 0 named entries that way.
-    # translate_only already swaps back before handing off here; this makes relabel_only do the
-    # same, and makes the later swap-back a no-op. The translation memory is kept (D-33), so the
-    # English re-render that follows costs no GPU.
-    from ..languages import resolve_config_language
-    from .transcript_resolution import _canonical_relpath
-
-    _root = str(txt_path.parent.parent)
-    _raw_lang, _relabel_language, _lang_src = resolve_config_language(cfg)
-    _invalidate_translation(
-        _canonical_relpath(os.path.relpath(str(txt_path), _root)), _root, _relabel_language
-    )
-    seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
-    if not seg_path.exists():
-        logger.warning(
-            "[%s] relabel_only: transcript has no .segments.json; cannot relabel", job.idx
-        )
-        _record_unresolved_transcript(job, cfg, pipeline_metrics, "relabel_only")
-        return False, None, 0
-
-    text = txt_path.read_text(encoding="utf-8")
-    segs = _json.loads(seg_path.read_text(encoding="utf-8"))
-    # Frozen-clustering source. A finished corpus stores the diarization identity in
-    # ``speaker_label`` (``speaker`` is None), and for already-resolved voices that label is v2's
-    # RESOLVED NAME ("Amy Lawrence"), not a raw ``SPEAKER_NN``. Relabel must re-resolve from the
-    # transcript, NOT inherit v2's names — so remap every distinct label (name or SPEAKER_NN) to a
-    # fresh anonymous ``SPEAKER_NN`` in first-appearance order. This preserves the clustering (same
-    # label -> same voice) while stripping v2's naming, so the roster decides afresh.
-    _cluster_ids: Dict[str, str] = {}
-
-    def _anon(label: str) -> str:
-        if label not in _cluster_ids:
-            _cluster_ids[label] = f"SPEAKER_{len(_cluster_ids):02d}"
-        return _cluster_ids[label]
-
-    def _identity(s: dict) -> Optional[str]:
-        # ``is not None`` so a native diarizer's int-0 speaker id is not dropped by a falsy ``or``.
-        v = s.get("speaker")
-        if v is None:
-            v = s.get("speaker_label")
-        return str(v) if v is not None else None
-
-    dsegs = [
-        DiarizationSegment(
-            start=float(s["start"]),
-            end=float(s["end"]),
-            speaker=_anon(_identity(s)),  # type: ignore[arg-type]
-        )
-        for s in segs
-        if isinstance(s, dict) and _identity(s) is not None
-    ]
-    if not dsegs:
-        logger.warning(
-            "[%s] relabel_only: segments carry no speaker identity; nothing to relabel", job.idx
-        )
-        _record_unresolved_transcript(
-            job,
-            cfg,
-            pipeline_metrics,
-            "relabel_only",
-            error_type="NoSpeakerIdentity",
-            detail="segments carry no speaker identity; nothing to relabel",
-        )
-        return False, None, 0
-    _carried, _carried_model = _embeddings_carried_over(txt_path, _cluster_ids)
-    diar = DiarizationResult(
-        segments=dsegs,
-        num_speakers=len(_cluster_ids),
-        speaker_embeddings=_carried,
-        speaker_embeddings_model=_carried_model,
-    )
-
-    # THE PUBLISHER'S LABELS SURVIVE A RELABEL. `_anon` above deliberately strips every identity
-    # so names are re-resolved from evidence — correct for names WE inferred, wrong for names the
-    # SOURCE stated. `stated_speaker` carries those (written by `_roster_native_segments`), and
-    # they are handed back to the roster at top precedence, exactly as on the first pass.
-    #
-    # TWO CARRIERS, because two different writers produce this file and only one of them is new.
-    # `stated_speaker` is written by the download path added alongside this. But `retranscript_only`
-    # — the stage that repairs the 129 production episodes whose spans were never stored at all —
-    # writes the PARSED CUES verbatim: `{start, end, text, speaker}`, where `speaker` is the
-    # publisher's own label and there is no `stated_speaker` to find. Reading only the new key
-    # meant the repair ran, logged "rewrote ... with 2 speaker(s); relabelling", and published
-    # `SPEAKER_00` / `SPEAKER_01` — every stated name discarded, which is the whole point of the
-    # repair. Verified by simulating the stage's exact output before this line existed.
-    #
-    # ONLY `speaker`, NEVER `speaker_label`. That is the same split the clustering comment above
-    # draws: `speaker` is what the SOURCE said and is not ours to revise; `speaker_label` is OUR
-    # resolved answer from a previous run, and re-deriving it is what relabel is FOR. Treating the
-    # latter as stated would freeze v2's names forever.
-    from ..providers.ml.diarization.roster import _is_person_voice_label
-
-    _stated_relabel: Dict[str, str] = {}
-    for s in segs:
-        if not isinstance(s, dict):
-            continue
-        stated = s.get("stated_speaker")
-        if not stated:
-            raw_voice = s.get("speaker")
-            if raw_voice is not None and _is_person_voice_label(str(raw_voice)):
-                stated = str(raw_voice).strip()
-        ident = _identity(s)
-        if stated and ident is not None:
-            _stated_relabel.setdefault(_anon(ident), str(stated))
-    result: dict = {
-        "text": text,
-        "segments": [
-            {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
-            for s in segs
-            if isinstance(s, dict)
-        ],
-    }
-    # The corpus's own stored metadata carries the feed blurb that names the hosts
-    # ("journalists Kevin Roose and Casey Newton explore..."). Feed it to the roster so an
-    # ASR-garbled spoken surname ("Kevin Russo") canonicalizes to the feed's spelling. Read from
-    # the sibling <run>/metadata/<name>.metadata.json; absence is non-fatal (relabel still runs).
-    #
-    # Q3 (advisor review): keep the FROZEN sibling metadata as the host anchor — a relabel of a
-    # stored corpus must be reproducible, not track live feed drift. But when the sibling is
-    # missing/unreadable it silently returns [], the WORST anchor state, while the live detection
-    # (job.feed_hosts, statement + NER fallback + corroboration) was already computed — so fall back
-    # to it only then. Log any sibling-vs-live divergence so the freeze-vs-live choice can later be
-    # decided from data rather than assumption.
-    sibling_hosts = _feed_hosts_from_sibling_metadata(txt_path)
-    live_hosts = list(getattr(job, "feed_hosts", None) or [])
-    feed_hosts = sibling_hosts or live_hosts
-    if sibling_hosts and live_hosts and sorted(sibling_hosts) != sorted(live_hosts):
-        logger.info(
-            "[%s] relabel_only: feed_hosts divergence — sibling-metadata %s vs live %s (using "
-            "sibling for a reproducible relabel)",
-            job.idx,
-            sibling_hosts,
-            live_hosts,
-        )
-    naming_t0 = time.monotonic()
-    result = apply_diarization_to_result(
-        result,
-        "",
-        cfg,
-        job.detected_speaker_names,
-        metadata_named=job.metadata_named,
-        precomputed_diarization=diar,
-        stated_voice_names=_stated_relabel or None,
-        feed_hosts=feed_hosts,
-        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
-        # ADR-137 — title + description feed the LLM's host/guest role determination and gate
-        # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
-        # weaker prompt ("(not provided)"), the structural half of the relabel!=full confound.
-        episode_title=job.ep_title,
-        episode_description=getattr(job.episode, "description", None),
-        detection_ran=getattr(job, "speaker_detection_ran", None),
-        detection_report=_detection_report_of(job),
-        speaker_renames=_operator_renames(job),
-    )
-    naming_elapsed = time.monotonic() - naming_t0
-    # AND THEY SURVIVE THE NEXT RELABEL TOO. The roster is handed a stripped
-    # ``{start, end, text}`` view, so whatever it returns carries no ``stated_speaker`` — writing
-    # that straight back would make the FIRST relabel keep the publisher's names and the SECOND
-    # fall back to the feed. Re-attach from the stored segments, in the order they were passed.
-    _old_dicts = [s for s in segs if isinstance(s, dict)]
-    _new_dicts = result.get("segments") if isinstance(result, dict) else None
-    if isinstance(_new_dicts, list):
-        for _old, _new in zip(_old_dicts, _new_dicts):
-            if isinstance(_new, dict) and _old.get("stated_speaker"):
-                _new["stated_speaker"] = _old["stated_speaker"]
-    new_text = _format_transcript_if_needed(
-        result, cfg, job.detected_speaker_names, transcription_provider
-    )
-    txt_path.write_text(new_text, encoding="utf-8")
-    rel_path = os.path.relpath(str(txt_path), effective_output_dir)
-    new_segs = result.get("segments") if isinstance(result, dict) else None
-    if isinstance(new_segs, list) and new_segs:
-        _save_transcript_segments_file(new_segs, rel_path, effective_output_dir)
-        _save_speaker_diagnostics_file(
-            result.get("speaker_diagnostics") if isinstance(result, dict) else None,
-            rel_path,
-            effective_output_dir,
-        )
-        _produce_transcript_sidecars(
-            cfg, new_text, new_segs, rel_path, effective_output_dir, episode=job.episode
-        )
-        _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
-        # The record follows the labels, or the two describe different episodes (#2075).
-        _rewrite_speaker_record_in_place(
-            txt_path, job, effective_output_dir, rel_path, "relabel_only", feed_hosts
-        )
-    # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
-    # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
-    # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
-    _write_processing_manifest(
-        result, cfg, job, rel_path, effective_output_dir, naming_elapsed=naming_elapsed
-    )
-    logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
-    return True, rel_path, 0
-
-
 # A line prefix that is a SPEAKER label, not prose: `SPEAKER_07`, or a short run of capitalised
 # name tokens (`Joel Salinas`, `Cobus van Staden`). Measured on 2,071 real cleaned transcripts: LLM
 # cleaners write prose with colons ("So, to recap: …", "One food scientist stuck with me: …"), and
@@ -3890,22 +3345,6 @@ def _detection_report_of(job: Any) -> Optional[Dict[str, Any]]:
     return getattr(getattr(job, "episode", None), "speaker_detection_report", None)
 
 
-def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> dict:
-    """``_roster_native_segments`` for a :class:`TranscriptionJob`. See that function."""
-    return _roster_native_segments(
-        result,
-        cfg,
-        idx=getattr(job, "idx", None),
-        detected_speaker_names=job.detected_speaker_names,
-        metadata_named=job.metadata_named,
-        feed_hosts=job.feed_hosts,
-        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
-        detection_ran=getattr(job, "speaker_detection_ran", None),
-        detection_report=_detection_report_of(job),
-        speaker_renames=_operator_renames(job),
-    )
-
-
 def _episode_speaker_renames(episode: Any) -> Dict[str, str]:
     """The operator's speaker renames for this episode (#2283); empty when none."""
     from .apply_overrides import speaker_renames
@@ -3916,129 +3355,6 @@ def _episode_speaker_renames(episode: Any) -> Dict[str, str]:
 def _operator_renames(job: Any) -> Dict[str, str]:
     """The operator's speaker renames for this job's episode (#2283); empty when none."""
     return _episode_speaker_renames(getattr(job, "episode", None))
-
-
-def _roster_native_segments(
-    result: dict,
-    cfg: config.Config,
-    *,
-    idx: Any = None,
-    detected_speaker_names: Optional[List[str]] = None,
-    metadata_named: Optional[List[str]] = None,
-    feed_hosts: Optional[List[str]] = None,
-    unbindable_hosts: Optional[List[str]] = None,
-    detection_ran: Optional[bool] = None,
-    episode_title: Optional[str] = None,
-    episode_description: Optional[str] = None,
-    detection_report: Optional[Dict[str, Any]] = None,
-    speaker_renames: Optional[Dict[str, str]] = None,
-) -> dict:
-    """Route a natively-diarized transcript through the SINGLE role authority (the roster).
-
-    A provider that diarizes server-side (deepgram/moss) tags each segment with a ``speaker`` id
-    but assigns names positionally and never computes host/guest roles — the same guess-from-
-    ordering class of bug the roster exists to replace. Feed the provider's OWN clustering to the
-    roster (``precomputed_diarization`` — no re-diarization, no extra API call) so names AND roles
-    come from evidence and land as ``speaker_label`` + ``speaker_role`` on the durable segments,
-    exactly like the local-diarizer path.
-
-    The inputs are EXPLICIT rather than read off a ``job``. Taking the whole object made this
-    silently depend on a shape only ``TranscriptionJob`` has; passing an ``Episode`` — which
-    declares none of those fields — raised ``AttributeError`` and killed every transcript download
-    (be1ed96d, reverted). A keyword-only signature cannot be satisfied by accident.
-
-    A PERSON-LIKE ``speaker`` VALUE IS A NAME THE SOURCE STATED, and it is carried through to the
-    roster as ``stated_voice_names`` so it can be published as-is. Anonymising it first — which is
-    what the cluster ids below are for — threw the answer away and let the roster paint a feed host
-    onto a voice the file had already named (ac1751b4, reverted). Bare ids (``Speaker 2``, ints
-    from deepgram/moss) are clustered only, exactly as before.
-
-    No-op unless the segments carry a native ``speaker`` id (provider-agnostic, gated on data). A
-    roster failure is swallowed so the successfully-transcribed text is never lost. ``cost_usd=0.0``
-    so the reused diarization does not fabricate a cloud-diarizer charge in the manifest."""
-    if not _segments_carry_native_speakers(result):
-        return result
-
-    from ..exceptions import ProviderDependencyError
-    from ..providers.ml.diarization.base import DiarizationResult, DiarizationSegment
-    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
-
-    segs = result.get("segments") or []
-    cluster_ids: Dict[str, str] = {}
-
-    def _anon(key: str) -> str:
-        if key not in cluster_ids:
-            cluster_ids[key] = f"SPEAKER_{len(cluster_ids):02d}"
-        return cluster_ids[key]
-
-    dsegs = [
-        DiarizationSegment(
-            start=float(s.get("start") or 0.0),
-            end=float(s.get("end") or 0.0),
-            speaker=_anon(str(s.get("speaker"))),
-        )
-        for s in segs
-        if isinstance(s, dict) and s.get("speaker") is not None
-    ]
-    if not dsegs:
-        return result
-
-    # WHICH CLUSTERS THE SOURCE ACTUALLY NAMED. `_anon` maps each distinct raw value to a cluster
-    # id; a value that is a person's name is also recorded as a stated name for that cluster. The
-    # roster filters these again (ads, non-person labels) — this only decides what was STATED.
-    from ..providers.ml.diarization.roster import _is_person_voice_label
-
-    stated_voice_names: Dict[str, str] = {}
-    for raw, cluster in cluster_ids.items():
-        if _is_person_voice_label(raw):
-            stated_voice_names[cluster] = raw.strip()
-    diar = DiarizationResult(segments=dsegs, num_speakers=len(cluster_ids), cost_usd=0.0)
-    # Preserve ASR-provenance top-level fields; only the segments are re-clustered by the roster.
-    clean = dict(result)
-    clean["segments"] = [
-        {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
-        for s in segs
-        if isinstance(s, dict)
-    ]
-    try:
-        out = apply_diarization_to_result(
-            clean,
-            "",
-            cfg,
-            detected_speaker_names,
-            metadata_named=metadata_named,
-            precomputed_diarization=diar,
-            stated_voice_names=stated_voice_names or None,
-            feed_hosts=feed_hosts,
-            unbindable_hosts=unbindable_hosts,
-            detection_ran=detection_ran,
-            episode_title=episode_title,
-            episode_description=episode_description,
-            detection_report=detection_report,
-            speaker_renames=speaker_renames,
-        )
-        # KEEP WHAT THE SOURCE SAID, beside what we resolved. `speaker_label` is OUR answer and a
-        # later `relabel_only` is entitled to re-derive it — that is what relabel is for. The
-        # publisher's own label is not ours to re-derive: it is a fact about the file, and
-        # `relabel_only` anonymises every identity it finds (`_anon(_identity(s))`), so without
-        # this a relabel would strip the names the transcript stated and fall back to the feed.
-        out_segs = out.get("segments")
-        if isinstance(out_segs, list):
-            for src_seg, out_seg in zip(segs, out_segs):
-                if not (isinstance(src_seg, dict) and isinstance(out_seg, dict)):
-                    continue
-                stated_raw = src_seg.get("speaker")
-                if stated_raw is not None and _is_person_voice_label(str(stated_raw)):
-                    out_seg["stated_speaker"] = str(stated_raw).strip()
-        return out
-    except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
-        logger.warning(
-            "[%s] Native-speaker roster pass failed; keeping the provider screenplay: %s",
-            idx,
-            format_exception_for_log(exc),
-        )
-        _capture_stage_exception(exc, stage="diarization")
-        return result
 
 
 #: The audio may run on after the last speech (outro music): a gap counts only past both.
@@ -4093,146 +3409,6 @@ def _ingest_audio_bytes(txt_path: Path) -> Optional[int]:
     detail = (ledger.get("audio_preprocessing") or {}).get("detail") or {}
     value = detail.get("original_bytes")
     return int(value) if isinstance(value, int) and value > 0 else None
-
-
-def _rediarize_existing_transcript(
-    job: TranscriptionJob,  # type: ignore[valid-type]
-    cfg: config.Config,
-    run_suffix: Optional[str],
-    effective_output_dir: str,
-    transcription_provider,
-    pipeline_metrics,
-) -> tuple[bool, Optional[str], int]:
-    """pipeline_stage=rediarize_only (v2.2): re-diarize the downloaded audio with the profile's
-    diarizer (DGX pyannote) and align the FRESH voices to the existing on-disk ASR transcript —
-    reusing its text + timestamps, so NO re-ASR — then re-resolve names, re-render the screenplay,
-    and overwrite in place. GI/KG cascade. The decoupled sibling of ``relabel_only``: same
-    read/render/save machinery, but the diarization is regenerated from audio rather than frozen.
-    """
-    import json as _json
-
-    from ..providers.ml.diarization.pipeline import apply_diarization_to_result
-
-    audio_path = job.temp_media
-    if not audio_path or not os.path.exists(audio_path):
-        logger.warning("[%s] rediarize_only: no downloaded audio; cannot re-diarize", job.idx)
-        _record_unresolved_transcript(
-            job,
-            cfg,
-            pipeline_metrics,
-            "rediarize_only",
-            error_type="NoAudio",
-            detail="no downloaded audio; cannot re-diarize",
-        )
-        return False, None, 0
-
-    # Locate the existing transcript — same discovery as relabel, from the episode's own record.
-    txt_path = _existing_transcript_for(job, effective_output_dir, "rediarize_only")
-    if txt_path is None:
-        # Same vanish-between-selection-and-summary hole the relabel path had.
-        _record_unresolved_transcript(job, cfg, pipeline_metrics, "rediarize_only")
-        return False, None, 0
-    seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
-
-    text = txt_path.read_text(encoding="utf-8")
-    segs = _json.loads(seg_path.read_text(encoding="utf-8"))
-    # Reuse the existing ASR text + per-segment timestamps; the fresh diarization aligns to THESE.
-    result: dict = {
-        "text": text,
-        "segments": [
-            {"start": s.get("start"), "end": s.get("end"), "text": s.get("text", "")}
-            for s in segs
-            if isinstance(s, dict)
-        ],
-    }
-    if not result["segments"]:
-        logger.warning("[%s] rediarize_only: transcript has no segments to align", job.idx)
-        _record_unresolved_transcript(
-            job,
-            cfg,
-            pipeline_metrics,
-            "rediarize_only",
-            error_type="NoSegments",
-            detail="transcript has no segments to align",
-        )
-        return False, None, 0
-
-    mismatch = rediarize_audio_mismatch(
-        os.path.getsize(audio_path),
-        _ingest_audio_bytes(txt_path),
-        _duration_from_media_file(job),
-        max(float(s.get("end") or 0.0) for s in result["segments"]),
-    )
-    if mismatch:
-        logger.warning("[%s] rediarize_only: refused, %s", job.idx, mismatch)
-        _record_unresolved_transcript(
-            job, cfg, pipeline_metrics, "rediarize_only", error_type="AudioChanged", detail=mismatch
-        )
-        return False, None, 0
-
-    feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
-    # The audio a full run diarizes: the profile's preprocessing preset (resample, re-encode,
-    # loudness), as in transcribe_media_to_text. The raw download gave pyannote different audio
-    # from every episode the pipeline had processed, so fresh and stored voices were not
-    # comparable.
-    media = _preprocess_audio_if_needed(job, cfg, audio_path, pipeline_metrics)
-    # No precomputed diarization + bypass_cache_read -> apply_diarization diarizes the AUDIO fresh
-    # with the profile's diarizer and aligns the new voices to result["segments"] (the ASR text).
-    dz_t0 = time.monotonic()
-    dz_timings: Dict[str, float] = {}
-    result = apply_diarization_to_result(
-        result,
-        media,
-        cfg,
-        job.detected_speaker_names,
-        metadata_named=job.metadata_named,
-        feed_hosts=feed_hosts,
-        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
-        # ADR-137: the naming step reads the same title and description as on a full run.
-        episode_title=job.ep_title,
-        episode_description=getattr(job.episode, "description", None),
-        bypass_cache_read=True,
-        detection_report=_detection_report_of(job),
-        speaker_renames=_operator_renames(job),
-        timings=dz_timings,
-    )
-    dz_elapsed, naming_elapsed = _split_diarize_naming(time.monotonic() - dz_t0, dz_timings)
-    new_text = _format_transcript_if_needed(
-        result, cfg, job.detected_speaker_names, transcription_provider
-    )
-    txt_path.write_text(new_text, encoding="utf-8")
-    rel_path = os.path.relpath(str(txt_path), effective_output_dir)
-    new_segs = result.get("segments") if isinstance(result, dict) else None
-    if isinstance(new_segs, list) and new_segs:
-        _save_transcript_segments_file(new_segs, rel_path, effective_output_dir)
-        _save_speaker_diagnostics_file(
-            result.get("speaker_diagnostics") if isinstance(result, dict) else None,
-            rel_path,
-            effective_output_dir,
-        )
-        _produce_transcript_sidecars(
-            cfg, new_text, new_segs, rel_path, effective_output_dir, episode=job.episode
-        )
-        # Fresh voices AND fresh names: the record must describe the diarization that now exists.
-        _rewrite_speaker_record_in_place(
-            txt_path, job, effective_output_dir, rel_path, "rediarize_only", feed_hosts
-        )
-    # advisor #2: rediarize regenerates diarization + naming on disk — record both into run metrics
-    # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
-    # invisible in diarization_* metrics and the manifest keeps the old versions.
-    _record_episode_diarization(pipeline_metrics, result)
-    _write_processing_manifest(
-        result,
-        cfg,
-        job,
-        rel_path,
-        effective_output_dir,
-        pipeline_metrics=pipeline_metrics,
-        diarization_elapsed=dz_elapsed,
-        naming_elapsed=naming_elapsed,
-    )
-    logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
-    return True, rel_path, 0
 
 
 def _refetch_and_reparse_transcript(
@@ -4370,9 +3546,39 @@ def _refetch_and_reparse_transcript(
     )
 
     # ...and now the ordinary naming path, which finally has voices to name.
-    return _relabel_existing_transcript(
-        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    return _speaker_reprocess(
+        "relabel",
+        job,
+        cfg,
+        run_suffix,
+        effective_output_dir,
+        transcription_provider,
+        pipeline_metrics,
     )
+
+
+def _speaker_reprocess(
+    mode: str,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """A speaker reprocess (``relabel`` / ``rediarize``) through the speaker stage. Without one
+    installed the episode is refused and COUNTED (``NoSpeakerStage``), never passed on to normal
+    transcription, which would re-run ASR the mode exists to avoid."""
+    done = stage_hooks.speaker_reprocess(
+        mode, job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
+    if done is not None:
+        return done
+    logger.warning("[%s] %s_only: no speaker stage is installed", job.idx, mode)
+    _record_unresolved_transcript(
+        job, cfg, pipeline_metrics, f"{mode}_only", error_type="NoSpeakerStage"
+    )
+    return False, None, 0
 
 
 def _maybe_dispatch_reprocess_stage(
@@ -4391,12 +3597,24 @@ def _maybe_dispatch_reprocess_stage(
     transcription.
     """
     if cfg.pipeline_stage == "relabel_only":
-        return _relabel_existing_transcript(
-            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        return _speaker_reprocess(
+            "relabel",
+            job,
+            cfg,
+            run_suffix,
+            effective_output_dir,
+            transcription_provider,
+            pipeline_metrics,
         )
     if cfg.pipeline_stage == "rediarize_only":
-        return _rediarize_existing_transcript(
-            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        return _speaker_reprocess(
+            "rediarize",
+            job,
+            cfg,
+            run_suffix,
+            effective_output_dir,
+            transcription_provider,
+            pipeline_metrics,
         )
     if cfg.pipeline_stage == "retranscript_only":
         return _refetch_and_reparse_transcript(
@@ -4498,8 +3716,14 @@ def _retranslate_existing_transcript(
             job.idx,
         )
 
-    return _relabel_existing_transcript(
-        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    return _speaker_reprocess(
+        "relabel",
+        job,
+        cfg,
+        run_suffix,
+        effective_output_dir,
+        transcription_provider,
+        pipeline_metrics,
     )
 
 
@@ -4728,7 +3952,6 @@ def _splice_repunctuated_segments(
     speaker identity from the old segments they overlap. Every segment loses ``char_start`` /
     ``char_end``: they index the text before the splice.
     """
-    from ..providers.ml.diarization.alignment import carry_speaker_identity
     from ..transcription.invented_lines import drop_invented_lines
 
     original_ids = {id(seg) for seg in original}
@@ -4736,7 +3959,9 @@ def _splice_repunctuated_segments(
     fresh = [seg for seg in merged if id(seg) not in original_ids]
     checked = drop_invented_lines({"text": "", "segments": fresh})
     kept = list(checked.get("segments") or [])
-    labelled = {id(src): dst for src, dst in zip(kept, carry_speaker_identity(kept, original))}
+    labelled = {
+        id(src): dst for src, dst in zip(kept, stage_hooks.carry_speaker_identity(kept, original))
+    }
     segments: List[Dict[str, Any]] = []
     for seg in merged:
         out = dict(seg) if id(seg) in original_ids else labelled.get(id(seg))
@@ -5126,146 +4351,6 @@ def _repunctuate_existing_transcript(
     return True, os.path.relpath(str(txt_path), effective_output_dir), 0
 
 
-def _maybe_speech_coverage_failover(
-    result: Dict[str, Any],
-    media_for_transcription: str,
-    cfg: config.Config,
-    job: TranscriptionJob,  # type: ignore[valid-type]
-    effective_output_dir: str,
-    pipeline_metrics: Any,
-    episode_duration_seconds: Optional[float],
-) -> Dict[str, Any]:
-    """ADR-131: re-transcribe on the failover model when the diarized transcript covers too little
-    of the diarizer's SPEECH.
-
-    ``speech_coverage = Σ(transcript segments) / Σ(diarization speech)`` (both merged). Unlike the
-    raw ADR-123 gate (÷ total audio), music/ads/silence — which produce no diarization turn — are
-    excluded, so a music-heavy episode turbo transcribed fully does not falsely failover, while the
-    long-episode cliff (turbo dropping real speech a speaker was talking through) still does.
-
-    Provider-agnostic (any ``DiarizationResult``). A **no-op** when there is no speech denominator
-    (diarization off, or no speaker turns): the raw ``transcription_coverage_min`` gate governs that
-    case instead, so nothing regresses. The failover result carries a ``speech_coverage_failover``
-    breadcrumb + ``model_used`` for per-episode provenance.
-    """
-    min_cov = float(getattr(cfg, "transcription_speech_coverage_min", 0.0) or 0.0)
-    fo_model = getattr(cfg, "transcription_coverage_failover_model", None)
-    speech = float(result.get("diarization_speech_seconds") or 0.0)
-    if speech <= 0:
-        return result  # no speech denominator — defer to the raw-coverage gate
-
-    from ..providers.ml.diarization.pipeline import (
-        apply_diarization_to_result,
-        merged_speech_seconds,
-    )
-
-    # The METRIC is recorded whether or not the gate is armed (#2187). It used to be computed
-    # only past the gate's early return, so a profile that turns the gate off (prod_dgx_full:
-    # ASR must stay constant) recorded `speech_coverage: null` while its registry comment said
-    # the metric was still recorded.
-    covered = merged_speech_seconds(result.get("segments") or [])
-    speech_cov = min(1.0, covered / speech)
-    result["asr_speech_coverage"] = round(speech_cov, 3)
-    if min_cov <= 0 or not fo_model:
-        return result
-    primary_model = getattr(cfg, "dgx_whisper_model", None)
-    if speech_cov >= min_cov:
-        # Observable pass (ADR-131): log every evaluation so a run shows the gate ran + its
-        # coverage, not only the rare failover ("the gate works, it just didn't need to fire").
-        logger.info(
-            "[%s] speech coverage %.1f%% >= %.1f%% — keeping primary %r (ADR-131 gate passed)",
-            job.idx,
-            speech_cov * 100,
-            min_cov * 100,
-            primary_model,
-        )
-        return result
-
-    logger.info(
-        "[%s] speech coverage %.1f%% < %.1f%% — primary %r dropped real speech; "
-        "re-transcribing on failover model %s (ADR-131)",
-        job.idx,
-        speech_cov * 100,
-        min_cov * 100,
-        primary_model,
-        fo_model,
-    )
-    from ..transcription.factory import create_transcription_provider
-    from ..utils.provider_metrics import (
-        apply_estimated_cost_if_missing,
-        ProviderCallMetrics,
-        transcription_model_for_cfg,
-    )
-
-    # Route the failover to the configured provider — parity with the ADR-123 raw gate's factory
-    # logic (#1273): 'moss' re-transcribes on the DGX MOSS service (:8004) with moss_model, not the
-    # speaches whisper service, so the MOSS model id is never sent to a server that cannot serve it.
-    # None (default) keeps the historical whisper-on-whisper swap via dgx_whisper_model. Both gates
-    # are disabled on the failover pass so it cannot recurse into another re-transcription.
-    cov_provider = getattr(cfg, "transcription_coverage_failover_provider", None)
-    model_field = "moss_model" if cov_provider == "moss" else "dgx_whisper_model"
-    fo_updates: Dict[str, Any] = {
-        model_field: fo_model,
-        "transcription_coverage_min": 0.0,
-        "transcription_speech_coverage_min": 0.0,
-    }
-    if cov_provider:
-        fo_updates["transcription_provider"] = cov_provider
-    fo_cfg = cfg.model_copy(update=fo_updates)
-    fo_provider = create_transcription_provider(fo_cfg)
-    fo_call_metrics = ProviderCallMetrics()
-    fo_result, _ = _transcribe_with_segments_maybe_chunked(
-        media_for_transcription,
-        cfg=fo_cfg,
-        job=job,
-        transcription_provider=fo_provider,
-        pipeline_metrics=pipeline_metrics,
-        episode_duration_seconds=episode_duration_seconds,
-        call_metrics=fo_call_metrics,
-    )
-    # RFC-109: the failover re-transcription is a SECOND ASR call. Local models cost 0; a cloud
-    # failover model bills again, so its cost must be added to the ASR block (not just the primary).
-    apply_estimated_cost_if_missing(
-        fo_call_metrics,
-        cfg=fo_cfg,
-        provider_type=str(getattr(fo_cfg, "transcription_provider", None) or "whisper"),
-        capability="transcription",
-        model=transcription_model_for_cfg(fo_cfg),
-        audio_minutes=(episode_duration_seconds / 60.0) if episode_duration_seconds else None,
-    )
-    fo_result["asr_failover_cost_usd"] = fo_call_metrics.estimated_cost
-    # Diarization is audio-based (cache hit on the same audio) — only the transcript→speaker
-    # alignment re-runs, so the failover pays for re-transcription, not re-diarization.
-    fo_result = apply_diarization_to_result(
-        fo_result,
-        media_for_transcription,
-        fo_cfg,
-        job.detected_speaker_names,
-        metadata_named=job.metadata_named,
-        cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
-        feed_hosts=job.feed_hosts,
-        unbindable_hosts=getattr(getattr(job, "episode", None), "unbindable_hosts", None),
-        detection_report=_detection_report_of(job),
-        speaker_renames=_operator_renames(job),
-    )
-    fo_speech = float(fo_result.get("diarization_speech_seconds") or speech)
-    fo_cov = (
-        min(1.0, merged_speech_seconds(fo_result.get("segments") or []) / fo_speech)
-        if fo_speech > 0
-        else None
-    )
-    fo_result["model_used"] = fo_result.get("model_used") or f"{fo_model}:speech_coverage_failover"
-    if fo_cov is not None:
-        fo_result["asr_speech_coverage"] = round(fo_cov, 3)
-    fo_result["speech_coverage_failover"] = {
-        "primary_model": primary_model,
-        "primary_speech_coverage": round(speech_cov, 3),
-        "failover_speech_coverage": round(fo_cov, 3) if fo_cov is not None else None,
-        "speech_coverage_min": min_cov,
-    }
-    return fo_result
-
-
 def _capture_stage_exception(exc: BaseException, *, stage: str) -> None:
     """Best-effort Sentry capture for a swallowed stage failure (o11y P1). Never raises."""
     try:
@@ -5527,75 +4612,16 @@ def transcribe_media_to_text(
                 refused=True,
             )
             return False, None, bytes_downloaded
-        dz_elapsed: Optional[float] = None
-        dz_naming_elapsed: Optional[float] = None
-        dz_error: Optional[str] = None
-        if cfg.diarize:
-            from ..exceptions import ProviderDependencyError
-            from ..providers.ml.diarization.pipeline import apply_diarization_to_result
-
-            dz_t0 = time.monotonic()
-            dz_timings: Dict[str, float] = {}
-            try:
-                result = apply_diarization_to_result(
-                    result,
-                    media_for_transcription,
-                    cfg,
-                    job.detected_speaker_names,
-                    metadata_named=job.metadata_named,
-                    cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
-                    feed_hosts=job.feed_hosts,
-                    unbindable_hosts=getattr(
-                        getattr(job, "episode", None), "unbindable_hosts", None
-                    ),
-                    # ADR-137 — title + description feed the LLM's host/guest role determination.
-                    episode_title=job.ep_title,
-                    episode_description=getattr(job.episode, "description", None),
-                    detection_report=_detection_report_of(job),
-                    speaker_renames=_operator_renames(job),
-                    transcribe_clip=(
-                        _gap_clip_transcriber(cfg, transcription_provider)
-                        if cfg.transcription_recover_untranscribed_speech
-                        else None
-                    ),
-                    recover_silent_gaps=cfg.transcription_recover_silent_gaps,
-                    timings=dz_timings,
-                )
-            except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
-                # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
-                # A diarization failure MUST NOT lose the successfully-computed
-                # transcript. HuggingFace Hub errors from an uncached pyannote
-                # model raise OSError; torch/pyannote instantiation issues raise
-                # RuntimeError; both were previously escaping to the outer
-                # transcription except clause and getting mislabeled as
-                # "Whisper transcription failed" while dropping the transcript.
-                logger.warning(
-                    "[%s] Diarization failed; falling back to gap-based screenplay: %s",
-                    job.idx,
-                    format_exception_for_log(exc),
-                )
-                _capture_stage_exception(exc, stage="diarization")
-                dz_error = type(exc).__name__
-            dz_elapsed, dz_naming_elapsed = _split_diarize_naming(
-                time.monotonic() - dz_t0, dz_timings
-            )
-            # ADR-131: speech-normalized quality gate — re-transcribe on the failover model if the
-            # diarized transcript covers too little of the diarizer's SPEECH (music/ads excluded).
-            # No-op unless configured + diarization produced a speech denominator.
-            result = _maybe_speech_coverage_failover(
-                result,
-                media_for_transcription,
-                cfg,
-                job,
-                effective_output_dir,
-                pipeline_metrics,
-                episode_duration_seconds,
-            )
-        else:
-            # Native-screenplay provider (deepgram/moss) may have self-diarized without a roster
-            # pass — route it through the single role authority (no-op otherwise). Guard + failure
-            # handling live in the helper so this stays one branch.
-            result = _apply_native_speaker_roster(result, cfg, job)
+        result, dz_elapsed, dz_naming_elapsed, dz_error = stage_hooks.speakers_after_asr(
+            result,
+            media_for_transcription,
+            cfg,
+            job,
+            effective_output_dir,
+            pipeline_metrics,
+            episode_duration_seconds,
+            transcription_provider,
+        )
         _attach_speech_audio_ratio(result, media_for_transcription, episode_duration_seconds)
         _attach_source_audio_duration(result, getattr(job, "temp_media", None))
         text = _format_transcript_if_needed(
@@ -6602,15 +5628,13 @@ def process_transcript_download(
         # A single-voice transcript is accepted anyway when the roster can place that voice: one
         # named speaker is a real roster. It is refused only when the lone label is anonymous,
         # where the transcript has told us nothing a diarizer would not tell us better.
-        from ..providers.ml.diarization.roster import _is_person_voice_label
-
         _distinct_voices = {
             str(s.get("speaker"))
             for s in (segments or [])
             if isinstance(s, dict) and s.get("speaker")
         }
         _usable = len(_distinct_voices) > 1 or any(
-            _is_person_voice_label(v) for v in _distinct_voices
+            stage_hooks.person_voice_label(v) for v in _distinct_voices
         )
         if cfg.require_transcript_speakers and not _usable:
             logger.info(
@@ -6643,7 +5667,7 @@ def process_transcript_download(
             # published the publisher's GUEST as a placed host.
             #
             # No-op unless the cues actually name someone.
-            rostered = _roster_native_segments(
+            rostered = stage_hooks.native_roster(
                 {"text": plain, "segments": segments},
                 cfg,
                 idx=episode.idx,

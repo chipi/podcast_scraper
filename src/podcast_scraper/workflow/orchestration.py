@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
+from .. import stage_hooks
 from ..providers.capabilities import get_provider_capabilities, is_local_provider
 from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
@@ -74,13 +75,18 @@ def extract_episode_description(item):  # noqa: F811
 
 
 from ..monitor.status import maybe_update_pipeline_status
-from ..speaker_detectors.factory import create_speaker_detector as _create_speaker_detector_factory
 from ..summarization.factory import (
     create_summarization_provider as _create_summarization_provider_factory,
 )
 from ..transcription.factory import (
     create_transcription_provider as _create_transcription_provider_factory,
 )
+
+
+def _create_speaker_detector_factory(cfg: config.Config) -> Optional[Any]:
+    """The speaker stage's detector for ``cfg``, or None when no speaker stage is installed."""
+    return stage_hooks.create_speaker_detector(cfg)
+
 
 # Re-export factory functions for testability
 create_summarization_provider = _create_summarization_provider_factory
@@ -200,6 +206,8 @@ def _create_speaker_detector(
             "create_speaker_detector", _create_speaker_detector_factory
         )
         detector = factory_func(cfg)
+        if detector is None:
+            return None
         detector.initialize()
         logger.debug(
             "Speaker detector initialized: %s",
@@ -1474,7 +1482,7 @@ def _setup_pipeline_resources(
         episode_total=len(episodes),
     )
     normalizing_start = time.time()
-    host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
+    host_detection_result = stage_hooks.feed_hosts(
         cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
     )
 
@@ -1988,9 +1996,7 @@ def _finalize_pipeline(
                 threshold=getattr(cfg, "topic_cluster_threshold", None),
                 delta=_corpus_delta,
             )
-            from podcast_scraper.providers.ml.diarization.ad_signatures import write_for_corpus
-
-            write_for_corpus(Path(_corpus_finalize_dir))
+            stage_hooks.corpus_derived(Path(_corpus_finalize_dir))
         if _corpus_delta is not None:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 
@@ -2027,23 +2033,11 @@ def _finalize_pipeline(
     # child leaves it to finalize_multi_feed_batch, which enqueues once at the corpus root.
     if not _batch_child:
         _maybe_spawn_enrichment_after_pipeline(cfg, _corpus_finalize_dir)
-    _build_audio_references(_corpus_finalize_dir, effective_output_dir)
+    stage_hooks.run_finalized(_corpus_finalize_dir, effective_output_dir)
     _maybe_evict_local_audio_after_offload(cfg, effective_output_dir)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
-
-
-def _build_audio_references(corpus_root: str, run_dir: str) -> None:
-    """Each new episode's audio reference, from the audio it was just transcribed from (RFC-129,
-    #2359). Before eviction: that is the last moment the exact audio is on local disk. Never
-    fatal: a run without numpy or ffmpeg simply has no references."""
-    try:
-        from ..audio_sync.references import write_for_run
-
-        write_for_run(corpus_root, run_dir)
-    except Exception:  # pragma: no cover - a finalize step must never break a finished run
-        logger.warning("audio references: end-of-run pass failed (non-fatal)", exc_info=True)
 
 
 def _maybe_evict_local_audio_after_offload(cfg: config.Config, effective_output_dir: str) -> None:
@@ -2252,8 +2246,6 @@ def _finalize_enrich_edges(
     """
     from argparse import Namespace
 
-    from podcast_scraper.search.cli_handlers import run_enrich_edges_cli
-
     args = Namespace(
         output_dir=output_dir,
         no_speaker=False,
@@ -2262,7 +2254,9 @@ def _finalize_enrich_edges(
         defer_corpus_writes=defer_corpus_writes,
     )
     try:
-        rc = run_enrich_edges_cli(args, logger)
+        rc = stage_hooks.enrich_edges(args, logger)
+        if rc is None:  # no insight stage: no gi.json to enrich (E04 S4)
+            return
         pipeline_metrics.edges_enriched = rc == 0
         if rc != 0:
             logger.error(
@@ -3176,9 +3170,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         )
 
     try:
-        from ..gi.deps import validate_gil_grounding_dependencies
-
-        validate_gil_grounding_dependencies(cfg)
+        stage_hooks.run_started(cfg)
 
         # Initialize JSONL emitter if enabled
         jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
@@ -3353,35 +3345,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     pass
             raise
 
-        # Step 16: #1058 chunk 3 — corpus-level Topic clustering.
-        # Runs AFTER per-episode finalize so every kg.json is on disk
-        # before we collect Topic labels across the corpus. Gated on
-        # cfg.kg_topic_corpus_clustering (default off; airgapped*
-        # overlays flip it on). Non-fatal — a failure here doesn't
-        # bring down a successful run.
-        if getattr(cfg, "kg_topic_corpus_clustering", False) and not cfg.dry_run:
-            try:
-                from pathlib import Path as _Path
-
-                from podcast_scraper.kg.topic_clustering import (
-                    cluster_and_apply_corpus_topics,
-                )
-
-                summary = cluster_and_apply_corpus_topics(_Path(effective_output_dir))
-                logger.info(
-                    "corpus topic clustering: clusters=%d concept_topics_added=%d "
-                    "related_to_edges_added=%d artifacts_mutated=%d",
-                    summary.clusters_found,
-                    summary.concept_topics_added,
-                    summary.related_to_edges_added,
-                    summary.artifacts_mutated,
-                )
-            except Exception as cluster_exc:
-                logger.warning(
-                    "corpus topic clustering failed (non-fatal): %s",
-                    cluster_exc,
-                    exc_info=True,
-                )
+        # Step 16: after per-episode finalize, so every artifact is on disk.
+        stage_hooks.run_completed(cfg, effective_output_dir)
 
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
         return result

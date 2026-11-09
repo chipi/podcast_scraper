@@ -54,6 +54,7 @@ if _importlib_util.find_spec("openai") is None:  # pragma: no cover - env depend
     _patch_openai.start()
 
 from podcast_scraper import config as podcast_config
+from podcast_scraper.speaker_stage import after_asr
 from podcast_scraper.utils import filesystem
 from podcast_scraper.workflow import episode_processor, metrics
 
@@ -2648,7 +2649,7 @@ class TestSpeechCoverageFailover(unittest.TestCase):
         return TranscriptionJob(idx=1, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
 
     def _call(self, result, cfg):
-        return episode_processor._maybe_speech_coverage_failover(
+        return after_asr._maybe_speech_coverage_failover(
             result, "/tmp/a.wav", cfg, self._job(), "/out", None, 1000.0
         )
 
@@ -2714,7 +2715,7 @@ class TestSpeechCoverageFailover(unittest.TestCase):
         self.assertFalse(os.path.exists(asr))
 
     @patch("podcast_scraper.providers.ml.diarization.pipeline.apply_diarization_to_result")
-    @patch("podcast_scraper.workflow.episode_processor._transcribe_with_segments_maybe_chunked")
+    @patch("podcast_scraper.speaker_stage.after_asr._transcribe_with_segments_maybe_chunked")
     @patch("podcast_scraper.transcription.factory.create_transcription_provider")
     def test_failover_triggers_on_low_speech_coverage(self, mock_create, mock_tx, mock_diar):
         # 600/1000 = 0.60 < 0.85 -> real speech drop -> re-transcribe on the failover model.

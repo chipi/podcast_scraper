@@ -112,7 +112,10 @@ _spec.loader.exec_module(_fx)
 
 
 def _edges(corpus: Path) -> int:
-    from podcast_scraper.search.cli_handlers import parse_enrich_edges_argv, run_enrich_edges_cli
+    from podcast_scraper.insight_stage.edges_cli import (
+        parse_enrich_edges_argv,
+        run_enrich_edges_cli,
+    )
 
     return run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(corpus)]), LOG)
 

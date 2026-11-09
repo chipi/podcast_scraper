@@ -30,6 +30,7 @@ import pytest
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
     from podcast_scraper import config
     from podcast_scraper.rss import parser as rss_parser
+    from podcast_scraper.speaker_stage import record
     from podcast_scraper.workflow import metadata_generation as metadata
 
 # Import from parent conftest explicitly to avoid conflicts
@@ -44,6 +45,9 @@ from tests.conftest import (  # noqa: E402
     TEST_TRANSCRIPT_TYPE_VTT,
     TEST_TRANSCRIPT_URL,
 )
+
+#: ``os.path.exists`` before any test patches it.
+_REAL_EXISTS = os.path.exists
 
 
 class TestMetadataIDGeneration(unittest.TestCase):
@@ -1405,7 +1409,10 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.cfg = create_test_config(generate_metadata=True, skip_existing=True)
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
-        mock_exists.return_value = True
+        # Only the metadata file "exists": every other path gets the real answer. A blanket True
+        # also reached a first `import torch` inside the call (summary provider metadata) on an
+        # xdist worker that had not imported it yet, and torch's own file probes then failed.
+        mock_exists.side_effect = lambda path: path == metadata_path or _REAL_EXISTS(path)
 
         result = metadata.generate_episode_metadata(
             feed=self.feed,
@@ -1428,7 +1435,10 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.cfg = create_test_config(generate_metadata=True, skip_existing=True)
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
-        mock_exists.return_value = True
+        # Only the metadata file "exists": every other path gets the real answer. A blanket True
+        # also reached a first `import torch` inside the call (summary provider metadata) on an
+        # xdist worker that had not imported it yet, and torch's own file probes then failed.
+        mock_exists.side_effect = lambda path: path == metadata_path or _REAL_EXISTS(path)
 
         result = metadata.generate_episode_metadata(
             feed=self.feed,
@@ -3154,7 +3164,7 @@ class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
 
     def test_a_raw_diarization_label_never_becomes_a_person(self):
         # Taken literally, an abstained host seat publishes "SPEAKER_00" as a host Person node.
-        hosts, guests = metadata._speaker_lists_for_graph(
+        hosts, guests = record._speaker_lists_for_graph(
             [self._sp("SPEAKER_00", "host"), self._sp("SPEAKER_01", "host")],
             "A Show",
         )
@@ -3166,7 +3176,7 @@ class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
         # graph as `host` when the roster abstained on which voice was which. Under the one-record
         # rule a person is cast only if a voice was matched to them; the abstained hosts are kept in
         # the speaker record as `placed: false`, where no surface reads them as speakers.
-        hosts, guests = metadata._speaker_lists_for_graph(
+        hosts, guests = record._speaker_lists_for_graph(
             [
                 self._sp("SPEAKER_00", "host"),
                 self._sp("SPEAKER_01", "host"),
