@@ -378,9 +378,7 @@ def _collect_insights_semantic(
             continue
         if grounded_only and not ins.grounded:
             continue
-        if min_confidence is not None and (
-            ins.confidence is None or ins.confidence < min_confidence
-        ):
+        if not _meets_min_confidence(ins, min_confidence):
             continue
         seen.add(key)
         collected.append(ins)
@@ -388,6 +386,17 @@ def _collect_insights_semantic(
         if limit is not None and len(collected) >= limit:
             break
     return collected, gi_paths
+
+
+def _meets_min_confidence(ins: InsightSummary, min_confidence: Optional[float]) -> bool:
+    """True when there is no positive minimum, or the insight's confidence reaches it.
+
+    A minimum of 0 (or none) sets no lower bound, so an insight without a confidence passes. Above
+    0, an insight without one is left out: nothing shows that it reaches the minimum.
+    """
+    if min_confidence is None or min_confidence <= 0:
+        return True
+    return ins.confidence is not None and ins.confidence >= min_confidence
 
 
 def _insight_matches_speaker(ins: InsightSummary, speaker_substring: Optional[str]) -> bool:
@@ -494,9 +503,7 @@ def collect_insights(
                 continue
             if grounded_only and not ins.grounded:
                 continue
-            if min_confidence is not None and (
-                ins.confidence is None or ins.confidence < min_confidence
-            ):
+            if not _meets_min_confidence(ins, min_confidence):
                 continue
             collected.append(ins)
             if limit is not None and len(collected) >= limit:

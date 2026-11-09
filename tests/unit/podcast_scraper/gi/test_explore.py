@@ -515,3 +515,36 @@ def test_collect_insights_semantic_topic_substring_filters_vector_hits(tmp_path:
     assert "xyzneedle789" in (insights[0].text or "").lower()
     assert len(gi_paths) == 1
     assert gi_paths[0].resolve() == gi_b.resolve()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("confidence", "minimum", "kept"),
+    [
+        (None, 0.0, True),  # a minimum of 0 sets no lower bound: unscored insights stay
+        (None, 0.5, False),  # nothing shows an unscored insight meets a positive minimum
+        (0.7, 0.5, True),
+        (0.3, 0.5, False),
+    ],
+)
+def test_min_confidence_zero_keeps_unscored_insights(
+    tmp_path, confidence: object, minimum: float, kept: bool
+) -> None:
+    artifact = build_artifact(
+        "ep:1",
+        "Text.",
+        prompt_version="v1",
+        insight_texts=["A real insight extracted from the transcript."],
+    )
+    for n in artifact["nodes"]:
+        if n.get("type") == "Insight":
+            if confidence is None:
+                n.pop("confidence", None)
+            else:
+                n["confidence"] = confidence
+    (tmp_path / "metadata").mkdir()
+    gi_path = tmp_path / "metadata" / "ep1.gi.json"
+    write_artifact(gi_path, artifact, validate=False)
+    loaded = load_artifacts([gi_path], validate=False)
+    insights, _ = collect_insights(loaded, min_confidence=minimum)
+    assert (len(insights) == 1) is kept
