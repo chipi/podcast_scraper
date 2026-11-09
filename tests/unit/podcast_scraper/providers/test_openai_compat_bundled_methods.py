@@ -1,18 +1,21 @@
 """Unit tests for OpenAI-compat providers' GIL-evidence bundled methods (#698).
 
 Covers ``extract_quotes_bundled`` + ``score_entailment_bundled`` +
-``_score_entailment_bundled_chunk`` across the 5 providers that use the
-OpenAI Chat Completions SDK shape:
+``_score_entailment_bundled_chunk`` across the providers that use the
+OpenAI Chat Completions SDK shape without a running service:
 
 - OpenAI
 - DeepSeek
 - Grok
 - Mistral
-- Ollama
+
+Ollama shares the shape, but its constructor health-checks a live server, so it is not
+parameterized here. Its bundled methods have no test without a local Ollama: this file used to
+add the ``ollama`` case only when ``localhost:11434`` answered, which no CI runner does.
 
 All share the ``client.chat.completions.create`` call pattern and
 ``response.choices[0].message.content`` response shape, so one parameterized
-test suite covers all 5 with minimal duplication. Provider-specific glue
+test suite covers all of them with minimal duplication. Provider-specific glue
 (retry-class, token helper, provider name) differs but is bypassed by patching
 ``retry_with_metrics`` directly.
 """
@@ -27,10 +30,9 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 # Mock the LLM SDKs whose module-level imports run when the provider modules
-# load. ``httpx`` is intentionally NOT mocked — integration tier has it
-# installed for real, and OpenAIProvider's timeout_config does
-# ``isinstance(base, httpx.Timeout)`` which requires the real type. Same
-# pattern as tests/integration/providers/llm/test_openai_provider.py.
+# load. ``httpx`` is intentionally NOT mocked — it is a core dependency, and
+# OpenAIProvider's timeout_config does ``isinstance(base, httpx.Timeout)``, which
+# requires the real type.
 mock_openai = MagicMock()
 mock_openai.OpenAI = MagicMock()
 
@@ -79,7 +81,7 @@ from podcast_scraper import config
 from podcast_scraper.providers.common.bundle_extract_parser import BundleExtractParseError
 from podcast_scraper.providers.common.bundle_nli_parser import BundleNliParseError
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
@@ -130,14 +132,6 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
             mistral_summary_model="mistral-small-latest",
         )
         return MistralProvider, cfg_kwargs, "mistral-small-latest"
-    if name == "ollama":
-        from podcast_scraper.providers.ollama.ollama_provider import OllamaProvider
-
-        cfg_kwargs = dict(
-            summary_provider="ollama",
-            ollama_summary_model="qwen3.5:9b",
-        )
-        return OllamaProvider, cfg_kwargs, "qwen3.5:9b"
     raise ValueError(f"unknown provider: {name}")
 
 
@@ -179,34 +173,7 @@ def _patch_retry_raises(exc: Exception):
     )
 
 
-def _ollama_reachable() -> bool:
-    """Probe Ollama at default port — gate the ``ollama`` parameterization.
-
-    OllamaProvider.__init__ does a real httpx health check against
-    ``http://localhost:11434/api/tags`` (httpx is NOT mocked in this module
-    because OpenAIProvider's timeout_config needs the real ``httpx.Timeout``
-    type). On CI runners with no Ollama service running, instantiation
-    raises ``ConnectionError`` before the test can mock anything — every
-    ``[ollama]``-parameterized test then errors. Skip the parameter when
-    the server is unreachable; operators with local Ollama still get the
-    coverage. Probe time-boxed at 1s so test collection stays fast.
-    """
-    try:
-        import httpx as _real_httpx
-
-        with _real_httpx.Client(timeout=1.0) as c:
-            # ``bool(...)`` to satisfy mypy in CI where httpx type stubs aren't
-            # available — without it ``response.status_code == 200`` is typed
-            # ``Any`` (httpx is opaque) and the function "returns Any from a
-            # function declared to return ``bool``".
-            return bool(c.get("http://localhost:11434/api/tags").status_code == 200)
-    except Exception:
-        return False
-
-
 PROVIDERS = ["openai", "deepseek", "grok", "mistral"]
-if _ollama_reachable():
-    PROVIDERS.append("ollama")
 
 
 # ---------------------------------------------------------------------------

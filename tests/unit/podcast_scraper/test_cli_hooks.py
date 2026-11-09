@@ -67,3 +67,54 @@ def test_the_built_in_refreshes_are_the_guarded_ones() -> None:
 def test_without_a_ledger_stage_the_refresh_has_nothing_to_do() -> None:
     with patch.object(builtin_cli_hooks, "LEDGER_REFRESH", None):
         assert cli_hooks.ledger_refresh("/c", after="enrichment") is True
+
+
+@pytest.mark.parametrize(
+    ("name", "module", "parse_fn", "run_fn"),
+    [
+        ("gi", "podcast_scraper.insight_stage.cli", "_parse_gi_args", "_run_gi"),
+        (
+            "gi-repair",
+            "podcast_scraper.insight_stage.cli",
+            "_parse_gi_repair_argv",
+            "_run_gi_repair_cli",
+        ),
+        (
+            "identity-ledger",
+            "podcast_scraper.identity.ledger_cli",
+            "parse_identity_ledger_argv",
+            "run_identity_ledger_cli",
+        ),
+        (
+            "enrich-edges",
+            "podcast_scraper.insight_stage.edges_cli",
+            "parse_enrich_edges_argv",
+            "run_enrich_edges_cli",
+        ),
+        (
+            "cluster-corpus-topics",
+            "podcast_scraper.kg.topic_clustering_cli",
+            "parse_cluster_corpus_topics_argv",
+            "run_cluster_corpus_topics_cli",
+        ),
+        (
+            "insight-clusters",
+            "podcast_scraper.insight_stage.cluster_cli",
+            "parse_insight_clusters_argv",
+            "run_insight_clusters_cli",
+        ),
+    ],
+)
+def test_each_stage_verb_parses_and_runs_in_its_stage(
+    name: str, module: str, parse_fn: str, run_fn: str
+) -> None:
+    command = cli_hooks.cli_command(name)
+    assert command is not None
+    with (
+        patch(f"{module}.{parse_fn}", return_value="parsed") as parse,
+        patch(f"{module}.{run_fn}", return_value=0) as run,
+    ):
+        assert command.parse(["--x"]) == "parsed"
+        assert command.run("args", None) == 0
+    assert parse.call_args.args[0] == ["--x"]
+    assert run.called
