@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from pathlib import Path
 
 import pytest
@@ -107,3 +108,122 @@ def test_export_writes_ndjson_and_merged(tmp_path: Path) -> None:
     )
     assert nd.read_text(encoding="utf-8").strip()
     assert json.loads(merged.read_text(encoding="utf-8"))
+
+
+def _a_speaker_name() -> str:
+    """The name of the person a supporting quote is SPOKEN_BY (explore and query find them)."""
+    doc = json.loads(EPISODE.read_text(encoding="utf-8"))
+    nodes = {n["id"]: n for n in doc["nodes"]}
+    edges = doc.get("edges") or []
+    supporting = {e["to"] for e in edges if str(e.get("type", "")).upper() == "SUPPORTED_BY"}
+    for e in edges:
+        if str(e.get("type", "")).upper() == "SPOKEN_BY" and e.get("from") in supporting:
+            name = ((nodes.get(e["to"]) or {}).get("properties") or {}).get("name")
+            if name:
+                return str(name)
+    raise AssertionError("fixture episode has no named speaker behind a supporting quote")
+
+
+@pytest.mark.parametrize("sort", ["confidence", "evidence-density"])
+def test_explore_sorts_and_filters_a_topics_insights(tmp_path: Path, sort: str) -> None:
+    out = tmp_path / "e.json"
+    rc = _gi(
+        "explore",
+        "--topic",
+        _insight_topic_label(),
+        "--output-dir",
+        str(CORPUS),
+        "--sort",
+        sort,
+        "--format",
+        "json",
+        "--out",
+        str(out),
+    )
+    assert rc == 0
+    assert json.loads(out.read_text(encoding="utf-8"))
+
+
+def test_explore_for_an_unknown_speaker_finds_nothing() -> None:
+    rc = _gi("explore", "--speaker", "nobody-by-this-name", "--output-dir", str(CORPUS))
+    assert rc == 4  # EXIT_NO_RESULTS
+
+
+def test_explore_strict_and_expand_clusters_still_answer(tmp_path: Path) -> None:
+    # One schema-valid episode: the corpus's translated p10_e01 fails strict validation (its Quote
+    # carries a ``translation`` property the GIL schema does not allow).
+    meta = tmp_path / "feeds" / "p01" / "run_1" / "metadata"
+    meta.mkdir(parents=True)
+    shutil.copy2(EPISODE, meta / EPISODE.name)
+    label = _insight_topic_label()
+    rc = _gi(
+        "explore", "--topic", label, "--output-dir", str(tmp_path), "--strict", "--expand-clusters"
+    )
+    assert rc == 0
+
+
+def test_explore_needs_a_corpus(tmp_path: Path) -> None:
+    assert _gi("explore", "--topic", "x", "--output-dir", str(tmp_path / "missing")) != 0
+
+
+@pytest.mark.parametrize(
+    "question", ["Top topics", "Which topics have the most insights?", "What did {speaker} say?"]
+)
+def test_query_answers_each_supported_shape(
+    question: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    q = question.format(speaker=_a_speaker_name())
+    codes = [
+        _gi("query", "--output-dir", str(CORPUS), "--question", q, "--format", fmt)
+        for fmt in ("json", "pretty")
+    ]
+    assert codes[0] == codes[1] == 0
+    assert capsys.readouterr().out.strip()
+
+
+def test_query_refuses_an_unsupported_question() -> None:
+    assert _gi("query", "--output-dir", str(CORPUS), "--question", "Why is the sky blue?") != 0
+
+
+def test_inspect_by_corpus_and_episode_id_with_the_insights_shown() -> None:
+    doc = json.loads(EPISODE.read_text(encoding="utf-8"))
+    episode_id = doc.get("episode_id")
+    assert (
+        _gi("inspect", "--output-dir", str(CORPUS), "--episode-id", str(episode_id), "--show") == 0
+    )
+    assert _gi("inspect", "--output-dir", str(CORPUS), "--episode-id", "no-such-episode") != 0
+    assert _gi("inspect") != 0
+
+
+def test_export_to_stdout_and_its_refusals(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _gi("export", "--output-dir", str(CORPUS)) == 0
+    assert capsys.readouterr().out.strip()
+    assert _gi("export", "--output-dir", str(tmp_path / "missing")) != 0
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert _gi("export", "--output-dir", str(empty)) != 0
+
+
+def test_unknown_subcommand_is_refused() -> None:
+    import argparse
+
+    assert cli._run_gi(argparse.Namespace(gi_subcommand="nope"), log=LOG) == 1
+
+
+@pytest.mark.parametrize(
+    ("sub", "target"),
+    [
+        ("clusters", "run_cluster_browse_cli"),
+        ("explore-quotes", "run_explore_quotes_cli"),
+        ("topic-insights", "run_topic_insights_cli"),
+    ],
+)
+def test_the_cluster_views_dispatch_to_the_cluster_cli(sub: str, target: str) -> None:
+    import argparse
+    from unittest.mock import patch
+
+    with patch(f"podcast_scraper.insight_stage.cluster_cli.{target}", return_value=0) as run:
+        assert cli._run_gi(argparse.Namespace(gi_subcommand=sub), log=LOG) == 0
+    assert run.called
