@@ -139,7 +139,7 @@ Cloud providers (OpenAI / Anthropic / Gemini / Mistral / Ollama) mock at
 the top of the vendor client, not deeper:
 
 ```python
-@patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+@patch("openai.OpenAI")  # the provider imports it inside a function
 def test_openai_provider_summarize(self, mock_openai_class):
     fake_client = mock_openai_class.return_value
     fake_client.chat.completions.create.return_value = ...

@@ -81,10 +81,12 @@ having no test. See
 1. **HTTP/Network Calls**
 
    ```python
-   @patch("podcast_scraper.rss.downloader.requests.get")
-   def test_download(self, mock_get):
-       mock_get.return_value.status_code = 200
-       mock_get.return_value.content = b"test content"
+   @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+   def test_download(self, mock_client_fn):
+       client = mock_client_fn.return_value
+       client.send.return_value = httpx.Response(
+           200, content=b"test content", request=httpx.Request("GET", "https://example.com")
+       )
        # ...
    ```
 
@@ -102,7 +104,7 @@ having no test. See
 3. **External API Clients** (OpenAI, etc.)
 
    ```python
-   @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+   @patch("openai.OpenAI")  # the provider imports it inside a function
    def test_openai_provider(self, mock_client):
        mock_client.return_value.chat.completions.create.return_value = ...
    ```
