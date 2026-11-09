@@ -141,7 +141,7 @@ today, and a half-migrated corpus is fine.
 
 **Rebuild BRIDGES too, not just enrichment and the index.** m0007 rewrites `.gi.json` and
 `.kg.json` only. `*.bridge.json` carries `person:` CIL ids and the CIL read surfaces walk every
-bridge file at request time (`server/cil_queries.py` — timeline, position-arc, conversation-arc),
+bridge file at request time (`insight_stage/cil_queries.py` — timeline, position-arc, conversation-arc),
 so after migration they keep serving pre-migration bare ids that no longer exist in the KG: dead
 cross-references, silently. `build_bridge` runs from metadata generation, so the practical options
 are a reprocess pass over the corpus or accepting the staleness knowingly. **Decide explicitly —

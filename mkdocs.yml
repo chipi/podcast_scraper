@@ -266,6 +266,9 @@ nav:
       - ADR-171 A shared schema for cross-plane rows: adr/ADR-171-shared-schema-for-cross-plane-rows.md
       - ADR-172 Module migration histories and readiness: adr/ADR-172-module-migration-histories-and-readiness.md
       - ADR-173 How the app uses database connections: adr/ADR-173-how-the-app-uses-database-connections.md
+      - ADR-174 Extension corpus migrations: adr/ADR-174-extension-corpus-migrations.md
+      - ADR-175 Several API workers: adr/ADR-175-several-api-workers.md
+      - ADR-176 Extension seams for the split: adr/ADR-176-extension-seams-for-the-split.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

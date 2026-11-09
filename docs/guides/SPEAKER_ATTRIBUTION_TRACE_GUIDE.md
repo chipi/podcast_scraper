@@ -25,7 +25,7 @@ mis-attributed.
 | 6 | **QUOTES** | `gi.json` → `SPOKEN_BY`, `speaker_id` | `gi/pipeline.py` on ingest; `gi/speakers.py` ONLY under `enrich-edges` |
 | 7 | **MENTIONS** | `gi.json` → `MENTIONS_PERSON` | `gi/relational_edges.py` |
 | 8 | **IDENTITY** | `person:<slug>` / `person:unresolved-<name>-<ep>` | `identity/bare_name_scope.py`, `identity/intra_episode_merge.py` |
-| 9 | **SURFACES** | cards, search, related-people | `server/kg_index.py`, `search/corpus_graph.py`, `server/cil_queries.py` |
+| 9 | **SURFACES** | cards, search, related-people | `server/kg_index.py`, `search/corpus_graph.py`, `insight_stage/cil_queries.py` |
 
 ### Three corrections to the table above, because the table is a simplification
 
@@ -172,7 +172,7 @@ Corpus-derived projections are cached in-process. After a migration or a re-enri
 | --- | --- |
 | `kg_index`, catalog, momentum person-roles, top-people, per-artifact loader, slug index | `perf_cache.corpus_mtime` |
 | `search/corpus_graph.get_corpus_graph` | same token (added #2069) |
-| `server/cil_queries._cil_entity_id_map` | same token (added #2069) |
+| `insight_stage/cil_queries._cil_entity_id_map` | same token (added #2069) |
 
 `corpus_mtime` is the **max** mtime of four files: `corpus_run_summary.json`,
 `corpus_manifest.json`, `upgrade_ledger.json`, `corpus_edges_stamp.json`.

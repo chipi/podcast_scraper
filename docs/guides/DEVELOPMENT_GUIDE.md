@@ -606,7 +606,7 @@ embed-and-index after finalize when enabled; you can also run **`podcast index`*
 
 **Insight clustering** groups semantically similar GI insights across episodes using the same
 average-linkage algorithm as topic clustering. CLI: `podcast insight-clusters --output-dir ./output`.
-Writes `insight_clusters.json` to `<output-dir>/search/`. Module: `search/insight_clusters.py`.
+Writes `insight_clusters.json` to `<output-dir>/search/`. Module: `insight_stage/insight_clusters.py`.
 
 **Multi-quote extraction** (#600) changed all 8 providers from single-quote to multi-quote per
 insight (uncapped). Prompt: "Extract all short verbatim quotes." Parser handles both
@@ -616,7 +616,7 @@ insight (uncapped). Prompt: "Extract all short verbatim quotes." Parser handles 
 **Cluster context expansion** (#601) adds cross-episode evidence to `gi explore` results.
 Flag: `gi explore --expand-clusters`. Loads `insight_clusters.json`, finds cluster members from
 other episodes, and displays their quotes alongside the matched insight. Module:
-`search/insight_cluster_context.py`.
+`insight_stage/insight_cluster_context.py`.
 
 **Tests:** Unit: `test_insight_clusters.py` (11 tests), `test_insight_cluster_context.py`
 (12 tests). Integration: `tests/integration/search/test_insight_clusters_cli.py` (3 tests).
@@ -1118,15 +1118,21 @@ from podcast_scraper.models import Episode
 **Unit test with mocks for external dependencies:**
 
 ```python
-@patch("podcast_scraper.rss.downloader.requests.Session")
-def test_fetch_url_with_retry(self, mock_session):
-    """Test that fetch_url retries on network failure."""
-    mock_session.get.side_effect = [
-        requests.ConnectionError("Network error"),
-        MockHTTPResponse(content="Success", status_code=200)
-    ]
-    result = fetch_url("https://example.com/feed.xml")
-    self.assertEqual(result, "Success")
+@patch("podcast_scraper.rss.downloader._get_thread_request_client")
+def test_fetch_url_through_the_thread_client(self, mock_client_fn):
+    """fetch_url sends through the thread's httpx client."""
+    client = Mock(spec=httpx.Client)
+    client.build_request.side_effect = lambda method, url, headers=None, timeout=None: (
+        httpx.Request(method, url, headers=headers or {})
+    )
+    client.send.return_value = httpx.Response(
+        200, content=b"Success", request=httpx.Request("GET", "https://example.com")
+    )
+    mock_client_fn.return_value = client
+
+    resp = fetch_url("https://example.com", user_agent="test-agent", timeout=5)
+
+    self.assertEqual(resp.content, b"Success")
 ```
 
 **Descriptive test names:**
@@ -1192,8 +1198,9 @@ class TestEpisodeProcessor(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.providers.ml.whisper_utils.whisper")
-    def test_transcription(self, mock_whisper):
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    def test_transcription(self, mock_import_whisper):
+        mock_whisper = mock_import_whisper.return_value
         mock_whisper.load_model.return_value = Mock()
         mock_whisper.transcribe.return_value = {"text": "Test transcript"}
         # ... test code ...

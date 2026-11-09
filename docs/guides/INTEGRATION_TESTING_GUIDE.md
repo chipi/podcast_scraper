@@ -38,7 +38,7 @@ implementations, mock external dependencies.
 2. **External API Calls** (OpenAI, etc.)
 
    ```python
-   @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+   @patch("openai.OpenAI")  # the provider imports it inside a function
    def test_openai_provider_integration(self, mock_client):
 
        # Mock API client, test provider integration
