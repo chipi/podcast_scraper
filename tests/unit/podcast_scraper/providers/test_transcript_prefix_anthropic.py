@@ -7,11 +7,12 @@ summary writes the block, GI reads it 100% (cache_read == the transcript token c
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from podcast_scraper import config as cfgmod
+from podcast_scraper.providers.anthropic import anthropic_provider
 from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
 from podcast_scraper.providers.common.transcript_cache import TRANSCRIPT_BLOCK_HEADER
 
@@ -29,7 +30,10 @@ def _provider(cache: bool = True) -> AnthropicProvider:
         generate_summaries=True,
         cache_transcript_prefix=cache,
     )
-    p = AnthropicProvider(cfg)
+    # CI's unit job has no LLM SDK ([llm] extra), so the constructor's SDK check is patched for
+    # the build only — this test must not depend on another module having stubbed the SDK first.
+    with patch.object(anthropic_provider, "Anthropic", MagicMock()):
+        p = AnthropicProvider(cfg)
     p._summarization_initialized = True
     return p
 

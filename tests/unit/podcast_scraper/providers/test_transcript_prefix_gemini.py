@@ -8,16 +8,29 @@ summary creates one handle, GI reuses it at ~93% cache, cleanup deletes it.
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from typing import Iterator
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from podcast_scraper import config as cfgmod
+from podcast_scraper.providers.gemini import gemini_provider
 from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 
 pytestmark = pytest.mark.unit
 
 TRANSCRIPT = ("HOST: welcome. GUEST: reliable durable software for small teams. " * 120).strip()
+
+
+@pytest.fixture(autouse=True)
+def _gemini_sdk_stand_in() -> Iterator[None]:
+    # CI's unit job has no LLM SDK ([llm] extra): the provider's SDK names are patched here so
+    # this module does not depend on another test module having stubbed the SDK first.
+    with (
+        patch.object(gemini_provider, "genai", MagicMock()),
+        patch.object(gemini_provider, "genai_types", MagicMock()),
+    ):
+        yield
 
 
 def _provider(*, enabled: bool) -> GeminiProvider:
