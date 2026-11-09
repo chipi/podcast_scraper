@@ -112,5 +112,7 @@ class Leadership:
                 logger.exception("leader: taking over failed; retrying")
 
     def stop(self) -> None:
+        """End the retries and release the lock if held, so another worker can lead. The work
+        ``on_lead`` started is not stopped here; its owner shuts it down."""
         self._stop.set()
         self._release()
