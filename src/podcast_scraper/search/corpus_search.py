@@ -212,32 +212,50 @@ def _enrich_lift_and_slice(
     people = person_display(output_dir)
     title_cache: Dict[str, tuple[str, str]] = {}
     docs: Dict[str, Any] = {}
-    enriched = [
-        _enrich_hit(
-            h,
+
+    def finish(hits: List[SearchResult]) -> List[Dict[str, Any]]:
+        enriched = [
+            _enrich_hit(
+                h,
+                gi_cache,
+                metadata_relpath_by_scope=rel_by_scope,
+                corpus_root=output_dir,
+                title_cache=title_cache,
+                people=people,
+                docs=docs,
+            )
+            for h in hits
+        ]
+        read_hooks.lift_transcript_hits(
+            enriched,
+            output_dir,
             gi_cache,
-            metadata_relpath_by_scope=rel_by_scope,
-            corpus_root=output_dir,
-            title_cache=title_cache,
+            visible_for=None if visible is None else partial(_visible_in, visible),
             people=people,
-            docs=docs,
         )
-        for h in filtered
-    ]
-    read_hooks.lift_transcript_hits(
-        enriched,
-        output_dir,
-        gi_cache,
-        visible_for=None if visible is None else partial(_visible_in, visible),
-        people=people,
-    )
+        if dedupe_kg_surfaces:
+            enriched = dedupe_kg_surface_rows(enriched)
+        _attach_topic_cluster_metadata(enriched, output_dir)
+        # AFTER the topic join and BEFORE the page slice: dropping an orphaned storyline must
+        # not leave a hole in the returned page.
+        return _attach_storyline_metadata(enriched, output_dir)
+
     if dedupe_kg_surfaces:
-        enriched = dedupe_kg_surface_rows(enriched)
-    _attach_topic_cluster_metadata(enriched, output_dir)
-    # AFTER the topic join and BEFORE the page slice: dropping an orphaned storyline must
-    # not leave a hole in the returned page.
-    enriched = _attach_storyline_metadata(enriched, output_dir)
-    page = enriched[:top_k]
+        # The surface dedupe folds every later duplicate into its winner's counts, so it needs
+        # the whole candidate list.
+        whole = finish(filtered)[:top_k]
+        return whole, _lift_stats_for_page(whole)
+    # Every other step works row by row and only drops rows, so enriching the candidates in rank
+    # order until the page is full gives the same page as enriching all of them: episode-related
+    # enriched ~2,350 hits per call to return 100 (65% of its time on the prod-sized index,
+    # 2026-11-09).
+    page: List[Dict[str, Any]] = []
+    start, step = 0, max(top_k, 1)
+    while len(page) < top_k and start < len(filtered):
+        page.extend(finish(filtered[start : start + step]))
+        start += step
+        step *= 2
+    page = page[:top_k]
     return page, _lift_stats_for_page(page)
 
 
