@@ -5,8 +5,9 @@ Each provider module imports its SDK in ``try/except ImportError`` and keeps the
 variable (``Anthropic``, ``Mistral``, ``genai``, ``OpenAI``). The provider is built with that
 variable patched to a Mock for the constructor only — nothing in ``sys.modules`` changes, which is
 what tests/conftest.py guards — and ``retry_with_metrics`` is patched to return the SDK's response
-shape. The integration tier's ``test_*_bundled_methods.py`` cover the same methods with the real
-SDK classes importable.
+shape. Ollama's constructor also probes the server through the module's ``httpx``; patching that
+name too means no Ollama has to run. The integration tier's ``test_*_bundled_methods.py`` cover the
+same methods with the real SDK classes importable.
 """
 
 from __future__ import annotations
@@ -72,6 +73,14 @@ PROVIDERS: Dict[
         "GrokProvider",
         {"summary_provider": "grok", "grok_api_key": "k"},
         "grok-3-fast",
+        _chat_response,
+    ),
+    "ollama": (
+        "podcast_scraper.providers.ollama.ollama_provider",
+        ("OpenAI", "httpx"),
+        "OllamaProvider",
+        {"summary_provider": "ollama"},
+        "llama3.1:8b",
         _chat_response,
     ),
     "gemini": (
