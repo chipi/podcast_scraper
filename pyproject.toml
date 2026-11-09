@@ -336,7 +336,7 @@ dev = [
   # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
   "apscheduler>=3.11.2,<4.0.0",
   "black>=26.5.1,<27.0.0",
-  "isort>=8.0.1,<9.0.0",
+  "isort>=9.0.2,<10.0.0",
   "flake8>=7.3.0,<8.0.0",
   "pytest>=9.0.3,<10.0.0",
   "pytest-cov>=7.1.0,<8.0.0",
