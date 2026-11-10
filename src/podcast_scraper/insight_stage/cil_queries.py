@@ -897,11 +897,14 @@ def _person_profile_append_for_episode(
             }
         )
 
-    for qid in spoken_quotes:
-        quote_node = _node_by_id(gi, qid)
-        if quote_node is None:
-            continue
-        all_quotes.append({"episode_id": episode_id, "quote": quote_node})
+    # In the file's node order: iterating the set gave each process its own order (the hash seed),
+    # so a person's brief listed their quotes differently after every restart.
+    listed: set[str] = set()
+    for n in gi.get("nodes") or []:
+        qid = str(n.get("id")) if isinstance(n, dict) else ""
+        if qid in spoken_quotes and qid not in listed:
+            listed.add(qid)
+            all_quotes.append({"episode_id": episode_id, "quote": n})
 
 
 def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:

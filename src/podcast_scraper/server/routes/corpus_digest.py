@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -33,7 +33,6 @@ from podcast_scraper.server.corpus_catalog import (
 from podcast_scraper.server.corpus_digest import (
     DIGEST_MAX_TOPICS_PER_REQUEST,
     digest_row_dict,
-    DIGEST_TOPIC_SEARCH_TIMEOUT_SEC,
     DIGEST_TOPIC_SEARCH_TOP_K,
     diversify_digest_rows,
     episode_in_utc_window,
@@ -112,23 +111,18 @@ def _topic_band_for_query(
     feed_rss_urls_by_feed_id: dict[str, str],
     feed_descriptions_by_feed_id: dict[str, str],
 ) -> CorpusDigestTopicBand | None:
-    """Run one semantic search; map hits to catalog rows inside the digest window."""
+    """Run one semantic search; map hits to catalog rows inside the digest window.
 
-    def _call() -> object:
-        return run_corpus_search(
-            root,
-            query,
-            since=since,
-            top_k=DIGEST_TOPIC_SEARCH_TOP_K,
-            dedupe_kg_surfaces=False,
-        )
-
-    with ThreadPoolExecutor(max_workers=1) as ex:
-        fut = ex.submit(_call)
-        try:
-            outcome = fut.result(timeout=DIGEST_TOPIC_SEARCH_TIMEOUT_SEC)
-        except FuturesTimeoutError:
-            return None
+    Waits for the search: a band dropped for being slow would leave the digest missing a topic until
+    the next reindex, since the digest is cached against the index.
+    """
+    outcome = run_corpus_search(
+        root,
+        query,
+        since=since,
+        top_k=DIGEST_TOPIC_SEARCH_TOP_K,
+        dedupe_kg_surfaces=False,
+    )
 
     if outcome.error:
         return None
