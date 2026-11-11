@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from platformdirs import user_cache_dir, user_data_dir
 
 from .. import config
+from .corpus_walk import SOURCES_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -236,11 +237,6 @@ def corpus_feed_output_dir(corpus_parent: str, rss_url: str) -> str:
     parent = validate_and_normalize_output_dir(corpus_parent)
     leaf = os.path.join(parent, "feeds", feed_workspace_dirname(rss_url))
     return validate_and_normalize_output_dir(leaf)
-
-
-#: Where a non-podcast type's sources live: ``<corpus>/sources/<type>/<slug>/``. Corpus walkers skip
-#: it unless a caller asks for other types, so a reader written for podcasts never sees them.
-SOURCES_DIR = "sources"
 
 
 def corpus_source_output_dir(
