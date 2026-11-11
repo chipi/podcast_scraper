@@ -13,7 +13,7 @@ import time
 from concurrent.futures import as_completed, Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
-from ... import config, models
+from ... import config, content_types, models
 
 if TYPE_CHECKING:
     from ...models import Episode, RssFeed
@@ -2151,6 +2151,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     feed_id=getattr(cfg, "rss_url", None),
                     name="episode.metadata",
                 ),
+                # The job's item context, for any hook that needs the type (ADR-177 decision 7).
+                content_types.processing_item(getattr(job, "item", None)),
             ):
                 metadata_stage.call_generate_metadata(
                     episode=job.episode,
