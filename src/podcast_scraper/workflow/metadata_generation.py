@@ -315,6 +315,43 @@ SCHEMA_VERSION = "1.2.0"
 PROVENANCE_SCHEMA_VERSION = "1.1.0"
 
 
+def _kg_v3_for_item(
+    v2_payload: Dict[str, Any],
+    item: Any,
+    *,
+    item_title: str,
+    item_url: Optional[str],
+    source_title: Optional[str],
+    source_url: Optional[str],
+    document_ref: str,
+) -> Dict[str, Any]:
+    """A non-podcast item's KG 3.0 artifact from the KG 2.x graph its extraction built, checked
+    against kg.v3.schema.json before it is written."""
+    from ..kg import v3 as kg_v3
+    from ..kg.schema import validate_artifact
+
+    ctype = item.content_type
+    if not item.item_id or not item.source_id or not item.transport:
+        raise ValueError(f"{ctype.name}: the item context lacks its id, source or transport")
+    payload = kg_v3.item_artifact(
+        v2_payload,
+        item_id=item.item_id,
+        content_type=ctype.name,
+        item_title=item_title,
+        source_id=item.source_id,
+        source_title=source_title or source_url or ctype.name,
+        source_kind=ctype.source_kind,
+        transport=item.transport,
+        document_ref=document_ref,
+        variant="raw",
+        item_url=item_url,
+        source_url=source_url,
+        times=item.times,
+    )
+    validate_artifact(payload, strict=True)
+    return payload
+
+
 def _non_podcast_item_type() -> Optional[str]:
     """The current item's type name when it is not a podcast episode; ``None`` for a podcast."""
     from .. import content_types
@@ -4805,6 +4842,19 @@ def generate_episode_metadata(  # noqa: C901
                 )
                 if _kg_probe is not None:
                     kg_cost = _kg_probe.kg_cost_usd
+                _kg_item = content_types.current_item()
+                if _kg_item.content_type.name != content_types.PODCAST_EPISODE:
+                    # ADR-178 / ontology v3: a new type's items are written in KG 3.0 from the
+                    # start; podcasts keep KG 2.x until R3b.
+                    kg_payload = _kg_v3_for_item(
+                        kg_payload,
+                        _kg_item,
+                        item_title=episode.title,
+                        item_url=episode_link,
+                        source_title=getattr(feed, "title", None),
+                        source_url=getattr(cfg, "rss_url", None),
+                        document_ref=transcript_ref_for_kg,
+                    )
                 from ..kg.io import previous_artifact_to_keep as _kg_previous_to_keep
 
                 _kg_kept = _kg_previous_to_keep(Path(kg_path), kg_payload)

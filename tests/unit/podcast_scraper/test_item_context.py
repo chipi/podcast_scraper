@@ -23,6 +23,7 @@ TEXT = ct.ContentType(
     id_scheme="item",
     stage_profile=ct.StageProfile(name="text", stages=frozenset({"summary", "kg"})),
     default_transport="fixture_feed",
+    source_kind="test",
 )
 
 

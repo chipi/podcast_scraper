@@ -32,6 +32,7 @@ TEXT = ct.ContentType(
     id_scheme="item",
     stage_profile=ct.StageProfile(name="test_text_item", stages=frozenset({ct.SUMMARY, ct.KG})),
     default_transport="fixture_feed",
+    source_kind="test",
     card_kind="article",
 )
 
@@ -68,12 +69,13 @@ def _ext(transport: ct.Transport) -> Extension:
     )
 
 
-def _cfg(corpus: Path, entry: RssFeedEntry) -> config.Config:
+def _cfg(corpus: Path, entry: RssFeedEntry, **overrides: Any) -> config.Config:
     base = config.Config(
         rss=entry.url,
         output_dir=str(corpus),
         generate_metadata=True,
         generate_summaries=False,
+        **overrides,
     )
     return merge_feed_entry_into_config(base, entry)
 
@@ -170,3 +172,46 @@ def test_a_batch_of_a_text_source_moves_the_cache_token_and_resumes_from_its_cur
     assert corpus_mtime(corpus) > first - 60
     assert listed == [None, "3"]
     assert len(_metadata_docs(corpus)) == 2  # the second batch listed nothing new
+
+
+def test_a_text_items_kg_is_written_in_kg_3(tmp_path: Path) -> None:
+    """The type's profile runs KG; its kg.json is KG 3.0 for the item (ontology v3), valid against
+    kg.v3.schema.json, with the ids the type minted."""
+    from podcast_scraper.kg.schema import load_v3_schema, validate_artifact
+
+    assert load_v3_schema() is not None  # strict validation below is real, not a no-op
+    corpus = tmp_path / "corpus"
+    url = "https://example.com/fixture-source"
+    entry = RssFeedEntry(url=url, content_type="test_text_item")
+    cfg = _cfg(corpus, entry, generate_kg=True, kg_extraction_source="metadata_only")
+    with use_extensions([_ext(_transport([]))]):
+        count, summary = ct.run_source(cfg, entry)
+    assert count == 2, summary
+
+    kgs = sorted(corpus.rglob("*.kg.json"))
+    assert len(kgs) == 2
+    source = ct.source_id(TEXT, url)
+    by_item = {}
+    for path in kgs:
+        art = json.loads(path.read_text(encoding="utf-8"))
+        validate_artifact(art, strict=True)
+        by_item[art["item_id"]] = art
+    assert set(by_item) == {"item:test_text_item:one", "item:test_text_item:two"}
+    one = by_item["item:test_text_item:one"]
+    assert one["schema_version"] == "3.0" and one["content_type"] == "test_text_item"
+    nodes = {n["id"]: n for n in one["nodes"]}
+    assert nodes[source]["properties"] == {
+        "title": url,
+        "source_kind": "test",
+        "transport": "fixture_feed",
+        "url": url,
+    }
+    item = nodes["item:test_text_item:one"]["properties"]
+    assert item["source_id"] == source
+    assert item["published_at"] == "2026-11-01T09:00:00Z"
+    assert item["url"] == "https://example.com/one"
+    assert one["extraction"]["document_ref"].startswith("transcripts/")
+    assert one["extraction"]["variant"] == "raw"
+
+    docs = {d["episode"]["guid"]: d for d in _metadata_docs(corpus)}
+    assert docs["item:test_text_item:one"]["knowledge_graph"]["schema_version"] == "3.0"

@@ -888,6 +888,7 @@ class TestSerializeMetadata(unittest.TestCase):
             id_scheme="item",
             stage_profile=ct.StageProfile(name="t", stages=frozenset({ct.SUMMARY})),
             default_transport="fixture_feed",
+            source_kind="test",
         )
         ext = Extension(
             name="fixture",

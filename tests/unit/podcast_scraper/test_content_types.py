@@ -18,6 +18,7 @@ TEXT = ct.ContentType(
     id_scheme="item",
     stage_profile=ct.StageProfile(name="text", stages=frozenset({"summary", "kg"})),
     default_transport="fixture_feed",
+    source_kind="test",
 )
 FEED = ct.Transport(name="fixture_feed", list_items=lambda source, cursor: ([], cursor))
 
@@ -183,6 +184,7 @@ def test_a_url_identified_type_mints_from_its_canonical_url() -> None:
         id_scheme="item",
         stage_profile=ct.StageProfile(name="u"),
         default_transport="fixture_feed",
+        source_kind="test",
         identity=lambda item: ct.url_identity(item.url or ""),
     )
     over_rss = ct.SourceItem(item_id="guid-1", url="https://example.com/a")
@@ -205,3 +207,22 @@ def test_a_document_without_a_type_reads_as_a_podcast_episode() -> None:
     assert ct.item_content_type(None) == ct.PODCAST_EPISODE
     assert ct.is_wanted({}, ct.PODCAST_ONLY)
     assert not ct.is_wanted({"content_type": "test_text_item"}, ct.PODCAST_ONLY)
+
+
+def test_a_source_kind_outside_the_vocabulary_is_refused() -> None:
+    with pytest.raises(ct.RegistryError, match="source_kind"):
+        ct.ContentType(
+            name="t",
+            id_scheme="item",
+            stage_profile=ct.StageProfile(name="t"),
+            default_transport="fixture_feed",
+            source_kind="test_text_item",
+        )
+    assert ct.PODCAST.source_kind == "podcast"
+
+
+def test_the_type_mints_the_source_id_from_its_url() -> None:
+    url = "https://example.com/fixture-source"
+    assert ct.source_id(TEXT, url) == "source:" + hashlib.sha256(url.encode()).hexdigest()[:20]
+    with pytest.raises(ValueError, match="no URL"):
+        ct.source_id(TEXT, "")
