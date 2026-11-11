@@ -215,9 +215,23 @@ over one RSS/Atom transport, in fixtures. News 1.0 then only registers its type 
 
 ### 5. The corpus, in file mode
 
-- **Layout:** news items live in the corpus beside podcast episodes, in the same per-source run
-  layout. The catalog, the corpus migrations and the index builders then see them through code
-  paths that already exist.
+- **Layout** (the operator, 2026-11-11): items of every type but podcasts live under
+  `sources/<content_type>/<source>/run_*/`, with the same slug and the same run layout as
+  `feeds/<source>/run_*/`. Podcast episodes stay in `feeds/`.
+  - The shared corpus walks (`corpus_rglob`, `corpus_files_with_suffixes`, `prune_corpus_dirs`,
+    and membership in `discover_metadata_files`) leave `sources/` out unless the caller passes
+    `include_sources=True`.
+  - This fails closed. A walker that assumes episodes stays podcast-only without a type check: the
+    11 walkers that bypass the shared membership rules, the ~25 corpus migrations with no type
+    check, and every walker written later. A walk inside `feeds/` never reaches another type.
+  - What opts in: tools that must see every run. Pipeline-run telemetry and the cost rollup in the
+    corpus manifest opt in now. Disk usage walks the whole tree and needs no flag. A guard test
+    fails any corpus `os.walk` that does not prune with the corpus rule.
+  - A type's reads opt in when that type ships (News 1.0), through the same flag and a
+    `content_types` filter.
+  - Superseded: the first draft put news items beside episodes in the same layout, so that
+    existing code paths would see them. The walker classification of 2026-11-11 showed those
+    same paths are where other types leak into podcast surfaces.
 - **Fields:** each news item's metadata carries `content_type: news_article`. Podcast writers do
   not write the field until R3b; an absent field reads as `podcast_episode`. This keeps podcast
   artifacts byte-identical.

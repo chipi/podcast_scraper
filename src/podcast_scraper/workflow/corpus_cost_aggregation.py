@@ -1,6 +1,7 @@
 """Per-corpus cost rollup (#650 Finding 20).
 
-Walks ``<corpus_parent>/feeds/<slug>/run_*/metrics.json`` and sums the
+Walks ``<corpus_parent>/feeds/<slug>/run_*/metrics.json`` (and every other content type's
+``sources/<type>/<slug>/run_*/metrics.json``) and sums the
 per-stage ``llm_*_cost_usd`` fields populated by
 :mod:`podcast_scraper.workflow.metrics`. Produces a single dict with
 per-stage breakdown plus three authoritative totals — transcription,
@@ -15,6 +16,8 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict
+
+from podcast_scraper.utils.corpus_walk import SOURCES_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +74,13 @@ def aggregate_corpus_costs(corpus_parent: Path | str) -> Dict[str, Any]:
     # Support both — single-feed users otherwise see "0 runs" even though
     # the run exists (discovered during #650 Layer 3 validation).
     if feeds_root.exists():
-        pattern = feeds_root.glob("*/run_*/metrics.json")
+        files = list(feeds_root.glob("*/run_*/metrics.json"))
     else:
-        pattern = root.glob("run_*/metrics.json")
+        files = list(root.glob("run_*/metrics.json"))
+    # Another content type's runs (sources/<type>/<source>/run_*, RFC-134 §5) cost money too.
+    files.extend(root.glob(f"{SOURCES_DIR}/*/*/run_*/metrics.json"))
 
-    for metrics_file in sorted(pattern):
+    for metrics_file in sorted(files):
         try:
             doc = json.loads(metrics_file.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:

@@ -9,6 +9,12 @@ On prod 2026-10-07 that was 593 GI, 401 KG, 450 bridge and 2,826 metadata backup
 the 2,587 artifacts ``/api/artifacts`` listed to the operator viewer's graph, and 125 of the 2,589
 KG files the entity-id map was built from. ``upgrade verify`` hit the same thing on 2026-10-03 and
 was fixed alone; every corpus scanner now goes through here instead.
+
+Items of every other content type live under ``sources/<content_type>/<source>/run_*/`` (RFC-134
+§5). A walk here leaves that tree out unless it passes ``include_sources=True``, so a reader that
+assumes podcast episodes (most of them, and the ~25 migrations with no type check) stays
+podcast-only without having to remember to. A tool that must see every file (disk accounting,
+pipeline-run telemetry) opts in.
 """
 
 from __future__ import annotations
@@ -41,8 +47,21 @@ def corpus_relpath_is_excluded(rel_posix: str) -> bool:
     )
 
 
-def corpus_rglob(root: Path, pattern: str) -> Iterator[Path]:
-    """``root.rglob(pattern)`` without anything under a dot-directory of *root*.
+#: The corpus-root directory that holds every non-podcast content type's items.
+SOURCES_DIR = "sources"
+
+
+def corpus_relpath_is_other_type(rel_posix: str) -> bool:
+    """True when a corpus-relative path lies under :data:`SOURCES_DIR` (another content type)."""
+    for seg in rel_posix.replace("\\", "/").split("/"):
+        if seg and seg != ".":
+            return seg == SOURCES_DIR
+    return False
+
+
+def corpus_rglob(root: Path, pattern: str, *, include_sources: bool = False) -> Iterator[Path]:
+    """``root.rglob(pattern)`` without anything under a dot-directory of *root*, nor under
+    ``sources/`` unless *include_sources*.
 
     ``root.glob("**/<p>")`` is the same walk: pass ``"<p>"``. Order is the filesystem's, as with
     ``rglob`` — sort where order matters.
@@ -53,16 +72,35 @@ def corpus_rglob(root: Path, pattern: str) -> Iterator[Path]:
             rel = path.relative_to(root).as_posix()
         except ValueError:
             rel = path.as_posix()
-        if not corpus_relpath_is_excluded(rel):
-            yield path
+        if corpus_relpath_is_excluded(rel):
+            continue
+        if not include_sources and corpus_relpath_is_other_type(rel):
+            continue
+        yield path
 
 
 def prune_excluded_dirs(dirnames: List[str]) -> None:
-    """For ``os.walk``: drop dot-directories from *dirnames* in place so the walk never enters."""
+    """For ``os.walk``: drop dot-directories from *dirnames* in place so the walk never enters.
+
+    It cannot tell the corpus root from a deeper directory, so it leaves ``sources/`` in: a corpus
+    walk uses :func:`prune_corpus_dirs`.
+    """
     dirnames[:] = [d for d in dirnames if not corpus_relpath_is_excluded(d)]
 
 
-def corpus_files_with_suffixes(root: Path, suffixes: Sequence[str]) -> Iterator[Path]:
+def prune_corpus_dirs(
+    root: str | Path, dirpath: str | Path, dirnames: List[str], *, include_sources: bool = False
+) -> None:
+    """For an ``os.walk`` of the corpus *root*: drop dot-directories from *dirnames* in place, and
+    ``sources/`` at the root unless *include_sources*, so the walk never enters them."""
+    prune_excluded_dirs(dirnames)
+    if not include_sources and os.path.normpath(dirpath) == os.path.normpath(root):
+        dirnames[:] = [d for d in dirnames if d != SOURCES_DIR]
+
+
+def corpus_files_with_suffixes(
+    root: Path, suffixes: Sequence[str], *, include_sources: bool = False
+) -> Iterator[Path]:
     """Every corpus file whose name ends with one of *suffixes*, in ONE walk that never enters a
     dot-directory -- the same set as ``corpus_rglob(root, "*<suffix>")`` per suffix, for one pass.
 
@@ -74,15 +112,18 @@ def corpus_files_with_suffixes(root: Path, suffixes: Sequence[str]) -> Iterator[
     root = Path(root)
     ends = tuple(suffixes)
     for dirpath, dirnames, filenames in os.walk(root):
-        prune_excluded_dirs(dirnames)
+        prune_corpus_dirs(root, dirpath, dirnames, include_sources=include_sources)
         for name in filenames:
             if name.endswith(ends) and not name.startswith("."):
                 yield Path(dirpath) / name
 
 
 __all__ = [
+    "SOURCES_DIR",
     "corpus_files_with_suffixes",
     "corpus_relpath_is_excluded",
+    "corpus_relpath_is_other_type",
     "corpus_rglob",
+    "prune_corpus_dirs",
     "prune_excluded_dirs",
 ]

@@ -18,6 +18,7 @@ from typing import Any, Callable, Iterable, List, Optional, Tuple
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.corpus_walk import (  # noqa: F401 - re-exported, its old home
     corpus_relpath_is_excluded,
+    prune_corpus_dirs,
 )
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -520,8 +521,9 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
         for dirpath, dirnames, _filenames in os.walk(root_normed):
             # Never descend into retired / bookkeeping trees (#2161). Pruning in place stops the
             # walk entering them at all: both the fix, and a real saving on a corpus whose
-            # ``.trash/`` has accumulated every superseded run.
-            dirnames[:] = [d for d in dirnames if not corpus_relpath_is_excluded(d)]
+            # ``.trash/`` has accumulated every superseded run. ``sources/`` holds other content
+            # types (RFC-134 §5): not podcast episodes, so not members.
+            prune_corpus_dirs(root_normed, dirpath, dirnames)
             dp = os.path.normpath(dirpath)
             if not dp.startswith(safe_prefix) and dp != root_normed:
                 continue
@@ -584,8 +586,9 @@ def discover_all_metadata_files(output_root: Path) -> List[Path]:
         for dirpath, dirnames, _filenames in os.walk(root_normed):
             # Never descend into retired / bookkeeping trees (#2161). Pruning in place stops the
             # walk entering them at all: both the fix, and a real saving on a corpus whose
-            # ``.trash/`` has accumulated every superseded run.
-            dirnames[:] = [d for d in dirnames if not corpus_relpath_is_excluded(d)]
+            # ``.trash/`` has accumulated every superseded run. ``sources/`` holds other content
+            # types (RFC-134 §5): not podcast episodes, so not members.
+            prune_corpus_dirs(root_normed, dirpath, dirnames)
             dp = os.path.normpath(dirpath)
             if not dp.startswith(safe_prefix) and dp != root_normed:
                 continue
