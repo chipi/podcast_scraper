@@ -25,6 +25,11 @@ podcast path, which is what the seams exist to avoid.
 2. **A transport is registered.** `Extension.transports` adds transports. A transport lists new
    items for a source definition and returns, for each, either the text with its metadata or a
    URL to fetch.
+   - It owns its cursor, which can be a feed position, an API page, or a date and an id.
+   - It owns its request headers and its per-host rate limit, so a source that requires a contact
+     header or a request budget (SEC EDGAR) fits without changing the interface.
+   - The private extension and later product repos register types and transports the same way as
+     public does.
 3. **Podcast is the first, built-in type, with RSS enclosures its transport.** Its path is
    unchanged, and it is registered the way ADR-176 registers today's code: as the built-in owner.
 4. **A text-in entry point runs beside `run_pipeline`.** It takes items that are already text and

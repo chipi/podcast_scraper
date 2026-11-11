@@ -132,12 +132,14 @@ So there is no way yet to add a type without editing the podcast path.
 - **Ids** (decision T-8):
   - existing ids never change;
   - new types use `source:` and `item:` ids;
-  - a news item id is stable per canonical URL.
+  - an item id is derived from the source's own stable id: the canonical URL for news, an
+    accession number for a filing later. Never from a feed position or fetch time.
 - **Item metadata:**
   - title, canonical URL, publisher, byline as given, published time;
   - `editorial_type` (news, opinion, analysis, press release, speech);
   - language;
-  - rights fields: licence, and whether the source is paywalled.
+  - rights fields: licence, paywalled, serveable (what a surface may show), mineable (whether it
+    may be enriched).
 
 ### 3. Transports
 
@@ -155,6 +157,12 @@ So there is no way yet to add a type without editing the podcast path.
   - a per-host delay;
   - the robots.txt rules honoured;
   - no paywall circumvention.
+- **The interface is not shaped by news alone.** It must also carry what a later public transport
+  needs, such as SEC EDGAR for filings:
+  - required request headers, such as a contact in the User-Agent;
+  - a per-host rate limit set by the transport;
+  - a cursor that is the transport's own: a feed position, an API page, or a filing date and
+    accession number.
 
 ### 4. Text extraction
 
@@ -186,8 +194,12 @@ So there is no way yet to add a type without editing the podcast path.
 - **Every evidence and insight text carries `text_origin`:** `spoken`, `translated` or `authored`.
 - **Also added:**
   - `ATTRIBUTED_TO` (a quote to a person);
-  - roles on people (author, host, guest, participant);
-  - `Place` and time fields, declared and not yet filled.
+  - roles on people, as an open vocabulary: author, host, guest and participant now, others such as
+    executive or analyst later without a schema change;
+  - `Place` and time fields, declared and not yet filled. The time fields are kept apart: published,
+    filed, period covered (start and end), observed, ingested.
+- **Evidence locators are open beyond character and time.** An optional page and section, so a
+  later document type such as `report` needs no schema bump.
 - **News writes v4 from the start. Podcasts keep writing 3.x until R3b.**
 - **Readers accept both versions.** A 3.x quote is read as v4 with `text_origin: spoken` and its
   time range.
@@ -223,6 +235,8 @@ So there is no way yet to add a type without editing the podcast path.
 - **An organisation as author** ("Meduza", "Reuters") is the publisher, not a person.
 - **Publishers are organisations** (T-12). A publisher that also publishes a podcast in the corpus
   (the BBC, Meduza) is one organisation across both.
+- **An organisation carries its external identifiers side by side, never conflated:** a web domain
+  now, and later a company's CIK, ticker or LEI.
 - **Evidence:** ADR-180.
 
 ### 9. Search
@@ -231,6 +245,9 @@ So there is no way yet to add a type without editing the podcast path.
   article chunks, and the item's summary.
 - **Results carry `content_type`.** Search can filter by it and returns both types by default.
 - **No new index or store:** the database search (E09) later takes all types together.
+- **API and MCP tools are generic over content types.** A tool that lists, searches or explains
+  items takes a type filter and does not assume an episode. A later product can then query any type
+  the way Close Listening queries episodes.
 
 ### 10. Display: title, summary, snippets and a link
 

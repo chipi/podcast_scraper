@@ -26,7 +26,14 @@ The migration is the large, risky part, and news only needs the schema.
 ## Decision
 
 1. **R3a, the schema, comes first.** Items of new types write v4 from the start. Every reader of
-   insights, quotes and entities accepts both versions.
+   insights, quotes and entities accepts both versions. v4 is written so later types need no schema
+   bump:
+   - **evidence locators:** a character range always, a time range when timed, and an optional page
+     and section for documents;
+   - **time fields kept apart:** published, filed, period covered (start and end), observed and
+     ingested, each optional;
+   - **person roles are an open vocabulary:** author, host, guest and participant now, others later;
+   - **organisations hold external identifiers side by side:** web domain, CIK, ticker, LEI.
 2. **A 3.x artifact reads as v4:**
    - its quotes carry their character range and their time range;
    - `text_origin` is `spoken`;
