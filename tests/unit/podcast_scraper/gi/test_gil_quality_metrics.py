@@ -1,7 +1,7 @@
 """Tests for GIL quality metrics (file aggregation)."""
 
 import pytest
-from conftest import artifact_with_grounded_insights
+from gi_artifacts import artifact_with_grounded_insights
 
 from podcast_scraper.gi import build_artifact, write_artifact
 from podcast_scraper.gi.quality_metrics import (

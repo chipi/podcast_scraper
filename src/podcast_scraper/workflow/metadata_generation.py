@@ -315,6 +315,14 @@ SCHEMA_VERSION = "1.2.0"
 PROVENANCE_SCHEMA_VERSION = "1.1.0"
 
 
+def _non_podcast_item_type() -> Optional[str]:
+    """The current item's type name when it is not a podcast episode; ``None`` for a podcast."""
+    from .. import content_types
+
+    name = content_types.current_item().content_type.name
+    return None if name == content_types.PODCAST_EPISODE else name
+
+
 def generate_feed_id(feed_url: str) -> str:
     """Generate stable unique identifier for feed.
 
@@ -637,7 +645,9 @@ class ContentMetadata(BaseModel):
     media_id: Optional[str] = None  # Optional stable identifier for media file
     media_type: Optional[str] = None
     transcript_file_path: Optional[str] = None
-    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]] = None
+    transcript_source: Optional[
+        Literal["direct_download", "whisper_transcription", "text_body"]
+    ] = None
     audio_relpath: Optional[str] = Field(
         default=None,
         description="Corpus-relative path to persisted episode audio under media/ (Wave 3)",
@@ -1975,7 +1985,7 @@ def _build_content_metadata(
     transcript_infos: List[TranscriptInfo],
     media_id: Optional[str],
     transcript_file_path: Optional[str],
-    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]],
+    transcript_source: Optional[Literal["direct_download", "whisper_transcription", "text_body"]],
     whisper_model: Optional[str],
     speakers: List[SpeakerInfo],
     detected_hosts: Optional[List[str]] = None,
@@ -3375,6 +3385,15 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         json_start = time.time()
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
+        item_type = _non_podcast_item_type()
+        if item_type is not None:
+            # Only a non-podcast item records its type; a podcast document stays byte-identical
+            # (ADR-177 decision 6: an absent content_type reads as podcast_episode).
+            content_str = json.dumps(
+                {"content_type": item_type, **json.loads(content_str)},
+                indent=2,
+                ensure_ascii=False,
+            )
         json_elapsed = time.time() - json_start
 
         # Time actual file write
@@ -3399,6 +3418,9 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
+        item_type = _non_podcast_item_type()
+        if item_type is not None:
+            content_dict = {"content_type": item_type, **content_dict}
         yaml_serialize_elapsed = time.time() - yaml_start
 
         # Time actual file write
@@ -4318,7 +4340,9 @@ def generate_episode_metadata(  # noqa: C901
     output_dir: str,
     run_suffix: Optional[str] = None,
     transcript_file_path: Optional[str] = None,
-    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]] = None,
+    transcript_source: Optional[
+        Literal["direct_download", "whisper_transcription", "text_body"]
+    ] = None,
     whisper_model: Optional[str] = None,
     detected_hosts: Optional[List[str]] = None,
     detected_guests: Optional[List[str]] = None,
@@ -4474,37 +4498,45 @@ def generate_episode_metadata(  # noqa: C901
     # KG were slow".
     # #2369: an episode the ASR identified as another language than its show's is translated (and
     # gated) in that language; the run's own config describes the show.
-    episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
-    _translation = run_translation_stage(
-        episode_cfg,
-        feed_language=getattr(feed, "language", None),
-        transcript_relpath=transcript_file_path,
-        effective_output_dir=output_dir,
-        episode_id=episode_id,
-        feed_id=feed_id,
-        run_id=_resolved_run_id(cfg),
-        # S2.4's title decision: the EPISODE title goes through the translator so the roster
-        # reads it in English (§5.4 C-6). The SHOW name deliberately does not — ADR-157 measured
-        # the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's name is its
-        # identity on every surface, in search, and in every listener's saved library.
-        episode_title=getattr(episode, "title", None),
-        # The names the episode states about itself (`translation_protect_names`).
-        episode_description=getattr(episode, "description", None),
-        feed_title=getattr(feed, "title", None),
-    )
+    from .. import content_types
 
-    # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the
-    # translation
-    # when a translation is incomplete; this is what stops the English stages reading the SOURCE
-    # anyway. Without it a pending translation falls through the resolver's precedence to
-    # `.adfree.txt`/`.txt` and runs English prompts over Spanish — which §5.2 measured as
-    # confidently wrong, not blind. English episodes cost one language comparison here.
-    _blocked = analysis_blocked_reason(
-        episode_cfg,
-        transcript_relpath=transcript_file_path,
-        effective_output_dir=output_dir,
-        feed_language=getattr(feed, "language", None),
-    )
+    _profile = content_types.current_item().content_type.stage_profile
+    episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
+    # ADR-177 decision 7: an item whose profile has no translation skips it and its completeness
+    # gate (a gate waiting on a translation that never runs would block the item for good).
+    _blocked: Optional[str] = None
+    if _profile.runs(content_types.TRANSLATION):
+        run_translation_stage(
+            episode_cfg,
+            feed_language=getattr(feed, "language", None),
+            transcript_relpath=transcript_file_path,
+            effective_output_dir=output_dir,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=_resolved_run_id(cfg),
+            # S2.4's title decision: the EPISODE title goes through the translator so the roster
+            # reads it in English (§5.4 C-6). The SHOW name deliberately does not — ADR-157
+            # measured the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's
+            # name is its identity on every surface, in search, and in every listener's saved
+            # library.
+            episode_title=getattr(episode, "title", None),
+            # The names the episode states about itself (`translation_protect_names`).
+            episode_description=getattr(episode, "description", None),
+            feed_title=getattr(feed, "title", None),
+        )
+
+        # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the
+        # translation when a translation is incomplete; this is what stops the English stages
+        # reading the SOURCE anyway. Without it a pending translation falls through the
+        # resolver's precedence to `.adfree.txt`/`.txt` and runs English prompts over Spanish —
+        # which §5.2 measured as confidently wrong, not blind. English episodes cost one
+        # language comparison here.
+        _blocked = analysis_blocked_reason(
+            episode_cfg,
+            transcript_relpath=transcript_file_path,
+            effective_output_dir=output_dir,
+            feed_language=getattr(feed, "language", None),
+        )
     if _blocked:
         logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
         _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
@@ -4521,7 +4553,7 @@ def generate_episode_metadata(  # noqa: C901
     )
 
     # Generate summary if enabled and transcript is available
-    if _blocked:
+    if _blocked or not _profile.runs(content_types.SUMMARY):
         # Skipped, not failed. `metadata.json` is still written below, so the episode EXISTS —
         # the player serves its source text through the resolver's tail, S2.8's
         # `translation_status` reports it, and the backlog is queryable. Raising here instead
@@ -4673,7 +4705,7 @@ def generate_episode_metadata(  # noqa: C901
     # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
     # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts
     # contradicting each other, with the wrong one being the durable corpus fact.
-    if getattr(cfg, "generate_kg", False) and not _blocked:
+    if getattr(cfg, "generate_kg", False) and not _blocked and _profile.runs(content_types.KG):
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)
