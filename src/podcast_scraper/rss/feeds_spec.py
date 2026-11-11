@@ -70,6 +70,11 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
     }
 )
 
+#: What a source IS (ADR-177), not how to run it: kept on its entry by every path that builds one,
+#: never merged into Config as an override. A config-inline entry used to lose both, so a text
+#: source listed in a service config ran as a podcast.
+RSS_FEED_ENTRY_IDENTITY_KEYS: frozenset[str] = frozenset({"content_type", "transport"})
+
 
 def _validate_http_url(url: str) -> str:
     parsed = urlparse(url)
@@ -176,7 +181,7 @@ class RssFeedEntry(BaseModel):
         """Flat dict for ``Config.model_copy(update=...)`` — excludes ``url`` and the source's
         ``content_type`` / ``transport`` (what it is, not how to run it)."""
         data = self.model_dump(exclude_none=True)
-        for key in ("url", "content_type", "transport"):
+        for key in ("url", *RSS_FEED_ENTRY_IDENTITY_KEYS):
             data.pop(key, None)
         return data
 
@@ -282,7 +287,7 @@ def append_normalized_feed_items(bucket: List[dict], items: Optional[List[Any]])
             for k, v in u.items():
                 if k in ("url", "rss", "rss_url"):
                     continue
-                if k in RSS_FEED_ENTRY_OVERRIDE_KEYS:
+                if k in RSS_FEED_ENTRY_OVERRIDE_KEYS or k in RSS_FEED_ENTRY_IDENTITY_KEYS:
                     d[k] = v
             bucket.append(d)
         else:

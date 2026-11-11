@@ -172,6 +172,22 @@ def test_a_batch_of_a_text_source_moves_the_cache_token_and_resumes_from_its_cur
     assert corpus_mtime(corpus) > first - 60
     assert listed == [None, "3"]
     assert len(_metadata_docs(corpus)) == 2  # the second batch listed nothing new
+    # A non-podcast source lives under sources/<type>/, never feeds/ (podcast-only walkers skip
+    # sources/); the batch's run summary stays at the corpus root.
+    assert not (corpus / "feeds").exists()
+    metas = list(corpus.rglob("*.metadata.json"))
+    assert metas and all(
+        p.relative_to(corpus).parts[:2] == ("sources", "test_text_item") for p in metas
+    )
+    from podcast_scraper.utils import filesystem
+
+    workspace = Path(
+        filesystem.corpus_source_output_dir(
+            str(corpus), "https://example.com/fixture-source", "test_text_item"
+        )
+    )
+    assert all(workspace in p.parents for p in metas)
+    assert (workspace / "source_cursor.json").is_file()
 
 
 def test_a_text_items_kg_is_written_in_kg_3(tmp_path: Path) -> None:

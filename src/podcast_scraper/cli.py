@@ -399,7 +399,9 @@ def single_feeds_spec_output_dir(args: argparse.Namespace, entry: RssFeedEntry) 
     """
     corpus_raw = (getattr(args, "output_dir", None) or "").strip()
     if corpus_raw:
-        return filesystem.corpus_feed_output_dir(corpus_raw, entry.url)
+        return filesystem.corpus_source_output_dir(
+            corpus_raw, entry.url, getattr(entry, "content_type", None)
+        )
     return filesystem.derive_output_dir(entry.url, None)
 
 
@@ -4704,9 +4706,10 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                 reset_worklist_report().set_feeds_planned(len(feed_targets))
                 for entry in feed_targets:
                     url = entry.url
-                    sub = filesystem.feed_workspace_dirname(url)
                     try:
-                        out_path = filesystem.corpus_feed_output_dir(corpus_parent, url)
+                        out_path = filesystem.corpus_source_output_dir(
+                            corpus_parent, url, getattr(entry, "content_type", None)
+                        )
                     except ValueError as exc:
                         log.error("Invalid feed output path for %s: %s", url, exc)
                         any_hard_failed = True
@@ -4730,7 +4733,9 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                             )
                         )
                         continue
-                    log.info("Feed start: rss=%s -> feeds/%s", url, sub)
+                    log.info(
+                        "Feed start: rss=%s -> %s", url, os.path.relpath(out_path, corpus_parent)
+                    )
                     try:
                         cfg = _build_config_for_feed_entry(
                             args, entry, output_dir_override=out_path

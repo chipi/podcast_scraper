@@ -238,6 +238,26 @@ def corpus_feed_output_dir(corpus_parent: str, rss_url: str) -> str:
     return validate_and_normalize_output_dir(leaf)
 
 
+#: Where a non-podcast type's sources live: ``<corpus>/sources/<type>/<slug>/``. Corpus walkers skip
+#: it unless a caller asks for other types, so a reader written for podcasts never sees them.
+SOURCES_DIR = "sources"
+
+
+def corpus_source_output_dir(
+    corpus_parent: str, source_url: str, content_type: Optional[str] = None
+) -> str:
+    """A source's workspace in the corpus: ``feeds/<slug>/`` for a podcast (no type, or
+    ``podcast_episode``), ``sources/<type>/<slug>/`` for any other type; the same slug either way.
+    """
+    if not content_type or content_type == "podcast_episode":
+        return corpus_feed_output_dir(corpus_parent, source_url)
+    parent = validate_and_normalize_output_dir(corpus_parent)
+    leaf = os.path.join(
+        parent, SOURCES_DIR, sanitize_filename(content_type), feed_workspace_dirname(source_url)
+    )
+    return validate_and_normalize_output_dir(leaf)
+
+
 def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     """Compute the default output directory for an RSS feed."""
     if override:

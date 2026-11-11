@@ -20,7 +20,11 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from . import config_constants
 from .languages import normalize_language_tag
-from .rss.feeds_spec import append_normalized_feed_items, RssFeedEntry
+from .rss.feeds_spec import (
+    append_normalized_feed_items,
+    RSS_FEED_ENTRY_IDENTITY_KEYS,
+    RssFeedEntry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -5043,6 +5047,10 @@ class Config(BaseModel):
                 d["rss"] = url
                 d.pop("feeds", None)
                 d.pop("rss_urls", None)
+                if isinstance(one, dict) and any(one.get(k) for k in RSS_FEED_ENTRY_IDENTITY_KEYS):
+                    # A single source of another type keeps its entry: its type and transport
+                    # live there, and the dispatch reads them (ADR-177).
+                    d["rss_urls"] = [one]
         return d
 
     @model_validator(mode="before")
@@ -6742,13 +6750,19 @@ class Config(BaseModel):
         if not isinstance(self.output_dir, str) or not self.output_dir:
             return self
         # Idempotency check: skip if output_dir already looks wrapped.
-        if "/feeds/rss_" in self.output_dir or self.output_dir.rstrip("/").endswith(
-            tuple(f"/feeds/{s}" for s in ("",))
+        if (
+            "/feeds/rss_" in self.output_dir
+            or "/sources/" in self.output_dir
+            or self.output_dir.rstrip("/").endswith(tuple(f"/feeds/{s}" for s in ("",)))
         ):
             return self
-        from .utils.filesystem import corpus_feed_output_dir
+        from .utils.filesystem import corpus_source_output_dir
 
-        wrapped = corpus_feed_output_dir(self.output_dir, self.rss_url)
+        # A single source of another content type lives under sources/<type>/ (ADR-177).
+        only = self.rss_urls[0] if self.rss_urls and len(self.rss_urls) == 1 else None
+        wrapped = corpus_source_output_dir(
+            self.output_dir, self.rss_url, getattr(only, "content_type", None)
+        )
         # Assign via object.__setattr__ because model_validator(after) runs
         # before the model becomes fully "frozen" for mutation but pydantic v2
         # still routes direct assignment through validation — this bypasses it.
