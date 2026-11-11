@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
+from ..content_types import is_wanted, PODCAST_ONLY
 from ..identity.person_match import cluster_variants as _are_xep_variants
 from ..perf_cache import cache_peek, corpus_mtime, get_or_compute
 
@@ -61,8 +62,11 @@ class EntityCandidate:
         return len(self.episodes)
 
 
-def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandidate]:
-    """Aggregate person/org entities corpus-wide with episode frequency + shows."""
+def collect_entity_candidates(
+    corpus_dir: Path | str, *, content_types: Collection[str] = PODCAST_ONLY
+) -> Dict[str, EntityCandidate]:
+    """Aggregate person/org entities corpus-wide with episode frequency + shows, from items of
+    ``content_types`` (podcast episodes unless asked; ADR-177 decision 8)."""
     from .corpus import load_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
 
     out: Dict[str, EntityCandidate] = {}
@@ -72,6 +76,11 @@ def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandida
     _root = Path(corpus_dir)
     _paths = newest_run_artifact_paths(_root, scan_kg_artifact_paths(_root), ".kg.json")
     for _path, data in load_kg_artifacts(_paths):
+        # The KG says its own type: KG 3.0 carries content_type, a 2.x artifact is a podcast's.
+        # Without this, another type's people became ledger candidates and could join podcast
+        # people (found by the 2026-11-11 walker classification).
+        if not is_wanted(data, content_types):
+            continue
         episode_id = str(data.get("episode_id") or "")
         language = _artifact_language(Path(_path))
         show = ""
