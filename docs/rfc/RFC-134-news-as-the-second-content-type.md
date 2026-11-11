@@ -166,7 +166,7 @@ over one RSS/Atom transport, in fixtures. News 1.0 then only registers its type 
   - a source whose pages hold several articles under one URL, such as live blogs, is flagged.
 - **Item metadata:**
   - title, canonical URL, publisher, byline as given, published time;
-  - `editorial_type` (news, opinion, analysis, press release, speech);
+  - `editorial_type`: the platform's decided values (reporting, opinion, analysis, paid), nullable;
   - language;
   - rights fields: licence, paywalled, serveable (what a surface may show), mineable (`false`
     means the body is not stored and the item is not enriched);
@@ -261,7 +261,7 @@ The core release builds this section (R3a).
   strictly before the corpus database's importer (ADR-178).
 - **The KG schema is public's** and is versioned here. The GI schema moves with the private
   extension and follows the same rules there.
-- **Evidence:** ADR-178.
+- **Evidence:** ADR-178; the field-level design is [ontology v3](../architecture/corpus/ontology-v3.md) (proposed).
 
 ### 7. Enrichment over text
 
@@ -504,10 +504,9 @@ In order of importance:
      today.
    - **The registries:** a consistency test for the new registries, and a test that every route,
      MCP tool and search call accepts a type filter.
-2. **Byte-identical podcast output:** the e2e fixture feed run twice, plain and with a test
-   extension installed, comparing artifact hashes. Today's nearest check
-   (`test_english_artifact_allowlist.py`) compares shapes, not bytes, and never runs with and without
-   an extension.
+2. **Byte-identical podcast output:** the e2e fixture feed run twice on the same install, with and
+   without the test-only type (later, news sources) configured, comparing artifact hashes. Today's
+   nearest check (`test_english_artifact_allowlist.py`) compares shapes, not bytes.
 3. **Schemas, both versions:**
    - v3 in the GI and KG schemas, with the item id in place of a required `episode_id`;
    - minimal valid and invalid v3 artifacts for podcast and news;

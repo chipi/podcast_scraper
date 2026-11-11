@@ -86,6 +86,7 @@ nav:
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
       - Corpus Ontology (v2, unified): architecture/corpus/ontology.md
+      - Corpus Ontology v3 (proposed): architecture/corpus/ontology-v3.md
       - GI Ontology: architecture/gi/ontology.md
       - KG Ontology:
           - architecture/kg/README.md
