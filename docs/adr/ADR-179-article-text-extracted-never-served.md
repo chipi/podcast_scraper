@@ -49,12 +49,20 @@ Five Python extractors were run on the newest article of each of 19 candidate so
    rule:
    - **response cap:** no response holds more than a stated number of contiguous characters of a
      news body;
-   - **search rows:** news search rows store no body text, only the summary and metadata;
+   - **search:** news chunk rows keep their text, for keyword and vector retrieval alike; a news
+     hit returns the item's summary and metadata, never the chunk's text (the operator,
+     2026-11-11);
    - **the text-file route** refuses a news body.
    - **Snippets:** quoted evidence snippets of one or two sentences come with grounded insights in
      News 2.0, which sets the cap. In News 1.0 no body text is shown at all.
 7. **`mineable: false` means the body is not stored and the item is not enriched;**
    `serveable` says what a surface may show.
+8. **The fetched page is kept as the item's raw cache** (the operator, 2026-11-11): the HTML, or the
+   API's JSON record, beside the extracted text, never served.
+   - A better extractor, or a fix from stored evidence, then re-runs with no re-fetch, which could
+     return a corrected article or a paywall.
+   - It moves to the archive store, as audio does, once news ingestion is stable. Not during the
+     first deploys and source onboarding, which will reprocess often.
 
 ## Consequences
 
