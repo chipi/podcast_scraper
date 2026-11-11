@@ -143,8 +143,9 @@ class DatabaseSettings:
             raise DatabaseNotConfigured(
                 f"{ENV_URL} is not set, and app state (users) lives in Postgres. Set it to the "
                 "database URL and run `python -m podcast_scraper.cli db upgrade --plane "
-                "<player|operator>`. In tests, export PODCAST_TEST_DATABASE_URL: `make "
-                "test-db-up` starts a local postgres:18 and prints the line to export."
+                "<player|operator>`. In tests a local run provides one itself (the make "
+                "test-db-up container, else an embedded PostgreSQL); CI sets "
+                "PODCAST_TEST_DATABASE_URL."
             )
         ro = _lookup(source, ENV_RO_URL) or rw
         plane = (source.get(ENV_PLANE) or "").strip() or DEFAULT_PLANE

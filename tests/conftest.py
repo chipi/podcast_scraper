@@ -103,7 +103,30 @@ from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_r
 from tests._database import (
     database_fixture as _database_fixture,
     drop_worker_database as _drop_worker_database,
+    EmbeddedPostgresMissing as _EmbeddedPostgresMissing,
+    provide_session_database as _provide_session_database,
+    release_session_database as _release_session_database,
 )
+
+
+def pytest_configure(config):
+    """Controller only (xdist workers inherit the URL it sets): provide the test database."""
+    if hasattr(config, "workerinput"):
+        return
+    try:
+        where = _provide_session_database()
+    except _EmbeddedPostgresMissing as exc:
+        raise pytest.UsageError(str(exc)) from None
+    if where:
+        import sys as _sys
+
+        print(f"[{where}]", file=_sys.stderr)
+
+
+def pytest_unconfigure(config):
+    if not hasattr(config, "workerinput"):
+        _release_session_database()
+
 
 #: Git exports these repo-context vars into a hook's environment (see ``git rev-parse
 #: --local-env-vars``) so its child processes target the repo under operation. When the test suite
@@ -1079,7 +1102,8 @@ def cleanup_ml_resources_after_test(request):
 def _app_database(monkeypatch):
     """Point app state (ADR-169) at this process's test database; empty it after each test.
 
-    Inert without ``PODCAST_TEST_DATABASE_URL``: nothing connects, and a test that needs app state
-    fails with the "start the test database" message (``make test-db-up``).
+    Inert without ``PODCAST_TEST_DATABASE_URL`` or this checkout's ``make test-db-up`` container:
+    nothing connects, and a test that needs app state fails with the "start the test database"
+    message (``make test-db-up``).
     """
     yield from _database_fixture(monkeypatch)

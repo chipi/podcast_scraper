@@ -540,7 +540,7 @@ working rhythm around it.
 
 ## Stack
 
-- **Python** 3.11.8, Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs
+- **Python** 3.12, Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs
 - **Node** 22 (viewer: `web/gi-kg-viewer/`, Vue 3 + Vite + Cytoscape + Playwright)
 - **ML**: sentence-transformers + lancedb + torch (`[search]`), Whisper +
   spaCy + transformers + llama-cpp-python (`[ml]`), see `pyproject.toml`

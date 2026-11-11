@@ -58,10 +58,10 @@ guide section *Invoking viewer tools*.
 
 Before you begin, ensure you have these installed:
 
-- **Python 3.10+ (REQUIRED)** — The project requires Python 3.10 or higher
+- **Python 3.12+ (REQUIRED)** — The project requires Python 3.12 or higher
   - Check system Python: `python3 --version`
   - If your system Python is < 3.10, install a newer version:
-    - macOS: `brew install python@3.11` (or use [pyenv](https://github.com/pyenv/pyenv))
+    - macOS: `brew install python@3.12` (or use [pyenv](https://github.com/pyenv/pyenv))
     - Linux: Use your package manager or [pyenv](https://github.com/pyenv/pyenv)
 - **ffmpeg** — Required for Whisper transcription
   - macOS: `brew install ffmpeg`
@@ -93,15 +93,15 @@ python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # CRITICAL: Verify Python and pip versions in the venv
-# The venv's Python must be >= 3.10 for the project to work correctly
+# The venv's Python must be >= 3.12 for the project to work correctly
 
-python --version   # Should show Python 3.10.x or higher
-pip --version      # Should show pip with Python 3.10+ support
+python --version   # Should show Python 3.12.x or higher
+pip --version      # Should show pip with Python 3.12+ support
 
 # If Python version is < 3.10, recreate the venv with a newer Python:
 # deactivate
 # rm -rf .venv
-# python3.11 -m venv .venv  # Use specific version if needed
+# python3.12 -m venv .venv  # Use specific version if needed
 # source .venv/bin/activate
 
 # CRITICAL: Upgrade pip and setuptools BEFORE installing in editable mode
@@ -175,7 +175,7 @@ Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change
 
 **Important Notes:**
 
-- **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.10, recreate the venv with a newer Python version.
+- **Python 3.12+ is REQUIRED** — The project uses features that require Python 3.12 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.12, recreate the venv with a newer Python version.
 - **Always activate your virtual environment** before running `make` commands. The Makefile uses tools installed in `.venv/bin/`, so they won't be found if the venv isn't activated.
 - **Pre-commit hook is REQUIRED** — The git pre-commit hook automatically checks your code (formatting, linting, type checking, markdown linting, JSON/YAML validation) before each commit. Install it with:
 
@@ -191,7 +191,7 @@ Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change
   3. The `make init` command handles this automatically, but if installing manually, upgrade first
 - If `make ci` fails with "command not found" errors, ensure:
   1. Your virtual environment is activated (`source .venv/bin/activate`)
-  2. The venv's Python is >= 3.10 (check with `python --version`)
+  2. The venv's Python is >= 3.12 (check with `python --version`)
   3. You've run `make init` to install all Python dependencies (which upgrades pip/setuptools)
   4. You've installed `markdownlint-cli` via npm
 
@@ -250,7 +250,7 @@ See [`config/examples/.env.example`](config/examples/.env.example) for all optio
    - Click `OK`
 
 3. **Verify:**
-   - The interpreter should show: `Python 3.10.x` or higher
+   - The interpreter should show: `Python 3.12.x` or higher
    - Installed packages should be visible in the interpreter list
 
 ### Other IDEs

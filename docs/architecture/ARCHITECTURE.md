@@ -902,7 +902,7 @@ Dependency analysis runs automatically in the **nightly workflow**:
 
 ## Constraints and Assumptions
 
-- Python 3.10+ with third-party packages: `requests`,
+- Python 3.12+ with third-party packages: `requests`,
   `tqdm`, `defusedxml`, `platformdirs`, `pydantic`,
   `PyYAML`, `Jinja2`, `spacy` (required for speaker
   detection), and optionally `openai-whisper` +

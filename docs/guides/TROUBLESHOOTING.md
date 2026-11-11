@@ -106,7 +106,7 @@ podcast-scraper doctor --check-models
 
 ### When to use
 
-- **After install** – Confirm Python 3.10+, ffmpeg, and (if using ML) cache and dependencies.
+- **After install** – Confirm Python 3.12+, ffmpeg, and (if using ML) cache and dependencies.
 - **Before a long run** – Catch missing ffmpeg or a read-only cache early.
 - **After "model not cached" or import errors** – Run `doctor` then `doctor --check-models` to verify models load.
 - **When debugging CI or another machine** – Run doctor in that environment and share the output.
@@ -436,7 +436,7 @@ See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed troubleshooti
 
 **Common causes:**
 
-1. **Different Python version** - CI uses Python 3.10+
+1. **Different Python version** - CI uses Python 3.12
 2. **Missing dependencies** - CI installs fresh each time
 3. **Network calls** - CI blocks external network in unit tests
 4. **File paths** - Hardcoded paths that don't exist in CI
@@ -598,7 +598,7 @@ coverage report --show-missing
 # Create fresh venv
 
 rm -rf .venv
-python3.10 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 
 # Reinstall everything

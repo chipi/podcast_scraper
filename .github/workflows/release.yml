@@ -59,10 +59,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11.8'
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: pyproject.toml
 
@@ -84,10 +84,10 @@ jobs:
         with:
           fetch-depth: 0   # need full history for prev-tag lookup
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11.8'
+          python-version: '3.12'
 
       - name: Compose release notes
         env:

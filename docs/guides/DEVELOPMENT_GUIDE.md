@@ -274,6 +274,17 @@ pip install -e ".[dev,ml,llm]"  # Editable mode with dev, ML, and LLM extras
 - Required for development workflow
 - Allows `python3 -m podcast_scraper.cli` to work
 
+**Python version:** 3.12 (`.python-version` pins the patch), the same as CI and the images. With
+pyenv on macOS, build it with xz and OpenSSL or `import lzma` fails later in the ML stack:
+`LDFLAGS="-L$(brew --prefix xz)/lib" CPPFLAGS="-I$(brew --prefix xz)/include"
+PYTHON_CONFIGURE_OPTS="--with-openssl=$(brew --prefix openssl@3)" pyenv install 3.12.14`.
+
+**Test database:** `make test` works after `pip install -e ".[dev]"`, with no export and no
+docker. A local run uses this checkout's `make test-db-up` container (`postgres:18`) when it is
+running, else starts an embedded PostgreSQL for the run (the `[dev]` extra's `embedded-postgres`)
+and deletes it at the end. An exported `PODCAST_TEST_DATABASE_URL` wins over both. See
+[Database — test database](../architecture/DATABASE.md).
+
 ### Updating Virtual Environment Dependencies
 
 **CRITICAL: Update venv when dependency ranges change**
@@ -1615,7 +1626,7 @@ So exit code 0 means "the run finished", not "every episode succeeded". Use the 
 | `pricing-assumptions` | Display pricing model assumptions |
 
 - **Startup validation:** Before the main pipeline
-  runs, the CLI checks Python version (3.10+) and
+  runs, the CLI checks Python version (3.12+) and
   that `ffmpeg` is on PATH. These checks are
   **skipped** for utility subcommands (`doctor`,
   `cache`, `serve`, `search`, `index`, `gi`, `kg`,

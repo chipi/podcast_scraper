@@ -30,7 +30,9 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
+
+from podcast_scraper.db.embedded import EmbeddedPostgres, EmbeddedPostgresMissing
 
 REPO = Path(__file__).resolve().parents[2]
 PLANES = ("player", "operator")
@@ -66,23 +68,18 @@ class Server:
 class EmbeddedServer(Server):
     def __init__(self, pgdata: Path) -> None:
         self.pgdata = pgdata
-        self._srv: Any = None
+        self._pg = EmbeddedPostgres(pgdata)
 
     def start(self) -> str:
         try:
-            import embedded_postgres
-        except ImportError:
+            return self._pg.start()
+        except EmbeddedPostgresMissing as exc:
             raise SystemExit(
-                "[dev-db] embedded-postgres is not installed: pip install -e '.[dev]', "
-                "or PODCAST_DEV_DB=native to use your own PostgreSQL"
+                f"[dev-db] {exc}, or PODCAST_DEV_DB=native to use your own PostgreSQL"
             ) from None
-        self.pgdata.mkdir(parents=True, exist_ok=True)
-        self._srv = embedded_postgres.get_server(self.pgdata, cleanup_mode="stop")
-        return str(self._srv.get_uri())
 
     def stop(self) -> None:
-        if self._srv is not None:
-            self._srv.cleanup()
+        self._pg.stop()
 
 
 class NativeServer(Server):

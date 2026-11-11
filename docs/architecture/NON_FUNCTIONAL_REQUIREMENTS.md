@@ -159,7 +159,7 @@ Code and documentation must stay understandable, consistent, and measurable so t
 | **Test pyramid and coverage** | Unit, integration, and E2E layers are used consistently; coverage targets (e.g. ≥70%) are enforced in CI. | Met | [ADR-019](../adr/ADR-019-standardized-test-pyramid.md), [TESTING_STRATEGY](TESTING_STRATEGY.md) |
 | **Documentation** | Architecture, ADRs, PRDs, RFCs, and guides are kept in sync with implementation; markdown and docs build pass in CI. | Met | [ARCHITECTURE](ARCHITECTURE.md), `make docs`, `make fix-md` |
 | **Module boundaries** | Public surface and module boundaries are respected (e.g. CLI vs service vs workflow vs config). | Met | Project root `AGENTS.md`, [ARCHITECTURE](ARCHITECTURE.md) |
-| **Compatibility** | Python 3.10+; public API follows [semantic versioning](../api/VERSIONING.md); breaking changes only in MAJOR; deprecations communicated. | Met | [api/VERSIONING](../api/VERSIONING.md), [TROUBLESHOOTING](../guides/TROUBLESHOOTING.md) |
+| **Compatibility** | Python 3.12+; public API follows [semantic versioning](../api/VERSIONING.md); breaking changes only in MAJOR; deprecations communicated. | Met | [api/VERSIONING](../api/VERSIONING.md), [TROUBLESHOOTING](../guides/TROUBLESHOOTING.md) |
 
 ---
 

@@ -1,18 +1,23 @@
 """Test database support (ADR-169): one throwaway database per pytest process, kernel tables
 emptied after every test.
 
-``PODCAST_TEST_DATABASE_URL`` points at a Postgres server (``make test-db-up`` starts one and
-prints the line to export). Each pytest process (each xdist worker) creates its own database on it,
-so parallel workers never truncate each other's rows, upgrades every plane to head, and points the
-engine registry at it. With no URL set nothing here connects: a test that needs app state fails
-with the "start the test database" message from ``DatabaseSettings.from_env``.
+``PODCAST_TEST_DATABASE_URL`` points at a Postgres server. Unset on a local run, the controller
+provides one before the workers spawn (``provide_session_database``): this checkout's
+``make test-db-up`` container if it is running, else an embedded PostgreSQL for the run, so a fresh
+checkout needs no export and no docker. CI sets the variable where it needs it. Each pytest process
+(each xdist worker) creates its own database on the server, so parallel workers never truncate each
+other's rows, upgrades every plane to head, and points the engine registry at it.
 """
 
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 import psycopg.types.json  # noqa: F401
@@ -29,6 +34,7 @@ from podcast_scraper.db import (
     reset_engines,
     rw_engine,
 )
+from podcast_scraper.db.embedded import EmbeddedPostgres, EmbeddedPostgresMissing
 from podcast_scraper.db.migrate import with_kernel
 from podcast_scraper.db.schema import app_releases, metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
@@ -74,6 +80,72 @@ def _create_worker_database(base_url: str) -> str:
     _state["admin_url"] = base_url
     _state["name"] = name
     return rendered
+
+
+NO_DATABASE = (
+    "no test database: install the [dev] extra (pip install -e '.[dev]') or run make test-db-up"
+)
+
+# Same settings as the make test-db-up container: the data is disposable and the suite write-heavy.
+_EMBEDDED_SETTINGS = {
+    "fsync": "off",
+    "synchronous_commit": "off",
+    "full_page_writes": "off",
+    "max_connections": "300",
+}
+
+_session_server: list[EmbeddedPostgres] = []
+
+
+def _container_url() -> str:
+    """This checkout's ``make test-db-up`` container URL, or "" when there is none (no docker,
+    daemon down, container absent or stopped)."""
+    script = Path(__file__).resolve().parents[1] / "scripts" / "tools" / "test_db.sh"
+    try:
+        done = subprocess.run(
+            ["bash", str(script), "url"],
+            cwd=script.parent,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return done.stdout.strip() if done.returncode == 0 else ""
+
+
+def provide_session_database() -> str | None:
+    """Controller only, before the workers spawn: make sure ``PODCAST_TEST_DATABASE_URL`` is set.
+
+    An exported URL is used as is. In CI nothing is provided (each job that needs app state runs
+    its own service container and sets the URL). Otherwise this checkout's ``make test-db-up``
+    container, else an embedded PostgreSQL started for this run and stopped by
+    ``release_session_database``. Returns a line saying which, None when nothing was decided here.
+    Raises ``EmbeddedPostgresMissing`` (message: ``NO_DATABASE``) when there is neither.
+    """
+    if os.environ.get(ENV_TEST_URL, "").strip() or os.environ.get("CI"):
+        return None
+    url = _container_url()
+    where = "this checkout's make test-db-up container"
+    if not url:
+        pgdata = Path(tempfile.mkdtemp(prefix=f"pgtest-{os.getpid()}-"))
+        server = EmbeddedPostgres(pgdata, settings=_EMBEDDED_SETTINGS, delete_on_stop=True)
+        try:
+            url = server.start()
+        except EmbeddedPostgresMissing:
+            shutil.rmtree(pgdata, ignore_errors=True)
+            raise EmbeddedPostgresMissing(NO_DATABASE) from None
+        _session_server.append(server)
+        where = f"an embedded PostgreSQL in {pgdata}"
+    os.environ[ENV_TEST_URL] = url
+    return f"test database: {where}"
+
+
+def release_session_database() -> None:
+    """Controller only, at the end of the run: stop the embedded server if this run started one."""
+    while _session_server:
+        _session_server.pop().stop()
 
 
 def worker_database_url() -> str | None:

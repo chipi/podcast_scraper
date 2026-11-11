@@ -1327,8 +1327,11 @@ These variables are read once per process. `podcast_scraper db --help` lists the
 - **`PODCAST_VERSION_FILE`**: where the image's build record is read from (default
   `/app/VERSION.json`, written at build from `--build-arg GIT_SHA` and `BUILD_TIME`). Without
   the file, `git_sha` falls back to `PODCAST_GIT_SHA`, then null.
-- **`PODCAST_TEST_DATABASE_URL`**: tests only. `make test-db-up` starts a local `postgres:18` and
-  prints the URL to export; each pytest process creates its own database on that server.
+- **`PODCAST_TEST_DATABASE_URL`**: tests only, optional locally. Each pytest process creates its
+  own database on that server. Unset, a local run uses this checkout's `make test-db-up` container
+  (`postgres:18`) if it is running, else an embedded PostgreSQL from the `[dev]` extra, so `make test`
+  works on a fresh checkout with no docker. CI jobs that need app state set it (and with `CI` set,
+  nothing is started for them).
 
 `make serve-api` (and `make serve`, `make serve-app-dev`) runs the API through
 `scripts/tools/dev_db.py`, which needs no docker. It starts a dev PostgreSQL for the checkout,

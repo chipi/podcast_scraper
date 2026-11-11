@@ -146,7 +146,7 @@ help:
 	@echo "  make check-spotlight    Verify Spotlight indexing is disabled (macOS ML safety)"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test-db-up           Start the local postgres:18 the tests need; prints PODCAST_TEST_DATABASE_URL to export"
+	@echo "  make test-db-up           Optional: a local postgres:18 for the tests (else they start an embedded one)"
 	@echo "  make test-db-down         Remove that test database container (this checkout's only)"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
@@ -1676,7 +1676,8 @@ check-spotlight:
 		echo "mdutil not found (not macOS). Skipping."; \
 	fi
 
-# The test database (ADR-169): app-state tests read PODCAST_TEST_DATABASE_URL and FAIL without it.
+# The test database (ADR-169): optional locally. With PODCAST_TEST_DATABASE_URL unset, a local run uses
+# this checkout's container below if it is running, else an embedded PostgreSQL (tests/_database.py).
 # One container per checkout, loopback only; down removes only that container.
 .PHONY: test-db-up test-db-down
 test-db-up:

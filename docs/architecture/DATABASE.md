@@ -179,8 +179,12 @@ flowchart LR
   `psycopg.types.json` and SQLAlchemy's psycopg dialect up front, because a module first imported
   inside a test's `patch.dict(sys.modules, …)` window is evicted at its exit, and psycopg then
   cannot adapt the re-imported `Jsonb` class.
-- **The test database's host port changes on `docker restart`**: `make test-db-up` prints the URL
-  to export again.
+- **Where a local test run gets its database**: with `PODCAST_TEST_DATABASE_URL` unset and `CI`
+  unset, the pytest controller provides one before the workers start: this checkout's
+  `make test-db-up` container if it is running (asked for its live URL, so a `docker restart` no
+  longer matters), else an embedded PostgreSQL 18 from the `[dev]` extra, started in a temp dir for
+  the run and deleted at its end. Neither gives one error at start. An exported URL is used as is,
+  and goes stale if the container restarts.
 - **A dry-run import on an empty database** counts every user directory with a `profile.json` as
   an account to be, so per-user stores are not refused for lack of a `users` row.
 

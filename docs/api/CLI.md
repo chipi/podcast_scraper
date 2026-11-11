@@ -359,7 +359,7 @@ Feed URLs can live in the operator file (**`rss`**, **`feeds`**, **`rss_urls`**)
 
 ## Diagnostic Commands (Issue #379, #429)
 
-**Subcommands:** The first argument can be `doctor`, `cache`, or `pricing-assumptions` (e.g. `podcast-scraper doctor`). Startup checks (Python 3.10+, ffmpeg) run only for the main pipeline; they are skipped for these subcommands so you can run doctor even when ffmpeg is missing.
+**Subcommands:** The first argument can be `doctor`, `cache`, or `pricing-assumptions` (e.g. `podcast-scraper doctor`). Startup checks (Python 3.12+, ffmpeg) run only for the main pipeline; they are skipped for these subcommands so you can run doctor even when ffmpeg is missing.
 
 ### `pricing-assumptions` Command
 
@@ -403,7 +403,7 @@ python -m podcast_scraper.cli doctor
 
 **Checks performed:**
 
-- Python version (must be 3.10+)
+- Python version (must be 3.12+)
 - `ffmpeg` availability (required for Whisper transcription)
 - Write permissions (output directory)
 - ML model cache status (Whisper, Transformers, spaCy)
@@ -413,7 +413,7 @@ python -m podcast_scraper.cli doctor
 
 ```text
 [ok] Checking Python version...
-  [ok] Python 3.11.9 (required: 3.10+)
+  [ok] Python 3.12.14 (required: 3.12+)
 
 [ok] Checking ffmpeg...
   [ok] ffmpeg version 6.0

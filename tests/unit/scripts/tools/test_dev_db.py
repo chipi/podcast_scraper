@@ -143,10 +143,12 @@ def test_a_failed_migration_stops_the_server_and_never_starts_the_api(
 
 
 def test_native_keeps_the_socket_path_short(tmp_path: Path) -> None:
-    short = dev_db.NativeServer(tmp_path / "d", None)
+    # Not under tmp_path: macOS puts it in /private/var/folders/..., already past the limit.
+    short = dev_db.NativeServer(Path("/tmp/d"), None)
     assert short._socket_dir() == short.pgdata
     deep = dev_db.NativeServer(tmp_path / ("x" * 120), None)
-    assert len(str(deep._socket_dir())) < 60
+    # The socket file itself must fit (macOS's temp dir alone is ~50 bytes, Linux's /tmp is 4).
+    assert len(str(deep._socket_dir() / ".s.PGSQL.5432")) <= dev_db._SOCKET_PATH_LIMIT
     # Stable across runs (a second `make serve` finds the same directory).
     assert deep._socket_dir() == dev_db.NativeServer(deep.pgdata, None)._socket_dir()
 

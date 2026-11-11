@@ -55,10 +55,10 @@ jobs:
           sudo rm -rf /var/lib/apt/lists/*
           df -h
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11.8"
+          python-version: "3.12"
           cache: "pip"
           cache-dependency-path: pyproject.toml
 
@@ -217,10 +217,10 @@ jobs:
           sudo rm -rf /var/lib/apt/lists/*
           df -h
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11.8"
+          python-version: "3.12"
           cache: "pip"
           cache-dependency-path: pyproject.toml
 

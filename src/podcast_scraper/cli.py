@@ -2747,9 +2747,9 @@ def _doctor_check_python() -> bool:
 
     print("✓ Checking Python version...")
     v = sys.version_info
-    if v.major < 3 or (v.major == 3 and v.minor < 10):
+    if v.major < 3 or (v.major == 3 and v.minor < 12):
         print(f"  ✗ Python {v.major}.{v.minor} is too old")
-        print("    Required: Python 3.10 or higher")
+        print("    Required: Python 3.12 or higher")
         return False
     print(f"  ✓ Python {v.major}.{v.minor}.{v.micro}")
     return True
@@ -4104,10 +4104,10 @@ def _validate_python_version() -> None:
     Raises:
         SystemExit: If Python version is too old
     """
-    if sys.version_info < (3, 10):
+    if sys.version_info < (3, 12):
         print(
             f"Error: Python {sys.version_info.major}.{sys.version_info.minor} is not supported.\n"
-            "podcast_scraper requires Python 3.10 or higher.\n"
+            "podcast_scraper requires Python 3.12 or higher.\n"
             f"Current version: {sys.version}",
             file=sys.stderr,
         )
