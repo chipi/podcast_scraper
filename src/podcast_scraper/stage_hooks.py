@@ -73,6 +73,23 @@ AdfreeBase = Callable[..., Optional[Tuple[str, Any]]]
 #: transcript held in memory. One owner; without one the text is returned as it came, with
 #: :class:`NoAdExcision`.
 ExciseAds = Callable[..., Tuple[str, Optional[List[Dict[str, Any]]], Any]]
+#: ``(strategy, *, confidence_threshold) -> TranscriptCleaningProcessor``: the cleaner a provider
+#: uses before summarization (``pattern``, ``llm`` or ``hybrid``). One owner; without one, the
+#: pattern cleaner, which then removes no ads (its ad steps are the hooks below).
+TranscriptCleaner = Callable[..., Any]
+#: ``(processor, text, *, provider, pipeline_metrics, pattern_kwargs) -> str``: runs a cleaner on
+#: a transcript, passing each kind of cleaner what it takes. One owner; without one,
+#: ``processor.clean(text, **pattern_kwargs)``.
+CleanForSummary = Callable[..., str]
+#: ``(full_transcript_path) -> (diarization_segments, host_speaker_id)``: the diarization context
+#: commercial cleaning reads beside a transcript. One owner; without one, ``(None, None)``.
+CleaningContext = Callable[[str], Tuple[Optional[List[Dict[str, Any]]], Optional[str]]]
+#: ``(text, *, diarization_segments, host_speaker_id, confidence_threshold) -> text``: sponsor
+#: and advertisement blocks removed. One owner; without one the text is returned unchanged.
+RemoveCommercials = Callable[..., str]
+#: ``(text, *, diarization_segments, host_speaker_id, extra_cue_patterns) -> text``: an opening
+#: host-read cross-promo removed. One owner; without one the text is returned unchanged.
+ExciseCrosspromo = Callable[..., str]
 #: ``(cfg, text, segments, rel_transcript_path, output_dir, *, adfree, episode)``. Writes each
 #: transcript variant's ``turns.json`` and the manifest's ``turns`` block (RFC-123 §3). Without an
 #: owner no turns are written.
@@ -222,6 +239,11 @@ class PipelineHooks:
     kg_prompt_hints: Optional[KgPromptHints] = None
     adfree_base: Optional[AdfreeBase] = None
     excise_ads: Optional[ExciseAds] = None
+    transcript_cleaner: Optional[TranscriptCleaner] = None
+    clean_for_summary: Optional[CleanForSummary] = None
+    cleaning_context: Optional[CleaningContext] = None
+    remove_commercials: Optional[RemoveCommercials] = None
+    excise_crosspromo: Optional[ExciseCrosspromo] = None
     variant_turns: Optional[VariantTurns] = None
     screenplay: Optional[Screenplay] = None
     speaker_turns: Optional[SpeakerTurns] = None
@@ -411,6 +433,91 @@ def excise_ads(
         if hooks.excise_ads is not None:
             return hooks.excise_ads(text, segments=segments)
     return text, segments, NoAdExcision(source_length=len(text))
+
+
+def transcript_cleaner(strategy: str, *, confidence_threshold: Optional[float] = None) -> Any:
+    """The ``transcript_cleaner`` stage hook: the first owner that sets it answers (built-in, then
+    extensions in load order); without one, the pattern cleaner for every strategy."""
+    for hooks in _all():
+        if hooks.transcript_cleaner is not None:
+            return hooks.transcript_cleaner(strategy, confidence_threshold=confidence_threshold)
+    from .cleaning.pattern_based import PatternBasedCleaner
+
+    return PatternBasedCleaner(confidence_threshold=confidence_threshold)
+
+
+def clean_for_summary(
+    processor: Any,
+    text: str,
+    *,
+    provider: Any = None,
+    pipeline_metrics: Any = None,
+    pattern_kwargs: Optional[Dict[str, Any]] = None,
+) -> str:
+    """The ``clean_for_summary`` stage hook: the first owner that sets it answers; without one,
+    ``processor.clean(text, **pattern_kwargs)``."""
+    for hooks in _all():
+        if hooks.clean_for_summary is not None:
+            return hooks.clean_for_summary(
+                processor,
+                text,
+                provider=provider,
+                pipeline_metrics=pipeline_metrics,
+                pattern_kwargs=pattern_kwargs,
+            )
+    cleaned: str = processor.clean(text, **(pattern_kwargs or {}))
+    return cleaned
+
+
+def cleaning_context(
+    full_transcript_path: str,
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """The ``cleaning_context`` stage hook: the first owner that sets it answers; without one,
+    ``(None, None)`` (no diarization context)."""
+    for hooks in _all():
+        if hooks.cleaning_context is not None:
+            return hooks.cleaning_context(full_transcript_path)
+    return None, None
+
+
+def remove_commercials(
+    text: str,
+    *,
+    diarization_segments: Optional[List[Dict[str, Any]]] = None,
+    host_speaker_id: Optional[str] = None,
+    confidence_threshold: Optional[float] = None,
+) -> str:
+    """The ``remove_commercials`` stage hook: the first owner that sets it answers; without one the
+    text is returned unchanged."""
+    for hooks in _all():
+        if hooks.remove_commercials is not None:
+            return hooks.remove_commercials(
+                text,
+                diarization_segments=diarization_segments,
+                host_speaker_id=host_speaker_id,
+                confidence_threshold=confidence_threshold,
+            )
+    return text
+
+
+def excise_crosspromo(
+    text: str,
+    *,
+    diarization_segments: Optional[List[Dict[str, Any]]] = None,
+    host_speaker_id: Optional[str] = None,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> str:
+    """The ``excise_crosspromo`` stage hook: the first owner that sets it answers; without one the
+    text is returned unchanged."""
+    for hooks in _all():
+        if hooks.excise_crosspromo is not None:
+            return hooks.excise_crosspromo(
+                text,
+                diarization_segments=diarization_segments,
+                host_speaker_id=host_speaker_id,
+                extra_cue_patterns=extra_cue_patterns,
+            )
+    return text
 
 
 def write_variant_turns(
@@ -773,6 +880,11 @@ __all__ = [
     "EpisodeInsights",
     "EpisodeSpeakers",
     "ExciseAds",
+    "ExciseCrosspromo",
+    "CleanForSummary",
+    "CleaningContext",
+    "RemoveCommercials",
+    "TranscriptCleaner",
     "FeedHosts",
     "GiKgPasses",
     "NoAdExcision",
@@ -825,6 +937,11 @@ __all__ = [
     "episode_insights",
     "episode_speakers",
     "excise_ads",
+    "excise_crosspromo",
+    "clean_for_summary",
+    "cleaning_context",
+    "remove_commercials",
+    "transcript_cleaner",
     "feed_hosts",
     "gi_kg_passes",
     "kg_graph_passes",

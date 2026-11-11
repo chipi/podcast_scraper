@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from ...models import Episode
 else:
     Episode = models.Episode  # type: ignore[assignment]
-from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
 from ...utils.cleaning_max_tokens import (
     _CLEANING_WORD_FACTOR,
@@ -329,15 +328,10 @@ class OpenAICompatibleProvider(OpenAICompatibleProviderGiNamingMethods):
         self.cfg = cfg
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
-        from ...cleaning import HybridCleaner, LLMBasedCleaner
+        from ... import stage_hooks
 
         cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-        if cleaning_strategy == "pattern":
-            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
-        elif cleaning_strategy == "llm":
-            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
-        else:  # hybrid (default)
-            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+        self.cleaning_processor = stage_hooks.transcript_cleaner(cleaning_strategy)
 
         # Cleaning model settings (config default: gpt-4o-mini; override for cheaper tiers)
         self.cleaning_model = getattr(

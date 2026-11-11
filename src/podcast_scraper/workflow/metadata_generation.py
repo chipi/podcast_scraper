@@ -2570,9 +2570,7 @@ def _generate_episode_summary(  # noqa: C901
         logger.debug("[%s] Transcript too short for summarization, skipping", episode_idx)
         return None, call_metrics
 
-    from ..cleaning.commercial.context import diarization_cleaning_context
-
-    diarization_segments, host_speaker_id = diarization_cleaning_context(full_transcript_path)
+    diarization_segments, host_speaker_id = stage_hooks.cleaning_context(full_transcript_path)
     pattern_clean_kwargs: Dict[str, Any] = {}
     if diarization_segments is not None:
         pattern_clean_kwargs = {
@@ -2826,37 +2824,22 @@ def _generate_episode_summary(  # noqa: C901
             if result is None:
                 # Clean transcript before summarization using provider's cleaning processor
                 logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
-                from ..cleaning import PatternBasedCleaner
-
                 # Get cleaning processor from provider if available, otherwise use default
                 cleaning_processor = getattr(summary_provider, "cleaning_processor", None)
                 if cleaning_processor is None:
                     # Default to pattern-based cleaner
-                    cleaning_processor = PatternBasedCleaner()
-
-                # Pass provider to cleaner if it supports it (HybridCleaner / LLMBasedCleaner)
-                from ..cleaning import HybridCleaner, LLMBasedCleaner
+                    cleaning_processor = stage_hooks.transcript_cleaner("pattern")
 
                 cleaning_started = time.perf_counter()
                 try:
-                    if isinstance(cleaning_processor, HybridCleaner):
-                        cleaned_text = cleaning_processor.clean(
-                            transcript_text,
-                            provider=summary_provider,
-                            pipeline_metrics=pipeline_metrics,
-                            **pattern_clean_kwargs,
-                        )
-                    elif isinstance(cleaning_processor, LLMBasedCleaner):
-                        cleaned_text = cleaning_processor.clean(
-                            transcript_text,
-                            summary_provider,
-                            pipeline_metrics=pipeline_metrics,
-                        )
-                    else:
-                        cleaned_text = cleaning_processor.clean(
-                            transcript_text,
-                            **pattern_clean_kwargs,
-                        )
+                    # Each kind of cleaner gets what it takes (the provider for the LLM ones).
+                    cleaned_text = stage_hooks.clean_for_summary(
+                        cleaning_processor,
+                        transcript_text,
+                        provider=summary_provider,
+                        pipeline_metrics=pipeline_metrics,
+                        pattern_kwargs=pattern_clean_kwargs,
+                    )
                 finally:
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(
