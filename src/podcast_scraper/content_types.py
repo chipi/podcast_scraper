@@ -67,6 +67,16 @@ KG = "kg"
 AD_CLEANING = "ad_cleaning"
 STAGES: FrozenSet[str] = frozenset({TRANSLATION, SUMMARY, GI, KG, AD_CLEANING})
 
+#: The kinds of source (ontology v3, a fixed vocabulary; ``test`` is the test-only type's).
+SOURCE_KINDS: FrozenSet[str] = frozenset(
+    {"podcast", "news", "social", "advisory", "report", "test"}
+)
+
+
+class RegistryError(ValueError):
+    """A content type or transport registered twice, a type naming an unknown transport or source
+    kind, or a profile naming an unknown stage."""
+
 
 @dataclass(frozen=True)
 class StageProfile:
@@ -104,6 +114,16 @@ class ContentType:
     #: transport's own id). A URL-identified type returns :func:`url_identity` of its normalised
     #: canonical URL, so one item over two transports is one item.
     identity: Optional[Callable[[SourceItem], str]] = None
+    #: What kind of source its items come from, from :data:`SOURCE_KINDS` (T-1 keeps it apart
+    #: from the item noun, ``name``). KG 3.0 records it on the ``Source`` node.
+    source_kind: str = ""
+
+    def __post_init__(self) -> None:
+        if self.source_kind not in SOURCE_KINDS:
+            raise RegistryError(
+                f"content type {self.name!r}: source_kind {self.source_kind!r} is not one of "
+                f"{sorted(SOURCE_KINDS)}"
+            )
 
 
 @dataclass(frozen=True)
@@ -140,13 +160,10 @@ PODCAST = ContentType(
     stage_profile=StageProfile(name="podcast"),
     default_transport=RSS_ENCLOSURE,
     card_kind="episode",
+    source_kind="podcast",
 )
 BUILTIN_TYPES: Tuple[ContentType, ...] = (PODCAST,)
 BUILTIN_TRANSPORTS: Tuple[Transport, ...] = (Transport(name=RSS_ENCLOSURE),)
-
-
-class RegistryError(ValueError):
-    """A content type or transport registered twice, or a type naming an unknown transport."""
 
 
 class UnknownContentType(KeyError):
@@ -168,6 +185,11 @@ class ItemContext:
     content_type: ContentType
     item_id: Optional[str] = None
     body_path: Optional[str] = None
+    #: The item's source (``source:`` id from :func:`source_id`) and the transport that listed it.
+    source_id: Optional[str] = None
+    transport: Optional[str] = None
+    #: The item's times by ontology v3 name (``published_at``, ...), ISO 8601; absent when unknown.
+    times: Mapping[str, str] = field(default_factory=dict)
 
 
 PODCAST_ITEM = ItemContext(content_type=PODCAST)
@@ -192,6 +214,14 @@ def item_id(ctype: ContentType, item: SourceItem) -> str:
     if not key:
         raise ValueError(f"{ctype.name}: an item has no identity (transport id {item.item_id!r})")
     return f"item:{ctype.name}:{key}"
+
+
+def source_id(ctype: ContentType, source_url: str) -> str:
+    """A non-podcast source's id, ``source:{url_identity(url)}``: minted by its type from the
+    source's URL (podcasts keep ``podcast:{slug}``)."""
+    if not source_url:
+        raise ValueError(f"{ctype.name}: a source has no URL to mint its id from")
+    return f"source:{url_identity(source_url)}"
 
 
 def stage_runs(stage: str) -> bool:
@@ -297,6 +327,7 @@ __all__ = [
     "PODCAST_ONLY",
     "RSS_ENCLOSURE",
     "RegistryError",
+    "SOURCE_KINDS",
     "STAGES",
     "SUMMARY",
     "SourceItem",
@@ -312,6 +343,7 @@ __all__ = [
     "processing_item",
     "registry",
     "run_source",
+    "source_id",
     "stage_runs",
     "url_identity",
 ]

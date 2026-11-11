@@ -28,9 +28,10 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from .. import config, content_types, stage_hooks
+from ..kg.v3 import ITEM_TIMES
 from ..models import Episode, RssFeed
 from ..utils import filesystem
 from .types import FeedMetadata, HostDetectionResult, ProcessingJob
@@ -67,8 +68,22 @@ def _as_datetime(value: Any) -> Optional[datetime]:
         try:
             return _as_datetime(datetime.fromisoformat(value.strip().replace("Z", "+00:00")))
         except ValueError:
-            logger.warning("text-in: unreadable published_at %r; no date recorded", value)
+            logger.warning("text-in: unreadable item time %r; not recorded", value)
     return None
+
+
+def _item_times(item: content_types.SourceItem) -> Dict[str, str]:
+    """The item's v3 times its transport gave, as ISO 8601 UTC; unreadable ones are dropped."""
+    out: Dict[str, str] = {}
+    for name in ITEM_TIMES:
+        value = _as_datetime(item.metadata.get(name))
+        if value is not None:
+            out[name] = value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return out
+
+
+def _source_url(cfg: config.Config, entry: Any) -> str:
+    return str(getattr(entry, "url", None) or cfg.rss_url or "")
 
 
 def _read_cursor(source_dir: str, transport: str) -> Optional[str]:
@@ -98,6 +113,9 @@ def _jobs_for_items(
     ctype: content_types.ContentType,
     effective_output_dir: str,
     run_suffix: Optional[str],
+    *,
+    source_id: str,
+    transport: str,
 ) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
@@ -135,7 +153,14 @@ def _jobs_for_items(
                 detected_names=None,
                 whisper_model=None,
                 queued_at=time.monotonic(),
-                item=content_types.ItemContext(content_type=ctype, item_id=minted, body_path=rel),
+                item=content_types.ItemContext(
+                    content_type=ctype,
+                    item_id=minted,
+                    body_path=rel,
+                    source_id=source_id,
+                    transport=transport,
+                    times=_item_times(item),
+                ),
             )
         )
     return episodes, jobs
@@ -164,7 +189,14 @@ def run_text_source(
 
         cursor = _read_cursor(source_dir, transport.name)
         items, next_cursor = transport.list_items(entry, cursor)
-        episodes, jobs = _jobs_for_items(items, ctype, effective_output_dir, run_suffix)
+        episodes, jobs = _jobs_for_items(
+            items,
+            ctype,
+            effective_output_dir,
+            run_suffix,
+            source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
+            transport=transport.name,
+        )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",
             ctype.name,
