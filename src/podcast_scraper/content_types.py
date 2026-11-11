@@ -15,6 +15,8 @@ text.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -22,6 +24,7 @@ from typing import (
     Collection,
     Dict,
     FrozenSet,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -126,6 +129,40 @@ class NoTextRunner(RuntimeError):
     """A non-podcast source reached the dispatch before a text-in runner exists for it."""
 
 
+@dataclass(frozen=True)
+class ItemContext:
+    """The item a processing job is about: its type, id and body file (ADR-177 decision 7).
+
+    A podcast job carries none and reads as :data:`PODCAST_ITEM`. Hooks gain no type argument:
+    one that needs the type reads :func:`current_item` while the job is processed.
+    """
+
+    content_type: ContentType
+    item_id: Optional[str] = None
+    body_path: Optional[str] = None
+
+
+PODCAST_ITEM = ItemContext(content_type=PODCAST)
+
+_CURRENT_ITEM: ContextVar[ItemContext] = ContextVar("current_item", default=PODCAST_ITEM)
+
+
+def current_item() -> ItemContext:
+    """The item being processed on this thread; a podcast when no job set one."""
+    return _CURRENT_ITEM.get()
+
+
+@contextmanager
+def processing_item(item: Optional[ItemContext]) -> Iterator[ItemContext]:
+    """Make ``item`` the current item for the block (``None``: a podcast, as before)."""
+    ctx = item or PODCAST_ITEM
+    token = _CURRENT_ITEM.set(ctx)
+    try:
+        yield ctx
+    finally:
+        _CURRENT_ITEM.reset(token)
+
+
 def _merge(builtins: Sequence[Any], extra: Sequence[Any], what: str) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
     for item in [*builtins, *extra]:
@@ -198,10 +235,12 @@ __all__ = [
     "BUILTIN_TRANSPORTS",
     "BUILTIN_TYPES",
     "ContentType",
+    "ItemContext",
     "ListItems",
     "NoTextRunner",
     "PODCAST",
     "PODCAST_EPISODE",
+    "PODCAST_ITEM",
     "RSS_ENCLOSURE",
     "RegistryError",
     "SourceItem",
@@ -209,6 +248,8 @@ __all__ = [
     "Transport",
     "UnknownContentType",
     "content_type",
+    "current_item",
+    "processing_item",
     "registry",
     "run_source",
 ]
