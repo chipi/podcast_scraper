@@ -26,11 +26,20 @@ The migration is the large, risky part, and news only needs the schema.
 
 ## Decision
 
-1. **R3a, the schema, comes first.** Items of new types write v3 from the start. Every reader of
+1. **R3a, the schema, comes first, in the core release.** Items of new types write v3 from the start. Every reader of
    insights, quotes and entities accepts both versions. v3 is written so later types need no schema
    bump:
-   - **evidence locators:** a character range always, a time range when timed, and an optional page
-     and section for documents;
+   - **evidence locators:**
+     - a character range in a named document of the item, always, with its variant for
+       translations;
+     - a time range only when timed (an untimed quote carries no time, never 0);
+     - an optional page and section for documents.
+     - Untimed types write paragraph segments without times, so evidence anchors to a segment
+       range for every type (DECISIONS rule 3).
+   - **the item id** is read wherever `episode_id` is read for evidence, starting with the identity
+     guards' evidence builder;
+   - **the KG 3.0 edge set:** `ATTRIBUTED_TO` (`SPOKEN_BY` stays as its audio specialisation),
+     `HAS_ITEM`, `PARTICIPATES_IN`, `CONTRIBUTES_TO`, `PUBLISHED_BY`;
    - **time fields kept apart:** published, filed, period covered (start and end), observed and
      ingested, each optional;
    - **person roles are an open vocabulary:** author, host, guest and participant now, others later;
@@ -39,7 +48,8 @@ The migration is the large, risky part, and news only needs the schema.
    - its quotes carry their character range and their time range;
    - `text_origin` is `spoken`;
    - nothing in the file changes.
-3. **Podcasts keep writing GI 3.x until R3b.**
+3. **Podcasts keep writing GI 3.x until R3b.** R3b ships the writer switch with the migration, so
+   the first nightly after it writes v3.
 4. **R3b,** the podcast corpus migration to v3 under the change method, comes in its own release,
    strictly before the corpus database's importer. The importer then reads one version, and the
    database schema is designed once, against v3. Landing R3b with the importer would migrate the

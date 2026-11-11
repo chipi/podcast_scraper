@@ -46,6 +46,13 @@ podcast path, which is what the seams exist to avoid.
    - The processing job carries one item context (type, profile, item id, body path).
    - The type's profile decides which stage hooks run; a hook that needs the type reads it from the
      context. Hooks gain no type argument, so podcast calls stay byte-identical.
+8. **Shared reads default to podcast items.** The catalog builders and the search query paths take
+   a type filter that defaults to `podcast_episode`. A surface sees another type only when it asks,
+   so the Player and the MCP tools need no change while new types arrive.
+9. **When:**
+   - the core release builds decisions 1–4 and 6–8 and proves them with a test-only second type
+     in fixtures;
+   - decision 5, news, is News 1.0, a release of its own after it.
 
 ## Consequences
 
