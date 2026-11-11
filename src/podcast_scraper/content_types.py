@@ -59,6 +59,12 @@ def is_wanted(doc: Any, content_types: Collection[str]) -> bool:
     return item_content_type(doc) in content_types
 
 
+def asks_other_types(content_types: Collection[str]) -> bool:
+    """Whether a reader taking ``content_types`` must also walk ``sources/``, where every type but
+    podcasts lives (RFC-134 §5)."""
+    return any(t != PODCAST_EPISODE for t in content_types)
+
+
 #: Stage names a profile can list. A podcast's profile lists none, which runs every stage.
 TRANSLATION = "translation"
 SUMMARY = "summary"
