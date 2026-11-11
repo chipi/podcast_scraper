@@ -188,6 +188,11 @@ def test_a_batch_of_a_text_source_moves_the_cache_token_and_resumes_from_its_cur
     )
     assert all(workspace in p.parents for p in metas)
     assert (workspace / "source_cursor.json").is_file()
+    # The corpus walkers leave sources/ out unless asked, so a podcast reader sees none of it.
+    from podcast_scraper.utils.corpus_walk import corpus_rglob
+
+    assert list(corpus_rglob(corpus, "*.metadata.json")) == []
+    assert len(list(corpus_rglob(corpus, "*.metadata.json", include_sources=True))) == 2
 
 
 def test_a_text_items_kg_is_written_in_kg_3(tmp_path: Path) -> None:
