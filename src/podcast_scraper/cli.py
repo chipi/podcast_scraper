@@ -4923,6 +4923,7 @@ def _main(  # noqa: C901 - main function handles multiple command paths
             log.error("%s", exc)
             return 1
 
+    only: Optional[RssFeedEntry] = None
     try:
         if getattr(args, "feeds_spec", None):
             only = resolve_cli_feed_targets(args)[0]
@@ -4959,7 +4960,11 @@ def _main(  # noqa: C901 - main function handles multiple command paths
     try:
         with _single_feed_corpus_lock(cfg.output_dir or ".", logger=log):
             try:
-                episode_count, summary = run_pipeline_fn(cfg)
+                # The one dispatch point, for a single source as for a batch (ADR-177
+                # decision 7): a spec holding one text source must not reach run_pipeline.
+                episode_count, summary = content_types.run_source(
+                    cfg, only, run_pipeline_fn=run_pipeline_fn
+                )
             except Exception as exc:  # pragma: no cover - defensive
                 # log.exception (not log.error) attaches the stack to structured sink / Sentry.
                 log.exception("Unexpected failure: %s", exc)

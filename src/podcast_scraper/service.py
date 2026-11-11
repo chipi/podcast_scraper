@@ -311,7 +311,12 @@ def run(cfg: config.Config) -> ServiceResult:
         from podcast_scraper.utils.corpus_lock import corpus_parent_lock
 
         with corpus_parent_lock(cfg.output_dir or ".", logger=logger):
-            count, summary = workflow.run_pipeline(cfg)
+            # The one dispatch point, for a single source as for a batch (ADR-177 decision 7).
+            count, summary = content_types.run_source(
+                cfg,
+                multi_entries[0] if multi_entries else None,
+                run_pipeline_fn=workflow.run_pipeline,
+            )
 
         rss_url_raw = getattr(cfg, "rss_url", None)
         feed_url = rss_url_raw.strip() if isinstance(rss_url_raw, str) else ""

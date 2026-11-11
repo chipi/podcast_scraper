@@ -87,7 +87,7 @@ class ProcessingJob(NamedTuple):
 
     episode: Episode  # type: ignore[valid-type]
     transcript_path: str
-    transcript_source: Literal["direct_download", "whisper_transcription"]
+    transcript_source: Literal["direct_download", "whisper_transcription", "text_body"]
     detected_names: Optional[List[str]]
     whisper_model: Optional[str]
     queued_at: Optional[float] = None

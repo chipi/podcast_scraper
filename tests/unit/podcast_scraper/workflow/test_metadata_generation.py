@@ -3,6 +3,7 @@
 
 # Note: Entity normalization tests added for Issue #387
 
+import json
 import os
 import sys
 
@@ -845,6 +846,80 @@ class TestSerializeMetadata(unittest.TestCase):
         with open(metadata_path, "r") as f:
             data = json.load(f)
             self.assertEqual(data["episode"]["title"], "Test Episode")
+
+    def _doc(self) -> Any:
+        feed = create_test_feed()
+        episode = create_test_episode(idx=1, title="Test Episode")
+        return metadata.EpisodeMetadataDocument(
+            feed=metadata._build_feed_metadata(
+                feed,
+                TEST_FEED_URL,
+                metadata.generate_feed_id(TEST_FEED_URL),
+                self.cfg,
+                None,
+                None,
+                None,
+            ),
+            episode=metadata._build_episode_metadata(
+                episode,
+                metadata.generate_episode_id(TEST_FEED_URL, "Test Episode"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
+            content=metadata._build_content_metadata(episode, [], None, None, None, None, []),
+            processing=metadata._build_processing_metadata(self.cfg, self.temp_dir),
+        )
+
+    def test_podcast_metadata_is_byte_identical_with_a_text_type_registered(self):
+        """ADR-177 decision 6 and the core release's gate b: podcast metadata gains no
+        ``content_type`` (not even ``null``) while another type is installed."""
+        import yaml
+
+        from podcast_scraper import content_types as ct
+        from podcast_scraper.extensions import Extension, use_extensions
+
+        text = ct.ContentType(
+            name="test_text_item",
+            id_scheme="item",
+            stage_profile=ct.StageProfile(name="t", stages=frozenset({ct.SUMMARY})),
+            default_transport="fixture_feed",
+        )
+        ext = Extension(
+            name="fixture",
+            content_types=lambda: [text],
+            transports=lambda: [ct.Transport(name="fixture_feed", list_items=lambda s, c: ([], c))],
+        )
+        doc = self._doc()
+        for fmt in ("json", "yaml"):
+            cfg = create_test_config(metadata_format=fmt)
+            path = os.path.join(self.temp_dir, f"podcast.metadata.{fmt}")
+            with use_extensions([ext]):
+                metadata._serialize_metadata(doc, path, cfg)
+            with open(path, encoding="utf-8") as f:
+                written = f.read()
+            if fmt == "json":
+                expected = doc.model_dump_json(indent=2, exclude_none=False)
+            else:
+                expected = yaml.dump(
+                    doc.model_dump(exclude_none=False),
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True,
+                )
+            self.assertEqual(written, expected, fmt)
+            self.assertNotIn("content_type", written, fmt)
+
+            with ct.processing_item(ct.ItemContext(content_type=text)):
+                metadata._serialize_metadata(doc, path, cfg)
+            with open(path, encoding="utf-8") as f:
+                loaded = json.load(f) if fmt == "json" else yaml.safe_load(f)
+            self.assertEqual(next(iter(loaded)), "content_type", fmt)
+            self.assertEqual(loaded["content_type"], "test_text_item", fmt)
 
     def test_serialize_metadata_yaml(self):
         """Test serializing metadata to YAML format."""

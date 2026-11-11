@@ -11,10 +11,16 @@ Installed extensions add types and transports through ``Extension.content_types`
 ``run_source`` is the one dispatch point both multi-feed loops (``cli``, ``service``) call per
 source: ``run_pipeline`` for a podcast, the text-in entry point for a type whose items arrive as
 text.
+
+Podcast metadata carries no ``content_type`` field until R3b (ADR-178): an absent field reads as a
+podcast episode. Shared reads (the catalog builders, the search indexer's walk) take only podcast
+episodes unless a caller asks for other types, so a surface sees a new type only when it opts in
+(ADR-177 decision 8).
 """
 
 from __future__ import annotations
 
+import hashlib
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -53,12 +59,28 @@ def is_wanted(doc: Any, content_types: Collection[str]) -> bool:
     return item_content_type(doc) in content_types
 
 
+#: Stage names a profile can list. A podcast's profile lists none, which runs every stage.
+TRANSLATION = "translation"
+SUMMARY = "summary"
+GI = "gi"
+KG = "kg"
+AD_CLEANING = "ad_cleaning"
+STAGES: FrozenSet[str] = frozenset({TRANSLATION, SUMMARY, GI, KG, AD_CLEANING})
+
+
 @dataclass(frozen=True)
 class StageProfile:
     """The stages a type runs. ``stages`` of ``None`` is the full podcast pipeline."""
 
     name: str
     stages: Optional[FrozenSet[str]] = None
+
+    def __post_init__(self) -> None:
+        unknown = (self.stages or frozenset()) - STAGES
+        if unknown:
+            raise RegistryError(
+                f"stage profile {self.name!r} names unknown stages {sorted(unknown)}"
+            )
 
     def runs(self, stage: str) -> bool:
         """True when this profile runs ``stage`` (the full pipeline runs every stage)."""
@@ -78,11 +100,17 @@ class ContentType:
     #: A prompt-name prefix or directory for this type's prompts (``None``: the stage's own).
     prompt_profile: Optional[str] = None
     card_kind: str = ""
+    #: The item's stable identity, from which :func:`item_id` mints its id (``None``: the
+    #: transport's own id). A URL-identified type returns :func:`url_identity` of its normalised
+    #: canonical URL, so one item over two transports is one item.
+    identity: Optional[Callable[[SourceItem], str]] = None
 
 
 @dataclass(frozen=True)
 class SourceItem:
-    """One new item a transport listed: its stable id, and its text or a URL to fetch."""
+    """One new item a transport listed: the transport's own id for it, and its text or a URL to
+    fetch. Its times go in ``metadata`` as ``published_at``, ``filed_at``, ``period_start``,
+    ``period_end`` and ``observed_at`` (ontology v3)."""
 
     item_id: str
     metadata: Mapping[str, Any] = field(default_factory=dict)
@@ -126,7 +154,7 @@ class UnknownContentType(KeyError):
 
 
 class NoTextRunner(RuntimeError):
-    """A non-podcast source reached the dispatch before a text-in runner exists for it."""
+    """A text source's transport lists no items itself, so the text-in entry point cannot run it."""
 
 
 @dataclass(frozen=True)
@@ -150,6 +178,25 @@ _CURRENT_ITEM: ContextVar[ItemContext] = ContextVar("current_item", default=PODC
 def current_item() -> ItemContext:
     """The item being processed on this thread; a podcast when no job set one."""
     return _CURRENT_ITEM.get()
+
+
+def url_identity(canonical_url: str) -> str:
+    """A URL-identified item's identity: the first 20 hex characters of the sha256 of its
+    canonical URL, normalised by its type before it is passed here (ontology v3)."""
+    return hashlib.sha256(canonical_url.encode("utf-8")).hexdigest()[:20]
+
+
+def item_id(ctype: ContentType, item: SourceItem) -> str:
+    """The item's id, ``item:{type}:{identity}``: minted by its type, never by the transport."""
+    key = ctype.identity(item) if ctype.identity is not None else item.item_id
+    if not key:
+        raise ValueError(f"{ctype.name}: an item has no identity (transport id {item.item_id!r})")
+    return f"item:{ctype.name}:{key}"
+
+
+def stage_runs(stage: str) -> bool:
+    """True when the current item's stage profile runs ``stage`` (always, for a podcast)."""
+    return current_item().content_type.stage_profile.runs(stage)
 
 
 @contextmanager
@@ -225,31 +272,46 @@ def run_source(
 
             run_pipeline_fn = workflow.run_pipeline
         return run_pipeline_fn(cfg)
-    raise NoTextRunner(f"content type {ctype.name!r}: no text-in runner yet (ADR-177 decision 4)")
+    _, transports = registry()
+    transport_name = getattr(entry, "transport", None) or ctype.default_transport
+    if transport_name not in transports:
+        raise RegistryError(f"source names transport {transport_name!r}, which nothing registers")
+    from .workflow.text_in import run_text_source
+
+    return run_text_source(cfg, entry, ctype, transports[transport_name])
 
 
 __all__ = [
-    "PODCAST_ONLY",
-    "item_content_type",
-    "is_wanted",
+    "AD_CLEANING",
     "BUILTIN_TRANSPORTS",
     "BUILTIN_TYPES",
     "ContentType",
+    "GI",
     "ItemContext",
+    "KG",
     "ListItems",
     "NoTextRunner",
     "PODCAST",
     "PODCAST_EPISODE",
     "PODCAST_ITEM",
+    "PODCAST_ONLY",
     "RSS_ENCLOSURE",
     "RegistryError",
+    "STAGES",
+    "SUMMARY",
     "SourceItem",
     "StageProfile",
+    "TRANSLATION",
     "Transport",
     "UnknownContentType",
     "content_type",
     "current_item",
+    "is_wanted",
+    "item_content_type",
+    "item_id",
     "processing_item",
     "registry",
     "run_source",
+    "stage_runs",
+    "url_identity",
 ]

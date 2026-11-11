@@ -29,6 +29,8 @@ from typing import (
     Tuple,
 )
 
+from .content_types import AD_CLEANING, GI, stage_runs
+
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
 #: ``(corpus_root)``. Corpus-wide derivations from what is on disk, once the run's (or the
@@ -274,6 +276,12 @@ class PipelineHooks:
     split_person_list: Optional[SplitPersonList] = None
 
 
+def _profile_runs(stage: str) -> bool:
+    """The current item's stage profile decides whether a stage's hooks run (ADR-177 decision 7);
+    a podcast's profile runs every stage, so its calls are unchanged."""
+    return stage_runs(stage)
+
+
 def _all() -> Iterator[PipelineHooks]:
     from podcast_scraper.extensions import load_extensions
 
@@ -410,7 +418,10 @@ def adfree_base(
     extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[Tuple[str, Any]]:
     """The ``adfree_base`` stage hook: the first owner that sets it answers (built-in, then
-    extensions in load order); without one, ``None``."""
+    extensions in load order); without one, or for an item whose profile has no ad cleaning,
+    ``None``."""
+    if not _profile_runs(AD_CLEANING):
+        return None
     for hooks in _all():
         if hooks.adfree_base is not None:
             return hooks.adfree_base(
@@ -428,7 +439,9 @@ def excise_ads(
 ) -> Tuple[str, Optional[List[Dict[str, Any]]], Any]:
     """The ``excise_ads`` stage hook: the first owner that sets it answers (built-in, then
     extensions in load order); without one, ``(text, segments,
-    NoAdExcision(source_length=len(text)))``."""
+    NoAdExcision(source_length=len(text)))``, as for an item whose profile has no ad cleaning."""
+    if not _profile_runs(AD_CLEANING):
+        return text, segments, NoAdExcision(source_length=len(text))
     for hooks in _all():
         if hooks.excise_ads is not None:
             return hooks.excise_ads(text, segments=segments)
@@ -487,8 +500,10 @@ def remove_commercials(
     host_speaker_id: Optional[str] = None,
     confidence_threshold: Optional[float] = None,
 ) -> str:
-    """The ``remove_commercials`` stage hook: the first owner that sets it answers; without one the
-    text is returned unchanged."""
+    """The ``remove_commercials`` stage hook: the first owner that sets it answers; without one, or
+    for an item whose profile has no ad cleaning, the text is returned unchanged."""
+    if not _profile_runs(AD_CLEANING):
+        return text
     for hooks in _all():
         if hooks.remove_commercials is not None:
             return hooks.remove_commercials(
@@ -507,8 +522,10 @@ def excise_crosspromo(
     host_speaker_id: Optional[str] = None,
     extra_cue_patterns: Optional[List[str]] = None,
 ) -> str:
-    """The ``excise_crosspromo`` stage hook: the first owner that sets it answers; without one the
-    text is returned unchanged."""
+    """The ``excise_crosspromo`` stage hook: the first owner that sets it answers; without one, or
+    for an item whose profile has no ad cleaning, the text is returned unchanged."""
+    if not _profile_runs(AD_CLEANING):
+        return text
     for hooks in _all():
         if hooks.excise_crosspromo is not None:
             return hooks.excise_crosspromo(
@@ -756,7 +773,9 @@ def carry_speaker_identity(new: Sequence[Any], old: Sequence[Any]) -> List[Dict[
 
 def episode_insights(**context: Any) -> Optional[Tuple[Any, ...]]:
     """The ``episode_insights`` stage hook: the first owner that sets it answers (built-in, then
-    extensions in load order); without one, ``None``."""
+    extensions in load order); without one, or for an item whose profile has no GI, ``None``."""
+    if not _profile_runs(GI):
+        return None
     for hooks in _all():
         if hooks.episode_insights is not None:
             return hooks.episode_insights(**context)

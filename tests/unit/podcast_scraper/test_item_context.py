@@ -19,7 +19,7 @@ from podcast_scraper.workflow.types import ProcessingJob
 pytestmark = pytest.mark.unit
 
 TEXT = ct.ContentType(
-    name="fixture_text",
+    name="test_text_item",
     id_scheme="item",
     stage_profile=ct.StageProfile(name="text", stages=frozenset({"summary", "kg"})),
     default_transport="fixture_feed",
@@ -38,7 +38,7 @@ def test_a_job_with_no_item_is_processed_as_a_podcast() -> None:
 
 
 def test_an_item_is_current_for_the_block_and_reset_after() -> None:
-    item = ct.ItemContext(content_type=TEXT, item_id="item:fixture_text:1", body_path="/b.txt")
+    item = ct.ItemContext(content_type=TEXT, item_id="item:test_text_item:1", body_path="/b.txt")
     with ct.processing_item(item):
         assert ct.current_item() is item
         assert not ct.current_item().content_type.stage_profile.runs("diarization")
