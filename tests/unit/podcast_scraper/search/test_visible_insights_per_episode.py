@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -46,8 +47,13 @@ def test_a_membership_test_reads_only_that_episode(
     two_episodes: dict[str, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     read: list[Path | None] = []
-    real = cs._visible_in_episode
-    monkeypatch.setattr(cs, "_visible_in_episode", lambda p: read.append(p) or real(p))
+    real: Callable[[Path | None], frozenset] = cs._visible_in_episode
+
+    def counting(path: Path | None) -> frozenset:
+        read.append(path)
+        return real(path)
+
+    monkeypatch.setattr(cs, "_visible_in_episode", counting)
     visible = cs._VisibleInsights(two_episodes)
     assert ("e1", "i1") in visible
     assert ("e1", "i2-hidden") not in visible
