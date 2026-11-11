@@ -427,9 +427,12 @@ def corpus_root_from_cfg(cfg: Any) -> Optional[str]:
     out = getattr(cfg, "output_dir", None)
     if not out:
         return None
+    from ..utils.filesystem import corpus_root_of_workspace
+
     p = Path(str(out)).resolve()
-    if p.parent.name == "feeds" and p.parent.parent.name:
-        return str(p.parent.parent)
+    root = corpus_root_of_workspace(p)
+    if root is not None:
+        return str(root)
     if getattr(cfg, "single_feed_uses_corpus_layout", False):
         return str(p)
     return None

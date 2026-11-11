@@ -247,8 +247,9 @@ def corpus_parent_for_manifest_stamp_from_cfg(cfg: "config.Config") -> Optional[
     # multi-feed loops: cli.py's own, the prod nightly path, and service.run_multi_feed)
     # rebases child output_dir to <corpus>/feeds/<slug> with the flag off, and flag-only
     # gating left every batch child resolving None.
-    if out.parent.name == "feeds" and out.parent.parent.name:
-        return str(out.parent.parent)
+    root = filesystem.corpus_root_of_workspace(out)
+    if root is not None:
+        return str(root)
     if getattr(cfg, "single_feed_uses_corpus_layout", False):
         return str(out)
     if (out / "feeds").is_dir():
@@ -273,7 +274,7 @@ def is_multi_feed_batch_child(cfg: "config.Config") -> bool:
     ):
         return False
     out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
-    return out.parent.name == "feeds" and bool(out.parent.parent.name)
+    return filesystem.corpus_root_of_workspace(out) is not None
 
 
 def upsert_corpus_manifest_feed(

@@ -236,3 +236,47 @@ def test_a_text_items_kg_is_written_in_kg_3(tmp_path: Path) -> None:
 
     docs = {d["episode"]["guid"]: d for d in _metadata_docs(corpus)}
     assert docs["item:test_text_item:one"]["knowledge_graph"]["schema_version"] == "3.0"
+
+
+def test_a_text_sources_workspace_resolves_to_its_corpus_root(tmp_path: Path) -> None:
+    """The corpus-root resolvers know sources/TYPE/SLUG as well as feeds/SLUG: a batch child of
+    another type is a batch child, and its manifest stamp and skip-existing scope are the corpus."""
+    from podcast_scraper.utils import filesystem
+    from podcast_scraper.workflow import corpus_operations, run_index
+
+    corpus = tmp_path / "corpus"
+    url = "https://example.com/fixture-source"
+    workspace = filesystem.corpus_source_output_dir(str(corpus), url, "test_text_item")
+    cfg = config.Config(rss=url, output_dir=workspace)
+    root = str(Path(filesystem.validate_and_normalize_output_dir(str(corpus))))
+    assert corpus_operations.is_multi_feed_batch_child(cfg)
+    assert corpus_operations.corpus_parent_for_manifest_stamp_from_cfg(cfg) == root
+    assert run_index.corpus_root_from_cfg(cfg) == root
+
+
+def test_a_service_run_text_source_moves_the_cache_token(tmp_path: Path) -> None:
+    """A text source given through a service config stamps the corpus manifest at the corpus
+    root, so the corpus_mtime token the caches key on moves, as for a podcast feed."""
+    from podcast_scraper import service
+    from podcast_scraper.perf_cache import corpus_mtime
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "feeds").mkdir()  # an existing corpus: the parent holds feeds/
+    url = "https://example.com/fixture-source"
+    cfg = config.Config.model_validate(
+        {
+            "rss_urls": [{"url": url, "content_type": "test_text_item"}],
+            "output_dir": str(corpus),
+            "single_feed_uses_corpus_layout": True,
+            "generate_metadata": True,
+            "generate_summaries": False,
+        }
+    )
+    before = corpus_mtime(corpus)
+    with use_extensions([_ext(_transport([]))]):
+        result = service.run(cfg)
+    assert result.success, result.error
+    assert (corpus / "corpus_manifest.json").is_file()
+    assert corpus_mtime(corpus) > before
+    assert not (corpus / "sources" / "test_text_item" / "corpus_manifest.json").exists()
