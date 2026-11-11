@@ -156,7 +156,7 @@ ml = [
   "spacy>=3.8.18,<4.0.0",
   # preshed 3.0.14 makes spaCy 3.8.16 raise OverflowError while loading en_core_web_sm;
   # 3.0.13 loads it. Lift when a preshed release loads the model again.
-  "preshed>=3.0.13,<3.0.14",
+  "preshed>=3.0.15,<3.0.16",
   # spaCy's CLI imports ``click`` via typer (``spacy/cli/_util.py``).
   # typer-0.26.0+ dropped click from its hard deps in favour of having
   # consumers depend on it directly. The cloud-thin / API images still
