@@ -153,10 +153,11 @@ def test_no_corpus_scanner_walks_without_the_exclusion_rule() -> None:
             continue
         source = path.read_text(encoding="utf-8")
         walks = _raw_walks(ast.parse(source))
-        # An os.walk that prunes with the rule is fine; nothing else is.
+        # An os.walk that prunes with the corpus rule (dot-directories, and sources/ at the root)
+        # is fine; nothing else is.
         lines = source.splitlines()
         for n in walks:
-            if "os.walk" in lines[n - 1] and "prune_excluded_dirs" in source:
+            if "os.walk" in lines[n - 1] and "prune_corpus_dirs" in source:
                 continue
             offenders.append(f"{rel}:{n}: {lines[n - 1].strip()}")
-    assert not offenders, "use corpus_rglob / prune_excluded_dirs:\n" + "\n".join(offenders)
+    assert not offenders, "use corpus_rglob / prune_corpus_dirs:\n" + "\n".join(offenders)

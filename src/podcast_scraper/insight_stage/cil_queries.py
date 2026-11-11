@@ -32,7 +32,7 @@ from podcast_scraper.server.corpus_catalog import (
     _verified_artwork_relpath,
 )
 from podcast_scraper.translation.provenance import translated_from
-from podcast_scraper.utils.corpus_walk import prune_excluded_dirs
+from podcast_scraper.utils.corpus_walk import prune_corpus_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,7 @@ def iter_cil_episode_bundles(
 
     bridge_paths: list[str] = []
     for dirpath, dirnames, filenames in os.walk(anchor_s):
-        prune_excluded_dirs(dirnames)
+        prune_corpus_dirs(anchor_s, dirpath, dirnames)
         dnorm = os.path.normpath(dirpath)
         if dnorm != anchor_s and not dnorm.startswith(anchor_prefix):
             continue
@@ -325,7 +325,7 @@ def iter_cil_bridge_bundles(
 
     bridge_paths: list[str] = []
     for dirpath, dirnames, filenames in os.walk(anchor_s):
-        prune_excluded_dirs(dirnames)
+        prune_corpus_dirs(anchor_s, dirpath, dirnames)
         dnorm = os.path.normpath(dirpath)
         if dnorm != anchor_s and not dnorm.startswith(anchor_prefix):
             continue
