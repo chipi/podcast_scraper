@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://podcast-scraper.dev/schemas/kg.v3.schema.json",
+  "title": "Knowledge Graph Layer Item Artifact, KG 3.0 (ontology v3)",
+  "description": "Per-item KG for any content type (ontology v3, docs/architecture/corpus/ontology-v3.md; ADR-178). Source and ContentItem replace Podcast and Episode; HAS_ITEM, PARTICIPATES_IN, CONTRIBUTES_TO and PUBLISHED_BY replace HAS_EPISODE, HOSTS and GUESTS_ON; roles are an open string; organisations carry external identifiers; item times are kept apart. KG 2.x artifacts are validated by kg.schema.json and read as v3 by one adapter.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "item_id", "content_type", "extraction", "nodes", "edges"],
+  "properties": {
+    "schema_version": { "const": "3.0" },
+    "item_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The content item's id: the pipeline episode id for podcasts, the item id for other types (T-8)."
+    },
+    "content_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "podcast_episode, news_article, … (T-1)."
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_version", "extracted_at", "document_ref", "variant"],
+      "properties": {
+        "model_version": {
+          "oneOf": [
+            { "const": "metadata_only" },
+            { "const": "no_extractor" },
+            { "type": "string", "pattern": "^provider:.+" }
+          ]
+        },
+        "extracted_at": { "type": "string", "minLength": 1 },
+        "document_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The item's body document the extraction read (a transcript, an article body)."
+        },
+        "variant": {
+          "type": "string",
+          "minLength": 1,
+          "description": "raw, cleaned, adfree, or a translation's language tag."
+        }
+      }
+    },
+    "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+  },
+  "$defs": {
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "role": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Open vocabulary. Known: host, guest, speaker, author, mentioned (people); mentioned, publisher (organisations)."
+    },
+    "time": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601. Absent when unknown, never guessed."
+    },
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/source_node" },
+        { "$ref": "#/$defs/content_item_node" },
+        { "$ref": "#/$defs/person_node" },
+        { "$ref": "#/$defs/organization_node" },
+        { "$ref": "#/$defs/object_node" },
+        { "$ref": "#/$defs/topic_node" }
+      ]
+    },
+    "source_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(podcast|source):.+" },
+        "type": { "const": "Source" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title"],
+          "properties": {
+            "title": { "type": "string", "minLength": 1 },
+            "source_kind": { "type": "string", "minLength": 1 },
+            "transport": { "type": "string", "minLength": 1 },
+            "url": { "type": "string" }
+          }
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "content_item_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(episode|item):.+" },
+        "type": { "const": "ContentItem" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title", "content_type", "source_id"],
+          "properties": {
+            "title": { "type": "string", "minLength": 1 },
+            "content_type": { "type": "string", "minLength": 1 },
+            "source_id": { "type": "string", "minLength": 1 },
+            "feed_id": { "type": "string" },
+            "url": { "type": "string" },
+            "published_at": { "$ref": "#/$defs/time" },
+            "filed_at": { "$ref": "#/$defs/time" },
+            "period_start": { "$ref": "#/$defs/time" },
+            "period_end": { "$ref": "#/$defs/time" },
+            "observed_at": { "$ref": "#/$defs/time" },
+            "ingested_at": { "$ref": "#/$defs/time" },
+            "audio_url": { "type": "string" },
+            "duration_ms": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "named_properties": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "role": { "$ref": "#/$defs/role" },
+        "description": { "type": "string", "maxLength": 4000 }
+      }
+    },
+    "person_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^person:.+" },
+        "type": { "const": "Person" },
+        "properties": {
+          "allOf": [{ "$ref": "#/$defs/named_properties" }],
+          "unevaluatedProperties": false
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "organization_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^org:.+" },
+        "type": { "const": "Organization" },
+        "properties": {
+          "allOf": [{ "$ref": "#/$defs/named_properties" }],
+          "properties": {
+            "identifiers": {
+              "type": "array",
+              "description": "Kept side by side, never merged into one key (DECISIONS rule 17).",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["scheme", "value"],
+                "properties": {
+                  "scheme": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "domain, cik, ticker, lei, wikidata, …"
+                  },
+                  "value": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          },
+          "unevaluatedProperties": false
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "object_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^object:.+" },
+        "type": { "const": "Object" },
+        "properties": {
+          "allOf": [{ "$ref": "#/$defs/named_properties" }],
+          "unevaluatedProperties": false
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "topic_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^topic:.+" },
+        "type": { "const": "Topic" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label", "slug"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1 },
+            "slug": { "type": "string", "minLength": 1 },
+            "description": { "type": "string", "maxLength": 4000 }
+          }
+        },
+        "confidence": { "$ref": "#/$defs/confidence" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "from", "to"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "HAS_ITEM",
+            "PARTICIPATES_IN",
+            "CONTRIBUTES_TO",
+            "PUBLISHED_BY",
+            "MENTIONS",
+            "RELATED_TO"
+          ]
+        },
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": { "role": { "$ref": "#/$defs/role" } }
+        }
+      }
+    },
+    "edge_class_metadata": {
+      "description": "Non-validating: each edge type's edge_class (ontology v3).",
+      "classes": {
+        "HAS_ITEM": "structural",
+        "PARTICIPATES_IN": "attribution",
+        "CONTRIBUTES_TO": "structural",
+        "PUBLISHED_BY": "structural",
+        "MENTIONS": "discovery",
+        "RELATED_TO": "discovery"
+      }
+    }
+  }
+}
