@@ -7,7 +7,7 @@
   - [ADR-168](../adr/ADR-168-installed-extensions.md) (installed extensions)
   - [ADR-170](../adr/ADR-170-private-repo-split-platform-common-apps.md) (the private repo split)
   - [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) (the seams built for release 1)
-  - ADR-177 to ADR-180, proposed below
+  - ADR-177 to ADR-181, proposed below
 - **Related RFCs**:
   - [RFC-131](RFC-131-person-identity-one-home.md) (person identity, one home)
 - **Related Documents**:
@@ -296,6 +296,23 @@ recent items on 2026-11-11.
 
 Fixtures and invented items, as for podcasts, cover the same shapes in CI.
 
+### 13. Later types this design must fit
+
+News is the first type built on these seams, not the only one they serve. Each later type below is
+out of scope here. Each is a check that this release builds nothing a later type would have to
+undo.
+
+| Later type | Transport | What it needs from this release | Where |
+| --- | --- | --- | --- |
+| Company filings (annual, quarterly and current reports) | SEC EDGAR's public JSON APIs | a cursor of filing date and accession number; a required contact header and a request budget; ids from the accession number; evidence by page and section; period-covered and filed times; company identifiers (CIK, ticker, LEI) | §2, §3, §6, §8; ADR-177, ADR-178 |
+| Reports and presentations (HTML, PDF) | HTTP documents | evidence by page and section; a type's own fields under its key | §5, §6; ADR-178, ADR-181 |
+| Earnings-call and other recorded audio | investor-relations webcasts | the podcast audio stages run for another type; roles beyond host and guest (executive, analyst) | §1, §6, §8; ADR-177, ADR-180 |
+| Social posts | AT Protocol, ActivityPub | short items, authors as people; a transport with its own cursor | §3, §8; ADR-177, ADR-180 |
+| Reported figures (structured facts) | EDGAR company facts | organisations with external identifiers; time kept apart | §8; ADR-178. The fact model itself comes with structured intelligence. |
+
+Every surface and tool that lists or searches items takes a type filter (§9). A later product can
+then read these types through the platform's API and MCP, the way the podcast apps read episodes.
+
 ## Proof
 
 1. **Podcast artifacts byte-identical** on a snapshot clone, with and without the private extension.
@@ -335,6 +352,7 @@ Fixtures and invented items, as for podcasts, cover the same shapes in CI.
 | ADR-178 | Ontology v4 is adopted in two halves: the schema now (new types write it, readers accept both), the podcast corpus migration later |
 | ADR-179 | Article text is extracted with trafilatura and a readability fallback; it is stored for enrichment and never served |
 | ADR-180 | Bylines join people within their publisher, as hosts within their show; publishers are organisations across media |
+| ADR-181 | A content type's own fields live with the type: under a key named for it in files, in its module's table or one JSON column in the database; never a column per type on the shared item |
 
 ## Not covered yet
 
