@@ -230,6 +230,12 @@ over one RSS/Atom transport, in fixtures. News 1.0 then only registers its type 
 - **The extracted text:** stored with the item as its body artifact, the way a transcript is,
   with paragraph segments that carry no times. Evidence then anchors to a segment range for every
   type (DECISIONS rule 3), and the corpus database's importer has one path for both. Never served.
+- **The fetched page is kept** (the operator, 2026-11-11): the raw HTML, or the API's JSON record,
+  sits beside the extracted text as the item's raw cache. A better extractor, or a fix from stored
+  evidence, then re-runs without a re-fetch, which could return a corrected article or a paywall.
+  - Not served, like the body.
+  - Moved to the archive store, as audio is, once news ingestion is stable. Not before: the first
+    deploys and source onboarding will reprocess often.
 - **The corpus token:** each run through the text-in entry point rewrites the corpus run summary,
   so the caches' corpus token moves as it does after an ingest (`perf_cache.corpus_mtime`).
 
@@ -310,8 +316,10 @@ The core release builds this section (R3a).
   - no change to the existing tables' schema, so no index version bump and no prod reindex;
   - podcast search cannot return news unless a query asks for it;
   - news can be dropped or rebuilt by itself.
-- **News rows hold the summary and metadata for display; the article chunks are embedded for
-  retrieval but store no text.** A hit shows the summary, never body text.
+- **News chunk rows keep their text** (the operator, 2026-11-11), so news bodies get the same
+  keyword (full-text) and vector search as podcast transcripts. The text is used for retrieval
+  only: the search response for a news hit carries the summary and metadata, never the chunk text.
+  The never-served rule (§10) is enforced at the response layer.
 - **Cross-type search queries both and merges,** as the non-English table's results are merged.
   Results carry `content_type`; the default is podcast items only.
 - **No new store:** the database search (E09) later takes all types together.
@@ -328,8 +336,10 @@ The core release builds this section (R3a).
 - **Never shown: the article body. The measurable rule:**
   - no route or MCP response holds more than a stated number of contiguous characters of a news
     item's body (set with the first snippets in News 2.0; in News 1.0, none);
-  - news search rows store no body text;
-  - the corpus text-file route refuses a news body.
+  - a search hit on a news chunk returns the item's summary and metadata, not the chunk's text;
+  - the corpus text-file route refuses a news body and its raw page.
+  - A test runs every route and MCP tool over a news fixture whose body holds a unique marker
+    string, and fails if any response contains it.
 - **The public viewer** gets a basic news card and the type in search. **The private viewer** gets
   its own card.
 
@@ -409,7 +419,7 @@ A read of the code at public 0357b8a96.
 | 1 | `episode_processor.process_episode_download` (no transcript, no enclosure) | returns nothing, with no error and no metadata | news never reaches it: the text-in entry point (§1) builds the processing job from the extracted body |
 | 2 | `transcript_source` Literal (`workflow/types.py:90`, `metadata_generation.py:640`) | a validation error on any new source | widen it to a body source that includes extraction |
 | 3 | GI quotes with no segments (`gi/pipeline.py`, `_char_range_to_ms`) | written with fabricated 0 ms timestamps and a transcript reference, and they pass the 3.1 schema | v3 (§6): no time range when untimed |
-| 4 | The search indexer's body chunks (`search/indexer.py`) and the corpus text-file route (`GET /corpus/text-file`) | would return article text in search hits and as a raw file | news rows in news tables of their own that store no body text; a hit shows the summary; the text-file route refuses a news body (§9, §10, ADR-179) |
+| 4 | The search indexer's body chunks (`search/indexer.py`) and the corpus text-file route (`GET /corpus/text-file`) | would return article text in search hits and as a raw file | news rows in news tables of their own; a news hit returns its summary, never chunk text; the text-file route refuses a news body (§9, §10, ADR-179) |
 | 5 | Ad excision inside summary, KG and GI (three call sites) | would cut "pre-roll" and "post-roll" from article text | skipped by the stage profile |
 | 6 | `rss/parser.parse_rss_items` | an Atom feed gives zero items, silently | the news RSS/Atom transport reads feeds with `feedparser`; the podcast parser stays as it is |
 | 7 | The feed language gate | refuses a whole source that declares no language, which every JSON API does | language comes from the transport or the item |
@@ -598,7 +608,7 @@ the test policy and network isolation.
    - an organisation as author is the publisher;
    - no byline joins a podcast person without the general rule;
    - a news-only pair of people gets the mention co-occurrence guard's verdict.
-7. **Search:** podcast only by default; both types when asked; the news tables store no body text.
+7. **Search:** podcast only by default; both types when asked; keyword and vector search over news bodies; a news hit returns its summary, not chunk text.
 8. **Never served:** the measurable rule (§10) asserted on every route and MCP tool.
 9. **Rights:** `serveable` and `mineable` honoured; teaser items never chunked or enriched as whole.
 
