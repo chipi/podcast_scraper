@@ -22,6 +22,7 @@ from typing import (
     Iterator,
     List,
     Literal,
+    Mapping,
     Optional,
     Protocol,
     Sequence,
@@ -208,6 +209,9 @@ BatchCompletedHook = Callable[[Any, Any, Any], Any]
 #: ``(root, *, after, log) -> bool``: refresh the identity ledger after a corpus run (``upgrade
 #: run``, an enrichment). One owner; run by :func:`podcast_scraper.cli_hooks.ledger_refresh`.
 LedgerRefresh = Callable[..., bool]
+#: ``{provider class path: (methods class path, ...)}``: the stage methods a provider class
+#: gains (``providers.extensible``, E04 S1). Every owner's are merged, built-in first.
+ProviderMethods = Mapping[str, Sequence[str]]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -278,6 +282,7 @@ class PipelineHooks:
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
     ledger_refresh: Optional[LedgerRefresh] = None
+    provider_methods: ProviderMethods = field(default_factory=dict)
 
 
 def _profile_runs(stage: str) -> bool:
@@ -295,6 +300,17 @@ def _all() -> Iterator[PipelineHooks]:
     for ext in load_extensions():
         if ext.pipeline_hooks is not None:
             yield ext.pipeline_hooks
+
+
+def provider_methods() -> Dict[str, Tuple[str, ...]]:
+    """Every owner's provider methods (``PipelineHooks.provider_methods``), built-in first, each
+    class's list in owner order without repeats."""
+    out: Dict[str, List[str]] = {}
+    for hooks in _all():
+        for cls_path, paths in hooks.provider_methods.items():
+            have = out.setdefault(cls_path, [])
+            have.extend(p for p in paths if p not in have)
+    return {k: tuple(v) for k, v in out.items()}
 
 
 def run_started(cfg: Any) -> None:

@@ -188,9 +188,9 @@ def _build_speaker_detector(  # noqa: C901
                 speaker_detector_provider="spacy",
                 ner_model=params.model_name,
             )
-            provider = MLProvider(cfg)
+            provider = cast(SpeakerDetector, MLProvider(cfg))
         else:
-            provider = MLProvider(cfg)
+            provider = cast(SpeakerDetector, MLProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -211,9 +211,9 @@ def _build_speaker_detector(  # noqa: C901
                 openai_temperature=params.temperature if params.temperature is not None else 0.3,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),  # Load from env
             )
-            provider = OpenAIProvider(cfg)
+            provider = cast(SpeakerDetector, OpenAIProvider(cfg))
         else:
-            provider = OpenAIProvider(cfg)
+            provider = cast(SpeakerDetector, OpenAIProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -236,9 +236,9 @@ def _build_speaker_detector(  # noqa: C901
                 gemini_temperature=params.temperature if params.temperature is not None else 0.3,
                 gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
             )
-            provider = GeminiProvider(cfg)
+            provider = cast(SpeakerDetector, GeminiProvider(cfg))
         else:
-            provider = GeminiProvider(cfg)
+            provider = cast(SpeakerDetector, GeminiProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -261,9 +261,9 @@ def _build_speaker_detector(  # noqa: C901
                 mistral_temperature=params.temperature if params.temperature is not None else 0.3,
                 mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
             )
-            provider = MistralProvider(cfg)
+            provider = cast(SpeakerDetector, MistralProvider(cfg))
         else:
-            provider = MistralProvider(cfg)
+            provider = cast(SpeakerDetector, MistralProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -284,9 +284,9 @@ def _build_speaker_detector(  # noqa: C901
                 grok_temperature=params.temperature if params.temperature is not None else 0.3,
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
             )
-            provider = GrokProvider(cfg)
+            provider = cast(SpeakerDetector, GrokProvider(cfg))
         else:
-            provider = GrokProvider(cfg)
+            provider = cast(SpeakerDetector, GrokProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -307,9 +307,9 @@ def _build_speaker_detector(  # noqa: C901
                 deepseek_temperature=params.temperature if params.temperature is not None else 0.3,
                 deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),  # Load from env
             )
-            provider = DeepSeekProvider(cfg)
+            provider = cast(SpeakerDetector, DeepSeekProvider(cfg))
         else:
-            provider = DeepSeekProvider(cfg)
+            provider = cast(SpeakerDetector, DeepSeekProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -332,9 +332,9 @@ def _build_speaker_detector(  # noqa: C901
                 groq_temperature=params.temperature if params.temperature is not None else 0.3,
                 groq_api_key=os.getenv("GROQ_API_KEY"),  # Load from env
             )
-            provider = GroqProvider(cfg)
+            provider = cast(SpeakerDetector, GroqProvider(cfg))
         else:
-            provider = GroqProvider(cfg)
+            provider = cast(SpeakerDetector, GroqProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -355,9 +355,9 @@ def _build_speaker_detector(  # noqa: C901
                 ollama_temperature=params.temperature if params.temperature is not None else 0.3,
                 ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
             )
-            provider = OllamaProvider(cfg)
+            provider = cast(SpeakerDetector, OllamaProvider(cfg))
         else:
-            provider = OllamaProvider(cfg)
+            provider = cast(SpeakerDetector, OllamaProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
@@ -371,7 +371,7 @@ def _build_speaker_detector(  # noqa: C901
                 "vLLM speaker detector is not wired for experiment-param mode; drive it with a "
                 "Config using speaker_detector_provider='vllm' and the vllm_* settings."
             )
-        provider = VLLMProvider(cfg)
+        provider = cast(SpeakerDetector, VLLMProvider(cfg))
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "litellm":
@@ -383,7 +383,7 @@ def _build_speaker_detector(  # noqa: C901
                 "LiteLLM speaker detector is not wired for experiment-param mode; drive it with a "
                 "Config using speaker_detector_provider='litellm' and the litellm_* settings."
             )
-        provider = LiteLLMProvider(cfg)
+        provider = cast(SpeakerDetector, LiteLLMProvider(cfg))
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "qwen":
@@ -395,7 +395,7 @@ def _build_speaker_detector(  # noqa: C901
                 "Qwen speaker detector is not wired for experiment-param mode; drive it with a "
                 "Config using speaker_detector_provider='qwen' and the qwen_* settings."
             )
-        provider = QwenProvider(cfg)
+        provider = cast(SpeakerDetector, QwenProvider(cfg))
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
         return provider
     elif provider_type == "anthropic":
@@ -418,9 +418,9 @@ def _build_speaker_detector(  # noqa: C901
                 ),
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
             )
-            provider = AnthropicProvider(cfg)
+            provider = cast(SpeakerDetector, AnthropicProvider(cfg))
         else:
-            provider = AnthropicProvider(cfg)
+            provider = cast(SpeakerDetector, AnthropicProvider(cfg))
 
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")

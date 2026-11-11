@@ -52,6 +52,7 @@ from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
 from ..common.transcript_cache import anthropic_style_system as _anthropic_style_system
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ from ._anthropic_provider_calls import (  # noqa: F401 - re-exported: moved ther
     _anthropic_finish_reason,
     _record_anthropic_llm_call,
 )
-from .anthropic_provider_gi_naming import AnthropicProviderGiNamingMethods
+from .anthropic_provider_gi_naming import AnthropicProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
 
@@ -74,7 +75,7 @@ from .anthropic_provider_gi_naming import AnthropicProviderGiNamingMethods
 _TEMPERATURE_DEPRECATED_SEED = frozenset({"claude-sonnet-5", "claude-opus-4-8"})
 
 
-class AnthropicProvider(AnthropicProviderGiNamingMethods):
+class AnthropicProvider(ExtensibleProvider):
     """Unified Anthropic provider: SpeakerDetector and SummarizationProvider (no transcription).
 
     Manages Claude chat models for speaker detection and summarization. All capabilities

@@ -43,8 +43,9 @@ from ..common.summary_use_case import (
     use_case_from_params,
     use_case_prompt_metadata,
 )
+from ..extensible import ExtensibleProvider
 from . import summarizer
-from .ml_provider_gi_naming import MLProviderGiNamingMethods
+from .ml_provider_gi_naming import MLProviderGiNamingMethods  # noqa: F401
 from .model_registry import ModelRegistry
 from .whisper_utils import normalize_whisper_model_name
 
@@ -174,7 +175,7 @@ def _guard_supported_languages(
     )
 
 
-class MLProvider(MLProviderGiNamingMethods):
+class MLProvider(ExtensibleProvider):
     """Unified ML provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
 
     This provider initializes and manages:

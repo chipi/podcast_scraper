@@ -63,6 +63,7 @@ from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -74,12 +75,12 @@ from ._gemini_provider_calls import (  # noqa: F401 - re-exported: moved there w
     _should_bound_thinking_for_pro,
     _should_disable_thinking_for_model,
 )
-from .gemini_provider_gi_naming import GeminiProviderGiNamingMethods
+from .gemini_provider_gi_naming import GeminiProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
-class GeminiProvider(GeminiProviderGiNamingMethods):
+class GeminiProvider(ExtensibleProvider):
     """Unified Gemini provider: TranscriptionProvider, SpeakerDetector, SummarizationProvider.
 
     Uses Gemini native audio for transcription and chat models for speaker detection

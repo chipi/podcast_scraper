@@ -707,6 +707,34 @@ def _insight_grounding(
     )
 
 
+_P = "podcast_scraper.providers"
+#: Each provider class's GI and naming methods (E04 S1): registered here while they are in-tree,
+#: by the extension that owns them once they move.
+PROVIDER_METHODS = {
+    f"{_P}.anthropic.anthropic_provider.AnthropicProvider": (
+        f"{_P}.anthropic.anthropic_provider_gi_naming.AnthropicProviderGiNamingMethods",
+    ),
+    f"{_P}.gemini.gemini_provider.GeminiProvider": (
+        f"{_P}.gemini.gemini_provider_gi_naming.GeminiProviderGiNamingMethods",
+    ),
+    f"{_P}.grok.grok_provider.GrokProvider": (
+        f"{_P}.grok.grok_provider_gi_naming.GrokProviderGiNamingMethods",
+    ),
+    f"{_P}.mistral.mistral_provider.MistralProvider": (
+        f"{_P}.mistral.mistral_provider_gi_naming.MistralProviderGiNamingMethods",
+    ),
+    f"{_P}.ml.ml_provider.MLProvider": (
+        f"{_P}.ml.ml_provider_gi_naming.MLProviderGiNamingMethods",
+    ),
+    f"{_P}.ollama.ollama_provider.OllamaProvider": (
+        f"{_P}.ollama.ollama_provider_gi_naming.OllamaProviderGiNamingMethods",
+    ),
+    f"{_P}.openai.openai_provider.OpenAICompatibleProvider": (
+        f"{_P}.openai.openai_provider_gi_naming.OpenAICompatibleProviderGiNamingMethods",
+    ),
+}
+
+
 BUILTIN = PipelineHooks(
     name="builtin",
     run_started=(_validate_grounding_dependencies,),
@@ -754,4 +782,5 @@ BUILTIN = PipelineHooks(
     validate_labeling_profile=_validate_labeling_profile,
     kg_graph_passes=(_collapse_mentions_into_speakers,),
     split_person_list=_split_person_list,
+    provider_methods=PROVIDER_METHODS,
 )
