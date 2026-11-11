@@ -38,8 +38,9 @@ podcast path, which is what the seams exist to avoid.
 5. **News is public's second built-in type** (the operator, 2026-11-11). Its transports,
    extraction and stage profile live in public, and run on a public-only install. The private
    extension adds to it only what it adds to podcasts.
-6. **Every item records its type.** Item metadata carries `content_type`. Podcast metadata without
-   the field reads as `podcast_episode`.
+6. **Every item of a new type records its type.** Its metadata carries `content_type`. Podcast
+   metadata gains the field only with R3b; until then a document without it reads as
+   `podcast_episode`.
 7. **One dispatch point, and one item context.**
    - Both multi-feed loops pass each source through one dispatch point, which picks `run_pipeline`
      or the text-in entry point by type.
