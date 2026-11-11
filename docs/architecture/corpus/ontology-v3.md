@@ -87,7 +87,7 @@ Every evidence span (GI 4.0's quotes; any later evidence) carries:
 | `document_ref` | yes | the item's body document (the transcript, an article body; later a filing's main document or an exhibit) |
 | `variant` | yes | `raw`, `cleaned`, `adfree`, or a translation's language tag |
 | `char_start`, `char_end` | yes | the span in that document variant |
-| `start_ms`, `end_ms` | only for timed documents | both or neither; never 0 as a stand-in |
+| `start_ms`, `end_ms` | only for timed documents | both or neither; when present `end_ms > start_ms` (a start of 0 is real); an untimed document carries neither |
 | `page`, `section` | no | for paged or sectioned documents |
 | `text_origin` | yes | `spoken`, `translated` or `authored` (T-11) |
 
@@ -99,6 +99,25 @@ Every evidence span (GI 4.0's quotes; any later evidence) carries:
 - Untimed ones (articles) have paragraph segments with no times.
 - The corpus database stores the segment range and computes character offsets. File-mode
   artifacts carry the character range.
+- **File mode writes no segments file for an untimed document.** A paragraph is the text between
+  blank lines in the body. The corpus database's importer derives the segments by that rule, so a
+  character range maps to a segment range deterministically.
+
+## Ids, times and documents for a new type (agreed with ingestion, 2026-11-11)
+
+- **The type mints the item id, not the transport.**
+  - A transport returns its native id, or the canonical URL.
+  - The content type mints `item:{content_type}:{id}`. For an item identified by URL, `{id}` is
+    the first 20 hex characters of the SHA-256 of the normalised canonical URL; the URL itself is
+    kept in `url`.
+- **Item times** come from the transport in the item's metadata under the names above
+  (`published_at`, `filed_at`, `period_start`, `period_end`, `observed_at`). `ingested_at` is set by
+  the run.
+- **The body document:**
+  - The body of a text item sits where a transcript sits (`transcripts/`, one file per item), so
+    the existing resolver reads it.
+  - Its `document_ref` is that path, with `variant: raw`.
+  - Its evidence has `text_origin: authored`.
 
 ## Reading v2 artifacts as v3
 
