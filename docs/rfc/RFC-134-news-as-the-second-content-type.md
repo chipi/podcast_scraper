@@ -338,6 +338,9 @@ A read of the code at public 0357b8a96.
 | 8 | The catalog row (`CatalogEpisodeRow`) and the episode summary (`content_source`) | news shows as podcast episodes, "ready" with a podcast title | rows carry `content_type`; podcast surfaces filter on it |
 | 9 | Host and guest detection, the speakers validator, the show health check | bylines labelled as hosts; every item flagged with no host or no transcript | skipped or replaced by the stage profile; bylines go through ADR-180 |
 | 10 | `RssFeedEntry` and `Config` (`extra="forbid"`), and the two multi-feed loops (`service.py`, `cli.py`) | no place to declare a type or transport, and two loops to keep in step | the source declares `content_type` and `transport`; one dispatch point used by both loops |
+| 11 | Resume and de-duplication (`append_resume`, with ids from `get_episode_id_from_episode` over the RSS item) | every run re-processes or writes twice | the item id from the source's own id (§2) goes through the same skip; no separate seen-set |
+| 12 | Translation (`translation_stage`, converging in `generate_episode_metadata` on transcript variants) | undefined for an article; variant file names are transcript-named | the type's profile says whether an article is translated; variant names follow the body file |
+| 13 | Corpus integrity in the ops routes (`server/routes/ops.py`, missing artifacts) | may report every news item as missing a transcript or segments (not checked line by line) | expected artifacts per type |
 
 **Also affected:**
 
@@ -358,7 +361,46 @@ A read of the code at public 0357b8a96.
 - **The text-in entry point reuses:** the environment setup, the run manifest, the processing
   resources, the processing jobs (with the extracted body as their body file) and the finalisation.
   It replaces only the feed fetch and the download and transcription threads.
-- **Stage hooks get the item's type,** so no hook has to infer it.
+- **One item context, not a type argument on every hook** (ingestion's review):
+  - the processing job carries one item context: type, profile, item id and body path;
+  - the type's profile decides which hooks run at all;
+  - a hook that needs the type reads it from the context.
+  - Podcast calls stay byte-identical. "News never calls X" becomes a property of the profile,
+    which the guard tests directly.
+- **Built since this review, on ingestion's local branch** (`feat/prompt-and-cleaning-seams`,
+  behaviour-neutral, recorded in ADR-176, not pushed):
+  - `Extension.prompt_dirs`: the prompt store searches extensions' directories first, so a type's
+    prompt profile (§7) is a directory or a name prefix;
+  - five cleaning stage hooks: transcript cleaner, clean for summary, cleaning context, remove
+    commercials, cross-promotion excision. Place 5 (ad excision for news) is then a profile
+    decision: a news job does not call them.
+- **Cursors** are the transport's own, in one small file per source beside the source's runs,
+  written atomically. They do not move the caches' corpus token: `corpus_mtime` keys only on named
+  stamp files at the corpus root (`perf_cache.py`).
+- **The text-in entry point must move that token** the way an ingest does (the corpus run
+  summary), or the caches keep serving the corpus as it was before the news items. Reusing the
+  pipeline's finalisation gives this.
+- **Readers that are hard to make dual-version** are the ones that use quote times, which news
+  quotes do not have:
+  - the Player's moments and clips (seek by start time);
+  - the transcript-chunk lift (it matches by character overlap but carries times);
+  - the indexer's quote rows with times;
+  - strict-validation reads, which need the v4 schema beside 3.1.
+
+  Readers that use character ranges only are easy.
+
+**Sizes and order** (ingestion's judgement, not measured):
+
+| Step | Size |
+| --- | --- |
+| Content-type and transport registries, and the dispatch point | M |
+| R3a: schemas, dual-version readers, fixtures for both | M |
+| The text-in entry point (the processing job assumes a transcript path and an episode) | M–L |
+| The news type on the seams: transports, extraction, profile, prompts, viewer card | L |
+| Public's plain defaults | M |
+
+They come in that order. News is a public capability that does not depend on the move, so it can
+land before the move. That is the cut to make if the core release is split again.
 
 **Tests and guards to add.**
 
@@ -368,9 +410,16 @@ In order of importance:
 
 1. **The architecture guards** (unit and guardrails, on every PR):
    - **No podcast module for news:** an import probe cloned from
-     `test_public_imports_load_no_speaker_stage.py`, with transcription, preprocessing, audio sync,
-     ad cleaning, diarization, speaker detection and the audio download. Plus a runtime test that
-     runs a news item with those modules made to raise.
+     `test_public_imports_load_no_speaker_stage.py`. It names:
+     - the audio preprocessing subpackage (not all of preprocessing, whose core text cleaning public
+       keeps);
+     - the transcription providers;
+     - the speaker stage and diarization;
+     - commercial cleaning;
+     - audio sync;
+     - the audio download.
+
+     Plus a runtime test that runs a news item with those modules made to raise.
    - **The guard's own removal proof:** with a podcast stage wired in on purpose, the guard fires
      (`test_guard_capability.py`'s pattern).
    - **Public names no private package:** a test of the rule ADR-170 states but nothing enforces
@@ -477,7 +526,16 @@ the test policy and network isolation.
 ## Not covered yet
 
 - **The private extension's side:** GI v4 and identity joining for bylines, designed in that repo.
+  What it needs from public (ingestion's review):
+  - the prompt search path (built on ingestion's branch);
+  - the item context in the processing job;
+  - KG v4 in public, with roles and `ATTRIBUTED_TO`, since GI v4 refers to them;
+  - bylines as item metadata (role author), with the publisher's organisation id, because today's
+    speaker readers read transcript segments and have nothing for an article;
+  - the publisher-as-organisation mapping in public, so a show's organisation and a publication's
+    are one id.
 - **Who builds which part:** ingestion owns the pipeline and the move; to be agreed.
+- **The ops integrity check (place 13)** is not checked line by line.
 - **Volume and cost:** articles per day, enrichment cost per article, index growth. To be measured
   on the first month of fixtures and a dry run.
 - **Each source's terms of use** and the Guardian key.

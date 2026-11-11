@@ -40,6 +40,12 @@ podcast path, which is what the seams exist to avoid.
    extension adds to it only what it adds to podcasts.
 6. **Every item records its type.** Item metadata carries `content_type`. Podcast metadata without
    the field reads as `podcast_episode`.
+7. **One dispatch point, and one item context.**
+   - Both multi-feed loops pass each source through one dispatch point, which picks `run_pipeline`
+     or the text-in entry point by type.
+   - The processing job carries one item context (type, profile, item id, body path).
+   - The type's profile decides which stage hooks run; a hook that needs the type reads it from the
+     context. Hooks gain no type argument, so podcast calls stay byte-identical.
 
 ## Consequences
 
