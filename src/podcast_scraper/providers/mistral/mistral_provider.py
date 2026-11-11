@@ -76,6 +76,7 @@ from ...utils.cleaning_max_tokens import (
 )
 from ...utils.log_redaction import format_exception_for_log
 from ...workflow import metrics
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +86,12 @@ from ..common.transcript_cache import openai_style_messages as _openai_style_mes
 from ._mistral_provider_calls import (  # noqa: F401 - re-exported: moved there with S1
     _record_mistral_llm_call,
 )
-from .mistral_provider_gi_naming import MistralProviderGiNamingMethods
+from .mistral_provider_gi_naming import MistralProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Mistral models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
-class MistralProvider(MistralProviderGiNamingMethods):
+class MistralProvider(ExtensibleProvider):
     """Unified Mistral provider: TranscriptionProvider, SpeakerDetector, SummarizationProvider.
 
     Uses Voxtral for transcription and chat API for speaker detection and summarization.

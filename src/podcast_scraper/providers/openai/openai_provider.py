@@ -41,6 +41,7 @@ from ...utils.timeout_config import get_openai_client_timeout, get_single_chat_c
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +234,7 @@ from .openai_provider_gi_naming import (  # noqa: F401 - re-exported: moved ther
 )
 
 
-class OpenAICompatibleProvider(OpenAICompatibleProviderGiNamingMethods):
+class OpenAICompatibleProvider(ExtensibleProvider):
     """OpenAI-compatible transport shared by OpenAIProvider (OpenAI-native) and VLLMProvider
     (DGX-local open models). They are SIBLINGS, not parent/child — vLLM serves a wide family of
     non-OpenAI models, so it is not modelled as "an OpenAI thing" (ADR-147). Identity is set by

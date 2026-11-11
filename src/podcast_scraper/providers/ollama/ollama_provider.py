@@ -63,6 +63,7 @@ from ..common.summary_use_case import (
     use_case_stage,
 )
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ def _ollama_native_api_root(openai_compat_base: str) -> str:
     return u
 
 
-class OllamaProvider(OllamaProviderGiNamingMethods):
+class OllamaProvider(ExtensibleProvider):
     """Unified Ollama provider: SpeakerDetector and SummarizationProvider (no transcription).
 
     Uses Ollama chat API via OpenAI SDK. All capabilities share the same client.
