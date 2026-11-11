@@ -270,7 +270,7 @@ nav:
       - ADR-175 Several API workers: adr/ADR-175-several-api-workers.md
       - ADR-176 Extension seams for the split: adr/ADR-176-extension-seams-for-the-split.md
       - ADR-177 Content types and transports are seams: adr/ADR-177-content-types-and-transports-are-seams.md
-      - ADR-178 Ontology v4 in two halves: adr/ADR-178-ontology-v4-in-two-halves.md
+      - ADR-178 Ontology v3 in two halves: adr/ADR-178-ontology-v3-in-two-halves.md
       - ADR-179 Article text extracted, never served: adr/ADR-179-article-text-extracted-never-served.md
       - ADR-180 Bylines join within their publisher: adr/ADR-180-bylines-join-within-their-publisher.md
       - ADR-181 A content type's own fields: adr/ADR-181-a-content-types-own-fields.md

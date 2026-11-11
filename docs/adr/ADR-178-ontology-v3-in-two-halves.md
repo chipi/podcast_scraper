@@ -1,4 +1,4 @@
-# ADR-178: Ontology v4 is adopted in two halves: the schema now, the podcast corpus later
+# ADR-178: Ontology v3 is adopted in two halves: the schema now, the podcast corpus later
 
 - **Status**: Proposed
 - **Date**: 2026-11-11
@@ -8,7 +8,8 @@
 
 ## Context & Problem Statement
 
-Ontology v4 (the R3 step of the terminology refactor) makes evidence medium-neutral:
+Ontology v3 (the R3 step of the terminology refactor; named by decision T-7, which also moves the
+artifact schemas to GI 4.0 and KG 3.0) makes evidence medium-neutral:
 
 - evidence anchored by a character range in its item's text, with a time range only when the item
   is timed;
@@ -25,8 +26,8 @@ The migration is the large, risky part, and news only needs the schema.
 
 ## Decision
 
-1. **R3a, the schema, comes first.** Items of new types write v4 from the start. Every reader of
-   insights, quotes and entities accepts both versions. v4 is written so later types need no schema
+1. **R3a, the schema, comes first.** Items of new types write v3 from the start. Every reader of
+   insights, quotes and entities accepts both versions. v3 is written so later types need no schema
    bump:
    - **evidence locators:** a character range always, a time range when timed, and an optional page
      and section for documents;
@@ -34,13 +35,15 @@ The migration is the large, risky part, and news only needs the schema.
      ingested, each optional;
    - **person roles are an open vocabulary:** author, host, guest and participant now, others later;
    - **organisations hold external identifiers side by side:** web domain, CIK, ticker, LEI.
-2. **A 3.x artifact reads as v4:**
+2. **A GI 3.x artifact reads as v3:**
    - its quotes carry their character range and their time range;
    - `text_origin` is `spoken`;
    - nothing in the file changes.
-3. **Podcasts keep writing 3.x until R3b.**
-4. **R3b,** the podcast corpus migration to v4 under the change method, comes in a later release,
-   before or with the corpus database. The database schema is then designed once, against v4.
+3. **Podcasts keep writing GI 3.x until R3b.**
+4. **R3b,** the podcast corpus migration to v3 under the change method, comes in its own release,
+   strictly before the corpus database's importer. The importer then reads one version, and the
+   database schema is designed once, against v3. Landing R3b with the importer would migrate the
+   podcast corpus twice in one step.
 5. **Each schema stays with its owner.** KG's schema is public's and is versioned here. GI's moves
    with the private extension and follows these rules there.
 
@@ -48,7 +51,7 @@ The migration is the large, risky part, and news only needs the schema.
 
 - **Positive:**
   - news ships without the corpus migration and without a freeze for it;
-  - v4 is practised on real data in the file corpus before the database schema is fixed.
+  - v3 is practised on real data in the file corpus before the database schema is fixed.
 - **Negative:**
   - two versions live side by side until R3b, and every reader must handle both;
   - tests cover both versions on every route that reads insights or quotes.
