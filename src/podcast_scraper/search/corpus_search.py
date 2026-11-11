@@ -9,7 +9,19 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Container,
+    Dict,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 from podcast_scraper import perf_cache, read_hooks
 from podcast_scraper.search.cli_handlers import (
@@ -188,7 +200,7 @@ def _lift_stats_for_page(enriched: List[Dict[str, Any]]) -> Dict[str, int]:
     }
 
 
-def _visible_in(visible: frozenset, episode_id: str) -> Callable[[str], bool]:
+def _visible_in(visible: Container[Any], episode_id: str) -> Callable[[str], bool]:
     """``visible(insight_id)`` for one episode's insights."""
 
     def check(insight_id: str) -> bool:
@@ -205,7 +217,7 @@ def _enrich_lift_and_slice(
     *,
     top_k: int,
     dedupe_kg_surfaces: bool,
-    visible: Optional[frozenset] = None,
+    visible: Optional[Container[Any]] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
     from podcast_scraper.identity.display import person_display
 
@@ -391,24 +403,77 @@ def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
     return rows
 
 
-#: ``id(GI path map) -> (that map, visible (episode_id, insight_id) keys)``.
-_VISIBLE_BY_PATH_MAP: Dict[int, Tuple[Dict[str, Path], frozenset]] = {}
+def _visible_in_episode(path: Optional[Path]) -> frozenset:
+    """Ids of the Insight nodes one episode's view shows; empty when its GI cannot be read."""
+    from podcast_scraper.read_hooks import insights_from_gi
+
+    if path is None:
+        return frozenset()
+    try:
+        artifact = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return frozenset()
+    if not isinstance(artifact, dict):
+        return frozenset()
+    shown = {i.id for i in insights_from_gi(artifact)}
+    return frozenset(
+        n.get("id")
+        for n in artifact.get("nodes") or []
+        if isinstance(n, dict)
+        and n.get("type") == "Insight"
+        and isinstance(n.get("id"), str)
+        and n.get("id") in shown
+    )
 
 
-def _visible_insights(output_dir: Path) -> frozenset:
+class _VisibleInsights:
+    """``(episode_id, insight_id)`` of every insight the episode view shows, read per episode.
+
+    A membership test reads only that episode's GI file, once per corpus generation. A search
+    asks about a few episodes, and building the set for the whole corpus first cost a cold search
+    every GI file (3,153 on the 2026-11 prod copy; most of the cold digest's time). Iterating
+    reads every episode, for callers that need the whole set.
+    """
+
+    def __init__(self, paths: Dict[str, Path]) -> None:
+        self._paths = paths
+        self._by_episode: Dict[str, frozenset] = {}
+
+    def _episode(self, episode_id: str) -> frozenset:
+        got = self._by_episode.get(episode_id)
+        if got is None:
+            got = _visible_in_episode(self._paths.get(episode_id))
+            self._by_episode[episode_id] = got
+        return got
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, tuple) or len(key) != 2:
+            return False
+        episode_id, insight_id = key
+        return isinstance(episode_id, str) and insight_id in self._episode(episode_id)
+
+    def __iter__(self) -> Iterator[Tuple[str, str]]:
+        for episode_id in self._paths:
+            for insight_id in self._episode(episode_id):
+                yield episode_id, insight_id
+
+
+#: ``id(GI path map) -> (that map, its visible-insight set)``.
+_VISIBLE_BY_PATH_MAP: Dict[int, Tuple[Dict[str, Path], _VisibleInsights]] = {}
+
+
+def _visible_insights(output_dir: Path) -> _VisibleInsights:
     """``(episode_id, insight_id)`` of every insight the episode view shows, per corpus
-    generation."""
+    generation, read per episode as it is asked about."""
     paths = cached_episode_gi_paths(output_dir)
     hit = _VISIBLE_BY_PATH_MAP.get(id(paths))
     if hit is not None and hit[0] is paths:
         return hit[1]
-    keys = frozenset(
-        (r.episode_id, r.insight_id) for r in _cached_insight_scopes(output_dir) if r.visible
-    )
+    visible = _VisibleInsights(paths)
     if len(_VISIBLE_BY_PATH_MAP) >= 4:
         _VISIBLE_BY_PATH_MAP.clear()
-    _VISIBLE_BY_PATH_MAP[id(paths)] = (paths, keys)
-    return keys
+    _VISIBLE_BY_PATH_MAP[id(paths)] = (paths, visible)
+    return visible
 
 
 def _tier_scope(
