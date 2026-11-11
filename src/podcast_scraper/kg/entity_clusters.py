@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Callable, Collection, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
-from ..content_types import is_wanted, PODCAST_ONLY
+from ..content_types import asks_other_types, is_wanted, PODCAST_ONLY
 from ..identity.person_match import cluster_variants as _are_xep_variants
 from ..perf_cache import cache_peek, corpus_mtime, get_or_compute
 
@@ -74,7 +74,8 @@ def collect_entity_candidates(
     # episode's superseded run was still voting on who a person is (310 of 2,257 kg files on
     # the production snapshot), which is exactly backwards after a `relabel_only` repair.
     _root = Path(corpus_dir)
-    _paths = newest_run_artifact_paths(_root, scan_kg_artifact_paths(_root), ".kg.json")
+    _scanned = scan_kg_artifact_paths(_root, include_sources=asks_other_types(content_types))
+    _paths = newest_run_artifact_paths(_root, _scanned, ".kg.json")
     for _path, data in load_kg_artifacts(_paths):
         # The KG says its own type: KG 3.0 carries content_type, a 2.x artifact is a podcast's.
         # Without this, another type's people became ledger candidates and could join podcast

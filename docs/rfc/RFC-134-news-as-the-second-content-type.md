@@ -227,8 +227,13 @@ over one RSS/Atom transport, in fixtures. News 1.0 then only registers its type 
   - What opts in: tools that must see every run. Pipeline-run telemetry and the cost rollup in the
     corpus manifest opt in now. Disk usage walks the whole tree and needs no flag. A guard test
     fails any corpus `os.walk` that does not prune with the corpus rule.
-  - A type's reads opt in when that type ships (News 1.0), through the same flag and a
-    `content_types` filter.
+  - A reader that takes `content_types` opts in by itself when asked for any other type: the
+    catalog builders and the identity ledger's entity candidates walk `sources/` then. Membership
+    knows the layout (`sources/<type>/<source>`, newest run per item, as for a feed). Every other
+    reader of a type opts in when that type ships (News 1.0).
+  - Guards (core release §3): a podcast corpus with a batch of the test-only type in `sources/`,
+    one of its items naming a podcast guest, a person only it names, and a podcast topic. Every
+    corpus-wide reader answers the same as over the podcast corpus alone.
   - Superseded: the first draft put news items beside episodes in the same layout, so that
     existing code paths would see them. The walker classification of 2026-11-11 showed those
     same paths are where other types leak into podcast surfaces.

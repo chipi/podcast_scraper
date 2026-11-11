@@ -99,6 +99,47 @@ def test_membership_is_podcast_only(corpus: Path) -> None:
     }
 
 
+def test_membership_asked_for_sources_keeps_the_newest_run_per_item(corpus: Path) -> None:
+    source = corpus / "sources" / "test_text_item" / "texts"
+    _run(source / "run_20261102-000000", "t1", 2.0)  # t1 again, in a newer run
+    rel = {p.relative_to(corpus).as_posix() for p in discover_metadata_files(corpus)}
+    assert not any(r.startswith("sources/") for r in rel)
+    asked = {
+        p.relative_to(corpus).as_posix()
+        for p in discover_metadata_files(corpus, include_sources=True)
+    }
+    assert asked - rel == {
+        "sources/test_text_item/texts/run_20261102-000000/metadata/t1.metadata.json"
+    }
+    every = {
+        p.relative_to(corpus).as_posix()
+        for p in discover_all_metadata_files(corpus, include_sources=True)
+    }
+    assert {r for r in every if r.startswith("sources/")} == {
+        "sources/test_text_item/texts/run_20261101-000000/metadata/t1.metadata.json",
+        "sources/test_text_item/texts/run_20261102-000000/metadata/t1.metadata.json",
+    }
+
+
+def test_the_source_layout_is_recognised() -> None:
+    from podcast_scraper.search.corpus_scope import (
+        classify_metadata_relpath,
+        LAYOUT_SOURCE_RUN,
+        source_dir_and_run_segment_from_relpath,
+    )
+
+    rel = "sources/news_article/bbc/run_20261101-000000/metadata/a.metadata.json"
+    assert classify_metadata_relpath(rel) == LAYOUT_SOURCE_RUN
+    assert source_dir_and_run_segment_from_relpath(rel) == (
+        "sources/news_article/bbc",
+        "run_20261101-000000",
+    )
+    assert source_dir_and_run_segment_from_relpath("sources/x/run_1/metadata/a.json") == (
+        None,
+        None,
+    )
+
+
 def test_run_telemetry_sees_every_run(corpus: Path) -> None:
     now = time.time()
     for p in corpus.rglob("run.json"):

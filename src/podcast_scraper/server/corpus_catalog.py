@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Collection, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
-from podcast_scraper.content_types import is_wanted, PODCAST_ONLY
+from podcast_scraper.content_types import asks_other_types, is_wanted, PODCAST_ONLY
 from podcast_scraper.languages import (
     episode_is_unusable,
     episode_language as _episode_language,
@@ -24,6 +24,7 @@ from podcast_scraper.search.corpus_scope import (
     feed_dir_and_run_segment_from_relpath,
     normalize_feed_id,
     run_recency_epoch,
+    source_dir_and_run_segment_from_relpath,
 )
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (
@@ -369,7 +370,7 @@ def build_catalog_rows(
     root_s = os.path.normpath(str(root))
     safe_prefix = root_s + os.sep
     rows: list[CatalogEpisodeRow] = []
-    for meta_path in discover_metadata_files(root):
+    for meta_path in discover_metadata_files(root, include_sources=asks_other_types(content_types)):
         try:
             rel = meta_path.relative_to(root).as_posix()
         except ValueError:
@@ -499,7 +500,9 @@ def build_catalog_rows_cumulative(
     # Build rows for ALL files, then dedupe by (feed_id, episode_id) keeping
     # the row whose metadata_relative_path has the greatest run segment.
     all_rows: list[CatalogEpisodeRow] = []
-    for meta_path in discover_all_metadata_files(root):
+    for meta_path in discover_all_metadata_files(
+        root, include_sources=asks_other_types(content_types)
+    ):
         try:
             rel = meta_path.relative_to(root).as_posix()
         except ValueError:
@@ -589,6 +592,8 @@ def build_catalog_rows_cumulative(
     def _recency(row: CatalogEpisodeRow) -> tuple[float, str, str]:
         rel = row.metadata_relative_path
         _fd, run_seg = feed_dir_and_run_segment_from_relpath(rel)
+        if run_seg is None:
+            _sd, run_seg = source_dir_and_run_segment_from_relpath(rel)
         return (run_recency_epoch(root / rel, run_seg or ""), run_seg or "", rel)
 
     deduped: dict[tuple[str, Optional[str]], CatalogEpisodeRow] = {}

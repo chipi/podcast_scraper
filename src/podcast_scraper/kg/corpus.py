@@ -35,8 +35,9 @@ EXIT_NO_ARTIFACTS = 3
 EXIT_VALIDATION_FAILED = 1
 
 
-def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
-    """List all .kg.json paths under output_dir (metadata/*.kg.json and rglob)."""
+def scan_kg_artifact_paths(output_dir: Path, *, include_sources: bool = False) -> List[Path]:
+    """List all .kg.json paths under output_dir (metadata/*.kg.json and rglob); other content
+    types' (under ``sources/``) only with *include_sources*."""
     out = Path(output_dir)
     if not out.is_dir():
         return []
@@ -44,7 +45,7 @@ def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
     metadata_dir = out / "metadata"
     if metadata_dir.is_dir():
         paths.extend(metadata_dir.glob("*.kg.json"))
-    for p in corpus_rglob(out, "*.kg.json"):
+    for p in corpus_rglob(out, "*.kg.json", include_sources=include_sources):
         if p not in paths:
             paths.append(p)
     return sorted(set(paths))

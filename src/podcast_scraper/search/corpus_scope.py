@@ -19,6 +19,7 @@ from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.corpus_walk import (  # noqa: F401 - re-exported, its old home
     corpus_relpath_is_excluded,
     prune_corpus_dirs,
+    SOURCES_DIR,
 )
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -109,6 +110,24 @@ def run_segment_from_flat_relpath(rel_posix: str) -> Optional[str]:
 LAYOUT_FEED_RUN = "feeds/<feed>/run_*/metadata"
 LAYOUT_FLAT_RUN = "run_*/metadata"
 LAYOUT_ROOT_FLAT = "metadata"
+LAYOUT_SOURCE_RUN = "sources/<type>/<source>/run_*/metadata"
+
+
+def source_dir_and_run_segment_from_relpath(
+    rel_posix: str,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Parse ``sources/<type>/<source>/run_<tag>/metadata/...`` (another content type, RFC-134 §5)
+    into ``("sources/<type>/<source>", run_segment)``, else ``(None, None)``.
+
+    Kept apart from :func:`feed_dir_and_run_segment_from_relpath`, whose callers key podcast feeds
+    by their bare slug; this key holds slashes, so it never collides with one.
+    """
+    parts = [p for p in rel_posix.replace("\\", "/").split("/") if p]
+    if len(parts) < 6 or parts[0] != SOURCES_DIR:
+        return None, None
+    if parts[3].startswith("run_") and parts[4] == filesystem.METADATA_SUBDIR:
+        return "/".join(parts[:3]), parts[3]
+    return None, None
 
 
 def classify_metadata_relpath(rel_posix: str) -> Optional[str]:
@@ -117,12 +136,14 @@ def classify_metadata_relpath(rel_posix: str) -> Optional[str]:
     Exists so "I could not classify this path" is a distinguishable state rather than being folded
     into the legitimate flat-corpus case. The root-flat shape (``metadata/<file>``) genuinely has no
     cross-run identity to reconcile and is common in fixtures, so it must NOT warn; a path that is
-    none of the three known shapes is a surprise and must.
+    none of the known shapes is a surprise and must.
     """
     parts = [p for p in rel_posix.replace("\\", "/").split("/") if p]
     feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel_posix)
     if feed_dir is not None and run_seg is not None:
         return LAYOUT_FEED_RUN
+    if source_dir_and_run_segment_from_relpath(rel_posix)[0] is not None:
+        return LAYOUT_SOURCE_RUN
     if run_segment_from_flat_relpath(rel_posix) is not None:
         return LAYOUT_FLAT_RUN
     if len(parts) >= 2 and parts[0] == filesystem.METADATA_SUBDIR:
@@ -309,6 +330,10 @@ def dedupe_metadata_paths_newest_run_per_episode(
             feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel)
             by_feed_dir.setdefault(str(feed_dir), []).append((str(run_seg), p))
             continue
+        if layout == LAYOUT_SOURCE_RUN:
+            source_dir, run_seg = source_dir_and_run_segment_from_relpath(rel)
+            by_feed_dir.setdefault(str(source_dir), []).append((str(run_seg), p))
+            continue
         if layout == LAYOUT_FLAT_RUN:
             # Flat ``run_<tag>/metadata/`` — a single-feed output dir, which is the layout
             # skip-existing reads during a run. Leaving it unreconciled left the caller's
@@ -372,11 +397,12 @@ def dedupe_metadata_paths_newest_run_per_episode(
                 )
                 continue
             logger.warning(
-                "corpus membership: path %s matches no known corpus layout (%s | %s | %s) and is "
-                "being kept as canonical by default. If this is a retired or bookkeeping "
+                "corpus membership: path %s matches no known corpus layout (%s | %s | %s | %s) "
+                "and is being kept as canonical by default. If this is a retired or bookkeeping "
                 "directory it must be EXCLUDED instead of indexed (#2162).",
                 rel,
                 LAYOUT_FEED_RUN,
+                LAYOUT_SOURCE_RUN,
                 LAYOUT_FLAT_RUN,
                 LAYOUT_ROOT_FLAT,
             )
@@ -444,6 +470,13 @@ def member_episode_artifacts(corpus_root: Path, artifact_paths: List[Path]) -> L
     ]
 
 
+def _collect_source_run_dirs(root_normed: str, collect: "Callable[[str], None]") -> None:
+    """Hand *collect* every ``sources/<type>/<source>/run_*/metadata/`` (other content types)."""
+    pattern = os.path.join(root_normed, SOURCES_DIR, "*", "*", "run_*", filesystem.METADATA_SUBDIR)
+    for meta_dir in sorted(_glob.glob(pattern)):
+        collect(meta_dir)
+
+
 def _collect_root_run_dirs(root_normed: str, collect: "Callable[[str], None]") -> None:
     """Discover ``<root>/run_<id>/metadata/`` — the layout a SINGLE-FEED run produces.
 
@@ -469,11 +502,14 @@ def _collect_root_run_dirs(root_normed: str, collect: "Callable[[str], None]") -
             collect(os.path.join(run_dir, filesystem.METADATA_SUBDIR))
 
 
-def discover_metadata_files(output_root: Path) -> List[Path]:
+def discover_metadata_files(output_root: Path, *, include_sources: bool = False) -> List[Path]:
     """List episode metadata files — the CENTRAL corpus-membership rule (single source of truth).
 
     Hybrid layout: if ``feeds/`` exists **and** top-level ``metadata/`` exists, both are
     included (GitHub #505 follow-up).
+
+    Other content types' items (``sources/<type>/<source>/run_*/``, RFC-134 §5) are members only
+    with *include_sources*, newest run per item as for feeds.
 
     Discovers every ``feeds/<feedDir>/run_*/metadata/`` tree (union across ALL runs) and returns one
     winner per ``(feed_id, episode_id)``: when the same episode is reprocessed into a newer run the
@@ -533,13 +569,15 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
     else:
         _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
         _collect_root_run_dirs(root_normed, _collect)
+    if include_sources:
+        _collect_source_run_dirs(root_normed, _collect)
 
     corpus_path = Path(root_normed)
     deduped = dedupe_metadata_paths_newest_run_per_episode(corpus_path, list(set(found)))
     return sorted(deduped)
 
 
-def discover_all_metadata_files(output_root: Path) -> List[Path]:
+def discover_all_metadata_files(output_root: Path, *, include_sources: bool = False) -> List[Path]:
     """Like :func:`discover_metadata_files` but WITHOUT the last-run-only filter.
 
     Returns every ``*.metadata.json`` under ``feeds/<feedDir>/run_*/metadata/``
@@ -600,5 +638,7 @@ def discover_all_metadata_files(output_root: Path) -> List[Path]:
         # Same single-feed layout as discover_metadata_files — the two must agree, or the
         # cumulative-count routes and the indexer would disagree about corpus membership.
         _collect_root_run_dirs(root_normed, _collect)
+    if include_sources:
+        _collect_source_run_dirs(root_normed, _collect)
 
     return sorted(set(found))
