@@ -54,7 +54,7 @@ dependencies = [
   # "drop Makefile ignore" — a Makefile ignore that never existed, because `security-audit` ran no
   # audit at all from its first commit until 2026-09-03.
   "pygments>=2.20.0,<2.21.0",
-  "psutil>=5.9.0,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
+  "psutil>=7.2.2,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
   # Pure-Python VADER lexicon sentiment for the deterministic `insight_sentiment` enricher
   # (conversation-timeline sentiment colour). Bundles its own lexicon → no network / no model
   # download → CI-safe + airgapped-safe; a true deterministic-tier dep, so it lives in core.
