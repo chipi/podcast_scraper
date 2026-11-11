@@ -276,7 +276,7 @@ search = [
   # tested version — declaring a range we would refuse to install is how a pin becomes fiction.
   "scikit-learn>=1.5.0,<2.0.0",
   # joblib has no advisories at its floor (checked 1.3.0 and 1.4.0 against OSV); CI resolves 1.6.0.
-  "joblib>=1.3.0,<2.0.0",
+  "joblib>=1.6.0,<2.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
