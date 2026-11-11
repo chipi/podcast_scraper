@@ -40,10 +40,18 @@ def ledger_refresh(root: Path | str, *, after: str, log: Optional[Any] = None) -
     """Refresh the identity ledger after a run of *after* (``enrichment``). True when written, or
     when no stage keeps a ledger (nothing to refresh)."""
     from .builtin_cli_hooks import LEDGER_REFRESH
+    from .extensions import load_extensions
 
-    if LEDGER_REFRESH is None:
+    owner = LEDGER_REFRESH
+    if owner is None:
+        for ext in load_extensions():
+            hooks = ext.pipeline_hooks
+            if hooks is not None and hooks.ledger_refresh is not None:
+                owner = hooks.ledger_refresh
+                break
+    if owner is None:
         return True
-    return bool(LEDGER_REFRESH(root, after=after, log=log))
+    return bool(owner(root, after=after, log=log))
 
 
 __all__ = ["batch_completed", "cli_command", "ledger_refresh"]

@@ -205,6 +205,9 @@ ValidateLabelingProfile = Callable[[str], None]
 #: ``(corpus_parent, cfg, log)``: once a multi-feed batch with results is finalized, from the CLI
 #: (the identity ledger refresh); run by :func:`podcast_scraper.cli_hooks.batch_completed`.
 BatchCompletedHook = Callable[[Any, Any, Any], Any]
+#: ``(root, *, after, log) -> bool``: refresh the identity ledger after a corpus run (``upgrade
+#: run``, an enrichment). One owner; run by :func:`podcast_scraper.cli_hooks.ledger_refresh`.
+LedgerRefresh = Callable[..., bool]
 KgGraphPass = Callable[
     [List[Dict[str, Any]], List[Dict[str, Any]]],
     Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
@@ -274,6 +277,7 @@ class PipelineHooks:
     batch_completed: Sequence[BatchCompletedHook] = field(default_factory=tuple)
     kg_graph_passes: Sequence[KgGraphPass] = field(default_factory=tuple)
     split_person_list: Optional[SplitPersonList] = None
+    ledger_refresh: Optional[LedgerRefresh] = None
 
 
 def _profile_runs(stage: str) -> bool:

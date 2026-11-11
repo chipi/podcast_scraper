@@ -147,6 +147,12 @@ def _host_variants(a: str, b: str) -> bool:
     return host_variants(a, b)
 
 
+def _person_display_builder(root: Path) -> Any:
+    from podcast_scraper.identity.ledger_display import build_from_ledger
+
+    return build_from_ledger(root)
+
+
 def ROUTERS() -> Sequence[Any]:
     """The operator-plane routers of the insight / identity stages: GI explore, person pages, CIL.
 
@@ -194,4 +200,5 @@ BUILTIN = ReadHooks(
     lift_transcript_hits=_lift_transcript_hits,
     graph_artifacts=_graph_artifacts,
     host_variants=_host_variants,
+    person_display_builder=_person_display_builder,
 )

@@ -190,7 +190,7 @@ class TestConfigToProviderWorkflow(unittest.TestCase):
         )
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
