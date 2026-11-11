@@ -182,6 +182,10 @@ So there is no way yet to add a type without editing the podcast path.
   paths that already exist.
 - **Fields:** each item's metadata carries `content_type: news_article`; podcast metadata gains the
   same field, defaulting to `podcast_episode` when absent.
+  - Fields every type shares (title, times, publisher, rights) sit at the top level.
+  - A type's own fields sit under a key named for the type (`news_article: {…}`).
+  - The corpus database's importer later maps that key to the type module's table, or to one
+    column read whole. There is never a column per type on the shared item table.
 - **Readers:** any reader that assumes an episode reads `content_type` first, or is limited to
   podcasts by the type registry. The list of such readers is part of this RFC's work.
 - **The extracted text:** stored with the item as its body artifact, the way a transcript is. Never
