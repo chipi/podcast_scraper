@@ -227,6 +227,9 @@ class Extension:
     pipeline_hooks: PipelineHooks | None = None
     #: What the server's read side asks the extension (``podcast_scraper.read_hooks``).
     read_hooks: ReadHooks | None = None
+    #: Directories of prompt templates (``<provider>/<task>/<name>.j2``), searched before this
+    #: package's own (``podcast_scraper.prompts.store``). ``() -> [Path, ...]``.
+    prompt_dirs: Callable[[], Sequence[Path]] = _none
 
 
 _override: list[Extension] | None = None

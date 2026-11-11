@@ -28,7 +28,7 @@ import os
 from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from jinja2 import Template
 
@@ -95,15 +95,48 @@ def _resolve_template_path(prompt_dir: Path, rel_path: Path) -> Path:
     return primary
 
 
-def _template_path_or_raise(prompt_dir: Path, rel_path: Path, requested_name: str) -> Path:
-    path = _resolve_template_path(prompt_dir, rel_path)
+def _search_dirs() -> List[Path]:
+    """Installed extensions' prompt directories, in load order, then this package's."""
+    from ..extensions import load_extensions
+
+    dirs: List[Path] = []
+    for ext in load_extensions():
+        dirs.extend(Path(d).resolve() for d in ext.prompt_dirs())
+    dirs.append(_active_prompt_dir())
+    return dirs
+
+
+def _find_template(rel_path: Path) -> Tuple[Path, Path]:
+    """``(template path, the directory it was found in)``.
+
+    The exact name is looked for in every directory first (extensions', then this package's), and
+    only then the shared summarization fallback, in the same order. So a provider's own template
+    in this package is still preferred to an extension's shared one. Not found: the first
+    directory's exact path, which does not exist.
+    """
+    if ".." in rel_path.parts:
+        raise ValueError(f"prompt template name escapes the prompt dir: {rel_path}")
+    dirs = _search_dirs()
+    for d in dirs:
+        if (d / rel_path).is_file():
+            return d / rel_path, d
+    for d in dirs:
+        path = _resolve_template_path(d, rel_path)
+        if path.is_file():
+            return path, d
+    return dirs[0] / rel_path, dirs[0]
+
+
+def _template_path_or_raise(rel_path: Path, requested_name: str) -> Tuple[Path, Path]:
+    path, base = _find_template(rel_path)
     if not path.is_file():
+        searched = ", ".join(str(d) for d in _search_dirs())
         raise PromptNotFoundError(
             f"Prompt template not found: {path}\n"
-            f"  Searched in: {prompt_dir}\n"
+            f"  Searched in: {searched}\n"
             f"  Requested name: {requested_name}"
         )
-    return path
+    return path, base
 
 
 @lru_cache(maxsize=None)
@@ -123,9 +156,8 @@ def _load_template(name: str) -> Template:
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
-    prompt_dir = _active_prompt_dir()
     rel_path = _rel_path_for_name(name)
-    path = _template_path_or_raise(prompt_dir, rel_path, name)
+    path, _ = _template_path_or_raise(rel_path, name)
     text = path.read_text(encoding="utf-8")
     # Explicit annotation: mypy 2.3.0's jinja2 stubs infer Template(...) as Any, which
     # trips no-any-return on the declared -> Template signature.
@@ -169,9 +201,8 @@ def get_prompt_source(name: str) -> str:
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
-    prompt_dir = _active_prompt_dir()
     rel_path = _rel_path_for_name(name)
-    path = _template_path_or_raise(prompt_dir, rel_path, name)
+    path, _ = _template_path_or_raise(rel_path, name)
     return path.read_text(encoding="utf-8")
 
 
@@ -211,14 +242,13 @@ def get_prompt_metadata(
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
-    prompt_dir = _active_prompt_dir()
     rel_path = _rel_path_for_name(name)
-    path = _template_path_or_raise(prompt_dir, rel_path, name)
+    path, base = _template_path_or_raise(rel_path, name)
     source = path.read_text(encoding="utf-8")
 
     metadata: Dict[str, Any] = {
         "name": name,
-        "file": str(path.relative_to(prompt_dir)),
+        "file": str(path.relative_to(base)),
         "sha256": hash_text(source),
     }
 

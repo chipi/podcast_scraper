@@ -40,7 +40,6 @@ else:
     from ... import models
 
     Episode = models.Episode  # type: ignore[assignment]
-from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
 from ...utils.cleaning_max_tokens import (
     ANTHROPIC_CLEANING_MAX_TOKENS,
@@ -126,15 +125,10 @@ class AnthropicProvider(AnthropicProviderGiNamingMethods):
         self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
-        from ...cleaning import HybridCleaner, LLMBasedCleaner
+        from ... import stage_hooks
 
         cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-        if cleaning_strategy == "pattern":
-            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
-        elif cleaning_strategy == "llm":
-            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
-        else:  # hybrid (default)
-            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+        self.cleaning_processor = stage_hooks.transcript_cleaner(cleaning_strategy)
 
         # Cleaning model settings (cheaper model for cost efficiency).
         # Temperature tuned in #594 (data/eval/runs/baseline_cleaning_autoresearch_v1):

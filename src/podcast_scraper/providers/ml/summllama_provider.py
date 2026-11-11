@@ -71,19 +71,10 @@ class SummLlamaProvider:
         self._max_input_chars = 40000
 
         # Required by SummarizationProvider protocol
+        from ... import stage_hooks
+
         cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-        if cleaning_strategy == "pattern":
-            from ...cleaning.pattern_based import PatternBasedCleaner
-
-            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
-        elif cleaning_strategy == "llm":
-            from ...cleaning.llm_based import LLMBasedCleaner
-
-            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
-        else:
-            from ...cleaning.hybrid import HybridCleaner
-
-            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+        self.cleaning_processor = stage_hooks.transcript_cleaner(cleaning_strategy)
 
     def initialize(self) -> None:
         """Load model and tokenizer."""

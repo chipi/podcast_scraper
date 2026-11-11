@@ -29,7 +29,6 @@ else:
 
     Episode = models.Episode  # type: ignore[assignment]
 from ...cache import get_whisper_cache_dir
-from ...cleaning import PatternBasedCleaner
 from ...exceptions import (
     ProviderConfigError,
     ProviderDependencyError,
@@ -195,9 +194,12 @@ class MLProvider(MLProviderGiNamingMethods):
         """
         self.cfg = cfg
 
-        # Set up transcript cleaning processor (default pattern-based)
-        self.cleaning_processor = PatternBasedCleaner(
-            confidence_threshold=getattr(cfg, "commercial_confidence_threshold", None)
+        # Set up transcript cleaning processor (always pattern-based for the local ML path)
+        from ... import stage_hooks
+
+        self.cleaning_processor = stage_hooks.transcript_cleaner(
+            "pattern",
+            confidence_threshold=getattr(cfg, "commercial_confidence_threshold", None),
         )
 
         # Whisper transcription state

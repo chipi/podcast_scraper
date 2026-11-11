@@ -233,6 +233,86 @@ def _excise_ads(
     return excise_ad_regions(text, segments=segments)
 
 
+def _transcript_cleaner(strategy: str, *, confidence_threshold: Optional[float] = None) -> Any:
+    from podcast_scraper.cleaning import HybridCleaner, LLMBasedCleaner, PatternBasedCleaner
+
+    if strategy == "pattern":
+        return PatternBasedCleaner(confidence_threshold=confidence_threshold)
+    if strategy == "llm":
+        return LLMBasedCleaner()
+    return HybridCleaner()
+
+
+def _clean_for_summary(
+    processor: Any,
+    text: str,
+    *,
+    provider: Any = None,
+    pipeline_metrics: Any = None,
+    pattern_kwargs: Optional[Dict[str, Any]] = None,
+) -> str:
+    from podcast_scraper.cleaning import HybridCleaner, LLMBasedCleaner
+
+    kwargs = pattern_kwargs or {}
+    cleaned: str
+    if isinstance(processor, HybridCleaner):
+        cleaned = processor.clean(
+            text, provider=provider, pipeline_metrics=pipeline_metrics, **kwargs
+        )
+    elif isinstance(processor, LLMBasedCleaner):
+        cleaned = processor.clean(text, provider, pipeline_metrics=pipeline_metrics)
+    else:
+        cleaned = processor.clean(text, **kwargs)
+    return cleaned
+
+
+def _cleaning_context(
+    full_transcript_path: str,
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    from podcast_scraper.cleaning.commercial.context import diarization_cleaning_context
+
+    return diarization_cleaning_context(full_transcript_path)
+
+
+def _remove_commercials(
+    text: str,
+    *,
+    diarization_segments: Optional[List[Dict[str, Any]]] = None,
+    host_speaker_id: Optional[str] = None,
+    confidence_threshold: Optional[float] = None,
+) -> str:
+    from podcast_scraper.cleaning.commercial import CommercialDetector
+    from podcast_scraper.cleaning.commercial.patterns import DEFAULT_CONFIDENCE_THRESHOLD
+
+    removed: str = CommercialDetector(
+        confidence_threshold=(
+            confidence_threshold
+            if confidence_threshold is not None
+            else DEFAULT_CONFIDENCE_THRESHOLD
+        ),
+        diarization_segments=diarization_segments,
+        host_speaker_id=host_speaker_id,
+    ).remove(text)
+    return removed
+
+
+def _excise_crosspromo(
+    text: str,
+    *,
+    diarization_segments: Optional[List[Dict[str, Any]]] = None,
+    host_speaker_id: Optional[str] = None,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> str:
+    from podcast_scraper.cleaning.commercial.crosspromo import excise_opening_crosspromo
+
+    return excise_opening_crosspromo(
+        text,
+        diarization_segments=diarization_segments,
+        host_speaker_id=host_speaker_id,
+        extra_cue_patterns=extra_cue_patterns,
+    )
+
+
 def _write_turns_artifacts(
     cfg: Any,
     text: str,
@@ -642,6 +722,11 @@ BUILTIN = PipelineHooks(
     kg_prompt_hints=_resolve_ner_prepass,
     adfree_base=_adfree_base,
     excise_ads=_excise_ads,
+    transcript_cleaner=_transcript_cleaner,
+    clean_for_summary=_clean_for_summary,
+    cleaning_context=_cleaning_context,
+    remove_commercials=_remove_commercials,
+    excise_crosspromo=_excise_crosspromo,
     variant_turns=_write_turns_artifacts,
     screenplay=_screenplay,
     speaker_turns=_speaker_turns,
