@@ -12,7 +12,7 @@
 Every content type shares some fields:
 
 - title;
-- the times kept apart by ontology v4 (ADR-178);
+- the times kept apart by ontology v3 (ADR-178);
 - publisher;
 - rights;
 - language.

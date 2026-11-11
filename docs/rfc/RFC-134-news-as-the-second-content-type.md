@@ -25,7 +25,7 @@
   vocabulary refactor did what they claim. It is also the first real-world material that extends
   the podcasts' storylines.
 - **How:** content-type and transport seams on the extension interface (ADR-168), a text-in entry
-  point beside the podcast pipeline, the medium-neutral half of ontology v4 (R3a), and the existing
+  point beside the podcast pipeline, the medium-neutral half of ontology v3 (R3a), and the existing
   enrichment over article text.
 
 ## Problem statement
@@ -64,8 +64,8 @@ So there is no way yet to add a type without editing the podcast path.
    release's existing deploy gate.
 4. **Public alone still works:** a public-only install ingests news with the plain defaults
    (summary and basic KG, no grounded insights).
-5. **The data model practised before the database:** news writes ontology v4 in the file corpus
-   now. The corpus database (E06) is then designed once, against v4.
+5. **The data model practised before the database:** news writes ontology v3 in the file corpus
+   now. The corpus database (E06) is then designed once, against v3.
 
 ## Non-goals
 
@@ -74,7 +74,7 @@ So there is no way yet to add a type without editing the podcast path.
 - **Summarising across news items:** later.
 - **Event clusters, GDELT, divergence, publisher grading:** later (structured intelligence).
 - **Other content types** (social posts, advisories, reports): after the corpus database.
-- **Migrating the podcast corpus to v4:** that is R3b, a later release (below).
+- **Migrating the podcast corpus to v3:** that is R3b, a later release (below).
 - **News on the listener app by default:** at most a flagged proof (section 11).
 
 ## Constraints and assumptions
@@ -191,7 +191,7 @@ So there is no way yet to add a type without editing the podcast path.
 - **The extracted text:** stored with the item as its body artifact, the way a transcript is. Never
   served.
 
-### 6. Ontology v4, the schema half (R3a)
+### 6. Ontology v3, the schema half (R3a)
 
 - **Evidence carries a character range in its item's body, always.** A time range only when the
   item is timed: podcasts yes, news no.
@@ -204,11 +204,11 @@ So there is no way yet to add a type without editing the podcast path.
     filed, period covered (start and end), observed, ingested.
 - **Evidence locators are open beyond character and time.** An optional page and section, so a
   later document type such as `report` needs no schema bump.
-- **News writes v4 from the start. Podcasts keep writing 3.x until R3b.**
-- **Readers accept both versions.** A 3.x quote is read as v4 with `text_origin: spoken` and its
-  time range.
-- **R3b,** rewriting the podcast corpus to v4 under the change method, comes in a later release,
-  before or with the corpus database.
+- **News writes v3 from the start. Podcasts keep writing GI 3.x until R3b.**
+- **Readers accept GI 3.x and ontology v3.** A GI 3.x quote is read as v3 with
+  `text_origin: spoken` and its time range.
+- **R3b,** rewriting the podcast corpus to v3 under the change method, comes in its own release,
+  strictly before the corpus database's importer (ADR-178).
 - **The KG schema is public's** and is versioned here. The GI schema moves with the private
   extension and follows the same rules there.
 - **Evidence:** ADR-178.
@@ -330,7 +330,7 @@ A read of the code at public 0357b8a96.
 | --- | --- | --- | --- |
 | 1 | `episode_processor.process_episode_download` (no transcript, no enclosure) | returns nothing, with no error and no metadata | news never reaches it: the text-in entry point (§1) builds the processing job from the extracted body |
 | 2 | `transcript_source` Literal (`workflow/types.py:90`, `metadata_generation.py:640`) | a validation error on any new source | widen it to a body source that includes extraction |
-| 3 | GI quotes with no segments (`gi/pipeline.py`, `_char_range_to_ms`) | written with fabricated 0 ms timestamps and a transcript reference, and they pass the 3.1 schema | v4 (§6): no time range when untimed |
+| 3 | GI quotes with no segments (`gi/pipeline.py`, `_char_range_to_ms`) | written with fabricated 0 ms timestamps and a transcript reference, and they pass the 3.1 schema | v3 (§6): no time range when untimed |
 | 4 | The search indexer's body chunks (`search/indexer.py`) and the corpus text-file route (`GET /corpus/text-file`) | would return article text in search hits and as a raw file | news chunks are indexed for retrieval only; a hit shows the summary and a short snippet; the text-file route refuses a news body (ADR-179) |
 | 5 | Ad excision inside summary, KG and GI (three call sites) | would cut "pre-roll" and "post-roll" from article text | skipped by the stage profile |
 | 6 | `rss/parser.parse_rss_items` | an Atom feed gives zero items, silently | the news RSS/Atom transport reads feeds with `feedparser`; the podcast parser stays as it is |
@@ -385,7 +385,7 @@ A read of the code at public 0357b8a96.
   - the Player's moments and clips (seek by start time);
   - the transcript-chunk lift (it matches by character overlap but carries times);
   - the indexer's quote rows with times;
-  - strict-validation reads, which need the v4 schema beside 3.1.
+  - strict-validation reads, which need the v3 schema beside 3.1.
 
   Readers that use character ranges only are easy.
 
@@ -431,11 +431,11 @@ In order of importance:
    (`test_english_artifact_allowlist.py`) compares shapes, not bytes, and never runs with and without
    an extension.
 3. **Schemas, both versions:**
-   - v4 in the GI and KG schemas, with the item id in place of a required `episode_id`;
-   - minimal valid and invalid v4 artifacts for podcast and news;
-   - a fixture corpus holding GI 3.1 and v4 side by side;
+   - v3 in the GI and KG schemas, with the item id in place of a required `episode_id`;
+   - minimal valid and invalid v3 artifacts for podcast and news;
+   - a fixture corpus holding GI 3.1 and v3 side by side;
    - every route that reads insights or quotes run over both.
-   - The N-1 compatibility test today only strips manifest fields. It gains a 3.x corpus read by v4
+   - The N-1 compatibility test today only strips manifest fields. It gains a GI 3.x corpus read by v3
      code.
    - A schema change trips the migration guard, so that PR carries a migration or its
      "migration not required" reason.
@@ -488,7 +488,7 @@ the test policy and network isolation.
 2. **Fixture feeds and fixture API responses** ingest end to end in CI, on both transports.
 3. **No podcast-only module runs** for a news item (section 7).
 4. **A public-only install** ingests and serves news on the plain defaults.
-5. **v4 and 3.x artifacts both read** on every route that reads insights or quotes.
+5. **v3 and GI 3.x artifacts both read** on every route that reads insights or quotes.
 6. **Bylines:**
    - fixture bylines in the shapes seen ("By A and B", "Surname; Given", an organisation as
      author) join or stay apart as section 8 says;
@@ -518,18 +518,18 @@ the test policy and network isolation.
 | ADR | Decision |
 | --- | --- |
 | ADR-177 | Content types and transports are extension seams; podcast is the first built-in type; a text-in entry point beside `run_pipeline` |
-| ADR-178 | Ontology v4 is adopted in two halves: the schema now (new types write it, readers accept both), the podcast corpus migration later |
+| ADR-178 | Ontology v3 is adopted in two halves: the schema now (new types write it, readers accept both), the podcast corpus migration later |
 | ADR-179 | Article text is extracted with trafilatura and a readability fallback; it is stored for enrichment and never served |
 | ADR-180 | Bylines join people within their publisher, as hosts within their show; publishers are organisations across media |
 | ADR-181 | A content type's own fields live with the type: under a key named for it in files, in its module's table or one JSON column in the database; never a column per type on the shared item |
 
 ## Not covered yet
 
-- **The private extension's side:** GI v4 and identity joining for bylines, designed in that repo.
+- **The private extension's side:** GI 4.0 and identity joining for bylines, designed in that repo.
   What it needs from public (ingestion's review):
   - the prompt search path (built on ingestion's branch);
   - the item context in the processing job;
-  - KG v4 in public, with roles and `ATTRIBUTED_TO`, since GI v4 refers to them;
+  - KG 3.0 in public, with roles and `ATTRIBUTED_TO`, since GI 4.0 refers to them;
   - bylines as item metadata (role author), with the publisher's organisation id, because today's
     speaker readers read transcript segments and have nothing for an article;
   - the publisher-as-organisation mapping in public, so a show's organisation and a publication's
