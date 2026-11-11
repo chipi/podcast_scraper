@@ -273,6 +273,7 @@ nav:
       - ADR-178 Ontology v4 in two halves: adr/ADR-178-ontology-v4-in-two-halves.md
       - ADR-179 Article text extracted, never served: adr/ADR-179-article-text-extracted-never-served.md
       - ADR-180 Bylines join within their publisher: adr/ADR-180-bylines-join-within-their-publisher.md
+      - ADR-181 A content type's own fields: adr/ADR-181-a-content-types-own-fields.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

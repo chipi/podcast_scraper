@@ -147,10 +147,11 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-178](ADR-178-ontology-v4-in-two-halves.md) | Ontology v4 is adopted in two halves: the schema now, the podcast corpus later | Proposed | [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) | R3a: new types write v4 (char-range evidence, time only when timed, `text_origin`), readers accept 3.x and v4; R3b: the podcast corpus migration in a later release, before or with the corpus database | No |
 | [ADR-179](ADR-179-article-text-extracted-never-served.md) | Article text is extracted with trafilatura and a readability fallback, stored for enrichment, never served | Proposed | [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) | trafilatura for body, byline and date; readability-lxml when trafilatura's text is much shorter; feedparser for feeds; teasers marked and not enriched as whole; surfaces show title, summary, snippets and a link | No |
 | [ADR-180](ADR-180-bylines-join-within-their-publisher.md) | Bylines join people within their publisher; publishers are organisations across media | Proposed | [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) | Mentioned people join through the existing guards; a byline is an author who joins within its publisher, as a host within its show; organisations removed from bylines; one publisher organisation across podcasts and news | No |
+| [ADR-181](ADR-181-a-content-types-own-fields.md) | A content type's own fields live with the type, not on the shared item | Proposed | [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) | Shared fields on the item; a type's own fields under a key named for it in files; in the database, the type module's table for filtered fields and one JSON column for displayed ones; never a column per type | No |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **139** files under `docs/adr/ADR-*.md` (ADR-001–ADR-180;
+**Counts (reconcile when adding ADRs):** **140** files under `docs/adr/ADR-*.md` (ADR-001–ADR-181;
 numbering has historical gaps; ADR-134 = #1273 speaker-labeling renumber, ADR-135 = v2.4,
 ADR-137–140 = host/guest role, ad-cleaning stage, text-normalization contract, versioned labeling
 profiles; ADR-149 = corpus reprocess methodology;
