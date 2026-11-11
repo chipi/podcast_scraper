@@ -110,6 +110,12 @@ Every evidence span (GI 4.0's quotes; any later evidence) carries:
   - The content type mints `item:{content_type}:{id}`. For an item identified by URL, `{id}` is
     the first 20 hex characters of the SHA-256 of the normalised canonical URL; the URL itself is
     kept in `url`.
+- **The type mints the source id too:** `source:{id}`, where `{id}` is the first 20 hex characters of
+  the SHA-256 of the source's normalised URL. It is stable across renames; the source's title is
+  for display. Podcasts keep `podcast:{slug}`.
+- **`source_kind` is a fixed vocabulary,** separate from `content_type` (T-1 keeps the item noun
+  apart from the source's kind): `podcast`, `news`, `social`, `advisory`, `report`, and `test` for
+  the core release's test-only type.
 - **Item times** come from the transport in the item's metadata under the names above
   (`published_at`, `filed_at`, `period_start`, `period_end`, `observed_at`). `ingested_at` is set by
   the run.
