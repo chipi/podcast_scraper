@@ -86,6 +86,10 @@ class RssFeedEntry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     url: str = Field(validation_alias=AliasChoices("url", "rss", "rss_url"))
+    #: What the source's items are and how they are listed (ADR-177). Absent: a podcast over
+    #: RSS enclosures. Identity of the source, not config overrides: never merged into Config.
+    content_type: Optional[str] = None
+    transport: Optional[str] = None
     user_agent: Optional[str] = None
     timeout: Optional[int] = Field(default=None, ge=1)
     http_retry_total: Optional[int] = Field(default=None, ge=0, le=20)
@@ -169,9 +173,11 @@ class RssFeedEntry(BaseModel):
         return normalized
 
     def override_update_dict(self) -> Dict[str, Any]:
-        """Flat dict for ``Config.model_copy(update=...)`` — excludes ``url``."""
+        """Flat dict for ``Config.model_copy(update=...)`` — excludes ``url`` and the source's
+        ``content_type`` / ``transport`` (what it is, not how to run it)."""
         data = self.model_dump(exclude_none=True)
-        data.pop("url", None)
+        for key in ("url", "content_type", "transport"):
+            data.pop(key, None)
         return data
 
 

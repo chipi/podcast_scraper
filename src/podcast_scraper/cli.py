@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import __version__, config, config_constants
+from . import __version__, config, config_constants, content_types
 from .languages import transcription_language
 from .rss.feeds_spec import load_feeds_spec_file, merge_feed_entry_into_config, RssFeedEntry
 from .utils import filesystem, progress
@@ -4776,7 +4776,10 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                         )
                     _log_configuration(cfg, log)
                     try:
-                        count, summary = run_pipeline_fn(cfg)
+                        # One dispatch point for both batch loops (ADR-177 decision 7).
+                        count, summary = content_types.run_source(
+                            cfg, entry, run_pipeline_fn=run_pipeline_fn
+                        )
                     except Exception as exc:  # pragma: no cover - defensive
                         log.exception(
                             "Feed failed: rss=%s detail=%s",

@@ -230,6 +230,12 @@ class Extension:
     #: Directories of prompt templates (``<provider>/<task>/<name>.j2``), searched before this
     #: package's own (``podcast_scraper.prompts.store``). ``() -> [Path, ...]``.
     prompt_dirs: Callable[[], Sequence[Path]] = _none
+    #: Content types the extension adds (``podcast_scraper.content_types.ContentType``), beside
+    #: the built-in podcast type (ADR-177). ``() -> [ContentType, ...]``.
+    content_types: Callable[[], Sequence[Any]] = _none
+    #: Transports the extension adds (``podcast_scraper.content_types.Transport``): each lists a
+    #: source's new items and owns its cursor, headers and rate limit. ``() -> [Transport, ...]``.
+    transports: Callable[[], Sequence[Any]] = _none
 
 
 _override: list[Extension] | None = None
