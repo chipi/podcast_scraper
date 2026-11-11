@@ -74,6 +74,9 @@ class ReadHooks:
     graph_artifacts: Optional[Callable[..., Iterable[Tuple[str, Dict[str, Any]]]]] = None
     #: ``(name_a, name_b) -> bool``: whether two host spellings name one person.
     host_variants: Optional[Callable[[str, str], bool]] = None
+    #: ``(corpus_root) -> PersonDisplay``: the display builder (``identity.display``); without an
+    #: owner, ``plain_display``, where every person shows their own episode's name.
+    person_display_builder: Optional[Callable[[Path], Any]] = None
 
 
 def _all() -> Iterator[ReadHooks]:
@@ -92,6 +95,13 @@ def _owner(field: str) -> Any:
         if fn is not None:
             return fn
     return None
+
+
+def person_display_builder() -> Optional[Callable[[Path], Any]]:
+    """The owner's display builder, or ``None`` (``identity.display`` then shows each person's own
+    episode name)."""
+    fn: Optional[Callable[[Path], Any]] = _owner("person_display_builder")
+    return fn
 
 
 def segment_speaker(raw: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:

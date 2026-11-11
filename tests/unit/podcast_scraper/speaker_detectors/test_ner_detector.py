@@ -57,7 +57,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertIsNone(detector._spacy_heuristics)
         self.assertFalse(detector._spacy_initialized)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_initialize_success(self, mock_get_model):
         """Test successful initialization."""
         mock_nlp = Mock()
@@ -70,7 +70,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertTrue(detector._spacy_initialized)
         mock_get_model.assert_called_once_with(self.cfg)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_initialize_auto_speakers_disabled(self, mock_get_model):
         """Test initialization when auto_speakers is disabled."""
         cfg = create_test_config(auto_speakers=False)
@@ -81,7 +81,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertFalse(detector._spacy_initialized)
         mock_get_model.assert_not_called()
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_initialize_already_initialized(self, mock_get_model):
         """Test initialization when already initialized."""
         mock_nlp = Mock()
@@ -98,7 +98,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         mock_get_model.assert_not_called()
         self.assertEqual(detector._spacy_nlp, mock_nlp)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_initialize_model_load_fails(self, mock_get_model):
         """Test initialization when model loading fails.
 
@@ -114,8 +114,8 @@ class TestNERSpeakerDetector(unittest.TestCase):
         # The actual behavior is checked when detect_speakers is called
         self.assertTrue(detector._spacy_initialized)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_speaker_names")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.detect_speaker_names")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_detect_speakers(self, mock_get_model, mock_detect):
         """Test detect_speakers method."""
         mock_nlp = Mock()
@@ -142,8 +142,8 @@ class TestNERSpeakerDetector(unittest.TestCase):
             text_language=transcription_language(self.cfg),
         )
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_speaker_names")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.detect_speaker_names")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_detect_speakers_auto_initializes(self, mock_get_model, mock_detect):
         """Test detect_speakers auto-initializes if not initialized."""
         mock_nlp = Mock()
@@ -158,8 +158,8 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertTrue(detector._spacy_initialized)
         mock_get_model.assert_called_once()
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_hosts_from_feed")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.detect_hosts_from_feed")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_detect_hosts(self, mock_get_model, mock_detect_hosts):
         """Test detect_hosts method."""
         mock_nlp = Mock()
@@ -181,7 +181,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
             language="en",
         )
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_analyze_patterns(self, mock_get_model):
         """analyze_patterns returns empty heuristics (#598 removed the learner)."""
         mock_nlp = Mock()
@@ -194,7 +194,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertEqual(result, {})
         self.assertEqual(detector._spacy_heuristics, {})
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_analyze_patterns_no_nlp(self, mock_get_model):
         """Test analyze_patterns when NLP model is not available."""
         mock_get_model.return_value = None
@@ -223,7 +223,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         detector._spacy_heuristics = mock_heuristics
         self.assertEqual(detector._spacy_heuristics, mock_heuristics)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_cleanup(self, mock_get_model):
         """Test cleanup method."""
         mock_nlp = Mock()

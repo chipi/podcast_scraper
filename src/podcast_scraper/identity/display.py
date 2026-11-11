@@ -60,11 +60,14 @@ def set_display_builder(builder: Optional[DisplayBuilder]) -> None:
 
 
 def _current_builder() -> DisplayBuilder:
+    """``set_display_builder``'s, else the read side's owner (the identity ledger's while it is
+    built in, E04 S3), else ``plain_display``."""
     if _builder is not None:
         return _builder
-    from .ledger_display import build_from_ledger
+    from .. import read_hooks
 
-    return build_from_ledger
+    owner = read_hooks.person_display_builder()
+    return owner if owner is not None else plain_display
 
 
 def display_from_ledger(ledger: Optional[Dict[str, Any]]) -> PersonDisplay:

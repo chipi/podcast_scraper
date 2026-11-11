@@ -67,9 +67,10 @@ def test_a_failed_build_leaves_the_previous_ledger(
 
 def test_upgrade_run_and_enrich_use_the_guard() -> None:
     src = Path(G.__file__).parents[1]
+    # upgrade run and enrich reach the guard through the CLI hooks (E04 S7), whose built-in owner
+    # is the guard.
     text = (src / "upgrade/cli_handlers.py").read_text(encoding="utf-8")
-    assert "refresh_ledger_after(" in text and "import refresh_ledger\n" not in text
-    # enrich reaches the guard through the CLI hooks (E04 S7), whose built-in owner is the guard.
+    assert "cli_hooks.ledger_refresh(" in text and "import refresh_ledger\n" not in text
     text = (src / "enrichment/cli.py").read_text(encoding="utf-8")
     assert "cli_hooks.ledger_refresh(" in text and "import refresh_ledger\n" not in text
     owner = (src / "builtin_cli_hooks.py").read_text(encoding="utf-8")

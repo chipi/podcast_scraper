@@ -107,7 +107,7 @@ class TestMLProviderStandalone(unittest.TestCase):
         self.assertFalse(provider._spacy_initialized)
         self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_spacy_initialization(self, mock_get_ner):
         """Test that spaCy can be initialized independently."""
         cfg = config.Config(
@@ -130,7 +130,7 @@ class TestMLProviderStandalone(unittest.TestCase):
         self.assertFalse(provider._whisper_initialized)
         self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_spacy_reuse_from_preloaded_does_not_call_get_ner_model(self, mock_get_ner):
         """When preloaded MLProvider has spaCy, second provider reuses it (Issue #428)."""
         mock_nlp = Mock()
@@ -227,9 +227,7 @@ class TestMLProviderStandalone(unittest.TestCase):
             patch(
                 "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper,
-            patch(
-                "podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model"
-            ) as mock_get_ner,
+            patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model") as mock_get_ner,
             patch(
                 "podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model"
             ) as mock_select_map,
@@ -483,8 +481,8 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_speaker_names")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.detect_speaker_names")
     def test_detect_speakers_success(self, mock_detect, mock_get_ner):
         """Test successful speaker detection."""
         mock_nlp = Mock()
@@ -504,8 +502,8 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
         self.assertEqual(hosts, {"Alice"})
         self.assertTrue(success)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_hosts_from_feed")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.detect_hosts_from_feed")
     def test_detect_hosts_success(self, mock_detect, mock_get_ner):
         """Test successful host detection."""
         mock_nlp = Mock()
@@ -523,7 +521,7 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
 
         self.assertEqual(hosts, {"Alice", "Bob"})
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_analyze_patterns_success(self, mock_get_ner):
         """analyze_patterns returns empty heuristics (#598 removed the learner)."""
         from podcast_scraper import models
@@ -551,7 +549,7 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
         self.assertEqual(result, {})
         self.assertEqual(provider._spacy_heuristics, {})
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_analyze_patterns_no_nlp(self, mock_get_ner):
         """Test analyze_patterns returns None if nlp is None."""
         mock_get_ner.return_value = None
@@ -767,7 +765,7 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertTrue(provider._whisper_initialized)
         self.assertEqual(provider._whisper_model, mock_model)
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_preload_spacy_success(self, mock_get_ner):
         """Test successful spaCy model preloading."""
         cfg = config.Config(
@@ -844,7 +842,7 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertIn("Failed to preload Whisper model", str(context.exception))
         self.assertIn("openai-whisper", str(context.exception))
 
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     def test_preload_spacy_fails_fast(self, mock_get_ner):
         """Test that preload() fails fast when spaCy model cannot be loaded."""
         cfg = config.Config(
@@ -897,7 +895,7 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertIn("model cache", str(context.exception).lower())
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
@@ -1025,7 +1023,7 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertEqual(mock_whisper_lib.load_model.call_count, first_call_count)
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")

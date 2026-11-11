@@ -42,9 +42,53 @@ def _built_in_builder() -> Iterator[None]:
 
 
 def test_with_nothing_registered_the_ledger_builder_answers(tmp_path: Path) -> None:
-    from podcast_scraper.identity.ledger_display import build_from_ledger
+    from podcast_scraper.builtin_read_hooks import _person_display_builder
 
-    assert D._current_builder() is build_from_ledger
+    assert D._current_builder() is _person_display_builder
+    from podcast_scraper.identity import ledger as L
+
+    valid = dict(_LEDGER, schema_version=L.LEDGER_SCHEMA_VERSION, rule_version=L.RULE_VERSION)
+    (tmp_path / L.LEDGER_NAME).write_text(json.dumps(valid), encoding="utf-8")
+    view = D.person_display(tmp_path)
+    assert view.shown("person:ada-lovelace-2", "Ada Lovlace") == "Ada Lovelace"
+
+
+def test_without_a_read_side_owner_every_name_is_the_episodes_own(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Public on its own (the ledger in Common, not installed): the plain builder."""
+    import dataclasses
+
+    from podcast_scraper import builtin_read_hooks
+
+    monkeypatch.setattr(
+        builtin_read_hooks,
+        "BUILTIN",
+        dataclasses.replace(builtin_read_hooks.BUILTIN, person_display_builder=None),
+    )
+    assert D._current_builder() is D.plain_display
+
+
+def test_an_extensions_read_side_owner_answers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import dataclasses
+
+    from podcast_scraper import builtin_read_hooks
+    from podcast_scraper.extensions import Extension, use_extensions
+    from podcast_scraper.read_hooks import ReadHooks
+
+    def builder(root: Path) -> D.PersonDisplay:
+        return D.PersonDisplay({"person:x": "Extension Spelling"})
+
+    monkeypatch.setattr(
+        builtin_read_hooks,
+        "BUILTIN",
+        dataclasses.replace(builtin_read_hooks.BUILTIN, person_display_builder=None),
+    )
+    ext = Extension(name="ext", read_hooks=ReadHooks(name="ext", person_display_builder=builder))
+    with use_extensions([ext]):
+        assert D.person_display(tmp_path).shown("person:x", "Own") == "Extension Spelling"
 
 
 def test_the_ledger_view_is_the_same_through_either_module() -> None:
@@ -87,6 +131,6 @@ def test_none_restores_the_built_in_builder(tmp_path: Path) -> None:
     (tmp_path / "identity_ledger.json").write_text(json.dumps(_LEDGER), encoding="utf-8")
     D.set_display_builder(D.plain_display)
     D.set_display_builder(None)
-    from podcast_scraper.identity.ledger_display import build_from_ledger
+    from podcast_scraper.builtin_read_hooks import _person_display_builder
 
-    assert D._current_builder() is build_from_ledger
+    assert D._current_builder() is _person_display_builder

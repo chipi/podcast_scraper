@@ -43,7 +43,7 @@ from ..common.summary_use_case import (
     use_case_from_params,
     use_case_prompt_metadata,
 )
-from . import speaker_detection, summarizer
+from . import summarizer
 from .ml_provider_gi_naming import MLProviderGiNamingMethods
 from .model_registry import ModelRegistry
 from .whisper_utils import normalize_whisper_model_name
@@ -778,7 +778,9 @@ class MLProvider(MLProviderGiNamingMethods):
                 suggestion="Set auto_speakers=True to enable speaker detection",
             )
         logger.debug("Initializing spaCy NER model (model: %s)", self.cfg.ner_model)
-        self._spacy_nlp = speaker_detection.get_ner_model(self.cfg)
+        from ... import stage_hooks
+
+        self._spacy_nlp = stage_hooks.ner_model(self.cfg)
         if self._spacy_nlp is None:
             logger.warning(
                 "Failed to load spaCy NER model. Speaker detection may be limited. Model: %s",

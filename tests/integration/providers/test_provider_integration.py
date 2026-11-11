@@ -75,7 +75,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertTrue(hasattr(summarization_provider, "initialize"))
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
@@ -125,7 +125,7 @@ class TestProviderIntegration(unittest.TestCase):
                 self.assertTrue(summarization_provider.is_initialized)  # type: ignore[attr-defined]
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
@@ -416,7 +416,7 @@ class TestProviderInstanceReuse(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.orchestration._preloaded_ml_provider", None)
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
