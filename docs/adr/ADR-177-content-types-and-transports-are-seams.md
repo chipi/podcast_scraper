@@ -1,0 +1,57 @@
+# ADR-177: Content types and transports are extension seams; podcast is the first built-in type
+
+- **Status**: Proposed
+- **Date**: 2026-11-11
+- **Authors**: Marko Dragoljevic
+- **Related**: [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) (news as the second
+  content type), [ADR-168](ADR-168-installed-extensions.md) (installed extensions),
+  [ADR-176](ADR-176-extension-seams-for-the-split.md) (the seams built for release 1)
+
+## Context & Problem Statement
+
+The pipeline knows one kind of item: a podcast episode from an RSS enclosure, with audio and a
+transcript. Release 1 put seams around the stages that leave public (ADR-176), but not around the
+item itself or the way items arrive. Adding news, or any later type, would mean editing the
+podcast path, which is what the seams exist to avoid.
+
+## Decision
+
+1. **A content type is registered, not hard-coded.** `Extension.content_types` adds types. Each
+   one names:
+   - its id scheme (`item:` ids for new types; existing ids never change, T-8);
+   - its stage profile;
+   - its prompt profile;
+   - its viewer card kind.
+2. **A transport is registered.** `Extension.transports` adds transports. A transport lists new
+   items for a source definition and returns, for each, either the text with its metadata or a
+   URL to fetch.
+3. **Podcast is the first, built-in type, with RSS enclosures its transport.** Its path is
+   unchanged, and it is registered the way ADR-176 registers today's code: as the built-in owner.
+4. **A text-in entry point runs beside `run_pipeline`.** It takes items that are already text and
+   runs the stages their type's profile names. It never reaches audio, transcription, diarization
+   or ad cleaning.
+5. **News is public's second built-in type** (the operator, 2026-11-11). Its transports,
+   extraction and stage profile live in public, and run on a public-only install. The private
+   extension adds to it only what it adds to podcasts.
+6. **Every item records its type.** Item metadata carries `content_type`. Podcast metadata without
+   the field reads as `podcast_episode`.
+
+## Consequences
+
+- **Positive:**
+  - a new type is a registration plus its own stages;
+  - news proves the seams with a second type and a second transport;
+  - the private extension can add types the same way.
+- **Negative:**
+  - every reader that assumes an episode has to read `content_type` or be limited to podcasts by
+    the registry;
+  - listing those readers is part of the work.
+- **Neutral:** podcast output is unchanged. That is checked by the release's byte-identical
+  artifact gate.
+
+## Alternatives considered
+
+- **A news pipeline beside the podcast one, sharing nothing.** Rejected. It proves nothing about
+  the core, and doubles every later change to enrichment.
+- **News as a podcast with no audio.** Rejected. Every podcast assumption (enclosure, transcript,
+  timestamps) would need a fake value, and the fakes would leak into the graph and search.

@@ -1,0 +1,324 @@
+# RFC-134: News as the second content type
+
+- **Status**: Draft
+- **Authors**: Marko Dragoljevic
+- **Stakeholders**: the operator; the ingestion, database and player sessions
+- **Related ADRs**:
+  - [ADR-168](../adr/ADR-168-installed-extensions.md) (installed extensions)
+  - [ADR-170](../adr/ADR-170-private-repo-split-platform-common-apps.md) (the private repo split)
+  - [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) (the seams built for release 1)
+  - ADR-177 to ADR-180, proposed below
+- **Related RFCs**:
+  - [RFC-131](RFC-131-person-identity-one-home.md) (person identity, one home)
+- **Related Documents**:
+  - `docs/architecture/gi/gi.schema.json`, `docs/architecture/kg/kg.schema.json`
+  - `docs/architecture/gi/ontology.md`, `docs/architecture/kg/ontology.md`
+
+## Abstract
+
+- **What:** news articles become the second content type, beside podcast episodes, in the release
+  that moves ingestion private (the core release). They arrive over two transports, RSS/Atom feeds
+  and a JSON GET API, are fetched and reduced to their text, and go through the same enrichment as
+  podcasts. They land in the same corpus, graph and search index.
+- **Why:** the platform is meant to hold more than podcasts. A second type, over a second
+  transport, with no audio, is the proof that the core is general, and that the seams and the
+  vocabulary refactor did what they claim. It is also the first real-world material that extends
+  the podcasts' storylines.
+- **How:** content-type and transport seams on the extension interface (ADR-168), a text-in entry
+  point beside the podcast pipeline, the medium-neutral half of ontology v4 (R3a), and the existing
+  enrichment over article text.
+
+## Problem statement
+
+Every path in the pipeline today assumes a podcast:
+
+- an episode from an RSS enclosure;
+- audio, then a transcript;
+- insights and quotes anchored to a transcript by character and time.
+
+The GI schema (3.1) makes `episode_id`, `timestamp_start_ms`, `timestamp_end_ms` and
+`transcript_ref` required on every quote. A news article has none of them.
+
+Release 1 put seams around the stages that leave public (ADR-176): stage, read and CLI hooks. It did
+not add the other R2 seams:
+
+- content types and transports on `Extension`;
+- a text-in entry point beside `run_pipeline`.
+
+So there is no way yet to add a type without editing the podcast path.
+
+**Use cases:**
+
+1. **A listener's storyline gets real-world context.** A storyline such as inflation expectations or
+   AI regulation shows recent news items about it, each with a summary and a link out.
+2. **One graph across media.** A person who speaks on a podcast and is quoted in an article is one
+   node.
+3. **Search across types.** One query finds podcast moments and news items together.
+
+## Goals
+
+1. **A second content type end to end:** fetch, text, enrichment, corpus, graph, search, viewer.
+   No podcast-only module runs for a news item.
+2. **A second transport:** a JSON GET API beside RSS/Atom.
+3. **Podcast output unchanged:** byte-identical artifacts for the same episodes. This is the
+   release's existing deploy gate.
+4. **Public alone still works:** a public-only install ingests news with the plain defaults
+   (summary and basic KG, no grounded insights).
+5. **The data model practised before the database:** news writes ontology v4 in the file corpus
+   now. The corpus database (E06) is then designed once, against v4.
+
+## Non-goals
+
+- **Rendering an article:** surfaces show the title, the summary, basic item metadata and short
+  evidence snippets, always with a link out (below).
+- **Summarising across news items:** later.
+- **Event clusters, GDELT, divergence, publisher grading:** later (structured intelligence).
+- **Other content types** (social posts, advisories, reports): after the corpus database.
+- **Migrating the podcast corpus to v4:** that is R3b, a later release (below).
+- **News on the listener app by default:** at most a flagged proof (section 11).
+
+## Constraints and assumptions
+
+**Constraints:**
+
+- **News is a public capability (the operator, 2026-11-11).** These live in public and run on a
+  public-only install:
+  - the type, both transports and extraction;
+  - the summary, KG, search rows and the public viewer card.
+
+  The private extension adds to news only what it adds to podcasts, where it has value.
+- **No change to podcast output, routes or response models.**
+- **Public names no private package (ADR-170).** Grounded insights, identity joining and the private
+  viewer are referred to here as "the private extension".
+- **The full text is never served.** It is extracted and stored only so that it can be enriched.
+- **The corpus is still files** in this release, under the existing change method.
+- **No freeze is needed for news itself:** it adds files and index rows and changes no existing
+  ones.
+
+**Assumptions:**
+
+- **Two or three articles a day per source** on average. That is about 1,000 items a month for 19
+  sources, against today's 3,151 episodes. To measure on the first month.
+- **Enrichment cost per article is well below an episode's:** no transcription and shorter text.
+  Not measured yet.
+
+## Design
+
+### 1. Content-type and transport seams (R2, completing ADR-176)
+
+- **New `Extension` fields:**
+  - `content_types`: a name, an item id scheme, a stage profile and a viewer card kind;
+  - `transports`: a name and a function that lists new items from a source definition.
+- **Podcast is registered as the first, built-in type,** with RSS enclosures as its transport. Its
+  path does not change.
+- **A text-in entry point beside `run_pipeline`:** it takes items that are already text, with their
+  metadata, and runs the type's stage profile.
+- **Stage profiles name the stages a type runs.** News skips audio, transcription, diarization and
+  ad cleaning, and runs:
+  - summary;
+  - KG;
+  - GI and identity, when the private extension is installed.
+
+### 2. The `news_article` type
+
+| Concept | Podcast today | News |
+| --- | --- | --- |
+| Source | show (feed) | publication: one feed or one API query |
+| Item | episode | article |
+| Body | transcript | extracted article text |
+| Publisher | the show's organisation | the publication's organisation (T-12) |
+| People | hosts, guests, speakers | bylines (authors), people mentioned |
+
+- **Ids** (decision T-8):
+  - existing ids never change;
+  - new types use `source:` and `item:` ids;
+  - a news item id is stable per canonical URL.
+- **Item metadata:**
+  - title, canonical URL, publisher, byline as given, published time;
+  - `editorial_type` (news, opinion, analysis, press release, speech);
+  - language;
+  - rights fields: licence, and whether the source is paywalled.
+
+### 3. Transports
+
+- **RSS/Atom:**
+  - feeds read with `feedparser`;
+  - the item list comes from the feed and the text from the article page.
+- **JSON GET API:** two, to prove the transport is not one source's shape.
+  - **Hacker News (Algolia search API):** no key. Each item links to a third-party page, which is
+    fetched and extracted like a feed item.
+  - **The Guardian Content API:** needs a developer key. It returns the body text and byline
+    itself, so it also proves a transport that needs no page fetch.
+- **Fetching manners:**
+  - a polite user agent;
+  - conditional GET (ETag / Last-Modified);
+  - a per-host delay;
+  - the robots.txt rules honoured;
+  - no paywall circumvention.
+
+### 4. Text extraction
+
+- **The library:** `trafilatura` gives the body, byline and date.
+- **The fallback:** when trafilatura's text is much shorter than `readability-lxml`'s on the same
+  page, the readability body is used. It cut one of 19 sampled articles short in testing.
+- **Bylines:** the feed's author field is used first, the page's second, and publisher names are
+  removed from bylines.
+- **Too little text** (a teaser or a video page): the item is kept with its title and feed summary
+  and marked `text_status: teaser`. It is not enriched as if it were whole.
+- **Evidence:** ADR-179, with the sample measurements.
+
+### 5. The corpus, in file mode
+
+- **Layout:** news items live in the corpus beside podcast episodes, in the same per-source run
+  layout. The catalog, the corpus migrations and the index builders then see them through code
+  paths that already exist.
+- **Fields:** each item's metadata carries `content_type: news_article`; podcast metadata gains the
+  same field, defaulting to `podcast_episode` when absent.
+- **Readers:** any reader that assumes an episode reads `content_type` first, or is limited to
+  podcasts by the type registry. The list of such readers is part of this RFC's work.
+- **The extracted text:** stored with the item as its body artifact, the way a transcript is. Never
+  served.
+
+### 6. Ontology v4, the schema half (R3a)
+
+- **Evidence carries a character range in its item's body, always.** A time range only when the
+  item is timed: podcasts yes, news no.
+- **Every evidence and insight text carries `text_origin`:** `spoken`, `translated` or `authored`.
+- **Also added:**
+  - `ATTRIBUTED_TO` (a quote to a person);
+  - roles on people (author, host, guest, participant);
+  - `Place` and time fields, declared and not yet filled.
+- **News writes v4 from the start. Podcasts keep writing 3.x until R3b.**
+- **Readers accept both versions.** A 3.x quote is read as v4 with `text_origin: spoken` and its
+  time range.
+- **R3b,** rewriting the podcast corpus to v4 under the change method, comes in a later release,
+  before or with the corpus database.
+- **The KG schema is public's** and is versioned here. The GI schema moves with the private
+  extension and follows the same rules there.
+- **Evidence:** ADR-178.
+
+### 7. Enrichment, the same as podcasts, over text
+
+- **Public alone:**
+  - the summary;
+  - the basic KG pass (topics, entities);
+  - index rows.
+- **With the private extension installed:**
+  - grounded insights with quotes anchored by character range;
+  - the GI–KG bridge;
+  - identity joining.
+- **Prompts are per type** (a prompt profile), so a news article is not prompted as a transcript.
+- **Proof that no podcast-only module runs:** a test runs a news item through the pipeline and fails
+  if any audio, transcription, diarization or ad-cleaning module is imported or called.
+
+### 8. People, publishers and the one graph
+
+- **People mentioned in articles** join the same person graph as podcast people, through the
+  existing joining and its guards.
+- **Bylines are people with the role author.**
+  - A byline joins a person only within its publisher, the way a host joins only within a show
+    (the host rule).
+  - Across publishers, or into podcasts, a byline joins only through the general rule and its
+    guards.
+- **An organisation as author** ("Meduza", "Reuters") is the publisher, not a person.
+- **Publishers are organisations** (T-12). A publisher that also publishes a podcast in the corpus
+  (the BBC, Meduza) is one organisation across both.
+- **Evidence:** ADR-180.
+
+### 9. Search
+
+- **News rows go into the same index as a new row type,** through the `index_rows` hook (ADR-176):
+  article chunks, and the item's summary.
+- **Results carry `content_type`.** Search can filter by it and returns both types by default.
+- **No new index or store:** the database search (E09) later takes all types together.
+
+### 10. Display: title, summary, snippets and a link
+
+- **Every surface shows:**
+  - the title, summary, publisher, byline, published time and source;
+  - short evidence snippets (one or two sentences, quoted, as P-3 allows);
+  - a link out to the article.
+- **Never shown:** the article body.
+- **The public viewer** gets a basic news card and the type in search. **The private viewer** gets
+  the richer card, with insights and evidence highlighted in the snippet.
+
+### 11. The listener app (optional, behind a flag)
+
+- **A small read-time proof, off by default:**
+  - "in the news" on a storyline or theme page, by a cross-type search against its text;
+  - a short strip on the home page for the themes a listener follows;
+  - a news item kept on a board.
+- **No new enrichment:** news does not enter the storyline or theme builders in this release.
+- **The first slice to cut if the release is late,** in which case it moves to the release before
+  the corpus database.
+
+### 12. The prod sources (first set, 2026-11-11)
+
+Chosen to match and complement the podcast corpus's subjects. Every feed answered HTTP 200 with
+recent items on 2026-11-11.
+
+| Area | Sources |
+| --- | --- |
+| AI and technology | Ars Technica, The Verge, MIT Technology Review, Import AI, Simon Willison's weblog |
+| Central banks and economics | BIS central bankers' speeches, Federal Reserve press releases, BBC Business |
+| World and geopolitics | BBC World, Al Jazeera, Meduza (English), The Diplomat, South China Morning Post (China) |
+| Technology in the Global South | Rest of World, TechCabal |
+| Health, biotech and science | STAT News, Quanta Magazine, Nature News, The Conversation |
+| APIs | Hacker News (Algolia), The Guardian Content API |
+
+**Known per source:**
+
+- **SCMP:** returns a teaser only.
+- **Al Jazeera:** its feed mixes in video pages, which are filtered.
+- **The Brazilian Report:** wanted, since it publishes a podcast in the corpus, but its feed
+  answered 404. It needs another route.
+
+Fixtures and invented items, as for podcasts, cover the same shapes in CI.
+
+## Proof
+
+1. **Podcast artifacts byte-identical** on a snapshot clone, with and without the private extension.
+2. **Fixture feeds and fixture API responses** ingest end to end in CI, on both transports.
+3. **No podcast-only module runs** for a news item (section 7).
+4. **A public-only install** ingests and serves news on the plain defaults.
+5. **v4 and 3.x artifacts both read** on every route that reads insights or quotes.
+6. **Bylines:**
+   - fixture bylines in the shapes seen ("By A and B", "Surname; Given", an organisation as
+     author) join or stay apart as section 8 says;
+   - no byline joins a podcast person without the general rule.
+7. **Search:** a fixture query returns both types, and a type filter returns one.
+
+## Rollout and rollback
+
+- **Sources are configuration.** Turning them off stops new items. Removing the type's items is a
+  corpus migration with its own undo.
+- **No existing file changes,** so rollback is the previous images and the sources off.
+- **R3b is not in this release,** so it needs no freeze. If anything else in the release needs one,
+  it uses the freeze checklist (infra).
+
+## Risks
+
+- **Extraction quality varies by site and over time.** Monitored by text length per source and the
+  teaser rate.
+- **Bylines are noisy.** A false join is worse than a missed one (RFC-131's rule), so bylines start
+  scoped to their publisher.
+- **Volume:** news adds index rows every day, and player-api's memory is already tight. Measured on
+  the stand-in before the deploy, and the bigger box comes with the next deploy.
+- **Terms of use differ per source.** Each source's terms are read before it is turned on in prod.
+
+## Proposed ADRs
+
+| ADR | Decision |
+| --- | --- |
+| ADR-177 | Content types and transports are extension seams; podcast is the first built-in type; a text-in entry point beside `run_pipeline` |
+| ADR-178 | Ontology v4 is adopted in two halves: the schema now (new types write it, readers accept both), the podcast corpus migration later |
+| ADR-179 | Article text is extracted with trafilatura and a readability fallback; it is stored for enrichment and never served |
+| ADR-180 | Bylines join people within their publisher, as hosts within their show; publishers are organisations across media |
+
+## Not covered yet
+
+- **The private extension's side:** GI v4 and identity joining for bylines, designed in that repo.
+- **Who builds which part:** ingestion owns the pipeline and the move; to be agreed.
+- **Volume and cost:** articles per day, enrichment cost per article, index growth. To be measured
+  on the first month of fixtures and a dry run.
+- **Each source's terms of use** and the Guardian key.
