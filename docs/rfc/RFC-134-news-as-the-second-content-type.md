@@ -313,6 +313,126 @@ undo.
 Every surface and tool that lists or searches items takes a type filter (§9). A later product can
 then read these types through the platform's API and MCP, the way the podcast apps read episodes.
 
+### 14. Impact on the pipeline and the tests (review of 2026-11-11)
+
+A read of the code at public 0357b8a96.
+
+- **The half after the transcript is mostly body-neutral.** Summary, GI, KG and the bridge take text
+  and optional segments.
+- **The half before it assumes an RSS item with an enclosure, and audio.**
+- **Nothing in `src/` has a content-type concept yet.**
+- **Most podcast-specific things would not fail loudly for a news item.** They would produce nothing,
+  or something wrong. So the guards below matter as much as the code.
+
+**Places that must change, and how each fails today:**
+
+| # | Place | Today, for a news item | Change |
+| --- | --- | --- | --- |
+| 1 | `episode_processor.process_episode_download` (no transcript, no enclosure) | returns nothing, with no error and no metadata | news never reaches it: the text-in entry point (§1) builds the processing job from the extracted body |
+| 2 | `transcript_source` Literal (`workflow/types.py:90`, `metadata_generation.py:640`) | a validation error on any new source | widen it to a body source that includes extraction |
+| 3 | GI quotes with no segments (`gi/pipeline.py`, `_char_range_to_ms`) | written with fabricated 0 ms timestamps and a transcript reference, and they pass the 3.1 schema | v4 (§6): no time range when untimed |
+| 4 | The search indexer's body chunks (`search/indexer.py`) and the corpus text-file route (`GET /corpus/text-file`) | would return article text in search hits and as a raw file | news chunks are indexed for retrieval only; a hit shows the summary and a short snippet; the text-file route refuses a news body (ADR-179) |
+| 5 | Ad excision inside summary, KG and GI (three call sites) | would cut "pre-roll" and "post-roll" from article text | skipped by the stage profile |
+| 6 | `rss/parser.parse_rss_items` | an Atom feed gives zero items, silently | the news RSS/Atom transport reads feeds with `feedparser`; the podcast parser stays as it is |
+| 7 | The feed language gate | refuses a whole source that declares no language, which every JSON API does | language comes from the transport or the item |
+| 8 | The catalog row (`CatalogEpisodeRow`) and the episode summary (`content_source`) | news shows as podcast episodes, "ready" with a podcast title | rows carry `content_type`; podcast surfaces filter on it |
+| 9 | Host and guest detection, the speakers validator, the show health check | bylines labelled as hosts; every item flagged with no host or no transcript | skipped or replaced by the stage profile; bylines go through ADR-180 |
+| 10 | `RssFeedEntry` and `Config` (`extra="forbid"`), and the two multi-feed loops (`service.py`, `cli.py`) | no place to declare a type or transport, and two loops to keep in step | the source declares `content_type` and `transport`; one dispatch point used by both loops |
+
+**Also affected:**
+
+- **Corpus migrations:** 27 of the 44 walk every metadata file and touch transcripts, segments,
+  speakers or timestamps. Each either skips non-podcast items by type or is shown to be a no-op on a
+  news fixture.
+- **Prompts:** 208 of 219 prompt files mention a podcast, a transcript or an episode. News gets its
+  own prompt profile (§7).
+- **The private viewer:** 33 places hard-code the `Episode` node type. That is the private viewer's
+  own work.
+
+**Where the seams go:**
+
+- **The registries:** `Extension.content_types` and `Extension.transports` beside `pipeline_hooks`,
+  with podcast built in, as `builtin_stage_hooks` does.
+- **The source:** declares its type and transport. One dispatch point, used by both batch loops,
+  chooses `run_pipeline` or the text-in entry point.
+- **The text-in entry point reuses:** the environment setup, the run manifest, the processing
+  resources, the processing jobs (with the extracted body as their body file) and the finalisation.
+  It replaces only the feed fetch and the download and transcription threads.
+- **Stage hooks get the item's type,** so no hook has to infer it.
+
+**Tests and guards to add.**
+
+None of the proof items in "Proof" has a test today. Every layer is podcast-shaped: fixtures, both
+mock HTTP hosts, the canned LLM replies, the GI and KG schemas, the import guard, the viewer corpus.
+In order of importance:
+
+1. **The architecture guards** (unit and guardrails, on every PR):
+   - **No podcast module for news:** an import probe cloned from
+     `test_public_imports_load_no_speaker_stage.py`, with transcription, preprocessing, audio sync,
+     ad cleaning, diarization, speaker detection and the audio download. Plus a runtime test that
+     runs a news item with those modules made to raise.
+   - **The guard's own removal proof:** with a podcast stage wired in on purpose, the guard fires
+     (`test_guard_capability.py`'s pattern).
+   - **Public names no private package:** a test of the rule ADR-170 states but nothing enforces
+     today.
+   - **The registries:** a consistency test for the new registries, and a test that every route,
+     MCP tool and search call accepts a type filter.
+2. **Byte-identical podcast output:** the e2e fixture feed run twice, plain and with a test
+   extension installed, comparing artifact hashes. Today's nearest check
+   (`test_english_artifact_allowlist.py`) compares shapes, not bytes, and never runs with and without
+   an extension.
+3. **Schemas, both versions:**
+   - v4 in the GI and KG schemas, with the item id in place of a required `episode_id`;
+   - minimal valid and invalid v4 artifacts for podcast and news;
+   - a fixture corpus holding GI 3.1 and v4 side by side;
+   - every route that reads insights or quotes run over both.
+   - The N-1 compatibility test today only strips manifest fields. It gains a 3.x corpus read by v4
+     code.
+   - A schema change trips the migration guard, so that PR carries a migration or its
+     "migration not required" reason.
+4. **HTTP fakes for both transports:**
+   - news RSS and Atom feeds;
+   - saved article pages, including a teaser and a video item;
+   - Hacker News and Guardian JSON with paging and an API key;
+   - error injection (404, 429 with Retry-After, malformed JSON, end of cursor).
+   - The same files go into the stack-test's mock host.
+   - A transport conformance suite, in the style of the search backend contract suite: cursor,
+     idempotent ids, rate budget and retry, run against every transport.
+   - The LLM mock learns the news prompt profile. Otherwise news prompts get transcript replies.
+5. **Fixtures:** `tests/fixtures/news/v1`:
+   - invented publishers, feeds, API JSON and pages;
+   - extraction goldens, including the readability fallback case;
+   - byline shapes;
+   - one publisher that also has a podcast;
+   - captured LLM output for news;
+   - a generator script.
+   - News items join the app validation corpus, or a sibling corpus, so the API, MCP, search and
+     viewer tests read both types.
+   - **Invented names and domains only:** the identifier deny-list and gitleaks scan fixtures.
+6. **Never served:** an API-level negative test that no route or MCP response contains a news body.
+7. **The PR tiers:** the news e2e is marked `critical_path`, so the PR subsets of integration and e2e
+   run it. The full stack-test runs on main only, so it cannot be the only cover.
+8. **Search across types:** `content_type` in the search backend contract, so the fake and LanceDB
+   must agree; a query returning both types, and a filter returning one.
+9. **Bylines:** rows in a guardrail matrix like the speaker-roles matrix: within-publisher joins, an
+   organisation as author, no join into podcast people without the general rule.
+10. **Acceptance:** a news feed fragment. The acceptance check of GI quote offsets assumes transcript
+    chunks and needs an article-chunk equivalent.
+11. **The viewer:**
+    - a corpus with news;
+    - a Playwright spec for the basic card (title, summary, publisher, byline, time, link, no body)
+      and the type chip in search;
+    - its surface-map entry and unit tests.
+    - The private viewer's tests are its own repo's.
+12. **Housekeeping:**
+    - a test-policy rule that news tests use no podcast fixture paths;
+    - wire the existing search lint into CI, where it gates nothing today;
+    - the test and fixture READMEs, whose counts are stale and which describe the data as podcasts
+      only.
+
+**The existing gates hold news to the podcast bar:** unified coverage (70%), Codecov patch (77.47%),
+the test policy and network isolation.
+
 ## Proof
 
 1. **Podcast artifacts byte-identical** on a snapshot clone, with and without the private extension.
