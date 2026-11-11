@@ -254,6 +254,20 @@ def corpus_source_output_dir(
     return validate_and_normalize_output_dir(leaf)
 
 
+def corpus_root_of_workspace(workspace: Path) -> Optional[Path]:
+    """The corpus root a source's workspace sits in: ``<root>/feeds/<slug>`` for a podcast,
+    ``<root>/sources/<type>/<slug>`` for another type; ``None`` for any other path."""
+    if workspace.parent.name == "feeds" and workspace.parent.parent.name:
+        return workspace.parent.parent
+    if (
+        workspace.parent.parent.name == SOURCES_DIR
+        and workspace.parent.name
+        and workspace.parent.parent.parent.name
+    ):
+        return workspace.parent.parent.parent
+    return None
+
+
 def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     """Compute the default output directory for an RSS feed."""
     if override:
