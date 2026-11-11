@@ -123,7 +123,9 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
                 )
                 for idx, entry in enumerate(entries):
                     url = entry.url
-                    child_dir = filesystem.corpus_feed_output_dir(parent, url)
+                    child_dir = filesystem.corpus_source_output_dir(
+                        parent, url, getattr(entry, "content_type", None)
+                    )
                     incident_log = (cfg.incident_log_path or "").strip()
                     if not incident_log:
                         incident_log = str(Path(parent) / "corpus_incidents.jsonl")

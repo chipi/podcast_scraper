@@ -226,3 +226,65 @@ def test_the_type_mints_the_source_id_from_its_url() -> None:
     assert ct.source_id(TEXT, url) == "source:" + hashlib.sha256(url.encode()).hexdigest()[:20]
     with pytest.raises(ValueError, match="no URL"):
         ct.source_id(TEXT, "")
+
+
+def test_a_config_keeps_each_sources_type_and_transport(tmp_path: Any) -> None:
+    """The config-inline path (service, YAML) used to drop both, so a text source ran as a
+    podcast."""
+    cfg = config.Config.model_validate(
+        {
+            "rss_urls": [
+                {"url": "https://x/a.xml", "content_type": "test_text_item", "transport": "t"},
+                {"url": "https://x/b.xml"},
+            ],
+            "output_dir": str(tmp_path),
+        }
+    )
+    entries = cfg.rss_urls or []
+    assert [(e.content_type, e.transport) for e in entries] == [
+        ("test_text_item", "t"),
+        (None, None),
+    ]
+
+
+def test_a_config_with_one_text_source_keeps_its_type() -> None:
+    cfg = config.Config.model_validate(
+        {"rss_urls": [{"url": "https://x/a.xml", "content_type": "test_text_item"}]}
+    )
+    assert cfg.rss_url == "https://x/a.xml"
+    assert cfg.rss_urls is not None and cfg.rss_urls[0].content_type == "test_text_item"
+
+
+def test_a_config_with_one_podcast_feed_still_collapses_to_rss_url() -> None:
+    cfg = config.Config.model_validate({"rss_urls": [{"url": "https://x/a.xml"}]})
+    assert cfg.rss_url == "https://x/a.xml"
+    assert cfg.rss_urls is None
+
+
+def test_the_service_runs_a_single_text_source_through_text_in(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from podcast_scraper import service
+    from podcast_scraper.workflow import text_in
+
+    seen: List[Any] = []
+
+    def text_run(cfg: Any, entry: Any, ctype: Any, transport: Any) -> Tuple[int, str]:
+        seen.append(ctype)
+        return 1, "text"
+
+    monkeypatch.setattr(text_in, "run_text_source", text_run)
+
+    def podcast(cfg: Any) -> Tuple[int, str]:
+        raise AssertionError("the podcast pipeline must not run for a text source")
+
+    monkeypatch.setattr(service.workflow, "run_pipeline", podcast)
+    cfg = config.Config.model_validate(
+        {
+            "rss_urls": [{"url": "https://x/a.xml", "content_type": "test_text_item"}],
+            "output_dir": str(tmp_path),
+        }
+    )
+    with use_extensions([_ext((TEXT,), (FEED,))]):
+        result = service.run(cfg)
+    assert seen == [TEXT], result

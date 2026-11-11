@@ -137,3 +137,38 @@ class TestSingleFeedCorpusLayout:
             service.run(cfg)
         mock_multi.assert_called_once()
         mock_workflow.run_pipeline.assert_not_called()
+
+
+def test_a_single_source_of_another_type_wraps_under_sources(tmp_path):
+    """ADR-177: a non-podcast source's workspace is sources/<type>/<slug>/, never feeds/."""
+    url = "https://example.com/texts.xml"
+    cfg = Config.model_validate(
+        {
+            "rss_urls": [{"url": url, "content_type": "test_text_item"}],
+            "output_dir": str(tmp_path),
+            "single_feed_uses_corpus_layout": True,
+        }
+    )
+    out = str(cfg.output_dir)
+    assert out.startswith(str((tmp_path / "sources" / "test_text_item").resolve()))
+    assert "/feeds/" not in out
+    # idempotent: a second construction from the wrapped dir does not wrap again
+    again = Config.model_validate(
+        {
+            "rss_urls": [{"url": url, "content_type": "test_text_item"}],
+            "output_dir": out,
+            "single_feed_uses_corpus_layout": True,
+        }
+    )
+    assert str(again.output_dir) == out
+
+
+def test_the_source_workspace_helper_keeps_podcasts_under_feeds(tmp_path):
+    from podcast_scraper.utils import filesystem
+
+    url = "https://example.com/feed.xml"
+    feeds = filesystem.corpus_feed_output_dir(str(tmp_path), url)
+    assert filesystem.corpus_source_output_dir(str(tmp_path), url) == feeds
+    assert filesystem.corpus_source_output_dir(str(tmp_path), url, "podcast_episode") == feeds
+    other = filesystem.corpus_source_output_dir(str(tmp_path), url, "test_text_item")
+    assert other.endswith("/sources/test_text_item/" + filesystem.feed_workspace_dirname(url))
