@@ -565,12 +565,16 @@ def _servable_docs(
     becomes servable again (an unchanged fingerprint would otherwise skip it, leaving it out of
     search for good). Each episode is noted as ``served`` or ``withheld``, so rows are withdrawn
     only for an episode with no servable run in this build.
+
+    Only podcast episodes are indexed here: another type's rows go in tables of their own
+    (RFC-134 §9), so an item of another type is neither served nor withheld by this walk.
     """
+    from ..content_types import is_wanted, PODCAST_ONLY
     from ..languages import episode_is_unusable
 
     for meta_path in meta_paths:
         doc = _load_metadata_file(meta_path)
-        if not doc:
+        if not doc or not is_wanted(doc, PODCAST_ONLY):
             continue
         episode_id = (doc.get("episode") or {}).get("episode_id")
         if not episode_is_unusable(doc):
