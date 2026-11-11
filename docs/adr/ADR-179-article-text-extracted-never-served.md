@@ -45,8 +45,16 @@ Five Python extractors were run on the newest article of each of 19 candidate so
 5. **An item with too little text** (a teaser behind a paywall, a video page) is kept with its title
    and feed summary and marked `text_status: teaser`. It is not enriched as a whole article.
 6. **The extracted text is stored with the item as its body artifact, the way a transcript is,** and
-   used only for enrichment and evidence ranges. No route, viewer or app serves it. Evidence shows
-   one or two quoted sentences.
+   used only for enrichment and evidence ranges. No route, viewer or app serves it. The measurable
+   rule:
+   - **response cap:** no response holds more than a stated number of contiguous characters of a
+     news body;
+   - **search rows:** news search rows store no body text, only the summary and metadata;
+   - **the text-file route** refuses a news body.
+   - **Snippets:** quoted evidence snippets of one or two sentences come with grounded insights in
+     News 2.0, which sets the cap. In News 1.0 no body text is shown at all.
+7. **`mineable: false` means the body is not stored and the item is not enriched;**
+   `serveable` says what a surface may show.
 
 ## Consequences
 

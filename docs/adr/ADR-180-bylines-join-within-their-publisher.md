@@ -31,32 +31,46 @@ A wrong merge is worse than a cautious split (ADR-167).
 ## Decision
 
 1. **People mentioned in articles join through the existing joining and its guards,** like any
-   person in the corpus.
-2. **A byline is a person with the role author, and joins within its publisher only,** the way a
-   host joins within a show. Its publisher's bylines are its verified names.
-3. **Across publishers, or into podcasts, a byline joins only through the general rule and its
+   person in the corpus. The guards' evidence builder reads the item id (ADR-178). Today it skips any
+   artifact without `episode_id`, so news would add no guard evidence.
+2. **A byline is a person with the role author, and joins within its publisher only,** in the shape
+   of the host rule. Its verified names are the publisher's bylines from item metadata (the feed's
+   author field first, the page's second). The host rule's verified names come from the show's
+   publisher text, which an article does not have, so this is a new evidence source in the same
+   shape, not the same rule unchanged.
+3. **Two names in one byline are two people.** This is a co-byline guard, the analogue of the
+   co-voice guard: they never merge.
+4. **Across publishers, or into podcasts, a byline joins only through the general rule and its
    guards.** There is no byline-specific shortcut.
-4. **An organisation in the byline is the publisher, not a person.** It is removed from the byline
-   before joining.
-5. **Publishers are organisations (T-12).** A publisher that also publishes a podcast in the
-   corpus (the BBC, Meduza) is one organisation across both. An organisation's external
-   identifiers (its web domain now; later a company's CIK, ticker or LEI) are kept side by side and
-   never merged into one key.
-6. **Roles are an open vocabulary.** Author joins host and guest now. Later roles, such as an
-   earnings call's executive or analyst, follow the same rule: joining within the scope that
+5. **An organisation in a news byline is the publisher, not a person.** It is removed from the
+   byline before joining. This holds for news only: for a filing or a company press release, the
+   company is the author and the newsroom is the source, which those types decide.
+6. **Publishers are organisations (T-12), held in a publisher registry in public configuration:**
+   id, name, web domain, external identifiers.
+   - A source points at its publisher through `PUBLISHED_BY` (KG 3.0).
+   - A publisher that also publishes a podcast in the corpus (the BBC, Meduza) is one organisation
+     across both.
+   - External identifiers (a web domain now; later a company's CIK, ticker or LEI) are kept side by
+     side and never merged into one key.
+   - Organisation nodes found by NER are not joined to publishers automatically, for now.
+7. **Roles are an open vocabulary.** Author joins host and guest now. Later roles, such as an
+   earnings call's executive or analyst, follow the same shape: joining within the scope that
    verifies the name, and the general rule elsewhere.
+8. **Byline parsing is measured before it joins anyone:** a golden set of the shapes above, with
+   its precision recorded.
 
 ## Consequences
 
 - **Positive:**
-  - one graph across media, with no new kind of matching;
-  - the host rule's evidence and guards apply to bylines unchanged.
+  - one graph across media;
+  - the host rule's shape, and the general rule's guards, apply to bylines.
 - **Negative:**
-  - byline clean-up (splitting, order, organisation removal) is new code with its own fixtures;
+  - new code for byline clean-up (splitting, order, organisation removal), the co-byline guard and
+    the publisher registry, each with fixtures;
   - a journalist who appears on a podcast joins only when the general rule allows it, so some true
     joins are missed at first.
-- **Neutral:** the joining itself moves with the private extension. Public provides the byline as
-  data and its role.
+- **Neutral:** the joining itself moves with the private extension. Public provides the bylines as
+  item metadata with their role and the publisher's organisation id.
 
 ## Alternatives considered
 
