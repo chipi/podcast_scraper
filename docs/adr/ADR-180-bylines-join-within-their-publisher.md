@@ -39,7 +39,12 @@ A wrong merge is worse than a cautious split (ADR-167).
 4. **An organisation in the byline is the publisher, not a person.** It is removed from the byline
    before joining.
 5. **Publishers are organisations (T-12).** A publisher that also publishes a podcast in the
-   corpus (the BBC, Meduza) is one organisation across both.
+   corpus (the BBC, Meduza) is one organisation across both. An organisation's external
+   identifiers (its web domain now; later a company's CIK, ticker or LEI) are kept side by side and
+   never merged into one key.
+6. **Roles are an open vocabulary.** Author joins host and guest now. Later roles, such as an
+   earnings call's executive or analyst, follow the same rule: joining within the scope that
+   verifies the name, and the general rule elsewhere.
 
 ## Consequences
 
