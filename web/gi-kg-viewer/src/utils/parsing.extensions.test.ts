@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { graphElementDecorators, graphNodeFilters } from '../extensions'
+import { graphElementDecorators, graphNodeFilters, graphTypeTraits } from '../extensions'
 import type { ArtifactData } from '../types/artifact'
-import { applyGraphFilters, defaultFilterState, parseArtifact, toCytoElements } from './parsing'
+import {
+  applyGraphDefaultNodeTypeVisibility,
+  applyGraphFilters,
+  defaultFilterState,
+  filtersActive,
+  filtersActiveExcludingNodeTypes,
+  graphTypesDeviateFromGraphSpec,
+  parseArtifact,
+  toCytoElements,
+} from './parsing'
 
 /** A small KG: one episode, two topics. */
 function kg() {
@@ -24,6 +33,7 @@ function kg() {
 afterEach(() => {
   graphElementDecorators.reset()
   graphNodeFilters.reset()
+  graphTypeTraits.reset()
 })
 
 describe('graphElementDecorators', () => {
@@ -67,5 +77,39 @@ describe('graphNodeFilters', () => {
     const art = kg()
     const state = defaultFilterState(art)!
     expect((applyGraphFilters(art, state).data.nodes ?? []).length).toBe(3)
+  })
+})
+
+describe('graphNodeFilters — a filter with state of its own', () => {
+  it('lights "filters active" while set, in both checks, and resets with reset-all', () => {
+    let on = false
+    graphNodeFilters.register({ id: 'f', keep: () => true, active: () => on, reset: () => (on = false) })
+    const art = kg()
+    const state = defaultFilterState(art)!
+    expect(filtersActive(art, state)).toBe(false)
+    on = true
+    expect(filtersActive(art, state)).toBe(true)
+    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(true)
+  })
+})
+
+describe('graphTypeTraits.defaultHidden', () => {
+  it('starts a declared type off, counts it as default (not active), and restores it off', () => {
+    graphTypeTraits.register({ id: 't', defaultHidden: ['Topic'] })
+    const art = kg()
+    const state = defaultFilterState(art)!
+    expect(state.allowedTypes.Topic).toBe(false)
+    expect(state.allowedTypes.Episode).toBe(true)
+    expect(filtersActive(art, state)).toBe(false)
+    expect(graphTypesDeviateFromGraphSpec(state)).toBe(false)
+    state.allowedTypes = { ...state.allowedTypes, Topic: true }
+    expect(graphTypesDeviateFromGraphSpec(state)).toBe(true)
+    applyGraphDefaultNodeTypeVisibility(state)
+    expect(state.allowedTypes.Topic).toBe(false)
+  })
+
+  it('keeps every type on when nothing declares it hidden', () => {
+    const state = defaultFilterState(kg())!
+    expect(state.allowedTypes.Topic).toBe(true)
   })
 })

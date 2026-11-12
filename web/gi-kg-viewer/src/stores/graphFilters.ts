@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { displayOverrides, graphEgoViews } from '../extensions'
+import { displayOverrides, graphEgoViews, graphNodeFilters } from '../extensions'
 import { computed, ref, watch } from 'vue'
 import type { GraphFilterState, ParsedArtifact } from '../types/artifact'
 import { useArtifactsStore } from './artifacts'
@@ -174,6 +174,7 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     state.value.showKgLayer = true
     state.value.graphFeedFilterId = null
     applyGraphDefaultNodeTypeVisibility(state.value)
+    for (const f of graphNodeFilters.list()) f.reset?.()
   }
 
   return {

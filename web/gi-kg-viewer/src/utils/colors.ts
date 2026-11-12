@@ -8,7 +8,18 @@
  * CIL topic pill) shift with the graph — the palette is a single
  * source of truth.
  */
+import { graphTypeTraits } from "../extensions"
+
 export const GRAPH_NODE_UNKNOWN_FILL = "#868e96"
+
+/** A type's chrome from `graphTypeTraits.chrome`, for types the viewer does not style itself. */
+function traitChrome(type: string) {
+  for (const t of graphTypeTraits.list()) {
+    const c = t.chrome?.[type]
+    if (c) return c
+  }
+  return undefined
+}
 
 export const graphNodeTypeStyles = Object.freeze({
   /** UI **E** chips use the same hex in ``searchResultActionStyles`` — keep in sync. */
@@ -90,6 +101,8 @@ export const graphNodeTypesOrdered = Object.freeze([
 export type GraphVisualType = (typeof graphNodeTypesOrdered)[number] | "?" | "Entity"
 
 export function graphNodeLegendLabel(key: string): string {
+  const trait = traitChrome(key)?.legendLabel
+  if (trait && !(key in graphNodeTypeStyles)) return trait
   if (key === "Entity_person") return "Entity (person)"
   if (key === "Entity_organization") return "Entity (organization)"
   if (key === "TopicCluster") return "Topic cluster"
@@ -98,7 +111,7 @@ export function graphNodeLegendLabel(key: string): string {
 
 export function graphNodeFill(type: string): string {
   const styles = graphNodeTypeStyles as Record<string, { background: string }>
-  const s = styles[type] || (type === "Entity" ? styles.Entity_person : undefined)
+  const s = styles[type] || (type === "Entity" ? styles.Entity_person : undefined) || traitChrome(type)
   return s ? s.background : GRAPH_NODE_UNKNOWN_FILL
 }
 
@@ -120,6 +133,10 @@ export function graphNodeTypeChrome(visualType: string): NodeChrome {
   let s = styles[visualType]
   if (!s && visualType === "Entity") {
     s = styles.Entity_person
+  }
+  if (!s) {
+    const t = traitChrome(visualType)
+    if (t) s = { background: t.background, border: t.border, labelColor: t.labelColor }
   }
   return (
     s ?? {

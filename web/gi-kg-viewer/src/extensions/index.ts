@@ -322,11 +322,16 @@ export const graphCanvasPlugins = extensionPoint<GraphCanvasPlugin>('graphCanvas
  * - `zoomHidden`: node types hidden below `minZoom`, so a dense type does not crowd the fit-all.
  * - `episodeSatellites`: node types the timeline lens places beside their episode (the node's
  *   `episodeId` data, else its connected episode), `yOffset` px from it.
+ * - `defaultHidden`: node types the Types filter starts with off (and resets to off), so a
+ *   high-count type does not drown the first canvas.
+ * - `chrome`: a type's colours (Types chip swatch, panel avatars) and its legend label.
  */
 export interface GraphTypeTraits extends Entry {
   edgeLayout?: Record<string, { length: number; elasticity: number }>
   zoomHidden?: { types: string[]; minZoom: number }
   episodeSatellites?: Array<{ type: string; yOffset: number }>
+  defaultHidden?: string[]
+  chrome?: Record<string, { background: string; border: string; labelColor: string; legendLabel?: string }>
 }
 
 export const graphTypeTraits = extensionPoint<GraphTypeTraits>('graphTypeTraits')
@@ -349,13 +354,19 @@ export interface GraphElementDecorator extends Entry {
 
 export const graphElementDecorators = extensionPoint<GraphElementDecorator>('graphElementDecorators')
 
-/** A node filter the graph applies before its type filter: `keep` false drops the node. */
+/**
+ * A node filter the graph applies before its type filter: `keep` false drops the node. A filter
+ * with state of its own reports it: `active` true lights the filter bar's "filters active" and
+ * reset-all (given the full artifact), and `reset` restores its default for reset-all.
+ */
 export interface GraphNodeFilter extends Entry {
   keep(
     node: import('../types/artifact').RawGraphNode,
     state: import('../types/artifact').GraphFilterState,
     art: import('../types/artifact').ParsedArtifact,
   ): boolean
+  active?(art: import('../types/artifact').ParsedArtifact): boolean
+  reset?(): void
 }
 
 export const graphNodeFilters = extensionPoint<GraphNodeFilter>('graphNodeFilters')
