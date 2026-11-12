@@ -761,50 +761,6 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         provider = OpenAIProvider(cfg)
         self.assertEqual(provider.cleaning_temperature, 0.1)
 
-    def test_clean_transcript_requires_initialization(self):
-        """Test that clean_transcript() requires provider initialization."""
-        provider = OpenAIProvider(self.cfg)
-        # Provider not initialized
-        with self.assertRaises(RuntimeError) as context:
-            provider.clean_transcript("test text")
-        self.assertIn("not initialized", str(context.exception).lower())
-
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    def test_clean_transcript_success(self, mock_retry, mock_render):
-        """Test successful transcript cleaning."""
-        mock_render.return_value = "User prompt with transcript"
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = "cleaned transcript text"
-        mock_retry.return_value = mock_response
-
-        provider = OpenAIProvider(self.cfg)
-        provider._summarization_initialized = True  # Simulate initialization
-
-        result = provider.clean_transcript("raw transcript text")
-
-        self.assertEqual(result, "cleaned transcript text")
-        mock_render.assert_called_once()
-        mock_retry.assert_called_once()
-
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    def test_clean_transcript_empty_result(self, mock_retry, mock_render):
-        """Test that clean_transcript() returns original text if LLM returns empty."""
-        mock_render.return_value = "User prompt"
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = ""
-        mock_retry.return_value = mock_response
-
-        provider = OpenAIProvider(self.cfg)
-        provider._summarization_initialized = True
-
-        result = provider.clean_transcript("original text")
-        # Should return original text if LLM returns empty
-        self.assertEqual(result, "original text")
-
     def test_get_capabilities_includes_semantic_cleaning(self):
         """Test that get_capabilities() includes supports_semantic_cleaning=True."""
         provider = OpenAIProvider(self.cfg)

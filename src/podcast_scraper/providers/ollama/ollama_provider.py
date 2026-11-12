@@ -22,7 +22,7 @@ Note: Model names are normalized to ensure correct format (e.g., '3.1:7b' -> 'll
 from __future__ import annotations
 
 import logging
-from typing import Any, cast, Dict, Optional, Set, TYPE_CHECKING
+from typing import Any, Dict, Optional, Set, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...models import Episode
@@ -44,11 +44,6 @@ except ImportError:
 
 from ... import config, config_constants
 from ...cleaning.base import TranscriptCleaningProcessor
-from ...utils.cleaning_max_tokens import (
-    clamp_cleaning_max_tokens,
-    estimate_cleaning_output_tokens,
-    OLLAMA_CLEANING_MAX_TOKENS,
-)
 from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
@@ -1098,174 +1093,6 @@ class OllamaProvider(ExtensibleProvider):
     def clear_cache(self) -> None:
         """Clear cache (no-op for API provider)."""
         pass
-
-    def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
-        """Clean transcript using LLM for semantic filtering.
-
-        Args:
-            text: Transcript text to clean (should already be pattern-cleaned)
-
-        Returns:
-            Cleaned transcript text
-
-        Raises:
-            RuntimeError: If provider is not initialized or cleaning fails
-        """
-        if not self._summarization_initialized:
-            raise RuntimeError("OllamaProvider not initialized. Call initialize() first.")
-
-        from ...prompts.store import render_prompt
-
-        # Build cleaning prompt using prompt_store
-        prompt_name = "ollama/cleaning/v1"
-        user_prompt = render_prompt(prompt_name, transcript=text)
-
-        # Use system prompt (OpenAI-compatible pattern)
-        system_prompt = (
-            "You are a transcript cleaning assistant. "
-            "Remove sponsors, ads, intros, outros, and meta-commentary. "
-            "Preserve all substantive content and speaker information. "
-            "Return only the cleaned text, no explanations."
-        )
-
-        logger.debug(
-            "Cleaning transcript via Ollama API (model: %s, text length: %d chars)",
-            self.cleaning_model,
-            len(text),
-        )
-
-        try:
-            # Track retries and rate limits
-            from ...utils.provider_metrics import (
-                _safe_openai_retryable,
-                ProviderCallMetrics,
-                retry_with_metrics,
-            )
-
-            call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("ollama")
-
-            def _make_api_call():
-                logger.info(
-                    "Calling Ollama API for cleaning with model: '%s' "
-                    "(exact name being sent to Ollama)",
-                    self.cleaning_model,
-                )
-                return self.client.chat.completions.create(
-                    model=self.cleaning_model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=self.cleaning_temperature,
-                    max_tokens=clamp_cleaning_max_tokens(
-                        estimate_cleaning_output_tokens(len(text.split())),
-                        OLLAMA_CLEANING_MAX_TOKENS,
-                    ),
-                    **_ollama_openai_chat_extra_kwargs(self.cleaning_model),
-                )
-
-            try:
-                response = retry_with_metrics(
-                    _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
-                    retryable_exceptions=_safe_openai_retryable(),
-                    metrics=call_metrics,
-                    error_context="ollama_local",
-                )
-            except Exception:
-                call_metrics.finalize()
-                raise
-
-            call_metrics.finalize()
-
-            cleaned = response.choices[0].message.content
-
-            # Cost capture up-front (ADR-100 cost-attribution in both branches).
-            in_tok_cl = None
-            out_tok_cl = None
-            if hasattr(response, "usage") and response.usage:
-                pt = getattr(response.usage, "prompt_tokens", None)
-                ct = getattr(response.usage, "completion_tokens", None)
-                in_tok_cl = int(pt) if isinstance(pt, (int, float)) else None
-                out_tok_cl = int(ct) if isinstance(ct, (int, float)) else None
-            cleaning_cost: Optional[float] = None
-            if in_tok_cl is not None and out_tok_cl is not None:
-                from ...workflow.helpers import calculate_provider_cost
-
-                cleaning_cost = calculate_provider_cost(
-                    cfg=self.cfg,
-                    provider_type="ollama",
-                    capability="cleaning",
-                    model=self.cleaning_model,
-                    prompt_tokens=in_tok_cl,
-                    completion_tokens=out_tok_cl,
-                )
-
-            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
-                if in_tok_cl is None or out_tok_cl is None:
-                    return
-                try:
-                    from ...workflow.cost_monitoring import emit_llm_cost_event
-
-                    emit_llm_cost_event(
-                        self.cfg,
-                        provider="ollama",
-                        stage="cleaning",
-                        model=self.cleaning_model,
-                        estimated_cost_usd=float(cleaning_cost or 0.0),
-                        prompt_tokens=in_tok_cl,
-                        completion_tokens=out_tok_cl,
-                        triggered_guardrail=triggered_guardrail,
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-
-            if not cleaned:
-                logger.warning("Ollama API returned empty cleaned text, using original")
-                _emit_cleaning_cost()
-                return text
-            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
-            try:
-                _guardrails.check_chat_response(cleaned, service="ollama")
-            except _guardrails.GuardrailViolation:
-                _emit_cleaning_cost(triggered_guardrail=True)
-                logger.warning(
-                    "Ollama cleaning output failed guardrail; " "returning original transcript text"
-                )
-                return text
-
-            _emit_cleaning_cost()
-            logger.debug("Ollama cleaning completed: %d -> %d chars", len(text), len(cleaned))
-            return cast(str, cleaned)
-
-        except _guardrails.GuardrailViolation:
-            # Defensive outer catch — preserve contract if a future change
-            # adds a guardrail call outside the inline block.
-            logger.warning(
-                "Ollama cleaning output failed guardrail (outer); "
-                "returning original transcript text"
-            )
-            return text
-        except Exception as exc:
-            logger.error("Ollama API error in cleaning: %s", format_exception_for_log(exc))
-            from podcast_scraper.exceptions import ProviderRuntimeError
-
-            # Handle Ollama-specific error types
-            error_msg = str(exc).lower()
-            if "connection" in error_msg or "refused" in error_msg:
-                raise ProviderRuntimeError(
-                    message=f"Ollama server connection failed: {format_exception_for_log(exc)}",
-                    provider="OllamaProvider/Cleaning",
-                    suggestion="Ensure Ollama server is running at the configured base URL",
-                ) from exc
-            else:
-                raise ProviderRuntimeError(
-                    message=f"Ollama cleaning failed: {format_exception_for_log(exc)}",
-                    provider="OllamaProvider/Cleaning",
-                ) from exc
 
     def complete_text(
         self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"

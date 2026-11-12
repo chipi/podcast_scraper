@@ -704,61 +704,6 @@ class TestMistralProviderSummarization(unittest.TestCase):
 
         self.assertIn("summarization failed", str(context.exception).lower())
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_clean_transcript_success(self, mock_mistral_class, mock_render, mock_retry):
-        """clean_transcript uses chat.complete with max_tokens."""
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_client = Mock()
-        mock_mistral_class.return_value = mock_client
-        mock_resp = Mock()
-        mock_resp.choices = [Mock(message=Mock(content="cleaned out"))]
-        mock_client.chat.complete.return_value = mock_resp
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="mistral",
-            mistral_api_key="test-api-key-123",
-            generate_summaries=True,
-            generate_metadata=True,
-            auto_speakers=False,
-            transcribe_missing=False,
-        )
-        provider = MistralProvider(cfg)
-        provider.initialize()
-        out = provider.clean_transcript("word " * 30)
-        self.assertEqual(out, "cleaned out")
-        mock_client.chat.complete.assert_called_once()
-        self.assertIn("max_tokens", mock_client.chat.complete.call_args[1])
-
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_clean_transcript_auth_error(self, mock_mistral_class, mock_render, mock_retry):
-        """clean_transcript maps authentication errors to ProviderAuthError."""
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        mock_client = Mock()
-        mock_mistral_class.return_value = mock_client
-        mock_client.chat.complete.side_effect = Exception("authentication failed for api key")
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="mistral",
-            mistral_api_key="test-api-key-123",
-            generate_summaries=True,
-            generate_metadata=True,
-            auto_speakers=False,
-            transcribe_missing=False,
-        )
-        provider = MistralProvider(cfg)
-        provider.initialize()
-
-        from podcast_scraper.exceptions import ProviderAuthError
-
-        with self.assertRaises(ProviderAuthError):
-            provider.clean_transcript("text")
-
 
 @pytest.mark.integration
 class TestMistralProviderKG(unittest.TestCase):
