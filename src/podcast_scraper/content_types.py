@@ -38,6 +38,8 @@ from typing import (
     Tuple,
 )
 
+from podcast_scraper.utils.canonical_url import canonical_url
+
 PODCAST_EPISODE = "podcast_episode"
 RSS_ENCLOSURE = "rss_enclosure"
 
@@ -208,10 +210,11 @@ def current_item() -> ItemContext:
     return _CURRENT_ITEM.get()
 
 
-def url_identity(canonical_url: str) -> str:
-    """A URL-identified item's identity: the first 20 hex characters of the sha256 of its
-    canonical URL, normalised by its type before it is passed here (ontology v3)."""
-    return hashlib.sha256(canonical_url.encode("utf-8")).hexdigest()[:20]
+def url_identity(url: str) -> str:
+    """A URL-identified item's or source's identity: the first 20 hex characters of the sha256 of
+    its canonical URL (ontology v3; the rules in ``utils.canonical_url``), so one page reached by
+    two forms of its URL is one id. Raises ``ValueError`` for a URL that is not absolute."""
+    return hashlib.sha256(canonical_url(url).encode("utf-8")).hexdigest()[:20]
 
 
 def item_id(ctype: ContentType, item: SourceItem) -> str:
