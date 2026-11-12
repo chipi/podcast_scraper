@@ -262,7 +262,7 @@ test.describe('Corpus Library tab', () => {
     await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
     await page.locator('#search-q').fill('climate')
     // Submit via Enter (SearchPanel handles Enter as submit); scoped locators
-    // for the form-linked Search button are brittle — see person-landing.spec.
+    // for the form-linked Search button are brittle.
     await page.locator('#search-q').press('Enter')
 
     // §S4-shell pivot: search lives on the Search main tab; ``library-row-why``

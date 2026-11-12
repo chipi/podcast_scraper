@@ -1206,7 +1206,6 @@ const crossLayerBridgeLine = computed(() => {
 type GraphRailDetailTab =
   | "details"
   | "timeline"
-  | "position_tracker"
   | "enrichment"
   | "neighbourhood"
   | `ext:${string}`
@@ -1249,28 +1248,6 @@ watch(extensionTabs, (tabs) => {
     graphRailDetailTab.value = "details"
   }
 })
-
-// Person nodes get a top-level Position Tracker tab (the PLV Position Tracker,
-// promoted from a nested sub-tab). Fall back to Details if it empties.
-const hasPositionTrackerTab = computed(() => isPersonNode.value)
-watch(hasPositionTrackerTab, (has) => {
-  if (!has && graphRailDetailTab.value === "position_tracker") {
-    graphRailDetailTab.value = "details"
-  }
-})
-
-// Picking a topic from the profile's ranked-topics list (or Insights-voiced)
-// sets ``positionTrackerTopicId`` but the arc renders in the Positions tab — a
-// different rail tab than the profile. Auto-switch so the pick has a visible
-// effect instead of silently setting state behind a hidden tab.
-watch(
-  () => subject.positionTrackerTopicId,
-  (topicId) => {
-    if (topicId && hasPositionTrackerTab.value) {
-      graphRailDetailTab.value = "position_tracker"
-    }
-  }
-)
 
 // The Enrichment tab only exists when the focused node actually has signals;
 // NodeEnrichmentSection reports this after it loads. Empty is the common case
@@ -1515,25 +1492,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
         @click="graphRailDetailTab = 'timeline'"
       >
         Timeline
-      </button>
-      <button
-        v-if="hasPositionTrackerTab"
-        id="node-detail-rail-tab-position-tracker"
-        type="button"
-        role="tab"
-        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
-        :class="
-          graphRailDetailTab === 'position_tracker'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-elevated-foreground hover:bg-overlay'
-        "
-        :aria-selected="graphRailDetailTab === 'position_tracker'"
-        aria-controls="node-detail-rail-panel-position-tracker"
-        data-testid="node-detail-rail-tab-position-tracker"
-        :tabindex="graphRailDetailTab === 'position_tracker' ? 0 : -1"
-        @click="graphRailDetailTab = 'position_tracker'"
-      >
-        Positions
       </button>
       <button
         v-for="tab in extensionTabs"
@@ -1963,8 +1921,8 @@ const graphConnectionsCenterInView = computed((): boolean => {
             class="mb-1"
           />
 
-          <!-- Person overview folds in directly too — PersonLandingView (profile +
-           Position Tracker) renders inline instead of a separate rail. -->
+          <!-- Person overview folds in directly too — PersonLandingView's profile
+           renders inline instead of a separate rail. -->
           <PersonLandingView
             v-if="isPersonNode"
             embedded
@@ -2519,25 +2477,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
             </template>
           </dl>
         </div>
-      </div>
-
-      <!-- Position Tracker (person nodes) — the PLV Position Tracker promoted to a
-           peer node-view tab; the pivot topic is set from the embedded profile. -->
-      <div
-        v-if="props.embedInRail && hasPositionTrackerTab"
-        v-show="graphRailDetailTab === 'position_tracker'"
-        id="node-detail-rail-panel-position-tracker"
-        class="min-h-0"
-        role="tabpanel"
-        aria-labelledby="node-detail-rail-tab-position-tracker"
-        :tabindex="-1"
-      >
-        <PersonLandingView
-          v-if="isPersonNode"
-          embedded
-          view="positions"
-          :subject-id-override="nodeId ?? ''"
-        />
       </div>
 
       <!-- Mounted whenever the rail is shown (not just when the tab is active) so
