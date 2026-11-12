@@ -36,8 +36,9 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, Set, Tuple
 
+from podcast_scraper.content_types import asks_other_types, is_wanted, PODCAST_ONLY
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 logger = logging.getLogger(__name__)
@@ -117,18 +118,25 @@ def is_concept_topic(node: Dict[str, Any]) -> bool:
     return bool(props.get("is_concept"))
 
 
-def gather_corpus_topics(corpus_root: Path) -> List[TopicMention]:
+def gather_corpus_topics(
+    corpus_root: Path, *, content_types: Collection[str] = PODCAST_ONLY
+) -> List[TopicMention]:
     """Walk every ``*.kg.json`` under ``corpus_root`` and collect every
-    Topic node with its source episode / podcast ids and on-disk path.
+    Topic node with its source episode / podcast ids and on-disk path, from items of
+    ``content_types`` (podcast episodes unless asked; ADR-177 decision 8).
     """
     import json
 
     out: List[TopicMention] = []
-    for kg_path in corpus_rglob(corpus_root, "*.kg.json"):
+    walk = corpus_rglob(corpus_root, "*.kg.json", include_sources=asks_other_types(content_types))
+    for kg_path in walk:
         try:
             data = json.loads(kg_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             logger.warning("topic_clustering: skip %s (%s)", kg_path, exc)
+            continue
+        # Explicit: a KG 3.0 item has no Episode node, so it was skipped only by accident before.
+        if not is_wanted(data, content_types):
             continue
         episode_id, podcast_id = _episode_and_podcast_ids(data)
         if not episode_id:
@@ -156,7 +164,8 @@ def gather_corpus_topics(corpus_root: Path) -> List[TopicMention]:
 def _episode_and_podcast_ids(
     kg_artifact: Dict[str, Any],
 ) -> Tuple[Optional[str], Optional[str]]:
-    """Best-effort extract (episode_id, podcast_id) from a KG artifact."""
+    """Best-effort extract (episode_id, podcast_id) from a KG artifact: the ``Episode`` node of a
+    KG 2.x artifact, or the ``ContentItem`` node and its source of a KG 3.0 one."""
     episode_id: Optional[str] = None
     podcast_id: Optional[str] = None
     for n in kg_artifact.get("nodes") or []:
@@ -164,13 +173,13 @@ def _episode_and_podcast_ids(
             continue
         t = n.get("type")
         nid = n.get("id")
-        if t == "Episode" and isinstance(nid, str):
+        if t in ("Episode", "ContentItem") and isinstance(nid, str):
             episode_id = nid
             props = n.get("properties") or {}
-            pid = props.get("podcast_id")
+            pid = props.get("podcast_id") or props.get("source_id")
             if isinstance(pid, str):
                 podcast_id = pid
-        elif t == "Podcast" and isinstance(nid, str) and podcast_id is None:
+        elif t in ("Podcast", "Source") and isinstance(nid, str) and podcast_id is None:
             podcast_id = nid
     return episode_id, podcast_id
 
