@@ -47,7 +47,9 @@ def rrf_fuse(
             payloads.setdefault(result.doc_id, result.payload)
             tiers.setdefault(result.doc_id, result.source_tier)
 
-    ordered = sorted(scores, key=lambda d: scores[d], reverse=True)
+    # A tie is broken by the doc id, never by which list met it first: the input order of equal
+    # scores varies between index builds over the same rows (2026-11-12).
+    ordered = sorted(scores, key=lambda d: (-scores[d], d))
     return [
         ScoredResult(
             doc_id=doc_id,

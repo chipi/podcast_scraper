@@ -637,7 +637,9 @@ class LanceDBBackend:
                 score = raw if query_type == "fts" else 1.0 / (1.0 + raw)
                 row.pop("embedding", None)  # keep payload lean
                 hits.append((score, row, tier))
-        hits.sort(key=lambda h: h[0], reverse=True)
+        # Equal scores ranked by the doc id, then the tier, never by the order the table returned
+        # them in: that order varies between index builds over the same rows (2026-11-12).
+        hits.sort(key=lambda h: (-h[0], str(h[1].get("id")), h[2]))
         signal = "bm25" if query_type == "fts" else "vector"
         return [
             ScoredResult(
