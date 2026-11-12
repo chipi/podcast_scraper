@@ -54,7 +54,7 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
@@ -137,7 +137,7 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
@@ -176,7 +176,7 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
       })
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:insight:b72dafa3f874480d',
+        cyId: 'person:ci-host',
         source: 'node-detail',
         loadSource: 'graph-internal',
         camera: { kind: 'center-on-target' },

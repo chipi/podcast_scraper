@@ -46,21 +46,21 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'topic',
-        cyId: 'g:topic:ci-policy',
+        cyId: 'topic:ci-policy',
         source: 'search',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },
       })
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:insight:b72dafa3f874480d',
+        cyId: 'person:ci-host',
         source: 'node-detail',
         loadSource: 'graph-internal',
         camera: { kind: 'center-on-target' },
       })
       store?.handoffRequested({
         kind: 'topic',
-        cyId: 'g:topic:ci-policy',
+        cyId: 'topic:ci-policy',
         source: 'search',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },

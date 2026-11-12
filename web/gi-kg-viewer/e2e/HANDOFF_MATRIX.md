@@ -105,7 +105,7 @@ touched yet. No prior selection, no prior state.
 | H1.4 | Digest topic band title (D3) | `cold-start.spec.ts` | `handoffRequested({source:'digest', camera:{kind:'fit'}})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.5 | Search "Show on graph" (S1) | `cold-start.spec.ts` | `handoffRequested({source:'search'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.6 | Episode panel "Open in graph" (E1) | `cold-start.spec.ts` | `handoffRequested({source:'episode-panel'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
-| H1.7 | NodeDetail Load (O3) | `cold-start.spec.ts` | `expansionRequested({source:'node-detail'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H1.7 | NodeDetail Load (O3) | a downstream build's spec (it opens an Insight, which the KG fixture lacks) | `expansionRequested({source:'node-detail'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.8 | Dashboard TopicLandscape → graph (O1) | moved to a downstream build with the topic-cluster rows | `handoffRequested({source:'dashboard'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.9 | SubjectRail @go-graph (O5) | `cold-start.spec.ts` | `handoffRequested({source:'subject-rail'})` | L0+L1+L4 | ✅ `test()` |
 | H1.10 | StatusBar @go-graph (O6) | `cold-start.spec.ts` | `handoffRequested({source:'status-bar'})` | L0+L1+L4 | ✅ `test()` |
