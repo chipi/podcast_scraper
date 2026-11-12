@@ -12,6 +12,7 @@ import {
   type CorpusSimilarEpisodeItem,
 } from '../../api/corpusLibraryApi'
 import { copyTextToClipboard } from '../../utils/clipboard'
+import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import DiagnosticRow from '../shared/DiagnosticRow.vue'
 import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
@@ -499,13 +500,7 @@ async function openInGraph(): Promise<void> {
   if (!detail.value) {
     return
   }
-  const paths: string[] = []
-  if (detail.value.has_gi) {
-    paths.push(detail.value.gi_relative_path)
-  }
-  if (detail.value.has_kg) {
-    paths.push(detail.value.kg_relative_path)
-  }
+  const paths = episodeArtifactRelPaths(detail.value)
   if (paths.length === 0) {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
@@ -623,13 +618,7 @@ async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
   if (!pill) {
     return
   }
-  const paths: string[] = []
-  if (detail.value.has_gi) {
-    paths.push(detail.value.gi_relative_path)
-  }
-  if (detail.value.has_kg) {
-    paths.push(detail.value.kg_relative_path)
-  }
+  const paths = episodeArtifactRelPaths(detail.value)
   if (paths.length === 0) {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return

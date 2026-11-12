@@ -407,6 +407,18 @@ export interface ArtifactCombiner extends Entry {
 export const artifactCombiners = extensionPoint<ArtifactCombiner>('artifactCombiners')
 
 /**
+ * More artifact files to load with an episode, after the viewer's own: `paths` from an episode
+ * payload (catalog, digest or node-episodes rows, fields this viewer does not read included),
+ * `forStem` for an episode known only by its metadata file's stem (a search hit).
+ */
+export interface EpisodeArtifactPaths extends Entry {
+  paths?(episode: Record<string, unknown>): string[]
+  forStem?(stem: string): string[]
+}
+
+export const episodeArtifactPaths = extensionPoint<EpisodeArtifactPaths>('episodeArtifactPaths')
+
+/**
  * A different graph for the canvas while `active()` is true and `artifact()` is not null (the first
  * such override wins). `forceVisibleTypes` stay visible whatever the type filter says.
  */

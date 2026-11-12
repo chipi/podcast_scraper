@@ -31,6 +31,7 @@ import {
   graphTypeTraits,
 } from '../../extensions'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
+import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
@@ -283,14 +284,7 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
     const res = await fetchNodeEpisodes(root, id, GRAPH_NODE_EPISODES_EXPAND_MAX)
     const flat: string[] = []
     for (const ep of res.episodes) {
-      const gi = ep.gi_relative_path?.trim()
-      const kg = ep.kg_relative_path?.trim()
-      if (gi) {
-        flat.push(gi)
-      }
-      if (kg) {
-        flat.push(kg)
-      }
+      flat.push(...episodeArtifactRelPaths(ep))
     }
     if (flat.length === 0) {
       graphExpansion.setTruncationLine('No other episodes in the corpus reference this node.')
@@ -930,13 +924,7 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
     if (d.episode_id?.trim()) {
       subject.setEpisodeId(d.episode_id.trim())
     }
-    const paths: string[] = []
-    if (d.has_gi && d.gi_relative_path?.trim()) {
-      paths.push(d.gi_relative_path.trim())
-    }
-    if (d.has_kg && d.kg_relative_path?.trim()) {
-      paths.push(d.kg_relative_path.trim())
-    }
+    const paths = episodeArtifactRelPaths(d)
     if (paths.length === 0) {
       return
     }
