@@ -101,12 +101,16 @@ the scoreboard through a seam, `Extension.corpus_scoreboard` (`quality/scoreboar
   Prod's pipeline image (`stack-pipeline-llm`, `INSTALL_EXTRAS=llm`) never had them, so the prod
   image does not change.
 - Common's images check the new `stages` extension loads (`docker/check_extensions.py`).
+- Closed later the same day: Common's suite through its runner against public bc869a5e (8694
+  passed, 0 failed, after fixing one moved test that listened on the wrong logger); the 31 docs
+  whose subject moved went to Common and every public reference to them is removed (ADR-170
+  Decision 10), the mixed docs repaired; the change gate guards the moved content code in
+  Common's own checkout (Common `config/corpus_change_gate.json`, records, pre-commit hook;
+  public's hook judges both) and public's `content_code` keeps only what is here.
 
 ## 3. Not done in this arc
 
 - Gate a (equivalence) and gate c (public-only install, end to end) are not run yet.
-- Common's own suite has not run through its runner against this public commit (it needs the
-  commit), so its copies of the split tests are proven only where run in place.
 - Diarization, cleaning and the LLM bundle modes are still configurable in public (`diarize`,
   `diarization_*`, `transcript_cleaning_strategy`, `llm_pipeline_mode`) though the code behind them
   is Common's; without Common they do nothing or fall back. Moving that configuration needs a seam
@@ -114,12 +118,10 @@ the scoreboard through a seam, `Extension.corpus_scoreboard` (`quality/scoreboar
 - The eval repository does not yet depend on Common, so its moved scripts that import Common's
   modules run only beside a Common checkout; `scripts/validate/snapshot_quality.py` there calls
   Make targets the eval repository does not have (its GIL and KG numbers report `make-failed`).
-- Docs that name moved paths, Make targets or scripts are not updated (among them the speaker
-  attribution trace guide and the post-deploy runbook's transcript-pairing step).
-- `config/corpus_change_gate.json`'s `content_code` still lists paths that left public; Common's
-  copies of them have no edit gate yet.
+- Docs left as they were: Completed ADRs/RFCs that cite deleted paths as the record of their
+  decision, change records, generated dependency-graph SVGs, and docs outside the scanned list.
 - The English artifact golden's manifest half (its `turns` block is the speaker stage's report)
   is kept as stored by public's regeneration; Common's copy compares it but has no regeneration
   of its own yet.
-- The remaining migrations of IP plan item 4 (0004, 0007, 0010), the prompts (item 6), the
-  docs about private parts (item 7), Player's import sites and the viewer's GI panels.
+- The remaining migrations of IP plan item 4 (0004, 0007, 0010), the prompts (item 6), Player's
+  import sites and the viewer's GI panels (the viewer session's E04 8b).
