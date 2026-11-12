@@ -163,7 +163,7 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await expect(pop.getByTestId('graph-types-reset')).toHaveCount(0)
   })
 
-  test('Feed, Sources and Degree open their popovers, relabel when set, and reset all clears them', async ({
+  test('Feed and Degree open their popovers, relabel when set, and reset all clears them', async ({
     page,
   }) => {
     await openGraph(page)
@@ -181,16 +181,6 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await expect(feedChip).toHaveText(`Feed: ${feed.display_title} ▾`)
     if (await feedPop.isVisible()) await feedChip.click()
 
-    // Sources — the corpus graph is GI + KG, so the chip is offered.
-    const sourcesChip = page.getByTestId('graph-chip-sources')
-    await expect(sourcesChip).toHaveText('Sources ▾')
-    await sourcesChip.click()
-    const sourcesPop = page.getByTestId('graph-popover-sources')
-    await expect(sourcesPop).toBeVisible()
-    await sourcesPop.getByRole('checkbox', { name: 'KG' }).uncheck()
-    await expect(sourcesChip).toHaveText('Sources: GI only ▾')
-    await sourcesChip.click()
-
     // Degree
     const degreeChip = page.getByTestId('graph-chip-degree')
     await expect(degreeChip).toHaveText('Degree ▾')
@@ -207,7 +197,6 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await expect(reset).toBeVisible()
     await reset.click()
     await expect(feedChip).toHaveText('Feed ▾')
-    await expect(sourcesChip).toHaveText('Sources ▾')
     await expect(degreeChip).toHaveText('Degree ▾')
     await expect(reset).toHaveCount(0)
   })

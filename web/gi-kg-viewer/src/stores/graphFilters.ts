@@ -76,18 +76,6 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     return augmentArtifactWithTrail(ego, nav.trailNodeIds, base)
   }
 
-  function setHideUngrounded(v: boolean): void {
-    if (state.value) state.value.hideUngroundedInsights = v
-  }
-
-  function setShowGiLayer(v: boolean): void {
-    if (state.value) state.value.showGiLayer = v
-  }
-
-  function setShowKgLayer(v: boolean): void {
-    if (state.value) state.value.showKgLayer = v
-  }
-
   function toggleAllowedType(t: string): void {
     if (!state.value) return
     if (!(t in state.value.allowedTypes)) return
@@ -162,16 +150,13 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
 
   /**
    * Atomic reset across every chip dimension (#658 ``× reset all``).
-   * Returns Types to graph-spec defaults (Quote / Speaker off), Sources
-   * to all on (gi+kg+show ungrounded), Edges all on, Degree cleared
-   * (handled by graphExplorer caller), Feed cleared.
+   * Returns Types to their defaults, Edges all on, Degree cleared
+   * (handled by graphExplorer caller), Feed cleared, and every registered
+   * node filter to its own default (`reset`).
    */
   function resetAllFilters(): void {
     if (!state.value) return
     selectAllEdgeTypes()
-    state.value.hideUngroundedInsights = false
-    state.value.showGiLayer = true
-    state.value.showKgLayer = true
     state.value.graphFeedFilterId = null
     applyGraphDefaultNodeTypeVisibility(state.value)
     for (const f of graphNodeFilters.list()) f.reset?.()
@@ -184,9 +169,6 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     filtersAreActive,
     graphTypesDeviateFromDefaults,
     viewWithEgo,
-    setHideUngrounded,
-    setShowGiLayer,
-    setShowKgLayer,
     toggleAllowedType,
     selectAllTypes,
     deselectAllTypes,

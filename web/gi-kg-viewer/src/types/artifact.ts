@@ -55,10 +55,6 @@ export interface GraphFilterState {
   allowedTypes: Record<string, boolean>
   /** Edge `type` string from artifact; `(unknown)` when missing. */
   allowedEdgeTypes: Record<string, boolean>
-  hideUngroundedInsights: boolean
-  /** Merged GI+KG graphs (`g:` / `k:` id prefixes); both true by default. */
-  showGiLayer: boolean
-  showKgLayer: boolean
   /**
    * Selected feed_id to filter Episode nodes by; ``null`` = all feeds.
    * Episode nodes carry ``properties.feed_id`` after #658 pipeline change;

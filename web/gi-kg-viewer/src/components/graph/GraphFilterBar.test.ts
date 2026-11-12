@@ -21,9 +21,6 @@ function makeState(
   return {
     allowedTypes: {},
     allowedEdgeTypes: {},
-    hideUngroundedInsights: false,
-    showGiLayer: true,
-    showKgLayer: true,
     graphFeedFilterId: null,
     ...overrides,
   }
@@ -43,7 +40,7 @@ function makeGiArtifact(): ParsedArtifact {
 }
 
 /**
- * Stub the five child chips so the bar renders standalone. Each stub emits a
+ * Stub the four child chips so the bar renders standalone. Each stub emits a
  * predictable testid and surfaces its bound props as JSON for assertions.
  */
 const chipStub = (name: string) => ({
@@ -55,7 +52,6 @@ const chipStub = (name: string) => ({
 const STUBS = {
   GraphTypesChip: chipStub('types'),
   GraphFeedChip: chipStub('feed'),
-  GraphSourcesChip: chipStub('sources'),
   GraphEdgesChip: chipStub('edges'),
   GraphDegreeChip: chipStub('degree'),
 }
@@ -87,11 +83,11 @@ describe('GraphFilterBar', () => {
     expect(w.get(BAR).exists()).toBe(true)
   })
 
-  it('renders all five chips plus the divider', () => {
+  it('renders its four chips plus the divider', () => {
     const gf = useGraphFilterStore()
     gf.state = makeState()
     const w = mountBar()
-    for (const id of ['types', 'feed', 'sources', 'edges', 'degree']) {
+    for (const id of ['types', 'feed', 'edges', 'degree']) {
       expect(w.find(`[data-testid="stub-${id}"]`).exists()).toBe(true)
     }
     // The decorative divider between filter and view chips.
@@ -108,7 +104,7 @@ describe('GraphFilterBar', () => {
     gf.state = makeState()
     const w = mountBar()
     const html = w.get(BAR).html()
-    expect(html.indexOf('ext-chip')).toBeGreaterThan(html.indexOf('stub-sources'))
+    expect(html.indexOf('ext-chip')).toBeGreaterThan(html.indexOf('stub-feed'))
     expect(html.indexOf('ext-chip')).toBeLessThan(html.indexOf('aria-hidden'))
     graphFilterBarChips.reset()
     w.unmount()
@@ -155,7 +151,7 @@ describe('GraphFilterBar', () => {
     artifacts.parsedList = [makeGiArtifact()]
     const gf = useGraphFilterStore()
     // The displayArtifact watcher populated gf.state; mark a filter active.
-    gf.state!.hideUngroundedInsights = true
+    gf.setFeedFilter('feed-a')
     const w = mountBar()
     await w.vm.$nextTick()
     expect(gf.filtersAreActive).toBe(true)
@@ -166,7 +162,7 @@ describe('GraphFilterBar', () => {
     const artifacts = useArtifactsStore()
     artifacts.parsedList = [makeGiArtifact()]
     const gf = useGraphFilterStore()
-    gf.state!.hideUngroundedInsights = true
+    gf.setFeedFilter('feed-a')
     const ge = useGraphExplorerStore()
     ge.toggleDegreeBucket('1-2')
     const w = mountBar()
@@ -176,7 +172,7 @@ describe('GraphFilterBar', () => {
     await w.get(RESET).trigger('click')
 
     expect(ge.activeDegreeBucket).toBeNull()
-    expect(gf.state!.hideUngroundedInsights).toBe(false)
+    expect(gf.state!.graphFeedFilterId).toBeNull()
     expect(gf.filtersAreActive).toBe(false)
     // Button disappears once everything is reset.
     expect(w.find(RESET).exists()).toBe(false)
