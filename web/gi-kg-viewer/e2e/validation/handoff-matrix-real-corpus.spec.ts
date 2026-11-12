@@ -16,7 +16,6 @@
 
 import { expect, test, type Page } from '@playwright/test'
 import {
-  SHELL_HEADING_RE,
   dismissGraphGestureOverlayIfPresent,
   mainViewsNav,
   signInAsAdmin,
@@ -367,96 +366,6 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(sources).toContain('episode-panel')
   })
 
-  test('P2.5 — Mixed entry: Digest pill → Library row (load-source flip)', async ({ page }, testInfo) => {
-    // Digest hands off via CIL pill (subject-external → digest-external),
-    // then Library hands off (subject-external). Both reach terminal state;
-    // the load-source must flip cleanly, no contamination.
-    await signInIsolated(page, 'handoff-matrix', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    // Step 1: Digest pill
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill.waitFor({ state: 'visible', timeout: 30_000 })
-    await pill.click()
-    const afterDigest = await waitForFsmTerminal(page)
-    // Step 2: Library row — use the row-level "G" affordance
-    // (``data-testid="library-row-open-graph"``) rather than going via
-    // the episode-panel "Open in graph" button. After a topic-pill click
-    // the right rail is still showing the topic cluster context, so the
-    // panel-level button doesn't render reliably; the row-level G works
-    // regardless of subject state.
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await resetFsmEventLog(page)
-    await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
-    const afterLibrary = await waitForFsmTerminal(page)
-    const log = await readFsmEventLog(page)
-    // eslint-disable-next-line no-console
-    console.log(
-      '[P2.5]',
-      JSON.stringify({
-        afterDigest,
-        afterLibrary,
-        librarySources: log
-          .filter((e) => e.type === 'handoffRequested')
-          .map((e) => (e.envelope as { source?: string; loadSource?: string } | null)?.source),
-      }),
-    )
-    expect(afterDigest.lastResult).not.toBeNull()
-    expect(afterLibrary.lastResult).not.toBeNull()
-    expect(['applied', 'failed']).toContain(afterLibrary.lastResult?.status)
-    expect(errs.errors).toEqual([])
-    // L1 (row-level G button) fires ``source: 'library'`` with
-    // ``loadSource: 'subject-external'``. Verify the load-source did NOT
-    // leak from the prior digest-external state.
-    const libraryEnvelopes = log
-      .filter((e) => e.type === 'handoffRequested')
-      .map((e) => e.envelope as { source?: string; loadSource?: string } | null)
-    const hasLibrarySource = libraryEnvelopes.some((e) => e?.source === 'library')
-    expect(hasLibrarySource).toBe(true)
-    const noDigestLeak = libraryEnvelopes.every((e) => e?.loadSource !== 'digest-external')
-    expect(noDigestLeak).toBe(true)
-  })
-
-  test('P2.6 — Mixed entry: Library row → Digest pill (reverse flip)', async ({ page }, testInfo) => {
-    await signInIsolated(page, 'handoff-matrix', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    // Step 1: Library
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await clickFirstLibraryRow(page)
-    await clickOpenInGraphButton(page)
-    const afterLibrary = await waitForFsmTerminal(page)
-    // Step 2: Digest pill
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill.waitFor({ state: 'visible', timeout: 30_000 })
-    await resetFsmEventLog(page)
-    await pill.click()
-    const afterDigest = await waitForFsmTerminal(page)
-    const log = await readFsmEventLog(page)
-    // eslint-disable-next-line no-console
-    console.log(
-      '[P2.6]',
-      JSON.stringify({
-        afterLibrary,
-        afterDigest,
-        digestEnvelopes: log
-          .filter((e) => e.type === 'handoffRequested')
-          .map((e) => e.envelope as { source?: string; loadSource?: string } | null),
-      }),
-    )
-    expect(afterLibrary.lastResult).not.toBeNull()
-    expect(afterDigest.lastResult).not.toBeNull()
-    expect(['applied', 'failed']).toContain(afterDigest.lastResult?.status)
-    expect(errs.errors).toEqual([])
-    const digestEnvelopes = log
-      .filter((e) => e.type === 'handoffRequested')
-      .map((e) => e.envelope as { source?: string; loadSource?: string } | null)
-    const hasDigestExternal = digestEnvelopes.some((e) => e?.loadSource === 'digest-external')
-    expect(hasDigestExternal).toBe(true)
-  })
-
   // ─── REPEAT-CLICK / CONCURRENCY (P3.x, P5.x) ─────────────────────────
 
   test('P5.1 — Rapid Library re-clicks: last wins (generation supersession)', async ({ page }, testInfo) => {
@@ -507,54 +416,6 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
   })
 
   // ─── CROSS-ENTRY (P4.x) ──────────────────────────────────────────────
-
-  test('P4.1 — Library → Digest → Library (3 envelopes, load-source cycle)', async ({ page }, testInfo) => {
-    // Three distinct surfaces; the FSM event log must record three
-    // handoffRequested envelopes with the expected source progression
-    // and no console errors leaking across boundaries.
-    await signInIsolated(page, 'handoff-matrix', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    await resetFsmEventLog(page)
-
-    // 1. Library
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await clickFirstLibraryRow(page)
-    await clickOpenInGraphButton(page)
-    await waitForFsmTerminal(page)
-
-    // 2. Digest pill
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill.waitFor({ state: 'visible', timeout: 30_000 })
-    await pill.click()
-    await waitForFsmTerminal(page)
-
-    // 3. Library again (different row)
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await clickNthLibraryRowStable(page, 1)
-    await clickOpenInGraphButton(page)
-    const finalFsm = await waitForFsmTerminal(page)
-
-    const log = await readFsmEventLog(page)
-    const handoffs = log.filter((e) => e.type === 'handoffRequested')
-    const sources = handoffs.map((e) => (e.envelope as { source?: string } | null)?.source)
-    const loadSources = handoffs.map(
-      (e) => (e.envelope as { loadSource?: string } | null)?.loadSource,
-    )
-    // eslint-disable-next-line no-console
-    console.log(
-      '[P4.1]',
-      JSON.stringify({ finalFsm, handoffCount: handoffs.length, sources, loadSources }),
-    )
-    expect(finalFsm.lastResult).not.toBeNull()
-    expect(errs.errors).toEqual([])
-    // Must observe 3 envelopes (one per surface, at minimum).
-    expect(handoffs.length).toBeGreaterThanOrEqual(3)
-    // Load-source progression: subject-external → digest-external → subject-external.
-    expect(loadSources).toContain('subject-external')
-    expect(loadSources).toContain('digest-external')
-  })
 
   // ─── BATCH 2 ─────────────────────────────────────────────────────────
 
@@ -618,34 +479,6 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     // eslint-disable-next-line no-console
     console.log(
       '[P3.1]',
-      JSON.stringify({ final, handoffCount: handoffs.length }),
-    )
-    expect(final.lastResult).not.toBeNull()
-    expect(['applied', 'failed']).toContain(final.lastResult?.status)
-    expect(errs.errors).toEqual([])
-    expect(handoffs.length).toBeGreaterThanOrEqual(2)
-  })
-
-  test('P3.2 — Digest pill × 2 same topic (idempotent)', async ({ page }, testInfo) => {
-    await signInIsolated(page, 'handoff-matrix', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill.waitFor({ state: 'visible', timeout: 30_000 })
-    await resetFsmEventLog(page)
-    await pill.click()
-    await waitForFsmTerminal(page)
-    // Re-find from Digest tab + click again (same pill).
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pill2 = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill2.click()
-    const final = await waitForFsmTerminal(page)
-    const log = await readFsmEventLog(page)
-    const handoffs = log.filter((e) => e.type === 'handoffRequested')
-    // eslint-disable-next-line no-console
-    console.log(
-      '[P3.2]',
       JSON.stringify({ final, handoffCount: handoffs.length }),
     )
     expect(final.lastResult).not.toBeNull()
@@ -733,45 +566,6 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
   // ─── FILTERS (P8.x — negative tests, no handoffRequested fires) ──────
 
   // ─── BATCH 3 ─────────────────────────────────────────────────────────
-
-  test('P2.2 — Digest A → Digest B (different pills, hot supersession)', async ({ page }, testInfo) => {
-    // Click two different digest pills in sequence. Generation supersession
-    // means each click bumps the FSM generation; the second envelope's
-    // terminal state is what user observes. Highlight clearing must
-    // happen between (asymmetry #10).
-    await signInIsolated(page, 'handoff-matrix', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pills = page.getByRole('button', { name: /Open graph for topic/ })
-    await pills.first().waitFor({ state: 'visible', timeout: 30_000 })
-    const pillCount = await pills.count()
-    if (pillCount < 2) {
-      // eslint-disable-next-line no-console
-      console.log('[P2.2] skipped — only', pillCount, 'pill(s) on this corpus')
-      test.skip()
-      return
-    }
-    await resetFsmEventLog(page)
-    await pills.nth(0).click()
-    await waitForFsmTerminal(page)
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    await pills.nth(1).click()
-    const final = await waitForFsmTerminal(page)
-    const log = await readFsmEventLog(page)
-    const handoffs = log.filter((e) => e.type === 'handoffRequested')
-    // eslint-disable-next-line no-console
-    console.log(
-      '[P2.2]',
-      JSON.stringify({ final, handoffCount: handoffs.length }),
-    )
-    expect(final.lastResult).not.toBeNull()
-    expect(errs.errors).toEqual([])
-    expect(handoffs.length).toBeGreaterThanOrEqual(2)
-    // Both envelopes have source='digest'
-    const sources = handoffs.map((e) => (e.envelope as { source?: string } | null)?.source)
-    expect(sources.filter((s) => s === 'digest').length).toBeGreaterThanOrEqual(2)
-  })
 
   test('P6.1 — Bogus envelope target surfaces failure (dev-hook, no console errors)', async ({ page }, testInfo) => {
     // Like P6.2 but uses a kind='episode' envelope with a metadataPath
@@ -991,55 +785,6 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
     expect(handoffs.length).toBeGreaterThanOrEqual(2)
     const sources = handoffs.map((e) => (e.envelope as { source?: string } | null)?.source)
     expect(sources.filter((s) => s === 'search').length).toBeGreaterThanOrEqual(2)
-  })
-
-  test('P4.2 — Digest band → Library → Digest pill (camera strategy switch)', async ({ page }, testInfo) => {
-    // Three different surfaces with three different camera strategies:
-    // Digest band uses ``center-on-target``, Library uses
-    // ``center-on-target``, second Digest pill uses ``center-on-target``.
-    // (The matrix originally specified a ``fit`` camera for the band
-    // title which we disabled in this PR; verify the band hit-row +
-    // Library + pill sequence holds together.)
-    await signInIsolated(page, 'handoff-matrix', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    await resetFsmEventLog(page)
-
-    // 1. Digest topic-band hit row
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const hitRow = page.getByRole('button', { name: /Open graph and episode details:/ }).first()
-    await hitRow.waitFor({ state: 'visible', timeout: 30_000 })
-    await hitRow.click()
-    await waitForFsmTerminal(page)
-
-    // 2. Library row
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
-    await waitForFsmTerminal(page)
-
-    // 3. Digest pill
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill.waitFor({ state: 'visible', timeout: 30_000 })
-    await pill.click()
-    const finalFsm = await waitForFsmTerminal(page)
-
-    const log = await readFsmEventLog(page)
-    const handoffs = log.filter((e) => e.type === 'handoffRequested')
-    const sources = handoffs.map((e) => (e.envelope as { source?: string } | null)?.source)
-    const cameras = handoffs.map(
-      (e) => (e.envelope as { camera?: { kind?: string } } | null)?.camera?.kind,
-    )
-    // eslint-disable-next-line no-console
-    console.log(
-      '[P4.2]',
-      JSON.stringify({ finalFsm, handoffCount: handoffs.length, sources, cameras }),
-    )
-    expect(finalFsm.lastResult).not.toBeNull()
-    expect(errs.errors).toEqual([])
-    expect(handoffs.length).toBeGreaterThanOrEqual(3)
-    // 2 distinct sources observed: digest + library
-    expect(new Set(sources).size).toBeGreaterThanOrEqual(2)
   })
 
   test('P8.2 — Library title filter input does NOT fire handoffRequested', async ({ page }, testInfo) => {

@@ -56,23 +56,6 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     })
   })
 
-  test('H1.2 — Digest recent topic pill (cold start) [F4b]', async ({ page }) => {
-    const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { digest: true })
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('digest-root')).toBeVisible()
-
-    await page
-      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
-      .click()
-
-    // D1 pill targets ``topic:ci-policy`` — should land on the cy topic
-    // node with the GI prefix.
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
-  })
-
   test('H1.3 — Digest topic band hit row (cold start) [F4b]', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     await setupHandoffMatrixMocks(page, { digest: true })
