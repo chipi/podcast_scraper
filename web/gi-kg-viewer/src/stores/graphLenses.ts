@@ -39,8 +39,6 @@ export interface GraphLensFlags {
   aggregatedEdges: boolean
   nodeSizeByDegree: boolean
   bridgeRing: boolean
-  /* graph-v3 Tier 5C — enricher-based decoration lens. */
-  personCredibility: boolean
   /* graph-v3 Tier 5D — enricher-based edge overlay. */
   coGuestEdges: boolean
   /* graph-v3 Tier 7-4 — person co-appearance community underlay
@@ -62,7 +60,6 @@ const DEFAULT_FLAGS: GraphLensFlags = {
      tier 5C-3) deferred pending a corpus-scope sentiment aggregation
      endpoint — the current shape ships per-episode sidecars that would
      need N per-episode fetches to render across the whole graph. */
-  personCredibility: false,
   coGuestEdges: false,
   /* graph-v3 Tier 7-4 — opt-in during rollout; enricher-gated on
      `guest_coappearance.communities[]` presence in the artifact. */
@@ -104,7 +101,6 @@ function readInitialFlags(): GraphLensFlags {
       aggregatedEdges: readBool(parsed.aggregatedEdges, DEFAULT_FLAGS.aggregatedEdges),
       nodeSizeByDegree: readBool(parsed.nodeSizeByDegree, DEFAULT_FLAGS.nodeSizeByDegree),
       bridgeRing: readBool(parsed.bridgeRing, DEFAULT_FLAGS.bridgeRing),
-      personCredibility: readBool(parsed.personCredibility, DEFAULT_FLAGS.personCredibility),
       coGuestEdges: readBool(parsed.coGuestEdges, DEFAULT_FLAGS.coGuestEdges),
       personCommunities: readBool(parsed.personCommunities, DEFAULT_FLAGS.personCommunities),
     }
@@ -118,7 +114,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   const aggregatedEdges = ref(initial.aggregatedEdges)
   const nodeSizeByDegree = ref(initial.nodeSizeByDegree)
   const bridgeRing = ref(initial.bridgeRing)
-  const personCredibility = ref(initial.personCredibility)
   const coGuestEdges = ref(initial.coGuestEdges)
   const personCommunities = ref(initial.personCommunities)
   /** Flags of lenses a build registered (extension point `graphLenses`), by lens id. */
@@ -129,7 +124,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     aggregatedEdges: aggregatedEdges.value,
     nodeSizeByDegree: nodeSizeByDegree.value,
     bridgeRing: bridgeRing.value,
-    personCredibility: personCredibility.value,
     coGuestEdges: coGuestEdges.value,
     personCommunities: personCommunities.value,
   }))
@@ -137,7 +131,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   function setAggregatedEdges(v: boolean): void { aggregatedEdges.value = v }
   function setNodeSizeByDegree(v: boolean): void { nodeSizeByDegree.value = v }
   function setBridgeRing(v: boolean): void { bridgeRing.value = v }
-  function setPersonCredibility(v: boolean): void { personCredibility.value = v }
   function setCoGuestEdges(v: boolean): void { coGuestEdges.value = v }
   function setPersonCommunities(v: boolean): void { personCommunities.value = v }
   function isLensOn(id: string): boolean { return registered.value[id] === true }
@@ -147,7 +140,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     aggregatedEdges.value = DEFAULT_FLAGS.aggregatedEdges
     nodeSizeByDegree.value = DEFAULT_FLAGS.nodeSizeByDegree
     bridgeRing.value = DEFAULT_FLAGS.bridgeRing
-    personCredibility.value = DEFAULT_FLAGS.personCredibility
     coGuestEdges.value = DEFAULT_FLAGS.coGuestEdges
     personCommunities.value = DEFAULT_FLAGS.personCommunities
     registered.value = readRegistered({})
@@ -196,7 +188,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
       aggregatedEdges.value = readBool(remote.aggregatedEdges, aggregatedEdges.value)
       nodeSizeByDegree.value = readBool(remote.nodeSizeByDegree, nodeSizeByDegree.value)
       bridgeRing.value = readBool(remote.bridgeRing, bridgeRing.value)
-      personCredibility.value = readBool(remote.personCredibility, personCredibility.value)
       coGuestEdges.value = readBool(remote.coGuestEdges, coGuestEdges.value)
       personCommunities.value = readBool(remote.personCommunities, personCommunities.value)
       registered.value = readRegistered(remote as Record<string, unknown>, registered.value)
@@ -215,7 +206,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     aggregatedEdges,
     nodeSizeByDegree,
     bridgeRing,
-    personCredibility,
     coGuestEdges,
     personCommunities,
     flags,
@@ -225,7 +215,6 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     setAggregatedEdges,
     setNodeSizeByDegree,
     setBridgeRing,
-    setPersonCredibility,
     setCoGuestEdges,
     setPersonCommunities,
     resetToDefaults,

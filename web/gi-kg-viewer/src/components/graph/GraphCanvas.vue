@@ -41,13 +41,10 @@ import { useThemeStore } from '../../stores/theme'
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import {
   applyCoGuestEdges,
-  applyCredibilityBorder,
   applyPersonCommunityRegions,
   clearCoGuestEdges,
-  clearCredibilityBorder,
   clearPersonCommunityRegions,
   type CoGuestEnvelopeData,
-  type GroundingEnvelopeData,
 } from '../../utils/cyGraphLensOverlays'
 import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
@@ -1028,19 +1025,6 @@ function refreshEnricherLensOverlays(): void {
   const core = cy
   if (!core) return
   const root = shell.corpusPath.trim()
-  // Person credibility border
-  if (lenses.personCredibility && root) {
-    void fetchCachedCorpusEnvelope<GroundingEnvelopeData>(root, 'grounding_rate')
-      .then((env) => {
-        if (!cy) return
-        applyCredibilityBorder(cy, env?.data ?? null)
-      })
-      .catch(() => {
-        /* silently degrade */
-      })
-  } else {
-    clearCredibilityBorder(core)
-  }
   // Co-guest edges
   if (lenses.coGuestEdges && root) {
     void fetchCachedCorpusEnvelope<CoGuestEnvelopeData>(root, 'guest_coappearance')
@@ -4318,7 +4302,6 @@ watch(
    same fetch cadence and error handling. */
 watch(
   () => [
-    lenses.personCredibility,
     lenses.coGuestEdges,
     lenses.personCommunities,
     lenses.registered,

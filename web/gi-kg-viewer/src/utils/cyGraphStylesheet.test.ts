@@ -214,27 +214,6 @@ describe('RFC-097 v2 two-tier edge contract selectors', () => {
 
 /* graph-v3 tier 5C/5D — enricher-lens stylesheet coverage (harden follow-up). */
 
-describe('Tier 5C — Person credibility border selectors', () => {
-  it('emits node.credibility-high (solid green), .credibility-med (solid amber), .credibility-low (dashed red)', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const high = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.credibility-high',
-    ) as { style: Record<string, unknown> } | undefined
-    const med = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.credibility-med',
-    ) as { style: Record<string, unknown> } | undefined
-    const low = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.credibility-low',
-    ) as { style: Record<string, unknown> } | undefined
-    expect(high?.style['border-color']).toBe('#22c55e')
-    expect(high?.style['border-style']).toBe('solid')
-    expect(med?.style['border-color']).toBe('#f59e0b')
-    expect(med?.style['border-style']).toBe('solid')
-    expect(low?.style['border-color']).toBe('#ef4444')
-    expect(low?.style['border-style']).toBe('dashed')
-  })
-})
-
 describe('Tier 5D — enricher-edge overlay selectors', () => {
   it('co-guest edges (edge.lens-coguest-edge) are amber, dotted, weight-scaled width', () => {
     const sheet = buildGiKgCyStylesheet({ compact: false })

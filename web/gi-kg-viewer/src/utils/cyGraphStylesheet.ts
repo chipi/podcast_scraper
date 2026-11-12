@@ -722,39 +722,6 @@ export function buildGiKgCyStylesheet(options?: {
     })
   })
 
-  /* graph-v3 Tier 5C-2 — Person credibility border. Reads the
-     grounding_rate envelope (Insights supported by a Person that are
-     grounded / total). High = solid green, medium = solid amber, low
-     = dashed red. Direct analog of `.insight-ungrounded` for Persons. */
-  const credibilityBorder = compact ? 1.5 : 2
-  style.push({
-    selector: 'node.credibility-high',
-    style: {
-      'border-width': credibilityBorder,
-      'border-style': 'solid',
-      'border-color': resolveThemeColor('--ps-credibility-high', '#22c55e'),
-      'border-opacity': 0.85,
-    },
-  })
-  style.push({
-    selector: 'node.credibility-med',
-    style: {
-      'border-width': credibilityBorder,
-      'border-style': 'solid',
-      'border-color': resolveThemeColor('--ps-credibility-medium', '#f59e0b'),
-      'border-opacity': 0.8,
-    },
-  })
-  style.push({
-    selector: 'node.credibility-low',
-    style: {
-      'border-width': credibilityBorder,
-      'border-style': 'dashed',
-      'border-color': resolveThemeColor('--ps-credibility-low', '#ef4444'),
-      'border-opacity': 0.8,
-    },
-  })
-
   /* graph-v3 Tier 5D-2 — co-guest edges (guest_coappearance). Dotted
      amber arcs between Persons who share ≥2 episodes. Weight-scaled
      width so a pair with 5 shared episodes reads chunkier than a
