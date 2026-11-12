@@ -743,6 +743,42 @@ class TestExtractEpisodeDescription(unittest.TestCase):
         result = rss_parser.extract_episode_description(item)
         self.assertIsNone(result)
 
+    def _desc(self, text):
+        item = ET.Element("item")
+        ET.SubElement(item, "description").text = text
+        return rss_parser.extract_episode_description(item)
+
+    def test_paragraphs_and_line_breaks_survive_as_newlines(self):
+        """#2477 (DV-19): the publisher's paragraphs and <br> line breaks reach the player.
+
+        The description used to be one paragraph: every tag and newline collapsed to a space.
+        """
+        html = (
+            "<p>In this episode we talk trails.</p>"
+            "<p>Guests: Ada Brook<br>Ben Carver</p>"
+            "<ul><li>Gear</li><li>Maps</li></ul>"
+        )
+        self.assertEqual(
+            self._desc(html),
+            "In this episode we talk trails.\n\nGuests: Ada Brook\nBen Carver\n\nGear\nMaps",
+        )
+
+    def test_a_plain_text_description_keeps_its_own_line_breaks(self):
+        text = "First paragraph,\nstill first.\n\n\n\nSecond   paragraph."
+        self.assertEqual(self._desc(text), "First paragraph,\nstill first.\n\nSecond paragraph.")
+
+    def test_inline_tags_stay_inline(self):
+        self.assertEqual(
+            self._desc("<p>Read <a href='x'>the book</a> and <b>enjoy</b> it.</p>"),
+            "Read the book and enjoy it.",
+        )
+
+    def test_titles_stay_one_line(self):
+        """Only the episode description keeps paragraphs; a title is still one line."""
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "<p>Part one</p><p>Part two</p>"
+        self.assertEqual(rss_parser.extract_episode_title(item, 1)[0], "Part one Part two")
+
 
 class TestMalformedRSS(unittest.TestCase):
     """Tests for handling malformed RSS feeds."""
