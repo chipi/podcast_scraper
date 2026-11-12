@@ -6,7 +6,7 @@ test.describe('Offline graph (file picker)', () => {
     await mockSignIn(page, 'creator')
   })
 
-  test('loads CI GI fixture and shows graph toolbar', async ({ page }) => {
+  test('loads the CI KG fixture and shows graph toolbar', async ({ page }) => {
     await loadGraphViaFilePicker(page)
 
     await expect(page.getByRole('button', { name: 'Fit' })).toBeVisible()

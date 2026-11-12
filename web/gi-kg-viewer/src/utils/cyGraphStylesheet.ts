@@ -251,8 +251,9 @@ export function sideLabelTextMarginX(
   }
   const r = nodeBodyWidthPx / 2
   const halfW = estimateLabelHalfWidthPx(label, maxWrapPx, avgCharPx)
-  /** Extra px: outline + background padding make bbox wider than char estimate (e2e: disc vs label rect). */
-  return Math.round(r + halfW + gapPx + 4)
+  /** Extra px: the label bbox also holds the background padding (3px) and the outline (2.75px), which
+   *  the char estimate does not; 4 left a five-letter label ~1px inside the disc (e2e: disc vs label rect). */
+  return Math.round(r + halfW + gapPx + 6)
 }
 
 /** Cytoscape style callback — append after `buildGiKgCyStylesheet` for `nodeLabelPlacement: side`. */

@@ -53,6 +53,11 @@ describe('sideLabelTextMarginX', () => {
     expect(long).toBeGreaterThan(short)
   })
 
+  it('clears the background padding and outline the label bbox carries, not only the text', () => {
+    // r 9 + estimated half 13.75 (5 chars × 5.5) + gap 3 + padding 3 + outline 2.75.
+    expect(sideLabelTextMarginX(18, 'Casey', 140, 3, 5.5)).toBeGreaterThanOrEqual(9 + 13.75 + 3 + 3 + 2.75)
+  })
+
   it('compact graph uses smaller body so margin can be smaller for same text', () => {
     const label = 'episode title here'
     const full = sideLabelTextMarginX(18, label, 140, 3, 5.5)
