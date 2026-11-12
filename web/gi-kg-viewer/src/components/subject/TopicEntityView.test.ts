@@ -27,8 +27,8 @@ const STUBS = {
 
 function artifactOf(nodes: RawGraphNode[], edges: RawGraphEdge[] = []): ParsedArtifact {
   return {
-    name: 'gi',
-    kind: 'gi',
+    name: 'kg',
+    kind: 'kg',
     episodeId: null,
     nodes: nodes.length,
     edges: edges.length,

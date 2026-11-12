@@ -76,9 +76,9 @@ function band(id: string, score: number, over: Partial<CorpusDigestTopicBand> = 
         score,
         episode_id: `hit-${id}`,
         publish_date: '2026-01-05',
-        has_gi: true,
-        gi_relative_path: `feeds/f1/hit-${id}.gi.json`,
-        has_kg: false,
+        has_gi: false,
+        has_kg: true,
+        kg_relative_path: `feeds/f1/hit-${id}.kg.json`,
         summary_preview: `Why ${id} matters`,
       },
     ],
@@ -157,7 +157,7 @@ describe('DigestView — topic bands', () => {
       { metadata_relative_path: 'feeds/f1/hit-b.metadata.json' },
     ])
     expect(w.emitted('switch-main-tab')?.at(-1)).toEqual(['graph'])
-    expect(artifacts.appendRelativeArtifacts).toHaveBeenCalledWith(['feeds/f1/hit-b.gi.json'])
+    expect(artifacts.appendRelativeArtifacts).toHaveBeenCalledWith(['feeds/f1/hit-b.kg.json'])
   })
 
   it('a hit with no GI/KG on disk says so instead of opening an empty graph', async () => {

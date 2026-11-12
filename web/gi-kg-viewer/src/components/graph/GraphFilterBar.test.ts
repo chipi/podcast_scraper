@@ -29,8 +29,8 @@ function makeState(
 /** Minimal parsed GI artifact so artifacts.displayArtifact is non-null. */
 function makeGiArtifact(): ParsedArtifact {
   return {
-    name: 'ep.gi.json',
-    kind: 'gi',
+    name: 'ep.kg.json',
+    kind: 'kg',
     episodeId: 'ep1',
     nodes: 0,
     edges: 0,

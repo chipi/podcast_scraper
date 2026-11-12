@@ -267,8 +267,7 @@ async function onFocusHit(hit: SearchHit): Promise<void> {
     const stem = metaRel.endsWith('.metadata.json')
       ? metaRel.slice(0, -'.metadata.json'.length)
       : metaRel.replace(/\.(metadata\.ya?ml|json)$/i, '')
-    // A KG-only corpus (no insight stage) has no ``.gi.json``: asking for it fails the whole load.
-    const paths = episodeArtifactRelPathsForStem(stem, { withGi: shell.giArtifactsAvailable })
+    const paths = episodeArtifactRelPathsForStem(stem)
     try {
       await artifacts.appendRelativeArtifacts(paths)
     } catch {

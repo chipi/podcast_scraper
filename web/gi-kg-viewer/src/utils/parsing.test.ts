@@ -6,7 +6,6 @@ import {
   buildNodeTitle,
   countPersonEntityIncidentEdges,
   defaultFilterState,
-  ensureEpisodeToInsightEdges,
   entityDisplayNameFromId,
   findEpisodeGraphNodeIdForEpisodeKey,
   quoteAttributionDisplayFromId,
@@ -20,9 +19,7 @@ import {
   canonicalTopicKey,
   nodeLabel,
   personEpisodeAppearances,
-  personInsightsByTopic,
   personRoleFromNode,
-  personTopicPositionArc,
   primaryTextFromLooseGiNode,
   parseArtifact,
   rankedPersonOrganizations,
@@ -55,15 +52,15 @@ function giData(): ArtifactData {
 }
 
 function parsedGi(): ParsedArtifact {
-  return parseArtifact('ep1.gi.json', giData())
+  return parseArtifact('ep1.kg.json', giData())
 }
 
 // ── parseArtifact ──
 
 describe('parseArtifact', () => {
-  it('detects GI from filename', () => {
+  it('reads a .gi.json as unknown (GI is a downstream build\'s reader)', () => {
     const art = parseArtifact('ep1.gi.json', { nodes: [], edges: [] })
-    expect(art.kind).toBe('gi')
+    expect(art.kind).toBe('unknown')
   })
 
   it('detects KG from filename', () => {
@@ -71,9 +68,9 @@ describe('parseArtifact', () => {
     expect(art.kind).toBe('kg')
   })
 
-  it('infers GI from model_version + prompt_version', () => {
+  it('does not infer GI from model_version + prompt_version', () => {
     const art = parseArtifact('data.json', { model_version: 'x', prompt_version: 'y', nodes: [], edges: [] })
-    expect(art.kind).toBe('gi')
+    expect(art.kind).toBe('unknown')
   })
 
   it('infers KG from extraction field', () => {
@@ -84,7 +81,7 @@ describe('parseArtifact', () => {
   it('counts nodes and edges', () => {
     const art = parsedGi()
     expect(art.nodes).toBe(4)
-    expect(art.edges).toBeGreaterThanOrEqual(2)
+    expect(art.edges).toBe(1)
   })
 
   it('builds nodeTypes map', () => {
@@ -93,44 +90,9 @@ describe('parseArtifact', () => {
     expect(art.nodeTypes.Insight).toBe(2)
   })
 
-  it('adds synthetic HAS_INSIGHT edges for GI', () => {
+  it('adds no edges of its own (the data is drawn as it is)', () => {
     const art = parsedGi()
-    const hasInsight = (art.data.edges ?? []).filter((e) => e.type === 'HAS_INSIGHT')
-    expect(hasInsight.length).toBeGreaterThanOrEqual(1)
-  })
-})
-
-// ── ensureEpisodeToInsightEdges ──
-
-describe('ensureEpisodeToInsightEdges', () => {
-  it('adds HAS_INSIGHT for matching episode_id', () => {
-    const nodes = [
-      { id: 'episode:ep1', type: 'Episode' },
-      { id: 'i1', type: 'Insight', properties: { episode_id: 'ep1' } },
-    ]
-    const result = ensureEpisodeToInsightEdges(nodes, [])
-    expect(result.edges).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: 'HAS_INSIGHT', from: 'episode:ep1', to: 'i1' }),
-      ]),
-    )
-  })
-
-  it('does not duplicate existing edges', () => {
-    const nodes = [
-      { id: 'episode:ep1', type: 'Episode' },
-      { id: 'i1', type: 'Insight', properties: { episode_id: 'ep1' } },
-    ]
-    const edges = [{ type: 'HAS_INSIGHT', from: 'episode:ep1', to: 'i1' }]
-    const result = ensureEpisodeToInsightEdges(nodes, edges)
-    const hi = result.edges.filter((e) => e.type === 'HAS_INSIGHT')
-    expect(hi).toHaveLength(1)
-  })
-
-  it('returns unchanged when no episodes', () => {
-    const nodes = [{ id: 'i1', type: 'Insight' }]
-    const result = ensureEpisodeToInsightEdges(nodes, [])
-    expect(result.edges).toHaveLength(0)
+    expect((art.data.edges ?? []).map((e) => e.type)).toEqual(['supported_by'])
   })
 })
 
@@ -262,7 +224,6 @@ describe('defaultFilterState', () => {
     expect(state.allowedTypes.Episode).toBe(true)
     expect(state.allowedTypes.Insight).toBe(true)
     expect(state.allowedEdgeTypes.supported_by).toBe(true)
-    expect(state.allowedEdgeTypes.HAS_INSIGHT).toBe(true)
   })
 
   it('returns null for null artifact', () => {
@@ -694,144 +655,6 @@ describe('rankedPersonOrganizations', () => {
   })
 })
 
-describe('personTopicPositionArc (#1049)', () => {
-  it('orders the arc OLDEST-FIRST across dates (#1600)', () => {
-    // The direction had no comment, no test, and contradicts UXS-009 (":63-64, :186-187 — most
-    // recent first"). The existing sort test uses two SAME-DATE rows, so it pins only the
-    // within-date tiebreak and passes under either direction — the direction itself was unpinned.
-    //
-    // Oldest-first is kept: the panel answers "how did this position EVOLVE", and an arc reads
-    // forwards. Reverse-chronological shows the conclusion before the reasoning. The spec is stale.
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 'ep:2', type: 'Episode', properties: { publish_date: '2025-06-01' } },
-        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2024-01-01' } },
-        { id: 'i:late', type: 'Insight', properties: { text: 'Later stance.', episode_id: 'ep:2' } },
-        { id: 'i:early', type: 'Insight', properties: { text: 'Earlier stance.', episode_id: 'ep:1' } },
-        { id: 'p1', type: 'Person', properties: { name: 'A' } },
-        { id: 't1', type: 'Topic', properties: { label: 'T' } },
-      ],
-      edges: [
-        { from: 'i:late', to: 'p1', type: 'MENTIONS_PERSON' },
-        { from: 'i:early', to: 'p1', type: 'MENTIONS_PERSON' },
-        { from: 'i:late', to: 't1', type: 'ABOUT' },
-        { from: 'i:early', to: 't1', type: 'ABOUT' },
-      ],
-    })
-    const rows = personTopicPositionArc(art, 'p1', 't1')
-    expect(rows.map((r) => r.insightId)).toEqual(['i:early', 'i:late'])
-  })
-
-  it('returns [] for missing inputs', () => {
-    expect(personTopicPositionArc(null, 'p1', 't1')).toEqual([])
-    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
-    expect(personTopicPositionArc(art, null, 't1')).toEqual([])
-    expect(personTopicPositionArc(art, 'p1', null)).toEqual([])
-  })
-
-  it('intersects MENTIONS_PERSON ∩ ABOUT and sorts by date then position_hint', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        {
-          id: 'i_old',
-          type: 'Insight',
-          properties: { text: 'older claim', insight_type: 'claim', position_hint: 0.4 },
-        },
-        {
-          id: 'i_new_early',
-          type: 'Insight',
-          properties: { text: 'newer early', insight_type: 'observation', position_hint: 0.2 },
-        },
-        {
-          id: 'i_new_late',
-          type: 'Insight',
-          properties: { text: 'newer late', insight_type: 'recommendation', position_hint: 0.8 },
-        },
-        // Distractor — wrong topic
-        {
-          id: 'i_wrong_topic',
-          type: 'Insight',
-          properties: { text: 'wrong topic', insight_type: 'claim', position_hint: 0.1 },
-        },
-        // Distractor — wrong person
-        {
-          id: 'i_wrong_person',
-          type: 'Insight',
-          properties: { text: 'wrong person', insight_type: 'claim', position_hint: 0.1 },
-        },
-        { id: 'ep:old', type: 'Episode', properties: { publish_date: '2026-01-10' } },
-        { id: 'ep:new', type: 'Episode', properties: { publish_date: '2026-02-15' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i_old', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_new_early', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_new_late', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_wrong_topic', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_wrong_person', to: 'p:bob' },
-        { type: 'ABOUT', from: 'i_old', to: 't:ai' },
-        { type: 'ABOUT', from: 'i_new_early', to: 't:ai' },
-        { type: 'ABOUT', from: 'i_new_late', to: 't:ai' },
-        { type: 'ABOUT', from: 'i_wrong_topic', to: 't:other' },
-        { type: 'ABOUT', from: 'i_wrong_person', to: 't:ai' },
-        { type: 'IN_EPISODE', from: 'i_old', to: 'ep:old' },
-        { type: 'IN_EPISODE', from: 'i_new_early', to: 'ep:new' },
-        { type: 'IN_EPISODE', from: 'i_new_late', to: 'ep:new' },
-      ],
-    })
-    const arc = personTopicPositionArc(art, 'p:alice', 't:ai')
-    expect(arc.map((r) => r.insightId)).toEqual(['i_old', 'i_new_early', 'i_new_late'])
-    expect(arc[0].publishDate).toBe('2026-01-10')
-    expect(arc[1].publishDate).toBe('2026-02-15')
-    expect(arc[1].positionHint).toBe(0.2)
-    expect(arc[2].positionHint).toBe(0.8)
-    expect(arc[0].insightType).toBe('claim')
-    expect(arc[1].text).toBe('newer early')
-  })
-
-  it('attaches supporting quote texts via SUPPORTED_BY', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 'i1', type: 'Insight', properties: { text: 'argued for X', insight_type: 'claim' } },
-        { id: 'q1', type: 'Quote', properties: { text: 'i think X is true' } },
-        { id: 'q2', type: 'Quote', properties: { text: 'X matters because Y' } },
-        // Not a Quote (Insight self-reference) — should be ignored.
-        { id: 'q3', type: 'Insight', properties: { text: 'not a quote' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:x' },
-        { type: 'SUPPORTED_BY', from: 'i1', to: 'q1' },
-        { type: 'SUPPORTED_BY', from: 'i1', to: 'q2' },
-        { type: 'SUPPORTED_BY', from: 'i1', to: 'q3' },
-      ],
-    })
-    const arc = personTopicPositionArc(art, 'p:a', 't:x')
-    expect(arc.length).toBe(1)
-    expect(arc[0].supportingQuoteTexts).toEqual(['i think X is true', 'X matters because Y'])
-  })
-
-  it('sinks undated insights to the tail (consistent with sibling helpers)', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 'i_dated', type: 'Insight', properties: { text: 'dated', position_hint: 0.5 } },
-        { id: 'i_undated', type: 'Insight', properties: { text: 'no date', position_hint: 0.5 } },
-        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-03-01' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i_dated', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i_undated', to: 'p:a' },
-        { type: 'ABOUT', from: 'i_dated', to: 't:x' },
-        { type: 'ABOUT', from: 'i_undated', to: 't:x' },
-        { type: 'IN_EPISODE', from: 'i_dated', to: 'ep:1' },
-      ],
-    })
-    const arc = personTopicPositionArc(art, 'p:a', 't:x')
-    expect(arc.map((r) => r.insightId)).toEqual(['i_dated', 'i_undated'])
-    expect(arc[0].publishDate).toBe('2026-03-01')
-    expect(arc[1].publishDate).toBeNull()
-  })
-})
-
 describe('canonicalTopicKey (#1076 chunk 2)', () => {
   it('lowercases', () => {
     expect(canonicalTopicKey('AI Ethics')).toBe('ai ethics')
@@ -915,36 +738,6 @@ describe('rankedPersonTopicMentions — near-duplicate fold (#1076 chunk 2)', ()
   })
 })
 
-describe('personInsightsByTopic — near-duplicate fold (#1076 chunk 2)', () => {
-  it('merges insights across near-duplicate Topic groups', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai-1', type: 'Topic', properties: { name: 'AI ethics' } },
-        { id: 't:ai-2', type: 'Topic', properties: { name: 'AI Ethics' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'first' } },
-        { id: 'i2', type: 'Insight', properties: { text: 'second' } },
-        { id: 'i3', type: 'Insight', properties: { text: 'third' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai-1' },
-        { type: 'ABOUT', from: 'i2', to: 't:ai-2' },
-        // i3 is ABOUT both near-duplicates → should appear once.
-        { type: 'ABOUT', from: 'i3', to: 't:ai-1' },
-        { type: 'ABOUT', from: 'i3', to: 't:ai-2' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups.length).toBe(1)
-    expect(groups[0].topicId).toBe('t:ai-1')
-    expect(groups[0].count).toBe(3)
-    const insightIds = groups[0].insights.map((i) => i.insightId).sort()
-    expect(insightIds).toEqual(['i1', 'i2', 'i3'])
-  })
-})
-
 describe('personEpisodeAppearances (#1050)', () => {
   it('returns [] for missing artifact or id', () => {
     expect(personEpisodeAppearances(null, 'p1')).toEqual([])
@@ -1000,78 +793,6 @@ describe('personEpisodeAppearances (#1050)', () => {
     const byId = new Map(rows.map((r) => [r.episodeId, r]))
     expect(byId.get('ep:1')!.title).toBe('Alt title')
     expect(byId.get('ep:2')!.title).toBeNull()
-  })
-})
-
-describe('personInsightsByTopic (#1050)', () => {
-  it('returns [] for missing inputs', () => {
-    expect(personInsightsByTopic(null, 'p1')).toEqual([])
-    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
-    expect(personInsightsByTopic(art, null)).toEqual([])
-  })
-
-  it('groups insights by Topic, sorts groups by count desc then name', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai', type: 'Topic', properties: { name: 'AI ethics' } },
-        { id: 't:reg', type: 'Topic', properties: { name: 'AI regulation' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'first', insight_type: 'claim' } },
-        { id: 'i2', type: 'Insight', properties: { text: 'second', insight_type: 'observation' } },
-        { id: 'i3', type: 'Insight', properties: { text: 'third', insight_type: 'recommendation' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-        { type: 'ABOUT', from: 'i2', to: 't:ai' },
-        { type: 'ABOUT', from: 'i3', to: 't:reg' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups.map((g) => [g.topicName, g.count])).toEqual([
-      ['AI ethics', 2],
-      ['AI regulation', 1],
-    ])
-    expect(groups[0].insights.map((i) => i.insightId)).toEqual(['i1', 'i2'])
-    expect(groups[0].insights[0].text).toBe('first')
-    expect(groups[1].insights[0].insightType).toBe('recommendation')
-  })
-
-  it('places an Insight into every Topic it is ABOUT', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai', type: 'Topic', properties: { name: 'AI' } },
-        { id: 't:law', type: 'Topic', properties: { name: 'Law' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'bridge insight' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-        { type: 'ABOUT', from: 'i1', to: 't:law' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups.length).toBe(2)
-    expect(groups.every((g) => g.count === 1)).toBe(true)
-    expect(groups.every((g) => g.insights[0].insightId === 'i1')).toBe(true)
-  })
-
-  it('collapses duplicate (insight, topic) pairs', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai', type: 'Topic', properties: { name: 'AI' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'dup' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups[0].count).toBe(1)
-    expect(groups[0].insights.length).toBe(1)
   })
 })
 

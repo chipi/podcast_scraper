@@ -46,7 +46,7 @@ async function graphEpisodeIds(page: Page): Promise<string[]> {
     if (!cy) return []
     return cy
       .nodes('[type = "Episode"]')
-      .map((n) => n.id().replace(/^(__unified_ep__:|[gk]:episode:)/, ''))
+      .map((n) => n.id().replace(/^(__unified_ep__:|(?:[gk]:)?episode:)/, ''))
   })
 }
 

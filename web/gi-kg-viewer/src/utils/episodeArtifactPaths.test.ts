@@ -6,20 +6,16 @@ import { episodeArtifactRelPaths, episodeArtifactRelPathsForStem } from './episo
 afterEach(() => episodeArtifactPaths.reset())
 
 describe('episodeArtifactRelPaths', () => {
-  it('honours the has_* flags when the payload carries them', () => {
-    const ep = {
-      has_gi: false,
-      gi_relative_path: 'a/e.gi.json',
-      has_kg: true,
-      kg_relative_path: 'a/e.kg.json',
-    }
-    expect(episodeArtifactRelPaths(ep)).toEqual(['a/e.kg.json'])
+  it('honours the has_kg flag when the payload carries it', () => {
+    expect(episodeArtifactRelPaths({ has_kg: true, kg_relative_path: 'a/e.kg.json' })).toEqual(['a/e.kg.json'])
+    expect(episodeArtifactRelPaths({ has_kg: false, kg_relative_path: 'a/e.kg.json' })).toEqual([])
   })
 
-  it('takes the paths that are set when the payload has no flags (node-episodes rows)', () => {
+  it('takes the KG path when the payload has no flags (node-episodes rows), and no other kind', () => {
+    // A GI path is a downstream build's to add (extension point `episodeArtifactPaths`).
     expect(
-      episodeArtifactRelPaths({ gi_relative_path: ' a/e.gi.json ', kg_relative_path: 'a/e.kg.json' }),
-    ).toEqual(['a/e.gi.json', 'a/e.kg.json'])
+      episodeArtifactRelPaths({ gi_relative_path: 'a/e.gi.json', kg_relative_path: 'a/e.kg.json' }),
+    ).toEqual(['a/e.kg.json'])
     expect(episodeArtifactRelPaths({ kg_relative_path: '' })).toEqual([])
   })
 
@@ -34,10 +30,9 @@ describe('episodeArtifactRelPaths', () => {
 })
 
 describe('episodeArtifactRelPathsForStem', () => {
-  it('lists the KG, the GI only when the corpus has GI, then extension files', () => {
-    expect(episodeArtifactRelPathsForStem('a/e', { withGi: false })).toEqual(['a/e.kg.json'])
-    expect(episodeArtifactRelPathsForStem('a/e', { withGi: true })).toEqual(['a/e.gi.json', 'a/e.kg.json'])
+  it('lists the KG, then extension files', () => {
+    expect(episodeArtifactRelPathsForStem('a/e')).toEqual(['a/e.kg.json'])
     episodeArtifactPaths.register({ id: 'x', forStem: (stem) => [`${stem}.x.json`] })
-    expect(episodeArtifactRelPathsForStem('a/e', { withGi: false })).toEqual(['a/e.kg.json', 'a/e.x.json'])
+    expect(episodeArtifactRelPathsForStem('a/e')).toEqual(['a/e.kg.json', 'a/e.x.json'])
   })
 })

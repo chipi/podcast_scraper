@@ -14,14 +14,14 @@ import { graphTypeTraits } from '../../extensions'
 
 // The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
 // exercised with the types they were written for.
-beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'] }))
+beforeEach(() => graphTypeTraits.register({ id: 'hidden', defaultHidden: ['Quote', 'Speaker'] }))
 afterEach(() => graphTypeTraits.reset())
 
 const SUMMARY = '[data-testid="graph-status-line"]'
 const CONTROLS = '[data-testid="graph-status-line-controls"]'
 
 /**
- * Push a single ``.gi.json`` artifact into the artifacts store so the
+ * Push a single ``.kg.json`` artifact into the artifacts store so the
  * graphFilters ``filteredArtifact`` computed (and therefore the summary
  * counts) reflect real store state. A lone GI artifact passes through
  * ``buildDisplayArtifact`` unmodified (no id prefixing / dedup), so the
@@ -31,7 +31,7 @@ const CONTROLS = '[data-testid="graph-status-line-controls"]'
 function loadGiArtifact(data: ArtifactData): void {
   const artifacts = useArtifactsStore()
   artifacts.corpusPath = '/corpus'
-  artifacts.parsedList = [parseArtifact('ep1.gi.json', data)]
+  artifacts.parsedList = [parseArtifact('ep1.kg.json', data)]
 }
 
 const mountSummary = (props: Record<string, unknown> = {}) =>
@@ -253,14 +253,14 @@ describe('GraphStatusLine', () => {
       expect(w.find('[data-testid="graph-status-reset"]').exists()).toBe(false)
 
       const expansion = useGraphExpansionStore()
-      expansion.recordExpand('seed-1', ['a.gi.json'])
+      expansion.recordExpand('seed-1', ['a.kg.json'])
       await w.vm.$nextTick()
       expect(w.find('[data-testid="graph-status-reset"]').exists()).toBe(true)
     })
 
     it('emits request-graph-full-reset on click when not loading', async () => {
       const expansion = useGraphExpansionStore()
-      expansion.recordExpand('seed-1', ['a.gi.json'])
+      expansion.recordExpand('seed-1', ['a.kg.json'])
       const w = mountControls()
       await w.get('[data-testid="graph-status-reset"]').trigger('click')
       expect(w.emitted('request-graph-full-reset')).toHaveLength(1)
@@ -268,7 +268,7 @@ describe('GraphStatusLine', () => {
 
     it('does not emit while artifacts are loading', async () => {
       const expansion = useGraphExpansionStore()
-      expansion.recordExpand('seed-1', ['a.gi.json'])
+      expansion.recordExpand('seed-1', ['a.kg.json'])
       const artifacts = useArtifactsStore()
       artifacts.loading = true
       const w = mountControls()

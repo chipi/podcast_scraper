@@ -20,7 +20,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
   it('overlapping loadSelected leaves last run authoritative and clears loading', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['first.gi.json', 'second.gi.json'])
+    store.selectAllListed(['first.kg.json', 'second.kg.json'])
 
     let releaseFirst!: () => void
     const firstGate = new Promise<void>((resolve) => {
@@ -28,7 +28,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     })
     let firstGiCalls = 0
     vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) => {
-      if (rel === 'first.gi.json') {
+      if (rel === 'first.kg.json') {
         firstGiCalls += 1
         if (firstGiCalls === 1) await firstGate
       }
@@ -56,9 +56,9 @@ describe('useArtifactsStore loadSelected single-flight', () => {
   it('loadSelected resets graph expansion by default', async () => {
     const store = useArtifactsStore()
     const graphExpansion = useGraphExpansionStore()
-    graphExpansion.recordExpand('n:episode:1', ['extra.gi.json'])
+    graphExpansion.recordExpand('n:episode:1', ['extra.kg.json'])
     store.setCorpusPath('/c')
-    store.selectAllListed(['only.gi.json'])
+    store.selectAllListed(['only.kg.json'])
     vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
 
     await store.loadSelected()
@@ -69,9 +69,9 @@ describe('useArtifactsStore loadSelected single-flight', () => {
   it('loadSelected with preserveExpansion keeps expansion state', async () => {
     const store = useArtifactsStore()
     const graphExpansion = useGraphExpansionStore()
-    graphExpansion.recordExpand('n:episode:1', ['extra.gi.json'])
+    graphExpansion.recordExpand('n:episode:1', ['extra.kg.json'])
     store.setCorpusPath('/c')
-    store.selectAllListed(['only.gi.json', 'extra.gi.json'])
+    store.selectAllListed(['only.kg.json', 'extra.kg.json'])
     vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
 
     await store.loadSelected({ preserveExpansion: true })
@@ -89,7 +89,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     // async load window so no empty-state redraw races the teardown.
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['prior.gi.json'])
+    store.selectAllListed(['prior.kg.json'])
     vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
 
     // Prime the store with a prior load.
@@ -106,7 +106,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
       await secondGate
       return emptyArtifact
     })
-    store.selectAllListed(['next.gi.json'])
+    store.selectAllListed(['next.kg.json'])
     const p = store.loadSelected()
     await Promise.resolve()
 
@@ -121,7 +121,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
   it('#586: clears parsedList only when the load resolves to nothing', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['only.gi.json'])
+    store.selectAllListed(['only.kg.json'])
     vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
     await store.loadSelected()
     expect(store.parsedList).toHaveLength(1)
@@ -149,9 +149,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
   it('#768: fetches main set concurrently — N inflight before any resolves', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    // .kg.json-only selection (no .gi.json present) so the sibling-bridge
-    // path stays dormant — keeps the concurrency assertion tight on the
-    // main set without coupling to the parallel-sibling-fetch optimisation.
+    // A .kg.json-only selection, as every viewer load is: the assertion is on the main set alone.
     store.selectAllListed([
       'a.kg.json',
       'b.kg.json',
@@ -185,46 +183,10 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     expect(store.parsedList).toHaveLength(4)
   })
 
-  it('#768: sibling-bridge fetch runs concurrently with main set (5th inflight)', async () => {
-    const store = useArtifactsStore()
-    store.setCorpusPath('/c')
-    // 4 main files + a .gi.json → sibling-bridge candidate also dispatches.
-    store.selectAllListed([
-      'ep.gi.json',
-      'a.kg.json',
-      'b.kg.json',
-      'c.kg.json',
-    ])
-
-    let inflight = 0
-    let maxInflight = 0
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    vi.mocked(fetchArtifactJson).mockImplementation(async () => {
-      inflight += 1
-      maxInflight = Math.max(maxInflight, inflight)
-      await gate
-      inflight -= 1
-      return emptyArtifact
-    })
-
-    const p = store.loadSelected()
-    await Promise.resolve()
-    await Promise.resolve()
-    // 4 main + 1 sibling = 5 concurrent. Sequential would be 1 (sibling
-    // wouldn't even fire until the main loop finished).
-    expect(maxInflight).toBe(5)
-
-    release()
-    await p
-  })
-
   it('#768: stale-check between dispatch and join — superseded run does not write parsedList', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['first.gi.json'])
+    store.selectAllListed(['first.kg.json'])
 
     let firstRelease!: () => void
     const firstGate = new Promise<void>((resolve) => {
@@ -232,7 +194,7 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     })
     let firstCalls = 0
     vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) => {
-      if (rel === 'first.gi.json') {
+      if (rel === 'first.kg.json') {
         firstCalls += 1
         if (firstCalls === 1) {
           // Block the first run's fetch so we can supersede it.
@@ -247,12 +209,12 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     expect(store.loading).toBe(true)
 
     // Supersede with second selection mid-flight.
-    store.selectAllListed(['second.gi.json'])
+    store.selectAllListed(['second.kg.json'])
     const p2 = store.loadSelected()
     await p2
 
     expect(store.parsedList).toHaveLength(1)
-    expect(store.parsedList[0]?.data.nodes?.[0]?.id).toBe('second.gi.json')
+    expect(store.parsedList[0]?.data.nodes?.[0]?.id).toBe('second.kg.json')
 
     // Unblock the stale run. Its post-join writes MUST be suppressed.
     firstRelease()
@@ -260,62 +222,8 @@ describe('useArtifactsStore loadSelected single-flight', () => {
 
     // ``parsedList`` still reflects the second (authoritative) run.
     expect(store.parsedList).toHaveLength(1)
-    expect(store.parsedList[0]?.data.nodes?.[0]?.id).toBe('second.gi.json')
+    expect(store.parsedList[0]?.data.nodes?.[0]?.id).toBe('second.kg.json')
     expect(store.loading).toBe(false)
-  })
-
-  it('#768: sibling-bridge fallback fires when no .bridge.json in selection', async () => {
-    const store = useArtifactsStore()
-    store.setCorpusPath('/c')
-    store.selectAllListed(['ep.gi.json'])
-
-    const calls: string[] = []
-    vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) => {
-      calls.push(rel)
-      if (rel === 'ep.bridge.json') {
-        return {
-          schema_version: '1.0',
-          episode_id: 'ep-1',
-          identities: [],
-        } as unknown as ArtifactData
-      }
-      return emptyArtifact
-    })
-
-    await store.loadSelected()
-
-    // Sibling-bridge fetch fired in parallel with the main set.
-    expect(calls).toContain('ep.gi.json')
-    expect(calls).toContain('ep.bridge.json')
-    expect(store.bridgeDocument?.episode_id).toBe('ep-1')
-  })
-
-  it('#768: in-selection bridge wins over sibling-bridge fallback', async () => {
-    const store = useArtifactsStore()
-    store.setCorpusPath('/c')
-    // Both .gi.json AND .bridge.json explicitly selected. Sibling-bridge
-    // path must NOT overwrite the in-selection bridge document.
-    store.selectAllListed(['ep.gi.json', 'ep.bridge.json'])
-
-    const calls: string[] = []
-    vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) => {
-      calls.push(rel)
-      if (rel === 'ep.bridge.json') {
-        return {
-          schema_version: '1.0',
-          episode_id: 'in-selection',
-          identities: [],
-        } as unknown as ArtifactData
-      }
-      return emptyArtifact
-    })
-
-    await store.loadSelected()
-
-    // The bridge path appears ONCE (no duplicate sibling fetch).
-    const bridgeCount = calls.filter((r) => r === 'ep.bridge.json').length
-    expect(bridgeCount).toBe(1)
-    expect(store.bridgeDocument?.episode_id).toBe('in-selection')
   })
 
   it('#768: main-fetch failure fails fast — loadError set, parsedList preserves prior list', async () => {
@@ -323,15 +231,15 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     store.setCorpusPath('/c')
 
     // Prime a known-good prior list.
-    store.selectAllListed(['ok.gi.json'])
+    store.selectAllListed(['ok.kg.json'])
     vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
     await store.loadSelected()
     expect(store.parsedList).toHaveLength(1)
 
     // Now switch to a selection where one main fetch will throw.
-    store.selectAllListed(['ok.gi.json', 'broken.gi.json'])
+    store.selectAllListed(['ok.kg.json', 'broken.kg.json'])
     vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) => {
-      if (rel === 'broken.gi.json') {
+      if (rel === 'broken.kg.json') {
         throw new Error('HTTP 500')
       }
       return emptyArtifact
@@ -345,22 +253,4 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     expect(store.loading).toBe(false)
   })
 
-  it('#768: sibling-bridge failure is silent — main set still applied', async () => {
-    const store = useArtifactsStore()
-    store.setCorpusPath('/c')
-    store.selectAllListed(['ep.gi.json'])
-
-    vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) => {
-      if (rel === 'ep.bridge.json') {
-        throw new Error('HTTP 404')
-      }
-      return emptyArtifact
-    })
-
-    await store.loadSelected()
-
-    expect(store.loadError).toBeNull()
-    expect(store.parsedList).toHaveLength(1)
-    expect(store.bridgeDocument).toBeNull()
-  })
 })

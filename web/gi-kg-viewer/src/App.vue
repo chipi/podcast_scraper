@@ -30,7 +30,7 @@ import SubjectRail from './components/shell/SubjectRail.vue'
 import UserMenu from './components/shell/UserMenu.vue'
 import { useAuthStore } from './stores/auth'
 import { useGraphAnalyticsStore } from './stores/graphAnalytics'
-import { useArtifactsStore } from './stores/artifacts'
+import { artifactFileReadable, useArtifactsStore } from './stores/artifacts'
 import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useGraphExplorerStore } from './stores/graphExplorer'
 import { useGraphHandoffStore } from './stores/graphHandoff'
@@ -536,7 +536,7 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   if (corpusGraphSyncGate.isStale(gen)) {
     return
   }
-  const rows = shell.artifactList.map((a) => ({
+  const rows = shell.artifactList.filter((a) => artifactFileReadable(a.relative_path)).map((a) => ({
     relative_path: a.relative_path,
     kind: a.kind,
     publish_date: a.publish_date ?? '',
@@ -842,6 +842,7 @@ async function onSearchFocusSet(ids: string[]): Promise<void> {
         const stemMatch = base.match(/^(.+)\.(gi|kg|bridge)\.json$/i)
         if (!stemMatch) continue
         if (!wantedBaseNames.has(stemMatch[1])) continue
+        if (!artifactFileReadable(rel)) continue
         extras.push(rel)
       }
       if (extras.length > 0) {

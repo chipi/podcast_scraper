@@ -8,9 +8,7 @@ import {
 } from '../extensions'
 import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
-import type { BridgeDocument } from '../types/bridge'
 import type { ArtifactData, ParsedArtifact } from '../types/artifact'
-import { parseBridgeDocument } from '../utils/bridgeDocument'
 import { parseArtifact } from '../utils/parsing'
 import { buildDisplayArtifact } from '../utils/mergeGiKg'
 import { StaleGeneration } from '../utils/staleGeneration'
@@ -18,18 +16,25 @@ import { useGraphExpansionStore } from './graphExpansion'
 import { useGraphExplorerStore } from './graphExplorer'
 import {
   calendarPublishYmdFromParsedArtifact,
-  episodeStemFromArtifactRelPath,
   GRAPH_DEFAULT_EPISODE_CAP,
   selectParsedArtifactsForGraphLoad,
 } from '../utils/graphEpisodeSelection'
 
 /** Relative paths selected from /api/artifacts list (basename or full relative path). */
+/**
+ * A corpus file this build can draw from: a `.kg.json`, or a file a registered reader takes. The
+ * corpus lists every artifact kind; offering one nothing reads would load nothing.
+ */
+export function artifactFileReadable(relPath: string): boolean {
+  const lower = relPath.trim().toLowerCase()
+  if (lower.endsWith('.kg.json')) return true
+  return artifactReaders.list().some((r) => r.suffixes.some((x) => lower.endsWith(x.toLowerCase())))
+}
+
 export const useArtifactsStore = defineStore('artifacts', () => {
   const corpusPath = ref('')
   const selectedRelPaths = ref<string[]>([])
   const parsedList = ref<ParsedArtifact[]>([])
-  /** bridge.json for the current corpus selection (optional). */
-  const bridgeDocument = ref<BridgeDocument | null>(null)
   const loadError = ref<string | null>(null)
   const loading = ref(false)
   const loadGate = new StaleGeneration()
@@ -61,7 +66,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     'digest-external' | 'subject-external' | 'graph-internal' | null
   >(null)
 
-  const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
 
   /** The graph to draw: an extension's combiner when one answers, else the viewer's merge. */
@@ -70,7 +74,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       const out = c.combine(parsedList.value)
       if (out !== undefined) return out
     }
-    return buildDisplayArtifact(giArts.value, kgArts.value)
+    return buildDisplayArtifact(kgArts.value)
   }
 
   const displayArtifact = computed(() =>
@@ -85,13 +89,12 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     return artifactReaders.list().find((r) => r.suffixes.some((x) => lower.endsWith(x.toLowerCase())))
   }
 
-  /** Offline / no-backend: parse selected .gi.json / .kg.json files in the browser. */
+  /** Offline / no-backend: parse the selected .kg.json files (and files a reader takes) in the browser. */
   async function loadFromLocalFiles(files: FileList | null): Promise<void> {
     if (!files || files.length === 0) return
     manualGraphSelection.value = true
     loadError.value = null
     parsedList.value = []
-    bridgeDocument.value = null
     selectedRelPaths.value = []
     for (const h of artifactLoadHooks.list()) h.onReset?.('local-files')
     void import('./graphExpansion').then((m) => {
@@ -100,8 +103,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     const seq = loadGate.bump()
     loading.value = true
     try {
-      type BridgeHold = { name: string; text: string; mtime: number }
-      const bridgeHolds: BridgeHold[] = []
       const candidates: {
         art: ParsedArtifact
         relKey: string
@@ -127,20 +128,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
             continue
           }
         }
-        if (lower.endsWith('.bridge.json')) {
-          try {
-            const text = await file.text()
-            bridgeHolds.push({
-              name: file.name,
-              text,
-              mtime: file.lastModified,
-            })
-          } catch {
-            /* ignore */
-          }
-          continue
-        }
-        if (!lower.endsWith('.gi.json') && !lower.endsWith('.kg.json')) {
+        if (!lower.endsWith('.kg.json')) {
           continue
         }
         const text = await file.text()
@@ -158,7 +146,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         return
       }
       if (candidates.length === 0) {
-        loadError.value = 'No .gi.json or .kg.json files in selection.'
+        loadError.value = 'No graph artifact files (.kg.json) in selection.'
         return
       }
       const graphExplorer = useGraphExplorerStore()
@@ -170,19 +158,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         GRAPH_DEFAULT_EPISODE_CAP,
       )
       graphExplorer.setLastAutoLoadCapped(wasCapped)
-      const stems = new Set(kept.map((a) => episodeStemFromArtifactRelPath(a.name)))
-      bridgeDocument.value = null
-      for (const b of bridgeHolds) {
-        const st = episodeStemFromArtifactRelPath(b.name)
-        if (stems.has(st)) {
-          try {
-            bridgeDocument.value = parseBridgeDocument(JSON.parse(b.text))
-          } catch {
-            /* ignore invalid bridge */
-          }
-          break
-        }
-      }
       parsedList.value = kept
       selectedRelPaths.value = kept.map((p) => p.name)
     } catch (e) {
@@ -225,7 +200,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     // Keep the prior list visible until we atomically swap in ``out`` at
     // the end; expand flows (preserveExpansion=true) especially benefit
     // from this — the user sees a smooth add, not a clear-and-rebuild.
-    bridgeDocument.value = null
     const root = corpusPath.value.trim()
     if (!root || selectedRelPaths.value.length === 0) {
       parsedList.value = []
@@ -240,50 +214,13 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     const seq = loadGate.bump()
     loading.value = true
     try {
-      // #768 — parallelize: dispatch the main set AND the sibling-bridge
-      // candidate (if any) concurrently in one ``Promise.all``. Old code
-      // awaited each ``fetchArtifactJson`` serially; with 4–30 files on
-      // cold corpora the round-trip latency stacked into the dominant
-      // share of cross-surface "Open in graph" wall-clock time.
-      //
-      // Invariants this refactor preserves vs. the old sequential code:
-      //  - Stale-check fires ONCE after the join (the old per-iteration
-      //    check couldn't help anyway because in-flight fetches can't be
-      //    cancelled — a mid-iteration ``isStale`` just abandons later
-      //    fetches, doesn't stop the ones already issued).
-      //  - In-selection ``.bridge.json`` WINS over sibling-bridge
-      //    fallback (sibling is only consulted when nothing in the main
-      //    selection ended up populating ``bridgeDocument``).
-      //  - Main-fetch rejection still fails fast via ``Promise.all``
-      //    rejecting on first error → outer ``catch`` sets ``loadError``.
-      //  - Sibling-bridge rejection stays silent (it's optional metadata).
-      //
-      // Tests pinning each invariant: ``artifacts.loadSelected.test.ts``
-      // (search for ``#768``).
+      // #768 — the selection's files are fetched in parallel (one ``Promise.all``): a
+      // rejection fails the load fast; the stale-check fires once after the join, since
+      // in-flight fetches cannot be cancelled. A build's load hooks may fetch side files
+      // of their own alongside (`onLoadStart`) and apply them before the swap (`beforeAssign`).
+      // Tests: ``artifacts.loadSelected.test.ts`` (search for ``#768``).
       const selected = selectedRelPaths.value
-      const giRelForSibling = selected.find((p) => p.toLowerCase().endsWith('.gi.json'))
-      const hasBridgeInSelection = selected.some((p) =>
-        p.toLowerCase().endsWith('.bridge.json'),
-      )
-      const siblingBridgeRel =
-        !hasBridgeInSelection && giRelForSibling
-          ? (() => {
-              const br = giRelForSibling.replace(/\.gi\.json$/i, '.bridge.json')
-              return br !== giRelForSibling ? br : null
-            })()
-          : null
-
-      // Main-set promises: rejections propagate (fail-fast). Sibling-bridge
-      // promise is wrapped to resolve-to-null on failure (silent / optional).
-      const mainPromises = selected.map((rel) => fetchArtifactJson(root, rel))
-      const siblingPromise = siblingBridgeRel
-        ? fetchArtifactJson(root, siblingBridgeRel).catch(() => null)
-        : Promise.resolve(null)
-
-      const [mainResults, siblingData] = await Promise.all([
-        Promise.all(mainPromises),
-        siblingPromise,
-      ])
+      const mainResults = await Promise.all(selected.map((rel) => fetchArtifactJson(root, rel)))
 
       // F3a — single stale-check after the join. If the operator clicked
       // something else mid-flight, drop all post-join state writes.
@@ -291,10 +228,8 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         return
       }
 
-      // Apply results in original selection order so ``parsedList`` is
-      // deterministic and ``bridgeDocument`` resolution is predictable.
+      // Apply results in original selection order so ``parsedList`` is deterministic.
       const out: ParsedArtifact[] = []
-      let bridgeFromSelection: ReturnType<typeof parseBridgeDocument> = null
       for (let i = 0; i < selected.length; i++) {
         const rel = selected[i]!
         const data = mainResults[i]!
@@ -309,14 +244,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
             continue
           }
         }
-        if (lower.endsWith('.bridge.json')) {
-          try {
-            bridgeFromSelection = parseBridgeDocument(data)
-          } catch {
-            /* optional */
-          }
-          continue
-        }
+        if (!lower.endsWith('.kg.json')) continue
         out.push(parseArtifact(base, data, rel))
       }
 
@@ -324,7 +252,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         // Only clear on definite "nothing to show" — matches pre-#586
         // behaviour for this branch.
         parsedList.value = []
-        loadError.value = 'No .gi.json or .kg.json files in selection.'
+        loadError.value = 'No graph artifact files (.kg.json) in selection.'
         return
       }
 
@@ -335,18 +263,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         return
       }
       parsedList.value = out
-      // In-selection bridge WINS over sibling-bridge fallback. The
-      // sibling fetch already fired in parallel; its result is only
-      // applied when the selection itself didn't carry a bridge.
-      if (bridgeFromSelection) {
-        bridgeDocument.value = bridgeFromSelection
-      } else if (siblingData) {
-        try {
-          bridgeDocument.value = parseBridgeDocument(siblingData)
-        } catch {
-          /* sibling bridge is optional */
-        }
-      }
     } catch (e) {
       if (loadGate.isStale(seq)) {
         return
@@ -380,7 +296,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     manualGraphSelection.value = false
     selectedRelPaths.value = []
     parsedList.value = []
-    bridgeDocument.value = null
     loadError.value = null
     for (const h of artifactLoadHooks.list()) h.onReset?.('clear')
     void import('./graphExpansion').then((m) => {
@@ -475,10 +390,8 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     manualGraphSelection,
     selectedRelPaths,
     parsedList,
-    bridgeDocument,
     loadError,
     loading,
-    giArts,
     kgArts,
     displayArtifact,
     loadSelected,

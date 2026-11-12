@@ -16,6 +16,7 @@ describe('topicHandoffArtifactPaths', () => {
       [row('old', '2024-01-01'), row('new', '2025-06-01'), row('mid', '2025-01-01', false)],
       2,
     )
-    expect(paths).toEqual(['m/new.gi.json', 'm/new.kg.json', 'm/mid.gi.json'])
+    // The viewer's own paths are KG (a build adds its own); `mid` has none, so `old` fills the cap.
+    expect(paths).toEqual(['m/new.kg.json', 'm/old.kg.json'])
   })
 })
