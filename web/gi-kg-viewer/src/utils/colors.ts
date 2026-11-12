@@ -28,21 +28,6 @@ export const graphNodeTypeStyles = Object.freeze({
     border: "#2f4a99",
     labelColor: "#ffffff",
   },
-  Insight: {
-    background: "#2f9e6a",
-    border: "#1f6b48",
-    labelColor: "#f5f7fa",
-  },
-  Quote: {
-    background: "#e0a020",
-    border: "#a86f10",
-    labelColor: "#0d1117",
-  },
-  Speaker: {
-    background: "#7db88e",
-    border: "#3f7d59",
-    labelColor: "#0d1117",
-  },
   Topic: {
     background: "#b078d0",
     border: "#6d3f8a",
@@ -88,9 +73,6 @@ export const graphNodeTypeStyles = Object.freeze({
 
 export const graphNodeTypesOrdered = Object.freeze([
   "Episode",
-  "Insight",
-  "Quote",
-  "Speaker",
   "Topic",
   "TopicCluster",
   "Entity_person",
@@ -123,7 +105,7 @@ type NodeChrome = { background: string; border: string; labelColor: string }
  * amber/orange aligned with graph ``Quote`` chrome. Digest Recent uses ``kg`` Tailwind classes instead.
  */
 export const cilClusteredTopicPillChrome = Object.freeze({
-  borderColor: graphNodeTypeStyles.Quote.border,
+  borderColor: "#a86f10",
   /** Translucent fill — readable on dark and light shells. */
   backgroundColor: "rgba(250, 176, 5, 0.38)",
 } as const)

@@ -1,11 +1,17 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { useGraphFilterStore } from '../../../stores/graphFilters'
 import type { GraphFilterState } from '../../../types/artifact'
 import GraphTypesChip from './GraphTypesChip.vue'
+import { graphTypeTraits } from '../../../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'] }))
+afterEach(() => graphTypeTraits.reset())
 
 const CHIP = '[data-testid="graph-chip-types"]'
 const POPOVER = '[data-testid="graph-popover-types"]'

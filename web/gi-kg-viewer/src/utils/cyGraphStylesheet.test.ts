@@ -148,39 +148,6 @@ describe('buildGiKgCyStylesheet', () => {
     expect(rule.style['line-color']).toBe('#929cab')
   })
 
-  // RFC-080 V2 — Insight grounding selector lives in the stylesheet
-  // unconditionally; only fires when the class is assigned at element-
-  // build time (toCytoElements). Search-hit border specificity is
-  // covered by source order — `.search-hit` is appended last in the
-  // sheet so its border-color/width override the dashed warning when
-  // both apply.
-  it('V2: includes insight-ungrounded dashed warning border', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const rule = sheet.find(
-      (r) =>
-        (r as { selector?: string }).selector ===
-        'node[type = "Insight"].insight-ungrounded',
-    ) as { style: Record<string, unknown> }
-    expect(rule).toBeTruthy()
-    expect(rule.style['border-style']).toBe('dashed')
-    expect(rule.style['border-width']).toBe(1.5)
-    expect(rule.style['border-opacity']).toBe(0.7)
-  })
-
-  it('V2: search-hit selector is appended after insight-ungrounded so its border wins', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false, includeSearchHit: true })
-    const ungroundedIdx = sheet.findIndex(
-      (r) =>
-        (r as { selector?: string }).selector ===
-        'node[type = "Insight"].insight-ungrounded',
-    )
-    const searchHitIdx = sheet.findIndex(
-      (r) => (r as { selector?: string }).selector === 'node.search-hit',
-    )
-    expect(ungroundedIdx).toBeGreaterThanOrEqual(0)
-    expect(searchHitIdx).toBeGreaterThan(ungroundedIdx)
-  })
-
   // RFC-080 V5 — node-size-by-degree is opt-in via
   // enableNodeSizeByDegree. Default keeps fixed widths so the lens can
   // be staged on real corpora before promoting to default-on (per RFC
@@ -225,39 +192,6 @@ describe('buildGiKgCyStylesheet', () => {
     expect(topicSized).toBeUndefined()
   })
 
-  it('V5: other types (Quote, Speaker, …) keep fixed sizes even when V5 is on', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: true })
-    const quote = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node[type = "Quote"]',
-    ) as { style: Record<string, unknown> }
-    expect(typeof quote.style.width).toBe('number')
-  })
-
-  // RFC-080 V1 — aggregated-edge selectors are always present in the
-  // sheet but only fire when toCytoElements emits an edge with the
-  // matching class. Width is `mapData(weight, ...)` so the chunkiest
-  // edges read clearly without overwhelming the canvas. Disjoint from
-  // the per-Insight ABOUT selector (which uses edgeType, not class).
-  it('V1: includes graph-edge-about-agg width mapping by data(weight)', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const rule = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'edge.graph-edge-about-agg',
-    ) as { style: Record<string, unknown> }
-    expect(rule).toBeTruthy()
-    expect(String(rule.style.width)).toMatch(/^mapData\(weight, 1, \d+, [\d.]+, [\d.]+\)$/)
-    expect(rule.style['line-color']).toBe('#7dd3a0')
-  })
-
-  it('V1: includes graph-edge-spoke-in-agg width mapping by data(weight)', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const rule = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'edge.graph-edge-spoke-in-agg',
-    ) as { style: Record<string, unknown> }
-    expect(rule).toBeTruthy()
-    expect(String(rule.style.width)).toMatch(/^mapData\(weight, 1, \d+, [\d.]+, [\d.]+\)$/)
-    expect(rule.style['line-color']).toBe('#4c90f0')
-    expect(rule.style['target-arrow-shape']).toBe('triangle')
-  })
 })
 
 describe('RFC-097 v2 two-tier edge contract selectors', () => {
@@ -268,22 +202,6 @@ describe('RFC-097 v2 two-tier edge contract selectors', () => {
       | undefined
   }
 
-  it('descriptive MENTIONS_PERSON renders with gi color + arrow', () => {
-    const rule = edgeRule('edge[edgeType = "MENTIONS_PERSON"]')
-    expect(rule).toBeTruthy()
-    expect(rule!.style['line-color']).toBe('#7dd3a0')
-    expect(rule!.style['line-style']).toBe('solid')
-    expect(rule!.style['target-arrow-shape']).toBe('triangle')
-  })
-
-  it('descriptive MENTIONS_ORG renders with gi color + arrow', () => {
-    const rule = edgeRule('edge[edgeType = "MENTIONS_ORG"]')
-    expect(rule).toBeTruthy()
-    expect(rule!.style['line-color']).toBe('#7dd3a0')
-    expect(rule!.style['line-style']).toBe('solid')
-    expect(rule!.style['target-arrow-shape']).toBe('triangle')
-  })
-
   it('structural HAS_EPISODE renders with primary color + arrow', () => {
     const rule = edgeRule('edge[edgeType = "HAS_EPISODE"]')
     expect(rule).toBeTruthy()
@@ -292,20 +210,6 @@ describe('RFC-097 v2 two-tier edge contract selectors', () => {
     expect(rule!.style['target-arrow-shape']).toBe('triangle')
   })
 
-  it('attribution SPOKEN_BY renders with warning-tone color + arrow', () => {
-    const rule = edgeRule('edge[edgeType = "SPOKEN_BY"]')
-    expect(rule).toBeTruthy()
-    expect(rule!.style['line-color']).toBe('#ec9a3c')
-    expect(rule!.style['line-style']).toBe('solid')
-    expect(rule!.style['target-arrow-shape']).toBe('triangle')
-  })
-
-  it('descriptive ABOUT (predates v2) is visually consistent with MENTIONS_PERSON/MENTIONS_ORG (gi color, solid)', () => {
-    const rule = edgeRule('edge[edgeType = "ABOUT"]')
-    expect(rule).toBeTruthy()
-    expect(rule!.style['line-color']).toBe('#7dd3a0')
-    expect(rule!.style['line-style']).toBe('solid')
-  })
 })
 
 /* graph-v3 tier 5C/5D — enricher-lens stylesheet coverage (harden follow-up). */

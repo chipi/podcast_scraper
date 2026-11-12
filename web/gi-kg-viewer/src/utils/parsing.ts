@@ -1296,11 +1296,8 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
  *  re-enable via the Types chip. Deliberately conservative: only the
  *  highest-count evidence types default off; anything a viewer might
  *  reasonably expect to see on first load stays on. */
-const DEFAULT_HIDDEN_TYPES: ReadonlySet<string> = new Set(['Quote', 'Speaker'])
-
-/** Off by default: the viewer's own types plus any `graphTypeTraits.defaultHidden`. */
+/** Off by default: the types a build declares in `graphTypeTraits.defaultHidden`. */
 function typeHiddenByDefault(type: string): boolean {
-  if (DEFAULT_HIDDEN_TYPES.has(type)) return true
   return graphTypeTraits.list().some((t) => t.defaultHidden?.includes(type))
 }
 

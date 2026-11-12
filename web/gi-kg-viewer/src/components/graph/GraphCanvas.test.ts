@@ -84,6 +84,12 @@ import { useThemeStore } from '../../stores/theme'
 import type { ArtifactData } from '../../types/artifact'
 import { parseArtifact } from '../../utils/parsing'
 import GraphCanvas from './GraphCanvas.vue'
+import { graphTypeTraits } from '../../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'], episodeSatellites: [{ type: 'Insight', yOffset: 30 }, { type: 'Quote', yOffset: -30 }] }))
+afterEach(() => graphTypeTraits.reset())
 
 // happy-dom's Storage is unreliable here; same Map-backed stub as GraphBottomBar.test.ts.
 const storage = new Map<string, string>()
