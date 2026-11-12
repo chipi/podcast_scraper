@@ -12,8 +12,7 @@ import {
 /**
  * #1619 — migrated to the live API, except the four tests annotated below.
  *
- * `/api/corpus/{feeds,episodes,episodes/detail}` and `/api/relational/episode-insights` all serve
- * real data from the v3 fixture corpus, so the subjects here are read from the server rather than
+ * `/api/corpus/{feeds,episodes,episodes/detail}` all serve real data from the v3 fixture corpus, so the subjects here are read from the server rather than
  * hand-authored. What stays mocked is a **corpus state** (16 feeds, an episode with no peers) or
  * deliberate **fault injection** (`no_index`) — not an assertion that was too much work to rewrite.
  */
@@ -275,32 +274,6 @@ test.describe('Corpus Library tab', () => {
     const why = page.getByTestId('library-row-why').first()
     await expect(why).toBeVisible()
     await expect(why).toContainText('Climate policy is the through-line')
-  })
-
-  test('FR4.3: Episode rail shows related insights from the relational layer', async ({
-    page,
-  }) => {
-    await openLibrary(page)
-    const ep = await liveFirstEpisode(page)
-    /* The relational layer answers for real: assert the rail renders the insights the server
-     * returns for THIS episode, however many that is. */
-    const resp = await page.request.get(
-      `/api/relational/episode-insights?episode=${encodeURIComponent(ep.episode_id)}`,
-    )
-    const { results } = (await resp.json()) as { results: { text: string }[] }
-    expect(results.length).toBeGreaterThan(0)
-
-    await page.getByRole('button', { name: episodeRowName(ep) }).click()
-    const related = page.getByTestId('episode-related-insights')
-    await expect(related).toBeVisible()
-    /* Standard budget: the widened one was a mitigation for an APP bug, now fixed at cause.
-     *
-     * `loadRelatedInsights` bailed to an empty list when `corpusPath`/`healthStatus` were not ready,
-     * and the watcher keyed on `episode_id` alone — so the bail was permanent and the request was
-     * never made. This assertion is the regression guard: it failed with the server returning 20
-     * results in ~50ms. See EpisodeDetailPanel.vue. */
-    await expect(related.getByTestId('episode-related-insights-row').first()).toBeVisible()
-    await expect(related).toContainText(results[0]!.text.slice(0, 40))
   })
 
   /**
