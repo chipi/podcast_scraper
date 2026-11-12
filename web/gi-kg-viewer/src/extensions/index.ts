@@ -159,11 +159,12 @@ export const digestSections = extensionPoint<DigestSection>('digestSections')
 
 /**
  * A section of a person's view, rendered with `personId` and `view` props: `header` under the
- * name and role, `profile` at the end of the profile, `positions` at the end of the positions
- * view, `full` at the end of the full view.
+ * name and role, `profile-head` at the start of the profile (after the role, before the
+ * aliases), `profile` at the end of the profile, `positions` at the end of the positions view,
+ * `full` at the end of the full view.
  */
 export interface PersonProfileSection extends Entry {
-  region: 'header' | 'profile' | 'positions' | 'full'
+  region: 'header' | 'profile-head' | 'profile' | 'positions' | 'full'
   component: Component
 }
 

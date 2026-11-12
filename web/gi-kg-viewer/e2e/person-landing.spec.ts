@@ -47,7 +47,7 @@
  * requirement, not a backend one — the same gap that keeps the compound-card tests in
  * ``search-fr1.spec.ts`` stubbed.
  *
- * The relational routes it also stubs (``/api/relational/{positions,topics,co-speakers}``) DO
+ * The relational route it also stubs (``/api/relational/positions``) DOES
  * serve real data and can be migrated in the same pass, once the entry path exists. Recorded in
  * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
@@ -237,88 +237,5 @@ test.describe('Person Landing rail panel', () => {
     await expect(stated).toBeVisible()
     await expect(stated.getByTestId('person-landing-stated-row')).toHaveCount(2)
     await expect(stated).toContainText('A stated position on policy.')
-  })
-
-  // #1055: the Profile tab's "Connections" section consumes the new relational
-  // routes (/relational/topics + /relational/co-speakers). These assert the viewer
-  // wiring end-to-end (the real graph traversal is covered by the Python tests).
-
-  test('#1055: Connections section renders topics + co-speakers chips', async ({ page }) => {
-    await page.route('**/api/relational/topics**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          subject: SPEAKER_ID,
-          results: [
-            { id: 'topic:markets', type: 'topic', text: 'Markets', show_id: '', episode_id: '' },
-            {
-              id: 'topic:rates',
-              type: 'topic',
-              text: 'Interest rates',
-              show_id: '',
-              episode_id: '',
-            },
-          ],
-          error: null,
-        }),
-      })
-    })
-    await page.route('**/api/relational/co-speakers**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          subject: SPEAKER_ID,
-          results: [
-            {
-              id: 'person:rob',
-              type: 'person',
-              text: 'Rob Armstrong',
-              show_id: '',
-              episode_id: '',
-            },
-          ],
-          error: null,
-        }),
-      })
-    })
-
-    await gotoPersonLanding(page)
-
-    const topics = page.getByTestId('person-landing-topics')
-    await expect(topics).toBeVisible()
-    await expect(topics.getByTestId('person-landing-topic-chip')).toHaveCount(2)
-    await expect(topics).toContainText('Interest rates')
-
-    const coSpeakers = page.getByTestId('person-landing-co-speakers')
-    await expect(coSpeakers).toBeVisible()
-    await expect(coSpeakers.getByTestId('person-landing-co-speaker-chip')).toHaveCount(1)
-    await expect(coSpeakers).toContainText('Rob Armstrong')
-  })
-
-  test('#1055: Connections section shows honest empty states when no connectivity', async ({
-    page,
-  }) => {
-    const empty = { subject: SPEAKER_ID, results: [], error: null }
-    await page.route('**/api/relational/topics**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(empty),
-      })
-    })
-    await page.route('**/api/relational/co-speakers**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(empty),
-      })
-    })
-
-    await gotoPersonLanding(page)
-
-    await expect(page.getByTestId('person-landing-topics-empty')).toBeVisible()
-    await expect(page.getByTestId('person-landing-co-speakers-empty')).toBeVisible()
   })
 })
