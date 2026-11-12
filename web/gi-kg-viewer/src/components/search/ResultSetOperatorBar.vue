@@ -8,18 +8,16 @@
  *   * **On graph** — pins every hit's episode/topic/entity to the graph
  *                    canvas as ``search-hit`` highlights + a set bbox,
  *                    then switches to the Graph tab.
- *   * **Compare** — two subjects from the hit set side by side (§S8).
  *
  * The server-side Cluster and Consensus operators are private features (ADR-170) and are not part
  * of this viewer. The bar reads exclusively from the current ``search.results`` (or the caller's
- * ``visible-hits`` prop) — it does NOT re-fetch, except Compare.
+ * ``visible-hits`` prop) — it does NOT re-fetch.
  */
 import { computed } from 'vue'
 import { searchOperators, type SearchOperator } from '../../extensions'
-import type { CompareSubjectRef, SearchCompareResponse, SearchHit } from '../../api/searchApi'
+import type { SearchHit } from '../../api/searchApi'
 import type { SubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
-import CompareOperatorPanel from './CompareOperatorPanel.vue'
 
 const props = defineProps<{
   /**
@@ -28,14 +26,6 @@ const props = defineProps<{
    * matches what the user sees below.
    */
   visibleHits: SearchHit[]
-  /**
-   * Search v3 §S8 — Compare state. Panel-level state stays here so the
-   * bar (as the operator surface) knows when to enable / disable the
-   * Compare chip and can pass the response through to the panel.
-   */
-  compareResult?: SearchCompareResponse | null
-  compareLoading?: boolean
-  compareError?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -46,28 +36,12 @@ const emit = defineEmits<{
    * ``graphNavigation.setLibraryEpisodeHighlights``.
    */
   'focus-set': [ids: string[]]
-  /**
-   * Search v3 §S8 — request a compare against 2 picker-selected
-   * subjects (from the current visible hits). Parent triggers
-   * ``search.runCompare(subjectA, subjectB, {insightTypes})``.
-   */
-  'run-compare': [
-    payload: {
-      subjectA: CompareSubjectRef
-      subjectB: CompareSubjectRef
-      /** RFC-072 GIL v1.1 insight_type filter — narrows both sides
-       *  symmetrically on the server. Empty ⇒ no filter. */
-      insightTypes: string[]
-    },
-  ]
-  /** Parent triggers ``search.clearCompare()``. */
-  'clear-compare': []
 }>()
 
 /** The viewer's own chips, or the id of a registered operator (extension point `searchOperators`). */
 const active = defineModel<string | null>('active', { default: null })
 
-const BUILT_IN_ORDER = { timeline: 10, graph: 20, compare: 30 } as const
+const BUILT_IN_ORDER = { timeline: 10, graph: 20 } as const
 /** Registered operators whose order falls in [from, to). */
 function registeredBetween(from: number, to: number): SearchOperator[] {
   return searchOperators.list().filter((o) => (o.order ?? 0) >= from && (o.order ?? 0) < to)
@@ -81,7 +55,12 @@ const registeredError = computed(() => {
   return null
 })
 
+function opAvailable(op: SearchOperator): boolean {
+  return op.available?.(props.visibleHits) ?? true
+}
+
 function onRegisteredClick(op: SearchOperator): void {
+  if (!opAvailable(op)) return
   if (active.value === op.id) {
     active.value = null
     return
@@ -91,53 +70,6 @@ function onRegisteredClick(op: SearchOperator): void {
 }
 
 const timelineActive = computed(() => active.value === 'timeline')
-const compareActive = computed(() => active.value === 'compare')
-
-/**
- * Search v3 §S8 — the Compare chip enables when at least 2 distinct
- * comparable subjects appear across the visible hits' metadata (persons,
- * topics, episodes, feeds). Mirrors the discovery walk in
- * ``CompareOperatorPanel``; kept in sync so the chip disables in the same
- * state the picker would render "no candidates".
- */
-const compareCandidateCount = computed<number>(() => {
-  const seen = new Set<string>()
-  const bump = (kind: string, id: string): void => {
-    const trimmed = id.trim()
-    if (!trimmed) return
-    seen.add(`${kind}::${trimmed}`)
-  }
-  for (const hit of props.visibleHits) {
-    const md = (hit.metadata ?? {}) as Record<string, unknown>
-    const docType = typeof md.doc_type === 'string' ? md.doc_type : ''
-    if (docType === 'kg_topic') {
-      const src = typeof md.source_id === 'string' ? md.source_id : ''
-      bump('topic', src)
-    } else {
-      const topicLabel = typeof md.topic_label === 'string' ? md.topic_label : ''
-      if (topicLabel) bump('topic', topicLabel)
-    }
-    const speaker = typeof md.speaker_name === 'string'
-      ? md.speaker_name
-      : typeof md.speaker === 'string'
-        ? md.speaker
-        : ''
-    if (speaker) bump('person', speaker)
-    const supporting = Array.isArray(md.supporting_quotes) ? md.supporting_quotes : []
-    for (const raw of supporting) {
-      const q = (raw ?? {}) as Record<string, unknown>
-      const name = typeof q.speaker_name === 'string' ? q.speaker_name : ''
-      if (name) bump('person', name)
-    }
-    const epId = typeof md.episode_id === 'string' ? md.episode_id : ''
-    if (epId) bump('episode', epId)
-    const feedId = typeof md.feed_id === 'string' ? md.feed_id : ''
-    if (feedId) bump('feed', feedId)
-  }
-  return seen.size
-})
-
-const compareChipDisabled = computed(() => compareCandidateCount.value < 2)
 
 // ---------- Timeline (client-only) ---------------------------------------
 
@@ -226,22 +158,6 @@ function onGraphClick(): void {
   emit('focus-set', graphSetIds.value)
 }
 
-function onCompareClick(): void {
-  if (compareChipDisabled.value) return
-  active.value = compareActive.value ? null : 'compare'
-}
-
-function onCompareRun(payload: {
-  subjectA: CompareSubjectRef
-  subjectB: CompareSubjectRef
-  insightTypes: string[]
-}): void {
-  emit('run-compare', payload)
-}
-
-function onCompareClear(): void {
-  emit('clear-compare')
-}
 </script>
 
 <template>
@@ -259,7 +175,7 @@ function onCompareClear(): void {
         v-for="op in registeredBetween(-Infinity, BUILT_IN_ORDER.timeline)"
         :key="op.id"
         type="button"
-        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
         :class="
           active === op.id
             ? 'border-primary bg-primary text-primary-foreground'
@@ -267,7 +183,8 @@ function onCompareClear(): void {
         "
         :aria-pressed="active === op.id"
         :data-testid="`operator-chip-${op.id}`"
-        :title="op.title"
+        :disabled="!opAvailable(op)"
+        :title="opAvailable(op) ? op.title : (op.unavailableTitle ?? op.title)"
         @click="onRegisteredClick(op)"
       >
         {{ op.busy?.() ? `${op.label}…` : op.label }}
@@ -291,7 +208,7 @@ function onCompareClear(): void {
         v-for="op in registeredBetween(BUILT_IN_ORDER.timeline, BUILT_IN_ORDER.graph)"
         :key="op.id"
         type="button"
-        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
+        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
         :class="
           active === op.id
             ? 'border-primary bg-primary text-primary-foreground'
@@ -299,7 +216,8 @@ function onCompareClear(): void {
         "
         :aria-pressed="active === op.id"
         :data-testid="`operator-chip-${op.id}`"
-        :title="op.title"
+        :disabled="!opAvailable(op)"
+        :title="opAvailable(op) ? op.title : (op.unavailableTitle ?? op.title)"
         @click="onRegisteredClick(op)"
       >
         {{ op.busy?.() ? `${op.label}…` : op.label }}
@@ -319,55 +237,19 @@ function onCompareClear(): void {
         {{ graphChipLabel }}
       </button>
       <button
-        v-for="op in registeredBetween(BUILT_IN_ORDER.graph, BUILT_IN_ORDER.compare)"
+        v-for="op in registeredBetween(BUILT_IN_ORDER.graph, Infinity)"
         :key="op.id"
-        type="button"
-        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
-        :class="
-          active === op.id
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-border text-muted hover:bg-overlay'
-        "
-        :aria-pressed="active === op.id"
-        :data-testid="`operator-chip-${op.id}`"
-        :title="op.title"
-        @click="onRegisteredClick(op)"
-      >
-        {{ op.busy?.() ? `${op.label}…` : op.label }}
-      </button>
-      <button
         type="button"
         class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
         :class="
-          compareActive
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-border text-muted hover:bg-overlay'
-        "
-        :aria-pressed="compareActive"
-        :disabled="compareChipDisabled"
-        data-testid="operator-chip-compare"
-        :title="
-          compareChipDisabled
-            ? 'Compare: fewer than 2 comparable subjects in the current hit set.'
-            : `Compare two subjects (person / topic / episode / feed) from the current hit set — server wraps build_briefing_pack twice.`
-        "
-        @click="onCompareClick"
-      >
-        Compare
-      </button>
-      <button
-        v-for="op in registeredBetween(BUILT_IN_ORDER.compare, Infinity)"
-        :key="op.id"
-        type="button"
-        class="rounded border px-2 py-0.5 text-[10px] font-medium leading-none transition-colors"
-        :class="
           active === op.id
             ? 'border-primary bg-primary text-primary-foreground'
             : 'border-border text-muted hover:bg-overlay'
         "
         :aria-pressed="active === op.id"
         :data-testid="`operator-chip-${op.id}`"
-        :title="op.title"
+        :disabled="!opAvailable(op)"
+        :title="opAvailable(op) ? op.title : (op.unavailableTitle ?? op.title)"
         @click="onRegisteredClick(op)"
       >
         {{ op.busy?.() ? `${op.label}…` : op.label }}
@@ -411,14 +293,5 @@ function onCompareClear(): void {
       :visible-hits="visibleHits"
     />
 
-    <CompareOperatorPanel
-      v-if="compareActive"
-      :visible-hits="visibleHits"
-      :compare-result="compareResult ?? null"
-      :compare-loading="Boolean(compareLoading)"
-      :compare-error="compareError ?? null"
-      @run-compare="onCompareRun"
-      @clear-compare="onCompareClear"
-    />
   </div>
 </template>

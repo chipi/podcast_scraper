@@ -88,11 +88,27 @@ export interface SearchOperator extends Entry {
   error?(): string | null
   activate?(): void
   panel?: Component
+  /** Whether the chip can open on these hits (default yes); `unavailableTitle` says why not. */
+  available?(hits: import('../api/searchApi').SearchHit[]): boolean
+  unavailableTitle?: string
   /** Adds the palette command `operator.<id>-last`: load the last query, then open this operator. */
   palette?: { label: string; keywords?: string[] }
 }
 
 export const searchOperators = extensionPoint<SearchOperator>('searchOperators')
+
+/**
+ * An action on a search hit in the command palette, after the viewer's own (Open in Workspace,
+ * Pin to rail). `available` disables the button for a hit; the palette closes after `run`.
+ */
+export interface PaletteHitAction extends Entry {
+  label: string
+  testid: string
+  available?(hit: import('../api/searchApi').SearchHit): boolean
+  run(hit: import('../api/searchApi').SearchHit): void
+}
+
+export const paletteHitActions = extensionPoint<PaletteHitAction>('paletteHitActions')
 
 /**
  * A section of the search panel: `header` sits in the title row, `above-results` above the

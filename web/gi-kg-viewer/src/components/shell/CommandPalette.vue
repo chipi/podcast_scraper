@@ -21,7 +21,7 @@
  * shipped endpoint returns the same shape without it.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { searchListeners } from '../../extensions'
+import { paletteHitActions, searchListeners, type PaletteHitAction } from '../../extensions'
 import { searchCorpus, type SearchHit } from '../../api/searchApi'
 import { fetchCorpusEpisodes, type CorpusEpisodeListItem } from '../../api/corpusLibraryApi'
 import { useShellStore } from '../../stores/shell'
@@ -38,7 +38,6 @@ import { useAuthStore } from '../../stores/auth'
 import {
   episodeFallbackForSearchHit,
   graphNodeIdFromSearchHit,
-  primaryCompareSubjectFromHit,
 } from '../../utils/searchFocus'
 import { copyTextToClipboard } from '../../utils/clipboard'
 import {
@@ -70,7 +69,6 @@ const emit = defineEmits<{
    * ``lastQuery`` and either toggles Timeline on or opens the Compare picker.
    */
   'timeline-on-last': []
-  'compare-on-last': []
   /** A registered result-set operator on the last query (extension point `searchOperators`). */
   'operator-on-last': [id: string]
 }>()
@@ -177,7 +175,6 @@ const paletteCommands = computed<PaletteCommand[]>(() =>
     openHealth: () => emit('open-health'),
     rebuildIndex: () => emit('rebuild-index'),
     openTimelineForLastQuery: () => emit('timeline-on-last'),
-    openCompareForLastQuery: () => emit('compare-on-last'),
     openOperatorForLastQuery: (id) => emit('operator-on-last', id),
     isAdmin: auth.isAdmin,
   }),
@@ -406,16 +403,9 @@ function showOnGraph(hit: SearchHit): void {
   closePalette()
 }
 
-/**
- * Search v3 §S8 — pin the hit's primary subject for Compare. Stashes it in
- * ``search.comparePins`` (ring buffer of 2); the CompareOperatorPanel seeds
- * its picker slots from those pins next time Compare is opened. Distinct
- * from "Pin to rail" (which focuses the graph/detail rail).
- */
-function pinToCompare(hit: SearchHit): void {
-  const ref = primaryCompareSubjectFromHit(hit)
-  if (!ref) return
-  search.pinCompareSubject(ref)
+/** A hit action a build registered (extension point `paletteHitActions`); the palette closes after. */
+function runHitAction(action: PaletteHitAction, hit: SearchHit): void {
+  action.run(hit)
   closePalette()
 }
 
@@ -692,13 +682,15 @@ onBeforeUnmount(() => {
                   Pin to rail
                 </button>
                 <button
+                  v-for="action in paletteHitActions.list()"
+                  :key="action.id"
                   type="button"
                   class="rounded border border-border px-1.5 py-0.5 text-[10px] text-primary hover:bg-overlay disabled:opacity-40"
-                  :disabled="!primaryCompareSubjectFromHit(hit)"
-                  data-testid="command-palette-action-pin-compare"
-                  @click="pinToCompare(hit)"
+                  :disabled="action.available ? !action.available(hit) : false"
+                  :data-testid="action.testid"
+                  @click="runHitAction(action, hit)"
                 >
-                  Pin to Compare
+                  {{ action.label }}
                 </button>
                 <button
                   type="button"

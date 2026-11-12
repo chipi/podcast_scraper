@@ -282,14 +282,6 @@ async function onPaletteOperatorOnLast(id: string): Promise<void> {
   searchOperators.list().find((op) => op.id === id)?.activate?.()
 }
 
-async function onPaletteCompareOnLast(): Promise<void> {
-  const q = await ensureLastQueryLoaded()
-  if (!q) return
-  // Compare picker lives on ResultSetOperatorBar — flip the flag so the
-  // panel is open with the auto-seeded slots ready for one-click Run.
-  search.activeOperator = 'compare'
-}
-
 /* A loaded graph on the graph tab: tell registered hooks (for example to grow the selection). */
 watch(
   () => ({ loading: artifacts.loading, parsedLen: artifacts.parsedList.length, tab: mainTab.value }) as const,
@@ -1254,7 +1246,6 @@ watch(
         @open-health="onPaletteOpenHealth"
         @rebuild-index="onPaletteRebuildIndex"
         @timeline-on-last="onPaletteTimelineOnLast"
-        @compare-on-last="onPaletteCompareOnLast"
         @operator-on-last="onPaletteOperatorOnLast"
       />
     </div>

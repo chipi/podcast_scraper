@@ -43,12 +43,12 @@ test.describe('Search — result-set operator bar (#1234)', () => {
     await expect(page.getByTestId('result-set-operator-bar')).toBeVisible({ timeout: 30_000 })
   }
 
-  test('renders the Timeline / On graph / Compare chips and no private operator', async ({
+  test('renders the Timeline / On graph chips and no downstream operator', async ({
     page,
   }) => {
     await runSearchAndWaitForBar(page)
     await expect(page.getByTestId('operator-chip-timeline')).toBeVisible()
-    await expect(page.getByTestId('operator-chip-compare')).toBeVisible()
+    await expect(page.getByTestId('operator-chip-compare')).toHaveCount(0)
     await expect(page.getByTestId('operator-chip-cluster')).toHaveCount(0)
     await expect(page.getByTestId('operator-chip-consensus')).toHaveCount(0)
     /* The On-graph chip label carries the count of graph-resolvable ids in the result set. That
