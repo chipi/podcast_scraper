@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Collection, Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence, Tuple
+
+from podcast_scraper.content_types import asks_other_types, is_wanted, PODCAST_ONLY
 
 GUARD_CO_VOICE = "co_voice"
 GUARD_PUBLISHER_LIST = "publisher_list"
@@ -168,10 +170,15 @@ def guard_fires(
 
 
 def collect_episode_evidence(
-    root: Path | str, mode: str = "extracted"
+    root: Path | str,
+    mode: str = "extracted",
+    *,
+    content_types: Collection[str] = PODCAST_ONLY,
 ) -> Dict[str, EpisodeEvidence]:
-    """Evidence for every newest-run KG artifact of a corpus, keyed by the KG's ``episode_id`` (the
-    key the candidates' episodes use). The roster's voices follow m0025's placement rule.
+    """Evidence for every newest-run KG artifact of a corpus, keyed by the KG's ``episode_id``, or
+    its ``item_id`` for a KG 3.0 item (``kg_item_key``: the key the candidates' episodes use). The
+    items read are those of ``content_types``, as ``collect_entity_candidates`` reads them (podcast
+    episodes unless asked; ADR-177 decision 8). The roster's voices follow m0025's placement rule.
 
     ``mode`` (``identity.publisher_text.EVIDENCE_MODES``): ``extracted`` takes the diagnostics'
     extracted names as the publisher's, as every build before record l_publisher_verified_mode;
@@ -183,6 +190,7 @@ def collect_episode_evidence(
     if mode not in PT.EVIDENCE_MODES:
         raise ValueError(f"unknown evidence mode {mode!r}; one of {PT.EVIDENCE_MODES}")
     from podcast_scraper.kg.corpus import (
+        kg_item_key,
         load_kg_artifacts,
         newest_run_artifact_paths,
         scan_kg_artifact_paths,
@@ -191,9 +199,12 @@ def collect_episode_evidence(
 
     root = Path(root)
     out: Dict[str, EpisodeEvidence] = {}
-    paths = newest_run_artifact_paths(root, scan_kg_artifact_paths(root), ".kg.json")
+    scanned = scan_kg_artifact_paths(root, include_sources=asks_other_types(content_types))
+    paths = newest_run_artifact_paths(root, scanned, ".kg.json")
     for path, data in load_kg_artifacts(paths):
-        eid = str(data.get("episode_id") or "")
+        if not is_wanted(data, content_types):
+            continue
+        eid = kg_item_key(data)
         if not eid:
             continue
         people = [

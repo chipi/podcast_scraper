@@ -67,7 +67,12 @@ def collect_entity_candidates(
 ) -> Dict[str, EntityCandidate]:
     """Aggregate person/org entities corpus-wide with episode frequency + shows, from items of
     ``content_types`` (podcast episodes unless asked; ADR-177 decision 8)."""
-    from .corpus import load_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
+    from .corpus import (
+        kg_item_key,
+        load_kg_artifacts,
+        newest_run_artifact_paths,
+        scan_kg_artifact_paths,
+    )
 
     out: Dict[str, EntityCandidate] = {}
     # NEWEST RUN PER EPISODE — the same membership rule the catalog uses. A reprocessed
@@ -82,7 +87,8 @@ def collect_entity_candidates(
         # people (found by the 2026-11-11 walker classification).
         if not is_wanted(data, content_types):
             continue
-        episode_id = str(data.get("episode_id") or "")
+        # A KG 3.0 item has no episode_id; its item_id is the key the guards' evidence uses too.
+        episode_id = kg_item_key(data)
         language = _artifact_language(Path(_path))
         show = ""
         for node in data.get("nodes") or []:
