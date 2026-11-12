@@ -378,11 +378,10 @@ class OllamaProvider(ExtensibleProvider):
         model_specific_path = f"ollama/{model_dir}/{task}/{prompt_file}"
 
         try:
-            from ...prompts.store import get_prompt_dir, PromptNotFoundError
+            from ...prompts.store import PromptNotFoundError, template_exists
 
-            prompt_dir = get_prompt_dir()
-            prompt_file_path = prompt_dir / f"{model_specific_path}.j2"
-            if prompt_file_path.exists():
+            # Every search directory: tuned per-model templates live in an extension (E04).
+            if template_exists(model_specific_path):
                 logger.debug(
                     "Using model-specific prompt: %s (model: %s)", model_specific_path, model
                 )

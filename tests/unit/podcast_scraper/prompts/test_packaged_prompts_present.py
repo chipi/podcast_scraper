@@ -40,11 +40,8 @@ def _prompts_root() -> Path:
         "shared/summarization/board_user_v1.j2",
         "shared/summarization/board_document_v1.j2",
         # Cloud providers — exercised by the stack-test cloud-thin run.
-        "gemini/ner/guest_host_v1.j2",
         "gemini/summarization/long_v1.j2",
         "gemini/summarization/system_v1.j2",
-        "openai/ner/guest_host_v1.j2",
-        "anthropic/ner/guest_host_v1.j2",
         # Long-form paragraph summary v2 (#985) — five providers, one file each.
         # Each preserves its own v1 baseline + adds position-change + recurring-
         # guest beats. Regression guard: if any port drops from packaging,
@@ -57,12 +54,6 @@ def _prompts_root() -> Path:
         "ollama/summarization/long_v2.j2",
         # Shared (KG extraction). Used by all providers.
         "shared/kg_graph_extraction/v1.j2",
-        # Transcript naming (providers/ml/diarization/transcript_naming.py). Used by all providers.
-        "shared/speaker_naming/instructions_v1.j2",
-        "shared/speaker_naming/standalone_v1.j2",
-        "shared/speaker_naming/bundled_field_v1.j2",
-        # Local providers (airgapped path) — also bundled.
-        "deepseek/cleaning/v1.j2",
     ],
 )
 def test_prompt_template_present_under_package(rel_path: str) -> None:

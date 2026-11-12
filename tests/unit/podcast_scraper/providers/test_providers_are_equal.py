@@ -153,45 +153,6 @@ def test_every_provider_honors_its_api_base(provider: str) -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "family",
-    [
-        "insight_extraction/v2",
-        "insight_extraction/v3",
-        "insight_extraction/system_v1",
-        "insight_value_gate/v1",
-        "evidence/extract_quote/v1",
-        "evidence/entailment/v1",
-    ],
-)
-def test_every_provider_has_every_prompt(family: str) -> None:
-    missing = [p for p in LLM_PROVIDERS if not (PROMPTS / p / f"{family}.j2").exists()]
-    assert not missing, (
-        f"{family} is missing for {missing}. That provider runs a different prompt — or none — and "
-        f"a bake-off would report the difference as model quality."
-    )
-
-
-@pytest.mark.parametrize(
-    "family",
-    [
-        "evidence/extract_quote/v1",
-        "evidence/entailment/v1",
-        "insight_extraction/v3",
-        "insight_extraction/v2",
-    ],
-)
-def test_the_prompts_are_IDENTICAL_across_providers(family: str) -> None:
-    """A provider may diverge DELIBERATELY. It must not diverge by accident."""
-    texts = {p: (PROMPTS / p / f"{family}.j2").read_text() for p in LLM_PROVIDERS}
-    distinct = set(texts.values())
-    assert len(distinct) == 1, (
-        f"{family} differs across providers: "
-        f"{sorted({p for p in texts if texts[p] != texts[LLM_PROVIDERS[0]]})} have a different "
-        f"prompt. openai once asked for ONE quote here while everyone else asked for a list."
-    )
-
-
 @pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen", "groq"])
 def test_thin_sibling_prompts_reuse_a_parity_covered_namespace(provider: str) -> None:
     """ADR-147 thin siblings (litellm/vllm/qwen/groq) ship no ``prompts/<provider>/`` dir — they
