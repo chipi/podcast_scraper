@@ -493,11 +493,8 @@ export interface NodeDetailContext {
  * Additions to the node detail panel. `knowsNode` shows the panel for a node the graph slice does
  * not hold; `title` overrides the header title; `avatarGroup` overrides the header glyph group; `sections` render with a `ctx` prop
  * (`header` under the title, `overview` after the topic search shortcuts, `after-aliases` after
- * the topic aliases); `timeline` returns the topic ids whose merged timeline the Timeline tab
- * shows for this node, `'hidden'` for no Timeline tab, or null for the default (a topic's own
- * timeline), and `timelineToggle`
- * adds an on/off button that `timeline` receives; `connections` replaces the neighbour list (and
- * the minimap's neighbourhood) for this node.
+ * the topic aliases); `connections` replaces the neighbour list (and the minimap's
+ * neighbourhood) for this node.
  */
 export interface NodeDetailExtension extends Entry {
   knowsNode?(nodeId: string): boolean
@@ -516,15 +513,6 @@ export interface NodeDetailExtension extends Entry {
     shows(ctx: NodeDetailContext): boolean
     component: Component
   }>
-  timeline?(ctx: NodeDetailContext, toggled: boolean): string[] | 'hidden' | null
-  timelineToggle?(ctx: NodeDetailContext): {
-    label: string
-    titleOn: string
-    titleOff: string
-    testid: string
-    /** CSS colour for the button while on (text and border). */
-    color?: string
-  } | null
   connections?(ctx: NodeDetailContext): {
     rows: import('../utils/graphNeighbors').GraphNeighborRow[]
     emptyHint?: string
