@@ -492,7 +492,7 @@ Owning specs:
 1. Route `**/api/health` → **abort** (`failed`).
 2. `goto('/')`, wait for heading **Podcast Intelligence Platform** (`SHELL_HEADING_RE` in [helpers.ts](helpers.ts)).
 3. Click **Graph** (default app tab is **Digest**; graph canvas lives on **Graph**).
-4. Set files on **`data-testid="status-bar-local-file-input"`** using [GI_SAMPLE_FIXTURE](fixtures.ts) (`e2e/fixtures/ci_sample.gi.json`).
+4. Set files on **`data-testid="status-bar-local-file-input"`** using [KG_SAMPLE_FIXTURE](fixtures.ts) (`e2e/fixtures/ci_sample.kg.json`; `loadGraphViaFilePicker` takes another fixture path as its second argument).
 5. Wait for **Fit** visible.
 
 [`dismissGraphGestureOverlayIfPresent`](helpers.ts) — optional after graph is visible when a spec must click **`.graph-canvas`** or send pointer events to Cytoscape (first-run **`graph-gesture-overlay`** sits above the canvas). Gesture overlay specs omit this on purpose.

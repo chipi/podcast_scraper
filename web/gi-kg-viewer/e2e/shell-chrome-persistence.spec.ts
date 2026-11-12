@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Request } from '@playwright/test'
-import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { KG_SAMPLE_FIXTURE } from './fixtures'
 import {
   liveCorpusRoot,
   loadGraphViaFilePicker,
@@ -172,7 +172,7 @@ test.describe('Graph chrome (offline fixture)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByTestId('status-bar-local-file-input').setInputFiles(GI_SAMPLE_FIXTURE)
+    await page.getByTestId('status-bar-local-file-input').setInputFiles(KG_SAMPLE_FIXTURE)
     await expect(page.locator('.graph-canvas')).toBeVisible()
     await expect(page.getByTestId('graph-bottom-bar')).toHaveAttribute('aria-expanded', 'false')
     await page.getByTestId('graph-bottom-bar-expand').click()

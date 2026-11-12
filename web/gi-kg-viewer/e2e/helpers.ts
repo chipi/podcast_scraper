@@ -1,5 +1,5 @@
 import { expect, type Page, type TestInfo } from '@playwright/test'
-import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { KG_SAMPLE_FIXTURE } from './fixtures'
 import { declareInjectedFault } from './injected-faults'
 
 /**
@@ -339,7 +339,8 @@ export async function dismissGraphGestureOverlayIfPresent(page: Page): Promise<v
   await btn.click({ force: true })
 }
 
-export async function loadGraphViaFilePicker(page: Page): Promise<void> {
+/** Load a graph artifact offline through the status bar's file picker (the KG sample by default). */
+export async function loadGraphViaFilePicker(page: Page, fixture: string = KG_SAMPLE_FIXTURE): Promise<void> {
   declareInjectedFault(page, /\/api\/health/)
   await page.route('**/api/health**', async (route) => {
     await route.abort('failed')
@@ -351,7 +352,7 @@ export async function loadGraphViaFilePicker(page: Page): Promise<void> {
   await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
   const fileInput = page.getByTestId('status-bar-local-file-input')
-  await fileInput.setInputFiles(GI_SAMPLE_FIXTURE)
+  await fileInput.setInputFiles(fixture)
 
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 }
