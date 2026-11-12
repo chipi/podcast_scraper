@@ -102,8 +102,26 @@ def list_sha256(entries: Mapping[Key, object]) -> str:
 
 
 def verdicts_path(migration_id: str, directory: Optional[Path] = None) -> Path:
-    """The verdicts file of a migration: ``<id>.tsv`` in ``directory``, by default the package's."""
-    return (directory or VERDICTS_DIR) / f"{migration_id}.tsv"
+    """The verdicts file of a migration: ``<id>.tsv`` in ``directory``; by default ``verdicts/``
+    beside the package that holds the registered migration (this package's for its own, the same
+    place in an extension's package for one it adds, as ``outcome_hook.outcome_path`` finds its
+    outcome), and this package's for an id nothing registers."""
+    if directory is None:
+        directory = _registered_verdicts_dir(migration_id) or VERDICTS_DIR
+    return directory / f"{migration_id}.tsv"
+
+
+def _registered_verdicts_dir(migration_id: str) -> Optional[Path]:
+    import sys
+
+    from .registry import get_migrations
+
+    for migration in get_migrations():
+        if migration.id == migration_id:
+            module_file = getattr(sys.modules.get(type(migration).__module__), "__file__", None)
+            if module_file:
+                return Path(module_file).resolve().parents[1] / "verdicts"
+    return None
 
 
 def parse(

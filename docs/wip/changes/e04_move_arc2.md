@@ -43,6 +43,7 @@ touches:
   - src/podcast_scraper/gi/pipeline.py
   - src/podcast_scraper/workflow/adfree_transcript.py
   - src/podcast_scraper/upgrade/outcome_hook.py
+  - src/podcast_scraper/upgrade/reviewer_verdicts.py
 ---
 
 # e04_move_arc2 — the E04 move's second arc: public's copy of the moving set is deleted
