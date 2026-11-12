@@ -181,7 +181,11 @@ corpus to v3. Until then, podcasts keep writing KG 2.x and GI 3.x.
   original (`raw`; translation D-44).
 - **Tested:** every KG fixture in the repo reads through it. The 2.0/2.1 ones come out with v3's
   node and edge types only.
-- **The GI half (GI 3.x as 4.0) is Common's,** with GI 4.0's own fields.
+- **The GI half (GI 3.x as 4.0) is built in the private extension** (2026-11-12). It is the same
+  kind of view, and each quote carries the evidence contract above.
+- **Proven on a prod snapshot** (gate-0045): both halves read 3,668 KG 2.1 and 3,668 GI 3.1
+  artifacts and 296,991 quotes, with no failure.
+- **GI 4.0's own fields** beyond the evidence contract are the private extension's design.
 
 ## Validation
 
