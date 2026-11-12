@@ -36,6 +36,7 @@ derived surface of 0041. Names are kept out of this record.
 Prod's file (`search/insight_clusters.json`, copied read-only on the operator's go, 2026-11-01: 24,555,352
 bytes, sha256 `797679ed…ffb96`, built 2026-10-19) over the clone (snapshot-prod-20261030, 0038
 applied, the D2 ledger), before 0041, 0042's own dry run:
+
 - 33,162 supporting quotes; 0 without a GI match; 13 keys in more than one run;
 - **1,636 already differ from their GI quote:** `char_start` 1,563, `char_end` 1,561, `speaker_id`
   336, `text` 5.
@@ -54,6 +55,7 @@ speaker id; 0041 moves offsets) leaves it stale.
 Dated: 2026-10-31
 
 The change, migration `0042_insight_cluster_quotes_resynced`:
+
 - for each cluster member's supporting quote, by `(episode_id, quote_id)`, the copied fields
   (`text`, `speaker_id`, `char_start`, `char_end`) take the GI quote's current values;
 - a quote whose GI quote is gone keeps its entry and is counted, never invented or dropped;
@@ -95,6 +97,7 @@ complete". Every row is taken in 4b.
 
 Code: `upgrade/migrations/m0042_insight_cluster_quotes_resynced.py` (renumbered from 0040; it walks the
 corpus with `corpus_rglob`). Tests (`tests/unit/podcast_scraper/upgrade/test_m0042_insight_cluster_quotes_resynced.py`):
+
 - a quote takes its GI quote's fields, and nothing else moves;
 - the newest served run wins;
 - no clusters file means nothing to do.
@@ -105,6 +108,7 @@ Mutants, both killed: the served-run tie-break off; an absent `speaker_id` not w
 
 Gate (`0042_insight_cluster_quotes_resynced.gate.json`, the final batch, code digest `e0bedfef5a62`, 2026-11-01; each gate on its own base: snapshot-prod-20261030 with 0038, the D2 ledger built with the final rules (`--no-respell`), and the migrations before it applied, with prod's
 `search/insight_clusters.json` copied in):
+
 - **computed class light**, against this record's `full`. A record may be stricter than its
   measurement; noted, the record stays full;
 - 1 file changed (the clusters file); gating moves none;
@@ -112,8 +116,8 @@ Gate (`0042_insight_cluster_quotes_resynced.gate.json`, the final batch, code di
 - Dry run over prod's file after 0041 (`dry40.py`): 33,162 quotes, **1,896 resynced** (`char_start`
   1,821, `char_end` 1,819, `speaker_id` 338, `text` 5), 0 unmatched, 13 keys in several runs.
 
-
 **Rerun on D2's final ledger (s5d through 4e, s6g; 2026-11-02):** the gate report is from this run.
+
 - **Invalid earlier reruns:** two reruns between these (the s5d ledger, then s6g's) ran without
   prod's clusters file. My chain script's copy into `search/` failed, because the folder did not
   exist on those bases, and the script did not stop on the error.
@@ -132,6 +136,7 @@ Gate (`0042_insight_cluster_quotes_resynced.gate.json`, the final batch, code di
 ### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
 
 Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain eval-data `d2out/scripts/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+
 - 33,162 quotes, **1,835 resynced**: `char_start` 1,760, `char_end` 1,758, `speaker_id` 338, `text`
   5. 0 unmatched; 13 keys in several runs. Computed class light, 1 file changed.
 - `upgrade verify` 41 of 41 ok, none failing; no gating moves. Prod's clusters file was checked by

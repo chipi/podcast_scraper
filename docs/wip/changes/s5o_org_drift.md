@@ -28,6 +28,7 @@ in eval-data `data/eval/name-consolidation/s5o/`.
 ## 2. Outcome and baseline
 
 Snapshot-prod-20261030, the ledger rule at S5b (cf2a4bf28):
+
 - 229 org joins, the same in the ledger and in the read-time map;
 - by the name-only read: 61 wrong, 15 unclear, 153 one entity (eval-data `s5o/inventory_snapshot.json`).
 
@@ -36,7 +37,7 @@ Snapshot-prod-20261030, the ledger rule at S5b (cf2a4bf28):
 The wrong joins by shape (`s5o/org_inventory.py`), over all 229:
 
 | Shape | Joins | Wrong | Unclear |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | one word against one word, fuzzy | 124 | 53 | 13 |
 | several words, one differs | 64 | 5 | 2 |
 | word count differs | 5 | 2 | 0 |
@@ -56,6 +57,7 @@ removes 9 and loses 17.
 Dated: 2026-10-31
 
 The rule: an org pair the cluster rule accepts must also pass one of two tests:
+
 - the cleaned names are equal after removing spaces and hyphens; or
 - they have the same number of words with hyphens read as spaces, and every differing word is at
   most one edit apart.
@@ -64,6 +66,7 @@ People are not affected: the extra test is for kind `org` only.
 
 Predicted on snapshot-prod-20261030 (prototype `s5o/proto_org.py`, a patch of `_cluster` over the
 ledger build and the read-time map):
+
 - **Org joins:** 229 → 97, in both the ledger and the read-time map. 132 removed, 0 added, 4 moved;
   the ledger's org map sha `d05cfbf5f9f3`.
 - **By the read:**
@@ -159,6 +162,7 @@ apart with causes; the one-word count, and a one-word guard (taken); third membe
 by path.
 
 Spot checks for step 8:
+
 - "New Yorker" and "The New Yorker" resolve to one id;
 - "The Rest is History" and "The Rest is History Club" stay two ids;
 - no served org changes beyond part 1's and the 12;
@@ -172,6 +176,7 @@ Spot checks for step 8:
 
 Scenario tests, written first (`test_person_match.py::test_org_differing_words_one_edit_apart`,
 `test_the_org_limit_does_not_reach_people`):
+
 - two failed before the code: a two-letter one-word pair and "West … / East …";
 - a third (a hyphen against a space) failed because today's rule never joined it, and this change
   only narrows. It is recorded as today's behaviour, and the dedup direction is the next part of S5o.

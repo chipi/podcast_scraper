@@ -47,6 +47,7 @@ does not depend on it.
 Dated: 2026-11-01
 
 The change, migration `0040_gi_quote_offsets_realigned` (after 0039, before 0041):
+
 - For each GI quote that does not slice to its text in its referenced transcript, collect the
   transcript's segments (that transcript's own `.segments.json`) whose time span overlaps the
   quote's `[timestamp_start_ms, timestamp_end_ms]`, widened by 1 second.
@@ -60,6 +61,7 @@ The change, migration `0040_gi_quote_offsets_realigned` (after 0039, before 0041
   time cannot place are listed in the plan, not failed: there is no evidence to fix them with.
 
 Predicted on the clone (snapshot-prod-20261030 with 0038 and 0039):
+
 - **18 quotes realigned** in the episodes of section 2;
 - **6 left and listed** (2 ambiguous, 4 not found);
 - after: those 18 slice to their text; 0 other quotes change;
@@ -91,6 +93,7 @@ Dated: 2026-11-01T12:35
 ## 7. Measure
 
 Gate (`0040_gi_quote_offsets_realigned.gate.json`, the final batch, code digest `e0bedfef5a62`, 2026-11-01; each gate on its own base: snapshot-prod-20261030 with 0038, the D2 ledger built with the final rules (`--no-respell`), and the migrations before it applied):
+
 - computed class full; **8 files changed**;
 - gating moves: `S12_quotes_off_text` **-18**, the prediction exactly;
 - `upgrade verify` 38 ok; failing 0025 alone, no regression;
@@ -99,6 +102,7 @@ Gate (`0040_gi_quote_offsets_realigned.gate.json`, the final batch, code digest 
 ### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
 
 Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain eval-data `d2out/scripts/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+
 - 18 quotes realigned in 8 episodes, 6 left: unchanged from the final batch.
 - `upgrade verify` ok, no regressions, no gating moves.
 
@@ -189,6 +193,7 @@ Status `landed` (2026-11-03): applied on prod, so its outcome is no longer compa
 ## 6. Build
 
 Tests (`tests/unit/podcast_scraper/upgrade/test_m0040_gi_quote_offsets_realigned.py`):
+
 - a quote takes the occurrence inside its own time, from a repeated phrase;
 - a quote that sliced is unchanged;
 - one time cannot place is left and listed;
@@ -203,4 +208,3 @@ refused.
 
 Dry run on the clone (snapshot-prod-20261030, 0038 and 0039, the D2 ledger): **18 quotes realigned in
 8 episodes, 6 left, 0 refused**, as predicted.
-

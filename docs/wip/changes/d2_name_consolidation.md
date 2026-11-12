@@ -17,6 +17,7 @@ touches:
 Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §5, the report template.
 This record holds D2's outcome table: D1's after-state against D2's final state, on one snapshot.
 Each part has its own record, which this one cites:
+
 - ledger rules: s5a–s5d and s5o;
 - display rules: s6a–s6h;
 - migrations: 0039–0042;
@@ -26,6 +27,7 @@ Person names are kept out of this public record. The pairs and names are in eval
 `data/eval/name-consolidation/`.
 
 **States compared,** both on snapshot-prod-20261030 (3,069 episodes):
+
 - **before:** D1's after-state. 0038 applied, D1's ledger (eval-data `d1/scoreboard_after_branch.*`,
   `d1/gold_after_branch.json`).
 - **after:** D2 final. The ledger rebuilt with D2's rules (`--no-respell`), then 0039, 0040, 0041
@@ -115,7 +117,7 @@ integer (0040: 6 left).
 ## Commands
 
 | What | Command (eval-data `d2out/scripts/`, measurement scripts in `d2out/`) | Output |
-|---|---|---|
+| --- | --- | --- |
 | ledger rebuild, group diff | `chain5.sh` step ledger; `d2out/s6h_group_diff.py` | "predicted 12, changed as predicted: 12", "other changes: 0" |
 | gates 0039–0042 | `chain5.sh` → `gate_run.sh` → `scripts/measure/corpus_change_gate.py` | four EXIT=0; verify 40 and 41 of 41 ok |
 | after-checks 0041 | `d2i9/after_checks.py base-0041 base-0042` | 0 must-not-move breaches (verdict line "FAIL 0": the 2 quote spans among 0040's 6) |
@@ -130,7 +132,7 @@ integer (0040: 6 left).
 Second apply and full-copy undo, each on a copy of its own after-state (`d2out/idem_undo.out`):
 
 | | second apply | undo | files differing from the before-state after undo |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0042 | resynced 0; receipted files changed 0 | restored 1, refused 0 | 0 |
 | 0041 | rewrote 0 episodes; changed 0 | restored 2,289, refused 0 | 0 |
 | 0040 | realigned 0 quotes; changed 0 | restored 8, refused 0 | 0 |
@@ -199,6 +201,7 @@ The step-8 fresh reviewer read 0039–0042 (2026-11-02): GO WITH CONDITIONS on e
 ## On prod (2026-11-02 and 11-03)
 
 The run steps and each migration's prod numbers are in records 0039–0042, steps 10 and 11. In short:
+
 - **Deploy:** `sha-8906696` (890669690).
 - **Ledger:** 644 joins (the clone 631), 40 blocked (the clone 40).
 - **0039 and 0040:** equal to the clone, plan diff 0.
@@ -212,6 +215,7 @@ The run steps and each migration's prod numbers are in records 0039–0042, step
   were removed on the operator's go.
 
 Not covered on prod:
+
 - the player UI (spot checks went through the API);
 - the gold sets and the scoreboard (measured on the clone only);
 - which rule step joins `person:robert-carrow` on prod.

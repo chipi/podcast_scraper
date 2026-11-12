@@ -46,6 +46,7 @@ group's spelling, recorded in the ledger since S6a, is read only by S6a–S6c's 
 Dated: 2026-10-31
 
 The change:
+
 - `entities_from_kg(artifact, people=)` spells each person through the display view. Every caller
   with a corpus root passes `person_display(root)`:
   - episode chips (`routes/app_episodes`), key voices, the people rail, the captured rail (both),
@@ -92,6 +93,7 @@ The change:
   (S6a); the raw `speaker_label` read beside it is only the raw-label check (S3).
 
 Predicted on snapshot-prod-20261030, with the ledger served in memory:
+
 - **Every joined person** shows the group spelling on each changed surface. The gate counts, per
   surface, the person names that change, and requires every joined name to equal the group
   spelling after.
@@ -108,11 +110,13 @@ Predicted on snapshot-prod-20261030, with the ledger served in memory:
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, run on the written
 change (late: the code was built before the read, which this record states). "Not complete".
 Taken, in 4b:
+
 - the consensus operator's wrong keys, and the test that used them;
 - the caller row's digest and recap;
 - the `app_gi_view` readers, noted.
 
 A second fresh reader, on 4b's added rows (sonnet reviewer, about 1 minute): "not complete". Taken:
+
 - the community label with several anchors;
 - the summed count stated as an upper bound, for both sides;
 - the another-view rail's raw ids;
@@ -120,6 +124,7 @@ A second fresh reader, on 4b's added rows (sonnet reviewer, about 1 minute): "no
   removing that check survived); the test now has one.
 
 Spot checks for step 8:
+
 - one joined person's card: one row per partner, each at the group spelling;
 - the ops envelope route's co-appearance names spelled, its ids unchanged;
 - one MCP `corpus_enrichment_signals` call on a corpus with a ledger.
@@ -127,6 +132,7 @@ Spot checks for step 8:
 ## 6. Build
 
 Tests, written first or beside the code:
+
 - `tests/unit/podcast_scraper/server/test_name_surfaces_follow_the_ledger.py`: chips, the corpus
   graph and trending labels follow the view, and nothing changes without it;
 - `test_operators.py::TestConsensusVisibility`: a pair with a hidden insight is dropped, and labels
@@ -136,6 +142,7 @@ Tests, written first or beside the code:
   rows turned to the id asked for).
 
 Code:
+
 - `server/app_kg_view.entities_from_kg(people=)`;
 - `person_display(root)` passed at 15 listener callers. The three that discard persons, `name_report`
   (the scan's own names) and the topic-only callers, are unchanged;

@@ -32,6 +32,7 @@ Snapshot-prod-20261030 (`s6/hidden_in_search.py`): 135,390 insights, all indexed
 serves 103,845 by default.
 
 The 31,545 it does not serve:
+
 - not surfaceable because the voice is unnamed: 31,327 (unknown 17,811, unidentified 13,516);
 - adverts: 94; routed drop: 80; raw-label only: 44.
 
@@ -47,6 +48,7 @@ episode view's gate nor its speaker names.
 Dated: 2026-10-31
 
 The change:
+
 1. **Visibility:** `corpus_search._filter_and_enrich` drops an insight hit whose `source_id` is not
    in `insights_from_gi(gi)` for its episode (the default path, no fallback), one GI read per
    episode. It drops it inside the filter loop, so `top_k` still fills with visible hits.
@@ -59,6 +61,7 @@ The change:
 4. **Lifted transcript speaker:** its display name is spelled through the same view.
 
 **Revised after the fresh read (section 5):**
+
 - **One home for visibility:** `_InsightScope` gains `visible`. It is computed by the episode view's
   own default call (`insights_from_gi(gi)`, no unattributed fallback: "what the episode view shows"
   means the default, which differs from the panel's fallback for episodes where nobody is named).
@@ -87,6 +90,7 @@ The change:
   from the graph.
 
 Predicted:
+
 - **Visibility,** measured with the real filter over every GI insight treated as a hit: 31,545
   insights become unsearchable and 103,845 stay. The difference must match the episode view's
   served set exactly.
@@ -111,6 +115,7 @@ Predicted:
 
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, about 1.5 minutes: "not
 complete". Taken:
+
 - the lift leak;
 - the speaker scope widened in the prefilter as well;
 - the consensus operator;
@@ -121,6 +126,7 @@ complete". Taken:
 - the per-query artifact cache.
 
 Spot checks for step 8:
+
 - a fixture transcript hit whose quote supports a `surfaceable: false` insight has no
   `lifted.insight`;
 - a speaker search by an alias id returns the group's insights through both filters;
@@ -130,6 +136,7 @@ Spot checks for step 8:
 
 Tests, written first (`tests/unit/podcast_scraper/search/test_search_shows_what_episodes_show.py`, 5,
 invented names; all failed before the code):
+
 - the scope marks what the episode view hides;
 - the scope carries the speaker's canonical id;
 - a hidden insight hit is dropped;
@@ -137,6 +144,7 @@ invented names; all failed before the code):
 - a transcript chunk does not lift to a hidden insight.
 
 Code:
+
 - `server/app_gi_view.py`: `quote_speaker_name`, the one speaker chain for the episode view and
   search. `insights_from_gi` calls it; there is no behaviour change, and S6a's gate stays exact
   below.
@@ -187,7 +195,7 @@ Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (
 
 - 2026-10-31: hide all 31,545 in search (chosen from three options).
 
-## 10–12.
+## 10–12
 
 MISSED: no operator review of this record on its own. The operator accepted D2 on 2026-11-03 (`d2_name_consolidation.md`).
 
