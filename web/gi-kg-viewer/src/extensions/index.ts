@@ -148,6 +148,7 @@ export const showRailSections = extensionPoint<ShowRailSection>('showRailSection
 /**
  * A section of the digest. `band` renders at the end of each topic band with `band` (the band
  * payload) and `topicId` props; `row` renders under each recent episode row with a `row` prop.
+ * A section's `switch-main-tab` event is passed on as the digest's own.
  */
 export interface DigestSection extends Entry {
   region: 'band' | 'row'

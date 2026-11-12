@@ -2,8 +2,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
 import DigestView from './DigestView.vue'
+import { digestSections } from '../../extensions'
 import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import {
   fetchCorpusDigest,
@@ -11,7 +13,6 @@ import {
   type CorpusDigestRow,
   type CorpusDigestTopicBand,
 } from '../../api/digestApi'
-import { fetchCrossShow } from '../../api/relationalApi'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
@@ -22,9 +23,8 @@ import { useSubjectStore } from '../../stores/subject'
  *
  * The mount test that pins the corpus-revision reload brought this view into the coverage
  * denominator with 6 of its 85 functions exercised. These tests drive the rest the way an operator
- * does: topic bands (ranking, show more, the topic panel, search, cross-show), hit
- * rows into the graph, the Recent list (rows, keyboard, feed links, topic pills), and the states
- * around them.
+ * does: topic bands (ranking, show more, the topic panel, search), hit rows into the graph, the
+ * Recent list (rows, keyboard, feed links), registered sections, and the states around them.
  */
 vi.mock('../../api/digestApi', async (orig) => ({
   ...(await orig<typeof import('../../api/digestApi')>()),
@@ -33,10 +33,6 @@ vi.mock('../../api/digestApi', async (orig) => ({
 vi.mock('../../api/corpusLibraryApi', async (orig) => ({
   ...(await orig<typeof import('../../api/corpusLibraryApi')>()),
   fetchCorpusFeeds: vi.fn(),
-}))
-vi.mock('../../api/relationalApi', async (orig) => ({
-  ...(await orig<typeof import('../../api/relationalApi')>()),
-  fetchCrossShow: vi.fn(),
 }))
 // The shell store probes /api/health when the path changes; a probe that never answers leaves the
 // health this test sets alone.
@@ -174,33 +170,9 @@ describe('DigestView — topic bands', () => {
     expect(w.text()).toContain('No GI/KG artifacts on disk for this episode.')
   })
 
-  it('"Across shows" loads one insight per show, labelled with the show name', async () => {
-    vi.mocked(fetchCrossShow).mockResolvedValue({
-      groups: { f0: [{ id: 'i1', type: 'insight', text: 'Show Zero says this', show_id: 'f0', episode_id: 'e' }] },
-      error: null,
-    } as never)
+  it('a band has no "Across shows" of its own: that is GI, a downstream band section', async () => {
     const { w } = await mountDigest()
-    await w.findAll('[data-testid="digest-cross-show-toggle"]')[0].trigger('click')
-    await flushPromises()
-    const rows = w.findAll('[data-testid="digest-cross-show-row"]')
-    expect(rows).toHaveLength(1)
-    expect(rows[0].text()).toContain('Show Zero')
-    expect(rows[0].text()).toContain('Show Zero says this')
-    await w.findAll('[data-testid="digest-cross-show-toggle"]')[0].trigger('click')
-    expect(w.find('[data-testid="digest-cross-show-band"]').exists()).toBe(false)
-  })
-
-  it('"Across shows" says so when it fails or finds nothing', async () => {
-    vi.mocked(fetchCrossShow).mockRejectedValueOnce(new Error('relational down'))
-    const { w } = await mountDigest()
-    const toggles = w.findAll('[data-testid="digest-cross-show-toggle"]')
-    await toggles[0].trigger('click')
-    await flushPromises()
-    expect(w.text()).toContain('relational down')
-    vi.mocked(fetchCrossShow).mockResolvedValueOnce({ groups: {}, error: null } as never)
-    await toggles[1].trigger('click')
-    await flushPromises()
-    expect(w.text()).toContain('No cross-show coverage yet for this topic.')
+    expect(w.find('[data-testid="digest-cross-show-toggle"]').exists()).toBe(false)
   })
 
   it('topics that need an index say so, and the rows still show', async () => {
@@ -238,15 +210,10 @@ describe('DigestView — Recent', () => {
     expect(w.emitted('switch-main-tab')?.at(-1)).toEqual(['library'])
   })
 
-  it("a row's topic pill opens the graph on that topic", async () => {
-    const { w, artifacts } = await mountDigest()
-    w.findAllComponents({ name: 'CilTopicPillsRow' })[0].vm.$emit('pill-click', 0)
-    await flushPromises()
-    expect(artifacts.appendRelativeArtifacts).toHaveBeenCalledWith([
-      row(1).gi_relative_path,
-      row(1).kg_relative_path,
-    ])
-    expect(w.emitted('switch-main-tab')?.at(-1)).toEqual(['graph'])
+  it('a row shows no CIL topic pills of its own: that is GI, a downstream row section', async () => {
+    const { w } = await mountDigest()
+    expect(w.find('[data-testid="digest-recent-cil-pills"]').exists()).toBe(false)
+    expect(w.findAllComponents({ name: 'CilTopicPillsRow' })).toHaveLength(0)
   })
 
   it('an empty window says so', async () => {
@@ -460,5 +427,29 @@ describe('DigestView digestSections', () => {
     for (const r of rows) expect(r.find('[data-testid="ext-row"]').exists()).toBe(true)
     digestSections.reset()
     w.unmount()
+  })
+})
+
+describe('DigestView — digestSections', () => {
+  afterEach(() => digestSections.reset())
+
+  const asksForGraph = (testid: string) =>
+    defineComponent({
+      props: ['band', 'topicId', 'row'],
+      emits: ['switch-main-tab'],
+      setup(_p, { emit }) {
+        return () => h('button', { 'data-testid': testid, onClick: () => emit('switch-main-tab', 'graph') })
+      },
+    })
+
+  it('passes a band or row section’s switch-main-tab up as its own', async () => {
+    digestSections.register({ id: 'b', region: 'band', component: asksForGraph('ext-band') })
+    digestSections.register({ id: 'r', region: 'row', component: asksForGraph('ext-row') })
+    const { w } = await mountDigest()
+    await w.findAll('[data-testid="ext-band"]')[0].trigger('click')
+    expect(w.emitted('switch-main-tab')?.at(-1)).toEqual(['graph'])
+    const before = w.emitted('switch-main-tab')?.length ?? 0
+    await w.findAll('[data-testid="ext-row"]')[0].trigger('click')
+    expect(w.emitted('switch-main-tab')).toHaveLength(before + 1)
   })
 })

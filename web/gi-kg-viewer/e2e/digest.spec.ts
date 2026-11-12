@@ -81,35 +81,6 @@ test.describe('Corpus Digest tab', () => {
     await expect(episodeRegion.getByRole('heading', { name: row.episode_title })).toBeVisible()
   })
 
-  test('digest Recent CIL topic pills render from the row cil_digest_topics', async ({ page }) => {
-    const rows = await openDigest(page)
-    /* A pill renders for every CIL topic on the row; topic-cluster membership only changes its
-     * look, and the clusters come from an installed extension (ADR-170), so this build has none.
-     * Pick the first row with a topic rather than pinning a label. */
-    const row = rows.find((r) => r.cil_digest_topics?.length)
-    expect(row, 'expected at least one digest row with a CIL topic').toBeTruthy()
-    const topic = row!.cil_digest_topics[0]!
-
-    await expect(page.getByTestId('digest-recent-cil-pills').first()).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: `Open graph for topic: ${topic.label}` }).first(),
-    ).toBeVisible()
-  })
-
-  test('digest Recent CIL topic pill opens the graph', async ({ page }) => {
-    const rows = await openDigest(page)
-    const row = rows.find((r) => r.cil_digest_topics?.length)!
-    const topic = row.cil_digest_topics[0]!
-
-    /* No artifact stub: the corpus's own GI artifacts are served by `/api/artifacts`, so this is
-     * the real handoff — pill → graph load → canvas. */
-    await page
-      .getByRole('button', { name: `Open graph for topic: ${topic.label}` })
-      .first()
-      .click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-    await expect(page.locator('.graph-canvas')).toBeVisible()
-  })
 })
 
 /**
@@ -123,7 +94,7 @@ test.describe('Corpus Digest tab', () => {
  * none of the default editorial queries inside the window.
  *
  * Consequently the band title, the band's "Search topic" prefill, the show-more control, the
- * band-hit rows and the cross-show band all have no reachable state. The recency-dot test is here
+ * and the band-hit rows all have no reachable state. The recency-dot test is here
  * for a different reason: it needs an episode published **today**, which a committed corpus with
  * fixed dates cannot be.
  *
@@ -278,35 +249,6 @@ test.describe('Corpus Digest — topic bands (stubbed: corpus produces no bands)
     await showMore.click()
     await expect(showMore).toHaveCount(0)
     await expect(topicBands.getByText('Fourth Band')).toBeVisible()
-  })
-
-  test('FR3.2: cross-show band lists the top insight per show', async ({ page }) => {
-    await stubDigest(page)
-    await page.route('**/api/relational/cross-show**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          subject: 'topic:mock-topic-band',
-          groups: {
-            'podcast:show-one': [
-              { id: 'insight:1', type: 'insight', text: 'Show one position.', show_id: 'podcast:show-one', episode_id: 'e1' },
-            ],
-            'podcast:show-two': [
-              { id: 'insight:2', type: 'insight', text: 'Show two position.', show_id: 'podcast:show-two', episode_id: 'e2' },
-            ],
-          },
-          error: null,
-        }),
-      }),
-    )
-    await landOnStubbedDigest(page)
-    await page.getByTestId('digest-cross-show-toggle').first().click()
-    const band = page.getByTestId('digest-cross-show-band').first()
-    await expect(band).toBeVisible()
-    await expect(band.getByTestId('digest-cross-show-row')).toHaveCount(2)
-    await expect(band).toContainText('Show one position.')
-    await expect(band).toContainText('Show two position.')
   })
 
   /**
