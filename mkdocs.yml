@@ -261,6 +261,7 @@ nav:
       - ADR-179 Article text extracted, never served: adr/ADR-179-article-text-extracted-never-served.md
       - ADR-180 Bylines join within their publisher: adr/ADR-180-bylines-join-within-their-publisher.md
       - ADR-181 A content type's own fields: adr/ADR-181-a-content-types-own-fields.md
+      - ADR-182 Extension-owned configuration: adr/ADR-182-extension-owned-configuration.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
