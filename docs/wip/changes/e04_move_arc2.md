@@ -115,7 +115,12 @@ the scoreboard through a seam, `Extension.corpus_scoreboard` (`quality/scoreboar
 
 ## 3. Not done in this arc
 
-- Gate a (equivalence) and gate c (public-only install, end to end) are not run yet.
+- Gate a ran on 2026-11-12 on fixtures only (two e2e feeds, three episodes, with and without
+  the LLM stages through the mock server): public f19aed01 against public 1ae058d1 with Common
+  wrote the same GI, KG, bridge, metadata and transcript files (method and result in Common's
+  `scripts/gates/README.md`). The plan's version on a snapshot clone of prod's corpus is not run.
+- Gate c: public's full suite ran on a public-only install (unit, integration, e2e); the stack
+  run on a public-only install is not run.
 - Diarization, cleaning and the LLM bundle modes are still configurable in public (`diarize`,
   `diarization_*`, `transcript_cleaning_strategy`, `llm_pipeline_mode`) though the code behind them
   is Common's; without Common they do nothing or fall back. Moving that configuration needs a seam
