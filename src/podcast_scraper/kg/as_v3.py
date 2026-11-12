@@ -61,13 +61,18 @@ def kg_as_v3(kg: Mapping[str, Any], *, language: Optional[str] = None) -> Dict[s
     if is_v3(kg):
         return dict(kg)
     out: Dict[str, Any] = copy.deepcopy(dict(kg))
-    episode_id = str(kg.get("episode_id") or "")
-    out["item_id"] = episode_id
-    out["content_type"] = PODCAST_EPISODE
-
     nodes = out.get("nodes") or []
     podcast = next((n for n in nodes if isinstance(n, dict) and n.get("type") == "Podcast"), None)
     episode = next((n for n in nodes if isinstance(n, dict) and n.get("type") == "Episode"), None)
+    # The root episode_id, else the Episode node's; a KG naming no episode gets no item_id (never
+    # an empty one).
+    item_id = str(kg.get("episode_id") or "")
+    if not item_id and episode:
+        props_id = (episode.get("properties") or {}).get("episode_id")
+        item_id = str(props_id or str(episode.get("id") or "").removeprefix("episode:"))
+    if item_id:
+        out["item_id"] = item_id
+    out["content_type"] = PODCAST_EPISODE
     feed_id = str(((episode or {}).get("properties") or {}).get("podcast_id") or "")
     source_id = str(podcast["id"]) if podcast else (f"podcast:{feed_id}" if feed_id else "")
 

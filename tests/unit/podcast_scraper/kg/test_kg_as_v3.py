@@ -101,6 +101,14 @@ def test_a_kg_without_a_podcast_node_takes_its_source_from_the_feed() -> None:
     assert item["properties"]["source_id"] == "podcast:show"
 
 
+def test_the_item_id_comes_from_the_episode_node_or_is_absent() -> None:
+    v2 = _v21()
+    del v2["episode_id"]
+    assert kg_as_v3(v2)["item_id"] == "ep-1", "the Episode node names it"
+    v2["nodes"] = [n for n in v2["nodes"] if n["type"] != "Episode"]
+    assert "item_id" not in kg_as_v3(v2), "never an empty item_id"
+
+
 def test_a_v3_artifact_comes_back_as_it_is() -> None:
     v3 = {"schema_version": "3.0", "item_id": "item:t:1", "content_type": "t", "nodes": []}
     assert kg_as_v3(v3) == v3 and not is_view(kg_as_v3(v3))
