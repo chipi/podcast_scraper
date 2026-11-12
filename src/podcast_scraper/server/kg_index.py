@@ -147,7 +147,7 @@ def _pooled(pool: dict[tuple[type, str], Any], items: list[_E]) -> list[_E]:
 def build_kg_index(root: Path) -> KgEntityIndex:
     """One full pass over the corpus KGs → the inverted index (called once per ingest via cache).
 
-    A joined person carries their group's one spelling from the ledger (RFC-131 S6b), not the
+    A joined person carries their group's one spelling from the ledger, not the
     first-seen variant's, so the person card, its related people and the entity refs agree.
     """
     canonical = _canonical_person_ids(root)

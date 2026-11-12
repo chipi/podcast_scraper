@@ -1,5 +1,5 @@
-"""Search shows only what the episode view shows, under one spelling per person (RFC-131 S6c,
-D2 item 7). Invented names only."""
+"""Search shows only what the episode view shows, under one spelling per person.
+Invented names only."""
 
 from __future__ import annotations
 

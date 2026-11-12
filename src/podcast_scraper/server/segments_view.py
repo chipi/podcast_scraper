@@ -12,7 +12,7 @@ from typing import Any
 from podcast_scraper import read_hooks
 from podcast_scraper.server.schemas import TranscriptSegment
 
-#: speaker_kind values (the contract's vocabulary; clients localise from them, RFC-131 L7).
+#: speaker_kind values (the contract's vocabulary; clients localise from them).
 KIND_PERSON = "person"
 KIND_HOST = "host"
 KIND_BRIEF = "brief"

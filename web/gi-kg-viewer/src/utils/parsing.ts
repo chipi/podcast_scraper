@@ -341,7 +341,7 @@ export function countPersonEntityIncidentEdges(
  * Real corpora frequently emit near-duplicate Topic names ("AI ethics",
  * "AI Ethics", "AI-ethics") which scatter the user across multiple
  * rows for what is one conceptual topic. Until full corpus-wide
- * clustering ships (RFC-075 Phase 0-4), the viewer dedupes on the
+ * clustering ships, the viewer dedupes on the
  * read side via simple normalization: lowercase, strip ASCII
  * punctuation, collapse whitespace. Groups produced by this key
  * surface under the canonical (= first-seen-after-sort) Topic id +

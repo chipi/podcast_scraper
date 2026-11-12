@@ -1,4 +1,4 @@
-"""Translation provenance on every claim (RFC-124 / RFC-125 / S2.11).
+"""Translation provenance on every claim (RFC-124 / S2.11).
 
 WHAT THIS IS FOR, AND WHY IT IS NOT OPTIONAL. The PROVENANCE is written on every claim at the
 time it is made, which is what lets a label, a quality score or a verification pass be added

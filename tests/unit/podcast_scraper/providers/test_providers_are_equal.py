@@ -3,7 +3,7 @@
 It was not. Measured before this file existed, the same pipeline stage ran different prompts on
 different providers, and the differences were invisible because they were buried in string literals:
 
-    * `complete_text` existed on gemini and ollama ONLY, so ADR-110 speaker resolution silently
+    * `complete_text` existed on gemini and ollama ONLY, so speaker resolution silently
       resolved NOBODY on the other five — and the arm would have scored as a weak model rather than
       a missing method.
     * The v3 speech-act extraction prompt ("Rodman ARGUES THAT prescribing is unsafe", not
@@ -123,7 +123,7 @@ def _nodes(provider: str) -> dict:
 @pytest.mark.parametrize("capability", CAPABILITIES)
 def test_every_provider_has_every_capability(provider: str, capability: str) -> None:
     assert capability in _functions(provider), (
-        f"{provider} cannot {capability}. The pipeline will degrade silently — ADR-110 resolves "
+        f"{provider} cannot {capability}. The pipeline will degrade silently — speaker resolution resolves "
         f"nobody, the value gate keeps everything — and the MODEL will be blamed for a method we "
         f"never wrote."
     )

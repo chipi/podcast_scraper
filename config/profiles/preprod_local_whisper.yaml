@@ -33,7 +33,7 @@ transcription_provider: whisper
 # ~3GB download). Both pass through the same pipeline glue.
 whisper_model: small.en
 
-# Screenplay + neural diarization (RFC-058) — non-negotiable per operator;
+# Screenplay + neural diarization — non-negotiable per operator;
 # prod profile has these on, so Stage A must too.
 screenplay: true
 diarize: true

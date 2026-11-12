@@ -49,8 +49,7 @@ Profile YAMLs come in two flavours; both are valid, neither is a smell.
 ### Screenplay and diarization (Audio Wave 2)
 
 Profiles that use **local Whisper** (`transcription_provider: whisper` or
-`tailnet_dgx_whisper`) set **`screenplay: true`** and **`diarize: true`** by default
-([RFC-058](../../docs/rfc/RFC-058-audio-speaker-diarization.md)). Cloud API transcription
+`tailnet_dgx_whisper`) set **`screenplay: true`** and **`diarize: true`** by default. Cloud API transcription
 profiles omit these keys — config validation coerces both off for OpenAI / Gemini / Mistral /
 Deepgram.
 

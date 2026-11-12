@@ -2090,7 +2090,7 @@ def _accumulate_topic_persons(
     episode-level in this fixture), which gives topic_consensus its cross-Person pairs per Topic.
     Each (topic, person) also takes, at first sight, one of this episode's GI insights ABOUT the
     topic, so a pair names real insights: search keeps only pairs whose insights the episode view
-    shows (RFC-131 S6c), as the real enricher's GI ids are.
+    shows, as the real enricher's GI ids are.
     """
     for tid in topic_ids:
         # The insights ABOUT the topic first, then the episode's others: in this fixture a person

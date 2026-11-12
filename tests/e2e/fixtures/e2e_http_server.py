@@ -154,7 +154,7 @@ def _bundled_gil_json(text: str) -> Optional[str]:
     return None
 
 
-# The ADR-110/135 speaker-resolution prompt (build_resolution_prompt) is distinct from the older
+# The speaker-resolution prompt (build_resolution_prompt) is distinct from the older
 # detect_speakers call: it asks the model to match diarized SPEAKER_NN voices to the episode's
 # metadata names and return {"voices": {"SPEAKER_00": {"name": ..., "role": ...}}}. Both mock chat
 # paths (Gemini + OpenAI) must answer it in that shape, or the LLM naming layer is silently inert.

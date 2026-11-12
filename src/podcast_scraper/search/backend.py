@@ -104,7 +104,7 @@ class InsightDocument:
         None  # canonical graph node id (carried so the graph handoff resolves)
     )
     insight_type: Optional[str] = (
-        None  # RFC-072 GIL v1.1 type (claim/recommendation/observation/question/unknown);
+        None  # GIL v1.1 type (claim/recommendation/observation/question/unknown);
         # carried so Search v3 §S8 compare ``insight_types`` can scope-filter by type
     )
 

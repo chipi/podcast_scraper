@@ -76,7 +76,7 @@ class TestTurnBoundaries:
             assert len({s.sent_id.split(".")[0] for s in u.sentences}) == 1
 
     def test_a_backchannel_turn_is_its_own_unit(self) -> None:
-        """RFC-123 flags backchannels rather than merging them, precisely so they are not folded
+        """Backchannels are flagged rather than merged, precisely so they are not folded
         into a neighbour's context. Packing one with a neighbour would undo that on the way to
         the model."""
         units = _pack(

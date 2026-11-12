@@ -1,5 +1,4 @@
-"""Time maps for episodes whose served audio no longer matches what we transcribed (#2359,
-RFC-129).
+"""Time maps for episodes whose served audio no longer matches what we transcribed (#2359).
 
 Some podcast hosts insert ads into an episode when it is fetched, and change them over time, so
 the stream a listener plays can be shifted from our transcript. ``build-maps`` lines the archived

@@ -1,4 +1,4 @@
-"""Raw-label voices stay unnamed in the GI read model, search hits and MCP rosters (RFC-131, S3).
+"""Raw-label voices stay unnamed in the GI read model, search hits and MCP rosters.
 
 The insight view and the transcript hide raw labels; these are the other routes a speaker name
 leaves the server by: ``gi.load`` (search insight hits, ``explore`` top speakers, MCP insight

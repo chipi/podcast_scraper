@@ -1,4 +1,4 @@
-"""Raw diarization labels are never shown as a speaker (RFC-131, S3; operator decision 2026-10-30).
+"""Raw diarization labels are never shown as a speaker (operator decision 2026-10-30).
 
 Measured on the served corpus (2026-10-30): 66 insights in 21 episodes showed a raw label as their
 speaker, and 222,461 transcript segments in 732 episodes showed ``SPEAKER_NN``. The operator's

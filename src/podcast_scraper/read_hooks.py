@@ -61,7 +61,7 @@ class ReadHooks:
     insights_from_gi: Optional[Callable[..., List[Any]]] = None
     #: ``(gi_artifact, quote_props, spoken_by_id, people) -> name``: who a quote names as speaker.
     quote_speaker_name: Optional[Callable[..., Optional[str]]] = None
-    #: ``(root) -> {entity_id: canonical_id}``: the identity map the server applies (ADR-166).
+    #: ``(root) -> {entity_id: canonical_id}``: the identity map the server applies.
     served_id_map: Optional[Callable[[Path], Dict[str, str]]] = None
     #: ``(root, anchor, node_id, *, max_episodes) -> (canonical_id, rows, truncated, total)``: the
     #: episodes whose cross-layer bridge lists a node.

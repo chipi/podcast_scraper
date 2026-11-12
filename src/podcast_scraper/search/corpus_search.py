@@ -321,8 +321,8 @@ class _InsightScope(NamedTuple):
     #: Every ``topic:`` id it is ABOUT, and those topics' label / name / display_name, lowercased
     #: (``_insight_passes_topic_filter``).
     topics: tuple[str, ...]
-    #: Whether the episode view shows it (``insights_from_gi``'s default call; RFC-131 S6c, D2
-    #: item 7): search returns only what the episode view shows.
+    #: Whether the episode view shows it (``insights_from_gi``'s default call):
+    #: search returns only what the episode view shows.
     visible: bool = True
 
 
@@ -356,7 +356,7 @@ def _insight_scopes_from_gi(
                 canonical = (id_map or {}).get(sid)
                 if canonical and canonical != sid:
                     # The group's canonical id too: a speaker scope by any of a person's ids finds
-                    # the group (RFC-131 S6c).
+                    # the group.
                     speakers.append(canonical.lower())
         topics = []
         for tid in topics_of.get(nid, []):

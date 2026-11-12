@@ -94,7 +94,7 @@ RemoveCommercials = Callable[..., str]
 #: host-read cross-promo removed. One owner; without one the text is returned unchanged.
 ExciseCrosspromo = Callable[..., str]
 #: ``(cfg, text, segments, rel_transcript_path, output_dir, *, adfree, episode)``. Writes each
-#: transcript variant's ``turns.json`` and the manifest's ``turns`` block (RFC-123 §3). Without an
+#: transcript variant's ``turns.json`` and the manifest's ``turns`` block. Without an
 #: owner no turns are written.
 VariantTurns = Callable[..., None]
 #: ``(segments) -> (text, offset_segments)``: segments rendered as speaker lines, with each

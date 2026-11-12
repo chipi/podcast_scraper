@@ -154,7 +154,7 @@ def filtered_entity_signals(root: Path, kind: str, id: str) -> dict[str, Any]:
 def _person_rows(
     raw: dict[str, Any], out: dict[str, Any], person_id: str, id_map: dict[str, str], people: Any
 ) -> None:
-    """One person's co-appearance and consensus rows, every id of the person joined (RFC-131 S6d).
+    """One person's co-appearance and consensus rows, every id of the person joined.
 
     The enrichers count raw episode ids, so a joined person's rows sit under several ids, and a
     partner with two ids would be listed twice under one spelling. The card's person matches by

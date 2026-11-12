@@ -4,8 +4,8 @@ Generate MP3 files from .txt transcripts using either macOS ``say`` (default,
 offline + deterministic) or **Gemini 2.5 multi-speaker TTS** (cloud +
 naturalistic, #934).
 
-Per-speaker voice mapping (RFC-059 §2 / issue #111) replaces the prior
-binary host/guest scheme so diarization tests (RFC-058) can actually
+Per-speaker voice mapping (issue #111) replaces the prior
+binary host/guest scheme so diarization tests can actually
 distinguish speakers in fixture audio.
 
 Backend selection: ``--backend say`` (default, macOS-only) or

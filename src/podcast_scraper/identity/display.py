@@ -2,8 +2,7 @@
 
 ``person_display(root)`` is what every surface reads: a ``PersonDisplay`` whose ``shown(id, own)``
 gives the spelling to show for one person id. Which spelling that is comes from the display
-builder for the corpus. The built-in builder is the identity ledger's (``ledger_display``, RFC-131
-S6a): a joined person shows their group's ``display_name``, anyone else the name their own episode
+builder for the corpus. The built-in builder is the identity ledger's (``ledger_display``): a joined person shows their group's ``display_name``, anyone else the name their own episode
 gives them. ``set_display_builder`` replaces it; ``plain_display`` is the builder with no joins,
 where every name is the episode's own.
 """
@@ -29,7 +28,7 @@ class PersonDisplay:
         return self._spelling_of.get(person_id.strip(), own_name)
 
     def name_of(self, person_id: Optional[str]) -> Optional[str]:
-        """The group spelling of a joined id, or None (RFC-131 S6b)."""
+        """The group spelling of a joined id, or None."""
         if not isinstance(person_id, str):
             return None
         return self._spelling_of.get(person_id.strip())
@@ -83,7 +82,7 @@ def person_display(root: Path | str) -> PersonDisplay:
     return view
 
 
-#: Corpus enrichers whose rows name two people: ``{enricher_id: list key}`` (RFC-131 S6d).
+#: Corpus enrichers whose rows name two people: ``{enricher_id: list key}``.
 _PERSON_PAIR_LISTS = {"guest_coappearance": "pairs", "topic_consensus": "consensus"}
 PERSON_PAIR_ENRICHERS = frozenset(_PERSON_PAIR_LISTS)
 

@@ -1271,7 +1271,7 @@ class OllamaProvider(ExtensibleProvider):
     def complete_text(
         self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
     ) -> str:
-        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+        """One prompt in, one JSON answer out — the generic call the speaker resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
         from show notes and returns the people an episode is ABOUT (#876). The resolver asks the
