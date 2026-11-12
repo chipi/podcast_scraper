@@ -332,7 +332,12 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
     if not profile_name:
         return cfg.model_copy(update=updates)
 
-    from podcast_scraper.config import resolve_profile_layers
+    from podcast_scraper.config import (
+        config_fields,
+        config_fields_set,
+        config_value,
+        resolve_profile_layers,
+    )
 
     profile_name = str(profile_name)
     _, resolved = resolve_profile_layers(
@@ -404,8 +409,8 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
     try:
         pin_effective = type(cfg).model_validate({"rss_url": entry.url, "profile": profile_name})
         bare = type(cfg).model_validate({"rss_url": entry.url})
-        for name in type(cfg).model_fields:
-            if getattr(pin_effective, name, None) != getattr(bare, name, None):
+        for name in config_fields():
+            if config_value(pin_effective, name) != config_value(bare, name):
                 pin_declares.add(name)
     except Exception:  # noqa: BLE001 — fall back to the layer view rather than mis-yielding
         pin_effective = None
@@ -418,7 +423,7 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
     layers_only, _ = resolve_profile_layers(
         profile_name, dgx_tailnet_host=getattr(cfg, "dgx_tailnet_host", None)
     )
-    pin_declares |= {k for k in layers_only if k in type(cfg).model_fields}
+    pin_declares |= {k for k in layers_only if k in config_fields()}
     nested_tx = layers_only.get("transcription")
     if isinstance(nested_tx, dict):
         if "primary" in nested_tx:
@@ -427,17 +432,17 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
             pin_declares.add("transcription_fallback_provider")
     _MISSING = object()
     operator_explicit: Dict[str, Any] = {}
-    for field in getattr(cfg, "model_fields_set", set()):
+    for field in config_fields_set(cfg):
         if field == "profile":
             continue
-        value = getattr(cfg, field, None)
+        value = config_value(cfg, field)
         # Yield ONLY when the value is indistinguishable from what the base profile itself
         # produces AND the pinned profile supplies its own — i.e. the pin genuinely re-routes
         # this field. Without the second condition an operator setting that merely coincided
         # with the base profile's value fell all the way to the model default (silent config
         # loss); without the first, the operator's explicit values are overwritten by profile
         # defaults (the precedence inversion this rebuild exists to fix).
-        base_value = getattr(base_effective, field, _MISSING) if base_effective else _MISSING
+        base_value = config_value(base_effective, field, _MISSING) if base_effective else _MISSING
         profile_derived = base_value is not _MISSING and base_value == value
         if profile_derived and (field in pin_declares or _is_routing_field(field)):
             # ROUTING comes wholly from the pin; DEPLOYMENT POLICY overlays from the corpus.
@@ -507,15 +512,15 @@ def merge_feed_entry_into_config(cfg: _CfgT, entry: RssFeedEntry) -> _CfgT:
         # Compare EFFECTIVE providers. Reading the pin's provider from raw layers missed every
         # profile that routes via nested sugar or registry defaults — which is most of them —
         # so the coupling silently never fired for those pins.
-        pinned_provider = getattr(pin_effective, provider_field, None) if pin_effective else None
-        base_provider = getattr(base_effective, provider_field, None) if base_effective else None
+        pinned_provider = config_value(pin_effective, provider_field) if pin_effective else None
+        base_provider = config_value(base_effective, provider_field) if base_effective else None
         if pinned_provider is None or base_provider is None:
             continue
         if str(pinned_provider) == str(base_provider):
             continue  # the stage did not move; its model may legitimately carry over
         for model_field in (provider_field, *model_fields):
             base_model = (
-                getattr(base_effective, model_field, _MISSING) if base_effective else _MISSING
+                config_value(base_effective, model_field, _MISSING) if base_effective else _MISSING
             )
             if (
                 model_field in operator_explicit

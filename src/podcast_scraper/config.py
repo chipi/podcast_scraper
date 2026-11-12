@@ -16,7 +16,15 @@ from urllib.parse import urlparse
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+    PrivateAttr,
+)
 
 from . import config_constants
 from .languages import normalize_language_tag
@@ -514,6 +522,92 @@ def _expand_env_in_string(value: str) -> str:
     return _ENV_VAR_PATTERN.sub(_replace, value)
 
 
+def _field_keys(fields: Dict[str, Any]) -> Dict[str, str]:
+    """Every key a model accepts (name, alias, validation aliases) -> its field name."""
+    keys: Dict[str, str] = {}
+    for name, info in fields.items():
+        keys[name] = name
+        if isinstance(info.alias, str):
+            keys[info.alias] = name
+        va = info.validation_alias
+        if isinstance(va, str):
+            keys[va] = name
+        else:
+            for choice in getattr(va, "choices", None) or ():
+                if isinstance(choice, str):
+                    keys[choice] = name
+    return keys
+
+
+def public_config_keys() -> Dict[str, str]:
+    """Every key :class:`Config` itself accepts -> its field name."""
+    return _field_keys(dict(Config.model_fields))
+
+
+def extension_config_keys() -> Dict[str, str]:
+    """Every key an installed extension's settings model accepts -> that extension's name."""
+    from .extensions import extension_config_models
+
+    owners: Dict[str, str] = {}
+    for name, model in extension_config_models():
+        for key in _field_keys(dict(model.model_fields)):
+            owners[key] = name
+    return owners
+
+
+def config_fields() -> Dict[str, Any]:
+    """Every configuration field, public and installed extensions', by name (``FieldInfo``).
+
+    What reads a configuration's keys (profile layers, a config file, a pin's declared keys)
+    uses this rather than ``Config.model_fields``, so an extension's settings are keys too.
+    """
+    from .extensions import extension_config_models
+
+    fields: Dict[str, Any] = {
+        name: info for name, info in Config.model_fields.items() if name != "extension_settings"
+    }
+    for _ext, model in extension_config_models():
+        fields.update(model.model_fields)
+    return fields
+
+
+def config_value(cfg: Any, name: str, default: Any = None) -> Any:
+    """A setting's value by field name, public or an installed extension's, without the
+    moved-read warning (for code that walks every field)."""
+    if name in type(cfg).model_fields:
+        return getattr(cfg, name, default)
+    for ext_cfg in getattr(cfg, "_extension_configs", {}).values():
+        if name in type(ext_cfg).model_fields:
+            return getattr(ext_cfg, name)
+    return default
+
+
+def config_fields_set(cfg: Any) -> set:
+    """The fields set explicitly, public and installed extensions' (what ``model_fields_set``
+    answers for :class:`Config` alone)."""
+    explicit = set(getattr(cfg, "model_fields_set", set())) - {"extension_settings"}
+    for ext_cfg in getattr(cfg, "_extension_configs", {}).values():
+        explicit |= set(ext_cfg.model_fields_set)
+    return explicit
+
+
+_warned_moved_reads: set = set()
+
+
+def _warn_moved_read_once(field_name: str, extension: str) -> None:
+    """A moved setting read as ``cfg.<name>``: still answered, warned about once (ADR-182)."""
+    if field_name in _warned_moved_reads:
+        return
+    _warned_moved_reads.add(field_name)
+    logging.getLogger(__name__).warning(
+        "cfg.%s is the %s extension's setting: read it as cfg.extension(%r).%s",
+        field_name,
+        extension,
+        extension,
+        field_name,
+    )
+
+
 def resolve_profile_layers(
     profile_name: str, *, dgx_tailnet_host: Any = None
 ) -> Tuple[Dict[str, Any], bool]:
@@ -532,7 +626,7 @@ def resolve_profile_layers(
         from podcast_scraper.providers.ml.model_registry import resolve_profile_to_settings
 
         raw = resolve_profile_to_settings(profile_name, dgx_tailnet_host=dgx_tailnet_host)
-        config_field_names = set(Config.model_fields.keys())
+        config_field_names = set(config_fields())
         registry_settings = {
             k: v for k, v in raw.items() if not k.startswith("_") and k in config_field_names
         }
@@ -4842,8 +4936,118 @@ class Config(BaseModel):
             "scope made explicit in name)."
         ),
     )
+    #: The installed extensions' own settings as they arrived, by extension name (ADR-182).
+    #: Read them as ``cfg.extension(name)``; ``model_dump`` writes them back flat.
+    extension_settings: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, exclude=True, repr=False
+    )
+    _extension_configs: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
+
+    # Defined FIRST so it runs LAST of the ``before`` validators (pydantic runs them in reverse
+    # definition order): the profile layers have merged their keys in by then.
+    @model_validator(mode="before")
+    @classmethod
+    def _route_extension_settings(cls, data: Any) -> Any:
+        """Hand each installed extension the keys its settings model declares (ADR-182).
+
+        A key that neither this model nor an installed extension declares is refused, naming
+        the installed extensions, so a key written for an extension fails loudly without it.
+        """
+        if not isinstance(data, dict):
+            return data
+        owners = extension_config_keys()
+        if not owners and "extension_settings" not in data:
+            return data
+        data = dict(data)
+        routed: Dict[str, Dict[str, Any]] = {
+            name: dict(values)
+            for name, values in (data.pop("extension_settings", None) or {}).items()
+        }
+        public = public_config_keys()
+        for key in list(data):
+            if key in owners and key not in public:
+                routed.setdefault(owners[key], {})[key] = data.pop(key)
+        unknown = sorted(key for key in data if key not in public)
+        if unknown:
+            installed = sorted({name for name in owners.values()}) or ["none that declare settings"]
+            raise ValueError(
+                f"unknown configuration keys {unknown}: neither podcast_scraper nor an installed "
+                f"extension ({', '.join(installed)}) declares them"
+            )
+        if routed:
+            data["extension_settings"] = routed
+        return data
+
+    @model_validator(mode="after")
+    def _build_extension_configs(self) -> "Config":
+        """Validate each installed extension's settings into its model (defaults if none)."""
+        from .extensions import extension_config_models
+
+        configs: Dict[str, Any] = {}
+        for name, model in extension_config_models():
+            configs[name] = model.model_validate(self.extension_settings.get(name, {}))
+        self._extension_configs = configs
+        return self
+
+    def extension(self, name: str) -> Any:
+        """The installed extension ``name``'s settings model (ADR-182)."""
+        try:
+            return self._extension_configs[name]
+        except KeyError:
+            raise LookupError(
+                f"no installed extension {name!r} declares settings; installed: "
+                f"{sorted(self._extension_configs) or 'none'}"
+            ) from None
+
+    def __getattr__(self, item: str) -> Any:
+        try:
+            return super().__getattr__(item)  # type: ignore[misc]
+        except AttributeError:
+            private = object.__getattribute__(self, "__pydantic_private__") or {}
+            for name, ext_cfg in (private.get("_extension_configs") or {}).items():
+                if item in type(ext_cfg).model_fields:
+                    _warn_moved_read_once(item, name)
+                    return getattr(ext_cfg, item)
+            raise
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """The flat configuration, the installed extensions' settings included (ADR-182)."""
+        out = super().model_dump(**kwargs)
+        passthrough = {
+            k: v
+            for k, v in kwargs.items()
+            if k in ("mode", "by_alias", "exclude_unset", "exclude_defaults", "exclude_none")
+        }
+        include, exclude = kwargs.get("include"), kwargs.get("exclude")
+        for ext_cfg in self._extension_configs.values():
+            for key, value in ext_cfg.model_dump(**passthrough).items():
+                if include is not None and key not in include:
+                    continue
+                if exclude is not None and key in exclude:
+                    continue
+                out[key] = value
+        return out
+
+    def model_copy(  # type: ignore[override]
+        self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+    ) -> "Config":
+        """A copy; ``update`` keys an installed extension declares update its settings."""
+        owners = extension_config_keys()
+        ext_updates = {k: v for k, v in (update or {}).items() if k in owners}
+        rest = {k: v for k, v in (update or {}).items() if k not in ext_updates}
+        new = super().model_copy(update=rest or None, deep=deep)
+        if ext_updates:
+            configs = dict(new._extension_configs)
+            settings = {name: dict(v) for name, v in new.extension_settings.items()}
+            for key, value in ext_updates.items():
+                name = owners[key]
+                configs[name] = configs[name].model_copy(update={key: value})
+                settings.setdefault(name, {})[key] = value
+            new._extension_configs = configs
+            new.__dict__["extension_settings"] = settings
+        return new
 
     @model_validator(mode="before")
     @classmethod
