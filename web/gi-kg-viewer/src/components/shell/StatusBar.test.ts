@@ -247,15 +247,15 @@ describe('StatusBar', () => {
       await w.get(LIST_BTN).trigger('click')
       shell.artifactList = [
         {
-          name: 'e1.gi.json',
-          relative_path: 'feeds/a/metadata/e1.gi.json',
-          kind: 'gi',
+          name: 'e1.kg.json',
+          relative_path: 'feeds/a/metadata/e1.kg.json',
+          kind: 'kg',
           size_bytes: 10,
           mtime_utc: '2026-10-05T00:00:00Z',
           publish_date: '2026-10-01',
         },
       ]
-      artifacts.selectedRelPaths = ['feeds/a/metadata/e1.gi.json']
+      artifacts.selectedRelPaths = ['feeds/a/metadata/e1.kg.json']
       await w.vm.$nextTick()
       expect(artifacts.manualGraphSelection).toBe(false)
       const load = w
@@ -265,7 +265,7 @@ describe('StatusBar', () => {
       await load.trigger('click')
       await flushPromises()
       expect(artifacts.manualGraphSelection).toBe(true)
-      expect(artifacts.selectedRelPaths).toEqual(['feeds/a/metadata/e1.gi.json'])
+      expect(artifacts.selectedRelPaths).toEqual(['feeds/a/metadata/e1.kg.json'])
       // Focused, too: the sibling-cluster merge skips external loads, so the pick stays the pick.
       expect(artifacts.currentLoadSource).toBe('subject-external')
     } finally {
