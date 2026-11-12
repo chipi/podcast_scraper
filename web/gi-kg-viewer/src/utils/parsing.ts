@@ -9,6 +9,7 @@ import type {
   RawGraphEdge,
   RawGraphNode,
 } from '../types/artifact'
+import { graphElementDecorators, graphNodeFilters } from '../extensions'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 import { stripLayerPrefixesForCil } from './mergeGiKg'
@@ -1487,6 +1488,10 @@ export function applyGraphFilters(
       return Boolean(n.properties && n.properties.grounded === true)
     })
   }
+  const nodeFilters = graphNodeFilters.list()
+  if (nodeFilters.length) {
+    nodes = nodes.filter((n) => Boolean(n) && nodeFilters.every((f) => f.keep(n, state, fullArt)))
+  }
   const { allowedTypes } = state
   nodes = nodes.filter((n) => {
     if (!n || typeof n !== 'object') return false
@@ -1967,6 +1972,14 @@ export function toCytoElements(
       if (tier) classes.push(`insight-confidence-${tier}`)
       if (isInsightUngrounded(raw?.properties)) classes.push('insight-ungrounded')
     }
+    if (raw) {
+      for (const d of graphElementDecorators.list()) {
+        const add = d.node?.(raw)
+        if (!add) continue
+        Object.assign(data, add.data ?? {})
+        classes.push(...(add.classes ?? []))
+      }
+    }
     if (classes.length) elem.classes = classes.join(' ')
     return elem
   })
@@ -2018,7 +2031,11 @@ export function toCytoElements(
       })
     }
   }
-  return [...nodes, ...edges, ...aggregatedEdges]
+  const drawn = (id: string) => g.idSet.has(id)
+  const decoratorEdges = graphElementDecorators
+    .list()
+    .flatMap((d) => d.edges?.(art, drawn, { aggregated: Boolean(options?.enableAggregatedEdges) }) ?? [])
+  return [...nodes, ...edges, ...aggregatedEdges, ...decoratorEdges]
 }
 
 /**
