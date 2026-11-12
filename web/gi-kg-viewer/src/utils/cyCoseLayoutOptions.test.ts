@@ -449,3 +449,20 @@ describe('#767-C — RECENTER_SAFETY_TAIL_TIMINGS_MS (behavior contract)', () =>
     expect(RECENTER_SAFETY_TAIL_TIMINGS_MS.length).toBeLessThanOrEqual(3)
   })
 })
+
+describe('graphTypeTraits edge layout', () => {
+  it('lays out an extension’s edge type with its length (compact-scaled) and elasticity', async () => {
+    const { graphTypeTraits } = await import('../extensions')
+    graphTypeTraits.register({ id: 't', edgeLayout: { BACKS: { length: 70, elasticity: 140 } } })
+    try {
+      const edge = mockEdge(null, null, 'BACKS')
+      expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(70)
+      expect(giKgCoseIdealEdgeLength(edge, 'compact')).toBeLessThan(70)
+      expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(140)
+      // The viewer's own types keep their values.
+      expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS'), 'main')).toBe(150)
+    } finally {
+      graphTypeTraits.reset()
+    }
+  })
+})

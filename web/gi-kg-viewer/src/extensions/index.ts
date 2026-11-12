@@ -301,6 +301,23 @@ export interface GraphCanvasPlugin extends Entry {
 
 export const graphCanvasPlugins = extensionPoint<GraphCanvasPlugin>('graphCanvasPlugins')
 
+/**
+ * How the canvas lays out node and edge types the viewer does not know.
+ *
+ * - `edgeLayout`: the force layout's ideal length (main-profile px; the compact profile scales it)
+ *   and elasticity, by edge type.
+ * - `zoomHidden`: node types hidden below `minZoom`, so a dense type does not crowd the fit-all.
+ * - `episodeSatellites`: node types the timeline lens places beside their episode (the node's
+ *   `episodeId` data, else its connected episode), `yOffset` px from it.
+ */
+export interface GraphTypeTraits extends Entry {
+  edgeLayout?: Record<string, { length: number; elasticity: number }>
+  zoomHidden?: { types: string[]; minZoom: number }
+  episodeSatellites?: Array<{ type: string; yOffset: number }>
+}
+
+export const graphTypeTraits = extensionPoint<GraphTypeTraits>('graphTypeTraits')
+
 /** Rewrites the merged graph the viewer displays, in `order` (each gets the previous one's output). */
 export interface ArtifactTransform extends Entry {
   transform(
