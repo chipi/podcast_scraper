@@ -107,7 +107,17 @@ def in_regime(migration_id: str) -> bool:
 
 
 def outcome_path(migration_id: str) -> Path:
-    """Where the installed package keeps the migration's shipped outcome (package data)."""
+    """Where the migration's shipped outcome is (package data): ``outcomes/`` beside the package
+    that holds the migration module (this package's ``upgrade/outcomes`` for its own; the same
+    place in an extension's package for one it adds, ADR-174)."""
+    from .registry import get_migrations
+
+    for migration in get_migrations():
+        if migration.id == migration_id:
+            module = sys.modules.get(type(migration).__module__)
+            module_file = getattr(module, "__file__", None)
+            if module_file:
+                return Path(module_file).resolve().parents[1] / "outcomes" / f"{migration_id}.json"
     return (
         Path(str(importlib.resources.files("podcast_scraper.upgrade")))
         / "outcomes"
