@@ -121,6 +121,8 @@ def test_plan_reports_without_writing(tmp_path: Path) -> None:
     assert sorted(str(p) for p in root.rglob("*")) == before
 
 
-def test_registered_after_0010() -> None:
+def test_registered_after_every_lower_id() -> None:
+    """0010, its predecessor, is an installed extension's (E04); the order holds either way."""
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0011_shared_artwork_store") == ids.index("0010_canonical_person_names") + 1
+    at = ids.index("0011_shared_artwork_store")
+    assert all(i < "0011" for i in ids[:at]) and all(i > "0011" for i in ids[at + 1 :])

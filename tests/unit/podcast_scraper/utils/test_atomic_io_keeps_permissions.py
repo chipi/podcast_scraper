@@ -43,14 +43,3 @@ def test_the_umask_is_honoured_for_new_files(tmp_path, monkeypatch) -> None:
     target = tmp_path / "private.json"
     atomic_io.write_json_atomic(target, [])
     assert _mode(target) == 0o600
-
-
-def test_the_m0007_bridge_writer_keeps_permissions_too(tmp_path) -> None:
-    from podcast_scraper.upgrade import rewrite_bridges_m0007
-
-    bridge = tmp_path / "ep.bridge.json"
-    bridge.write_text("{}", encoding="utf-8")
-    os.chmod(bridge, 0o644)
-    rewrite_bridges_m0007._write_atomic(bridge, {"identities": []})
-    assert _mode(bridge) == 0o644
-    assert bridge.read_text(encoding="utf-8") == '{\n  "identities": []\n}'
