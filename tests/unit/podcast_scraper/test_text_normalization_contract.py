@@ -72,15 +72,6 @@ def test_name_helpers_are_case_and_quote_blind():
 # --- Org wart + comma tolerance + "my name is" (today's smaller fixes) --------------------------
 
 
-def _diar(segs):
-    from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
-
-    return DiarizationResult(
-        segments=[DiarizationSegment(s, e, v) for v, s, e in segs],
-        num_speakers=len({v for v, _, _ in segs}),
-    )
-
-
 # --- Integration: full labeling flow (diarize -> name -> classify -> census) ---------------------
 
 

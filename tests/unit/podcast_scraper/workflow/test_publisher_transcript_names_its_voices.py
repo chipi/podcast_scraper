@@ -29,13 +29,12 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List
 
 import pytest
 
 from podcast_scraper import config as config_module
 from podcast_scraper.models.entities import Episode
-from podcast_scraper.transcript_formats import parse_webvtt
 from podcast_scraper.workflow import episode_processor as epx
 
 pytestmark = [pytest.mark.unit]
@@ -81,22 +80,6 @@ def _episode() -> Any:
         item=ET.Element("item"),
         transcript_urls=[("http://feed.example/t.vtt", "text/vtt")],
     )
-
-
-def _roster(vtt: str, *, feed_hosts: Optional[List[str]] = None) -> Tuple[dict, List[dict]]:
-    from podcast_scraper.speaker_stage import native
-
-    plain, segments = parse_webvtt(vtt)
-    out = native._roster_native_segments(
-        {"text": plain, "segments": segments},
-        config_module.Config(),
-        idx=1,
-        detected_speaker_names=_DETECTED,
-        metadata_named=_DETECTED,
-        feed_hosts=_FEED_HOSTS if feed_hosts is None else feed_hosts,
-        detection_ran=True,
-    )
-    return out, list(out.get("segments") or [])
 
 
 # --------------------------------------------------------------------------------------------
@@ -529,53 +512,6 @@ def test_a_refused_transcript_tries_the_feeds_other_candidates_first(tmp_path, m
 # outright is indistinguishable from one where it succeeded, so the roster is told "measured" for
 # an episode nobody measured. The ASR path has read the ledger since #1647 for exactly this
 # reason; these tests pin the download path onto the same source of truth.
-
-
-def _spy_detection_ran(monkeypatch) -> dict:
-    """Capture what `_roster_native_segments` is told, without running the roster."""
-    from podcast_scraper.speaker_stage import native
-
-    seen: dict = {}
-
-    def _fake(result, cfg, **kwargs):
-        seen.update(kwargs)
-        return result
-
-    monkeypatch.setattr(native, "_roster_native_segments", _fake)
-    return seen
-
-
-class _Ledger:
-    """The slice of `workflow.metrics.Metrics` the download path reads."""
-
-    def __init__(self, outcome: Optional[str]) -> None:
-        self._outcome = outcome
-
-    def stage_did_run(self, stage: str, episode_idx: int) -> Optional[bool]:
-        if self._outcome is None:
-            return None
-        return self._outcome in ("ran", "degraded")
-
-
-def _download_with_metrics(tmp_path, monkeypatch, pipeline_metrics, detected):
-    monkeypatch.setattr(
-        epx, "_fetch_transcript_content", lambda url, cfg: (_NAMED.encode("utf-8"), "text/vtt")
-    )
-    seen = _spy_detection_ran(monkeypatch)
-    epx.process_episode_download(
-        _episode(),
-        config_module.Config(output_dir=str(tmp_path)),
-        None,
-        str(tmp_path),
-        None,
-        __import__("queue").Queue(),
-        None,
-        detected_speaker_names=detected,
-        metadata_named=None,
-        feed_hosts=_FEED_HOSTS,
-        pipeline_metrics=pipeline_metrics,
-    )
-    return seen
 
 
 def test_an_already_present_publisher_transcript_is_counted_as_skipped(

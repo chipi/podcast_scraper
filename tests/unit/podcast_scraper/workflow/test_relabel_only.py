@@ -11,7 +11,6 @@ Guards the two bugs found before the v2.1 reprocess scaled:
 
 from __future__ import annotations
 
-import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Literal
@@ -19,63 +18,13 @@ from typing import Literal
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.models import Episode, TranscriptionJob
+from podcast_scraper.models import Episode
 from podcast_scraper.workflow import episode_processor as ep_mod
 from podcast_scraper.workflow.episode_processor import download_media_for_transcription
 
 pytestmark = pytest.mark.unit
 
 _FEED_DESC = "Each week, journalists Kevin Roose and Casey Newton explore the world of tech."
-
-
-def _write_corpus(
-    base: Path,
-    run_tag: str,
-    *,
-    seg_labels,
-    texts,
-    feed_desc=_FEED_DESC,
-    with_metadata: bool = True,
-):
-    """Lay down a finished-corpus run dir: transcript + real-schema segments + feed metadata."""
-    old_run = base / f"run_{run_tag}"
-    tdir = old_run / "transcripts"
-    mdir = old_run / "metadata"
-    tdir.mkdir(parents=True)
-    mdir.mkdir(parents=True)
-    stem = f"0001 - Ep_{run_tag}"
-    # Real finished-corpus schema: ``speaker`` is None; the identity lives in ``speaker_label``.
-    t = 0.0
-    segs = []
-    for lbl, txt in zip(seg_labels, texts):
-        segs.append(
-            {"start": t, "end": t + 60.0, "speaker": None, "speaker_label": lbl, "text": txt}
-        )
-        t += 60.0
-    (tdir / f"{stem}.txt").write_text(
-        "\n".join(f"{lbl}: {txt}" for lbl, txt in zip(seg_labels, texts)), encoding="utf-8"
-    )
-    (tdir / f"{stem}.segments.json").write_text(json.dumps(segs), encoding="utf-8")
-    if with_metadata:
-        (mdir / f"{stem}.metadata.json").write_text(
-            json.dumps(
-                {
-                    "feed": {
-                        "title": "Hard Fork",
-                        "description": feed_desc,
-                        "authors": ["The New York Times"],
-                    },
-                    # A finished corpus artifact: the pre-1.2.0 roster shape, plus a neighbouring
-                    # key the relabel has no new information about and must not touch.
-                    "content": {
-                        "speakers": [{"id": "host", "name": "Ada Lowell", "role": "host"}],
-                        "transcript_source": "whisper_transcription",
-                    },
-                }
-            ),
-            encoding="utf-8",
-        )
-    return old_run, stem
 
 
 def _cfg(
@@ -111,18 +60,6 @@ def _cfg(
         speaker_resolution_llm=False,  # deterministic + airgapped (no LLM in tests/CI)
         pipeline_stage=pipeline_stage,
         feed_declared_language="en",  # #2283: an English feed
-    )
-
-
-def _job() -> TranscriptionJob:
-    return TranscriptionJob(
-        idx=1,
-        ep_title="Ep",
-        ep_title_safe="Ep",
-        temp_media="",
-        detected_speaker_names=None,
-        metadata_named=None,
-        episode=None,
     )
 
 
@@ -169,25 +106,6 @@ def test_download_media_returns_no_download_job_for_relabel_only(tmp_path: Path)
 
 
 # --- the cleaned transcript follows the relabel (#2075) ---
-
-
-def _relabel_with_cleaned(tmp_path: Path, cleaned_text: str):
-    from podcast_scraper.speaker_stage.reprocess import _relabel_existing_transcript
-
-    base = tmp_path / "feed"
-    run_tag = "20260101-000000_t"
-    host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
-    co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
-    old_run, stem = _write_corpus(
-        base, run_tag, seg_labels=["Ada Lowell", "SPEAKER_07"], texts=[host_text, co_text]
-    )
-    cleaned = old_run / "transcripts" / f"{stem}.cleaned.txt"
-    cleaned.write_text(cleaned_text, encoding="utf-8")
-    new_run = base / "run_20260102-000000_t"
-    new_run.mkdir(parents=True)
-    ok, _rel, _ = _relabel_existing_transcript(_job(), _cfg(), run_tag, str(new_run), None, None)
-    assert ok is True
-    return cleaned
 
 
 @pytest.mark.parametrize(

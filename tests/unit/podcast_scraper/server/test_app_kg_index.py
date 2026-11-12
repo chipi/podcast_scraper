@@ -202,13 +202,6 @@ class TestSpellingVariantsCollapseInTheAppIndex:
         )
         _stamp(root, 1000.0)
 
-    def _two_spellings_with_ledger(self, root: Path) -> None:
-        """The served path since ADR-166: the ledger step writes the map the index applies."""
-        from podcast_scraper.identity.ledger import build_ledger, write_ledger
-
-        self._two_spellings(root)
-        write_ledger(root, build_ledger(root))
-
     def test_without_a_ledger_the_two_spellings_stay_two(self, tmp_path: Path) -> None:
         # ADR-166: no ledger means no cross-episode joins, never the in-memory build.
         self._two_spellings(tmp_path)

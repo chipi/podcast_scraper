@@ -7,7 +7,7 @@ tools), the lifted transcript speaker on search hits, and the MCP speaker roster
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -31,33 +31,3 @@ from podcast_scraper.graph_id_utils import is_raw_label_person_id
 )
 def test_is_raw_label_person_id(pid: Any, raw: bool) -> None:
     assert is_raw_label_person_id(pid) is raw
-
-
-def _gi(name: str, pid: str) -> Dict[str, Any]:
-    return {
-        "episode_id": "ep1",
-        "nodes": [
-            {
-                "id": "insight:a",
-                "type": "Insight",
-                "properties": {"text": "claim", "grounded": True},
-            },
-            {
-                "id": "quote:a",
-                "type": "Quote",
-                "properties": {"text": "said", "char_start": 0, "char_end": 4, "speaker_id": pid},
-            },
-            {"id": pid, "type": "Person", "properties": {"name": name}},
-        ],
-        "edges": [
-            {"type": "SUPPORTED_BY", "from": "insight:a", "to": "quote:a"},
-            {"type": "SPOKEN_BY", "from": "quote:a", "to": pid},
-        ],
-    }
-
-
-def _supporting(gi: Dict[str, Any]):
-    from podcast_scraper.gi.load import build_inspect_output
-
-    out = build_inspect_output(gi, transcript_text="said")
-    return out.insights[0].supporting_quotes[0]

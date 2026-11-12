@@ -178,45 +178,6 @@ class TestWhatItActuallyDOES:
     """Driven through the real stage function, with the relabel hand-off stubbed — the relabel
     path is covered by its own tests, and what is under test here is the discard."""
 
-    @staticmethod
-    def _episode(tmp_path: Path) -> Path:
-        run = tmp_path / "run_20260101-000000"
-        tx = run / "transcripts"
-        tx.mkdir(parents=True)
-        (tx / "01 - ep.txt").write_text("SPEAKER_00: Hola.\n", encoding="utf-8")
-        (tx / "01 - ep.segments.json").write_text("[]", encoding="utf-8")
-        for name in (
-            "01 - ep.en.txt",
-            "01 - ep.en.segments.json",
-            "01 - ep.en.adfree.txt",
-            "01 - ep.translation.json",
-        ):
-            (tx / name).write_text("{}", encoding="utf-8")
-        return tx / "01 - ep.txt"
-
-    def _run(self, tmp_path: Path, monkeypatch: Any, *, discard: bool) -> Any:
-        from podcast_scraper.workflow import episode_processor as ep
-
-        txt = self._episode(tmp_path)
-        monkeypatch.setattr(ep, "_existing_transcript_for", lambda *a, **k: txt)
-        from podcast_scraper.speaker_stage import reprocess
-
-        monkeypatch.setattr(
-            reprocess, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 1)
-        )
-        cfg = config.Config(
-            rss="https://e.com/f.xml",
-            pipeline_stage="translate_only",
-            translation_discard_memory=discard,
-        )
-
-        class _Job:
-            idx = 1
-
-        return ep._retranslate_existing_transcript(
-            cast(Any, _Job()), cfg, None, str(tmp_path), None, None
-        )
-
     def test_a_missing_transcript_is_recorded_not_crashed(
         self, tmp_path: Path, monkeypatch: Any
     ) -> None:
