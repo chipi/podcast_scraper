@@ -288,14 +288,6 @@ class TestThePipelineRunsTheScopingPassBeforeTypedMentions:
     nobody mistakes it for end-to-end coverage.
     """
 
-    @staticmethod
-    def _source() -> str:
-        from pathlib import Path
-
-        import podcast_scraper.insight_stage.passes as passes
-
-        return Path(passes.__file__).read_text(encoding="utf-8")
-
     def test_the_heal_branch_is_configurable(self) -> None:
         """Marko's standing preference: these decisions live in config so a sweep can vary them."""
         from podcast_scraper import config

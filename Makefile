@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-kg-schema kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict upgrade-undo-roles
+.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-kg-schema kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict upgrade-undo-roles
 
 help:
 	@echo "Common developer commands:"
@@ -516,7 +516,7 @@ docstrings:
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*.patch,*/speaker_detectors/naming_vocabulary.py"
+	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*.patch"
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
@@ -1117,26 +1117,18 @@ withdraw-language:
 	$(PYTHON) scripts/tools/withdraw_language.py --corpus "$${CORPUS_DIR}" \
 		--language "$${LANGUAGE}" $${APPLY:+--apply}
 
-# Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
-# ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —
-# before the repair to size the work-list, and after to prove the repair landed. Those episodes
-# are invisible to any check that only asks "does this episode have GI?", so an append-mode
-# re-run skips them forever; this is the only thing that names them. CORPUS_DIR required.
-corpus-placeholder-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.corpus import check_corpus_for_placeholders; ok, report = check_corpus_for_placeholders(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
-
 # THE repair exit criterion (#1655). Asserts, per EPISODE, that declared GI actually exists:
 # artifact resolves + parses, is not a pre-#1657 placeholder, and no episode_id resolves to more
 # than one gi.json (the supersede hazard — corpus_metadata_index keeps the OLDEST, search keeps
 # the NEWEST, so duplicates mean two subsystems disagree on the canonical artifact).
 #
-# Use this, NOT corpus-placeholder-check, to decide whether a repair worked.
-# corpus-placeholder-check only asks "is the bad string absent?", which passes on a corpus whose
-# artifacts were deleted and never regenerated — proven 2026-08-16. CORPUS_DIR required.
+# A check that only asks "is the placeholder string absent?" passes on a corpus whose artifacts
+# were deleted and never regenerated (proven 2026-08-16); this one counts placeholders AND
+# missing artifacts. Needs the GI extension installed (its `gi-integrity` verb). CORPUS_DIR
+# required.
 corpus-gi-integrity-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.integrity import check_corpus_gi_integrity; ok, report = check_corpus_gi_integrity(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+	$(PYTHON) -m podcast_scraper.cli gi-integrity --output-dir "$${CORPUS_DIR}"
 
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
@@ -1764,16 +1756,6 @@ test-analytical:
 	# Uses E2E infrastructure (E2E server, fixtures) but separate from regular E2E tests
 	# Run explicitly when investigating specific issues or capturing metrics
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/analytical/ -m "analytical" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=10
-
-test-diarization: cleanup-processes
-	# Speaker-diarization tests (RFC-058). Two tiers under the ``diarization`` marker:
-	#   - integration: factory + provider wiring with pyannote MOCKED (always runs, no token).
-	#   - e2e (tests/e2e/test_diarization_e2e.py): the REAL pyannote full flow — needs the
-	#     gated models cached (``make preload-ml-models`` with an HF token that accepted the
-	#     model terms) and skips when the model/token isn't available.
-	# The e2e tier is selected by NO other target, so without this it never runs in CI/nightly.
-	@echo "🎙️  Running pyannote diarization tests at $$(date '+%H:%M:%S')..."
-	$(PYTHON) -m pytest tests/ -m diarization -v --tb=short --allow-hosts=127.0.0.1,localhost
 
 test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)

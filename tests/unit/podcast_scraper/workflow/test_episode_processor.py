@@ -2642,18 +2642,6 @@ class TestSpeechCoverageFailover(unittest.TestCase):
         base.update(kw)
         return podcast_config.Config(**base)
 
-    def _job(self):
-        from podcast_scraper.models.entities import TranscriptionJob
-
-        return TranscriptionJob(idx=1, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
-
-    def _call(self, result, cfg):
-        from podcast_scraper.speaker_stage import after_asr
-
-        return after_asr._maybe_speech_coverage_failover(
-            result, "/tmp/a.wav", cfg, self._job(), "/out", None, 1000.0
-        )
-
     def test_asr_provenance_sidecar_records_actual_model(self):
         # ADR-131 provenance: <base>.asr.json records the ACTUAL per-episode ASR model + speech
         # coverage — so a failover episode is on record as the failover model, not the configured.

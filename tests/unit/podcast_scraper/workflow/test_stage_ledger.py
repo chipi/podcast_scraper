@@ -67,12 +67,6 @@ def _size_skip(cfg: Any, episode: Any) -> Any:
     return processing._check_episode_size_skip(cfg, episode)
 
 
-def _detect(episode: Any, cfg: Any, host_result: Any, m: Any, **kwargs: Any) -> Any:
-    from podcast_scraper.speaker_stage import detection
-
-    return detection._detect_speakers_for_episode(episode, cfg, host_result, m, **kwargs)
-
-
 class TestRecordStageOutcome:
     def test_records_outcome_reason_detail_and_duration(self) -> None:
         m = metrics_mod.Metrics()

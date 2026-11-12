@@ -36,46 +36,9 @@ how a codebase ends up needing archaeology.
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple
-from unittest.mock import MagicMock
-
 import pytest
 
-from podcast_scraper.workflow.types import HostDetectionResult
-
 pytestmark = [pytest.mark.unit]
-
-
-class _RaisingDetector:
-    """A detector whose ``detect_speakers`` raises whatever it was constructed with."""
-
-    def __init__(self, exc: BaseException) -> None:
-        self._exc = exc
-
-    def detect_speakers(
-        self,
-        episode_title: str = "",
-        episode_description: str = "",
-        known_hosts: Any = None,
-        **_kwargs: Any,
-    ):
-        raise self._exc
-
-
-class _LedgerSpy:
-    """Minimal stand-in for Metrics that records only the stage-outcome rows."""
-
-    def __init__(self) -> None:
-        self.rows: List[Tuple[str, Optional[str]]] = []
-
-    def record_stage_outcome(
-        self, stage: str, _idx: Any, outcome: str, reason: Optional[str] = None, **_kw: Any
-    ) -> None:
-        if stage == "speaker_detection":
-            self.rows.append((outcome, reason))
-
-    def __getattr__(self, _name: str):  # every other metrics call is a no-op here
-        return lambda *a, **k: None
 
 
 def _missing_package_error() -> Exception:
@@ -92,30 +55,6 @@ def _missing_package_error() -> Exception:
             raise RuntimeError("spaCy speaker detection unavailable")
     except RuntimeError as exc:
         return exc
-
-
-def _run(exc: BaseException) -> Tuple[Optional[Any], List[Tuple[str, Optional[str]]]]:
-    from podcast_scraper.speaker_stage import detection
-
-    cfg = MagicMock()
-    cfg.auto_speakers = True
-    cfg.dry_run = False
-    cfg.screenplay_speaker_names = []
-    cfg.cache_detected_hosts = False
-    cfg.speaker_detector_provider = "ml"
-    cfg.known_hosts = []
-
-    episode = MagicMock()
-    episode.idx = 1
-    episode.title = "An Episode"
-    episode.description = "A description."
-
-    hdr = HostDetectionResult(
-        cached_hosts=set(), heuristics=None, speaker_detector=_RaisingDetector(exc)
-    )
-    spy = _LedgerSpy()
-    result = detection._detect_speakers_for_episode(episode, cfg, hdr, spy)
-    return result, spy.rows
 
 
 def test_the_missing_package_check_is_the_shared_one() -> None:

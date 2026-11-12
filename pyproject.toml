@@ -352,22 +352,12 @@ dev = [
   "pyan3==2.9.0",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
   "code2flow>=2.5.1,<3.0.0",  # Flowcharts from code (Issue #425)
   # NOTE (2026-08-17): the diarization stack — pyannote.audio / torchaudio / torchcodec — used to
-  # be duplicated here "to keep the CI/dev venv aligned with [ml]". It is not duplicated any more;
-  # it lives in [ml] alone, which is what the CI step named "Install lint dependencies (no ML
-  # packages)" always meant. Three consequences of the duplication, all now gone:
+  # be duplicated here "to keep the CI/dev venv aligned with [ml]". It is in neither now: it left
+  # [ml] with the diarization stage (E04 move, see the [ml] note), and [dev] must not pull it
+  # back. While it was duplicated, `.[dev]` could not install on macOS x86_64 (torchcodec has no
+  # wheel there) and every bare-`.[dev]` job downloaded the torch stack to run lint.
   #
-  #   * `.[dev]` could not install on macOS x86_64 at all — torchcodec publishes no wheel for it
-  #     (only a 0.0.0.dev0 stub), so the whole dev toolchain was unreachable on an Intel Mac.
-  #   * every bare-`.[dev]` job downloaded the entire torch stack to run lint and unit tests.
-  #   * the torchcodec<0.15 cap had to be mirrored here to survive transitive re-resolution. The
-  #     cap is still load-bearing in [ml] (0.15.0 is the native-teardown SIGSEGV build, #1355) —
-  #     but nothing in [dev] pulls torchcodec now, so there is nothing here to cap.
-  #
-  # The rule this restores: a unit test must not depend on a non-[dev] extra (U1). The providers
-  # lazy-import torch/torchaudio/pyannote inside the functions that use them, so the only reason
-  # [dev] needed them was a handful of unit tests reaching those lazy imports. Those tests stub
-  # the module instead (see tests/unit/.../test_pyannote_provider.py), which also makes them
-  # deterministic rather than dependent on whether the host has CUDA.
+  # The rule: a unit test must not depend on a non-[dev] extra (U1).
 ]
 # Documentation - see docs/requirements.txt
 

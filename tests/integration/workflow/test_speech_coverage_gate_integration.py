@@ -8,12 +8,9 @@ threshold run for real — the layer the unit tests stub out.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from podcast_scraper import config as podcast_config
-from podcast_scraper.models.entities import TranscriptionJob
 from podcast_scraper.workflow import episode_processor
 
 pytestmark = pytest.mark.integration
@@ -31,27 +28,6 @@ def _cfg():
         transcription_speech_coverage_min=0.85,
         transcription_coverage_failover_model="large-v3",
     )
-
-
-def _job():
-    return TranscriptionJob(idx=1, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
-
-
-def _diarized(diar_segments, transcript_segments, cfg=None):
-    """Run the REAL apply_diarization_to_result to get a result carrying diarization_speech_seconds."""
-    from podcast_scraper.providers.ml.diarization.base import DiarizationResult
-    from podcast_scraper.providers.ml.diarization.pipeline import apply_diarization_to_result
-
-    provider = MagicMock()
-    provider.diarize.return_value = DiarizationResult(
-        segments=diar_segments, num_speakers=2, model_name="test"
-    )
-    base = {
-        "text": " ".join(s["text"] for s in transcript_segments),
-        "segments": transcript_segments,
-    }
-    with patch(f"{_PIPELINE}.create_diarization_provider", return_value=provider):
-        return apply_diarization_to_result(base, "/tmp/a.wav", cfg or _cfg(), ["Guest"])
 
 
 def test_asr_provenance_records_speech_audio_ratio_without_gate(tmp_path) -> None:
