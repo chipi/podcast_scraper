@@ -37,7 +37,7 @@ from .migrations.m0028_transcript_chunk_times import TranscriptChunkTimesMigrati
 # 0004 reindexes the two-tier LanceDB index when its schema predates the insight_type
 # column (LANCE_SCHEMA_VERSION 3) so the Search v3 §S8 compare insight_types filter
 # works — a fresh id because 0002 is already in every upgraded corpus's ledger.
-# 0005 stamps GI 3.0 -> 3.1 (ADR-135/#1191); 0006 lands the RFC-097 v2 KG typed-entities
+# 0005 stamps GI 3.0 -> 3.1 (#1191); 0006 lands the RFC-097 v2 KG typed-entities
 # migration. All three replace the former standalone scripts/migrate_*.py one-offs.
 _MIGRATIONS: List[Migration] = [
     FaissToLanceMigration(),
@@ -88,13 +88,13 @@ _MIGRATIONS: List[Migration] = [
     # 0037 gives served voices holding another person's name their own (#2094 D5 and night 1's
     # blind reads; frozen list + verdicts, a swap applied whole).
     # 0038 brings served episodes' files to what the pipeline now writes for a voice that kept a
-    # raw diarization label: no Person node, quotes and insights typed (RFC-131 N11, text only).
+    # raw diarization label: no Person node, quotes and insights typed (text only).
     # 0039 realigns ad-free segment offsets a 2026-10-06 hand repair left pointing a few
     # characters early, so every later rewrite's offset carry holds (found by 0041's guard).
     # 0040 realigns GI quotes whose offsets no longer slice to their text, by their own time
     # window against the transcript's segments; a quote time cannot place is left, listed.
     # 0041 writes the ledger's group spelling of each joined person into the episode files, so
-    # the transcript agrees with every read-time surface; item 8's duplicates fold (RFC-131 D2).
+    # the transcript agrees with every read-time surface; item 8's duplicates fold.
     # 0042 resyncs the insight clusters' copied quote fields from the GI (0038's removed ids,
     # 0041's moved offsets; D2 item 5).
     # 0043 takes the name off voices that only read an ad, a promo or a shout-out, typed
