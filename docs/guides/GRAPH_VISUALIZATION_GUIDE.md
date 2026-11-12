@@ -430,13 +430,16 @@ tells you nothing. One thick Episode→Topic ABOUT_AGG edge says "this
 episode is about this topic" at a glance.
 
 **Gate:** `useGraphLensesStore.aggregatedEdges`. **Data-gated** (not
-enricher-gated): the roll-up happens at runtime in `toCytoElements`. The
-lens row is hidden when the artifact has no source `ABOUT` / `SPOKEN_BY`
-edges to roll up — check runs against `artifacts.displayArtifact?.data?.edges`.
+enricher-gated): a build's `graphElementDecorators` entry rolls the edges up
+at runtime (its `edges` hook, which `toCytoElements` calls with the lens flag)
+and says through `aggregates(art)` whether the drawn artifact has anything to
+roll up (the GI build: source `ABOUT` / `SPOKEN_BY` edges). The lens row is
+hidden when no decorator does; the viewer alone has none.
 
 **Code:**
 
-- Roll-up: `web/gi-kg-viewer/src/utils/cyGraphElements.ts` — `toCytoElements`.
+- Decorator hooks: `web/gi-kg-viewer/src/extensions/index.ts` —
+  `GraphElementDecorator`, applied in `utils/parsing.ts::toCytoElements`.
 - Chip data-gate: `web/gi-kg-viewer/src/components/graph/chips/GraphLensesChip.vue`
   — `aggregatedEdgesAvailable` computed.
 
@@ -672,7 +675,7 @@ persisted to localStorage and synced to the server via USERPREFS-1.
 | Consensus edges | `consensusEdges` | off | `topic_consensus` enricher present | new edges |
 | Co-guest edges | `coGuestEdges` | off | `guest_coappearance` enricher present | new edges |
 | Person communities | `personCommunities` | off | `guest_coappearance` enricher present | node underlay tint |
-| Aggregated edges | `aggregatedEdges` | off | artifact has ABOUT/SPOKEN_BY edges (data-gated) | new edges |
+| Aggregated edges | `aggregatedEdges` | off | a registered decorator `aggregates` the artifact (data-gated) | new edges |
 
 **Enricher-gated pattern:**
 

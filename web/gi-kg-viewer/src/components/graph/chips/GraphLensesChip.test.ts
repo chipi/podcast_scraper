@@ -116,36 +116,35 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
     for (const id of ['lens-theme-cluster-regions', 'lens-velocity-halo', 'lens-consensus-edges']) {
       expect(w.find(`[data-testid="${id}"]`).exists()).toBe(false)
     }
-    // Aggregated-edges row hidden when the full artifact has no ABOUT /
-    // SPOKEN_BY source edges to roll up (FU2 gate).
+    // Aggregated-edges row hidden when no registered decorator aggregates anything (FU2 gate).
     expect(w.find('[data-testid="lens-aggregated-edges"]').exists()).toBe(false)
   })
 
-  it('renders aggregated-edges row when the artifact has ABOUT edges', async () => {
+  it('renders the aggregated-edges row when a registered decorator has edges to aggregate', async () => {
     const { artifacts } = await useStores()
-    seedDisplayArtifactWithEdges(artifacts, ['ABOUT'])
+    seedDisplayArtifactWithEdges(artifacts, ['ROLLED'])
+    const { graphElementDecorators } = await import('../../../extensions')
+    graphElementDecorators.register({
+      id: 'agg',
+      aggregates: (art) => (art.data.edges ?? []).some((e) => e?.type === 'ROLLED'),
+    })
     const Chip = await loadChip()
     const w = mount(Chip)
     await nextTick()
     expect(w.find('[data-testid="lens-aggregated-edges"]').exists()).toBe(true)
+    graphElementDecorators.reset()
   })
 
-  it('renders aggregated-edges row when the artifact has SPOKEN_BY edges', async () => {
+  it('hides the aggregated-edges row when no decorator has anything to aggregate', async () => {
     const { artifacts } = await useStores()
-    seedDisplayArtifactWithEdges(artifacts, ['SPOKEN_BY'])
-    const Chip = await loadChip()
-    const w = mount(Chip)
-    await nextTick()
-    expect(w.find('[data-testid="lens-aggregated-edges"]').exists()).toBe(true)
-  })
-
-  it('hides aggregated-edges row when the artifact only has unrelated edge types', async () => {
-    const { artifacts } = await useStores()
-    seedDisplayArtifactWithEdges(artifacts, ['HAS_INSIGHT', 'RELATED_TO'])
+    seedDisplayArtifactWithEdges(artifacts, ['RELATED_TO'])
+    const { graphElementDecorators } = await import('../../../extensions')
+    graphElementDecorators.register({ id: 'agg', aggregates: () => false })
     const Chip = await loadChip()
     const w = mount(Chip)
     await nextTick()
     expect(w.find('[data-testid="lens-aggregated-edges"]').exists()).toBe(false)
+    graphElementDecorators.reset()
   })
 
   it('toggling a checkbox writes to the lens store', async () => {

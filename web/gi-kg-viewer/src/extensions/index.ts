@@ -339,7 +339,9 @@ export const graphTypeTraits = extensionPoint<GraphTypeTraits>('graphTypeTraits'
 /**
  * Additions to the canvas elements built from the drawn artifact. `node` adds data and classes
  * to one node's element (`raw` is the artifact's node); `edges` adds render-only edges, given the
- * artifact, a test of which node ids are drawn, and whether aggregated edges are asked for.
+ * artifact, a test of which node ids are drawn, and whether aggregated edges are asked for;
+ * `aggregates` says the artifact has edges to aggregate, which offers the Lenses chip's
+ * "Aggregated edges" row.
  */
 export interface GraphElementDecorator extends Entry {
   node?(
@@ -350,6 +352,7 @@ export interface GraphElementDecorator extends Entry {
     drawn: (id: string) => boolean,
     options: { aggregated: boolean },
   ): import('cytoscape').ElementDefinition[]
+  aggregates?(art: import('../types/artifact').ParsedArtifact): boolean
 }
 
 export const graphElementDecorators = extensionPoint<GraphElementDecorator>('graphElementDecorators')

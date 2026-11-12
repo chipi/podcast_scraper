@@ -20,7 +20,7 @@
  * contracts. Update both when adding a new lens.
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { graphLenses as registeredLenses } from '../../../extensions'
+import { graphElementDecorators, graphLenses as registeredLenses } from '../../../extensions'
 import { useGraphLensesStore } from '../../../stores/graphLenses'
 import { useArtifactsStore } from '../../../stores/artifacts'
 import { useShellStore } from '../../../stores/shell'
@@ -34,22 +34,13 @@ const anchorRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLDivElement | null>(null)
 const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
-/* aggregatedEdges lens is data-gated: it renders Episode↔Topic (`ABOUT_AGG`)
-   + Episode↔Person (`SPOKE_IN_AGG`) roll-ups on top of the per-Insight
-   edges. If the current display artifact has zero source Insight→Topic
-   ABOUT edges AND zero Quote→Person SPOKEN_BY edges then the toggle
-   would render nothing at all — hide the row to avoid a dead control
-   (RFC-080 V1). */
+/* The aggregated-edges lens draws what a registered element decorator rolls up (RFC-080 V1);
+   the row shows only when one has something to aggregate in the drawn artifact, so it is never
+   a dead control. */
 const aggregatedEdgesAvailable = computed(() => {
-  const edges = artifacts.displayArtifact?.data?.edges
-  if (!Array.isArray(edges) || edges.length === 0) return false
-  for (const e of edges) {
-    if (!e) continue
-    const raw = e.type
-    const t = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-    if (t === 'about' || t === 'spoken_by') return true
-  }
-  return false
+  const art = artifacts.displayArtifact
+  if (!art) return false
+  return graphElementDecorators.list().some((d) => d.aggregates?.(art) === true)
 })
 
 /* graph-v3 Tier 5C/5D — enricher-based lens rows are hidden when the
