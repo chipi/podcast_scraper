@@ -389,7 +389,7 @@ language with no row; I read each one. My first draft of this sentence said "non
 re-running the sweep, and the re-run found the five readers fixed in D26. Three English behaviours
 were held back pending an English-corpus replay: accented mononyms and glued org markers on English
 feeds ("José" refused, "OnePodcast" kept), and the title words `general`/`colonel` in name
-matching. Replayed 2026-10-10 with `scripts/measure/roster_replay.py --repool` on the corpus snapshot
+matching. Replayed 2026-10-10 with the roster replay (`--repool`) on the corpus snapshot
 of 2026-10-09 (2,454 English episodes; a no-op replay changed 0): each changes 0 published names.
 The inputs are rare there, which is why: 2 accented one-word self-introductions in 3,236
 transcripts, and of 89 author tags one ("BizNews") newly marked, already refused by the one-word

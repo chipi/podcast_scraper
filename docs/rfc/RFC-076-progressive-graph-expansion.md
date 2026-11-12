@@ -5,8 +5,6 @@
 - **Related RFCs**:
   - [RFC-062](RFC-062-gi-kg-viewer-v2.md) (viewer stack)
   - [RFC-069](RFC-069-graph-exploration-toolkit.md) (graph chrome, Shift+`dbltap` / 1-hop ego)
-  - [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) (bridge identities)
-  - [RFC-075](RFC-075-corpus-topic-clustering.md) (`topic_clusters.json` is separate from bridge truth)
 - **Related UXS**:
   - [UXS-004](../uxs/UXS-004-graph-exploration.md)
   - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) (shell)

@@ -23,7 +23,7 @@ is quoted in this repo, in a commit message, or in an issue.
 | 4. ASR | `scripts/eval/score/asr_publisher_reference_wer_v1.py` | adjusted WER per episode; long deletions read |
 | 5. naming | `--variant relabel`, `scripts/eval/score/naming_publisher_reference_v1.py --compare` | `wrong` 0 in EVERY repeated run |
 | 6. translation | `--variant translate*`, `scripts/eval/score/translation_judge_v1.py` | `units_failed` 0; judged; low units read |
-| 7. English side effects | `scripts/measure/roster_replay.py`, an ad-cut replay | no-op replay 0; every change read |
+| 7. English side effects | the roster replay, an ad-cut replay | no-op replay 0; every change read |
 
 ## Work in tiers, gated per language
 
@@ -45,9 +45,9 @@ measured:
 
 | tier | lists |
 | --- | --- |
-| ASR | `transcription/invented_lines.py` (`INVENTED_LINES`), `transcription/gap_recovery.py` (`_FILLERS`), `transcription/punctuation.py` (prompts), `providers/ml/diarization/ad_signatures.py` (stopwords); in the eval repo `SPOKEN_FORMS` and the bracketed-note rule |
-| naming | `speaker_detectors/naming_vocabulary.py` (`X_BY_LANGUAGE`), `speaker_detectors/hosts.py`, `speaker_detectors/constants.py` (step 2 below is the method) |
-| after prod | `gi/filters.py`, `search/query_language.py` (shape insights and search, not the transcript) |
+| ASR | `transcription/invented_lines.py` (`INVENTED_LINES`), `transcription/gap_recovery.py` (`_FILLERS`), `transcription/punctuation.py` (prompts), the diarization ad signatures (stopwords); in the eval repo `SPOKEN_FORMS` and the bracketed-note rule |
+| naming | the speaker detector's naming vocabulary (`X_BY_LANGUAGE`), host cues and constants (step 2 below is the method) |
+| after prod | the GI filters, `search/query_language.py` (shape insights and search, not the transcript) |
 
 **ASR lists, checked 2026-10-11** on the 24 reference episodes (en, es, pt, fr, de), and for
 Italian on 2026-10-13 on its 6 episodes of the 2026-10-12 re-run (the Italian part of each row):
@@ -87,7 +87,7 @@ Italian on 2026-10-13 on its 6 episodes of the 2026-10-12 re-run (the Italian pa
 
 ## 2. Learn the language's vocabulary on real feeds first
 
-Per-language rows live in `src/podcast_scraper/speaker_detectors/naming_vocabulary.py`
+Per-language rows live in the speaker detector's naming vocabulary
 (`X_BY_LANGUAGE`). A translated row is a guess; a row activated without measurement regressed
 real names twice (D12, D22's first model).
 
@@ -102,11 +102,10 @@ real names twice (D12, D22's first model).
 - **Every reader must receive the language.** The arc claimed "every call passes the language"
   and 11 calls did not (D13 → D22). The AST tests
   `tests/unit/podcast_scraper/test_name_readers_receive_the_feed_language.py` and
-  `test_the_feed_language_reaches_the_roster.py` enforce it; add a new reader to them. Re-run
+  the roster's feed-language test enforce it; add a new reader to them. Re-run
   the alias sweep (every `X = X_BY_LANGUAGE[TARGET_LANGUAGE]` inside a function with the language
   in scope) before writing "none left": the re-run found five more (D26).
-- English behaviour is pinned (`tests/unit/podcast_scraper/test_english_patterns_are_mains.py`,
-  `tests/fixtures/naming/english_patterns.json`). Changing it needs step 7.
+- English behaviour is pinned by tests. Changing it needs step 7.
 
 ## 3. Run the pipeline as prod would
 
@@ -578,7 +577,7 @@ Ad patterns and name rules are shared with the English corpus. Before shipping a
 touch English episodes:
 
 - Replay it on the prod snapshot, old code against new, no LLM:
-  `scripts/measure/roster_replay.py --corpus <snapshot>/corpus --repool --old hosts=<old.py> --new hosts=<new.py>`
+  the roster replay (`--corpus <snapshot>/corpus --repool --old hosts=<old.py> --new hosts=<new.py>`)
   (roster, hosts, resolution); for ad cutting, run `build_adfree_artifacts` with each version and
   diff the excised text.
 - **Run a no-op replay first** (old against old): it must change 0, or the replay itself is noisy.

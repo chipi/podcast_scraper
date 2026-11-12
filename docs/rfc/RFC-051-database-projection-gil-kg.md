@@ -5,8 +5,8 @@
 - **Stakeholders**: Core team, ML engineers, downstream
   consumers, power users
 - **Execution Timing**: **Phase 3b (parallel with
-  RFC-049)** — GIL database projection alongside GIL
-  core extraction (depends on RFC-049 for `gi.json`).
+  The GIL core design)** — GIL database projection alongside GIL
+  core extraction (depends on the GIL core design for `gi.json`).
   **KG projection** depends on RFC-055 for KG artifact
   shape and may ship in the same codebase as GIL export
   once `kg.schema.json` and pipeline outputs exist.
@@ -24,10 +24,6 @@
     (prerequisite — model metadata for provenance)
   - `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
     (prerequisite — ML platform that produces GIL data)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-    (Core Concepts & Data Model — primary dependency)
-  - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
-    (Use Cases & Consumption — parallel)
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
     (KG artifact model — prerequisite for KG projection)
   - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
@@ -45,7 +41,7 @@
 
 This RFC defines how episode-level outputs, **Grounded Insight Layer (GIL)** data, and **Knowledge Graph (KG)** data are projected from **file-based artifacts** into a queryable data store (e.g., Postgres). **GIL** and **KG** are separate product contracts (PRD-017 vs PRD-019); this RFC gives them **separate relational projections** in the same database when both are enabled.
 
-**GIL:** The key tables are **insights**, **quotes**, and **insight_support** (grounding join), plus topics/speakers as already outlined. Goal: fast **Insight Explorer** / UC1–UC5 queries (RFC-050) without scanning every folder.
+**GIL:** The key tables are **insights**, **quotes**, and **insight_support** (grounding join), plus topics/speakers as already outlined. Goal: fast **Insight Explorer** / UC1–UC5 queries without scanning every folder.
 
 **KG:** Additional tables (or clearly prefixed names) hold **KG nodes and edges** per RFC-055 (episode-anchored graph, entity/topic/relationship semantics distinct from GIL’s Insight/Quote grounding). Goal: fast cross-episode **linking and discovery** queries without conflating KG edges with `SUPPORTED_BY`.
 
@@ -61,7 +57,7 @@ Conceptually, exporting to Postgres provides a fast "projection" of file-based e
 
 ## Problem Statement
 
-The Grounded Insight Layer (RFC-049, RFC-050) produces structured `gi.json` files per episode, containing **insights** and **supporting quotes** with grounding relationships. However, file-based access has limitations:
+The Grounded Insight Layer produces structured `gi.json` files per episode, containing **insights** and **supporting quotes** with grounding relationships. However, file-based access has limitations:
 
 - **Scalability**: Scanning N folders and parsing N JSON files becomes slow at scale (50 episodes is fine; 5,000 is painful)
 - **Query Performance**: No indexing, filtering, or pagination for cross-episode insight queries
@@ -253,9 +249,9 @@ GIL tables above model **insights, quotes, and grounding**. KG uses **separate**
 
 **Deferred / v1.1:**
 
-**`entities` in GIL sense** (RFC-049 entity nodes) may remain deferred separately from **KG Entity** nodes; do not merge without an explicit RFC.
+**`entities` in GIL sense** (the GIL core design entity nodes) may remain deferred separately from **KG Entity** nodes; do not merge without an explicit RFC.
 
-**`entities`** (Deferred - GIL entity extraction deferred to v1.1 per RFC-049)
+**`entities`** (Deferred - GIL entity extraction deferred to v1.1)
 
 - `id` (PK) - Entity identifier (global, deduplicated)
 - `name` - Entity name
@@ -747,7 +743,7 @@ Export should be controlled via `Config` model (exact field names TBD in impleme
 
 ## Relationship to Other RFCs
 
-This RFC (RFC-051) serves **GIL** (with RFC-049/050) and **KG**
+This RFC (RFC-051) serves **GIL** (with the GIL core and use-case designs) and **KG**
 (with RFC-055) under the broader ML platform.
 
 **Dependency Chain (conceptual):**
@@ -758,8 +754,8 @@ RFC-044 (Model Registry)        → infra
 RFC-042 (Hybrid ML Platform)    → models
     ├── RFC-052 (LLM Prompts)   → prompt quality
     ▼
-RFC-049 (GIL Core)              → gi.json
-    ├── RFC-050 (Use Cases)     → consumption
+The GIL core design (GIL Core)              → gi.json
+    ├── the GIL use-case design (Use Cases)     → consumption
     ├── RFC-051 (this RFC)      → GIL serving (Postgres)
     ▼
 RFC-055 (KG Core)               → KG artifacts
@@ -770,9 +766,9 @@ RFC-053 (Adaptive Routing)      → optimization
 
 **GIL Initiative RFCs:**
 
-1. **RFC-049: Core GIL Concepts & Data Model** —
+1. **the GIL core design: Core GIL Concepts & Data Model** —
    Defines ontology, grounding contract, and storage
-2. **RFC-050: GIL Use Cases & Consumption** — Defines
+2. **the GIL use-case design: GIL Use Cases & Consumption** — Defines
    query patterns and Insight Explorer
 3. **RFC-051 (This RFC): Database Projection** —
    Projects **GIL and KG** data into Postgres for fast queries
@@ -799,8 +795,6 @@ RFC-053 (Adaptive Routing)      → optimization
 
 **Key Distinction:**
 
-- **RFC-049**: *How* GIL knowledge is extracted and stored (`gi.json`)
-- **RFC-050**: *How* GIL knowledge is consumed
 - **RFC-055**: *How* KG knowledge is structured on disk
 - **RFC-051**: *How* GIL and KG are projected for fast
   SQL queries (this RFC)
@@ -874,7 +868,7 @@ queryable when RFC-055 artifacts exist. By mapping the
 GIL ontology (insights, quotes, topics, speakers, and
 their relationships) and the KG graph (nodes and edges
 per RFC-055) into **separate**, well-indexed Postgres
-tables, it enables fast queries for RFC-050 use cases
+tables, it enables fast queries for the GIL use cases
 **and** KG discovery workloads without conflating the
 two layers.
 
@@ -891,7 +885,7 @@ two layers.
   complexity; native graph stores remain optional for
   later evaluation
 
-**RFC-051 aligns with RFC-049 / RFC-050 for GIL and with
+**RFC-051 aligns with the GIL core design / the GIL use-case design for GIL and with
 RFC-055 for KG. GIL delivery path: extraction (049) →
 consumption (050) → serving (051). KG delivery path:
 artifact contract (055) → serving (051).**
@@ -901,8 +895,6 @@ artifact contract (055) → serving (051).**
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
 - **Related PRD**: `docs/prd/PRD-018-database-projection-gil-kg.md`
 - **Related PRD**: `docs/prd/PRD-019-knowledge-graph-layer.md`
-- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-- **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
 - **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
 - **Ontology Specification (GIL)**: `docs/architecture/gi/ontology.md`
 - **Schema Specification (GIL)**: `docs/architecture/gi/gi.schema.json`

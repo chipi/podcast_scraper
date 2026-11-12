@@ -9,10 +9,8 @@
   - `docs/prd/PRD-032-hybrid-corpus-search.md` — backend capability
   - `docs/prd/PRD-033-search-powered-surfaces.md` — surface propagation
   - `docs/prd/PRD-021-semantic-corpus-search.md` — predecessor (FAISS semantic search)
-  - `docs/prd/PRD-028-position-tracker.md` — position evolution data (temporal intent)
 - **Related RFCs**:
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — hybrid retrieval pipeline
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical identity
 - **Related issues**: #849 (Search retrieval prerequisites), #466 (GI/KG depth roadmap — CLOSED, superseded), #484 (Semantic Corpus Search — predecessor), #671 (Search/Explore filter UX, CLOSED), #672 (right rail entity views, CLOSED), #674 (cross-surface flows, CLOSED)
 
 > **Stabilization note (2026-05-30):** This doc was rebased from an earlier draft (PRD-029)
@@ -46,7 +44,7 @@ product layer over the retrieval backend specified in RFC-090 and PRD-032.
   framing of that next step.
 - **How it relates to existing features.** Search consumes the hybrid retrieval backend
   (RFC-090 plus the additive signals in RFC-091/092) and the canonical identity layer
-  (RFC-072). It is complementary to the Graph surface, not a replacement.
+. It is complementary to the Graph surface, not a replacement.
 
 ## Goals
 
@@ -204,7 +202,7 @@ Each result card is a grounded insight card, not a text snippet.
 ## Dependencies
 
 - **RFC-090** Hybrid Retrieval Pipeline (LanceDB + RRF) — **Hard** — Draft.
-- **RFC-072** Canonical Identity — **Hard** — **Partial**: slug-based IDs exist
+- **the cross-layer identity design** Canonical Identity — **Hard** — **Partial**: slug-based IDs exist
   (`src/podcast_scraper/identity/slugify.py`); the freeform-text → canonical-ID **entity
   resolver this PRD assumes does not exist yet** (tracked in #849).
 - **Issue #672** Person Landing + Topic Entity View — **Hard** — issue CLOSED; panels specified,
@@ -227,7 +225,7 @@ Each result card is a grounded insight card, not a text snippet.
 **Assumptions:**
 
 - GIL insight nodes carry grounding quotes with timestamps (`timestamp_start_ms` /
-  `timestamp_end_ms` on `SupportingQuote`) — verified in `src/podcast_scraper/gi/contracts.py`,
+  `timestamp_end_ms` on `SupportingQuote`),
   which makes segment↔insight linking feasible.
 - Embedding model is `sentence-transformers/all-MiniLM-L6-v2` (384-dim), per the current FAISS
   index.

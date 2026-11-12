@@ -322,9 +322,7 @@ all satisfy it; a bare `sys.modules[...] = MagicMock()` does not.
 
 Canonical examples in the repo:
 
-- `tests/integration/providers/llm/test_gemini_provider.py` — Gemini (`google.genai`)
 - `tests/integration/providers/llm/test_openai_provider.py` — OpenAI
-- `tests/integration/providers/llm/test_ollama_provider.py` — Ollama (`openai` + `httpx`)
 - `tests/integration/providers/llm/test_*_bundled_methods.py` — #698 bundled-method tests, same pattern
 
 **Don't mock `httpx` at integration tier.** Several provider modules do real `isinstance(base, httpx.Timeout)` checks in `timeout_config.py`. Mocking `httpx` in `sys.modules` makes the type check raise `TypeError: isinstance() arg 2 must be a type`. The integration tier has `[llm]` (which includes `httpx`) installed for real — let it through. The exception is `OllamaProvider` which has an `if httpx is None` runtime check at `__init__`; that's already handled by the real `httpx` being importable.
@@ -410,9 +408,9 @@ tests/integration/
 
 | Subfolder | Purpose | Example files |
 | --------- | ------- | ------------- |
-| `llm/` | LLM provider integration | `test_anthropic_providers.py`, `test_openai_providers.py` |
+| `llm/` | LLM provider integration | `test_anthropic_factory.py`, `test_openai_provider.py` |
 | `ml/` | ML model loading, embedding, QA, NLI (mocked inference) | `test_embedding_loader_integration.py`, `test_model_loader_integration.py` |
-| `ollama/` | Ollama model-specific tests | `test_gemma2_9b_summary.py`, `test_llama3_1_8b_speaker.py` |
+| `ollama/` | Ollama model-specific tests | `test_gemma2_9b_summary.py`, `test_ollama_providers.py` |
 | (root) | Cross-provider: factories, protocols, capabilities | `test_capabilities_integration.py`, `test_fallback_behavior.py` |
 
 ### workflow/
@@ -428,9 +426,7 @@ tests/integration/
 
 | Purpose | Example files |
 | ------- | ------------- |
-| GI artifacts | `test_gi_integration.py` |
 | KG artifacts | `test_kg_integration.py` |
-| Evidence stack | `test_evidence_stack_integration.py` |
 
 ### Root (cross-cutting)
 
@@ -466,23 +462,13 @@ reuse the same pattern (or mock HTTP). See [CONFIGURATION.md — Download resili
 
 - **`test_server_api.py`** — health, artifacts (including **`*.bridge.json`**), index stats,
   search, explore, factory edge cases.
-- **`test_cil_api.py`** — **`GET /api/persons/*`** and **`GET /api/topics/*`** (RFC-072 CIL)
-  against a minimal corpus with sibling **GI / KG / bridge** files.
 - **`test_viewer_corpus_library.py`** — Corpus Library responses that surface **`has_bridge`**
   and **`bridge_relative_path`**.
 
-**Bridge assembly** (builder invariants, not HTTP): the earlier
-`tests/integration/test_bridge_integration.py` was consolidated into
-per-concern unit tests — **`tests/unit/builders/test_bridge_builder.py`**,
-**`tests/unit/builders/test_bridge_artifact_paths.py`**, and
-**`tests/unit/builders/test_bridge_non_mechanical.py`**.
-
-**Semantic search lift** and **offset verification** are primarily **unit-tested** under
-`tests/unit/podcast_scraper/search/` (`transcript_chunk_lift`, `gil_chunk_offset_verify`).
-Operator validation on a real indexed corpus uses **`make verify-gil-offsets-strict`** or
+**Semantic search lift** and **offset verification** are tested with the extension that
+provides GIL. Operator validation on a real indexed corpus uses **`make verify-gil-offsets-strict`** or
 `python -m podcast_scraper.cli verify-gil-chunk-offsets` — see
-[Semantic Search Guide — Chunk-to-Insight lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528)
-and [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md).
+[Semantic Search Guide — Chunk-to-Insight lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification).
 
 ## Transformers cache (E2E `ml_models` only)
 

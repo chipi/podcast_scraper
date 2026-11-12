@@ -65,7 +65,7 @@ Tests that exercise orchestration or upstream logic mock the **module-level
 facade function** that the code calls, not what the facade itself does:
 
 ```python
-# tests/unit/podcast_scraper/gi/test_grounding.py
+# a grounding unit test
 @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
 def test_grounding_wires_qa_call(self, mock_answer_candidates):
     ...

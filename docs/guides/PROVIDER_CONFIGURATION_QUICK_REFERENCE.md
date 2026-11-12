@@ -236,7 +236,7 @@ mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (d
 # hybrid_reduce_backend: transformers  # Options: transformers | ollama | llama_cpp
 # hybrid_reduce_device: mps  # For transformers backend (mps | cuda | cpu)
 
-# Grounded Insights (GIL) — optional; writes gi.json per episode (see [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md))
+# Grounded Insights (GIL) — optional; writes gi.json per episode
 # generate_gi: false
 # embedding_model: sentence-transformers/all-MiniLM-L6-v2  # Evidence stack (lazy load when GIL enabled)
 # extractive_qa_model: deepset/roberta-base-squad2

@@ -3,7 +3,6 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md), [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md)
 - **Related PRDs**: [PRD-017](../prd/PRD-017-grounded-insight-layer.md)
 
 ## Context & Problem Statement
@@ -59,7 +58,7 @@ We adopt a **grounding contract** with the following rules:
 - **Negative**: Extraction must include QA/NLI step to determine grounding, adding
   pipeline latency. Some insights will be honestly labeled as ungrounded.
 - **Neutral**: Quote extraction requires extractive QA across all tiers (ml, hybrid,
-  cloud) per RFC-049.
+  cloud).
 
 ## Implementation Notes
 
@@ -73,6 +72,4 @@ We adopt a **grounding contract** with the following rules:
 
 ## References
 
-- [RFC-049: GIL Core — Grounding Contract](../rfc/RFC-049-grounded-insight-layer-core.md)
-- [RFC-050: GIL Use Cases — Evidence-Backed Discovery](../rfc/RFC-050-grounded-insight-layer-use-cases.md)
 - [ADR-051: Per-Episode JSON Artifacts](ADR-051-per-episode-json-artifacts-with-logical-union.md)

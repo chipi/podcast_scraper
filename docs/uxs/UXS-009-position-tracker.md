@@ -17,11 +17,7 @@
 - **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
-  - [PRD-028: Position Tracker](../prd/PRD-028-position-tracker.md) -- full
-    requirements and API contract
 - **Related RFCs**:
-  - [RFC-072: Canonical Identity Layer](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) --
-    bridge artifact, Flagship 1, query Pattern A
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Related UX specs**:
   - [UXS-004: Graph Exploration](UXS-004-graph-exploration.md) -- "View in graph"
@@ -51,8 +47,7 @@ The Position Tracker is a person + topic navigable surface that shows how a pers
 stated positions on a topic evolve across episodes. This UXS defines the visual
 contract for the panel layout, timeline cards, Insight and Quote card components,
 topic selector, and graceful degradation states. All
-tokens reference [UXS-001](UXS-001-gi-kg-viewer.md). Functional requirements are in
-[PRD-028](../prd/PRD-028-position-tracker.md).
+tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
 ---
 
@@ -298,6 +293,6 @@ before or with implementation. Key surfaces:
 
 | Date       | Change                                                         |
 | ---------- | -------------------------------------------------------------- |
-| 2026-04-13 | Initial draft (PRD-028 companion)                              |
+| 2026-04-13 | Initial draft                                                  |
 | 2026-04-19 | InsightCard links: UXS-001 subsection anchor                   |
 | 2026-04-19 | Full-width TBD; rail-only; see UXS-010 browse note             |

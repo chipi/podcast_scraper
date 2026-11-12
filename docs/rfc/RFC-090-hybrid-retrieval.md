@@ -13,7 +13,6 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — third RRF signal (additive)
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router (additive)
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical identity
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — enrichment layer
 - **Related UX specs**:
   - _(viewer Search surface — see PRD-031)_
@@ -463,7 +462,7 @@ Other relationships:
 
 | RFC | Relationship |
 | --- | --- |
-| RFC-072 | Canonical IDs used as entity filters in `SearchQuery` (slug IDs today; resolver pending) |
+| The cross-layer identity design | Canonical IDs used as entity filters in `SearchQuery` (slug IDs today; resolver pending) |
 | RFC-088 | Enriched insight nodes are Tier 2 documents; `derived: true` is a payload field |
 | RFC-080 | Viewer Graph surface consumes `RetrievalLayer` signals (node size / edge weight) |
 

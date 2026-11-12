@@ -5,9 +5,9 @@
 **Completed** - Implemented in v2.5. Some code examples below (notably the `extract_supporting_quotes` snippet in the GIL-integration section) predate #382 and still show `transformers.pipeline("question-answering")` calls; the shipped implementation goes through `QAEvidenceBackend.answer_top1` (see `providers/ml/extractive_qa.py`). RFC left as-is for archival context.
 
 **Execution Timing:** **Phase 2 of 3** — Implement after
-RFC-044 (Model Registry), before RFC-049 (GIL). This RFC
+RFC-044 (Model Registry), before the GIL. This RFC
 populates the registry with all model families and builds
-the hybrid ML platform that RFC-049 consumes.
+the hybrid ML platform that the GIL core design consumes.
 
 ## RFC Number
 
@@ -33,9 +33,7 @@ Podcast Scraper Team
   (**prerequisite** — provides model metadata infrastructure)
 - [RFC-045: ML Model Optimization Guide](RFC-045-ml-model-optimization-guide.md)
   (preprocessing + parameter tuning)
-- [RFC-049: Grounded Insight Layer – Core](RFC-049-grounded-insight-layer-core.md)
   (downstream consumer of structured extraction)
-- [RFC-050: GIL Use Cases](RFC-050-grounded-insight-layer-use-cases.md)
 - [RFC-051: Database Projection (GIL & KG)](RFC-051-database-projection-gil-kg.md)
 - [RFC-052: Locally Hosted LLM Models](RFC-052-locally-hosted-llm-models-with-prompts.md)
   (model-specific prompt engineering for Ollama LLMs)
@@ -53,7 +51,7 @@ Phase 2: RFC-042 (this RFC — Hybrid ML)     ~10 wk
     │     extended models (Embedding, QA, NLI)
     │     + RFC-052 (model-specific prompts, parallel)
     ▼
-Phase 3: RFC-049 (Grounded Insight Layer)   ~6-8 wk
+Phase 3: the GIL   ~6-8 wk
     │     Consume registry + hybrid platform for GIL
     ▼
 Phase 4: RFC-053 (Adaptive Routing)         ~4-6 wk
@@ -90,7 +88,7 @@ tasks including:
   validation, and topic clustering
 - **Structured extraction** capability (JSON output from
   transcripts) — the foundation for
-  RFC-049 Grounded Insight Layer
+  the GIL
 
 These additions generalize the hybrid architecture from
 "summarization-only" to "any MAP → instruction-following REDUCE
@@ -176,7 +174,7 @@ We want a local ML platform that:
 9. Adds **sentence-transformer embeddings** for semantic
    similarity, topic clustering, and grounding validation
 10. Supports **structured extraction** (JSON output) beyond
-    prose summarization — foundation for RFC-049 GIL
+    prose summarization — foundation for the GIL
 
 ---
 
@@ -333,7 +331,7 @@ it the **lowest-friction entry point** for instruction-following
 ML. Tier 2 models offer higher quality but require additional
 infrastructure (llama.cpp compilation or Ollama installation).
 
-For GIL extraction (RFC-049), FLAN-T5 provides a viable
+For GIL extraction, FLAN-T5 provides a viable
 pure-ML path where Tier 2 LLMs offer the premium path.
 
 ### Responsibilities
@@ -615,7 +613,7 @@ NLI_MODELS = {
 
 Beyond MAP and REDUCE models for summarization, the hybrid
 ML platform provides additional model families that enable
-downstream features (notably RFC-049 Grounded Insight Layer).
+downstream features (notably the GIL).
 
 ### 11.4.1 FLAN-T5: Lightweight Instruction-Tuned Models
 
@@ -641,7 +639,7 @@ via standard `transformers`. This makes it the default
 
 1. **REDUCE phase** for hybrid summarization (alternative
    to Tier 2 LLMs)
-2. **Insight extraction** for RFC-049 GIL (structured output
+2. **Insight extraction** for the GIL (structured output
    from transcript chunks)
 3. **Topic labeling** — zero-shot classification of transcript
    segments
@@ -688,7 +686,7 @@ text, enabling semantic similarity, clustering, and retrieval.
 
 **Use Cases:**
 
-1. **Grounding validation** (RFC-049): Score semantic
+1. **Grounding validation**: Score semantic
    similarity between an Insight and a candidate Quote
    to validate SUPPORTED_BY edges
 2. **Topic clustering**: Group related insights or quotes
@@ -696,7 +694,7 @@ text, enabling semantic similarity, clustering, and retrieval.
 3. **Deduplication**: Detect near-duplicate insights across
    episodes (for global graph assembly)
 4. **Semantic search**: Find relevant quotes given a
-   natural-language query (RFC-050 use cases)
+   natural-language query (the GIL use cases)
 
 **Loading Pattern:**
 
@@ -735,7 +733,7 @@ Default: `all-MiniLM-L6-v2` (best size/quality tradeoff).
 
 Extractive QA models find **verbatim text spans** in a
 source document that answer a given question. This is
-critical for RFC-049 Quote extraction.
+critical for the GIL core design Quote extraction.
 
 **Why extractive QA is better than LLMs for quotes:**
 
@@ -812,7 +810,7 @@ def extract_supporting_quotes(
 Natural Language Inference (NLI) models classify whether
 a premise (Quote) **supports**, **contradicts**, or is
 **neutral** to a hypothesis (Insight). Used for rigorous
-grounding validation in RFC-049.
+grounding validation in the GIL core design.
 
 **Primary Model:** `cross-encoder/nli-deberta-v3-base`
 (~400 MB)
@@ -892,7 +890,7 @@ Input text → MAP (compress/chunk) → REDUCE (reason/structure)
 
 **Structured extraction** is a key application where the
 REDUCE model outputs JSON instead of prose. This capability
-is the foundation for RFC-049 Grounded Insight Layer.
+is the foundation for the GIL.
 
 ### 11.5.1 Extraction Protocol
 
@@ -967,7 +965,7 @@ Transcript
   ├─► Topic Extraction:
   │     └─► spaCy NER + FLAN-T5 labeling → topics[]
   │
-  └─► Assembly → gi.json (RFC-049 schema)
+  └─► Assembly → gi.json (the GIL core design schema)
 ```
 
 ### 11.5.4 Prompt Templates for Extraction
@@ -1167,14 +1165,14 @@ def create_summarization_provider(config: Config) -> SummarizationProvider:
 
 ---
 
-## 13A. Foundation for RFC-049 (Grounded Insight Layer)
+## 13A. Foundation for the GIL
 
 This section explicitly documents how RFC-042 enables
-RFC-049, establishing a clear dependency chain.
+The GIL core design, establishing a clear dependency chain.
 
-### What RFC-042 Provides to RFC-049
+### What RFC-042 Provides to the GIL core design
 
-| RFC-042 Deliverable | RFC-049 Consumer |
+| RFC-042 Deliverable | The GIL core design Consumer |
 | --- | --- |
 | FLAN-T5 model loading + inference | Insight extraction (structured JSON) |
 | Sentence-transformers loading | Grounding validation (similarity scoring) |
@@ -1185,7 +1183,7 @@ RFC-049, establishing a clear dependency chain.
 | Prompt template integration | GIL extraction prompts |
 | MAP-REDUCE pattern | Insight extraction on long transcripts |
 
-### What RFC-049 Handles Independently
+### What the GIL core design Handles Independently
 
 These capabilities are GIL-specific and do NOT belong
 in RFC-042:
@@ -1205,17 +1203,17 @@ in RFC-042:
 
 ```text
 RFC-042 (ML Platform)
-  ├─ FLAN-T5 models loaded ──────────────► RFC-049 uses for insight extraction
-  ├─ Sentence-transformers loaded ───────► RFC-049 uses for grounding
-  ├─ Extractive QA pipeline ready ───────► RFC-049 uses for quote extraction
-  ├─ NLI model loaded ──────────────────► RFC-049 uses for validation
-  ├─ Model registry populated ──────────► RFC-049 references models by key
-  └─ Structured extraction protocol ────► RFC-049 implements for GIL
+  ├─ FLAN-T5 models loaded ──────────────► the GIL core design uses for insight extraction
+  ├─ Sentence-transformers loaded ───────► the GIL core design uses for grounding
+  ├─ Extractive QA pipeline ready ───────► the GIL core design uses for quote extraction
+  ├─ NLI model loaded ──────────────────► the GIL core design uses for validation
+  ├─ Model registry populated ──────────► the GIL core design references models by key
+  └─ Structured extraction protocol ────► the GIL core design implements for GIL
 ```
 
 ### Provider-Tier Mapping for GIL
 
-RFC-049 defines three extraction tiers. RFC-042 enables
+The GIL core design defines three extraction tiers. RFC-042 enables
 Tiers 1 and 2:
 
 | Tier | Insight Source | Quote Source | Grounding |
@@ -1582,7 +1580,7 @@ The hybrid ML platform is ready for v2.5 when:
 - Model selection recommendations (Tier 1 vs Tier 2)
 - Hardware requirements documented
 - Extended model usage guide
-- GIL readiness checklist (what RFC-049 needs)
+- GIL readiness checklist (what the GIL core design needs)
 
 ---
 
@@ -1600,7 +1598,7 @@ podcast processing.
 **Beyond summarization**, this RFC now establishes the
 **local ML platform** for structured extraction tasks.
 The addition of FLAN-T5, sentence-transformers, extractive
-QA, and NLI models creates the foundation for RFC-049
+QA, and NLI models creates the foundation for the GIL core design
 (Grounded Insight Layer), where:
 
 - **FLAN-T5** enables structured insight extraction
@@ -1620,6 +1618,6 @@ developers and power users.
 
 **This is a strategic enhancement that builds a local ML
 platform — improving summarization today, enabling
-evidence-backed insight extraction (RFC-049) tomorrow,
+evidence-backed insight extraction tomorrow,
 and powering adaptive routing (RFC-053) across diverse
 content types in the future.**

@@ -8,18 +8,16 @@
   - `docs/prd/PRD-031-search.md` — product surface that consumes this backend
   - `docs/prd/PRD-033-search-powered-surfaces.md` — cross-surface propagation
   - `docs/prd/PRD-021-semantic-corpus-search.md` — predecessor (FAISS semantic search)
-  - `docs/prd/PRD-028-position-tracker.md` — position evolution data (temporal queries)
 - **Related RFCs**:
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — two-tier index + BM25 + vector + RRF (implements core)
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — KG proximity signal
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — canonical identity
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — enrichment layer
 - **Related issues**: #849 (Search retrieval prerequisites), #466 (GI/KG depth roadmap — CLOSED, superseded), #484 (Semantic Corpus Search — CLOSED, predecessor), #485 (Topic nodes + ABOUT edges — CLOSED)
 
 > **Stabilization note (2026-05-30):** Rebased to this repo. The original draft pointed at an
 > MCP-integration RFC and "Position Tracker"/"Guest Intelligence Brief" PRDs that do not exist
-> under those numbers here. Corrected: enrichment → RFC-088; Position Tracker → PRD-028; the
+> under those numbers here. Corrected: enrichment → RFC-088; Position Tracker → the Position Tracker; the
 > MCP tool layer and a guest-briefing PRD are **[TBD — not yet specified]**. Module paths are
 > corrected to `src/podcast_scraper/…`.
 
@@ -45,8 +43,8 @@ relational structure comes from typed edges instead (#874) — with RFC-092 addi
   named-entity queries degrade, transcript-level evidence is unreachable, and the KG contributes
   nothing to ranking. The GI/KG depth roadmap (#466) names exactly these gaps.
 - **How it relates to existing features.** Builds on the existing FAISS pipeline, the GIL insight
-  contracts (`src/podcast_scraper/gi/contracts.py`), the KG artifacts (`*.kg.json`), and the
-  canonical identity layer (RFC-072). It is the backend for the Search product (PRD-031).
+  contracts, the KG artifacts (`*.kg.json`), and the
+  canonical identity layer. It is the backend for the Search product (PRD-031).
 
 ## Goals
 
@@ -158,7 +156,7 @@ relational structure comes from typed edges instead (#874) — with RFC-092 addi
 - **RFC-090** Hybrid Retrieval Pipeline — **Hard** — Draft.
 - **RFC-091/092** — **Soft/additive** — Draft; the KG and MCP features depend on prerequisites
   below.
-- **RFC-072** Canonical Identity — **Hard for KG proximity** — **Partial**: only
+- **the cross-layer identity design** Canonical Identity — **Hard for KG proximity** — **Partial**: only
   `identity/slugify.py` exists; no entity resolver yet.
 - **GIL contracts** — **Hard** — shipped; grounding quotes carry `timestamp_start_ms` /
   `timestamp_end_ms`, enabling segment↔insight linking.
@@ -177,7 +175,7 @@ relational structure comes from typed edges instead (#874) — with RFC-092 addi
 
 - Whisper output segments (`{text, start, end, speaker_id?}`) are available to the chunker. Today
   segments are passed into GI/KG builders as optional sidecar data
-  (`src/podcast_scraper/gi/pipeline.py`), not retained as a first-class artifact — RFC-090 OQ-5
+  (the GI pipeline), not retained as a first-class artifact — RFC-090 OQ-5
   covers diarization integration.
 - Embedding model `all-MiniLM-L6-v2` (384-dim); validate dimensionality on migration.
 
@@ -214,10 +212,8 @@ Risks and their mitigations (tracked as open until validated):
 - `docs/rfc/RFC-090-hybrid-retrieval.md`
 - `docs/rfc/RFC-091-kg-proximity-signal.md`
 - `docs/rfc/RFC-092-ml-query-router.md`
-- `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
 - `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/prd/PRD-031-search.md`
-- `docs/prd/PRD-028-position-tracker.md`
 - Issue #849 (Search retrieval prerequisites), #466 (GI/KG depth roadmap — superseded), #484, #485.
 
 ## Release Checklist

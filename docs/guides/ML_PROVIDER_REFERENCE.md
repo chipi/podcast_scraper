@@ -293,7 +293,7 @@ Transcription and speaker detection are not provided by `HybridMLProvider`; use 
 The current BART/LED implementation serves as the **Classic Summarizer Baseline**. Implemented and available:
 
 * **Hybrid MAP-REDUCE (RFC-042)**: REDUCE phase can use instruction-following models via **transformers** (FLAN-T5), **ollama** (e.g. Llama, Mistral, Qwen), or **llama_cpp** (GGUF) for better abstraction.
-* **Grounded Insights (GI)**: Implemented — evidence-based insight extraction with embedding, extractive QA, and NLI models. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md).
+* **Grounded Insights (GI)**: Implemented — evidence-based insight extraction with embedding, extractive QA, and NLI models.
 * **Knowledge Graph (KG)**: Implemented — entity and relationship extraction from transcripts via LLM-based pipelines.
 
 Planned or in progress:
@@ -350,7 +350,7 @@ The **evidence stack** provides embedding, extractive QA, and NLI models used by
 * **Extractive QA**: `extractive_qa` — question-answering over context; returns answer spans with character offsets and scores; used for quote extraction ("What evidence supports this insight?").
 * **NLI**: `nli_loader` — premise/hypothesis entailment scoring; used to validate that a quote supports an insight.
 
-Config keys: `embedding_model`, `embedding_device`, `extractive_qa_model`, `extractive_qa_device`, `nli_model`, `nli_device`. Model IDs can be aliases (e.g. `minilm-l6`, `roberta-squad2`, `nli-deberta-base`) or full HuggingFace IDs. See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md).
+Config keys: `embedding_model`, `embedding_device`, `extractive_qa_model`, `extractive_qa_device`, `nli_model`, `nli_device`. Model IDs can be aliases (e.g. `minilm-l6`, `roberta-squad2`, `nli-deberta-base`) or full HuggingFace IDs.
 
 ### 9.4 Evolution Roadmap
 

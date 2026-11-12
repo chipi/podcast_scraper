@@ -86,7 +86,7 @@ code that made the choice. Passing items are counted, not listed.
 hit are named in `findings.json`; a hole cannot hide in a point that was never exercised, so a
 change to such a point needs its own test. **Import-time copies** are values copied out of a map
 when the module loaded (`_X = _X_BY_LANGUAGE["en"]`) — chosen before the recorder existed, so
-checked statically by `tests/unit/podcast_scraper/test_english_patterns_are_mains.py`, not traced.
+checked statically by a test, not traced.
 
 ### What a hole looks like
 

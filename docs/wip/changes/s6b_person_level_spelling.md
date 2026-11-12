@@ -2,7 +2,7 @@
 id: s6b_person_level_spelling
 class: full
 status: landed
-issue: none (RFC-131 S6, the person-level surfaces; operator scope 2026-10-31)
+issue: none (the person-identity design S6, the person-level surfaces; operator scope 2026-10-31)
 touches:
   - src/podcast_scraper/identity/display.py
   - src/podcast_scraper/server/app_relational_view.py

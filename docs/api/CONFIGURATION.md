@@ -405,7 +405,7 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Screenplay vs transcription provider (GitHub #562):** **`screenplay: true`** (or **`--screenplay`**) only changes transcript layout when **`transcription_provider`** is **`whisper`** or **`tailnet_dgx_whisper`** (local Whisper paths). For **`openai`**, **`gemini`**, **`mistral`**, or **`deepgram`** audio transcription, screenplay-style formatting is **not** implemented in this codebase: a **`mode='before'`** validator coerces truthy values (including **`1`**, **`"yes"`**, **`"on"`**, and boolean **`true`**) to **`screenplay: false`** and emits **one** INFO line while a process-wide gate is set; **`workflow.orchestration.run_pipeline`** clears that gate (and related screenplay warning gates) in **`finally`** so a later **`Config(...)`** or another pipeline run can log again. **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** (or **`true`** / **`yes`**) makes the invalid combination a **validation error** instead of coercion. In **our** OpenAI integration, **`whisper-1`** still writes **plain dialogue text** in the main transcript file even when segment metadata exists separately.
 
-**Neural diarization (RFC-058 / Audio Wave 2):** See [Speaker diarization](#speaker-diarization-rfc-058) below. **`diarize`** defaults to **`true`** for local Whisper; API providers coerce **`diarize: false`**. When diarization succeeds, screenplay uses voice-based speaker IDs instead of gap-based rotation.
+**Neural diarization (Audio Wave 2):** See [Speaker diarization](#speaker-diarization) below. **`diarize`** defaults to **`true`** for local Whisper; API providers coerce **`diarize: false`**. When diarization succeeds, screenplay uses voice-based speaker IDs instead of gap-based rotation.
 
 **Deepgram transcription (Wave 1 / #597):** Set **`transcription_provider: deepgram`**, **`deepgram_api_key`** (or **`DEEPGRAM_API_KEY`**), optional **`deepgram_model`** (default **`nova-3`**) and optional **`deepgram_api_base`** (or **`DEEPGRAM_API_BASE`**, **`--deepgram-api-base`**) to point at a self-hosted/on-prem deployment or a test mock server (default uses the hosted endpoint). Requires **`pip install -e ".[llm]"`**. Deepgram returns utterance-level speaker labels in the API response — separate from local pyannote diarization. See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
@@ -416,7 +416,7 @@ Anthropic providers support configurable model selection for dev/test vs product
 | `save_adfree_transcript` | `--save-adfree-transcript` / `--no-save-adfree-transcript` | `true` | **#974** — produce the **ad-free processing base** next to the raw `.txt`: `*.adfree.txt` (ads excised), `*.adfree.segments.json` (segments carrying exact `char_start`/`char_end`), and `*.adfree.admap.json` (excised ranges, for a future subtitle player). GI, KG, search-chunking, enrich-edges, and the viewer reader **prefer** this base so quote `char_start` lives in one saved coordinate space (fixes #545 offset drift). The raw `.txt` is left untouched as the canonical source. Disable only to save disk if not using GI/KG/search. |
 | `save_cleaned_transcript` | `--save-cleaned-transcript` / `--no-save-cleaned-transcript` | `true` | Save the **summarization-cleaned** transcript (`*.cleaned.txt`): timestamps/filler/sponsor reads removed. Separate concern from the ad-free base — it is the summarizer's input, not the GI offset base. |
 
-### Speaker diarization (RFC-058)
+### Speaker diarization
 
 Neural speaker diarization runs as an **additive second pass** after local Whisper transcription
 (`whisper` or `tailnet_dgx_whisper`). Requires **`pip install -e ".[ml]"`** and a HuggingFace token.
@@ -1058,7 +1058,7 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 
 <a id="llm-cleaning-length-guard-issue-564"></a>
 
-**LLM cleaning length guard (GitHub #564):** When `transcript_cleaning_strategy` is `llm` or the LLM stage of `hybrid`, `LLMBasedCleaner` in `src/podcast_scraper/cleaning/llm_based.py` compares the LLM output to the **pattern-cleaned** transcript (not the raw file). If the pattern-cleaned string is at least **2000** characters and the stripped LLM output length divided by that length is **strictly below 0.20** (20%), the pipeline **discards the LLM output** and keeps the pattern-cleaned text. A **warning** is logged (`LLM cleaning shortened transcript excessively (output/input length ratio=…)`). At **debug** log level, the same decision also logs input length, output length, ratio, and threshold.
+**LLM cleaning length guard (GitHub #564):** When `transcript_cleaning_strategy` is `llm` or the LLM stage of `hybrid`, `LLMBasedCleaner` (provided by an installed extension) compares the LLM output to the **pattern-cleaned** transcript (not the raw file). If the pattern-cleaned string is at least **2000** characters and the stripped LLM output length divided by that length is **strictly below 0.20** (20%), the pipeline **discards the LLM output** and keeps the pattern-cleaned text. A **warning** is logged (`LLM cleaning shortened transcript excessively (output/input length ratio=…)`). At **debug** log level, the same decision also logs input length, output length, ratio, and threshold.
 
 This guard targets model **collapse** (a short unrelated paragraph instead of a full cleaned transcript). It is a **hard cliff**: for example, ratio **0.179** is rejected and **0.20** is accepted, so dense shows that legitimately remove most boilerplate can still fall slightly below 20% and trigger fallback. Mitigations without code changes: use **`pattern`** only for those feeds, or try a different **`{provider}_cleaning_model`** / temperature. There are **no** YAML knobs for the 2000 / 0.20 constants in the current release (Path A for #564).
 
@@ -1078,7 +1078,7 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | `kg_extraction_model` | `--kg-extraction-model` | (none) | Optional model override for KG LLM calls; else summary model. |
 | `kg_merge_pipeline_entities` | `--no-kg-merge-pipeline-entities` | `true` | Merge hosts/guests after provider extraction (dedup vs existing entities by **entity_kind + name**); disable with flag. |
 
-**Shallow v1 decisions (KG):** Extraction vs ML, entity roll-up limits, CLI surface (no `kg query` IR), and Postgres deferral are summarized in [KNOWLEDGE_GRAPH_GUIDE § Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). For GIL, see [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+**Shallow v1 decisions (KG):** Extraction vs ML, entity roll-up limits, CLI surface (no `kg query` IR), and Postgres deferral are summarized in [KNOWLEDGE_GRAPH_GUIDE § Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
 
 #### Grounded Insights (GIL)
 
@@ -1086,7 +1086,7 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | --- | --- | --- | --- |
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
 | `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
-| `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
+| `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). |
 | `gi_max_insights` | `--gi-max-insights` | `50` | Max insights when using `provider` or `summary_bullets` (range `1`–`200`; hard cap not a target). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
 | `gi_fail_on_missing_grounding` | (config) | `false` | When true with `gi_require_grounding`, raise `GILGroundingUnsatisfiedError` if an episode ends with zero grounded quotes (strict CI). |
@@ -1101,13 +1101,11 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 
 **Config file and the CLI:** For `python -m podcast_scraper.cli --config <file.yaml>`, validated YAML is merged into argparse defaults, then `cli._build_config()` rebuilds `Config`. GIL tuning keys (thresholds, `gi_qa_model`, `gi_nli_model`, `gi_embedding_model`, `extractive_qa_device`, `nli_device`, window sizes, retries, `gi_require_grounding`, etc.) must be **copied in `_build_config`**; otherwise file values are dropped and model defaults apply. If you add new `Config` fields for GIL, extend that forward list in `cli.py`.
 
-`gi.json` **model_version** is not a separate config field: it is derived from `gi_insight_source` and the summarization / insight model in use (see `podcast_scraper.gi.provenance`).
+`gi.json` **model_version** is not a separate config field: it is derived from `gi_insight_source` and the summarization / insight model in use.
 
 When `summary_provider` is `transformers` or `hybrid_ml`, use **`gi_insight_source: summary_bullets`** (with bullets) or an LLM provider for real insight wording; **`stub`** is for tests/smoke only (CLI warns outside pytest when `generate_gi` + `stub`).
 
 Local entailment (`entailment_provider`: `transformers` or `hybrid_ml`) requires **`sentence-transformers`** (install **`pip install -e ".[ml]"`**). The pipeline validates this at startup when `generate_gi` and `gi_require_grounding` are true.
-
-**Shallow v1 decisions (issue #460):** ML vs `stub` vs `summary_bullets`, topic explore semantics, speaker best-effort behavior, and Postgres deferral are summarized in [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
 
 #### Grounded Insights (GIL) evidence providers
 
@@ -1119,11 +1117,11 @@ When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a config
 | `entailment_provider` | `--entailment-provider` | `transformers` | Provider for GIL entailment (NLI). Same options as quote_extraction_provider. |
 | `gil_evidence_match_summary_provider` | N/A | `true` | When `generate_gi` is true: if `summary_provider` is an API LLM or `hybrid_ml` and both evidence fields are still default `transformers`, align them to `summary_provider` so grounding matches the summary backend. Set `false` to keep local QA + NLI with API summaries. |
 
-**GIL evidence × provider (parity):** All backends in the `quote_extraction_provider` / `entailment_provider` enums implement `extract_quotes` and `score_entailment`. ML backends use local QA + NLI; LLM backends use chat-style calls. Full table: [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix).
+**GIL evidence × provider (parity):** All backends in the `quote_extraction_provider` / `entailment_provider` enums implement `extract_quotes` and `score_entailment`. ML backends use local QA + NLI; LLM backends use chat-style calls.
 
 When `summary_provider` is an API but either evidence field remains `transformers` or `hybrid_ml` (after your overrides), the CLI emits a **WARNING** at config log time about **`.[ml]`** / **sentence-transformers** so hybrid setups are visible.
 
-If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set. See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md) and RFC-049.
+If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set.
 
 <a id="live-pipeline-monitor-rfc-065-512"></a>
 

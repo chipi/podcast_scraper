@@ -1,19 +1,15 @@
 # PRD-027: Enriched Search
 
-- **Status**: Partial (RFC-088 chunks 5 + 6, 2026-06-27) — The `QueryEnricher` protocol + `query_topic_relatedness` enricher (chunk 5) + `/api/search?enrich_results=true` wiring (chunk-5 follow-up) ship the query-time chain. Operator-curated `enrichment:` blocks in `viewer_operator.yaml` (chunk 7) let per-deployment tuning. **Open scope**: char-offset alignment verification (RFC-072 KL1) and additional LLM-tier query enrichers (separate follow-on RFC) remain.
-- **v2 enablement (RFC-097, 2026-06-20)**: chunk-to-Insight lift foundation (RFC-072 Phase 5 prereq) + synthesis quality inputs (`insight_type` + `position_hint`) ship per-artifact via RFC-097 v2. QueryEnricher protocol (RFC-088 Phase 4), Enriched Search UI, and char-offset alignment verification (RFC-072 KL1) remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **Status**: Partial (RFC-088 chunks 5 + 6, 2026-06-27) — The `QueryEnricher` protocol + `query_topic_relatedness` enricher (chunk 5) + `/api/search?enrich_results=true` wiring (chunk-5 follow-up) ship the query-time chain. Operator-curated `enrichment:` blocks in `viewer_operator.yaml` (chunk 7) let per-deployment tuning. **Open scope**: char-offset alignment verification and additional LLM-tier query enrichers (separate follow-on RFC) remain.
+- **v2 enablement (RFC-097, 2026-06-20)**: chunk-to-Insight lift foundation (the cross-layer identity design Phase 5 prereq) + synthesis quality inputs (`insight_type` + `position_hint`) ship per-artifact via RFC-097 v2. QueryEnricher protocol (RFC-088 Phase 4), Enriched Search UI, and char-offset alignment verification remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` -- enrichment layer trust
     contract (`derived: true`, tier classification, opt-in); query-time enricher
     protocol to be defined as Phase 4 extension
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- bridge artifact
-    that enables chunk-to-Insight lift (the resolution path from FAISS chunks to
-    structured GIL Insights)
   - `docs/rfc/RFC-061-semantic-corpus-search.md` -- FAISS index and search API that
     this feature extends
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` -- GIL grounding contract
   - `docs/rfc/RFC-062-gi-kg-viewer-v2.md` -- viewer SPA shell and search panel
 - **Related PRDs**:
   - `docs/prd/PRD-021-semantic-corpus-search.md` -- baseline search this feature
@@ -22,8 +18,6 @@
   - `docs/prd/PRD-019-knowledge-graph-layer.md` -- KG artifact foundation
   - `docs/prd/PRD-026-topic-entity-view.md` -- topic pills in enriched sources
     open Topic Entity View
-  - `docs/prd/PRD-028-position-tracker.md` -- speaker names in enriched sources
-    can open Position Tracker via Person Landing
   - `docs/prd/PRD-029-person-profile.md` -- speaker names in enriched sources can
     open Person Profile via Person Landing
 - **Related UX specs**:
@@ -70,10 +64,10 @@ transcript chunks ranked by embedding similarity. It is useful but raw -- result
 unlabelled text fragments with episode metadata. There is no speaker attribution, no
 Insight structure, no synthesis.
 
-RFC-072 (CIL + Bridge) establishes the resolution path: a FAISS chunk with
+The cross-layer identity design (CIL + Bridge) establishes the resolution path: a FAISS chunk with
 `(episode_id, char_start, char_end)` can be matched to a GIL Quote node via character
 offset overlap, then lifted to an Insight via SUPPORTED_BY, then attributed to a person
-via SPOKEN_BY. This path was anticipated in RFC-072 Known Limitations §1 (char offset
+via SPOKEN_BY. This path was anticipated in the cross-layer identity design Known Limitations §1 (char offset
 alignment must be verified before enabling).
 
 RFC-088 (Enrichment Layer) defines the batch enricher protocol for episode-scope and
@@ -86,7 +80,7 @@ The QueryEnricher protocol will be defined as an RFC-088 Phase 4 extension or a
 companion RFC.
 
 **Phase numbering disambiguation:** "RFC-088 Phase 4" refers to the QueryEnricher
-protocol extension (request-time enrichment). "RFC-072 Phase 4" refers to CIL query
+protocol extension (request-time enrichment). "the cross-layer identity design Phase 4" refers to CIL query
 patterns (cross-layer joins, topic/person queries). These are distinct capabilities
 in different RFCs that happen to share the same phase number.
 
@@ -178,7 +172,7 @@ insights" so the user knows how much evidence the answer rests on.
   - An LLM provider is configured in the pipeline config
   - `llm_search_synthesis` enricher is enabled with `opt_in: true` in config
   - The char offset alignment between FAISS chunks and GIL Quotes has been verified
-    (RFC-072 Known Limitations §1; the API health endpoint exposes a
+    (the cross-layer identity design Known Limitations §1; the API health endpoint exposes a
     `enriched_search_available` flag)
 
 **FR2.2** -- When enrichment is not available, the search panel is unchanged from
@@ -264,7 +258,7 @@ FAISS retrieval (existing -- RFC-061)
     ↓
 Raw results returned immediately -> shown in results list
     ↓
-Bridge resolution (RFC-072) -- match chunks to GIL Quotes via char offsets
+Bridge resolution -- match chunks to GIL Quotes via char offsets
     ↓
 GIL lift -- Quotes -> Insights (SUPPORTED_BY) -> Persons (SPOKEN_BY) -> Topics (ABOUT)
     ↓
@@ -357,7 +351,7 @@ Advanced search when unavailable.
 
 ## Dependencies and Prerequisites
 
-1. **Char offset alignment (hard prerequisite)** -- RFC-072 Known Limitations §1
+1. **Char offset alignment (hard prerequisite)** -- the cross-layer identity design Known Limitations §1
    must be verified before enriched search can ship. FAISS chunk `(char_start,
    char_end)` must overlap with GIL Quote `(char_start, char_end)` for the lift to
    work. If offsets diverge, the lift returns empty and enrichment never fires. This
@@ -395,7 +389,6 @@ Advanced search when unavailable.
 ## References
 
 - `docs/rfc/RFC-088-enrichment-layer-architecture.md`
-- `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
 - `docs/rfc/RFC-061-semantic-corpus-search.md`
 - `docs/prd/PRD-021-semantic-corpus-search.md`
 - `docs/uxs/UXS-001-gi-kg-viewer.md`

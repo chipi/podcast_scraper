@@ -2,7 +2,7 @@
 id: 0040_gi_quote_offsets_realigned
 class: full
 status: landed
-issue: none (RFC-131 D2; found by 0041's after-checks; operator decision 4A, 2026-11-01)
+issue: none (the person-identity design D2; found by 0041's after-checks; operator decision 4A, 2026-11-01)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0040_gi_quote_offsets_realigned.py
   - src/podcast_scraper/upgrade/registry.py

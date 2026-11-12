@@ -2,7 +2,7 @@
 id: d2_name_consolidation
 class: full
 status: landed
-issue: none (RFC-131; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/*.py
   - src/podcast_scraper/kg/entity_clusters.py

@@ -2,7 +2,7 @@
 id: s5b_person_language
 class: full
 status: landed
-issue: none (RFC-131 S5, L1–L5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design S5, L1–L5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/person_match.py
   - src/podcast_scraper/kg/entity_clusters.py
@@ -228,7 +228,7 @@ Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (
 
 ## 12. Retrospective
 
-MISSED: no retrospective of its own. D2's lessons are in `../HANDOVER-NAMING-2026-11-03.md`, section 3.
+MISSED: no retrospective of its own.
 
 Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 

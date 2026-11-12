@@ -2,7 +2,7 @@
 id: s5c_scoped_names_not_pooled
 class: full
 status: landed
-issue: none (RFC-131 D2; operator decision 1B, 2026-11-01)
+issue: none (the person-identity design D2; operator decision 1B, 2026-11-01)
 touches:
   - src/podcast_scraper/kg/entity_clusters.py
   - src/podcast_scraper/identity/ledger.py
@@ -40,7 +40,7 @@ guard looks at the ids' scope.
 
 Dated: 2026-11-01
 
-The change: a guard in the ledger's join test (`identity/guards`, ADR-167's guards list). A
+The change: a guard in the ledger's join test (`identity/guards`, the join guards's guards list). A
 candidate does not join a cluster member when both ids are episode-scoped (`is_scoped_person_id`).
 The refusal is recorded in `blocked_joins` with the guard's name `scoped_pair`. A scoped id still
 joins a full-name member exactly as today.

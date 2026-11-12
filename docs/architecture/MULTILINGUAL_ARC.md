@@ -11,7 +11,7 @@ own a slice of the how, and this document is where the arc's **shape**, its **sl
 - **Opened**: 2026-09-28
 - **Status**: v1 translation stage shipped; this page keeps the design record, and the file layout is the shipped one noted in §1
 - **Branch**: `feat/multilingual-ingest`
-- **Documents**: [PRD-047](../prd/PRD-047-multilingual-ingest.md) · [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) · [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) · [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md)
+- **Documents**: [PRD-047](../prd/PRD-047-multilingual-ingest.md) · [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md)
 - **Review state**: six adversarial reviews have run over these documents. §5.4 records every claim
   they found false — including errors introduced by an earlier *correction* pass — because the way
   those claims were wrong repeats and is worth recognising.
@@ -35,7 +35,7 @@ audio (any enabled language)
   │
   ├─ transcribe + diarize IN SOURCE LANGUAGE ──────► ep1.txt            ← source text until translated
   │   └─ speaker naming (on the source)              ep1.segments.json
-  │                                                  ep1.turns.json     ← RFC-123
+  │                                                  ep1.turns.json     ← the turns artifact
   │
   ├─ TRANSLATE every turn-bounded unit ────────────► ep1.translation.json  ← the traceability map
   │   (before summary — D-19)                        ep1.txt            ← now the English, canonical
@@ -67,9 +67,7 @@ Three properties make it work:
 | Document | Owns | Does **not** own |
 | --- | --- | --- |
 | [PRD-047](../prd/PRD-047-multilingual-ingest.md) | Why, for whom, what "done" means, phase gates, language policy, operator + listener surfaces | Any implementation shape |
-| [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) | `turns.json` — turns and sentences as addressable units. v1 needs the artifact; its consumers are v2 | Anything language-specific |
 | [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) | Language resolution, source capture, the translation stage, the artifact set, the stage order, retrieval, model selection | Trust, gating |
-| [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) | Translation provenance, recorded and invisible to the user (v1); verification, labelling, gating and QE (v2) | Producing the translation |
 | This document | v1 arc shape, slice plan, verified code facts, decisions, running notes | Requirements or design detail |
 | [MULTILINGUAL_ARC_V2](MULTILINGUAL_ARC_V2.md) | Everything deferred out of v1, with slices and reasoning | Anything v1 ships |
 
@@ -82,7 +80,7 @@ Phase numbering means one thing across all four documents. The demand/model vali
 | --- | --- | --- | --- |
 | **−1 — Instruments** | One transcript resolver with two intents (no behaviour change), and the artifact allow-list test | none; both are pure-English fixes with standalone value | A golden of which transcript each reader resolves, and a test that says what changed. Everything after is measured by these |
 | **0 — English as a declared language** | Language becomes a real, parsed, resolved, validated property of the corpus we already have | none; it is a correctness fix | An audit over real data showing the corpus's actual language distribution; language on the API; no code path that substitutes a language it was not given |
-| **1 — Turns artifact (RFC-123)** | `turns.json` built and written for the source variant. Nothing reads it yet; the backfill and all three consumers are v2 | none | The unit translation needs |
+| **1 — Turns artifact** | `turns.json` built and written for the source variant. Nothing reads it yet; the backfill and all three consumers are v2 | none | The unit translation needs |
 | **Gate V — Validate** | Demand check; model selection and its sanity check | Phase 0, because the check cannot measure non-English transcription until it exists | A go/no-go with evidence, and one pinned translation model |
 | **2 — Translation (RFC-124)** | Reader routing, the stage-order change, translation, the English render, ad-free-on-English, same-language retrieval | Gate V passed | One non-English feed processed end to end, findable in its own language, behaving like any English episode |
 | **3 — Surfaces** | The transcript/subtitle reading path and flag lifecycle. The badge and the language filter are v2 | Phase 2 | A listener can read the original or the English against the original audio |
@@ -120,13 +118,13 @@ as a test rather than performed once by hand:
 | a reader switched from `ANALYSIS` to `TIMELINE` | that reader's row, on the episodes that have both variants |
 | the ad-free fallback deleted | every row on the pre-#974 corpus |
 | `load_transcript` resolving its sidecar independently of its body | the both-sidecars test, by name |
-| the `gi/load.py` fix reverted | `A10`, on exactly the ad-excised episodes |
+| the GI loader fix reverted | `A10`, on exactly the ad-excised episodes |
 | an unexpected key added to episode metadata | that key, in the allow-list violation |
 | `pipeline_composition_version` moved | the hash, and which stage set moved it |
 
 **Evidence this is achievable, not aspirational — and that it pays.** Two instances so far.
 
-1. The `gi/load.py` fix moved the golden on one field, on exactly the 40 ad-excised episodes and
+1. The GI loader fix moved the golden on one field, on exactly the 40 ad-excised episodes and
    nothing else, established by a field-by-field diff before regenerating. The instrument working.
 2. Writing the injection tests **found a blind spot in the golden itself**. The GI/KG row recorded
    only `(ref, is_adfree)`, and when nothing resolves, the loader reports the *canonical* relpath
@@ -260,15 +258,15 @@ declared allow-list.
 
 ---
 
-### Phase 1 — Turns artifact (RFC-123)
+### Phase 1 — Turns artifact
 
 v1 needs the artifact to exist, because translation units are sentence groups inside a turn. Its three
 consumers are **v2** ([V2-D](MULTILINGUAL_ARC_V2.md#6-turns-consumers)).
 
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
-| **S1.1** [#2226](https://github.com/chipi/podcast_scraper/issues/2226) | ~~`build_turns`: turns and sentences from a segments sidecar~~ | **DONE 2026-09-29.** `providers/ml/diarization/turns.py`: turns are the screenplay lines by construction, backchannels are flagged not merged, sentences carry `segment_exact`/`segment_interpolated`, and `TurnInvariantError` raises rather than returning a plausible structure — the failure guarded against is a quote attributed to the WRONG speaker with every stage reporting success. 23 tests drive the real formatter, not hand-written offsets. Nothing reads it. | — | M | closed |
-| **S1.2** [#2227](https://github.com/chipi/podcast_scraper/issues/2227) | ~~Write `turns.json` in the pipeline~~ | **DONE 2026-09-29.** `workflow/turns_artifact.py` + `episode_processor._produce_transcript_sidecars` (which replaces `_maybe_produce_adfree` at all five write sites). One artifact per VARIANT, each anchored to its own text — the ad-free variant drops whole turns and renumbers from `t0000`, so a cross-variant join by `turn_id` would point at the wrong turn. Turns are written even when `save_adfree_transcript` is off: the two are independently gated on purpose. A non-screenplay transcript gets no artifact and says why (`not_a_diarized_screenplay`), which is RFC-123's `turns: unavailable`. The manifest gains `stages.turns` WITHOUT moving `pipeline_composition_version` (asserted). An invariant failure is counted and logged, not fatal — a stated v1 deviation that must harden at S1.4. Backfill stays in v2. | S1.1 | M | closed |
+| **S1.1** [#2226](https://github.com/chipi/podcast_scraper/issues/2226) | ~~`build_turns`: turns and sentences from a segments sidecar~~ | **DONE 2026-09-29.** The turns builder: turns are the screenplay lines by construction, backchannels are flagged not merged, sentences carry `segment_exact`/`segment_interpolated`, and `TurnInvariantError` raises rather than returning a plausible structure — the failure guarded against is a quote attributed to the WRONG speaker with every stage reporting success. 23 tests drive the real formatter, not hand-written offsets. Nothing reads it. | — | M | closed |
+| **S1.2** [#2227](https://github.com/chipi/podcast_scraper/issues/2227) | ~~Write `turns.json` in the pipeline~~ | **DONE 2026-09-29.** `workflow/turns_artifact.py` + `episode_processor._produce_transcript_sidecars` (which replaces `_maybe_produce_adfree` at all five write sites). One artifact per VARIANT, each anchored to its own text — the ad-free variant drops whole turns and renumbers from `t0000`, so a cross-variant join by `turn_id` would point at the wrong turn. Turns are written even when `save_adfree_transcript` is off: the two are independently gated on purpose. A non-screenplay transcript gets no artifact and says why (`not_a_diarized_screenplay`), which is the turns artifact's `turns: unavailable`. The manifest gains `stages.turns` WITHOUT moving `pipeline_composition_version` (asserted). An invariant failure is counted and logged, not fatal — a stated v1 deviation that must harden at S1.4. Backfill stays in v2. | S1.1 | M | closed |
 
 ---
 
@@ -318,7 +316,7 @@ feed is added.
 | **S2.8** [#2236](https://github.com/chipi/podcast_scraper/issues/2236) | Segments API `?lang=` and translation status | Additive `language`, `machine_translated` and `translation_model` on `SegmentsResponse`, and `translation_status` on episode detail. **The DEFAULT is settled (D-38): English.** `?lang=` selects the source language as an explicit alternative; it does not decide the default, which S2.1b already implements in the `timeline` precedence. These are what the transcript control (S3.1) reads. **The user-visible "Translated from X" label is v2** (D-36) — so this slice is API surface only, not chrome. | S2.4 | S | closed |
 | **S2.9** [#2237](https://github.com/chipi/podcast_scraper/issues/2237) | ~~Same-language retrieval: a keyword-only table for non-English~~ | **DONE 2026-09-30, with one deliberate non-implementation.** `segments_nonen` is a table whose schema is the English segment schema MINUS `embedding`, PLUS `language` — so a non-English chunk **cannot** reach a semantic result as a property of the STORAGE, not of every query path remembering a filter. **D-14's claim is confirmed: `LANCE_SCHEMA_VERSION` does NOT move** (3 → 3) and no corpus is forced to rebuild, because a table was added rather than a column. `has_tier` makes its absence read as "no non-English content", which every existing index needs. One router on BOTH write paths — adding the field broke the singular `upsert_segment` and the integration suite caught it. `replace_segments` CLEARS the tier on an English-only rebuild, or a previous build's Spanish rows would survive a "replace". The keyword leg reads it; the dense leg's tier list omits it BY DEFAULT, so forgetting the flag cannot enrol it. A filter naming a column the tier lacks skips the read rather than retrying unfiltered, which would leak rows past the filter. **Language is the INDEXED TEXT's, not the episode's**: a translated episode's chunks are the English render and keep their vectors — routing by source language would exile a good translation from semantic search. **NOT IMPLEMENTED, deliberately: the dense-leg switch.** D-14 asked for it "measured either way" and there is no query corpus to measure against; the asymmetry decides it without one — wrongly dropping the dense leg on an English query is a regression for the 678 episodes that ARE the corpus, while wrongly keeping it on a Spanish one is dilution the keyword leg already covers. `search/query_language.py` records the signal so the measurement becomes possible later, and `drop_dense_leg` is pinned False. **Also moot rather than done**: insight→segment linking needs no language filter — `seg_docs` is built and linked per episode, so all segments in a call share one language and a cross-language link cannot occur. Keyword recall through the English tokenizer is unmeasured: it needs an index rebuild, which on this machine runs only in Docker. | S2.5 | L | closed |
 | **S2.10** [#2238](https://github.com/chipi/podcast_scraper/issues/2238) | ~~Cost and capacity measurement~~ | **DONE 2026-09-30, measured on the real service.** **Latency**, 174 requests: p50 **5.6 s**, p95 **13.0 s**, p99 **143 s**, max **145 s** per unit at concurrency 1. **Throughput**: 4.1 tok/s at concurrency 1 vs 5.0 at concurrency 4 — parallelism buys almost nothing, so the co-resident GPU is the constraint, not request concurrency; there is no reason to fan out wider. **Unit size dominates everything**: 580 words took 141 s, 1,740 words timed out at 240 s (3/3, deterministic), 4,060 words silently returned its first sentence. **Wall time per episode** (RFC-124 OQ3's cap, now settable): a real 47-turn episode packs to ~133 sentences; at p50 5.6 s per unit that is **~8 min** serial, and p95 13 s puts the tail at **~29 min** — so a cap of 45 min with the ADR-122 breaker for endpoint failures is the shape the data supports. **Storage delta**: **~104 KiB per episode** (`.en.txt` + `.en.segments.json` at one cue per sentence + `.en.adfree.*` + `translation.json`), against 21 KiB of source text artifacts — **4.9x** the text, and negligible beside audio. **Cost is a measured zero** (local GPU), which is why the manifest records per-episode UNITS and TOKENS instead: cost alone would record nothing. | S2.3 | S | closed |
-| **S2.11** [#2239](https://github.com/chipi/podcast_scraper/issues/2239) | Translation provenance on every claim | The `translation` block (`translated`, `source_language`, `unit_ids`, `en_sha256`) written into node `properties` via `resolve_units_for_span`, by **every** writer of `gi.json` — the artifact builder, `add_spoken_by_edges(replace=True)` and `gi/repair.py`. | S2.5 | M | closed |
+| **S2.11** [#2239](https://github.com/chipi/podcast_scraper/issues/2239) | Translation provenance on every claim | The `translation` block (`translated`, `source_language`, `unit_ids`, `en_sha256`) written into node `properties` via `resolve_units_for_span`, by **every** writer of `gi.json` — the artifact builder, `add_spoken_by_edges(replace=True)` and the GI repair. | S2.5 | M | closed |
 | **S2.14** [#2240](https://github.com/chipi/podcast_scraper/issues/2240) | English-only NLP cannot run on non-English text | A guard at the naming and sniff-gate entry points: refuse (or skip with a reason) when the text's resolved language is not `en`. **Defence in depth, and the failure it catches is silent.** If translation ran correctly nothing non-English ever reaches these stages — but a skipped translation, a stage run out of order, or a reprocess with the wrong flag would feed Spanish to English NER, and the measured result (§5.2) is not an absence but *four phantom people* surviving `_looks_like_person`, each minted as a person node with a `SPOKEN_BY` edge and position claims. A missing name is visible; a phantom person is not. Same shape as S0.7's English-only transcription guard, and for the same reason. | S2.4 | S | closed — reachable as of 2026-09-30; it was not before |
 | **V.7** | ~~First real translation — Pass A, translation only~~ | **DONE 2026-09-30, on the live translation service.** The first time any real translator produced a `.en.*` set. 47 units, **0 failed, 0 retries, 0 unit-fallbacks — every unit sentence-aligned**; **3.4 min** wall against S2.10's ~8 min prediction; served-model verification ON (ADR-143 (not in this repository)/144) and it passed; storage **4.4x** the source text against the predicted 4.9x. Ad detection on the English render: **5 patterns against 0 on the Spanish source** (ADR-157 predicted 2 vs 0), 742 ad chars excised. D-42's title decision validated on first contact — `Construyendo Senderos Que Duran` came back as `Building Trails That Last.`, which is the English original's title verbatim apart from a trailing period the model adds. Naming resolved **both** people from the English render (Maya Koster from the feed's author tag, Liam Verbeek from the English self-intro) and correctly left the ad voice unnamed. **THREE FINDINGS, none of which any test had caught** — see §9. | S2.11 | S | closed |
 | **S2.13** [#2241](https://github.com/chipi/podcast_scraper/issues/2241) | Phase 2 gate | **NOT RUN. EVERY SLICE IS NOW DONE** (S2.1a, S2.1b, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10, S2.11, S2.14 — S2.12 was deleted, see §8). **The per-slice status cells in this table were stale until 2026-09-30**: seven slices shipped and were still marked open, and several notes referenced a `multilingual_ingest` flag that no longer exists (D-41). What the gate still needs: **(1)** D-34 — **done 2026-09-30, REVERTED 2026-10-02** (see S2.6), so naming after translation is NOT on main; **(2)** ~~one real end-to-end run~~ **DONE 2026-10-03** — `fixture_validation_dgx` over `p10`..`p14` × `e02`/`e03`: 10 episodes, 430 units, **0 failures**, `google/translategemma-12b-it` via the translation service, no ASR. Real translator output, the D-44 swap performed on disk, ad excision running on the translated English, and GI/KG/summary on the English body. Captured into `pipeline-renders/v3` and built into the corpus, which went 45 → 55 episodes; **(3)** ~~network access to the translation service applied~~ **DONE 2026-09-30** — the operator applied it; measured from the laptop, `/health` answers 200 in 7.4 ms; **(4)** an index rebuild to measure keyword recall — the source-language chunk layer is now COVERED (2026-10-03: the integration suite rebuilds the two-tier index over all 55 episodes, 77 source-language rows where there were 27, and the `transcript-language` e2e asserts an episode is findable by searching in English AND in its own language, green on both projects). What is still owed is the recall NUMBER; the layer is no longer untested. Also no longer Docker-only — `sentence-transformers`, `lancedb` and `pyarrow` all import from `.venv` on this host; **(5)** ~~the title decision S2.4 left open~~ **DONE — D-42**; **(6)** the full suite with a frozen tree — run on 351b729fd, whose tree differs from the merge commit aa0440506 by 41 files; main's CI on aa0440506 was red (7 e2e + 1 integration), fixed on main by c472d80b8, 564161df9 and e84470d03 (see §9, 2026-10-07). | S2.1b–S2.11 | M | This is the ship |
@@ -362,10 +360,10 @@ should happen on day one rather than when Gate V formally starts.
 
 | Finding | Evidence | Consequence |
 | --- | --- | --- |
-| **There is no stance-extraction stage, and deliberately none.** Stances are GI insights; Positions are read-time queries. | `insight_stage/cil_queries.py:787` `position_arc`; `enrichment/profile_sets.py:144-146`; the 2026-07-08 retirement of `stance_timeline`. A repo-wide word search for `stance` finds only comments. | A future gate would be a **read-path filter**, which is why v2 can add one retroactively over the existing corpus without re-extraction. No stance-extraction dependency exists. |
+| **There is no stance-extraction stage, and deliberately none.** Stances are GI insights; Positions are read-time queries. | the CIL queries' `position_arc`; `enrichment/profile_sets.py:144-146`; the 2026-07-08 retirement of `stance_timeline`. A repo-wide word search for `stance` finds only comments. | A future gate would be a **read-path filter**, which is why v2 can add one retroactively over the existing corpus without re-extraction. No stance-extraction dependency exists. |
 | **`vector_embedding_model` is genuinely wired to the search index.** | `search/indexer.py:577` → `build_two_tier_index`; the query side reads the model recorded in the index (`hybrid_search.py:238-244`). | A future encoder swap is coherent. v1 changes no embedding model (D-14). |
-| **`GiArtifact` forbids extra top-level keys**; `EvidenceSpan` / `SupportingQuote` / `SegmentsResponse` are plain models. | `gi/contracts.py:130`, `:14`, `:25`; `server/schemas.py:24`. | Additive data lives in node `properties`; API fields are safe to add. |
-| **The ad-free identity hazard is real.** | `gi/ad_regions.py:409-418`; `adfree_transcript.py:104-106`, `:129-137`; `load_processing_transcript:237-250` sets `is_adfree=True` on file existence alone. | Translation precedes ad detection (D-3). Caveat: with no segments `build_adfree_artifacts` returns `None`, so the identity artifact only appears for episodes with a segments sidecar. |
+| **`GiArtifact` forbids extra top-level keys**; `EvidenceSpan` / `SupportingQuote` / `SegmentsResponse` are plain models. | the GI contracts; `server/schemas.py:24`. | Additive data lives in node `properties`; API fields are safe to add. |
+| **The ad-free identity hazard is real.** | the ad-region and ad-free transcript builders; `load_processing_transcript:237-250` sets `is_adfree=True` on file existence alone. | Translation precedes ad detection (D-3). Caveat: with no segments `build_adfree_artifacts` returns `None`, so the identity artifact only appears for episodes with a segments sidecar. |
 | **`adfree_transcript_relpath` composes `ep1.en.txt` → `ep1.en.adfree.txt`** unchanged. | `adfree_transcript.py:52-55`. | No new path helper needed. |
 | **`formatting.py:81`'s passthrough tuple can carry `unit_id`** through to both sidecars. | `formatting.py:81`; `episode_processor.py:825`; `adfree_transcript.py:180` dump segment dicts unchanged. | The span→unit chain (C-5's fix) is implementable. |
 | **The per-feed override reaches the whole run.** | `feeds_spec.py:250-291` `merge_feed_entry_into_config` does `cfg.model_copy(update=...)`; `service.py:143`. | An override needs no threading — but see C-4 for the multi-feed singleton hazard. |
@@ -394,7 +392,7 @@ not change across Latin-script languages — the same reason D-24 skips translit
 are found.
 
 **Precision collapses, and the downstream filters make it worse rather than better.**
-`gi/speakers._looks_like_person` requires ≥2 tokens, which is exactly what Spanish function-word
+The GI speaker check `_looks_like_person` requires ≥2 tokens, which is exactly what Spanish function-word
 phrases satisfy. On English it cleans perfectly (`Strava` dropped). On Spanish **four noise phrases
 survive it**:
 
@@ -465,7 +463,7 @@ run on the **English** text after translation, because that is what stops a
 | Consumer episode list + toolbar | single-select filter via `ListToolbar`, plus a show selector and sort | v2 filter |
 | Episode + show items | `EpisodeRow/Tile/Card.vue`, `ShowRow/ShowTile.vue`, `PodcastView.vue` | v2 badge |
 | Operator shows library | `library/{ShowsBrowse,ShowsView}.vue`, `episode/ShowRailPanel.vue`, `LibraryFilterBar.vue` | S0.5 field, v2 badge/filter |
-| Claim serialization | `AppInsight`/`AppQuote`, `gi/contracts.py` `InsightSummary`/`SupportingQuote`, `hybrid_search._to_search_result`, `server/og/build.py`, snapshot exports | v2 labelling — every one drops node properties today, and snapshots are copies a read-time change cannot reach |
+| Claim serialization | `AppInsight`/`AppQuote`, the GI contracts' `InsightSummary`/`SupportingQuote`, `hybrid_search._to_search_result`, `server/og/build.py`, snapshot exports | v2 labelling — every one drops node properties today, and snapshots are copies a read-time change cannot reach |
 | Position surfaces | `cil_queries.py` (nine entry points), `search/relational_queries.py:170 positions_of`, `enrichment/enrichers/topic_consensus.py` | v2 only — nothing in v1 filters these |
 
 ### 5.4 Claims that were WRONG, and the pattern behind them
@@ -477,7 +475,7 @@ complete.** Recorded so the next pass recognises it rather than repeating it.
 
 - **C-1 — "`load_processing_transcript` is the single resolver all NLP consumers use" is a docstring,
   not a fact.** Two callers; nine or more independent resolvers (S2.1). **D-4's "consumers change
-  nothing" was false.** A follow-on correction was itself wrong: `gi/load.py` reading the raw `.txt` is
+  nothing" was false.** A follow-on correction was itself wrong: the GI loader reading the raw `.txt` is
   reached only from `gi inspect` / `gi show-insight`, so it is a CLI bug, not a live pipeline path.
 - **C-2 — the RSS `<language>` tag is never parsed.** `feed.language` is the run config written back
   out, so `_feed_language` reads config and `AppPodcastItem.language` serves `"en"` by construction.
@@ -505,7 +503,7 @@ complete.** Recorded so the next pass recognises it rather than repeating it.
   the bridge, CIL identity, KG topic clustering, `hybrid_search` and `query_router` all hardcode MiniLM,
   and `insight_clusters.json` would not follow a config change. Moot for v1, load-bearing whenever a
   swap happens — v2 doc §7.
-- **C-8 — RFC-125's code mechanics were wrong in three places.** `surfaceable` is set by
+- **C-8 — translation verification's code mechanics were wrong in three places.** `surfaceable` is set by
   `_apply_voice_flags`, not `_apply_route_and_tag`; `position_arc`'s predicate is SPOKEN_BY-supported
   quote ∩ `ABOUT` ∩ `insight_type == "claim"` and never reads `surfaceable` or `speaker_id` — and that
   type filter is a *default* a caller can drop; there are **no KG evidence spans** at all.
@@ -822,7 +820,7 @@ What the run found is what matters:
 
 **2026-09-29 — a per-language stage record, shipped and reverted.** S2.2 first withheld the `translation` manifest block from English episodes so that `pipeline_composition_version` would not move on the 678 already on disk. Two things were wrong. The hash exists to say which pipeline shape produced an episode, so it moving when a stage is added is the hash working, not a cost — the real cost is one-time and operational, a reprocess query reissued once. And withholding made the hash depend on the episode's LANGUAGE rather than the code: measured, `en -> pc-dba934bc` and `es -> pc-cf90c1cf` off the same commit. The justification was also circular: it cited S0.10's `test_declaring_the_stage_but_never_recording_it_is_the_safe_shape` as a later measurement overriding the plan, but that test was written in the same arc by the same author and encoded an opinion, not a measurement. Corrected to D-39; the guard now asserts the invariant (`test_the_hash_does_not_depend_on_the_episodes_language`) and `_ENGLISH_STAGES` was renamed `_PIPELINE_STAGES`, since the name is what made a per-language stage set look reasonable.
 
-**2026-09-28 — arc opened.** PRD-047 and RFC-123/124/125 landed, reworked against the code rather than
+**2026-09-28 — arc opened.** PRD-047 and the turns artifact, RFC-124 and translation verification landed, reworked against the code rather than
 accepted as drafted. QE cut from v1. Phase 0 reframed as "English as a declared language". The
 demand/bake-off step renamed **Gate V**. Slice plan added.
 
@@ -836,7 +834,7 @@ RSS parsing; D-4 revised; the span chain rebuilt on segments and `unit_id`. Serb
 (D-13). Retrieval split. Trust markers and the gate pulled into Phase 2 (D-17).
 
 **2026-09-28 — second adversarial review; the corrections had their own errors.** Found: the Positions
-surface list was still incomplete (nine, one of them write-time); `gi/load.py` is CLI-only, not a live
+surface list was still incomplete (nine, one of them write-time); the GI loader is CLI-only, not a live
 pipeline path; the reader inventory had a bogus entry and was short; `position_arc`'s type filter is a
 caller-overridable default; the trigger and gate populations would have diverged, excluding translated
 non-claim insights permanently; the marker does not survive four serialization boundaries or snapshots

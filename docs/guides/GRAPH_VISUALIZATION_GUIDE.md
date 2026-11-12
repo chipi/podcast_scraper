@@ -293,7 +293,7 @@ adding a fourth border layer.
 **Code:**
 
 - `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` — `applyPersonCommunityClasses`.
-- Enricher: `src/podcast_scraper/enrichment/enrichers/guest_coappearance.py`.
+- Enricher: `guest_coappearance`, provided by an installed extension.
 
 ---
 
@@ -899,7 +899,6 @@ main and in `ci-ui-full` locally.
   Tier 5 lenses (aggregated edges, velocity halo, etc.).
 - `docs/rfc/RFC-069-graph-exploration-toolkit.md` — the graph-exploration
   primitives (ego, expand-on-tap, matrix contracts).
-- `docs/rfc/RFC-075-corpus-topic-clustering.md` — the theme-cluster enricher.
 
 **Implementation specs:**
 
@@ -912,8 +911,6 @@ main and in `ci-ui-full` locally.
 
 - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — node/edge kinds at the
   data layer; entity resolution.
-- `docs/guides/GIL_KG_CIL_CROSS_LAYER.md` — how GI, KG, and CIL layers
-  merge into the artifact the viewer receives.
 
 **Change history:**
 

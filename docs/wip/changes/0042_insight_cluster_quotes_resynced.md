@@ -2,7 +2,7 @@
 id: 0042_insight_cluster_quotes_resynced
 class: full
 status: landed
-issue: none (RFC-131 plan V3, D2 item 5; and 0041's derived surfaces)
+issue: none (the person-identity design plan V3, D2 item 5; and 0041's derived surfaces)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0042_insight_cluster_quotes_resynced.py
   - src/podcast_scraper/upgrade/registry.py

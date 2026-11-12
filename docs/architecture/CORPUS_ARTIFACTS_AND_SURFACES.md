@@ -95,7 +95,7 @@ Post-deploy smoke (operator tooling, not in this repository) hits the **primary*
 | 2.5.2 | `corpus_manifest` 1.0 → 1.1 | Added `cost_rollup` — PR #650. |
 | 2.5.0 | Multi-feed corpus artifacts | `corpus_manifest.json`, unified `search/` index (#505 / #506). |
 | 2.5.x | `topic_clusters.json` | schema `"2"`; built after LanceDB index exists. |
-| 2.4.0 | GIL 2.0, KG 1.2 | RFC-072 canonical identity; read-time migrations in `gil_kg_identity_migrations.py`. |
+| 2.4.0 | GIL 2.0, KG 1.2 | The cross-layer identity design canonical identity; read-time migrations in `gil_kg_identity_migrations.py`. |
 | 2.4.0 | Bridge artifacts | `*.bridge.json` siblings next to metadata/GI/KG. |
 
 When bumping any `schema_version`, update this table **and** [COMPATIBILITY.md](../COMPATIBILITY.md).

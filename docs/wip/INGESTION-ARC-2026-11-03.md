@@ -6,7 +6,7 @@ workflow, deploy-contract or package-layout change, and nothing that counts as f
 it runs on prod or the DGX. Code here ships with a later deploy; it adds no step to that deploy's
 runbook unless an item says so.
 
-Sources: `HANDOVER-NAMING-2026-11-03.md` (§2, §4), the earlier ingestion arc note (deleted; in git history before 775b09c8), eval-data
+Sources: the earlier ingestion arc note (deleted; in git history before 775b09c8), eval-data
 `docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md`, open GH issues, and the ingestion session's
 pointers (2026-11-03). Every issue state below is from `gh issue view` on 2026-11-03.
 
@@ -41,7 +41,7 @@ taken fresh on the current labels.
 | A2 | `person_profile` empty for `person:robert-caro`, `person:anita-anand` | handover §2.1 | **done** `218e2858`: every CIL reader kept one run per feed (289 of 3,668 bridges on snapshot-prod-20261103); now the central membership rule (3,130). Profiles: robert-caro 0 → 75 quotes, anita-anand 0 → 1,052 |
 | A3 | m0023 `_write_text_with_backup` creates backup dirs without `match_corpus_owner` | handover §2.2 | **done** `afcb74d9` (record `a3_text_backup_dir_owner`, light, open until a deploy carries it). Also covers `identity/respell.py`, which uses the same writer on every prod refresh |
 | A4 | `write_with_backup` keeps the first backup, so a twice-written file undoes to its pre-first-run state | handover §4 | **done** `36ef4b53` (record `a4_backup_per_before_state`, light): a second backup per replaced state; undo restores only the receipt's before-state |
-| A5 | A test that checks each verdict row's `line_sha256` against the served segment | handover §4 | **done** `4439151e`: `scripts/measure/verdict_lines_check.py`; snapshot-prod-20261103: 652 of 652 hashed rows match |
+| A5 | A test that checks each verdict row's `line_sha256` against the served segment | handover §4 | **done** `4439151e`: the verdict-lines check; snapshot-prod-20261103: 652 of 652 hashed rows match |
 | A6 | CIL readers read each feed's latest run only, so a fix in an older run's bridge is invisible | handover §4 | **done** with A2 (`218e2858`): same cause |
 | A7 | #2253 `gi inspect` slices `.adfree.txt` spans from `.txt` | GH, open | **done** `5d9d011b`: the residual case, an absolute `transcript_ref` (7,481 quotes in 52 episodes on the snapshot). 8 quotes remain off their text in the right body: offset drift, not #2253 |
 | A8 | #2131 `parse_webvtt` / `parse_srt` never unescape entities | GH, open | **already fixed** `caa9987e` (#2131 still open on GitHub); 0 of 4,950 served raw transcripts carry an entity |
@@ -79,7 +79,7 @@ respell writes (the near-spelling joins report, plus the ledger change-log's res
 **The deploy that carries any of these changes stored data.**
 
 **Decided (operator, 2026-11-04): in this arc, shipped switched off.** The rules are built as a new
-named rule mode beside today's (`identity/ledger.py` selects one through `PERSON_MODE =
+named rule mode beside today's (the identity ledger selects one through `PERSON_MODE =
 "cluster_person"`), through the full method, and measured on a snapshot clone: the ledger rebuilt
 in the new mode, diffed per group, the respell's writes counted, and the rules scored once on a
 fresh unseen split. `PERSON_MODE` stays on today's rules, so the deploy after the infra work
@@ -92,7 +92,7 @@ before the first rule.
 
 | # | Item | Source |
 | --- | --- | --- |
-| L1 | Roster same-person rules unified or justified (RFC-131 Phase 5), if they change what the ledger reads | #2403, open. **Out of the ledger mode** (record `l_publisher_verified_mode` §1): a roster rule at naming time; its prerequisites (the shadow namers' decision, a voice-level truth set) are unmet |
+| L1 | Roster same-person rules unified or justified, if they change what the ledger reads | #2403, open. **Out of the ledger mode** (record `l_publisher_verified_mode` §1): a roster rule at naming time; its prerequisites (the shadow namers' decision, a voice-level truth set) are unmet |
 | L2 | Feed-host spelling rule: a feed's stated host matched by first name and host role (`dara-obrey`, `luisa-lemi`, `john-glenn-hill`) | handover §2.3. **Built, switched off**: record `l_publisher_verified_mode` (V2, V3), step 8 GO WITH CONDITIONS |
 | L3 | `known_hosts` as mixed evidence, fixed at the pipeline (`_recurrent_hosts_from_disk`); a ledger change if it feeds the ledger | handover §2.4. **Ledger half built, switched off** (V1: 1,063 of 4,307 name-episodes not in the publisher's text); the pipeline half is its own forward change |
 | L4 | Strict-tier losses D1 → D2: `sarah-gonzalez`, `erika-barris`, `david-sanger` | handover §2.5. **Two built, switched off** (`sarah-gonzales`, `erica-barris` take the publisher's spelling); `david-sanger` is a middle-initial scoring artifact, not a ledger error |

@@ -4,8 +4,8 @@
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: ML Provider maintainers, Core developers
 - **Execution Timing**: **Phase 1 of 3** — Build first, before
-  RFC-042 and RFC-049. This RFC provides the infrastructure that
-  RFC-042 populates and RFC-049 consumes.
+  RFC-042 and the GIL core design. This RFC provides the infrastructure that
+  RFC-042 populates and the GIL core design consumes.
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
     (Summarization architecture)
@@ -16,8 +16,6 @@
   - `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
     (Hybrid ML platform — populates registry with all model
     families)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-    (GIL — consumes registry for extraction model selection)
 - **Related Documents**:
   - Phase 1 & 2 of hardcoded values tightening completed
     (duplicate constants resolved, validation ranges
@@ -35,7 +33,7 @@ detection with intelligent fallbacks, and enables extensibility
 for future model types.
 
 **Expanded Scope (v2.5+):** With the introduction of RFC-042
-(Hybrid ML Platform) and RFC-049 (Grounded Insight Layer), the
+(Hybrid ML Platform) and the GIL, the
 model landscape has grown from 2 model families (MAP + REDUCE
 summarizers) to **6 model families**:
 
@@ -49,7 +47,7 @@ summarizers) to **6 model families**:
 | NLI Cross-Encoder | Grounding validation | DeBERTa-NLI |
 
 This RFC provides the **infrastructure** that RFC-042 populates
-with model entries and that RFC-049 queries for extraction model
+with model entries and that the GIL core design queries for extraction model
 selection.
 
 **Architecture Alignment:** This RFC aligns with RFC-029 provider
@@ -69,7 +67,7 @@ Phase 2: RFC-042 — Hybrid ML Platform
     │     Implement hybrid provider + extended models
     │     Duration: ~10 weeks
     ▼
-Phase 3: RFC-049 — Grounded Insight Layer
+Phase 3: The GIL core design — Grounded Insight Layer
           Query registry for model selection per tier
           Run extraction pipeline using registered models
           Duration: ~6-8 weeks
@@ -125,7 +123,7 @@ Model architecture limits are currently hardcoded in multiple locations:
    unknown models with safe defaults
 7. **Support All Model Families**: Handle MAP, REDUCE,
    Embedding, QA, and NLI models (not just summarizers)
-8. **Enable RFC-042 and RFC-049**: Provide the model
+8. **Enable RFC-042 and the GIL core design**: Provide the model
    metadata infrastructure that downstream RFCs depend on
 
 ## Constraints & Assumptions
@@ -645,9 +643,9 @@ if caps.model_family == "extractive_qa":
     ...
 ```
 
-**RFC-049 Integration (GIL Extraction):**
+**the GIL core design Integration (GIL Extraction):**
 
-RFC-049 queries the registry to determine which models
+The GIL core design queries the registry to determine which models
 are available per extraction tier:
 
 ```python
@@ -901,7 +899,7 @@ This RFC (RFC-044) is the **foundation layer** in a three-RFC
 dependency chain:
 
 ```text
-RFC-044 (this RFC) → RFC-042 → RFC-049
+RFC-044 (this RFC) → RFC-042 → the GIL core design
    Registry infra       Populate      Consume
    (Phase 1)            (Phase 2)     (Phase 3)
 ```
@@ -918,7 +916,7 @@ RFC-044 (this RFC) → RFC-042 → RFC-049
    Embedding, QA, NLI). Implements the hybrid provider
    and structured extraction protocol.
 
-3. **RFC-049 (Phase 3)**: Grounded Insight Layer. Queries
+3. **the GIL core design (Phase 3)**: Grounded Insight Layer. Queries
    the registry for model availability per extraction
    tier. Runs the GIL extraction pipeline using
    registered models.
@@ -940,8 +938,6 @@ RFC-044 (this RFC) → RFC-042 → RFC-049
   infrastructure
 - **RFC-042**: Model catalog, loading, and hybrid
   pipeline implementation
-- **RFC-049**: Domain-specific extraction using models
-  from the registry
 
 ## Benefits
 
@@ -963,7 +959,7 @@ RFC-044 (this RFC) → RFC-042 → RFC-049
 4. **Phase 4**: Verify all tests pass, update docs
 5. **Phase 5**: RFC-042 populates registry with all model
    families (FLAN-T5, Embedding, QA, NLI)
-6. **Phase 6**: RFC-049 consumes registry for GIL
+6. **Phase 6**: The GIL core design consumes registry for GIL
    extraction model selection
 
 ## Promotion Mechanism: Baseline → Registry
@@ -1246,7 +1242,7 @@ By centralizing model metadata into a single
   custom models and `ModeConfiguration` for promoted
   baselines
 - **Cross-RFC infrastructure** that RFC-042 populates
-  with 6 model families and RFC-049 queries for
+  with 6 model families and the GIL core design queries for
   extraction model selection
 
 The registry is deliberately **minimal and focused**:
@@ -1255,7 +1251,7 @@ dict for storage, and O(1) lookups. No external files,
 no network calls, no runtime overhead.
 
 **As the foundational Phase 1 of the three-phase
-build-out (RFC-044 → RFC-042 → RFC-049), this registry
+build-out (RFC-044 → RFC-042 → the GIL core design), this registry
 is the infrastructure that makes the entire local ML
 platform and Grounded Insight Layer possible.**
 
@@ -1264,6 +1260,5 @@ platform and Grounded Insight Layer possible.**
 - **Related RFC**: `docs/rfc/RFC-012-episode-summarization.md`
 - **Related RFC**: `docs/rfc/RFC-029-provider-refactoring-consolidation.md`
 - **Related RFC**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
-- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Source Code**: `src/podcast_scraper/providers/ml/summarizer.py`
 - **Source Code**: `src/podcast_scraper/config.py`

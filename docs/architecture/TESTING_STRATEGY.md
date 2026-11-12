@@ -26,13 +26,12 @@ templates managed by `PromptStore` (RFC-017).
 **GIL**: The Grounded Insight Layer (GIL, PRD-017) has testing for insight/quote extraction,
 grounding contract validation, and `gi.json` schema compliance. See **GIL Testing (Implemented)** below.
 
-**CIL / bridge / search lift (RFC-072, #527–528):** Unit tests cover **`bridge.json`**
+**CIL / bridge / search lift (the cross-layer identity design, #527–528):** Unit tests cover **`bridge.json`**
 building, **`cil_queries`**, **transcript chunk lift**, and **GIL–index offset**
 verification helpers; FastAPI integration tests cover **CIL routes** and extended
 **search** responses. The **strict offset gate** is a **Makefile** target
 (`make verify-gil-offsets-strict`) run against a **concrete indexed corpus**, not part of
-default `make ci-fast` — see [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md)
-and [Testing Guide — GIL, KG, CIL, and semantic search](../guides/TESTING_GUIDE.md#gil-kg-cil-and-semantic-search-validation).
+default `make ci-fast` — see [Testing Guide — GIL, KG, CIL, and semantic search](../guides/TESTING_GUIDE.md#gil-kg-cil-and-semantic-search-validation).
 
 For detailed implementation guides per test layer,
 see the layer-specific guides linked above.
@@ -147,7 +146,7 @@ The testing strategy follows a three-tier pyramid:
     into the callers' own tests. Search
     `PODCAST_SCRAPER_CORPUS_LOCK` / `corpus_search_parent_hint` across
     `tests/` to locate current coverage.
-  - `tests/unit/podcast_scraper/gi/test_load.py` / `tests/unit/podcast_scraper/kg/test_kg_load.py` —
+  - `tests/unit/podcast_scraper/kg/test_kg_load.py` —
     **`find_*_by_episode_id`** across **`feeds/`** with **`feed_id`** disambiguation.
   - `web/gi-kg-viewer/src/stores/shell.hints.test.ts` (Vitest) — **`GET /api/artifacts`** `hints`;
     `web/gi-kg-viewer/e2e/corpus-hints.spec.ts` (Playwright; requires **`playwright install`**).
@@ -494,17 +493,15 @@ The decision questions above provide a quick way to determine test type. For cri
 
 | Provider | Unit Tests | Integration | E2E |
 | --- | --- | --- | --- |
-| MLProvider | `test_ml_provider.py`, `_lifecycle.py` | `test_provider_real_models.py` | `test_ml_models_e2e.py` |
-| HybridMLProvider | `test_hybrid_ml_provider.py`, `_lifecycle.py` | `test_hybrid_ml_providers.py` | `test_hybrid_ml_provider_e2e.py` (layered `pattern` path, Issue #419) |
-| OpenAIProvider | `test_openai_provider.py`, `_factory.py`, `_lifecycle.py` | `test_openai_providers.py` | `test_openai_provider_e2e.py` |
-| GeminiProvider | `test_gemini_provider.py`, `_factory.py`, `_lifecycle.py` | `test_gemini_providers.py` | `test_gemini_provider_e2e.py` |
-| AnthropicProvider | `test_anthropic_provider.py`, `_factory.py`, `_lifecycle.py` | `test_anthropic_providers.py` | `test_anthropic_provider_e2e.py` |
-| MistralProvider | `test_mistral_provider.py`, `_factory.py`, `_lifecycle.py` | `test_mistral_providers.py` | `test_mistral_provider_e2e.py` |
-| DeepSeekProvider | `test_deepseek_provider.py`, `_factory.py`, `_lifecycle.py` | `test_deepseek_providers.py` | `test_deepseek_provider_e2e.py` |
-| GrokProvider | `test_grok_provider.py`, `_factory.py`, `_lifecycle.py` | `test_grok_providers.py` | `test_grok_provider_e2e.py` |
-| OllamaProvider | `test_ollama_provider.py`, `_factory.py`, `_lifecycle.py` | `test_ollama_providers.py` | `test_ollama_provider_e2e.py` |
+| MLProvider | — | `test_ml_provider.py`, `test_ml_provider_lifecycle.py` | `test_ml_models_e2e.py` |
+| OpenAIProvider | `test_openai_chat_transport_timeout.py`, `test_openai_kg_json_retry.py`, `test_openai_token_kwarg.py` | `test_openai_provider.py`, `test_openai_factory.py`, `test_openai_provider_lifecycle.py` | `test_openai_provider_e2e.py` |
+| GeminiProvider | `test_transcript_prefix_gemini.py` | `test_gemini_factory.py`, `test_gemini_provider_lifecycle.py` | `test_gemini_provider_e2e.py` |
+| AnthropicProvider | `test_transcript_prefix_anthropic.py` | `test_anthropic_factory.py`, `test_anthropic_provider_lifecycle.py` | `test_anthropic_provider_e2e.py` |
+| MistralProvider | — | `test_mistral_provider.py`, `test_mistral_factory.py`, `test_mistral_provider_lifecycle.py` | `test_mistral_provider_e2e.py` |
+| DeepSeekProvider | `test_deepseek_reasoning_budget.py` | `test_deepseek_provider.py` | `test_deepseek_provider_e2e.py` |
+| GrokProvider | — | `test_grok_providers.py`, `test_grok_factory.py`, `test_grok_provider_lifecycle.py` | `test_grok_provider_e2e.py` |
+| OllamaProvider | — | `test_ollama_providers.py`, `test_ollama_factory.py`, `test_ollama_provider_lifecycle.py` | `test_ollama_provider_e2e.py` |
 | TailnetDgxWhisper | `test_tailnet_dgx_whisper.py` | (covered by unit + e2e) | `test_tailnet_dgx_e2e.py` |
-| TailnetDgxDiarization | `test_tailnet_dgx_diarization.py` | (covered by unit + e2e) | `test_tailnet_dgx_e2e.py` |
 
 - **Provider Capabilities**: `test_capabilities.py`
   (unit) and `test_capabilities_e2e.py` (E2E) test
@@ -1101,20 +1098,13 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] Summary schema validation
   (`test_summary_schema.py`)
 
-### GIL Modules (RFC-049 — Implemented)
+### GIL Modules
 
-- [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
-- [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
-- [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
+The GIL extraction, loading and exploration modules, the `gi` CLI verbs and their tests ship in an
+installed extension. This repository tests the seams the extension plugs into and the shared
+artifact checks:
+
 - [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E subprocess smoke `test_gi_kg_cli_subprocess_e2e.py` (`kg validate`, `kg inspect`); acceptance via **`make test-acceptance`** (operator YAML paths you choose) and/or **`make test-acceptance-fixtures-fast`** (materialized **`MAIN_ACCEPTANCE_CONFIG.yaml`** matrix rows).
-- [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
-- [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
-- [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)
-- [x] `gi/grounding.py` — find_grounded_quotes (unit: `test_grounding.py`; optional integration with real models)
-- [x] GIL in workflow: metadata_generation writes gi.json when generate_gi true (unit: test_metadata_generation; integration/E2E pipeline tests as marked)
-- [x] CLI `gi inspect`, `gi show-insight`, `gi explore` (unit: test_cli TestGiSubcommand; E2E subprocess: `test_gi_kg_cli_subprocess_e2e.py` for `gi validate`)
-- [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
-- [ ] GIL extraction latency per tier — benchmarking planned
 
 ### `search/` (Corpus Search — RFC-090 Hybrid over LanceDB)
 
@@ -1131,10 +1121,6 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `search/hybrid_search.py` — live hybrid bridge
   (missing index → `no_index`, no fallback) (unit:
   `test_hybrid_dispatch.py`, `test_hybrid_helpers.py`)
-- [x] `search/relational_edges.py`, `gi/speakers.py` —
-  derived relational edges (#874) (unit:
-  `test_relational_edges.py`, `test_speakers.py`,
-  `test_enrich_edges_cli.py`)
 - [x] `search/indexer.py` — corpus-wide index build,
   nested feeds, hybrid indexing, composite fingerprint
   keys (unit: `test_indexer_episode_metadata.py` (+ related `test_indexer_*.py`))
@@ -1300,55 +1286,24 @@ All previously-identified coverage gaps have been addressed. Key modules and the
 - [x] Error handling tests
 - [x] Return value validation
 
-### GIL Testing (Implemented — PRD-017, RFC-049/050) {#gil-testing-implemented--prd-017-rfc-049050}
+### GIL Testing {#gil-testing-implemented--prd-017}
 
-Testing for the Grounded Insight Layer follows the established test pyramid. Current coverage:
+The GIL unit, integration and E2E tests ship with the extension that provides GIL. What stays here
+is the KG-side artifact gate and the seams:
 
-**Provider-based evidence:** The pipeline uses `find_grounded_quotes_via_providers` (in `gi/grounding.py`), which calls provider methods `extract_quotes` and `score_entailment`. These are unit-tested with mocked dependencies in `test_grounding.py` and `test_pipeline.py`; provider implementations (ML and LLM) are covered in `test_ml_provider.py`, `test_openai_provider.py`, and other provider test modules. Evidence stack integration (embedding, QA, NLI) is covered in `test_evidence_stack_integration.py`.
-
-**Unit Tests:**
-
-- [x] `gi/schema.py` — JSON schema validation (`test_schema.py`)
-- [x] `gi/io.py` — read/write gi.json, `collect_gi_paths_from_inputs` (`test_io.py`)
-- [x] `gi/quality_metrics.py` — PRD-017 aggregates (`test_gil_quality_metrics.py`)
-- [x] `gi/corpus.py` — NDJSON / merged export (`test_gi_corpus.py`)
 - [x] `kg/quality_metrics.py` — PRD-019 aggregates (`test_quality_metrics.py`)
-- [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (`test_load.py`)
-- [x] `gi/explore.py` — scan, collect, topic filter (`test_explore.py`)
-- [x] `gi/pipeline.py` — build_artifact stub, grounded via providers (including `create_gil_evidence_providers` / injected quote + entailment providers) (`test_pipeline.py`)
-- [x] `gi/grounding.py` — find_grounded_quotes with mocked QA/NLI; find_grounded_quotes_via_providers with mock extract_quotes/score_entailment; pipeline_metrics evidence call counters (`test_grounding.py`)
-- [x] Providers: extract_quotes and score_entailment (ML and LLM) unit-tested with mocked dependencies (`test_ml_provider.py`, `test_openai_provider.py`, etc.). Provider path and evidence method behaviour are covered in `test_grounding.py` and `test_pipeline.py`.
-- [x] Workflow: generate_episode_metadata passes quote_extraction_provider and entailment_provider into build_artifact when generate_gi and gi_require_grounding true (`test_metadata_generation.py`)
-- [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`); config logging warnings for GIL stub insights and API summary + local evidence hybrid (`TestLogConfigurationGiStubWarning`, `TestLogConfigurationGilHybridWarning`)
-- [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
-- [x] Bridge builder (`tests/unit/builders/test_bridge_builder.py`); CIL corpus logic (`test_cil_queries.py`); CIL HTTP (`tests/integration/server/test_cil_api.py`); search lift + offset verify (`tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`); bridge wiring integration (`tests/unit/builders/test_bridge_artifact_paths.py`)
-- [x] Insight clustering (#599): unit tests for `collect_insight_rows_from_corpus`, `build_insight_clusters_payload` (`test_insight_clusters.py`); integration test for end-to-end corpus flow (`tests/integration/search/test_insight_clusters_cli.py`)
-- [x] Cluster context expansion (#601): unit tests for `load_insight_clusters`, `expand_with_cluster_context`, `format_cluster_context` (`test_insight_cluster_context.py`); integration test for artifact → expand flow
-- [x] Multi-quote extraction (#600): ML provider test updated for `answer_candidates(top_k=3)` mock; existing provider tests cover backward-compat `quote_text` fallback
-- [x] Speaker flow validation (#598): integration tests for NER → host/guest detection → KG person injection (`tests/integration/providers/test_speaker_flow_integration.py` — 7 tests covering host+guest, host-only, description snippet, mentioned-not-guest, org-as-author). Speaker detection simplified from 1389→935 lines; 7 unit tests for removed scoring functions deleted
+- [x] CIL corpus logic (`tests/integration/server/test_cil_queries.py`)
+- [x] Speaker flow validation (#598): integration tests for NER → host/guest detection → KG person injection (`tests/integration/providers/test_speaker_flow_integration.py`)
 
-#### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}
+#### KG CI quality gates {#gil-and-kg-ci-quality-gates}
 
-- **`make quality-metrics-ci`** — Runs `gil_quality_metrics.py` and `kg_quality_metrics.py` with **`--enforce`** (and strict schema flags) on `tests/fixtures/gil_kg_ci_enforce`. Listed in **`make help`**; depended on by **`make ci-fast`** in the repository `Makefile`.
-- **GitHub Actions** — The `test-unit` job includes **GIL and KG quality metrics on CI fixtures (PRD-017 / PRD-019)** (same fixture tree; see `.github/workflows/python-app.yml`).
-- **Optional local gates** — `make gil-quality-metrics DIR=<run_root>` and `make kg-quality-metrics DIR=<run_root>` with `ARGS='--enforce …'` for release or regression checks over a real run directory.
-- **Critical-path E2E** — `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` carries **`@pytest.mark.critical_path`** on GI/KG CLI subprocess smoke (included in `make test-fast` / `make ci-fast` per project defaults).
-
-**Integration Tests:**
-
-- [x] Evidence stack: load embedding, QA, NLI; encode, answer, entailment_score (`test_evidence_stack_integration.py`)
-- [x] Optional: find_grounded_quotes with real models (skip when offline)
-- [ ] `gi.json` → Postgres export (RFC-051) — not yet implemented
+- **`make quality-metrics-ci`** — Runs `kg_quality_metrics.py` with **`--enforce`** (and strict schema flags) on `tests/fixtures/gil_kg_ci_enforce`. Listed in **`make help`**; depended on by **`make ci-fast`** in the repository `Makefile`. The GIL half of the gate runs where GIL lives.
+- **Optional local gate** — `make kg-quality-metrics DIR=<run_root>` with `ARGS='--enforce …'` for release or regression checks over a real run directory.
+- **Critical-path E2E** — `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` carries **`@pytest.mark.critical_path`** on the KG CLI subprocess smoke (included in `make test-fast` / `make ci-fast` per project defaults).
 
 **E2E Tests:**
 
-- [x] Subprocess GI/KG CLI smoke: `gi validate --strict`, `kg validate --strict`, `kg inspect --format json` on repo fixtures (`tests/e2e/test_gi_kg_cli_subprocess_e2e.py`, `critical_path`)
-- [ ] Full pipeline E2E with `generate_gi` true → gi inspect, show-insight, explore (optional future; invalid-arg and inspect behaviors covered in unit `test_cli` today)
-
-**Quality Evaluation (Planned):**
-
-- Quote verbatim accuracy, grounding rate, insight coverage
-- Cross-provider comparison using golden dataset
+- [x] Subprocess KG CLI smoke: `kg validate --strict`, `kg inspect --format json` on repo fixtures (`tests/e2e/test_gi_kg_cli_subprocess_e2e.py`, `critical_path`)
 
 ### Model Registry Testing (RFC-044, Implemented)
 
@@ -1402,7 +1357,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - Related RFCs: RFC-001–RFC-018 (testing strategies),
   RFC-029 (unified providers), RFC-017 (prompt store)
 - Implemented RFCs: RFC-042 (Hybrid ML), RFC-044 (Model
-  Registry), RFC-049 (GIL Schema), RFC-050 (GIL Pipeline);
+  Registry), the GIL core design (GIL Schema), the GIL use-case design (GIL Pipeline);
   Draft: RFC-051 (DB Projection)
 - Related Issues: #14 (E2E testing), #16 (Library API
   E2E tests), #94 (src/ layout), #98 (Test structure

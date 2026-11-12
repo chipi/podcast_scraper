@@ -4,8 +4,7 @@
 - **Date**: 2026-07-29
 - **Authors**: Marko Dragoljevic
 - **Related**: labeling failures on The Daily / WSJ / lowercase-turbo episodes (prod-v2.4-100ep);
-  ADR-110 (name resolution against a closed metadata list), ADR-130 (ASR-mangled-name canonicalizer),
-  ADR-137 (additive LLM role resolution).
+  ADR-130 (ASR-mangled-name canonicalizer).
 - **Supersedes/absorbs**: the ad-hoc per-site casing handling scattered across ~40 modules.
 
 ## Context & Problem Statement
@@ -19,12 +18,12 @@ given component resolves or fails depending on which ASR happened to run.**
 Measured, current:
 
 - **Name recognition is capitalization-dependent by construction.** `_NAME` in
-  `speaker_detectors/hosts.py` is `(?-i:[A-Z][\w'-]+(\s+[A-Z][\w'-]+)+)` — IGNORECASE is explicitly
+  the speaker detector's host cues is `(?-i:[A-Z][\w'-]+(\s+[A-Z][\w'-]+)+)` — IGNORECASE is explicitly
   **disabled** for the name capture so it won't match lowercase phrases. Consequence: on lowercase
   turbo episodes the self-intro and host-introduces-guest regexes capture **nothing**. Corpus
   evidence: lowercase episodes produced **0 self_intro names** (n=13) vs 1.47/ep on truecased.
-- **~40 modules do their own `.lower()/.casefold()/IGNORECASE`** — `gi/*`, `kg/*`,
-  `identity/resolver.py`, `identity/slugify.py`, `cleaning/*`, `enrichment/*`. There is **no single
+- **~40 modules do their own `.lower()/.casefold()/IGNORECASE`** — the GI, KG,
+  identity, cleaning and enrichment modules. There is **no single
   source of truth** for "what is the comparable form of this text", so entity identity, quote
   binding, search, and speaker naming can and do disagree.
 
@@ -56,7 +55,7 @@ longer change a downstream result.
 
 `normalize_for_match(text)` (+ `normalize_name_for_match(name)` for the name-token variant) live in
 **one module** (`text_normalization.py`). Every matching site calls it; **no matching path keeps its
-own `.lower()`/`casefold`**. `identity/slugify.py` becomes a thin caller (its NFKD+lowercase is a
+own `.lower()`/`casefold`**. The identity slugifier becomes a thin caller (its NFKD+lowercase is a
 stricter ID-form built on top).
 
 ### 4. Provider boundary — providers do NOT lowercase; they emit raw + declare their surface
@@ -96,7 +95,7 @@ Capitalization is doing **two** jobs today; only one survives:
 
 Under match-form there are no capitals, so **discovery anchors on the metadata candidate list**: a
 voice is named by matching its spoken tokens against the names the episode metadata already stated
-(ADR-110's closed list), **case-blind and fuzzy** (nickname table + ADR-130 phonetic/edit-distance).
+(the closed list), **case-blind and fuzzy** (nickname table + ADR-130 phonetic/edit-distance).
 This is already how the labeling business is supposed to work — you may only assign a *stated* name.
 Capitalization-based discovery survives **only** as a fallback where truecased text exists and no
 metadata does (a no-metadata network show), behind the existing ordinary-word guards
@@ -106,22 +105,22 @@ metadata does (a no-metadata network show), behind the existing ordinary-word gu
 
 End state: **every matching boundary uses the contract; zero ad-hoc casefold in matching paths.**
 
-- **Speaker recognition** — *first adopter (this change):* `providers/ml/diarization/roster.py`
+- **Speaker recognition** — *first adopter (this change):* the speaker roster
   (self-intro, host-introduces-guest cues, canonicalizer), building its case-blind match-forms from
-  the `speaker_detectors/hosts.py` cue vocabulary. *Not yet adopted (follow-up):*
-  `speaker_detectors/resolution.py` (mention retrieval / refutation) still uses its own `.lower()`.
-- **GI** — `gi/speakers.py`, `gi/grounding.py` (quote → speaker binding), `gi/filters.py`.
-- **KG** — `kg/entity_clusters.py`, `kg/ner_prepass.py`/`ner_postpass.py`, `kg/filters.py`.
-- **Identity** — `identity/resolver.py`, `identity/slugify.py`.
+  the host cue vocabulary. *Not yet adopted (follow-up):*
+  speaker resolution (mention retrieval / refutation) still uses its own `.lower()`.
+- **GI** — speaker binding, quote grounding (quote → speaker binding), the GI filters.
+- **KG** — entity clusters, the NER pre- and post-pass, `kg/filters.py`.
+- **Identity** — the identity resolver and slugifier.
 - **Search** — indexing + query normalization.
-- **Cleaning / boilerplate** — `cleaning/commercial/detector.py`, ad/boilerplate text matching.
+- **Cleaning / boilerplate** — the commercial detector, ad/boilerplate text matching.
 
 ## Rollout (scope discipline — not a big-bang rewrite)
 
-1. **Recognition first (this change):** introduce `normalize_for_match`, adopt it in `roster.py`
-   (with the `hosts.py` cue vocabulary), make name discovery metadata-anchored + case-blind, add the
+1. **Recognition first (this change):** introduce `normalize_for_match`, adopt it in the roster
+   (with the host cue vocabulary), make name discovery metadata-anchored + case-blind, add the
    nickname table, extend narrated-desk cue vocabulary. Fixes The Daily / WSJ / the 13 lowercase
-   episodes. `resolution.py` adoption is a follow-up step, not part of this change.
+   episodes. Speaker-resolution adoption is a follow-up step, not part of this change.
 2. **Then GI/KG/identity:** swap each layer's ad-hoc normalization for the SSOT, one layer per
    change, each behind a regression check that named/entity output is unchanged on already-good
    episodes.
@@ -141,8 +140,8 @@ the casing dependency. Seams under test:
 - `_voice_named_by_the_introduction` (cue-first + name-first)
 - `_canonicalize_to_stated_name` / the canonicalizer
 
-Seams **to be tested at adoption** (not covered yet — resolution.py has not adopted the SSOT):
-`resolution.py` — `retrieve_mentions`, `_introduces_itself_as`, `_refuted_by_third_person`.
+Seams **to be tested at adoption** (not covered yet — speaker resolution has not adopted the SSOT):
+`retrieve_mentions`, `_introduces_itself_as`, `_refuted_by_third_person`.
 
 **The one documented exception:** the invariant holds **when metadata is present** (a stated
 candidate list anchors the match). The **no-metadata discovery** fallback *cannot* be case-invariant

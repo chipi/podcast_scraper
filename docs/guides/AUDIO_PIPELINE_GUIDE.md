@@ -13,13 +13,9 @@ field see [CONFIGURATION.md](../api/CONFIGURATION.md). For CLI flags see [CLI.md
 
 | Wave | Issues | What shipped |
 | ---- | ------ | ------------ |
-| **Wave 1** (#850) | #269, #286, #486, #19, #597 | `speaker_detectors/` refactor; `AudioChunker` for oversized API files; `CommercialDetector` Phase 1; single Whisper progress bar; Deepgram Nova-3 provider |
+| **Wave 1** (#850) | #269, #286, #486, #19, #597 | speaker-detector refactor; `AudioChunker` for oversized API files; `CommercialDetector` Phase 1; single Whisper progress bar; Deepgram Nova-3 provider |
 | **Wave 2** | #482, #488 | pyannote neural diarization (default on for local Whisper); commercial Phase 2 diarization signals; self-hosted GPU `tailnet_dgx_whisper` diarize support |
 | **Wave 3** | #414, #547 | `pipeline_stage` (`full` / `audio_only` / `enrich_only`); transcript cache fingerprint by STT provider/model; persist episode MP3 under corpus **`media/`**; `GET /api/corpus/media`; viewer transcript dialog `<audio>` with seek to `timestamp_start_ms` (local serve only) |
-
-Design specs: [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) (diarization),
-[RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) (commercial cleaning),
-[RFC-059](../rfc/RFC-059-speaker-detection-refactor-test-audio.md) (speaker detection refactor).
 
 ---
 
@@ -49,9 +45,7 @@ deprecated silent coercion). The diarizer is chosen with `diarization_provider`:
 
 ## Speaker detection (#269)
 
-NER and heuristic speaker name detection live under `src/podcast_scraper/speaker_detectors/`
-(`constants`, `normalization`, `ner`, `entities`, `patterns`, `guests`, `hosts`, `detection`).
-`providers/ml/speaker_detection.py` remains a thin re-export facade for backward compatibility.
+NER and heuristic speaker name detection are provided by an installed extension.
 
 Detected host/guest names are mapped onto screenplay speaker labels (gap-based or diarized).
 
@@ -89,7 +83,7 @@ CI). Lazy-imported — package loads without pyannote when diarization is off.
 
 **CLI:** `--diarize`, `--no-diarize`, `--hf-token`, `--diarization-num-speakers`, etc.
 
-**Module:** `src/podcast_scraper/providers/ml/diarization/`
+**Module:** provided by an installed extension.
 
 **Cache:** Results are stored under `<output_dir>/.cache/diarization/` keyed by audio hash and
 diarization config fingerprint. Re-runs skip pyannote when a valid cache entry exists.
@@ -102,7 +96,7 @@ to gap-based screenplay.
 ## Host/guest resolution flow (end-to-end)
 
 The single most important thing to hold onto: **WHO comes from metadata; WHICH-VOICE comes from the
-conversation; the roster is the one place the two fuse** (ADR-110). Transcription runs *before*
+conversation; the roster is the one place the two fuse**. Transcription runs *before*
 diarization runs *before* the roster. Metadata detection (feed + title/description) happens first
 and is carried in as constraints — it never reads the audio.
 
@@ -117,9 +111,9 @@ file exists yet — only the ad `intervals`** — which is why ad text can leak 
  RSS FETCH  →  per episode: audio URL + METADATA { title, description, feed author }
      │
  ── LEVEL 1: METADATA DETECTION — "WHO" (pre-transcription) ─────────────────────
-     ├─ detect_hosts_from_feed (speaker_detectors/hosts.py)
+     ├─ detect_hosts_from_feed
      │     feed states the hosts → known_hosts   (host COUNT here = the roster cap)
-     └─ detect_speaker_names   (speaker_detectors/detection.py, NER over TITLE+DESC)
+     └─ detect_speaker_names   (NER over TITLE+DESC)
            → detected_guests (corroborated)  +  metadata_named (everyone stated)
      │
  ── LEVEL 2: TRANSCRIPTION  (audio → words) ─────────────────────────────────────
@@ -127,15 +121,15 @@ file exists yet — only the ad `intervals`** — which is why ad text can leak 
            → transcript TEXT + time-coded SEGMENTS   (RAW — ADS STILL IN, no labels)
      │
  ── LEVEL 3: DIARIZATION  (words → WHICH cluster) ───────────────────────────────
-     └─ apply_diarization_to_result (providers/ml/diarization/pipeline.py)
+     └─ apply_diarization_to_result
            → SPEAKER_00, SPEAKER_01 … + per-voice segments   (anonymous: no name/role)
      │
  ── LEVEL 4: ROSTER RESOLUTION  ★ THE FUSION: metadata × conversation ★ ──────────
      │  🧹 AD DETECTION runs FIRST here (inside apply_diarization_to_result, on RAW text):
-     │       _ad_intervals() → gi/ad_regions.excise_ad_regions() = ad TIME regions;
+     │       _ad_intervals() → excise_ad_regions() = ad TIME regions;
      │       classify_voices() types each VOICE ad|cameo|commercial|real.
      │       ⚠ filters ad VOICES only — does NOT strip ad TEXT out of a real voice.
-     └─ resolve_speaker_roster (providers/ml/diarization/roster.py)
+     └─ resolve_speaker_roster
         (a) SELF-INTRO extraction   _self_intro_voice_names()  → voice_intro
               └─ CANONICAL-NAME FUSION: snap ASR spelling to the stated name
                  ("Kevin Russo"→"Kevin Roose"; "Professor Pape"→"Robert Pape")
@@ -202,7 +196,7 @@ cap (OpenAI, Gemini, Mistral, Deepgram paths). Local Whisper is not chunked by t
 
 ### Phase 1 (#486, Wave 1)
 
-`CommercialDetector` (`cleaning/commercial/`) replaces the old four-phrase `remove_sponsor_blocks`
+`CommercialDetector` replaces the old four-phrase `remove_sponsor_blocks`
 heuristic with confidence-scored **text patterns** + **positional heuristics** (intro / mid-roll /
 outro clusters). `preprocessing/core.py` delegates sponsor removal; duplicate logic removed from
 `summarizer.py`.
@@ -211,7 +205,7 @@ Works on **transcript text** — benefits all transcription providers.
 
 ### Phase 2 (#488, Wave 2)
 
-When diarization segments are available, optional signals (`diarization_signals.py`) adjust
+When diarization segments are available, optional diarization signals adjust
 confidence: host monologue boost, guest disqualify, duration/topic hints. Wired through
 `CommercialDetector` when callers pass diarization metadata. Summarization cleaning loads sibling
 `.segments.json` and infers a host speaker id when pyannote labels are present.
@@ -315,5 +309,3 @@ JSON reports `processing_overlap_ratio`, `processing_thread_busy_ratio`,
 
 - [DEPENDENCIES_GUIDE.md](DEPENDENCIES_GUIDE.md) — `[ml]` / `[dev]` pyannote pins
 - [PREPROCESSING_PROFILES_GUIDE.md](PREPROCESSING_PROFILES_GUIDE.md) — text cleaning profiles (includes sponsor step)
-- [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) — diarization decision + amendment
-- [ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) — commercial detection decision

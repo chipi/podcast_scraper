@@ -2,7 +2,7 @@
 id: s6a_insight_spelling
 class: full
 status: landed
-issue: none (RFC-131 S6, first half; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design S6, first half; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/display.py
   - src/podcast_scraper/identity/ledger.py
@@ -25,7 +25,7 @@ record; the measurements are in eval-data `data/eval/name-consolidation/s6/`.
 - S1's surface inventory (eval-data `s1/SURFACES-2026-10-30.md`): the insight surfaces read the
   speaker's name from the episode's own Person node (`server/app_gi_view.py` `_speaker_name`), and
   apply no identity map.
-- ADR-166, decision 1: the ledger records the display spelling with its evidence.
+- the identity ledger, decision 1: the ledger records the display spelling with its evidence.
 - Plan V3: the spelling is publisher text first, then frequency. Held-out decides against
   frequency-only.
 - S6 step 1 (eval-data `s6/RESULT-2026-10-31.md`): publisher-first is kept.
@@ -60,7 +60,7 @@ The change:
 - **`identity/display.py`:** a per-corpus view, `person_display(root)`, read from the served
   ledger and cached by the corpus token. `shown(person_id, own_name)` returns the group's
   `display_name` for a joined id, and `own_name` otherwise. With no valid ledger it returns `own_name`
-  (no joins means each episode's own name, ADR-166).
+  (no joins means each episode's own name, the identity ledger).
 - **`insights_from_gi`** takes `people=`. Every listener surface passes it, and the name report too, so
   R1/R2 measure what is served. Leaving it out keeps today's behaviour.
 - `RULE_VERSION` is unchanged at `/3`: no join changes. A ledger without `display_name` (D1's `/2`)
@@ -102,7 +102,7 @@ first estimate that read only each insight's first quote:
 - **R3c on the truth set:** held-out 13 → 9 of 33, training 19 → 13 of 35.
 - **Joins:** none added, removed or moved; the ledger's join list is byte-identical to S5o's.
 - **Person-page URLs:** unchanged. Routes key on the person id, and an id is never renamed by a
-  spelling (ADR-166).
+  spelling.
 - **Must not move:**
   - insight counts, order, tiers and visibility on every surface;
   - unjoined speakers' names;
@@ -197,7 +197,7 @@ Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (
 
 ## 12. Retrospective
 
-MISSED: no retrospective of its own. D2's lessons are in `../HANDOVER-NAMING-2026-11-03.md`, section 3.
+MISSED: no retrospective of its own.
 
 Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 

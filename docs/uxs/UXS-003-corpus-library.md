@@ -153,7 +153,7 @@ active**; the behaviours below appear only once a search has run and a row's
   **Neighbourhood** only: read-only Local neighborhood mini Cytoscape (1-hop ego around
   the node) then the Connections list with `G` per row. Digest/Library episode subject rail has
   no tablist when that strip does not apply (hero + body still stack like the graph rail).
-- When RFC-072 bridge.json is available, **Appears in (bridge):** shows whether the
+- When the cross-layer identity design bridge.json is available, **Appears in (bridge):** shows whether the
   node's canonical id appears in Grounded Insights, the Knowledge graph, or both.
 - Technical ids: `E` uses the same Episode blue as the graph legend / Cytoscape
   (bold white glyph, strong border); `?` uses a separate neutral chip. Native

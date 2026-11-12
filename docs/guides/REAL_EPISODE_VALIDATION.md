@@ -54,33 +54,6 @@ the bug was in the path that bypasses `service.run()` entirely.
 
 Two templates in `scripts/validate/`:
 
-### `validate_phase3c.py` — dispatch / cost / artifact counts
-
-Use when the change routes through provider methods and you want to prove
-call-count / cost / artifact deltas. Pattern:
-
-```python
-# 1. Pick transcripts representative of production audio.
-TRANSCRIPTS_DIR = _REPO_ROOT / ".test_outputs" / "_validate_phase3c" / "transcripts"
-
-# 2. Build the provider through the real factory.
-from podcast_scraper.summarization.factory import create_summarization_provider
-provider = create_summarization_provider(cfg)
-provider.initialize()
-
-# 3. Instrument every provider method AND underlying HTTP client so you
-#    count calls + tokens regardless of which method fired.
-counts, tokens = _instrument(provider)
-
-# 4. Drive the real pipeline code (not mocks).
-summary_meta, _ = _generate_episode_summary(...)
-gi_payload = gi_build_artifact(..., prefilled_insights=...)
-kg_payload = kg_build_artifact(..., prefilled_partial=...)
-
-# 5. Assert numerical gates that reflect the feature's claim.
-#    (e.g. mega_bundled claims 1 LLM call — assert counts["total"] == 1)
-```
-
 ### `validate_layout_644.py` — subprocess CLI invocation
 
 Use when the change affects the CLI surface (arg parsing, profile loading,
@@ -119,7 +92,6 @@ alongside the code they validate. Don't delete them after the PR merges.
 
 Real-episode runs hit cloud APIs. Per harness:
 
-- `validate_phase3c.py` on 2 transcripts × 10 configs ≈ **$0.10** total.
 - `validate_layout_644.py` uses `--no-transcribe-missing` → **$0** cost.
 - `validate_post_reingestion.py` depends on corpus size; CLI commands
   themselves are free, only the re-ingestion is paid.
@@ -150,7 +122,6 @@ Pair them. Neither alone is enough for a production-facing change.
 
 - `AGENTS.md` — *Final validation before push: real episodes, not just
   unit tests* section.
-- `scripts/validate/validate_phase3c.py` — canonical dispatch harness.
 - `scripts/validate/validate_layout_644.py` — canonical CLI harness.
 - `scripts/validate/validate_post_reingestion.py` — corpus-level harness.
 - `docs/guides/UNIT_TESTING_GUIDE.md` — unit test rules (complementary).

@@ -164,14 +164,14 @@ visibly guts it, and a `SPEAKER_NN` that must **not** become a Person node.
 ### F0. The instrument invented the number
 
 I reported that **5.8%** of the corpus was "unambiguously recoverable" and set out to fix it. The
-diagnostic (`attribution_ceiling.py`) used a **looser regex than the roster actually ships**, so it
+diagnostic used a **looser regex than the roster actually ships**, so it
 counted as recoverable a great deal the pipeline could never have caught.
 
 Honest figures: **0.88%** recoverable (not 5.8%), **6.39%** genuinely nameless (not 1.5%), ceiling
 **92.15%** (not 97%).
 
 **The rule:** a diagnostic must **import the shipped code path**, never re-implement it. A measuring
-script that re-states the rule in its own words is measuring its own words. `attribution_ceiling.py`
+script that re-states the rule in its own words is measuring its own words. The diagnostic
 now imports the exact `_GUEST_INTRODUCED_BY_HOST` regex the roster ships, so the diagnostic
 *cannot* disagree with what we deploy.
 
@@ -551,7 +551,7 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
   (which cut ONE pre-roll span and **excised nothing at all** when an episode had more than one ad
   block — "5 pattern hits, 0 chars removed") to **per-cluster excision**: cluster the ad-pattern
   hits, cut each block on its own (pre-, mid-, post-roll), keep the content between. It is currently
-  exercised only by hand-built strings in `tests/unit/podcast_scraper/gi/test_ad_regions.py`. v4
+  exercised only by hand-built strings in unit tests. v4
   should add fixtures that make this real:
   - a **multi-ad episode**: pre-roll + at least one mid-roll + post-roll, with real content between
     each — asserts every block is cut and the middle survives (the exact bug: multiple blocks →

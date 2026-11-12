@@ -141,7 +141,7 @@ today, and a half-migrated corpus is fine.
 
 **Rebuild BRIDGES too, not just enrichment and the index.** m0007 rewrites `.gi.json` and
 `.kg.json` only. `*.bridge.json` carries `person:` CIL ids and the CIL read surfaces walk every
-bridge file at request time (`insight_stage/cil_queries.py` — timeline, position-arc, conversation-arc),
+bridge file at request time (the CIL queries — timeline, position-arc, conversation-arc),
 so after migration they keep serving pre-migration bare ids that no longer exist in the KG: dead
 cross-references, silently. `build_bridge` runs from metadata generation, so the practical options
 are a reprocess pass over the corpus or accepting the staleness knowingly. **Decide explicitly —
@@ -195,9 +195,10 @@ parses, and is not a pre-#1657 placeholder. Non-zero exit on any failure.
 
 Record the numbers. `legacy placeholders` is the work step 3 must clear.
 
-> Do **not** use `make corpus-placeholder-check` as the exit criterion. It only asks "is the bad
+> Do **not** use a placeholder-absence check as the exit criterion. It only asks "is the bad
 > string absent?", which **passes** on a corpus whose artifacts were deleted and never
-> regenerated — demonstrated 2026-08-16. It remains useful for producing the work-list only.
+> regenerated — demonstrated 2026-08-16. Use `make corpus-gi-integrity-check`, which runs the
+> extension's `gi-integrity` verb.
 
 ### 2. Baseline: unpreprocessed-audio damage
 

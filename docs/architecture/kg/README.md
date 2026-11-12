@@ -4,7 +4,7 @@ This folder holds **Knowledge Graph Layer (KG)** artifacts referenced by [PRD-01
 
 **User guide:** [Knowledge Graph Guide](../../guides/KNOWLEDGE_GRAPH_GUIDE.md).
 
-**Note:** **KG** is a **separate feature** from **Grounded Insight Layer (GIL / GI)**. See PRD-017 / RFC-049 for `gi.json` and grounded insights.
+**Note:** **KG** is a **separate feature** from **Grounded Insight Layer (GIL / GI)**. See PRD-017 / the GIL core design for `gi.json` and grounded insights.
 
 ## Contents
 

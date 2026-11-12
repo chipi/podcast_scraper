@@ -15,7 +15,6 @@
   - [RFC-004](RFC-004-filesystem-layout.md) — output directories and run scoping (**extended** by this RFC)
   - [RFC-007](RFC-007-cli-interface.md) — CLI and validation
   - [RFC-008](RFC-008-config-model.md) — configuration model
-  - [RFC-049](RFC-049-grounded-insight-layer-core.md) — GIL artifacts
   - [RFC-055](RFC-055-knowledge-graph-layer-core.md) — KG artifacts
   - [RFC-061](RFC-061-semantic-corpus-search.md) — semantic index; **recursive corpus discovery** and composite keys align here
   - [RFC-062](RFC-062-gi-kg-viewer-v2.md) — viewer and `serve`; corpus root path semantics

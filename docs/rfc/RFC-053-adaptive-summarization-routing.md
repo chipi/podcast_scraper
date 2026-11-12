@@ -6,7 +6,7 @@
 - **Stakeholders**: Maintainers, users processing diverse
   podcast types, developers integrating summarization
 - **Execution Timing**: **Phase 4** — Implement after
-  RFC-042 (Hybrid ML Platform) and RFC-049 (GIL) are
+  RFC-042 (Hybrid ML Platform) and the GIL are
   stable. **KG extraction** (RFC-055) can use the same
   profiling and routing hooks when the KG pipeline is
   enabled; KG routing ships when PRD-019 / RFC-055
@@ -27,8 +27,6 @@
     (Hybrid MAP-REDUCE architecture — provides models)
   - `docs/rfc/RFC-044-model-registry.md`
     (Model Registry — model capability lookup)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-    (GIL — extraction routing per content type)
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
     (KG — entity/topic/relationship extraction; optional routing)
   - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
@@ -45,7 +43,7 @@ Phase 1: RFC-044 (Model Registry)          ~2-3 weeks
 Phase 2: RFC-042 (Hybrid ML Platform)      ~10 weeks
     │  + RFC-052 (Local LLM Prompts)       parallel
     ▼
-Phase 3: RFC-049 (GIL)                     ~6-8 weeks
+Phase 3: the GIL                     ~6-8 weeks
     │  RFC-055 (KG) may overlap / follow    (separate feature flag)
     ▼
 Phase 4: RFC-053 (this RFC — Routing)      ~4-6 weeks
@@ -54,7 +52,7 @@ Phase 4: RFC-053 (this RFC — Routing)      ~4-6 weeks
 
 **Why Phase 4?** RFC-053 routes to capabilities that
 RFC-042 provides (MAP/REDUCE models, FLAN-T5, LLMs) and
-can also optimize **GIL** extraction (RFC-049) and,
+can also optimize **GIL** extraction and,
 when enabled, **KG** extraction (RFC-055). It requires
 those foundations to be stable first. Additionally,
 the profiling data collected during Phase 3 (GIL
@@ -465,8 +463,6 @@ routing_entity_density_threshold: float = 10.0
 
 - RFC-042 (Hybrid ML Platform) — provides model diversity
   to route to
-- RFC-049 (GIL) — stable extraction pipeline for GIL
-  routing
 - RFC-055 (KG) — not a hard prerequisite for **summarization**
   routing; required before **KG** routing can run in production
 
@@ -498,7 +494,7 @@ routing_entity_density_threshold: float = 10.0
 4. No regressions for default (non-routed) behavior
 5. Documentation complete (routing guide, threshold tuning)
 
-## Integration with GIL (RFC-049)
+## Integration with GIL
 
 ### Routing for GIL Extraction
 
@@ -517,7 +513,7 @@ different extraction strategies:
 
 **Implementation:** RFC-053 exposes profiling and
 strategy selectors (e.g. `route_summarization(profile)`,
-`route_gil_extraction(profile)`) so RFC-049 can adapt
+`route_gil_extraction(profile)`) so the GIL core design can adapt
 GIL extraction per episode; **`route_kg_extraction(profile)`**
 is the KG analogue for RFC-055 (see § Integration with KG).
 
@@ -658,7 +654,7 @@ Phase 1: RFC-044 (Model Registry)
 Phase 2: RFC-042 (Hybrid ML Platform)
     │  + RFC-052 (Local LLM Prompts)
     ▼
-Phase 3: RFC-049 (GIL)
+Phase 3: the GIL
     │  RFC-055 (KG) — optional parallel track
     ▼
 Phase 4: RFC-053 (this RFC)
@@ -676,7 +672,7 @@ Phase 4: RFC-053 (this RFC)
 3. **RFC-052 (Phase 2b)**: Local LLM prompts — provides
    model-specific prompts that RFC-053 can select
    per routing strategy
-4. **RFC-049 (Phase 3)**: GIL extraction — RFC-053 can
+4. **the GIL core design (Phase 3)**: GIL extraction — RFC-053 can
    route GIL extraction strategies per content type
 5. **RFC-055**: KG extraction — RFC-053 can route KG
    graph-building strategies per content type (when KG
@@ -691,7 +687,6 @@ Phase 4: RFC-053 (this RFC)
 - **RFC-042**: Model diversity (MAP/REDUCE, FLAN-T5,
   LLMs, embedding, QA, NLI)
 - **RFC-052**: Prompt quality for local LLMs
-- **RFC-049**: GIL extraction orchestration
 - **RFC-055**: KG artifact model and extraction (PRD-019)
 - **RFC-053**: Adaptive routing — selects the right
   strategy from the available capabilities
@@ -701,7 +696,7 @@ Together, these provide:
 - Complete summarization pipeline (RFC-012)
 - High-quality model platform (RFC-042)
 - Local LLM options with optimized prompts (RFC-052)
-- Evidence-backed insight extraction (RFC-049)
+- Evidence-backed insight extraction
 - Knowledge-graph extraction when enabled (RFC-055)
 - Adaptive routing for diverse content types (RFC-053)
 
@@ -767,7 +762,6 @@ Together, these provide:
 - **Related RFC**: `docs/rfc/RFC-012-episode-summarization.md`
 - **Prerequisite**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
 - **Prerequisite**: `docs/rfc/RFC-044-model-registry.md`
-- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
 - **Related PRD**: `docs/prd/PRD-019-knowledge-graph-layer.md`
 - **Related RFC**: `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
