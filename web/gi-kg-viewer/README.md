@@ -170,7 +170,7 @@ since [#770]) and should be deleted on sight.
 
 - **Runner:** Playwright, **browser:** Chrome locally, Firefox under `CI` (see `playwright.config.ts`). Install once: `cd web/gi-kg-viewer && npx playwright install chromium` (CI uses `playwright install --with-deps firefox`).
 - **Commands:** `npm run test:e2e` (starts Vite on **port 5174** so it does not clash with `npm run dev` on 5173). From repo root: `make test-ui-e2e` (runs `npm install`, browser install, then tests).
-- **Fixtures:** `e2e/fixtures/ci_sample.gi.json` mirrors the pytest GIL CI sample; offline tests abort `/api/health` so the file-picker path is deterministic even if something listens on `:8000`.
+- **Fixtures:** `e2e/fixtures/ci_sample.kg.json` is a small KG graph (one episode, topic and person); offline tests abort `/api/health` so the file-picker path is deterministic even if something listens on `:8000`.
 - **Scenarios:** offline graph + toolbar, Dashboard tab, theme tokens (dark/light), `/` shortcut with mocked health, `Esc` on graph, PNG export download, mocked API list/load/search → **Show on graph**, **Corpus path hint** when `GET /api/artifacts` returns `hints` (`e2e/corpus-hints.spec.ts`), **Library** tab with corpus mocks + index/similar (`e2e/library.spec.ts`).
 - **Surface map:** [e2e/E2E_SURFACE_MAP.md](e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, and stable Playwright selectors. **UX change order:** map → Playwright specs/helpers → [UXS-001](../../docs/uxs/UXS-001-gi-kg-viewer.md) if the visual contract changes. Checklist: [E2E Testing Guide](../../docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow) ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)).
 

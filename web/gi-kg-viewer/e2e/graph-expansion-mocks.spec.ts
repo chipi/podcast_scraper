@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { GRAPH_NODE_EPISODES_EXPAND_MAX } from '../src/api/corpusLibraryApi'
-import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { KG_SAMPLE_FIXTURE } from './fixtures'
 import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
 /**
@@ -9,12 +9,12 @@ import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, st
  *
  * The endpoints are NOT the blocker: `POST /api/corpus/node-episodes` and
  * `POST /api/corpus/resolve-episode-artifacts` both answer for real against the v3 corpus. What
- * this file needs is a graph of a **specific topology** — `giJsonTopicDegreeAtLeastTwo()` below
- * literally edits `GI_SAMPLE_FIXTURE` to add a second `ABOUT` edge so a topic reaches
+ * this file needs is a graph of a **specific topology** — `kgJsonTopicDegreeAtLeastTwo()` below
+ * literally edits `KG_SAMPLE_FIXTURE` to add a second edge into a topic so it reaches
  * `degree() > 1`, because that is the cross-episode expand gate under test. Other tests need a
  * second artifact (`gxexp_second`) to expand into.
  *
- * Those are constructed topologies, not corpus data. Driving them from real GI artifacts would
+ * Those are constructed topologies, not corpus data. Driving them from real corpus artifacts would
  * mean re-deriving every expected expansion from whatever the corpus happens to contain — a large
  * rewrite that makes the assertions weaker and ranking-dependent, in order to test graph mechanics
  * that have nothing to do with the corpus.
@@ -29,46 +29,21 @@ function assertNodeEpisodesExpandPostHasMaxEpisodes(route: Route): void {
   expect(body.max_episodes).toBe(GRAPH_NODE_EPISODES_EXPAND_MAX)
 }
 
-/** CI GI fixture plus a second ``ABOUT`` into ``topic:ci-policy`` so Cytoscape ``degree() > 1`` (cross-episode expand gate). */
-function giJsonTopicDegreeAtLeastTwo(): string {
-  const j = JSON.parse(readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')) as {
-    nodes: unknown[]
-    edges: unknown[]
-  }
-  j.nodes.push({
-    id: 'insight:gxexp-e2e-degree',
-    type: 'Insight',
-    properties: {
-      text: 'Playwright second edge into topic.',
-      episode_id: 'ci-fixture',
-      grounded: true,
-    },
-  })
-  j.edges.push(
-    {
-      type: 'HAS_INSIGHT',
-      from: 'episode:ci-fixture',
-      to: 'insight:gxexp-e2e-degree',
-    },
-    {
-      type: 'SUPPORTED_BY',
-      from: 'insight:gxexp-e2e-degree',
-      to: 'quote:4729aa32a95c9ca1',
-    },
-    {
-      type: 'ABOUT',
-      from: 'insight:gxexp-e2e-degree',
-      to: 'topic:ci-policy',
-    },
-  )
+type KgJson = { nodes: { id: string; type: string; properties?: Record<string, unknown> }[]; edges: unknown[] }
+
+/** CI KG fixture plus a second edge into ``topic:ci-policy`` so Cytoscape ``degree() > 1`` (cross-episode expand gate). */
+function kgJsonTopicDegreeAtLeastTwo(): string {
+  const j = JSON.parse(readFileSync(KG_SAMPLE_FIXTURE, 'utf-8')) as KgJson
+  // From the episode, which is never expand-eligible: an edge from another eligible node would make
+  // it probe node-episodes too, and the POST counts below would see it.
+  j.edges.push({ type: 'RELATED_TO', from: 'episode:ci-fixture', to: 'topic:ci-policy' })
   return JSON.stringify(j)
 }
 
-const secondGiForMerge = JSON.stringify({
-  schema_version: '1.0',
-  model_version: 'stub',
-  prompt_version: 'v1',
+const secondKgForMerge = JSON.stringify({
+  schema_version: '2.0',
   episode_id: 'ep-gxexp-e2e',
+  extraction: { extracted_at: '2026-04-17T00:00:00Z', model_version: 'stub', transcript_ref: 'transcript.txt' },
   nodes: [
     {
       id: 'episode:ep-gxexp-e2e',
@@ -79,77 +54,39 @@ const secondGiForMerge = JSON.stringify({
         publish_date: '2026-04-17T00:00:00Z',
       },
     },
-    {
-      id: 'insight:gxexp-e2e-extra',
-      type: 'Insight',
-      properties: {
-        text: 'Extra insight for merged graph size.',
-        episode_id: 'ep-gxexp-e2e',
-        grounded: true,
-      },
-    },
-    {
-      id: 'quote:gxexp-e2e-extra',
-      type: 'Quote',
-      properties: {
-        text: 'Quote body',
-        episode_id: 'ep-gxexp-e2e',
-        speaker_id: null,
-        char_start: 0,
-        char_end: 4,
-        timestamp_start_ms: 0,
-        timestamp_end_ms: 0,
-        transcript_ref: 'transcript.txt',
-      },
-    },
-    {
-      id: 'topic:ci-policy',
-      type: 'Topic',
-      properties: { label: 'Climate policy' },
-    },
+    { id: 'person:gxexp-e2e-guest', type: 'Person', properties: { name: 'Guest for merged graph size' } },
+    { id: 'topic:ci-policy', type: 'Topic', properties: { label: 'Climate policy' } },
   ],
   edges: [
-    {
-      type: 'HAS_INSIGHT',
-      from: 'episode:ep-gxexp-e2e',
-      to: 'insight:gxexp-e2e-extra',
-    },
-    {
-      type: 'SUPPORTED_BY',
-      from: 'insight:gxexp-e2e-extra',
-      to: 'quote:gxexp-e2e-extra',
-    },
-    {
-      type: 'ABOUT',
-      from: 'insight:gxexp-e2e-extra',
-      to: 'topic:ci-policy',
-    },
+    { type: 'MENTIONS', from: 'episode:ep-gxexp-e2e', to: 'person:gxexp-e2e-guest' },
+    { type: 'MENTIONS', from: 'episode:ep-gxexp-e2e', to: 'topic:ci-policy' },
   ],
 })
 
-const artifactJsonDegree2 = giJsonTopicDegreeAtLeastTwo()
+const artifactJsonDegree2 = kgJsonTopicDegreeAtLeastTwo()
 
-/** Stock CI GI (topic ``degree`` 1) for ineligible expand tests. */
-const artifactJsonCiSampleRaw = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
+/** Stock CI KG (topic ``degree`` 1) for ineligible expand tests. */
+const artifactJsonCiSampleRaw = readFileSync(KG_SAMPLE_FIXTURE, 'utf-8')
 
-function giJsonPersonOrgEligible(): string {
-  const j = JSON.parse(artifactJsonDegree2) as { nodes: unknown[]; edges: unknown[] }
+function kgJsonPersonOrgEligible(): string {
+  const j = JSON.parse(artifactJsonDegree2) as KgJson
   j.nodes.push(
     { id: 'person:gxexp-e2e', type: 'Person', properties: { name: 'Pat' } },
     { id: 'org:gxexp-e2e', type: 'Entity', properties: { name: 'Acme' } },
   )
+  // Two edges each, so both clear the expand gate (degree > 1).
   j.edges.push(
-    { type: 'ABOUT', from: 'insight:b72dafa3f874480d', to: 'person:gxexp-e2e' },
-    { type: 'ABOUT', from: 'insight:gxexp-e2e-degree', to: 'person:gxexp-e2e' },
-    { type: 'ABOUT', from: 'insight:b72dafa3f874480d', to: 'org:gxexp-e2e' },
-    { type: 'ABOUT', from: 'insight:gxexp-e2e-degree', to: 'org:gxexp-e2e' },
+    { type: 'MENTIONS', from: 'episode:ci-fixture', to: 'person:gxexp-e2e' },
+    { type: 'RELATED_TO', from: 'episode:ci-fixture', to: 'person:gxexp-e2e' },
+    { type: 'MENTIONS', from: 'episode:ci-fixture', to: 'org:gxexp-e2e' },
+    { type: 'RELATED_TO', from: 'episode:ci-fixture', to: 'org:gxexp-e2e' },
   )
   return JSON.stringify(j)
 }
 
-const artifactJsonPersonOrg = giJsonPersonOrgEligible()
+const artifactJsonPersonOrg = kgJsonPersonOrgEligible()
 
-async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = artifactJsonDegree2): Promise<void> {
+async function mockGraphExpansionBaseline(page: Page, artifactBody: string = artifactJsonDegree2): Promise<void> {
   // Skip first-run graph gesture card so ``.graph-canvas`` clicks are not blocked (Firefox CI).
   await page.addInitScript(() => {
     try {
@@ -168,6 +105,7 @@ async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = a
         corpus_library_api: true,
         corpus_digest_api: true,
         cil_queries_api: true,
+        artifact_kinds: ['kg'],
       }),
     })
   })
@@ -180,10 +118,10 @@ async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = a
         path: '/mock/corpus',
         artifacts: [
           {
-            name: 'ci_sample.gi.json',
-            relative_path: 'metadata/ci_sample.gi.json',
-            kind: 'gi',
-            size_bytes: giArtifactBody.length,
+            name: 'ci_sample.kg.json',
+            relative_path: 'metadata/ci_sample.kg.json',
+            kind: 'kg',
+            size_bytes: artifactBody.length,
             mtime_utc: '2026-04-18T12:00:00Z',
             publish_date: '2026-04-18',
           },
@@ -192,11 +130,11 @@ async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = a
     })
   })
 
-  await page.route('**/api/artifacts/metadata/ci_sample.gi.json?**', async (route) => {
+  await page.route('**/api/artifacts/metadata/ci_sample.kg.json?**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: giArtifactBody,
+      body: artifactBody,
     })
   })
 
@@ -429,8 +367,8 @@ async function gotoGraphWithMockCorpus(
 ): Promise<void> {
   // Default: wait for `topic:ci-policy` degree >= 1 (the node exists and
   // renders). Tests that need the cross-episode expand gate open can pass
-  // `topicMinDegree: 2` to wait for the second ABOUT edge from the
-  // `giJsonTopicDegreeAtLeastTwo` fixture; the degree-1 raw-fixture test
+  // `topicMinDegree: 2` to wait for the second edge from the
+  // `kgJsonTopicDegreeAtLeastTwo` fixture; the degree-1 raw-fixture test
   // (which intentionally exercises the *no-expand* path) must NOT block
   // on degree > 1 or it times out.
   const minDegree = opts?.topicMinDegree ?? 1
@@ -519,8 +457,8 @@ test.describe('Graph expansion (mocked API)', () => {
           node_id: 'topic:ci-policy',
           episodes: [
             {
-              gi_relative_path: 'metadata/gxexp_second.gi.json',
-              kg_relative_path: '',
+              gi_relative_path: '',
+              kg_relative_path: 'metadata/gxexp_second.kg.json',
               bridge_relative_path: '',
               episode_id: 'ep-gxexp-e2e',
             },
@@ -531,11 +469,11 @@ test.describe('Graph expansion (mocked API)', () => {
       })
     })
 
-    await page.route('**/api/artifacts/metadata/gxexp_second.gi.json?**', async (route) => {
+    await page.route('**/api/artifacts/metadata/gxexp_second.kg.json?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: secondGiForMerge,
+        body: secondKgForMerge,
       })
     })
 
@@ -554,7 +492,7 @@ test.describe('Graph expansion (mocked API)', () => {
     await expect(strip).toContainText(/max_episodes cap/i)
   })
 
-  test('POST node-episodes receives topic id; expand fetches appended GI', async ({ page }) => {
+  test('POST node-episodes receives topic id; expand fetches appended KG', async ({ page }) => {
     await mockGraphExpansionBaseline(page)
 
     await page.route('**/api/corpus/node-episodes**', async (route) => {
@@ -571,8 +509,8 @@ test.describe('Graph expansion (mocked API)', () => {
           node_id: 'topic:ci-policy',
           episodes: [
             {
-              gi_relative_path: 'metadata/gxexp_second.gi.json',
-              kg_relative_path: '',
+              gi_relative_path: '',
+              kg_relative_path: 'metadata/gxexp_second.kg.json',
               bridge_relative_path: '',
               episode_id: 'ep-gxexp-e2e',
             },
@@ -583,11 +521,11 @@ test.describe('Graph expansion (mocked API)', () => {
       })
     })
 
-    await page.route('**/api/artifacts/metadata/gxexp_second.gi.json?**', async (route) => {
+    await page.route('**/api/artifacts/metadata/gxexp_second.kg.json?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: secondGiForMerge,
+        body: secondKgForMerge,
       })
     })
 
@@ -596,7 +534,7 @@ test.describe('Graph expansion (mocked API)', () => {
     const postPromise = page.waitForRequest(
       (r) => r.url().includes('/api/corpus/node-episodes') && r.method() === 'POST',
     )
-    const secondGiPromise = page.waitForRequest((r) => r.url().includes('gxexp_second.gi.json'))
+    const secondKgPromise = page.waitForRequest((r) => r.url().includes('gxexp_second.kg.json'))
     await dblclickCyNode(page, 'topic:ci-policy')
     const postReq = await postPromise
     const body = postReq.postDataJSON() as { node_id?: string; path?: string; max_episodes?: number }
@@ -604,8 +542,8 @@ test.describe('Graph expansion (mocked API)', () => {
     expect(body.path).toBe('/mock/corpus')
     expect(body.max_episodes).toBe(GRAPH_NODE_EPISODES_EXPAND_MAX)
 
-    const giReq = await secondGiPromise
-    expect(giReq.url()).toMatch(/gxexp_second\.gi\.json/i)
+    const kgReq = await secondKgPromise
+    expect(kgReq.url()).toMatch(/gxexp_second\.kg\.json/i)
   })
 
   test('node-episodes HTTP error surfaces on truncation strip', async ({ page }) => {
@@ -655,8 +593,8 @@ test.describe('Graph expansion (mocked API)', () => {
           node_id: 'topic:ci-policy',
           episodes: [
             {
-              gi_relative_path: 'metadata/gxexp_second.gi.json',
-              kg_relative_path: '',
+              gi_relative_path: '',
+              kg_relative_path: 'metadata/gxexp_second.kg.json',
               bridge_relative_path: '',
               episode_id: 'ep-gxexp-e2e',
             },
@@ -667,11 +605,11 @@ test.describe('Graph expansion (mocked API)', () => {
       })
     })
 
-    await page.route('**/api/artifacts/metadata/gxexp_second.gi.json?**', async (route) => {
+    await page.route('**/api/artifacts/metadata/gxexp_second.kg.json?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: secondGiForMerge,
+        body: secondKgForMerge,
       })
     })
 
@@ -901,8 +839,8 @@ test.describe('Graph expansion (mocked API)', () => {
           node_id: 'topic:ci-policy',
           episodes: [
             {
-              gi_relative_path: 'metadata/gxexp_second.gi.json',
-              kg_relative_path: '',
+              gi_relative_path: '',
+              kg_relative_path: 'metadata/gxexp_second.kg.json',
               bridge_relative_path: '',
               episode_id: 'ep-gxexp-e2e',
             },
@@ -912,11 +850,11 @@ test.describe('Graph expansion (mocked API)', () => {
         }),
       })
     })
-    await page.route('**/api/artifacts/metadata/gxexp_second.gi.json?**', async (route) => {
+    await page.route('**/api/artifacts/metadata/gxexp_second.kg.json?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: secondGiForMerge,
+        body: secondKgForMerge,
       })
     })
 
@@ -926,7 +864,7 @@ test.describe('Graph expansion (mocked API)', () => {
     // Wait for the expanded node to land + let the COSE layout finish a
     // couple of frames past layoutstop so any stray rAF would have
     // fired by now.
-    await page.waitForRequest((r) => r.url().includes('gxexp_second.gi.json'))
+    await page.waitForRequest((r) => r.url().includes('gxexp_second.kg.json'))
     await page.waitForTimeout(1500)
 
     const rendererNullErrors = [...consoleErrors, ...pageErrors].filter((line) =>
@@ -949,26 +887,14 @@ test.describe('Graph expansion (mocked API)', () => {
 
 /**
  * NodeDetail rows the UXS-004 audit found with no browser coverage (2026-10-05). One constructed
- * fixture: the CI sample plus topic aliases, an insight with seven supporting quotes (the list
- * collapses after five), and a host Person. Opened through the DEV `focusEntity` hook, which is the
- * generic node view — persons and quotes are hidden on the canvas by default, so a click cannot
- * reach them.
+ * fixture: the CI KG sample plus topic aliases and a host Person. Opened through the DEV
+ * `focusEntity` hook, which is the generic node view. An Insight's supporting-quotes rows are a
+ * downstream build's, with GI.
  */
-function giJsonForNodeRailRows(): string {
-  const j = JSON.parse(readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')) as {
-    nodes: { id: string; type: string; properties?: Record<string, unknown> }[]
-    edges: { type: string; from: string; to: string }[]
-  }
+function kgJsonForNodeRailRows(): string {
+  const j = JSON.parse(readFileSync(KG_SAMPLE_FIXTURE, 'utf-8')) as KgJson
   const topic = j.nodes.find((n) => n.id === 'topic:ci-policy')!
   topic.properties = { ...(topic.properties ?? {}), aliases: ['climate regulation', ' ', 'carbon policy'] }
-  for (let i = 1; i <= 5; i += 1) {
-    j.nodes.push({
-      id: `quote:rail-extra-${i}`,
-      type: 'Quote',
-      properties: { text: `Extra supporting line ${i}.`, episode_id: 'ci-fixture', speaker_id: null, char_start: 100 + i * 30, char_end: 120 + i * 30, timestamp_start_ms: 0, timestamp_end_ms: 0, transcript_ref: 'transcript.txt' },
-    })
-    j.edges.push({ type: 'SUPPORTED_BY', from: 'insight:b72dafa3f874480d', to: `quote:rail-extra-${i}` })
-  }
   j.nodes.push({ id: 'person:nora', type: 'Person', properties: { name: 'Nora', role: 'host' } })
   return JSON.stringify(j)
 }
@@ -983,7 +909,7 @@ async function openNodeInRail(page: Page, id: string): Promise<void> {
 test.describe('Graph node rail rows (UXS-004, fixture-driven)', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'creator')
-    await mockGraphExpansionBaseline(page, giJsonForNodeRailRows())
+    await mockGraphExpansionBaseline(page, kgJsonForNodeRailRows())
     await gotoGraphWithMockCorpus(page)
   })
   test.describe.configure({ mode: 'serial' })
@@ -1000,20 +926,6 @@ test.describe('Graph node rail rows (UXS-004, fixture-driven)', () => {
     await page.getByTestId('node-detail-topic-explore-filter').click()
     await expect(page.getByTestId('search-workspace')).toBeVisible()
     await expect(page.getByTestId('search-chip-topic-contains')).toHaveText('Topic: Climate policy ▾')
-  })
-
-  test('an insight shows five supporting quotes, then all seven, then five again', async ({ page }) => {
-    await openNodeInRail(page, 'insight:b72dafa3f874480d')
-    const section = page.getByTestId('node-detail-insight-supporting-quotes')
-    const rows = section.locator('ul > li')
-    await expect(rows).toHaveCount(5)
-    const toggle = page.getByTestId('node-detail-insight-supporting-quotes-toggle-expand')
-    await expect(toggle).toHaveText('Show all 7')
-    await toggle.click()
-    await expect(rows).toHaveCount(7)
-    await expect(toggle).toHaveText('Show fewer quotes')
-    await toggle.click()
-    await expect(rows).toHaveCount(5)
   })
 
   test('a person: the rail heading names the type, and the role reads Host', async ({ page }) => {
