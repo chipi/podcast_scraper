@@ -55,6 +55,9 @@ interface CacheEntry<T> {
 /** Module-level cache singleton. Tests reset via
  *  ``invalidateRelationalCache()``. */
 const cache = new Map<string, CacheEntry<unknown>>()
+/** Requests still loading, by key: a second caller for the same key joins the first request
+ *  instead of sending its own (two panels that open one person ask for its brief at once). */
+const inflight = new Map<string, Promise<unknown>>()
 
 let ttlMs: number = DEFAULT_TTL_MS
 let maxEntries: number = DEFAULT_MAX_ENTRIES
@@ -148,6 +151,25 @@ function setEntry(key: string, value: unknown): void {
  *  forcing a refresh after a config change). */
 export function invalidateRelationalCache(): void {
   cache.clear()
+  inflight.clear()
+}
+
+/** A cached value, else the request already loading for the key, else a new one. */
+function cachedOrShared<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const hit = getEntry<T>(key)
+  if (hit !== undefined) return Promise.resolve(hit)
+  const pending = inflight.get(key) as Promise<T> | undefined
+  if (pending) return pending
+  const request = load()
+    .then((result) => {
+      if (inflight.get(key) === request) setEntry(key, result)
+      return result
+    })
+    .finally(() => {
+      if (inflight.get(key) === request) inflight.delete(key)
+    })
+  inflight.set(key, request)
+  return request
 }
 
 /** Test-only helpers (no-op for runtime callers). */
@@ -193,16 +215,14 @@ export async function cachedFetchPersonTopics(
   k?: number,
 ): ReturnType<typeof _fetchPersonTopics> {
   const key = makeKey(corpusPath, 'fetchPersonTopics', [personId, String(k ?? '')])
-  const hit = getEntry<Awaited<ReturnType<typeof _fetchPersonTopics>>>(key)
-  if (hit !== undefined) return hit
   // Omit ``k`` from the inner call when undefined so the downstream
   // mock spy in PersonLandingView.test.ts sees the same 2-arg shape
   // the un-cached path used.
-  const result = k === undefined
-    ? await _fetchPersonTopics(corpusPath, personId)
-    : await _fetchPersonTopics(corpusPath, personId, k)
-  setEntry(key, result)
-  return result
+  return cachedOrShared(key, () =>
+    k === undefined
+      ? _fetchPersonTopics(corpusPath, personId)
+      : _fetchPersonTopics(corpusPath, personId, k),
+  )
 }
 
 /** Cached wrapper for `fetchCoSpeakers(corpus, person, k?)`. */
@@ -212,13 +232,11 @@ export async function cachedFetchCoSpeakers(
   k?: number,
 ): ReturnType<typeof _fetchCoSpeakers> {
   const key = makeKey(corpusPath, 'fetchCoSpeakers', [personId, String(k ?? '')])
-  const hit = getEntry<Awaited<ReturnType<typeof _fetchCoSpeakers>>>(key)
-  if (hit !== undefined) return hit
-  const result = k === undefined
-    ? await _fetchCoSpeakers(corpusPath, personId)
-    : await _fetchCoSpeakers(corpusPath, personId, k)
-  setEntry(key, result)
-  return result
+  return cachedOrShared(key, () =>
+    k === undefined
+      ? _fetchCoSpeakers(corpusPath, personId)
+      : _fetchCoSpeakers(corpusPath, personId, k),
+  )
 }
 
 /** Cached wrapper for `fetchPositions(corpus, person, k?)`. */
@@ -228,13 +246,11 @@ export async function cachedFetchPositions(
   k?: number,
 ): ReturnType<typeof _fetchPositions> {
   const key = makeKey(corpusPath, 'fetchPositions', [personId, String(k ?? '')])
-  const hit = getEntry<Awaited<ReturnType<typeof _fetchPositions>>>(key)
-  if (hit !== undefined) return hit
-  const result = k === undefined
-    ? await _fetchPositions(corpusPath, personId)
-    : await _fetchPositions(corpusPath, personId, k)
-  setEntry(key, result)
-  return result
+  return cachedOrShared(key, () =>
+    k === undefined
+      ? _fetchPositions(corpusPath, personId)
+      : _fetchPositions(corpusPath, personId, k),
+  )
 }
 
 /** Cached wrapper for `fetchPersonProfile(corpus, person)` (CIL brief). */
@@ -243,9 +259,5 @@ export async function cachedFetchPersonProfile(
   personId: string,
 ): ReturnType<typeof _fetchPersonProfile> {
   const key = makeKey(corpusPath, 'fetchPersonProfile', [personId])
-  const hit = getEntry<Awaited<ReturnType<typeof _fetchPersonProfile>>>(key)
-  if (hit !== undefined) return hit
-  const result = await _fetchPersonProfile(corpusPath, personId)
-  setEntry(key, result)
-  return result
+  return cachedOrShared(key, () => _fetchPersonProfile(corpusPath, personId))
 }
