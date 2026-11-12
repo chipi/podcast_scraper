@@ -135,3 +135,21 @@ def _raw_walks(tree: ast.AST) -> List[int]:
         elif name == "glob" and isinstance(literal, str) and literal.startswith("**/"):
             hits.append(node.lineno)
     return hits
+
+
+def test_no_corpus_scanner_walks_without_the_exclusion_rule() -> None:
+    offenders = []
+    for path in sorted(_SRC.rglob("*.py")):
+        rel = path.relative_to(_SRC).as_posix()
+        if rel in _NOT_A_CORPUS:
+            continue
+        source = path.read_text(encoding="utf-8")
+        walks = _raw_walks(ast.parse(source))
+        # An os.walk that prunes with the corpus rule (dot-directories, and sources/ at the root)
+        # is fine; nothing else is.
+        lines = source.splitlines()
+        for n in walks:
+            if "os.walk" in lines[n - 1] and "prune_corpus_dirs" in source:
+                continue
+            offenders.append(f"{rel}:{n}: {lines[n - 1].strip()}")
+    assert not offenders, "use corpus_rglob / prune_corpus_dirs:\n" + "\n".join(offenders)
