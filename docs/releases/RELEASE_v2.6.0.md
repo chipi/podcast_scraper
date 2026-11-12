@@ -14,7 +14,7 @@ v2.6.0 is a **minor release** that ships three substantial bodies of work on top
 
 On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles**, sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
 
-The **Python library** surface (`Config`, `run_pipeline`, `service.run`) stays backward compatible. HTTP, the SPA, and server-only routes are **additive** behind `pip install -e '.[dev]'`. **GIL** and **KG** reach **Completed** status for **single-layer** artifacts and consumption (RFC-049 / RFC-050, RFC-055 / RFC-056); **cross-layer identity** remains future work (Draft RFC-072). **Multi-feed** corpus layout, manifest, and unified indexing ship per RFC-063.
+The **Python library** surface (`Config`, `run_pipeline`, `service.run`) stays backward compatible. HTTP, the SPA, and server-only routes are **additive** behind `pip install -e '.[dev]'`. **GIL** and **KG** reach **Completed** status for **single-layer** artifacts and consumption (KG: RFC-055 / RFC-056); **cross-layer identity** remains future work. **Multi-feed** corpus layout, manifest, and unified indexing ship per RFC-063.
 
 ---
 
@@ -69,15 +69,15 @@ v2.6.0 ships the **retrieval** and **structured artifact** layers that the viewe
 
 ### Grounded Insight Layer (GIL)
 
-- **Completed (single layer)** — RFC-049 (core model, `gi.json`, grounding contract) and RFC-050 (consumption patterns, CLI and product use cases without cross-layer bridge).
+- **Completed (single layer)** — the core model (`gi.json`, grounding contract) and its consumption patterns (CLI and product use cases without cross-layer bridge).
 - **What you can do** — Inspect grounded insights and quotes per episode; drive **Insight**-oriented flows in the viewer and documentation under [PRD-017](../prd/PRD-017-grounded-insight-layer.md) for the **single-layer** slice.
-- **Not in v2.6.0** — **Canonical identity** and **`bridge.json`** for cross-layer joins remain **Draft** (RFC-072); [PRD-017](../prd/PRD-017-grounded-insight-layer.md) stays **Partial** until that work lands.
+- **Not in v2.6.0** — **Canonical identity** and **`bridge.json`** for cross-layer joins remain **Draft**; [PRD-017](../prd/PRD-017-grounded-insight-layer.md) stays **Partial** until that work lands.
 
 ### Knowledge Graph (KG)
 
 - **Completed (single layer)** — [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) (ontology, `kg.json`, separation from GIL) and [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) (roll-ups, `kg` CLI patterns, export-oriented use cases).
 - **What you can do** — **Graph** tab and related viewer flows consume **KG** artifacts alongside GIL for exploration ([PRD-019](../prd/PRD-019-knowledge-graph-layer.md) single-layer scope; [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) for interaction toolkit).
-- **Same boundary as GIL** — Cross-layer alignment is **RFC-072**, not shipped in v2.6.0.
+- **Same boundary as GIL** — Cross-layer alignment is not shipped in v2.6.0.
 
 **Guides**
 
@@ -217,7 +217,7 @@ and `.cursorrules` are now thin, assistant-specific overlays that import from AG
 - [Server Guide](../guides/SERVER_GUIDE.md)
 - [Migration Guide — v2.6.0](../api/MIGRATION_GUIDE.md#v260-viewer-and-http)
 - [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)
-- [RFC index — v2.6.0 rows](../rfc/index.md) — RFC-049, 050, 055, 056, 061–071
+- [RFC index — v2.6.0 rows](../rfc/index.md) — RFC-055, 056, 061–071
 
 ---
 
