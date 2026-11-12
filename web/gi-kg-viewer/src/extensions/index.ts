@@ -318,6 +318,35 @@ export interface GraphTypeTraits extends Entry {
 
 export const graphTypeTraits = extensionPoint<GraphTypeTraits>('graphTypeTraits')
 
+/**
+ * Additions to the canvas elements built from the drawn artifact. `node` adds data and classes
+ * to one node's element (`raw` is the artifact's node); `edges` adds render-only edges, given the
+ * artifact, a test of which node ids are drawn, and whether aggregated edges are asked for.
+ */
+export interface GraphElementDecorator extends Entry {
+  node?(
+    raw: import('../types/artifact').RawGraphNode,
+  ): { data?: Record<string, unknown>; classes?: string[] } | null
+  edges?(
+    art: import('../types/artifact').ParsedArtifact,
+    drawn: (id: string) => boolean,
+    options: { aggregated: boolean },
+  ): import('cytoscape').ElementDefinition[]
+}
+
+export const graphElementDecorators = extensionPoint<GraphElementDecorator>('graphElementDecorators')
+
+/** A node filter the graph applies before its type filter: `keep` false drops the node. */
+export interface GraphNodeFilter extends Entry {
+  keep(
+    node: import('../types/artifact').RawGraphNode,
+    state: import('../types/artifact').GraphFilterState,
+    art: import('../types/artifact').ParsedArtifact,
+  ): boolean
+}
+
+export const graphNodeFilters = extensionPoint<GraphNodeFilter>('graphNodeFilters')
+
 /** Rewrites the merged graph the viewer displays, in `order` (each gets the previous one's output). */
 export interface ArtifactTransform extends Entry {
   transform(
