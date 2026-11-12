@@ -13,10 +13,7 @@ import {
 } from '../../api/corpusLibraryApi'
 import { copyTextToClipboard } from '../../utils/clipboard'
 import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
-import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import DiagnosticRow from '../shared/DiagnosticRow.vue'
-import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
-import EpisodeEnrichmentSection from './EpisodeEnrichmentSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
@@ -39,11 +36,6 @@ import {
 } from '../../utils/searchResultActionStyles'
 import { corpusTextFileViewUrl } from '../../utils/transcriptSourceDisplay'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import { fetchEpisodeRelatedInsights, type RelatedNode } from '../../api/relationalApi'
-import {
-  applyGraphFocusPlan,
-  graphFocusPlanFromCilPill,
-} from '../../utils/cilGraphFocus'
 import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import { findEpisodeGraphNodeIdForMetadataPathOrEpisodeId } from '../../utils/graphEpisodeMetadata'
 
@@ -71,7 +63,7 @@ const emit = defineEmits<{
    */
   'open-search-in-episode': [payload: { episodeId: string; query?: string }]
   'switch-main-tab': [tab: 'graph' | 'dashboard']
-  /** Bubbled from EpisodeEnrichmentSection so the rail can hide the Enrichment tab. */
+  /** Bubbled from an Enrichment-tab extension section so the rail can hide the tab. */
   'enrichment-has-content': [boolean]
 }>()
 
@@ -122,56 +114,6 @@ const similarRanOk = ref(false)
 const detailLoadGate = new StaleGeneration()
 const episodeOpenGraphGate = new StaleGeneration()
 
-// PRD-033 FR4.3 — insights related to this episode, from the relational layer.
-const relatedInsights = ref<RelatedNode[]>([])
-const relatedLoading = ref(false)
-const relatedError = ref<string | null>(null)
-const relatedGate = new StaleGeneration()
-
-async function loadRelatedInsights(episodeId: string): Promise<void> {
-  const id = episodeId.trim()
-  const root = shell.corpusPath.trim()
-  if (!id || !root || !shell.healthStatus) {
-    relatedInsights.value = []
-    relatedError.value = null
-    return
-  }
-  const seq = relatedGate.bump()
-  relatedLoading.value = true
-  relatedInsights.value = []
-  relatedError.value = null
-  try {
-    const body = await fetchEpisodeRelatedInsights(root, id, 10)
-    if (relatedGate.isStale(seq)) return
-    relatedError.value = body.error ?? null
-    relatedInsights.value = body.results ?? []
-  } catch (e) {
-    if (relatedGate.isStale(seq)) return
-    relatedError.value = e instanceof Error ? e.message : String(e)
-    relatedInsights.value = []
-  } finally {
-    if (relatedGate.isCurrent(seq)) relatedLoading.value = false
-  }
-}
-
-/**
- * Re-run when the corpus path or health settle, not only when the episode changes (#1619).
- *
- * ``loadRelatedInsights`` bails to an empty list when ``corpusPath`` or ``healthStatus`` are not
- * ready yet. Watching ``episode_id`` alone meant that bail was PERMANENT for that episode: nothing
- * re-triggered the load once the missing input arrived, so opening an episode while the shell was
- * still booting left "Related insights" silently empty until the user picked a different episode.
- *
- * Found via an intermittent e2e failure where the server returned 20 results in ~50ms and the
- * section still rendered empty — the request had never been made. ``relatedGate`` (StaleGeneration)
- * already discards out-of-order responses, so the extra triggers are safe.
- */
-watch(
-  () =>
-    [detail.value?.episode_id ?? '', shell.corpusPath, shell.healthStatus] as const,
-  ([id]) => void loadRelatedInsights(id),
-  { immediate: true },
-)
 
 const feedDisplayTitleById = computed(() => {
   const m: Record<string, string> = {}
@@ -209,10 +151,6 @@ const detailDiagnosticsEntries = computed(() => {
     {
       label: 'Feed title (feeds API)',
       value: cat?.display_title?.trim() || '—',
-    },
-    {
-      label: 'GI artifact',
-      value: d.has_gi ? `yes · ${d.gi_relative_path}` : 'no',
     },
     {
       label: 'KG artifact',
@@ -608,37 +546,6 @@ async function openInGraph(): Promise<void> {
   // above to avoid the P5.1 cross-tab race.)
 }
 
-async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
-  graphActionError.value = null
-  if (!detail.value) {
-    return
-  }
-  const pills = detail.value.cil_digest_topics ?? []
-  const pill = pills[pillIndex]
-  if (!pill) {
-    return
-  }
-  const paths = episodeArtifactRelPaths(detail.value)
-  if (paths.length === 0) {
-    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
-    return
-  }
-  const episodeIdForPlan = detail.value.episode_id
-  await ensureDefaultCorpusGraphIfNeeded()
-  await artifacts.appendRelativeArtifacts(paths)
-  graphNav.clearLibraryEpisodeHighlights()
-  const plan = graphFocusPlanFromCilPill(pill, episodeIdForPlan)
-  applyGraphFocusPlan(graphNav, plan)
-  const eid = typeof episodeIdForPlan === 'string' ? episodeIdForPlan.trim() : ''
-  if (
-    eid &&
-    (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))
-  ) {
-    graphNav.setLibraryEpisodeHighlights([eid])
-  }
-  emit('switch-main-tab', 'graph')
-}
-
 function openInSearch(): void {
   if (!detail.value) {
     return
@@ -877,38 +784,13 @@ watch(
       <p v-if="detail.summary_title" class="mt-0 text-xs font-medium text-surface-foreground">
         {{ detail.summary_title }}
       </p>
-      <div v-if="(detail.cil_digest_topics ?? []).length" class="mt-2">
-        <!--
-          #656 Stage B: chip/pill polish. ``truncation="wrap"`` +
-          ``max-width-class="auto"`` lets the pill shrink-wrap around
-          post-#653 canonical labels ("oil prices", "shadow fleet")
-          instead of padding to 11rem. ``max-pill-chars`` stays as a
-          defensive cap for legacy corpora whose labels weren't
-          backfilled yet.
-        -->
-        <CilTopicPillsRow
-          :pills="detail.cil_digest_topics ?? []"
-          :max-pill-chars="40"
-          truncation="wrap"
-          max-width-class="auto"
-          cluster-member-appearance="kg"
-          data-testid="episode-detail-cil-pills"
-          @pill-click="(i) => void openDetailCilTopicInGraph(i)"
-        />
-      </div>
-      <!--
-        #656 Stage B: per-episode bridge {gi_only, kg_only, both}
-        indicator (post-#654). Component hides itself when the
-        partition is missing — legacy episodes without bridge.json
-        don't render an empty placeholder.
-      -->
-      <EpisodeBridgePartition :partition="detail.bridge_partition" />
       <component
         :is="section.component"
         v-for="section in episodeDetailSections.list().filter((s) => s.region === 'summary-head')"
         :key="section.id"
         :detail="detail"
         :corpus-path="shell.corpusPath"
+        @switch-main-tab="(t: 'graph' | 'dashboard') => emit('switch-main-tab', t)"
       />
       <p
         v-if="detail.summary_text"
@@ -1067,44 +949,6 @@ watch(
         </ul>
       </div>
 
-      <!-- PRD-033 FR4.3 — insights related to this episode (relational layer). -->
-      <div
-        v-if="relatedLoading || relatedError || relatedInsights.length"
-        class="mt-2 border-t border-border pt-2"
-        role="region"
-        aria-label="Related insights"
-        data-testid="episode-related-insights"
-      >
-        <strong class="text-xs font-medium text-surface-foreground/90">Related insights</strong>
-        <p
-          v-if="relatedLoading"
-          data-testid="episode-related-insights-loading"
-          class="mt-1 text-xs text-muted"
-        >
-          Loading…
-        </p>
-        <p
-          v-else-if="relatedError"
-          class="mt-1 text-xs text-warning"
-        >
-          {{ relatedError }}
-        </p>
-        <ul
-          v-else
-          class="mt-1 space-y-1 text-xs"
-          data-testid="episode-related-insights-list"
-        >
-          <li
-            v-for="row in relatedInsights"
-            :key="row.id"
-            data-testid="episode-related-insights-row"
-            class="rounded border-l-2 border-primary/40 pl-2 text-[11px] leading-snug text-muted"
-            :title="row.text"
-          >
-            <span class="line-clamp-2">{{ row.text || row.id }}</span>
-          </li>
-        </ul>
-      </div>
 
       <component
         :is="section.component"
@@ -1112,6 +956,7 @@ watch(
         :key="section.id"
         :detail="detail"
         :corpus-path="shell.corpusPath"
+        @switch-main-tab="(t: 'graph' | 'dashboard') => emit('switch-main-tab', t)"
       />
 
       <p v-if="graphActionError" class="mt-1 text-xs text-danger">
@@ -1132,17 +977,13 @@ watch(
           "
           :tabindex="railTabsEnabled ? -1 : undefined"
         >
-          <EpisodeEnrichmentSection
-            :corpus-path="shell.corpusPath"
-            :metadata-relpath="detail.metadata_relative_path || ''"
-            @has-content="emit('enrichment-has-content', $event)"
-          />
           <component
             :is="section.component"
             v-for="section in episodeDetailSections.list().filter((s) => s.region === 'enrichment')"
             :key="section.id"
             :detail="detail"
             :corpus-path="shell.corpusPath"
+            @has-content="(v: boolean) => emit('enrichment-has-content', v)"
           />
         </div>
         <div
