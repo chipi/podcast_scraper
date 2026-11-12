@@ -295,13 +295,6 @@ def _metadata_key_paths(
     return out
 
 
-def _stored_manifest_key_paths() -> List[str]:
-    if not _BASELINE.is_file():
-        return []
-    stored = json.loads(_BASELINE.read_text(encoding="utf-8"))
-    return list(stored.get("manifest_key_paths") or [])
-
-
 def _build() -> Dict[str, Any]:
     return {
         "_readme": (
@@ -310,9 +303,8 @@ def _build() -> Dict[str, Any]:
             "appear here if it is in ALLOWLIST; a key may never disappear."
         ),
         "episode_metadata_key_paths": sorted(_metadata_key_paths()),
-        # The manifest half carries the speaker stage's `turns` block (an extension's, E04
-        # move); the test that compares it, and its regeneration, live with that stage.
-        "manifest_key_paths": _stored_manifest_key_paths(),
+        # The processing manifest's half carries the speaker stage's `turns` block (an installed
+        # extension's, E04): its baseline, comparison and regeneration live with that stage.
         "pipeline_composition_version": pm.pipeline_composition_version(_PIPELINE_STAGES),
     }
 
