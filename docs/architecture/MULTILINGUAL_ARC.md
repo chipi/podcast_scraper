@@ -464,7 +464,7 @@ run on the **English** text after translation, because that is what stops a
 | --- | --- | --- |
 | Consumer episode list + toolbar | single-select filter via `ListToolbar`, plus a show selector and sort | v2 filter |
 | Episode + show items | `EpisodeRow/Tile/Card.vue`, `ShowRow/ShowTile.vue`, `PodcastView.vue` | v2 badge |
-| Operator shows library | `library/{ShowsBrowse,ShowsView,ShowDetailView}.vue`, `LibraryFilterBar.vue` | S0.5 field, v2 badge/filter |
+| Operator shows library | `library/{ShowsBrowse,ShowsView}.vue`, `episode/ShowRailPanel.vue`, `LibraryFilterBar.vue` | S0.5 field, v2 badge/filter |
 | Claim serialization | `AppInsight`/`AppQuote`, `gi/contracts.py` `InsightSummary`/`SupportingQuote`, `hybrid_search._to_search_result`, `server/og/build.py`, snapshot exports | v2 labelling — every one drops node properties today, and snapshots are copies a read-time change cannot reach |
 | Position surfaces | `cil_queries.py` (nine entry points), `search/relational_queries.py:170 positions_of`, `enrichment/enrichers/topic_consensus.py` | v2 only — nothing in v1 filters these |
 

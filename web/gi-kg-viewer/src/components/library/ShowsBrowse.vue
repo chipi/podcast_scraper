@@ -4,8 +4,7 @@
  *
  * Renders the shows grid; selecting a card opens that show in the **right subject
  * rail** (`subject.focusShow` → `ShowRailPanel`), consistent with how episodes
- * open — not replacing the grid in-panel. (The former in-panel `ShowDetailView`
- * is retired from this path; the file is kept but no longer rendered here.)
+ * open — not replacing the grid in-panel.
  */
 import { useSubjectStore } from '../../stores/subject'
 import type { CorpusFeedItem } from '../../api/corpusLibraryApi'
