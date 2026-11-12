@@ -24,7 +24,6 @@ import NodeDetail from './NodeDetail.vue'
 const STUBS = {
   PersonLandingView: true,
   PodcastNodeView: true,
-  InsightNodeView: true,
   TopicEntityView: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
@@ -148,6 +147,65 @@ describe('NodeDetail extensions', () => {
     expect(c.props('aggregatedNeighborRows')).toEqual(rows)
     expect(c.props('connectionsEmptyHint')).toBe('none here')
     expect(c.props('compoundNeighborhood')).toEqual({ compoundId: 'grp:1', memberIds: ['topic:a'] })
+    w.unmount()
+  })
+
+  it('names the kind of a node outside the slice, and renders its body section', () => {
+    nodeDetailExtensions.register({
+      id: 'x',
+      kindOf: (id) => (id.startsWith('claim:') ? 'Claim' : null),
+      sections: [{ region: 'body', component: ctxSection('body') }],
+    })
+    const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'claim:1', embedInRail: true })
+    // The kind alone shows the panel (no `knowsNode`), and the body section sees it.
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.get('[data-testid="section-body"]').text()).toBe('claim:1|Claim')
+    w.unmount()
+  })
+
+  it('keeps the keys a section shows out of the generic property list', () => {
+    const node = { id: 'n:1', type: 'Thing', properties: { label: 'N', weight: 3, colour: 'red' } } as RawGraphNode
+    const mountWith = () => mountDetail({ viewArtifact: artifactOf([node]), nodeId: 'n:1' })
+    const plain = mountWith()
+    expect(plain.text()).toContain('Weight')
+    plain.unmount()
+    nodeDetailExtensions.register({ id: 'x', hiddenProperties: (ctx) => (ctx.nodeType === 'Thing' ? ['weight'] : []) })
+    const w = mountWith()
+    expect(w.text()).not.toContain('Weight')
+    expect(w.text()).toContain('Colour')
+    w.unmount()
+  })
+
+  it('gives sections the node, the full graph and the panel actions', async () => {
+    readyShell()
+    let seen: NodeDetailContext | null = null
+    nodeDetailExtensions.register({
+      id: 'x',
+      sections: [
+        {
+          region: 'body',
+          component: defineComponent({
+            props: { ctx: { type: Object, required: true } },
+            setup(props) {
+              seen = props.ctx as NodeDetailContext
+              return () => h('p')
+            },
+          }),
+        },
+      ],
+    })
+    const art = artifactOf([topic('topic:a', 'A')])
+    const w = mountDetail({ viewArtifact: art, nodeId: 'topic:a' })
+    await flushPromises()
+    expect(seen!.node?.id).toBe('topic:a')
+    expect(seen!.fullArtifact).toEqual(art)
+    seen!.prefillSearch('  rates  ')
+    seen!.prefillSearch('   ')
+    seen!.openSearchFilters({ groundedOnly: true, minConfidence: 0.5 })
+    seen!.focusOnGraph('topic:b')
+    expect(w.emitted('prefill-semantic-search')).toEqual([[{ query: 'rates' }]])
+    expect(w.emitted('open-search-insight-filters')).toEqual([[{ groundedOnly: true, minConfidence: 0.5 }]])
+    expect(w.emitted('go-graph')).toHaveLength(1)
     w.unmount()
   })
 })

@@ -15,12 +15,7 @@ import {
   findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
   fullPrimaryNodeLabel,
-  insightProvenanceLine,
-  insightRelatedTopicRows,
-  insightSupportingQuoteRows,
-  insightSupportingTranscriptAggregate,
 } from "../../utils/parsing"
-import { formatInsightPositionHintLine } from "../../utils/insightPositionHint"
 import { copyTextToClipboard } from "../../utils/clipboard"
 import { graphTypeAvatarLetter } from "../../utils/graphTypeAvatar"
 import { stripLayerPrefixesForCil } from "../../utils/mergeGiKg"
@@ -29,7 +24,6 @@ import {
   SEARCH_RESULT_COPY_TITLE_CHIP_CLASS,
   SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
-  SEARCH_RESULT_GRAPH_BUTTON_CLASS,
 } from "../../utils/searchResultActionStyles"
 import { bridgeIdentityForGraphNodeId, crossLayerPresenceLabel } from "../../utils/bridgeDocument"
 import { visualGroupForNode } from "../../utils/visualGroup"
@@ -46,7 +40,6 @@ import NodeEnrichmentSection from "./NodeEnrichmentSection.vue"
 import TopicEntityView from "../subject/TopicEntityView.vue"
 import PersonLandingView from "../subject/PersonLandingView.vue"
 import PodcastNodeView from "../subject/PodcastNodeView.vue"
-import InsightNodeView from "../subject/InsightNodeView.vue"
 import SubjectTimelineChart from "../subject/SubjectTimelineChart.vue"
 import { buildSubjectMentionsTimeline } from "../../utils/subjectMentionsTimeline"
 import TranscriptViewerDialog from "../shared/TranscriptViewerDialog.vue"
@@ -112,23 +105,7 @@ const HIDDEN_PROPS = new Set([
   "role",
 ])
 
-/** Shown in insight meta strip; omit from generic property list. */
-const INSIGHT_META_DL_KEYS = new Set(["grounded", "insight_type", "position_hint"])
-
-const INSIGHT_SEMANTIC_SEARCH_MAX_CHARS = 240
-
 const PERSON_ENTITY_SEMANTIC_SEARCH_MAX_CHARS = 240
-
-const INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER = 5
-
-/** Text-style HelpTip trigger under Full insight (not the round diagnostics chip). */
-const INSIGHT_GROUNDING_TIP_TRIGGER_CLASS =
-  "inline-flex max-w-full min-h-[1.25rem] items-center rounded px-0.5 py-0 text-left " +
-  "text-[10px] font-semibold leading-snug text-muted underline decoration-muted/40 " +
-  "underline-offset-2 hover:bg-overlay/50 hover:text-surface-foreground"
-
-const graphFocusNeighborTooltip =
-  "Show on graph — focus this node in the loaded merged graph (same as semantic search G)."
 
 const node = computed(() => {
   const id = props.nodeId
@@ -156,7 +133,7 @@ const node = computed(() => {
 // endpoints, independent of the viewer's graph slice) instead of an empty
 // "Node" shell.
 const inferredKindFromId = computed(
-  (): "Person" | "Organization" | "Object" | "Topic" | "Podcast" | "Insight" | null => {
+  (): string | null => {
     if (node.value) return null
     const bare = stripLayerPrefixesForCil(props.nodeId ?? "")
     if (bare.startsWith("person:")) return "Person"
@@ -166,9 +143,10 @@ const inferredKindFromId = computed(
     if (bare.startsWith("object:")) return "Object"
     if (bare.startsWith("topic:")) return "Topic"
     if (bare.startsWith("podcast:")) return "Podcast"
-    // An out-of-slice insight (e.g. a corpus-wide timeline-mention drill) renders
-    // from the /relational/insight-detail endpoint via InsightNodeView.
-    if (bare.startsWith("insight:")) return "Insight"
+    for (const e of nodeDetailExtensions.list()) {
+      const k = e.kindOf?.(props.nodeId ?? "")
+      if (k) return k
+    }
     return null
   }
 )
@@ -190,13 +168,22 @@ const extensionContext = computed<NodeDetailContext>(() => ({
   isTopicNode: isTopicNode.value,
   viewArtifact: props.viewArtifact,
   embedInRail: Boolean(props.embedInRail),
+  node: node.value,
+  fullArtifact: fullMergedArtifactForMetadata.value,
   goGraph: () => emit("go-graph"),
+  focusOnGraph: focusNodeOnGraph,
+  prefillSearch: (query: string) => {
+    const q = query.trim()
+    if (q) emit("prefill-semantic-search", { query: q })
+  },
+  openSearchFilters: (filters) => emit("open-search-insight-filters", filters),
+  openTranscript: (payload) => transcriptViewerRef.value?.open(payload),
 }))
 const extensionKnowsNode = computed(() => {
   const id = props.nodeId?.trim()
   return Boolean(id && nodeDetailExtensions.list().some((e) => e.knowsNode?.(id)))
 })
-function extensionSections(region: "header" | "overview" | "after-aliases") {
+function extensionSections(region: "header" | "overview" | "body" | "after-aliases") {
   return nodeDetailExtensions.list().flatMap((e) => (e.sections ?? []).filter((x) => x.region === region))
 }
 /** An extension's neighbour list for this node (with the minimap neighbourhood). */
@@ -246,10 +233,6 @@ const isPodcastNode = computed(() => nodeType.value.trim().toLowerCase() === "po
 // the real cover for a podcast node instead of the generic "P" letter (P2).
 const podcastCover = ref<{ imageUrl: string | null; imageLocalRelpath: string | null } | null>(null)
 
-// Out-of-slice insight: InsightNodeView resolves the text from the server and
-// emits it up so the header shows the claim (not the opaque insight: hash).
-const insightHeaderText = ref("")
-
 /**
  * Full quote/insight text in the rail — not ``nodeLabel`` (that caps at ~40 chars for on-canvas labels).
  */
@@ -264,9 +247,6 @@ const displayName = computed(() => {
     // derive a readable name from the id slug so the header isn't blank while
     // the person / topic view loads from server endpoints.
     const bare = stripLayerPrefixesForCil(props.nodeId ?? "")
-    // An insight's "name" is its text (an opaque hash id makes a useless title);
-    // InsightNodeView emits the resolved text up. Show a placeholder until then.
-    if (bare.startsWith("insight:")) return insightHeaderText.value.trim() || "Insight"
     const slug = bare.replace(/^[a-z]+:/, "").trim()
     if (slug) {
       return slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -391,172 +371,9 @@ function emitPersonEntityExploreHandoff(): void {
   }
 }
 
-const insightEpisodeDurationMs = computed((): number | null => {
-  if (!isInsightNode.value || !node.value) {
-    return null
-  }
-  const p = node.value.properties as Record<string, unknown> | undefined
-  const direct = p?.episode_duration_ms ?? p?.duration_ms
-  if (typeof direct === "number" && Number.isFinite(direct) && direct > 0) {
-    return direct
-  }
-  const rawEp = p?.episode_id
-  const epId =
-    typeof rawEp === "string" && rawEp.trim()
-      ? rawEp.trim()
-      : typeof rawEp === "number" && Number.isFinite(rawEp)
-        ? String(rawEp)
-        : null
-  if (!epId) {
-    return null
-  }
-  const art = fullMergedArtifactForMetadata.value
-  if (!art) {
-    return null
-  }
-  const ep = findRawNodeInArtifact(art, epId)
-  const qp = ep?.properties as Record<string, unknown> | undefined
-  if (!qp) {
-    return null
-  }
-  const d = qp.episode_duration_ms ?? qp.duration_ms
-  return typeof d === "number" && Number.isFinite(d) && d > 0 ? d : null
-})
-
-/** Type / position / confidence only (grounding + provenance live in the details HelpTip). */
-const insightSecondaryDetailLines = computed((): string[] => {
-  if (!isInsightNode.value) return []
-  const parts: string[] = []
-  const p = node.value?.properties
-  const it = p?.insight_type
-  if (typeof it === "string" && it.trim()) {
-    parts.push(`Type: ${it.trim()}`)
-  }
-  const ph = p?.position_hint
-  if (typeof ph === "number" && Number.isFinite(ph)) {
-    parts.push(formatInsightPositionHintLine(ph, insightEpisodeDurationMs.value))
-  }
-  const rawNode = node.value as Record<string, unknown> | null
-  const cn = rawNode?.confidence
-  if (typeof cn === "number" && Number.isFinite(cn)) {
-    parts.push(`Confidence: ${cn.toFixed(2)}`)
-  }
-  return parts
-})
-
-const insightGroundedBoolean = computed((): boolean | null => {
-  if (!isInsightNode.value) return null
-  const g = node.value?.properties?.grounded
-  return typeof g === "boolean" ? g : null
-})
-
-const insightSemanticSearchQuery = computed((): string => {
-  if (!isInsightNode.value) return ""
-  return truncate(displayName.value.trim(), INSIGHT_SEMANTIC_SEARCH_MAX_CHARS)
-})
-
-const insightSupportingQuotes = computed(() =>
-  isInsightNode.value
-    ? insightSupportingQuoteRows(fullMergedArtifactForMetadata.value, props.nodeId)
-    : []
-)
-
-const insightSupportingTranscriptAgg = computed(() =>
-  isInsightNode.value
-    ? insightSupportingTranscriptAggregate(fullMergedArtifactForMetadata.value, props.nodeId)
-    : null
-)
-
-const insightOpenAllSupportingQuotesReady = computed((): boolean => {
-  const agg = insightSupportingTranscriptAgg.value
-  if (!agg) {
-    return false
-  }
-  const root = shell.corpusPath.trim()
-  if (!shell.healthStatus || !shell.hasCorpusPath) {
-    return false
-  }
-  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)
-  const resolvedRelpath = resolveTranscriptCorpusRelpath(agg.transcriptRef, giPath)
-  return Boolean(resolvedRelpath && corpusTextFileViewUrl(root, resolvedRelpath))
-})
-
-const insightQuotesExpanded = ref(false)
-
-watch(
-  () => props.nodeId,
-  () => {
-    insightQuotesExpanded.value = false
-  }
-)
-
-const insightSupportingQuotesVisible = computed(() => {
-  const all = insightSupportingQuotes.value
-  if (insightQuotesExpanded.value || all.length <= INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER) {
-    return all
-  }
-  return all.slice(0, INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER)
-})
-
-function toggleInsightSupportingQuotesExpanded(): void {
-  insightQuotesExpanded.value = !insightQuotesExpanded.value
-}
-
-const insightRelatedTopics = computed(() =>
-  isInsightNode.value && props.nodeId
-    ? insightRelatedTopicRows(props.viewArtifact, props.nodeId)
-    : []
-)
-
-const insightProvenanceText = computed(() =>
-  isInsightNode.value ? insightProvenanceLine(props.viewArtifact) : null
-)
-
-const hasInsightDetailsTipContent = computed((): boolean => {
-  if (!isInsightNode.value) return false
-  if (insightGroundedBoolean.value !== null) return true
-  if (insightSecondaryDetailLines.value.length > 0) return true
-  return Boolean(insightProvenanceText.value?.trim())
-})
-
-/** Visible trigger and accessible name (popover holds the full grounding explainer). */
-const insightGroundingTriggerLabel = computed((): string => {
-  if (insightGroundedBoolean.value === true) return "Grounded"
-  if (insightGroundedBoolean.value === false) return "Not grounded"
-  return "Extraction details"
-})
-
-const insightExploreFiltersPayload = computed(
-  (): {
-    groundedOnly: boolean
-    minConfidence: number | null
-  } | null => {
-    if (!isInsightNode.value) return null
-    const p = node.value?.properties
-    const g = p?.grounded
-    const groundedOnly = typeof g === "boolean" ? g : false
-    const rawNode = node.value as Record<string, unknown> | null
-    const c = rawNode?.confidence
-    const minConfidence = typeof c === "number" && Number.isFinite(c) ? c : null
-    return { groundedOnly, minConfidence }
-  }
-)
-
-function emitInsightPrefillSearch(): void {
-  const q = insightSemanticSearchQuery.value.trim()
-  if (!q) return
-  emit("prefill-semantic-search", { query: q })
-}
-
-function emitInsightOpenSearchFilters(): void {
-  const p = insightExploreFiltersPayload.value
-  if (!p) return
-  emit("open-search-insight-filters", p)
-}
-
-function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
-  ev.stopPropagation()
-  const id = nbId.trim()
+/** A node handed to the graph from this panel (an extension's neighbour rows use it through `ctx`). */
+function focusNodeOnGraph(nodeId: string): void {
+  const id = nodeId.trim()
   if (!id) return
   // F1.6 — NodeDetail "neighbour go-graph" is a graph-internal expansion (preserves layout) targeted at
   // a specific neighbour node.
@@ -638,8 +455,9 @@ const visualType = computed(() => {
     if (inferred === "Person") return "Entity_person"
     if (inferred === "Organization") return "Entity_organization"
     if (inferred === "Podcast") return "Podcast"
-    if (inferred === "Insight") return "Insight"
-    return "Topic"
+    if (inferred === "Topic" || inferred === "Object") return "Topic"
+    // A kind an extension named (`kindOf`) is its own visual group.
+    return inferred
   }
   return visualGroupForNode(node.value)
 })
@@ -814,38 +632,14 @@ function openTranscriptViewer(): void {
   })
 }
 
-function openInsightAllSupportingQuotesTranscript(): void {
-  const agg = insightSupportingTranscriptAgg.value
-  const root = shell.corpusPath.trim()
-  if (!agg || !root) {
-    return
-  }
-  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)
-  const resolvedRelpath = resolveTranscriptCorpusRelpath(agg.transcriptRef, giPath)
-  const href = corpusTextFileViewUrl(root, resolvedRelpath)
-  if (!href || !resolvedRelpath) {
-    return
-  }
-  const n = agg.charRanges.length
-  const first = agg.charRanges[0]
-  const charPositionLabel =
-    n === 1
-      ? formatTranscriptCharRange(first.charStart, first.charEnd)
-      : `${n} character spans (supporting quotes)`
-  transcriptViewerRef.value?.open({
-    corpusRoot: root,
-    transcriptRelpath: resolvedRelpath,
-    rawTabUrl: href,
-    charRanges: agg.charRanges,
-    charPositionLabel,
-    subtitle: agg.transcriptRef || null,
-    audioTimingLabel: null,
-  })
-}
-
 function humanizePropertyKey(k: string): string {
   return k.replace(/_/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
+
+/** Keys an extension's section shows itself (extension point `nodeDetailExtensions`). */
+const extensionHiddenProperties = computed(
+  () => new Set(nodeDetailExtensions.list().flatMap((e) => e.hiddenProperties?.(extensionContext.value) ?? [])),
+)
 
 const extraProps = computed(() => {
   const p = node.value?.properties
@@ -856,7 +650,7 @@ const extraProps = computed(() => {
     if (TRANSCRIPT_ANCHOR_PROP_KEYS.has(k)) continue
     if (isTopicNode.value && k === "aliases") continue
     if (isPersonEntityRailNode.value && k === "aliases") continue
-    if (isInsightNode.value && INSIGHT_META_DL_KEYS.has(k)) continue
+    if (extensionHiddenProperties.value.has(k)) continue
     // Corpus episode id is redundant with the **E** header chip on non-Episode nodes (Insight, Quote, …).
     if (nodeType.value !== "Episode" && k === "episode_id") continue
     let v: unknown = p[k]
@@ -1328,177 +1122,12 @@ const graphConnectionsCenterInView = computed((): boolean => {
             </div>
           </template>
 
-          <div
-            v-if="isInsightNode && hasInsightDetailsTipContent"
-            class="mb-2"
-            data-testid="node-detail-insight-details-tip"
-          >
-            <HelpTip
-              :key="String(props.nodeId ?? '')"
-              :pref-width="320"
-              :button-text="insightGroundingTriggerLabel"
-              :button-aria-label="insightGroundingTriggerLabel"
-              :button-class="INSIGHT_GROUNDING_TIP_TRIGGER_CLASS"
-            >
-              <div
-                data-testid="node-detail-insight-details-tooltip-body"
-                class="space-y-2 font-sans text-[10px] leading-snug text-muted"
-              >
-                <div>
-                  <p class="mb-1 font-semibold text-surface-foreground">Grounding</p>
-                  <p>
-                    <strong class="text-surface-foreground/90">Grounded</strong> means this insight
-                    has at least one supporting quote in this episode graph (linked via SUPPORTED_BY
-                    in the GI file).
-                    <strong class="text-surface-foreground/90">Not grounded</strong> means the
-                    artifact marks grounded as false (no supporting quotes recorded for this
-                    insight).
-                  </p>
-                </div>
-                <div v-if="insightSecondaryDetailLines.length">
-                  <p class="mb-1 font-semibold text-surface-foreground">Other fields</p>
-                  <ul class="list-inside list-disc space-y-0.5">
-                    <li v-for="(line, li) in insightSecondaryDetailLines" :key="li">
-                      {{ line }}
-                    </li>
-                  </ul>
-                </div>
-                <div v-if="insightProvenanceText">
-                  <p class="mb-1 font-semibold text-surface-foreground">Lineage</p>
-                  <p class="break-words font-mono text-[10px] text-elevated-foreground">
-                    {{ insightProvenanceText }}
-                  </p>
-                </div>
-              </div>
-            </HelpTip>
-          </div>
-
-          <div
-            v-if="isInsightNode && insightSemanticSearchQuery"
-            class="mb-3 flex items-center gap-2"
-            role="group"
-            aria-label="Insight shortcuts to Search and Explore"
-          >
-            <button
-              type="button"
-              class="min-w-0 flex-1 rounded bg-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary-foreground disabled:opacity-40"
-              data-testid="node-detail-insight-prefill-search"
-              :disabled="!shell.healthStatus"
-              @click="emitInsightPrefillSearch"
-            >
-              Prefill semantic search
-            </button>
-            <button
-              type="button"
-              class="min-w-0 flex-1 rounded bg-gi px-2 py-1.5 text-center text-xs font-medium leading-snug text-gi-foreground disabled:opacity-40"
-              data-testid="node-detail-insight-explore-filters"
-              aria-label="Open Explore with grounded and min confidence from this insight; topic and speaker filters cleared"
-              :disabled="!shell.healthStatus"
-              @click="emitInsightOpenSearchFilters"
-            >
-              Set Search filters
-            </button>
-            <HelpTip
-              class="shrink-0 self-center"
-              :pref-width="280"
-              button-aria-label="About insight Search and Explore shortcuts"
-            >
-              <p class="font-sans text-[10px] leading-snug text-muted">
-                <strong class="font-medium text-surface-foreground">Prefill semantic search</strong>
-                uses the first part of this insight as the query against the vector index.
-                <strong class="font-medium text-surface-foreground">Set Search filters</strong>
-                clears the topic/speaker chips and sets
-                <strong class="font-medium text-surface-foreground/90">Grounded only</strong> plus
-                an optional
-                <strong class="font-medium text-surface-foreground/90">Min confidence</strong> from
-                this node, then you run the search. (This said "Explore" until #1600 — that panel
-                was folded into Search.)
-              </p>
-            </HelpTip>
-          </div>
-
-          <section
-            v-if="isInsightNode && insightRelatedTopics.length"
-            class="mb-3 mt-1 border-t border-border pt-2"
-            role="region"
-            aria-label="Related topics"
-            data-testid="node-detail-insight-related-topics"
-          >
-            <h4 class="text-xs font-semibold text-surface-foreground">Related topics</h4>
-            <div class="mt-1 min-w-0" data-testid="node-detail-insight-related-topics-list">
-              <ul class="space-y-1 text-xs">
-                <li v-for="row in insightRelatedTopics" :key="row.topicId">
-                  <button
-                    type="button"
-                    class="flex w-full rounded px-1 py-0.5 text-left hover:bg-overlay"
-                    data-testid="node-detail-insight-related-topic-row"
-                    :aria-label="`${row.label} — show on graph`"
-                    :title="graphFocusNeighborTooltip"
-                    @click="focusNeighborOnGraph(row.topicId, $event)"
-                  >
-                    <span class="min-w-0 flex-1 truncate font-medium text-surface-foreground">{{
-                      row.label
-                    }}</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </section>
-
-          <section
-            v-if="isInsightNode && insightSupportingQuotes.length"
-            class="mb-3 rounded border border-border bg-elevated/40 p-2"
-            data-testid="node-detail-insight-supporting-quotes"
-          >
-            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <h4 class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                Supporting quotes
-              </h4>
-              <button
-                v-if="insightOpenAllSupportingQuotesReady"
-                type="button"
-                class="shrink-0 rounded border border-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-surface-foreground hover:bg-elevated"
-                data-testid="node-detail-insight-view-transcript-all-quotes"
-                aria-label="View transcript with all supporting quotes highlighted"
-                @click="openInsightAllSupportingQuotesTranscript"
-              >
-                Transcript (all quotes)
-              </button>
-            </div>
-            <ul class="space-y-1.5">
-              <li
-                v-for="row in insightSupportingQuotesVisible"
-                :key="row.id"
-                class="flex items-start gap-1.5 rounded px-0.5 py-0.5 hover:bg-overlay/60"
-              >
-                <span class="min-w-0 flex-1 text-xs leading-snug text-muted" :title="row.preview">{{
-                  row.preview
-                }}</span>
-                <button
-                  type="button"
-                  :class="SEARCH_RESULT_GRAPH_BUTTON_CLASS"
-                  :aria-label="graphFocusNeighborTooltip"
-                  :title="graphFocusNeighborTooltip"
-                  @click="focusNeighborOnGraph(row.id, $event)"
-                >
-                  G
-                </button>
-              </li>
-            </ul>
-            <button
-              v-if="insightSupportingQuotes.length > INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER"
-              type="button"
-              class="mt-2 w-full rounded border border-border bg-canvas px-2 py-1 text-[10px] font-medium text-muted hover:bg-elevated hover:text-surface-foreground"
-              data-testid="node-detail-insight-supporting-quotes-toggle-expand"
-              @click="toggleInsightSupportingQuotesExpanded"
-            >
-              {{
-                insightQuotesExpanded
-                  ? "Show fewer quotes"
-                  : `Show all ${insightSupportingQuotes.length}`
-              }}
-            </button>
-          </section>
+          <component
+            :is="section.component"
+            v-for="(section, i) in extensionSections('body')"
+            :key="`body-${i}`"
+            :ctx="extensionContext"
+          />
 
           <p
             v-if="topicAliasesLine"
@@ -1545,15 +1174,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
             @cover="podcastCover = $event"
           />
 
-          <!-- Out-of-slice insight (e.g. a timeline-mention drill): render its own
-           content from /relational/insight-detail; in-slice insights use the
-           node-backed sections below. -->
-          <InsightNodeView
-            v-if="isInsightNode && !node"
-            :subject-id-override="nodeId ?? ''"
-            class="mb-1"
-            @resolved="insightHeaderText = $event"
-          />
         </div>
 
         <div v-show="!props.embedInRail || graphRailDetailTab === 'details'" class="min-h-0">

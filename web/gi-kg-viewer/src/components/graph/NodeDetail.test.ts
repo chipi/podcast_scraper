@@ -26,7 +26,6 @@ import NodeDetail from './NodeDetail.vue'
 const STUBS = {
   PersonLandingView: { name: 'PersonLandingView', template: '<div data-testid="person-landing-view" />' },
   PodcastNodeView: { name: 'PodcastNodeView', template: '<div data-testid="podcast-node-view" />' },
-  InsightNodeView: { name: 'InsightNodeView', template: '<div data-testid="insight-node-view" />' },
   GraphConnectionsSection: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
@@ -110,22 +109,6 @@ describe('NodeDetail', () => {
     expect(w.find('aside').exists()).toBe(true)
     expect(w.find('[data-testid="topic-entity-view"]').exists()).toBe(true)
     expect(w.find('.node-detail-primary-title').text()).toBe('Interest Rates')
-  })
-
-  it('renders the insight view for an out-of-slice insight id even when the node is absent', () => {
-    // A corpus-wide timeline-mention drill hands NodeDetail an insight id that
-    // isn't in the loaded slice → node lookup returns null. The rail must render
-    // the InsightNodeView (which loads from /relational/insight-detail) rather
-    // than an empty "Node" shell. The header falls back to "Insight" until the
-    // view resolves the text.
-    const w = mountDetail({
-      viewArtifact: artifactOf([]),
-      nodeId: 'g:insight:5b0c6ec2f1ddf3b4',
-      embedInRail: true,
-    })
-    expect(w.find('aside').exists()).toBe(true)
-    expect(w.find('[data-testid="insight-node-view"]').exists()).toBe(true)
-    expect(w.find('.node-detail-primary-title').text()).toBe('Insight')
   })
 
   it('renders the podcast view for a podcast id (real node or synthetic)', () => {
@@ -270,97 +253,6 @@ describe('NodeDetail', () => {
   })
 
   // --- Insight branch --------------------------------------------------------
-
-  it('renders Insight details tip, gateway buttons, related topics and supporting quotes', async () => {
-    const art = artifactOf(
-      [
-        {
-          id: 'insight:1',
-          type: 'Insight',
-          properties: {
-            text: 'A grounded insight about AI safety.',
-            grounded: true,
-            insight_type: 'claim',
-          },
-        },
-        { id: 'topic:ai', type: 'Topic', properties: { label: 'AI Safety' } },
-        { id: 'quote:1', type: 'Quote', properties: { text: 'Supporting quote one.' } },
-      ],
-      [
-        { from: 'insight:1', to: 'topic:ai', type: 'ABOUT' },
-        { from: 'insight:1', to: 'quote:1', type: 'SUPPORTED_BY' },
-      ],
-    )
-    const w = mountDetail({ viewArtifact: art, nodeId: 'insight:1' })
-    const shell = useShellStore()
-    shell.healthStatus = 'ok'
-    await w.vm.$nextTick()
-
-    // Grounded tip trigger present (grounded === true -> "Grounded" label).
-    expect(w.find('[data-testid="node-detail-insight-details-tip"]').exists()).toBe(true)
-    expect(w.find('[data-testid="node-detail-insight-details-tip"]').text()).toContain('Grounded')
-
-    // Related topics list rendered.
-    expect(w.find('[data-testid="node-detail-insight-related-topics"]').exists()).toBe(true)
-    expect(w.findAll('[data-testid="node-detail-insight-related-topic-row"]')).toHaveLength(1)
-
-    // Supporting quotes list rendered.
-    expect(w.find('[data-testid="node-detail-insight-supporting-quotes"]').exists()).toBe(true)
-    expect(w.text()).toContain('Supporting quote one.')
-
-    // Prefill search emits a query from the insight text.
-    await w.get('[data-testid="node-detail-insight-prefill-search"]').trigger('click')
-    expect(
-      (w.emitted('prefill-semantic-search')![0][0] as { query: string }).query,
-    ).toContain('grounded insight')
-
-    // Explore filters emit grounded flag + (no confidence) -> null.
-    await w.get('[data-testid="node-detail-insight-explore-filters"]').trigger('click')
-    expect(w.emitted('open-search-insight-filters')![0]).toEqual([
-      { groundedOnly: true, minConfidence: null },
-    ])
-  })
-
-  it('clicking a related-topic row emits go-graph (graph-internal expansion)', async () => {
-    const art = artifactOf(
-      [
-        { id: 'insight:1', type: 'Insight', properties: { text: 'Insight body.' } },
-        { id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } },
-      ],
-      [{ from: 'insight:1', to: 'topic:ai', type: 'ABOUT' }],
-    )
-    const w = mountDetail({ viewArtifact: art, nodeId: 'insight:1' })
-    await w.get('[data-testid="node-detail-insight-related-topic-row"]').trigger('click')
-    expect(w.emitted('go-graph')).toHaveLength(1)
-  })
-
-  it('collapses supporting quotes past the threshold and toggles to show all', async () => {
-    const quoteNodes: RawGraphNode[] = []
-    const edges: ParsedArtifact['data']['edges'] = []
-    for (let i = 0; i < 7; i++) {
-      quoteNodes.push({
-        id: `quote:${i}`,
-        type: 'Quote',
-        properties: { text: `Quote number ${i}`, char_start: i * 10 },
-      })
-      edges!.push({ from: 'insight:1', to: `quote:${i}`, type: 'SUPPORTED_BY' })
-    }
-    const art = artifactOf(
-      [{ id: 'insight:1', type: 'Insight', properties: { text: 'Insight.' } }, ...quoteNodes],
-      edges,
-    )
-    const w = mountDetail({ viewArtifact: art, nodeId: 'insight:1' })
-
-    // Collapsed: only first 5 of 7 quote rows shown.
-    const section = w.get('[data-testid="node-detail-insight-supporting-quotes"]')
-    expect(section.findAll('li')).toHaveLength(5)
-    const toggle = w.get('[data-testid="node-detail-insight-supporting-quotes-toggle-expand"]')
-    expect(toggle.text()).toContain('Show all 7')
-
-    await toggle.trigger('click')
-    expect(section.findAll('li')).toHaveLength(7)
-    expect(toggle.text()).toContain('Show fewer')
-  })
 
   // --- Quote branch ----------------------------------------------------------
 

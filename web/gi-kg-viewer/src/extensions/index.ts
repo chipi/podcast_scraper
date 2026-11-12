@@ -499,23 +499,42 @@ export interface NodeDetailContext {
   isTopicNode: boolean
   viewArtifact: import('../types/artifact').ParsedArtifact | null
   embedInRail: boolean
+  /** The node as the graph holds it; null for a node outside the loaded slice. */
+  node: import('../types/artifact').RawGraphNode | null
+  /** The graph before the per-type visibility filters, so neighbours the canvas hides are found. */
+  fullArtifact: import('../types/artifact').ParsedArtifact | null
   /** Ask the panel's host to show the graph (the panel's own `go-graph`). */
   goGraph(): void
+  /** Hand a node to the graph as a NodeDetail expansion (layout kept, camera on it), then show it. */
+  focusOnGraph(nodeId: string): void
+  /** Switch to Search with this query (the panel's `prefill-semantic-search`). */
+  prefillSearch(query: string): void
+  /** Switch to Search with these result filters (the panel's `open-search-insight-filters`). */
+  openSearchFilters(filters: { groundedOnly: boolean; minConfidence: number | null }): void
+  /** Open the panel's transcript dialog (one per panel, so a section must not mount its own). */
+  openTranscript(
+    payload: import('../components/shared/TranscriptViewerDialog.vue').TranscriptViewerOpenPayload,
+  ): void
 }
 
 /**
  * Additions to the node detail panel. `knowsNode` shows the panel for a node the graph slice does
- * not hold; `title` overrides the header title; `avatarGroup` overrides the header glyph group; `sections` render with a `ctx` prop
- * (`header` under the title, `overview` after the topic search shortcuts, `after-aliases` after
- * the topic aliases); `connections` replaces the neighbour list (and the minimap's
+ * not hold, and `kindOf` names such a node's type; `title` overrides the header title;
+ * `avatarGroup` overrides the header glyph group; `hiddenProperties` keeps keys a section shows
+ * out of the generic property list; `sections` render with a `ctx` prop (`header` under the title,
+ * `overview` after the topic search shortcuts, `body` after the person shortcuts, `after-aliases`
+ * after the topic aliases); `connections` replaces the neighbour list (and the minimap's
  * neighbourhood) for this node.
  */
 export interface NodeDetailExtension extends Entry {
   knowsNode?(nodeId: string): boolean
+  /** The type of a node outside the loaded slice, from its id (first non-null wins). */
+  kindOf?(nodeId: string): string | null
   /** The panel title for this node (first non-null wins over the node's own label). */
   title?(ctx: NodeDetailContext): string | null
   avatarGroup?(ctx: NodeDetailContext): string | null
-  sections?: Array<{ region: 'header' | 'overview' | 'after-aliases'; component: Component }>
+  hiddenProperties?(ctx: NodeDetailContext): string[]
+  sections?: Array<{ region: 'header' | 'overview' | 'body' | 'after-aliases'; component: Component }>
   /**
    * Extra tabs of the panel when it sits in the rail, after the viewer's own. Each shows only for
    * the nodes `shows` accepts and renders with a `ctx` prop; the panel falls back to Details when
