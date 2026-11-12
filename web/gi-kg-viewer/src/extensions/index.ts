@@ -216,6 +216,13 @@ export interface GraphBottomBarChip extends Entry {
 
 export const graphBottomBarChips = extensionPoint<GraphBottomBarChip>('graphBottomBarChips')
 
+/** A chip in the graph filter bar, after the viewer's filter chips (before the divider). */
+export interface GraphFilterBarChip extends Entry {
+  component: Component
+}
+
+export const graphFilterBarChips = extensionPoint<GraphFilterBarChip>('graphFilterBarChips')
+
 /** A banner across the top of the app, under the viewer's own alerts. Renders itself or nothing. */
 export interface AppBanner extends Entry {
   component: Component
