@@ -1,0 +1,230 @@
+"""#643 Phase 3C wiring tests.
+
+Verifies that ``prefilled_extraction`` produced by mega_bundled /
+extraction_bundled is plumbed through GIL and KG stages so they skip their own
+LLM calls.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock
+
+from podcast_scraper.kg.pipeline import build_artifact as kg_build_artifact
+from podcast_scraper.providers.common.megabundle_parser import MegaBundleResult
+
+
+def _make_result() -> MegaBundleResult:
+    return MegaBundleResult(
+        title="Ep",
+        summary="Summary paragraph.",
+        bullets=["b1", "b2"],
+        insights=[
+            {"text": "Insight one.", "insight_type": "claim"},
+            {"text": "Insight two.", "insight_type": "fact"},
+        ],
+        topics=["blockchain governance", "roman empire", "algorithmic trading"],
+        entities=[
+            {"name": "Alice", "kind": "person", "role": "host"},
+            {"name": "Acme Corp", "kind": "org", "role": "mentioned"},
+        ],
+        raw={},
+    )
+
+
+class TestKGPrefilled:
+    def test_prefilled_partial_short_circuits_provider(self):
+        provider = MagicMock()
+        partial = _make_result().to_extraction_partial()
+
+        out = kg_build_artifact(
+            "ep1",
+            "transcript text",
+            podcast_id="feed",
+            episode_title="Ep",
+            kg_extraction_provider=provider,
+            prefilled_partial=partial,
+        )
+
+        provider.extract_kg_graph.assert_not_called()
+
+        topic_labels = [n["properties"]["label"] for n in out["nodes"] if n["type"] == "Topic"]
+        assert topic_labels == ["blockchain governance", "roman empire", "algorithmic trading"]
+        # RFC-097 v2.0: typed Person + Organization replace Entity discriminator.
+        entity_names = [
+            n["properties"]["name"] for n in out["nodes"] if n["type"] in ("Person", "Organization")
+        ]
+        assert "Alice" in entity_names
+        assert "Acme Corp" in entity_names
+
+    def test_empty_prefilled_falls_back_to_dispatch(self):
+        provider = MagicMock()
+        provider.extract_kg_graph.return_value = None
+
+        out = kg_build_artifact(
+            "ep1",
+            "transcript",
+            podcast_id="feed",
+            episode_title="Ep",
+            kg_extraction_provider=provider,
+            prefilled_partial={"topics": [], "entities": []},
+        )
+
+        assert any(n["type"] == "Episode" for n in out["nodes"])
+
+
+class TestMegaBundleHelpers:
+    def test_to_extraction_partial_shape(self):
+        r = _make_result()
+        p = r.to_extraction_partial()
+        assert set(p.keys()) == {"insights", "topics", "entities"}
+        assert p["insights"][0]["insight_type"] == "claim"
+        assert p["topics"] == ["blockchain governance", "roman empire", "algorithmic trading"]
+        assert p["entities"][0]["kind"] == "person"
+
+
+class TestMegaBundledFallbackPaths:
+    """Fallback-to-staged paths must log + record metrics consistently
+    across mega_bundled, extraction_bundled, and their unexpected-return-type
+    variants. Prior bug: extraction_bundled exception and bad-return paths
+    were silent — ops had no signal when a provider silently downgraded to
+    3 LLM calls."""
+
+    def _build_cfg_and_provider_stubs(self, mode: str, raise_in: str):
+        """raise_in in {'mega', 'extraction', 'none'}; when 'none' returns
+        an unexpected non-MegaBundleResult type to exercise the contract-
+        violation branch."""
+        from unittest.mock import Mock
+
+        from podcast_scraper.config import Config
+
+        cfg = Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "summary_provider": "anthropic",
+                "anthropic_api_key": "k",
+                "llm_pipeline_mode": mode,
+                "generate_summaries": True,
+                "auto_speakers": False,
+                "transcribe_missing": False,
+                "generate_metadata": True,
+            }
+        )
+        provider = Mock()
+        if mode == "mega_bundled":
+            if raise_in == "mega":
+                provider.summarize_mega_bundled.side_effect = RuntimeError(
+                    "simulated provider error"
+                )
+            else:
+                # return non-MegaBundleResult
+                provider.summarize_mega_bundled.return_value = {"wrong": "shape"}
+        elif mode == "extraction_bundled":
+            if raise_in == "extraction":
+                provider.summarize_extraction_bundled.side_effect = RuntimeError(
+                    "simulated provider error"
+                )
+            else:
+                provider.summarize_extraction_bundled.return_value = "not_a_result"
+        return cfg, provider
+
+    def _invoke(self, cfg, provider, tmp_path):
+        """Call _generate_episode_summary up to the fallback point."""
+        from podcast_scraper.workflow import metrics as m
+        from podcast_scraper.workflow.metadata_generation import _generate_episode_summary
+
+        transcript = tmp_path / "t.txt"
+        transcript.write_text(
+            "This is a real transcript with enough words to exceed the 50-char minimum. " * 10,
+            encoding="utf-8",
+        )
+        # staged fallback will call provider.summarize — mock it.
+        provider._summarization_initialized = True
+        provider.cleaning_processor = None
+        provider.summarize.return_value = {
+            "summary": '{"title":"T","summary":"S","bullets":["b"]}',
+            "summary_short": None,
+            "metadata": {"provider": "anthropic", "bundled": False},
+        }
+
+        pm = m.Metrics()
+        try:
+            _generate_episode_summary(
+                transcript_file_path="t.txt",
+                output_dir=str(tmp_path),
+                cfg=cfg,
+                episode_idx=0,
+                summary_provider=provider,
+                pipeline_metrics=pm,
+            )
+        except Exception:
+            # Staged-summary downstream validation may still raise (parsing
+            # fails on our stub); we only care about whether the fallback
+            # metric was bumped.
+            pass
+        return pm
+
+    def test_mega_bundled_exception_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("mega_bundled", "mega")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+    def test_mega_bundled_unexpected_return_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("mega_bundled", "none")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+    def test_extraction_bundled_exception_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("extraction_bundled", "extraction")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+    def test_extraction_bundled_unexpected_return_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("extraction_bundled", "none")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+
+class TestSummaryMetadataPrefilledLifecycle:
+    """Regression tests for ``SummaryMetadata.prefilled_extraction`` — transient
+    field (``exclude=True``) that must survive ``model_copy`` so GIL/KG stages
+    see it, but must NOT be serialised to disk by ``model_dump`` /
+    ``model_dump_json``. A silent loss here would make mega_bundled / extraction_bundled
+    regress to 3 LLM calls/episode without any test failing."""
+
+    def _build(self):
+        from datetime import datetime
+
+        from podcast_scraper.workflow.metadata_generation import SummaryMetadata
+
+        return SummaryMetadata(
+            generated_at=datetime.now(),
+            word_count=100,
+            title="T",
+            bullets=["b1", "b2"],
+            prefilled_extraction={
+                "insights": [{"text": "i1", "insight_type": "claim"}],
+                "topics": ["t1", "t2"],
+                "entities": [{"name": "E1", "kind": "person"}],
+            },
+        )
+
+    def test_model_copy_preserves_prefilled_extraction(self):
+        sm = self._build()
+        cp = sm.model_copy()
+        assert cp.prefilled_extraction == sm.prefilled_extraction
+
+    def test_model_copy_with_update_preserves_prefilled_extraction(self):
+        sm = self._build()
+        cp = sm.model_copy(update={"title": "New Title"})
+        assert cp.title == "New Title"
+        assert cp.prefilled_extraction == sm.prefilled_extraction
+
+    def test_model_dump_excludes_prefilled_extraction(self):
+        sm = self._build()
+        d = sm.model_dump()
+        assert "prefilled_extraction" not in d
+
+    def test_model_dump_json_excludes_prefilled_extraction(self):
+        sm = self._build()
+        j = sm.model_dump_json()
+        assert "prefilled_extraction" not in j

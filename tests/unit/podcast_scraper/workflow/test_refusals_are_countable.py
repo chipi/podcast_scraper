@@ -26,6 +26,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 MODULE = (
     Path(__file__).resolve().parents[4]
     / "src"
@@ -34,16 +36,9 @@ MODULE = (
     / "episode_processor.py"
 )
 
-#: Every module a refusal can live in: the episode processor, and the speaker reprocess stages
-#: that moved out of it (E04 S2) — a refusal there is just as invisible without its row.
-SCANNED = (
-    MODULE,
-    Path(__file__).resolve().parents[4]
-    / "src"
-    / "podcast_scraper"
-    / "speaker_stage"
-    / "reprocess.py",
-)
+#: The episode processor. The speaker reprocess stages (moved out of it in E04 S2, then to the
+#: extension in arc 2) are scanned where they live, with the refusals only they raise.
+SCANNED = (MODULE,)
 
 RECORDER = "_record_unresolved_transcript"
 # A policy skip (provider payload limit) writes its row as "skipped", not "failed"; it is a ledger
@@ -55,10 +50,8 @@ LEDGER_WRITERS = {RECORDER, "_mark_episode_skipped_policy", NOTHING_TO_DO}
 REFUSAL_RETURNS = {"(False, None, 0)", "False, None, 0"}
 
 EXPECTED_ERROR_TYPES = {
-    "NoSpeakerIdentity",
     # E04 S2: a speaker reprocess asked of a platform with no speaker stage installed.
     "NoSpeakerStage",
-    "NoAudio",
     "NoSegments",
     "NoTranscriptUrl",
     "NoCandidateParsed",
@@ -149,6 +142,106 @@ def _blocks(tree):
             stmts = getattr(node, field, None)
             if isinstance(stmts, list) and stmts and isinstance(stmts[0], ast.stmt):
                 yield node, stmts
+
+
+def test_every_refusal_return_is_accompanied_by_a_ledger_write():
+    """A refusal that writes no row is invisible — the whole point of this guard.
+
+    Fails if any ``return False, None, 0`` has no ``_record_unresolved_transcript`` in the same
+    block. Deleting one of the six untested calls trips this; so does adding a new refusal
+    without accounting for it.
+    """
+    tree = _tree()
+    unaccounted = []
+    for _parent, stmts in _blocks(tree):
+        for i, stmt in enumerate(stmts):
+            if not _is_refusal_return(stmt):
+                continue
+            # The recorder call is a sibling ahead of the return in the same block.
+            if not _calls_recorder(stmts[:i]):
+                unaccounted.append(getattr(stmt, "lineno", "?"))
+    assert not unaccounted, (
+        "refusal return(s) with no ledger write in the same block, at "
+        f"episode_processor.py / speaker_stage/reprocess.py lines {sorted(unaccounted)} — the "
+        "episode will land in neither "
+        "ok nor failed, exactly the 2026-09-23 silent-underwork shape"
+    )
+
+
+def test_the_recorder_call_sites_are_not_silently_removed():
+    """Guard against a mass-removal that would make the invariant above vacuous.
+
+    The invariant passes trivially if the refusal returns are deleted along with the writes, so
+    the COUNT is pinned separately.
+
+    11, and counted by AST rather than by grep: ``grep -c '_record_unresolved_transcript('``
+    reports 11 but one of those is the ``def`` line, so there were only 10 CALLS — a commit
+    message of mine said "11 sites" on the strength of that grep and was wrong. The 11th is
+    real now: the structural guard above found an unaccounted refusal in
+    ``transcribe_media_to_text`` (no transcription provider) and it was wired up.
+    """
+    tree = _tree()
+    calls = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and (getattr(n.func, "id", None) or getattr(n.func, "attr", None)) == RECORDER
+        and not isinstance(n.func, ast.Attribute)
+    ]
+    assert len(calls) >= 13, f"expected >= 13 {RECORDER} CALLS (not grep lines), found {len(calls)}"
+
+
+@pytest.mark.parametrize("error_type", sorted(EXPECTED_ERROR_TYPES))
+def test_each_distinct_refusal_reason_is_still_distinguishable(error_type: str):
+    """One bucket for every refusal would make the ledger useless for deciding what to re-run.
+
+    ``NoAudio`` (needs a download) and ``TooFewVoices`` (needs rediarize_only) call for different
+    follow-ups, so they must not collapse into a single generic type.
+    """
+    tree = _tree()
+    found = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+        if name != RECORDER:
+            continue
+        for kw in node.keywords:
+            if (
+                kw.arg == "error_type"
+                and isinstance(kw.value, ast.Constant)
+                and kw.value.value == error_type
+            ):
+                found = True
+        if error_type == "TranscriptUnresolved" and not any(
+            kw.arg == "error_type" for kw in node.keywords
+        ):
+            found = True  # the default, used by the bare calls
+    assert found, f"no refusal records error_type={error_type!r} any more"
+
+
+@pytest.mark.parametrize("error_type", sorted(EXPECTED_NOTHING_TO_DO_TYPES))
+def test_each_repunctuate_decision_is_still_distinguishable(error_type: str):
+    """ "Nothing flagged", "everything flagged" and "flagged but refused" call for different
+    follow-ups (none, a full re-transcription, wait for the guards to change): one bucket would
+    make the ledger unable to say which episodes to try again.
+
+    Two shapes record one: a literal ``error_type=`` on the writer call, or a value returned by
+    ``_nothing_to_repunctuate`` (which the writer call passes through).
+    """
+    literals = set()
+    for node in ast.walk(_tree()):
+        if isinstance(node, ast.FunctionDef) and node.name == "_nothing_to_repunctuate":
+            literals |= {c.value for c in ast.walk(node) if isinstance(c, ast.Constant)}
+        if isinstance(node, ast.Call):
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if name == NOTHING_TO_DO:
+                literals |= {
+                    kw.value.value
+                    for kw in node.keywords
+                    if kw.arg == "error_type" and isinstance(kw.value, ast.Constant)
+                }
+    assert error_type in literals, f"no skip records error_type={error_type!r} any more"
 
 
 def test_the_recorder_itself_keys_on_the_canonical_episode_id():

@@ -1,0 +1,472 @@
+"""Unit tests for the cross-layer corpus graph (search/corpus_graph.py, #849 Slice B)."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from podcast_scraper.search.corpus_graph import (
+    clear_corpus_graph_cache,
+    CorpusGraph,
+    get_corpus_graph,
+)
+
+pytestmark = pytest.mark.unit
+
+
+# A GI artifact and a KG artifact for the SAME episode, sharing person:alice,
+# topic:ai, and episode:e1 — the cross-layer join surface.
+_GI = {
+    "schema_version": "3.0",
+    "episode_id": "e1",
+    "nodes": [
+        {"id": "podcast:show1", "type": "Podcast", "properties": {"title": "Show One"}},
+        {"id": "episode:e1", "type": "Episode", "properties": {"title": "Ep 1"}},
+        {
+            "id": "person:alice",
+            "type": "Person",
+            "properties": {"name": "Alice", "aliases": ["Al"]},
+        },
+        {"id": "topic:ai", "type": "Topic", "properties": {"label": "AI"}},
+        {
+            "id": "insight:i1",
+            "type": "Insight",
+            "properties": {"text": "AI insight", "episode_id": "e1", "grounded": True},
+        },
+        {
+            "id": "quote:q1",
+            "type": "Quote",
+            "properties": {"text": "quote text", "episode_id": "e1"},
+        },
+    ],
+    "edges": [
+        {"type": "HAS_EPISODE", "from": "podcast:show1", "to": "episode:e1"},
+        {"type": "HAS_INSIGHT", "from": "episode:e1", "to": "insight:i1"},
+        {"type": "ABOUT", "from": "insight:i1", "to": "topic:ai"},
+        {"type": "SUPPORTED_BY", "from": "insight:i1", "to": "quote:q1"},
+        {"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:alice"},
+    ],
+}
+
+_KG = {
+    "schema_version": "3.0",
+    "episode_id": "e1",
+    "nodes": [
+        {"id": "episode:e1", "type": "Episode", "properties": {"title": "Ep 1"}},
+        {
+            "id": "person:alice",
+            "type": "Entity",
+            "properties": {"name": "Alice", "kind": "person", "role": "guest"},
+        },
+        {"id": "org:acme", "type": "Entity", "properties": {"name": "Acme", "kind": "org"}},
+        {"id": "topic:ai", "type": "Topic", "properties": {"label": "AI", "slug": "ai"}},
+        # Layer-prefixed id must canonicalize to topic:ai (strip_layer_prefixes).
+        {"id": "kg:topic:ai", "type": "Topic", "properties": {"slug": "ai"}},
+    ],
+    "edges": [
+        {"type": "MENTIONS", "from": "person:alice", "to": "episode:e1"},
+        {"type": "MENTIONS", "from": "topic:ai", "to": "episode:e1"},
+        {"type": "MENTIONS", "from": "org:acme", "to": "episode:e1"},
+    ],
+}
+
+
+def _write_corpus(tmp_path: Path, gi=_GI, kg=_KG) -> Path:
+    (tmp_path / "ep1.gi.json").write_text(json.dumps(gi))
+    (tmp_path / "ep1.kg.json").write_text(json.dumps(kg))
+    return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    clear_corpus_graph_cache()
+    yield
+    clear_corpus_graph_cache()
+
+
+# --- cross-layer join ----------------------------------------------------------
+
+
+def test_layer_prefixed_id_canonicalizes(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    assert g.get_node("topic:ai") is not None
+    assert g.get_node("kg:topic:ai") is None  # canonicalized into topic:ai
+
+
+# --- traversal -----------------------------------------------------------------
+
+
+def test_bfs_respects_max_hops(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    dist = g.bfs("person:alice", max_hops=1)
+    assert "insight:i1" not in dist  # 2 hops away
+    assert "episode:e1" in dist and dist["episode:e1"] == 1
+
+
+def test_bfs_unknown_start_returns_empty(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    assert g.bfs("person:nobody") == {}
+
+
+# --- access helpers ------------------------------------------------------------
+
+
+def test_empty_corpus_builds_empty_graph(tmp_path):
+    g = CorpusGraph.build(tmp_path)
+    assert len(g) == 0
+    assert g.neighbors("anything") == []
+
+
+# --- cache ---------------------------------------------------------------------
+
+
+def test_get_corpus_graph_caches(tmp_path):
+    _write_corpus(tmp_path)
+    g1 = get_corpus_graph(tmp_path)
+    g2 = get_corpus_graph(tmp_path)
+    assert g1 is g2
+    clear_corpus_graph_cache()
+    assert get_corpus_graph(tmp_path) is not g1
+
+
+def test_build_from_real_fixture_corpus():
+    from tests._fixtures import fixtures_dir
+
+    g = CorpusGraph.build(fixtures_dir("viewer-validation-corpus"))
+    assert len(g) > 0
+
+
+# --- Slice C: derived person -> insight shortcut -------------------------------
+
+
+# --- #882: typed adjacency (relational-query substrate) -------------------------
+
+
+def test_typed_neighbors_unknown_returns_empty(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    assert g.typed_neighbors("person:nobody", "STATES") == []
+    assert g.typed_neighbors("insight:i1", "NO_SUCH_TYPE") == []
+
+
+# --- #852: identity_map collapses cross-episode variant nodes -------------------
+
+
+def _write_variant_corpus(tmp_path):
+    # Two episodes, same show: org:cargill (ep1) and org:cargil (ep2, a spelling variant).
+    for ep, org in (("e1", "org:cargill"), ("e2", "org:cargil")):
+        (tmp_path / f"{ep}.kg.json").write_text(
+            json.dumps(
+                {
+                    "episode_id": ep,
+                    "nodes": [
+                        {
+                            "id": f"episode:{ep}",
+                            "type": "Episode",
+                            "properties": {"podcast_id": "show:lots"},
+                        },
+                        {"id": org, "type": "Entity", "properties": {"name": org.split(":")[1]}},
+                    ],
+                    "edges": [{"type": "MENTIONS", "from": org, "to": f"episode:{ep}"}],
+                }
+            )
+        )
+    return tmp_path
+
+
+def test_identity_map_collapses_variant_nodes(tmp_path):
+    corpus = _write_variant_corpus(tmp_path)
+    g = CorpusGraph.build(corpus, identity_map={"org:cargil": "org:cargill"})
+    # Variant collapsed: it has no node of its own; looked up, it is the canonical's node.
+    assert "org:cargil" not in g.nodes_by_type(g.get_node("org:cargill").type)
+    assert g.get_node("org:cargil").id == "org:cargill"
+    # The remapped node reaches BOTH episodes (its own + the variant's).
+    nbrs = set(g.neighbors("org:cargill"))
+    assert {"episode:e1", "episode:e2"} <= nbrs
+
+
+def test_a_joined_member_id_finds_the_groups_node_everywhere(tmp_path):
+    """Prod 2026-11-08: `resolve_entity` returned a ledger member id, and every graph tool then
+    answered "not in corpus", because the graph holds only canonical ids and looked the member
+    up as given."""
+    g = CorpusGraph.build(
+        _write_variant_corpus(tmp_path), identity_map={"org:cargil": "org:cargill"}
+    )
+    assert set(g.neighbors("org:cargil")) == set(g.neighbors("org:cargill"))
+    assert g.typed_neighbors("org:cargil", "MENTIONS") == g.typed_neighbors(
+        "org:cargill", "MENTIONS"
+    )
+    assert g.degree("org:cargil") == g.degree("org:cargill") > 0
+    assert g.bfs("org:cargil", max_hops=1) == g.bfs("org:cargill", max_hops=1)
+
+
+def test_no_identity_map_keeps_variants_separate(tmp_path):
+    g = CorpusGraph.build(_write_variant_corpus(tmp_path))
+    assert g.get_node("org:cargil") is not None
+    assert g.get_node("org:cargill") is not None
+
+
+# --- #1056: feed-anchored host reconciliation ----------------------------------
+
+
+def _kg_episode(
+    podcast_id: str,
+    episode_id: str,
+    *,
+    host_id: str,
+    host_name: str,
+    role: str = "host",
+    title: str = "A Show",
+):
+    """A minimal KG artifact: one episode of *podcast_id* with one host voice."""
+    return {
+        "episode_id": episode_id,
+        "nodes": [
+            {"id": podcast_id, "type": "Podcast", "properties": {"title": title}},
+            {"id": episode_id, "type": "Episode", "properties": {}},
+            {"id": host_id, "type": "Person", "properties": {"name": host_name, "role": role}},
+        ],
+        "edges": [
+            {"type": "HAS_EPISODE", "from": podcast_id, "to": episode_id},
+            {"type": "MENTIONS", "from": host_id, "to": episode_id},
+        ],
+    }
+
+
+def _graph_from(*artifacts) -> CorpusGraph:
+    g = CorpusGraph()
+    for art in artifacts:
+        g._ingest(art, "kg")
+    return g
+
+
+def test_reconcile_names_unnamed_host_from_sibling_episode():
+    # Network feed: host named "Katie Martin" in 2 episodes, a bare SPEAKER_03 in a third.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u1",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u2",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged", "episode:u3", host_id="person:speaker-03", host_name="SPEAKER_03"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    # The unnamed voice is gone, merged into the recurring named host…
+    assert g.get_node("person:speaker-03") is None
+    katie = g.get_node("person:katie-martin")
+    assert katie is not None and katie.payload["name"] == "Katie Martin"
+    # …and it now reaches the previously-orphaned third episode.
+    assert "episode:u3" in g.neighbors("person:katie-martin")
+
+
+def test_reconcile_does_not_merge_distinct_same_surname_hosts():
+    # Two DIFFERENT people who merely share a surname (first names far apart) must NOT be merged.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:x", "episode:x1", host_id="person:robert-pape", host_name="Robert Pape"
+        ),
+        _kg_episode("podcast:x", "episode:x2", host_id="person:karen-pape", host_name="Karen Pape"),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:robert-pape") is not None
+    assert g.get_node("person:karen-pape") is not None
+
+
+def test_reconcile_is_noop_without_flag(tmp_path):
+    corpus = tmp_path
+    (corpus / "u1.kg.json").write_text(
+        json.dumps(
+            _kg_episode(
+                "podcast:unhedged",
+                "episode:u1",
+                host_id="person:katie-martin",
+                host_name="Katie Martin",
+            )
+        )
+    )
+    (corpus / "u2.kg.json").write_text(
+        json.dumps(
+            _kg_episode(
+                "podcast:unhedged",
+                "episode:u2",
+                host_id="person:katie-martin",
+                host_name="Katie Martin",
+            )
+        )
+    )
+    (corpus / "u3.kg.json").write_text(
+        json.dumps(
+            _kg_episode(
+                "podcast:unhedged",
+                "episode:u3",
+                host_id="person:speaker-03",
+                host_name="SPEAKER_03",
+            )
+        )
+    )
+    plain = CorpusGraph.build(corpus)
+    assert plain.get_node("person:speaker-03") is not None  # untouched by default
+    reconciled = CorpusGraph.build(corpus, reconcile_hosts=True)
+    assert reconciled.get_node("person:speaker-03") is None  # opt-in merges
+
+
+def test_reconcile_skips_cohost_show_but_tags_recurring_voice():
+    # Two recurring named hosts → ambiguous, so the unnamed voice is NOT merged,
+    # but (recurring across 2 episodes) it gets an honest "recurring host" note.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:fx", "episode:f1", host_id="person:katie", host_name="Katie", title="FX Show"
+        ),
+        _kg_episode("podcast:fx", "episode:f2", host_id="person:katie", host_name="Katie"),
+        _kg_episode("podcast:fx", "episode:f3", host_id="person:rob", host_name="Rob"),
+        _kg_episode("podcast:fx", "episode:f4", host_id="person:rob", host_name="Rob"),
+        _kg_episode(
+            "podcast:fx", "episode:f5", host_id="person:speaker-07", host_name="SPEAKER_07"
+        ),
+        _kg_episode(
+            "podcast:fx", "episode:f6", host_id="person:speaker-07", host_name="SPEAKER_07"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    voice = g.get_node("person:speaker-07")
+    assert voice is not None  # not merged (co-host ambiguity)
+    note = voice.payload.get("recurring_host_note", "")
+    assert note.startswith("recurring host of") and "not auto-named" in note
+
+
+def test_reconcile_merges_episode_scoped_unnamed_hosts_into_recurring_named_host():
+    # #1b: unnamed voices are episode-scoped (person:speaker-<ep>-NN), so a recurring unnamed
+    # host is TWO singleton nodes under one show, not one shared node. The per-podcast aggregation
+    # still merges both into the show's single recurring named host.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u1",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged",
+            "episode:u2",
+            host_id="person:katie-martin",
+            host_name="Katie Martin",
+        ),
+        _kg_episode(
+            "podcast:unhedged", "episode:u3", host_id="person:speaker-u3-03", host_name="SPEAKER_03"
+        ),
+        _kg_episode(
+            "podcast:unhedged", "episode:u4", host_id="person:speaker-u4-03", host_name="SPEAKER_03"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-u3-03") is None  # both episode-scoped voices merged away
+    assert g.get_node("person:speaker-u4-03") is None
+    assert "episode:u3" in g.neighbors("person:katie-martin")
+    assert "episode:u4" in g.neighbors("person:katie-martin")
+
+
+def test_reconcile_tags_episode_scoped_recurring_unnamed_host_in_cohost_show():
+    # Co-host show (two recurring named hosts) → episode-scoped unnamed voices aren't merged, but
+    # their episodes union to >=2, so both get the honest "recurring host" note via aggregation.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:fx", "episode:f1", host_id="person:katie", host_name="Katie", title="FX Show"
+        ),
+        _kg_episode("podcast:fx", "episode:f2", host_id="person:katie", host_name="Katie"),
+        _kg_episode("podcast:fx", "episode:f3", host_id="person:rob", host_name="Rob"),
+        _kg_episode("podcast:fx", "episode:f4", host_id="person:rob", host_name="Rob"),
+        _kg_episode(
+            "podcast:fx", "episode:f5", host_id="person:speaker-f5-07", host_name="SPEAKER_07"
+        ),
+        _kg_episode(
+            "podcast:fx", "episode:f6", host_id="person:speaker-f6-07", host_name="SPEAKER_07"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    for vid in ("person:speaker-f5-07", "person:speaker-f6-07"):
+        voice = g.get_node(vid)
+        assert voice is not None  # co-host ambiguity → not merged
+        note = voice.payload.get("recurring_host_note", "")
+        assert note.startswith("recurring host of") and "not auto-named" in note
+
+
+def test_reconcile_does_not_merge_same_label_across_shows_when_episode_scoped():
+    # The core #1b guarantee: SPEAKER_00 in show A and show B are DISTINCT episode-scoped nodes,
+    # so the diarization label number never collapses into one phantom cross-show person.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:a",
+            "episode:a1",
+            host_id="person:speaker-a1-00",
+            host_name="SPEAKER_00",
+            title="Show A",
+        ),
+        _kg_episode(
+            "podcast:b",
+            "episode:b1",
+            host_id="person:speaker-b1-00",
+            host_name="SPEAKER_00",
+            title="Show B",
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-a1-00") is not None  # two separate voices, never merged
+    assert g.get_node("person:speaker-b1-00") is not None
+
+
+def test_reconcile_skips_voice_shared_across_feeds():
+    # A bare person:speaker-00 node MENTIONS episodes in TWO different shows — it's not
+    # feed-exclusive, so merging it into one show's host would wrongly absorb the other.
+    g = _graph_from(
+        _kg_episode("podcast:a", "episode:a1", host_id="person:amy", host_name="Amy"),
+        _kg_episode("podcast:a", "episode:a2", host_id="person:amy", host_name="Amy"),
+        _kg_episode("podcast:b", "episode:b1", host_id="person:ben", host_name="Ben"),
+        _kg_episode("podcast:b", "episode:b2", host_id="person:ben", host_name="Ben"),
+        _kg_episode("podcast:a", "episode:a3", host_id="person:speaker-00", host_name="SPEAKER_00"),
+        _kg_episode("podcast:b", "episode:b3", host_id="person:speaker-00", host_name="SPEAKER_00"),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-00") is not None  # ambiguous → left alone
+
+
+def test_reconcile_requires_recurring_named_host():
+    # The named host appears in only ONE episode → not "recurring", so no merge target.
+    g = _graph_from(
+        _kg_episode("podcast:solo", "episode:s1", host_id="person:dana", host_name="Dana"),
+        _kg_episode(
+            "podcast:solo", "episode:s2", host_id="person:speaker-02", host_name="SPEAKER_02"
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-02") is not None  # nothing trustworthy to merge into
+
+
+def test_reconcile_never_touches_guests():
+    # An unnamed GUEST voice is never reassigned a host's name.
+    g = _graph_from(
+        _kg_episode(
+            "podcast:show", "episode:e1", host_id="person:host-name", host_name="Real Host"
+        ),
+        _kg_episode(
+            "podcast:show", "episode:e2", host_id="person:host-name", host_name="Real Host"
+        ),
+        _kg_episode(
+            "podcast:show",
+            "episode:e3",
+            host_id="person:speaker-09",
+            host_name="SPEAKER_09",
+            role="guest",
+        ),
+    )
+    g._reconcile_feed_hosts()
+    assert g.get_node("person:speaker-09") is not None  # guest left as-is
