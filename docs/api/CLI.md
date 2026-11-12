@@ -620,6 +620,26 @@ python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent
 python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent --format json
 ```
 
+## Parked episodes (`parked-episodes`)
+
+An episode whose transcription fails in two multi-feed batches is **parked**: later batches skip
+it before download until it is released by hand. A failure counts only in a batch where some other
+episode transcribed, so an endpoint outage parks nothing; a successful transcription clears the
+count. State is **`parked_episodes.json`** beside `corpus_incidents.jsonl` in the corpus parent.
+
+Each park writes an error log line starting `EPISODE_PARKED`, a GlitchTip event
+("Episode parked after N transcription failures: <episode_id>") and an `EpisodeParked` policy
+incident; each skip of a parked episode writes a warning line and another `EpisodeParked` incident.
+
+```bash
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --format json
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --release <episode_id> [...]
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --release-all
+```
+
+`--release` refuses (exit 1, nothing changed) when any id given is not parked.
+
 **PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
 
 ```bash

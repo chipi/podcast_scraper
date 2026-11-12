@@ -52,7 +52,7 @@ from ..utils import audio_fingerprint, filesystem
 from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
-from . import run_index
+from . import episode_park, run_index
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +564,9 @@ def download_media_for_transcription(
             pipeline_metrics,
             f"transcript already exists: {decision.path}",
         )
+        return None
+
+    if _skip_parked_episode(episode, cfg, pipeline_metrics):
         return None
 
     if not episode.media_url:
@@ -2521,6 +2524,55 @@ def _append_transcription_incident(
         episode_id=episode_id,
         episode_idx=episode_idx,
     )
+    if category == "hard" and stage == "transcription":
+        episode_park.note_failure(
+            path,
+            episode_id,
+            feed_url=cfg.rss_url,
+            exception_type=exception_type,
+            message=message,
+        )
+
+
+def _skip_parked_episode(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    pipeline_metrics: Any,
+) -> bool:
+    """Skip, before download, an episode parked after repeated transcription failures."""
+    path = getattr(cfg, "incident_log_path", None)
+    if not path:
+        return False
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    entry = episode_park.parked_entry(path, episode_id)
+    if entry is None:
+        return False
+    reason = (
+        f"parked {entry['parked_at']} after {len(entry.get('failures') or [])} transcription "
+        "failures; release with `parked-episodes --release`"
+    )
+    logger.warning(
+        "[%s] %s episode_id=%s skipped: %s",
+        episode.idx,
+        episode_park.LOG_MARKER,
+        episode_id,
+        reason,
+    )
+    append_corpus_incident(
+        path,
+        scope="episode",
+        category="policy",
+        message=reason,
+        exception_type="EpisodeParked",
+        stage="transcription",
+        feed_url=cfg.rss_url,
+        episode_id=episode_id,
+        episode_idx=int(episode.idx),
+    )
+    _mark_episode_skipped_existing(episode, cfg, pipeline_metrics, reason)
+    return True
 
 
 def _append_preprocessing_incident(
@@ -4689,6 +4741,9 @@ def transcribe_media_to_text(
             naming_elapsed=dz_naming_elapsed,
         )
 
+        episode_park.note_transcribed(
+            getattr(cfg, "incident_log_path", None), _episode_id_and_idx_for_incident(job, cfg)[0]
+        )
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:
         if is_provider_audio_payload_limit_error(exc):
