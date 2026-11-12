@@ -257,14 +257,17 @@ controls per operator direction).
 **Enricher:** `grounding_rate` — counts a Person's Insights that carry
 supporting Quote evidence vs total, per corpus.
 
-**Gate:** `useGraphLensesStore.personCredibility`. Enricher-gated.
+**Gate:** a lens a build registers (`graphLenses`, id `personCredibility`);
+the viewer alone has none. Enricher-gated: offered only when the envelope's
+`data.persons` is non-empty (#1927 — `grounding_rate` became per-episode, so
+it carries no `persons` today and the row stays hidden).
 
 **Composes with:** velocity halo. Velocity is a **halo** (outer glow class);
 credibility is a **border colour**. Both are on Person; they never conflict
 because they use different visual channels.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` —
-`applyPersonCredibilityClasses`.
+**Code:** registered at `web/gi-kg-viewer/src/extensions/index.ts` —
+`graphLenses`; the viewer draws no credibility border of its own.
 
 **Live count (prod-v2):** 51 Persons at high credibility.
 
@@ -671,7 +674,7 @@ persisted to localStorage and synced to the server via USERPREFS-1.
 | Bridge nodes | `bridgeRing` | on | always visible | node border |
 | Theme regions | `themeClusterRegions` | off | `topic_theme_clusters` enricher present | node underlay tint |
 | Velocity halo | `velocityHalo` | off | `temporal_velocity` enricher present | node halo |
-| Person credibility | `personCredibility` | off | `grounding_rate` enricher present | node border |
+| Person credibility | `personCredibility` (registered) | off | `grounding_rate` has `persons` | node border |
 | Consensus edges | `consensusEdges` | off | `topic_consensus` enricher present | new edges |
 | Co-guest edges | `coGuestEdges` | off | `guest_coappearance` enricher present | new edges |
 | Person communities | `personCommunities` | off | `guest_coappearance` enricher present | node underlay tint |

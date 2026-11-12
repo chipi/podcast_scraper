@@ -1646,22 +1646,6 @@ describe('GraphCanvas lens overlays', () => {
     storage.set('ps_corpus_path', '/corpus')
   })
 
-  it('paints person credibility from the grounding_rate enricher and clears it when switched off', async () => {
-    vi.mocked(fetchCachedCorpusEnvelope).mockImplementation((async (_root: string, name: string) =>
-      name === 'grounding_rate'
-        ? { data: { persons: [{ person_id: 'person:ada', rate: 0.9 }] } }
-        : null) as never)
-    await mountTracked()
-    const lenses = useGraphLensesStore()
-    lenses.setPersonCredibility(true)
-    await tick()
-    expect(fetchCachedCorpusEnvelope).toHaveBeenCalledWith('/corpus', 'grounding_rate')
-    expect(classesOf('person:ada')).toContain('credibility-high')
-    lenses.setPersonCredibility(false)
-    await tick()
-    expect(classesOf('person:ada')).not.toContain('credibility-high')
-  })
-
   it('adds co-guest edges from the guest_coappearance enricher', async () => {
     const data = giData()
     data.nodes = [...(data.nodes ?? []), { id: 'person:bo', type: 'Person', properties: { name: 'Bo' } }]
@@ -1696,18 +1680,17 @@ describe('GraphCanvas lens overlays', () => {
     vi.mocked(fetchCachedCorpusEnvelope).mockRejectedValue(new Error('404'))
     await mountTracked()
     const lenses = useGraphLensesStore()
-    lenses.setPersonCredibility(true)
     lenses.setCoGuestEdges(true)
     lenses.setPersonCommunities(true)
     await tick()
-    expect(classesOf('person:ada')).not.toContain('credibility-high')
+    expect(liveCore().edges('.lens-coguest-edge')).toHaveLength(0)
     expect(liveCore().nodes()).toHaveLength(5)
   })
 
   it('does not fetch any enricher without a corpus path', async () => {
     storage.set('ps_corpus_path', '')
     await mountTracked()
-    useGraphLensesStore().setPersonCredibility(true)
+    useGraphLensesStore().setCoGuestEdges(true)
     await tick()
     expect(fetchCachedCorpusEnvelope).not.toHaveBeenCalled()
   })

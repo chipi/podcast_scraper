@@ -11,9 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyCoGuestEdges,
-  applyCredibilityBorder,
   clearCoGuestEdges,
-  clearCredibilityBorder,
   COGUEST_EDGE_CLASS,
 } from './cyGraphLensOverlays'
 
@@ -124,50 +122,6 @@ function makeCore(nodes: NodeStub[]) {
   }
   return core
 }
-
-describe('applyCredibilityBorder (Tier 5C-2)', () => {
-  it('rate >= 0.7 → credibility-high', () => {
-    const p = makeNode('g:person:a')
-    const core = makeCore([p])
-    // @ts-expect-error MockCore
-    applyCredibilityBorder(core, { persons: [{ person_id: 'person:a', rate: 0.85 }] })
-    expect(p.classes).toContain('credibility-high')
-  })
-
-  it('0.4 <= rate < 0.7 → credibility-med', () => {
-    const p = makeNode('g:person:b')
-    const core = makeCore([p])
-    // @ts-expect-error MockCore
-    applyCredibilityBorder(core, { persons: [{ person_id: 'person:b', rate: 0.5 }] })
-    expect(p.classes).toContain('credibility-med')
-  })
-
-  it('rate < 0.4 → credibility-low', () => {
-    const p = makeNode('g:person:c')
-    const core = makeCore([p])
-    // @ts-expect-error MockCore
-    applyCredibilityBorder(core, { persons: [{ person_id: 'person:c', rate: 0.1 }] })
-    expect(p.classes).toContain('credibility-low')
-  })
-
-  it('is a no-op when envelope is null', () => {
-    const p = makeNode('g:person:x')
-    const core = makeCore([p])
-    // @ts-expect-error MockCore
-    applyCredibilityBorder(core, null)
-    expect(p.classes).toEqual([])
-  })
-
-  it('clearCredibilityBorder removes every credibility class', () => {
-    const p = makeNode('g:person:x')
-    p.addClass('credibility-high')
-    p.addClass('credibility-low')
-    const core = makeCore([p])
-    // @ts-expect-error MockCore
-    clearCredibilityBorder(core)
-    expect(p.classes).toEqual([])
-  })
-})
 
 describe('applyCoGuestEdges (Tier 5D-2)', () => {
   it('adds edges only when episode_count >= threshold (default 2)', () => {

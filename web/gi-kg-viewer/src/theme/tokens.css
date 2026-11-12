@@ -61,8 +61,8 @@
   --ps-cat-6: #60a5fa;
   /* Graph overlays, tokenized AS SHIPPED (#2280) — identical in light and dark today, named after
      what the UI shows: "Theme regions" / person community regions (region-N, 0.14-0.18 opacity
-     underlays), "Person credibility" borders, "Consensus edges", "Co-guest edges". Light darkens
-     the green / amber overlays to clear 3:1 on the light graph canvas; dark is as shipped. */
+     underlays) and "Co-guest edges". Light darkens the amber co-guest colour to clear 3:1 on the
+     light graph canvas; dark is as shipped. */
   --ps-region-1: #7ba3d9;
   --ps-region-2: #d9d97b;
   --ps-region-3: #d97ba3;
@@ -71,9 +71,6 @@
   --ps-region-6: #a37bd9;
   --ps-region-7: #a3d97b;
   --ps-region-8: #7bd9d9;
-  --ps-credibility-high: #22c55e;
-  --ps-credibility-medium: #f59e0b;
-  --ps-credibility-low: #ef4444;
   --ps-coguest: #f59e0b;
   /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
      "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
@@ -126,9 +123,6 @@
   --ps-region-6: #a37bd9;
   --ps-region-7: #a3d97b;
   --ps-region-8: #7bd9d9;
-  --ps-credibility-high: #1ca14d;
-  --ps-credibility-medium: #c27d08;
-  --ps-credibility-low: #ef4444;
   --ps-coguest: #c27d08;
   --ps-graph-canvas: var(--ps-canvas);
 }
@@ -180,9 +174,6 @@
     --ps-region-6: #a37bd9;
     --ps-region-7: #a3d97b;
     --ps-region-8: #7bd9d9;
-    --ps-credibility-high: #1ca14d;
-    --ps-credibility-medium: #c27d08;
-    --ps-credibility-low: #ef4444;
     --ps-coguest: #c27d08;
     --ps-graph-canvas: var(--ps-canvas);
   }

@@ -235,9 +235,6 @@ underlays with no legibility role and are identical in both themes.
 | `region-6` | `#a37bd9` | `#a37bd9` | Theme / person-community region tint 6 |
 | `region-7` | `#a3d97b` | `#a3d97b` | Theme / person-community region tint 7 |
 | `region-8` | `#7bd9d9` | `#7bd9d9` | Theme / person-community region tint 8 |
-| `credibility-high` | `#22c55e` | `#1ca14d` | "Person credibility" border — high grounding rate |
-| `credibility-medium` | `#f59e0b` | `#c27d08` | "Person credibility" border — medium |
-| `credibility-low` | `#ef4444` | `#ef4444` | "Person credibility" border — low (dashed) |
 | `coguest` | `#f59e0b` | `#c27d08` | "Co-guest edges" (dotted) |
 
 Banners may use `color-mix` against `surface` / `border`; new variants should
