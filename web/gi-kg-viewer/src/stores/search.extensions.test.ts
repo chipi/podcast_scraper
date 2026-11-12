@@ -1,7 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { searchCorpus } from '../api/searchApi'
-import { searchListeners, searchRequestParams } from '../extensions'
+import { searchListeners, searchRequestParams, searchResultFilters } from '../extensions'
+import { track } from '../lib/analytics'
 import { useSearchStore } from './search'
 
 vi.mock('../api/searchApi', () => ({ searchCorpus: vi.fn() }))
@@ -15,6 +16,7 @@ describe('useSearchStore extension points', () => {
   afterEach(() => {
     searchRequestParams.reset()
     searchListeners.reset()
+    searchResultFilters.reset()
   })
 
   it('sends registered parameters and tells listeners about the run and the response', async () => {
@@ -42,5 +44,24 @@ describe('useSearchStore extension points', () => {
     const o = s.requestOptions('/corpus', 30)
     expect(o).toMatchObject({ path: '/corpus', topK: 30, extraParams: { a: '1' } })
     expect(s.requestOptions('/corpus').topK).toBe(10)
+  })
+
+  it('filteredResults keeps a hit only when every registered filter keeps it', () => {
+    const s = useSearchStore()
+    s.results = [1, 2, 3, 4].map((n) => ({ doc_id: `d${n}`, score: n, text: '', metadata: {} })) as never
+    expect(s.filteredResults).toHaveLength(4)
+    searchResultFilters.register({ id: 'even', keep: (h) => h.score % 2 === 0 })
+    searchResultFilters.register({ id: 'big', keep: (h) => h.score > 2 })
+    expect(s.filteredResults.map((h) => h.doc_id)).toEqual(['d4'])
+    expect(s.results).toHaveLength(4)
+  })
+
+  it('the search_run event carries the registered parameters', async () => {
+    searchRequestParams.register({ id: 'p', params: () => ({ extra_flag: 'true' }) })
+    vi.mocked(searchCorpus).mockResolvedValue({ query: 'q', results: [] } as never)
+    const s = useSearchStore()
+    s.query = 'q'
+    await s.runSearch('/corpus')
+    expect(vi.mocked(track)).toHaveBeenCalledWith('search_run', expect.objectContaining({ extra_flag: 'true', top_k: 10 }))
   })
 })

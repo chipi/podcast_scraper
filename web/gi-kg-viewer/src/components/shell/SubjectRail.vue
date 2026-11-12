@@ -34,7 +34,7 @@ const emit = defineEmits<{
   prefillSemanticSearch: [{ query: string }]
   openSearchTopicFilter: [{ topic: string }]
   openSearchSpeakerFilter: [{ speaker: string }]
-  openSearchInsightFilters: [{ groundedOnly: boolean; minConfidence: number | null }]
+  openSearch: []
   openLibraryEpisode: [{ metadata_relative_path: string }]
   switchMainTab: ['digest' | 'library' | 'graph' | 'dashboard']
 }>()
@@ -97,7 +97,7 @@ const emptyHint =
           @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
           @open-search-topic-filter="emit('openSearchTopicFilter', $event)"
           @open-search-speaker-filter="emit('openSearchSpeakerFilter', $event)"
-          @open-search-insight-filters="emit('openSearchInsightFilters', $event)"
+          @open-search="emit('openSearch')"
           @open-library-episode="emit('openLibraryEpisode', $event)"
           @close-subject-rail="emit('closeSubject')"
         />

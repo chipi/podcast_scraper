@@ -1,11 +1,9 @@
 <script setup lang="ts">
 /**
  * Search filter chip bar. Merged Search + Explore (Search v3 §S1, PRD-045 FR2,
- * RFC-107 §5): chips include the original #671 four (Since, Top‑k, Doc types,
- * More) plus the four merged from the retired Explore surface — Topic contains,
- * Speaker contains, Min confidence, Grounded. Topic + Min confidence are
- * client-side filters over top-K (accuracy caveat inside each chip); Speaker +
- * Grounded pass through to /api/search server-side.
+ * RFC-107 §5): the original #671 four (Since, Top‑k, Doc types, More) plus Topic
+ * contains and Speaker contains from the retired Explore surface, both server-side
+ * on /api/search. A downstream build adds its chips after these (`searchFilterChips`).
  */
 import { computed } from 'vue'
 import { useSearchStore } from '../../stores/search'
@@ -15,9 +13,7 @@ import SearchDocTypesChip from './chips/SearchDocTypesChip.vue'
 import SearchMoreChip from './chips/SearchMoreChip.vue'
 import SearchTopicChip from './chips/SearchTopicChip.vue'
 import SearchSpeakerChip from './chips/SearchSpeakerChip.vue'
-import SearchMinConfidenceChip from './chips/SearchMinConfidenceChip.vue'
 import SearchEpisodeChip from './chips/SearchEpisodeChip.vue'
-import SearchGroundedChip from './chips/SearchGroundedChip.vue'
 import { searchFilterChips } from '../../extensions'
 
 defineProps<{
@@ -68,12 +64,6 @@ const sinceModel = computed({
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchSpeakerChip />
-    </div>
-    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
-      <SearchMinConfidenceChip />
-    </div>
-    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
-      <SearchGroundedChip />
     </div>
     <div
       v-for="chip in searchFilterChips.list()"

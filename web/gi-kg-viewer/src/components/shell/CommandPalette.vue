@@ -150,7 +150,6 @@ function runClearSearch(): void {
 
 function runResetFilters(): void {
   search.filters.topK = 10
-  search.filters.groundedOnly = false
   search.filters.feed = ''
   search.filters.since = ''
   search.filters.speaker = ''
@@ -158,7 +157,6 @@ function runResetFilters(): void {
   search.filters.embeddingModel = ''
   search.filters.dedupeKgSurfaces = true
   search.filters.topic = ''
-  search.filters.minConfidence = ''
   search.filters.episodeId = ''
   for (const l of searchListeners.list()) l.onFiltersReset?.()
 }

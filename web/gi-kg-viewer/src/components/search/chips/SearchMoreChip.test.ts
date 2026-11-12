@@ -27,14 +27,6 @@ describe('SearchMoreChip', () => {
     expect(w.emitted('open')).toHaveLength(1)
   })
 
-  it('groundedOnly marks the chip active with count 1', async () => {
-    const search = useSearchStore()
-    const w = mountChip()
-    search.filters.groundedOnly = true
-    await w.vm.$nextTick()
-    expect(w.get(CHIP).text()).toContain('More: 1')
-  })
-
   it('counts feed/speaker/embeddingModel only when non-blank (trimmed)', async () => {
     const search = useSearchStore()
     const w = mountChip()
@@ -62,12 +54,11 @@ describe('SearchMoreChip', () => {
   it('sums every active dimension', async () => {
     const search = useSearchStore()
     const w = mountChip()
-    search.filters.groundedOnly = true
     search.filters.feed = 'f'
     search.filters.speaker = 's'
     search.filters.embeddingModel = 'm'
     search.filters.dedupeKgSurfaces = false
     await w.vm.$nextTick()
-    expect(w.get(CHIP).text()).toContain('More: 5')
+    expect(w.get(CHIP).text()).toContain('More: 4')
   })
 })

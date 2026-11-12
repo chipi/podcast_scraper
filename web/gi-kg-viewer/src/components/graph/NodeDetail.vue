@@ -51,7 +51,7 @@ const emit = defineEmits<{
   "prefill-semantic-search": [{ query: string }]
   "open-search-topic-filter": [{ topic: string }]
   "open-search-speaker-filter": [{ speaker: string }]
-  "open-search-insight-filters": [{ groundedOnly: boolean; minConfidence: number | null }]
+  "open-search": []
   "open-library-episode": [{ metadata_relative_path: string }]
 }>()
 
@@ -172,7 +172,7 @@ const extensionContext = computed<NodeDetailContext>(() => ({
     const q = query.trim()
     if (q) emit("prefill-semantic-search", { query: q })
   },
-  openSearchFilters: (filters) => emit("open-search-insight-filters", filters),
+  openSearch: () => emit("open-search"),
   openTranscript: (payload) => transcriptViewerRef.value?.open(payload),
 }))
 const extensionKnowsNode = computed(() => {

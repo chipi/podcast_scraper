@@ -42,7 +42,7 @@ SearchTab.vue                                    [w-full main area]
 ├─ WorkspaceHeader.vue
 │    ├─ QueryField.vue                           input; Preset dropdown; Enter=submit
 │    ├─ IntentChip.vue                           search-query-type (RFC-092 label)
-│    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | Min confidence | Grounded only | More (feed / embedding model)
+│    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | (a downstream build's chips) | More (feed / embedding model)
 ├─ ResultSetOperatorBar.vue                      On graph | Timeline | Compare
 └─ WorkspaceResults.vue                          scrollable
      ├─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + compound "+ insight" badge
@@ -59,7 +59,7 @@ SearchTab.vue                                    [w-full main area]
 
 1. **Query row**: `QueryField.vue` (`min-w-0 flex-1`, sm text, Enter = submit, Shift+Enter = newline, IME-safe — same rules as UXS-005). Preset dropdown to the left of the field (`Preset: <label> ▾` when active; `Preset ▾` default). Search button + Clear button to the right.
 2. **Intent row**: `IntentChip.vue` when the response carries `query_type` (RFC-092 label — Entity lookup / Raw evidence / Temporal tracking / Cross-show synthesis / Semantic). Muted; transparency-only. `data-testid="search-query-type"` (unchanged from UXS-005).
-3. **Filter chip bar**: `SearchFilterBar.vue`. Chips left-to-right: **Since** (`search-chip-since`), **Top-k** (`search-chip-topk`, default 10), **Doc types** (`search-chip-doctypes`), **Topic contains** (`search-chip-topic-contains`, new — from merged Explore), **Speaker contains** (`search-chip-speaker-contains`, new), **Min confidence** (`search-chip-min-confidence`, new), **Grounded only** (`search-chip-grounded-only`, new), **More** (`search-chip-more` — hosts low-traffic fields: feed, embedding model, merge-duplicate-KG-surfaces). Each chip's label switches from `Label ▾` (default) to `Label: detail ▾` (active); **More** shows `More: N` reflecting non-default field count.
+3. **Filter chip bar**: `SearchFilterBar.vue`. Chips left-to-right: **Since** (`search-chip-since`), **Top-k** (`search-chip-topk`, default 10), **Doc types** (`search-chip-doctypes`), **Topic contains** (`search-chip-topic-contains`, new — from merged Explore), **Speaker contains** (`search-chip-speaker-contains`, new), then any chips a downstream build registers (`searchFilterChips`; Min confidence and Grounded only moved there, E04 step 8b), **More** (`search-chip-more` — hosts low-traffic fields: feed, embedding model, merge-duplicate-KG-surfaces). Each chip's label switches from `Label ▾` (default) to `Label: detail ▾` (active); **More** shows `More: N` reflecting non-default field count.
 
 ---
 

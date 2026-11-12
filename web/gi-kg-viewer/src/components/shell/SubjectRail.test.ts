@@ -34,8 +34,8 @@ const GraphNodeRailPanelStub = {
         @click="$emit('open-search-speaker-filter', { speaker: 's' })"
       />
       <button
-        data-testid="emit-explore-insight"
-        @click="$emit('open-search-insight-filters', { groundedOnly: true, minConfidence: 0.5 })"
+        data-testid="emit-open-search"
+        @click="$emit('open-search')"
       />
       <button
         data-testid="emit-open-library"
@@ -328,12 +328,10 @@ describe('SubjectRail', () => {
       expect(w.emitted('openSearchSpeakerFilter')![0]).toEqual([{ speaker: 's' }])
     })
 
-    it('re-emits open-search-insight-filters with payload', async () => {
+    it('re-emits open-search', async () => {
       const w = await mountGraphNode()
-      await w.get('[data-testid="emit-explore-insight"]').trigger('click')
-      expect(w.emitted('openSearchInsightFilters')![0]).toEqual([
-        { groundedOnly: true, minConfidence: 0.5 },
-      ])
+      await w.get('[data-testid="emit-open-search"]').trigger('click')
+      expect(w.emitted('openSearch')).toHaveLength(1)
     })
 
     it('re-emits open-library-episode with payload', async () => {

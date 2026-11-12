@@ -55,7 +55,6 @@ export interface SearchRequestOptions {
   /** Exact episode_id scope (Search v3 §S6). Enables the rail launcher
    *  "Search within this episode" on EpisodeDetailPanel. */
   episodeId?: string
-  groundedOnly?: boolean
   topK?: number
   embeddingModel?: string
   /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
@@ -72,7 +71,6 @@ export async function searchCorpus(
   const params = new URLSearchParams({ path: root, q: q.trim() })
   const tk = options.topK ?? 10
   params.set('top_k', String(Math.min(100, Math.max(1, tk))))
-  if (options.groundedOnly) params.set('grounded_only', 'true')
   if (options.feed?.trim()) params.set('feed', options.feed.trim())
   if (options.since?.trim()) params.set('since', options.since.trim())
   if (options.speaker?.trim()) params.set('speaker', options.speaker.trim())
