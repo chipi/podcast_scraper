@@ -168,6 +168,21 @@ paths:
 R3b (ADR-178), its own release, rewrites the podcast
 corpus to v3. Until then, podcasts keep writing KG 2.x and GI 3.x.
 
+**The KG half is built** (2026-11-12): `kg/as_v3.py` `kg_as_v3(kg, language=…)`.
+
+- **A view, lossless:** node ids never change (T-8), and every property v3 does not define is
+  kept (`topic_source`, `respelled_from`, a legacy `Entity`).
+- **What it passes:** v3's shape checks (node and edge types, edge ends `from` and `to`, the item
+  id, the document reference). It does not pass strict validation: making the files strictly v3
+  is R3b's migration, which decides what each extra property becomes.
+- **Never written back:** a view carries `adapted_from`, the version it was read from.
+- **The transcript variant needs the episode's language** as well as the file name. For a
+  non-English episode `<base>.txt` is the English render (`en`) and `<base>.<lang>.txt` the
+  original (`raw`; translation D-44).
+- **Tested:** every KG fixture in the repo reads through it. The 2.0/2.1 ones come out with v3's
+  node and edge types only.
+- **The GI half (GI 3.x as 4.0) is Common's,** with GI 4.0's own fields.
+
 ## Validation
 
 - `kg.schema.json` gains a 3.0 shape, selected by `schema_version`. The 2.x shapes stay valid
