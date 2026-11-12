@@ -15,9 +15,16 @@ pytestmark = [pytest.mark.unit]
 
 @pytest.fixture(autouse=True)
 def _restore_serve_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``_run_workers`` writes these for its workers; monkeypatch puts them back afterwards."""
+    """``_run_workers`` writes these into ``os.environ`` for its workers; put them back after.
+
+    ``monkeypatch.delenv(name, raising=False)`` alone does not: on a name that is not set it
+    records nothing to undo, so the ``PODCAST_SERVE_WORKERS=3`` the code then writes outlived the
+    test and sent every later app in that worker down the leader path (the scheduler lifespan
+    test failed in the full suite). ``setenv`` first records the absent value, so it is restored.
+    """
     for name in (leader.ENV_WORKERS, leader.ENV_LOCK_FILE, "PODCAST_SERVE_NO_STATIC"):
-        monkeypatch.delenv(name, raising=False)
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)
 
 
 class _Uvicorn:
