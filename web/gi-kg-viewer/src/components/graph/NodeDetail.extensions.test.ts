@@ -106,33 +106,6 @@ describe('NodeDetail extensions', () => {
     w.unmount()
   })
 
-  it('merges an extension’s topics on the Timeline tab, and passes its toggle state', async () => {
-    readyShell()
-    const seen: boolean[] = []
-    nodeDetailExtensions.register({
-      id: 'x',
-      timeline: (ctx, toggled) => {
-        seen.push(toggled)
-        return toggled && ctx.isTopicNode ? ['topic:a', 'topic:b'] : null
-      },
-      timelineToggle: (ctx) =>
-        ctx.isTopicNode ? { label: 'Group', titleOn: 'on', titleOff: 'off', testid: 'tl-toggle' } : null,
-    })
-    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
-    await flushPromises()
-    expect(fetchTopicTimeline).toHaveBeenCalledTimes(1)
-    await w.get('#node-detail-rail-tab-timeline').trigger('click')
-    await flushPromises()
-    const toggle = w.get('[data-testid="tl-toggle"]')
-    expect(toggle.attributes('title')).toBe('off')
-    await toggle.trigger('click')
-    await flushPromises()
-    expect(seen).toContain(true)
-    expect(fetchTopicTimelineMerged).toHaveBeenCalledWith('/corpus', ['topic:a', 'topic:b'])
-    expect(w.get('[data-testid="tl-toggle"]').attributes('aria-pressed')).toBe('true')
-    w.unmount()
-  })
-
   it('adds an extension tab for the nodes it shows for, with its panel and the ctx', async () => {
     readyShell()
     nodeDetailExtensions.register({
@@ -160,38 +133,6 @@ describe('NodeDetail extensions', () => {
     const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
     await flushPromises()
     expect(w.find('[data-testid="node-detail-rail-tab-ext:ext-tab"]').exists()).toBe(false)
-    w.unmount()
-  })
-
-  it("'hidden' removes the Timeline tab even for a topic", async () => {
-    readyShell()
-    nodeDetailExtensions.register({ id: 'x', timeline: () => 'hidden' })
-    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
-    await flushPromises()
-    expect(w.find('#node-detail-rail-tab-timeline').exists()).toBe(false)
-    expect(fetchTopicTimeline).not.toHaveBeenCalled()
-    w.unmount()
-  })
-
-  it('a non-topic node with merged topics gets the Timeline tab and its body; an on toggle takes its colour', async () => {
-    readyShell()
-    nodeDetailExtensions.register({
-      id: 'x',
-      knowsNode: (id) => id === 'grp:1',
-      timeline: (ctx) => (ctx.nodeId === 'grp:1' ? ['topic:a', 'topic:b'] : null),
-      timelineToggle: (ctx) =>
-        ctx.nodeId === 'grp:1' ? { label: 'G', titleOn: 'on', titleOff: 'off', testid: 'tl-toggle', color: 'rgb(1, 2, 3)' } : null,
-    })
-    const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'grp:1', embedInRail: true })
-    await flushPromises()
-    expect(fetchTopicTimelineMerged).toHaveBeenCalledWith('/corpus', ['topic:a', 'topic:b'])
-    await w.get('#node-detail-rail-tab-timeline').trigger('click')
-    await flushPromises()
-    expect(w.find('[data-testid="node-detail-inline-timeline"]').exists()).toBe(true)
-    const toggle = w.get('[data-testid="tl-toggle"]')
-    expect(toggle.attributes('style') ?? '').not.toContain('rgb(1, 2, 3)')
-    await toggle.trigger('click')
-    expect(w.get('[data-testid="tl-toggle"]').attributes('style')).toContain('rgb(1, 2, 3)')
     w.unmount()
   })
 

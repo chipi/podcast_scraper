@@ -25,8 +25,7 @@ const TRANSCRIPT_BODY =
  * * **`lifted` quote tests** (`search supporting quotes without speaker…`, `transcript hit with
  *   lifted quote timing…`) — the corpus returns `"lifted": null` on every result (50/50 across
  *   five queries), so the muted-attribution hints have no reachable state. Ladder §B.
- * * **the inline topic timeline test** — `/api/topics/{id}/timeline` answers **200** for real, but
- *   with `episodes: []` for every corpus topic, so there is no timeline to render. Ladder §B.
+ * * **the inline topic timeline test** moved downstream with the Timeline tab (E04 step 8b).
  *
  * What IS live-capable and worth doing when the fixture above is revisited: the corpus serves real
  * GI artifacts (`/api/artifacts/<feed>/<run>/metadata/<ep>.gi.json` → 200), so a future version could drive the graph from corpus data once the assertions are re-anchored.
@@ -360,16 +359,7 @@ test.describe('Search → graph (mocked API)', () => {
       timeout: 10_000,
     })
     await expect(page.getByTestId('node-detail-full-topic')).toContainText('Climate policy')
-    // Post node-view unification: the corpus-wide mentions timeline moved out of
-    // the Details tab into the rail's dedicated Timeline tab.
-    await page.getByTestId('node-detail-rail-tab-timeline').click()
-    const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
-    await expect(inlineTimeline).toBeVisible()
-    // The Timeline rail tab now labels the section (no in-section heading).
-    await expect(inlineTimeline).toContainText('CI fixture episode')
-    await expect(inlineTimeline).toContainText('1 episode with insights about this topic.')
-    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
-    await expect(page.getByTestId('node-detail-topic-timeline')).toHaveCount(0)
+    // The topic's Timeline tab is a downstream build's (E04 step 8b); its spec lives there.
 
     await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
     await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
@@ -453,41 +443,6 @@ test.describe('Search → graph (mocked API)', () => {
     const hint = page.getByTestId('supporting-quote-speaker-unavailable')
     await expect(hint).toBeVisible()
     await expect(hint).toContainText('No speaker detected')
-  })
-
-  test('topic detail renders the inline topic timeline', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await page.locator('#search-q').fill('climate insights')
-    await page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
-      .getByRole('button', { name: 'Search', exact: true })
-      .click()
-    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
-    await page.getByRole('button', { name: 'Show on graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-    await page.getByTestId('node-detail-rail-tab-details').click()
-    await page
-      .getByTestId('node-detail-insight-related-topic-row')
-      .filter({ hasText: 'Climate policy' })
-      .click()
-
-    // Mentions timeline now lives in the rail's Timeline tab (post-fold).
-    await page.getByTestId('node-detail-rail-tab-timeline').click()
-    const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
-    await expect(inlineTimeline).toBeVisible()
-    // Timeline rail tab labels the section now (no in-section "Topic timeline" heading).
-    await expect(inlineTimeline).toContainText('CI fixture episode')
-    await expect(inlineTimeline).toContainText('1 episode with insights about this topic.')
-    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
-    await expect(page.getByTestId('node-detail-topic-timeline')).toHaveCount(0)
   })
 
   test('transcript hit with lifted quote timing and no speaker shows muted lifted hint', async ({
