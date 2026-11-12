@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * #672 — Person Landing rail panel. Reads ``subject.personId`` and shows
- * a Profile / Positions tab pair: Profile holds identity + Connections
- * (topics / co-speakers from the relational layer); Positions lists the
- * person's stated positions and quotes.
+ * a Profile / Positions tab pair: Profile holds identity (name, role, aliases,
+ * description) plus registered profile sections; Positions lists the person's
+ * stated positions and quotes.
  *
  * #909 — the Positions tab's "All positions" lens surfaces the person's quotes
  * across ALL episodes (from the CIL ``person_profile`` endpoint), not just the
@@ -15,12 +15,12 @@
  * Tabs are now "Person Profile" (the aggregate person view; inherits all
  * shipped #672 / #909 / #1055 content) and "Position Tracker" (placeholder
  * for #1049 / PRD-028 Person × Topic over-time drill-in). Identity header
- * gains role + episode count + organization chips. New ranked topic-overview
+ * gains a role badge. New ranked topic-overview
  * list under Person Profile counts ``ABOUT(Insight→Topic)`` edges whose
  * Insight ``MENTIONS_PERSON`` this Person.
  */
 import { computed, ref, watch } from 'vue'
-import { personProfileSections, topicGrouping } from '../../extensions'
+import { personProfileSections } from '../../extensions'
 import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
@@ -30,8 +30,6 @@ import { useSubjectStore } from '../../stores/subject'
 // signatures as the wrapped fns; the cache invalidates on corpusPath
 // change.
 import {
-  cachedFetchCoSpeakers as fetchCoSpeakers,
-  cachedFetchPersonTopics as fetchPersonTopics,
   cachedFetchPositions as fetchPositions,
   cachedFetchPersonProfile as fetchPersonProfile,
 } from '../../composables/useRelationalCache'
@@ -39,17 +37,11 @@ import type { RelatedNode } from '../../api/relationalApi'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   findRawNodeInArtifactByIdOrPrefixed,
-  personEpisodeAppearances,
   personRoleFromNode,
-  rankedPersonOrganizations,
   rankedPersonTopicMentions,
 } from '../../utils/parsing'
-import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import { titleCaseWords } from '../../utils/nameCase'
-import { fetchCorpusEpisodes } from '../../api/corpusLibraryApi'
 import PositionTrackerPanel from './PositionTrackerPanel.vue'
-import PersonInitialAvatar from '../shared/PersonInitialAvatar.vue'
-import ShowGlyph from '../shared/ShowGlyph.vue'
 
 
 const emit = defineEmits<{
@@ -158,76 +150,6 @@ watch(
   (id) => void loadStatedPositions(id ?? ''),
   { immediate: true },
 )
-
-/**
- * #1055 — connections: the person's topics (structural graph lens) + co-speakers (people
- * who engage the same topics). Both from the relational layer; skeleton-first, stale-gated.
- */
-const topicsRows = ref<RelatedNode[]>([])
-const coSpeakersRows = ref<RelatedNode[]>([])
-const connectionsGate = new StaleGeneration()
-
-async function loadConnections(rawId: string): Promise<void> {
-  const id = rawId.trim()
-  const root = shell.corpusPath?.trim()
-  if (!id || !root || !shell.healthStatus) {
-    topicsRows.value = []
-    coSpeakersRows.value = []
-    return
-  }
-  const seq = connectionsGate.bump()
-  topicsRows.value = []
-  coSpeakersRows.value = []
-  try {
-    // Relational endpoints canonicalize on the corpus id (person:…); strip the
-    // graph layer prefix (g:/k:) first or they return empty (id-format mismatch).
-    const canonical = stripLayerPrefixesForCil(id)
-    const [t, c] = await Promise.all([
-      fetchPersonTopics(root, canonical),
-      fetchCoSpeakers(root, canonical),
-    ])
-    if (connectionsGate.isStale(seq)) return
-    topicsRows.value = t.results ?? []
-    coSpeakersRows.value = c.results ?? []
-  } catch {
-    if (connectionsGate.isStale(seq)) return
-    topicsRows.value = []
-    coSpeakersRows.value = []
-  }
-}
-
-watch(personGraphNodeId, (id) => void loadConnections(id ?? ''), { immediate: true })
-
-// Prolific speakers (esp. hosts) accumulate many topics + co-speakers. The
-// relational endpoints already return these ranked, so cap the display to a
-// preview and let the user expand. Collapse again on person change.
-const TOPICS_PREVIEW = 12
-const COSPEAKERS_PREVIEW = 8
-const topicsExpanded = ref(false)
-const coSpeakersExpanded = ref(false)
-/** A grouping provider's title for a topic marks it as grouped (extension point `topicGrouping`). */
-function topicGroupTitle(topicId: string): string | null {
-  for (const g of topicGrouping.list()) {
-    const title = g.groupTitle?.(topicId)
-    if (title) return title
-  }
-  return null
-}
-const visibleTopics = computed(() =>
-  (topicsExpanded.value ? topicsRows.value : topicsRows.value.slice(0, TOPICS_PREVIEW)).map((t) => ({
-    ...t,
-    groupTitle: topicGroupTitle(t.id),
-  })),
-)
-const visibleCoSpeakers = computed(() =>
-  coSpeakersExpanded.value
-    ? coSpeakersRows.value
-    : coSpeakersRows.value.slice(0, COSPEAKERS_PREVIEW),
-)
-watch(personGraphNodeId, () => {
-  topicsExpanded.value = false
-  coSpeakersExpanded.value = false
-})
 
 /**
  * #909 — corpus-wide quotes this person spoke across ALL episodes, from the CIL
@@ -377,70 +299,6 @@ async function loadCorpusQuotes(rawId: string): Promise<void> {
 
 watch(personId, (id) => void loadCorpusQuotes(id ?? ''), { immediate: true })
 
-// FB10 — the shows a person appears in, derived from their quotes' episodes
-// (episode_id → feed via the corpus episode list; both use the compact hex id).
-// Host is inferred from episode coverage (a host recurs across most of a show's
-// episodes); we only claim "Host" when confident and never assert "Guest" (a
-// low-coverage person may be an under-sampled host). A precise per-show role
-// would come from a pipeline person→hosts→show edge. Clickable through to the show.
-const episodeShowTitle = ref<Map<string, string>>(new Map())
-const showTotalEpisodes = ref<Map<string, number>>(new Map())
-async function loadEpisodeShows(): Promise<void> {
-  const root = shell.corpusPath?.trim()
-  if (!root || !shell.healthStatus) {
-    episodeShowTitle.value = new Map()
-    showTotalEpisodes.value = new Map()
-    return
-  }
-  try {
-    const body = await fetchCorpusEpisodes(root, { limit: 500 })
-    const m = new Map<string, string>()
-    const totals = new Map<string, number>()
-    for (const ep of body.items ?? []) {
-      const eid = ep.episode_id?.trim()
-      const title = (ep as { feed_display_title?: string }).feed_display_title?.trim()
-      if (title) totals.set(title, (totals.get(title) ?? 0) + 1)
-      if (eid && title) m.set(eid, title)
-    }
-    episodeShowTitle.value = m
-    showTotalEpisodes.value = totals
-  } catch {
-    episodeShowTitle.value = new Map()
-    showTotalEpisodes.value = new Map()
-  }
-}
-watch(() => shell.corpusPath, () => void loadEpisodeShows(), { immediate: true })
-
-interface PersonShow {
-  title: string
-  episodes: number
-  total: number
-  isHost: boolean
-}
-const personShows = computed<PersonShow[]>(() => {
-  const perShow = new Map<string, Set<string>>()
-  for (const q of corpusQuotes.value) {
-    const t = q.episodeId ? episodeShowTitle.value.get(q.episodeId) : undefined
-    if (!t || !q.episodeId) continue
-    if (!perShow.has(t)) perShow.set(t, new Set())
-    perShow.get(t)?.add(q.episodeId)
-  }
-  const out: PersonShow[] = []
-  for (const [title, eps] of perShow) {
-    const total = showTotalEpisodes.value.get(title) ?? 0
-    const n = eps.size
-    // Coverage heuristic for host vs guest: a host recurs across most of a
-    // show's episodes; a guest appears in a few. (Approximate — a real per-show
-    // role would come from a pipeline person→hosts→show edge.)
-    const isHost = total > 0 && n >= 2 && n / total >= 0.5
-    out.push({ title, episodes: n, total, isHost })
-  }
-  return out.sort((a, b) => b.episodes - a.episodes)
-})
-function podcastIdForShow(title: string): string {
-  return `podcast:${title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
-}
-
 const personName = computed(() => {
   const n = personNode.value
   if (!n) return personId.value
@@ -474,8 +332,8 @@ const personRoleLabel = computed(() => {
 })
 
 // #1048 — ranked topic overview via ABOUT(Insight→Topic) chains whose Insight
-// MENTIONS_PERSON this person. Distinct from the relational
-// fetchPersonTopics() chips above (which use the structural person→topic lens).
+// MENTIONS_PERSON this person. Distinct from a profile section's relational
+// person→topic chips (the structural lens).
 const TOPIC_OVERVIEW_CAP = 10
 const rankedTopics = computed(() =>
   rankedPersonTopicMentions(
@@ -483,25 +341,6 @@ const rankedTopics = computed(() =>
     personGraphNodeId.value,
     TOPIC_OVERVIEW_CAP,
   ),
-)
-
-// #1048 — co-mentioned Organizations via MENTIONS_PERSON ⨯ MENTIONS_ORG join
-// on the same Insight. Empty until KG fixtures contain MENTIONS_ORG edges
-// (RFC-097 v2 strict subset; cloud profiles only).
-const ORG_CHIPS_CAP = 10
-const rankedOrgs = computed(() =>
-  rankedPersonOrganizations(
-    artifacts.displayArtifact,
-    personGraphNodeId.value,
-    ORG_CHIPS_CAP,
-  ),
-)
-
-// #1050 — Episodes appeared in (UXS-010 section). SPOKE_IN-derived list,
-// newest-first, undated entries sink. Empty when no SPOKE_IN edges exist
-// for this Person.
-const episodeAppearances = computed(() =>
-  personEpisodeAppearances(artifacts.displayArtifact, personGraphNodeId.value),
 )
 
 // #1050 — Insights voiced grouped by Topic (UXS-010 section). Each Topic
@@ -608,32 +447,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
           ×
         </button>
       </div>
-      <!-- #1048 / #1050 — episode-count signal. Derives from the same
-           personEpisodeAppearances list rendered below so the at-a-glance
-           count cannot disagree with the section (raw SPOKE_IN edge tallies
-           are not deduplicated by target episode; the list helper is). -->
-      <p
-        v-if="episodeAppearances.length > 0"
-        class="mt-1 text-[10px] text-muted"
-        data-testid="person-landing-episode-count"
-      >
-        {{ episodeAppearances.length }}
-        episode{{ episodeAppearances.length === 1 ? '' : 's' }}
-      </p>
-      <!-- #1048 — co-mentioned Organizations (PRD-029 FR1 affiliations) -->
-      <div
-        v-if="rankedOrgs.length"
-        class="mt-1 flex flex-wrap gap-1"
-        data-testid="person-landing-organizations"
-      >
-        <span
-          v-for="org in rankedOrgs"
-          :key="org.id"
-          class="rounded bg-overlay px-1.5 py-0.5 text-[10px] text-surface-foreground"
-          data-testid="person-landing-organization-chip"
-          :title="`${org.name} · ${org.count} insight${org.count === 1 ? '' : 's'}`"
-        >{{ org.name }}</span>
-      </div>
       <component
         :is="section.component"
         v-for="section in personProfileSections.list().filter((x) => x.region === 'header')"
@@ -701,104 +514,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
           data-testid="person-landing-role-embedded"
           :data-role="personRole"
         >{{ personRoleLabel }}</span>
-        <!-- FB10 — shows this person appears in (from their quotes' episodes),
-             clickable through to the show. "Appears in", not host-vs-guest. -->
-        <section
-          v-if="personShows.length"
-          aria-label="Appears in shows"
-          data-testid="person-landing-shows"
-        >
-          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            Appears in
-          </h3>
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="show in personShows"
-              :key="show.title"
-              type="button"
-              class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
-              data-testid="person-landing-show-chip"
-              :data-role="show.isHost ? 'host' : ''"
-              :title="`${show.isHost ? 'Likely host — ' : 'Appears in '}${show.episodes} of ${show.total} episode${show.total === 1 ? '' : 's'}`"
-              @click="subject.focusGraphNode(podcastIdForShow(show.title))"
-            >
-              <ShowGlyph :name="show.title" />
-              {{ show.title }}
-              <!-- Only claim "Host" when coverage is confident. A low-coverage
-                   person may be a guest OR an under-sampled host, so we don't
-                   assert "Guest" (that needs the pipeline person→hosts→show edge). -->
-              <span
-                v-if="show.isHost"
-                class="ml-0.5 rounded bg-primary/25 px-1 text-[8px] font-semibold uppercase tracking-wide text-primary"
-              >Host</span>
-            </button>
-          </div>
-        </section>
-        <!-- Connections first: the substance (topics discussed + who they
-             speak with) sits at the top of the panel; identity/enrichment
-             metadata follows below. -->
-        <section aria-label="Connections" data-testid="person-landing-connections">
-          <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            Topics
-          </h3>
-          <div
-            v-if="topicsRows.length"
-            class="flex flex-wrap gap-1"
-            data-testid="person-landing-topics"
-          >
-            <span
-              v-for="t in visibleTopics"
-              :key="t.id"
-              class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-surface-foreground"
-              :class="t.groupTitle ? '' : 'bg-overlay'"
-              :style="t.groupTitle ? { backgroundColor: 'color-mix(in srgb, var(--ps-kg) 22%, transparent)' } : undefined"
-              :title="t.groupTitle ?? undefined"
-              :data-cluster="t.groupTitle ? 'true' : undefined"
-              data-testid="person-landing-topic-chip"
-            ><span v-if="t.groupTitle" aria-hidden="true" class="text-[9px] opacity-70">⧉</span>{{ t.text }}</span>
-            <button
-              v-if="topicsRows.length > TOPICS_PREVIEW"
-              type="button"
-              class="rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-overlay"
-              data-testid="person-landing-topics-toggle"
-              @click="topicsExpanded = !topicsExpanded"
-            >{{ topicsExpanded ? 'Show less' : `+${topicsRows.length - TOPICS_PREVIEW} more` }}</button>
-          </div>
-          <p v-else class="text-[10px] text-muted" data-testid="person-landing-topics-empty">
-            No topics for this voice yet.
-          </p>
-          <h3 class="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            In the same conversation
-          </h3>
-          <div
-            v-if="coSpeakersRows.length"
-            class="flex flex-wrap gap-1"
-            data-testid="person-landing-co-speakers"
-          >
-            <button
-              v-for="p in visibleCoSpeakers"
-              :key="p.id"
-              type="button"
-              class="inline-flex items-center gap-1 rounded bg-overlay py-0.5 pl-0.5 pr-1.5 text-[10px] text-surface-foreground hover:bg-overlay-2"
-              data-testid="person-landing-co-speaker-chip"
-              :title="`Open ${p.text}`"
-              @click="subject.focusPerson(p.id)"
-            >
-              <PersonInitialAvatar :name="p.text" />
-              {{ titleCaseWords(p.text) }}
-            </button>
-            <button
-              v-if="coSpeakersRows.length > COSPEAKERS_PREVIEW"
-              type="button"
-              class="self-center rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-overlay"
-              data-testid="person-landing-co-speakers-toggle"
-              @click="coSpeakersExpanded = !coSpeakersExpanded"
-            >{{ coSpeakersExpanded ? 'Show less' : `+${coSpeakersRows.length - COSPEAKERS_PREVIEW} more` }}</button>
-          </div>
-          <p v-else class="text-[10px] text-muted" data-testid="person-landing-co-speakers-empty">
-            No co-speakers share a topic with this voice yet.
-          </p>
-        </section>
+        <component
+          :is="section.component"
+          v-for="section in personProfileSections.list().filter((x) => x.region === 'profile-head')"
+          :key="section.id"
+          :person-id="personId"
+          :view="props.view"
+        />
         <p
           v-if="personAliases"
           class="text-[11px] text-muted"
@@ -813,44 +535,6 @@ function onPickTopicForPositionTracker(topicId: string): void {
         >
           {{ personDescription }}
         </p>
-      <!-- #1050 — UXS-010 "Episodes appeared in" — SPOKE_IN-derived list,
-           newest-first. Replaces the prior numeric-only count signal in the
-           identity header (we keep that count for at-a-glance, but expose
-           the actual episodes here). -->
-      <section
-        v-if="episodeAppearances.length"
-        aria-label="Episodes appeared in"
-        data-testid="person-landing-episodes-appeared"
-      >
-        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Episodes appeared in
-        </h3>
-        <ul
-          class="space-y-0.5"
-          data-testid="person-landing-episodes-appeared-list"
-        >
-          <li
-            v-for="ep in episodeAppearances"
-            :key="ep.episodeId"
-            class="flex items-baseline justify-between gap-2 text-[11px] text-surface-foreground"
-            data-testid="person-landing-episodes-appeared-row"
-            :data-episode-id="ep.episodeId"
-          >
-            <span class="min-w-0 truncate" :title="ep.title ?? ep.episodeId">{{ ep.title || ep.episodeId }}</span>
-            <span
-              v-if="ep.publishDate"
-              class="shrink-0 text-[10px] text-muted"
-              data-testid="person-landing-episodes-appeared-date"
-            >{{ ep.publishDate }}</span>
-            <span
-              v-else
-              class="shrink-0 text-[10px] italic text-muted"
-              data-testid="person-landing-episodes-appeared-date-unknown"
-            >date unknown</span>
-          </li>
-        </ul>
-      </section>
-
         <component
           :is="section.component"
           v-for="section in personProfileSections.list().filter((x) => x.region === 'profile')"
@@ -1206,8 +890,7 @@ function onPickTopicForPositionTracker(topicId: string): void {
           </ul>
         </section>
 
-        <!-- #1050 — UXS-010 "Episodes appeared in" already in profile-only block above.
-             PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+        <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
         <section
           v-if="statedLoading || statedError || statedRows.length"
           aria-label="Stated positions"

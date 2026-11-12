@@ -70,67 +70,6 @@ async function mountWith(idOverride = 'person:alice'): Promise<ReturnType<typeof
   return w
 }
 
-describe('PersonLandingView — connections (#1055)', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    // #1075 chunk 4 — clear the module-level relational panel cache
-    // between tests so a prior test's stub response doesn't survive
-    // into the next test's mock setup.
-    invalidateRelationalCache()
-    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
-    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
-    fetchPersonTopics.mockResolvedValue({
-      subject: 'person:alice',
-      results: [rel('topic:ai', 'AI ethics', 'topic'), rel('topic:reg', 'AI regulation', 'topic')],
-    })
-    fetchCoSpeakers.mockResolvedValue({
-      subject: 'person:alice',
-      results: [rel('person:bob', 'Bob', 'person')],
-    })
-  })
-
-  it('renders the person topics as chips', async () => {
-    const w = await mountWith()
-    const topics = w.get('[data-testid="person-landing-topics"]')
-    const chips = w.findAll('[data-testid="person-landing-topic-chip"]')
-    expect(chips.map((c) => c.text())).toEqual(['AI ethics', 'AI regulation'])
-    expect(topics.exists()).toBe(true)
-  })
-
-  it('renders co-speakers as chips with a person letter avatar', async () => {
-    const w = await mountWith()
-    const chips = w.findAll('[data-testid="person-landing-co-speaker-chip"]')
-    expect(chips).toHaveLength(1)
-    expect(chips[0].text()).toContain('Bob')
-    const avatar = chips[0].find('[data-testid="person-initial-avatar"]')
-    expect(avatar.exists()).toBe(true)
-    expect(avatar.text()).toBe('B')
-  })
-
-  it('shows empty-state copy when there are no co-speakers', async () => {
-    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
-    const w = await mountWith()
-    expect(w.find('[data-testid="person-landing-co-speakers-empty"]').exists()).toBe(true)
-    expect(w.find('[data-testid="person-landing-co-speaker-chip"]').exists()).toBe(false)
-  })
-
-  it('queries the relational connection endpoints with the corpus path + person id', async () => {
-    await mountWith()
-    expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
-    expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
-  })
-
-  // Regression: the graph node id carries a layer prefix (g:/k:) but the
-  // relational endpoints canonicalize on the bare corpus id — passing the
-  // prefixed id returned 0 topics / 0 co-speakers (systematically empty
-  // Connections). loadConnections must strip the prefix first.
-  it('strips the graph layer prefix before querying relational endpoints', async () => {
-    await mountWith('g:person:alice')
-    expect(fetchPersonTopics).toHaveBeenCalledWith('/corpus', 'person:alice')
-    expect(fetchCoSpeakers).toHaveBeenCalledWith('/corpus', 'person:alice')
-  })
-})
-
 // #1048 — Person Landing shell tab restructure: Person Profile + Position
 // Tracker pair (placeholder), identity-header additions (role + episode count
 // + organization chips), and ABOUT∩MENTIONS_PERSON ranked-topic overview.
@@ -211,17 +150,6 @@ describe('PersonLandingView — #1048 shell (Person Profile + Position Tracker)'
     const badge = w.get('[data-testid="person-landing-role"]')
     expect(badge.text()).toBe('Host')
     expect(badge.attributes('data-role')).toBe('host')
-  })
-
-  it('renders the episode-count signal from SPOKE_IN edges', async () => {
-    const w = await mountWithArtifact()
-    expect(w.get('[data-testid="person-landing-episode-count"]').text()).toContain('1 episode')
-  })
-
-  it('renders organization chips from MENTIONS_PERSON ∩ MENTIONS_ORG insights', async () => {
-    const w = await mountWithArtifact()
-    const chips = w.findAll('[data-testid="person-landing-organization-chip"]')
-    expect(chips.map((c) => c.text())).toEqual(['OpenAI'])
   })
 
   it('ranks topics by collapsed ABOUT∩MENTIONS_PERSON pairs (duplicate edges collapse)', async () => {
@@ -405,73 +333,6 @@ describe('PersonLandingView — #1050 Person Profile aggregate (PRD-029 / UXS-01
     expect(rows[0].get('[data-testid="person-landing-insights-voiced-row-text"]').text()).toBe('first')
   })
 
-  it('renders "Episodes appeared in" list, newest-first, with titles + dates', async () => {
-    const w = await mountWithProfileArt()
-    const rows = w.findAll('[data-testid="person-landing-episodes-appeared-row"]')
-    expect(rows.length).toBe(2)
-    expect(rows[0].attributes('data-episode-id')).toBe('ep:2')
-    expect(rows[0].text()).toContain('Sequel')
-    expect(rows[0].text()).toContain('2026-03-10')
-    expect(rows[1].text()).toContain('Pilot')
-    expect(rows[1].text()).toContain('2026-02-15')
-  })
-
-  it('episode-count line agrees with the Episodes-appeared-in list count (post-review fix)', async () => {
-    // Two SPOKE_IN edges from this Person, both pointing at the SAME
-    // episode. Pre-fix the header count used a raw edge tally and would
-    // say "2 episodes" while the list (Set-deduped) shows 1. Both surfaces
-    // now derive from the same personEpisodeAppearances helper.
-    const personId = 'person:a'
-    const shell = useShellStore()
-    shell.corpusPath = '/corpus'
-    shell.healthStatus = 'ok'
-    const subject = useSubjectStore()
-    useArtifactsStore().parsedList = [
-      {
-        id: 'dup',
-        kind: 'gi',
-        data: {
-          nodes: [
-            { id: 'person:a', type: 'Person', properties: { name: 'A' } },
-            { id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-05-01' } },
-          ],
-          edges: [
-            { type: 'SPOKE_IN', from: 'person:a', to: 'ep:1' },
-            { type: 'SPOKE_IN', from: 'person:a', to: 'ep:1' },
-          ],
-        },
-      } as unknown as ParsedArtifact,
-    ]
-    subject.focusPerson(personId)
-    const w = mount(PersonLandingView, { attachTo: document.body, props: { subjectIdOverride: personId }, global: { stubs: STUBS } })
-    await flushPromises()
-    await flushPromises()
-    expect(w.get('[data-testid="person-landing-episode-count"]').text()).toBe('1 episode')
-    expect(w.findAll('[data-testid="person-landing-episodes-appeared-row"]').length).toBe(1)
-  })
-
-  it('Episodes section is omitted when no SPOKE_IN edges exist', async () => {
-    const personId = 'person:bob'
-    const shell = useShellStore()
-    shell.corpusPath = '/corpus'
-    shell.healthStatus = 'ok'
-    const subject = useSubjectStore()
-    useArtifactsStore().parsedList = [
-      {
-        id: 'empty',
-        kind: 'gi',
-        data: {
-          nodes: [{ id: 'person:bob', type: 'Person', properties: { name: 'Bob' } }],
-          edges: [],
-        },
-      } as unknown as ParsedArtifact,
-    ]
-    subject.focusPerson(personId)
-    const w = mount(PersonLandingView, { attachTo: document.body, props: { subjectIdOverride: personId }, global: { stubs: STUBS } })
-    await flushPromises()
-    await flushPromises()
-    expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(false)
-  })
 })
 
 // New describe block for view prop gating + positions lens
@@ -518,10 +379,14 @@ describe('PersonLandingView — view prop gating + positions lens', () => {
     expect(w.find('[data-testid="person-landing-positions"]').exists()).toBe(false)
   })
 
-  it('view="profile" shows episodes and connections', async () => {
+  it('view="profile" carries no GI of its own: episodes, connections and shows are sections', async () => {
     const w = await mountViewProp('profile')
-    expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(true)
-    expect(w.find('[data-testid="person-landing-connections"]').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-panel-profile"]').exists()).toBe(true)
+    expect(w.find('[data-testid="person-landing-episodes-appeared"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-connections"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-shows"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-episode-count"]').exists()).toBe(false)
+    expect(w.find('[data-testid="person-landing-organizations"]').exists()).toBe(false)
   })
 
   it('view="positions" shows the lens toggle with By topic and All positions buttons', async () => {
@@ -573,32 +438,6 @@ describe('PersonLandingView — view prop gating + positions lens', () => {
   })
 })
 
-describe('PersonLandingView topic grouping', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    invalidateRelationalCache()
-    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
-    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
-    fetchPersonTopics.mockResolvedValue({
-      subject: 'person:alice',
-      results: [rel('topic:ai', 'AI ethics', 'topic'), rel('topic:reg', 'AI regulation', 'topic')],
-    })
-    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
-  })
-
-  it('marks a topic a grouping provider titles, and only that one', async () => {
-    const { topicGrouping } = await import('../../extensions')
-    topicGrouping.register({ id: 'g', groupTitle: (id) => (id === 'topic:ai' ? 'Group: Ethics' : undefined) })
-    const w = await mountWith()
-    const chips = w.findAll('[data-testid="person-landing-topic-chip"]')
-    const marked = chips.filter((c) => c.attributes('data-cluster') === 'true')
-    expect(marked.map((c) => c.text())).toEqual(['⧉AI ethics'])
-    expect(marked[0].attributes('title')).toBe('Group: Ethics')
-    topicGrouping.reset()
-    w.unmount()
-  })
-})
-
 describe('PersonLandingView — personProfileSections', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -609,9 +448,9 @@ describe('PersonLandingView — personProfileSections', () => {
     fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
   })
 
-  async function mountView(view: 'full' | 'positions') {
+  async function mountView(view: 'full' | 'positions', props: Record<string, unknown> = {}) {
     const { personProfileSections } = await import('../../extensions')
-    for (const region of ['header', 'profile', 'positions', 'full'] as const) {
+    for (const region of ['header', 'profile-head', 'profile', 'positions', 'full'] as const) {
       personProfileSections.register({
         id: region,
         region,
@@ -621,7 +460,9 @@ describe('PersonLandingView — personProfileSections', () => {
         },
       })
     }
-    useArtifactsStore().parsedList = [makePersonArtifact()]
+    const art = makePersonArtifact()
+    Object.assign((art.data as { nodes: { properties: Record<string, unknown> }[] }).nodes[0].properties, props)
+    useArtifactsStore().parsedList = [art]
     const shell = useShellStore()
     shell.corpusPath = '/corpus'
     shell.healthStatus = 'ok'
@@ -641,14 +482,22 @@ describe('PersonLandingView — personProfileSections', () => {
   })
 
   const shown = (w: ReturnType<typeof mount>) =>
-    ['header', 'profile', 'positions', 'full'].filter((r) =>
+    ['header', 'profile-head', 'profile', 'positions', 'full'].filter((r) =>
       w.find(`[data-testid="ext-${r}"]`).exists(),
     )
 
-  it('the full view shows the header, profile and full sections, with the person', async () => {
+  it('the full view shows the header, profile-head, profile and full sections, with the person', async () => {
     const w = await mountView('full')
-    expect(shown(w)).toEqual(['header', 'profile', 'full'])
+    expect(shown(w)).toEqual(['header', 'profile-head', 'profile', 'full'])
     expect(w.find('[data-testid="ext-header"]').text()).toBe('person:alice/full')
+    w.unmount()
+  })
+
+  it('a profile-head section renders after the role and before the aliases', async () => {
+    const w = await mountView('full', { aliases: ['Al'], role: 'host' })
+    const html = w.html()
+    expect(html.indexOf('person-landing-role-embedded')).toBeLessThan(html.indexOf('ext-profile-head'))
+    expect(html.indexOf('ext-profile-head')).toBeLessThan(html.indexOf('person-landing-aliases'))
     w.unmount()
   })
 
