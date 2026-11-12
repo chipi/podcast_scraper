@@ -11,7 +11,6 @@ its scoreboard can never pass as LIGHT.
 
 from __future__ import annotations
 
-import fnmatch
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -80,16 +79,17 @@ def score_corpus(root: Path) -> Dict[str, Any]:
 
 
 def scored_files_present(root: Path, patterns: Iterable[str]) -> List[str]:
-    """Up to three files under ``root`` matching any of ``patterns`` (``fnmatch`` on the name)."""
-    pats = list(patterns)
+    """Up to three corpus files under ``root`` matching any of ``patterns`` (backups and other
+    dot-directories excluded, ``sources/`` included: any item's scored file counts)."""
+    from ..utils.corpus_walk import corpus_rglob
+
     found: List[str] = []
-    if not pats:
-        return found
-    for path in Path(root).rglob("*"):
-        if path.is_file() and any(fnmatch.fnmatch(path.name, p) for p in pats):
-            found.append(str(path.relative_to(root)))
-            if len(found) == 3:
-                break
+    for pattern in patterns:
+        for path in corpus_rglob(Path(root), pattern, include_sources=True):
+            if path.is_file():
+                found.append(str(path.relative_to(root)))
+                if len(found) == 3:
+                    return found
     return found
 
 
