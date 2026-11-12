@@ -64,6 +64,7 @@
     "episode.licence.source_feed_url",
     "episode.licence.status",
     "episode.link",
+    "episode.people_stated[]{}",
     "episode.published_date",
     "episode.title",
     "feed.authors[]",
