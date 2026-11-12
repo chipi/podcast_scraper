@@ -156,6 +156,18 @@ export interface DigestSection extends Entry {
 
 export const digestSections = extensionPoint<DigestSection>('digestSections')
 
+/**
+ * A section of a person's view, rendered with `personId` and `view` props: `header` under the
+ * name and role, `profile` at the end of the profile, `positions` at the end of the positions
+ * view, `full` at the end of the full view.
+ */
+export interface PersonProfileSection extends Entry {
+  region: 'header' | 'profile' | 'positions' | 'full'
+  component: Component
+}
+
+export const personProfileSections = extensionPoint<PersonProfileSection>('personProfileSections')
+
 /** A command in the command palette. */
 export interface PaletteCommandEntry extends Entry {
   label: string

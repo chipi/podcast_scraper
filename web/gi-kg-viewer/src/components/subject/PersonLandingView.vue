@@ -20,7 +20,7 @@
  * Insight ``MENTIONS_PERSON`` this Person.
  */
 import { computed, ref, watch } from 'vue'
-import { topicGrouping } from '../../extensions'
+import { personProfileSections, topicGrouping } from '../../extensions'
 import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
@@ -634,6 +634,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
           :title="`${org.name} · ${org.count} insight${org.count === 1 ? '' : 's'}`"
         >{{ org.name }}</span>
       </div>
+      <component
+        :is="section.component"
+        v-for="section in personProfileSections.list().filter((x) => x.region === 'header')"
+        :key="section.id"
+        :person-id="personId"
+        :view="props.view"
+      />
     </div>
     <nav
       v-if="!props.embedded"
@@ -844,6 +851,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
         </ul>
       </section>
 
+        <component
+          :is="section.component"
+          v-for="section in personProfileSections.list().filter((x) => x.region === 'profile')"
+          :key="section.id"
+          :person-id="personId"
+          :view="props.view"
+        />
       </template>
 
       <!-- Topics discussed: only in full view -->
@@ -1110,6 +1124,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
             </div>
           </div>
         </template>
+        <component
+          :is="section.component"
+          v-for="section in personProfileSections.list().filter((x) => x.region === 'positions')"
+          :key="section.id"
+          :person-id="personId"
+          :view="props.view"
+        />
       </template>
 
       <!-- Full view: insights voiced + stated positions stacked (current layout preserved) -->
@@ -1259,6 +1280,13 @@ function onPickTopicForPositionTracker(topicId: string): void {
             </p>
           </li>
         </ul>
+        <component
+          :is="section.component"
+          v-for="section in personProfileSections.list().filter((x) => x.region === 'full')"
+          :key="section.id"
+          :person-id="personId"
+          :view="props.view"
+        />
       </template>
 
       <div v-if="!props.embedded" class="flex shrink-0 flex-wrap gap-2 pt-2">
