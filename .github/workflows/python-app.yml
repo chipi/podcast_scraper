@@ -1506,7 +1506,15 @@ jobs:
     # superseding push cancelled `test-unit` while this run was still live. This job then ran on
     # zero artifacts ("Combined: 0 tests"), failed --fail-under=70, and the CI Gate went RED for a
     # cancel. So it also skips when ANY upstream job was cancelled; a FAILED one still reports.
-    if: ${{ !cancelled() && !contains(needs.*.result, 'cancelled') && needs.detect-changes.outputs.python == 'true' }}
+    #
+    # It also skips when a kind of coverage has no job that ran (2026-11-12): a run started by hand
+    # skips test-integration* and test-e2e* (they run on pushes to main and release branches), and
+    # this job then failed on "Missing coverage data files" — the same false RED, from a skip.
+    if: >-
+      ${{ !cancelled() && !contains(needs.*.result, 'cancelled') && needs.detect-changes.outputs.python == 'true'
+      && needs.test-unit.result != 'skipped'
+      && (needs.test-integration.result != 'skipped' || needs.test-integration-fast.result != 'skipped')
+      && (needs.test-e2e.result != 'skipped' || needs.test-e2e-fast.result != 'skipped') }}
     steps:
     - uses: actions/checkout@v7
       with:
