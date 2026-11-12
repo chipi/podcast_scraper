@@ -36,7 +36,6 @@ handovers, run logs, one-off measurements and screenshots of shipped UI do not s
 | --- | --- |
 | [INGESTION-ARC-2026-11-03.md](INGESTION-ARC-2026-11-03.md) | The draft list for `feat/ingestion-arc` (work that changes nothing about deployment): tiers A, B, L, M and C, and how the corpus change method applies to each |
 | [C1-CODE-DIGEST-2026-11-04.md](C1-CODE-DIGEST-2026-11-04.md) | Arc item C1: why a migration's code digest covers 610 of 778 modules, the options measured, and the recommendation (operator's call) |
-| [HANDOVER-NAMING-2026-11-03.md](HANDOVER-NAMING-2026-11-03.md) | Speaker naming and identity after D2 (RFC-131): the next steps in order, D2 run lessons, open items carried over |
 | [NONENGLISH-REFERENCE-SHOWS-2026-10-09.md](NONENGLISH-REFERENCE-SHOWS-2026-10-09.md) | The non-English arc: readiness per language, the gate decisions, #2352 and #2353 |
 | [DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md](DIARIZATION-SPLIT-HOST-CLUSTER-MERGE.md) | The deferred root-cause fix for diarization merge/split artifacts (#1330) |
 | [SPEND-ESTIMATOR-OVERSTATEMENT-2026-08-28.md](SPEND-ESTIMATOR-OVERSTATEMENT-2026-08-28.md) | Run-reported LLM cost overstates gateway spend about 3.5x; the fix is not built |

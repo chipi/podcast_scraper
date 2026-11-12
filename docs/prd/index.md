@@ -51,7 +51,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | v2.5.0 | RFC-037 | Ollama - fully local/offline, zero cost |
 | [PRD-017](PRD-017-grounded-insight-layer.md) | Grounded Insight Layer (GIL) | v2.6.0–v2.7 | RFC-042, 044, 049, 050, 052, 062, 072, 097 | Single-layer GIL + cross-layer bridge shipped: `gi.json` schema v3.0, Insight Explorer, ABOUT/MENTIONS_PERSON/MENTIONS_ORG attribution per Insight, CIL resolver+registry, `insight_type` marking. Postgres projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md), Draft) remains as orthogonal persistence-layer scope. |
 | [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | v2.6.0–v2.7 | RFC-042, 044, 052, 055, 056, 062, 072, 097 | Single-layer KG + cross-layer bridge shipped: `kg.json` schema v2.0, Person/Org/Podcast first-class node types, entity identity via CIL (`entity:person:` → `person:`), `kg` CLI + entity roll-up + export. Postgres projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md), Draft) and asymptotic entity resolution remain open as orthogonal scope. |
-| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | v2.6.0–v2.7 | RFC-061, 062, 075, 090 | Shipped end-to-end: FAISS Phase 1 ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)) → LanceDB-first hybrid (BM25 + dense + RRF, [RFC-090](../rfc/RFC-090-hybrid-retrieval.md), [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md), PR #1010); FAISS retired. Corpus topic clustering layer ([RFC-075](../rfc/RFC-075-corpus-topic-clustering.md)) shipped with `topic_clusters.json` + viewer compound parents. Platform backends ([RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)) **Superseded** by the LanceDB path. |
+| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | v2.6.0–v2.7 | RFC-061, 062, 090 | Shipped end-to-end: FAISS Phase 1 ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)) → LanceDB-first hybrid (BM25 + dense + RRF, [RFC-090](../rfc/RFC-090-hybrid-retrieval.md), [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md), PR #1010); FAISS retired. Corpus topic clustering layer shipped with `topic_clusters.json` + viewer compound parents. Platform backends ([RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)) **Superseded** by the LanceDB path. |
 | [PRD-022](PRD-022-corpus-library-episode-browser.md) | Corpus Library & Episode Browser | v2.6.0 | RFC-067, 062, 061, 063 | Filesystem-first catalog in viewer: feeds/episodes, summaries, similar episodes, handoff to graph and semantic search ([RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) Phases 1–3) |
 | [PRD-023](PRD-023-corpus-digest-recap.md) | Corpus Digest & Library Glance | v2.6.0 | RFC-068, 067, 061, 062 | Digest tab + 24h Library glance: diverse recent episodes, global topic bands, GI/KG badges, search/graph handoffs ([RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md)) |
 | [PRD-024](PRD-024-graph-exploration-toolkit.md) | GI/KG Graph Exploration Toolkit | v2.6.0 | RFC-069, 062 | Graph tab toolkit: zoom 100%/%, Shift+drag box zoom, minimap v1, degree bucket filter, built-in layouts, edge filters ([RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md)) |
@@ -59,8 +59,8 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding PRDs):** **30** PRD documents -- **2** open (Partial/Draft) above,
-**20** implemented, **8** Draft (not indexed until promoted).
+**Counts (reconcile when adding PRDs):** **29** PRD documents -- **2** open (Partial/Draft) above,
+**20** implemented, **7** Draft (not indexed until promoted).
 Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers — not **`Completed`**
 (that label is for RFCs and ADRs).
 
@@ -77,7 +77,7 @@ Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers —
 ([PRD-030](PRD-030-viewer-feed-sources-and-pipeline-jobs.md)), and the Consumer Learning Platform
 roll-out. Several Draft PRDs not indexed: experiments (PRD-007),
 governance (PRD-015), Postgres projection (PRD-018), diarization (PRD-020), topic view (PRD-026),
-enriched search (PRD-027), position tracker (PRD-028), person profile (PRD-029).
+enriched search (PRD-027), position tracker, person profile (PRD-029).
 
 **Related:** [RFC gap analysis](../rfc/index.md#gaps) (technical backlog), [ADR gap analysis](../adr/index.md#gaps)
 (decisions and implementation state).
