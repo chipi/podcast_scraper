@@ -86,3 +86,26 @@ def test_a_name_that_escapes_the_directory_is_refused(tmp_path: Path) -> None:
     with use_extensions([_ext(tmp_path)]):
         with pytest.raises(ValueError):
             store.get_prompt_source("../outside")
+
+
+def test_ollamas_model_specific_template_is_found_in_an_extension(tmp_path: Path) -> None:
+    """A tuned per-model template that moved to an extension is still preferred (E04 item 6).
+
+    The lookup checked this package's directory only, so once the template moved the provider
+    fell back to the generic one, silently.
+    """
+    from podcast_scraper.providers.ollama.ollama_provider import OllamaProvider
+
+    _write(tmp_path, "ollama/tunedmodel_7b/ner/system_v9.j2", "tuned for this model")
+    provider = OllamaProvider.__new__(OllamaProvider)
+    fallback = "ollama/ner/system_v9"
+    with use_extensions([_ext(tmp_path)]):
+        chosen = provider._get_model_specific_prompt_path(
+            "tunedmodel:7b", "ner", "system_v9", fallback
+        )
+    assert chosen == "ollama/tunedmodel_7b/ner/system_v9"
+    with use_extensions([]):
+        assert (
+            provider._get_model_specific_prompt_path("tunedmodel:7b", "ner", "system_v9", fallback)
+            == fallback
+        )

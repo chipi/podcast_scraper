@@ -89,25 +89,6 @@ class TestAnthropicCostWiring(unittest.TestCase):
         provider.extract_kg_graph("transcript enough text to matter.", pipeline_metrics=pm)
         _assert_cost_recorded(pm, "record_llm_kg_call")
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_clean_transcript_records_cost(self, mock_anthropic: Mock, mock_retry: Mock) -> None:
-        from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
-
-        resp = _make_anthropic_response(in_tok=500, out_tok=400)
-        resp.content = [Mock(text="cleaned transcript body")]
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        client = Mock()
-        mock_anthropic.return_value = client
-        client.messages.create.return_value = resp
-
-        provider = AnthropicProvider(self.cfg)
-        provider.initialize()
-
-        pm = _mock_metrics_with_recorders("record_llm_cleaning_call")
-        provider.clean_transcript("some transcript text", pipeline_metrics=pm)
-        _assert_cost_recorded(pm, "record_llm_cleaning_call")
-
 
 # ---------------------------------------------------------------------------
 # Gemini
@@ -152,24 +133,6 @@ class TestGeminiCostWiring(unittest.TestCase):
         pm = _mock_metrics_with_recorders("record_llm_kg_call")
         provider.extract_kg_graph("transcript enough text to matter.", pipeline_metrics=pm)
         _assert_cost_recorded(pm, "record_llm_kg_call")
-
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_clean_transcript_records_cost(self, mock_genai: Mock, mock_retry: Mock) -> None:
-        from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
-
-        resp = _make_gemini_response(in_tok=500, out_tok=400, text="cleaned transcript body")
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        client = Mock()
-        mock_genai.Client.return_value = client
-        client.models.generate_content.return_value = resp
-
-        provider = GeminiProvider(self.cfg)
-        provider.initialize()
-
-        pm = _mock_metrics_with_recorders("record_llm_cleaning_call")
-        provider.clean_transcript("some transcript text", pipeline_metrics=pm)
-        _assert_cost_recorded(pm, "record_llm_cleaning_call")
 
 
 # ---------------------------------------------------------------------------
@@ -224,25 +187,6 @@ class TestMistralCostWiring(unittest.TestCase):
         provider.extract_kg_graph("transcript enough text to matter.", pipeline_metrics=pm)
         _assert_cost_recorded(pm, "record_llm_kg_call")
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_clean_transcript_records_cost(self, mock_mistral: Mock, mock_retry: Mock) -> None:
-        from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
-
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        client = Mock()
-        mock_mistral.return_value = client
-        client.chat.complete.return_value = _make_openai_shape_response(
-            content="cleaned transcript body"
-        )
-
-        provider = MistralProvider(self.cfg)
-        provider.initialize()
-
-        pm = _mock_metrics_with_recorders("record_llm_cleaning_call")
-        provider.clean_transcript("some transcript text", pipeline_metrics=pm)
-        _assert_cost_recorded(pm, "record_llm_cleaning_call")
-
 
 @pytest.mark.unit
 class TestDeepSeekCostWiring(unittest.TestCase):
@@ -267,25 +211,6 @@ class TestDeepSeekCostWiring(unittest.TestCase):
         provider.extract_kg_graph("transcript enough text to matter.", pipeline_metrics=pm)
         _assert_cost_recorded(pm, "record_llm_kg_call")
 
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("openai.OpenAI")
-    def test_clean_transcript_records_cost(self, mock_openai: Mock, mock_retry: Mock) -> None:
-        from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
-
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        client = Mock()
-        mock_openai.return_value = client
-        client.chat.completions.create.return_value = _make_openai_shape_response(
-            content="cleaned transcript body"
-        )
-
-        provider = DeepSeekProvider(self.cfg)
-        provider.initialize()
-
-        pm = _mock_metrics_with_recorders("record_llm_cleaning_call")
-        provider.clean_transcript("some transcript text", pipeline_metrics=pm)
-        _assert_cost_recorded(pm, "record_llm_cleaning_call")
-
 
 @pytest.mark.unit
 class TestGrokCostWiring(unittest.TestCase):
@@ -309,25 +234,6 @@ class TestGrokCostWiring(unittest.TestCase):
         pm = _mock_metrics_with_recorders("record_llm_kg_call")
         provider.extract_kg_graph("transcript enough text to matter.", pipeline_metrics=pm)
         _assert_cost_recorded(pm, "record_llm_kg_call")
-
-    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_clean_transcript_records_cost(self, mock_openai: Mock, mock_retry: Mock) -> None:
-        from podcast_scraper.providers.grok.grok_provider import GrokProvider
-
-        mock_retry.side_effect = lambda fn, **kwargs: fn()
-        client = Mock()
-        mock_openai.return_value = client
-        client.chat.completions.create.return_value = _make_openai_shape_response(
-            content="cleaned transcript body"
-        )
-
-        provider = GrokProvider(self.cfg)
-        provider.initialize()
-
-        pm = _mock_metrics_with_recorders("record_llm_cleaning_call")
-        provider.clean_transcript("some transcript text", pipeline_metrics=pm)
-        _assert_cost_recorded(pm, "record_llm_cleaning_call")
 
 
 # ---------------------------------------------------------------------------

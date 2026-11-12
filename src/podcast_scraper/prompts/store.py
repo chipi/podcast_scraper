@@ -127,6 +127,15 @@ def _find_template(rel_path: Path) -> Tuple[Path, Path]:
     return dirs[0] / rel_path, dirs[0]
 
 
+def template_exists(name: str) -> bool:
+    """True when ``name`` (without ``.j2``) is a template in an extension's directory or this
+    package's, by its exact name: the shared summarization fallback does not count."""
+    rel_path = Path(f"{name}.j2")
+    if ".." in rel_path.parts:
+        raise ValueError(f"prompt template name escapes the prompt dir: {rel_path}")
+    return any((d / rel_path).is_file() for d in _search_dirs())
+
+
 def _template_path_or_raise(rel_path: Path, requested_name: str) -> Tuple[Path, Path]:
     path, base = _find_template(rel_path)
     if not path.is_file():
