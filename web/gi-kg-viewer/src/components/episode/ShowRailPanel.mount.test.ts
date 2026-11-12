@@ -156,15 +156,16 @@ describe('ShowRailPanel — header + episodes', () => {
     expect(w.find('a[href="http://x/rss.xml"]').exists()).toBe(true)
   })
 
-  it('lists the show episodes with GI/KG badges', async () => {
+  it('lists the show episodes with the KG badge, and no GI badge of its own', async () => {
     stubApi()
     const w = mount(ShowRailPanel)
     await flushPromises()
 
     expect(w.find('[data-testid="show-rail-episode-0"]').text()).toContain('Alpha Episode One')
     expect(w.find('[data-testid="show-rail-episode-1"]').text()).toContain('Alpha Episode Two')
-    // GI/KG badges are siblings of the (clickable) title area, not nested inside it.
-    expect(w.get('[data-testid="show-rail-panel"]').text()).toContain('GI')
+    // The KG badge is a sibling of the (clickable) title area, not nested inside it.
+    const badges = w.findAll('[data-testid="show-rail-panel"] li span.rounded')
+    expect(badges.map((b) => b.text())).toEqual(['KG'])
   })
 
   it('opens an episode via subject.focusEpisode (Back-to-show set up)', async () => {
@@ -230,12 +231,13 @@ describe('ShowRailPanel — show signals', () => {
     expect(spy).toHaveBeenCalledWith('person:jane')
   })
 
-  it('renders the enrichment aggregates: themes, trending, grounding, recurring guests', async () => {
+  it('renders the enrichment aggregates: themes, trending, recurring guests', async () => {
     stubApi()
     const w = mount(ShowRailPanel)
     await flushPromises()
 
-    expect(w.get('[data-testid="show-rail-grounding"]').text()).toContain('80%')
+    // Grounding is GI: a downstream signals section renders it, this viewer does not.
+    expect(w.find('[data-testid="show-rail-grounding"]').exists()).toBe(false)
     expect(w.get('[data-testid="show-rail-theme"]').text().replace(/\s+/g, ' ')).toBe('AI stuff · 3')
     expect(w.get('[data-testid="show-rail-trending"]').text()).toContain('2.5×')
     expect(w.get('[data-testid="show-rail-recurring"]').text().replace(/\s+/g, ' ')).toBe(
@@ -289,6 +291,18 @@ describe('ShowRailPanel — show signals', () => {
   // the viewer did not, and this test defended the old behaviour rather than catching it
   // (cross-surface review 2026-09-18). Replaced by the two anchor tests at the end of this file.
 
+  it('a show whose only signal is grounding shows no signals block here', async () => {
+    stubApi(null, {
+      path: '/corpus',
+      feed_id: 'alpha',
+      episode_count: 1,
+      grounding: SIGNALS.grounding,
+    })
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="show-rail-signals"]').exists()).toBe(false)
+  })
+
   it('hides the signals block when the feed has no topics or people', async () => {
     stubApi(null, { path: '/corpus', feed_id: 'alpha', episode_count: 0, top_topics: [], key_people: [] })
     const w = mount(ShowRailPanel)
@@ -298,7 +312,7 @@ describe('ShowRailPanel — show signals', () => {
 })
 
 describe('ShowRailPanel — episode rows, sort, graph', () => {
-  it('shows each episode full summary + digest-parity topic pills (cluster-coloured)', async () => {
+  it('shows each episode full summary, and leaves the topic pills to a row section', async () => {
     stubApi()
     const w = mount(ShowRailPanel)
     await flushPromises()
@@ -306,23 +320,9 @@ describe('ShowRailPanel — episode rows, sort, graph', () => {
     expect(w.get('[data-testid="show-rail-episode-0"]').text()).toContain(
       'The full recap for episode one',
     )
-    const pills = w.get('[data-testid="show-rail-episode-pills-0"]').findAll('button')
-    expect(pills.map((p) => p.text())).toEqual(['AI', 'policy'])
-    // The clustered pill (AI) gets the kg cluster chrome.
-    expect(pills[0].classes().join(' ')).toContain('border-kg')
-    // Opt-in pills: the episodes request carried with_cil_topics.
+    expect(w.find('[data-testid="show-rail-episode-pills-0"]').exists()).toBe(false)
+    // The request still carries with_cil_topics: a downstream row section renders the pills.
     expect(lastEpisodesUrl).toContain('with_cil_topics=true')
-  })
-
-  it('a topic pill opens that topic via subject.focusTopic', async () => {
-    stubApi()
-    const subject = useSubjectStore()
-    const spy = vi.spyOn(subject, 'focusTopic')
-    const w = mount(ShowRailPanel)
-    await flushPromises()
-
-    await w.get('[data-testid="show-rail-episode-pills-0"]').findAll('button')[1].trigger('click')
-    expect(spy).toHaveBeenCalledWith('topic:policy')
   })
 
   it('the sort control refetches episodes oldest-first', async () => {
