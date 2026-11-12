@@ -2665,6 +2665,78 @@ def _parse_corpus_status_args(argv: Optional[Sequence[str]] = None) -> argparse.
     return args
 
 
+def _parse_parked_episodes_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse ``parked-episodes``: list or release episodes parked after transcription failures."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "List the episodes parked after repeated transcription failures (and those counting "
+            "towards it), or release parked episodes so the next batch tries them again."
+        ),
+        prog="podcast_scraper parked-episodes",
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Corpus parent directory (holds parked_episodes.json beside corpus_incidents.jsonl).",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--release",
+        nargs="+",
+        metavar="EPISODE_ID",
+        default=[],
+        help="Release these parked episodes.",
+    )
+    group.add_argument("--release-all", action="store_true", help="Release every parked episode.")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="parked_format",
+        help="Output format for the listing (default: text).",
+    )
+    args = parser.parse_args(argv or [])
+    args.command = "parked-episodes"
+    return args
+
+
+def _run_parked_episodes(args: argparse.Namespace, log: logging.Logger) -> int:
+    import json as _json
+
+    from .workflow import episode_park
+
+    corpus = str(args.output_dir)
+    try:
+        if args.release or args.release_all:
+            released = episode_park.release(corpus, args.release, all_parked=bool(args.release_all))
+            print(f"released {len(released)}: {' '.join(released)}".rstrip())
+            return 0
+        doc = episode_park.list_episodes(corpus)
+    except KeyError as exc:
+        log.error("Not parked, nothing released: %s", exc.args[0])
+        return 1
+    except (OSError, ValueError) as exc:
+        log.error("Cannot read parked episodes: %s", exc)
+        return 1
+    if args.parked_format == "json":
+        print(_json.dumps(doc, indent=2, sort_keys=True))
+        return 0
+    episodes = doc.get("episodes", {})
+    parked = {e: v for e, v in episodes.items() if v.get("parked_at")}
+    counting = {e: v for e, v in episodes.items() if not v.get("parked_at")}
+    print(f"parked: {len(parked)}  counting: {len(counting)}")
+    for label, group in (("PARKED", parked), ("counting", counting)):
+        for eid, v in sorted(group.items()):
+            fails = v.get("failures") or []
+            last = fails[-1] if fails else {}
+            print(
+                f"{label} {eid} failures={len(fails)} parked_at={v.get('parked_at') or '-'} "
+                f"last={last.get('exception_type', '-')} {last.get('at', '-')} "
+                f"feed={v.get('feed_url') or '-'}"
+            )
+    return 0
+
+
 def _parse_pricing_assumptions_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse arguments for ``pricing-assumptions`` subcommand."""
     parser = argparse.ArgumentParser(
@@ -3300,6 +3372,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     if argv and len(argv) > 0 and argv[0] == "corpus-status":
         cs_argv = list(argv[1:]) if len(argv) > 1 else []
         return _parse_corpus_status_args(cs_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "parked-episodes":
+        return _parse_parked_episodes_args(list(argv[1:]))
 
     if argv and len(argv) > 0 and argv[0] == "pricing-assumptions":
         pa_argv = list(argv[1:]) if len(argv) > 1 else []
@@ -4359,6 +4434,7 @@ def _main(  # noqa: C901 - main function handles multiple command paths
             "index",
             "insight-clusters",
             "kg",
+            "parked-episodes",
             "pricing-assumptions",
             "search",
             "serve",
@@ -4424,6 +4500,9 @@ def _main(  # noqa: C901 - main function handles multiple command paths
         else:
             print(format_corpus_status_text(st), end="")
         return 0
+
+    if hasattr(args, "command") and args.command == "parked-episodes":
+        return _run_parked_episodes(args, log)
 
     if hasattr(args, "command") and args.command == "pricing-assumptions":
         return _run_pricing_assumptions(args)
