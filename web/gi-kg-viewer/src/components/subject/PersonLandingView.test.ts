@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PersonLandingView from './PersonLandingView.vue'
 import { invalidateRelationalCache } from '../../composables/useRelationalCache'
@@ -595,6 +595,66 @@ describe('PersonLandingView topic grouping', () => {
     expect(marked.map((c) => c.text())).toEqual(['⧉AI ethics'])
     expect(marked[0].attributes('title')).toBe('Group: Ethics')
     topicGrouping.reset()
+    w.unmount()
+  })
+})
+
+describe('PersonLandingView — personProfileSections', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    invalidateRelationalCache()
+    fetchPositions.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchPersonProfile.mockResolvedValue({ subject: 'person:alice', profile: {} })
+    fetchPersonTopics.mockResolvedValue({ subject: 'person:alice', results: [] })
+    fetchCoSpeakers.mockResolvedValue({ subject: 'person:alice', results: [] })
+  })
+
+  async function mountView(view: 'full' | 'positions') {
+    const { personProfileSections } = await import('../../extensions')
+    for (const region of ['header', 'profile', 'positions', 'full'] as const) {
+      personProfileSections.register({
+        id: region,
+        region,
+        component: {
+          props: ['personId', 'view'],
+          template: `<span data-testid="ext-${region}">{{ personId }}/{{ view }}</span>`,
+        },
+      })
+    }
+    useArtifactsStore().parsedList = [makePersonArtifact()]
+    const shell = useShellStore()
+    shell.corpusPath = '/corpus'
+    shell.healthStatus = 'ok'
+    useSubjectStore().focusPerson('person:alice')
+    const w = mount(PersonLandingView, {
+      attachTo: document.body,
+      props: { subjectIdOverride: 'person:alice', view },
+      global: { stubs: STUBS },
+    })
+    await flushPromises()
+    return w
+  }
+
+  afterEach(async () => {
+    const { personProfileSections } = await import('../../extensions')
+    personProfileSections.reset()
+  })
+
+  const shown = (w: ReturnType<typeof mount>) =>
+    ['header', 'profile', 'positions', 'full'].filter((r) =>
+      w.find(`[data-testid="ext-${r}"]`).exists(),
+    )
+
+  it('the full view shows the header, profile and full sections, with the person', async () => {
+    const w = await mountView('full')
+    expect(shown(w)).toEqual(['header', 'profile', 'full'])
+    expect(w.find('[data-testid="ext-header"]').text()).toBe('person:alice/full')
+    w.unmount()
+  })
+
+  it('the positions view shows the header and positions sections', async () => {
+    const w = await mountView('positions')
+    expect(shown(w)).toEqual(['header', 'positions'])
     w.unmount()
   })
 })
