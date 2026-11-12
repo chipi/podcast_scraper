@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Unit tests for Grok providers via factory (Issue #1095).
+
+These tests verify Grok provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_grok_provider.py.
+"""
+
+import os
+import unittest
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
+# Mock openai for imports (Grok uses the OpenAI SDK). Scoped via
+# setUpModule / tearDownModule so the mock doesn't leak into other
+# integration tests that need the real SDK. See
+# INTEGRATION_TESTING_GUIDE.md → "Mocking LLM SDKs at sys.modules".
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+
+
+def setUpModule():
+    _patch_openai.start()
+
+
+def tearDownModule():
+    _patch_openai.stop()
+
+
+from podcast_scraper import config
+from podcast_scraper.summarization.factory import create_summarization_provider
+
+pytestmark = [pytest.mark.integration, pytest.mark.module_grok_providers]
+
+
+@pytest.mark.llm
+@pytest.mark.grok
+class TestGrokSpeakerDetectorFactory(unittest.TestCase):
+    """Test Grok speaker detection provider via factory."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="grok",
+            grok_api_key="test-api-key-123",
+            auto_speakers=True,
+        )
+
+    def test_detect_speakers_missing_api_key(self):
+        """Test that missing API key raises ValidationError."""
+        from pydantic import ValidationError
+
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("GROK_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                config.Config(
+                    rss_url="https://example.com/feed.xml", speaker_detector_provider="grok"
+                )
+            self.assertIn("Grok API key required", str(cm.exception))
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["GROK_API_KEY"] = original_key
+
+
+@pytest.mark.llm
+@pytest.mark.grok
+class TestGrokSummarizationProviderFactory(unittest.TestCase):
+    """Test Grok summarization provider via factory."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="grok",
+            grok_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_provider_initialization(self, mock_openai):
+        """Test that Grok summarization provider initializes correctly via factory."""
+        provider = create_summarization_provider(self.cfg)
+        provider.initialize()
+
+        # Verify OpenAI client was created
+        mock_openai.assert_called_once()
+        self.assertTrue(provider._summarization_initialized)
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_summarize_success(self, mock_render, mock_openai):
+        """Test successful summarization via Grok API via factory."""
+        # Mock OpenAI client and response
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "This is a summary."
+        mock_response.usage = Mock()
+        mock_response.usage.prompt_tokens = 1000
+        mock_response.usage.completion_tokens = 200
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
+
+        mock_render.side_effect = lambda name, **kwargs: "test prompt"
+
+        provider = create_summarization_provider(self.cfg)
+        provider.initialize()
+
+        result = provider.summarize("Long transcript text here...")
+
+        self.assertEqual(result["summary"], "This is a summary.")
+        self.assertEqual(result["metadata"]["provider"], "grok")
+
+    def test_summarize_missing_api_key(self):
+        """Test that missing API key raises ValidationError."""
+        from pydantic import ValidationError
+
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("GROK_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_provider="grok",
+                    generate_summaries=True,
+                    generate_metadata=True,
+                )
+            self.assertIn("Grok API key required", str(cm.exception))
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["GROK_API_KEY"] = original_key
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_factory_creates_grok_provider(self, mock_openai):
+        """Test that factory creates Grok summarization provider."""
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        provider = create_summarization_provider(self.cfg)
+        # Factory returns unified GrokProvider
+        self.assertEqual(provider.__class__.__name__, "GrokProvider")
