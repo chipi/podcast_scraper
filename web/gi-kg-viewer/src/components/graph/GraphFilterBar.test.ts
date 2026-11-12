@@ -96,6 +96,22 @@ describe('GraphFilterBar', () => {
     expect(w.get(BAR).find('span[aria-hidden="true"]').exists()).toBe(true)
   })
 
+  it('renders registered filter-bar chips after its own, before the divider', async () => {
+    const { graphFilterBarChips } = await import('../../extensions')
+    graphFilterBarChips.register({
+      id: 'x',
+      component: { template: '<span data-testid="ext-chip">x</span>' },
+    })
+    const gf = useGraphFilterStore()
+    gf.state = makeState()
+    const w = mountBar()
+    const html = w.get(BAR).html()
+    expect(html.indexOf('ext-chip')).toBeGreaterThan(html.indexOf('stub-sources'))
+    expect(html.indexOf('ext-chip')).toBeLessThan(html.indexOf('aria-hidden'))
+    graphFilterBarChips.reset()
+    w.unmount()
+  })
+
   it('passes typeHistogramCounts down to the Types chip', () => {
     const gf = useGraphFilterStore()
     gf.state = makeState()
