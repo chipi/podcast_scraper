@@ -799,6 +799,16 @@ class Config(BaseModel):
             "one log."
         ),
     )
+    transcription_park_after_failures: int = Field(
+        default=2,
+        ge=0,
+        description=(
+            "Park an episode after this many counted transcription failures, so later batches "
+            "skip it until it is released by hand (``parked-episodes --release``). A failure "
+            "counts once per multi-feed batch, and only when another episode in the batch "
+            "transcribed. 0 turns parking off."
+        ),
+    )
     output_dir: Optional[str] = Field(
         default=None,
         alias="output_dir",

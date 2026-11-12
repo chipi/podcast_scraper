@@ -1520,6 +1520,13 @@ You can target **one** feed with `rss` (string) or **multiple** feeds with **`fe
 
 **Incident log (GitHub #557 / #558):** Optional config field **`incident_log_path`** points at **`corpus_incidents.jsonl`** (append-only JSONL: scope, category, message, feed URL, optional episode id/index). When unset, **`run_pipeline`** defaults to **`<effective_output_dir>/corpus_incidents.jsonl`**. Multi-feed **`service.run`** and the CLI set the default to **`<corpus_parent>/corpus_incidents.jsonl`** so every feed appends to one corpus-level file unless you override **`incident_log_path`** in YAML. Episode-level rows include predictable skips (oversize / payload limit after preprocessing), **preprocessing fallback** after ffmpeg failure (#558), and hard transcription errors.
 
+**Parked episodes:** **`transcription_park_after_failures`** (default **2**, **0** turns it off)
+parks an episode after that many counted transcription failures; later batches skip it before
+download until it is released with **`parked-episodes --release`**. A failure counts once per
+multi-feed batch and only when another episode in that batch transcribed, so an endpoint outage
+parks nothing. State is **`parked_episodes.json`** beside **`corpus_incidents.jsonl`**. See
+[CLI: parked episodes](CLI.md#parked-episodes-parked-episodes).
+
 **Deprecated key (file and dict validation only):** In YAML/JSON (and in dicts passed to **`Config.model_validate`**), **`multi_feed_soft_fail_exit_zero`** is still accepted and mapped to **`multi_feed_strict = not`** that boolean. Do not set both **`multi_feed_strict`** and the deprecated key. There is **no** environment variable for this flag; use YAML, JSON, or **`Config(multi_feed_strict=...)`**. **`Config(multi_feed_soft_fail_exit_zero=...)`** is **not** supported as a keyword argument because the legacy name is not a field on the model (**`extra=forbid`**).
 
 **Rules:**
