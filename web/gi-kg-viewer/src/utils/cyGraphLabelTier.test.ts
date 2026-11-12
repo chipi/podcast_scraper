@@ -166,5 +166,21 @@ describe('cyGraphLabelTier', () => {
       syncGraphNodeVisibilityTierClasses(core)
       expect(raw.batch).toHaveBeenCalledTimes(1)
     })
+
+    it('hides an extension’s types below its own zoom, and shows them above it', async () => {
+      const { graphTypeTraits } = await import('../extensions')
+      graphTypeTraits.register({ id: 't', zoomHidden: { types: ['Claim', 'Evidence'], minZoom: 1.5 } })
+      try {
+        const below = makeVisibilityCore(1.2) // above the viewer's own threshold, below the extension's
+        syncGraphNodeVisibilityTierClasses(below.core)
+        expect(below.nodesFn).toHaveBeenCalledWith('[type = "Claim"], [type = "Evidence"]')
+        expect(below.addClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
+        const above = makeVisibilityCore(2.0)
+        syncGraphNodeVisibilityTierClasses(above.core)
+        expect(above.addClass).not.toHaveBeenCalled()
+      } finally {
+        graphTypeTraits.reset()
+      }
+    })
   })
 })

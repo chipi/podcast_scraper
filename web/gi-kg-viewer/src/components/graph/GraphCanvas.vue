@@ -25,7 +25,11 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
-import { graphCanvasPlugins, graphLenses as registeredGraphLenses } from '../../extensions'
+import {
+  graphCanvasPlugins,
+  graphLenses as registeredGraphLenses,
+  graphTypeTraits,
+} from '../../extensions'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -1361,6 +1365,9 @@ function timelineLayoutSpec(core: Core): Record<string, unknown> {
   }
   placeChildren('node[type = "Insight"]', TIMELINE_INSIGHT_OFFSET)
   placeChildren('node[type = "Quote"]', TIMELINE_QUOTE_OFFSET)
+  for (const t of graphTypeTraits.list()) {
+    for (const s of t.episodeSatellites ?? []) placeChildren(`node[type = "${s.type}"]`, s.yOffset)
+  }
 
   return {
     name: 'preset',

@@ -9,6 +9,7 @@
  */
 import cytoscape, { type EdgeSingular, type NodeSingular } from 'cytoscape'
 import fcose from 'cytoscape-fcose'
+import { graphTypeTraits } from '../extensions'
 
 // #967 — register fcose (spectral pre-placement → seconds at thousands of nodes,
 // vs cose's ~O(n²) that froze the canvas for 2+ min at ~2.9k nodes). Registered in
@@ -111,11 +112,22 @@ export function giKgCoseNodeRepulsion(node: NodeSingular, profile: 'main' | 'com
 }
 
 /** Semantic ideal lengths (WIP §3.7); scaled down for compact profile vs main base. */
+/** An extension's layout for an edge type the viewer does not know (first registered wins). */
+function extensionEdgeLayout(edgeType: string): { length: number; elasticity: number } | null {
+  for (const t of graphTypeTraits.list()) {
+    const v = t.edgeLayout?.[edgeType]
+    if (v) return v
+  }
+  return null
+}
+
 function semanticIdealEdgeLengthPx(edgeType: string, profile: 'main' | 'compact'): number {
   const mainBase = MAIN.idealEdgeLengthBase
   const compactBase = COMPACT.idealEdgeLengthBase
   const scale = profile === 'compact' ? compactBase / mainBase : 1
   const scaled = (mainPx: number) => Math.max(24, Math.round(mainPx * scale))
+  const ext = extensionEdgeLayout(edgeType)
+  if (ext) return scaled(ext.length)
   switch (edgeType) {
     case 'HAS_INSIGHT':
       return scaled(60)
@@ -151,7 +163,7 @@ function semanticEdgeElasticity(edgeType: string, profile: 'main' | 'compact'): 
     MENTIONS_PERSON: 60,
     MENTIONS_ORG: 60,
   }
-  const v = mainMap[edgeType]
+  const v = mainMap[edgeType] ?? extensionEdgeLayout(edgeType)?.elasticity
   if (v == null) {
     return profile === 'main' ? MAIN.edgeElasticity : COMPACT.edgeElasticity
   }

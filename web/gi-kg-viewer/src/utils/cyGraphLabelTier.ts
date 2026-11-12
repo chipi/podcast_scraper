@@ -13,6 +13,7 @@
  * encoding §4 (zoom-gated tier reshape) + §5 (zoom-gated visibility).
  */
 import type { Core } from 'cytoscape'
+import { graphTypeTraits } from '../extensions'
 
 /** Below this zoom, labels are hidden (`graph-label-tier-none`). */
 export const GRAPH_LABEL_ZOOM_NONE_MAX = 0.5
@@ -74,5 +75,12 @@ export function syncGraphNodeVisibilityTierClasses(core: Core): void {
     const targets = core.nodes('[type = "Insight"], [type = "Quote"]')
     if (shouldHide) targets.addClass('graph-node-zoom-hidden')
     else targets.removeClass('graph-node-zoom-hidden')
+    for (const t of graphTypeTraits.list()) {
+      if (!t.zoomHidden?.types.length) continue
+      const sel = t.zoomHidden.types.map((type) => `[type = "${type}"]`).join(', ')
+      const own = core.nodes(sel)
+      if (z < t.zoomHidden.minZoom) own.addClass('graph-node-zoom-hidden')
+      else own.removeClass('graph-node-zoom-hidden')
+    }
   })
 }
