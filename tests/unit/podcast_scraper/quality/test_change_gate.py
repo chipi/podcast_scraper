@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -68,15 +71,12 @@ def _gate(root: Path, rid: str, computed: str, outcome: bool = True, verdict: st
     return hashlib.sha256(raw).hexdigest()
 
 
-def test_the_config_guards_migrations_naming_gi_and_the_ad_cut() -> None:
+def test_the_config_guards_migrations_and_only_paths_that_exist() -> None:
+    """Naming, GI and the ad cut left with E04 arc 2; their own checkout gates them now."""
     config = cg.load_config(REPO)
-    for rel in (
-        MIG,
-        "src/podcast_scraper/gi/pipeline.py",
-        "src/podcast_scraper/workflow/adfree_transcript.py",
-        "src/podcast_scraper/providers/ml/diarization/roster.py",
-    ):
-        assert cg.is_content_code(rel, config), rel
+    assert cg.is_content_code(MIG, config)
+    for pattern in config["content_code"]:
+        assert any(REPO.glob(pattern)), f"{pattern} guards nothing in this checkout"
     for rel in ("src/podcast_scraper/server/app_cache_warm.py", "tests/unit/x.py", "docs/a.md"):
         assert not cg.is_content_code(rel, config), rel
 
@@ -457,3 +457,76 @@ def test_three_reviews_are_three_blocks(tmp_path: Path) -> None:
     (tmp_path / "late").mkdir()
     [problem] = _problems(tmp_path / "late", "\n".join(late))
     assert "2026-11-07" in problem and "hard stop" in problem
+
+
+EXT = "src/ext_pkg/stages/gi/pipeline.py"
+
+
+def _extension_repo(tmp_path: Path, *, with_record: bool) -> Path:
+    """An extension's checkout: its own gate config and records, no copy of the gate module."""
+    root = tmp_path / "ext"
+    (root / "config").mkdir(parents=True)
+    (root / "docs/wip/changes").mkdir(parents=True)
+    (root / EXT).parent.mkdir(parents=True)
+    (root / EXT).write_text("x = 1\n", encoding="utf-8")
+    config = json.loads((REPO / cg.CONFIG_PATH).read_text(encoding="utf-8"))
+    config["content_code"] = ["src/ext_pkg/stages/gi/*.py"]
+    (root / cg.CONFIG_PATH).write_text(json.dumps(config), encoding="utf-8")
+    if with_record:
+        body = "".join(f"## {k}. step\n\n{v}\n\n" for k, v in sorted(DONE.items()))
+        (root / "docs/wip/changes/ext_change.md").write_text(
+            "---\nid: ext_change\nclass: full\nstatus: open\nissue: 1\ntouches:\n"
+            f"  - {EXT}\n---\n\n# ext_change\n\n{body}",
+            encoding="utf-8",
+        )
+    return root
+
+
+@pytest.mark.parametrize("with_record", [False, True], ids=["no_record", "record"])
+def test_the_hook_gates_a_checkout_that_has_no_gate_module_of_its_own(
+    tmp_path: Path, with_record: bool, capsys, monkeypatch
+) -> None:
+    """Moved content code is gated in its new repo by public's gate (E04 arc 2)."""
+    root = _extension_repo(tmp_path, with_record=with_record)
+    hook = _hook()
+    call = {"tool_name": "Edit", "cwd": "/", "tool_input": {"file_path": str(root / EXT)}}
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(call)))
+    assert hook.main() == 0
+    out = capsys.readouterr().out
+    if with_record:
+        assert out == ""
+    else:
+        assert '"deny"' in out and "no open change record lists it" in out
+
+
+def test_the_hook_sees_a_shell_write_to_another_package(tmp_path: Path) -> None:
+    root = _extension_repo(tmp_path, with_record=False)
+    hook = _hook()
+    call = {
+        "tool_name": "Bash",
+        "cwd": str(root),
+        "tool_input": {"command": f"sed -i 's/1/2/' {EXT}"},
+    }
+    assert hook._targets(call) == [(root.resolve(), EXT)]
+
+
+@pytest.mark.parametrize("with_record", [False, True], ids=["no_record", "record"])
+def test_the_commit_hook_gates_another_repos_staged_files(tmp_path: Path, with_record: bool):
+    root = _extension_repo(tmp_path, with_record=with_record)
+    git = ["git", "-C", str(root)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "add", "-A"], check=True)
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(REPO / "scripts/hooks/corpus_change_gate_hook.py"),
+            "--staged",
+            "--root",
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert run.returncode == (0 if with_record else 1), run.stderr
+    if not with_record:
+        assert EXT in run.stderr

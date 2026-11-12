@@ -231,9 +231,13 @@ artefact in a **change record**, `docs/wip/changes/<id>.md` ([README](../wip/cha
 [template](../wip/changes/TEMPLATE.md)), and three checks refuse the change without it:
 
 - **Before code:** a Claude Code hook refuses an edit to content code (`content_code` in
-  `config/corpus_change_gate.json`: migrations, naming, GI voice flags, the ad cut) until an open
-  record lists the path and has steps 1 to 5 done, the prediction dated and in integers.
-- **Before a commit:** the git pre-commit hook runs the same check on the staged files.
+  `config/corpus_change_gate.json`: here, the migrations) until an open record lists the path and
+  has steps 1 to 5 done, the prediction dated and in integers. An installed extension that holds
+  content code (naming, GI voice flags, the ad cut) keeps the same config and records in its own
+  checkout; the hook finds the config above the edited file and judges it with this repo's gate.
+- **Before a commit:** the git pre-commit hook runs the same check on the staged files; an
+  extension's own pre-commit hook runs it with
+  `scripts/hooks/corpus_change_gate_hook.py --staged --root <its checkout>`.
 - **Before landing:** a unit test refuses a registered migration from 0031 on without its record,
   its gate report and steps 1 to 8 done.
 
