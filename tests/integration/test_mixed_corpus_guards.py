@@ -221,6 +221,11 @@ def test_people_and_topics_join_nothing_new(corpora: tuple[Path, Path]) -> None:
         return sorted((t.topic_id, t.episode_id) for t in gather_corpus_topics(root))
 
     assert topics(mixed) == topics(podcast)
+    asked_topics = gather_corpus_topics(mixed, content_types={"podcast_episode", "test_text_item"})
+    text_topics = {(t.topic_id, t.episode_id) for t in asked_topics} - set(topics(podcast))
+    assert {tid for tid, eid in text_topics if eid.startswith("item:test_text_item:")} == {
+        "topic:trail-building"
+    }
     assert len(collect_insight_rows_from_corpus(mixed)) == len(
         collect_insight_rows_from_corpus(podcast)
     )

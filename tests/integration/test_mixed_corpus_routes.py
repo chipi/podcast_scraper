@@ -6,13 +6,15 @@ The mixed corpus is the guards' (``test_mixed_corpus_guards.corpora``: the podca
 corpus plus a text batch in ``sources/`` naming a podcast guest, a person only it names and a
 podcast topic). The baseline is the same tree with ``sources/`` removed, so both carry the root
 stamps the batch wrote (manifest, run summary, produced-by) and differ only in the other type's
-items. Each route the app registers is called on both, signed in, with the parameters a route
-requires filled from ids both hold. The answers are compared with the corpus path and ISO times
-masked.
+items. Each corpus builds a search index (the real indexer, a fake embedder); the two must hold
+the same rows, and then share one (see ``baseline_and_mixed``). Each route the app registers is
+called on both, signed in, with the parameters a route requires filled from ids both hold (about
+130 answer 200). The answers are compared with the corpus path and ISO times masked.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 import shutil
 import time
@@ -34,30 +36,93 @@ from tests.integration.test_mixed_corpus_guards import corpora  # noqa: F401 - t
 
 pytestmark = [pytest.mark.integration]
 
-#: Values for the path and required query parameters: ids both corpora hold.
+_RUN = "feeds/p01/run_20260101-000000"
+
+#: Values for the path and required query parameters: ids both corpora hold (the validation
+#: corpus's p01_e01 and its guest). ``slug`` is added at run time from the app's own episode list.
+#: Left out, so those routes answer 422 on both sides: auth and OAuth flow parameters, ``ref``
+#: (a signed artwork or unsubscribe token), ``path`` (the corpus root, which differs), ``channel``.
 _PARAMS: Dict[str, str] = {
     "q": "trail building",
     "query": "trail building",
     "topic": "topic:trail-building",
     "topic_id": "topic:trail-building",
+    "subject": "topic:trail-building",
     "person": "person:liam-verbeek",
     "person_id": "person:liam-verbeek",
     "entity": "person:liam-verbeek",
     "entity_id": "person:liam-verbeek",
     "id": "person:liam-verbeek",
     "node_id": "person:liam-verbeek",
+    "kind": "person",
+    "feed_id": "p01",
+    "podcast": "p01",
+    "episode": "ep-db8f44d2e07a22bd",
+    "insight": "insight:bf9b3bf4a21ee6f8",
+    "metadata_relpath": f"{_RUN}/metadata/p01_e01.metadata.json",
+    "relpath": f"{_RUN}/transcripts/p01_e01.txt",
+    "enricher_id": "insight_sentiment",
 }
 
 _ISO_TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?")
 
 
+_EMBED_DIM = 8
+
+
+def _fake_encode(text: Any, *_args: Any, **_kwargs: Any) -> List[float]:
+    """A fixed, model-free embedding (no download): the same text gives the same vector."""
+    digest = hashlib.sha256(str(text).encode("utf-8")).digest()
+    return [b / 255.0 for b in digest[:_EMBED_DIM]]
+
+
+def _index_rows(root: Path) -> Dict[Tuple[str, str], Dict[str, str]]:
+    """Every row of the corpus's search index, by tier and id, without its vector."""
+    from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
+
+    backend = LanceDBBackend(str(root / "search" / "lance_index"))
+    rows: Dict[Tuple[str, str], Dict[str, str]] = {}
+    for tier in backend.TABLES:
+        table = backend._open_if_exists(tier)
+        if table is None:
+            continue
+        frame = table.to_pandas()
+        cols = [c for c in frame.columns if c not in ("vector", "embedding")]
+        for rec in frame[cols].to_dict("records"):
+            rows[(tier, str(rec.get("id")))] = {k: str(v) for k, v in rec.items()}
+    return rows
+
+
 @pytest.fixture(scope="module")
-def baseline_and_mixed(corpora: Tuple[Path, Path]) -> Tuple[Path, Path]:  # noqa: F811
+def baseline_and_mixed(
+    corpora: Tuple[Path, Path],  # noqa: F811
+) -> Iterator[Tuple[Path, Path]]:
+    """The two corpora with a search index, built by the real indexer over a fake embedder
+    (patched for the whole module, so search queries embed the same way).
+
+    Two builds over identical rows still rank ties differently (shown with two podcast-only
+    copies, 2026-11-12), so the index is checked at build time and shared at query time: each
+    corpus builds its own and the two must hold the same rows; then the mixed corpus serves the
+    baseline's, so the routes compare what the corpus adds at query time, on one index.
+    """
+    from podcast_scraper.providers.ml import embedding_loader
+    from podcast_scraper.search.two_tier_indexer import build_two_tier_index
+
     _podcast, mixed = corpora
     baseline = mixed.parent / "baseline"
     shutil.copytree(mixed, baseline, dirs_exist_ok=False)
     shutil.rmtree(baseline / "sources")
-    return baseline, mixed
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(embedding_loader, "encode", _fake_encode)
+        for root in (baseline, mixed):
+            stats = build_two_tier_index(root, root / "search" / "lance_index", drop_existing=True)
+            assert stats.episodes > 50, stats
+        built = _index_rows(baseline)
+        assert len(built) > 1000, len(built)
+        assert _index_rows(mixed) == built, "the mixed corpus's index holds other rows"
+        shutil.rmtree(mixed / "search" / "lance_index")
+        shutil.copytree(baseline / "search" / "lance_index", mixed / "search" / "lance_index")
+        yield baseline, mixed
 
 
 def _client(root: Path, data: Path) -> TestClient:
@@ -92,17 +157,24 @@ def _get_routes(root: Path) -> List[Tuple[str, APIRoute]]:
     )
 
 
-def _url(path: str, route: APIRoute) -> Optional[str]:
+def _url(path: str, route: APIRoute, params: Dict[str, str]) -> Optional[str]:
     for name in re.findall(r"{(\w+)(?::path)?}", path):
-        if name not in _PARAMS:
+        if name not in params:
             return None
-        path = re.sub(r"{%s(?::path)?}" % name, _PARAMS[name], path)
+        path = re.sub(r"{%s(?::path)?}" % name, params[name], path)
     query = [
-        f"{p.name}={_PARAMS[p.name]}"
+        f"{p.name}={params[p.name]}"
         for p in route.dependant.query_params
-        if p.field_info.is_required() and p.name in _PARAMS
+        if p.field_info.is_required() and p.name in params
     ]
     return path + ("?" + "&".join(query) if query else "")
+
+
+def _slug(client: TestClient) -> str:
+    """A podcast episode's slug, from the app's own episode list (its first entry)."""
+    items = client.get("/api/app/episodes").json()["items"]
+    assert items, "the episode list is empty"
+    return str(items[0]["slug"])
 
 
 def _masked(resp: Any, roots: Tuple[Path, ...]) -> Tuple[int, str]:
@@ -122,18 +194,26 @@ def test_every_get_route_answers_the_same(
         "baseline": _client(baseline, tmp_path / "baseline-data"),
         "mixed": _client(mixed, tmp_path / "mixed-data"),
     }
+    params = {**_PARAMS, "slug": _slug(clients["baseline"])}
     compared: List[str] = []
     differ: List[str] = []
     for path, route in _get_routes(baseline):
-        url = _url(path, route)
+        url = _url(path, route, params)
         if url is None:
             continue
         b = _masked(clients["baseline"].get(url), (baseline, mixed))
         m = _masked(clients["mixed"].get(url), (baseline, mixed))
         compared.append(f"{b[0]} {url}")
         if b != m:
-            differ.append(f"{url}: baseline {b[0]} {b[1][:400]!r}\n   mixed {m[0]} {m[1][:400]!r}")
+            at = next(
+                (i for i, (x, y) in enumerate(zip(b[1], m[1])) if x != y), min(len(b[1]), len(m[1]))
+            )
+            lo = max(0, at - 150)
+            differ.append(
+                f"{url} (status {b[0]}/{m[0]}, first difference at {at}):\n"
+                f"   baseline …{b[1][lo:at + 250]!r}\n   mixed    …{m[1][lo:at + 250]!r}"
+            )
     print("\n".join(compared))
     assert not differ, "\n".join(differ)
     ok = [c for c in compared if c.startswith("200 ")]
-    assert len(ok) > 60, f"only {len(ok)} routes answered 200: {compared}"
+    assert len(ok) > 120, f"only {len(ok)} routes answered 200: {compared}"
