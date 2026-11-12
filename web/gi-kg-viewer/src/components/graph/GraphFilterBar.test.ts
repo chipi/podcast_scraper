@@ -2,7 +2,9 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { ref } from 'vue'
 
+import { graphNodeFilters } from '../../extensions'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -178,6 +180,24 @@ describe('GraphFilterBar', () => {
     expect(gf.filtersAreActive).toBe(false)
     // Button disappears once everything is reset.
     expect(w.find(RESET).exists()).toBe(false)
+  })
+
+  it('a registered node filter set away from its default shows reset-all, and reset-all resets it', async () => {
+    const on = ref(false)
+    graphNodeFilters.register({ id: 'ext', keep: () => true, active: () => on.value, reset: () => (on.value = false) })
+    const artifacts = useArtifactsStore()
+    artifacts.parsedList = [makeGiArtifact()]
+    const gf = useGraphFilterStore()
+    const w = mountBar()
+    await w.vm.$nextTick()
+    expect(w.find(RESET).exists()).toBe(false)
+    on.value = true
+    await w.vm.$nextTick()
+    expect(gf.filtersAreActive).toBe(true)
+    await w.get(RESET).trigger('click')
+    expect(on.value).toBe(false)
+    expect(gf.filtersAreActive).toBe(false)
+    graphNodeFilters.reset()
   })
 
   it('exposes an accessible label on the reset button', () => {

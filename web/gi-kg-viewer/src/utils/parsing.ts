@@ -9,7 +9,7 @@ import type {
   RawGraphEdge,
   RawGraphNode,
 } from '../types/artifact'
-import { graphElementDecorators, graphNodeFilters } from '../extensions'
+import { graphElementDecorators, graphNodeFilters, graphTypeTraits } from '../extensions'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 import { stripLayerPrefixesForCil } from './mergeGiKg'
@@ -1298,6 +1298,17 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
  *  reasonably expect to see on first load stays on. */
 const DEFAULT_HIDDEN_TYPES: ReadonlySet<string> = new Set(['Quote', 'Speaker'])
 
+/** Off by default: the viewer's own types plus any `graphTypeTraits.defaultHidden`. */
+function typeHiddenByDefault(type: string): boolean {
+  if (DEFAULT_HIDDEN_TYPES.has(type)) return true
+  return graphTypeTraits.list().some((t) => t.defaultHidden?.includes(type))
+}
+
+/** A registered node filter with state of its own is set away from its default. */
+function nodeFiltersActive(art: ParsedArtifact): boolean {
+  return graphNodeFilters.list().some((f) => f.active?.(art) === true)
+}
+
 export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState | null {
   if (!art) return null
   const allowedTypes: Record<string, boolean> = {}
@@ -1308,7 +1319,7 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
     const t = n.type || '?'
     if (!seen.has(t)) {
       seen.add(t)
-      allowedTypes[t] = !DEFAULT_HIDDEN_TYPES.has(t)
+      allowedTypes[t] = !typeHiddenByDefault(t)
     }
   }
   return {
@@ -1366,13 +1377,11 @@ function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
   return out
 }
 
-const GRAPH_TYPES_OFF_BY_DEFAULT = new Set(['Quote', 'Speaker'])
-
 /** Graph tab: hide noisy node types on first paint (see docs/architecture/VIEWER_GRAPH_SPEC.md). */
 export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): void {
   const next: Record<string, boolean> = { ...state.allowedTypes }
   for (const k of Object.keys(next)) {
-    next[k] = !GRAPH_TYPES_OFF_BY_DEFAULT.has(k)
+    next[k] = !typeHiddenByDefault(k)
   }
   state.allowedTypes = next
 }
@@ -1381,7 +1390,7 @@ export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): vo
 export function graphTypesDeviateFromGraphSpec(state: GraphFilterState | null): boolean {
   if (!state) return false
   for (const [k, on] of Object.entries(state.allowedTypes)) {
-    const expected = !GRAPH_TYPES_OFF_BY_DEFAULT.has(k)
+    const expected = !typeHiddenByDefault(k)
     if (Boolean(on) !== expected) return true
   }
   return false
@@ -1398,7 +1407,7 @@ export function filtersActive(
    * when it deviates from its default-visibility. */
   const keys = Object.keys(state.allowedTypes)
   for (const k of keys) {
-    const defaultVisible = !DEFAULT_HIDDEN_TYPES.has(k)
+    const defaultVisible = !typeHiddenByDefault(k)
     if (state.allowedTypes[k] !== defaultVisible) return true
   }
   if (
@@ -1422,7 +1431,7 @@ export function filtersActive(
     }
   }
   if (state.graphFeedFilterId !== null) return true
-  return false
+  return nodeFiltersActive(fullArt)
 }
 
 /** Like ``filtersActive`` but ignores per-node-type visibility toggles (used for graph “more filters” popover indicator). */
@@ -1452,7 +1461,7 @@ export function filtersActiveExcludingNodeTypes(
     }
   }
   if (state.graphFeedFilterId !== null) return true
-  return false
+  return nodeFiltersActive(fullArt)
 }
 
 export function applyGraphFilters(
