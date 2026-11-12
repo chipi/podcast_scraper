@@ -125,6 +125,30 @@ Every evidence span (GI 4.0's quotes; any later evidence) carries:
   - Its `document_ref` is that path, with `variant: raw`.
   - Its evidence has `text_origin: authored`.
 
+## Rights, per item (advisor C3)
+
+Rights are fields every type shares, so they sit at the top level of the item's metadata
+(ADR-181), never in the KG. The type's transport or extractor writes them; a reader never infers
+them.
+
+| Field | Values | Meaning |
+| --- | --- | --- |
+| `licence` | the source's stated licence as given, or `null` | Recorded for review; no surface acts on it. |
+| `paywalled` | `true`, `false`, or `null` (not known) | The fetched page was a paywall or teaser. A teaser body is never chunked or enriched as if it were the whole item. |
+| `serveable` | `metadata`, `summary`, `none` | What a surface may show. `metadata`: title, link out, publisher, times. `summary`: that plus the summary the platform wrote. `none`: nothing; the item is kept for analysis only. No value shows the item's body (ADR-179). |
+| `mineable` | `true` or `false` | `false`: the body is not stored and the item is not enriched; only its metadata is kept. |
+
+- **Absent fields read as today's podcast behaviour:** a podcast episode carries none of them, and
+  its surfaces stay as they are. A non-podcast item without `serveable` is shown as `metadata`, the
+  narrowest value that still shows the item; without `mineable` it is `true`.
+- **Who honours them:** the type's writers (`mineable`), and every surface or response that shows
+  another type's item (`serveable`). News 1.0 builds both; the core release only fixes the contract.
+
+## Decided
+
+- **Node type names** (2026-11-12): `ContentItem`, after TERMINOLOGY's "Content item". The KG 3.0
+  schema and ingestion's KG 3.0 writer both use it.
+
 ## Reading v2 artifacts as v3
 
 Readers accept KG 2.x and GI 3.x until E06, through one adapter, so no surface has two code
@@ -157,8 +181,6 @@ corpus to v3. Until then, podcasts keep writing KG 2.x and GI 3.x.
 
 ## Open
 
-- **Node type names:** `ContentItem` follows TERMINOLOGY's "Content item"; `Item` is shorter. To
-  confirm with ingestion before the schema is written.
 - **The podcast id convergence parked in v2** ("Known limitations": KG derives `podcast:` from the
   feed id, GI from the title) is not solved here. R3b is the moment to converge it.
 - **GI 4.0's own fields** beyond the evidence contract are the private extension's design.
