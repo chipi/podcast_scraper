@@ -89,7 +89,7 @@ test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', ()
         loadSource: 'subject-external', camera: { kind: 'center-on-target' },
       })
       store.handoffRequested({
-        kind: 'graph-node', cyId: 'g:topic:public-investment', source: 'node-detail',
+        kind: 'graph-node', cyId: 'topic:public-investment', source: 'node-detail',
         loadSource: 'graph-internal', camera: { kind: 'center-on-target' },
       })
       store.handoffRequested({
