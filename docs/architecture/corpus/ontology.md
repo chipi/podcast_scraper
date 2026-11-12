@@ -28,10 +28,10 @@ to this ontology and the companion schemas
    co-occurrence was used as a retrieval signal. KG `MENTIONS` edges
    exist for display + relational queries (RFC-094), not ranking.
 2. **The grounding contract is load-bearing.**
-   `Insight.grounded = true ⇔ ≥1 SUPPORTED_BY → Quote` edge. The
-   viewer styles ungrounded Insights with a dashed border
-   (`web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts:407` (selector `node[type = "Insight"].insight-ungrounded`)) and
-   `hideUngroundedInsights` is a user-facing filter. Only the
+   `Insight.grounded = true ⇔ ≥1 SUPPORTED_BY → Quote` edge. A GI
+   build of the viewer styles ungrounded Insights with a dashed border
+   (selector `node[type = "Insight"].insight-ungrounded`) and offers
+   hiding them as a user-facing filter. Only the
    `SUPPORTED_BY` edge promotes `grounded=true`; no descriptive edge
    does.
 3. **`kg.json` and `gi.json` remain separate files on disk.** v2

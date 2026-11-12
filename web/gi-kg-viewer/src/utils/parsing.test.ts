@@ -31,7 +31,6 @@ import {
   parseArtifact,
   rankedPersonOrganizations,
   rankedPersonTopicMentions,
-  isInsightUngrounded,
   toCytoElements,
   toGraphElements,
 } from './parsing'
@@ -266,7 +265,6 @@ describe('defaultFilterState', () => {
     const state = defaultFilterState(parsedGi())!
     expect(state.allowedTypes.Episode).toBe(true)
     expect(state.allowedTypes.Insight).toBe(true)
-    expect(state.hideUngroundedInsights).toBe(false)
     expect(state.allowedEdgeTypes.supported_by).toBe(true)
     expect(state.allowedEdgeTypes.HAS_INSIGHT).toBe(true)
   })
@@ -313,13 +311,6 @@ describe('filtersActive', () => {
     expect(filtersActive(art, state)).toBe(true)
   })
 
-  it('returns true when hideUngroundedInsights is on for GI', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.hideUngroundedInsights = true
-    expect(filtersActive(art, state)).toBe(true)
-  })
-
   it('returns true when an edge type is disabled', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
@@ -340,12 +331,6 @@ describe('filtersActiveExcludingNodeTypes', () => {
     expect(filtersActiveExcludingNodeTypes(art, state)).toBe(false)
   })
 
-  it('returns true when hideUngroundedInsights is on', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.hideUngroundedInsights = true
-    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(true)
-  })
 })
 
 // ── applyGraphFilters ──
@@ -372,14 +357,6 @@ describe('applyGraphFilters', () => {
     expect(filtered.sourceCorpusRelPathByEpisodeId).toEqual(art.sourceCorpusRelPathByEpisodeId)
   })
 
-  it('hides ungrounded insights', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.hideUngroundedInsights = true
-    const filtered = applyGraphFilters(art, state)
-    expect(filtered.nodeTypes.Insight).toBe(1)
-  })
-
   it('filters edges to remaining nodes', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
@@ -399,38 +376,6 @@ describe('applyGraphFilters', () => {
     const filtered = applyGraphFilters(art, state)
     const types = (filtered.data.edges ?? []).map((e) => String(e.type || ''))
     expect(types).not.toContain('supported_by')
-  })
-
-  it('filters GI/KG layers for "both" kind', () => {
-    const art: ParsedArtifact = {
-      name: 'merged',
-      kind: 'both',
-      episodeId: 'ep1',
-      nodes: 3,
-      edges: 0,
-      nodeTypes: {},
-      data: {
-        nodes: [
-          { id: 'g:i1', type: 'Insight' },
-          { id: 'k:t1', type: 'Topic' },
-          { id: '__unified_ep__:ep1', type: 'Episode' },
-        ],
-        edges: [],
-      },
-    }
-    const state: GraphFilterState = {
-      allowedTypes: { Insight: true, Topic: true, Episode: true },
-      allowedEdgeTypes: {},
-      hideUngroundedInsights: false,
-      showGiLayer: true,
-      showKgLayer: false,
-      graphFeedFilterId: null,
-    }
-    const filtered = applyGraphFilters(art, state)
-    const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
-    expect(ids).toContain('g:i1')
-    expect(ids).toContain('__unified_ep__:ep1')
-    expect(ids).not.toContain('k:t1')
   })
 
   // #658 — feed filter prunes Episode nodes by ``properties.feed_id`` and
@@ -1531,23 +1476,8 @@ describe('toCytoElements', () => {
 
 })
 
-describe('isInsightUngrounded (RFC-080 V2)', () => {
-  it('returns true only when grounded === false', () => {
-    expect(isInsightUngrounded({ grounded: false })).toBe(true)
-    expect(isInsightUngrounded({ grounded: true })).toBe(false)
-    // Missing / null / non-boolean → grounded by default (no warning border
-    // for legacy artifacts predating the field).
-    expect(isInsightUngrounded({})).toBe(false)
-    expect(isInsightUngrounded(undefined)).toBe(false)
-    expect(isInsightUngrounded({ grounded: null as unknown as boolean })).toBe(false)
-  })
-})
-
-// ── RFC-080 V1: aggregated Episode↔Topic / Episode↔Person edges ──
-
 describe('toCytoElements — Episode publishDate (RFC-080 V3)', () => {
-
-  // RFC-080 V3 — Episode nodes carry `publishDate` (Unix ms) and
+  // Episode nodes carry `publishDate` (Unix ms) so the timeline layout can order them.
   it('attaches publishDate (Unix ms) on Episode nodes when publish_date is parseable', () => {
     const art = parseArtifact('p.gi.json', {
       episode_id: 'e1',
@@ -1611,9 +1541,6 @@ describe('applyGraphFilters topic cluster pruning', () => {
     const state: GraphFilterState = {
       allowedTypes: { TopicCluster: true, Topic: false },
       allowedEdgeTypes: {},
-      hideUngroundedInsights: false,
-      showGiLayer: true,
-      showKgLayer: true,
     }
     const out = applyGraphFilters(fullArt, state)
     expect(out.data.nodes?.some((n) => String(n.id) === 'tc:1')).toBe(false)

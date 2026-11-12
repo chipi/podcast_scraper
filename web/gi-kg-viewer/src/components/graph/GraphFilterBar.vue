@@ -4,9 +4,7 @@
  * and the legacy ``GraphFiltersPopover`` ⚙ button in
  * ``GraphCanvas.vue``. Layout:
  *
- *   [Types] [Feed] [Sources*]  |  [Edges] [Degree]      [× reset all]
- *
- * Sources chip renders only when ``kind === 'both'``.
+ *   [Types] [Feed] [registered chips]  |  [Edges] [Degree]      [× reset all]
  */
 import { computed } from 'vue'
 import { graphFilterBarChips } from '../../extensions'
@@ -14,7 +12,6 @@ import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import GraphTypesChip from './chips/GraphTypesChip.vue'
 import GraphFeedChip from './chips/GraphFeedChip.vue'
-import GraphSourcesChip from './chips/GraphSourcesChip.vue'
 import GraphEdgesChip from './chips/GraphEdgesChip.vue'
 import GraphDegreeChip from './chips/GraphDegreeChip.vue'
 
@@ -46,7 +43,6 @@ function resetAll(): void {
   >
     <GraphTypesChip :type-histogram-counts="props.typeHistogramCounts" />
     <GraphFeedChip />
-    <GraphSourcesChip />
     <component :is="chip.component" v-for="chip in graphFilterBarChips.list()" :key="chip.id" />
     <span aria-hidden="true" class="mx-0.5 h-4 w-px bg-border" />
     <GraphEdgesChip />

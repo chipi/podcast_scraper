@@ -328,17 +328,6 @@ function recencyWeightFromPublishMs(ms: number | null): number {
   return Math.max(0.4, 1.0 - (daysSince / 90) * 0.6)
 }
 
-/**
- * Insight is "ungrounded" when its raw `grounded` property is explicitly
- * `false`. Treats missing / null / non-boolean as grounded so legacy
- * artifacts predating the field don't all light up with warning borders.
- */
-export function isInsightUngrounded(
-  properties: Record<string, unknown> | undefined,
-): boolean {
-  return properties?.grounded === false
-}
-
 export function buildNodeTitle(n: RawGraphNode): string {
   try {
     const disp = nodeLabel(n)
@@ -1280,9 +1269,6 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
   return {
     allowedTypes,
     allowedEdgeTypes: collectEdgeTypeKeys(art),
-    hideUngroundedInsights: false,
-    showGiLayer: true,
-    showKgLayer: true,
     graphFeedFilterId: null,
   }
 }
@@ -1365,18 +1351,6 @@ export function filtersActive(
     const defaultVisible = !typeHiddenByDefault(k)
     if (state.allowedTypes[k] !== defaultVisible) return true
   }
-  if (
-    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
-    state.hideUngroundedInsights
-  ) {
-    return true
-  }
-  if (
-    fullArt.kind === 'both' &&
-    (state.showGiLayer === false || state.showKgLayer === false)
-  ) {
-    return true
-  }
   const aet = state.allowedEdgeTypes
   if (aet && typeof aet === 'object') {
     for (const k of Object.keys(aet)) {
@@ -1395,18 +1369,6 @@ export function filtersActiveExcludingNodeTypes(
   state: GraphFilterState | null,
 ): boolean {
   if (!fullArt || !state) return false
-  if (
-    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
-    state.hideUngroundedInsights
-  ) {
-    return true
-  }
-  if (
-    fullArt.kind === 'both' &&
-    (state.showGiLayer === false || state.showKgLayer === false)
-  ) {
-    return true
-  }
   const aet = state.allowedEdgeTypes
   if (aet && typeof aet === 'object') {
     for (const k of Object.keys(aet)) {
@@ -1424,34 +1386,6 @@ export function applyGraphFilters(
   state: GraphFilterState,
 ): ParsedArtifact {
   let nodes = (fullArt.data.nodes || []).slice()
-  if (fullArt.kind === 'both' && (!state.showGiLayer || !state.showKgLayer)) {
-    const gi = state.showGiLayer
-    const kg = state.showKgLayer
-    nodes = nodes.filter((n) => {
-      if (!n || typeof n !== 'object') return false
-      const id = String(n.id ?? '')
-      if (id.startsWith('__unified_ep__:')) {
-        return gi || kg
-      }
-      if (id.startsWith('g:')) {
-        return gi
-      }
-      if (id.startsWith('k:')) {
-        return kg
-      }
-      return true
-    })
-  }
-  if (
-    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
-    state.hideUngroundedInsights
-  ) {
-    nodes = nodes.filter((n) => {
-      if (!n || typeof n !== 'object') return false
-      if (n.type !== 'Insight') return true
-      return Boolean(n.properties && n.properties.grounded === true)
-    })
-  }
   const nodeFilters = graphNodeFilters.list()
   if (nodeFilters.length) {
     nodes = nodes.filter((n) => Boolean(n) && nodeFilters.every((f) => f.keep(n, state, fullArt)))
