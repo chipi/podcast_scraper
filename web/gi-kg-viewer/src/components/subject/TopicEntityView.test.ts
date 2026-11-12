@@ -1,31 +1,23 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
 import TopicEntityView from './TopicEntityView.vue'
+import { topicViewSections } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import type { ParsedArtifact, RawGraphEdge, RawGraphNode } from '../../types/artifact'
 
-// ── API mocks ────────────────────────────────────────────────────────────────
-// The relational PRD-033 FR4.2 fetches (cross-show / who-said / topic-entities)
-// are mocked; the timeline + mention list come from the in-memory graph slice.
-const fetchCrossShow = vi.fn()
-const fetchWhoSaid = vi.fn()
-const fetchTopicEntities = vi.fn()
-const fetchRelatedTopics = vi.fn()
+// The relational layer is only reached through registered sections; nothing here may call it.
+const relational = vi.fn()
 vi.mock('../../api/relationalApi', () => ({
-  fetchCrossShow: (...a: unknown[]) => fetchCrossShow(...a),
-  fetchWhoSaid: (...a: unknown[]) => fetchWhoSaid(...a),
-  fetchTopicEntities: (...a: unknown[]) => fetchTopicEntities(...a),
-  fetchRelatedTopics: (...a: unknown[]) => fetchRelatedTopics(...a),
-}))
-
-// Across-shows cover art loads feeds; stub it so tests don't hit the network.
-vi.mock('../../api/corpusLibraryApi', () => ({
-  fetchCorpusFeeds: () => Promise.resolve({ path: '/corpus', feeds: [] }),
+  fetchCrossShow: relational,
+  fetchWhoSaid: relational,
+  fetchTopicEntities: relational,
+  fetchRelatedTopics: relational,
 }))
 
 // SubjectTimelineChart wraps Chart.js (canvas) — stub to a passthrough.
@@ -106,10 +98,6 @@ describe('TopicEntityView.vue', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    fetchCrossShow.mockResolvedValue({ subject: 'topic:ai', groups: {} })
-    fetchWhoSaid.mockResolvedValue({ subject: 'topic:ai', groups: {} })
-    fetchTopicEntities.mockResolvedValue({ subject: 'topic:ai', results: [] })
-    fetchRelatedTopics.mockResolvedValue({ subject: 'topic:ai', results: [] })
   })
 
   it('renders the topic kind label, name, aliases and description', async () => {
@@ -127,17 +115,6 @@ describe('TopicEntityView.vue', () => {
     expect(w.get('[data-testid="topic-entity-view-name"]').text()).toBe('topic:missing')
     // No aliases / description rows for an unresolved subject.
     expect(w.find('[data-testid="topic-entity-view-aliases"]').exists()).toBe(false)
-  })
-
-  // Regression: NodeDetail passes the prefixed graph node id (g:topic:…) but the
-  // relational endpoints canonicalize on the bare corpus id — without stripping,
-  // every topic's Across-shows / Key-voices / Related-topics come back empty.
-  it('strips the graph layer prefix before the relational fetches', async () => {
-    await mountTopic(artifactOf([]), 'g:topic:ai')
-    expect(fetchCrossShow).toHaveBeenCalledWith('/corpus', 'topic:ai')
-    expect(fetchWhoSaid).toHaveBeenCalledWith('/corpus', 'topic:ai')
-    expect(fetchRelatedTopics).toHaveBeenCalledWith('/corpus', 'topic:ai')
-    expect(fetchTopicEntities).toHaveBeenCalledWith('/corpus', 'topic:ai')
   })
 
   it('labels a Person/Entity node as "Entity"', async () => {
@@ -181,118 +158,31 @@ describe('TopicEntityView.vue', () => {
 
   // ── Relational sections (FR4.2) ─────────────────────────────────────────────
 
-  it('renders cross-show rows from the relational layer', async () => {
-    fetchCrossShow.mockResolvedValue({
-      subject: 'topic:ai',
-      groups: {
-        'podcast:show-a': [
-          { id: 'i:9', type: 'Insight', text: 'Show A take on AI.', show_id: 'show-a', episode_id: 'e' },
-        ],
-      },
+  // ── Topic view sections ─────────────────────────────────────────────────────
+
+  describe('topicViewSections', () => {
+    afterEach(() => topicViewSections.reset())
+
+    it('renders a section after the description with the id it was given, and calls no relational route', async () => {
+      topicViewSections.register({
+        id: 's',
+        region: 'after-description',
+        component: defineComponent({
+          props: ['topicId'],
+          setup: (p) => () => h('span', { 'data-testid': 'ext-topic' }, String(p.topicId)),
+        }),
+      })
+      const { w } = await mountTopic(topicWithMentions(), 'g:topic:ai')
+      expect(w.get('[data-testid="ext-topic"]').text()).toBe('g:topic:ai')
+      const html = w.html()
+      expect(html.indexOf('topic-entity-view-description')).toBeLessThan(html.indexOf('ext-topic'))
+      expect(relational).not.toHaveBeenCalled()
     })
-    const { w } = await mountTopic(topicWithMentions())
-    expect(w.find('[data-testid="tev-cross-show"]').exists()).toBe(true)
-    expect(w.findAll('[data-testid="tev-cross-show-row"]')).toHaveLength(1)
-    expect(w.text()).toContain('Show A take on AI.')
-  })
 
-  it('renders who-said voices and focuses the person on click', async () => {
-    fetchWhoSaid.mockResolvedValue({
-      subject: 'topic:ai',
-      groups: {
-        'person:ada': [
-          { id: 'i:1', type: 'Insight', text: 'Ada on AI.', show_id: 's', episode_id: 'e' },
-        ],
-      },
+    it('renders nothing extra when nothing is registered', async () => {
+      const { w } = await mountTopic(topicWithMentions())
+      expect(w.find('[data-testid^="tev-"]').exists()).toBe(false)
+      expect(relational).not.toHaveBeenCalled()
     })
-    const { w, subject } = await mountTopic(topicWithMentions())
-    const voice = w.get('[data-testid="tev-voice-link"]')
-    // Names are title-cased for display (ada → Ada).
-    expect(voice.text()).toContain('Ada')
-    await voice.trigger('click')
-    expect(subject.kind).toBe('graph-node')
-    expect(subject.graphNodeCyId).toBe('person:ada')
-  })
-
-  it('renders entity chips and focuses an entity on click', async () => {
-    fetchTopicEntities.mockResolvedValue({
-      subject: 'topic:ai',
-      results: [{ id: 'org:openai', type: 'org', text: 'OpenAI', show_id: '', episode_id: '' }],
-    })
-    const { w, subject } = await mountTopic(topicWithMentions())
-    const chip = w.get('[data-testid="tev-entity-chip"]')
-    expect(chip.text()).toBe('OpenAI')
-    await chip.trigger('click')
-    expect(subject.kind).toBe('graph-node') // focusEntity opens the unified node view
-    expect(subject.graphNodeCyId).toBe('org:openai')
-  })
-
-  it('surfaces a relational error in the cross-show section', async () => {
-    fetchCrossShow.mockResolvedValue({ subject: 'topic:ai', groups: {}, error: 'relational boom' })
-    const { w } = await mountTopic(topicWithMentions())
-    expect(w.find('[data-testid="tev-cross-show"]').text()).toContain('relational boom')
-  })
-
-  it('skips relational fetches when health is unset', async () => {
-    await mountTopic(topicWithMentions(), 'topic:ai', { health: false })
-    expect(fetchCrossShow).not.toHaveBeenCalled()
-    expect(fetchWhoSaid).not.toHaveBeenCalled()
-    expect(fetchTopicEntities).not.toHaveBeenCalled()
-    expect(fetchRelatedTopics).not.toHaveBeenCalled()
-  })
-
-  it('renders related topics as chips (#1055)', async () => {
-    fetchRelatedTopics.mockResolvedValue({
-      subject: 'topic:ai',
-      results: [
-        { id: 'topic:ml', type: 'topic', text: 'Machine Learning', show_id: '', episode_id: '' },
-        { id: 'topic:safety', type: 'topic', text: 'AI safety', show_id: '', episode_id: '' },
-      ],
-    })
-    const { w } = await mountTopic(topicWithMentions())
-    const chips = w.findAll('[data-testid="tev-related-topic-chip"]')
-    expect(chips.map((c) => c.text())).toEqual(['Machine Learning', 'AI safety'])
-    expect(fetchRelatedTopics).toHaveBeenCalledWith('/corpus', 'topic:ai')
-  })
-
-  it('hides the related-topics section when empty', async () => {
-    const { w } = await mountTopic(topicWithMentions())
-    expect(w.find('[data-testid="tev-related-topics"]').exists()).toBe(false)
-  })
-
-  it('collapses entity mentions into one chip per entity with a cross-show tally (#7)', async () => {
-    fetchTopicEntities.mockResolvedValue({
-      subject: 'topic:ai',
-      results: [
-        { id: 'person:ada', type: 'person', text: 'Ada Lovelace', show_id: 'podcast:x', episode_id: 'ep1' },
-        { id: 'person:ada', type: 'person', text: 'Ada Lovelace', show_id: 'podcast:y', episode_id: 'ep2' },
-        { id: 'org:acme', type: 'org', text: 'Acme', show_id: 'podcast:x', episode_id: 'ep1' },
-      ],
-    })
-    const { w } = await mountTopic(topicWithMentions())
-    const chips = w.findAll('[data-testid="tev-entity-chip"]')
-    expect(chips).toHaveLength(2) // ada (deduped from 2 mentions) + acme
-    const ada = chips.find((c) => c.text().includes('Ada Lovelace'))
-    expect(ada?.find('[data-testid="tev-entity-shows"]').text()).toContain('2 shows')
-    const acme = chips.find((c) => c.text().includes('Acme'))
-    expect(acme?.find('[data-testid="tev-entity-shows"]').exists()).toBe(false) // single show → no badge
-  })
-
-  it('routes an entity chip click by type — person vs entity (#7)', async () => {
-    fetchTopicEntities.mockResolvedValue({
-      subject: 'topic:ai',
-      results: [
-        { id: 'person:ada', type: 'person', text: 'Ada Lovelace', show_id: 's', episode_id: 'e' },
-        { id: 'org:acme', type: 'org', text: 'Acme', show_id: 's2', episode_id: 'e2' },
-      ],
-    })
-    const { w, subject } = await mountTopic(topicWithMentions())
-    const focusPerson = vi.spyOn(subject, 'focusPerson')
-    const focusEntity = vi.spyOn(subject, 'focusEntity')
-    const chips = w.findAll('[data-testid="tev-entity-chip"]')
-    await chips.find((c) => c.text().includes('Ada Lovelace'))?.trigger('click')
-    expect(focusPerson).toHaveBeenCalledWith('person:ada')
-    await chips.find((c) => c.text().includes('Acme'))?.trigger('click')
-    expect(focusEntity).toHaveBeenCalledWith('org:acme')
   })
 })

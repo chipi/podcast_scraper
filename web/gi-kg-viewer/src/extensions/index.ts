@@ -170,6 +170,17 @@ export interface PersonProfileSection extends Entry {
 
 export const personProfileSections = extensionPoint<PersonProfileSection>('personProfileSections')
 
+/**
+ * A section of a topic's view, rendered with a `topicId` prop (the id the view was given, which
+ * may carry a graph layer prefix): `after-description` after the aliases and description.
+ */
+export interface TopicViewSection extends Entry {
+  region: 'after-description'
+  component: Component
+}
+
+export const topicViewSections = extensionPoint<TopicViewSection>('topicViewSections')
+
 /** A command in the command palette. */
 export interface PaletteCommandEntry extends Entry {
   label: string
