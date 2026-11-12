@@ -31,8 +31,9 @@ transcript, and are passed as a use case of each provider's `summarize`
 ## Prompts an installed extension adds
 
 Speaker detection (`<provider>/ner/`), transcript cleaning (`<provider>/cleaning/`), speaker
-naming (`shared/speaker_naming/`), insight extraction, evidence and the insight value gate are
-not in this package: the extension that runs those stages ships them and adds its directory
+naming (`shared/speaker_naming/`), insight extraction, evidence, the insight value gate and the
+tuned per-model summarization prompts (`ollama/<model>/`, `vllm/*`; the Ollama provider falls
+back to its generic `ollama/summarization/` prompts without them) are not in this package: the extension that runs those stages ships them and adds its directory
 through `Extension.prompt_dirs`. The store searches extensions' directories first, then this
 one (`podcast_scraper.prompts.store`), so their names resolve as before when it is installed.
 
