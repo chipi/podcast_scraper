@@ -46,14 +46,12 @@ already at the target shape, must be a clean no-op (detect `before == after` and
 
 - `m0001_faiss_to_lance`, `m0002_two_tier_native_reindex`, `m0004_insight_type_reindex` — **search
   index** rebuilds (Lance).
-- `m0003_gi_v3_typed_mentions` — **GI artifact** rewrite (typed MENTIONS + schema 3.0).
-- `m0005_gi_v3_1_route_and_tag` — **GI artifact** version stamp 3.0 → 3.1. Minimal
-  reference for "add a migration for a schema bump."
 - `m0006_kg_v2_typed_entities` — **KG artifact** rewrite (typed Person/Organization + id/kind
   normalization, schema 2.0). Replaced the former standalone `scripts/migrate_kg_*.py` one-offs.
-- `m0007_scope_bare_person_names` — **GI + KG together**: a single-token person id (`person:jensen`)
-  identifies someone within one episode and nobody globally, so it is scoped per episode — or
-  healed to the full name when that episode has exactly one candidate (#1685). The reference for
-  "both artifacts of an episode must be rewritten as a pair, or neither."
+  Minimal reference for "add a migration for a schema change."
+
+The GI migrations and the corpus repairs (speaker naming, person ids, ad cuts) are carried by an
+installed extension through `Extension.corpus_migrations`, with their ids unchanged, and run in
+the same ordered registry (ADR-174).
 
 See `docs/guides/CORPUS_UPGRADE.md` for the runner, ledger, and CLI details.

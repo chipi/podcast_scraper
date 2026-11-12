@@ -5,6 +5,11 @@ status: open
 issue: none
 touches:
   - src/podcast_scraper/upgrade/migrations/m0004_insight_type_reindex.py
+  - src/podcast_scraper/upgrade/migrations/m0007_scope_bare_person_names.py
+  - src/podcast_scraper/upgrade/migrations/m0010_canonical_person_names.py
+  - src/podcast_scraper/upgrade/apply_m0007.py
+  - src/podcast_scraper/upgrade/dry_run_m0007.py
+  - src/podcast_scraper/upgrade/rewrite_bridges_m0007.py
   - src/podcast_scraper/upgrade/migrations/m0006_kg_v2_typed_entities.py
   - src/podcast_scraper/upgrade/registry.py
   - src/podcast_scraper/upgrade/migrations/voice_rewrite_derived.py

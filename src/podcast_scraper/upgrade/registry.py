@@ -18,9 +18,7 @@ from .migrations.m0001_faiss_to_lance import FaissToLanceMigration
 from .migrations.m0002_two_tier_native_reindex import TwoTierNativeReindexMigration
 from .migrations.m0004_insight_type_reindex import InsightTypeReindexMigration
 from .migrations.m0006_kg_v2_typed_entities import KgV2TypedEntitiesMigration
-from .migrations.m0007_scope_bare_person_names import ScopeBarePersonNamesMigration
 from .migrations.m0008_object_entity_kind import ObjectEntityKindMigration
-from .migrations.m0010_canonical_person_names import CanonicalPersonNamesMigration
 from .migrations.m0011_shared_artwork_store import SharedArtworkStoreMigration
 from .migrations.m0013_artwork_thumbnails import ArtworkThumbnailsMigration
 from .migrations.m0021_backfill_feed_language import BackfillFeedLanguageMigration
@@ -44,9 +42,9 @@ _MIGRATIONS: List[Migration] = [
     TwoTierNativeReindexMigration(),
     InsightTypeReindexMigration(),
     KgV2TypedEntitiesMigration(),
-    ScopeBarePersonNamesMigration(),
+    # 0007 (bare person ids scoped) and 0010 (canonical person names) are corpus repairs an
+    # installed extension carries with their ids (E04 IP plan item 4).
     ObjectEntityKindMigration(),
-    CanonicalPersonNamesMigration(),
     SharedArtworkStoreMigration(),
     ArtworkThumbnailsMigration(),
     # 0021 backfills each show's declared RSS <language> onto its episodes (#2173).
