@@ -97,3 +97,10 @@ def test_registered_after_every_lower_id() -> None:
     ids = [m.id for m in get_migrations()]
     before = ids[: ids.index("0013_artwork_thumbnails")]
     assert before and all(i < "0013" for i in before)
+
+
+def test_registered_between_every_lower_and_every_higher_id() -> None:
+    """Its neighbours by id may be an installed extension's (E04); the order holds either way."""
+    ids = [m.id for m in get_migrations()]
+    at = ids.index("0013_artwork_thumbnails")
+    assert all(i < "0013" for i in ids[:at]) and all(i > "0013" for i in ids[at + 1 :])
