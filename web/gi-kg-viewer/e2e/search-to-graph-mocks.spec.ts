@@ -1,34 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { KG_SAMPLE_FIXTURE } from './fixtures'
 import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
 
-const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
-
-const TRANSCRIPT_BODY =
-  'Hello world transcript sample for CI quality metrics fixture.\nExtra line for scroll.'
+const artifactJson = readFileSync(KG_SAMPLE_FIXTURE, 'utf-8')
 
 /**
- * #1619 — stays fixture-driven, deliberately. Assessed 2026-08-14 against the live index.
+ * #1619 — stays fixture-driven, deliberately. It serves **`KG_SAMPLE_FIXTURE`** — a checked-in
+ * graph artifact — through `/api/artifacts/metadata/ci_sample.kg.json` and drives search against
+ * that graph, so the assertions do not move with whatever today's ranking surfaces. The Insight's
+ * graph detail (provenance, supporting quotes, transcript) is a downstream build's, with GI.
  *
- * Most of what this file "mocks" is not a stand-in for a backend: it serves **`GI_SAMPLE_FIXTURE`**
- * — a checked-in graph artifact — through `/api/artifacts/metadata/ci_sample.gi.json`, and then
- * asserts against that graph's specific nodes, edges and provenance. `ci_sample` is not corpus
- * content (`find` over `app-validation-corpus/v3` returns nothing), and that is the point: the
- * graph assertions want a stable, richly-shaped sample rather than whatever today's ranking
- * surfaces. Swapping it for a corpus GI artifact would trade deterministic graph coverage for
- * corpus-dependent flakiness — a worse test, not a more honest one.
- *
- * The genuinely corpus-blocked parts, measured rather than assumed:
- *
- * * **`lifted` quote tests** (`search supporting quotes without speaker…`, `transcript hit with
- *   lifted quote timing…`) — the corpus returns `"lifted": null` on every result (50/50 across
- *   five queries), so the muted-attribution hints have no reachable state. Ladder §B.
- * * **the inline topic timeline test** moved downstream with the Timeline tab (E04 step 8b).
- *
- * What IS live-capable and worth doing when the fixture above is revisited: the corpus serves real
- * GI artifacts (`/api/artifacts/<feed>/<run>/metadata/<ep>.gi.json` → 200), so a future version could drive the graph from corpus data once the assertions are re-anchored.
+ * The genuinely corpus-blocked parts, measured rather than assumed: the **`lifted` quote tests**
+ * (`search supporting quotes without speaker…`, `transcript hit with lifted quote timing…`) — the
+ * corpus returns `"lifted": null` on every result (50/50 across five queries), so the
+ * muted-attribution hints have no reachable state. Ladder §B.
  */
 test.describe('Search → graph (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
@@ -44,6 +31,7 @@ test.describe('Search → graph (mocked API)', () => {
           status: 'ok',
           corpus_library_api: true,
           corpus_digest_api: true,
+          artifact_kinds: ['kg'],
         }),
       })
     })
@@ -56,9 +44,9 @@ test.describe('Search → graph (mocked API)', () => {
           path: '/mock/corpus',
           artifacts: [
             {
-              name: 'ci_sample.gi.json',
-              relative_path: 'metadata/ci_sample.gi.json',
-              kind: 'gi',
+              name: 'ci_sample.kg.json',
+              relative_path: 'metadata/ci_sample.kg.json',
+              kind: 'kg',
               size_bytes: artifactJson.length,
               mtime_utc: '2026-04-18T12:00:00Z',
               publish_date: '2026-04-18',
@@ -68,34 +56,12 @@ test.describe('Search → graph (mocked API)', () => {
       })
     })
 
-    await page.route('**/api/artifacts/metadata/ci_sample.gi.json?**', async (route) => {
+    await page.route('**/api/artifacts/metadata/ci_sample.kg.json?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: artifactJson,
       })
-    })
-
-    await page.route('**/api/corpus/text-file**', async (route) => {
-      const url = new URL(route.request().url())
-      const relpath = decodeURIComponent(url.searchParams.get('relpath') || '')
-      if (relpath.endsWith('.segments.json')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json; charset=utf-8',
-          body: JSON.stringify([]),
-        })
-        return
-      }
-      if (relpath.endsWith('transcript.txt')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'text/plain; charset=utf-8',
-          body: TRANSCRIPT_BODY,
-        })
-        return
-      }
-      await route.fulfill({ status: 404, body: 'not found' })
     })
 
     await page.route('**/api/corpus/feeds**', async (route) => {
@@ -120,10 +86,10 @@ test.describe('Search → graph (mocked API)', () => {
           summary_title: 'Stub',
           summary_bullets: [],
           summary_text: null,
-          gi_relative_path: 'metadata/ci_sample.gi.json',
+          gi_relative_path: null,
           kg_relative_path: 'metadata/ci_sample.kg.json',
-          has_gi: true,
-          has_kg: false,
+          has_gi: false,
+          has_kg: true,
         }),
       })
     })
@@ -166,10 +132,10 @@ test.describe('Search → graph (mocked API)', () => {
             {
               doc_id: 'doc-1',
               score: 0.95,
-              text: 'Summary insight (stub).',
+              text: 'Climate policy topic (stub).',
               metadata: {
-                doc_type: 'insight',
-                source_id: 'insight:b72dafa3f874480d',
+                doc_type: 'kg_topic',
+                source_id: 'topic:ci-policy',
                 episode_id: 'ci-fixture',
                 source_metadata_relative_path: 'metadata/ci_sample.metadata.json',
               },
@@ -178,33 +144,6 @@ test.describe('Search → graph (mocked API)', () => {
         }),
       })
     })
-    await page.route(/\/api\/topics\/(?:g%3A)?topic%3Aci-policy\/timeline\?/, async (route) => {
-      const url = new URL(route.request().url())
-      const path = url.searchParams.get('path') || '/mock/corpus'
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path,
-          topic_id: 'topic:ci-policy',
-          episodes: [
-            {
-              episode_id: 'ci-fixture',
-              publish_date: '2020-01-01',
-              episode_title: 'CI fixture episode',
-              feed_title: 'Stub feed',
-              episode_number: 1,
-              episode_image_url: null,
-              episode_image_local_relpath: null,
-              feed_image_url: null,
-              feed_image_local_relpath: null,
-              insights: [{ text: 'Climate policy appears in the timeline.' }],
-            },
-          ],
-        }),
-      })
-    })
-
     await setupCorpusDashboardDataRoutes(page)
   })
 
@@ -228,7 +167,7 @@ test.describe('Search → graph (mocked API)', () => {
       .getByRole('button', { name: 'Search', exact: true })
       .click()
 
-    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
+    await page.getByTestId('search-workspace').getByText('Climate policy topic (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
 
     await page.getByRole('button', { name: 'Search result insights' }).click()
     const vizDialog = page.getByRole('dialog', { name: 'Search result insights' })
@@ -240,157 +179,6 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('.graph-canvas')).toBeVisible()
-  })
-
-  test('insight graph detail: provenance, related topics, Library, quotes, Search', async ({
-    page,
-  }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await page.locator('#search-q').fill('climate insights')
-    await page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
-      .getByRole('button', { name: 'Search', exact: true })
-      .click()
-
-    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
-    await page.getByRole('button', { name: 'Show on graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
-      timeout: 15_000,
-    })
-
-    await page
-      .getByTestId('node-detail-insight-details-tip')
-      .getByRole('button', { name: 'Grounded' })
-      .click()
-    await expect(page.getByTestId('node-detail-insight-details-tooltip-body')).toContainText(
-      'Grounded',
-    )
-    await expect(page.getByTestId('node-detail-insight-details-tooltip-body')).toContainText('stub')
-    // Merged GI+KG view: provenance shows the merged label rather than the source
-    // filename (art.name is set by mergeGiKg to "Merged GI + KG (N GI · M KG)").
-    await expect(page.getByTestId('node-detail-insight-details-tooltip-body')).toContainText(
-      'Merged GI',
-    )
-    await expect(page.getByTestId('node-detail-insight-related-topics')).toBeVisible()
-    await expect(page.getByTestId('node-detail-insight-related-topics')).toContainText(
-      'Climate policy',
-    )
-    await expect(page.getByTestId('node-detail-insight-supporting-quotes')).toBeVisible()
-    await expect(page.getByTestId('node-detail-insight-supporting-quotes')).toContainText(
-      'Hello world transcript sample',
-    )
-    await expect(page.getByTestId('node-detail-insight-supporting-quotes')).toContainText(
-      'Extra line for scroll',
-    )
-    await page.getByTestId('node-detail-insight-view-transcript-all-quotes').click()
-    const transcriptDlg = page.getByTestId('transcript-viewer-dialog')
-    await expect(transcriptDlg).toBeVisible()
-    await expect(transcriptDlg.getByTestId('transcript-viewer-char-range')).toContainText(
-      '2 character spans (supporting quotes)',
-    )
-    await expect(transcriptDlg.getByTestId('transcript-viewer-highlight')).toHaveCount(2)
-    await expect(transcriptDlg.getByTestId('transcript-viewer-body')).toContainText('Hello world')
-    await expect(transcriptDlg.getByTestId('transcript-viewer-body')).toContainText('Extra line')
-    await transcriptDlg.getByRole('button', { name: 'Close' }).click()
-    await expect(transcriptDlg).toBeHidden()
-
-    const insightTipBody = page.getByTestId('node-detail-insight-details-tooltip-body')
-    if (await insightTipBody.isVisible()) {
-      await page
-        .getByTestId('node-detail-insight-details-tip')
-        .getByRole('button', { name: 'Grounded' })
-        .click()
-    }
-    await expect(page.getByRole('tooltip')).toHaveCount(0)
-
-    // Connections list (L/G/S) lives on the rail **Neighbourhood** tab, not **Details**.
-    await page.getByTestId('node-detail-rail-tab-neighbourhood').click()
-    await expect(page.getByTestId('graph-connections-section')).toBeVisible()
-
-    const episodeConnRow = page.locator('[data-connection-node-id="episode:ci-fixture"]')
-    await expect(episodeConnRow.getByTestId('graph-connection-open-library')).toBeEnabled()
-    await expect(episodeConnRow.getByTestId('graph-connection-focus-graph')).toBeEnabled()
-    await expect(episodeConnRow.getByTestId('graph-connection-prefill-search')).toBeEnabled()
-
-    await page.getByTestId('node-detail-rail-tab-details').click()
-
-    // §S1 (Explore merge) + §S4-shell pivot: the "Set Explore filters" button
-    // now sets Search filters (grounded + min-confidence, cleared topic +
-    // speaker) and switches the main tab to Search (no launcher hop, no
-    // "Advanced explore" dialog — Explore chips are gone).
-    await page.getByTestId('node-detail-insight-explore-filters').click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-
-    // "Prefill semantic search" is the other insight shortcut. §S4-shell:
-    // clicking it switches to Search + runs the query in the workspace;
-    // ``#search-q`` lives inside SearchPanel on the Search tab.
-    // First, return to the graph node so we can hit the prefill button.
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
-      timeout: 15_000,
-    })
-    await page.getByTestId('node-detail-rail-tab-details').click()
-    await page.getByTestId('node-detail-insight-prefill-search').click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await expect(page.locator('#search-q')).toHaveValue(/Summary insight \(stub\)/)
-    // Return to Graph before the remainder of the test walks node detail.
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-
-    await page.getByTestId('node-detail-rail-tab-details').click()
-    await expect(page.getByTestId('node-detail-insight-related-topics')).toBeVisible()
-
-    await page
-      .getByTestId('node-detail-insight-related-topic-row')
-      .filter({ hasText: 'Climate policy' })
-      .click()
-    await expect(page.getByRole('region', { name: 'Graph node: Topic' })).toBeVisible({
-      timeout: 10_000,
-    })
-    await expect(page.getByTestId('node-detail-full-topic')).toContainText('Climate policy')
-    // The topic's Timeline tab is a downstream build's (E04 step 8b); its spec lives there.
-
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await page.locator('#search-q').fill('climate insights')
-    await page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
-      .getByRole('button', { name: 'Search', exact: true })
-      .click()
-    await page.getByTestId('search-workspace').getByText('Summary insight (stub)', { exact: false }).first().waitFor({ timeout: 10_000 })
-    await page.getByRole('button', { name: 'Show on graph' }).click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-    await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
-      timeout: 15_000,
-    })
-    await page.getByTestId('node-detail-rail-tab-neighbourhood').click()
-    await expect(page.getByTestId('graph-connections-section')).toBeVisible()
-
-    const episodeRowAgain = page.locator('[data-connection-node-id="episode:ci-fixture"]')
-    await expect(episodeRowAgain.getByTestId('graph-connection-open-library')).toBeEnabled()
-
-    await episodeRowAgain.getByTestId('graph-connection-open-library').click()
-    await expect(mainViewsNav(page).getByRole('button', { name: 'Graph' })).toHaveClass(
-      /bg-primary/,
-    )
-    await expect(page.getByRole('region', { name: 'Episode', exact: true })).toBeVisible({
-      timeout: 15_000,
-    })
-    await expect(page.getByTestId('episode-detail-rail-body')).toContainText('CI fixture episode', {
-      timeout: 15_000,
-    })
   })
 
   test('search supporting quotes without speaker show muted attribution hint', async ({ page }) => {
