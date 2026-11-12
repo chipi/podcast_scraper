@@ -6,10 +6,10 @@
  * summary and an "open in graph" action that loads the show's episode KGs onto the
  * graph. Below the header a **Signals** band surfaces show-level aggregates from
  * `GET /corpus/feed-signals` — top topics, key people, recurring guests, dominant
- * themes, trending topics and a pooled grounding score. The episode list (sortable
- * newest/oldest) shows each episode's full summary + digest-parity topic pills
- * (cluster-coloured), fetched with `with_cil_topics`. Chips open the node view in
- * this same rail via focusTopic/focusPerson; each pushes the show onto the Back stack.
+ * themes and trending topics; extensions add their own signals. The episode list (sortable
+ * newest/oldest) shows each episode's full summary, plus any registered row sections. Chips
+ * open the node view in this same rail via focusTopic/focusPerson; each pushes the show onto
+ * the Back stack.
  */
 import { computed, inject, ref, watch } from 'vue'
 import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
@@ -26,7 +26,6 @@ import {
   type CorpusFeedItem,
   type CorpusFeedSignalsResponse,
 } from '../../api/corpusLibraryApi'
-import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import LanguageBadge from '../shared/LanguageBadge.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { spansLanguages } from '../../utils/language'
@@ -77,10 +76,6 @@ const keyPeople = computed(() => signals.value?.key_people ?? [])
 const recurringGuests = computed(() => signals.value?.recurring_guests ?? [])
 const dominantThemes = computed(() => signals.value?.dominant_storylines ?? [])
 const trendingTopics = computed(() => signals.value?.trending_topics ?? [])
-const grounding = computed(() => signals.value?.grounding ?? null)
-const groundingPct = computed(() =>
-  grounding.value ? Math.round(grounding.value.rate * 100) : null,
-)
 // #1932 — does this show RETURN to the same topic combinations, or start fresh every week?
 // The number that decides whether deepening a feed will compound. Measured across the corpus,
 // recurring pairs separate shows by FORMAT far more sharply than by episode count:
@@ -100,7 +95,6 @@ const hasSignals = computed(
     recurringGuests.value.length > 0 ||
     dominantThemes.value.length > 0 ||
     trendingTopics.value.length > 0 ||
-    grounding.value != null ||
     connectivity.value != null ||
     (signals.value != null &&
       showRailSections
@@ -148,6 +142,7 @@ async function loadEpisodes(reset: boolean): Promise<void> {
       limit: PAGE,
       cursor: reset ? null : nextCursor.value,
       sort: sortOrder.value,
+      // A downstream episode-row section renders the episode's topic pills from this field.
       withCilTopics: true,
     })
     episodes.value = reset ? body.items : [...episodes.value, ...body.items]
@@ -203,10 +198,6 @@ function openTopic(id: string): void {
 }
 function openPerson(id: string): void {
   subject.focusPerson(id)
-}
-function onEpisodePillClick(e: CorpusEpisodeListItem, index: number): void {
-  const pill = (e.cil_digest_topics ?? [])[index]
-  if (pill?.topic_id) subject.focusTopic(pill.topic_id)
 }
 
 // Open the whole show on the graph: append its (loaded) episode KGs onto the graph
@@ -335,25 +326,12 @@ watch(
     </div>
 
     <!-- Show-level signals (UXS-015 Phase 2 + operator feedback #9): topics, people,
-         recurring guests, dominant themes, trending, grounding. Chips open in-rail. -->
+         recurring guests, dominant themes, trending. Chips open in-rail. -->
     <div
       v-if="hasSignals"
       class="max-h-[42%] shrink-0 space-y-2 overflow-y-auto border-b border-border px-3 py-2"
       data-testid="show-rail-signals"
     >
-      <div v-if="grounding" class="flex items-center gap-2" data-testid="show-rail-grounding">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-muted">Grounding</span>
-        <span
-          class="rounded-full bg-emerald-700/25 px-2 py-0.5 text-[11px] font-semibold text-emerald-300"
-        >
-          {{ groundingPct }}% quote-backed
-        </span>
-        <span class="text-[11px] text-muted">
-          {{ grounding.grounded_insights }}/{{ grounding.total_insights }} ·
-          {{ grounding.episode_count }} episodes
-        </span>
-      </div>
-
       <component
         :is="section.component"
         v-for="section in showRailSections.list().filter((x) => x.region === 'signals')"
@@ -494,7 +472,7 @@ watch(
       </div>
     </div>
 
-    <!-- Episode list — sortable; each row: full summary + digest-parity topic pills. -->
+    <!-- Episode list — sortable; each row: full summary, then registered row sections. -->
     <div class="min-h-0 flex-1 overflow-y-auto p-2">
       <div class="mb-1 flex items-center justify-end gap-1 px-1">
         <span class="mr-auto text-[11px] text-muted">Sort</span>
@@ -570,16 +548,6 @@ watch(
                   {{ episodeSummary(e) }}
                 </p>
               </div>
-              <CilTopicPillsRow
-                v-if="e.cil_digest_topics && e.cil_digest_topics.length"
-                class="mt-1"
-                :pills="e.cil_digest_topics"
-                cluster-member-appearance="kg"
-                truncation="none"
-                max-width-class="auto"
-                :data-testid="`show-rail-episode-pills-${i}`"
-                @pill-click="(idx) => onEpisodePillClick(e, idx)"
-              />
               <component
                 :is="section.component"
                 v-for="section in showRailSections.list().filter((x) => x.region === 'episode-row')"
@@ -587,13 +555,7 @@ watch(
                 :episode="e"
                 :index="i"
               />
-              <div v-if="e.has_gi || e.has_kg" class="mt-0.5 flex flex-wrap items-center gap-1">
-                <span
-                  v-if="e.has_gi"
-                  class="rounded bg-emerald-700/25 px-1.5 py-0.5 text-[10px] text-emerald-300"
-                  title="Has grounded insights"
-                  >GI</span
-                >
+              <div v-if="e.has_kg" class="mt-0.5 flex flex-wrap items-center gap-1">
                 <span
                   v-if="e.has_kg"
                   class="rounded bg-sky-700/25 px-1.5 py-0.5 text-[10px] text-sky-300"
