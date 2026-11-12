@@ -284,7 +284,7 @@ _CONTENT_STAMP_NAMES = (
     "corpus_edges_stamp.json",
 )
 
-#: The identity ledger (ADR-166). Its own write must move the token the projections key on, so
+#: The identity ledger. Its own write must move the token the projections key on, so
 #: person pages and the KG index pick up a rebuilt ledger without a restart.
 _IDENTITY_LEDGER_NAME = "identity_ledger.json"
 
@@ -299,7 +299,7 @@ def corpus_content_mtime(root: Path | str) -> float:
     """:func:`corpus_mtime` without the identity ledger: the state of the corpus CONTENT.
 
     The ledger records this as the corpus it was built from. A token that included the ledger
-    could never match after the ledger is written (ADR-166). For the same reason it never falls
+    could never match after the ledger is written. For the same reason it never falls
     back to the corpus root's own mtime, which the ledger write moves: a corpus with none of the
     stamp files has no content mtime (-1), and staleness then rests on the kg count.
     """

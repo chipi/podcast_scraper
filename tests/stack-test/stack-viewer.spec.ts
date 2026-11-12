@@ -252,7 +252,7 @@ test.describe("Stack smoke test", () => {
     expect(giArtifacts.length, "expected at least one gi.json").toBeGreaterThan(0)
     expect(kgArtifacts.length, "expected at least one kg.json").toBeGreaterThan(0)
 
-    // -- Schema versions across all GI artifacts must be 3.1 (v2.4: ADR-135/#1191 route-and-tag) --
+    // -- Schema versions across all GI artifacts must be 3.1 (v2.4: #1191 route-and-tag) --
     const giContents: GiArtifact[] = []
     for (const a of giArtifacts) {
       const r = await request.get(

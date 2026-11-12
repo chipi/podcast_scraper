@@ -1,4 +1,4 @@
-"""Every remaining name surface shows a joined person's one spelling (RFC-131 S6d).
+"""Every remaining name surface shows a joined person's one spelling.
 
 Invented names only."""
 

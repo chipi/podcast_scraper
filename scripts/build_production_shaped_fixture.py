@@ -397,7 +397,7 @@ def main() -> int:
     # 8b. Search v3 slice (opt-in via --search-slice). Extracted to a helper to
     #     keep main() below the C901 complexity ceiling; helper documents the shape
     #     contract (RFC-107 §2 SearchResponse, §6 result-set operators, RFC-088
-    #     chunk 5 enriched-answer, RFC-072 §6 compound-lift).
+    #     chunk 5 enriched-answer, compound-lift).
     if args.search_slice:
         _capture_search_v3_slice(
             api=api,

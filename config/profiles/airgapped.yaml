@@ -37,7 +37,7 @@ profile: airgapped
 transcription_provider: whisper
 whisper_model: medium.en
 
-# Screenplay + neural diarization (RFC-058)
+# Screenplay + neural diarization
 screenplay: true
 diarize: true
 diarization_model: pyannote/speaker-diarization-community-1  # from registry: pyannote_diarization_community1

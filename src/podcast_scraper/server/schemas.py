@@ -408,18 +408,18 @@ class AppInsight(BaseModel):
     )
     confidence: float | None = Field(default=None, description="Extractor confidence when set.")
     position_hint: str | None = Field(default=None, description="Temporal position hint when set.")
-    # ADR-135/#1191 route-and-tag: surfaces sort by salience desc and may cap at
+    # Route-and-tag (#1191): surfaces sort by salience desc and may cap at
     # gi_surface_default_limit. Optional so pre-3.1 artifacts (no fields) still project.
     salience: float | None = Field(
         default=None,
-        description="ADR-135/#1191 ranking score (tier x grounded x surfaceable); higher = first.",
+        description="Ranking score (tier x grounded x surfaceable); higher = first.",
     )
     rank: int | None = Field(
         default=None, description="Within-episode salience rank (0 = highest) when set."
     )
     routing_tag: str | None = Field(
         default=None,
-        description="surface | connect | drop (ADR-135/#1191); 'drop' is filtered server-side.",
+        description="surface | connect | drop; 'drop' is filtered server-side.",
     )
     tier: int | None = Field(
         default=None, description="Value-gate tier: 3 CORE, 2 USEFUL, 1 MINOR, 0 FILLER."
@@ -480,7 +480,7 @@ class AppMoment(BaseModel):
 
 
 class AppAudioCheckpoint(BaseModel):
-    """One window of the original's fingerprint (RFC-129)."""
+    """One window of the original's fingerprint."""
 
     t: float = Field(description="Where the window starts, in transcript (original) seconds.")
     kind: Literal["talk_start", "after_ad", "interval"]
@@ -491,7 +491,7 @@ class AppAudioCheckpoint(BaseModel):
     has_long: bool = Field(
         default=False,
         description="A long window starts here too (GET .../audio-reference/long/{index}): what "
-        "the app searches when the offset after this break changed (RFC-129 v2).",
+        "the app searches when the offset after this break changed.",
     )
 
 
@@ -506,7 +506,7 @@ class AppAudioLongWindow(BaseModel):
 
 
 class AppAudioReference(BaseModel):
-    """Response for GET /api/app/episodes/{slug}/audio-reference (RFC-129, #2359): what the app
+    """Response for GET /api/app/episodes/{slug}/audio-reference: what the app
     lines its own stream up against, to play every time in sync whatever ads the host inserted."""
 
     episode_slug: str
@@ -3961,7 +3961,7 @@ class SearchCompareRequest(BaseModel):
     insight_types: list[str] | None = Field(
         default=None,
         description=(
-            "Optional RFC-072 GIL v1.1 insight_type filter — one of "
+            "Optional GIL v1.1 insight_type filter — one of "
             "``claim`` / ``recommendation`` / ``observation`` / "
             "``question`` / ``unknown``. Narrows both subjects symmetrically: "
             "only insight-tier hits whose ``metadata.insight_type`` is in the "

@@ -1579,7 +1579,7 @@ class OpenAICompatibleProvider(ExtensibleProvider):
     def complete_text(
         self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
     ) -> str:
-        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+        """One prompt in, one JSON answer out — the generic call the speaker resolver needs.
 
         ``max_tokens`` defaults to the resolver's 800; transcript naming asks for one answer per
         voice of the whole episode and passes more. ``stage`` labels the call's cost and trace.
@@ -1605,7 +1605,7 @@ class OpenAICompatibleProvider(ExtensibleProvider):
                 response_format={"type": "json_object"},
                 _lf_stage=stage,
             )
-            # 2026-08-24 cost audit: ADR-110 resolver completions emitted no llm_cost
+            # 2026-08-24 cost audit: speaker-resolver completions emitted no llm_cost
             # event. Inside _call so a re-roll's second call is also counted.
             self._emit_stage_cost(
                 stage=stage,

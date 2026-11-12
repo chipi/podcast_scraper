@@ -1670,9 +1670,8 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
         # 0.75 treated them as one knob — the same eval this option supersedes — so carrying the
         # topic result across to insights would be inheriting the very reasoning being retired.
         extra_settings={"threshold": 0.70, "insight_threshold": 0.75},
-        research_ref="docs/rfc/RFC-075-corpus-topic-clustering.md",
         headline_metric=(
-            "0.70 on the REAL corpus, measured twice independently: RFC-075's production sweep "
+            "0.70 on the REAL corpus, measured twice independently: the production sweep "
             "(1,178 topics, 2026-04) and a ~9.5k-topic sweep on 1,066 episodes (2026-09-02). "
             "0.75 -> 0.70 roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode "
             "merges stay a minority; below 0.70 the good-per-bad ratio decays (1.70 -> 1.19 by "

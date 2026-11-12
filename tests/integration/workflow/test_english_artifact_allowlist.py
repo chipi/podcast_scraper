@@ -151,7 +151,7 @@ ALLOWLIST: frozenset[str] = frozenset(
 #:
 #: ``translation`` is therefore HERE, and an English episode records it with ``ran=False``.
 #:
-#: ``turns`` (RFC-123 / S1.2) is here too, but is deliberately NOT in ``CANONICAL_STAGE_ORDER``
+#: ``turns`` (S1.2) is here too, but is deliberately NOT in ``CANONICAL_STAGE_ORDER``
 #: — it is a structural view of an artifact rather than a stage in the graph, so it does not
 #: enter the composition hash. Asserted directly in ``TestCompositionVersion``.
 #:
@@ -353,7 +353,7 @@ class TestArtifactShape:
         )
 
     def test_the_turns_block_does_not_move_the_composition_hash(self) -> None:
-        """RFC-123's block is recorded without disturbing the reprocess query key.
+        """The turns block is recorded without disturbing the reprocess query key.
 
         ``pipeline_composition_version`` is what "reprocess everything below version X" and the
         prod-state pin key on. Putting ``turns`` in ``CANONICAL_STAGE_ORDER`` would rewrite it for

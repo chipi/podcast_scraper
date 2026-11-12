@@ -154,7 +154,7 @@ def _filter_rows_by_insight_type(
     rows: Sequence[Dict[str, Any]],
     insight_types: Optional[Sequence[str]],
 ) -> List[Dict[str, Any]]:
-    """Narrow a search-result page to the RFC-072 GIL v1.1 insight types in
+    """Narrow a search-result page to the GIL v1.1 insight types in
     *insight_types* (``claim`` / ``recommendation`` / ``observation`` /
     ``question`` / ``unknown``).
 
@@ -231,7 +231,7 @@ def compare_subjects(
     feeds each result set through ``build_briefing_pack``, and returns a
     deterministic judge summary when both sides are grounded. When
     ``insight_types`` is supplied, insight-tier hits are narrowed to the
-    RFC-072 GIL v1.1 types in the allowed set — symmetrically for both
+    GIL v1.1 types in the allowed set — symmetrically for both
     subjects, so the compare stays balanced.
     """
     from .capability import structured_corpus_search

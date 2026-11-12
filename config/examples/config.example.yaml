@@ -91,7 +91,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # --- GI / KG / vector index (copy from config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml) ---
 # vector_search: true
 
-# Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode (see docs/guides/GROUNDED_INSIGHTS_GUIDE.md)
+# Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode
 # generate_gi: false  # Set true to run GIL extraction after transcript/speaker detection
 # gil_evidence_match_summary_provider: true  # Default: align quote+entail with API/hybrid_ml summary when
 #   quote_extraction_provider and entailment_provider are still default transformers. Set false for local QA+NLI.

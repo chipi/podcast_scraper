@@ -80,7 +80,7 @@ def entities_from_kg(
     """Return ``(persons, orgs, topics)`` from a KG artifact dict, de-duplicated by id.
 
     ``people`` (``identity.display.person_display(root)``): a joined person carries their group's
-    one spelling (RFC-131 S6d). Without it, the episode's own name.
+    one spelling. Without it, the episode's own name.
     """
     persons: dict[str, AppEntity] = {}
     orgs: dict[str, AppEntity] = {}

@@ -8,7 +8,7 @@
     "Schema-v1 predated the S4/S5 landing (RFC-107 planned enriched.answer + operator_result.clusters); v2 matches what the code actually returns.",
     "The build-script --search-slice mode captures these same shapes from a real corpus + running API when the operator regenerates locally (see README.md).",
     "Anchored to episode_ids present in the parent fixture's manifest.json so hit-card handoffs to Library / Graph resolve cleanly.",
-    "Shape contract sources: RFC-107 §2 (SearchResponse), RFC-072 §6 (lifted compound), consensus_pairs, build_briefing_pack for compare, server/schemas.py (CorpusSearchApiResponse / SearchCompareResponse)."
+    "Shape contract sources: RFC-107 §2 (SearchResponse), the lifted compound block, consensus_pairs, build_briefing_pack for compare, server/schemas.py (CorpusSearchApiResponse / SearchCompareResponse)."
   ],
   "anchor_feeds": [
     {
@@ -19,7 +19,7 @@
   ],
   "scenarios": {
     "compound-lift": {
-      "description": "Transcript hit that lifts to a linked GI Insight (RFC-072 KL1 shipped). WorkspaceResults renders this as a CompoundCard with a '+ insight' badge (UXS-016 §Results).",
+      "description": "Transcript hit that lifts to a linked GI Insight. WorkspaceResults renders this as a CompoundCard with a '+ insight' badge (UXS-016 §Results).",
       "request": {
         "endpoint": "GET /api/search",
         "params": {"q": "compute governance", "top_k": 5, "path": "<corpus>"}
@@ -143,7 +143,7 @@
       }
     },
     "operator-compare-insight-types": {
-      "description": "Compare (Search v3 §S8) with the RFC-072 GIL v1.1 insight_types filter set. The server narrows BOTH subjects symmetrically to the allowed insight types (here: claim) before build_briefing_pack runs — only insight-tier hits whose metadata.insight_type is in the set contribute to each pack's top_insight / confidence rollup; segment-tier supporting hits are preserved. Compared to the unfiltered operator-compare scenario, each side's result_count drops to the claim subset and the top_insight is a claim.",
+      "description": "Compare (Search v3 §S8) with the GIL v1.1 insight_types filter set. The server narrows BOTH subjects symmetrically to the allowed insight types (here: claim) before build_briefing_pack runs — only insight-tier hits whose metadata.insight_type is in the set contribute to each pack's top_insight / confidence rollup; segment-tier supporting hits are preserved. Compared to the unfiltered operator-compare scenario, each side's result_count drops to the claim subset and the top_insight is a claim.",
       "request": {
         "endpoint": "POST /api/search/compare",
         "body": {

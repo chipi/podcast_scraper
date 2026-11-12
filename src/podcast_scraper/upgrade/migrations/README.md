@@ -47,7 +47,7 @@ already at the target shape, must be a clean no-op (detect `before == after` and
 - `m0001_faiss_to_lance`, `m0002_two_tier_native_reindex`, `m0004_insight_type_reindex` — **search
   index** rebuilds (Lance).
 - `m0003_gi_v3_typed_mentions` — **GI artifact** rewrite (typed MENTIONS + schema 3.0).
-- `m0005_gi_v3_1_route_and_tag` — **GI artifact** version stamp 3.0 → 3.1 (ADR-135/#1191). Minimal
+- `m0005_gi_v3_1_route_and_tag` — **GI artifact** version stamp 3.0 → 3.1. Minimal
   reference for "add a migration for a schema bump."
 - `m0006_kg_v2_typed_entities` — **KG artifact** rewrite (typed Person/Organization + id/kind
   normalization, schema 2.0). Replaced the former standalone `scripts/migrate_kg_*.py` one-offs.

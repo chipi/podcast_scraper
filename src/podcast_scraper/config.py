@@ -1498,7 +1498,7 @@ class Config(BaseModel):
         default=True,
         alias="speaker_resolution_llm",
         description=(
-            "ADR-110: after diarization, ask the LLM which STATED name each voice is, using that "
+            "After diarization, ask the LLM which STATED name each voice is, using that "
             "voice's own words plus the retrieved passages where the name is spoken. Speaker "
             "detection runs before the audio is even downloaded, so it can only answer from show "
             "notes -- which name the people an episode is ABOUT as readily as the people in the "
@@ -3805,7 +3805,7 @@ class Config(BaseModel):
         le=100,
         alias="gi_surface_default_limit",
         description=(
-            "ADR-135/#1191 §6: the shared read-time default for how many insights a surface shows "
+            "The shared read-time default for how many insights a surface shows "
             "before 'show more'. Consumers sort by `salience` desc, exclude `routing_tag=drop`, "
             "and cap at this N (per topic for player/viewer lists; per episode on the detail "
             "view). Per-surface overrides: player 6 (surface-tagged only), operator viewer 12 (all "
@@ -3928,13 +3928,13 @@ class Config(BaseModel):
         description=(
             "Minimum mean cosine similarity for merging topic clusters. "
             "0.70 measured on the REAL corpus, twice and "
-            "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
+            "independently: the production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
             "sweep on the 1,066-episode corpus (2026-09-02; the exact topic count is "
             "quoted inconsistently across this work and is approximate). "
             "The previous 0.75 came from v2 FIXTURES "
             "(tier-1 tuning, 6 clusters) and did not survive contact "
             "with a real corpus: at 0.75 the live corpus sat at 85.7% singletons against the 69% "
-            "RFC-075 measured at 0.70 on a corpus 8x smaller, and 38.6% of surviving clusters had "
+            "the production sweep measured at 0.70 on a corpus 8x smaller, and 38.6% of surviving clusters had "
             "merged within 0.03 of the threshold — mass piled against the wall. 0.75 -> 0.70 "
             "roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode merges stay a "
             "minority (17% -> 22% of clusters). Scored on cross-feed reach, not cluster count: "

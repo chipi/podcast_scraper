@@ -140,12 +140,12 @@ def take_within_ceiling(insights: list[str], ceiling: int) -> list[str]:
     is no worse than a head-slice. Order is preserved, so downstream ``rank`` stays monotonic in
     transcript position.
 
-    **The subset itself is deliberate — see the ADR-135 clarification note (2026-09-02).**
+    **The subset itself is deliberate.**
     ``max_insights`` is the amount of insight an episode needs (duration-scaled per #1191);
     providers routinely return more than asked, and taking the subset we need is the design.
     Downstream cost scales with what we keep — quote extraction is ~72% of GI input tokens,
     r=0.58 insights→quote calls — so an unbounded keep is not free and was never intended.
-    ADR-135's "never a corpus cutoff" governs the PIPELINE slices it names and the request clamp,
+    The "never a corpus cutoff" rule governs the PIPELINE slices it names and the request clamp,
     not this response subset. What #1919 changed is HOW the subset is chosen, not that it exists.
 
     Ranking by ``salience`` would be better than stride, but salience is computed *downstream* of

@@ -1,7 +1,6 @@
 """Canonical slugifier for CIL identifiers.
 
-See ``docs/guides/GIL_KG_CIL_CROSS_LAYER.md`` for canonical identity rules (shared
-namespace).
+The canonical identity rules (shared namespace) are the ones below.
 """
 
 from __future__ import annotations

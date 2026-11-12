@@ -1309,7 +1309,7 @@ def _write_processing_manifest(
                 "truly_unknown": summary.get("truly_unknown"),
                 "unattributed_talk_share": summary.get("unattributed_talk_share"),
                 "by_voice_type": summary.get("by_voice_type"),
-                # ADR-135/#1220: the labeling OUTPUT — real speakers exposed to GI/KG after
+                # #1220: the labeling OUTPUT — real speakers exposed to GI/KG after
                 # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
                 # answer the clean named-vs-Voice rate without opening the graph.
                 "exposed": summary.get("exposed"),
@@ -1341,7 +1341,7 @@ def _produce_transcript_sidecars(
     *,
     episode: Any = None,
 ) -> None:
-    """Derive the ad-free processing base (#974) and the turns artifacts (RFC-123), in that order.
+    """Derive the ad-free processing base (#974) and the turns artifacts, in that order.
 
     Both are structural views of the transcript we just saved, and both must be built from the
     exact segment list the matching text was rendered from — so they belong at the one site that
@@ -4697,7 +4697,7 @@ def transcribe_media_to_text(
                 effective_output_dir,
             )
             # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
-            # RFC-123: and the turns artifact for each variant that exists.
+            # And the turns artifact for each variant that exists.
             _produce_transcript_sidecars(
                 cfg, text, segments, rel_path, effective_output_dir, episode=job.episode
             )

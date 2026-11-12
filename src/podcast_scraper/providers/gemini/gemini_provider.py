@@ -1165,7 +1165,7 @@ class GeminiProvider(ExtensibleProvider):
     def complete_text(
         self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
     ) -> str:
-        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+        """One prompt in, one JSON answer out — the generic call the speaker resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
         from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
@@ -1189,7 +1189,7 @@ class GeminiProvider(ExtensibleProvider):
             contents=prompt,
             config=cast(Any, generation_config),
         )
-        # Observability (ADR-137): a real per-episode gemini call (speaker resolution, transcript
+        # Observability: a real per-episode gemini call (speaker resolution, transcript
         # naming). Priced and counted against the run budget like every other stage; it used to
         # emit tokens with a cost of 0 (2026-10-23 cost audit). Never raises.
         from ...utils.provider_metrics import record_response_cost

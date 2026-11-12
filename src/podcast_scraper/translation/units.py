@@ -3,7 +3,7 @@
 TWO GRANULARITIES, AND COLLAPSING THEM BREAKS BOTH JOBS.
 
 - A **unit** is the translation CONTEXT: a greedily packed group of sentences inside a single
-  RFC-123 turn. It exists so the model sees enough around a sentence to translate it well.
+  turn. It exists so the model sees enough around a sentence to translate it well.
 - A **sentence** is the ALIGNMENT ATOM: what gets stored, offset and rendered.
 
 RFC-124 §5.1 is explicit about why one ~120-word block cannot serve both. The ad-free builder
@@ -17,7 +17,7 @@ every provenance block.
 UNITS NEVER CROSS A TURN BOUNDARY, because a turn is one speaker's uninterrupted run and
 translating across a speaker change would let one person's words be rendered in the grammar of
 another's. Backchannel turns get one unit each — they are already flagged rather than merged
-(RFC-123 §2.2) precisely so they are not folded into a neighbour's context.
+precisely so they are not folded into a neighbour's context.
 
 LABELS ARE NEVER IN A UNIT'S PAYLOAD (D-24). The speaker label is carried on the unit for
 provenance and re-applied to the English line by the renderer; sending it through the translator
@@ -215,7 +215,7 @@ def pack_units(
     versions of the same sentence and would have no way to notice.
 
     Args:
-        turns: The ``turns`` array of a ``turns.json`` document (RFC-123).
+        turns: The ``turns`` array of a ``turns.json`` document.
         screenplay_text: The transcript those offsets index. For the source variant this is
             ``<base>.txt``; passing the wrong body silently mis-slices every unit, which is
             why :func:`podcast_scraper.workflow.transcript_resolution.load_transcript` derives
@@ -276,7 +276,7 @@ def pack_units(
 
         if backchannel:
             # One unit, whatever its sentence count. A backchannel is flagged rather than merged
-            # (RFC-123 §2.2) so it is not folded into a neighbour's context; packing it with a
+            # so it is not folded into a neighbour's context; packing it with a
             # neighbour here would undo that on the way to the model.
             groups: List[List[UnitSentence]] = [sentences]
         else:

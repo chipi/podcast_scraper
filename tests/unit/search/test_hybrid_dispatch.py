@@ -23,7 +23,7 @@ class _AllVisible:
 @pytest.fixture(autouse=True)
 def _every_mocked_hit_is_visible(monkeypatch: pytest.MonkeyPatch) -> None:
     """These tests mock hits with no GI behind them; visibility (search shows only what the episode
-    view shows, RFC-131 S6c) is tested in ``test_search_shows_what_episodes_show.py``."""
+    view shows) is tested in ``test_search_shows_what_episodes_show.py``."""
     from podcast_scraper.search import corpus_search as _cs
 
     monkeypatch.setattr(_cs, "_visible_insights", lambda _root: _AllVisible())

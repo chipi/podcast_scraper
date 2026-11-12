@@ -178,8 +178,7 @@ gi_require_grounding: true
 # #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
 # bundled. Cuts ~76 sequential Gemini calls/ep → ~6 (-92%) and ~95s GIL
 # latency → ~36s (-62%) on this profile's gemini-2.5-flash-lite. Coverage vs
-# Sonnet-4.6 silver: 75% (staged) → 82% (+7pp). Champion call recorded in
-# ADR-078.
+# Sonnet-4.6 silver: 75% (staged) → 82% (+7pp).
 # Bundled methods fall back to staged transparently on parser failures, so
 # this is safe to default to bundled.
 gil_evidence_quote_mode: bundled

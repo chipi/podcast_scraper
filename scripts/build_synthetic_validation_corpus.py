@@ -774,7 +774,7 @@ def _route_and_tag(text: str) -> dict:
     corpus.
 
     Why this exists (2026-10-02): the three fields were simply absent. Consumers sort by
-    ``salience`` desc and exclude ``routing_tag == "drop"`` (ADR-135/#1191), so with none of them
+    ``salience`` desc and exclude ``routing_tag == "drop"``, so with none of them
     present every insight tied at 0.0, the sort fell through to ``position_hint`` ascending, and the
     earliest line in the episode won. The earliest line is the host saying hello — which is how
     "Thanks, Maya. Excited for this one" became the lead quote on a storyline page while the real

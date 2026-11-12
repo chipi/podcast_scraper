@@ -75,7 +75,7 @@ _HEADER_LABELS = {"host", "guest", "hosts", "guests", "speaker", "speakers", "no
 #: putting ad copy in a host's mouth in ``.segments.json`` — and the episode reported one voice
 #: fewer than ``groundtruth.expected_diarized_voices``, which counts ``num_ad_voices``.
 #:
-#: With the span, the ad becomes its own cluster typed ``commercial`` (ADR-137), is excluded from
+#: With the span, the ad becomes its own cluster typed ``commercial``, is excluded from
 #: naming, and is dropped from the published record by ``is_bare_speaker_label``.
 NON_PERSON_VOICES = frozenset({"ad", "ads", "advertisement", "sponsor", "announcer", "promo"})
 

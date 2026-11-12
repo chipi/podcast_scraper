@@ -90,7 +90,6 @@ CLOUD_BALANCED_EXPECTED = {
     # PINNED, not defaulted. v3 (speech-act) LOST its A/B: route kappa 0.57 vs v2 0.67.
     "gi_insight_prompt_version": "v2",
     # #698 GIL evidence bundling — flipped to bundled defaults in PR #711.
-    # ADR-078 records the per-provider champion decision.
     "gil_evidence_quote_mode": "bundled",
     "gil_evidence_nli_mode": "bundled",
     # An LLM grounds with an LLM. The bundled modes above are an LLM-only path, and with the

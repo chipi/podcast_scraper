@@ -1478,7 +1478,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         dest="generate_gi",
         help="Generate Grounded Insight Layer (GIL) artifacts (gi.json) per episode. "
-        "Requires generate_metadata. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
+        "Requires generate_metadata.",
     )
     parser.add_argument(
         "--gi-max-insights",
@@ -3995,7 +3995,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
             "local Hugging Face QA/NLI (requires .[ml] / sentence-transformers for NLI). "
             "For API-only grounding, set both evidence providers to match "
             "summary_provider, or leave defaults with gil_evidence_match_summary_provider: "
-            "true (default). See GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix.",
+            "true (default).",
             _sp,
             _qe,
             _en,

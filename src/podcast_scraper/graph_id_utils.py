@@ -39,7 +39,7 @@ PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization", "Object"}
 _BARE_SPEAKER_LABEL_RE = re.compile(r"^\s*speaker[\s_\-]*\d+\s*$", re.IGNORECASE)
 
 #: The speaker detector's failure default (``speaker_detectors.constants.DEFAULT_SPEAKER_NAMES``):
-#: ``unknown_guest_1``. A label, never a person; before RFC-131 it slugged to the GLOBAL id
+#: ``unknown_guest_1``. A label, never a person; it once slugged to the GLOBAL id
 #: ``person:unknown-guest-1`` and rendered as a speaker card, because the numbered pattern above
 #: needs "speaker".
 _DETECTOR_DEFAULT_LABEL_RE = re.compile(r"^\s*unknown[\s_\-]*guest[\s_\-]*\d+\s*$", re.IGNORECASE)
@@ -122,7 +122,7 @@ def is_numbered_speaker_label(name: Optional[str]) -> bool:
 
 
 def is_raw_speaker_label(name: Optional[str]) -> bool:
-    """True when *name* is a raw label that must never be shown as a speaker (RFC-131, S3).
+    """True when *name* is a raw label that must never be shown as a speaker.
 
     A numbered diarization label (``SPEAKER_07``, ``Speaker 3``) or the speaker detector's failure
     default (``unknown_guest_1``). Role words are NOT raw: "Host" stays readable inside its own
@@ -139,7 +139,7 @@ _LEGACY_DETECTOR_DEFAULT_ID = re.compile(r"^person:unknown-guest-\d+$")
 
 
 def is_raw_label_person_id(person_id: Optional[str]) -> bool:
-    """True for the id of a voice whose only name is a raw label (RFC-131, S3).
+    """True for the id of a voice whose only name is a raw label.
 
     ``person:speaker-{ep}-{n}`` (a numbered diarization voice), its detector-default family
     ``person:speaker-{ep}-unknown-guest-{n}``, and the legacy GLOBAL ``person:unknown-guest-{n}``
@@ -164,7 +164,7 @@ def is_bare_speaker_label(name: Optional[str]) -> bool:
     * a numbered diarization label — ``SPEAKER_03`` (#1b);
     * a ROLE word — ``Host``, ``Guest``, ``Interviewer`` (#2059). Same bug, missed for a year
       because the regex required digits;
-    * the speaker detector's failure default — ``unknown_guest_1`` (RFC-131, S3), which neither
+    * the speaker detector's failure default — ``unknown_guest_1``, which neither
       shape matched, so it became a global person.
     """
     if not name:

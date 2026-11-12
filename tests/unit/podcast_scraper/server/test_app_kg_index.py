@@ -203,7 +203,7 @@ class TestSpellingVariantsCollapseInTheAppIndex:
         _stamp(root, 1000.0)
 
     def test_without_a_ledger_the_two_spellings_stay_two(self, tmp_path: Path) -> None:
-        # ADR-166: no ledger means no cross-episode joins, never the in-memory build.
+        # No ledger means no cross-episode joins, never the in-memory build.
         self._two_spellings(tmp_path)
         index = kg_index.build_kg_index(tmp_path)
         assert len({pid for pid in index.person_to_eps if "jaffe" in pid}) == 2

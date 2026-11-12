@@ -87,7 +87,7 @@ def test_compound_lift_scenario_carries_lifted_block(mocks: dict[str, Any]) -> N
     hits = resp.get("results", [])
     assert hits, "compound-lift scenario has no hits"
     lifted_hits = [h for h in hits if h.get("lifted")]
-    assert lifted_hits, "no hit in compound-lift carries a 'lifted' block (RFC-072 KL1)"
+    assert lifted_hits, "no hit in compound-lift carries a 'lifted' block"
     for h in lifted_hits:
         lifted = h["lifted"]
         for k in ("insight", "speaker", "topic", "quote"):
