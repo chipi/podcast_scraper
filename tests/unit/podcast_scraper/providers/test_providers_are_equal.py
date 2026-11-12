@@ -123,9 +123,9 @@ def _nodes(provider: str) -> dict:
 @pytest.mark.parametrize("capability", CAPABILITIES)
 def test_every_provider_has_every_capability(provider: str, capability: str) -> None:
     assert capability in _functions(provider), (
-        f"{provider} cannot {capability}. The pipeline will degrade silently — speaker resolution resolves "
-        f"nobody, the value gate keeps everything — and the MODEL will be blamed for a method we "
-        f"never wrote."
+        f"{provider} cannot {capability}. The pipeline will degrade silently — speaker "
+        f"resolution resolves nobody, the value gate keeps everything — and the MODEL will be "
+        f"blamed for a method we never wrote."
     )
 
 

@@ -2,7 +2,8 @@
 
 ``person_display(root)`` is what every surface reads: a ``PersonDisplay`` whose ``shown(id, own)``
 gives the spelling to show for one person id. Which spelling that is comes from the display
-builder for the corpus. The built-in builder is the identity ledger's (``ledger_display``): a joined person shows their group's ``display_name``, anyone else the name their own episode
+builder for the corpus. The built-in builder is the identity ledger's (``ledger_display``): a
+joined person shows their group's ``display_name``, anyone else the name their own episode
 gives them. ``set_display_builder`` replaces it; ``plain_display`` is the builder with no joins,
 where every name is the episode's own.
 """
