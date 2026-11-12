@@ -20,7 +20,7 @@ import importlib
 import logging
 import os
 import time
-from typing import Any, cast, Dict, Optional, Set, TYPE_CHECKING
+from typing import Any, Dict, Optional, Set, TYPE_CHECKING
 
 
 def _load_mistral_sdk() -> tuple[Any, Any]:
@@ -69,11 +69,6 @@ else:
 
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning.base import TranscriptCleaningProcessor
-from ...utils.cleaning_max_tokens import (
-    clamp_cleaning_max_tokens,
-    estimate_cleaning_output_tokens,
-    MISTRAL_CLEANING_MAX_TOKENS,
-)
 from ...utils.log_redaction import format_exception_for_log
 from ...workflow import metrics
 from ..extensible import ExtensibleProvider
@@ -1023,189 +1018,6 @@ class MistralProvider(ExtensibleProvider):
         except Exception as e:
             logger.debug("Mistral extract_kg_graph failed: %s", e, exc_info=True)
             return None
-
-    def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
-        """Clean transcript using LLM for semantic filtering.
-
-        Args:
-            text: Transcript text to clean (should already be pattern-cleaned)
-
-        Returns:
-            Cleaned transcript text
-
-        Raises:
-            RuntimeError: If provider is not initialized or cleaning fails
-        """
-        if not self._summarization_initialized:
-            raise RuntimeError("MistralProvider not initialized. Call initialize() first.")
-
-        from ...prompts.store import render_prompt
-
-        # Build cleaning prompt using prompt_store
-        prompt_name = "mistral/cleaning/v1"
-        user_prompt = render_prompt(prompt_name, transcript=text)
-
-        # Use system prompt (Mistral pattern)
-        system_prompt = (
-            "You are a transcript cleaning assistant. "
-            "Remove sponsors, ads, intros, outros, and meta-commentary. "
-            "Preserve all substantive content and speaker information. "
-            "Return only the cleaned text, no explanations."
-        )
-
-        logger.debug(
-            "Cleaning transcript via Mistral API (model: %s, text length: %d chars)",
-            self.cleaning_model,
-            len(text),
-        )
-
-        try:
-            # Track retries and rate limits
-            from ...utils.provider_metrics import (
-                _safe_mistral_retryable,
-                ProviderCallMetrics,
-                retry_with_metrics,
-            )
-
-            call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("mistral")
-            call_metrics.set_breaker_config_from_cfg(self.cfg)
-
-            # Wrap API call with retry tracking
-            def _make_api_call():
-                return self.client.chat.complete(
-                    model=self.cleaning_model,
-                    messages=[  # type: ignore[arg-type]
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=self.cleaning_temperature,
-                    max_tokens=clamp_cleaning_max_tokens(
-                        estimate_cleaning_output_tokens(len(text.split())),
-                        MISTRAL_CLEANING_MAX_TOKENS,
-                    ),
-                )
-
-            try:
-                response = retry_with_metrics(
-                    _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
-                    retryable_exceptions=_safe_mistral_retryable(),
-                    metrics=call_metrics,
-                )
-            except Exception:
-                call_metrics.finalize()
-                raise
-
-            call_metrics.finalize()
-
-            _record_mistral_llm_call(
-                response,
-                pipeline_metrics,
-                recorder_name="record_llm_cleaning_call",
-                cfg=self.cfg,
-                model=self.cleaning_model,
-            )
-
-            cleaned = response.choices[0].message.content
-
-            # Cost capture up-front (ADR-100 cost-attribution).
-            in_tok_cl = None
-            out_tok_cl = None
-            if hasattr(response, "usage") and response.usage:
-                pt = getattr(response.usage, "prompt_tokens", None)
-                ct = getattr(response.usage, "completion_tokens", None)
-                in_tok_cl = int(pt) if isinstance(pt, (int, float)) else None
-                out_tok_cl = int(ct) if isinstance(ct, (int, float)) else None
-            cleaning_cost: Optional[float] = None
-            if in_tok_cl is not None and out_tok_cl is not None:
-                from ...workflow.helpers import calculate_provider_cost
-
-                cleaning_cost = calculate_provider_cost(
-                    cfg=self.cfg,
-                    provider_type="mistral",
-                    capability="cleaning",
-                    model=self.cleaning_model,
-                    prompt_tokens=in_tok_cl,
-                    completion_tokens=out_tok_cl,
-                )
-
-            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
-                if in_tok_cl is None or out_tok_cl is None:
-                    return
-                try:
-                    from ...workflow.cost_monitoring import emit_llm_cost_event
-
-                    emit_llm_cost_event(
-                        self.cfg,
-                        provider="mistral",
-                        stage="cleaning",
-                        model=self.cleaning_model,
-                        estimated_cost_usd=float(cleaning_cost or 0.0),
-                        prompt_tokens=in_tok_cl,
-                        completion_tokens=out_tok_cl,
-                        triggered_guardrail=triggered_guardrail,
-                        served_model=getattr(response, "model", None),
-                        response=response,
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-
-            if not cleaned:
-                logger.warning("Mistral API returned empty cleaned text, using original")
-                _emit_cleaning_cost()
-                return text
-            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
-            try:
-                _guardrails.check_chat_response(
-                    cleaned,
-                    service="mistral",
-                    finish_reason=getattr(response.choices[0], "finish_reason", None),
-                )
-            except _guardrails.GuardrailViolation:
-                _emit_cleaning_cost(triggered_guardrail=True)
-                logger.warning(
-                    "Mistral cleaning output failed guardrail; "
-                    "returning original transcript text"
-                )
-                return text
-
-            _emit_cleaning_cost()
-            logger.debug("Mistral cleaning completed: %d -> %d chars", len(text), len(cleaned))
-            return cast(str, cleaned)
-
-        except _guardrails.GuardrailViolation:
-            # Defensive outer catch — preserve contract.
-            logger.warning(
-                "Mistral cleaning output failed guardrail (outer); "
-                "returning original transcript text"
-            )
-            return text
-        except Exception as exc:
-            logger.error("Mistral API error in cleaning: %s", format_exception_for_log(exc))
-            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
-
-            # Handle Mistral-specific error types
-            error_msg = str(exc).lower()
-            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
-                raise ProviderAuthError(
-                    message=f"Mistral authentication failed: {format_exception_for_log(exc)}",
-                    provider="MistralProvider/Cleaning",
-                    suggestion="Check your MISTRAL_API_KEY environment variable or config setting",
-                ) from exc
-            elif "quota" in error_msg or "rate limit" in error_msg:
-                raise ProviderRuntimeError(
-                    message=f"Mistral rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="MistralProvider/Cleaning",
-                    suggestion="Wait before retrying or check your API quota",
-                ) from exc
-            else:
-                raise ProviderRuntimeError(
-                    message=f"Mistral cleaning failed: {format_exception_for_log(exc)}",
-                    provider="MistralProvider/Cleaning",
-                ) from exc
 
     @property
     def is_initialized(self) -> bool:
