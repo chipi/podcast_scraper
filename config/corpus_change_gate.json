@@ -3,13 +3,7 @@
   "records_dir": "docs/wip/changes",
   "regime_from_migration": "0031",
   "content_code": [
-    "src/podcast_scraper/upgrade/*.py",
-    "src/podcast_scraper/providers/ml/diarization/labeling_profile.py",
-    "src/podcast_scraper/providers/ml/diarization/naming_trace.py",
-    "src/podcast_scraper/providers/ml/diarization/roster.py",
-    "src/podcast_scraper/speaker_detectors/*.py",
-    "src/podcast_scraper/gi/pipeline.py",
-    "src/podcast_scraper/workflow/adfree_transcript.py"
+    "src/podcast_scraper/upgrade/*.py"
   ],
   "content_files": [
     "*.gi.json",
@@ -28,5 +22,6 @@
       "episode.language"
     ]
   },
-  "_gating_doc": "The gating metrics come from the installed corpus scoreboards (podcast_scraper.quality.scoreboard), not from this file."
+  "_gating_doc": "The gating metrics come from the installed corpus scoreboards (podcast_scraper.quality.scoreboard), not from this file.",
+  "_content_code_doc": "Content code that moved to an installed extension (E04 arc 2) is gated in that extension's own checkout, with its own config and records, by this repo's hook."
 }
