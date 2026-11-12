@@ -18,6 +18,7 @@ record; ids are used. The measurements are in eval-data `data/eval/name-consolid
 ## 1. Intake
 
 **Reading list:**
+
 - [s6e_publisher_spelling.md](s6e_publisher_spelling.md): the display rule this changes, publisher
   text first.
 - [s5d_evidence_free_fuzzy_joins.md](s5d_evidence_free_fuzzy_joins.md): the ledger this is measured
@@ -30,6 +31,7 @@ record; ids are used. The measurements are in eval-data `data/eval/name-consolid
 
 **What D2's step-10 read found** (`d2i9/respell_pairs.py`, `d2i9/tie_spellings.py` on base-0042,
 0041 applied on the s5d ledger):
+
 - 0041 makes 362 distinct respellings, and every surface shows the same spelling since S6.
 - **The publisher-text rule** decides 162 groups; **the frequency rule** decides 188.
 - **Inside the frequency rule,** many groups have two spellings with equal episode counts and no
@@ -49,6 +51,7 @@ record; ids are used. The measurements are in eval-data `data/eval/name-consolid
 
 D2's ledger on the s5d chain (`ledger_s5d4d.json`, base-0042's served ledger, 632 joins), from
 `d2i9/s6g_predict.py`:
+
 - person groups with `display_evidence.rule` `publisher` 162, `frequency` 188;
 - **of the 188, ties 75** (all in the canonical branch, none in the full-name branch).
 
@@ -65,6 +68,7 @@ spelling they set rests on name length alone.
 Dated: 2026-11-02T00:55
 
 **The change,** in `_add_display_spellings`' frequency branches:
+
 - **Tie definition:** the pool the branch picks from (the members with a full name, else all
   members). Spellings folded (`ledger._fold`: case, spacing and accents). A spelling's count is the
   sum of its members' episode counts. A tie is when the top two counts are equal.
@@ -86,7 +90,7 @@ Dated: 2026-11-02T00:55
 **Predicted on the s5d chain** (the ledger rebuilt on base-0041, `--no-respell`):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | ledger joins | 632 | 632 |
 | person groups | 350 | 350 |
 | `blocked_joins` rows | 39 | 39 |
@@ -116,6 +120,7 @@ Dated: 2026-11-02T01:40
 **1. Membership is not spelling (the reader's finding 1).** 0041's `LedgerView.joined()` reads "has a
 group spelling" (`display.name_of(i) is not None`), and it decides 0041's folds, its episode-scoped
 refusal and its carry of 0025.
+
 - **The change:** `joined()` reads membership. An id has a group spelling, or it is a key or a
   value of the ledger's id map. On today's ledger every member has a spelling, so this is
   behaviour-neutral; a tie group's ids stay joined for those decisions.
@@ -126,6 +131,7 @@ refusal and its carry of 0025.
 (`routes/corpus_persons`, `_person_display_name`). With no spelling for the group, a variant's
 episode gives `found == pid`, and the route falls back to `name_of(pid) or pid`, which is the raw
 id. Prod's card for these groups is therefore that scan-order pick.
+
 - **The change:** for a tie group, the display map gives the canonical id its own name
   (`canonical_name`) and gives the members nothing (`identity/display.display_from_ledger`). So the
   card shows the canonical's name, deterministically and never a raw id. Mentions in episodes keep
@@ -136,12 +142,14 @@ id. Prod's card for these groups is therefore that scan-order pick.
   prod serves today" row, which was wrong.
 
 **3. One definition (finding 2).** Every figure is now on the coded definition, 75 groups:
+
 - 82 distinct respellings undone, 87 node-episodes (`s6g_predict3.out`). `tie_spellings.py`'s 99 used
   every member and unfolded names; it is not used.
 - **0041: 556 → 501 episodes, 2,805 → 2,525 files** (v3, the exact
   semantics: canonical-only mapping and membership).
 
 **4. Measured from the code, not only simulated (findings 3, 6).** After the build:
+
 - the ledger is rebuilt on base-0041 (`--no-respell`);
 - a per-group diff against `ledger_s5d4d.json` is a gate row. Expected: exactly the 75 lose
   `display_name` and gain `{"rule": "tie"}`, and 0 other groups change;
@@ -149,6 +157,7 @@ id. Prod's card for these groups is therefore that scan-order pick.
   (the same 75 ids), `display_name changed` 0, `display_evidence changed` 0, joins 632 → 632.
 
 **5. Other readers (finding 7):**
+
 - `m0025._ledger_spells`: a tie group's variant name is no longer "ledger-spelled", so 0025 may
   correct it from the episode's stated spelling. Tie groups have no publisher text in any member's
   episode, so there is no stated spelling. **Predicted: 0025's plan unchanged** (`upgrade verify`
@@ -171,7 +180,7 @@ majority spelling; a full-name pool tie; the canonical-only display; `joined()` 
 **The table** (replacing section 4's):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | ledger joins / person groups / `blocked_joins` | 632 / 350 / 39 | 632 / 350 / 39 |
 | `display_evidence` `publisher` / `frequency` / `tie` | 162 / 188 / 0 | **162 / 113 / 75** |
 | groups whose other fields change | | **0** |
@@ -184,6 +193,7 @@ majority spelling; a full-name pool tie; the canonical-only display; `joined()` 
 
 Fresh reader, 2026-11-02, a sonnet reviewer subagent with read-only tools, one pass before any code.
 Dated: 2026-11-02T01:15
+
 - **Verdict:** "Not complete. Accept after findings 1, 2, 3 and 6 are fixed. The rest are rows to
   add."
 - Every finding is taken in 4b.
@@ -191,6 +201,7 @@ Dated: 2026-11-02T01:15
 ## 6. Build
 
 **Tests, written first:**
+
 - In `tests/unit/podcast_scraper/identity/test_ledger.py`:
   - a tie shows no group spelling, `{"rule": "tie"}`;
   - a majority keeps its spelling;
@@ -201,12 +212,14 @@ Dated: 2026-11-02T01:15
 - Before the code: 4 failed (the majority and same-spelling tests already passed, as they should).
 
 **Code:**
+
 - `identity/ledger._tie` and its branch in `_add_display_spellings`;
 - `identity/display.display_from_ledger` (a tie group maps the canonical id only);
 - `m0041.LedgerView.joined` (membership);
 - `server/app_relational_view._group_borrows` (`display_name or canonical_name`).
 
 **Mutants** (`mutate.py`): **killed 5 of 5**.
+
 - the tie branch off;
 - a loose tie test;
 - spellings not folded;
@@ -214,6 +227,7 @@ Dated: 2026-11-02T01:15
 - membership dropped from `joined`.
 
 **Full unit suite:** 17,335 passed, 1 failed: the landing test, red until the step-8 verdicts.
+
 - The suite also found that s5d's commit had broken a server test,
   `test_app_kg_index.TestSpellingVariantsCollapseInTheAppIndex`.
 - Its fixture joins two one-episode spellings with no evidence, which s5d refuses. It now gives one
@@ -226,15 +240,18 @@ Black, isort, flake8, codespell and `make type` pass.
 
 **The ledger** rebuilt on the clone (`--no-respell`), diffed per group against `ledger_s5d4d.json`
 (`d2i9/s6g_group_diff.py` → `s6g_group_diff.out`):
+
 - "groups changed as predicted (tie): 75 | of the 75: 75";
 - "other changes: 0";
 - blocked joins 39 → 39.
 
 **0041 gate** (`0041_joined_names_respelled.gate.json`, digest `0fc9cb830712`):
+
 - **501 episodes, 2,525 files**, as predicted (v3);
 - `upgrade verify` 40 ok, none failing.
 
 **After-checks** on the real 0041 apply (`d2i9/after_checks_s6g.txt`): 0 must-not-move breaches.
+
 - The verdict line reads "AFTER CHECKS: FAIL 0". It prints FAIL because 2 quote spans are off
   their text.
 - Both quotes are among 0040's 6 left. They are unchanged by 0041: eval-data

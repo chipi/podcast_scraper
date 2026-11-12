@@ -47,6 +47,7 @@ none.
 Dated: 2026-11-01
 
 The change, migration `0039_adfree_segment_offsets_realigned` (registered after 0038, before 0041):
+
 - **For each served episode whose ad-free segments do not all slice to their text:** walk the rows
   in order. Each row's text is searched for in `.adfree.txt` near its stored `char_start` (the
   window and its checks in 4b), and the row then takes that span.
@@ -59,6 +60,7 @@ The change, migration `0039_adfree_segment_offsets_realigned` (registered after 
   offsets are into the raw transcript) is not touched.
 
 Predicted on the clone (snapshot-prod-20261030 with 0038 and the D2 ledger):
+
 - 1 episode written, 187 rows realigned, 0 refused;
 - after: 0 rows not slicing corpus-wide;
 - 0 other files changed;
@@ -98,6 +100,7 @@ Dated: 2026-11-01T10:56
 **A correction to this section's first version:** it said `upgrade/registry.py` gained only 0042's
 registration, and that 0039's module was unchanged since the measurement. Both were wrong, and the
 fresh reader found it.
+
 - The registry also gained 0041's registration.
 - 0039's code digest (`outcome_hook.migration_digest`: the module and every module it imports)
   moved from `198b9929` at the measurement to `8476aa89`.
@@ -119,6 +122,7 @@ taken: 4c is corrected, and the change is re-measured.
 ## 6. Build
 
 Tests (`tests/unit/podcast_scraper/upgrade/test_m0039_adfree_segment_offsets_realigned.py`):
+
 - registered between 0038 and 0041;
 - rows left early by a shortened prefix take their text again;
 - each of these refuses the episode:
@@ -133,6 +137,7 @@ Code: `upgrade/migrations/m0039_adfree_segment_offsets_realigned.py`, `MAX_DRIFT
 `upgrade/file_rewrite` (backup, receipt, atomic write, undo).
 
 **Mutants** (`mutate.py`, run 2026-11-02 after the landing check found this section missing):
+
 - killed 6 of 6: several occurrences accepted; the direction check off; the shrink check off; the
   overlap check off; an unbounded window; and "slices again after the drift began" off.
 - The last one survived the first run: no test covered that branch. The test above was added, and
@@ -141,6 +146,7 @@ Code: `upgrade/migrations/m0039_adfree_segment_offsets_realigned.py`, `MAX_DRIFT
 ## 7. Measure
 
 Gate (`0039_adfree_segment_offsets_realigned.gate.json`, the final batch, code digest `e0bedfef5a62`, 2026-11-01; each gate on its own base: snapshot-prod-20261030 with 0038, the D2 ledger built with the final rules (`--no-respell`), and the migrations before it applied):
+
 - computed class full; gating moves none; **1 file changed**;
 - `upgrade verify` 37 ok; failing 0025 alone, no regression (the one ledger-joined pair, failing on
   the base too, which 0041 folds);
@@ -151,6 +157,7 @@ Gate (`0039_adfree_segment_offsets_realigned.gate.json`, the final batch, code d
 ### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
 
 Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain eval-data `d2out/scripts/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+
 - 187 segment rows realigned in 1 episode, 0 refused: unchanged from the final batch.
 - `upgrade verify` ok ("every served ad-free segment slices to its own text"), no regressions,
   no gating moves.

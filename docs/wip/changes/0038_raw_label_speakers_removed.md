@@ -50,7 +50,7 @@ build), run with the branch's `src`.
 The change's own numbers, on served episodes:
 
 | # | Definition | Baseline |
-|---|---|---|
+| --- | --- | --- |
 | N1 | GI Person nodes whose name is a raw label (`name_report.label_kind == "raw"`) | 28 in 24 episodes |
 | N2 | Quote nodes whose `speaker_id` is such a Person | 107 |
 | N3 | SPOKEN_BY edges to such a Person | 107 |
@@ -97,7 +97,7 @@ to copies of the 24 episodes and each scored with `corpus_scoreboard.score_episo
 after (eval-data `n11/n11_simulate.py`, `n11/sim_deltas.json`).
 
 | # | Before → after | Population |
-|---|---|---|
+| --- | --- | --- |
 | N1, N2, N3, N6 | 28, 107, 107, 28 → 0 | reached: 24 episodes |
 | N5 | 53 → 53, not touched (correction below) | must not move |
 | N4 | 53 insights change: 49 to `unknown`, 4 to `unidentified`; `surfaceable` per the pipeline's `VOICE_TYPE_NOT_SURFACEABLE` (all 53 false: no first quote is `cameo`) | 15 episodes, ids in `n11/n4_insights.json`; 7 of the 53 have an unplaced first quote (ids in `n11/rows5.json`) |
@@ -192,7 +192,7 @@ files inside 0038's code digest; the report in the tree is the re-run's, with th
 digest equals the code at that commit. Class **full** (`.gi.json` 24, `.bridge.json` 24; 48 files).
 
 | Prediction (section 4) | Measured |
-|---|---|
+| --- | --- |
 | 24 episodes written, 0 refused | 24, 0 |
 | N1 28, N2 107, N3 107, N6 28 → 0 | persons_removed 28, quotes_unattributed 107, spoken_by_removed 107, bridge_identities_removed 28; 0038's verify OK |
 | N4 53 (49 unknown, 4 unidentified), all hidden | insights_retyped 53, rerouted 53; quote by quote and insight by insight equal to the prediction (0 type differences) |
@@ -210,7 +210,7 @@ was redone.
 type, insight `surfaceable` / voice type / routing / salience, GI Person nodes, bridge identities):
 
 | Surface | Persisted? | Effect | Run step |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `metadata/enrichments/<stem>.insight_density.json`, `.insight_sentiment.json` | yes, per episode | both skip unsurfaceable insights (`_loaders.is_surfaceable_insight`): stale for the 15 | `podcast_scraper enrich --output-dir <corpus> --only insight_density,insight_sentiment`; measured on the copy: 24 episodes run (input fingerprint), 48 sidecar files rewritten, 0 new, 0 failed |
 | search index rows of the 24 episodes | yes, on prod (not in the backup) | the indexer passes a Quote's `speaker_id` (`search/indexer.py`), but 0031's prod census found no index table stores it (record 0031, derived surfaces) | the incremental `index` (no `--rebuild`), as 0037's run steps: re-indexes changed episodes and prunes stale rows; N8 = rows holding an N1 id, counted read-only on prod before and after (expected 0 both, by 0031's finding) |
 | `search/insight_clusters.json` (`search/insight_clusters.py` copies quote `speaker_id`) | yes, on prod (not in the backup) | may hold the removed ids | counted read-only on prod with N8; if it holds any, refreshed by its own deterministic builder, else left |

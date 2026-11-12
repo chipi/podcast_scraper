@@ -34,6 +34,7 @@ record; the measurements are in eval-data `data/eval/name-consolidation/s6/`.
 
 Snapshot-prod-20261030, the ledger at S5o (c4c350684), every served episode's surfaced insights
 (`s6/insight_surface_r2.py`):
+
 - 99,847 surfaced insights with a named speaker; 14,168 of them in a cross-episode group;
 - **R2 on this surface: 42 of the 190 groups that appear are shown under two or more spellings.**
 - Truth set, spelling wrong where the show text names the person (R3c): held-out 13 of 33,
@@ -52,6 +53,7 @@ Snapshot-prod-20261030, the ledger at S5o (c4c350684), every served episode's su
 Dated: 2026-10-31
 
 The change:
+
 - **`build_ledger`:** each person cluster records `display_name`, chosen by publisher text first,
   and `display_evidence` (`publisher` with the episode count, or `frequency`). Publisher text first
   means: the member that the most episodes' publisher text names (`guards.EpisodeEvidence.
@@ -69,6 +71,7 @@ The change:
 Predicted on the snapshot, through the real path (`s6/predict_through_gi_view.py`: `insights_from_gi`
 before and after a patch of only `_speaker_name`, every quote's speaker compared). This replaces a
 first estimate that read only each insight's first quote:
+
 - **Default path** (recap, board, auto-picks, OG counts, MCP `episode_insights`):
   - 103,845 insights, 201,221 quotes;
   - **2,770 quote speakers change spelling, in 1,559 insights**;
@@ -115,6 +118,7 @@ first estimate that read only each insight's first quote:
 
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, under a minute: "not
 complete". Rows added:
+
 - quote speakers, not insights;
 - both paths, measured through the real function rather than my first estimate;
 - authored names; raw labels;
@@ -123,6 +127,7 @@ complete". Rows added:
 - name_report's own numbers.
 
 Spot checks for step 8:
+
 - one group member shown in the episode panel and on the board, with the same spelling;
 - an authored quote unchanged;
 - an insight with quotes from two joined speakers, showing one spelling;
@@ -131,6 +136,7 @@ Spot checks for step 8:
 ## 6. Build
 
 Tests, written first (`tests/unit/podcast_scraper/identity/test_display.py`, invented names):
+
 - the ledger records the group spelling and its evidence;
 - every episode shows the group spelling, and without the view each episode's own;
 - no ledger: each episode's own name;
@@ -140,6 +146,7 @@ Tests, written first (`tests/unit/podcast_scraper/identity/test_display.py`, inv
 They failed before the code: the module did not exist.
 
 Code:
+
 - `identity/ledger.py`: `_add_display_spellings`, run in `build_ledger` with the guards' own
   evidence. Each person cluster gets `display_name` and `display_evidence`.
 - `identity/display.py`: `PersonDisplay.shown`; `display_from_ledger`; `person_display(root)`,

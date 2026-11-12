@@ -44,6 +44,7 @@ half: items L1, L2, L4 and L5. L3 is covered under Diagnosis.
 
 No counted prod loss: there are no cases on prod. The items are rules for shows the corpus will
 gain:
+
 - **L1:** titles and nicknames are English lists, applied to every language. A German "Herr" or "Frau"
   is not stripped, and English nicknames apply to German first names.
 - **L2:** a name whose show declares no language gets the English fuzzy rules. A missing vocabulary
@@ -61,6 +62,7 @@ gain:
 Dated: 2026-10-31
 
 The rule:
+
 - **A candidate's languages:** the primary subtags of its episodes' languages, read with the catalog's
   rule (the episode's tag, else the feed's), now one public function in `languages.py`.
 - **A pair's language:** the one language both candidates share, when there is exactly one; otherwise
@@ -92,6 +94,7 @@ The rule:
   `/2` ledger stays one step back (`ok_previous_rule`) when D2 deploys.
 
 Predicted:
+
 - **Snapshot corpus (prod):** the full ledger join list (`d1/d1_ledger_joins.py`) is byte-identical
   to S5a's, built with S5a's code from a git worktree and with this change's code, both over
   snapshot-prod-20261030. Every candidate there is `en`. Any difference stops the change.
@@ -132,6 +135,7 @@ Predicted:
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, about 1.5 minutes: "Not
 complete". It found that the first draft's L2 ("no language means equal only") would have changed
 every caller that passes no language today:
+
 - the within-episode merge;
 - hosts;
 - organisations;
@@ -142,6 +146,7 @@ callers; the org path; the untagged and multi-language counts (both 0 on the sna
 check on prod's live counts; the read-time map identical; what a listener sees.
 
 Spot checks for step 8:
+
 - blocked joins and the join count unchanged;
 - `build_entity_id_map` identical on the snapshot;
 - the within-episode merge scenario still merges;
@@ -151,12 +156,14 @@ Spot checks for step 8:
 ## 6. Build
 
 Scenario tests, written first and failing before the code (13 failed):
+
 - `test_person_match.py::test_cluster_person_by_language`: 23 pairs, both orders;
 - `test_the_cluster_mode_ignores_language`;
 - `test_ledger.py::test_candidates_carry_the_episode_language` and
   `test_an_org_of_unknown_language_still_joins`.
 
 Code:
+
 - `languages.py`: `episode_language` and `feed_language`, moved from `server/corpus_catalog.py`
   without a behaviour change. The catalog imports them under their old private names, and the name
   report reads them from here, no longer from the server.
@@ -196,7 +203,7 @@ needed D2 item 0.2's CPU-torch steps (65b8b97b8).
   digest changed in D2 (b6f68866a), and it clears when 0038's record is set to `landed`.
 - **Cheap gates on the changed files:** black, isort and flake8 clean; mypy: no issues in 16 files.
 
-## 7. Measure
+## 7. Measure (continued)
 
 MISSED: no measurement of this rule on its own. Its effect was measured only inside D2's combined gate: the outcome table in `d2_name_consolidation.md`.
 

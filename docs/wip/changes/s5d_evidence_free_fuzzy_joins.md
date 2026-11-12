@@ -20,6 +20,7 @@ record; ids are used. The measurements and the reads are in eval-data
 ## 1. Intake
 
 **Reading list:**
+
 - the person-identity design, D2 (plan V3, eval-data `docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md`): step 9, join
   reads.
 - [s5c_scoped_names_not_pooled.md](s5c_scoped_names_not_pooled.md): the same mechanism, a match-pool
@@ -34,6 +35,7 @@ record; ids are used. The measurements and the reads are in eval-data
   - `build_allow.py`.
 
 **What the join read found** (step 9, snapshot-prod-20261030, the D2 ledger on `clone-pre0038a`):
+
 - **135 fuzzy person joins with no evidence:**
   - **fuzzy:** the names are not equal after normalisation and not a hyphen or initial variant;
   - **no evidence:** neither id is a voice in any of its episodes, and publisher text names neither.
@@ -60,6 +62,7 @@ record; ids are used. The measurements and the reads are in eval-data
 ## 2. Baseline
 
 Two baseline commands, both on `clone-pre0038a`:
+
 - `d2i9/fuzzy_joins.py`: 135 fuzzy joins with no voice and no publisher evidence, written for
   reading. 76 of them are one-episode on both sides (`read_pairs.py`: "76 pairs").
 - `d2i9/ledger_counts.py`:
@@ -85,12 +88,14 @@ Dated: 2026-11-01T20:35 (revised after the first fresh read, section 5, before a
 **The switch.** `build_entity_canonical_map` takes a new keyword, `pair_rule`, which defaults to
 None (today's behaviour). Only the ledger build (`identity/ledger.build_ledger`) passes one, so the
 other callers are unchanged. `pair_rule(cand, member)` returns one of three verdicts:
+
 - `None`: the edge counts as today;
 - `"ignore"`: the edge is not evidence (rule 1);
 - `"apart"`: the candidate may not join this cluster (rule 2).
 
 **Rule 1 (an ignored edge),** per edge in `_JoinTest._matches`. The edge between candidate `a` and
 member `b` is ignored when all of these hold:
+
 1. both are persons, and neither id is episode-scoped (s5c covers those);
 2. each has at most one episode (`EntityCandidate.freq <= 1`; an id with no `episode_id` counts as
    having none);
@@ -111,6 +116,7 @@ alone is not evidence of one person.
 cluster (not the pool that `no_one_word_bridge` or s5c narrow). When a member of the cluster and the
 candidate are a pair in the list's `apart`, and the candidate's name matches that member's
 (`_match`), the join is refused:
+
 - **It is a blocked join.** A row `[candidate_id, member_id, "reviewed_apart",
   episode_id]` is written to `blocked_joins`, with the candidate's first episode (sorted).
 - The candidate goes on to the next eligible cluster, as for any refusal.
@@ -124,6 +130,7 @@ The pair rule is built in `identity/guards.reviewed_pair_rule(evidence, reviewed
 evidence, and the list). The ledger build passes it to `build_entity_canonical_map(pair_rule=)`.
 
 **The list,** `upgrade/lists/s5d_reviewed_fuzzy_joins.json`, ids only:
+
 - `groups`: 64 groups, 132 ids, the 68 one-person pairs grouped by canonical. Rule 1 is
   pair-agnostic inside a group, so a build edge between two members of a group (not member to
   canonical) passes too.
@@ -142,6 +149,7 @@ evidence, and the list). The ledger build passes it to `build_entity_canonical_m
 Each entry carries the read it rests on.
 
 **The future:**
+
 - a new evidence-free pair of one-episode ids stays two names;
 - it joins once a person gains a second episode, a voice or publisher text, or a later read adds it
   to `groups`;
@@ -151,7 +159,7 @@ Each entry carries the read it rests on.
 as in D2's deploy; the before and after scoreboards come from `ledger_counts.py`:
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | joins | 658 | **648** |
 | person groups | 372 | **362** |
 | full-name person joins | 365 | **355** |
@@ -194,6 +202,7 @@ of D2's `/3`, which is not on prod yet.
 Dated: 2026-11-01T21:40
 
 **What the first measurement showed:**
+
 - **2 joins lost that section 4 did not predict:** `person:enoch-karangwana` →
   `person:enoch-godongwana`, and `person:yu-shang` → `person:yushan`.
 - **1 `blocked_joins` row more than predicted:** `person:yu-shang` refused against `person:yu-shun`
@@ -201,6 +210,7 @@ Dated: 2026-11-01T21:40
 
 **The edges** (`d2i9/s5d_4c_check.py`, the build's own `_match` and pool, against the served
 groups):
+
 - **`person:enoch-karangwana`:**
   - it does not match the canonical directly;
   - it matches only `person:enoch-gaurangwana` and `person:enoch-gorongwana`, both one-episode and
@@ -213,6 +223,7 @@ groups):
     candidate's pool.
 
 **Why the prediction missed them.**
+
 - `fuzzy_joins.py` judged each member against its group's canonical, and counted evidence when
   either end had it. Both canonicals have a voice and publisher text, so neither member was among
   the 135.
@@ -221,6 +232,7 @@ groups):
 - The first reader's replay used the same member-to-canonical view.
 
 **The read of the two:**
+
 - `person:enoch-karangwana` is one person with the group. Every description is the same office on
   the same show, and its episode's publisher text names the canonical's spelling. **A right join
   lost.**
@@ -236,11 +248,13 @@ groups):
 **The change:** one group added to the list's `groups`, all four ids of `person:enoch-godongwana`'s
 group. Its basis is in the file under `groups_added`. No code changes. The list then holds 65 groups,
 136 ids, and 10 `apart` pairs.
+
 - **All four, not just the canonical,** because the restored edge runs between two of its one-episode
   members. Rule 1's group test is pair-agnostic inside a group (condition 5).
 - No `apart` entry involves these ids, so rule 2 cannot interfere.
 
 **What the miss means for section 4.**
+
 - Section 4's populations came from `fuzzy_joins.py`'s member-to-canonical view, so they missed any
   member that joined through an evidence-free edge to a non-canonical member of a group with
   evidence. Those populations are: the 135 / 76 / 59, the read splits of section 1, the row
@@ -256,7 +270,7 @@ group. Its basis is in the file under `groups_added`. No code changes. The list 
 **Predicted** (the same rebuild and the same `ledger_counts.py`):
 
 | | 4's prediction | 4c |
-|---|---|---|
+| --- | --- | --- |
 | joins | 648 | **647** |
 | person groups | 362 | **362** |
 | full-name person joins | 355 | **354** |
@@ -278,6 +292,7 @@ group. Its basis is in the file under `groups_added`. No code changes. The list 
 Dated: 2026-11-01T23:20
 
 **The reads** (eval-data `d2i9/`), each on D2's measured ledger (`s5d_measure_4c.out`):
+
 - **The cards** (`card_read.py`): every card whose shown name changes against prod's, 151.
 - **The near-spelling joins with any evidence** (`near_only_members.py`, `near_pairs_ranked.py`):
   - 276 pairs, edge view, none of them in the earlier reads (`near_pairs_ranked.txt`), each read
@@ -290,6 +305,7 @@ side by side in `d2i9/s5d_4d_evidence.out`, which also covers the 3 replay pairs
 join. The scoped id of `person:zoran-mamdani`'s group is the least certain: its description fits an
 academic namesake better than the group's politician. Unclear goes to split, as for
 `person:yu-shang`.
+
 - **Full-name pairs, 5.** Each has one side voiced or publisher-named, so rule 1 never applied:
   - `person:stephen-king` / `person:stephen-hawking`. The card shows the wrong person's name,
     since the publisher's text names the other;
@@ -308,6 +324,7 @@ academic namesake better than the group's politician. Unclear goes to split, as 
   join.
 
 **The change:** 20 pairs added to `apart`, 30 in all. No code changes.
+
 - The 12 scoped-id pairs and the 5 full-name pairs above.
 - **3 that the order replay found** (`d2i9/s5d_order_replay_4d.py`):
   - freed, the scoped id of `person:henry-i`'s group matches `person:david-i` and `person:roger-i`;
@@ -316,6 +333,7 @@ academic namesake better than the group's politician. Unclear goes to split, as 
 
 **Order effects** (`s5d_order_replay_4d.out`, each of the 32 ids against every candidate on its
 shows):
+
 - **One new join:** the scoped id of `person:rajmohan-gandhi`'s group matches
   `person:mohandas-gandhi`, a single id today.
   - **Read:** both descriptions name one person, the independence leader (`s5d_4d_evidence.out`).
@@ -328,7 +346,7 @@ shows):
 **Predicted** (the same rebuild and `ledger_counts.py`):
 
 | | 4c measured | 4d |
-|---|---|---|
+| --- | --- | --- |
 | joins | 647 | **632** (−16 lost, +1 gained) |
 | person groups | 362 | **350** (13 dissolve, 1 new) |
 | full-name person joins | 354 | **349** |
@@ -365,6 +383,7 @@ shows):
   - The gate rerun on the real rebuild must give 556 / 2,805.
 
 **Not covered by 4d:**
+
 - **New wrong bare-name joins.** At least 6% of the 184 read wrong (11).
   - The count is a lower bound: some bare ids have no description and could not be judged.
   - The two large groups of one show's co-hosts, `person:yu-shun` and `person:yushan`, hold bare ids
@@ -386,6 +405,7 @@ Dated: 2026-11-02T03:10
 **The report.** `scripts/measure/near_spelling_joins.py` (`identity/near_joins`) lists every ledger
 member whose only link into its group is a near spelling and that no read has reviewed. It is the
 step to run after each ledger rebuild until voice evidence (1C) decides these joins.
+
 - **Its first run** on the clone: 451 open pairs. 280 had been read as one person by name this
   session; 170 were bare names and title forms of the same person, read in
   `d2i9/near_joins_unread.txt`.
@@ -403,6 +423,7 @@ step to run after each ledger rebuild until voice evidence (1C) decides these jo
   - So the bare id is another person, and the pair goes to `apart` (31 pairs).
 
 **Predicted** (the ledger rebuilt on the clone):
+
 - joins 632 → **631**, scoped joins 174 → **173**;
 - person groups 350 → **349** (the two-member group dissolves);
 - `blocked_joins` 39 → **40** (one `reviewed_apart` row);
@@ -417,6 +438,7 @@ rule cannot split them.
 **First fresh reader:** 2026-11-01, a sonnet reviewer subagent with read-only tools, one pass before
 any code.
 Dated: 2026-11-01T20:05
+
 - **Verdict:** "Not complete".
 - **Its findings,** each taken in section 4's revision:
   - integers for every scoreboard row;
@@ -438,6 +460,7 @@ Dated: 2026-11-01T20:05
 **Second fresh reader:** 2026-11-01, a sonnet reviewer subagent with read-only tools, one pass before
 any code.
 Dated: 2026-11-01T20:55
+
 - **Verdict:** "Not complete".
 - **Its blockers,** each taken above:
   - rule 2's order effects: the replay;
@@ -454,6 +477,7 @@ Dated: 2026-11-01T20:55
 **Third fresh reader (4c):** 2026-11-01, a sonnet reviewer subagent with read-only tools, one pass
 over 4c before the second measurement.
 Dated: 2026-11-01T22:05
+
 - **Verdict:** "Not complete".
 - **Its findings,** each taken in 4c:
   - the two members' real edges, shown by the build's own test;
@@ -469,6 +493,7 @@ Dated: 2026-11-01T22:05
 **Fourth fresh reader (4d):** 2026-11-01, a sonnet reviewer subagent with read-only tools, one pass
 over 4d before its measurement.
 Dated: 2026-11-02T00:10
+
 - **Verdict:** "Not complete".
 - **Its findings,** each taken in 4d:
   - person names in prose, replaced by ids;
@@ -486,6 +511,7 @@ Dated: 2026-11-02T00:10
 
 **Tests, written first** (`tests/unit/podcast_scraper/identity/test_guards.py::TestReviewedPairRule`,
 and one in `test_ledger.py`). Before the code: 12 failed, 56 passed.
+
 - two one-episode near spellings are not joined;
 - a reviewed group, a second episode, a voice or publisher text lets them join;
 - an equal name and a middle-initial variant are never ignored;
@@ -499,6 +525,7 @@ One existing ledger test (the canonical tie) gained a second episode for its per
 one-episode near spellings no longer join at all.
 
 **Code:**
+
 - `kg/entity_clusters`: `build_entity_canonical_map(pair_rule=)`; `_JoinTest._matches` drops
   ignored edges from the pool; `_JoinTest._apart` handles rule 2 and writes its rows.
 - `identity/guards`: `GUARD_REVIEWED_APART`, `REVIEWED_LIST`, `load_reviewed`,
@@ -511,6 +538,7 @@ equality before the language's folds only. A German pair equal under the folds c
 spelling; it now tests both.
 
 **Mutants** (`replay-proven-fix` `mutate.py`, 11): killed 11 of 11.
+
 - They covered: the pool filter, rule 2 off, its row, a check of the first member only, the episode
   limit at 2 and at exactly 1, the voice test, the publisher test, the group test, the fold
   equality, and the hyphen/initial test.
@@ -528,7 +556,7 @@ and 20 rows. That led to 4c.
 **The second measurement,** after 4c (`s5d_measure_4c.out`, plus `ledger_counts.py`):
 
 | | before | 4c predicted | after |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | joins | 658 | 647 | **647** |
 | person groups | 372 | 362 | **362** |
 | full-name person joins | 365 | 354 | **354** |
@@ -542,7 +570,7 @@ and 20 rows. That led to 4c.
 4c ledger the clone then served):
 
 | | 4c measured | 4d predicted | 4d measured |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | joins | 647 | 632 | **632** |
 | person groups | 362 | 350 | **350** |
 | full-name person joins | 354 | 349 | **349** |

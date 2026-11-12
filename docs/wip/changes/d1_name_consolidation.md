@@ -87,6 +87,7 @@ MISSED: see section 4. Operator accepted: 2026-10-31.
 Commits on `feat/name-consolidation` (S1b … S4): 042c8d6af and the S1b series, 1802035eb (S3),
 a89e53fe2 (report), 855a12da6 (guards), a41530cbb (one-word rule, no-bridge linkage), 774de1a28
 (non-Latin names, report reads the ledger), c5bc10c77 (ledger undo), and the ledger step (below).
+
 - **The ledger step on every corpus-writing path** (plan V3: "the last stage of every
   corpus-writing path"), added 2026-10-31 after the D1 inventory found it unwired: only the
   `identity-ledger` command wrote the ledger, so episodes ingested after the deploy would have had
@@ -109,7 +110,7 @@ S2–S4 runs), outside `/tmp` (`/Users/claude/snapshots/`, 105 GB free before). 
 (ledger step) for the ledger and warm-up runs, b0d1a34bb–476c0002d after (docs and two gate fixes).
 
 | Check | Result |
-|---|---|
+| --- | --- |
 | ledger build (`identity-ledger --dry-run`) | 93.4 s; 949 joins: 720 person, 229 org; 9 blocked joins |
 | person joins equal the S4 replay's final map | yes: sha 1f48d22a02b5 both (so 0038 changes no join) |
 | raw `person:speaker-*` ids in any join | 0 |
@@ -125,7 +126,7 @@ Outcome rows measured on the copy so far (`name_report`, eval-data
 (same corpus token, before 0038 and before the ledger):
 
 | Row | Before (prod, c71876a) | After (copy) |
-|---|---|---|
+| --- | --- | --- |
 | R1 shown surfaces | 0 (S3) | 0 |
 | R1 data: raw-label quotes / bridge identities | 107 in 23 / 28 in 24 | 0 / 0 |
 | R2 roster pairs a+b, groups | 8+98, 71 | 8+98, 71 |
@@ -138,7 +139,7 @@ Outcome rows measured on the copy so far (`name_report`, eval-data
 (before) against the branch on the copy with 0038 applied (after).
 
 | # | Before | After | Δ | Cause, by identity |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | S1 | 17,811 | 17,860 | +49 | 0038's N4 `unknown` set (accepted, record 0038) |
 | S2 | 31,421 | 31,474 | +53 | 0038's N4 set (accepted) |
 | S3 | 9,217 | 9,219 | +2 | 0038, episode 987ebd8e (accepted) |
@@ -185,7 +186,7 @@ commits are records and docs only.
 leftover generated files, like CI's checkout):
 
 | Gate | Result |
-|---|---|
+| --- | --- |
 | `make ci-fast` | **PASS** (`MAKE_EXIT=0`; unit 17,168 passed, integration-fast 2,185 passed, e2e 244 + 40 passed; 0 failed) |
 | `make test-integration` | 4,604 passed, **1 failed: `test_player_nginx_syntax_ok`**, which runs `docker` on the production socket (closed to development work here); the branch does not change the player's nginx config (0 diff lines); CI runs it |
 | player Playwright, full suite | **702 passed**, 22 skipped, 0 failed |

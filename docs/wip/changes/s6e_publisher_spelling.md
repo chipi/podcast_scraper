@@ -47,6 +47,7 @@ Dated: 2026-11-01
 
 The change, in `ledger._add_display_spellings`, with the publisher names each episode states kept on
 `EpisodeEvidence`:
+
 - A publisher name of an episode holding a group member counts for the group when it is:
   - a member's name, folded; or
   - a full name that the roster's own predicates (`roster._same_person`, which needs one surname;
@@ -59,6 +60,7 @@ The change, in `ledger._add_display_spellings`, with the publisher names each ep
 - `display_evidence`: `{"rule": "publisher_text", "episodes": n}`.
 
 Predicted on the snapshot (`d2i9/spelling_publisher_text.py`, the prototype the code must equal):
+
 - **11 of 475 groups change** (10 after 4b's tightening).
   - All but one read as the show's own spelling (public figures).
   - 1 gains its title, as the publisher writes it.

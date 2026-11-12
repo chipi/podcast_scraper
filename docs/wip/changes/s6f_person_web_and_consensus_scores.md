@@ -26,6 +26,7 @@ Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §4. Two
 ## 2. Baseline
 
 The clone (snapshot-prod-20261030, 0038, 0039, the D2 ledger), `d2i9/person_web_reach.py`:
+
 - 475 person groups, 2,386 `person_web` rows;
 - **38 cards** whose canonical id has no bio while a member id has one;
 - 30 cards that would gain a hosted photo; 205 member ids without a photo of their own in groups
@@ -46,6 +47,7 @@ Both read by one key where the data keys another way.
 Dated: 2026-11-01
 
 The change:
+
 - **`_person_web(root, person_id)`:** the canonical's own row first. Else a member's row, **only
   when the row's name is the group's spelling** (folded), the member with the most episodes first.
   A row under another name may describe another person and is never borrowed.
@@ -83,6 +85,7 @@ Dated: 2026-11-01T12:35
 ## 6. Build
 
 Tests:
+
 - a joined person's bio and photo come from another id under the group's spelling, never from a
   row under another name, and the photo routes to the id that hosts it;
 - with no ledger nothing is borrowed;
@@ -90,6 +93,7 @@ Tests:
 - consensus scores under the enricher's keys, a real 0.0 kept.
 
 Code:
+
 - `server/app_relational_view._group_borrows`, used by `_person_web` and `hosted_photo_urls`;
 - `search/operators._pair_dicts` (keys by presence).
 
@@ -101,11 +105,10 @@ truth.
 The clone, the real code, before (no ledger) and after (`d2i9/s6f_measure.py`):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | canonical cards with a bio | 109 | 128 (**19 gained**, 0 lost) |
 | ids with a hosted photo | 1,897 | 2,080 |
 | canonical cards gaining a photo | | 15 |
 | existing own photos changed | | 0 |
 
 Both match the prediction: 19 bios; photos at most 30 cards, measured 15.
-

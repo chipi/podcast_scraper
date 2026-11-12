@@ -72,7 +72,7 @@ Snapshot-prod-20261030, the ledger built in memory at S6d (46667141a), every ser
 The fields that carry such a name today:
 
 | surface | fields |
-|---|---|
+| --- | --- |
 | segments `speaker_label` (`.segments.json` / `.adfree.segments.json`) | 25,900 / 25,714 |
 | transcript speaker prefixes (`.txt` / `.adfree.txt` / `.cleaned.txt`) | 2,472 / 2,470 / 2,020 |
 | turns `speaker_label` (`.turns.json` / `.adfree.turns.json`) | 869 / 867 |
@@ -178,6 +178,7 @@ was false; I wrote it without checking. Transcript chunks are slices of the anal
 speaker prefixes included (`search/chunker.py` slices `text[c_start:c_end]`), with their offsets.
 A respelled prefix changes chunk text and shifts every later offset in the episode; Quote rows
 carry offsets too.
+
 - The index's per-episode fingerprint hashes every embeddable row's `(doc_id, text)`
   (`two_tier_indexer._episode_fingerprint`). So the next `reindex` re-embeds exactly the episodes
   whose rows changed, offsets with them: ladder step 4, the affected episodes only, as D1's run
@@ -191,7 +192,7 @@ carry offsets too.
 own inputs respelled as 0041 leaves them, publisher text kept):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | joins | 840 | 840 |
 | person groups | 475 | 474 |
 | groups whose canonical id moves to another member | | **92** |
@@ -213,6 +214,7 @@ own inputs respelled as 0041 leaves them, publisher text kept):
 - **Must not move (added):** `blocked_joins` beyond the pair; canonical ids; `display_name`.
 
 **Item 8's fold, defined.**
+
 - The survivor is the id in a ledger group; its variant is the other id of the pair.
 - **Refused** when both are in groups, or when neither is.
 - **Refused** when the variant has episodes outside this one, since its group membership
@@ -231,6 +233,7 @@ own inputs respelled as 0041 leaves them, publisher text kept):
   - no id outside the 5 moved.
 
 **The ledger step.**
+
 - **Receipts per build:** `ledger_respell/<stamp>.jsonl`, the stamp filesystem-safe (`20261031T120000Z`),
   with the backup tag `ledger-respell-<stamp>`. The undo takes the stamp. A retry of the same build
   after a partial failure uses a new stamp, so a kept backup is never stale.
@@ -246,6 +249,7 @@ own inputs respelled as 0041 leaves them, publisher text kept):
   keep the newer spelling until the next build respells them. Stated.
 
 **Must not move, made checkable:**
+
 - Spoken text: per transcript line, the line count is equal, and each line's text after its
   leading `name:` label is equal (all three variants). Segments: `text`, `start` and `end` equal.
 - GI quote spans still slice to the same text after m0023's offset carry.
@@ -257,6 +261,7 @@ own inputs respelled as 0041 leaves them, publisher text kept):
   `RESPELLING_TAKES_RENAMED_SOURCE` is off). Decision traces stay.
 
 **Derived outputs that carry names:**
+
 - `guest_coappearance` and `topic_consensus` read KG names; the enrich run after the migration
   rebuilds them, as in D1's run steps. Read time spells them meanwhile (S6d).
 - `person_web` keys on ids, and `insight_clusters` on insight ids; neither is changed.
@@ -268,6 +273,7 @@ own inputs respelled as 0041 leaves them, publisher text kept):
 Dated: 2026-11-01T09:15
 
 What changed since the measurement at 2026-10-31T21:35, each recorded in section 6 or its own record:
+
 - 0025 defers to the ledger's spelling; 0041's fold finds a survivor under a respelled name;
 - the display rule never shows a bare name over a full one;
 - **the publisher's own text is the reference spelling** (record `s6e_publisher_spelling`, the
@@ -282,6 +288,7 @@ What changed since the measurement at 2026-10-31T21:35, each recorded in section
 
 Predicted on the clone (snapshot-prod-20261030, 0038 and 0039 applied, the ledger rebuilt with this
 code):
+
 - `upgrade verify` after 0041: **0 failing** (it was 3: 0025, 0035, 0041);
   - 0035's 5 episodes read as done;
   - 0041's 1 refusal is gone (0039);
@@ -324,6 +331,7 @@ Dated: 2026-11-01T09:15
 Dated: 2026-11-01T10:42
 
 `upgrade verify` after 0041: 38 ok, failing 0035 alone (4 episodes, item 8's last 4), a regression.
+
 - **The cause:** two publisher spellings of one guest disagree. The episode's metadata says one;
   0035 renamed the voice to its cross-episode voice group's name, the person's spelling in their
   other episodes, reviewed CORRECT or CORRECT_MISSPELLED. 0041 carried 0025's rename of that voice to
@@ -350,6 +358,7 @@ Dated: 2026-11-01T11:55
 The gate is green: `upgrade verify` 39 ok, none failing, no gating number moved, 689 episodes
 written. The after-checks (`d2i9/after_checks.py`, `after_checks_gate0041d.txt`) passed every
 must-not-move row but one:
+
 - **One ledger group changed membership** on the rebuild. The full-name display rule gave a group
   the spelling of its full-name member, and 0041 wrote that two-word name over 5 episode-scoped bare
   mentions (`person:unresolved-*`). On the rebuild those were full names, eligible for the join test,
@@ -395,6 +404,7 @@ Dated: 2026-11-01T14:49
 The gate is green: `upgrade verify` 40 ok, none failing; 573 episodes, 2,864 files; no gating number
 moved. The after-checks (`d2i9/after_checks_final.txt`, base-0041 against base-0042, which is 0041's
 after-state) pass every must-not-move row but the ledger's:
+
 - **Joins 658 → 631 on the rebuild** (`d2i9/join_diff.py`): 28 lost, 1 gained, 5 moved, 3 groups'
   members changed, display names 0 changed.
 - **The cause, general and not one case:** 0041 rewrote the names the ledger reads as evidence.
@@ -478,11 +488,13 @@ inputs); the roster's voices; the key's survival; the baseline. All are taken in
 
 Tests, written first (`tests/unit/podcast_scraper/identity/test_ledger.py`, invented names; the first
 and third failed before the code):
+
 - a rebuild that shifts the frequencies keeps the served canonical id;
 - with no served ledger, the canonical is the rule's;
 - one spelling for every member keeps the canonical (the tie 0041 makes).
 
 Code:
+
 - `kg/entity_clusters`: `build_entity_canonical_map(keep_canonical=)`. `_pick_canonical` prefers a
   kept id, then frequency, the longest name, the name, and the **id**. The id is new, so the pick
   never rests on the input order.
@@ -492,7 +504,7 @@ Code:
 Measured (`d2i9/fixpoint.py`, the "before" ledger served to the rebuild, as on prod):
 
 | | before | after the respelling |
-|---|---|---|
+| --- | --- | --- |
 | joins | 840 | 840 (1 moved) |
 | person groups | 475 | 474 |
 | canonical ids moved | | **0**, apart from the one group that merges |
@@ -516,6 +528,7 @@ by a mutant, and three that the first mutants survived were strengthened.
 
 Tests (`tests/unit/podcast_scraper/upgrade/test_m0041_joined_names_respelled.py`, on 0025's fixture,
 invented names):
+
 - a joined speaker takes the group spelling on every surface (segments, transcript prefixes, turns,
   metadata roster, KG and GI names, diagnostics voices), keeping its id;
   - the spoken words are unchanged, including the name inside them; segments' text and times are
@@ -533,6 +546,7 @@ invented names):
 
 Code: `upgrade/migrations/m0041_joined_names_respelled.py` (registered after 0038, `to_version`
 2.7.33):
+
 - `episode_renames` (the decision) and `LedgerView`;
 - `_Episode` over 0031's derived surfaces, with `_id_map` (folds only), `_record` (merge only on a
   fold or a name now listed twice), `_node_labels` (every joined Person node and bridge identity;
@@ -545,6 +559,7 @@ refusal off; mentioned nodes not respelled; turns rebuilt for a mention-only res
 ### Part C: the ledger step respells
 
 Tests (`tests/unit/podcast_scraper/identity/test_respell.py`, a three-episode corpus):
+
 - a build respells the files and records it in the change log; a second build writes nothing,
   and the ledger is the same (the fixpoint); the run's undo restores the files;
 - a held corpus lock defers the respelling, the ledger is still written, and the next build
@@ -553,6 +568,7 @@ Tests (`tests/unit/podcast_scraper/identity/test_respell.py`, a three-episode co
 - the CLI respells unless `--no-respell`.
 
 Code:
+
 - `identity/respell.py`: `respell_files` (the corpus lock taken without waiting; 0041's decision and
   rewrite over every served episode, judged against its files; backups and receipts per run under a
   filesystem-safe stamp) and `undo_respell(stamp)`;
@@ -569,12 +585,14 @@ Unit: identity, upgrade, enrichment, search and KG areas, `2189 passed`; flake8 
 
 The first gate run (`gate0041`, its report discarded) applied 0041 to the clone. Its verify passed,
 but 0025's verify failed on 10 episodes instead of item 8's 5 (`d2i9/m0025_after_0041.txt`):
+
 - **One of item 8's 5 folded**; the other 4 remained (below).
 - **6 new.** 0041 wrote a group's spelling over a voice whose own episode's publisher text spells
   the person another way, and 0025's rule then renames the voice toward the episode's spelling.
   The two migrations would undo each other.
 
 Three changes, each with tests and a mutant:
+
 1. **0025 defers to the ledger** (`m0025._Episode._ledger_spells`). A placed voice whose every
    Person node carries its group's spelling in the served ledger is not renamed toward the episode's
    stated spelling. The ledger owns a joined person's spelling across episodes: the arc's agreed goal
@@ -602,6 +620,7 @@ stated host spelling, which is publisher-first, as S6's rule is. They are read a
 **Not built, an open decision for the operator** (the S6 result's "linking the show text to the
 group by a fuzzy name match"): the publisher's own spelling, matched to a member by 0025's
 predicate. Measured (`d2i9/spelling_publisher_match.py`):
+
 - 7 of 475 groups move, the truth set unchanged;
 - 6 of the 7 read as the show's correct spelling of a public figure, and 1 gains a title;
 - it would also fix a group whose every member is an ASR misspelling of a host the feed names.
@@ -609,6 +628,7 @@ predicate. Measured (`d2i9/spelling_publisher_match.py`):
 ### Found by the second gate run (`gate0041b`), and changed
 
 `upgrade verify` after 0041 failed on 0025 (item 8's 4, below), 0035 (5 episodes) and 0041 itself (1):
+
 - **0035, and every frozen-list migration (0029, 0031, 0033, 0034, 0035, 0037):** each judges a listed
   voice by its exact stored name. 0041 wrote a group spelling over 5 listed names, and 0035 saw neither
   its before nor its done state. A stored name that is the served ledger's group spelling of a listed
@@ -629,6 +649,7 @@ hook. The ledger step respells only from then on.
 migration, and `enrich` after every run. On prod, the 0039 run, or any enrich before 0041, would
 have done 0041's whole respelling outside its measured run, and 0041 would then have found an empty
 plan. The clone chains applied migrations directly, never through `upgrade run`, so no gate saw it.
+
 - **The fix:** `identity/refresh_guard.refresh_ledger_after`, used by `upgrade run` and `enrich`.
   While 0041 is not applied it builds and writes the ledger and defers the respelling,
   `{"respell": {"deferred": true, ...}}` in the change log. From 0041 on, it is `refresh_ledger`.
@@ -646,6 +667,7 @@ The gates and after-checks, newest last.
 ### Final batch
 
 Gate (`0041_joined_names_respelled.gate.json`, the final batch, code digest `e0bedfef5a62`, 2026-11-01; each gate on its own base: snapshot-prod-20261030 with 0038, the D2 ledger built with the final rules (`--no-respell`), and the migrations before it applied):
+
 - computed class full; gating moves none;
 - **573 episodes, 2,864 files**;
 - `upgrade verify` **40 ok, none failing** (0025 included: item 8 folded, and the 4 with reviewed
@@ -653,6 +675,7 @@ Gate (`0041_joined_names_respelled.gate.json`, the final batch, code digest `e0b
 
 After-checks (`d2i9/after_checks_final.txt`, base-0041 against base-0042, its after-state): **every
 must-not-move row passes**, the ledger's included:
+
 - joins 658 → 658 (0 changed); canonical ids, group members, `display_name`, `display_evidence`: 0
   changed; blocked joins 9 → 9;
 - spoken text per line, segment text and times, publisher evidence: unchanged; 0 person ids added;
@@ -662,7 +685,6 @@ must-not-move row passes**, the ledger's included:
 - the 2 quotes off their text are among 0040's 6 listed, unchanged by 0041;
 - 1 episode's shown names move from an authored quote name to the group spelling (intended).
 
-
 ### Rerun after s5d (the ledger's near-spelling rule and reviewed list)
 
 0041's code is unchanged. Its input changed: D2's ledger after record s5d (sections 4–4d), 632
@@ -670,6 +692,7 @@ joins instead of 658. The gate and the after-checks were rerun on the same chain
 ledger rebuilt with `--no-respell`.
 
 **Gate** (`0041_joined_names_respelled.gate.json`, code digest `2b6374388bbc`, 2026-11-01T21:50):
+
 - computed class full; gating moves none;
 - **556 episodes, 2,805 files.** That is s5d 4d's prediction (`d2i9/s5d_4d_evidence.py`) exactly.
   - The 17 fewer episodes come from the joins s5d removed: its two-people pairs, whose spelling
@@ -680,6 +703,7 @@ ledger rebuilt with `--no-respell`.
 **After-checks** (`d2i9/after_checks_s5d.txt`, base-0041 against base-0042): **every must-not-move
 row passes**. The script's verdict line reads "AFTER CHECKS: FAIL 0". It prints FAIL whenever a
 quote span is off its text, here the 2 below, and 0 is the count of must-not-move breaches.
+
 - **The ledger fixpoint:**
   - joins 632 → 632, 0 changed;
   - blocked joins 39 → 39;
@@ -693,6 +717,7 @@ quote span is off its text, here the 2 below, and 0 is the count of must-not-mov
 speaker labels in their segments. Each keeps the episode's bare name in the files, and read time
 shows its group's spelling. All 4 read right: one show's two co-hosts in three episodes, and one
 analyst's surname.
+
 - The earlier figure, 15 (4f-b), was measured on the ledger before s5d with `d2i9/dry_counts.py`.
   That script joins the metadata's transcript path, which is absolute on prod, so it missed
   episodes.
@@ -701,6 +726,7 @@ analyst's surname.
 ### Final rerun on D2's final ledger (s5d through 4e, s6g, s6h; 2026-11-02)
 
 Code digest `bc3c9bb670fd` (the shared digest moved with s6h's `identity/ledger` and `identity/display`). Chain eval-data `d2out/scripts/chain5.sh`, each gate on its own base: snapshot-prod-20261030 with 0038, the ledger rebuilt `--no-respell` with the final rules, the migrations before it applied. The gate report is from this run. Record s6h section 7 has the whole chain.
+
 - **Gate:**
   - **467 episodes, 2,289 files**, as s6h's 4b predicted. s6g's run gave 501 / 2,525 (record
     s6g section 7); s6h's 12 groups with no group spelling are respelled no more.
@@ -764,6 +790,7 @@ b64e08e04 and this verdict).
 recommendations"):** the 2-per-kind gap is 2 episodes whose metadata stores an absolute
 transcript path. My after-check script skips such an episode (eval-data `d2out/gap_0041.py` →
 `.out`).
+
 - The two are substack `deda024b` "0005" and simplecast `999571cd` "0007".
 - The after-checks' must-not-move rows, run on both runs' episodes with the transcript resolved
   by name (`d2out/gap_0041_checks.py` → `.out`, "FAILS 0"):

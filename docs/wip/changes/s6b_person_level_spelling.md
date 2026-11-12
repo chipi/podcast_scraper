@@ -45,6 +45,7 @@ episode's node, or the id. None reads the group's spelling.
 Dated: 2026-10-31
 
 The change:
+
 - `PersonDisplay.name_of(person_id)` gives the group spelling of a joined id, or None.
 - **Person card:** `label` = the group spelling when the person is joined; related people's names
   go through `shown`.
@@ -55,6 +56,7 @@ The change:
 - Each takes the view from `person_display(root)`; with no ledger, today's output.
 
 Predicted on the snapshot:
+
 - **Person cards:** the count of joined groups whose card name changes, measured on all 475 groups
   (pending; filled in below). In the sample of 5, 1 changes.
 - **Top persons and perspectives:** a joined person's shown name is their group spelling on both. The
@@ -87,6 +89,7 @@ Predicted on the snapshot:
 
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, about 1 minute: "not
 complete". Rows added in 4b:
+
 - the perspectives callers and grouping;
 - the KG index as the home of the card's names;
 - top persons' raw-id rows;
@@ -94,6 +97,7 @@ complete". Rows added in 4b:
 - the OG cache.
 
 Spot checks for step 8:
+
 - a ledger rebuild without a restart changes the card, top persons and perspectives;
 - one variant-pair topic's perspectives read;
 - one formerly raw-id top-persons row read.
@@ -104,6 +108,7 @@ Tests, written first: `test_the_person_card_shows_the_group_spelling` and
 `test_name_of_gives_a_joined_ids_group_spelling`. Both failed before the code.
 
 Code:
+
 - `identity/display.py`: `PersonDisplay.name_of`.
 - `server/app_kg_index.py`: the canonical rewrite carries the group spelling. It runs whenever there
   are joins or spellings.
@@ -118,7 +123,7 @@ Gate (eval-data `s6/s6b_gate.sh`, `s6b_measure.py` and `s6b_check.py`): S6c's co
 670a44e86) against this change, over snapshot-prod-20261030, with the ledger served in memory.
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | person cards at the group spelling | 326 of 475 | **475 of 475** (149 changed, as measured before the code) |
 | top-persons rows showing a raw id | 17 of 2,308 | **0** of 2,308 |
 | perspectives rows, 30 most-discussed topics | 74 | 73 |
@@ -129,6 +134,7 @@ Gate (eval-data `s6/s6b_gate.sh`, `s6b_measure.py` and `s6b_check.py`): S6c's co
 - One respelling, from the show's text.
 
 Mutants, both killed:
+
 - perspectives grouped by raw id: 74 rows, and 1 sharing a name, which is the duplicate the
   grouping prevents;
 - the KG index without the group spelling: 326 cards.

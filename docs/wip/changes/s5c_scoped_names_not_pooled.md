@@ -46,6 +46,7 @@ The refusal is recorded in `blocked_joins` with the guard's name `scoped_pair`. 
 joins a full-name member exactly as today.
 
 Predicted on the snapshot (the ledger built before and after the change):
+
 - the 103 scoped-only groups dissolve: **179 joins fewer**;
 - joins of a scoped id to a full-name member: unchanged (361 before; the count after is measured,
   and every difference is explained, since single linkage may route through a scoped member);
@@ -76,6 +77,7 @@ Predicted on the snapshot (the ledger built before and after the change):
 Dated: 2026-11-01T12:38
 
 The guard as 4 and 4b describe it is wrong, found while writing 4b's single-linkage row.
+
 - **The defect:** a pairwise guard between two scoped ids fires inside a legitimate group too. With a
   full name and 30 scoped mentions of its surname, the second mention is refused against the first,
   so only one mention per full name would join. The 361 legitimate joins would collapse.
@@ -114,7 +116,7 @@ Snapshot-prod-20261030, the ledger built with no served ledger, before (46667141
 (`d2i9/s5c_measure.py`):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | joins | 840 | 658 |
 | groups of scoped ids only | 103 | **0** |
 | scoped-to-full-name joins | 187 | 184 |
@@ -126,4 +128,3 @@ Snapshot-prod-20261030, the ledger built with no served ledger, before (46667141
   joined in any way, scoped-only groups included. The right baseline is 187.
 - **The 3 scoped-to-full joins lost** are scoped mentions that reached their full name only through
   another scoped mention: 4c's order effect, listed for the step-8 read.
-

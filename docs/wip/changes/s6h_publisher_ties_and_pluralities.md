@@ -16,6 +16,7 @@ record; ids are used. The measurements are in eval-data `data/eval/name-consolid
 ## 1. Intake
 
 **Reading list:**
+
 - [s6e_publisher_spelling.md](s6e_publisher_spelling.md): the publisher-text rule this narrows.
 - [s6g_tie_spelling_not_chosen.md](s6g_tie_spelling_not_chosen.md): the tie rule this extends.
 - [0041_joined_names_respelled.md](0041_joined_names_respelled.md): 0041 writes the group spelling
@@ -23,6 +24,7 @@ record; ids are used. The measurements are in eval-data `data/eval/name-consolid
 
 **What D2's step-11 gold measurement found** (`d2out/gold_after_d2.txt`, `d2out/gold_moves.out`,
 D1's after-state against D2's final one, snapshot-prod-20261030):
+
 - **dev_v1 S7_wrong rises by 15.** Principle 5 says it must not rise.
   - 12 insights, episode `urn:bbc:podcast:p0pd1vwf`: group `person:dara-obrey`, shown spelling now
     the group's ASR spelling; gold is the feed's stated co-host.
@@ -42,6 +44,7 @@ D1's after-state against D2's final one, snapshot-prod-20261030):
 ## 2. Baseline
 
 D2's final ledger (`/Users/claude/snapshots/d2-final/identity_ledger.json`, after s5d, 4e and s6g):
+
 - joins 631, `blocked_joins` 40;
 - person groups by `display_evidence.rule`: publisher 162, frequency 112, tie 75 (s6g; 349 person groups).
 
@@ -62,6 +65,7 @@ spelling holds no majority.
 Dated: 2026-11-02T09:30
 
 **The change** (the planned code is eval-data `d2out/s6h_edits.py`, applied verbatim):
+
 - **`identity/guards`:**
   - `EpisodeEvidence.unstated`: the episode's `known_hosts` names that its publisher text (feed and
     episode title, description, author; folded) does not contain.
@@ -82,7 +86,7 @@ Dated: 2026-11-02T09:30
 exec'd, the ledger rebuilt on the clone, diffed per group against the served D2 ledger):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | ledger joins / `blocked_joins` | 631 / 40 | **631 / 40** |
 | person rule publisher / frequency / tie | 162 / 112 / 75 | **152 / 110 / 75** |
 | `publisher_tie` / `plurality` | 0 / 0 | **4 / 8** |
@@ -114,7 +118,7 @@ Dated: 2026-11-02T11:40
 one rule at a time, outputs `s6h_attrib_<rule>.out`):
 
 | rule alone | groups whose spelling changes | 0041 episodes / files | evidence-only changes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | unstated hosts | 0 | 501 / 2,525 | 13 |
 | one-episode no-vote | 0 | 501 / 2,525 | 3 |
 | publisher tie | 4 | 494 / 2,466 | 0 |
@@ -142,6 +146,7 @@ one rule at a time, outputs `s6h_attrib_<rule>.out`):
 - Together with `DISPLAY`, this is what `d2out/s6h_predict2.py` execs.
 
 **2. The plurality rule, as the code computes it (finding 3).**
+
 - **Pool:** the same pool as s6g, the members with a full name, else all members.
 - **Count:** the spellings are folded (`ledger._fold`). A spelling's count is the sum of its
   members' `freq`, their episode counts. An episode that holds two spellings of the group counts
@@ -164,7 +169,7 @@ one rule at a time, outputs `s6h_attrib_<rule>.out`):
 borrow rows read in `s6h_rows_read.out`):
 
 | | before | after |
-|---|---|---|
+| --- | --- | --- |
 | ledger joins / `blocked_joins` | 631 / 40 | **631 / 40** |
 | person groups | 349 | **349** |
 | rule publisher / frequency / tie | 162 / 112 / 75 | **158 / 104 / 75** |
@@ -219,6 +224,7 @@ borrow rows read in `s6h_rows_read.out`):
 - **Derived surfaces:** the same as 0041's and 0042's records. No new surface reads the ledger.
 
 **4. Tests first (finding 8, narrowed to the kept rules):**
+
 - `_undecided`: 2/2 gives tie; 2/1/1 gives plurality; 3/2 gives a majority; a single spelling
   gives a majority.
 - A plurality group gets no `display_name` and `{"rule": "plurality"}`.
@@ -229,6 +235,7 @@ borrow rows read in `s6h_rows_read.out`):
 - m0041 `joined()` is true for a plurality and for a publisher-tie member.
 
 **Mutants:**
+
 - the plurality branch off;
 - `<` for `≤`;
 - tie checked after plurality;
@@ -254,7 +261,7 @@ is a member name of the 12). These are predicted from the rule, because each epi
 spelling. They are not computed from an applied after-state; section 7 measures them.
 
 | group | set | rows | D1 | D2 now | predicted after s6h |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | `mike-munger` | dev_v1 | 50 | S7_correct `fold_exact` | S7_correct `fuzzy_or_title` | **S7_correct `fold_exact`** |
 | `john-glenn-hill` | dev_v1 | 3 | S7_correct `fuzzy_or_title` | S7_wrong | **S7_correct `fuzzy_or_title`** |
 | `greg-rosalski` | dev_v1 | 9 | S7_correct `fuzzy_or_title` | S7_correct `fuzzy_or_title` | **S7_correct `fuzzy_or_title`** (D1's spelling) |
@@ -269,13 +276,14 @@ spelling. They are not computed from an applied after-state; section 7 measures 
 262,618 quotes), predicted **unchanged** on every row:
 
 | S1 | S1n | S1c | S2 | S3 | S10a | S10b | S12 | A1 hits / episodes |
-|---|---|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 17,860 | 7 | 0 | 31,474 | 9,219 | 194 | 2 | 6 | 396 / 297 |
 
 - The scoreboard has no S4, S8, S9 or S11 rows.
 - s6h changes spellings only, never visibility or quotes, so no row reaches.
 
 **3. The plurality threshold** (`2 × top ≤ sum`, with exactly half counting as a plurality).
+
 - A majority is more than half. At exactly half, the other spellings hold as many episodes as the
   top one. That is the same no-evidence state as s6g's tie, which the operator ruled on ("Yes",
   2026-11-02: on a tie, D2 does not choose).
@@ -291,6 +299,7 @@ spelling. They are not computed from an applied after-state; section 7 measures 
   `fuzzy_or_title` under both.
 
 **4. "Must not move", widened for the real build:**
+
 - the whole cluster dict of each of the 337 other groups, compared for equality;
 - the `blocked_joins` contents and the `ledger_id_map` contents, not only their lengths;
 - every other top-level key of the ledger except the build stamp.
@@ -298,6 +307,7 @@ spelling. They are not computed from an applied after-state; section 7 measures 
   everything.
 
 **5. Corrections to 4b:**
+
 - 9 of the 12 cards, not 8, equal D2's group spelling. The 3 that differ are `david-krakauer`,
   `mike-munger` and `akarsh-kumar`.
 - `_undecided` is now computed once (`d2out/s6h_edits.py`, `BUILD_LEDGER`, a walrus in the
@@ -318,10 +328,12 @@ it does s6g's ties. `upgrade verify` covers 0031 in the gate's verify (every app
 `GUARDS` are the dropped rules, kept only so `s6h_attrib.py` stays reproducible.
 
 **8. Tests that must stay green:**
+
 - `test_m0041_joined_names_respelled.py::test_0025_leaves_a_voice_the_ledger_spells`;
 - s6g's tests in `test_ledger.py`.
 
 **9. Spot checks for the step-8 reader** (each can fail):
+
 - the stored name of `mike-munger`'s gold episodes is their own spelling, at `fold_exact`;
 - `john-glenn-hill`'s gold episode shows its own spelling;
 - `david-krakauer`'s card shows `canonical_name` and has no bio;
@@ -332,17 +344,20 @@ it does s6g's ties. `upgrade verify` covers 0031 in the gate's verify (every app
 
 **First fresh reader**, 2026-11-02, a sonnet reviewer subagent with read-only tools, one pass before
 any code.
+
 - **Verdict:** "Accept after findings 1, 2, 3, 4 and 5 are fixed. Findings 6 to 11 are rows or minor
   edits to add."
 - Taken in 4b, which dropped two rules after measuring them.
 
 **Second fresh reader** (a new subagent), on 4b, 2026-11-02.
+
 - **Verdict:** "Accept after findings 1-4 are fixed. There are no blockers."
 - Every finding is taken in 4c.
 
 ## 6. Build
 
 **Tests, written first** (`tests/unit/podcast_scraper/identity/test_ledger.py`):
+
 - no spelling holding a majority (2/1/1) shows no group spelling, `{"rule": "plurality"}`;
 - more than half (3/1/1) is a majority;
 - `_undecided`: 2/2 tie, 2/1/1 plurality, 3/2 and a single spelling none, 2/2/1 tie (tie read
@@ -355,6 +370,7 @@ Before the code: **9 failed, 34 passed**. The majority, publisher-majority and t
 already passed, as they should.
 
 **Code** (`d2out/s6h_edits.BUILD_LEDGER`, `BUILD_DISPLAY`, applied verbatim, then black):
+
 - `identity/ledger`: `_undecided` (replaces `_tie`), its branch, and the publisher tie in
   `_publisher_spellings`, with docstrings;
 - `identity/display`: `UNDECIDED`.
@@ -362,6 +378,7 @@ already passed, as they should.
 After the code: 43 passed.
 
 **Mutants** (`mutate.py`, eval-data `d2out/scripts/mut_s6h.sh`): **killed 6 of 6**:
+
 - the plurality branch off;
 - `<` for `≤`;
 - tie checked after plurality;
@@ -384,6 +401,7 @@ snapshot-prod-20261030 with 0038. Code digest `bc3c9bb670fd` for all four gates.
 **The ledger,** rebuilt on clone-pre0038a (`--no-respell`), diffed against the served one
 (`d2out/s6h_group_diff.py` → `.out`, whole clusters, `blocked_joins` and id-map contents, top-level
 keys):
+
 - "groups 449 -> 449 | predicted 12, changed as predicted: 12";
 - "other changes: 0".
 - The 449 include organisation groups.
@@ -391,7 +409,7 @@ keys):
 **Gates,** each on its own base, in order:
 
 | gate | outcome | `upgrade verify` |
-|---|---|---|
+| --- | --- | --- |
 | 0039 | 187 rows realigned in 1 episode, 0 refused (as before) | ok, every row |
 | 0040 | 18 quotes realigned in 8 episodes, 6 left (as before) | ok |
 | 0041 | **467 episodes, 2,289 files**, 179 names refused (173 + 6), as predicted | 40 of 40 ok |
@@ -406,6 +424,7 @@ keys):
 
 **After-checks** on the real 0041 apply (`d2out/after_checks_s6h.txt`): **0 must-not-move
 breaches**.
+
 - The verdict line reads "AFTER CHECKS: FAIL 0". It prints FAIL because 2 quote spans are off
   their text.
   - Both quotes are among 0040's 6 left, and byte-identical before and after 0041
@@ -421,6 +440,7 @@ breaches**.
   2,136), re-embedded on the next reindex.
 
 **Gold** (`d2out/gold_after_s6h.json`, D2 final with s6h; moves from `gold_moves.py`):
+
 - against D1: **12 bucket moves**, all `dara-obrey`'s dev_v1 S7_correct → S7_wrong (accepted);
 - against D2 before s6h: 3 bucket moves, `john-glenn-hill`'s S7_wrong → S7_correct;
 - dev_v1 `fold_exact` 2,201 → **2,251** (`mike-munger`'s 50 back); `fuzzy_or_title` 72 → 25
