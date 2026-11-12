@@ -4,7 +4,7 @@
  *
  * Lists the corpus's shows (``GET /api/corpus/feeds``) as cover cards, sorted by
  * episode count. Selecting a card emits ``select`` with the feed; ``ShowsBrowse``
- * swaps the grid for ``ShowDetailView``. Pure read over an existing endpoint —
+ * opens that show in the subject rail. Pure read over an existing endpoint —
  * no new server surface. Cover art reuses the shared ``PodcastCover``.
  */
 import { computed, onMounted, ref, watch } from 'vue'
