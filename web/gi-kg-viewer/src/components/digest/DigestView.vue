@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
-import { topicBadges, topicGrouping } from '../../extensions'
+import { digestSections, topicBadges, topicGrouping } from '../../extensions'
 import { storeToRefs } from 'pinia'
 import {
   fetchCorpusDigest,
@@ -1093,6 +1093,13 @@ onBeforeUnmount(() => {
                 </template>
               </div>
             </div>
+            <component
+              :is="section.component"
+              v-for="section in digestSections.list().filter((x) => x.region === 'band')"
+              :key="section.id"
+              :band="band"
+              :topic-id="bandTopicId(band)"
+            />
           </section>
         </div>
         <button
@@ -1270,6 +1277,12 @@ onBeforeUnmount(() => {
                     max-width-class="auto"
                     data-testid="digest-recent-cil-pills"
                     @pill-click="(i) => void openDigestRecentTopicPillInGraph(row, i)"
+                  />
+                  <component
+                    :is="section.component"
+                    v-for="section in digestSections.list().filter((x) => x.region === 'row')"
+                    :key="section.id"
+                    :row="row"
                   />
                 </div>
               </div>

@@ -145,6 +145,17 @@ export interface ShowRailSection extends Entry {
 
 export const showRailSections = extensionPoint<ShowRailSection>('showRailSections')
 
+/**
+ * A section of the digest. `band` renders at the end of each topic band with `band` (the band
+ * payload) and `topicId` props; `row` renders under each recent episode row with a `row` prop.
+ */
+export interface DigestSection extends Entry {
+  region: 'band' | 'row'
+  component: Component
+}
+
+export const digestSections = extensionPoint<DigestSection>('digestSections')
+
 /** A command in the command palette. */
 export interface PaletteCommandEntry extends Entry {
   label: string

@@ -434,3 +434,31 @@ describe('DigestView topic badges', () => {
     w.unmount()
   })
 })
+
+describe('DigestView digestSections', () => {
+  it('renders a band section in each shown band and a row section under each recent row', async () => {
+    const { digestSections } = await import('../../extensions')
+    digestSections.register({
+      id: 'band',
+      region: 'band',
+      component: {
+        props: ['band', 'topicId'],
+        template: '<span data-testid="ext-band">{{ topicId }}</span>',
+      },
+    })
+    digestSections.register({
+      id: 'row',
+      region: 'row',
+      component: { props: ['row'], template: '<span data-testid="ext-row">{{ row.episode_id }}</span>' },
+    })
+    const { w } = await mountDigest()
+    const bands = w.findAll('section[aria-label^="Topic "] [data-testid="ext-band"]')
+    expect(bands.length).toBe(bandLabels(w).length)
+    expect(bands.length).toBeGreaterThan(0)
+    const rows = recentRows(w)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const r of rows) expect(r.find('[data-testid="ext-row"]').exists()).toBe(true)
+    digestSections.reset()
+    w.unmount()
+  })
+})
