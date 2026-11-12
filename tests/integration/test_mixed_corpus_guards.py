@@ -1,8 +1,10 @@
 """Guards on a mixed corpus (core release §3): another content type changes no podcast reader.
 
 Two copies of the podcast validation corpus (GI 3.1, KG 2.0, 14 feeds with run dirs). Into one, a
-batch of the test-only text type is run the way production runs a source: ``cli.main`` with a feeds
-spec naming the type, so its items land under ``sources/test_text_item/`` (RFC-134 §5) with KG 3.0.
+batch of the test-only text type is run the way production runs a source, once per entry point:
+``cli.main`` with a feeds spec naming the type, and ``service.run`` with a config whose source
+entry names it. Its items land under ``sources/test_text_item/`` (RFC-134 §5) with KG 3.0, and the
+batch stamps the corpus root, so the caches' corpus token moves.
 One text item's KG is then given a podcast guest, a person only it names, and a podcast topic: the
 shapes that would join podcast people and topics, or add people to the ledger, if they leaked.
 
@@ -42,17 +44,13 @@ _TOPIC = {
 }
 
 
-@pytest.fixture(scope="module")
-def corpora(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
-    base = tmp_path_factory.mktemp("mixed")
-    podcast, mixed = base / "podcast", base / "mixed"
-    shutil.copytree(_PODCAST, podcast)
-    shutil.copytree(_PODCAST, mixed)
+_URL = "https://example.com/fixture-source"
 
+
+def _run_cli(base: Path, corpus: Path) -> None:
     spec = base / "feeds.spec.yaml"
     spec.write_text(
-        "feeds:\n  - url: https://example.com/fixture-source\n    content_type: test_text_item\n",
-        encoding="utf-8",
+        f"feeds:\n  - url: {_URL}\n    content_type: test_text_item\n", encoding="utf-8"
     )
 
     def podcast_run(cfg: Any) -> Any:
@@ -62,15 +60,52 @@ def corpora(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
         "--feeds-spec",
         str(spec),
         "--output-dir",
-        str(mixed),
+        str(corpus),
         "--no-transcript-cache",
         "--generate-metadata",
         "--generate-kg",
         "--kg-extraction-source",
         "metadata_only",
     ]
+    assert cli.main(argv, run_pipeline_fn=podcast_run) == 0
+
+
+def _run_service(base: Path, corpus: Path) -> None:
+    from podcast_scraper import config, service
+
+    cfg = config.Config.model_validate(
+        {
+            "rss_urls": [{"url": _URL, "content_type": "test_text_item"}],
+            "output_dir": str(corpus),
+            "single_feed_uses_corpus_layout": True,
+            "generate_metadata": True,
+            "generate_summaries": False,
+            "generate_kg": True,
+            "kg_extraction_source": "metadata_only",
+        }
+    )
+    result = service.run(cfg)
+    assert result.success, result.error
+
+
+@pytest.fixture(scope="module", params=[_run_cli, _run_service], ids=["cli", "service"])
+def corpora(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> tuple[Path, Path]:
+    from podcast_scraper.perf_cache import corpus_content_mtime
+
+    base = tmp_path_factory.mktemp("mixed")
+    podcast, mixed = base / "podcast", base / "mixed"
+    shutil.copytree(_PODCAST, podcast)
+    shutil.copytree(_PODCAST, mixed)
+
+    # The fixture has no run summary or manifest at its root, so this is -1. corpus_mtime would
+    # fall back to the root dir's own mtime, which creating sources/ moves even when the batch
+    # stamps nothing at the root (the service path before 46a7a9a0).
+    before = corpus_content_mtime(mixed)
     with use_extensions([_ext(_transport([]))]):
-        assert cli.main(argv, run_pipeline_fn=podcast_run) == 0
+        request.param(base, mixed)
+    assert corpus_content_mtime(mixed) > before, "the batch must stamp the corpus root"
 
     from podcast_scraper.kg.schema import validate_artifact
 
@@ -197,8 +232,11 @@ def test_the_identity_ledger_is_unchanged(corpora: tuple[Path, Path]) -> None:
     podcast, mixed = corpora
 
     def ledger(root: Path) -> str:
-        # The token's corpus_mtime moves by design: the text batch rewrote the run summary.
-        built = {k: v for k, v in build_ledger(root).items() if k != "corpus_token"}
+        # Not compared: the token's corpus_mtime moves by design (the text batch stamped the
+        # root), and built_at is the build's wall clock to the second.
+        built = {
+            k: v for k, v in build_ledger(root).items() if k not in ("corpus_token", "built_at")
+        }
         return json.dumps(built, sort_keys=True, default=str).replace(str(root), "<R>")
 
     assert ledger(mixed) == ledger(podcast)
