@@ -576,7 +576,10 @@ def finalize_multi_feed_batch(
     # Before the incident window is read, so this batch's EpisodeParked rows are in its summary.
     from podcast_scraper.workflow import episode_park
 
-    episode_park.commit_batch(inc_path)
+    episode_park.commit_batch(
+        inc_path,
+        int(getattr(template_cfg, "transcription_park_after_failures", 2)),
+    )
     records, end_off = parse_corpus_incident_jsonl_window(inc_path, int(incident_log_start_offset))
     batch_counts, per_feed_inc = rollup_corpus_incidents_for_multi_feed_summary(records)
     ep_u = batch_counts["episode_incidents_unique"]

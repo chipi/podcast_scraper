@@ -208,3 +208,41 @@ def test_the_batch_finalize_commits_the_count(monkeypatch, corpus: Path) -> None
         )
     assert episode_park.parked_entry(cfg.incident_log_path, _eid(hanging)) is not None
     assert summary["batch_incidents"]["episode_incidents_unique"]["policy"] == 1
+
+
+@pytest.mark.parametrize(
+    "park_after, batches, parked", [(1, 1, True), (0, 3, False)], ids=["one", "off"]
+)
+def test_the_threshold_comes_from_config(
+    monkeypatch, corpus: Path, park_after: int, batches: int, parked: bool
+) -> None:
+    from podcast_scraper.workflow.corpus_operations import finalize_multi_feed_batch
+
+    cfg = _cfg(corpus).model_copy(update={"transcription_park_after_failures": park_after})
+    hanging = _episode(1, "26d7aade")
+    for _ in range(batches):
+        _fail_transcription(monkeypatch, cfg, hanging)
+        episode_park.note_transcribed(cfg.incident_log_path, "some-other-episode")
+        finalize_multi_feed_batch(str(corpus), cfg, [], incident_log_path=cfg.incident_log_path)
+    assert (episode_park.parked_entry(cfg.incident_log_path, _eid(hanging)) is not None) is parked
+
+
+def test_an_operator_parks_by_hand_and_the_next_batch_skips_it(
+    monkeypatch, corpus: Path, capsys
+) -> None:
+    cfg = _cfg(corpus)
+    hanging = _episode(1, "26d7aade")
+    eid = _eid(hanging)
+    assert cli.main(["parked-episodes", "--output-dir", str(corpus), "--park", eid]) == 1
+    assert episode_park.parked_entry(cfg.incident_log_path, eid) is None
+
+    argv = ["parked-episodes", "--output-dir", str(corpus), "--park", eid]
+    assert cli.main([*argv, "--reason", "hangs dgx-whisper two nights"]) == 0
+    assert f"parked 1: {eid}" in capsys.readouterr().out
+    entry = episode_park.parked_entry(cfg.incident_log_path, eid)
+    assert entry is not None and entry["failures"][-1]["exception_type"] == "ParkedByHand"
+
+    monkeypatch.setattr(
+        ep, "_download_or_reuse_media", lambda *a, **k: pytest.fail("a parked episode downloaded")
+    )
+    assert _schedule(cfg, corpus, hanging) is None

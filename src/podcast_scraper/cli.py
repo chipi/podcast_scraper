@@ -2688,6 +2688,14 @@ def _parse_parked_episodes_args(argv: Optional[Sequence[str]] = None) -> argpars
         help="Release these parked episodes.",
     )
     group.add_argument("--release-all", action="store_true", help="Release every parked episode.")
+    group.add_argument(
+        "--park",
+        nargs="+",
+        metavar="EPISODE_ID",
+        default=[],
+        help="Park these episodes by hand (requires --reason).",
+    )
+    parser.add_argument("--reason", default="", help="Why the episodes are parked by hand.")
     parser.add_argument(
         "--format",
         choices=("text", "json"),
@@ -2707,6 +2715,13 @@ def _run_parked_episodes(args: argparse.Namespace, log: logging.Logger) -> int:
 
     corpus = str(args.output_dir)
     try:
+        if args.park:
+            if not args.reason.strip():
+                log.error("--park needs --reason: the listing shows it to whoever releases it")
+                return 1
+            newly = episode_park.park(corpus, args.park, reason=args.reason.strip())
+            print(f"parked {len(newly)}: {' '.join(newly)}".rstrip())
+            return 0
         if args.release or args.release_all:
             released = episode_park.release(corpus, args.release, all_parked=bool(args.release_all))
             print(f"released {len(released)}: {' '.join(released)}".rstrip())

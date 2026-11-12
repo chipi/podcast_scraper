@@ -622,8 +622,9 @@ python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent --forma
 
 ## Parked episodes (`parked-episodes`)
 
-An episode whose transcription fails in two multi-feed batches is **parked**: later batches skip
-it before download until it is released by hand. A failure counts only in a batch where some other
+An episode whose transcription fails in **`transcription_park_after_failures`** multi-feed batches
+(default 2; 0 turns parking off) is **parked**: later batches skip it before download until it is
+released by hand. A failure counts only in a batch where some other
 episode transcribed, so an endpoint outage parks nothing; a successful transcription clears the
 count. State is **`parked_episodes.json`** beside `corpus_incidents.jsonl` in the corpus parent.
 
@@ -636,22 +637,19 @@ python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent
 python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --format json
 python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --release <episode_id> [...]
 python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --release-all
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --park <episode_id> --reason "hangs the ASR endpoint"
 ```
 
-`--release` refuses (exit 1, nothing changed) when any id given is not parked.
+`--release` refuses (exit 1, nothing changed) when any id given is not parked. `--park` parks an
+episode by hand at once (its listing shows `ParkedByHand` and the reason); it needs `--reason`.
 
-**PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
+**PRD-019 quality metrics** over a run directory's `.kg.json` (the GI metrics run with the GI
+stage, an installed extension):
 
 ```bash
-make gil-quality-metrics DIR=./output
-make gil-quality-metrics DIR=./output ARGS='--enforce --min-avg-insights 3 --min-avg-quotes 5'
-make compare-gil-runs REF=./output/run_ref CAND=./output/run_ml
 make kg-quality-metrics DIR=./output ARGS='--enforce --json'
 make quality-metrics-ci
 ```
-
-`compare-gil-runs` expects each path to be a **pipeline run root** with `metadata/*.gi.json`
-(see the original GIL-ML-vs-OpenAI outcome benchmark, WIP doc now removed).
 
 ## Knowledge Graph (`kg`) subcommands
 

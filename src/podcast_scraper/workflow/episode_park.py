@@ -3,10 +3,10 @@
 A failure is held in memory until the batch ends. ``commit_batch`` then counts it, but only when
 some other episode in the same batch transcribed: a failure in a batch where nothing transcribed
 is an endpoint outage, not this episode, and counting it would park the whole batch. An episode
-that reaches ``PARK_AFTER_FAILURES`` counted failures is parked: skipped before download from then
-on, with an error log line, a GlitchTip event and a policy incident each time it is parked. An
-episode that transcribes clears its count. A parked episode is released only by hand
-(``parked-episodes --release``).
+that reaches ``Config.transcription_park_after_failures`` counted failures is parked: skipped
+before download from then on, with an error log line, a GlitchTip event and a policy incident when
+it is parked. An episode that transcribes clears its count. A parked episode is released only by
+hand (``parked-episodes --release``); an operator can also park one by hand (``--park``).
 
 State lives in ``parked_episodes.json`` beside the run's ``corpus_incidents.jsonl`` (the corpus
 parent for a multi-feed batch).
@@ -142,8 +142,10 @@ def _alert_parked(episode_id: str, entry: Dict[str, Any], state_path: str) -> No
         logger.debug("park alert to GlitchTip skipped", exc_info=True)
 
 
-def commit_batch(incident_log_path: Optional[str]) -> Dict[str, Any]:
-    """Count this batch's failures and park the episodes that reached the limit.
+def commit_batch(
+    incident_log_path: Optional[str], park_after: int = PARK_AFTER_FAILURES
+) -> Dict[str, Any]:
+    """Count this batch's failures and park the episodes that reached ``park_after`` (0: off).
 
     Returns what it did: ``counted`` (bool), ``parked`` and ``cleared`` (episode ids).
     """
@@ -152,7 +154,7 @@ def commit_batch(incident_log_path: Optional[str]) -> Dict[str, Any]:
         failures = _pending_failures.pop(path, {}) if path else {}
         transcribed = _transcribed.pop(path, set()) if path else set()
     result: Dict[str, Any] = {"counted": False, "parked": [], "cleared": []}
-    if path is None or (not failures and not transcribed):
+    if path is None or park_after <= 0 or (not failures and not transcribed):
         return result
     if failures and not transcribed:
         logger.warning(
@@ -179,11 +181,11 @@ def commit_batch(incident_log_path: Optional[str]) -> Dict[str, Any]:
         if entry.get("parked_at"):
             continue
         entry["failures"].append({k: failure[k] for k in ("at", "exception_type", "message")})
-        if len(entry["failures"]) >= PARK_AFTER_FAILURES:
+        if len(entry["failures"]) >= park_after:
             entry["parked_at"] = _now()
             result["parked"].append(eid)
     doc["schema_version"] = SCHEMA_VERSION
-    doc["park_after_failures"] = PARK_AFTER_FAILURES
+    doc["park_after_failures"] = park_after
     _save(path, doc)
     result["counted"] = True
     for eid in result["parked"]:
@@ -206,6 +208,33 @@ def commit_batch(incident_log_path: Optional[str]) -> Dict[str, Any]:
 def list_episodes(corpus_dir: str) -> Dict[str, Any]:
     """The state file of a corpus parent: parked episodes and those still counting."""
     return _load(str(Path(corpus_dir) / STATE_FILE))
+
+
+def park(corpus_dir: str, episode_ids: Iterable[str], *, reason: str) -> List[str]:
+    """Park episodes by hand (an operator who already knows an episode hangs).
+
+    Returns the ids newly parked; one already parked is left as it is.
+    """
+    path = str(Path(corpus_dir) / STATE_FILE)
+    with _lock:
+        doc = _load(path)
+        episodes = doc["episodes"]
+        newly = []
+        for eid in dict.fromkeys(episode_ids):
+            entry = episodes.setdefault(eid, {"feed_url": None, "failures": [], "parked_at": None})
+            if entry.get("parked_at"):
+                continue
+            entry["failures"].append(
+                {"at": _now(), "exception_type": "ParkedByHand", "message": reason}
+            )
+            entry["parked_at"] = _now()
+            newly.append(eid)
+        if newly:
+            doc["schema_version"] = SCHEMA_VERSION
+            _save(path, doc)
+    for eid in newly:
+        logger.warning("%s parked by hand episode_id=%s: %s", LOG_MARKER, eid, reason)
+    return newly
 
 
 def release(corpus_dir: str, episode_ids: Iterable[str], *, all_parked: bool = False) -> List[str]:
