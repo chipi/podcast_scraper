@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
 import {
   computed,
   inject,
@@ -469,13 +470,7 @@ async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
   const hasExistingGraphContent = artifacts.selectedRelPaths.length > 0
   void ensureDefaultCorpusGraphIfNeeded()
   if (hasExistingGraphContent) {
-    const paths: string[] = []
-    if (row.has_gi && row.gi_relative_path?.trim()) {
-      paths.push(row.gi_relative_path.trim())
-    }
-    if (row.has_kg && row.kg_relative_path?.trim()) {
-      paths.push(row.kg_relative_path.trim())
-    }
+    const paths = episodeArtifactRelPaths(row)
     if (paths.length > 0) {
       try {
         const beforeCount = artifacts.selectedRelPaths.length

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { episodeArtifactRelPathsForStem } from '../../utils/episodeArtifactPaths'
 import { computed, ref } from 'vue'
 import { searchPanelSections } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -267,9 +268,7 @@ async function onFocusHit(hit: SearchHit): Promise<void> {
       ? metaRel.slice(0, -'.metadata.json'.length)
       : metaRel.replace(/\.(metadata\.ya?ml|json)$/i, '')
     // A KG-only corpus (no insight stage) has no ``.gi.json``: asking for it fails the whole load.
-    const paths = shell.giArtifactsAvailable
-      ? [`${stem}.gi.json`, `${stem}.kg.json`]
-      : [`${stem}.kg.json`]
+    const paths = episodeArtifactRelPathsForStem(stem, { withGi: shell.giArtifactsAvailable })
     try {
       await artifacts.appendRelativeArtifacts(paths)
     } catch {

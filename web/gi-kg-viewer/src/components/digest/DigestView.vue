@@ -11,6 +11,7 @@ import {
 } from '../../api/digestApi'
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
 import { fetchCrossShow, type RelatedNode } from '../../api/relationalApi'
+import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
@@ -294,14 +295,7 @@ async function openDigestRecentTopicPillInGraph(
 ): Promise<void> {
   const seq = digestGraphOpenGate.bump()
   graphActionError.value = null
-  const paths: string[] = []
-  if (row.has_gi) {
-    paths.push((row.gi_relative_path || '').trim())
-  }
-  if (row.has_kg) {
-    paths.push((row.kg_relative_path || '').trim())
-  }
-  const cleaned = paths.filter(Boolean)
+  const cleaned = episodeArtifactRelPaths(row)
   if (cleaned.length === 0) {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
@@ -658,14 +652,7 @@ async function openTopicHitInGraph(
 ): Promise<void> {
   const seq = digestGraphOpenGate.bump()
   graphActionError.value = null
-  const paths: string[] = []
-  if (h.has_gi) {
-    paths.push((h.gi_relative_path || '').trim())
-  }
-  if (h.has_kg) {
-    paths.push((h.kg_relative_path || '').trim())
-  }
-  const cleaned = paths.filter(Boolean)
+  const cleaned = episodeArtifactRelPaths(h)
   if (cleaned.length === 0) {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
