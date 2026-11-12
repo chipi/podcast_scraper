@@ -12,10 +12,10 @@
 
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { GI_SAMPLE_FIXTURE } from '../fixtures'
+import { KG_SAMPLE_FIXTURE } from '../fixtures'
 import { isInjectedFaultLog } from '../injected-faults'
 
-const ARTIFACT_JSON = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
+const KG_ARTIFACT_JSON = readFileSync(KG_SAMPLE_FIXTURE, 'utf-8')
 
 /**
  * Read the live Cytoscape `core` exposed in dev/E2E builds via
@@ -114,8 +114,12 @@ export function captureConsoleErrors(page: Page): { errors: string[] } {
  */
 export async function setupHandoffMatrixMocks(
   page: Page,
-  opts?: { digest?: boolean; search?: boolean },
+  opts?: { digest?: boolean; search?: boolean; giArtifact?: string },
 ): Promise<void> {
+  // The episode's KG artifact always; a GI artifact (and so the merged GI+KG view, with `g:` / `k:`
+  // ids) only when a caller passes one — a downstream build that has GI.
+  const gi = opts?.giArtifact
+  const giPath = gi ? 'metadata/ep1.gi.json' : null
   // Match ``/api/health`` AND ``/api/health?path=…`` — the debounced
   // re-probe on corpus-path change (shell.ts §S4-shell followup) fires
   // the second form; without the trailing ``**`` the mock silently misses
@@ -129,6 +133,8 @@ export async function setupHandoffMatrixMocks(
         status: 'ok',
         corpus_library_api: true,
         corpus_digest_api: true,
+        // As the server does: without it the viewer assumes GI and asks for `ep1.gi.json`.
+        artifact_kinds: gi ? ['gi', 'kg'] : ['kg'],
       }),
     }),
   )
@@ -139,14 +145,18 @@ export async function setupHandoffMatrixMocks(
       body: JSON.stringify({
         path: '/mock/corpus',
         artifacts: [
-          {
-            name: 'ep1.gi.json',
-            relative_path: 'metadata/ep1.gi.json',
-            kind: 'gi',
-            size_bytes: 1024,
-            mtime_utc: '2024-06-01T00:00:00Z',
-            publish_date: '2024-06-01',
-          },
+          ...(gi
+            ? [
+                {
+                  name: 'ep1.gi.json',
+                  relative_path: 'metadata/ep1.gi.json',
+                  kind: 'gi',
+                  size_bytes: 1024,
+                  mtime_utc: '2024-06-01T00:00:00Z',
+                  publish_date: '2024-06-01',
+                },
+              ]
+            : []),
           {
             name: 'ep1.kg.json',
             relative_path: 'metadata/ep1.kg.json',
@@ -188,9 +198,9 @@ export async function setupHandoffMatrixMocks(
             episode_id: 'ci-fixture',
             episode_title: 'Mock Episode Title',
             publish_date: '2024-06-01',
-            gi_relative_path: 'metadata/ep1.gi.json',
+            gi_relative_path: giPath,
             kg_relative_path: 'metadata/ep1.kg.json',
-            has_gi: true,
+            has_gi: Boolean(gi),
             has_kg: true,
             cil_digest_topics: [],
           },
@@ -213,9 +223,9 @@ export async function setupHandoffMatrixMocks(
         summary_title: 'Summary head',
         summary_bullets: ['Point one'],
         summary_text: null,
-        gi_relative_path: 'metadata/ep1.gi.json',
+        gi_relative_path: giPath,
         kg_relative_path: 'metadata/ep1.kg.json',
-        has_gi: true,
+        has_gi: Boolean(gi),
         has_kg: true,
         cil_digest_topics: [],
       }),
@@ -247,23 +257,23 @@ export async function setupHandoffMatrixMocks(
       }),
     }),
   )
-  // Artifact files: serve the CI fixture for both `ep1.gi.json` and
-  // `ep1.kg.json` paths so `appendRelativeArtifacts` can complete and the
-  // FSM walks through `loading_merge → redrawing_full → applying → ready`.
-  // Without these the handoff stalls in `loading_*` and the 5s stuck timer
-  // fires (T1 state-walking test would fail).
-  await page.route('**/api/artifacts/metadata/ep1.gi.json**', (r) =>
-    r.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: ARTIFACT_JSON,
-    }),
-  )
+  // Artifact files, so `appendRelativeArtifacts` can complete and the FSM walks through
+  // `loading_merge → redrawing_full → applying → ready`. Without them the handoff stalls in
+  // `loading_*` and the 5s stuck timer fires (T1 state-walking test would fail).
+  if (gi) {
+    await page.route('**/api/artifacts/metadata/ep1.gi.json**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: gi,
+      }),
+    )
+  }
   await page.route('**/api/artifacts/metadata/ep1.kg.json**', (r) =>
     r.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: ARTIFACT_JSON,
+      body: KG_ARTIFACT_JSON,
     }),
   )
   // Digest endpoint
@@ -291,9 +301,9 @@ export async function setupHandoffMatrixMocks(
                   summary_bullets_preview: ['Mock bullet'],
                   summary_bullet_graph_topic_ids: ['topic:ci-policy'],
                   summary_preview: 'Mock summary — Mock bullet',
-                  gi_relative_path: 'metadata/ep1.gi.json',
+                  gi_relative_path: giPath,
                   kg_relative_path: 'metadata/ep1.kg.json',
-                  has_gi: true,
+                  has_gi: Boolean(gi),
                   has_kg: true,
                   cil_digest_topics: [
                     {
@@ -321,9 +331,9 @@ export async function setupHandoffMatrixMocks(
                       score: 0.91,
                       summary_preview: 'Mock summary — Mock bullet',
                       episode_id: 'ci-fixture',
-                      gi_relative_path: 'metadata/ep1.gi.json',
+                      gi_relative_path: giPath,
                       kg_relative_path: 'metadata/ep1.kg.json',
-                      has_gi: true,
+                      has_gi: Boolean(gi),
                       has_kg: true,
                     },
                   ],

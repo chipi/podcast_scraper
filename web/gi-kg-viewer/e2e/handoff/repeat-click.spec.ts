@@ -46,7 +46,7 @@ test.describe('Handoff matrix § Section 3 — Repeated click', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })

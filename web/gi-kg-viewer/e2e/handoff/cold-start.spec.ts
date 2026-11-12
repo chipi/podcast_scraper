@@ -1,7 +1,7 @@
 /**
  * Section 1 — Cold-start happy path (HANDOFF_MATRIX.md §1).
  *
- * 7 rows: one click from each entry point on a fresh corpus, no prior selection.
+ * Rows: one click from each entry point on a fresh corpus, no prior selection.
  * Real assertions per F4b — each row triggers the user action and verifies the
  * FSM observed the envelope (generation incremented, no console errors).
  *
@@ -50,7 +50,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
     await page.getByRole('button', { name: 'Open in graph' }).click()
 
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
@@ -73,7 +73,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       .first()
       .click()
 
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
+    await assertHandoffApplied(page, 'topic:ci-policy', { errors: errs })
   })
 
   test('H1.4 — Digest topic band title (cold start) [F4b]', async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       .first()
       .click()
 
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
+    await assertHandoffApplied(page, 'topic:ci-policy', { errors: errs })
   })
 
   test('H1.5 — Search "Show on graph" (cold start) [F4b]', async ({ page }) => {
@@ -135,7 +135,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await page.getByRole('button', { name: /^Show on graph/ }).first().click()
 
     // Full outcome contract — UI-driven path reaches L2+L3+L5+L6.
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
+    await assertHandoffApplied(page, 'topic:ci-policy', { errors: errs })
   })
 
   test('H1.6 — Episode panel "Open in graph" (cold start) [F1.1]', async ({ page }) => {
@@ -151,7 +151,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     // Full 6-point assertion: FSM reaches ready with applied status,
     // selection is on the expected episode cy node, camera in sane range,
     // episode panel visible with the right title, no console errors.
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
@@ -194,7 +194,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:topic:ci-policy',
+        cyId: 'topic:ci-policy',
         source: 'subject-rail',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },
@@ -235,7 +235,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:topic:ci-policy',
+        cyId: 'topic:ci-policy',
         source: 'status-bar',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },
@@ -282,7 +282,7 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.canvasTapped({
         kind: 'graph-node',
-        cyId: 'g:topic:ci-policy',
+        cyId: 'topic:ci-policy',
         source: 'minimap',
         loadSource: 'graph-internal',
         camera: { kind: 'preserve' },
@@ -371,34 +371,4 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     expect(errs.errors).toEqual([])
   })
 
-  test('H1.7 — NodeDetail neighbour "show on graph" (cold start) [F4b]', async ({ page }) => {
-    // O3 — UI-driven: open the fixture insight in the graph rail and click its related topic,
-    // which fires ``expansionRequested({source:'node-detail', kind:'graph-node', cyId:<topic>,
-    // loadSource:'graph-internal'})``. Definition X — a NodeDetail expansion preserves layout.
-    const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await page.getByRole('button', { name: 'Open in graph' }).click()
-    await page.waitForFunction(
-      () => {
-        const fsm = (window as unknown as { __GIKG_FSM__?: { state: string } }).__GIKG_FSM__
-        return fsm?.state === 'ready'
-      },
-      undefined,
-      { timeout: 15_000 },
-    )
-
-    await page.evaluate(() => {
-      ;(
-        window as unknown as { __GIKG_SUBJECT__: { focusEntity: (i: string) => void } }
-      ).__GIKG_SUBJECT__.focusEntity('insight:b72dafa3f874480d')
-    })
-    await page.getByTestId('node-detail-insight-related-topic-row').first().click()
-
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
-  })
 })

@@ -97,7 +97,7 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:topic:this-node-definitely-does-not-exist',
+        cyId: 'topic:this-node-definitely-does-not-exist',
         source: 'restore-preference',
         loadSource: 'graph-internal',
         camera: { kind: 'preserve' },
@@ -160,7 +160,7 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:topic:stuck-test-target-never-resolves',
+        cyId: 'topic:stuck-test-target-never-resolves',
         source: 'restore-preference',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },
@@ -176,7 +176,7 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     // an earlier path.
     const log = await readFsmEventLog(page)
     const stuckEnv = log.find(
-      (e) => e.type === 'handoffRequested' && e.envelope?.cyId === 'g:topic:stuck-test-target-never-resolves',
+      (e) => e.type === 'handoffRequested' && e.envelope?.cyId === 'topic:stuck-test-target-never-resolves',
     )
     expect(stuckEnv, 'stuck-target envelope reached the FSM').toBeDefined()
     expect(stuckEnv?.envelope?.source).toBe('restore-preference')

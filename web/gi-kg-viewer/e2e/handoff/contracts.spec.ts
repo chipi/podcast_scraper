@@ -204,7 +204,7 @@ test.describe('Handoff contracts § T3 architectural invariants', () => {
           type: 'canvasTapped',
           envelope: {
             kind: 'graph-node',
-            cyId: 'g:topic:alpha',
+            cyId: 'topic:alpha',
             source: 'minimap',
             loadSource: 'graph-internal',
             camera: { kind: 'preserve' },
