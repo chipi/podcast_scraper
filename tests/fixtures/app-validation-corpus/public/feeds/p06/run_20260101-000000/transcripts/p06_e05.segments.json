@@ -1,0 +1,26 @@
+[
+  {
+    "end": 5.66,
+    "id": 0,
+    "start": 0.0,
+    "text": "This is an edge-case fixture used for parser and processor robustness tests."
+  },
+  {
+    "end": 6.629,
+    "id": 1,
+    "start": 5.66,
+    "text": "Welcome back."
+  },
+  {
+    "end": 7.82,
+    "id": 2,
+    "start": 6.629,
+    "text": "We are now back."
+  },
+  {
+    "end": 9.98,
+    "id": 3,
+    "start": 7.82,
+    "text": "End of edge-case episode e05."
+  }
+]

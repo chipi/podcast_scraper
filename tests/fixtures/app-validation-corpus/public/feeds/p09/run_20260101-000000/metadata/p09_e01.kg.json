@@ -1,0 +1,126 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:iteration-and-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:leverage-points",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:reliability-and-sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:top-down-interventions",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-1abf911df5bea2c3",
+  "extraction": {
+    "extracted_at": "2025-05-12T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p09_e01.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-1abf911df5bea2c3",
+      "properties": {
+        "podcast_id": "p09",
+        "publish_date": "2025-05-12T00:00:00",
+        "title": "Systems Thinking, Two Years Later"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability",
+        "slug": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-and-testing",
+      "properties": {
+        "label": "iteration and testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:leverage-points",
+      "properties": {
+        "label": "leverage points",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-and-sustainability",
+      "properties": {
+        "label": "reliability and sustainability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:top-down-interventions",
+      "properties": {
+        "label": "top down interventions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

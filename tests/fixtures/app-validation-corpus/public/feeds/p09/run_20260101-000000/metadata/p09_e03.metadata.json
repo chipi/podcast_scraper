@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p09-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p09_e03.mp3",
+    "transcript_file_path": "transcripts/p09_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "A sober look at what biohacking cannot solve: biological constraints, ethical trade-offs, inequality risks, and how the next decade may normalize—rather than sensationalize—human optimization.",
+    "duration_seconds": 212,
+    "episode_id": "ep-919c77e84ad37664",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2026-01-07T00:00:00",
+    "title": "When the Severe Garble Bites"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-07-16T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Cross-Show",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Labor markets are where macroeconomic concepts stop being abstract and become tangible in practice — a critical insight for teams using financial data platforms like BloombergNEF.",
+      "Risk is fundamentally a household-level variable, not a portfolio-level one, and ignoring this leads to redundant work — teams end up rebuilding systems from scratch within a year.",
+      "Systems thinking reveals trade-offs that cross-cut all aspects of economic analysis, making it essential to evaluate decisions explicitly rather than defaulting to familiar patterns.",
+      "The intersection of risk management and labor markets is best understood through concrete examples where household-level economic behavior drives macro outcomes.",
+      "Failure to recognize that risk is embedded at the household level results in inefficient systems design and repeated effort — a pattern observed across multiple teams.",
+      "One key idea is to pick a concept from the discussion and test it over two weeks, using iteration to refine understanding rather than relying on initial assumptions.",
+      "The most effective insights emerge when teams treat economic variables as interconnected systems rather than isolated data points.",
+      "A core principle is that macroeconomic models must reflect real-world household behavior — not just aggregate portfolio metrics — to avoid being abstract or misaligned with reality."
+    ],
+    "raw_text": "Labor markets are where macroeconomic concepts stop being abstract and become tangible in practice — a critical insight for teams using financial data platforms like BloombergNEF. Risk is fundamentally a household-level variable, not a portfolio-level one, and ignoring this leads to redundant work — teams end up rebuilding systems from scratch within a year.",
+    "title": "Labor Markets and Risk: The Household-Level Variable"
+  }
+}

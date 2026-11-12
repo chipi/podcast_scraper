@@ -1,0 +1,178 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:bike-silence",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:maintenance-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:chain-wear-indicator",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:spoke-and-wrench-system",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:suspension-service-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:frame-compromises",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:transmission-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:early-failure-detection",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a341174daaf88193",
+  "extraction": {
+    "extracted_at": "2025-08-17T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p10_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a341174daaf88193",
+      "properties": {
+        "podcast_id": "p10",
+        "publish_date": "2025-08-17T00:00:00",
+        "title": "La Mecánica de Una Bici Silenciosa y Rápida"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics",
+        "slug": "drivetrain-mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance",
+        "slug": "maintenance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bike-silence",
+      "properties": {
+        "label": "bike silence",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-mechanics",
+      "properties": {
+        "label": "maintenance mechanics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "properties": {
+        "label": "chain wear indicator",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-and-wrench-system",
+      "properties": {
+        "label": "spoke and wrench system",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-service-intervals",
+      "properties": {
+        "label": "suspension service intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-compromises",
+      "properties": {
+        "label": "frame compromises",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "properties": {
+        "label": "transmission mechanics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:early-failure-detection",
+      "properties": {
+        "label": "early failure detection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

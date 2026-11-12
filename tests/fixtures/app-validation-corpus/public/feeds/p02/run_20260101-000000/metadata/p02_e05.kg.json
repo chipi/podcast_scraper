@@ -1,0 +1,113 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:on-call",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:actionable-alerts",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:alert-fatigue",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:alert-tuning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:noise-problem",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:real-incident-detection",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a05e37624721d37c",
+  "extraction": {
+    "extracted_at": "2025-03-09T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a05e37624721d37c",
+      "properties": {
+        "podcast_id": "p02",
+        "publish_date": "2025-03-09T00:00:00",
+        "title": "Reliability, Live"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-call",
+      "properties": {
+        "label": "on call",
+        "slug": "on-call"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:actionable-alerts",
+      "properties": {
+        "label": "actionable alerts",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:alert-fatigue",
+      "properties": {
+        "label": "alert fatigue",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:alert-tuning",
+      "properties": {
+        "label": "alert tuning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:noise-problem",
+      "properties": {
+        "label": "noise problem",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:real-incident-detection",
+      "properties": {
+        "label": "real incident detection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

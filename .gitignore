@@ -343,6 +343,11 @@ tests/fixtures/app-validation-corpus/v3/search/interest_index.json
 # because the api is pointed at it directly. `/.app/` only anchors the repo root, so this path was
 # left showing up as untracked after any local player/viewer e2e run.
 tests/fixtures/app-validation-corpus/v3/.app/
+# The same runtime outputs of the public corpus (derived from v3 by
+# scripts/tools/build_public_fixture_corpus.py, which commits no search/ and no .viewer/).
+tests/fixtures/app-validation-corpus/public/search/
+tests/fixtures/app-validation-corpus/public/.app/
+tests/fixtures/app-validation-corpus/public/.viewer/
 # The operator jobs queue + its lock, written into the corpus by the jobs API. Only these two
 # FILES: `.viewer/` itself holds tracked fixture data (enrichment_health.json,
 # enrichment_status.json), so ignoring the directory would hide real fixtures.

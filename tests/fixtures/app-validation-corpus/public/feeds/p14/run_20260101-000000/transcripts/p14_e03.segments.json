@@ -1,0 +1,911 @@
+[
+  {
+    "char_end": 31,
+    "char_start": 0,
+    "end": 2.352,
+    "sent_id": "t0000.s01",
+    "start": 0.0,
+    "text": "Welcome back to Trail Sessions.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 143,
+    "char_start": 32,
+    "end": 10.772,
+    "sent_id": "t0000.s02",
+    "start": 2.352,
+    "text": "Today, we're talking about drivetrain mechanics, and I'm joined by Tiago Moreira, a mechanic at Spoke & Wrench.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 184,
+    "char_start": 144,
+    "end": 13.806,
+    "sent_id": "t0000.s03",
+    "start": 10.772,
+    "text": "Tiago Moreira, thank you for being here.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 204,
+    "char_start": 185,
+    "end": 16.051,
+    "sent_id": "t0001.s01",
+    "start": 13.806,
+    "text": "Thank you, Beatriz.",
+    "unit_id": "t0001.u01"
+  },
+  {
+    "char_end": 221,
+    "char_start": 205,
+    "end": 17.941,
+    "sent_id": "t0001.s02",
+    "start": 16.051,
+    "text": "Glad to be back.",
+    "unit_id": "t0001.u01"
+  },
+  {
+    "char_end": 261,
+    "char_start": 222,
+    "end": 21.524,
+    "sent_id": "t0002.s01",
+    "start": 17.941,
+    "text": "Today's episode is sponsored by Notion.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 319,
+    "char_start": 262,
+    "end": 26.762,
+    "sent_id": "t0002.s02",
+    "start": 21.524,
+    "text": "Notion replaces the dozen tools your team uses every day.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 341,
+    "char_start": 320,
+    "end": 28.691,
+    "sent_id": "t0002.s03",
+    "start": 26.762,
+    "text": "Try notion.com today.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 488,
+    "char_start": 342,
+    "end": 39.811,
+    "sent_id": "t0002.s04",
+    "start": 28.691,
+    "text": "Before we get into the topic, Inês Carvalho was on the previous episode and said that tire pressure is more important than suspension adjustments.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 502,
+    "char_start": 489,
+    "end": 40.639,
+    "sent_id": "t0003.s01",
+    "start": 39.811,
+    "text": "Yes, exactly.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 556,
+    "char_start": 503,
+    "end": 44.014,
+    "sent_id": "t0003.s02",
+    "start": 40.639,
+    "text": "And it connects to what we're going to discuss today.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 650,
+    "char_start": 557,
+    "end": 51.317,
+    "sent_id": "t0004.s01",
+    "start": 44.014,
+    "text": "I want to point something out – Inês Carvalho mentioned this same dynamic a few episodes ago.",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 749,
+    "char_start": 651,
+    "end": 59.008,
+    "sent_id": "t0004.s02",
+    "start": 51.317,
+    "text": "I want to point something out – Rafael Vasconcelos mentioned this same dynamic a few episodes ago.",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 783,
+    "char_start": 750,
+    "end": 61.015,
+    "sent_id": "t0004.s03",
+    "start": 59.008,
+    "text": "I want to delve deeper into that.",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 843,
+    "char_start": 784,
+    "end": 64.602,
+    "sent_id": "t0004.s04",
+    "start": 61.015,
+    "text": "What did you believe about this, and have you revisited it?",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 981,
+    "char_start": 844,
+    "end": 73.475,
+    "sent_id": "t0005.s01",
+    "start": 64.602,
+    "text": "In short, most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 1040,
+    "char_start": 982,
+    "end": 77.231,
+    "sent_id": "t0005.s02",
+    "start": 73.475,
+    "text": "We've seen this happen with teams that use Spoke & Wrench.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 1113,
+    "char_start": 1041,
+    "end": 81.894,
+    "sent_id": "t0005.s03",
+    "start": 77.231,
+    "text": "The context matters because it tells you what compromises you're making.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 1138,
+    "char_start": 1114,
+    "end": 83.661,
+    "sent_id": "t0006.s01",
+    "start": 81.894,
+    "text": "It's a useful framework.",
+    "unit_id": "t0006.u01"
+  },
+  {
+    "char_end": 1197,
+    "char_start": 1139,
+    "end": 87.932,
+    "sent_id": "t0006.s02",
+    "start": 83.661,
+    "text": "Where do maintenance and transmission mechanics intersect?",
+    "unit_id": "t0006.u01"
+  },
+  {
+    "char_end": 1218,
+    "char_start": 1198,
+    "end": 89.26,
+    "sent_id": "t0007.s01",
+    "start": 87.932,
+    "text": "That's how I see it.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1318,
+    "char_start": 1219,
+    "end": 95.831,
+    "sent_id": "t0007.s02",
+    "start": 89.26,
+    "text": "A bicycle should feel quiet and predictable so that your attention can remain focused on the trail.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1387,
+    "char_start": 1319,
+    "end": 100.345,
+    "sent_id": "t0007.s03",
+    "start": 95.831,
+    "text": "And the secondary effect is the part that almost everyone overlooks.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1421,
+    "char_start": 1388,
+    "end": 102.465,
+    "sent_id": "t0008.s01",
+    "start": 100.345,
+    "text": "I want to delve deeper into that.",
+    "unit_id": "t0008.u01"
+  },
+  {
+    "char_end": 1493,
+    "char_start": 1422,
+    "end": 107.025,
+    "sent_id": "t0008.s02",
+    "start": 102.465,
+    "text": "What is the structural aspect that most listeners don't have access to?",
+    "unit_id": "t0008.u01"
+  },
+  {
+    "char_end": 1504,
+    "char_start": 1494,
+    "end": 107.66,
+    "sent_id": "t0009.s01",
+    "start": 107.025,
+    "text": "Certainly.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1610,
+    "char_start": 1505,
+    "end": 114.329,
+    "sent_id": "t0009.s02",
+    "start": 107.66,
+    "text": "The wear and tear on the chain is the best early indicator of when you will need to replace the cassette.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1660,
+    "char_start": 1611,
+    "end": 117.441,
+    "sent_id": "t0009.s03",
+    "start": 114.329,
+    "text": "We've seen this in teams that use Spoke & Wrench.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1734,
+    "char_start": 1661,
+    "end": 122.078,
+    "sent_id": "t0009.s04",
+    "start": 117.441,
+    "text": "The context matters because it tells you what compromises you are making.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1757,
+    "char_start": 1735,
+    "end": 123.792,
+    "sent_id": "t0010.s01",
+    "start": 122.078,
+    "text": "Tell me more about it.",
+    "unit_id": "t0010.u01"
+  },
+  {
+    "char_end": 1827,
+    "char_start": 1758,
+    "end": 128.179,
+    "sent_id": "t0011.s01",
+    "start": 123.792,
+    "text": "Spoke & Wrench is one of the platforms where this is clearly evident.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1894,
+    "char_start": 1828,
+    "end": 132.375,
+    "sent_id": "t0011.s02",
+    "start": 128.179,
+    "text": "I observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1929,
+    "char_start": 1895,
+    "end": 134.486,
+    "sent_id": "t0012.s01",
+    "start": 132.375,
+    "text": "Tell me how you made the decision.",
+    "unit_id": "t0012.u01"
+  },
+  {
+    "char_end": 1990,
+    "char_start": 1930,
+    "end": 138.211,
+    "sent_id": "t0012.s02",
+    "start": 134.486,
+    "text": "How does the RockShox suspension system fit into this frame?",
+    "unit_id": "t0012.u01"
+  },
+  {
+    "char_end": 2001,
+    "char_start": 1991,
+    "end": 138.855,
+    "sent_id": "t0013.s01",
+    "start": 138.211,
+    "text": "Certainly.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2078,
+    "char_start": 2002,
+    "end": 143.75,
+    "sent_id": "t0013.s02",
+    "start": 138.855,
+    "text": "The maintenance intervals for the suspension are a risk management decision.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2168,
+    "char_start": 2079,
+    "end": 149.482,
+    "sent_id": "t0013.s03",
+    "start": 143.75,
+    "text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2188,
+    "char_start": 2169,
+    "end": 151.045,
+    "sent_id": "t0014.s01",
+    "start": 149.482,
+    "text": "You know what else?",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2257,
+    "char_start": 2189,
+    "end": 156.638,
+    "sent_id": "t0014.s02",
+    "start": 151.045,
+    "text": "I'll say it plainly: Linear manages my entire engineering operation.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2332,
+    "char_start": 2258,
+    "end": 162.724,
+    "sent_id": "t0014.s03",
+    "start": 156.638,
+    "text": "Linear is a task manager designed for speed – it's built for keyboard use.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2367,
+    "char_start": 2333,
+    "end": 165.521,
+    "sent_id": "t0014.s04",
+    "start": 162.724,
+    "text": "Use the link in the episode notes.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2420,
+    "char_start": 2368,
+    "end": 169.671,
+    "sent_id": "t0014.s05",
+    "start": 165.521,
+    "text": "We'll be right back, after a short commercial break.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2460,
+    "char_start": 2421,
+    "end": 173.845,
+    "sent_id": "t0015.s01",
+    "start": 169.671,
+    "text": "Today's episode is sponsored by Stripe.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2555,
+    "char_start": 2461,
+    "end": 183.904,
+    "sent_id": "t0015.s02",
+    "start": 173.845,
+    "text": "Stripe makes payments simple, whether you're running a marketplace or a subscription business.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2598,
+    "char_start": 2556,
+    "end": 188.399,
+    "sent_id": "t0015.s03",
+    "start": 183.904,
+    "text": "Visit stripe.com/podcast for a free trial.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2627,
+    "char_start": 2599,
+    "end": 190.716,
+    "sent_id": "t0016.s01",
+    "start": 188.399,
+    "text": "Welcome back to the program.",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2653,
+    "char_start": 2628,
+    "end": 192.54,
+    "sent_id": "t0016.s02",
+    "start": 190.716,
+    "text": "That's a helpful context.",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2712,
+    "char_start": 2654,
+    "end": 196.771,
+    "sent_id": "t0016.s03",
+    "start": 192.54,
+    "text": "Where do maintenance and transmission mechanics intersect?",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2733,
+    "char_start": 2713,
+    "end": 197.945,
+    "sent_id": "t0017.s01",
+    "start": 196.771,
+    "text": "That's how I see it.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2859,
+    "char_start": 2734,
+    "end": 205.281,
+    "sent_id": "t0017.s02",
+    "start": 197.945,
+    "text": "Most mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2922,
+    "char_start": 2860,
+    "end": 208.92,
+    "sent_id": "t0017.s03",
+    "start": 205.281,
+    "text": "We've seen this happen with teams that use Shimano components.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2992,
+    "char_start": 2923,
+    "end": 212.97,
+    "sent_id": "t0017.s04",
+    "start": 208.92,
+    "text": "I've observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 3020,
+    "char_start": 2993,
+    "end": 214.412,
+    "sent_id": "t0018.s01",
+    "start": 212.97,
+    "text": "Give me a concrete example.",
+    "unit_id": "t0018.u01"
+  },
+  {
+    "char_end": 3102,
+    "char_start": 3021,
+    "end": 218.739,
+    "sent_id": "t0018.s02",
+    "start": 214.412,
+    "text": "What did you previously believe about this, and have you since changed your mind?",
+    "unit_id": "t0018.u01"
+  },
+  {
+    "char_end": 3212,
+    "char_start": 3103,
+    "end": 227.057,
+    "sent_id": "t0019.s01",
+    "start": 218.739,
+    "text": "Yes, so – a bicycle should feel quiet and predictable so that your attention can remain focused on the trail.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 3280,
+    "char_start": 3213,
+    "end": 232.17,
+    "sent_id": "t0019.s02",
+    "start": 227.057,
+    "text": "Once you internalize that, the rest of the decisions become easier.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 3303,
+    "char_start": 3281,
+    "end": 233.289,
+    "sent_id": "t0020.s01",
+    "start": 232.17,
+    "text": "Let's start with that.",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 3385,
+    "char_start": 3304,
+    "end": 237.408,
+    "sent_id": "t0020.s02",
+    "start": 233.289,
+    "text": "What did you believe about this, and what have you since learned or reconsidered?",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 3406,
+    "char_start": 3386,
+    "end": 238.798,
+    "sent_id": "t0021.s01",
+    "start": 237.408,
+    "text": "That's how I see it.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3501,
+    "char_start": 3407,
+    "end": 245.333,
+    "sent_id": "t0021.s02",
+    "start": 238.798,
+    "text": "The wear on the chain is the best early indicator of when you'll need to replace the cassette.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3557,
+    "char_start": 3502,
+    "end": 249.156,
+    "sent_id": "t0021.s03",
+    "start": 245.333,
+    "text": "We've seen this with teams that use Shimano components.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3624,
+    "char_start": 3558,
+    "end": 253.744,
+    "sent_id": "t0021.s04",
+    "start": 249.156,
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3642,
+    "char_start": 3625,
+    "end": 254.916,
+    "sent_id": "t0022.s01",
+    "start": 253.744,
+    "text": "That makes sense.",
+    "unit_id": "t0022.u01"
+  },
+  {
+    "char_end": 3819,
+    "char_start": 3643,
+    "end": 266.171,
+    "sent_id": "t0023.s01",
+    "start": 254.916,
+    "text": "And when teams adopt Spoke & Wrench within that workflow, the commitment becomes evident. If you ignore that, you end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0023.u01"
+  },
+  {
+    "char_end": 3838,
+    "char_start": 3820,
+    "end": 267.405,
+    "sent_id": "t0024.s01",
+    "start": 266.171,
+    "text": "Let's start there.",
+    "unit_id": "t0024.u01"
+  },
+  {
+    "char_end": 3916,
+    "char_start": 3839,
+    "end": 272.686,
+    "sent_id": "t0024.s02",
+    "start": 267.405,
+    "text": "What is the operational perspective that most listeners don't have access to?",
+    "unit_id": "t0024.u01"
+  },
+  {
+    "char_end": 3937,
+    "char_start": 3917,
+    "end": 273.983,
+    "sent_id": "t0025.s01",
+    "start": 272.686,
+    "text": "That's how I see it.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 4014,
+    "char_start": 3938,
+    "end": 278.911,
+    "sent_id": "t0025.s02",
+    "start": 273.983,
+    "text": "The maintenance intervals for the suspension are a risk management decision.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 4081,
+    "char_start": 4015,
+    "end": 283.19,
+    "sent_id": "t0025.s03",
+    "start": 278.911,
+    "text": "I observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 4165,
+    "char_start": 4082,
+    "end": 287.981,
+    "sent_id": "t0026.s01",
+    "start": 283.19,
+    "text": "Let's change the subject – I want to dedicate the final section to risk management.",
+    "unit_id": "t0026.u01"
+  },
+  {
+    "char_end": 4312,
+    "char_start": 4166,
+    "end": 296.268,
+    "sent_id": "t0027.s01",
+    "start": 287.981,
+    "text": "That's where the conversation gets interesting, because the considerations surrounding risk management are relevant to everything we've discussed.",
+    "unit_id": "t0027.u01"
+  },
+  {
+    "char_end": 4340,
+    "char_start": 4313,
+    "end": 298.138,
+    "sent_id": "t0028.s01",
+    "start": 296.268,
+    "text": "Give me a concrete example.",
+    "unit_id": "t0028.u01"
+  },
+  {
+    "char_end": 4406,
+    "char_start": 4341,
+    "end": 302.641,
+    "sent_id": "t0028.s02",
+    "start": 298.138,
+    "text": "What is the most underestimated aspect of transmission mechanics?",
+    "unit_id": "t0028.u01"
+  },
+  {
+    "char_end": 4417,
+    "char_start": 4407,
+    "end": 303.237,
+    "sent_id": "t0029.s01",
+    "start": 302.641,
+    "text": "Certainly.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4551,
+    "char_start": 4418,
+    "end": 311.171,
+    "sent_id": "t0029.s02",
+    "start": 303.237,
+    "text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and re-tightening the bolts to the specified torque.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4610,
+    "char_start": 4552,
+    "end": 314.63,
+    "sent_id": "t0029.s03",
+    "start": 311.171,
+    "text": "We've seen this happen with teams that use Spoke & Wrench.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4680,
+    "char_start": 4611,
+    "end": 318.746,
+    "sent_id": "t0029.s04",
+    "start": 314.63,
+    "text": "I've observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4707,
+    "char_start": 4681,
+    "end": 320.533,
+    "sent_id": "t0030.s01",
+    "start": 318.746,
+    "text": "It's a useful perspective.",
+    "unit_id": "t0030.u01"
+  },
+  {
+    "char_end": 4780,
+    "char_start": 4708,
+    "end": 325.481,
+    "sent_id": "t0030.s02",
+    "start": 320.533,
+    "text": "What is the opposing viewpoint that most listeners don't have access to?",
+    "unit_id": "t0030.u01"
+  },
+  {
+    "char_end": 4877,
+    "char_start": 4781,
+    "end": 332.283,
+    "sent_id": "t0031.s01",
+    "start": 325.481,
+    "text": "In essence, a bicycle should feel quiet and predictable so that your focus remains on the trail.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4957,
+    "char_start": 4878,
+    "end": 337.88,
+    "sent_id": "t0031.s02",
+    "start": 332.283,
+    "text": "The frame matters because it tells you what kind of performance you can expect.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4983,
+    "char_start": 4958,
+    "end": 339.577,
+    "sent_id": "t0032.s01",
+    "start": 337.88,
+    "text": "What is the failure mode?",
+    "unit_id": "t0032.u01"
+  },
+  {
+    "char_end": 5049,
+    "char_start": 4984,
+    "end": 343.988,
+    "sent_id": "t0032.s02",
+    "start": 339.577,
+    "text": "What is the most underestimated aspect of transmission mechanics?",
+    "unit_id": "t0032.u01"
+  },
+  {
+    "char_end": 5154,
+    "char_start": 5050,
+    "end": 350.798,
+    "sent_id": "t0033.s01",
+    "start": 343.988,
+    "text": "Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 5208,
+    "char_start": 5155,
+    "end": 354.268,
+    "sent_id": "t0033.s02",
+    "start": 350.798,
+    "text": "We've seen this in teams that use Shimano components.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 5278,
+    "char_start": 5209,
+    "end": 358.786,
+    "sent_id": "t0033.s03",
+    "start": 354.268,
+    "text": "I've observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 5306,
+    "char_start": 5279,
+    "end": 361.165,
+    "sent_id": "t0034.s01",
+    "start": 358.786,
+    "text": "Where does it stop working?",
+    "unit_id": "t0034.u01"
+  },
+  {
+    "char_end": 5442,
+    "char_start": 5307,
+    "end": 370.902,
+    "sent_id": "t0035.s01",
+    "start": 361.165,
+    "text": "And when teams embrace Shimano in that way, the commitment becomes evident – I saw this pattern repeat itself in three different teams.",
+    "unit_id": "t0035.u01"
+  },
+  {
+    "char_end": 5483,
+    "char_start": 5443,
+    "end": 373.704,
+    "sent_id": "t0036.s01",
+    "start": 370.902,
+    "text": "What heuristic do you always go back to?",
+    "unit_id": "t0036.u01"
+  },
+  {
+    "char_end": 5542,
+    "char_start": 5484,
+    "end": 377.767,
+    "sent_id": "t0036.s02",
+    "start": 373.704,
+    "text": "Where do maintenance and transmission mechanics intersect?",
+    "unit_id": "t0036.u01"
+  },
+  {
+    "char_end": 5629,
+    "char_start": 5543,
+    "end": 384.113,
+    "sent_id": "t0037.s01",
+    "start": 377.767,
+    "text": "Honestly, the maintenance intervals for the suspension are a risk management decision.",
+    "unit_id": "t0037.u01"
+  },
+  {
+    "char_end": 5698,
+    "char_start": 5630,
+    "end": 389.13,
+    "sent_id": "t0037.s02",
+    "start": 384.113,
+    "text": "And the secondary effect is the part that almost everyone overlooks.",
+    "unit_id": "t0037.u01"
+  },
+  {
+    "char_end": 5766,
+    "char_start": 5699,
+    "end": 395.422,
+    "sent_id": "t0038.s01",
+    "start": 389.13,
+    "text": "Before we finish, what's one thing listeners can try out this week?",
+    "unit_id": "t0038.u01"
+  },
+  {
+    "char_end": 5831,
+    "char_start": 5767,
+    "end": 399.64,
+    "sent_id": "t0039.s01",
+    "start": 395.422,
+    "text": "Choose one of the ideas we discussed and apply it for two weeks.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5861,
+    "char_start": 5832,
+    "end": 401.552,
+    "sent_id": "t0039.s02",
+    "start": 399.64,
+    "text": "Everything else is iteration.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5920,
+    "char_start": 5862,
+    "end": 406.149,
+    "sent_id": "t0040.s01",
+    "start": 401.552,
+    "text": "Before we close, thank you again to our friends at Linear.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 6007,
+    "char_start": 5921,
+    "end": 412.966,
+    "sent_id": "t0040.s02",
+    "start": 406.149,
+    "text": "Linear is a task management tool designed for speed – it's optimized for keyboard use.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 6054,
+    "char_start": 6008,
+    "end": 415.937,
+    "sent_id": "t0040.s03",
+    "start": 412.966,
+    "text": "Tiago Moreira, thank you for the conversation.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 6074,
+    "char_start": 6055,
+    "end": 418.179,
+    "sent_id": "t0041.s01",
+    "start": 415.937,
+    "text": "Thank you, Beatriz.",
+    "unit_id": "t0041.u01"
+  },
+  {
+    "char_end": 6113,
+    "char_start": 6075,
+    "end": 420.827,
+    "sent_id": "t0042.s01",
+    "start": 418.179,
+    "text": "That's all for today's Trail Sessions.",
+    "unit_id": "t0042.u01"
+  },
+  {
+    "char_end": 6132,
+    "char_start": 6114,
+    "end": 422.081,
+    "sent_id": "t0042.s02",
+    "start": 420.827,
+    "text": "See you next time.",
+    "unit_id": "t0042.u01"
+  }
+]

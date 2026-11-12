@@ -1,0 +1,74 @@
+{
+  "content": {
+    "media_id": "sha256:p05-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e04.mp3",
+    "transcript_file_path": "transcripts/p05_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Nora talks with Daniel Cho: The Risk Panel: Diversify or Concentrate?.",
+    "duration_seconds": 251,
+    "episode_id": "ep-16ff698c1bd21087",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-07-03T00:00:00",
+    "title": "The Risk Panel: Diversify or Concentrate?"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-09-11T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [
+        {
+          "asset_scope": "unspecified",
+          "known": null,
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null
+        }
+      ],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "declared"
+    },
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Diversification functions as a free lunch for individual investors by eliminating the risk of a single position going to zero — a critical buffer against behavioral risk during market stress.",
+      "Concentration with deep understanding creates a more robust portfolio than broad diversification, because it enables visibility into how positions interact and move together.",
+      "Diversification across a hundred names often reflects ignorance rather than safety, as it spreads ignorance evenly rather than managing risk through insight.",
+      "The real risk for individual investors is not concentration itself but the inability to withstand a loss — a behavioral challenge that diversification helps mitigate.",
+      "A concentrated portfolio can compound an investor's edge only if that edge survives the test of personal behavior — otherwise, no diversification will save them.",
+      "Account data shows that concentrated retail portfolios exhibit fatter tails — meaning higher risk of extreme losses — compared to diversified ones.",
+      "The key question isn't whether to diversify, but whether an investor's edge can endure their own emotional response to volatility.",
+      "A system of correlated bets works better when built on a few well-understood positions than on a hundred unfamiliar ones — understanding drives resilience."
+    ],
+    "raw_text": "Diversification functions as a free lunch for individual investors by eliminating the risk of a single position going to zero — a critical buffer against behavioral risk during market stress. Concentration with deep understanding creates a more robust portfolio than broad diversification, because it enables visibility into how positions interact and move together.",
+    "title": "Diversification vs. Concentration: The Risk of Decision-Making"
+  }
+}

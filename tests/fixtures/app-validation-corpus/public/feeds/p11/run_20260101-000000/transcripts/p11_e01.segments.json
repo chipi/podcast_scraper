@@ -1,0 +1,956 @@
+[
+  {
+    "char_end": 40,
+    "char_start": 0,
+    "end": 2.353,
+    "sent_id": "t0000.s01",
+    "start": 0.0,
+    "text": "Welcome back to \"Trails by the Experts.\"",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 164,
+    "char_start": 41,
+    "end": 9.589,
+    "sent_id": "t0000.s02",
+    "start": 2.353,
+    "text": "Today, we're talking about trail construction, and I'm joined by Marco Bellini, a trail builder with the Cascadia Alliance.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 205,
+    "char_start": 165,
+    "end": 11.942,
+    "sent_id": "t0000.s03",
+    "start": 9.589,
+    "text": "Marco Bellini, thank you for being here.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 224,
+    "char_start": 206,
+    "end": 13.173,
+    "sent_id": "t0001.s01",
+    "start": 11.942,
+    "text": "Thank you, Giulia.",
+    "unit_id": "t0001.u01"
+  },
+  {
+    "char_end": 304,
+    "char_start": 225,
+    "end": 18.575,
+    "sent_id": "t0001.s02",
+    "start": 13.173,
+    "text": "It's my pleasure – building trails is something I've given a lot of thought to.",
+    "unit_id": "t0001.u01"
+  },
+  {
+    "char_end": 341,
+    "char_start": 305,
+    "end": 21.395,
+    "sent_id": "t0002.s01",
+    "start": 18.575,
+    "text": "This episode is sponsored by Strava.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 373,
+    "char_start": 342,
+    "end": 23.824,
+    "sent_id": "t0002.s02",
+    "start": 21.395,
+    "text": "Strava is the home of athletes.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 402,
+    "char_start": 374,
+    "end": 26.017,
+    "sent_id": "t0002.s03",
+    "start": 23.824,
+    "text": "Start at strava.com/podcast.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 444,
+    "char_start": 403,
+    "end": 29.089,
+    "sent_id": "t0002.s04",
+    "start": 26.017,
+    "text": "Tell me about how you made that decision.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 485,
+    "char_start": 445,
+    "end": 32.086,
+    "sent_id": "t0002.s05",
+    "start": 29.089,
+    "text": "How does RockShox fit into this picture?",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 569,
+    "char_start": 486,
+    "end": 37.329,
+    "sent_id": "t0003.s01",
+    "start": 32.086,
+    "text": "Honestly, drainage is the design decision that has the biggest impact on any trail.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 626,
+    "char_start": 570,
+    "end": 40.867,
+    "sent_id": "t0003.s02",
+    "start": 37.329,
+    "text": "We've seen this in teams that use the Cascadia Alliance.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 689,
+    "char_start": 627,
+    "end": 44.784,
+    "sent_id": "t0003.s03",
+    "start": 40.867,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 728,
+    "char_start": 690,
+    "end": 47.12,
+    "sent_id": "t0004.s01",
+    "start": 44.784,
+    "text": "Tell me how you came to that decision.",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 778,
+    "char_start": 729,
+    "end": 50.132,
+    "sent_id": "t0004.s02",
+    "start": 47.12,
+    "text": "Which version of the question is truly important?",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 884,
+    "char_start": 779,
+    "end": 57.389,
+    "sent_id": "t0005.s01",
+    "start": 50.132,
+    "text": "Yes, see – the most common mistake that beginner builders make is digging with a slope that is too steep.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 951,
+    "char_start": 885,
+    "end": 61.951,
+    "sent_id": "t0005.s02",
+    "start": 57.389,
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 985,
+    "char_start": 952,
+    "end": 63.939,
+    "sent_id": "t0006.s01",
+    "start": 61.951,
+    "text": "I want to delve deeper into this.",
+    "unit_id": "t0006.u01"
+  },
+  {
+    "char_end": 1041,
+    "char_start": 986,
+    "end": 67.253,
+    "sent_id": "t0006.s02",
+    "start": 63.939,
+    "text": "Where do soil erosion and trail construction intersect?",
+    "unit_id": "t0006.u01"
+  },
+  {
+    "char_end": 1052,
+    "char_start": 1042,
+    "end": 67.857,
+    "sent_id": "t0007.s01",
+    "start": 67.253,
+    "text": "Certainly.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1134,
+    "char_start": 1053,
+    "end": 72.749,
+    "sent_id": "t0007.s02",
+    "start": 67.857,
+    "text": "Discussions about land management should take place before any excavation begins.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1176,
+    "char_start": 1135,
+    "end": 75.225,
+    "sent_id": "t0007.s03",
+    "start": 72.749,
+    "text": "We've seen it on teams that use RockShox.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1252,
+    "char_start": 1177,
+    "end": 79.755,
+    "sent_id": "t0007.s04",
+    "start": 75.225,
+    "text": "The frame is important because it tells you what compromises you're making.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1266,
+    "char_start": 1253,
+    "end": 80.924,
+    "sent_id": "t0008.s01",
+    "start": 79.755,
+    "text": "Tell me more.",
+    "unit_id": "t0008.u01"
+  },
+  {
+    "char_end": 1443,
+    "char_start": 1267,
+    "end": 90.864,
+    "sent_id": "t0009.s01",
+    "start": 80.924,
+    "text": "And when teams adopt Spoke & Wrench within their workflow, the benefits become apparent – if you ignore them, you end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1478,
+    "char_start": 1444,
+    "end": 93.355,
+    "sent_id": "t0010.s01",
+    "start": 90.864,
+    "text": "Tell me how you made the decision.",
+    "unit_id": "t0010.u01"
+  },
+  {
+    "char_end": 1534,
+    "char_start": 1479,
+    "end": 97.385,
+    "sent_id": "t0010.s02",
+    "start": 93.355,
+    "text": "Where do soil erosion and trail construction intersect?",
+    "unit_id": "t0010.u01"
+  },
+  {
+    "char_end": 1545,
+    "char_start": 1535,
+    "end": 97.981,
+    "sent_id": "t0011.s01",
+    "start": 97.385,
+    "text": "Certainly.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1594,
+    "char_start": 1546,
+    "end": 100.84,
+    "sent_id": "t0011.s02",
+    "start": 97.981,
+    "text": "Cutting switchbacks into slopes is not optional.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1665,
+    "char_start": 1595,
+    "end": 105.01,
+    "sent_id": "t0011.s03",
+    "start": 100.84,
+    "text": "The shortcut of the first day becomes the landslide of the third year.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1737,
+    "char_start": 1666,
+    "end": 109.239,
+    "sent_id": "t0011.s04",
+    "start": 105.01,
+    "text": "And the second-order effect is the part that almost everyone overlooks.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1763,
+    "char_start": 1738,
+    "end": 110.594,
+    "sent_id": "t0012.s01",
+    "start": 109.239,
+    "text": "It's a helpful framework.",
+    "unit_id": "t0012.u01"
+  },
+  {
+    "char_end": 1815,
+    "char_start": 1764,
+    "end": 113.357,
+    "sent_id": "t0012.s02",
+    "start": 110.594,
+    "text": "What is the most important aspect of this question?",
+    "unit_id": "t0012.u01"
+  },
+  {
+    "char_end": 1887,
+    "char_start": 1816,
+    "end": 117.874,
+    "sent_id": "t0013.s01",
+    "start": 113.357,
+    "text": "Yes, look – the structure of the soil matters more than people realize.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 1937,
+    "char_start": 1888,
+    "end": 120.992,
+    "sent_id": "t0013.s02",
+    "start": 117.874,
+    "text": "We've seen this in teams that use Spoke & Wrench.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2000,
+    "char_start": 1938,
+    "end": 124.936,
+    "sent_id": "t0013.s03",
+    "start": 120.992,
+    "text": "I've observed this pattern repeating in three different teams.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2039,
+    "char_start": 2001,
+    "end": 127.076,
+    "sent_id": "t0014.s01",
+    "start": 124.936,
+    "text": "What is the nature of the malfunction?",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2118,
+    "char_start": 2040,
+    "end": 131.47,
+    "sent_id": "t0014.s02",
+    "start": 127.076,
+    "text": "What is the underlying structural aspect that most listeners are not aware of?",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2153,
+    "char_start": 2119,
+    "end": 133.716,
+    "sent_id": "t0015.s01",
+    "start": 131.47,
+    "text": "Let me give you my honest opinion.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2228,
+    "char_start": 2154,
+    "end": 138.606,
+    "sent_id": "t0015.s02",
+    "start": 133.716,
+    "text": "I've changed my mind about machine-made trails versus hand-crafted trails.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2291,
+    "char_start": 2229,
+    "end": 142.702,
+    "sent_id": "t0015.s03",
+    "start": 138.606,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2305,
+    "char_start": 2292,
+    "end": 143.87,
+    "sent_id": "t0016.s01",
+    "start": 142.702,
+    "text": "Tell me more.",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2483,
+    "char_start": 2306,
+    "end": 154.1,
+    "sent_id": "t0017.s01",
+    "start": 143.87,
+    "text": "And when teams adopt the Cascadia Alliance in that process, the trade-off becomes apparent – if you ignore it, you end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2535,
+    "char_start": 2484,
+    "end": 157.721,
+    "sent_id": "t0018.s01",
+    "start": 154.1,
+    "text": "We'll be right back after a short commercial break.",
+    "unit_id": "t0018.u01"
+  },
+  {
+    "char_end": 2575,
+    "char_start": 2536,
+    "end": 161.841,
+    "sent_id": "t0019.s01",
+    "start": 157.721,
+    "text": "Today's episode is sponsored by Stripe.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 2668,
+    "char_start": 2576,
+    "end": 171.559,
+    "sent_id": "t0019.s02",
+    "start": 161.841,
+    "text": "Stripe makes payments easy, whether you're running a marketplace or a subscription business.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 2711,
+    "char_start": 2669,
+    "end": 175.996,
+    "sent_id": "t0019.s03",
+    "start": 171.559,
+    "text": "Visit stripe.com/podcast for a free trial.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 2737,
+    "char_start": 2712,
+    "end": 177.755,
+    "sent_id": "t0020.s01",
+    "start": 175.996,
+    "text": "Welcome back to the show.",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 2772,
+    "char_start": 2738,
+    "end": 180.146,
+    "sent_id": "t0020.s02",
+    "start": 177.755,
+    "text": "How does the fault mechanism work?",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 2828,
+    "char_start": 2773,
+    "end": 184.015,
+    "sent_id": "t0020.s03",
+    "start": 180.146,
+    "text": "Where do soil erosion and trail construction intersect?",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 2849,
+    "char_start": 2829,
+    "end": 185.115,
+    "sent_id": "t0021.s01",
+    "start": 184.015,
+    "text": "That's how I see it.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 2923,
+    "char_start": 2850,
+    "end": 189.129,
+    "sent_id": "t0021.s02",
+    "start": 185.115,
+    "text": "Drainage is the design decision that has the biggest impact on any trail.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 2975,
+    "char_start": 2924,
+    "end": 191.933,
+    "sent_id": "t0021.s03",
+    "start": 189.129,
+    "text": "We've seen it in teams that use Shimano components.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3063,
+    "char_start": 2976,
+    "end": 196.717,
+    "sent_id": "t0021.s04",
+    "start": 191.933,
+    "text": "If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3102,
+    "char_start": 3064,
+    "end": 199.339,
+    "sent_id": "t0022.s01",
+    "start": 196.717,
+    "text": "Tell me how you came to that decision.",
+    "unit_id": "t0022.u01"
+  },
+  {
+    "char_end": 3143,
+    "char_start": 3103,
+    "end": 202.1,
+    "sent_id": "t0022.s02",
+    "start": 199.339,
+    "text": "How does RockShox fit into this picture?",
+    "unit_id": "t0022.u01"
+  },
+  {
+    "char_end": 3247,
+    "char_start": 3144,
+    "end": 209.303,
+    "sent_id": "t0023.s01",
+    "start": 202.1,
+    "text": "Yes, see – the most common mistake that novice builders make is digging with a slope that is too steep.",
+    "unit_id": "t0023.u01"
+  },
+  {
+    "char_end": 3314,
+    "char_start": 3248,
+    "end": 213.919,
+    "sent_id": "t0023.s02",
+    "start": 209.303,
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "unit_id": "t0023.u01"
+  },
+  {
+    "char_end": 3348,
+    "char_start": 3315,
+    "end": 215.794,
+    "sent_id": "t0024.s01",
+    "start": 213.919,
+    "text": "Challenge my conventional wisdom.",
+    "unit_id": "t0024.u01"
+  },
+  {
+    "char_end": 3422,
+    "char_start": 3349,
+    "end": 219.941,
+    "sent_id": "t0024.s02",
+    "start": 215.794,
+    "text": "What were your previous beliefs on this topic, and how have they changed?",
+    "unit_id": "t0024.u01"
+  },
+  {
+    "char_end": 3457,
+    "char_start": 3423,
+    "end": 222.252,
+    "sent_id": "t0025.s01",
+    "start": 219.941,
+    "text": "Let me give you my honest opinion.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 3539,
+    "char_start": 3458,
+    "end": 227.756,
+    "sent_id": "t0025.s02",
+    "start": 222.252,
+    "text": "Discussions about land management should take place before any excavation begins.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 3578,
+    "char_start": 3540,
+    "end": 230.339,
+    "sent_id": "t0025.s03",
+    "start": 227.756,
+    "text": "We've seen teams using Spoke & Wrench.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 3641,
+    "char_start": 3579,
+    "end": 234.552,
+    "sent_id": "t0025.s04",
+    "start": 230.339,
+    "text": "I've observed this pattern repeating in three different teams.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 3649,
+    "char_start": 3642,
+    "end": 235.107,
+    "sent_id": "t0026.s01",
+    "start": 234.552,
+    "text": "Quadra.",
+    "unit_id": "t0026.u01"
+  },
+  {
+    "char_end": 3782,
+    "char_start": 3650,
+    "end": 241.751,
+    "sent_id": "t0027.s01",
+    "start": 235.107,
+    "text": "Outside of the tools provided by the Cascadia Alliance framework, identifying the root cause of the problem can be more challenging.",
+    "unit_id": "t0027.u01"
+  },
+  {
+    "char_end": 3856,
+    "char_start": 3783,
+    "end": 245.426,
+    "sent_id": "t0027.s02",
+    "start": 241.751,
+    "text": "And the second-order effects are the part that almost everyone overlooks.",
+    "unit_id": "t0027.u01"
+  },
+  {
+    "char_end": 3915,
+    "char_start": 3857,
+    "end": 248.229,
+    "sent_id": "t0028.s01",
+    "start": 245.426,
+    "text": "What is the heuristic that you always find yourself using?",
+    "unit_id": "t0028.u01"
+  },
+  {
+    "char_end": 3967,
+    "char_start": 3916,
+    "end": 250.694,
+    "sent_id": "t0028.s02",
+    "start": 248.229,
+    "text": "What is the most important aspect of this question?",
+    "unit_id": "t0028.u01"
+  },
+  {
+    "char_end": 4033,
+    "char_start": 3968,
+    "end": 254.629,
+    "sent_id": "t0029.s01",
+    "start": 250.694,
+    "text": "It boils down to this: cutting corners on slopes is not optional.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4105,
+    "char_start": 4034,
+    "end": 258.928,
+    "sent_id": "t0029.s02",
+    "start": 254.629,
+    "text": "The shortcut on the first day leads to the landslide on the third year.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4168,
+    "char_start": 4106,
+    "end": 262.682,
+    "sent_id": "t0029.s03",
+    "start": 258.928,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4228,
+    "char_start": 4169,
+    "end": 265.488,
+    "sent_id": "t0030.s01",
+    "start": 262.682,
+    "text": "What is the typical process for dealing with a malfunction?",
+    "unit_id": "t0030.u01"
+  },
+  {
+    "char_end": 4292,
+    "char_start": 4229,
+    "end": 268.484,
+    "sent_id": "t0030.s02",
+    "start": 265.488,
+    "text": "What is the most often overlooked aspect of trail construction?",
+    "unit_id": "t0030.u01"
+  },
+  {
+    "char_end": 4327,
+    "char_start": 4293,
+    "end": 270.714,
+    "sent_id": "t0031.s01",
+    "start": 268.484,
+    "text": "Let me give you my honest opinion.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4381,
+    "char_start": 4328,
+    "end": 274.189,
+    "sent_id": "t0031.s02",
+    "start": 270.714,
+    "text": "Soil structure is more important than people realize.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4438,
+    "char_start": 4382,
+    "end": 277.861,
+    "sent_id": "t0031.s03",
+    "start": 274.189,
+    "text": "We've seen this in teams that use the Cascadia Alliance.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4501,
+    "char_start": 4439,
+    "end": 281.927,
+    "sent_id": "t0031.s04",
+    "start": 277.861,
+    "text": "I've observed this pattern repeating in three different teams.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4535,
+    "char_start": 4502,
+    "end": 283.713,
+    "sent_id": "t0032.s01",
+    "start": 281.927,
+    "text": "I want to delve deeper into this.",
+    "unit_id": "t0032.u01"
+  },
+  {
+    "char_end": 4575,
+    "char_start": 4536,
+    "end": 285.824,
+    "sent_id": "t0032.s02",
+    "start": 283.713,
+    "text": "How does Shimano fit into this picture?",
+    "unit_id": "t0032.u01"
+  },
+  {
+    "char_end": 4659,
+    "char_start": 4576,
+    "end": 292.024,
+    "sent_id": "t0033.s01",
+    "start": 285.824,
+    "text": "Yes, look – I've changed my mind about machine-made trails versus hand-made trails.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 4726,
+    "char_start": 4660,
+    "end": 296.954,
+    "sent_id": "t0033.s02",
+    "start": 292.024,
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 4754,
+    "char_start": 4727,
+    "end": 298.599,
+    "sent_id": "t0034.s01",
+    "start": 296.954,
+    "text": "Where does it stop working?",
+    "unit_id": "t0034.u01"
+  },
+  {
+    "char_end": 4871,
+    "char_start": 4755,
+    "end": 305.021,
+    "sent_id": "t0035.s01",
+    "start": 298.599,
+    "text": "Outside of the diagnostic tools provided by RockShox, it can be more difficult to identify the cause of the problem.",
+    "unit_id": "t0035.u01"
+  },
+  {
+    "char_end": 4953,
+    "char_start": 4872,
+    "end": 309.505,
+    "sent_id": "t0035.s02",
+    "start": 305.021,
+    "text": "Once you understand that, the rest of the troubleshooting process becomes easier.",
+    "unit_id": "t0035.u01"
+  },
+  {
+    "char_end": 5050,
+    "char_start": 4954,
+    "end": 314.312,
+    "sent_id": "t0036.s01",
+    "start": 309.505,
+    "text": "Let's change the subject – I want to dedicate the final part to the management of the territory.",
+    "unit_id": "t0036.u01"
+  },
+  {
+    "char_end": 5205,
+    "char_start": 5051,
+    "end": 322.886,
+    "sent_id": "t0037.s01",
+    "start": 314.312,
+    "text": "That's where the conversation becomes truly interesting, because the compromises involved in managing the territory touch upon everything we've discussed.",
+    "unit_id": "t0037.u01"
+  },
+  {
+    "char_end": 5229,
+    "char_start": 5206,
+    "end": 324.304,
+    "sent_id": "t0038.s01",
+    "start": 322.886,
+    "text": "I want to delve deeper.",
+    "unit_id": "t0038.u01"
+  },
+  {
+    "char_end": 5302,
+    "char_start": 5230,
+    "end": 328.745,
+    "sent_id": "t0038.s02",
+    "start": 324.304,
+    "text": "What is the opposing viewpoint that most listeners don't have access to?",
+    "unit_id": "t0038.u01"
+  },
+  {
+    "char_end": 5399,
+    "char_start": 5303,
+    "end": 333.993,
+    "sent_id": "t0039.s01",
+    "start": 328.745,
+    "text": "It boils down to this: drainage is the design decision that has the biggest impact on any trail.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5456,
+    "char_start": 5400,
+    "end": 337.055,
+    "sent_id": "t0039.s02",
+    "start": 333.993,
+    "text": "We've seen it happen with teams using RockShox products.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5544,
+    "char_start": 5457,
+    "end": 341.811,
+    "sent_id": "t0039.s03",
+    "start": 337.055,
+    "text": "If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5604,
+    "char_start": 5545,
+    "end": 344.617,
+    "sent_id": "t0040.s01",
+    "start": 341.811,
+    "text": "What is the typical process for dealing with a malfunction?",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 5668,
+    "char_start": 5605,
+    "end": 347.614,
+    "sent_id": "t0040.s02",
+    "start": 344.617,
+    "text": "What is the most often overlooked aspect of trail construction?",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 5771,
+    "char_start": 5669,
+    "end": 353.338,
+    "sent_id": "t0041.s01",
+    "start": 347.614,
+    "text": "Honestly, the most common mistake that novice builders make is digging with a slope that is too steep.",
+    "unit_id": "t0041.u01"
+  },
+  {
+    "char_end": 5858,
+    "char_start": 5772,
+    "end": 358.165,
+    "sent_id": "t0041.s02",
+    "start": 353.338,
+    "text": "The overall picture is important because it tells you what compromises you are making.",
+    "unit_id": "t0041.u01"
+  },
+  {
+    "char_end": 5927,
+    "char_start": 5859,
+    "end": 363.292,
+    "sent_id": "t0042.s01",
+    "start": 358.165,
+    "text": "Before we wrap up, what's one thing listeners can try out this week?",
+    "unit_id": "t0042.u01"
+  },
+  {
+    "char_end": 5996,
+    "char_start": 5928,
+    "end": 367.334,
+    "sent_id": "t0043.s01",
+    "start": 363.292,
+    "text": "Choose one of the ideas we discussed and implement it for two weeks.",
+    "unit_id": "t0043.u01"
+  },
+  {
+    "char_end": 6026,
+    "char_start": 5997,
+    "end": 369.058,
+    "sent_id": "t0043.s02",
+    "start": 367.334,
+    "text": "Everything else is iteration.",
+    "unit_id": "t0043.u01"
+  },
+  {
+    "char_end": 6082,
+    "char_start": 6027,
+    "end": 373.245,
+    "sent_id": "t0044.s01",
+    "start": 369.058,
+    "text": "And finally, a big thank you to our partners at Linear.",
+    "unit_id": "t0044.u01"
+  },
+  {
+    "char_end": 6158,
+    "char_start": 6083,
+    "end": 378.955,
+    "sent_id": "t0044.s02",
+    "start": 373.245,
+    "text": "Linear is the ticketing system designed for speed – built for the keyboard.",
+    "unit_id": "t0044.u01"
+  },
+  {
+    "char_end": 6186,
+    "char_start": 6159,
+    "end": 381.011,
+    "sent_id": "t0044.s03",
+    "start": 378.955,
+    "text": "Check it out at linear.com.",
+    "unit_id": "t0044.u01"
+  },
+  {
+    "char_end": 6233,
+    "char_start": 6187,
+    "end": 383.915,
+    "sent_id": "t0044.s04",
+    "start": 381.011,
+    "text": "Marco Bellini, thank you for the conversation.",
+    "unit_id": "t0044.u01"
+  },
+  {
+    "char_end": 6252,
+    "char_start": 6234,
+    "end": 385.338,
+    "sent_id": "t0045.s01",
+    "start": 383.915,
+    "text": "Thank you, Giulia.",
+    "unit_id": "t0045.u01"
+  },
+  {
+    "char_end": 6305,
+    "char_start": 6253,
+    "end": 389.017,
+    "sent_id": "t0046.s01",
+    "start": 385.338,
+    "text": "That's all for today's episode of \"Author's Trails.\"",
+    "unit_id": "t0046.u01"
+  },
+  {
+    "char_end": 6324,
+    "char_start": 6306,
+    "end": 390.291,
+    "sent_id": "t0046.s02",
+    "start": 389.017,
+    "text": "See you next time.",
+    "unit_id": "t0046.u01"
+  }
+]

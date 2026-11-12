@@ -1,0 +1,165 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:labor-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:bloomberg-data-caveats",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:data-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:ipcc-data-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:iterative-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:labor-market-dynamics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:macroeconomic-abstraction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:model-rebuilding",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:portfolio-level-risk",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-919c77e84ad37664",
+  "extraction": {
+    "extracted_at": "2026-01-07T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p09_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-919c77e84ad37664",
+      "properties": {
+        "podcast_id": "p09",
+        "publish_date": "2026-01-07T00:00:00",
+        "title": "When the Severe Garble Bites"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:labor-markets",
+      "properties": {
+        "label": "labor markets",
+        "slug": "labor-markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bloomberg-data-caveats",
+      "properties": {
+        "label": "bloomberg data caveats",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:data-reliability",
+      "properties": {
+        "label": "data reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:ipcc-data-integration",
+      "properties": {
+        "label": "ipcc data integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iterative-learning",
+      "properties": {
+        "label": "iterative learning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:labor-market-dynamics",
+      "properties": {
+        "label": "labor market dynamics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:macroeconomic-abstraction",
+      "properties": {
+        "label": "macroeconomic abstraction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:model-rebuilding",
+      "properties": {
+        "label": "model rebuilding",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:portfolio-level-risk",
+      "properties": {
+        "label": "portfolio level risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

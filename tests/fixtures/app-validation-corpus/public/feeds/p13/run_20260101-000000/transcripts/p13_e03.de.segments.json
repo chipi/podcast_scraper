@@ -1,0 +1,296 @@
+[
+  {
+    "end": 13.13,
+    "id": 0,
+    "start": 0.0,
+    "text": "Willkommen zurück bei Pfadgesprächen. Heute sprechen wir über Antriebsmechanik, und bei mir ist Jonas Richter, Mechaniker bei Spoke & Wrench. Jonas Richter, danke, dass du hier bist."
+  },
+  {
+    "end": 16.707,
+    "id": 1,
+    "start": 13.13,
+    "text": "Danke, Katrin. Schön, wieder hier zu sein."
+  },
+  {
+    "end": 26.732,
+    "id": 2,
+    "start": 16.707,
+    "text": "Diese Folge wird von Notion gesponsert. Notion ersetzt das Dutzend Werkzeuge, die dein Team halb benutzt. Probiere notion.com heute aus."
+  },
+  {
+    "end": 36.462,
+    "id": 3,
+    "start": 26.732,
+    "text": "Bevor wir einsteigen — Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr zählt als Fahrwerksabstimmungen."
+  },
+  {
+    "end": 41.0,
+    "id": 4,
+    "start": 36.462,
+    "text": "Ja, genau. Und das knüpft an das an, was wir heute behandeln."
+  },
+  {
+    "end": 46.979,
+    "id": 5,
+    "start": 41.0,
+    "text": "Ich möchte etwas anmerken — Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erwähnt."
+  },
+  {
+    "end": 53.025,
+    "id": 6,
+    "start": 46.979,
+    "text": "Ich möchte etwas anmerken — Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erwähnt."
+  },
+  {
+    "end": 58.738,
+    "id": 7,
+    "start": 53.025,
+    "text": "Da will ich tiefer rein. Was hast du darüber früher geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 79.058,
+    "id": 8,
+    "start": 58.738,
+    "text": "Es läuft darauf hinaus: die meisten rätselhaften Knarzgeräusche löst man, indem man die Kontaktflächen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Die Rahmung zählt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 84.626,
+    "id": 9,
+    "start": 79.058,
+    "text": "Das ist eine nützliche Rahmung. Wo überschneiden sich Wartung und Antriebsmechanik?"
+  },
+  {
+    "end": 97.835,
+    "id": 10,
+    "start": 84.626,
+    "text": "So sehe ich das. Ein Bike sollte sich leise und vorhersehbar anfühlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Und der Effekt zweiter Ordnung ist der Teil, den die meisten übersehen."
+  },
+  {
+    "end": 104.948,
+    "id": 11,
+    "start": 97.835,
+    "text": "Da will ich tiefer rein. Was ist der strukturelle Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?"
+  },
+  {
+    "end": 120.469,
+    "id": 12,
+    "start": 104.948,
+    "text": "Klar. Kettenverschleiß ist der beste Frühindikator dafür, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Die Rahmung zählt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 121.963,
+    "id": 13,
+    "start": 120.469,
+    "text": "Erzähl mir mehr darüber."
+  },
+  {
+    "end": 130.599,
+    "id": 14,
+    "start": 121.963,
+    "text": "Spoke & Wrench ist eine der Plattformen, wo das klar sichtbar wird. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 135.379,
+    "id": 15,
+    "start": 130.599,
+    "text": "Erzähl mir, wie du entschieden hast. Wie passt RockShox in dieses Bild?"
+  },
+  {
+    "end": 145.824,
+    "id": 16,
+    "start": 135.379,
+    "text": "Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr später von Null wieder auf."
+  },
+  {
+    "end": 160.695,
+    "id": 17,
+    "start": 145.824,
+    "text": "Weißt du was? Ich sage es einfach: Linear steuert meinen ganzen Engineering-Betrieb. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist — gedacht für die Tastatur. Nutze den Link in den Shownotes."
+  },
+  {
+    "end": 164.236,
+    "id": 18,
+    "start": 160.695,
+    "text": "Wir sind gleich zurück, nach einer kurzen Werbung."
+  },
+  {
+    "end": 181.31,
+    "id": 19,
+    "start": 164.236,
+    "text": "Diese Folge wird von Stripe gesponsert. Stripe macht Zahlungen einfach, egal ob du einen Marktplatz oder ein Abo-Geschäft betreibst. Besuche stripe.com/podcast für eine kostenlose Testphase."
+  },
+  {
+    "end": 183.526,
+    "id": 20,
+    "start": 181.31,
+    "text": "Willkommen zurück in der Sendung."
+  },
+  {
+    "end": 189.1,
+    "id": 21,
+    "start": 183.526,
+    "text": "Das ist eine nützliche Rahmung. Wo überschneiden sich Wartung und Antriebsmechanik?"
+  },
+  {
+    "end": 207.325,
+    "id": 22,
+    "start": 189.1,
+    "text": "So sehe ich das. Die meisten rätselhaften Knarzgeräusche löst man, indem man die Kontaktflächen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Shimano nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 213.593,
+    "id": 23,
+    "start": 207.325,
+    "text": "Gib mir ein konkretes Beispiel. Was hast du darüber früher geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 226.902,
+    "id": 24,
+    "start": 213.593,
+    "text": "Ja, also — ein Bike sollte sich leise und vorhersehbar anfühlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Wenn du das einmal verinnerlicht hast, werden die übrigen Entscheidungen leichter."
+  },
+  {
+    "end": 232.078,
+    "id": 25,
+    "start": 226.902,
+    "text": "Fangen wir da an. Was hast du darüber früher geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 247.91,
+    "id": 26,
+    "start": 232.078,
+    "text": "So sehe ich das. Kettenverschleiß ist der beste Frühindikator dafür, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das einmal verinnerlicht hast, werden die übrigen Entscheidungen leichter."
+  },
+  {
+    "end": 248.637,
+    "id": 27,
+    "start": 247.91,
+    "text": "Das passt."
+  },
+  {
+    "end": 258.995,
+    "id": 28,
+    "start": 248.637,
+    "text": "Und wenn Teams Spoke & Wrench in diesen Ablauf übernehmen, wird der Kompromiss sichtbar — wenn du das ignorierst, baust du es ein Jahr später von Null wieder auf."
+  },
+  {
+    "end": 265.728,
+    "id": 29,
+    "start": 258.995,
+    "text": "Fangen wir da an. Was ist der operative Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?"
+  },
+  {
+    "end": 276.24,
+    "id": 30,
+    "start": 265.728,
+    "text": "So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 281.615,
+    "id": 31,
+    "start": 276.24,
+    "text": "Wechseln wir das Thema — den letzten Abschnitt will ich dem Risikomanagement widmen."
+  },
+  {
+    "end": 289.811,
+    "id": 32,
+    "start": 281.615,
+    "text": "Da wird das Gespräch interessant, weil die Kompromisse rund um Risikomanagement alles durchziehen, was wir behandelt haben."
+  },
+  {
+    "end": 296.381,
+    "id": 33,
+    "start": 289.811,
+    "text": "Gib mir ein konkretes Beispiel. Was ist der am meisten unterschätzte Teil der Antriebsmechanik?"
+  },
+  {
+    "end": 314.289,
+    "id": 34,
+    "start": 296.381,
+    "text": "Klar. Die meisten rätselhaften Knarzgeräusche löst man, indem man die Kontaktflächen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 321.796,
+    "id": 35,
+    "start": 314.289,
+    "text": "Das ist eine nützliche Rahmung. Was ist der konträre Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?"
+  },
+  {
+    "end": 335.888,
+    "id": 36,
+    "start": 321.796,
+    "text": "Es läuft darauf hinaus: ein Bike sollte sich leise und vorhersehbar anfühlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Die Rahmung zählt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 342.005,
+    "id": 37,
+    "start": 335.888,
+    "text": "Wie sieht der Fehlerfall aus? Was ist der am meisten unterschätzte Teil der Antriebsmechanik?"
+  },
+  {
+    "end": 356.728,
+    "id": 38,
+    "start": 342.005,
+    "text": "Ehrlich gesagt, Kettenverschleiß ist der beste Frühindikator dafür, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Shimano nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 358.201,
+    "id": 39,
+    "start": 356.728,
+    "text": "Wo bricht das zusammen?"
+  },
+  {
+    "end": 367.391,
+    "id": 40,
+    "start": 358.201,
+    "text": "Und wenn Teams Shimano in diesen Ablauf übernehmen, wird der Kompromiss sichtbar — ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 374.345,
+    "id": 41,
+    "start": 367.391,
+    "text": "Was ist die Heuristik, zu der du immer zurückkehrst? Wo überschneiden sich Wartung und Antriebsmechanik?"
+  },
+  {
+    "end": 385.529,
+    "id": 42,
+    "start": 374.345,
+    "text": "Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten übersehen."
+  },
+  {
+    "end": 390.98,
+    "id": 43,
+    "start": 385.529,
+    "text": "Bevor wir schließen, was ist eine Sache, die Hörer diese Woche ausprobieren können?"
+  },
+  {
+    "end": 398.118,
+    "id": 44,
+    "start": 390.98,
+    "text": "Nimm eine der Ideen, die wir behandelt haben, und wende sie zwei Wochen lang an. Der Rest ist Iteration."
+  },
+  {
+    "end": 409.657,
+    "id": 45,
+    "start": 398.118,
+    "text": "Bevor wir schließen, danke noch einmal an unsere Freunde von Linear. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist — gedacht für die Tastatur."
+  },
+  {
+    "end": 412.381,
+    "id": 46,
+    "start": 409.657,
+    "text": "Jonas Richter, danke für das Gespräch."
+  },
+  {
+    "end": 414.074,
+    "id": 47,
+    "start": 412.381,
+    "text": "Danke dir, Katrin."
+  },
+  {
+    "end": 418.992,
+    "id": 48,
+    "start": 414.074,
+    "text": "Das war es für die heutige Folge von Pfadgesprächen. Bis zum nächsten Mal."
+  }
+]

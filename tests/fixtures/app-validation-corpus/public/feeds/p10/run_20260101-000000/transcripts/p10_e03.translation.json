@@ -1,0 +1,943 @@
+{
+  "version": "1.0",
+  "episode_slug": "0001 - La Mecánica de Una Bici Silenciosa y Rápida_20261003-140204_0ca7efcd",
+  "source_language": "es",
+  "target_language": "en",
+  "model": "google/translategemma-12b-it",
+  "prompt": {
+    "name": "shared/translation/translategemma_v1",
+    "file": "shared/translation/translategemma_v1.j2",
+    "sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+  },
+  "source": {
+    "transcript_ref": "transcripts/0001 - La Mecánica de Una Bici Silenciosa y Rápida_20261003-140204_0ca7efcd.txt",
+    "turns": 43
+  },
+  "status": "translated",
+  "units_total": 43,
+  "units_failed": 0,
+  "english_withdrawn": false,
+  "title_en": "The Mechanics of a Quiet and Fast Bike",
+  "units": [
+    {
+      "unit_id": "t0000.u01",
+      "turn_id": "t0000",
+      "content_key": "f72a3e607031203456d4964d75b30dcd3ec23359a43e477ec4d6145574f49371",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0000.s01",
+          "en_text": "Welcome back to Trail Sessions."
+        },
+        {
+          "sent_id": "t0000.s02",
+          "en_text": "Today, we're talking about drivetrain mechanics, and I'm joined by Diego Ferrer, a mechanic at Spoke & Wrench."
+        },
+        {
+          "sent_id": "t0000.s03",
+          "en_text": "Diego Ferrer, thank you for being here."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0001.u01",
+      "turn_id": "t0001",
+      "content_key": "8cbe138da8e11b105bde8667e67451c301b7070ea8920a3d79c209432e451c61",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0001.s01",
+          "en_text": "Thank you, Lucía."
+        },
+        {
+          "sent_id": "t0001.s02",
+          "en_text": "Glad to be back."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0002.u01",
+      "turn_id": "t0002",
+      "content_key": "56a8ebe8d52aea6181ec8b1ca07b3105a42d72fbd2e434756ade5cc7178e2a7a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0002.s01",
+          "en_text": "Today's episode is sponsored by Notion."
+        },
+        {
+          "sent_id": "t0002.s02",
+          "en_text": "Notion replaces the dozen tools your team uses inconsistently."
+        },
+        {
+          "sent_id": "t0002.s03",
+          "en_text": "Try notion.com today."
+        },
+        {
+          "sent_id": "t0002.s04",
+          "en_text": "Before we get started – Marta Solís was on the previous episode, explaining that tire pressure is more important than suspension adjustments."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0003.u01",
+      "turn_id": "t0003",
+      "content_key": "e9aefaf1855a028b4c354fde54d27d101242f4339e39d08b04770416ed1cb7c5",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0003.s01",
+          "en_text": "Yes, exactly."
+        },
+        {
+          "sent_id": "t0003.s02",
+          "en_text": "And it connects to what we're going to be discussing today."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0004.u01",
+      "turn_id": "t0004",
+      "content_key": "d84a806d6267bd72047736a8a892fd63951e630cf9ba22de408b3f3391b281c8",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0004.s01",
+          "en_text": "I want to point something out – Marta Solís mentioned this same dynamic a couple of episodes ago."
+        },
+        {
+          "sent_id": "t0004.s02",
+          "en_text": "I want to point something out – Javier Benavides mentioned this same dynamic a couple of episodes ago."
+        },
+        {
+          "sent_id": "t0004.s03",
+          "en_text": "I want to delve deeper into that."
+        },
+        {
+          "sent_id": "t0004.s04",
+          "en_text": "What's something you used to believe about this that you've since re-evaluated?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0005.u01",
+      "turn_id": "t0005",
+      "content_key": "132ac4d2bcc25a495008552f7c41b3e20d44200fd4fd6962e7ae7bd7f0695d9b",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0005.s01",
+          "en_text": "It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque."
+        },
+        {
+          "sent_id": "t0005.s02",
+          "en_text": "We've seen this happen with equipment that uses Spoke & Wrench."
+        },
+        {
+          "sent_id": "t0005.s03",
+          "en_text": "The frame matters because it tells you what compromises you're making."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0006.u01",
+      "turn_id": "t0006",
+      "content_key": "507fbfd5d79dd6143bfcb4a13d502b6ceda6a0c1c20826e392f5691bc3093aea",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0006.s01",
+          "en_text": "That's a useful framework."
+        },
+        {
+          "sent_id": "t0006.s02",
+          "en_text": "Where do maintenance and transmission mechanics intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0007.u01",
+      "turn_id": "t0007",
+      "content_key": "8d9d14eddbce64db6c9401b15b101f29f514aef9e58bd01d0cc6eb4e3f7d233c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0007.s01",
+          "en_text": "That's how I see it."
+        },
+        {
+          "sent_id": "t0007.s02",
+          "en_text": "A bike should feel quiet and predictable so that your attention can remain focused on the trail."
+        },
+        {
+          "sent_id": "t0007.s03",
+          "en_text": "And the second-order effect is the part that almost everyone overlooks."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0008.u01",
+      "turn_id": "t0008",
+      "content_key": "7970116c97e16fe475bc67aa12720e1e0d50bddc8bfe10f2c830a807cb8c22df",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0008.s01",
+          "en_text": "I want to delve deeper into that."
+        },
+        {
+          "sent_id": "t0008.s02",
+          "en_text": "What is the underlying structural element that most listeners don't have access to?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0009.u01",
+      "turn_id": "t0009",
+      "content_key": "3ff22551a12893c4cd68ad93f0784d34e9fd7bc7cb4fa70452777473181067d7",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0009.s01",
+          "en_text": "Sure."
+        },
+        {
+          "sent_id": "t0009.s02",
+          "en_text": "Chain wear is the best early indicator of when you'll need to replace the cassette."
+        },
+        {
+          "sent_id": "t0009.s03",
+          "en_text": "We've seen this in equipment that uses Spoke & Wrench."
+        },
+        {
+          "sent_id": "t0009.s04",
+          "en_text": "The frame matters because it tells you what compromises you're making."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0010.u01",
+      "turn_id": "t0010",
+      "content_key": "edf3142ef8030f2afc6d9cbd843f72b08d0d8fd6c06eab98bcbc93e8a3252a3b",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0010.s01",
+          "en_text": "Tell me more about that."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0011.u01",
+      "turn_id": "t0011",
+      "content_key": "5970dcb0ee9021966d7cb19f5b52477340090ad0d9324077cd6d287dd47f0344",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0011.s01",
+          "en_text": "Spoke & Wrench is one of the platforms where this is clearly evident."
+        },
+        {
+          "sent_id": "t0011.s02",
+          "en_text": "I have observed this pattern repeating itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0012.u01",
+      "turn_id": "t0012",
+      "content_key": "cbaf4f8fbd24f7654297a78f0db8aad51372affebecab8b5d6e9f0936c3f1638",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0012.s01",
+          "en_text": "Tell me how you made the decision."
+        },
+        {
+          "sent_id": "t0012.s02",
+          "en_text": "How does RockShox fit into this landscape?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0013.u01",
+      "turn_id": "t0013",
+      "content_key": "325351d93d6fa1f7e3cccee9cc74044c118548bd8bbb30b9e4634c1dbce760e9",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0013.s01",
+          "en_text": "Sure."
+        },
+        {
+          "sent_id": "t0013.s02",
+          "en_text": "The service intervals for the suspension are a risk management decision."
+        },
+        {
+          "sent_id": "t0013.s03",
+          "en_text": "If you ignore that, you'll end up rebuilding it from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0014.u01",
+      "turn_id": "t0014",
+      "content_key": "99dd777be166d4c061400ee32c47711b674dfd21609f37ac411fd139326a8f1d",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0014.s01",
+          "en_text": "You know what?"
+        },
+        {
+          "sent_id": "t0014.s02",
+          "en_text": "I'm just saying: Linear handles my entire engineering operation."
+        },
+        {
+          "sent_id": "t0014.s03",
+          "en_text": "Linear is the incident management tool built for speed – designed for keyboard use."
+        },
+        {
+          "sent_id": "t0014.s04",
+          "en_text": "Use the link in the episode notes."
+        },
+        {
+          "sent_id": "t0014.s05",
+          "en_text": "We'll be right back after a short commercial break."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0015.u01",
+      "turn_id": "t0015",
+      "content_key": "ff523c3d7b8cb53578b23b5a9f136590355414c824944d642ec91492a2d5804a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0015.s01",
+          "en_text": "Today's episode is brought to you by Stripe."
+        },
+        {
+          "sent_id": "t0015.s02",
+          "en_text": "Stripe simplifies payments, whether you're running a marketplace or a subscription business."
+        },
+        {
+          "sent_id": "t0015.s03",
+          "en_text": "Visit stripe.com/podcast for a free trial."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0016.u01",
+      "turn_id": "t0016",
+      "content_key": "75864075c440bc319579108b07357ad2bb9937ec31270adea12d6dfa0ad81079",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0016.s01",
+          "en_text": "Welcome back to the program."
+        },
+        {
+          "sent_id": "t0016.s02",
+          "en_text": "That's a useful framework."
+        },
+        {
+          "sent_id": "t0016.s03",
+          "en_text": "Where do maintenance and transmission mechanics intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0017.u01",
+      "turn_id": "t0017",
+      "content_key": "e25e176f32c7f4bdc668846c8bd7dbe016864407c47291495273922879057691",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0017.s01",
+          "en_text": "That's how I see it."
+        },
+        {
+          "sent_id": "t0017.s02",
+          "en_text": "Most of the mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque."
+        },
+        {
+          "sent_id": "t0017.s03",
+          "en_text": "We've seen this happen with equipment that uses Shimano components."
+        },
+        {
+          "sent_id": "t0017.s04",
+          "en_text": "I've observed this pattern repeating in three different sets of equipment."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0018.u01",
+      "turn_id": "t0018",
+      "content_key": "b1eef256168538d99b52b1aa2bce77a75f692473ae680dad85e2b816086960ef",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0018.s01",
+          "en_text": "Tell me a specific example."
+        },
+        {
+          "sent_id": "t0018.s02",
+          "en_text": "What is something you used to believe about this that you have since re-evaluated?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0019.u01",
+      "turn_id": "t0019",
+      "content_key": "11afaff04a48d988794606c4470075eab3a2a032ce516c7b423f82fbc2adbdca",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0019.s01",
+          "en_text": "Yes, see – a bike should feel quiet and predictable so that your attention can stay focused on the trail."
+        },
+        {
+          "sent_id": "t0019.s02",
+          "en_text": "Once you understand that, the rest of the decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0020.u01",
+      "turn_id": "t0020",
+      "content_key": "3fd9dc513cb0e9d1723ffcffb090b6bbe02f525f7aafb854f0b48b973617791d",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0020.s01",
+          "en_text": "Let's start there."
+        },
+        {
+          "sent_id": "t0020.s02",
+          "en_text": "What's something you used to believe about this that you've since re-evaluated?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0021.u01",
+      "turn_id": "t0021",
+      "content_key": "dfe16aab0f950a2eb21516d6ee988a5176408afa694e1f8ec28c65ebd3cf540e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0021.s01",
+          "en_text": "That's how I see it."
+        },
+        {
+          "sent_id": "t0021.s02",
+          "en_text": "The wear and tear on the chain is the best early indicator of when you'll need to replace the cassette."
+        },
+        {
+          "sent_id": "t0021.s03",
+          "en_text": "We've seen this in equipment that uses Shimano components."
+        },
+        {
+          "sent_id": "t0021.s04",
+          "en_text": "Once you understand that, the rest of the decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0022.u01",
+      "turn_id": "t0022",
+      "content_key": "77fa7d2e212172af0fc80abd4e18748499483a702e8760858668fd0617985c8a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0022.s01",
+          "en_text": "That makes sense."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0023.u01",
+      "turn_id": "t0023",
+      "content_key": "7051fa19a87931ef5759e8336067457fa546b3b93c0516d557d5f19a67ef3712",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0023.s01",
+          "en_text": "And when teams adopt Spoke & Wrench within that workflow, the value becomes apparent. If you ignore that, you'll end up rebuilding it from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0024.u01",
+      "turn_id": "t0024",
+      "content_key": "7e92ab6835089751155017e2012dfd960469f1338651a31a043082997a92b420",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0024.s01",
+          "en_text": "Let's start with that."
+        },
+        {
+          "sent_id": "t0024.s02",
+          "en_text": "What is the operational aspect that most listeners don't have access to?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0025.u01",
+      "turn_id": "t0025",
+      "content_key": "32406b1185e5d52e4ab71ba5f83203b161ee23f480b2068922bae5017895318e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0025.s01",
+          "en_text": "That's how I see it."
+        },
+        {
+          "sent_id": "t0025.s02",
+          "en_text": "The service intervals for the suspension are a risk management decision."
+        },
+        {
+          "sent_id": "t0025.s03",
+          "en_text": "I've seen this pattern repeat itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0026.u01",
+      "turn_id": "t0026",
+      "content_key": "959a3fb07a476011bd33a8f4fe81b49c3dd41e013650795ba83d3a9aa6b4836e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0026.s01",
+          "en_text": "Let's change the subject – I want to dedicate the final part to risk management."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0027.u01",
+      "turn_id": "t0027",
+      "content_key": "69b66faa1c29d580db1ddf5197e05bdabfcb15ca9613072095e18ba08b205898",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0027.s01",
+          "en_text": "That's where the conversation gets interesting, because the considerations surrounding risk management permeate everything we've discussed."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0028.u01",
+      "turn_id": "t0028",
+      "content_key": "186a598e5cf9151d005aeb06d16655141c6bff0a4788fa8879d626e55b35ba14",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0028.s01",
+          "en_text": "Tell me a specific example."
+        },
+        {
+          "sent_id": "t0028.s02",
+          "en_text": "What is the most underestimated aspect of transmission mechanics?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0029.u01",
+      "turn_id": "t0029",
+      "content_key": "e2a21ef1156df79126ec18e92620c4e8fa8c4e9cce0dce627b74452323d16810",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0029.s01",
+          "en_text": "Sure."
+        },
+        {
+          "sent_id": "t0029.s02",
+          "en_text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and re-tightening them to the specified torque."
+        },
+        {
+          "sent_id": "t0029.s03",
+          "en_text": "We've seen this happen with equipment that uses Spoke & Wrench."
+        },
+        {
+          "sent_id": "t0029.s04",
+          "en_text": "I've observed this pattern repeating in three different pieces of equipment."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0030.u01",
+      "turn_id": "t0030",
+      "content_key": "eb43fb4b05cbfe09553ebd020871d3703fa8ca43f580386b2de6ee74c9fd717c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0030.s01",
+          "en_text": "That's a useful framework."
+        },
+        {
+          "sent_id": "t0030.s02",
+          "en_text": "What is the opposing perspective that most listeners don't have access to?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0031.u01",
+      "turn_id": "t0031",
+      "content_key": "789665885703f2144e824364f0a272a841ef562cee99f34c89e84d382802a684",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0031.s01",
+          "en_text": "It all boils down to this: a bike should feel quiet and predictable so that your focus remains on the trail."
+        },
+        {
+          "sent_id": "t0031.s02",
+          "en_text": "The frame matters because it tells you what compromises you're making."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0032.u01",
+      "turn_id": "t0032",
+      "content_key": "0aa6990c4431a72f4e509eef2db5943707acea1eb5c8224884d60c8372cd66ea",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0032.s01",
+          "en_text": "What does the failure mode look like?"
+        },
+        {
+          "sent_id": "t0032.s02",
+          "en_text": "What is the most underestimated aspect of transmission mechanics?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0033.u01",
+      "turn_id": "t0033",
+      "content_key": "64dddb8872974a8116531f7de0e30f1be78e410bdaf37c04c9b2859a02d46a25",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0033.s01",
+          "en_text": "Honestly, the wear and tear on the chain is the best early indicator of when you'll need to replace the cassette."
+        },
+        {
+          "sent_id": "t0033.s02",
+          "en_text": "We've seen this in equipment that uses Shimano components."
+        },
+        {
+          "sent_id": "t0033.s03",
+          "en_text": "I've observed this pattern repeating itself in three different sets of equipment."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0034.u01",
+      "turn_id": "t0034",
+      "content_key": "1cc2babc50c8b721d2395d6bc3735e3323e0397e042469b49224d5fc5ae3af24",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0034.s01",
+          "en_text": "Where does that stop working?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0035.u01",
+      "turn_id": "t0035",
+      "content_key": "8e91bca03e9e89f71e795198345a91d389d3c9a5d545d5d25c096dbb5f4ffd90",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0035.s01",
+          "en_text": "And when teams adopt Shimano equipment within that system, the benefits become apparent – I've seen this pattern repeat itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0036.u01",
+      "turn_id": "t0036",
+      "content_key": "c4a7337ab13ec2cd7f56a09360b0a5734beaaad7201095c6ec78aa09900fddde",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0036.s01",
+          "en_text": "What is the heuristic that you always rely on?"
+        },
+        {
+          "sent_id": "t0036.s02",
+          "en_text": "Where do maintenance and transmission mechanics intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0037.u01",
+      "turn_id": "t0037",
+      "content_key": "64a1f1c47e19df62772344af4535bcbac9bf66dac0e9518b45395b4f2770d173",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0037.s01",
+          "en_text": "Frankly, the service intervals for the suspension are a risk management decision."
+        },
+        {
+          "sent_id": "t0037.s02",
+          "en_text": "And the second-order effect is the part that almost everyone overlooks."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0038.u01",
+      "turn_id": "t0038",
+      "content_key": "502c0139967d23ccf1ba2b70d1aa53a7b1c8fff68c2fdeabb5917fa1d8b23618",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0038.s01",
+          "en_text": "Before we wrap up, what's one thing that listeners can try out this week?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0039.u01",
+      "turn_id": "t0039",
+      "content_key": "b388e9d896b41ad806e5e5e5cf9486b7246da31695f8e62add62ccfc9ac61026",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0039.s01",
+          "en_text": "Choose one of the ideas we discussed and implement it for two weeks."
+        },
+        {
+          "sent_id": "t0039.s02",
+          "en_text": "Everything else is iteration."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0040.u01",
+      "turn_id": "t0040",
+      "content_key": "c1875cdad1cc910b0ff7d0275932c8683b78687319dcc34f72e7fd11300efe2c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0040.s01",
+          "en_text": "Before we close, thank you again to our friends at Linear."
+        },
+        {
+          "sent_id": "t0040.s02",
+          "en_text": "Linear is the issue tracking system designed for speed – built for the keyboard."
+        },
+        {
+          "sent_id": "t0040.s03",
+          "en_text": "Diego Ferrer, thank you for the conversation."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0041.u01",
+      "turn_id": "t0041",
+      "content_key": "68612952dcaf935421252eed261a8c0a19177c55bb279268899d8f25589d5aaf",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0041.s01",
+          "en_text": "Thank you, Lucía."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0042.u01",
+      "turn_id": "t0042",
+      "content_key": "7572ff8d1f9d4eb644e3cb5c486dfee27689a97a84d49e78830f77500d3ebc2f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0042.s01",
+          "en_text": "That's all for today's episode of Trail Sessions."
+        },
+        {
+          "sent_id": "t0042.s02",
+          "en_text": "See you next time."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    }
+  ]
+}

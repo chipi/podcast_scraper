@@ -1,0 +1,152 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:newsroom-operations",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:deadline-pressure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:newsroom-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:reliability-system",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:trust-as-asset",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-b3570c1ceb5eca41",
+  "extraction": {
+    "extracted_at": "2025-09-02T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p08_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-b3570c1ceb5eca41",
+      "properties": {
+        "podcast_id": "p08",
+        "publish_date": "2025-09-02T00:00:00",
+        "title": "The Desk That Never Sleeps"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism",
+        "slug": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:newsroom-operations",
+      "properties": {
+        "label": "newsroom operations",
+        "slug": "newsroom-operations"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio",
+        "slug": "public-radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:deadline-pressure",
+      "properties": {
+        "label": "deadline pressure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:newsroom-reliability",
+      "properties": {
+        "label": "newsroom reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-system",
+      "properties": {
+        "label": "reliability system",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trust-as-asset",
+      "properties": {
+        "label": "trust as asset",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

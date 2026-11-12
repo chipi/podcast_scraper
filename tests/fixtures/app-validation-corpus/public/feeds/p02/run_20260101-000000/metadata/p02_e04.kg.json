@@ -1,0 +1,178 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "topic:incident-response",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-18ede6ffbd63f18f",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:correlated-bets",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:designing-for-resilience",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:failure-interactions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:incident-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:observability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:production-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:reliability-as-property",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-18ede6ffbd63f18f",
+      "target": "topic:risk-naming",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-18ede6ffbd63f18f",
+  "extraction": {
+    "extracted_at": "2024-12-29T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e04.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-18ede6ffbd63f18f",
+      "properties": {
+        "podcast_id": "p02",
+        "publish_date": "2024-12-29T00:00:00",
+        "title": "Reliability Is a Systems Property"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-response",
+      "properties": {
+        "label": "incident response",
+        "slug": "incident-response"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "properties": {
+        "label": "correlated bets",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:designing-for-resilience",
+      "properties": {
+        "label": "designing for resilience",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-interactions",
+      "properties": {
+        "label": "failure interactions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-patterns",
+      "properties": {
+        "label": "incident patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:observability",
+      "properties": {
+        "label": "observability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:production-risk",
+      "properties": {
+        "label": "production risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-as-property",
+      "properties": {
+        "label": "reliability as property",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-naming",
+      "properties": {
+        "label": "risk naming",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -1,0 +1,290 @@
+[
+  {
+    "end": 11.047,
+    "id": 0,
+    "start": 0.0,
+    "text": "Bienvenue à nouveau dans Sessions Sentier. Aujourd'hui on parle de courses d'enduro, et je reçois Élodie Chevalier, pilote d'enduro et entraîneuse. Élodie Chevalier, merci d'être là."
+  },
+  {
+    "end": 14.448,
+    "id": 1,
+    "start": 11.047,
+    "text": "Merci, Camille. Contente d'être de retour."
+  },
+  {
+    "end": 23.643,
+    "id": 2,
+    "start": 14.448,
+    "text": "Cet épisode est sponsorisé par Linear. Linear est le gestionnaire de tickets conçu pour la vitesse — pensé pour le clavier. Essayez linear.com dès aujourd'hui."
+  },
+  {
+    "end": 31.913,
+    "id": 3,
+    "start": 23.643,
+    "text": "Avant d'entrer dans le vif — Julien Mercier était dans l'émission et expliquait que le drainage est le choix de conception le plus déterminant."
+  },
+  {
+    "end": 35.64,
+    "id": 4,
+    "start": 31.913,
+    "text": "Oui, exactement. Et ça rejoint ce qu'on couvre aujourd'hui."
+  },
+  {
+    "end": 41.471,
+    "id": 5,
+    "start": 35.64,
+    "text": "Je veux signaler une chose — Julien Mercier a mentionné cette même dynamique il y a quelques épisodes."
+  },
+  {
+    "end": 46.444,
+    "id": 6,
+    "start": 41.471,
+    "text": "Donne-moi un exemple concret. Où se croisent l'érosion du sol et les courses d'enduro ?"
+  },
+  {
+    "end": 58.226,
+    "id": 7,
+    "start": 46.444,
+    "text": "Honnêtement, la vitesse vient du fait de freiner plus tôt et plus doucement, pas de prendre plus de risques. On l'a vu dans les équipes qui utilisent RockShox. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 62.355,
+    "id": 8,
+    "start": 58.226,
+    "text": "Je veux creuser ça. Où se croisent l'érosion du sol et les courses d'enduro ?"
+  },
+  {
+    "end": 71.897,
+    "id": 9,
+    "start": 62.355,
+    "text": "Bien sûr. La pression des pneus et le choix de la carcasse comptent souvent plus qu'un réglage mineur de suspension. Le cadrage compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 76.096,
+    "id": 10,
+    "start": 71.897,
+    "text": "Commençons par là. Où se croisent l'érosion du sol et les courses d'enduro ?"
+  },
+  {
+    "end": 90.005,
+    "id": 11,
+    "start": 76.096,
+    "text": "Honnêtement, la gestion du risque en course n'est pas d'éviter les chutes — c'est de choisir quelles chutes sont survivables. On l'a vu dans les équipes qui utilisent Shimano. Si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard."
+  },
+  {
+    "end": 91.633,
+    "id": 12,
+    "start": 90.005,
+    "text": "Où est-ce que ça ne marche plus ?"
+  },
+  {
+    "end": 98.999,
+    "id": 13,
+    "start": 91.633,
+    "text": "L'Alliance Cascadia est l'une des plateformes où ça ressort clairement. Et l'effet de second ordre est la partie que presque tout le monde rate."
+  },
+  {
+    "end": 104.58,
+    "id": 14,
+    "start": 98.999,
+    "text": "Quelle est l'heuristique sur laquelle tu reviens toujours ? Comment RockShox s'inscrit dans ce tableau ?"
+  },
+  {
+    "end": 117.248,
+    "id": 15,
+    "start": 104.58,
+    "text": "Voilà comment je le vois. Les motifs d'érosion sur les spéciales changent le choix de trajectoire entre les reconnaissances et le jour de la course. Une fois que tu as intériorisé ça, le reste des décisions devient plus facile."
+  },
+  {
+    "end": 124.642,
+    "id": 16,
+    "start": 117.248,
+    "text": "Avant de continuer — soutenez le programme en passant par le site de notre sponsor. Strava est la maison des athlètes."
+  },
+  {
+    "end": 128.527,
+    "id": 17,
+    "start": 124.642,
+    "text": "On revient tout de suite, après une courte pause publicitaire."
+  },
+  {
+    "end": 144.23,
+    "id": 18,
+    "start": 128.527,
+    "text": "Cet épisode est sponsorisé par Notion. Notion remplace la douzaine d'outils que votre équipe utilise à moitié. Visitez notion.com/podcast pour un essai gratuit."
+  },
+  {
+    "end": 146.113,
+    "id": 19,
+    "start": 144.23,
+    "text": "Bienvenue à nouveau dans l'émission."
+  },
+  {
+    "end": 150.192,
+    "id": 20,
+    "start": 146.113,
+    "text": "Je veux creuser ça. Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 164.407,
+    "id": 21,
+    "start": 150.192,
+    "text": "Je te donne la version à laquelle je crois vraiment. La vitesse vient du fait de freiner plus tôt et plus doucement, pas de prendre plus de risques. On l'a vu dans les équipes qui utilisent RockShox. Et l'effet de second ordre est la partie que presque tout le monde rate."
+  },
+  {
+    "end": 170.984,
+    "id": 22,
+    "start": 164.407,
+    "text": "À quoi ressemble le mode de défaillance ? Quel est l'angle opérationnel auquel la plupart des auditeurs n'ont pas accès ?"
+  },
+  {
+    "end": 180.852,
+    "id": 23,
+    "start": 170.984,
+    "text": "Oui, alors — la pression des pneus et le choix de la carcasse comptent souvent plus qu'un réglage mineur de suspension. Le cadrage compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 185.56,
+    "id": 24,
+    "start": 180.852,
+    "text": "Donne-moi un exemple concret. Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 198.964,
+    "id": 25,
+    "start": 185.56,
+    "text": "Oui, alors — la gestion du risque en course n'est pas d'éviter les chutes — c'est de choisir quelles chutes sont survivables. On l'a vu dans les équipes qui utilisent RockShox. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 199.735,
+    "id": 26,
+    "start": 198.964,
+    "text": "Dis-m'en plus."
+  },
+  {
+    "end": 208.24,
+    "id": 27,
+    "start": 199.735,
+    "text": "L'Alliance Cascadia est l'une des plateformes où ça ressort clairement. Une fois que tu as intériorisé ça, le reste des décisions devient plus facile."
+  },
+  {
+    "end": 212.706,
+    "id": 28,
+    "start": 208.24,
+    "text": "Commençons par là. Quel est l'aspect le plus sous-estimé des courses d'enduro ?"
+  },
+  {
+    "end": 223.844,
+    "id": 29,
+    "start": 212.706,
+    "text": "Ça se résume à ceci : les motifs d'érosion sur les spéciales changent le choix de trajectoire entre les reconnaissances et le jour de la course. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 228.551,
+    "id": 30,
+    "start": 223.844,
+    "text": "Changeons de sujet — je veux consacrer la dernière partie à la gestion du risque."
+  },
+  {
+    "end": 236.596,
+    "id": 31,
+    "start": 228.551,
+    "text": "C'est là que la conversation devient intéressante, parce que les compromis autour de la gestion du risque traversent tout ce qu'on a couvert."
+  },
+  {
+    "end": 243.161,
+    "id": 32,
+    "start": 236.596,
+    "text": "À quoi ressemble le mode de défaillance ? Quel est l'angle à contre-courant auquel la plupart des auditeurs n'ont pas accès ?"
+  },
+  {
+    "end": 255.105,
+    "id": 33,
+    "start": 243.161,
+    "text": "Bien sûr. La vitesse vient du fait de freiner plus tôt et plus doucement, pas de prendre plus de risques. On l'a vu dans les équipes qui utilisent RockShox. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 260.196,
+    "id": 34,
+    "start": 255.105,
+    "text": "Donne-moi un exemple concret. Quel est l'aspect le plus sous-estimé des courses d'enduro ?"
+  },
+  {
+    "end": 269.969,
+    "id": 35,
+    "start": 260.196,
+    "text": "Oui, alors — la pression des pneus et le choix de la carcasse comptent souvent plus qu'un réglage mineur de suspension. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 274.677,
+    "id": 36,
+    "start": 269.969,
+    "text": "Donne-moi un exemple concret. Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 289.61,
+    "id": 37,
+    "start": 274.677,
+    "text": "Je te donne la version à laquelle je crois vraiment. La gestion du risque en course n'est pas d'éviter les chutes — c'est de choisir quelles chutes sont survivables. On l'a vu dans les équipes qui utilisent Spoke & Wrench. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 290.474,
+    "id": 38,
+    "start": 289.61,
+    "text": "Ça se tient."
+  },
+  {
+    "end": 298.751,
+    "id": 39,
+    "start": 290.474,
+    "text": "Et quand les équipes adoptent Spoke & Wrench dans ce flux, le compromis devient visible — j'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 304.401,
+    "id": 40,
+    "start": 298.751,
+    "text": "Quelle est l'heuristique sur laquelle tu reviens toujours ? Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 315.444,
+    "id": 41,
+    "start": 304.401,
+    "text": "Voilà comment je le vois. Les motifs d'érosion sur les spéciales changent le choix de trajectoire entre les reconnaissances et le jour de la course. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 320.175,
+    "id": 42,
+    "start": 315.444,
+    "text": "Avant de conclure, quelle est une chose que les auditeurs peuvent essayer cette semaine ?"
+  },
+  {
+    "end": 326.047,
+    "id": 43,
+    "start": 320.175,
+    "text": "Choisis une des idées qu'on a couvertes et applique-la pendant deux semaines. Le reste, c'est de l'itération."
+  },
+  {
+    "end": 334.515,
+    "id": 44,
+    "start": 326.047,
+    "text": "Et pour finir, merci à nos sponsors de Vanta. Vanta automatise la conformité SOC 2 et ISO. Jetez un œil sur vanta.com."
+  },
+  {
+    "end": 337.745,
+    "id": 45,
+    "start": 334.515,
+    "text": "Élodie Chevalier, merci pour la conversation."
+  },
+  {
+    "end": 339.571,
+    "id": 46,
+    "start": 337.745,
+    "text": "Merci à toi, Camille."
+  },
+  {
+    "end": 343.709,
+    "id": 47,
+    "start": 339.571,
+    "text": "C'est tout pour l'épisode d'aujourd'hui de Sessions Sentier. À la prochaine."
+  }
+]

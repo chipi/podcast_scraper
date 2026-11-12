@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p09-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p09_e04.mp3",
+    "transcript_file_path": "transcripts/p09_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Sam talks with Dr. Elena Fischer: Risk Is a Systems Property.",
+    "duration_seconds": 217,
+    "episode_id": "ep-4d94c63887afbd1a",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2026-07-16T00:00:00",
+    "title": "Risk Is a Systems Property"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-07-16T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Cross-Show",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Risk is a systems property that lives in the couplings, not the components — a foundational insight that redefines how teams approach failure and resilience.",
+      "The most dangerous risks are slow, correlated, and predictable yet routinely discounted — naming them is the first step toward managing them effectively.",
+      "Systems thinking and risk management are not separate disciplines but one discipline expressed in two vocabularies — their convergence enables deeper insight into complex failures.",
+      "Teams using IPCC have repeatedly rebuilt solutions from scratch because they ignored the couplings — a sign that systems awareness is not optional but essential.",
+      "Reliability is not a component-level attribute but a property of interactions — trade-offs around reliability cross-cut every system design decision.",
+      "Framing matters because it reveals the hidden trade-offs embedded in any risk assessment — the right question determines the outcome.",
+      "Measuring the system directly confirms that risk emerges from couplings, not parts — this empirical validation shifts the focus from isolated failures to systemic behavior.",
+      "Try one idea from the conversation for two weeks; the rest is iteration — practical adoption begins with small, sustained experiments."
+    ],
+    "raw_text": "Risk is a systems property that lives in the couplings, not the components — a foundational insight that redefines how teams approach failure and resilience. The most dangerous risks are slow, correlated, and predictable yet routinely discounted — naming them is the first step toward managing them effectively.",
+    "title": "Risk Management and Systems Thinking: The Couplings That Matter"
+  }
+}

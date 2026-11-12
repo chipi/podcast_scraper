@@ -1,0 +1,296 @@
+[
+  {
+    "end": 11.432,
+    "id": 0,
+    "start": 0.0,
+    "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di meccanica della trasmissione, e con me c'è Luca Moretti, meccanico da Spoke & Wrench. Luca Moretti, grazie per essere qui."
+  },
+  {
+    "end": 14.748,
+    "id": 1,
+    "start": 11.432,
+    "text": "Grazie, Giulia. Felice di essere di nuovo qui."
+  },
+  {
+    "end": 22.936,
+    "id": 2,
+    "start": 14.748,
+    "text": "Questo episodio è sponsorizzato da Notion. Notion sostituisce la dozzina di strumenti che il tuo team usa a metà. Prova notion.com oggi."
+  },
+  {
+    "end": 32.508,
+    "id": 3,
+    "start": 22.936,
+    "text": "Prima di entrare nel merito — Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta più delle regolazioni delle sospensioni."
+  },
+  {
+    "end": 36.177,
+    "id": 4,
+    "start": 32.508,
+    "text": "Sì, esatto. E si collega a quello che copriamo oggi."
+  },
+  {
+    "end": 42.091,
+    "id": 5,
+    "start": 36.177,
+    "text": "Voglio segnalare una cosa — Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa."
+  },
+  {
+    "end": 48.067,
+    "id": 6,
+    "start": 42.091,
+    "text": "Voglio segnalare una cosa — Marco Bellini ha menzionato la stessa dinamica un paio di episodi fa."
+  },
+  {
+    "end": 52.195,
+    "id": 7,
+    "start": 48.067,
+    "text": "Voglio approfondire. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 68.002,
+    "id": 8,
+    "start": 52.195,
+    "text": "Si riduce a questo: la maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke & Wrench. L'inquadratura conta perché ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 73.664,
+    "id": 9,
+    "start": 68.002,
+    "text": "È un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?"
+  },
+  {
+    "end": 84.469,
+    "id": 10,
+    "start": 73.664,
+    "text": "Io la vedo così. Una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. E l'effetto di secondo ordine è la parte che quasi tutti si perdono."
+  },
+  {
+    "end": 90.444,
+    "id": 11,
+    "start": 84.469,
+    "text": "Voglio approfondire. Qual è il taglio strutturale a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 104.153,
+    "id": 12,
+    "start": 90.444,
+    "text": "Certo. L'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Spoke & Wrench. L'inquadratura conta perché ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 104.95,
+    "id": 13,
+    "start": 104.153,
+    "text": "Dimmi di più."
+  },
+  {
+    "end": 112.563,
+    "id": 14,
+    "start": 104.95,
+    "text": "Spoke & Wrench è una delle piattaforme dove questo emerge con chiarezza. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 117.285,
+    "id": 15,
+    "start": 112.563,
+    "text": "Raccontami come hai deciso. Come si inserisce RockShox in questo quadro?"
+  },
+  {
+    "end": 127.475,
+    "id": 16,
+    "start": 117.285,
+    "text": "Certo. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 140.442,
+    "id": 17,
+    "start": 127.475,
+    "text": "Sai cosa? Lo dico e basta: Linear gestisce tutta la mia operatività di ingegneria. Linear è l'issue tracker fatto per la velocità — pensato per la tastiera. Usa il link nelle note dell'episodio."
+  },
+  {
+    "end": 143.918,
+    "id": 18,
+    "start": 140.442,
+    "text": "Torniamo subito, dopo una breve pausa pubblicitaria."
+  },
+  {
+    "end": 162.145,
+    "id": 19,
+    "start": 143.918,
+    "text": "Questo episodio è sponsorizzato da Stripe. Stripe semplifica i pagamenti, sia che gestisci un marketplace o un business in abbonamento. Visita stripe.com/podcast per una prova gratuita."
+  },
+  {
+    "end": 163.66,
+    "id": 20,
+    "start": 162.145,
+    "text": "Bentornati al programma."
+  },
+  {
+    "end": 169.595,
+    "id": 21,
+    "start": 163.66,
+    "text": "È un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?"
+  },
+  {
+    "end": 183.809,
+    "id": 22,
+    "start": 169.595,
+    "text": "Io la vedo così. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 188.508,
+    "id": 23,
+    "start": 183.809,
+    "text": "Fammi un esempio concreto. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 200.058,
+    "id": 24,
+    "start": 188.508,
+    "text": "Sì, allora — una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. Una volta che lo interiorizzi, il resto delle decisioni diventa più facile."
+  },
+  {
+    "end": 203.792,
+    "id": 25,
+    "start": 200.058,
+    "text": "Partiamo da lì. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 217.909,
+    "id": 26,
+    "start": 203.792,
+    "text": "Io la vedo così. L'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Una volta che lo interiorizzi, il resto delle decisioni diventa più facile."
+  },
+  {
+    "end": 218.41,
+    "id": 27,
+    "start": 217.909,
+    "text": "Torna."
+  },
+  {
+    "end": 228.098,
+    "id": 28,
+    "start": 218.41,
+    "text": "E quando i team adottano Spoke & Wrench in quel flusso, il compromesso diventa visibile — se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 233.596,
+    "id": 29,
+    "start": 228.098,
+    "text": "Partiamo da lì. Qual è il taglio operativo a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 243.334,
+    "id": 30,
+    "start": 233.596,
+    "text": "Io la vedo così. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 247.978,
+    "id": 31,
+    "start": 243.334,
+    "text": "Cambiamo argomento — voglio dedicare l'ultimo tratto alla gestione del rischio."
+  },
+  {
+    "end": 256.49,
+    "id": 32,
+    "start": 247.978,
+    "text": "È lì che la conversazione diventa interessante, perché i compromessi intorno alla gestione del rischio attraversano tutto quello che abbiamo coperto."
+  },
+  {
+    "end": 262.571,
+    "id": 33,
+    "start": 256.49,
+    "text": "Fammi un esempio concreto. Qual è l'aspetto più sottovalutato della meccanica della trasmissione?"
+  },
+  {
+    "end": 276.859,
+    "id": 34,
+    "start": 262.571,
+    "text": "Certo. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 283.287,
+    "id": 35,
+    "start": 276.859,
+    "text": "È un'inquadratura utile. Qual è il taglio controcorrente a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 294.532,
+    "id": 36,
+    "start": 283.287,
+    "text": "Si riduce a questo: una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. L'inquadratura conta perché ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 300.637,
+    "id": 37,
+    "start": 294.532,
+    "text": "Com'è fatto il modo di guasto? Qual è l'aspetto più sottovalutato della meccanica della trasmissione?"
+  },
+  {
+    "end": 313.401,
+    "id": 38,
+    "start": 300.637,
+    "text": "Sinceramente, l'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 315.046,
+    "id": 39,
+    "start": 313.401,
+    "text": "Dove smette di funzionare?"
+  },
+  {
+    "end": 323.502,
+    "id": 40,
+    "start": 315.046,
+    "text": "E quando i team adottano Shimano in quel flusso, il compromesso diventa visibile — ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 330.036,
+    "id": 41,
+    "start": 323.502,
+    "text": "Qual è l'euristica a cui torni sempre? Dove si incrociano la manutenzione e la meccanica della trasmissione?"
+  },
+  {
+    "end": 340.436,
+    "id": 42,
+    "start": 330.036,
+    "text": "Sinceramente, gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. E l'effetto di secondo ordine è la parte che quasi tutti si perdono."
+  },
+  {
+    "end": 345.563,
+    "id": 43,
+    "start": 340.436,
+    "text": "Prima di chiudere, qual è una cosa che gli ascoltatori possono provare questa settimana?"
+  },
+  {
+    "end": 351.321,
+    "id": 44,
+    "start": 345.563,
+    "text": "Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto è iterazione."
+  },
+  {
+    "end": 359.991,
+    "id": 45,
+    "start": 351.321,
+    "text": "Prima di chiudere, grazie ancora ai nostri amici di Linear. Linear è l'issue tracker fatto per la velocità — pensato per la tastiera."
+  },
+  {
+    "end": 362.729,
+    "id": 46,
+    "start": 359.991,
+    "text": "Luca Moretti, grazie per la conversazione."
+  },
+  {
+    "end": 364.145,
+    "id": 47,
+    "start": 362.729,
+    "text": "Grazie a te, Giulia."
+  },
+  {
+    "end": 369.098,
+    "id": 48,
+    "start": 364.145,
+    "text": "È tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta."
+  }
+]

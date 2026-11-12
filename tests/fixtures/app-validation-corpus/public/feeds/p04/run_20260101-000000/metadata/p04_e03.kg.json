@@ -1,0 +1,191 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:lighting-design",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:strobe-lighting",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-9f97daef33906cf6",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:color-temperature-mistakes",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:commercial-lighting-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:frame-and-light",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:heuristic-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:light-shaping-decisions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:on-location-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:strobe-lighting-intersection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:tooling-failure-modes",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:trade-off-visibility",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:two-light-setups",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-9f97daef33906cf6",
+  "extraction": {
+    "extracted_at": "2025-02-01T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p04_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-9f97daef33906cf6",
+      "properties": {
+        "podcast_id": "p04",
+        "publish_date": "2025-02-01T00:00:00",
+        "title": "Lighting Decisions That Save a Shoot"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:lighting-design",
+      "properties": {
+        "label": "lighting design",
+        "slug": "lighting-design"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting",
+      "properties": {
+        "label": "strobe lighting",
+        "slug": "strobe-lighting"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame",
+        "slug": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:color-temperature-mistakes",
+      "properties": {
+        "label": "color temperature mistakes",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:commercial-lighting-workflow",
+      "properties": {
+        "label": "commercial lighting workflow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-and-light",
+      "properties": {
+        "label": "frame and light",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:heuristic-iteration",
+      "properties": {
+        "label": "heuristic iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:light-shaping-decisions",
+      "properties": {
+        "label": "light shaping decisions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-location-framing",
+      "properties": {
+        "label": "on location framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting-intersection",
+      "properties": {
+        "label": "strobe lighting intersection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-failure-modes",
+      "properties": {
+        "label": "tooling failure modes",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "properties": {
+        "label": "trade off visibility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:two-light-setups",
+      "properties": {
+        "label": "two light setups",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

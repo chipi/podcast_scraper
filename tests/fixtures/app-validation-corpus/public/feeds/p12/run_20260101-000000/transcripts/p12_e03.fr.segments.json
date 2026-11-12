@@ -1,0 +1,296 @@
+[
+  {
+    "end": 11.999,
+    "id": 0,
+    "start": 0.0,
+    "text": "Bienvenue à nouveau dans Sessions Sentier. Aujourd'hui on parle de mécanique de transmission, et je reçois Mathieu Lefèvre, mécanicien chez Spoke & Wrench. Mathieu Lefèvre, merci d'être là."
+  },
+  {
+    "end": 15.324,
+    "id": 1,
+    "start": 11.999,
+    "text": "Merci, Camille. Content d'être de retour."
+  },
+  {
+    "end": 23.588,
+    "id": 2,
+    "start": 15.324,
+    "text": "Cet épisode est sponsorisé par Notion. Notion remplace la douzaine d'outils que votre équipe utilise à moitié. Essayez notion.com dès aujourd'hui."
+  },
+  {
+    "end": 32.419,
+    "id": 3,
+    "start": 23.588,
+    "text": "Avant d'entrer dans le vif — Élodie Chevalier était là à l'épisode précédent et disait que la pression des pneus compte plus que les réglages de suspension."
+  },
+  {
+    "end": 36.159,
+    "id": 4,
+    "start": 32.419,
+    "text": "Oui, exactement. Et ça rejoint ce qu'on couvre aujourd'hui."
+  },
+  {
+    "end": 42.224,
+    "id": 5,
+    "start": 36.159,
+    "text": "Je veux signaler une chose — Élodie Chevalier a mentionné cette même dynamique il y a quelques épisodes."
+  },
+  {
+    "end": 48.173,
+    "id": 6,
+    "start": 42.224,
+    "text": "Je veux signaler une chose — Julien Mercier a mentionné cette même dynamique il y a quelques épisodes."
+  },
+  {
+    "end": 52.664,
+    "id": 7,
+    "start": 48.173,
+    "text": "Je veux creuser ça. Qu'est-ce que tu croyais à ce sujet et que tu as révisé ?"
+  },
+  {
+    "end": 67.009,
+    "id": 8,
+    "start": 52.664,
+    "text": "Ça se résume à ceci : la plupart des craquements mystérieux se résolvent en nettoyant les surfaces de contact et en resserrant au couple prévu. On l'a vu dans les équipes qui utilisent Spoke & Wrench. Le cadrage compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 71.832,
+    "id": 9,
+    "start": 67.009,
+    "text": "C'est un cadrage utile. Où se croisent l'entretien et la mécanique de transmission ?"
+  },
+  {
+    "end": 82.444,
+    "id": 10,
+    "start": 71.832,
+    "text": "Voilà comment je le vois. Un vélo devrait sembler silencieux et prévisible pour que ton attention reste sur le sentier. Et l'effet de second ordre est la partie que presque tout le monde rate."
+  },
+  {
+    "end": 87.849,
+    "id": 11,
+    "start": 82.444,
+    "text": "Je veux creuser ça. Quel est l'angle structurel auquel la plupart des auditeurs n'ont pas accès ?"
+  },
+  {
+    "end": 100.687,
+    "id": 12,
+    "start": 87.849,
+    "text": "Bien sûr. L'usure de la chaîne est le meilleur indicateur avancé du moment où tu devras remplacer la cassette. On l'a vu dans les équipes qui utilisent Spoke & Wrench. Le cadrage compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 101.457,
+    "id": 13,
+    "start": 100.687,
+    "text": "Dis-m'en plus."
+  },
+  {
+    "end": 107.982,
+    "id": 14,
+    "start": 101.457,
+    "text": "Spoke & Wrench est l'une des plateformes où ça ressort clairement. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 112.79,
+    "id": 15,
+    "start": 107.982,
+    "text": "Raconte-moi comment tu as décidé. Comment RockShox s'inscrit dans ce tableau ?"
+  },
+  {
+    "end": 123.155,
+    "id": 16,
+    "start": 112.79,
+    "text": "Bien sûr. Les intervalles d'entretien de la suspension sont une décision de gestion du risque. Si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard."
+  },
+  {
+    "end": 136.387,
+    "id": 17,
+    "start": 123.155,
+    "text": "Tu sais quoi ? Je le dis franchement : Linear fait tourner toute mon ingénierie au quotidien. Linear est le gestionnaire de tickets conçu pour la vitesse — pensé pour le clavier. Utilise le lien dans les notes de l'épisode."
+  },
+  {
+    "end": 140.066,
+    "id": 18,
+    "start": 136.387,
+    "text": "On revient tout de suite, après une courte pause publicitaire."
+  },
+  {
+    "end": 156.524,
+    "id": 19,
+    "start": 140.066,
+    "text": "Cet épisode est sponsorisé par Stripe. Stripe simplifie les paiements, que vous gériez une marketplace ou une activité par abonnement. Visitez stripe.com/podcast pour un essai gratuit."
+  },
+  {
+    "end": 158.556,
+    "id": 20,
+    "start": 156.524,
+    "text": "Bienvenue à nouveau dans l'émission."
+  },
+  {
+    "end": 163.298,
+    "id": 21,
+    "start": 158.556,
+    "text": "C'est un cadrage utile. Où se croisent l'entretien et la mécanique de transmission ?"
+  },
+  {
+    "end": 177.008,
+    "id": 22,
+    "start": 163.298,
+    "text": "Voilà comment je le vois. La plupart des craquements mystérieux se résolvent en nettoyant les surfaces de contact et en resserrant au couple prévu. On l'a vu dans les équipes qui utilisent Shimano. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 182.053,
+    "id": 23,
+    "start": 177.008,
+    "text": "Donne-moi un exemple concret. Qu'est-ce que tu croyais à ce sujet et que tu as révisé ?"
+  },
+  {
+    "end": 193.575,
+    "id": 24,
+    "start": 182.053,
+    "text": "Oui, alors — un vélo devrait sembler silencieux et prévisible pour que ton attention reste sur le sentier. Une fois que tu as intériorisé ça, le reste des décisions devient plus facile."
+  },
+  {
+    "end": 197.994,
+    "id": 25,
+    "start": 193.575,
+    "text": "Commençons par là. Qu'est-ce que tu croyais à ce sujet et que tu as révisé ?"
+  },
+  {
+    "end": 212.5,
+    "id": 26,
+    "start": 197.994,
+    "text": "Voilà comment je le vois. L'usure de la chaîne est le meilleur indicateur avancé du moment où tu devras remplacer la cassette. On l'a vu dans les équipes qui utilisent Shimano. Une fois que tu as intériorisé ça, le reste des décisions devient plus facile."
+  },
+  {
+    "end": 213.364,
+    "id": 27,
+    "start": 212.5,
+    "text": "Ça se tient."
+  },
+  {
+    "end": 223.008,
+    "id": 28,
+    "start": 213.364,
+    "text": "Et quand les équipes adoptent Spoke & Wrench dans ce flux, le compromis devient visible — si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard."
+  },
+  {
+    "end": 228.519,
+    "id": 29,
+    "start": 223.008,
+    "text": "Commençons par là. Quel est l'angle opérationnel auquel la plupart des auditeurs n'ont pas accès ?"
+  },
+  {
+    "end": 238.105,
+    "id": 30,
+    "start": 228.519,
+    "text": "Voilà comment je le vois. Les intervalles d'entretien de la suspension sont une décision de gestion du risque. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 242.811,
+    "id": 31,
+    "start": 238.105,
+    "text": "Changeons de sujet — je veux consacrer la dernière partie à la gestion du risque."
+  },
+  {
+    "end": 250.862,
+    "id": 32,
+    "start": 242.811,
+    "text": "C'est là que la conversation devient intéressante, parce que les compromis autour de la gestion du risque traversent tout ce qu'on a couvert."
+  },
+  {
+    "end": 256.626,
+    "id": 33,
+    "start": 250.862,
+    "text": "Donne-moi un exemple concret. Quel est l'aspect le plus sous-estimé de la mécanique de transmission ?"
+  },
+  {
+    "end": 270.191,
+    "id": 34,
+    "start": 256.626,
+    "text": "Bien sûr. La plupart des craquements mystérieux se résolvent en nettoyant les surfaces de contact et en resserrant au couple prévu. On l'a vu dans les équipes qui utilisent Spoke & Wrench. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 276.012,
+    "id": 35,
+    "start": 270.191,
+    "text": "C'est un cadrage utile. Quel est l'angle à contre-courant auquel la plupart des auditeurs n'ont pas accès ?"
+  },
+  {
+    "end": 286.351,
+    "id": 36,
+    "start": 276.012,
+    "text": "Ça se résume à ceci : un vélo devrait sembler silencieux et prévisible pour que ton attention reste sur le sentier. Le cadrage compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 292.556,
+    "id": 37,
+    "start": 286.351,
+    "text": "À quoi ressemble le mode de défaillance ? Quel est l'aspect le plus sous-estimé de la mécanique de transmission ?"
+  },
+  {
+    "end": 304.683,
+    "id": 38,
+    "start": 292.556,
+    "text": "Honnêtement, l'usure de la chaîne est le meilleur indicateur avancé du moment où tu devras remplacer la cassette. On l'a vu dans les équipes qui utilisent Shimano. J'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 306.312,
+    "id": 39,
+    "start": 304.683,
+    "text": "Où est-ce que ça ne marche plus ?"
+  },
+  {
+    "end": 314.296,
+    "id": 40,
+    "start": 306.312,
+    "text": "Et quand les équipes adoptent Shimano dans ce flux, le compromis devient visible — j'ai vu ce schéma se répéter dans trois équipes différentes."
+  },
+  {
+    "end": 320.363,
+    "id": 41,
+    "start": 314.296,
+    "text": "Quelle est l'heuristique sur laquelle tu reviens toujours ? Où se croisent l'entretien et la mécanique de transmission ?"
+  },
+  {
+    "end": 329.671,
+    "id": 42,
+    "start": 320.363,
+    "text": "Honnêtement, les intervalles d'entretien de la suspension sont une décision de gestion du risque. Et l'effet de second ordre est la partie que presque tout le monde rate."
+  },
+  {
+    "end": 334.402,
+    "id": 43,
+    "start": 329.671,
+    "text": "Avant de conclure, quelle est une chose que les auditeurs peuvent essayer cette semaine ?"
+  },
+  {
+    "end": 340.282,
+    "id": 44,
+    "start": 334.402,
+    "text": "Choisis une des idées qu'on a couvertes et applique-la pendant deux semaines. Le reste, c'est de l'itération."
+  },
+  {
+    "end": 349.292,
+    "id": 45,
+    "start": 340.282,
+    "text": "Avant de conclure, merci encore à nos amis de Linear. Linear est le gestionnaire de tickets conçu pour la vitesse — pensé pour le clavier."
+  },
+  {
+    "end": 352.165,
+    "id": 46,
+    "start": 349.292,
+    "text": "Mathieu Lefèvre, merci pour la conversation."
+  },
+  {
+    "end": 353.976,
+    "id": 47,
+    "start": 352.165,
+    "text": "Merci à toi, Camille."
+  },
+  {
+    "end": 358.114,
+    "id": 48,
+    "start": 353.976,
+    "text": "C'est tout pour l'épisode d'aujourd'hui de Sessions Sentier. À la prochaine."
+  }
+]

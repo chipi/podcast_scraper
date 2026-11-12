@@ -1,0 +1,178 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:marine-biology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:reef-conservation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a884b153355070f0",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:exit-planning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:iterative-improvement",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:operational-dive-safety",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:planetary-scale",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:reef-conservation-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:systems-problem",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:tool-adoption",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a884b153355070f0",
+      "target": "topic:trade-off-visibility",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a884b153355070f0",
+  "extraction": {
+    "extracted_at": "2024-12-31T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p03_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a884b153355070f0",
+      "properties": {
+        "podcast_id": "p03",
+        "publish_date": "2024-12-31T00:00:00",
+        "title": "Severe Surname Garbles: A Marine Biologist's Return"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:marine-biology",
+      "properties": {
+        "label": "marine biology",
+        "slug": "marine-biology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "properties": {
+        "label": "reef conservation",
+        "slug": "reef-conservation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:exit-planning",
+      "properties": {
+        "label": "exit planning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iterative-improvement",
+      "properties": {
+        "label": "iterative improvement",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-dive-safety",
+      "properties": {
+        "label": "operational dive safety",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:planetary-scale",
+      "properties": {
+        "label": "planetary scale",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation-policy",
+      "properties": {
+        "label": "reef conservation policy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-problem",
+      "properties": {
+        "label": "systems problem",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tool-adoption",
+      "properties": {
+        "label": "tool adoption",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "properties": {
+        "label": "trade off visibility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

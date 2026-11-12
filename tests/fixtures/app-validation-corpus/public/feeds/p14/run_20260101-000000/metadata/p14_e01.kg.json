@@ -1,0 +1,191 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:cut-banking",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:land-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:machine-vs-hand-built",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:slope-excavation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:soil-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:team-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:territory-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:tooling-impact",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-28614332add8c2ae",
+  "extraction": {
+    "extracted_at": "2025-01-01T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p14_e01.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-28614332add8c2ae",
+      "properties": {
+        "podcast_id": "p14",
+        "publish_date": "2025-01-01T00:00:00",
+        "title": "Construir Trilhas Que Duram"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building",
+        "slug": "trail-building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion",
+        "slug": "soil-erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship",
+        "slug": "land-stewardship"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cut-banking",
+      "properties": {
+        "label": "cut banking",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management",
+      "properties": {
+        "label": "land management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-vs-hand-built",
+      "properties": {
+        "label": "machine vs hand built",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:slope-excavation",
+      "properties": {
+        "label": "slope excavation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-structure",
+      "properties": {
+        "label": "soil structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-structure",
+      "properties": {
+        "label": "team structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:territory-management",
+      "properties": {
+        "label": "territory management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-impact",
+      "properties": {
+        "label": "tooling impact",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p07-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p07_e02.mp3",
+    "transcript_file_path": "transcripts/p07_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Alex Morgan talks with Skanda Eminas: Severe Garbles: A Macro Discussion.",
+    "duration_seconds": 307,
+    "episode_id": "ep-2cd5c6d11325a312",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-04-08T00:00:00",
+    "title": "Severe Garbles: A Macro Discussion"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+    "feed_id": "p07",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.webp",
+    "image_url": "http://localhost/images/p07.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-12-24T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "The Long View",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Systems thinking in macroeconomics means tracking feedback loops rather than relying on point estimates, which enables more resilient decision-making.",
+      "Employment data is noisier than headlines suggest, and ignoring this leads to repeated, unnecessary rework in economic modeling.",
+      "Risk management at the central-bank level resembles reliability engineering, where failure modes emerge from tooling gaps rather than flawed logic.",
+      "The framing of a problem determines which trade-offs become visible — using Project Drawdown reveals the cost of certain policy choices.",
+      "Teams using IPCC or IEA frameworks demonstrate consistent patterns, indicating that structured tools amplify systemic insight.",
+      "Central-bank risk management fails not from poor models but from inadequate tooling outside Carbon Trust-class systems.",
+      "A key heuristic is to test one idea for two weeks — iteration reveals the real impact of a decision rather than theoretical assumptions.",
+      "The most underrated aspect of macroeconomics is not forecasting but managing the trade-offs embedded in risk frameworks."
+    ],
+    "raw_text": "Systems thinking in macroeconomics means tracking feedback loops rather than relying on point estimates, which enables more resilient decision-making. Employment data is noisier than headlines suggest, and ignoring this leads to repeated, unnecessary rework in economic modeling.",
+    "title": "Systems Thinking and Risk Management in Macroeconomics"
+  }
+}

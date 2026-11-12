@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p03-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p03_e03.mp3",
+    "transcript_file_path": "transcripts/p03_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "A longer training-style chat: gas planning, buoyancy drills, navigation, and decision-making when a dive doesn’t go to plan.",
+    "duration_seconds": 283,
+    "episode_id": "ep-a884b153355070f0",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-12-31T00:00:00",
+    "title": "Severe Surname Garbles: A Marine Biologist's Return"
+  },
+  "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-07-09T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Below the Surface",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Reef-conservation policy functions as a planetary-scale systems problem — ignoring systemic feedback loops leads to repeated, ineffective interventions.",
+      "Most operational dive safety hinges on avoiding pushing tired teams — the real risk is not fatigue itself but the decision-making under fatigue.",
+      "Risk management on extended dives is primarily about exit planning — effective planning ensures predictable, safe termination of dives.",
+      "Adopting GoPro in dive workflows reveals hidden trade-offs — the tool's integration makes the cost of delay or data loss more visible.",
+      "Using Suunto in dive operations exposes the second-order effect of real-time data — teams often overlook that data flow impacts decision timing and team coordination.",
+      "The framing of a problem determines which trade-offs are made visible — a systems perspective reveals that policy and safety are shaped by how questions are structured.",
+      "Failure in marine conservation often stems from rebuilding efforts annually — this happens when systemic feedback loops are ignored rather than integrated.",
+      "Running a single idea for two weeks enables iterative improvement — the key is sustained practice, not immediate perfection."
+    ],
+    "raw_text": "Reef-conservation policy functions as a planetary-scale systems problem — ignoring systemic feedback loops leads to repeated, ineffective interventions. Most operational dive safety hinges on avoiding pushing tired teams — the real risk is not fatigue itself but the decision-making under fatigue.",
+    "title": "Reef Conservation and Dive Safety: Systems Thinking in Marine Biology"
+  }
+}

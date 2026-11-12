@@ -1,0 +1,290 @@
+[
+  {
+    "end": 10.537,
+    "id": 0,
+    "start": 0.0,
+    "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de carreras de enduro, y me acompaña Marta Solís, corredora de enduro y entrenadora. Marta Solís, gracias por estar aquí."
+  },
+  {
+    "end": 14.326,
+    "id": 1,
+    "start": 10.537,
+    "text": "Gracias, Lucía. Contenta de estar de vuelta."
+  },
+  {
+    "end": 23.002,
+    "id": 2,
+    "start": 14.326,
+    "text": "El episodio de hoy es patrocinado por Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Prueba linear.com hoy."
+  },
+  {
+    "end": 30.494,
+    "id": 3,
+    "start": 23.002,
+    "text": "Antes de entrar en materia — Javier Benavides estuvo en el programa contando que el drenaje es la decisión de diseño con más impacto."
+  },
+  {
+    "end": 34.381,
+    "id": 4,
+    "start": 30.494,
+    "text": "Sí, exacto. Y se conecta con lo que vamos a cubrir hoy."
+  },
+  {
+    "end": 39.648,
+    "id": 5,
+    "start": 34.381,
+    "text": "Quiero señalar algo — Javier Benavides mencionó esta misma dinámica hace un par de episodios."
+  },
+  {
+    "end": 44.914,
+    "id": 6,
+    "start": 39.648,
+    "text": "Cuéntame un ejemplo concreto. ¿Dónde se cruzan la erosión del suelo y las carreras de enduro?"
+  },
+  {
+    "end": 59.408,
+    "id": 7,
+    "start": 44.914,
+    "text": "Sinceramente, la velocidad viene de frenar antes y más suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 64.193,
+    "id": 8,
+    "start": 59.408,
+    "text": "Quiero profundizar en eso. ¿Dónde se cruzan la erosión del suelo y las carreras de enduro?"
+  },
+  {
+    "end": 76.753,
+    "id": 9,
+    "start": 64.193,
+    "text": "Claro. La presión de los neumáticos y la elección de la carcasa suelen importar más que un ajuste menor de suspensión. El marco importa porque te dice qué concesiones estás haciendo."
+  },
+  {
+    "end": 81.252,
+    "id": 10,
+    "start": 76.753,
+    "text": "Empecemos por ahí. ¿Dónde se cruzan la erosión del suelo y las carreras de enduro?"
+  },
+  {
+    "end": 97.888,
+    "id": 11,
+    "start": 81.252,
+    "text": "Sinceramente, la gestión del riesgo en carrera no es evitar las caídas — es elegir qué caídas son sobrevivibles. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruyéndolo desde cero un año después."
+  },
+  {
+    "end": 99.648,
+    "id": 12,
+    "start": 97.888,
+    "text": "¿Dónde deja de funcionar eso?"
+  },
+  {
+    "end": 109.377,
+    "id": 13,
+    "start": 99.648,
+    "text": "La Alianza Cascadia es una de las plataformas donde esto se ve con claridad. Y el efecto de segundo orden es la parte que casi todos pasan por alto."
+  },
+  {
+    "end": 114.36,
+    "id": 14,
+    "start": 109.377,
+    "text": "¿Cuál es la heurística a la que siempre vuelves? ¿Cómo encaja Spoke & Wrench en este panorama?"
+  },
+  {
+    "end": 128.87,
+    "id": 15,
+    "start": 114.36,
+    "text": "Así lo veo yo. Los patrones de erosión en los tramos de carrera cambian la elección de trazada entre los entrenos y el día de la carrera. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles."
+  },
+  {
+    "end": 135.899,
+    "id": 16,
+    "start": 128.87,
+    "text": "Antes de seguir — apoya el programa pasando por el sitio de nuestro patrocinador. Strava es el hogar de los atletas."
+  },
+  {
+    "end": 139.534,
+    "id": 17,
+    "start": 135.899,
+    "text": "Volvemos enseguida, después de una breve pausa publicitaria."
+  },
+  {
+    "end": 155.918,
+    "id": 18,
+    "start": 139.534,
+    "text": "El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Visita notion.com/podcast para una prueba gratuita."
+  },
+  {
+    "end": 157.727,
+    "id": 19,
+    "start": 155.918,
+    "text": "Bienvenidos de nuevo al programa."
+  },
+  {
+    "end": 162.333,
+    "id": 20,
+    "start": 157.727,
+    "text": "Quiero profundizar en eso. ¿Cuál es la versión de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 178.653,
+    "id": 21,
+    "start": 162.333,
+    "text": "Déjame darte la versión que de verdad creo. La velocidad viene de frenar antes y más suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. Y el efecto de segundo orden es la parte que casi todos pasan por alto."
+  },
+  {
+    "end": 184.135,
+    "id": 22,
+    "start": 178.653,
+    "text": "¿Cómo se ve el modo de fallo? ¿Cuál es el ángulo operativo al que la mayoría de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 197.285,
+    "id": 23,
+    "start": 184.135,
+    "text": "Sí, mira — la presión de los neumáticos y la elección de la carcasa suelen importar más que un ajuste menor de suspensión. El marco importa porque te dice qué concesiones estás haciendo."
+  },
+  {
+    "end": 201.907,
+    "id": 24,
+    "start": 197.285,
+    "text": "Cuéntame un ejemplo concreto. ¿Cuál es la versión de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 217.696,
+    "id": 25,
+    "start": 201.907,
+    "text": "Sí, mira — la gestión del riesgo en carrera no es evitar las caídas — es elegir qué caídas son sobrevivibles. Lo hemos visto en equipos que usan RockShox. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 219.045,
+    "id": 26,
+    "start": 217.696,
+    "text": "Cuéntame más sobre eso."
+  },
+  {
+    "end": 230.101,
+    "id": 27,
+    "start": 219.045,
+    "text": "La Alianza Cascadia es una de las plataformas donde esto se ve con claridad. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles."
+  },
+  {
+    "end": 234.531,
+    "id": 28,
+    "start": 230.101,
+    "text": "Empecemos por ahí. ¿Cuál es el aspecto más subestimado de las carreras de enduro?"
+  },
+  {
+    "end": 247.652,
+    "id": 29,
+    "start": 234.531,
+    "text": "Se reduce a esto: los patrones de erosión en los tramos de carrera cambian la elección de trazada entre los entrenos y el día de la carrera. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 251.625,
+    "id": 30,
+    "start": 247.652,
+    "text": "Cambiemos de tema — quiero dedicar el último tramo a la gestión del riesgo."
+  },
+  {
+    "end": 261.431,
+    "id": 31,
+    "start": 251.625,
+    "text": "Ahí es donde la conversación se pone interesante, porque las concesiones alrededor de la gestión del riesgo atraviesan todo lo que hemos cubierto."
+  },
+  {
+    "end": 266.913,
+    "id": 32,
+    "start": 261.431,
+    "text": "¿Cómo se ve el modo de fallo? ¿Cuál es el ángulo contrario al que la mayoría de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 280.676,
+    "id": 33,
+    "start": 266.913,
+    "text": "Claro. La velocidad viene de frenar antes y más suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 285.624,
+    "id": 34,
+    "start": 280.676,
+    "text": "Cuéntame un ejemplo concreto. ¿Cuál es el aspecto más subestimado de las carreras de enduro?"
+  },
+  {
+    "end": 298.438,
+    "id": 35,
+    "start": 285.624,
+    "text": "Sí, mira — la presión de los neumáticos y la elección de la carcasa suelen importar más que un ajuste menor de suspensión. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 303.061,
+    "id": 36,
+    "start": 298.438,
+    "text": "Cuéntame un ejemplo concreto. ¿Cuál es la versión de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 320.884,
+    "id": 37,
+    "start": 303.061,
+    "text": "Déjame darte la versión que de verdad creo. La gestión del riesgo en carrera no es evitar las caídas — es elegir qué caídas son sobrevivibles. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 321.633,
+    "id": 38,
+    "start": 320.884,
+    "text": "Eso cuadra."
+  },
+  {
+    "end": 332.235,
+    "id": 39,
+    "start": 321.633,
+    "text": "Y cuando los equipos adoptan Spoke & Wrench en ese flujo, la concesión se vuelve visible — he visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 337.427,
+    "id": 40,
+    "start": 332.235,
+    "text": "¿Cuál es la heurística a la que siempre vuelves? ¿Cuál es la versión de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 350.29,
+    "id": 41,
+    "start": 337.427,
+    "text": "Así lo veo yo. Los patrones de erosión en los tramos de carrera cambian la elección de trazada entre los entrenos y el día de la carrera. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 354.43,
+    "id": 42,
+    "start": 350.29,
+    "text": "Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?"
+  },
+  {
+    "end": 360.985,
+    "id": 43,
+    "start": 354.43,
+    "text": "Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración."
+  },
+  {
+    "end": 370.283,
+    "id": 44,
+    "start": 360.985,
+    "text": "Y para terminar, gracias a nuestros patrocinadores de Vanta. Vanta automatiza el cumplimiento de SOC 2 e ISO. Échale un ojo en vanta.com."
+  },
+  {
+    "end": 373.066,
+    "id": 45,
+    "start": 370.283,
+    "text": "Marta Solís, gracias por la conversación."
+  },
+  {
+    "end": 374.705,
+    "id": 46,
+    "start": 373.066,
+    "text": "Gracias, Lucía."
+  },
+  {
+    "end": 379.274,
+    "id": 47,
+    "start": 374.705,
+    "text": "Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima."
+  }
+]

@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p03-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p03_e02.mp3",
+    "transcript_file_path": "transcripts/p03_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "What divers often misidentify, how reefs recover, and how to be a better observer without touching anything.",
+    "duration_seconds": 307,
+    "episode_id": "ep-a0a7f86b34a4de26",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-09-12T00:00:00",
+    "title": "Marine Biology for Divers"
+  },
+  "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-07-09T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Below the Surface",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Coral bleaching events are not random — they are driven by predictable environmental stressors that reveal underlying system vulnerabilities.",
+      "Most reef damage from divers stems from anchor strikes rather than fin contact, a critical distinction often overlooked in dive operations.",
+      "Erosion in coastal areas drives sediment plumes that degrade reef ecosystems — a failure mode that becomes visible when teams adopt PADI-certified practices.",
+      "The framing of a problem determines which trade-offs are made — for example, how dive tooling is selected influences the visibility of second-order effects.",
+      "Using Suunto-class tooling outside of standard frameworks makes the failure mode harder to detect, leading to repeated rebuilding efforts down the line.",
+      "Shark dives reveal a shift in perspective: the real issue is not the dive itself but the assumptions embedded in how it's framed.",
+      "Soil erosion is a cross-cutting factor — its impacts on reef health are systemic and interwoven with other conservation challenges.",
+      "The key heuristic is internalizing that coral bleaching is not stochastic — once this is accepted, decision-making becomes more coherent and effective."
+    ],
+    "raw_text": "Coral bleaching events are not random — they are driven by predictable environmental stressors that reveal underlying system vulnerabilities. Most reef damage from divers stems from anchor strikes rather than fin contact, a critical distinction often overlooked in dive operations.",
+    "title": "Reef Conservation and Marine Biology: Intersections and Heuristics"
+  }
+}

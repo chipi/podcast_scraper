@@ -286,6 +286,26 @@ these before assuming a validation failure is a generator bug):
 committed.** A stale one left behind here gets copied into the e2e corpus and silently indexes
 the wrong episode count — that failure presents as a search bug and is not one.
 
+## The public corpus (`public/`), derived from this one
+
+`public/` is what a public-only install keeps of `v3` (E04 step 8; the private extension's
+artifacts left out). It is derived, never edited by hand:
+
+```sh
+.venv/bin/python scripts/tools/build_public_fixture_corpus.py           # after any change to v3
+.venv/bin/python scripts/tools/build_public_fixture_corpus.py --check   # exit 1 when stale
+```
+
+- **What is left out:** GI and bridges, speakers (diagnostics, metadata roster, segment labels
+  and the `Name:` prefix on transcript lines), the ad-free base, KG people seated as host, guest
+  or speaker, and every corpus enricher but `topic_cooccurrence_corpus`. The script's docstring
+  has the full rules.
+- **Segment offsets are remapped** so each range still slices its own text.
+- **The guard:** `tests/integration/test_public_fixture_corpus.py` fails when `public/` is stale
+  or breaks a rule.
+- **Not yet checked against a real public-only run** (deploy gate c). Where that run's output
+  differs, the rules change.
+
 ## Used by — the tier-3 layers that rely on this corpus (for other agents)
 
 This corpus is the shared fixture for four tier-3 layers. When you change the corpus shape,

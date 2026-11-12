@@ -1,0 +1,254 @@
+[
+  {
+    "end": 12.651,
+    "id": 0,
+    "start": 0.0,
+    "text": "Welcome back to The Long View — Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here."
+  },
+  {
+    "end": 16.109,
+    "id": 1,
+    "start": 12.651,
+    "text": "Thanks, Alex Morgan. Great to be back."
+  },
+  {
+    "end": 25.21,
+    "id": 2,
+    "start": 16.109,
+    "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today."
+  },
+  {
+    "end": 31.123,
+    "id": 3,
+    "start": 25.21,
+    "text": "Before we get into it — Dr. Elena Fisher was on last week talking about systems thinking."
+  },
+  {
+    "end": 35.545,
+    "id": 4,
+    "start": 31.123,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 41.675,
+    "id": 5,
+    "start": 35.545,
+    "text": "I want to flag something — Dr. Elena Fisher mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "end": 47.935,
+    "id": 6,
+    "start": 41.675,
+    "text": "I want to flag something — Dr. Eliana Fishler mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "end": 53.291,
+    "id": 7,
+    "start": 47.935,
+    "text": "Let's start there. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 66.144,
+    "id": 8,
+    "start": 53.291,
+    "text": "Honestly, Employment data is noisier than headlines suggest. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 71.452,
+    "id": 9,
+    "start": 66.144,
+    "text": "Take me through the decision. Where do systems thinking and macroeconomics intersect?"
+  },
+  {
+    "end": 81.809,
+    "id": 10,
+    "start": 71.452,
+    "text": "Honestly, Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 87.68,
+    "id": 11,
+    "start": 81.809,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 102.649,
+    "id": 12,
+    "start": 87.68,
+    "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 104.317,
+    "id": 13,
+    "start": 102.649,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "end": 114.221,
+    "id": 14,
+    "start": 104.317,
+    "text": "Outside of Project Drawdown-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 117.318,
+    "id": 15,
+    "start": 114.221,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 130.304,
+    "id": 16,
+    "start": 117.318,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Visit linear.com/podcast for a free trial."
+  },
+  {
+    "end": 131.912,
+    "id": 17,
+    "start": 130.304,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 136.349,
+    "id": 18,
+    "start": 131.912,
+    "text": "That's a useful framing. How does Carbon Trust fit into this picture?"
+  },
+  {
+    "end": 151.693,
+    "id": 19,
+    "start": 136.349,
+    "text": "Let me give you the version I actually believe. Employment data is noisier than headlines suggest. We've seen this play out at teams using IPCC. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 156.97,
+    "id": 20,
+    "start": 151.693,
+    "text": "I want to dig into that. Where do systems thinking and macroeconomics intersect?"
+  },
+  {
+    "end": 169.075,
+    "id": 21,
+    "start": 156.97,
+    "text": "It comes down to this: Systems thinking in macro means watching feedback loops, not point estimates. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 174.609,
+    "id": 22,
+    "start": 169.075,
+    "text": "What does the failure mode look like? What's the most underrated piece of macroeconomics?"
+  },
+  {
+    "end": 189.253,
+    "id": 23,
+    "start": 174.609,
+    "text": "Here's how I think about it. Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IEA. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 190.921,
+    "id": 24,
+    "start": 189.253,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "end": 200.593,
+    "id": 25,
+    "start": 190.921,
+    "text": "And when teams adopt Project Drawdown in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 205.068,
+    "id": 26,
+    "start": 200.593,
+    "text": "Let's pivot — risk management is where I want to spend the last stretch."
+  },
+  {
+    "end": 213.203,
+    "id": 27,
+    "start": 205.068,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "end": 218.366,
+    "id": 28,
+    "start": 213.203,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 230.074,
+    "id": 29,
+    "start": 218.366,
+    "text": "Sure. Employment data is noisier than headlines suggest. We've seen this play out at teams using IEA. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 236.456,
+    "id": 30,
+    "start": 230.074,
+    "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 247.976,
+    "id": 31,
+    "start": 236.456,
+    "text": "Here's how I think about it. Systems thinking in macro means watching feedback loops, not point estimates. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 252.954,
+    "id": 32,
+    "start": 247.976,
+    "text": "That's a useful framing. What's the most underrated piece of macroeconomics?"
+  },
+  {
+    "end": 267.499,
+    "id": 33,
+    "start": 252.954,
+    "text": "Yeah, so — Risk management at the central-bank level looks like reliability engineering. We've seen this play out at teams using IPCC. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 268.935,
+    "id": 34,
+    "start": 267.499,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 277.829,
+    "id": 35,
+    "start": 268.935,
+    "text": "Outside of Carbon Trust-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 281.534,
+    "id": 36,
+    "start": 277.829,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 287.132,
+    "id": 37,
+    "start": 281.534,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 296.684,
+    "id": 38,
+    "start": 287.132,
+    "text": "Before we wrap, thanks again to our friends at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
+  },
+  {
+    "end": 299.44,
+    "id": 39,
+    "start": 296.684,
+    "text": "Skanda Eminas, thanks for the conversation."
+  },
+  {
+    "end": 301.401,
+    "id": 40,
+    "start": 299.44,
+    "text": "Thanks, Alex Morgan."
+  },
+  {
+    "end": 306.726,
+    "id": 41,
+    "start": 301.401,
+    "text": "That's it for today's episode of The Long View — Sustainability. See you next time."
+  }
+]

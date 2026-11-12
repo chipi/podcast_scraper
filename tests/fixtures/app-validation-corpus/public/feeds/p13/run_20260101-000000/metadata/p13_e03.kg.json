@@ -1,0 +1,191 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:chain-wear-monitoring",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:suspension-service-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:creaking-noise-diagnosis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:drive-mechanism-maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:risk-management-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:spoke-wrench-process",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:shimano-component-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:predictable-bike-behavior",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:maintenance-compromise-awareness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:engineering-operations-tools",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-d005b87f4d3b1c0e",
+  "extraction": {
+    "extracted_at": "2025-07-02T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p13_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-d005b87f4d3b1c0e",
+      "properties": {
+        "podcast_id": "p13",
+        "publish_date": "2025-07-02T00:00:00",
+        "title": "Die Mechanik Eines Leisen, Schnellen Bikes"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics",
+        "slug": "drivetrain-mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance",
+        "slug": "maintenance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear-monitoring",
+      "properties": {
+        "label": "chain wear monitoring",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-service-intervals",
+      "properties": {
+        "label": "suspension service intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:creaking-noise-diagnosis",
+      "properties": {
+        "label": "creaking noise diagnosis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drive-mechanism-maintenance",
+      "properties": {
+        "label": "drive mechanism maintenance",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management-integration",
+      "properties": {
+        "label": "risk management integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench-process",
+      "properties": {
+        "label": "spoke wrench process",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:shimano-component-reliability",
+      "properties": {
+        "label": "shimano component reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:predictable-bike-behavior",
+      "properties": {
+        "label": "predictable bike behavior",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-compromise-awareness",
+      "properties": {
+        "label": "maintenance compromise awareness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:engineering-operations-tools",
+      "properties": {
+        "label": "engineering operations tools",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

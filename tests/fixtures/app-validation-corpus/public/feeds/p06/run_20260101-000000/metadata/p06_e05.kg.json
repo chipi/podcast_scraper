@@ -1,0 +1,87 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-0c46a67a56b05689",
+      "to": "topic:edge-cases",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0c46a67a56b05689",
+      "to": "topic:stage-directions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0c46a67a56b05689",
+      "target": "topic:edge-case-validation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0c46a67a56b05689",
+      "target": "topic:parser-robustness-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0c46a67a56b05689",
+      "target": "topic:processor-reliability",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-0c46a67a56b05689",
+  "extraction": {
+    "extracted_at": "2026-04-18T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-0c46a67a56b05689",
+      "properties": {
+        "podcast_id": "p06",
+        "publish_date": "2026-04-18T00:00:00",
+        "title": "Stage Directions"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:edge-cases",
+      "properties": {
+        "label": "edge cases",
+        "slug": "edge-cases"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:stage-directions",
+      "properties": {
+        "label": "stage directions",
+        "slug": "stage-directions"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:edge-case-validation",
+      "properties": {
+        "label": "edge case validation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:parser-robustness-testing",
+      "properties": {
+        "label": "parser robustness testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:processor-reliability",
+      "properties": {
+        "label": "processor reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}
