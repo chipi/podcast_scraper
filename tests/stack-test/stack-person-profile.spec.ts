@@ -45,6 +45,11 @@ test.describe("Stack — Person Profile / Position Tracker (#1075 chunk 3)", () 
     page,
     request,
   }) => {
+    test.skip(
+      process.env.STACK_HAS_STAGES !== "1",
+      "GI and speaker detection are an installed extension's; public's stack runs public "
+        + "images, which write neither (E04 gate 3). Set STACK_HAS_STAGES=1 where it is installed.",
+    )
     // Sanity: at least one KG artifact exists. The Person nodes the
     // stack-built airgapped_thin profile emits come from speaker
     // detection and live in kg.json.

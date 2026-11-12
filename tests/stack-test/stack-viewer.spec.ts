@@ -161,7 +161,6 @@ test.describe("Stack smoke test", () => {
       run = runs.find(
         (r) =>
           Number(r.episodes_scraped_total) > 0 &&
-          Number(r.gi_artifacts_generated) > 0 &&
           Number(r.kg_artifacts_generated) > 0,
       )
       if (run) break
@@ -180,7 +179,12 @@ test.describe("Stack smoke test", () => {
     }
 
     expect(run.episodes_scraped_total).toBeGreaterThan(0)
-    expect(run.gi_artifacts_generated).toBeGreaterThan(0)
+    // GI is the stages extension's (E04): a public-only stack writes none, one with it does.
+    if (process.env.STACK_HAS_STAGES === "1") {
+      expect(run.gi_artifacts_generated).toBeGreaterThan(0)
+    } else {
+      expect(Number(run.gi_artifacts_generated ?? 0)).toBe(0)
+    }
     expect(run.kg_artifacts_generated).toBeGreaterThan(0)
     expect(run.errors_total).toBe(0)
   })
@@ -197,6 +201,11 @@ test.describe("Stack smoke test", () => {
     test.skip(
       process.env.STACK_CORPUS_RESTORED === "1",
       "pipeline-emission contract — N/A against a restored corpus (DR drill)",
+    )
+    test.skip(
+      process.env.STACK_HAS_STAGES !== "1",
+      "GI and speaker detection are an installed extension's; public's stack runs public "
+        + "images, which write neither (E04 gate 3). Set STACK_HAS_STAGES=1 where it is installed.",
     )
     // RFC-097 v3.0 phase-3 Tier-3 verification. This stack-test runs the
     // pipeline in airgapped_thin mode (transformers BART summarization,
