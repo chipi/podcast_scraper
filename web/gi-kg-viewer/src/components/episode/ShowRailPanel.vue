@@ -13,6 +13,7 @@
  */
 import { computed, inject, ref, watch } from 'vue'
 import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import { showRailSections } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useShellStore } from '../../stores/shell'
@@ -100,7 +101,11 @@ const hasSignals = computed(
     dominantThemes.value.length > 0 ||
     trendingTopics.value.length > 0 ||
     grounding.value != null ||
-    connectivity.value != null,
+    connectivity.value != null ||
+    (signals.value != null &&
+      showRailSections
+        .list()
+        .some((x) => x.region === 'signals' && x.hasContent?.(signals.value as unknown as Record<string, unknown>))),
 )
 
 function fmtDate(iso: string | null | undefined): string {
@@ -349,6 +354,14 @@ watch(
         </span>
       </div>
 
+      <component
+        :is="section.component"
+        v-for="section in showRailSections.list().filter((x) => x.region === 'signals')"
+        :key="section.id"
+        :signals="signals"
+        :feed-id="subject.feedId"
+      />
+
       <!-- #1932 — operator-only. Answers "will ingesting more of this show compound?" before the
            budget is spent, which no episode count can. Shown with WHAT the show returns to, not
            just a score: the pairs are the evidence, and a bare 1.24 is unreadable without them. -->
@@ -566,6 +579,13 @@ watch(
                 max-width-class="auto"
                 :data-testid="`show-rail-episode-pills-${i}`"
                 @pill-click="(idx) => onEpisodePillClick(e, idx)"
+              />
+              <component
+                :is="section.component"
+                v-for="section in showRailSections.list().filter((x) => x.region === 'episode-row')"
+                :key="section.id"
+                :episode="e"
+                :index="i"
               />
               <div v-if="e.has_gi || e.has_kg" class="mt-0.5 flex flex-wrap items-center gap-1">
                 <span

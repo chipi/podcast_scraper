@@ -131,6 +131,20 @@ export interface EpisodeDetailSection extends Entry {
 
 export const episodeDetailSections = extensionPoint<EpisodeDetailSection>('episodeDetailSections')
 
+/**
+ * A section of the show rail. `signals` renders in the show-level signals block with `signals`
+ * (the feed-signals payload, fields this viewer does not read included) and `feedId` props;
+ * `hasContent` makes the block show for a show with no signal of the viewer's own. `episode-row`
+ * renders under each episode row with `episode` (the list item) and `index` props.
+ */
+export interface ShowRailSection extends Entry {
+  region: 'signals' | 'episode-row'
+  component: Component
+  hasContent?(signals: Record<string, unknown>): boolean
+}
+
+export const showRailSections = extensionPoint<ShowRailSection>('showRailSections')
+
 /** A command in the command palette. */
 export interface PaletteCommandEntry extends Entry {
   label: string
