@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
+import { defineComponent, h } from 'vue'
 import ShowRailPanel from './ShowRailPanel.vue'
+import { showRailSections } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
@@ -402,5 +404,50 @@ describe('ShowRailPanel — episode rows, sort, graph', () => {
     // Matches the player, which disables the chip on a missing anchor rather than offering a tap
     // that silently does nothing.
     expect(chip.attributes('disabled')).toBeDefined()
+  })
+})
+
+describe('ShowRailPanel — showRailSections', () => {
+  afterEach(() => showRailSections.reset())
+
+  const signalsSection = defineComponent({
+    props: { signals: { type: Object, required: true }, feedId: String },
+    setup(p) {
+      return () => h('div', { 'data-testid': 'ext-signals' }, `${p.feedId}:${p.signals.episode_count}`)
+    },
+  })
+  const rowSection = defineComponent({
+    props: { episode: { type: Object, required: true }, index: Number },
+    setup(p) {
+      return () => h('span', { 'data-testid': `ext-row-${p.index}` }, String(p.episode.episode_id))
+    },
+  })
+
+  it('renders a signals section in the signals block and a row section under each episode', async () => {
+    showRailSections.register({ id: 's', region: 'signals', component: signalsSection })
+    showRailSections.register({ id: 'r', region: 'episode-row', component: rowSection })
+    stubApi()
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="show-rail-signals"] [data-testid="ext-signals"]').text()).toBe(
+      'alpha:2',
+    )
+    expect(w.find('[data-testid="ext-row-0"]').text()).toBe('episode:a1')
+    expect(w.find('[data-testid="ext-row-1"]').text()).toBe('episode:a2')
+  })
+
+  it('shows the signals block for a show whose only signal is an extension one', async () => {
+    showRailSections.register({
+      id: 's',
+      region: 'signals',
+      component: signalsSection,
+      hasContent: (s) => 'extra' in s,
+    })
+    stubApi(null, { path: '/corpus', feed_id: 'alpha', episode_count: 0, extra: { rate: 1 } })
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="show-rail-signals"] [data-testid="ext-signals"]').exists()).toBe(
+      true,
+    )
   })
 })
