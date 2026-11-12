@@ -123,6 +123,15 @@ def iter_kg_artifacts(
         yield from load_kg_artifacts([path], validate=validate, strict=strict)
 
 
+def kg_item_key(kg: Any) -> str:
+    """The key a KG's evidence is filed under: its ``episode_id`` (KG 2.x, a podcast episode), else
+    its ``item_id`` (KG 3.0, any type), else ``""``. Entity candidates and the identity guards'
+    evidence both use it, so the episodes two people share are found for every type."""
+    if not isinstance(kg, dict):
+        return ""
+    return str(kg.get("episode_id") or kg.get("item_id") or "")
+
+
 def load_kg_artifacts(
     paths: List[Path],
     *,
