@@ -172,18 +172,34 @@ def _url(path: str, route: APIRoute, params: Dict[str, str]) -> Optional[str]:
     return path + ("?" + "&".join(query) if query else "")
 
 
-def _slug(client: TestClient) -> str:
+def _app_items(client: TestClient, path: str) -> Optional[List[Dict[str, Any]]]:
+    """The ``items`` of an app list route, or ``None`` when no installed extension serves it.
+
+    The ``/api/app`` lists are the Player extension's; a public-only install (deploy gate c) has
+    none, and its routes are then compared as they answer there (404 on both sides).
+    """
+    resp = client.get(path)
+    if resp.status_code == 404:
+        return None
+    items = resp.json()["items"]
+    assert items, f"{path} is empty"
+    return list(items)
+
+
+def _slug(client: TestClient) -> Optional[str]:
     """A podcast episode's slug, from the app's own episode list (its first entry)."""
-    items = client.get("/api/app/episodes").json()["items"]
-    assert items, "the episode list is empty"
-    return str(items[0]["slug"])
+    items = _app_items(client, "/api/app/episodes")
+    return None if items is None else str(items[0]["slug"])
 
 
-def _artwork_ref(client: TestClient) -> str:
+def _artwork_ref(client: TestClient) -> Optional[str]:
     """An artwork ``ref`` the app itself hands out, from its podcast list."""
     from urllib.parse import parse_qs, urlsplit
 
-    for item in client.get("/api/app/podcasts").json()["items"]:
+    items = _app_items(client, "/api/app/podcasts")
+    if items is None:
+        return None
+    for item in items:
         url = str(item.get("artwork_url") or "")
         ref = parse_qs(urlsplit(url).query).get("ref")
         if ref:
@@ -203,6 +219,21 @@ def _masked(resp: Any, roots: Tuple[Path, ...]) -> Tuple[int, str]:
 def test_every_get_route_answers_the_same(
     baseline_and_mixed: Tuple[Path, Path], tmp_path: Path
 ) -> None:
+    """With whatever extensions are installed (the Player's ``/api/app`` routes, when it is)."""
+    _compare_every_get_route(baseline_and_mixed, tmp_path)
+
+
+def test_every_public_route_answers_the_same_with_no_extension(
+    baseline_and_mixed: Tuple[Path, Path], tmp_path: Path
+) -> None:
+    """A public-only install (deploy gate c): no extension routes, the same comparison."""
+    from podcast_scraper.extensions import use_extensions
+
+    with use_extensions([]):
+        _compare_every_get_route(baseline_and_mixed, tmp_path)
+
+
+def _compare_every_get_route(baseline_and_mixed: Tuple[Path, Path], tmp_path: Path) -> None:
     baseline, mixed = baseline_and_mixed
     clients = {
         "baseline": _client(baseline, tmp_path / "baseline-data"),
@@ -210,11 +241,10 @@ def test_every_get_route_answers_the_same(
     }
     # The app's own slug and artwork ref; ``ref`` here is an artwork's (``collections/containing``
     # takes a person id with ``kind=person``, and gets the same value only by name).
-    params = {
-        **_PARAMS,
-        "slug": _slug(clients["baseline"]),
-        "ref": _artwork_ref(clients["baseline"]),
-    }
+    slug, ref = _slug(clients["baseline"]), _artwork_ref(clients["baseline"])
+    with_app = slug is not None
+    params = dict(_PARAMS)
+    params.update({k: v for k, v in (("slug", slug), ("ref", ref)) if v is not None})
     compared: List[str] = []
     differ: List[str] = []
     for path, route in _get_routes(baseline):
@@ -239,4 +269,7 @@ def test_every_get_route_answers_the_same(
     print("\n".join(compared))
     assert not differ, "\n".join(differ)
     ok = [c for c in compared if c.startswith("200 ")]
-    assert len(ok) > 130, f"only {len(ok)} routes answered 200: {compared}"
+    # 136 with the Player extension installed; public alone 52 today, fewer once E04 arc 2 moves the
+    # CIL, explore and corpus-person routes to Common. The floor only proves the run is not vacuous.
+    floor = 130 if with_app else 30
+    assert len(ok) > floor, f"only {len(ok)} routes answered 200: {compared}"
