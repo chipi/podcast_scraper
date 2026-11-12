@@ -84,7 +84,7 @@ import { useThemeStore } from '../../stores/theme'
 import type { ArtifactData } from '../../types/artifact'
 import { parseArtifact } from '../../utils/parsing'
 import GraphCanvas from './GraphCanvas.vue'
-import { graphTypeTraits } from '../../extensions'
+import { graphElementDecorators, graphTypeTraits } from '../../extensions'
 
 // The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
 // exercised with the types they were written for.
@@ -451,6 +451,14 @@ describe('GraphCanvas rendering', () => {
       { from: 'episode:ep-1', to: 'insight:i1', type: 'HAS_INSIGHT' },
       { from: 'insight:i1', to: 'topic:ai', type: 'ABOUT' },
     ]
+    // A decorator rolls Insight→ABOUT→Topic up into Episode→Topic when the lens asks for it.
+    graphElementDecorators.register({
+      id: 'agg',
+      edges: (_art, drawn, { aggregated }) =>
+        aggregated && drawn('episode:ep-1') && drawn('topic:ai')
+          ? [{ data: { id: 'agg:1', source: 'episode:ep-1', target: 'topic:ai', edgeType: 'ABOUT_AGG' } }]
+          : [],
+    })
     const lenses = useGraphLensesStore()
     lenses.setAggregatedEdges(true)
     await mountTracked(data)
@@ -460,6 +468,7 @@ describe('GraphCanvas rendering', () => {
     lenses.setAggregatedEdges(false)
     await mountTracked(data)
     expect(liveCore().edges('[edgeType = "ABOUT_AGG"]').length).toBe(0)
+    graphElementDecorators.reset()
   })
 })
 
@@ -1527,11 +1536,20 @@ describe('GraphCanvas search highlights and context emphasis', () => {
       { from: 'episode:ep-1', to: 'insight:i1', type: 'HAS_INSIGHT' },
       { from: 'episode:ep-2', to: 'insight:i2', type: 'HAS_INSIGHT' },
     ]
+    // The node's `episodeId` (a GI build's decorator sets it) is what the emphasis reads.
+    graphElementDecorators.register({
+      id: 'ep',
+      node: (raw) => {
+        const eid = (raw.properties as Record<string, unknown> | undefined)?.episode_id
+        return typeof eid === 'string' ? { data: { episodeId: `episode:${eid}` } } : null
+      },
+    })
     await mountTracked(data)
     useActiveSearchContextStore().setContext('ai', [hit('topic:ai', { episode_id: 'ep-1' })] as never)
     await tick()
     expect(classesOf('insight:i1')).toContain('context-relevant')
     expect(classesOf('insight:i2')).not.toContain('context-relevant')
+    graphElementDecorators.reset()
   })
 })
 
