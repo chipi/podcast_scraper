@@ -659,12 +659,7 @@ const advancedFeedCombinedTitle = computed(() =>
         <ResultSetOperatorBar
           v-model:active="activeOperator"
           :visible-hits="visibleResults"
-          :compare-result="search.compareResult"
-          :compare-loading="search.compareLoading"
-          :compare-error="search.compareError"
           @focus-set="(ids: string[]) => emit('focus-set', ids)"
-          @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB, { insightTypes: payload.insightTypes })"
-          @clear-compare="() => search.clearCompare()"
         />
         <template
           v-for="(row, i) in collapsedResults"

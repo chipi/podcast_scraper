@@ -2,12 +2,9 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { track } from '../lib/analytics'
 import {
-  compareSubjects as compareSubjectsApi,
   searchCorpus,
   type SearchRequestOptions,
-  type CompareSubjectRef,
   type CorpusSearchLiftStats,
-  type SearchCompareResponse,
   type SearchHit,
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
@@ -45,51 +42,13 @@ export const useSearchStore = defineStore('search', () => {
    * Search v3 §S4a/S8 — which operator panel is currently open on
    * ``ResultSetOperatorBar``. Promoted from the bar's local ref
    * (#1259-4 followup) so external surfaces — the Cmd-K palette's
-   * ``operator.timeline-last`` / ``operator.compare-last`` commands —
+   * ``operator.timeline-last`` command and registered operators' commands —
    * can toggle the panel visible without also clicking the chip.
    * ``null`` means no panel is open.
    */
   const activeOperator = ref<string | null>(null)
 
-  /**
-   * Search v3 §S8 — Compare (2 subjects) state. Populated by ``runCompare``
-   * (POST /api/search/compare); ``runSearch`` does NOT
-   * clear this so the caller can leave the panel open across a re-run of
-   * the underlying query.
-   */
-  const compareResult = ref<SearchCompareResponse | null>(null)
-  const compareLoading = ref(false)
-  const compareError = ref<string | null>(null)
-
-  /**
-   * Search v3 §S8 — subjects pinned for Compare. The CompareOperatorPanel
-   * seeds slot A / slot B from the LAST TWO pins (pin[0] → A, pin[1] → B)
-   * in preference to the visible-hit discovery default, so a user can
-   * assemble a comparison from anywhere in the app (e.g. the command
-   * palette "Pin to Compare" action) before opening the operator.
-   *
-   * Ring buffer of length 2, deduped on ``kind + id``: pinning a third
-   * distinct subject evicts the oldest. Pinning an already-pinned subject
-   * is a no-op (no reorder — avoids surprising slot churn).
-   */
-  const comparePins = ref<CompareSubjectRef[]>([])
-
-  function pinCompareSubject(ref_: CompareSubjectRef): void {
-    const id = ref_.id.trim()
-    if (!id) return
-    const key = `${ref_.kind}::${id}`
-    if (comparePins.value.some((p) => `${p.kind}::${p.id.trim()}` === key)) return
-    const next = [...comparePins.value, { ...ref_, id }]
-    // Keep only the two most recent pins.
-    comparePins.value = next.slice(-2)
-  }
-
-  function clearComparePins(): void {
-    comparePins.value = []
-  }
-
   const searchRunGate = new StaleGeneration()
-  const compareRunGate = new StaleGeneration()
 
   /**
    * When set with ``feedFilterHandoffPristine``, Advanced feed input shows this title while
@@ -289,65 +248,6 @@ export const useSearchStore = defineStore('search', () => {
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
   }
 
-  /**
-   * Search v3 §S8 — Compare 2 subjects over the corpus.
-   *
-   * Wraps ``POST /api/search/compare``. Never re-uses the visible hit
-   * page — the endpoint runs its own subject-scoped searches for each
-   * side. Silent-no-op when either picker slot is empty; errors surface
-   * via ``compareError``.
-   */
-  async function runCompare(
-    corpusPath: string,
-    subjectA: CompareSubjectRef,
-    subjectB: CompareSubjectRef,
-    opts: {
-      q?: string
-      topK?: number
-      maxTokens?: number
-      /** Search v3 §S8 — RFC-072 GIL v1.1 insight_type filter forwarded
-       *  to ``POST /api/search/compare``. Undefined / empty array ⇒
-       *  no server-side filter. */
-      insightTypes?: string[]
-    } = {},
-  ): Promise<void> {
-    const root = corpusPath.trim()
-    if (!root) return
-    if (!subjectA.id.trim() || !subjectB.id.trim()) return
-    const seq = compareRunGate.bump()
-    compareLoading.value = true
-    compareError.value = null
-    try {
-      const body = await compareSubjectsApi(subjectA, subjectB, {
-        path: root,
-        q: opts.q ?? query.value,
-        topK: opts.topK ?? filters.topK,
-        maxTokens: opts.maxTokens,
-        insightTypes: opts.insightTypes,
-      })
-      if (compareRunGate.isStale(seq)) return
-      if (body.error) {
-        compareError.value = mapSearchError(body.error, body.detail ?? null)
-        compareResult.value = null
-        return
-      }
-      compareResult.value = body
-    } catch (e) {
-      if (compareRunGate.isStale(seq)) return
-      compareError.value = e instanceof Error ? e.message : String(e)
-      compareResult.value = null
-    } finally {
-      if (compareRunGate.isCurrent(seq)) {
-        compareLoading.value = false
-      }
-    }
-  }
-
-  function clearCompare(): void {
-    compareResult.value = null
-    compareError.value = null
-  }
-
   return {
     query,
     loading,
@@ -366,13 +266,5 @@ export const useSearchStore = defineStore('search', () => {
     clearResults,
     requestOptions,
     activeOperator,
-    compareResult,
-    compareLoading,
-    compareError,
-    runCompare,
-    clearCompare,
-    comparePins,
-    pinCompareSubject,
-    clearComparePins,
   }
 })
