@@ -250,6 +250,30 @@ def choose_transcript_url(
     return _first_normalisable(candidates) or candidates[0]
 
 
+#: Tags whose start or end ends a paragraph, and the line break tag (``keep_paragraphs`` only).
+_BLOCK_TAGS = frozenset(
+    {
+        "p",
+        "div",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "pre",
+        "table",
+        "tr",
+    }
+)
+_LINE_BREAK = "\n"
+_PARAGRAPH_BREAK = "\n\n"
+
+
 class _HTMLStripper(HTMLParser):
     """Simple HTML tag stripper that preserves spacing between text segments."""
 
@@ -257,12 +281,16 @@ class _HTMLStripper(HTMLParser):
         super().__init__()
         self.text_parts = []
         self.last_was_tag = False
+        #: Text pieces and break markers in document order (read by ``get_paragraphs``).
+        self.pieces: list = []
 
     def handle_data(self, data):
         """Handle text data between tags."""
         if data.strip():  # Only add non-empty text
             self.text_parts.append(data.strip())
             self.last_was_tag = False
+        if data:
+            self.pieces.append(data)
 
     def handle_starttag(self, tag, _attrs):
         """Handle opening tags - add space if previous was tag.
@@ -273,17 +301,40 @@ class _HTMLStripper(HTMLParser):
             # Ensure space between tags that might have had text between them
             pass
         self.last_was_tag = True
+        # A list item or table row starts a line; any other block starts a paragraph.
+        if tag in ("br", "li", "tr"):
+            self.pieces.append(_LINE_BREAK)
+        elif tag in _BLOCK_TAGS:
+            self.pieces.append(_PARAGRAPH_BREAK)
+
+    def handle_startendtag(self, tag, attrs):
+        """``<br/>``: a line break like ``<br>``."""
+        self.handle_starttag(tag, attrs)
 
     def handle_endtag(self, tag):
         """Handle closing tags - mark that we just saw a tag."""
         self.last_was_tag = True
+        if tag in _BLOCK_TAGS and tag not in ("li", "tr"):
+            self.pieces.append(_PARAGRAPH_BREAK)
 
     def get_text(self):
         """Join text parts with single spaces."""
         return " ".join(self.text_parts)
 
+    def get_paragraphs(self) -> str:
+        """The text with its paragraphs and line breaks (#2477): break tags become newlines,
+        newlines in the text are kept, spaces within a line collapse, and at most one blank line
+        separates paragraphs."""
+        return _normalise_paragraphs("".join(self.pieces))
 
-def _strip_html(text: str) -> str:
+
+def _normalise_paragraphs(text: str) -> str:
+    lines = [re.sub(r"[ \t\f\v\r]+", " ", line).strip() for line in text.split("\n")]
+    joined = "\n".join(lines)
+    return re.sub(r"\n{3,}", "\n\n", joined).strip()
+
+
+def _strip_html(text: str, *, keep_paragraphs: bool = False) -> str:
     """Strip HTML tags from text and decode HTML entities, preserving spacing.
 
     This function sanitizes HTML content by:
@@ -291,8 +342,12 @@ def _strip_html(text: str) -> str:
     2. Stripping HTML tags while preserving spacing between text segments
     3. Normalizing whitespace (multiple spaces -> single space)
 
+    With ``keep_paragraphs`` (episode descriptions, #2477) the publisher's paragraphs and line
+    breaks survive as newlines instead (see ``_HTMLStripper.get_paragraphs``).
+
     Args:
         text: Text potentially containing HTML
+        keep_paragraphs: keep paragraph and line breaks as ``\\n\\n`` and ``\\n``
 
     Returns:
         Plain text with HTML tags removed, entities decoded, and proper spacing preserved
@@ -307,6 +362,9 @@ def _strip_html(text: str) -> str:
     stripper = _HTMLStripper()
     try:
         stripper.feed(text)
+        if keep_paragraphs:
+            stripper.close()
+            return stripper.get_paragraphs()
         cleaned = stripper.get_text()
     except Exception:
         # Fallback: simple regex-based stripping if parser fails
@@ -900,8 +958,8 @@ def extract_episode_description(item: ET.Element) -> Optional[str]:
             desc_text = "".join(desc_el.itertext())
 
         if desc_text:
-            # Strip HTML tags before returning
-            cleaned = _strip_html(desc_text.strip())
+            # Strip HTML tags, keeping the publisher's paragraphs and line breaks (#2477).
+            cleaned = _strip_html(desc_text.strip(), keep_paragraphs=True)
             return cleaned if cleaned else None
     return None
 
