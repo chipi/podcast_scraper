@@ -10,9 +10,7 @@ import {
   type CorpusDigestTopicHit,
 } from '../../api/digestApi'
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
-import { fetchCrossShow, type RelatedNode } from '../../api/relationalApi'
 import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
-import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -36,10 +34,6 @@ import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import {
-  applyGraphFocusPlan,
-  graphFocusPlanFromCilPill,
-} from '../../utils/cilGraphFocus'
 
 const emit = defineEmits<{
   'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
@@ -153,59 +147,6 @@ function onClickBandLabel(band: CorpusDigestTopicBand): void {
   if (id) subject.focusTopic(id)
 }
 
-/** PRD-033 FR3.2 — cross-show synthesis state per mapped band (lazy, on expand). */
-interface CrossShowState {
-  loading: boolean
-  error: string | null
-  shows: { showId: string; insight: RelatedNode }[] | null
-}
-const crossShowOpen = ref<Record<string, boolean>>({})
-const crossShowState = ref<Record<string, CrossShowState>>({})
-
-function crossShowLabel(showId: string): string {
-  const direct = feedDisplayTitleById.value[normalizeFeedIdForViewer(showId)]
-  if (direct) return direct
-  // Fall back to a humanized canonical id ("podcast:my-show" → "my show").
-  return showId.replace(/^podcast:/, '').replace(/[-_]/g, ' ').trim() || showId
-}
-
-async function loadCrossShow(band: CorpusDigestTopicBand): Promise<void> {
-  const topicId = bandTopicId(band)
-  const root = shell.corpusPath?.trim()
-  if (!topicId || !root) return
-  crossShowState.value = {
-    ...crossShowState.value,
-    [band.topic_id]: { loading: true, error: null, shows: null },
-  }
-  try {
-    const body = await fetchCrossShow(root, topicId)
-    const shows = Object.entries(body.groups ?? {})
-      .map(([showId, insights]) => ({ showId, insight: insights[0] }))
-      .filter((s): s is { showId: string; insight: RelatedNode } => s.insight != null)
-    crossShowState.value = {
-      ...crossShowState.value,
-      [band.topic_id]: { loading: false, error: body.error ?? null, shows },
-    }
-  } catch (e) {
-    crossShowState.value = {
-      ...crossShowState.value,
-      [band.topic_id]: {
-        loading: false,
-        error: e instanceof Error ? e.message : String(e),
-        shows: null,
-      },
-    }
-  }
-}
-
-function toggleCrossShow(band: CorpusDigestTopicBand): void {
-  const open = !crossShowOpen.value[band.topic_id]
-  crossShowOpen.value = { ...crossShowOpen.value, [band.topic_id]: open }
-  if (open && crossShowState.value[band.topic_id] == null) {
-    void loadCrossShow(band)
-  }
-}
-
 function topicBandIndex(band: CorpusDigestTopicBand): number {
   return digest.value?.topics.findIndex((b) => b.topic_id === band.topic_id) ?? -1
 }
@@ -278,129 +219,6 @@ function onClickDigestFeedName(row: CorpusDigestRow | CorpusDigestTopicHit): voi
   }
   dashboardNav.setHandoff({ kind: 'library', feedId: fid })
   emit('switch-main-tab', 'library')
-}
-
-/** Match Library episode list topic pills (visible cap; full string on `title`). */
-const RECENT_TOPIC_PILL_CHARS = 24
-
-function digestRecentCilPills(row: CorpusDigestRow) {
-  const raw = row.cil_digest_topics
-  return raw?.length ? raw : []
-}
-
-/** Open graph from a **Digest Recent** CIL topic pill (``topic:`` id). */
-async function openDigestRecentTopicPillInGraph(
-  row: CorpusDigestRow,
-  pillIndex: number,
-): Promise<void> {
-  const seq = digestGraphOpenGate.bump()
-  graphActionError.value = null
-  const cleaned = episodeArtifactRelPaths(row)
-  if (cleaned.length === 0) {
-    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
-    return
-  }
-  const pill = row.cil_digest_topics?.[pillIndex]
-
-  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
-  // Mark this as external load from Digest - no auto-merge wanted
-  artifacts.setLoadSource('digest-external')
-
-  // **Sequencing matters.** ``appendRelativeArtifacts`` below awakens the
-  // meta-watcher in ``GraphCanvas.vue:3017+`` mid-await; if we haven't
-  // already (a) synced ``subject`` to the click intent and (b) fired the
-  // FSM envelope, the watcher reads the *prior* pill's stale
-  // ``subject.graphNodeCyId`` AND sees ``graphHandoff.pending === null``,
-  // then re-dispatches a fresh ``restore-preference`` envelope with the
-  // stale id. On heavy graphs that second envelope wins a generation race,
-  // selection sticks on the prior pill, and the camera collapses to
-  // fit-all when ``CameraStrategy.center`` falls through with no anchor
-  // (see ADR-094 decision #4 / #11; live Playwright trace 2026-05-14).
-  // Order both writes BEFORE the await; both Fix A (fresh subject) and
-  // Fix B (pending != null) gates then close the window structurally.
-  graphNav.clearLibraryEpisodeHighlights()
-  const plan = graphFocusPlanFromCilPill(pill, row.episode_id)
-  applyGraphFocusPlan(graphNav, plan)
-  const eid = row.episode_id?.trim()
-  const highlights = eid &&
-    (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))
-    ? [eid]
-    : undefined
-  if (highlights) {
-    graphNav.setLibraryEpisodeHighlights(highlights)
-  }
-  if (plan.kind === 'topic') {
-    subject.focusGraphNode(plan.primary)
-  } else if (plan.kind === 'episode_only' && row.metadata_relative_path) {
-    subject.focusEpisode(row.metadata_relative_path, {
-      graphConnectionsCyId: plan.primary,
-    })
-  }
-  // FSM event for the Digest pill handoff (decision #5 / spec). Fires
-  // before the await so ``graphHandoff.pending`` is set when the
-  // meta-watcher wakes up during ``appendRelativeArtifacts``.
-  if (plan.kind !== 'none') {
-    graphHandoff.handoffRequested({
-      kind: plan.kind === 'topic' ? 'topic' : 'episode',
-      cyId: plan.primary,
-      episodeId: eid || undefined,
-      source: 'digest',
-      loadSource: 'digest-external',
-      camera: { kind: 'center-on-target' },
-      highlights,
-    })
-  }
-
-  // P4.1 race fix: emit the tab switch SYNCHRONOUSLY now (before any
-  // ``await``) so user intent to land on Graph is honored immediately.
-  // Previously this emit fired at the bottom of the handler — after
-  // ``await appendRelativeArtifacts`` plus an optional 600 ms
-  // ``stillStuck`` wait. If the user (or test) clicked another tab in
-  // that window, the deferred emit raced back to Graph after their
-  // click. ``handoffRequested`` above set ``graphHandoff.pending`` so
-  // ``onSwitchMainTab`` in App.vue short-circuits and just flips
-  // ``mainTab`` (no double bootstrap, no superseded envelope).
-  emit('switch-main-tab', 'graph')
-
-  // Snapshot the selection length BEFORE append so we can detect the
-  // ``appendRelativeArtifacts`` no-op short-circuit (all paths already
-  // loaded). In that case the natural redraw chain doesn't fire and the
-  // FSM stays in ``loading_fetch`` → stuck-timeout at 15s. The
-  // ``loadSelected`` follow-up forces a re-parse + redraw which drives
-  // ``finishLayoutPass`` → ``recordApplied``. When the append DOES add
-  // new paths, the natural redraw is enough — calling ``loadSelected``
-  // anyway triggers a SECOND redraw that re-runs layout and moves the
-  // camera-target after centering (H2.6 regression class). So gate it.
-  const beforeCount = artifacts.selectedRelPaths.length
-  await artifacts.appendRelativeArtifacts(cleaned)
-  if (digestGraphOpenGate.isStale(seq)) {
-    return
-  }
-  if (artifacts.selectedRelPaths.length === beforeCount) {
-    // Append was a no-op (all paths already loaded). Wait briefly so
-    // the natural chain (subject change → watcher → tab-activate →
-    // tryApplyPendingFocus) gets a chance to drive the FSM to ready
-    // on its own (typical when emit('switch-main-tab') causes an
-    // actual tab change). Only force a redraw when the FSM is still
-    // stuck in a load state — that's the same-tab-already-active case
-    // (Tier-3 P2.5/P2.6).
-    await new Promise<void>((r) => setTimeout(r, 600))
-    if (digestGraphOpenGate.isStale(seq)) {
-      return
-    }
-    const stillStuck =
-      graphHandoff.state === 'loading_fetch' ||
-      graphHandoff.state === 'loading_bootstrap' ||
-      graphHandoff.state === 'loading_merge'
-    if (stillStuck) {
-      await artifacts.loadSelected({ preserveExpansion: true })
-      if (digestGraphOpenGate.isStale(seq)) {
-        return
-      }
-    }
-  }
-  // (No final ``emit('switch-main-tab', 'graph')`` — fired
-  // synchronously above to avoid the P4.1 cross-tab race.)
 }
 
 /** Distinct from **Recent** digest cards (same episode can appear in both lists). */
@@ -1023,69 +841,13 @@ onBeforeUnmount(() => {
                 </div>
               </li>
             </ul>
-            <div
-              v-if="bandTopicId(band)"
-              class="mt-1 border-t border-border pt-1"
-              @click.stop
-            >
-              <button
-                type="button"
-                data-testid="digest-cross-show-toggle"
-                class="text-[10px] font-medium text-primary hover:underline"
-                :aria-expanded="Boolean(crossShowOpen[band.topic_id])"
-                @click="toggleCrossShow(band)"
-              >
-                {{ crossShowOpen[band.topic_id] ? 'Hide cross-show' : 'Across shows' }}
-              </button>
-              <div
-                v-if="crossShowOpen[band.topic_id]"
-                data-testid="digest-cross-show-band"
-                class="mt-1 space-y-1"
-              >
-                <p
-                  v-if="crossShowState[band.topic_id]?.loading"
-                  class="text-[10px] text-muted"
-                >
-                  Loading…
-                </p>
-                <p
-                  v-else-if="crossShowState[band.topic_id]?.error"
-                  class="text-[10px] text-warning"
-                >
-                  {{ crossShowState[band.topic_id]?.error }}
-                </p>
-                <template v-else>
-                  <p
-                    v-if="!(crossShowState[band.topic_id]?.shows || []).length"
-                    class="text-[10px] text-muted"
-                  >
-                    No cross-show coverage yet for this topic.
-                  </p>
-                  <div
-                    v-for="row in crossShowState[band.topic_id]?.shows || []"
-                    :key="row.showId"
-                    data-testid="digest-cross-show-row"
-                    class="border-l-2 border-primary/40 pl-1.5"
-                  >
-                    <p class="text-[10px] font-semibold text-surface-foreground">
-                      {{ crossShowLabel(row.showId) }}
-                    </p>
-                    <p
-                      class="text-[10px] leading-snug text-muted line-clamp-2"
-                      :title="row.insight.text"
-                    >
-                      {{ row.insight.text }}
-                    </p>
-                  </div>
-                </template>
-              </div>
-            </div>
             <component
               :is="section.component"
               v-for="section in digestSections.list().filter((x) => x.region === 'band')"
               :key="section.id"
               :band="band"
               :topic-id="bandTopicId(band)"
+              @switch-main-tab="(t: 'graph' | 'dashboard' | 'library') => emit('switch-main-tab', t)"
             />
           </section>
         </div>
@@ -1254,22 +1016,12 @@ onBeforeUnmount(() => {
                   >
                     {{ libraryEpisodeSummaryLine(row) }}
                   </p>
-                  <CilTopicPillsRow
-                    v-if="digestRecentCilPills(row).length"
-                    class="mt-0.5"
-                    cluster-member-appearance="kg"
-                    :pills="digestRecentCilPills(row)"
-                    :max-pill-chars="RECENT_TOPIC_PILL_CHARS"
-                    truncation="wrap"
-                    max-width-class="auto"
-                    data-testid="digest-recent-cil-pills"
-                    @pill-click="(i) => void openDigestRecentTopicPillInGraph(row, i)"
-                  />
                   <component
                     :is="section.component"
                     v-for="section in digestSections.list().filter((x) => x.region === 'row')"
                     :key="section.id"
                     :row="row"
+                    @switch-main-tab="(t: 'graph' | 'dashboard' | 'library') => emit('switch-main-tab', t)"
                   />
                 </div>
               </div>
