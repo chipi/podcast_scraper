@@ -9,8 +9,6 @@
 - **Related RFCs**:
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
-  - [RFC-072: Canonical identity + cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (chunk-to-Insight **lift** on transcript hits)
-  - [RFC-075: Corpus Topic Clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **Show on graph** / cluster follow-ups)
   - [RFC-090: Hybrid Retrieval](../rfc/RFC-090-hybrid-retrieval.md) — **hybrid is now the default** backend; FAISS retained as fallback
   - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational queries the surfaces consume
 
@@ -60,7 +58,7 @@ Track shell work in [GitHub #606](https://github.com/chipi/podcast_scraper/issue
 and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, update this **Active** UXS in the same PR — see
 [Living documents and ship boundary](index.md#living-documents-and-ship-boundary).
 
-**RFC-075:** When corpus clustering JSON is available, **Show on graph** from search still selects the
+**topic clustering:** When corpus clustering JSON is available, **Show on graph** from search still selects the
 **leaf** node id (e.g. `topic:…`) as today. The **graph node rail** shows **Topic cluster:** for Topic
 nodes (Phase 1; see [UXS-004](UXS-004-graph-exploration.md)). **Search result cards** may show a
 **Topic cluster:** line when the API joined **`metadata.topic_cluster`** (canonical label and compound
@@ -138,7 +136,7 @@ counts; **Similarity** bars proportional to score / max(score) in the list
 A muted "N results" / "1 result" line only (the query stays in the textarea; it is
 not repeated here). When the API returns **`lift_stats`** and at least one transcript
 row is on the page, a compact **Lift: applied / transcript rows** ratio appears on
-the same row (native **`title`** explains RFC-072 lift coverage).
+the same row (native **`title`** explains the cross-layer identity design lift coverage).
 
 Each hit can expose:
 

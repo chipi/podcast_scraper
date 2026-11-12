@@ -67,12 +67,11 @@ What makes it work is that stored artifacts are a *complete input record*. The
 diarization is already on disk, so a naming change can be evaluated against it without
 re-deriving it.
 
-The speaker-attribution one is `scripts/measure/2075_speaker_golden_set.py` in the private
-eval repository (moved there with the other research scripts, 2026-11-11), run against the
+The speaker-attribution one is a research script kept outside this repository, run against the
 installed public package:
 
 ```bash
-python scripts/measure/2075_speaker_golden_set.py --snapshot /path/to/corpus
+python <speaker-golden-set script> --snapshot /path/to/corpus
 ```
 
 Each case pins one claim in the language of the transcript, not the code:
@@ -144,7 +143,7 @@ artifact (kill it and read the files).
 ### Tier 4 — the harness (hours)
 
 The acceptance gate, not a feedback loop. Run it once, at the end, on the code you intend
-to ship: `scripts/measure/2075_relabel_harness.sh` in the private eval repository.
+to ship: the relabel harness, a research script kept outside this repository.
 
 **Copy every corpus first.** Relabel rewrites in place, so the run destroys the only BEFORE
 you have. Two lines of `cp -R` are the difference between a measurement and an anecdote.

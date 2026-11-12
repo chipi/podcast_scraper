@@ -10,7 +10,6 @@
   - `docs/prd/PRD-032-hybrid-corpus-search.md` — retrieval backend (dependency)
   - `docs/prd/PRD-026-topic-entity-view.md` — Topic Entity View panel
   - `docs/prd/PRD-029-person-profile.md` — Person Landing content
-  - `docs/prd/PRD-028-position-tracker.md` — position evolution data
 - **Related RFCs**:
   - `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` — the shared relational-query layer + FE retrieval state this PRD's surfaces consume
   - `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-091-kg-proximity-signal.md`
@@ -51,7 +50,7 @@ support; orthogonal additions land independently.
 | **Hybrid retrieval** (BM25 + dense + RRF) | Rank by relevance, not presence/absence; exact names + phrases *and* semantics |
 | **Two-tier + compound results** | Show a synthesized insight together with its grounding transcript segment |
 | **Query-intent routing** | Adapt the retrieval strategy to the query (entity / evidence / synthesis / semantic) |
-| **Canonical entity resolver** (RFC-072 / #849) | Turn a name in text into a navigable canonical entity id |
+| **Canonical entity resolver** | Turn a name in text into a navigable canonical entity id |
 | **`Person→Insight`** (who said what, #874) | Assemble a person's positions — "what does X think about Y" |
 | **`Insight→Entity`** (insight about whom, #874) | Ground an insight in the people/orgs it concerns |
 | **`Podcast→HAS_EPISODE→Episode`** (#874) | Resolve a show name to show-scoped navigation |

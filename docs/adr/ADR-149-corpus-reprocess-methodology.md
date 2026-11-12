@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-02
 - **Authors**: Marko Dragoljevic
-- **Related ADRs**: [ADR-123](ADR-123-quality-gate-transcription-failover.md) (failover), [ADR-124](ADR-124-model-governance-registry-sanctioned.md) (registry), [ADR-134](ADR-134-provider-specific-speaker-labeling.md) / [ADR-137](ADR-137-llm-host-guest-role-on-voice-resolution.md) / [ADR-140](ADR-140-versioned-labeling-profiles.md) (labeling), [ADR-135](ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md) (v2.4 schema), [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) (diarization)
+- **Related ADRs**: [ADR-123](ADR-123-quality-gate-transcription-failover.md) (failover), [ADR-124](ADR-124-model-governance-registry-sanctioned.md) (registry), [ADR-140](ADR-140-versioned-labeling-profiles.md) (labeling)
 - **Related issues**: #1335 (v2.2), #1355 (v2.4), #1189 (fixture gate), #630 (expansion)
 
 ## Context & Problem Statement
@@ -37,7 +37,7 @@ The applied ladder:
 | v2.1 | speaker naming (on frozen deepgram diarization) | done |
 | v2.2 | diarization → pyannote community-1 (DGX-local) | MERGED #1335 |
 | v2.3 | ASR → faster-whisper turbo + failover (ADR-123) | MERGED (in #1355) |
-| v2.4 | GI/KG schema (route-and-tag #1191, naming-4) | MERGED #1355 / ADR-135 |
+| v2.4 | GI/KG schema (route-and-tag #1191, naming-4) | MERGED #1355 |
 | v2.5 | LLM (Gemini → DGX-local) | current front |
 
 **2 — Reprocess-once economics.** Anything that changes (a) the stored artifact shape
@@ -127,5 +127,4 @@ run it and what each outcome means: [Corpus reprocessing runbook](../guides/CORP
 ## References
 
 - [ADR-123: quality-gate transcription failover](ADR-123-quality-gate-transcription-failover.md)
-- [ADR-135: v2.4 GI route-and-tag + KG voice node](ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md)
 - Issues: #1335 (v2.2), #1355 (v2.4), #1189 (fixture acceptance gate), #630 (expansion vehicle)

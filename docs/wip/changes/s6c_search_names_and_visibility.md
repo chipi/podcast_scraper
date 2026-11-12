@@ -2,7 +2,7 @@
 id: s6c_search_names_and_visibility
 class: full
 status: landed
-issue: none (RFC-131 S6, the search part, and D2 item 7)
+issue: none (the person-identity design S6, the search part, and D2 item 7)
 touches:
   - src/podcast_scraper/search/corpus_search.py
   - src/podcast_scraper/search/cli_handlers.py

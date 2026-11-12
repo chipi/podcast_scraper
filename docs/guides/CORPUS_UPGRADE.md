@@ -130,7 +130,7 @@ X.Y this was checked" — future migrations can rely on that history.
    the "no FAISS" walk.
 6. **Update the read-time shim (if needed).** If serving legacy artifacts
    without migration is still supported, extend
-   `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` with a
+   the installed GIL extension's read-time shims with a
    matching transform so an unmigrated corpus still reads correctly. Cross-
    reference the framework migration and the shim in each other's docstrings.
 7. **Update docs.** Three files:
@@ -214,7 +214,7 @@ deploys. See the fixture's own `README.md` for the detailed contract.
   `migrate_gi_document_v3` transform so a fresh operator can rely on
   `make upgrade-corpus` catching it. KG-side `MENTIONS` edges (Topic → Episode
   discovery) stay untouched by design (see
-  `src/podcast_scraper/migrations/gil_kg_identity_migrations.py`).
+  the installed GIL extension's read-time shims).
 
 **Not a migration:** the cross-episode entity canonical map (#852) is computed *live*
 at graph-build (`search/corpus_graph.py` → `build_entity_id_map`), not persisted —
@@ -226,7 +226,7 @@ The `upgrade/` framework above owns **on-disk corpus migrations**. Two other
 migration surfaces exist and are easy to conflate:
 
 - **Read-time schema shims** live in
-  `src/podcast_scraper/migrations/gil_kg_identity_migrations.py`
+  the installed GIL extension
   (`migrate_gil_document`, `migrate_kg_document`, `migrate_kg_document_v2`,
   `migrate_gi_document_v3`). These are pure functions used by the server + graph
   build at read time to accept legacy artifact shapes without requiring an

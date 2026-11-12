@@ -127,7 +127,7 @@ See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - `screenplay_num_speakers` (`int`, default: `2`, alias: `"num_speakers"`): Speaker count hint for gap-based rotation (minimum: 1).
 - `screenplay_speaker_names` (`List[str]`, default: `[]`, alias: `"speaker_names"`): Manual speaker names (fallback when auto-detection fails). Format: `["Host", "Guest"]`.
 
-#### Neural speaker diarization (RFC-058)
+#### Neural speaker diarization
 
 - `diarize` (`bool`, default: `True`, alias: `"diarize"`): pyannote second pass after local Whisper; coerced off for API providers.
 - `hf_token` (`Optional[str]`, default: from `HF_TOKEN`, alias: `"hf_token"`): HuggingFace token for gated models.

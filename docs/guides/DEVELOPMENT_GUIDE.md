@@ -430,8 +430,8 @@ speakers map character offsets to segments. **Post-#974** the ad-free processing
 (`*.adfree.txt` + `*.adfree.segments.json`, produced at transcript-save time) carries an
 explicit `char_start`/`char_end` on each segment, so a quote maps to its segment **exactly** —
 screenplay `Name:` markers no longer cause drift and the offset-drift issue (#545) is fixed at
-the source. The legacy **50-character** guard (`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA` in
-`src/podcast_scraper/gi/pipeline.py`) now applies **only** to the fallback path — a corpus with
+the source. The legacy **50-character** guard (`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA`, in the
+installed GIL extension) now applies **only** to the fallback path — a corpus with
 no ad-free base whose segments carry no offsets, where the pipeline concatenates segment `text`
 and compares it to the transcript. On that legacy path screenplay formatting can still trip the
 guard and the pipeline logs **one warning per episode artifact** when it skips segment-based
@@ -483,7 +483,7 @@ transcription provider info is recorded).
 
 <a id="gi-quote-speaker-id"></a>
 
-**GI quote `speaker_id` (GitHub issue [#541](https://github.com/chipi/podcast_scraper/issues/541)):** On each **Quote** node, **`speaker_id`** is set only when **`_speaker_id_for_char_range`** in `src/podcast_scraper/gi/pipeline.py` can map the quote’s character span to timed **segments** (from **`.segments.json`** or non-empty in-memory **`transcript_segments`**) that carry **`speaker`** or **`speaker_id`**, and the same **concatenated segment `text`** vs GI transcript alignment gate applies as for **`timestamp_*_ms`** (**`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA`**; see **GI segment alignment** above — on failure, segment-based speakers and timestamps are skipped and the pipeline logs **one warning per episode**, [#545](https://github.com/chipi/podcast_scraper/issues/545)). **`speaker_id`** is **`null`** when segments are **time + text only** (common **Whisper** / **OpenAI** paths), when segments are missing ([#540](https://github.com/chipi/podcast_scraper/issues/540), [#542](https://github.com/chipi/podcast_scraper/issues/542)), when the provider returns empty **`segments`** ([#543](https://github.com/chipi/podcast_scraper/issues/543)), or for stub artifacts. Episode **NER** host/guest lists and **screenplay** rotation heuristics do **not** populate **`quote.speaker_id`**. When **`speaker_id`** is non-null, it is normally a **`person:{slug}`** id (RFC-072 **Person** node); legacy corpora may still use **`speaker:{slug}`** until migrated ([GI ontology — Person / Quote properties](../architecture/gi/ontology.md)).
+**GI quote `speaker_id` (GitHub issue [#541](https://github.com/chipi/podcast_scraper/issues/541)):** On each **Quote** node, **`speaker_id`** is set only when **`_speaker_id_for_char_range`** in the installed GIL extension can map the quote’s character span to timed **segments** (from **`.segments.json`** or non-empty in-memory **`transcript_segments`**) that carry **`speaker`** or **`speaker_id`**, and the same **concatenated segment `text`** vs GI transcript alignment gate applies as for **`timestamp_*_ms`** (**`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA`**; see **GI segment alignment** above — on failure, segment-based speakers and timestamps are skipped and the pipeline logs **one warning per episode**, [#545](https://github.com/chipi/podcast_scraper/issues/545)). **`speaker_id`** is **`null`** when segments are **time + text only** (common **Whisper** / **OpenAI** paths), when segments are missing ([#540](https://github.com/chipi/podcast_scraper/issues/540), [#542](https://github.com/chipi/podcast_scraper/issues/542)), when the provider returns empty **`segments`** ([#543](https://github.com/chipi/podcast_scraper/issues/543)), or for stub artifacts. Episode **NER** host/guest lists and **screenplay** rotation heuristics do **not** populate **`quote.speaker_id`**. When **`speaker_id`** is non-null, it is normally a **`person:{slug}`** id (the cross-layer identity design **Person** node); legacy corpora may still use **`speaker:{slug}`** until migrated ([GI ontology — Person / Quote properties](../architecture/gi/ontology.md)).
 
 **Future adapters:** When a vendor exposes **word- or chunk-level timestamps** in a stable API shape, a
 normalizer can map them to `{start, end, text}` and write **`.segments.json`** like Whisper paths.
@@ -606,7 +606,7 @@ embed-and-index after finalize when enabled; you can also run **`podcast index`*
 
 **Insight clustering** groups semantically similar GI insights across episodes using the same
 average-linkage algorithm as topic clustering. CLI: `podcast insight-clusters --output-dir ./output`.
-Writes `insight_clusters.json` to `<output-dir>/search/`. Module: `insight_stage/insight_clusters.py`.
+Writes `insight_clusters.json` to `<output-dir>/search/`.
 
 **Multi-quote extraction** (#600) changed all 8 providers from single-quote to multi-quote per
 insight (uncapped). Prompt: "Extract all short verbatim quotes." Parser handles both
@@ -615,11 +615,7 @@ insight (uncapped). Prompt: "Extract all short verbatim quotes." Parser handles 
 
 **Cluster context expansion** (#601) adds cross-episode evidence to `gi explore` results.
 Flag: `gi explore --expand-clusters`. Loads `insight_clusters.json`, finds cluster members from
-other episodes, and displays their quotes alongside the matched insight. Module:
-`insight_stage/insight_cluster_context.py`.
-
-**Tests:** Unit: `test_insight_clusters.py` (11 tests), `test_insight_cluster_context.py`
-(12 tests). Integration: `tests/integration/search/test_insight_clusters_cli.py` (3 tests).
+other episodes, and displays their quotes alongside the matched insight.
 
 ## GI / KG browser viewer {#gi-kg-browser-viewer-local-prototype}
 
@@ -660,7 +656,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 | `make test-ui` | Vitest unit tests for TS utility logic (parsing, merge, metrics, formatting). Fast (~150 ms), no browser. |
 | `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install chromium`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
 | `make ci-ui-validation CORPUS=/abs/path` | **Tier-3** real-corpus matrix validation per [ADR-095](../adr/ADR-095-viewer-test-pyramid.md). Required when shipping a real-corpus bug fix — Tier-2 matrix row reproducing must land first. |
-| `make verify-gil-offsets-strict` | **Quote** vs **indexed transcript chunk** character alignment on a corpus (set **`GIL_OFFSET_VERIFY_DIR`**; optional **`GIL_OFFSET_MIN_RATE`**, default **0.95**). Supports **feed-nested** metadata. See [Semantic Search Guide — lift & verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |
+| `make verify-gil-offsets-strict` | **Quote** vs **indexed transcript chunk** character alignment on a corpus (set **`GIL_OFFSET_VERIFY_DIR`**; optional **`GIL_OFFSET_MIN_RATE`**, default **0.95**). Supports **feed-nested** metadata. See [Semantic Search Guide — lift & verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification). |
 
 **Contributor notes:**
 
@@ -696,8 +692,7 @@ Playwright or MCP clicking the wrong **Search**):
 - **Full server reference:** [Server Guide](SERVER_GUIDE.md) — architecture, all endpoints,
   adding routes, testing, platform evolution.
 
-**See also:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md) · [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Grounded Insights
-Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
+**See also:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
 [CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
 ## Evaluation artifacts (`data/eval/`)
@@ -1802,16 +1797,15 @@ compact package-level overview.
   model registry)
 - **`providers/{openai,gemini,anthropic,mistral,deepseek,grok,ollama}/`** — LLM provider packages
 - **`providers/capabilities.py`** — Capability flags
-- **`transcription/`**, **`speaker_detectors/`**,
-  **`summarization/`** — Protocol interfaces and
-  factory functions
+- **`transcription/`**, **`summarization/`** — Protocol
+  interfaces and factory functions
 - **`prompts/store.py`** — Versioned Jinja2 prompt
   templates
 
 ### Knowledge extraction
 
-- **`gi/`** — Grounded Insight Layer (pipeline,
-  schema, grounding, explore, corpus, quality metrics)
+- Grounded Insight Layer — provided by an installed
+  extension
 - **`kg/`** — Knowledge Graph (pipeline, schema,
   LLM extraction, CLI handlers, quality metrics)
 

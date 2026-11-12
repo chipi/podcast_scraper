@@ -297,7 +297,7 @@ forever than have this violated. Full failure-mode analysis lives in
     deliberately does not. When the work spans layers, read each layer's spec
     (and the cross-layer doc) so you know which layer owns the concern. Failure
     mode of record (2026-05-30): assumed the cross-layer `bridge` deduplicated
-    entities because `bridge_builder` exposed a `fuzzy_reconcile`; RFC-072 states
+    entities because `bridge_builder` exposed a `fuzzy_reconcile`; the design doc states
     plainly "the bridge is the seam, not a merge" — that wrong mental model
     derailed a plan before the design doc was read.
 
@@ -428,7 +428,6 @@ forever than have this violated. Full failure-mode analysis lives in
        per-provider test class to:
        - `tests/e2e/test_cloud_guardrails_e2e.py`
        - `tests/e2e/test_cloud_resilience_e2e.py`
-       - `tests/e2e/test_cloud_gi_failup_e2e.py`
        - `tests/e2e/test_cloud_cleaning_degrades_e2e.py`
        - `tests/e2e/test_cloud_circuit_breaker_e2e.py` (parameterized list)
        - `tests/e2e/test_cloud_guardrails_fallback_e2e.py`
@@ -1069,8 +1068,7 @@ absent; you change internal implementation without touching on-disk shape.
    non-backward-compatible changes — coordinate with operator).
 4. Unit tests in `tests/unit/upgrade/`; e2e row in
    `tests/integration/upgrade/test_end_to_end.py`.
-5. Read-time shim in
-   `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` when
+5. Read-time shim (in the installed GIL extension) when
    serving legacy artifacts without migration is still supported.
 6. Update three docs: this file's "Registered migrations" list, the API
    `MIGRATION_GUIDE.md` version section, and the RFC/ADR you're
@@ -1113,7 +1111,7 @@ Three migration surfaces exist. Do not conflate them.
   Guide: `docs/guides/CORPUS_UPGRADE.md`. This is where you add a step to
   migrate an existing deployed corpus across releases (`upgrade/migrations/mNNNN_*`).
 - **Read-time schema shims** — pure functions in
-  `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` used by the
+  the installed GIL extension, used by the
   server / graph build to accept legacy artifact shapes without an in-place
   rewrite. Use when you need to read older artifacts you cannot upgrade;
   prefer the framework path when you own the corpus.

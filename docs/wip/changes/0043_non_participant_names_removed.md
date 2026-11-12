@@ -265,8 +265,7 @@ split, the KG population. Its reading of #2365 led to class C (m0016's recurrenc
 section 1's reading list: #2365 (closed; another show's host's promo published as a guest, "4 served records
 still carry the old name until a relabel": they are in class C), #2362 (closed; host seat never
 typed commercial), #2331 (closed; sponsor reads take voices), #2200 and #2198 (open; insights hidden
-by unnamed voices: not moved here, GI 0), #1227 (closed; pre-roll ad narrators as guests),
-`docs/guides/NAMING_KNOWN_ISSUES.md` K14, `docs/guides/NAMING_LADDER.md`.
+by unnamed voices: not moved here, GI 0), #1227 (closed; pre-roll ad narrators as guests).
 
 Spot checks for step 8:
 

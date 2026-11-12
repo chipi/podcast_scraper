@@ -69,9 +69,9 @@ v2.6.0 ships the **retrieval** and **structured artifact** layers that the viewe
 
 ### Grounded Insight Layer (GIL)
 
-- **Completed (single layer)** — [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) (core model, `gi.json`, grounding contract) and [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) (consumption patterns, CLI and product use cases without cross-layer bridge).
+- **Completed (single layer)** — RFC-049 (core model, `gi.json`, grounding contract) and RFC-050 (consumption patterns, CLI and product use cases without cross-layer bridge).
 - **What you can do** — Inspect grounded insights and quotes per episode; drive **Insight**-oriented flows in the viewer and documentation under [PRD-017](../prd/PRD-017-grounded-insight-layer.md) for the **single-layer** slice.
-- **Not in v2.6.0** — **Canonical identity** and **`bridge.json`** for cross-layer joins remain **Draft** ([RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)); [PRD-017](../prd/PRD-017-grounded-insight-layer.md) stays **Partial** until that work lands.
+- **Not in v2.6.0** — **Canonical identity** and **`bridge.json`** for cross-layer joins remain **Draft** (RFC-072); [PRD-017](../prd/PRD-017-grounded-insight-layer.md) stays **Partial** until that work lands.
 
 ### Knowledge Graph (KG)
 
@@ -82,7 +82,7 @@ v2.6.0 ships the **retrieval** and **structured artifact** layers that the viewe
 **Guides**
 
 - [Semantic Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md) — indexing, `GET /api/search`, chunking, and operator notes.
-- [Grounded Insights Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) — `gi.json`, schema, CLI.
+- Grounded Insights Guide — `gi.json`, schema, CLI.
 - [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md) — `kg.json`, entities, relationships, bridge placeholder for future CIL.
 
 ---

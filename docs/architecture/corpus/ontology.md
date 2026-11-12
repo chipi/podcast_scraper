@@ -11,9 +11,7 @@ to this ontology and the companion schemas
 ([`kg.schema.json`](../kg/kg.schema.json),
 [`gi.schema.json`](../gi/gi.schema.json)). For design lineage see
 [RFC-097](../../rfc/RFC-097-unified-kg-gi-ontology-v2.md),
-[RFC-072](../../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
-(CIL + bridge), [RFC-049](../../rfc/RFC-049-grounded-insight-layer-core.md)
-(GIL core), [RFC-055](../../rfc/RFC-055-knowledge-graph-layer-core.md)
+[RFC-055](../../rfc/RFC-055-knowledge-graph-layer-core.md)
 (KG core), and [PRD-017](../../prd/PRD-017-grounded-insight-layer.md) /
 [PRD-019](../../prd/PRD-019-knowledge-graph-layer.md).
 
@@ -40,7 +38,7 @@ to this ontology and the companion schemas
    [PRD-019 line 45](../../prd/PRD-019-knowledge-graph-layer.md)).
 4. **Canonical IDs span artifacts.** `person:{slug}` / `org:{slug}` /
    `topic:{slug}` are owned by neither layer; they live in
-   [`bridge.json`](../../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
+   `bridge.json`
    and are emitted identically by KG and GI.
 
 ---
@@ -187,7 +185,7 @@ JSON shape; the viewer cannot tell them apart at read time.
 2. **Post-pass enrichment** (airgapped, airgapped_thin) — the LLM is
    summary-only (BART-small / SummLlama), so insights are emitted
    without explicit mention spans. The `apply_typed_mentions_and_rewrite_gi`
-   post-pass (`gi/relational_edges.py`) walks every Insight's text
+   post-pass (provided by the installed GIL extension) walks every Insight's text
    and matches against the KG Person index. Two matchers run in
    order:
 
@@ -253,7 +251,7 @@ manually for re-runs and experimentation:
 
 ## Insight properties (v2 additive)
 
-Both fields are **Optional** and land additively (RFC-072 §2 v1.1
+Both fields are **Optional** and land additively (the cross-layer identity design §2 v1.1
 specification, shipped by RFC-097 v2 chunk 5).
 
 ### `insight_type`
@@ -277,7 +275,7 @@ gate of v2 implementation).
 Float in `[0.0, 1.0]`. Mean Quote start time relative to episode
 duration. Powers Position Tracker timeline + temporal ordering.
 
-**4-step computation waterfall** (`src/podcast_scraper/gi/position_hint.py`):
+**4-step computation waterfall** (computed by the installed GIL extension):
 
 1. `Episode.duration_ms` from RSS `<itunes:duration>` (~86% prod
    corpus coverage today)
@@ -424,8 +422,7 @@ together for any future breaking change.
 ## Related
 
 - [RFC-097](../../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — design + chunked plan + cross-doc closures
-- [RFC-072](../../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — CIL + bridge (the infrastructure this doc formalizes)
 - [RFC-091](../../rfc/RFC-091-kg-proximity-signal.md) — KG proximity rejection decision record
 - [RFC-094](../../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational query layer over the v2-materialized edges
-- [PRD-028](../../prd/PRD-028-position-tracker.md) / [PRD-029](../../prd/PRD-029-person-profile.md) — viewer surfaces that consume `insight_type` + `position_hint`
-- [GIL Guide](../../guides/GROUNDED_INSIGHTS_GUIDE.md) / [KG Guide](../../guides/KNOWLEDGE_GRAPH_GUIDE.md) — user-facing references
+- [PRD-029](../../prd/PRD-029-person-profile.md) — viewer surfaces that consume `insight_type` + `position_hint`
+- [KG Guide](../../guides/KNOWLEDGE_GRAPH_GUIDE.md) — user-facing reference

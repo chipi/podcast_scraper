@@ -3,7 +3,6 @@
 - **Status**: Accepted
 - **Date**: 2026-05-08
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
 - **Related ADRs**: [ADR-052](ADR-052-separate-gil-and-kg-artifact-layers.md),
   [ADR-053](ADR-053-grounding-contract-for-evidence-backed-insights.md),
   [ADR-061](ADR-061-faiss-phase-1-with-post-filter-metadata.md),
@@ -62,15 +61,10 @@ Insights, graph navigation by stable topic).
    identity story.
 - **Negative**: Pipeline and index code must keep **`bridge.json`** coherent with **`gi.json`** /
    **`*.kg.json`**; offset regressions need CI guards.
-- **Neutral**: **`RFC-072`** remains the normative field-level spec; this ADR records the **architectural**
+- **Neutral**: this ADR records the **architectural**
   contract only.
 
 ## Implementation Notes
 
 - **Code**: `src/podcast_scraper/builders/` (bridge paths, slug builders), server routes under
   **`server/routes`**, graph utilities in **`web/gi-kg-viewer`**
-- **Normative detail**: [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
-
-## References
-
-- [RFC-072: Canonical identity layer and cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)

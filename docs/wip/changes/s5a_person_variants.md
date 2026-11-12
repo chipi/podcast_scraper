@@ -2,7 +2,7 @@
 id: s5a_person_variants
 class: full
 status: landed
-issue: none (RFC-131 S5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design S5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/person_match.py
   - src/podcast_scraper/identity/ledger.py
@@ -18,7 +18,7 @@ kept out of this public record. The pairs are in the eval-data repo under
 
 ## 1. Intake
 
-- RFC-131, ADR-166 (the ledger), ADR-167 (guards inside the join): the design.
+- the person-identity design, the identity ledger (the ledger), the join guards (guards inside the join): the design.
 - D1's record (`d1_name_consolidation.md`): the rule this extends (mode `cluster_person`, linkage
   `no_one_word_bridge`, guards a/b/c) and its numbers.
 - Plan V3, S5: only failure classes with counted training cases; every join passes the guards; replay
@@ -122,7 +122,7 @@ Predicted on the S4 export (prototype `s5/proto.py`, variant `either_initial_exa
   step 7.
 - **Ledger:** `RULE_VERSION` moves to `cluster-person-no-bridge-guarded/3`.
   - Today `read_ledger` treats every other rule version as `version_mismatch`, and the api then
-    serves no cross-episode joins at all (ADR-166).
+    serves no cross-episode joins at all.
   - A bare bump would give D2 a window with zero joins, whichever comes first. With the new image
     first, the api refuses D1's `/2` ledger until the rebuild. With the rebuild first, D1's live api
     refuses `/3`.
@@ -166,7 +166,7 @@ Code:
   only when mode `cluster` refuses;
 - `identity/ledger.py`: `RULE_VERSION` `/3`, `PREVIOUS_RULE_VERSION` `/2`, `STATE_OK_PREVIOUS_RULE`,
   `LEDGER_STATES`, and `rebuild_needed` and `rule_version` in `ledger_status`;
-- ADR-166, decision 3: the one-step-back exception and the undo order.
+- the identity ledger, decision 3: the one-step-back exception and the undo order.
 - `identity/ledger_cli.py` needed no change: `--dry-run` reports `read_ledger`'s state, and
   `--status` prints `ledger_status`.
 
@@ -214,7 +214,7 @@ Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (
 
 ## 12. Retrospective
 
-MISSED: no retrospective of its own. D2's lessons are in `../HANDOVER-NAMING-2026-11-03.md`, section 3.
+MISSED: no retrospective of its own.
 
 Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 

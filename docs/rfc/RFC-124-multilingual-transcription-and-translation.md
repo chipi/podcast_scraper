@@ -11,9 +11,7 @@
 - **Related PRDs**:
   - `docs/prd/PRD-047-multilingual-ingest.md` — product requirements this RFC implements (FR1–FR4, FR6, FR7)
 - **Related RFCs**:
-  - `docs/rfc/RFC-123-speaker-turns-artifact.md` — prerequisite: turns/sentences define translation units
-  - `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` — provenance and source verification over this RFC's outputs (QE deferred to v2)
-  - `docs/rfc/RFC-005-whisper-integration.md`, `docs/rfc/RFC-058-audio-speaker-diarization.md`
+  - `docs/rfc/RFC-005-whisper-integration.md`
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — the two-tier index and RRF this RFC's retrieval section extends
   - `docs/rfc/RFC-106-tiered-dgx-service-fallback.md` — tiered fallback semantics
   - `docs/rfc/RFC-109-per-episode-observability-manifest.md` — manifest fields
@@ -122,7 +120,7 @@ Hazard 4 is why translation precedes ad detection (§3).
 
 **Assumptions:**
 
-- RFC-123 turns exist for the episode. Translation does not run without them.
+- the turns artifact exist for the episode. Translation does not run without them.
 - Whisper punctuation in enabled languages is good enough for sentence splitting. The per-language
   gate (§7) checks this.
 - Conversational podcasts translate acceptably at the turn or sentence-group level, without cross-turn
@@ -244,7 +242,7 @@ manifest records `language_mismatch: {declared, detected, p}` and the episode is
 - Diarization (pyannote community-1) is language-agnostic; nothing changes.
 - **Speaker naming stays before translation.** See §5.4.
 - Source artifacts keep their existing paths (`<stem>.txt`, `<stem>.segments.json`) and gain a
-  top-level `language`. RFC-123 `turns.json` is built from them as usual.
+  top-level `language`. The turns artifact `turns.json` is built from them as usual.
 - **No source-language ad-free variant is written** (§3).
 
 **2.1 One resolver, and routing every reader to it.** `workflow/adfree_transcript.load_processing_transcript`
@@ -328,7 +326,7 @@ The resulting order for a non-English episode:
 audio
  └─ transcribe + diarize (source language)      → ep1.txt, ep1.segments.json
      └─ speaker naming (source, §5.4)
-         └─ turns (RFC-123)                      → ep1.turns.json
+         └─ turns                      → ep1.turns.json
              └─ TRANSLATE every unit, full timeline
                  │                               → ep1.translation.json
                  │                               → ep1.en.txt, ep1.en.segments.json
@@ -409,11 +407,11 @@ and the episode's cached prompt prefix. Two consequences worth stating rather th
 transcripts/
   ep1.txt                        # source language (canonical), screenplay, FULL timeline
   ep1.segments.json              # source segments, language: "el"
-  ep1.turns.json                 # RFC-123, source variant
+  ep1.turns.json                 # The turns artifact, source variant
   ep1.translation.json           # unit map (this RFC)
   ep1.en.txt                     # English screenplay, derived, FULL timeline → subtitles
   ep1.en.segments.json           # English cues: one per translation unit, derived
-  ep1.en.turns.json              # RFC-123, English variant
+  ep1.en.turns.json              # The turns artifact, English variant
   ep1.en.adfree.txt              # English ad-free — THE ANALYSIS TRANSCRIPT
   ep1.en.adfree.segments.json    # carries unit_id per segment (§4.1)
   ep1.en.adfree.admap.json
@@ -485,12 +483,12 @@ This requires the English pseudo-segments to **carry `unit_id`**, which means ad
 formatter's passthrough tuple (`providers/ml/diarization/formatting.py:81`, currently
 `("speaker", "speaker_role", "voice_type")`). The field is additive and absent on English-episode
 segments, so nothing changes for the existing corpus. `resolve_units_for_span(span, segments,
-translation_map)` owns the chain; RFC-125 calls it and no consumer reimplements it.
+translation_map)` owns the chain; translation verification calls it and no consumer reimplements it.
 
 **English transcript construction.** `ep1.en.txt` is rendered with the **same screenplay formatter**,
 one pseudo-segment per unit (`text = en_text`, times from the unit, `unit_id` carried, speaker label
 resolved per §5.4). That makes `ep1.en.segments.json` a valid segments sidecar, so timing lookup,
-player cues, RFC-123 turns and the ad-free builder all work on the English layer unchanged.
+player cues, the turns artifact and the ad-free builder all work on the English layer unchanged.
 
 **Atomicity.** `ep1.en.txt`, `ep1.en.segments.json`, `translation.json` and the `.en.adfree.*` set are
 written as one atomic group (temp + rename). `save_adfree_artifacts` currently writes three files
@@ -502,7 +500,7 @@ episode with English text and no analysis base — a state §5.3 has to refuse r
 does **not** bind a `gi.json` span to either, so a *consistent* re-translation would pass the hash check
 while every stored span pointed into text that no longer exists. The cheap guard uses data that already
 exists: `EvidenceSpan` carries `excerpt`, so `resolve_units_for_span` refuses when
-`excerpt != en_adfree_text[char_start:char_end]`. Nodes also record `en_sha256` at write time (RFC-125
+`excerpt != en_adfree_text[char_start:char_end]`. Nodes also record `en_sha256` at write time (translation verification
 §1), which makes stale claims detectable without re-reading the text.
 
 **Derived marking.** `.en.*` and `translation.json` carry `derived: true` and `translated_from`. The
@@ -513,7 +511,7 @@ source artifacts do not.
 **5.1 Units are the translation context; sentences are the alignment atom.** These are two different
 jobs and collapsing them into one ~120-word block breaks both of the others it was given.
 
-- A **unit** is a sentence group inside a single RFC-123 turn of the source variant — greedily packed,
+- A **unit** is a sentence group inside a single the turns artifact turn of the source variant — greedily packed,
   never crossing a turn boundary, backchannel turns one unit each. It exists so the model sees enough
   context to translate well. Units are a deterministic function of `ep1.turns.json`.
 - A **sentence** is what gets aligned, stored and rendered. The request sends the unit's sentences
@@ -752,7 +750,7 @@ say whether it came from the original or the translation, and `search_corpus` ga
 Reuses the existing bake-off pattern (`config/profiles/bakeoff_*.yaml`, 15 profiles today), one profile
 per candidate. The shortlist and its licences are **verified** — see the arc notes §6.1; they are not
 open questions any more. Availability of the QE candidates remains unverified and is not on the v1 path
-(RFC-125 §7).
+.
 
 **Eval set per language:** 2–3 real episodes of the pilot language plus one Spanish or Italian control,
 about 60 units each, including every unit the current GI pipeline cites in those episodes. Requires a
@@ -806,7 +804,7 @@ class: it must co-reside with the LLM already served, so the **12B tier** rather
 system prompt (`config.py:3071`, `prompting/megabundle.py:59-72`). Switching that transcript from source
 to English is transparent to the mechanism. Two consequences are not:
 
-- A re-translation (model revision bump, or RFC-125's cross-model re-translation) changes the English
+- A re-translation (model revision bump, or translation verification's cross-model re-translation) changes the English
   text and invalidates the whole episode's cached prefix, not just the changed span. Re-translation is
   an episode-level cost.
 - Translated episodes reach the LLM stages with a different token distribution, so cache-hit dashboards
@@ -872,7 +870,7 @@ by language.
 2. **Multilingual analysis: extract from source-language text.** No translation error inside
    extraction — but it forks every prompt and eval per language, breaks English-only QA/NLI/embedding
    assumptions, and GIL verbatim grounding would produce non-English quotes the product cannot display
-   coherently. Rejected as the primary path; **kept as a verification method** in RFC-125.
+   coherently. Rejected as the primary path; **kept as a verification method** in translation verification.
 3. **Translate the whole transcript as one document.** Maximum context, but the output cannot be
    aligned back to turns or times and one hallucination can corrupt long spans. Rejected.
 4. **Ad-free first, then translate the ad-free text.** Matches the English pipeline's shape — but
@@ -961,11 +959,11 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
 
 ## Relationship to Other RFCs
 
-- **RFC-123** supplies the units and ships first on its own merits. Its schema change to the LanceDB
+- **the turns artifact** supplies the units and ships first on its own merits. Its schema change to the LanceDB
   segment table should land together with §6.2's `language` column.
-- **RFC-125** consumes `translation.json` and adds per-claim provenance and source verification,
+- **translation verification** consumes `translation.json` and adds per-claim provenance and source verification,
   calling this RFC's `resolve_units_for_span`. QE is its v2 addition, not a v1 dependency.
-- **Positions** are a read-time CIL query; nothing in that path changes here. RFC-125 gates what it
+- **Positions** are a read-time CIL query; nothing in that path changes here. translation verification gates what it
   returns.
 
 ## Open Questions
@@ -1013,13 +1011,5 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
 - `src/podcast_scraper/workflow/sniff_gate.py:63-70,116,130,144,177` — hazard 5 + four language sites
 - `src/podcast_scraper/workflow/processing_manifest.py:54` — `CANONICAL_STAGE_ORDER`
 - `src/podcast_scraper/workflow/stages/transcription.py:266` — summary in the same job
-- `src/podcast_scraper/workflow/adfree_transcript.py:52-55,104-137,176-188,230-261` — paths, identity base, writes, resolver
-- `src/podcast_scraper/gi/ad_regions.py:409-418,439` — no-match return, `_shift_for`
-- `src/podcast_scraper/gi/filters.py:35-77` — `_AD_PATTERNS`
-- `src/podcast_scraper/gi/load.py:19-37`, `gi/repair.py:161-171`, `search/indexer.py:96-111` — the independent resolvers
-- `src/podcast_scraper/gi/pipeline.py:810-830` — span→segment resolution this design reuses
-- `src/podcast_scraper/gi/speakers.py:74-77` — `_looks_like_person`
-- `src/podcast_scraper/providers/ml/diarization/formatting.py:81` — the passthrough tuple `unit_id` joins
 - `src/podcast_scraper/search/segments.py:47,59-80`, `search/indexer.py:449`, `search/backends/lancedb_backend.py:266` — chunk ids, linking, FTS
-- `src/podcast_scraper/speaker_detectors/ner.py:131-136` — default-model selection, not a NER gate
 - `config/profiles/prod_dgx_full.yaml:70,111,112` — language, fallback providers

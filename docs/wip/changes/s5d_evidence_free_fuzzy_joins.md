@@ -2,7 +2,7 @@
 id: s5d_evidence_free_fuzzy_joins
 class: full
 status: landed
-issue: none (RFC-131 D2; operator decision 2026-11-01, "B plus a reviewed allow-list")
+issue: none (the person-identity design D2; operator decision 2026-11-01, "B plus a reviewed allow-list")
 touches:
   - src/podcast_scraper/kg/entity_clusters.py
   - src/podcast_scraper/identity/person_match.py
@@ -20,7 +20,7 @@ record; ids are used. The measurements and the reads are in eval-data
 ## 1. Intake
 
 **Reading list:**
-- RFC-131, D2 (plan V3, eval-data `docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md`): step 9, join
+- the person-identity design, D2 (plan V3, eval-data `docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md`): step 9, join
   reads.
 - [s5c_scoped_names_not_pooled.md](s5c_scoped_names_not_pooled.md): the same mechanism, a match-pool
   rule in `_JoinTest._matches` (its 4c).
@@ -71,7 +71,7 @@ Two baseline commands, both on `clone-pre0038a`:
 ## 3. Diagnosis
 
 The cluster rule (`cluster_person` mode) accepts a near spelling as a match. For two mentions in one
-episode each, the spelling is the only thing joining them. No guard looks at that: the ADR-167 guards
+episode each, the spelling is the only thing joining them. No guard looks at that: the join guards
 fire only inside a shared episode, and these pairs share none.
 
 A one-episode rule also does not hold over time. Once either id of a wrong pair gains a second
@@ -111,7 +111,7 @@ alone is not evidence of one person.
 cluster (not the pool that `no_one_word_bridge` or s5c narrow). When a member of the cluster and the
 candidate are a pair in the list's `apart`, and the candidate's name matches that member's
 (`_match`), the join is refused:
-- **It is a blocked join (ADR-167 §3).** A row `[candidate_id, member_id, "reviewed_apart",
+- **It is a blocked join.** A row `[candidate_id, member_id, "reviewed_apart",
   episode_id]` is written to `blocked_joins`, with the candidate's first episode (sorted).
 - The candidate goes on to the next eligible cluster, as for any refusal.
 - **For the 8 pairs both rules cover,** rule 2 is evaluated first, so each gets a row.
@@ -441,7 +441,7 @@ Dated: 2026-11-01T20:55
 - **Verdict:** "Not complete".
 - **Its blockers,** each taken above:
   - rule 2's order effects: the replay;
-  - rule 2's `blocked_joins` rows (ADR-167 §3) and the order of the two rules;
+  - rule 2's `blocked_joins` rows and the order of the two rules;
   - `guards.py` in `touches`;
   - rule 2 checked against the full cluster, and the "third name" sentence reworded;
   - the rule-1-only 0041 counts, and the dissolution stated;

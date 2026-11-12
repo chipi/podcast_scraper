@@ -2,7 +2,7 @@
 id: 0038_raw_label_speakers_removed
 class: full
 status: landed
-issue: none (RFC-131 plan V3, N11 in D1; operator, 2026-10-30: "I would expect migration to clean that up")
+issue: none (the person-identity design plan V3, N11 in D1; operator, 2026-10-30: "I would expect migration to clean that up")
 touches:
   - src/podcast_scraper/upgrade/migrations/m0038_raw_label_speakers_removed.py
   - src/podcast_scraper/upgrade/registry.py

@@ -5,14 +5,11 @@
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- CIL topic
-    identity (`topic:{slug}`) and bridge artifact that powers cross-episode queries
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` -- `topic_cooccurrence` and
     `temporal_velocity` enrichers that provide the data this view consumes
   - `docs/rfc/RFC-062-gi-kg-viewer-v2.md` -- viewer SPA shell and tab model
   - `docs/rfc/RFC-069-graph-exploration-toolkit.md` -- graph chrome (Cytoscape)
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` -- KG MENTIONS edges and Topic nodes
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` -- GIL Insight and Quote nodes
 - **Related PRDs**:
   - `docs/prd/PRD-019-knowledge-graph-layer.md` -- KG artifact foundation
   - `docs/prd/PRD-017-grounded-insight-layer.md` -- GIL artifact foundation
@@ -21,8 +18,6 @@
     (distinct: PRD-025 is operator/pipeline health; this PRD is end-user intelligence)
   - `docs/prd/PRD-027-enriched-search.md` -- enriched search; topic pills in search
     results open this view
-  - `docs/prd/PRD-028-position-tracker.md` -- Position Tracker links back via
-    "View topic"; person chips here can open Position Tracker
   - `docs/prd/PRD-029-person-profile.md` -- Person Profile links back via
     "View topic"; person chips here can open Person Profile
 - **Related UX specs**:
@@ -50,7 +45,7 @@ episode-first and graph-first. Topic Entity View is **concept-first** -- it answ
 
 It requires no LLM and no database. All data comes from deterministic enricher
 outputs (`topic_cooccurrence`, `temporal_velocity`) and the core GIL/KG/bridge
-artifacts produced by RFC-072.
+artifacts produced by the cross-layer identity design.
 
 ---
 
@@ -63,7 +58,7 @@ concept.
 
 The `temporal_velocity` enricher (RFC-088) computes monthly topic mention counts and
 trend signals across the corpus. The `topic_cooccurrence` enricher computes which topics
-appear together. The bridge (RFC-072) links KG MENTIONS edges (which episodes) with GIL
+appear together. The bridge links KG MENTIONS edges (which episodes) with GIL
 ABOUT edges (what Insights were grounded). These three artifacts together contain
 everything needed for a rich topic view -- they just have no UI surface.
 
@@ -260,7 +255,7 @@ topic label, consistent with existing "Search topic" affordance in Digest (UXS-0
 `GET /api/topics/{topic_id}` -- returns Topic Entity View data assembled from
 enricher outputs and core artifacts for a given canonical topic ID (e.g.
 `topic:ai-regulation`). Path segments use full canonical IDs, consistent with the
-CIL convention established in RFC-072.
+CIL convention established in the cross-layer identity design.
 
 Response shape:
 
@@ -321,7 +316,6 @@ Content Intelligence section.
 
 ## References
 
-- `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
 - `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/rfc/RFC-062-gi-kg-viewer-v2.md`
 - `docs/uxs/UXS-001-gi-kg-viewer.md`

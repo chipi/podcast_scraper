@@ -4,8 +4,7 @@
 - **Date**: 2026-11-11
 - **Authors**: Marko Dragoljevic
 - **Related**: [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) (news as the second
-  content type), [RFC-131](../rfc/RFC-131-person-identity-one-home.md) (person identity),
-  [ADR-167](ADR-167-identity-guards-inside-the-join.md) (guards inside the join)
+  content type)
 
 ## Context & Problem Statement
 
@@ -26,7 +25,7 @@ Bylines are noisy. In a sample of 19 sources on 2026-11-11 they included:
 - a date stuck to a name ("Perri Thaler November");
 - the publisher as the author ("Meduza", "TechCabal; Adonijah Ndege").
 
-A wrong merge is worse than a cautious split (ADR-167).
+A wrong merge is worse than a cautious split.
 
 ## Decision
 

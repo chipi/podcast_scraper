@@ -19,8 +19,6 @@
     (Hybrid MAP-REDUCE architecture — Tier 2 backend)
   - `docs/rfc/RFC-044-model-registry.md`
     (Model Registry — model capability lookup)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-    (GIL — downstream consumer of local LLM extraction)
   - `docs/rfc/RFC-013-openai-provider-implementation.md`
     (Provider pattern reference)
 - **Related Issues**:
@@ -39,7 +37,7 @@ Phase 2:  RFC-042 (Hybrid ML Platform)      ~10 weeks
     │    for Ollama-hosted LLMs
     │
     ▼
-Phase 3:  RFC-049 (GIL)                     ~6-8 weeks
+Phase 3:  the GIL                     ~6-8 weeks
           Uses RFC-052 prompts for local
           LLM-based GIL extraction
 ```
@@ -68,7 +66,7 @@ practical for podcast processing workflows.
 
 **Expanded Scope (v2.5+):** Beyond speaker detection and
 summarization, this RFC extends prompt engineering to
-**GIL extraction tasks** (RFC-049):
+**GIL extraction tasks**:
 
 - **Insight extraction prompts** — model-specific prompts
   for extracting structured insights from transcripts
@@ -79,7 +77,7 @@ summarization, this RFC extends prompt engineering to
 
 This makes RFC-052 the **prompt quality layer** for all
 local LLM tasks, while RFC-042 provides the infrastructure
-and RFC-049 defines the extraction orchestration.
+and the GIL core design defines the extraction orchestration.
 
 **Architecture Alignment:** This RFC extends the provider
 system (RFC-013, RFC-029) with locally hosted LLM
@@ -153,7 +151,7 @@ challenges but introduce:
 | 5 | **Phi-3 Mini** | 2.3GB | 4GB+ | Dev/test, low-resource — lightest, good for CI |
 
 **Why Qwen2.5 7B at priority 1:** GIL extraction
-(RFC-049) is the biggest new use case and requires
+ is the biggest new use case and requires
 reliable structured JSON output (insights, quotes,
 topics). Qwen2.5 7B produces the most consistent
 well-formed JSON among sub-10B models, has excellent
@@ -382,7 +380,7 @@ def _get_prompt_path(model_name: str, task: str, prompt_version: str) -> str:
   lightweight dev/test)
 - **Phase 7**: GIL extraction prompts for remaining
   models (Mistral, Gemma, Phi-3) — aligned with
-  RFC-049 Phase 3 kickoff
+  The GIL core design Phase 3 kickoff
 
 **Monitoring:**
 
@@ -405,7 +403,7 @@ def _get_prompt_path(model_name: str, task: str, prompt_version: str) -> str:
    prompt development guide)
 6. Integration tests passing for all models
 
-## Integration with RFC-042 and RFC-049
+## Integration with RFC-042 and the GIL core design
 
 ### Relationship to RFC-042 (Hybrid ML Platform)
 
@@ -426,9 +424,9 @@ RFC-042 focuses on the **infrastructure** (loading,
 inference, backends); RFC-052 focuses on **prompt quality**
 (model-specific instructions, output format tuning).
 
-### Relationship to RFC-049 (GIL Extraction)
+### Relationship to the GIL core design (GIL Extraction)
 
-When RFC-049 uses local LLMs via Ollama for GIL extraction,
+When the GIL core design uses local LLMs via Ollama for GIL extraction,
 RFC-052 provides the optimized prompts:
 
 | GIL Task | RFC-052 Prompt | Notes |
@@ -449,7 +447,7 @@ GIL extraction.
 ### Relationship to RFC-044 (Model Registry)
 
 RFC-052 models should be registered in the RFC-044 registry
-so that RFC-049 can query model capabilities:
+so that the GIL core design can query model capabilities:
 
 ```python
 # RFC-044 registry entries for RFC-052 models
@@ -473,7 +471,7 @@ so that RFC-049 can query model capabilities:
 )
 ```
 
-This enables RFC-049 to check `supports_extraction` before
+This enables the GIL core design to check `supports_extraction` before
 attempting GIL extraction via a local LLM.
 
 ## Relationship to Other RFCs
@@ -491,7 +489,7 @@ RFC-042 (Hybrid ML Platform) ── infrastructure
     │    for Ollama-hosted LLMs
     │
     ▼
-RFC-049 (GIL) ── domain extraction
+the GIL ── domain extraction
     Uses RFC-052 prompts for Tier 2 extraction
 ```
 
@@ -512,8 +510,6 @@ RFC-049 (GIL) ── domain extraction
   model loading, structured extraction)
 - **RFC-052**: Model-specific prompt engineering (the
   "quality knob" for local LLMs)
-- **RFC-049**: GIL extraction orchestration (consumes
-  prompts from RFC-052 for Tier 2)
 
 Together, these provide:
 
@@ -663,7 +659,6 @@ quality (052) → ready for GIL extraction (049).**
 - **Related RFC**: `docs/rfc/RFC-037-ollama-provider-implementation.md`
 - **Related RFC**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
 - **Related RFC**: `docs/rfc/RFC-044-model-registry.md`
-- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related Issue**: #196 - Implement Ollama data providers
 - **Source Code**: `podcast_scraper/providers/ollama/`
 - **External Documentation**:

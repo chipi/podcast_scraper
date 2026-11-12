@@ -23,8 +23,6 @@
   - [ADR-066: Playwright for UI E2E testing](../adr/ADR-066-playwright-for-ui-e2e-testing.md)
 - **Related RFCs**:
   - [RFC-061: Semantic corpus search](RFC-061-semantic-corpus-search.md) — search backend
-  - [RFC-049: GIL core](RFC-049-grounded-insight-layer-core.md) — GI artifact shape
-  - [RFC-050: GIL use cases](RFC-050-grounded-insight-layer-use-cases.md) — explore / QA patterns
   - [RFC-055: KG core](RFC-055-knowledge-graph-layer-core.md) — KG artifact shape
   - [RFC-056: KG use cases](RFC-056-knowledge-graph-layer-use-cases.md)
   - [RFC-067: Corpus library API & viewer](RFC-067-corpus-library-api-viewer.md) — **`/api/corpus/feeds`**
@@ -978,8 +976,8 @@ platform server** ([#50](https://github.com/chipi/podcast_scraper/issues/50),
 [#347](https://github.com/chipi/podcast_scraper/issues/347), megasketch):
 
 ```text
-RFC-049 (GIL Core)             → artifacts visualized in graph
-RFC-050 (GIL Use Cases)        → UC4/UC5 exposed via explore/search UI
+The GIL core design (GIL Core)             → artifacts visualized in graph
+The GIL use-case design (GIL Use Cases)        → UC4/UC5 exposed via explore/search UI
 RFC-055 (KG Core)              → KG artifacts visualized in graph
     ↓
 RFC-061 (Semantic Search)      → search backend consumed by viewer
@@ -1068,7 +1066,7 @@ RFC-051 (DB Projection)        → structured query backend (platform reads)
   [PRD-023](../prd/PRD-023-corpus-digest-recap.md), [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md)
 - **RFCs**: [RFC-061](RFC-061-semantic-corpus-search.md), [RFC-067](RFC-067-corpus-library-api-viewer.md),
   [RFC-068](RFC-068-corpus-digest-api-viewer.md), [RFC-069](RFC-069-graph-exploration-toolkit.md),
-  [RFC-049](RFC-049-grounded-insight-layer-core.md), [RFC-050](RFC-050-grounded-insight-layer-use-cases.md),
+  
   [RFC-055](RFC-055-knowledge-graph-layer-core.md), [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md),
   [RFC-051](RFC-051-database-projection-gil-kg.md)
 - **UXS**: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) (hub); [UXS index](../uxs/index.md) (feature specs)

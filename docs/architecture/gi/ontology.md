@@ -5,7 +5,7 @@
 > ([RFC-097](../../rfc/RFC-097-unified-kg-gi-ontology-v2.md), 2026-06-20):
 > `Organization` is a first-class node; `ABOUT` / `MENTIONS_PERSON` /
 > `MENTIONS_ORG` edges materialize per-artifact; `insight_type` and
-> `position_hint` (RFC-072 v1.1 additive fields) ship; `edge_class`
+> `position_hint` (the cross-layer identity design v1.1 additive fields) ship; `edge_class`
 > metadata declares evidentiary / descriptive / discovery / structural /
 > attribution per edge. **The grounding contract (`SUPPORTED_BY`,
 > `Insight.grounded`) is preserved bit-for-bit.** This doc is retained
@@ -15,7 +15,7 @@
 
 v1 (implementation-ready)
 
-**Shipping note (GIL backlog / Issue #460):** The extractor currently emits **Episode**, **Insight**, **Quote**, and **SUPPORTED_BY** edges. **Topic** nodes and **ABOUT** edges are defined in this ontology for forward compatibility and for **`gi explore`** when artifacts are enriched, but are **not** produced automatically by the default pipeline yet. **Quote.speaker_id** is set when transcription **segments** (e.g. `.segments.json`) include **`speaker`** or **`speaker_id`** aligned with the transcript; otherwise **`null`**. When diarization is present, the pipeline emits a **Person** node (RFC-072 **`person:{slug}`**) and a **SPOKEN_BY** edge (**Quote → Person**) so **`gi explore`** can show graph-backed names. Legacy artifacts may still use **Speaker** / **`speaker:`** until migrated.
+**Shipping note (GIL backlog / Issue #460):** The extractor currently emits **Episode**, **Insight**, **Quote**, and **SUPPORTED_BY** edges. **Topic** nodes and **ABOUT** edges are defined in this ontology for forward compatibility and for **`gi explore`** when artifacts are enriched, but are **not** produced automatically by the default pipeline yet. **Quote.speaker_id** is set when transcription **segments** (e.g. `.segments.json`) include **`speaker`** or **`speaker_id`** aligned with the transcript; otherwise **`null`**. When diarization is present, the pipeline emits a **Person** node (the cross-layer identity design **`person:{slug}`**) and a **SPOKEN_BY** edge (**Quote → Person**) so **`gi explore`** can show graph-backed names. Legacy artifacts may still use **Speaker** / **`speaker:`** until migrated.
 
 ## Purpose
 
@@ -186,7 +186,7 @@ Optional:
 ### Person
 
 **Definition:** Canonical identity for someone who speaks in the corpus when diarization is
-available (RFC-072 **`person:{slug}`**).
+available (the cross-layer identity design **`person:{slug}`**).
 
 **Legacy:** Pre-migration artifacts may use **`type`: `"Speaker"`** and **`speaker:{slug}`**
 node ids with the same meaning until rewritten.
@@ -307,7 +307,7 @@ Optional:
 
 ### SPOKEN_BY (Quote → Person) (NEW)
 
-**Definition:** Links a Quote to the **Person** who said it (RFC-072 **`person:{slug}`**).
+**Definition:** Links a Quote to the **Person** who said it (the cross-layer identity design **`person:{slug}`**).
 
 **Required properties:** none
 
@@ -516,7 +516,7 @@ Note: No `SUPPORTED_BY` edges exist for this Insight, and `grounded=false` is ex
 
 ---
 
-## RFC-072 (schema 2.0)
+## The cross-layer identity design (schema 2.0)
 
 - **`schema_version`:** `2.0` for new pipeline output; `1.0` remains valid for older files.
 - **Person nodes:** **`Person`** replaces **`Speaker`**; ids use **`person:{slug}`** (see `graph_id_utils.person_node_id`). **`Quote.speaker_id`** values use the same **`person:`** prefix when diarization is present.
@@ -529,4 +529,4 @@ Note: No `SUPPORTED_BY` edges exist for this Insight, and `grounded=false` is ex
 | Version | Date       | Changes                                                         |
 | ------- | ---------- | --------------------------------------------------------------- |
 | 1.0     | 2026-02-06 | Initial v1: Insight + Quote model, grounding contract           |
-| 2.0     | 2026-04-13 | RFC-072: Person / `person:`, `insight_type`, `position_hint`    |
+| 2.0     | 2026-04-13 | Person / `person:`, `insight_type`, `position_hint`             |

@@ -173,16 +173,6 @@ number, file, line, date, and a short comment.
 | 1 | #56 | search/cli_handlers.py | 81 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
 | 1 | #57 | search/cli_handlers.py | 82 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
 | 1 | #58 | search/corpus_search.py | 120 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #59 | gi/explore.py | 68 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #60 | gi/explore.py | 72 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #61 | gi/explore.py | 73 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #62 | gi/explore.py | 74 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #63 | gi/explore.py | 130 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #64 | gi/explore.py | 148 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #65 | gi/explore.py | 151 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #66 | gi/explore.py | 162 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #67 | gi/explore.py | 163 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
-| 1 | #68 | gi/explore.py | 304 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
 | 1 | #69 | search/faiss_store.py | 164 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
 | 1 | #70 | search/faiss_store.py | 166 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
 | 1 | #71 | search/faiss_store.py | 169 | 2026-04-06 | normpath+startswith via resolve_corpus_path_param |
@@ -281,7 +271,6 @@ number, file, line, date, and a short comment.
 | 1 | #362 | search/backends/lancedb_backend.py | 359 | 2026-06-11 | Type 1: same sanitizer chain, schema-version helper filesystem sink on the route-confined corpus root (PR #969) |
 | 1 | #363 | search/backends/lancedb_backend.py | 341 | 2026-06-11 | Type 1: same sanitizer chain, ``stored_schema_version`` sink re-numbered after the fix line-shift; ``meta_path`` via ``normpath_if_under_root``. Same shape as #338/#342 (PR #969) |
 | 1 | #369 | server/routes/corpus_digest.py | 278 | 2026-06-15 | Type 1: corpus path sanitised upstream (resolve_corpus_path_param/safe_resolve_directory); index sub-path from constant suffix. FAISS→LanceDB refactor (#995, PR #1010) |
-| 1 | #370 | gi/explore.py | 131 | 2026-06-15 | Type 1: ``default_vector_index_dir`` builds ``output_dir/search`` (constant suffix) on a validated root. #995, PR #1010 |
 | 1 | #371 | search/index_pool.py | 45 | 2026-06-15 | Type 1: ``getmtime`` on a validated index_dir (resolve_corpus_path_param/safe_resolve_directory upstream). #995, PR #1010 |
 | 1 | #372 | search/index_pool.py | 69 | 2026-06-15 | Type 1: ``get_lance_backend`` resolves a validated index_dir; cross-fn sanitiser. #995, PR #1010 |
 | 1 | #374 | search/lance_index_stats.py | 38 | 2026-06-15 | Type 1: ``_dir_size`` os.walk on a validated lance_dir under the sanitised corpus root. #995, PR #1010 |
@@ -396,7 +385,6 @@ matching row from "Still open."
 | 1 | #549 | workflow/run_index.py | 291 | 2026-09-01 | Re-issue of dismissed #503 (same sink, moved 288 -> 291 by the PR #1898 refactor). `_scan_corpus_metadata_index` globs **constant** patterns under a caller-supplied root; the only request-derived caller is `routes/corpus_rollback`, which builds the root via `resolve_corpus_path_param` (normpath + `resolve()` + `startswith(anchor + os.sep)`, raises 400 on escape). The other caller passes `cfg.output_dir` (operator config, not a request). |
 | 1 | #561 | server/routes/app_profile.py | 107 | 2026-09-11 | `serve_avatar` returns 404 unless `_is_safe_user_id` (`re.fullmatch(r'u_[0-9a-f]{24}')`); path is `<data_dir>/users/<24hex>/` + fixed `avatar.*` glob — cannot traverse. Auth-gated. (PR #2034; second taint path on the same line as #562.) |
 | 1 | #562 | server/routes/app_profile.py | 107 | 2026-09-11 | `serve_avatar`: same `_is_safe_user_id` fullmatch guard + fixed `avatar.*` glob. Auth-gated. (PR #2034.) |
-| 1 | #564 | enrichment/enrichers/person_web.py | 432 | 2026-09-11 | `person_image_path`: `person_id` → `_safe_name` (separator-stripping char allow-list) + fixed `f'{stem}.{ext}'` glob under the images dir; the joined path is always a direct child of the dir. (PR #2034.) |
 | 1 | (PR #2126, fill on dismissal) | perf_cache.py | 154 | 2026-09-19 | `corpus_mtime`: read-only `os.path.getmtime(root / name)` where `name` comes from a **constant tuple** of four filenames. Every server caller anchor-guards the root first — `corpus_access` via `safe_resolve_directory(root)` (line 68), likewise `catalog_cache`, `app_cache_warm`, `cil_queries`. Same shape as dismissed #500/#501. An inline pragma is already present on the line above and does not clear the PR check. |
 | 1 | (PR #2126, fill on dismissal) | kg/entity_clusters.py | 500 | 2026-09-19 | `cached_entity_id_map`: the flagged line is `key = (str(root.resolve()), bool(same_show_required))` — a **cache key**, not a filesystem sink. `.resolve()` normalises; nothing is opened, globbed or stat'd on this line. |
 | 1 | (PR #2126, fill on dismissal) | search/corpus_graph.py | 563 | 2026-09-19 | `get_corpus_graph`: the flagged line is `_root = str(Path(corpus_dir).resolve())`, again a **cache key** rather than a sink. Same no-filesystem-access argument as the entity_clusters entry above. |

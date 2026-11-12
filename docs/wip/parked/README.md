@@ -13,7 +13,7 @@ From `feat/cleaned-base-llm-selection` at `4758c43ad` (2026-10-05). Base: `29153
 What it is: LLM transcript cleaning by **selection** (#2276). The model picks which sentences to
 drop, or names ad blocks by both ends, and never writes transcript text. One shared prompt for
 every provider, and a "cleaned base" every consumer reads. The core is
-`src/podcast_scraper/cleaning/span_selection.py` and `workflow/adfree_transcript.py`, plus about
+`src/podcast_scraper/cleaning/span_selection.py` and the ad-free transcript builder, plus about
 460 lines of tests.
 
 Why it is parked: it was held back from #2285 on purpose (only the naming half shipped there).

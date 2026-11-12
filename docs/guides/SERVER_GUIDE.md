@@ -15,7 +15,7 @@ through a JSON API consumed by the Vue 3 SPA
 
 **Corpus lifecycle:** routes read **current** files under the configured corpus root.
 Re-running extraction, the bridge builder, or corpus topic clustering can change canonical ids
-and cluster compounds; responses are not pinned to an older ingest. See [Operational note (canonical identity)](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance).
+and cluster compounds; responses are not pinned to an older ingest.
 
 **Repo layout:** Python at the root, Node UI in `web/gi-kg-viewer/`. See
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env files and Makefile targets (`make serve`,
@@ -427,15 +427,10 @@ Located in `tests/unit/podcast_scraper/server/`:
 | `test_viewer_api_m1.py` | Health endpoint, artifact listing, artifact loading, path traversal rejection. |
 | `test_viewer_index_stats.py` | Index stats with no corpus, no index, and a mocked LanceDB index. |
 | `test_viewer_search.py` | Search with no corpus, mocked `run_corpus_search` results. |
-| `test_viewer_explore.py` | Explore filter mode and UC4 natural-language mode with mocked GI functions. |
 | `test_cil_queries.py` | CIL query helpers over synthetic bridge + GI/KG bundles (#527). |
 | `test_corpus_catalog.py` | Catalog rows, filters, and pagination helpers for Corpus Library. |
 | `test_index_rebuild_gate.py` | Per-corpus rebuild mutex (`CorpusRebuildGate`). |
 | `test_index_staleness.py` | Index staleness helpers used by index stats. |
-
-**Lift and offsets (search):** `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`
-exercises **chunk-to-Insight lift** (#528); `test_gil_chunk_offset_verify.py` covers **Quote vs
-indexed chunk** alignment helpers used by **`verify-gil-chunk-offsets`**.
 
 All test files guard on `pytest.importorskip("fastapi")` so they stay
 runnable in intentionally stripped environments (the default `test-unit`
@@ -459,7 +454,6 @@ NL modes), and app factory edge cases. Marked `@pytest.mark.integration`.
 Additional integration modules under `tests/integration/server/` include
 `test_viewer_corpus_library.py` (Corpus Library routes),
 `test_viewer_corpus_digest.py` (`GET /api/corpus/digest`),
-`test_cil_api.py` (CIL `/api/persons/*` and `/api/topics/*` routes),
 `test_index_rebuild.py` (`POST /api/index/rebuild` gate and acceptance),
 `test_viewer_index_stats.py`, `test_viewer_api.py`, `test_server_app.py`, and
 `test_server_package_init.py`.

@@ -6,8 +6,6 @@
 - **Related ADRs**:
   - [ADR-101](ADR-101-drop-legacy-kg-gi-shape.md) — strict KG v2.0 /
     GI v3.0 contract this ADR partitions.
-  - [ADR-103](ADR-103-deterministic-connectivity-under-llm-free-profiles.md)
-    — RFC-097 chunk 9 KG-direct path that motivates the partition.
   - [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) —
     per-episode JSON archive convention enrichment outputs extend.
   - [ADR-052](ADR-052-separate-gil-and-kg-artifact-layers.md) —
@@ -35,9 +33,7 @@ cross-show Topic clustering and **adds synthetic
 the per-episode `*.kg.json` files**. The function fires from
 `workflow/orchestration.py` Step 16 (after `_finalize_pipeline`) on
 every corpus run where `cfg.kg_topic_corpus_clustering` is true —
-default-true for the `airgapped*` profiles. ADR-103 ratified this as
-how we close the airgapped-CI connectivity gap without introducing stub
-mode.
+default-true for the `airgapped*` profiles.
 
 Read literally against RFC-088 Decision #1, chunk 9 violates the
 enrichment-layer contract: it writes derived signals into core
@@ -118,7 +114,7 @@ Three observations made this the cleanest framing:
 3. **Coexistence beats migration.** Retiring chunk 9 to move
    `RELATED_TO` into enrichments would break every consumer that
    already reads it (the relational query layer, the viewer graph
-   surface, ADR-103's airgapped CI story) without buying back the
+   surface, the airgapped CI story) without buying back the
    audience that wanted scores (which is best served by a separate
    enricher anyway). Coexistence preserves both audiences with zero
    migration.
@@ -140,7 +136,7 @@ Three observations made this the cleanest framing:
   `RELATED_TO` to enrichments/.** Rejected. Cleaner architecturally
   on paper, but breaks every consumer that already reads `RELATED_TO`
   from KG (viewer graph, ABOUT∩MENTIONS_PERSON joins, relational
-  query layer, airgapped CI per ADR-103), invalidates every corpus
+  query layer, airgapped CI), invalidates every corpus
   generated since PR #1094, and forces a v3 KG ontology change.
   Cost / benefit not justified.
 - **Mark RFC-088 Decision #1 as "aspirational only"; ignore the
@@ -157,7 +153,7 @@ Three observations made this the cleanest framing:
 
 - Future enrichment authors have a precise rule for where their output
   belongs (traversal → core; ranking → enrichment).
-- RFC-097 chunk 9's airgapped-CI story (ADR-103) is preserved without
+- RFC-097 chunk 9's airgapped-CI story is preserved without
   awkward exception-carving.
 - `topic_similarity` (RFC-088 chunk 3) ships alongside chunk 9
   `RELATED_TO` with no architectural friction — they serve different

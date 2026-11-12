@@ -11,7 +11,6 @@
   - _(none yet)_
 - **Related RFCs**:
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — provides the RRF fusion slot (hard dependency)
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — entity resolution
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — contradiction signals (future edges)
 - **Related Documents**:
   - `docs/architecture/kg/kg.schema.json` — KG edge schema (today: `MENTIONS`/`RELATED_TO`; GI also emits `ABOUT`)
@@ -311,7 +310,7 @@ This RFC is signal 3 of 3 in the Search initiative.
 | RFC | Relationship |
 | --- | --- |
 | RFC-090 | Provides the reserved third-list slot and RRF fusion (hard dependency) |
-| RFC-072 | Entity resolver uses the canonical identity layer (Partial — resolver pending) |
+| The cross-layer identity design | Entity resolver uses the canonical identity layer (Partial — resolver pending) |
 | RFC-088 | Contradiction signals; when modelled as typed KG edges, they surface via proximity |
 
 ## Benefits
@@ -340,8 +339,7 @@ This RFC is signal 3 of 3 in the Search initiative.
 ## References
 
 - **Related PRD**: `docs/prd/PRD-032-hybrid-corpus-search.md`
-- **Related RFC**: `docs/rfc/RFC-090-hybrid-retrieval.md`,
-  `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
+- **Related RFC**: `docs/rfc/RFC-090-hybrid-retrieval.md`
 - **Source Code**: `src/podcast_scraper/kg/` (artifact loaders — no traversal API yet),
   `src/podcast_scraper/identity/slugify.py` (slug only — no resolver),
   `src/podcast_scraper/gi/about_edges.py` (existing `ABOUT` edges)

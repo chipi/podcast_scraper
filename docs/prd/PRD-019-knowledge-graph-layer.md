@@ -1,13 +1,12 @@
 # PRD-019: Knowledge Graph Layer (KG)
 
 - **Status**: Implemented (v2.7)
-- **v2 closure (RFC-097, 2026-06-20)**: FR3.1 (documented entity node types — Person/Org/Podcast first-class), entity identity fragmentation closed via CIL (`entity:person:` → `person:`), KG schema v2.0 ships. Non-Goal "merging KG into gi.json" clarified: v2 unifies the **ontology**, not the file layout. Cross-layer bridge ([RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)) Completed. Single-layer use cases ([RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)) Completed. Postgres database projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) + asymptotic entity resolution remain open as orthogonal scope. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **v2 closure (RFC-097, 2026-06-20)**: FR3.1 (documented entity node types — Person/Org/Podcast first-class), entity identity fragmentation closed via CIL (`entity:person:` → `person:`), KG schema v2.0 ships. Non-Goal "merging KG into gi.json" clarified: v2 unifies the **ontology**, not the file layout. Cross-layer bridge Completed. Single-layer use cases ([RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)) Completed. Postgres database projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) + asymptotic entity resolution remain open as orthogonal scope. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Related RFCs** (RFCs whose **Related PRD** is PRD-019 in [RFC index](../rfc/index.md); they specify or ship this feature):
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core & artifacts (**complete**)
   - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — Use cases & consumption (**complete**)
   - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer (KG graph/search surfaces) (**complete**)
-  - [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — Canonical Identity Layer + cross-layer bridge (**complete**)
   - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — Unified KG + GI ontology v2 (**complete**)
   - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — Postgres projection (**Draft**, deferred persistence-layer scope)
 - **Related PRDs** (reference only; separate features):
@@ -55,7 +54,7 @@ Podcast libraries are easier to explore when content is not only summarized (PRD
 2. **Independent feature flag**: Enable or disable KG **without** requiring GIL or changing GIL semantics.
 3. **Clear consumption path**: Document how consumers query or merge KG data (files, and **relational projection** per [PRD-018](PRD-018-database-projection-gil-kg.md) / [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) when enabled).
 4. **Stable contracts**: Versioned schema and ontology artifacts under `docs/architecture/kg/` aligned with RFC-055.
-5. **Documented consumption**: End-to-end use cases, query patterns, and CLI expectations for KG are specified in RFC-056 and `KNOWLEDGE_GRAPH_GUIDE.md`, in **parity with** the GIL split (PRD-017 / RFC-049 + RFC-050 + `GROUNDED_INSIGHTS_GUIDE.md`).
+5. **Documented consumption**: End-to-end use cases, query patterns, and CLI expectations for KG are specified in RFC-056 and `KNOWLEDGE_GRAPH_GUIDE.md`, in **parity with** the GIL split (PRD-017).
 
 ## Documentation parity with GIL (PRD-017)
 
@@ -64,9 +63,9 @@ KG is intentionally documented to the **same artifact set** as GIL where it appl
 | Artifact | GIL | KG |
 | --- | --- | --- |
 | Product requirements | PRD-017 | PRD-019 (this document) |
-| Core data model & artifact | RFC-049 | RFC-055 |
-| Use cases & consumption | RFC-050 | RFC-056 |
-| User guide | `GROUNDED_INSIGHTS_GUIDE.md` | `KNOWLEDGE_GRAPH_GUIDE.md` |
+| Core data model & artifact | — | RFC-055 |
+| Use cases & consumption | — | RFC-056 |
+| User guide | — | `KNOWLEDGE_GRAPH_GUIDE.md` |
 | Relational serving (optional) | PRD-018 / RFC-051 | Same PRD/RFC (separate tables) |
 
 Shared projection work does **not** duplicate here: [PRD-018](PRD-018-database-projection-gil-kg.md) /
@@ -168,7 +167,7 @@ features.
 
 ## Design Considerations
 
-- **Naming**: User-facing **grounded insights** remain under **`gi`** (RFC-049 / RFC-050);
+- **Naming**: User-facing **grounded insights** remain under **`gi`**;
   knowledge graph operations and artifacts use **`kg`** (RFC-055). Do not interchange **`gi`**
 
   and **`kg`** in user-facing strings.

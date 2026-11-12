@@ -53,7 +53,6 @@ This architecture document is the central hub for understanding the system. For 
   retained for archaeology)
 - **[GIL Schema](gi/gi.schema.json)** — Machine-
   readable JSON schema for `gi.json` validation
-- **[GIL / KG / CIL cross-layer](../guides/GIL_KG_CIL_CROSS_LAYER.md)** — `bridge.json`, CIL HTTP queries, search lift, offset verification (RFC-072)
 
 ## Goals and Scope
 
@@ -93,12 +92,11 @@ This architecture document is the central hub for understanding the system. For 
   (RFC-069), and semantic search — served as a
   FastAPI + Vue 3 SPA.
 - Support **canonical cross-layer identity** (CIL,
-  RFC-072): per-episode **`bridge.json`** joins GIL and
+  The cross-layer identity design): per-episode **`bridge.json`** joins GIL and
   KG under shared **`person:`** / **`topic:`** / **`org:`**
   ids; **read-only CIL HTTP APIs** and optional
   **transcript hit lift** in semantic search depend on
   aligned **Quote** and **indexed transcript chunk** char offsets.
-  Overview: [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
 
 ## Ways to run and deploy
 
@@ -117,32 +115,30 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 ## GIL, KG, and canonical cross-layer (CIL) {#gil-kg-and-canonical-cross-layer-cil}
 
-**GIL** (`gi.json`) and **KG** (`*.kg.json`) stay **separate artifacts** ([ADR-052](../adr/ADR-052-separate-gil-and-kg-artifact-layers.md)). **RFC-072** adds **`bridge.json`** per episode: a compact list of **canonical identities** (`person:…`, `topic:…`, `org:…`) with **`display_name`** and provenance so HTTP APIs and the viewer can join layers without merging the full ontologies.
+**GIL** (`gi.json`) and **KG** (`*.kg.json`) stay **separate artifacts** ([ADR-052](../adr/ADR-052-separate-gil-and-kg-artifact-layers.md)). **the cross-layer identity design** adds **`bridge.json`** per episode: a compact list of **canonical identities** (`person:…`, `topic:…`, `org:…`) with **`display_name`** and provenance so HTTP APIs and the viewer can join layers without merging the full ontologies.
 
 **Consumption today:**
 
 - **Viewer** — Loads GI/KG (and bridge where present) via **`GET /api/artifacts`**; graph merge and catalog rows may use bridge paths from metadata ([Server Guide](../guides/SERVER_GUIDE.md), [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)).
-- **CIL query API** — Filesystem scans for `*.bridge.json` with sibling `gi.json` / `kg.json`; patterns for person/topic arcs and timelines ([RFC-072 § query patterns](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)).
+- **CIL query API** — Filesystem scans for `*.bridge.json` with sibling `gi.json` / `kg.json`; patterns for person/topic arcs and timelines.
 - **Semantic search** — **Transcript** hits can expose an optional **`lifted`** object (insight, speaker, topic, quote timestamps) when chunk char ranges overlap a **Quote** and edges/`bridge.json` allow resolution ([Semantic Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md)).
 
-**Shared implementation seams:** `src/podcast_scraper/builders/bridge_artifact_paths.py` is the single place for **bridge / GI / KG sibling path** rules (metadata → `bridge.json`, `bridge.json` → `gi.json`/`kg.json`, `gi.json` → `bridge.json`). `src/podcast_scraper/gi/edge_normalization.py` normalises **GIL edge `type`** strings for graph walks (CIL queries and search lift). **`build_bridge`** payload assembly stays in `builders/bridge_builder.py`.
+**Shared implementation seams:** `src/podcast_scraper/builders/bridge_artifact_paths.py` is the single place for **bridge / GI / KG sibling path** rules (metadata → `bridge.json`, `bridge.json` → `gi.json`/`kg.json`, `gi.json` → `bridge.json`). The installed GIL extension normalises **GIL edge `type`** strings for graph walks (CIL queries and search lift) and assembles the **`build_bridge`** payload.
 
-**Operational gate:** Before relying on lift in production-shaped corpora, run **Quote vs chunk offset** verification (`verify-gil-chunk-offsets` or **`make verify-gil-offsets-strict`**) on an indexed run. Details: [Semantic Search Guide — lift and verification](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528), [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
+**Operational gate:** Before relying on lift in production-shaped corpora, run **Quote vs chunk offset** verification (`verify-gil-chunk-offsets` or **`make verify-gil-offsets-strict`**) on an indexed run. Details: [Semantic Search Guide — lift and verification](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification).
 
-**Re-pipeline stance:** Re-running extraction, the bridge builder, or RFC-075 clustering **replaces** on-disk artifacts under the corpus root. Canonical ids and `tc:` cluster parents are **not** frozen at first ingest. HTTP APIs and the viewer read **current** files for the configured path. See [RFC-072 — Operational note](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance) and [GIL / KG / CIL — When the corpus is re-built](../guides/GIL_KG_CIL_CROSS_LAYER.md#when-the-corpus-is-re-built).
+**Re-pipeline stance:** Re-running extraction, the bridge builder, or topic clustering **replaces** on-disk artifacts under the corpus root. Canonical ids and `tc:` cluster parents are **not** frozen at first ingest. HTTP APIs and the viewer read **current** files for the configured path.
 
-**Full spec:** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md).
+## Corpus Topic Clustering Layer {#corpus-topic-clustering-layer}
 
-## Corpus Topic Clustering Layer (RFC-075) {#corpus-topic-clustering-layer-rfc-075}
-
-**Purpose:** Group **semantically similar KG topic nodes** across episodes when LLMs assign different `topic:{slug}` ids for the same real-world subject. This is a **corpus-level, optional** step that sits **beside** per-episode KG extraction and **beside** CIL: it **reads** KG topic labels and embeddings produced for semantic search (RFC-061), writes a small filesystem artifact **`topic_clusters.json`** under `<corpus>/search/`, and can feed **auto-generated** `topic_id_aliases` for CIL (RFC-072). The GI/KG viewer may render clusters as **Cytoscape compound parent nodes** without rewriting raw `*.kg.json`.
+**Purpose:** Group **semantically similar KG topic nodes** across episodes when LLMs assign different `topic:{slug}` ids for the same real-world subject. This is a **corpus-level, optional** step that sits **beside** per-episode KG extraction and **beside** CIL: it **reads** KG topic labels and embeddings produced for semantic search (RFC-061), writes a small filesystem artifact **`topic_clusters.json`** under `<corpus>/search/`, and can feed **auto-generated** `topic_id_aliases` for CIL. The GI/KG viewer may render clusters as **Cytoscape compound parent nodes** without rewriting raw `*.kg.json`.
 
 **Boundaries:**
 
 - **In scope:** Build-time or CLI-triggered clustering; optional operator-authored YAML for `topic-clusters --validate-config` (no committed canonical file); HTTP surface to serve the JSON artifact; viewer overlay only.
 - **Out of scope:** Replacing KG extraction, replacing the LanceDB search index, or requiring a database. No query-time external embedding APIs.
 
-**Design:** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) (Draft) — current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL).
+Current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL).
 
 ## Insight Clustering Layer (#599) {#insight-clustering-layer}
 
@@ -153,7 +149,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 - **In scope:** CLI-triggered clustering via `insight-clusters` command; `--expand-clusters` flag on `gi explore` for cross-episode evidence; insight_clusters.json artifact.
 - **Out of scope:** Speaker profiles, consensus detection, temporal tracking (parked — need diarization data).
 
-**Design:** Same average-linkage algorithm as topic clustering (RFC-075). Reads insight texts from `*.gi.json` artifacts, embeds with sentence-transformers, clusters at configurable threshold (default 0.75). The cluster context expansion layer (`insight_cluster_context.py`) adds cross-episode quotes to explore results without modifying the core explore pipeline.
+**Design:** Same average-linkage algorithm as topic clustering. Reads insight texts from `*.gi.json` artifacts, embeds with sentence-transformers, clusters at configurable threshold (default 0.75). The cluster context expansion layer (`insight_cluster_context.py`) adds cross-episode quotes to explore results without modifying the core explore pipeline.
 
 **Multi-quote extraction (#600):** All 8 providers extract multiple verbatim quotes per insight (uncapped, typically 3-5 on real podcasts). Parser handles both new `{"quotes": [...]}` format and backward-compatible `{"quote_text": "..."}`. ML provider uses `answer_candidates(top_k=3)`. Quote deduplication by text prevents LLM repetition.
 
@@ -207,7 +203,7 @@ The following architectural principles govern this system. For the full history 
 - **Workflow**: Git worktree-based isolation ([ADR-032](../adr/ADR-032-git-worktree-based-development.md)) with independent environments ([ADR-034](../adr/ADR-034-isolated-runtime-environments.md)).
 - **Quality**: Three-tier test pyramid ([ADR-019](../adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](../adr/ADR-023-public-operational-metrics.md)). The viewer applies its own three-tier variant with production-shaped fixtures ([ADR-095](../adr/ADR-095-viewer-test-pyramid.md), [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)) so cross-surface graph handoffs land in a contract test before any fix merges.
 - **Viewer graph handoff orchestrator (FSM)**: a single 8-state machine owns every cross-surface graph handoff — Library, Digest, Search, Dashboard, Episode panel, canvas, mini-map ([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)). Generation tokens supersede stale work, a 5s wall-clock detector surfaces stuck handoffs via a visible error strip, and a `layoutstop`-driven invariant repairs filteredArtifact ↔ Cytoscape divergence in production. See [VIEWER_GRAPH_SPEC](VIEWER_GRAPH_SPEC.md) and [VIEWER_FRONTEND_ARCHITECTURE](VIEWER_FRONTEND_ARCHITECTURE.md) for the orchestrator wiring.
-- **Compose, CI gates, CIL, autoresearch v2, macOS ML safety**: [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md) (full-stack Compose), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (ephemeral stack-test on `main`), [ADR-086](../adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) (CIL + `bridge.json`), `ADR-087` autoresearch Track A v2 (moved to the private eval repo as ADR-006), [ADR-088](../adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) (local ML process safety); normative specs in [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md), [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md), `RFC-073` (moved to the private eval repo as RFC-003), [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md).
+- **Compose, CI gates, CIL, autoresearch v2, macOS ML safety**: [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md) (full-stack Compose), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (ephemeral stack-test on `main`), [ADR-086](../adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) (CIL + `bridge.json`), `ADR-087` autoresearch Track A v2 (moved to the private eval repo as ADR-006), [ADR-088](../adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) (local ML process safety); normative specs in [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md), `RFC-073` (moved to the private eval repo as RFC-003), [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md).
 - **Cross-surface stack contract (audit table, steady vs recovery):** STACK_CONTRACT and ADR-093 (both not in this repository).
 - **Process Safety** ([RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md)): ML model loading (spaCy, Transformers, Whisper) triggers heavy APFS filesystem I/O that can cause macOS kernel lock contention. Mitigations: no ML imports at Makefile parse time, filesystem-only cache checks, pre-commit hook timeout (120s), `cleanup-processes` prerequisite on `ci`/`ci-fast`, offline-mode enforcement (`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE`), and agent rules preventing overlapping `make ci` runs. Diagnostic targets: `make check-zombie` (detects unkillable UE-state processes) and `make check-spotlight` (verifies Spotlight indexing status).
 
@@ -254,15 +250,13 @@ multi-feed semantics, and behavioral details see the
 | `providers/tailnet_dgx/` | Self-hosted GPU inference providers: whisper transcription + pyannote diarization over a private network | ADR-096 (not in this repository) |
 | `providers/resilience/` | Deployment-agnostic primitives: `CircuitBreaker`, `TimeoutLike`, `run_with_watchdog`, `hardened_http_client` (TCP keepalive + `Connection: close`). Used by `tailnet_dgx/*` today; available to any provider that needs connection-level resilience. | [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md) |
 | `providers/guardrails/` | Response-shape sanity checks: `check_chat_response`, `check_whisper_response`, `check_diarization_response` — raise `GuardrailViolation` when a `200 OK` response contains semantically-corrupted content (empty, thinking-prose, `finish_reason=length`, malformed JSON). Wired at every chat-completion call site across cloud + self-hosted providers. | [ADR-105](../adr/ADR-105-response-shape-guardrails-for-self-deployed-services.md), [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md) |
-| `gi/` | Grounded Insight Layer extraction (PRD-017) | [GI Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) |
 | `insight_stage/` | The insight stage: GI, the bridge, the context digest, the GI views, `cil_queries`, insight clusters and the GI read routes (explore, CIL, corpus persons). Reached only through the hooks; leaves public with the split | [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) |
-| `speaker_stage/` | The speaker stage: hosts, guests, diarization and naming after ASR. Reached only through the hooks; leaves public with the split | [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) |
 | `stage_hooks.py`, `read_hooks.py`, `cli_hooks.py` | The seams the pipeline, the server's read side and the CLI call by name; `builtin_*` modules register today's in-tree code as the built-in owner | [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) |
 | `extensions.py` | Installed extensions (entry points): their hooks, routers, CLI verbs, corpus migrations and database modules | [ADR-168](../adr/ADR-168-installed-extensions.md), [ADR-174](../adr/ADR-174-extension-corpus-migrations.md) |
 | `identity/` | Person identity: the ledger and its joins, and the display seam every surface reads a person's shown name through (`identity.display`) | [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) |
 | `kg/` | Knowledge Graph extraction (RFC-055) | [KG Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md) |
 | `enrichment/` | Enrichment layer (RFC-088): typed enrichers + registry + tier-aware executor + data-driven accuracy gate; writes `enrichments/` envelopes read by both UIs | [Enrichment Guide](../guides/ENRICHMENT_LAYER_GUIDE.md), [ADR-104](../adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md) |
-| `search/` | LanceDB vector indexing, semantic search, episode similarity; **corpus topic clustering** (`topic_clusters.json`, RFC-075) | [Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md), [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) |
+| `search/` | LanceDB vector indexing, semantic search, episode similarity; **corpus topic clustering** (`topic_clusters.json`, topic clustering) | [Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md) |
 | `server/` | FastAPI HTTP layer, corpus catalog, digest, index rebuild | [Server Guide](../guides/SERVER_GUIDE.md), [Viewer Frontend](VIEWER_FRONTEND_ARCHITECTURE.md) |
 | `monitor/` | Live pipeline monitor (RFC-065) | [Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) |
 | `models/` | Shared dataclasses (`RssFeed`, `Episode`, etc.) | |
@@ -300,7 +294,7 @@ graph TB
 
     subgraph "Provider System"
         TranscriptionFactory[transcription/factory.py]
-        SpeakerFactory[speaker_detectors/factory.py]
+        SpeakerFactory[speaker detector factory]
         SummaryFactory[summarization/factory.py]
         Capabilities[providers/capabilities.py]
     end
@@ -359,9 +353,9 @@ graph TB
     end
 
     subgraph "Knowledge Extraction"
-        GI[gi/pipeline.py]
-        GISchema[gi/schema.py]
-        GIGrounding[gi/grounding.py]
+        GI[GI pipeline]
+        GISchema[GI schema]
+        GIGrounding[GI grounding]
         KG[kg/pipeline.py]
         KGSchema[kg/schema.py]
         KGExtract[kg/llm_extract.py]
@@ -506,7 +500,7 @@ The following diagram shows which functions call which in the pipeline entry poi
 - **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md) for details.
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection. Production / cloud profiles default to the transformer-based `en_core_web_trf` for higher entity-recall quality; dev / test paths use the smaller `en_core_web_sm` for speed. Both wheels are pip-installed via `pyproject.toml`. Profile YAMLs can pin `ner_model:` explicitly to override the default.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
-- **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output. NER logic lives in **`speaker_detectors/`** (modularized per RFC-059 / Wave 1).
+- **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output. NER logic lives in **`speaker_detectors/`** (modularized per the speaker-detection refactor / Wave 1).
 - **Audio pipeline (Wave 1+2)**: Local Whisper and self-hosted Whisper on a remote GPU host support **screenplay formatting** with **neural diarization** (pyannote, default on) or gap-based fallback. Cloud providers use **`AudioChunker`** for oversized uploads (#286). **CommercialDetector** removes sponsor blocks before summarization (#486 Phase 1; diarization-aware signals in Phase 2). **Deepgram** is a first-class transcription provider (#597). See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - **Provider-based architecture** (RFC-013): All capabilities (transcription, speaker detection, summarization) use a protocol-based provider system. Providers are created via factory functions based on configuration, allowing pluggable implementations (e.g., Whisper vs OpenAI for transcription, NER vs OpenAI for speaker detection, local transformers vs OpenAI for summarization). Providers implement consistent interfaces (`initialize()`, protocol methods, `cleanup()`) ensuring type safety and easy testing. See [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation details.
 - **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI) are supported via the provider system. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs. Model loading prefers safetensors format for security and performance (Issue #379). Pinned model revisions ensure reproducibility (Issue #379).
@@ -600,16 +594,16 @@ Phi-3). Adds GIL extraction prompts
 
 **Wave 1 (PR #850):**
 
-- `speaker_detectors/` — modular NER/heuristic speaker detection (#269)
+- Speaker detection — modular NER/heuristic speaker detection (#269)
 - `preprocessing/audio/chunker.py` — API upload chunking (#286)
-- `cleaning/commercial/` — `CommercialDetector` Phase 1 (#486)
+- Commercial detection — `CommercialDetector` Phase 1 (#486)
 - `providers/deepgram/` — Nova-3 transcription provider (#597)
 - Whisper progress UX — single batch bar (#19)
 
 **Wave 2:**
 
-- `providers/ml/diarization/` — pyannote additive pass; `diarize=true` default for local Whisper (#482)
-- `cleaning/commercial/diarization_signals.py` — Phase 2 commercial signals (#488)
+- Diarization — pyannote additive pass; `diarize=true` default for local Whisper (#482)
+- Diarization signals — Phase 2 commercial signals (#488)
 - Self-hosted GPU `tailnet_dgx_whisper` included in diarize/screenplay coercion
 
 **Impact on existing architecture:**
@@ -618,9 +612,9 @@ Phi-3). Adds GIL extraction prompts
 - `preprocessing/core.py` — delegates sponsor removal to `CommercialDetector`
 - Config — `diarize`, `hf_token`, `deepgram_*` fields; profiles updated
 
-See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md).
+See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
-### Phase 3: Grounded Insight Layer (RFC-049)
+### Phase 3: Grounded Insight Layer
 
 **Status**: **Implemented**
 
@@ -632,21 +626,9 @@ Transcript → Insight Extraction → Quote Extraction
     → Topic Assignment → gi.json
 ```
 
-**Modules (implemented):**
-
-- `gi/pipeline.py` — GIL orchestration (called after
-  summarization in pipeline)
-- `gi/schema.py` — `gi.json` validation against
-  `docs/architecture/gi/gi.schema.json`
-- `gi/io.py` — Serializes GIL output to `gi.json`
-  per episode
-- `gi/grounding.py` — Insight↔Quote grounding logic
-- `gi/contracts.py` — Grounding contract enforcement
-- `gi/explore.py` — GIL data exploration utilities
-- `gi/corpus.py` — Cross-episode corpus operations
-- `gi/quality_metrics.py` — GIL quality scoring
-- `gi/provenance.py` — Provenance tracking
-- `gi/compare_runs.py` — Cross-run comparison
+**Modules:** the GIL pipeline, schema validation, grounding, contracts, exploration, corpus operations,
+quality metrics, provenance and run comparison are provided by an installed extension. The `gi.json`
+schema stays in `docs/architecture/gi/gi.schema.json`.
 
 **Three extraction tiers:**
 
@@ -679,9 +661,9 @@ graphs from transcripts and summaries.
 
 ### Phase 3b: Use Cases & DB Projection
 
-**RFC-050** (Use Cases): **Implemented.** CLI commands
+**the GIL use-case design** (Use Cases): **Implemented.** CLI commands
 (`gi inspect`, `gi show-insight`, `gi explore`) for
-consuming GIL data. See `gi/explore.py`.
+consuming GIL data.
 
 **RFC-051** (Database Projection): Projects **`gi.json`**
 (GIL) and **KG artifacts** (RFC-055) into **separate**
@@ -750,7 +732,6 @@ readers pinned to the prior version keep resolving their fragments through the r
 - `search/backends/lancedb_backend.py` — LanceDB BM25 + vector backend
 - `search/retrieval.py` — `RetrievalLayer` (signals → RRF → compound dedup)
 - `search/hybrid_search.py` — live hybrid bridge (no FAISS fallback; missing index → `no_index`)
-- `search/relational_edges.py`, `gi/speakers.py` — derived relational edges (#874)
 - `search/indexer.py` — corpus index build
 - `search/chunker.py` — Transcript chunking
 - `search/protocol.py` — `VectorStore` / `SearchResult` protocols
@@ -794,8 +775,8 @@ Viewer graph internals documented in
 Phase 1: RFC-044 (Model Registry)       Implemented
 Phase 2: RFC-042 (Hybrid ML Platform)   Implemented (core + extensions)
     2b:  RFC-052 (LLM Prompts)          Implemented
-Phase 3: RFC-049 (GIL Core)             Implemented
-    3a:  RFC-050 (Use Cases)            Implemented
+Phase 3: The GIL core design (GIL Core)             Implemented
+    3a:  The GIL use-case design (Use Cases)            Implemented
     3b:  RFC-051 (DB Projection)        planned
     3c:  KG Extraction (RFC-055)        Implemented
 Phase 4: RFC-053 (Adaptive Routing)     planned

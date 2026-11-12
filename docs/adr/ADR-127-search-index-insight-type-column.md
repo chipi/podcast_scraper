@@ -5,7 +5,6 @@
 - **Authors**: Marko
 - **Related RFCs**:
   - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — Search v3 §S8 Compare (2 subjects)
-  - [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — GIL v1.1 insight types
 - **Related Documents**:
   - `src/podcast_scraper/search/backends/lancedb_backend.py` — `LANCE_SCHEMA_VERSION`, `_insight_schema`
   - `src/podcast_scraper/upgrade/migrations/m0004_insight_type_reindex.py` — the migration
@@ -14,7 +13,7 @@
 ## Context & Problem
 
 Search v3 §S8's `POST /api/search/compare` gained an optional `insight_types`
-filter (RFC-072 GIL v1.1 — `claim` / `recommendation` / `observation` /
+filter (GIL v1.1 — `claim` / `recommendation` / `observation` /
 `question` / `unknown`) that narrows both compared subjects symmetrically to the
 requested insight types. The filter reads `metadata.insight_type` on each
 insight-tier search hit.

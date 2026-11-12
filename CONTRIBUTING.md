@@ -411,7 +411,7 @@ responsibility:
   API; **`workflow/`** — pipeline orchestration
 - **`server/`** — FastAPI viewer routes;
   **`search/`** — LanceDB indexing
-- **`gi/`** — GIL extraction; **`kg/`** — KG
+- **`kg/`** — KG
   extraction
 - **`providers/`** — All 9 provider implementations
 
@@ -424,7 +424,7 @@ and `.cursor/rules/module-boundaries.mdc`.
 | Area | Key paths | Guide |
 | ---- | --------- | ----- |
 | Pipeline (RSS, transcription, summarization) | `src/podcast_scraper/workflow/`, `rss/`, `providers/` | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) |
-| GIL / KG extraction | `src/podcast_scraper/gi/`, `kg/` | [Grounded Insights Guide](docs/guides/GROUNDED_INSIGHTS_GUIDE.md), [KG Guide](docs/guides/KNOWLEDGE_GRAPH_GUIDE.md) |
+| KG extraction | `src/podcast_scraper/kg/` | [KG Guide](docs/guides/KNOWLEDGE_GRAPH_GUIDE.md) |
 | Semantic search | `src/podcast_scraper/search/` | [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) |
 | Viewer API (FastAPI) | `src/podcast_scraper/server/` | [Server Guide](docs/guides/SERVER_GUIDE.md) |
 | Viewer UI (Vue) | `web/gi-kg-viewer/` | [Polyglot Guide](docs/guides/POLYGLOT_REPO_GUIDE.md) |

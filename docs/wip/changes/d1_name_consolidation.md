@@ -2,7 +2,7 @@
 id: d1_name_consolidation
 class: full
 status: landed
-issue: none (RFC-131; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/gi/pipeline.py
   - src/podcast_scraper/providers/ml/diarization/roster.py
@@ -13,15 +13,13 @@ touches:
 # d1_name_consolidation — the name-consolidation arc's first deploy: one home for identity, raw labels never shown, guards and the one-word rule inside the join
 
 Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §4. Covers the code of
-RFC-131 steps S1b (one home, the identity ledger), S3 (raw labels never shown) and S4 (guards
+The person-identity design steps S1b (one home, the identity ledger), S3 (raw labels never shown) and S4 (guards
 inside the join, the one-word rule), on branch `feat/name-consolidation`. Migration N11 (raw labels
 out of the files) has its own record. Person names are kept out of this public record; the pairs
 and names are in the eval-data repo under `data/eval/name-consolidation/`, cited by path.
 
 ## 1. Intake
 
-- RFC-131 (person identity, one home), ADR-166 (the ledger; no joins without it), ADR-167 (guards
-  inside the join): the design this change implements.
 - The arc plan V3 (eval-data `docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md`): steps, measures
   R1–R7, the operator's decisions.
 - #852 (the cross-episode map), #904 (its predicate), #2056 (one-token drift), #1978 (no regex on
@@ -116,7 +114,7 @@ S2–S4 runs), outside `/tmp` (`/Users/claude/snapshots/`, 105 GB free before). 
 | person joins equal the S4 replay's final map | yes: sha 1f48d22a02b5 both (so 0038 changes no join) |
 | raw `person:speaker-*` ids in any join | 0 |
 | server's served map (`cached_entity_id_map`) equals the ledger | yes |
-| corrupted ledger | state `unreadable`, 0 joins served, a warning logged (ADR-166) |
+| corrupted ledger | state `unreadable`, 0 joins served, a warning logged |
 | undo | second write kept `identity_ledger.previous.json`; after corrupting the current one, `restore_previous` → state ok, 949 joins |
 | api cache warm-up, branch | 118.4 s (entity map 0.0 s from the ledger; reel_clips 101.3 s) |
 | api cache warm-up after a ledger write | 123.5 s (one rebuild of the projections) |

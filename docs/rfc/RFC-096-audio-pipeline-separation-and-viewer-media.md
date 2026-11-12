@@ -7,7 +7,6 @@
   - `docs/prd/PRD-020-audio-speaker-diarization.md`
 - **Related RFCs**:
   - `docs/rfc/RFC-040-audio-preprocessing-pipeline.md`
-  - `docs/rfc/RFC-058-audio-speaker-diarization.md`
 - **Related Issues**:
   - [#414](https://github.com/chipi/podcast_scraper/issues/414) — Audio pipeline separation
   - [#547](https://github.com/chipi/podcast_scraper/issues/547) — Viewer synced audio playback

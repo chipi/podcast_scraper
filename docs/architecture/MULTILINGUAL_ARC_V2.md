@@ -44,9 +44,8 @@ source of truth per design.
 
 ## 3. Claim verification
 
-**Design already written**: `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` §2
-(methods and outcomes), §3 (the read-time gate and its nine surfaces), §4 (surfaces), §5 (monitoring).
-Read it there; this section holds the slices and the deferral reasoning.
+The design for this section is already written elsewhere: methods and outcomes, the read-time gate and its nine
+surfaces, surfaces, monitoring. This section holds the slices and the deferral reasoning.
 
 **What v1 does instead.** v1 writes the translation provenance block on every claim — `translated`,
 `source_language`, `unit_ids`, `en_sha256` — and then **believes the translation**. A translated episode
@@ -73,7 +72,7 @@ pieces, this goes first.
 
 ## 4. Quality estimation and calibrated bands
 
-**Design already written**: `docs/rfc/RFC-125` §7, which exists specifically as the v2 seam and
+**Design already written**: a dedicated section exists specifically as the v2 seam and
 explains what QE adds, what it costs, and how it attaches without reshaping anything v1 writes.
 
 **Why it is not v1**, in the operator's words: *"I would not put QE back in version one, I would keep
@@ -120,8 +119,7 @@ and the shows library. So V2-C.1 is a rendering slice, not a component slice.
 
 ## 6. Turns consumers
 
-**Design already written**: `docs/rfc/RFC-123-speaker-turns-artifact.md` §4 (consumer migration) and
-its Rollout steps 3–5.
+**Design already written**: the consumer migration and the rollout steps 3–5 of the turns design.
 
 **Why it is not v1.** v1 needs `turns.json` to exist, because translation units are defined as
 sentence groups inside a turn. It does not need anything to *read* turns. All three consumers are
@@ -155,7 +153,7 @@ index goes stale and search answers "no index" until a full rebuild completes; a
 English-only tasks than an English specialist. For a corpus that is overwhelmingly English, that is a
 large global downside for a small local upside — measured by an eval of 25 queries on a synthetic
 fixture with no CI gate, which this repo's own rules say is not evidence. The swap also ripples into
-`search/insight_clusters.json`, `kg/topic_clustering`, `search/query_router` and
+`search/insight_clusters.json`, topic clustering, `search/query_router` and
 `search/quality_metrics.py`'s hardcoded `_ZERO_VECTOR_DIM = 384`.
 
 | # | Slice | Goal | Size |
@@ -312,10 +310,10 @@ invalidates all fifteen together, which is the point.
 ### 2026-10-03 — the naming vocabulary is per-language, and what that did NOT fix
 
 WHAT MOVED. Every English-only naming collection we knew about is now a per-language map in
-`src/podcast_scraper/speaker_detectors/naming_vocabulary.py` (43 maps, six rows each), read through
+the speaker detector's naming vocabulary (43 maps, six rows each), read through
 `hosts._NAMING_VOCABULARY_MAPS` (56 entries) and advertised by the fail-closed intersection
 `NAMING_VOCABULARY_LANGUAGES`. Four modules were converted: `hosts.py`, `roster.py`,
-`resolution.py`, `gi/speakers.py`. English is unchanged — 18 of 23 converted patterns in `hosts.py`
+`resolution.py`, and the GI speaker check. English is unchanged — 18 of 23 converted patterns in `hosts.py`
 rebuild byte-identically, and the five that differ do so only by `(?:x)` around a single literal or
 a positional group becoming a named one, proven equivalent on 5,296 matches (full match plus every
 capture group) over 592 KB of fixture and test text.
@@ -369,18 +367,18 @@ and is unmeasured.
 
 WHAT THIS DOES NOT DO — and this is the larger half.
 
-- ~~`roster.py`, `resolution.py` and `gi/speakers.py` do not take a `language` parameter~~
+- ~~`roster.py`, `resolution.py` and the GI speaker check do not take a `language` parameter~~
   **Threaded, same day.** The SOURCE language (`transcription_language(cfg)`, the one reader)
   reaches `resolve_speaker_roster`, `build_speaker_diagnostics` and the resolution prompt from
   `diarization/pipeline.py`; `None` reads the analysis row (unchanged behaviour), and a language
   that resolved but has no row reads NOTHING rather than English
-  (`naming_vocabulary.vocabulary_row`). `gi/speakers.py` takes one but is deliberately still
+  (`naming_vocabulary.vocabulary_row`). The GI speaker check takes one but is deliberately still
   called without it — it reads the post-D-44 English body; see its `_is_publisher_label`
   docstring for what that does not cover.
 - **The publish gate is asked in the feed's language everywhere in the pipeline.**
   `is_publishable_speaker_name` checks English UNION the language's row (a reject filter, so a
   union can only refuse more). Every call site passes `language=`, enforced by a source scan in
-  `test_the_feed_language_reaches_the_roster.py`; the per-episode host pool gets the feed language
+  the feed-language test; the per-episode host pool gets the feed language
   via a new `HostDetectionResult.language`. Two callers are exempt BY NAME in that test: main's
   one-shot cleanups m0015 and m0017, dry-run on the all-English prod corpus against frozen sets.
 - ~~The name-shape character classes are still ASCII~~ **Widened, and NOT measured.**
@@ -390,7 +388,7 @@ WHAT THIS DOES NOT DO — and this is the larger half.
   there is nothing for a wider class to match. Each new class admits every character the old one
   did, but that does NOT make the output a superset: a wider class can move where a match starts
   or ends and so change what is captured (`_SPOKEN_FULL_NAME`'s lookbehind changed too). English
-  naming can therefore move in either direction, and that change is unmeasured — the naming gate (`NAMING_GATE_RUNBOOK.md`) runs on the box
+  naming can therefore move in either direction, and that change is unmeasured — the naming gate runs on the box
   against `.test_outputs/naming_gold/`, which is not on the workstation.
 - **The five non-English rows are AUTHORED, not measured.** The English rows are gold-gated against
   #2269's development set; nothing gates the others, and there is no non-English corpus to gate them

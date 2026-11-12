@@ -9,7 +9,7 @@ This document lists **open work only** — items that are not yet fully implemen
 ## Current Status
 
 - **Open RFCs**: **6** (see [RFC index](rfc/index.md); includes Draft [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md), RFC-082 (not in this repository), RFC-083 (not in this repository), RFC-087 (not in this repository))
-- **Completed RFCs**: **62** (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS, [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) / [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) single-layer GIL/KG, `RFC-057` (moved to the private eval repo as RFC-002) per `ADR-073` (moved to the private eval repo as ADR-005), [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) backup manifest, [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) graph FSM, [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) test pyramid)
+- **Completed RFCs**: **62** (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS, [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) single-layer GIL/KG, `RFC-057` (moved to the private eval repo as RFC-002) per `ADR-073` (moved to the private eval repo as ADR-005), [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) backup manifest, [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) graph FSM, [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) test pyramid)
 - **Open PRDs**: **7** (see [PRD index](prd/index.md))
 
 **Completed reference (not backlog):** [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) viewer v2; [RFC-063](rfc/RFC-063-multi-feed-corpus-append-resume.md)–[RFC-071](rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) v2.6.0 corpus/viewer track; [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) / [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) v2.6.0 stabilization track ([ADR-092](adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md), ADR-093 (not in this repository), [ADR-094](adr/ADR-094-graph-handoff-orchestrator-fsm.md), [ADR-095](adr/ADR-095-viewer-test-pyramid.md)).
@@ -22,7 +22,7 @@ Items currently in progress or next up. High user value or blocking other work.
 | --- | --- | --- | --- | --- | --- |
 | **1** | [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md) / [PRD-021](prd/PRD-021-semantic-corpus-search.md) | RFC | **Draft** | [RFC-061](rfc/RFC-061-semantic-corpus-search.md) (FAISS) **Completed**. Open: Qdrant **`VectorStore`**, native filters, pgvector/RFC-051, re-ranking | High |
 | **2** | [RFC-054](rfc/RFC-054-e2e-mock-response-strategy.md) | RFC | **Partial** | E2E mock server exists. Full composable ResponseProfile/Router architecture NOT implemented. Blocks #399 (provider hardening) | High |
-| **3** | [RFC-072](rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) / [PRD-017](prd/PRD-017-grounded-insight-layer.md), [PRD-019](prd/PRD-019-knowledge-graph-layer.md) | RFC | **Open** | Cross-layer IDs, `bridge.json`, flagship use cases. **RFC-050** / **RFC-056** single-layer consumption **Completed** — see [RFC index](rfc/index.md) | Medium-High |
+| **3** | [PRD-017](prd/PRD-017-grounded-insight-layer.md), [PRD-019](prd/PRD-019-knowledge-graph-layer.md) | RFC | **Open** | Cross-layer IDs, `bridge.json`, flagship use cases. Single-layer GIL/KG consumption (**RFC-056**) **Completed** — see [RFC index](rfc/index.md) | Medium-High |
 | **4** | [RFC-051](rfc/RFC-051-database-projection-gil-kg.md) / [PRD-018](prd/PRD-018-database-projection-gil-kg.md) | RFC | **Not Started** | No Postgres integration, no SQL migrations. [ADR-054](adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) accepted, Code **No** | Medium |
 
 ## Tier 2 — Quality & Observability
@@ -53,9 +53,7 @@ Planned but no implementation exists yet (or design-only).
 
 | Pri | Item | Type | Status | Dependencies | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **13** | [RFC-058](rfc/RFC-058-audio-speaker-diarization.md) / [PRD-020](prd/PRD-020-audio-speaker-diarization.md) | RFC | **Partial** | Core diarization module + `[ml]`/`[dev]` deps; caching + fixture proof open | Medium |
-| **14** | [RFC-059](rfc/RFC-059-speaker-detection-refactor-test-audio.md) | RFC | **Partial** | `speaker_detectors/` modularization landed (#269); fixture voices (#111) and commercial segments (#109) open | Medium |
-| **15** | [RFC-060](rfc/RFC-060-diarization-aware-commercial-cleaning.md) | RFC | **Partial** | `CommercialDetector` Phase 1 landed (#486); Phase 2 diarization signals (#488) in flight | Low-Medium |
+| **13** | [PRD-020](prd/PRD-020-audio-speaker-diarization.md) | RFC | **Partial** | Core diarization module + `[ml]`/`[dev]` deps; caching + fixture proof open | Medium |
 
 ## ADRs with remaining implementation work
 
@@ -66,18 +64,15 @@ Architectural decisions that are **Proposed**, **Accepted** with **Code = No**, 
 | [ADR-054](adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) | Relational Postgres Projection | No | RFC-051 (Not Started) |
 | [ADR-055](adr/ADR-055-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | RFC-053 (Not Started) |
 | [ADR-056](adr/ADR-056-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | RFC-054 (Partial) |
-| [ADR-058](adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) | Additive pyannote Diarization | Partial | RFC-058 core landed; result caching open |
-| [ADR-059](adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Commercial Detection | Partial | Phase 1 landed (#486); Phase 2 diarization signals (#488) in flight |
 | [ADR-031](adr/ADR-031-mandatory-pre-release-validation.md) | Mandatory Pre-Release Validation | Partial | RFC-038 checklist alignment |
 | [ADR-047](adr/ADR-047-proactive-metric-regression-alerting.md) | Proactive Metric Regression Alerting | Partial | RFC-043 PR comments |
 
 ## Dependency Graph
 
 ```text
-RFC-058 (diarization) ──► RFC-060 Phase 2 (diarization-enhanced commercial)
 RFC-027 (metrics) ──────► RFC-043 (automated alerts)
 RFC-061 (semantic search, FAISS, Completed) ──► RFC-062 (Completed); RFC-070 (platform vector) Draft
-PRD-017/019 (GIL/KG) ──► RFC-072 (cross-layer); RFC-050/RFC-056 single-layer Completed
+PRD-017/019 (GIL/KG) ──► RFC-056 single-layer Completed
 PRD-018 ──► RFC-051 (database projection)
 RFC-054 (E2E mocks) ──► #399 (provider hardening)
 ```

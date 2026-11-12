@@ -97,13 +97,13 @@ This surfaces in multiple places:
    transcript vectors in the index, those quotes are excluded from
    `overlap_rate` (and `no_indexed_transcript_for_quotes` passes strict) so
    partial fixture indexing does not fail the ratio gate.
-2. **Search lift** -- the search lift layer (RFC-072 Phase 5) boosts insight
+2. **Search lift** -- the search lift layer boosts insight
    hits whose Quotes overlap the matched transcript chunk.  With no Quotes,
    ML-stack insights get zero lift, making search results less relevant for
    ML-only corpora.
 3. **Viewer quote panel** -- the GI/KG viewer shows supporting quotes under
    each insight.  ML-stack insights have none, so the panel is empty.
-4. **Position tracker / person profile** (future PRD-028, PRD-029) -- these
+4. **Position tracker / person profile** (future the Position Tracker, PRD-029) -- these
    features depend on grounded quotes with speaker IDs and char spans.
 
 **Why this is debt, not a bug:**
@@ -132,7 +132,7 @@ fallback if engineering bandwidth is tight.
 
 **Trigger to revisit:**
 
-- Position tracker (PRD-028) or person profile (PRD-029) implementation begins --
+- Position tracker or person profile (PRD-029) implementation begins --
   both hard-depend on Quote nodes with speaker IDs
 - User feedback indicates ML-stack search results are noticeably worse
 - A lightweight local model (< 2 GB) becomes easy to bundle or auto-download

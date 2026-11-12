@@ -9,7 +9,6 @@
 - **Related specifications** (design docs under `docs/rfc/`):
   - [Graph exploration toolkit](../rfc/RFC-069-graph-exploration-toolkit.md)
   - [GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
-  - [Corpus topic clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **TopicCluster** overlay + rail context)
   - [Progressive graph expansion (cross-episode)](../rfc/RFC-076-progressive-graph-expansion.md) (`onetap` rail, `dbltap` expand/collapse, `POST /api/corpus/node-episodes`)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`

@@ -250,7 +250,6 @@ separate small commit in this PR if you say go.
 - `tests/unit/podcast_scraper/test_cli.py` (renames)
 - `tests/unit/podcast_scraper/test_workflow_helpers.py` (renames)
 - `tests/unit/podcast_scraper/workflow/test_setup.py` (renames)
-- `tests/unit/podcast_scraper/test_speaker_detection.py` (assertion fix)
 - `tests/unit/podcast_scraper/evaluation/test_autoresearch_track_a.py` (renames + 2 regression tests)
 - `tests/integration/workflow/test_workflow_stages_integration.py` (renames)
 - `docs/architecture/ARCHITECTURE.md` (NER section clarified)

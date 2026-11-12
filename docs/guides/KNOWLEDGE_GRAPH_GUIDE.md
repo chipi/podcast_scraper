@@ -2,7 +2,7 @@
 
 This guide documents the **Knowledge Graph Layer (KG)**: structured **entities**,
 **topics**, and **relationships** extracted from episode content for linking and discovery.
-It complements the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md), which covers
+It complements the Grounded Insight Layer documentation, which covers
 evidence-backed insights (`gi.json`).
 
 **Status:** KG is specified in [PRD-019](../prd/PRD-019-knowledge-graph-layer.md) and
@@ -36,9 +36,9 @@ Episode **summaries**, **KG**, and **grounded insights (GIL)** are complementary
 | --- | --- |
 | **Summaries** ([PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md)) | **Consume** quickly: skim what an episode is about (low friction, broad coverage). |
 | **KG (this guide)** | **Navigate** across many episodes: who and what show up, how themes and entities connect. |
-| **Grounded insights** ([Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)) | **Key value and trust**: takeaways linked to **verbatim quotes** when the grounding stack succeeds. |
+| **Grounded insights** | **Key value and trust**: takeaways linked to **verbatim quotes** when the grounding stack succeeds. |
 
-Summaries are not a substitute for verification when claims matter; **GIL** is where you **stress-test** takeaways against the transcript. **KG** helps you **move around** your library; it does not replace reading summaries or checking grounded insights for defensible claims. The same mental model appears in [Grounded Insights Guide § Summaries, KG, and grounded insights](GROUNDED_INSIGHTS_GUIDE.md#summaries-kg-and-grounded-insights-how-they-fit-together).
+Summaries are not a substitute for verification when claims matter; **GIL** is where you **stress-test** takeaways against the transcript. **KG** helps you **move around** your library; it does not replace reading summaries or checking grounded insights for defensible claims.
 
 ---
 
@@ -89,11 +89,11 @@ Episode **metadata** includes `knowledge_graph` when KG ran: `artifact_path`, `n
 
 ---
 
-## bridge.json and shared identities (RFC-072)
+## bridge.json and shared identities
 
-**KG** and **GIL** keep **separate** artifacts ([ADR-052](../adr/ADR-052-separate-gil-and-kg-artifact-layers.md)). **RFC-072** adds **`bridge.json`** per episode: a compact join table of **canonical** ids (`person:…`, `topic:…`, `org:…`) with **`display_name`** and source flags so clients can align **entity/topic nodes** in `kg.json` with **people and topics** referenced from `gi.json` without a single merged ontology file.
+**KG** and **GIL** keep **separate** artifacts ([ADR-052](../adr/ADR-052-separate-gil-and-kg-artifact-layers.md)). **the cross-layer identity design** adds **`bridge.json`** per episode: a compact join table of **canonical** ids (`person:…`, `topic:…`, `org:…`) with **`display_name`** and source flags so clients can align **entity/topic nodes** in `kg.json` with **people and topics** referenced from `gi.json` without a single merged ontology file.
 
-**Read paths:** CIL HTTP APIs scan **`*.bridge.json`** with sibling **`gi.json`** / **`kg.json`**; the viewer and Corpus Library expose **bridge-relative paths** and **`has_bridge`** when catalogued. Details: [GIL / KG / CIL cross-layer guide](GIL_KG_CIL_CROSS_LAYER.md), [Server Guide](SERVER_GUIDE.md).
+**Read paths:** CIL HTTP APIs scan **`*.bridge.json`** with sibling **`gi.json`** / **`kg.json`**; the viewer and Corpus Library expose **bridge-relative paths** and **`has_bridge`** when catalogued. Details: [Server Guide](SERVER_GUIDE.md).
 
 ---
 
@@ -167,7 +167,7 @@ Failures during KG write are **non-fatal** (metadata is still written); check lo
 
 ## Recorded product decisions (v1, KG shallow) {#recorded-product-decisions-v1-kg}
 
-This table mirrors the **GIL v1 record** in [Grounded Insights Guide § Recorded product decisions (v1, issue 460)](GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460) so operators who enable **both** flags see aligned expectations. It captures **what shallow v1 KG promises**, not the full [depth backlog](https://github.com/chipi/podcast_scraper/issues/466).
+This table is kept aligned with the **GIL v1 record** so operators who enable **both** flags see aligned expectations. It captures **what shallow v1 KG promises**, not the full [depth backlog](https://github.com/chipi/podcast_scraper/issues/466).
 
 | Decision area | v1 choice |
 | --- | --- |
@@ -186,6 +186,5 @@ This table mirrors the **GIL v1 record** in [Grounded Insights Guide § Recorded
 - [RFC-055: KG — Core Concepts & Data Model](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - [RFC-056: KG — Use Cases & Consumption](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md) (GIL)
-- [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
 - [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — v2 viewer + legacy UI for `kg.json` / `gi.json`
 - [Recorded product decisions (v1, KG shallow)](#recorded-product-decisions-v1-kg) — v1 scope table (this guide)

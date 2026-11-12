@@ -5,8 +5,6 @@
 - **Related RFCs**:
   - [RFC-044](../rfc/RFC-044-model-registry.md) — model registry (**complete**; prerequisite)
   - [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md) — hybrid summarization pipeline (**complete**; prerequisite)
-  - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core concepts (**complete**)
-  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases and Insight Explorer (**open**)
   - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection design (**open**)
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core concepts (**complete**)
   - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**open**)
@@ -22,7 +20,7 @@
 
 This PRD defines **database projection** for **both** the **Grounded Insight Layer (GIL)** and the **Knowledge Graph Layer (KG)**. It enables fast, queryable access by projecting **file-based artifacts** into a relational database (Postgres). Files remain the **canonical, auditable** source of truth; the database is a **derived serving layer** for SQL, indexing, and incremental upserts.
 
-**GIL projection** covers `gi.json` (insights, quotes, grounding, topics, speakers) and supports **UC1–UC5** / Insight Explorer–style queries (RFC-050) without scanning every episode directory.
+**GIL projection** covers `gi.json` (insights, quotes, grounding, topics, speakers) and supports **UC1–UC5** / Insight Explorer–style queries without scanning every episode directory.
 
 **KG projection** covers per-episode **KG artifacts** defined in RFC-055 (entities, topics, typed edges, episode anchoring). It supports cross-episode **linking and discovery** queries that are **not** the same as GIL’s evidence-first contract. GIL and KG use **separate tables and provenance columns** — no merging of the two layers into a single JSON blob or a single undifferentiated “graph” table without typed source (see RFC-051).
 
@@ -63,7 +61,7 @@ the serving layer.
   is also exported for complete episode context
 - **Transcript Pipeline (PRD-001)**: Transcript paths
   are stored for evidence resolution
-- **GIL Use Cases (RFC-050)**: Database export makes
+- **GIL Use Cases**: Database export makes
   UC1–UC5 queries fast and ergonomic
 - **Knowledge Graph (PRD-019, RFC-055)**: When KG
   artifacts exist, database export can project **KG
@@ -252,7 +250,7 @@ the serving layer.
   analogous to GIL export; idempotent upserts per
   episode
 - **FR8.5**: Validate against **`docs/architecture/kg/kg.schema.json`**
-  when present (mirror `make validate-gi-schema` story)
+  when present
 
 ### FR9: Coexistence and Independence
 
@@ -291,10 +289,6 @@ the serving layer.
   in provenance fields)
 - **RFC-042**: Hybrid ML Platform (produces pipeline
   outputs including `gi.json` when GIL is enabled)
-- **RFC-049**: Core GIL Concepts & Data Model (defines
-  ontology and `gi.json` schema)
-- **RFC-050**: GIL Use Cases & Insight Explorer
-  (defines UC1–UC5 query patterns)
 - **RFC-051**: Database Projection (technical
   implementation details for GIL and KG tables)
 
@@ -321,7 +315,7 @@ the serving layer.
   in v1)
 - Users understand SQL or can use provided query
   examples
-- GIL extraction (RFC-049) produces valid `gi.json`
+- GIL extraction produces valid `gi.json`
   files conforming to schema when GIL export is used
 - KG pipeline (RFC-055) produces valid KG artifacts when
   KG export is used
@@ -583,8 +577,6 @@ are recorded here for traceability.
   in provenance fields
 - **RFC-042**: Hybrid ML Platform — produces the
   `gi.json` files
-- **RFC-049**: Core GIL Concepts & Data Model
-- **RFC-050**: GIL Use Cases & Insight Explorer
 - **RFC-051**: Database Projection — technical design
 - **Issue #31**: Metadata persistence & structure
 - **Issue #40**: Data storage / DB integration

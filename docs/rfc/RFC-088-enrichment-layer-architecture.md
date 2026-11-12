@@ -34,8 +34,6 @@
   - `docs/adr/ADR-051-per-episode-json-artifacts-with-logical-union.md`
   - `docs/adr/ADR-052-separate-gil-and-kg-artifact-layers.md`
 - **Related RFCs**:
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
   - `docs/rfc/RFC-061-semantic-corpus-search.md`
   (Future analysis layer consumes `nli_contradiction` enricher output as the base
@@ -49,7 +47,7 @@
 ## Abstract
 
 The pipeline today produces three core artifact layers per episode: GIL (`*.gi.json`),
-KG (`*.kg.json`), and the bridge (`*.bridge.json` -- RFC-072). These are the main
+KG (`*.kg.json`), and the bridge (`*.bridge.json` -- the cross-layer identity design). These are the main
 dish -- grounded, verbatim, trustworthy. They do not change.
 
 This RFC introduces an **Enrichment Layer** -- a fourth artifact tier that sits on top
@@ -65,8 +63,7 @@ Operators and automation can still **replace** `*.gi.json`, `*.kg.json`, and
 cluster membership, and sibling paths may differ from an earlier run; enrichment outputs
 under `metadata/enrichments/` (or corpus-scope enrichments) may be **stale** until
 enrichers run again. Read paths (CIL HTTP, corpus library, viewer) always reflect **what
-is on disk now**. See [RFC-072 — Operational note: re-pipeline, enrichment, and read-path
-stance](RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance).
+is on disk now**.
 
 The RFC defines what an enricher is, what it is not, the protocol every enricher must
 implement, the output directory structure, the registry mechanism, and two concrete
@@ -82,7 +79,7 @@ stem (e.g. `0001 - episode_title.gi.json`). Enrichment outputs live in a dedicat
 
 ## Problem Statement
 
-The core artifact layers (GIL, KG, bridge) are production-ready after RFC-072. They
+The core artifact layers (GIL, KG, bridge) are production-ready after the cross-layer identity design. They
 answer the question "what happened in this episode and who said what." But several
 high-value signals are derivable from the core artifacts that the core pipeline does not
 and should not produce:
@@ -1231,11 +1228,11 @@ request-time enricher that operates on FAISS results rather than writing files.
 Ideas for future LLM enrichers include search synthesis and profile summarisation.
 
 **Phase numbering disambiguation:** "RFC-088 Phase 4" (this section) refers to the
-**QueryEnricher protocol** extension for request-time LLM enrichment. "RFC-072
+**QueryEnricher protocol** extension for request-time LLM enrichment. "the cross-layer identity design
 Phase 4" refers to **CIL query patterns** (cross-layer joins, `position_arc` and
 `person_profile` queries). These are distinct capabilities in different RFCs that
 happen to share the same phase number. PRD-027 (Enriched Search) depends on RFC-088
-Phase 4; PRD-028/029 (Position Tracker/Person Profile) depend on RFC-072 Phase 4.
+Phase 4; the Position Tracker and PRD-029 (Position Tracker/Person Profile) depend on the cross-layer identity design Phase 4.
 
 ---
 
@@ -1319,8 +1316,6 @@ The following are deliberately deferred and do not block implementation of Phase
   outputs (topic co-occurrence, temporal velocity, grounding rate)
 - `docs/prd/PRD-027-enriched-search.md` -- query-time enrichment extending semantic
   search (Phase 4 extension)
-- `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- bridge artifact
-  that enrichers read
 - `docs/architecture/gi/ontology.md` -- GIL grounding contract
 - `docs/architecture/gi/gi.schema.json` -- GIL JSON schema
 - `docs/architecture/kg/ontology.md` -- KG ontology (`RELATED_TO` reserved, not

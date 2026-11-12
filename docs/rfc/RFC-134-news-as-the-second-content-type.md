@@ -15,7 +15,6 @@
   - [ADR-176](../adr/ADR-176-extension-seams-for-the-split.md) (the seams built for release 1)
   - ADR-177 to ADR-181, proposed below
 - **Related RFCs**:
-  - [RFC-131](RFC-131-person-identity-one-home.md) (person identity, one home)
 - **Related Documents**:
   - `docs/architecture/gi/gi.schema.json`, `docs/architecture/kg/kg.schema.json`
   - `docs/architecture/gi/ontology.md`, `docs/architecture/kg/ontology.md`
@@ -437,7 +436,7 @@ A read of the code at public 0357b8a96.
 | --- | --- | --- | --- |
 | 1 | `episode_processor.process_episode_download` (no transcript, no enclosure) | returns nothing, with no error and no metadata | news never reaches it: the text-in entry point (§1) builds the processing job from the extracted body |
 | 2 | `transcript_source` Literal (`workflow/types.py:90`, `metadata_generation.py:640`) | a validation error on any new source | widen it to a body source that includes extraction |
-| 3 | GI quotes with no segments (`gi/pipeline.py`, `_char_range_to_ms`) | written with fabricated 0 ms timestamps and a transcript reference, and they pass the 3.1 schema | v3 (§6): no time range when untimed |
+| 3 | GI quotes with no segments (`_char_range_to_ms`) | written with fabricated 0 ms timestamps and a transcript reference, and they pass the 3.1 schema | v3 (§6): no time range when untimed |
 | 4 | The search indexer's body chunks (`search/indexer.py`) and the corpus text-file route (`GET /corpus/text-file`) | would return article text in search hits and as a raw file | news rows in news tables of their own; a news hit returns its summary, never chunk text; the text-file route refuses a news body (§9, §10, ADR-179) |
 | 5 | Ad excision inside summary, KG and GI (three call sites) | would cut "pre-roll" and "post-roll" from article text | skipped by the stage profile |
 | 6 | `rss/parser.parse_rss_items` | an Atom feed gives zero items, silently | the news RSS/Atom transport reads feeds with `feedparser`; the podcast parser stays as it is |
@@ -646,7 +645,7 @@ The full test and guard list is §14.
 - **Extraction quality varies by site and over time.** Monitored by text length per source and the
   teaser rate. The sample behind ADR-179 was one article per source, so per-source goldens set the
   fallback threshold.
-- **Bylines are noisy.** A false join is worse than a missed one (RFC-131's rule), so bylines are
+- **Bylines are noisy.** A false join is worse than a missed one (the person-identity design's rule), so bylines are
   parsed against a golden set, scoped to their publisher, and guarded against co-byline merges.
 - **Volume:** news adds rows every day, and player-api's memory is already tight (the cause of its
   10-26/27 OOM kills is unknown). Per-source caps, the first month's measurement, and the bigger

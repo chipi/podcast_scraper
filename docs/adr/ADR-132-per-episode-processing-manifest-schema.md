@@ -200,7 +200,7 @@ cross-artifact picture is in one place; the envelope owns its own shape.
 fields, and the invariant below says the version moves only on a breaking migration. The cost
 of that choice is explicit: a reader cannot tell "this corpus predates the ledger" from the
 version alone and must probe for the field — which is what
-`scripts/tools/corpus_quality_report.py` does, counting ledger-less episodes as *unknown*
+the corpus quality report does, counting ledger-less episodes as *unknown*
 rather than assuming they ran. If that probing becomes load-bearing for more consumers, bump
 to `1.1.0` and let readers gate on the version instead; it is a one-line change and this
 paragraph is the reason it was not made now.

@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md), [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md)
+- **Related RFCs**: [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - **Related PRDs**: [PRD-017](../prd/PRD-017-grounded-insight-layer.md), [PRD-019](../prd/PRD-019-knowledge-graph-layer.md)
 
 ## Context & Problem Statement
@@ -70,6 +70,5 @@ We maintain **GIL and KG as separate, independent artifact layers**:
 
 ## References
 
-- [RFC-049: GIL Core](../rfc/RFC-049-grounded-insight-layer-core.md)
 - [RFC-055: KG Core](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - [RFC-062: Viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) — cross-layer merge logic

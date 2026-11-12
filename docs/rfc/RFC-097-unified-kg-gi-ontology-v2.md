@@ -1,6 +1,6 @@
 # RFC-097: Unified KG + GI Ontology v2
 
-- **Status**: Completed (v2.6.0–v2.7) — Anchor #1036 closed; chunks 1–8 shipped in PR #1039 (foundation + edge styling); chunk 9 (#1073) shipped on `feat/rfc097-followups` (PR #1089) — strict KG v2.0 / GI v3.0 schemas + [ADR-101](../adr/ADR-101-drop-legacy-kg-gi-shape.md). [ADR-102](../adr/ADR-102-retro-audit-marker-for-in-place-artifact-mutation.md) + [ADR-103](../adr/ADR-103-deterministic-connectivity-under-llm-free-profiles.md) Accepted. Person Profile + Position Tracker viewer surfaces live via #1048/#1049/#1050. Follow-ups: #1075 / #1076 / #1058 all closed. NER post-pass and corpus-level Topic clustering ship deterministic typed connectivity under airgapped profiles (PR #1094).
+- **Status**: Completed (v2.6.0–v2.7) — Anchor #1036 closed; chunks 1–8 shipped in PR #1039 (foundation + edge styling); chunk 9 (#1073) shipped on `feat/rfc097-followups` (PR #1089) — strict KG v2.0 / GI v3.0 schemas + [ADR-101](../adr/ADR-101-drop-legacy-kg-gi-shape.md). [ADR-102](../adr/ADR-102-retro-audit-marker-for-in-place-artifact-mutation.md) Accepted. Person Profile + Position Tracker viewer surfaces live via #1048/#1049/#1050. Follow-ups: #1075 / #1076 / #1058 all closed. NER post-pass and corpus-level Topic clustering ship deterministic typed connectivity under airgapped profiles (PR #1094).
 - **Boundary clarification (ADR-104, 2026-06-26)**: chunk 9's KG-direct `concept:topic-{slug}` Topic nodes + `RELATED_TO` edges (`src/podcast_scraper/kg/topic_clustering.py` fired from `workflow/orchestration.py` Step 16) are **part of the core pipeline**, not an [RFC-088](RFC-088-enrichment-layer-architecture.md) enrichment-layer violation. RFC-088 §Key Decision #1 amended to "Enrichers never modify core artifacts produced by core pipeline stages" — chunk 9 conforms to KG v2.0, participates in the relational query layer + LLM grounding, and is therefore on-graph. Coexists with the RFC-088 chunk 3 `topic_similarity` enricher (same underlying signal, different audience: KG for traversal, enrichments for ranking). See [ADR-104](../adr/ADR-104-enrichment-layer-boundary-vs-kg-direct.md).
 - **Authors**: Marko Dragoljevic (chipi), Claude (Opus 4.7)
 - **Stakeholders**: Operator (sign-off), KG/GI maintainers, viewer maintainers
@@ -9,25 +9,21 @@
   - `docs/prd/PRD-019-knowledge-graph-layer.md` (Entity → Person/Org/Podcast first-class)
   - `docs/prd/PRD-026-topic-entity-view.md` (CIL enablement)
   - `docs/prd/PRD-027-enriched-search.md` (chunk-to-Insight lift foundation)
-  - `docs/prd/PRD-028-position-tracker.md` (data foundation delivered; viewer surface delivered by #1048 shared shell + #1049 Position Tracker panel — per-(Person, Topic) timeline now live)
   - `docs/prd/PRD-029-person-profile.md` (data foundation delivered; viewer surface delivered by #1048 shared shell + #1049 Position Tracker + #1050 Person Profile aggregate — UXS-010 sections complete)
   - `docs/prd/PRD-031-search.md` (entity-aware retrieval foundation)
 - **Related ADRs**:
   - `docs/adr/ADR-095-viewer-test-pyramid.md` (real-bug-to-matrix-row discipline)
   - `docs/adr/ADR-101-drop-legacy-kg-gi-shape.md` (reserved, lands with chunk 9)
 - **Related RFCs**:
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (GI core; v1.1 entity deferral retired)
-  - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md` (cross-layer use cases moved to RFC-072)
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` (KG core; Entity → typed nodes)
-  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (cross-layer use cases moved to RFC-072)
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` (CIL + bridge; v1.1 additive fields land)
+  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (cross-layer use cases moved to the cross-layer identity design)
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` (enricher inputs unblocked)
   - `docs/rfc/RFC-090-hybrid-retrieval.md` (orthogonal; LanceDB-first stands)
   - `docs/rfc/RFC-091-kg-proximity-signal.md` (REJECTED 2026-06-03; v2 confirms)
   - `docs/rfc/RFC-092-ml-query-router.md` (intent taxonomy may extend post-v2)
   - `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` (relational queries stabilized via CIL)
 - **Related UX specs**:
-  - PRD-028 / PRD-029 cover the viewer Position Tracker + Person Profile surfaces
+  - the Position Tracker / PRD-029 cover the viewer Position Tracker + Person Profile surfaces
 - **Related Documents**:
   - `docs/architecture/corpus/ontology.md` (the live ontology design — shipped in chunk 1)
   - `docs/architecture/kg/ontology.md` (superseded by chunk 1)
@@ -44,29 +40,29 @@ of `kg.json` and `gi.json` files at the filesystem layer, **not** a
 change to the grounding contract, and **not** a retrieval-side change
 (RFC-091's 2026-06-03 rejection of KG proximity stands).
 
-v2 is a **formalization layer** on top of what RFC-072 (Canonical
+v2 is a **formalization layer** on top of what the cross-layer identity design (Canonical
 Identity Layer + cross-layer bridge) already shipped + what #1035
 (NER pre-pass) made possible. The infrastructure that round-2 of the
 WIP spec framed as forward-looking is already behind us; the real
 remaining work is turning the cross-layer queries the CIL makes
 possible into shipped per-artifact data.
 
-**Architecture Alignment:** Builds on RFC-072 (CIL + bridge),
+**Architecture Alignment:** Builds on the cross-layer identity design (CIL + bridge),
 preserves RFC-091's relational-not-proximity retrieval decision,
 unblocks RFC-088 enrichers and RFC-094 relational queries, and gates
-two PRD-029 / PRD-028 viewer surfaces.
+two PRD-029 / the Position Tracker viewer surfaces.
 
 ## Problem Statement
 
 After three rounds of WIP spec doc iteration and a full re-read of
-PRD-017, PRD-019, RFC-049/050, RFC-055/056, RFC-072, RFC-091, the
+PRD-017, PRD-019, the GIL core and use-case designs, RFC-055/056, the cross-layer identity design, RFC-091, the
 state of the corpus ontology has three connected problems:
 
 **1. Entity extraction is shipped but the schema still calls it
-deferred.** PRD-017 (line 26) and RFC-049 (Resolved Q2) deferred
+deferred.** PRD-017 (line 26) and the GIL core design (Resolved Q2) deferred
 `Entity` extraction to v1.1; v1.1 never landed as a formal release.
 But the substance arrived anyway: #1035's NER pre-pass shipped
-entity extraction at 97–100% recall, and RFC-072 (Canonical Identity
+entity extraction at 97–100% recall, and the cross-layer identity design (Canonical Identity
 Layer) made `person:` / `org:` / `topic:` IDs canonical. The
 documentation still describes an `Entity(kind=...)` discriminator
 that no longer matches the operational state.
@@ -74,16 +70,16 @@ that no longer matches the operational state.
 **2. Cross-layer edges are defined but never emitted.** The GI
 schema defines `ABOUT (Insight → Topic)` and `MENTIONS (Insight →
 Entity)` edges, but the default GI pipeline never emits them. The
-CorpusGraph (RFC-072 Slice B) composes them in-memory at query
+CorpusGraph (the cross-layer identity design Slice B) composes them in-memory at query
 time, but the per-artifact JSON does not contain them — so the
 viewer cannot render the relationships without rebuilding the graph
 at request time.
 
 **3. Two flagship use cases the CIL was built to enable never
-shipped.** RFC-072 named **Position Tracker** (Person × Topic over
+shipped.** the cross-layer identity design named **Position Tracker** (Person × Topic over
 time) and **Person Profile** (everything about a Person) as the
 products the bridge unlocks. Both depend on two additive Insight
-fields RFC-072 §2 specified — `insight_type` and `position_hint` —
+fields the cross-layer identity design §2 specified — `insight_type` and `position_hint` —
 that never made it into a release.
 
 **Use Cases:**
@@ -160,7 +156,7 @@ that never made it into a release.
   operation under v2.
 - **Corpora-first migration order.** Migration scripts rewrite
   existing corpora before the viewer ships against the new shape
-  (matches RFC-072 migration pattern; minimizes dual-shape
+  (matches the cross-layer identity design migration pattern; minimizes dual-shape
   complexity in viewer code).
 - **GPU host in its research/eval mode.** The silver rebuild + candidate
   sweep runs on a GPU host in its research/eval mode.
@@ -260,7 +256,7 @@ on 2–4 weeks of production operation under v2).
 
 ### 3. `insight_type` and `position_hint`
 
-Both fields originate in RFC-072 §2 as v1.1 additive specifications
+Both fields originate in the cross-layer identity design §2 as v1.1 additive specifications
 that never shipped. v2 lands them.
 
 **`insight_type`** — LLM-classified enum on each Insight. Options:
@@ -334,7 +330,7 @@ ontology covering:
 - All node types: Podcast, Episode, Person, Organization, Topic,
   Insight, Quote
 - All edges with `edge_class` metadata column
-- Canonical ID rules (re-stated from RFC-072 + slugify)
+- Canonical ID rules (re-stated from the cross-layer identity design + slugify)
 - Grounding contract invariant with explicit citation to viewer
   dashed-border styling
 - Explicit RFC-091 citation: "relational, not proximity-based"
@@ -347,7 +343,7 @@ but stay readable for archaeology.
 
 ### 6. Migration Story
 
-Three migration scripts (chunk 6, RFC-072 migration pattern):
+Three migration scripts (chunk 6, the cross-layer identity design migration pattern):
 
 - `cli upgrade run` (m0006) — legacy
   `Entity(kind=person)` → `Person` node, `Entity(kind=organization)`
@@ -397,7 +393,7 @@ Pre-flight: dry-run all three against the reference v2 corpus
      existing corpora **before** chunk 8 (viewer) ships against the
      new shape.
    - **Rationale**: Cleaner state; no dual-shape complexity in viewer
-     code. Matches RFC-072 migration pattern which shipped cleanly.
+     code. Matches the cross-layer identity design migration pattern which shipped cleanly.
 
 5. **Two-tier edge contract is schema metadata, not runtime.**
    - **Decision**: `edge_class` lives in the schema definition; not
@@ -558,9 +554,9 @@ one PR at the end):**
   Risk: low. Days: 0.5–1.
   Follow-up tickets:
   - **Ticket A** — Person Landing shared component (PRD-029 spec)
-  - **Ticket B** — Position Tracker view (PRD-028 spec, UXS-009)
+  - **Ticket B** — Position Tracker view (the Position Tracker spec, UXS-009)
   - **Ticket C** — Person Profile view (PRD-029 spec, UXS-010)
-  Both PRD-028 and PRD-029 v2-closure stanzas updated to reflect the
+  Both the Position Tracker and PRD-029 v2-closure stanzas updated to reflect the
   split (data foundation = chunk 7; viewer surface = follow-ups).
 - **Chunk 9 (deferred to follow-up PR, bake-gated)** — Drop legacy
   schema support; ADR-101 records the decision. Gate: 2–4 weeks of
@@ -603,15 +599,15 @@ one PR at the end):**
 This RFC is part of the autoresearch programme (epic #907) +
 corpus-ontology consolidation effort that includes:
 
-1. **RFC-049 (GI core)** — entity-extraction v1.1 deferral retired
+1. **the GIL core design (GI core)** — entity-extraction v1.1 deferral retired
    by v2; ABOUT + MENTIONS edges (defined but unemitted in v1) now
    shipped per-artifact. CONTRADICTS edges remain deferred to v3.
-2. **RFC-050 / RFC-056 (GI / KG use cases)** — Position Tracker and
-   Person Profile use cases (named here, moved to RFC-072) get
+2. **the GIL use-case design / RFC-056 (GI / KG use cases)** — Position Tracker and
+   Person Profile use cases (named here, moved to the cross-layer identity design) get
    delivered surfaces in chunk 8. NL query layer remains deferred.
 3. **RFC-055 (KG core)** — Entity discriminator replaced by typed
    Person + Organization + Podcast nodes; KG ontology v2.0.
-4. **RFC-072 (CIL + bridge)** — v2 materializes the cross-layer
+4. **the cross-layer identity design (CIL + bridge)** — v2 materializes the cross-layer
    edges the CorpusGraph composes in-memory; v1.1 additive fields
    (`insight_type`, `position_hint`) ship; Known Limitations 1, 2,
    3, 5 remain open as designed.
@@ -638,15 +634,13 @@ corpus-ontology consolidation effort that includes:
 
 **Key Distinction:**
 
-- **RFC-072** — defined the cross-layer infrastructure (CIL, bridge,
-  CorpusGraph) and named v1.1 additive fields.
 - **RFC-097 (this RFC)** — formalizes the ontology textually,
   materializes the cross-layer edges per-artifact, lands the
   additive fields, and ships the two viewer surfaces.
 
 Together they provide:
 
-- Stable canonical IDs across artifacts (RFC-072)
+- Stable canonical IDs across artifacts
 - Per-artifact materialization of cross-layer edges (RFC-097)
 - v1.1 additive Insight fields (RFC-097)
 - Two flagship viewer surfaces (RFC-097)
@@ -654,13 +648,13 @@ Together they provide:
 ## Benefits
 
 1. **Documentation reflects operational state.** The "v1.1 deferral"
-   language survives in PRD-017 / RFC-049 despite #1035 + RFC-072
+   language survives in PRD-017 / the GIL core design despite #1035 + the cross-layer identity design
    having shipped the substance; RFC-097 retires it.
 2. **Cross-layer edges queryable without rebuilding CorpusGraph.**
    Per-artifact `ABOUT` / `MENTIONS_PERSON` / `MENTIONS_ORG` lets
    the viewer + relational query layer skip in-memory composition.
 3. **Two flagship surfaces ship.** Position Tracker + Person Profile
-   are the products RFC-072 was built to enable.
+   are the products the cross-layer identity design was built to enable.
 4. **Cleaner schemas.** Typed Person + Organization + Podcast nodes
    eliminate the discriminator hack and reduce repair-pass surface
    area (`kg/filters.py::repair_entity_kind`).
@@ -713,7 +707,7 @@ Together they provide:
 ## References
 
 - **Related PRDs**: PRD-017, PRD-019, PRD-026 through PRD-029, PRD-031
-- **Related RFCs**: RFC-049, RFC-050, RFC-055, RFC-056, RFC-072,
+- **Related RFCs**: The GIL core design, the GIL use-case design, RFC-055, RFC-056, the cross-layer identity design,
   RFC-088, RFC-090, RFC-091, RFC-092, RFC-094
 - **Live ontology design**: `docs/architecture/corpus/ontology.md` (shipped in chunk 1). The
   round-1/2/3 design specs were WIP archaeology and have been removed — their history is in git.
@@ -734,35 +728,11 @@ companion doc receives (applied in the same commit as this RFC).
 Operators can audit at a glance which threads survive v2 and where
 to find them.
 
-### `docs/rfc/RFC-049-grounded-insight-layer-core.md` — Completed
-
-- **Closed by v2**: entity-extraction v1.1 deferral retired
-  (Person + Organization first-class); `ABOUT (Insight → Topic)`
-  edge emitted; `MENTIONS` split into `MENTIONS_PERSON` +
-  `MENTIONS_ORG` and emitted; `Insight.insight_type` (additive v1.1
-  field) ships; `Insight.position_hint` (additive v1.1 field) ships.
-- **Remains open**: Topic semantic deduplication (Resolved Q1 →
-  v3); `CONTRADICTS` edges (Resolved Q1 → v3, needs NLI pipeline);
-  Phase 5 chunk-to-Insight lift (KL1, char-offset alignment blocker).
-- **Companion-doc annotation**: closure note added pointing to
-  RFC-097 §2 + §3 + §4.
-
-### `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md` — Completed
-
-- **Closed by v2**: cross-layer use cases (originally named in
-  RFC-050, moved to RFC-072) get shipped surfaces via Position
-  Tracker + Person Profile (chunk 8 + PRDs-028/029).
-- **Remains open**: NL query layer (deferred indefinitely; RFC-092
-  intent routing is the partial substitute); grounding-rate
-  empirical thresholds (validate post-v2).
-- **Companion-doc annotation**: cross-ref to RFC-072 §Vision +
-  RFC-097 §Use Cases.
-
 ### `docs/rfc/RFC-055-knowledge-graph-layer-core.md` — Completed
 
 - **Closed by v2**: `Entity(kind=...)` discriminator replaced by
   typed Person + Organization + Podcast nodes; KG ontology v2.0.
-- **Remains open**: Topic semantic dedup (v3, RFC-075 territory);
+- **Remains open**: Topic semantic dedup (v3, topic clustering territory);
   `MENTIONS` edge semantics — KG co-occurrence stays as `discovery`
   edge_class, retrieval-relevance settled by RFC-091.
 - **Companion-doc annotation**: ontology migration note pointing
@@ -770,24 +740,11 @@ to find them.
 
 ### `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` — Completed
 
-- **Closed by v2**: same cross-layer use cases as RFC-050 (moved
-  to RFC-072) get shipped surfaces.
+- **Closed by v2**: same cross-layer use cases as the GIL use-case design (moved
+  to the cross-layer identity design) get shipped surfaces.
 - **Remains open**: NL query translation (post-v2); perfect entity
   resolution (PRD-019 non-goal); KG semantic deduplication (v3).
-- **Companion-doc annotation**: mirror RFC-050 cross-ref.
-
-### `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` — Draft
-
-- **Closed by v2**: v1.1 additive fields (`insight_type`,
-  `position_hint`) ship per-artifact; cross-layer descriptive
-  edges materialize in per-artifact JSON (not just CorpusGraph
-  composition).
-- **Remains open**: Phase 5 chunk-to-Insight lift (KL1, char-offset
-  alignment); cross-episode Person identity merging / alias registry
-  (KL2, v3); Topic semantic dedup (KL3, v3); `CONTRADICTS` edges
-  (KL5, v3); position-change detection (analysis layer territory).
-- **Companion-doc annotation**: v2 closure note for §2a / §2b
-  fields + §5 cross-layer query patterns.
+- **Companion-doc annotation**: mirror the GIL use-case design cross-ref.
 
 ### `docs/rfc/RFC-088-enrichment-layer-architecture.md` — Draft
 
@@ -831,7 +788,7 @@ to find them.
 ### `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` — Draft
 
 - **Closed by v2**: stable `person:` / `topic:` / `org:` IDs for
-  relational queries (RFC-072 CIL formalized in RFC-097); ABOUT
+  relational queries (the cross-layer identity design CIL formalized in RFC-097); ABOUT
   + MENTIONS_PERSON + MENTIONS_ORG edges per-artifact enable
   `who_said_what_about`, `insights_about`, `mentions_of_person`.
 - **Remains open**: MCP exposure of relational queries;
@@ -845,8 +802,8 @@ to find them.
   (`insight_type` marking); entity v1.1 deferral retired;
   Quote/Insight entity attribution via MENTIONS_PERSON /
   MENTIONS_ORG.
-- **Remains open**: RFC-050 Insight Explorer surface; RFC-051 DB
-  projection; cross-episode Insight dedup (RFC-072 KL).
+- **Remains open**: The GIL use-case design Insight Explorer surface; RFC-051 DB
+  projection; cross-episode Insight dedup (the cross-layer identity design KL).
 - **Companion-doc annotation**: closure note pointing to
   RFC-097 §2 + §3 + GI schema v3.0.
 
@@ -873,28 +830,18 @@ to find them.
 
 ### `docs/prd/PRD-027-enriched-search.md` — Draft
 
-- **Closed by v2**: chunk-to-Insight lift foundation (RFC-072
+- **Closed by v2**: chunk-to-Insight lift foundation (the cross-layer identity design
   Phase 5 prerequisite); synthesis quality (Insight.insight_type
   + position_hint improve enriched synthesis).
 - **Remains open**: QueryEnricher protocol (RFC-088 Phase 4);
-  Enriched Search UI; char-offset alignment verification (RFC-072
+  Enriched Search UI; char-offset alignment verification (the cross-layer identity design
   KL1, hard blocker for full chunk-to-Insight lift).
 - **Companion-doc annotation**: v2 prerequisite note.
-
-### `docs/prd/PRD-028-position-tracker.md` — Draft
-
-- **Closed by v2**: Position Tracker data foundation + viewer
-  surface (chunk 8); `position_arc` query pattern (RFC-072 §5A);
-  `insight_type` filtering; `position_hint` temporal ordering.
-- **Remains open**: position-change detection (analysis layer);
-  multi-corpus cross-show view.
-- **Companion-doc annotation**: v2 completeness note for data +
-  UI.
 
 ### `docs/prd/PRD-029-person-profile.md` — Draft
 
 - **Closed by v2**: Person Profile data foundation + viewer
-  surface (chunk 8); `person_profile` query pattern (RFC-072 §5B).
+  surface (chunk 8); `person_profile` query pattern.
 - **Remains open**: analytical ranking / curation (analysis
   layer); multi-corpus aggregation.
 - **Companion-doc annotation**: v2 completeness note for data +
@@ -918,7 +865,7 @@ Pinned so the chunked execution doesn't accidentally do them:
 1. Topic semantic deduplication
 2. Cross-episode Person identity merging / alias registry
 3. `CONTRADICTS` edges between Insights
-4. Phase 5 chunk-to-Insight lift (RFC-072 KL1)
+4. Phase 5 chunk-to-Insight lift
 5. Natural-language query layer
 6. Enrichment workers (RFC-088 territory)
 7. MCP tool layer

@@ -26,7 +26,7 @@ such run is a corpus change of its own and needs its own record and go.
 
 ## 1. Intake
 
-- **The gap** (handover `HANDOVER-NAMING-2026-11-03.md` §4): no way to re-run an applied migration
+- **The gap**: no way to re-run an applied migration
   for named episodes. Today that means calling the class from Python in the api container. That
   path has no plan check, no outcome hook, no lock and no receipt of the run.
 - **When it is needed:** a reprocessed or re-enriched episode gets new artifacts from the

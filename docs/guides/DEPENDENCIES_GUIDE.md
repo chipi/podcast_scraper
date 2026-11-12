@@ -21,7 +21,7 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 | Extra | Purpose |
 | --- | --- |
-| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. **LanceDB is NOT here** — it is search-only; an ML pipeline that also indexes composes `.[ml,search]` (#1019). |
+| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization), transformers, sentence-transformers, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. **LanceDB is NOT here** — it is search-only; an ML pipeline that also indexes composes `.[ml,search]` (#1019). |
 | **`search`** | Corpus vector + FTS search (RFC-090): **LanceDB** two-tier store + sentence-transformers / torch / transformers (embeddings). The cloud-deployment set — independently installable without `[ml]`; `[ml]` and `[search]` share the torch/transformers base because both genuinely import it, not as a subset. |
 | **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn + prometheus-fastapi-instrumentator + apscheduler** (GI/KG viewer API, RFC-062), text eval helpers (ROUGE, BLEU, WER), MCP SDK + httpx (TestClient), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. The server pins are mirrored in `docker/api/Dockerfile` (installed there without full `[dev]` to keep test tooling out of prod) — **keep the two in sync**. Embedding cosine in `evaluation/scorer.py` needs sentence-transformers (`[ml]` or `[search]`). |
 | **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
@@ -131,7 +131,7 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 ### `pyannote.audio` (>=3.1) and `torchaudio`
 
-- **Purpose**: Neural speaker diarization after local Whisper transcription (RFC-058 / PRD-020).
+- **Purpose**: Neural speaker diarization after local Whisper transcription (PRD-020).
   Replaces gap-based speaker rotation with voice-embedding attribution when `diarize=true`.
 
 - **Why chosen**: Production-grade diarization with HuggingFace model distribution; additive
@@ -142,7 +142,7 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
   segments.
 
 - **Install**: Bundled in **`[ml]`** (pipeline/Docker) and pinned in **`[dev]`** (CI/dev venv
-  parity). Lazy-imported in `providers/ml/diarization/` — no import-time dependency when
+  parity). Lazy-imported by the diarization stage — no import-time dependency when
   `diarize=false`.
 
 - **Runtime requirements**: HuggingFace token (`HF_TOKEN` / `hf_token`) and accepted model terms.

@@ -265,7 +265,7 @@ DigestView loads
 | File | Domain |
 | ---- | ------ |
 | `types/artifact.ts` | Raw + parsed GI/KG JSON, `ParsedArtifact`, `GraphFilterState`, node/edge shapes |
-| `types/bridge.ts` | RFC-072 `bridge.json`: `BridgeDocument`, `BridgeIdentity` |
+| `types/bridge.ts` | The cross-layer identity design `bridge.json`: `BridgeDocument`, `BridgeIdentity` |
 
 API modules export their own request/response types co-located with the
 functions that use them.

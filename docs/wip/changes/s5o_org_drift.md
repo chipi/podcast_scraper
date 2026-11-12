@@ -2,7 +2,7 @@
 id: s5o_org_drift
 class: full
 status: landed
-issue: none (RFC-131 S5o; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design S5o; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/person_match.py
 ---

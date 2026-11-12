@@ -26,7 +26,7 @@ on is its own one-line change and deploy. Ids only in this record.
   (`identity/refresh_guard.py`, `identity/ledger.py:437`). A rule that changes a join or a shown
   spelling rewrites stored files at the next refresh once it is the active mode.
 - **The arc's tier L items, read again against the code (2026-11-04):**
-  - **L1** (#2403, open): the roster's ~13 same-person rules, unified or justified (RFC-131
+  - **L1** (#2403, open): the roster's ~13 same-person rules, unified or justified (the person-identity design
     Phase 5). These decide names inside one episode at naming time; the ledger reads their output,
     not the rules. Its prerequisites (the shadow namers' monitoring decision; a voice-level truth
     set) are not met. **Not in this mode;** a forward roster change of its own.
@@ -44,10 +44,10 @@ on is its own one-line change and deploy. Ids only in this record.
     (eval-data branch `ingestion-arc-l6`, `data/eval/ingestion-arc/l6/`: 27 voices, 20 served
     episodes still carry the heard spelling).
 - **Existing machinery read:** `identity/ledger.build_ledger` (mode `PERSON_MODE`, linkage
-  `no_one_word_bridge`, guards ADR-167, reviewed pairs s5d), `_add_display_spellings` and
+  `no_one_word_bridge`, guards the join guards, reviewed pairs s5d), `_add_display_spellings` and
   `_publisher_spellings` (records s6e, s6g, s6h), `identity/guards.collect_episode_evidence` and
   `PUBLISHER_KEYS = ("known_hosts", "metadata_named", "detected_guests")` (`guards.py:50`).
-- **Records:** s5c, s5d, s6a–s6h, d1, d2, 0041. ADR-166 (the ledger), ADR-167 (guards).
+- **Records:** s5c, s5d, s6a–s6h, d1, d2, 0041. The identity ledger (the ledger), the join guards (guards).
 - **Scoring set:** eval-data `naming_speakers_v1/val_v7` (80 cases, 27 feeds, built 2026-11-04,
   labels_v1, 207 scored names), unread by anyone tuning a rule; design on dev_v1 and the snapshot's
   unlabelled data only.
@@ -172,7 +172,7 @@ letter (fixed). Design data: the snapshot and dev_v1. val_v7 is not read.
   unchanged.
 - **Must not move, added:** blocked joins 40 unchanged; groups 458 less the merges of the 4 added
   joins, no other group changes membership; the 6 label-only groups keep their spelling; the
-  ADR-167 guards and the s5d reviewed pairs untouched (no code there); the one-episode ids s5d
+  The join guards guards and the s5d reviewed pairs untouched (no code there); the one-episode ids s5d
   keeps apart (L6's 27 voices) stay apart, since this mode adds no title rule (L6 is not in it,
   below).
 - **By identity, V1 and V2 samples:** V1 drops the `known_hosts` spellings `person:rj-hanaki` (0 of
@@ -197,9 +197,7 @@ their rule, the baselines' source, S8, blocked joins, group count, the label-onl
 guards and s5d untouched, samples by id, denominators, the discipline stated. Reading list
 added to section 1: #2102 (tier sources by provenance: V1's subject), #2092 (show hosts and
 episode hosts one field), #2219 (entity registry), #2097 (post-deploy epic), #2261 (feed-level
-profiles), #2078 and #2105 (host-seat roles, which V3 reads); `docs/wip/HANDOVER-NAMING-2026-11-03.md`
-(the "handover" of section 1), `docs/guides/NAMING_KNOWN_ISSUES.md`, `docs/guides/NAMING_LADDER.md`,
-`docs/guides/SPEAKER_ATTRIBUTION_TRACE_GUIDE.md`, the arc list's "Tier L" section.
+profiles), #2078 and #2105 (host-seat roles, which V3 reads); the arc list's "Tier L" section.
 
 Spot checks for step 8: the 12 shown-spelling moves; the 4 added joins and 5 rejected V3 pairs;
 10 V1-dropped `known_hosts` names (Latent Space among them); today's mode byte-identical on the

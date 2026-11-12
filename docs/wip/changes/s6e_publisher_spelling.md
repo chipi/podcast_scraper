@@ -2,7 +2,7 @@
 id: s6e_publisher_spelling
 class: full
 status: landed
-issue: none (RFC-131 S6; operator decision, 2026-11-01)
+issue: none (the person-identity design S6; operator decision, 2026-11-01)
 touches:
   - src/podcast_scraper/identity/ledger.py
   - src/podcast_scraper/identity/guards.py

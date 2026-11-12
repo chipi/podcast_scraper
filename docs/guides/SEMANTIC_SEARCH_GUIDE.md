@@ -154,14 +154,13 @@ the on-disk index bounded; both are automatic:
 You should never need to compact by hand; if an index ever looks bloated (thousands of files under
 `search/lance_index/*.lance/`), a full reindex (`index-two-tier` / `index --rebuild`) resets it.
 
-## Corpus topic clustering (RFC-075)
+## Corpus topic clustering
 
 After **`kg_topic`** rows exist in the LanceDB index, you can build **`search/topic_clusters.json`**
 with **`topic-clusters`** (see [CLI reference](../api/CLI.md) — section **Topic clusters**).
 Optional **`--merge-cil-overrides`** writes merged **`topic_id_aliases`** into
 **`cil_lift_overrides.json`** (see **Optional corpus overrides** below). The GI/KG viewer loads
-clusters via **`GET /api/corpus/topic-clusters`** when serving the same corpus root. Details:
-[RFC-075](../rfc/RFC-075-corpus-topic-clustering.md).
+clusters via **`GET /api/corpus/topic-clusters`** when serving the same corpus root.
 
 New CLI runs emit **`schema_version`: `"2"`** with distinct ids: **`graph_compound_parent_id`**
 (`tc:`…, viewer **TopicCluster** parents only) and **`cil_alias_target_topic_id`** (`topic:`…,
@@ -187,8 +186,6 @@ global ontology:
 | **`tc:…` (TopicCluster)** | **Viewer-only** compound parent ids from **`graph_compound_parent_id`** in **`topic_clusters.json`** — grouping in Cytoscape, **not** an index key and **not** the same field as **`cil_alias_target_topic_id`**. |
 | **Overrides** | **`cil_lift_overrides.json`** (and optional **`topic_id_aliases`** from **`topic-clusters --merge-cil-overrides`**) tune identity without rewriting KG files. |
 
-Details and field renames (v1 vs v2): [RFC-075 § Artifact schema](../rfc/RFC-075-corpus-topic-clustering.md#3-artifact-schema-topic_clustersjson).
-
 ## Query
 
 ```bash
@@ -210,8 +207,8 @@ pipeline output directory. See
 
 Response hits are **JSON objects** with `doc_id`, `score`, `metadata`, `text`, optional
 `supporting_quotes` (insight rows), optional **`lifted`** on **transcript** rows when
-RFC-072 lift applies (see below), and optional **`metadata.topic_cluster`** on **kg_topic**
-rows when **`topic_clusters.json`** exists (RFC-075 join; see **Corpus topic clustering** above).
+The cross-layer identity design lift applies (see below), and optional **`metadata.topic_cluster`** on **kg_topic**
+rows when **`topic_clusters.json`** exists (topic clustering join; see **Corpus topic clustering** above).
 
 **Quote speaker fields (GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541)):** On
 **insight** hits, each entry in **`supporting_quotes`** may include **`speaker_id`** /
@@ -221,7 +218,7 @@ carry **`display_name`** from **`bridge.json`** when the graph id resolves; the 
 **`lifted.quote`** may still have audio timestamps while speaker display is missing. Canonical
 rules: [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
 
-## Chunk-to-Insight lift and offset verification (RFC-072 / #528) {#chunk-to-insight-lift-and-offset-verification-rfc-072--528}
+## Chunk-to-Insight lift and offset verification {#chunk-to-insight-lift-and-offset-verification}
 
 **Lift:** For hits whose metadata has **`doc_type`: `transcript`**, the server may attach a
 **`lifted`** dictionary: **insight** (id, text, grounded, optional `insight_type` /
@@ -245,7 +242,7 @@ the paginated **`top_k`** slice after server-side KG surface dedupe.
 - **`entity_id_aliases`** / **`topic_id_aliases`** — string-to-string maps; **speaker** /
   **topic** ids from the graph are resolved through the map before **`bridge.json`**
   **`display_name`** lookup and before emitting **`lifted.speaker.id`** / **`lifted.topic.id`**.
-  After **RFC-075** clustering, **`topic-clusters --merge-cil-overrides`** can append
+  After **topic clustering** clustering, **`topic-clusters --merge-cil-overrides`** can append
   **`topic_id_aliases`** derived from **`topic_clusters.json`**; keys already in the file
   keep their values (hand overrides win).
 
@@ -279,7 +276,7 @@ Useful labels:
   index for those episodes (strict mode passes; nothing to compare).
 
 If transcript text normalisation (BOM, newlines, Unicode) differs between indexing and GIL
-generation, overlap drops; use the report to align pipelines (RFC-072 Known Limitations).
+generation, overlap drops; use the report to align pipelines (the cross-layer identity design Known Limitations).
 
 **Flags:** `--index-path DIR` (default `<output-dir>/search`), `--strict` (non-zero exit when
 overlap is below `--min-overlap-rate` or verdict is `divergent`; `no_quotes` and
@@ -287,10 +284,6 @@ overlap is below `--min-overlap-rate` or verdict is `divergent`; `no_quotes` and
 `--max-samples N` (cap sample quote ids listed per episode when there is no overlap). For
 **`make verify-gil-offsets-strict`**, set **`GIL_OFFSET_VERIFY_DIR`** for the corpus root and
 optionally **`GIL_OFFSET_MIN_RATE`** (default **0.95**).
-
-**See also:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md),
-[RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (Phase 5 / Known
-Limitations).
 
 ## `gi explore` and `gi query`
 
@@ -311,9 +304,5 @@ Limitations).
 
 - **RFC-061 (FAISS Phase 1, retired):** [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
 - **RFC-090 (LanceDB-first hybrid, current):** [RFC-090](../rfc/RFC-090-hybrid-retrieval.md)
-- **RFC-072 (CIL, bridge, lift, complete):** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
-- **RFC-075 (corpus topic clustering, complete):** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md)
 - **RFC-070 (platform / Superseded by RFC-090):** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - **PRD-021:** [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
-- **GIL CLI:** [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
-- **Cross-layer map:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md)

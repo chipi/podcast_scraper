@@ -4,12 +4,10 @@
 - **Authors**: Marko
 - **Target Release**: post-beta (gated on Phase 0 — see §Phasing)
 - **Related RFCs**:
-  - [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) — speaker turns as a first-class artifact (prerequisite; ships independently)
   - [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) — language routing, source-language transcription, translation stage
-  - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — translation provenance (v1); source verification, labelling, the read-time gate and quality estimation (all v2)
-  - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
+  - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
 - **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint)
-- **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
+- **Related PRDs**: [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
 - **Arc notes**: [MULTILINGUAL_ARC](../architecture/MULTILINGUAL_ARC.md) — arc shape, the slice plan (§4), decisions and running notes
 - **Scope**: pipeline (ingest → transcript → translation → ad-free base → existing intelligence layers), player transcript/quote surfaces, language visibility and filtering, operator feed config. No non-English UI.
 
@@ -57,11 +55,11 @@ it compounds the cross-show-synthesis moat.
   There is no episode-level language field at all. Parsing and persisting the real tag — with a
   per-show backfill migration — is therefore the **first** piece of work, not a lift (FR1.1).
 - **Everything downstream of the transcript is English-shaped and should stay that way.** GIL
-  grounding requires verbatim substrings with char offsets (`gi/grounding.py`, `EvidenceSpan`).
+  grounding requires verbatim substrings with char offsets (`EvidenceSpan`).
   Prompts, QA/NLI checks, embeddings (MiniLM) and spaCy NER are all English. Translating once to
   English is far cheaper and safer than making every layer multilingual.
 - **Ad removal is English-keyed, and that is not cosmetic.** The ad detector matches English regexes
-  (`gi/filters.py` `_AD_PATTERNS`: "brought to you by", "sponsored by", "… dot com slash"). On a
+  (the ad patterns: "brought to you by", "sponsored by", "… dot com slash"). On a
   non-English transcript it matches nothing, and the ad-free base — the text all analysis reads — is
   silently produced as an identity copy with the sponsor reads still in it. RFC-124 therefore
   translates **before** removing ads, which fixes this and costs one translation pass instead of two.
@@ -78,7 +76,7 @@ it compounds the cross-show-synthesis moat.
   nothing — and **this feature has no dependency on shipping a stance-extraction stage**, because
   there is none to ship.
 - **Why not now.** Beta onboarding and the corpus rebuild come first. This PRD is written now so the
-  beta interviews can test the hypothesis and so RFC-123, which has standalone value, can be
+  beta interviews can test the hypothesis and so the turns artifact, which has standalone value, can be
   scheduled on its own merits.
 
 ## Goals
@@ -114,7 +112,7 @@ it compounds the cross-show-synthesis moat.
   needs a feed-record store this feature does not justify building.
 - Per-unit quality-estimation bands in v1. Calibrating them needs a native reviewer per language and
   a translated corpus that does not exist until the pipeline has run, so QE is a v2 addition
-  (RFC-125 §7). v1's trust mechanism is source verification.
+. v1's trust mechanism is source verification.
 
 ## Personas
 
@@ -206,7 +204,7 @@ it compounds the cross-show-synthesis moat.
 ### FR3: English translation
 
 - **FR3.1**: Every translation unit is translated. Units are sentence groups within a single speaker
-  turn (RFC-123 turns; RFC-124 §5.1). Coverage is complete, not selective. The full timeline is
+  turn (the turns artifact; RFC-124 §5.1). Coverage is complete, not selective. The full timeline is
   translated exactly once per episode.
 - **FR3.2**: The English transcript is aligned unit by unit to source timestamps and speakers, and
   is served as subtitles.
@@ -269,7 +267,7 @@ words — which is exactly why the label is the first thing v2 adds after verifi
 - **FR5.3** *(v2)*: Source verification — give a model the source-language text a claim rests on and the
   English claim, and record whether the source supports it.
 - **FR5.4** *(v2)*: A read-time gate keyed on that outcome, across every surface that attributes a claim
-  to a person on a topic. RFC-125 §3 enumerates them. Whether it is fail-closed everywhere or split
+  to a person on a topic. translation verification §3 enumerates them. Whether it is fail-closed everywhere or split
   between surfaces that *assert* a position and those that merely *describe* is a judgement to make when
   the verifier exists — a gate with nothing able to release what it holds would simply hide translated
   output permanently, which is why it is not in v1.
@@ -355,7 +353,7 @@ specific language before it has passed the gate.
 
 ## Phasing
 
-Phase numbering means one thing across this PRD and RFC-123/124/125. The demand and bake-off
+Phase numbering means one thing across this PRD and the turns artifact, RFC-124 and translation verification. The demand and bake-off
 validation step is **Gate V**, not a phase, because it produces evidence rather than software. The
 per-slice breakdown — each slice sized as one issue, with dependencies and acceptance criteria — lives
 in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
@@ -369,7 +367,7 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   non-English floor (FR2.1); episode language on the API and the badge (FR7.1–FR7.2). A correctness fix
   on the corpus that exists — no new models, no GPU — and what makes the multilingual path provable end
   to end before any translation happens.
-- **Phase 1: Turns (RFC-123).** Independent of everything multilingual; improves quote attribution,
+- **Phase 1: Turns.** Independent of everything multilingual; improves quote attribution,
   search chunking and player cues for English episodes today. Can run in parallel with Phase 0.
 - **Gate V: Validate (no build).** Ask the beta cohort what share of their listening is non-English
   and which shows. Confirm candidate translation-model availability and licence terms (unverified
@@ -387,14 +385,14 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 - **Phase 2: Translation (RFC-124)** behind a feature flag that gates **serving as well as the
   pipeline**, on one operator-chosen feed. Includes the trust marker on every translated claim and the
   read-time Positions gate, both of which would otherwise arrive too late — see Phase 3.
-- **Phase 3: Trust (RFC-125).** The source-verification pass and the operator worklist. Note the
+- **Phase 3: Trust.** The source-verification pass and the operator worklist. Note the
   **marker and the gate ship in Phase 2, not here**: the gate keys on the marker, so a translated claim
   written without one passes straight through and "fail-closed" stops being true. Serving translated
   episodes before both exist would put unverified, unlabelled claims into Position timelines — the
   failure this PRD calls the worst it can produce.
 - **Phase 4: Surfaces.** Language toggle, translated-quote treatment, and the language filters
   (FR7.3–FR7.5). UXS to follow for the transcript toggle and quote treatment.
-- **v2:** per-unit quality estimation and calibrated bands (RFC-125 §7).
+- **v2:** per-unit quality estimation and calibrated bands.
 
 ## Success Metrics
 
@@ -429,7 +427,7 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 
 ## Dependencies
 
-- RFC-123 turns artifact (unit boundaries for translation, and the citation unit for confidence).
+- the turns artifact (unit boundaries for translation, and the citation unit for confidence).
 - One additional served model on the DGX for translation.
 - A native-speaker reviewer per candidate language **for the bake-off** (Gate V) and for the monthly
   verification spot-check. Cutting QE from v1 removes the reviewer from the *pipeline's* critical path;
@@ -441,12 +439,12 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 
 - **A stance-extraction stage.** Positions are a read-time CIL query over GI insights (since
   2026-07-08), so there is no extraction stage to ship first and Phase 3 is not blocked on one.
-- **A QE model or its calibration.** Deferred to v2 (RFC-125 §7). v1's trust mechanism is source
+- **A QE model or its calibration.** Deferred to v2. v1's trust mechanism is source
   verification, which needs no per-language threshold fitting.
 
 ## Risks
 
-- **Translation inverts meaning** (negation, hedging, sarcasm). Mitigated by RFC-125 verification;
+- **Translation inverts meaning** (negation, hedging, sarcasm). Mitigated by translation verification;
   residual risk is accepted only for non-position content, which is labelled as translated but not
   individually verified in v1.
 - **Sponsor reads enter the analysis text.** The cause is English-only ad patterns; mitigated by
@@ -457,7 +455,7 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   no input until FR1.1 lands. Mitigated by making FR1.1 the first slice, with its per-show backfill,
   rather than assuming the data was already there.
 - **Identity fragmentation across scripts.** Mitigated by FR4.4 and CIL alias rules (RFC-124 §5.4).
-- **Demand does not materialize.** Gate V; Phase 0 and RFC-123 still pay for themselves.
+- **Demand does not materialize.** Gate V; Phase 0 and the turns artifact still pay for themselves.
 - **Serbian may not be supportable under an eligible licence.** Whisper is at 33.9% FLEURS WER on
   Serbian against Greek's 12.5%, and Serbian is absent from both MiLMMT-46 and LMT-60 while the one
   shortlisted model that covers it (NLLB) is non-commercial. Mitigated by deciding the pilot language by

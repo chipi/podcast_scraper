@@ -3,7 +3,7 @@
 - **Status**: Superseded by [ADR-169](ADR-169-the-database-is-the-source-of-truth.md) (2026-11-03)
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md), [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md), [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
+- **Related RFCs**: [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md), [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
 - **Related PRDs**: [PRD-017](../prd/PRD-017-grounded-insight-layer.md), [PRD-019](../prd/PRD-019-knowledge-graph-layer.md)
 
 ## Context & Problem Statement
@@ -68,6 +68,5 @@ We adopt **per-episode JSON artifacts with logical union**:
 
 - [ADR-004: Flat Filesystem Archive Layout](ADR-004-flat-filesystem-archive-layout.md)
 - [ADR-008: Database-Agnostic Metadata Schema](ADR-008-database-agnostic-metadata-schema.md)
-- [RFC-049: Grounded Insight Layer — Core](../rfc/RFC-049-grounded-insight-layer-core.md)
 - [RFC-055: Knowledge Graph Layer — Core](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - [RFC-051: Database Projection](../rfc/RFC-051-database-projection-gil-kg.md)

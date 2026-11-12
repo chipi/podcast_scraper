@@ -6,10 +6,7 @@
   - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search, FAISS Phase 1 (**Completed**; FAISS retired by RFC-090)
   - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — LanceDB-first hybrid retrieval (BM25 + dense + RRF) (**Completed**; current retrieval pipeline)
   - [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) — Qdrant / pgvector platform backends (**Superseded by RFC-090**; LanceDB replaces both)
-  - [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) — corpus topic clustering layer (**Completed**; viewer compound parents + `topic_clusters.json`)
   - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer v2 (**complete**)
-  - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core (**complete**; prerequisite, indexable artifacts)
-  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases (**complete**)
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core (**complete**; indexable KG artifacts)
   - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**complete**)
   - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection (**Draft**; orthogonal SQL-serving scope)
@@ -59,7 +56,7 @@ exist, and the evidence stack works. Semantic search is the highest-leverage "de
 because it:
 
 - Immediately makes `gi explore` and `gi query` useful at scale (removes the ~100 episode ceiling)
-- Unlocks RFC-050 UC4 (Semantic QA) which is explicitly deferred as "post-v1"
+- Unlocks the GIL use-case design UC4 (Semantic QA) which is explicitly deferred as "post-v1"
 - Provides infrastructure for digest clustering (megasketch Part C), topic alignment, and
   entity resolution
 - Reuses the embedding model already in the dependency tree
@@ -156,7 +153,7 @@ because it:
 - **FR3.5**: Results include: rank, similarity score, document text, document type,
   episode title, episode_id, feed, publish_date, and source references
 - **FR3.6**: For Insight results, include `grounded` status and `supporting_quotes` summary. Per-quote **`speaker_id`** / **`speaker_name`** mirror **`.gi.json`** and segment/diarization rules (often absent without diarization — GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)).
-- **FR3.7**: For transcript chunk results, include `timestamp_start_ms` and `char_start`. Optional RFC-072 **`lifted`** enrichment follows the same GI speaker contract for **`lifted.speaker`** / **`lifted.quote`** (see [Semantic Search Guide — quote speaker fields](../guides/SEMANTIC_SEARCH_GUIDE.md) and **#541** link above).
+- **FR3.7**: For transcript chunk results, include `timestamp_start_ms` and `char_start`. Optional the cross-layer identity design **`lifted`** enrichment follows the same GI speaker contract for **`lifted.speaker`** / **`lifted.quote`** (see [Semantic Search Guide — quote speaker fields](../guides/SEMANTIC_SEARCH_GUIDE.md) and **#541** link above).
 
 ### FR4: Index Management CLI
 
@@ -173,7 +170,7 @@ because it:
 - **FR5.2**: When no index exists, fall back to current substring matching (backward
   compatible)
 - **FR5.3**: `gi query` semantic QA uses the vector index for real meaning-based
-  question answering (RFC-050 UC4)
+  question answering (the GIL use-case design UC4)
 
 ### FR6: Configuration
 
@@ -198,7 +195,7 @@ because it:
 
 ## Dependencies
 
-- PRD-017 / RFC-049: GIL artifacts (`gi.json`) provide Insight and Quote text to index
+- PRD-017 / the GIL core design: GIL artifacts (`gi.json`) provide Insight and Quote text to index
 - PRD-005: Summaries provide bullet text to index
 - PRD-001: Transcripts provide text for chunked indexing
 - `sentence-transformers` (already in dependency tree)
@@ -296,7 +293,6 @@ Results (top 5):
 - Issue #466: Post-v1 depth backlog (NL consumption, richer aggregation)
 - PRD-017: Grounded Insight Layer
 - PRD-019: Knowledge Graph Layer
-- RFC-050: GIL Use Cases (UC4 Semantic QA, UC5 Insight Explorer)
 
 
 ## Release Checklist

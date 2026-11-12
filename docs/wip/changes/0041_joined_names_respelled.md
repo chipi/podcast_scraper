@@ -2,7 +2,7 @@
 id: 0041_joined_names_respelled
 class: full
 status: landed
-issue: none (RFC-131 plan V3, D2 items 8 and 9; operator, 2026-10-31)
+issue: none (the person-identity design plan V3, D2 items 8 and 9; operator, 2026-10-31)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0041_joined_names_respelled.py
   - src/podcast_scraper/upgrade/registry.py
@@ -58,7 +58,6 @@ are in eval-data `data/eval/name-consolidation/d2i9/`.
     disk per request, and the label is shown as text.
   - `perf_cache.corpus_mtime`: caches key on the run summaries and the ledger file, not on
     episode files.
-  - ADR-166 (a spelling never renames an id), ADR-167 (guards), S6a's display rule.
   - D2 item 8's cause (plan V3): 0034 and 0035 wrote a second spelling of a person into 5
     episodes that already listed the person; 0025's verify fails on them.
 
@@ -120,7 +119,7 @@ Dated: 2026-10-31
    - **Item 8's fold:** a roster entry whose name 0025's `same_person` matches to a respelled
      name, or to the group spelling, under another spelling, takes the group spelling too. Its
      node, if it has one under another id, folds into the joined id. That is the one case where
-     an id moves; elsewhere the id map is empty (ADR-166).
+     an id moves; elsewhere the id map is empty.
 2. **The rewrite** is 0025's name-map path through 0031's derived surfaces (ad maps, metadata
    counts), with three overrides:
    - `_id_map`: only the fold above;

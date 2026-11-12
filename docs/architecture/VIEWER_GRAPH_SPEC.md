@@ -1590,7 +1590,7 @@ episode-scoped slugs from bullets, search hit payloads, and so on).
 
 ### Why this exists
 
-CIL and digest **pills** unify **bridge** `topic:` ids with optional RFC-075
+CIL and digest **pills** unify **bridge** `topic:` ids with optional topic clustering
 **`topic_cluster_compound_id`** (`tc:`) for the viewer. The **cytoscape merge** still
 contains multiple node kinds and legacy paths (for example bullet-derived `topic:` slugs).
 If one surface passes the wrong token, focus can **miss** or highlight the **wrong**

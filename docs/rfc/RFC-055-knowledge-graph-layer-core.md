@@ -8,8 +8,7 @@
   - `docs/prd/PRD-019-knowledge-graph-layer.md` (Knowledge Graph Layer — **KG**)
   - `docs/prd/PRD-017-grounded-insight-layer.md` (Grounded Insight Layer — **GI / GIL** — separate feature)
 - **Related RFCs** (reference — analogous patterns):
-  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (**consumption** — use cases, query patterns, CLI expectations; pair to this RFC like RFC-050 to RFC-049)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (GIL core — artifact shape, co-location, schema discipline)
+  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (**consumption** — use cases, query patterns, CLI expectations; pair to this RFC like the GIL use-case design to the GIL core design)
   - `docs/rfc/RFC-053-adaptive-summarization-routing.md` (adaptive routing — shared `EpisodeProfile`; optional `route_kg_extraction` per content shape)
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout)
 - **Related Documents**:
@@ -20,7 +19,7 @@
 
 ## Abstract
 
-This RFC defines the **Knowledge Graph Layer (KG)** as a **separate** feature from the **Grounded Insight Layer (GIL)** defined in RFC-049. KG focuses on **entities, topics, and relationships** suitable for graph-style consumption across episodes, while **GIL** remains **evidence-first** (insights + verbatim quotes + grounding) in `gi.json`.
+This RFC defines the **Knowledge Graph Layer (KG)** as a **separate** feature from the **Grounded Insight Layer (GIL)**. KG focuses on **entities, topics, and relationships** suitable for graph-style consumption across episodes, while **GIL** remains **evidence-first** (insights + verbatim quotes + grounding) in `gi.json`.
 
 KG introduces its **own** per-episode artifact contract, config surface, and optional CLI namespace **`kg`**, distinct from **`gi`** (grounded insights). Implementation may reuse transcript and metadata inputs; it **must not** overload `gi.json` as the KG canonical store.
 
@@ -28,7 +27,7 @@ KG introduces its **own** per-episode artifact contract, config surface, and opt
 
 - Follows the same **per-episode file** pattern as GIL where possible (co-located under episode output, logical union for global views).
 - Respects **module boundaries** (`workflow` orchestration, dedicated `kg` package for extraction/serialization — exact layout in implementation PR).
-- References **RFC-049** only for **patterns** (schema version, provenance), not for GI semantics.
+- References **the GIL core design** only for **patterns** (schema version, provenance), not for GI semantics.
 
 ## Problem Statement
 
@@ -99,7 +98,7 @@ Update **`docs/architecture/kg/ontology.md`** as the source of truth; RFC refere
 
 ### 5. Relationship to GIL
 
-| Aspect | GIL (RFC-049 / PRD-017) | KG (this RFC / PRD-019) |
+| Aspect | GIL (the GIL core design / PRD-017) | KG (this RFC / PRD-019) |
 | --- | --- | --- |
 | Primary question | What is claimed, and what evidence supports it? | What is linked to what (entities, themes)? |
 | Canonical artifact | `gi.json` | KG artifact per RFC implementation |
@@ -123,7 +122,7 @@ Cross-links between artifacts (e.g. KG node referencing a GIL `insight_id`) are 
 ## Rollout
 
 - Document flag in `docs/api/CONFIGURATION.md` when implemented.
-- Link PRD-019 and this RFC from `GROUNDED_INSIGHTS_GUIDE.md` and from
+- Link PRD-019 and this RFC from
   **`docs/guides/KNOWLEDGE_GRAPH_GUIDE.md`** (see RFC-056 for consumption).
 
 ## Autoresearch Findings (2026-04-17, PR #589)
@@ -187,4 +186,3 @@ kg_max_entities: 15                # unchanged
 - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
 - [RFC-056: KG Use Cases & Consumption](RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md)
-- [RFC-049: GIL Core](RFC-049-grounded-insight-layer-core.md) (pattern reference)

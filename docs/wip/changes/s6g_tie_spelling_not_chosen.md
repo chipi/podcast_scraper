@@ -2,7 +2,7 @@
 id: s6g_tie_spelling_not_chosen
 class: full
 status: landed
-issue: none (RFC-131 S6; operator decision, 2026-11-02, after the step-10 read of 2026-11-01)
+issue: none (the person-identity design S6; operator decision, 2026-11-02, after the step-10 read of 2026-11-01)
 touches:
   - src/podcast_scraper/identity/ledger.py
   - src/podcast_scraper/identity/display.py

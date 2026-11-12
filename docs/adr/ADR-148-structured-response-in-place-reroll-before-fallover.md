@@ -68,7 +68,7 @@ response would otherwise fail-up with no cheaper recovery:
 | Call | Validator | Recovery before this PR | Now |
 | --- | --- | --- | --- |
 | **Summary** (staged/mega/bundled) | `parse_summary_output` (schema) — runs in `workflow/metadata_generation` | none in place; validated a layer above the call → episode fail (the p04 bug) | one in-place re-roll at the orchestrator (re-issues the same summary call), then the existing hard fail |
-| **`complete_text`** (ADR-110 resolver) | `check_chat_response(expect_json)` | raise `GuardrailViolation` → fallover | seam re-roll → fallover |
+| **`complete_text`** (speaker resolver) | `check_chat_response(expect_json)` | raise `GuardrailViolation` → fallover | seam re-roll → fallover |
 | **`classify_insights`** (GI value-gate) | `check_chat_response(expect_json)` + `json.loads` | raise → gate fails open | seam re-roll → then raise (gate fails open) |
 | **`generate_insights`** (GI line-list) | `check_chat_response(finish_reason)` | truncated-line **salvage**, else fallover | unchanged — salvage already recovers the common truncation; re-roll not added |
 | **`extract_kg_graph`** (KG) | `parse_kg_graph_response` | degrades to `None` (no episode fail) | unchanged — degrade-to-None is already safe |

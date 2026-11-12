@@ -62,7 +62,7 @@ Consequently:
   `_append_topics_from_labels`, `_topic_labels_from_args`, and the `topic_label` / `topic_labels`
   parameters — which have no other consumer
 - GI's bullet-derived topic nodes are removed; GI receives topics **only** by alignment from the
-  KG's canonical set (`gi/topic_alignment.align_gi_topics_with_kg`), which becomes their sole source
+  KG's canonical set (GI topic alignment), which becomes their sole source
 - `topic_alignment`'s "no-op when the KG declares no topics, better to keep GI's own" branch is
   inverted: keeping GI's own means keeping the bullet-derived ones
 - `utils/corpus_graph_bullet_sync` is removed — it exists to patch bullet-derived topics
@@ -71,7 +71,7 @@ Consequently:
   deliberate reduced mode, the former is a misconfiguration, and collapsing them makes the accident
   unreadable
 
-`kg/topic_clustering` and `gi/topic_alignment` are **kept**: they derive from real extractor topics
+Topic clustering and GI topic alignment are **kept**: they derive from real extractor topics
 rather than inventing new ones.
 
 ## Rationale
@@ -110,9 +110,8 @@ while GI had not run at all and 14 of 15 entity nodes were missing.
 
 ## Implementation Notes
 
-- **Modules**: `podcast_scraper/kg/pipeline.py`, `podcast_scraper/gi/pipeline.py`,
-  `podcast_scraper/gi/topic_alignment.py`, `podcast_scraper/utils/corpus_graph_bullet_sync.py`,
-  `podcast_scraper/workflow/metadata_generation.py`
+- **Modules**: `podcast_scraper/kg/pipeline.py`, `podcast_scraper/utils/corpus_graph_bullet_sync.py`,
+  `podcast_scraper/workflow/metadata_generation.py`, and the GI pipeline and topic alignment in the installed extension
 - **Safety argument**: consumers read `Topic` nodes off disk and cannot tell whether a node came
   from the extractor or a bullet, so removing the fabricators cannot change how a real topic is
   treated — only how many nodes exist. Pinned by

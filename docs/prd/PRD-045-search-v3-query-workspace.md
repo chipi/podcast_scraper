@@ -51,13 +51,13 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 - **New retrieval algorithms** — Search v3 uses the shipped hybrid pipeline (RFC-090) as-is. Any new signal is out of scope.
 - **KG-proximity retrieval signal** — **REJECTED** by RFC-091 Decision Record (2026-06-03; measured negative effect on nDCG and cross-show diversity). Search v3 does NOT use `kg_proximity` for retrieval, ranking, or "search around a graph selection" scope pre-fill.
 - **New enrichment providers or ML tiers** — surfaces existing enricher + `topic_consensus` shipped signal; does not add providers.
-- **Typed CONTRADICTS edges (KL5)** — v3+ per RFC-072 / RFC-097 roadmap; a full "Contradictions" operator remains blocked on those. The Search v3 "Consensus" operator surfaces the shipped `topic_consensus` signal (positive: cross-speaker corroboration) and NOT contradictions-as-assertion (which needs typed CONTRADICTS edges).
+- **Typed CONTRADICTS edges (KL5)** — v3+ per the cross-layer identity design / RFC-097 roadmap; a full "Contradictions" operator remains blocked on those. The Search v3 "Consensus" operator surfaces the shipped `topic_consensus` signal (positive: cross-speaker corroboration) and NOT contradictions-as-assertion (which needs typed CONTRADICTS edges).
 - **Re-enabling LanceDB native hybrid combine** — explicitly forbidden until #1205's root cause is fixed upstream (LanceDB / pyarrow) and independently verified.
 - **New indexing surfaces** (no new `doc_type`s) — this PRD consumes today's index, does not add rows to it.
 - **Cross-corpus search** — single-corpus, same scope as today.
 - **Graph rewrites** — search-v3 must not touch `mergeGiKg` id shapes (#1219 owns that arc).
 - **Per-corpus UI persistence of any kind** — see ADR-119. Corpus telemetry (`search/query_log` writes for Dashboard analytics) is not UI state and remains unchanged.
-- **Working around inherited RFC-072 open items (KL2 Person alias registry / KL3 Topic dedup / KL4 episode duration).** Rail launchers, Compare, and Consensus display honest muted "may miss aliased variants" hints where relevant; the fix belongs upstream (RFC-072), not in Search v3.
+- **Working around inherited the cross-layer identity design open items (KL2 Person alias registry / KL3 Topic dedup / KL4 episode duration).** Rail launchers, Compare, and Consensus display honest muted "may miss aliased variants" hints where relevant; the fix belongs upstream, not in Search v3.
 
 ## Personas
 
@@ -215,7 +215,6 @@ Slices missing any of these get rejected at review, not deferred.
 - `build_briefing_pack` (shipped; Compare operator source)
 - [RFC-092](../rfc/RFC-092-ml-query-router.md) — query router intent taxonomy
 - [RFC-091](../rfc/RFC-091-kg-proximity-signal.md) — **REJECTED** (KG proximity as retrieval signal)
-- [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — canonical identity / chunk-to-Insight lift (compound-card contract)
 - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — v2 materialized descriptive edges (typed CONTRADICTS remains v3+)
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier test pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
