@@ -45,30 +45,12 @@ def _write_chain_corpus(tmp_path):
 # --- KGProximitySearch ----------------------------------------------------------
 
 
-def test_proximity_returns_insight_with_hop_score(tmp_path):
-    graph = CorpusGraph.build(_write_chain_corpus(tmp_path))
-    res = KGProximitySearch(graph).search("person:alice")
-    # alice→quote(1)→insight(2): the insight is the only result-typed node within 3 hops.
-    assert len(res) == 1
-    r = res[0]
-    assert r.doc_id == "insight:i1" and r.signal == "kg" and r.source_tier == "insight"
-    assert r.score == pytest.approx(1.0 / 3.0)  # 1/(hop+1), hop=2
-    assert r.rank == 1
-
-
 def test_proximity_skips_non_result_node_types(tmp_path):
     graph = CorpusGraph.build(_write_chain_corpus(tmp_path))
     res = KGProximitySearch(graph).search("person:alice")
     returned = {r.doc_id for r in res}
     assert "quote:q1" not in returned and "topic:ai" not in returned
     assert "episode:e1" not in returned and "person:alice" not in returned
-
-
-def test_proximity_filters(tmp_path):
-    graph = CorpusGraph.build(_write_chain_corpus(tmp_path))
-    kg = KGProximitySearch(graph)
-    assert kg.search("person:alice", filters={"episode_id": "e1"})  # matches
-    assert kg.search("person:alice", filters={"episode_id": "e2"}) == []  # filtered out
 
 
 def test_proximity_unknown_entity_returns_empty(tmp_path):

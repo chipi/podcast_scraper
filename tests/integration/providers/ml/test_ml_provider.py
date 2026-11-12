@@ -45,27 +45,6 @@ class TestMLProviderStandalone(unittest.TestCase):
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "MLProvider")
 
-    def test_provider_implements_all_protocols(self):
-        """Test that MLProvider implements all three protocols."""
-        provider = MLProvider(self.cfg)
-
-        # TranscriptionProvider protocol
-        self.assertTrue(hasattr(provider, "transcribe"))
-        self.assertTrue(hasattr(provider, "transcribe_with_segments"))
-        self.assertTrue(hasattr(provider, "initialize"))
-        self.assertTrue(hasattr(provider, "cleanup"))
-
-        # SpeakerDetector protocol
-        self.assertTrue(hasattr(provider, "detect_speakers"))
-        self.assertTrue(hasattr(provider, "detect_hosts"))
-        self.assertTrue(hasattr(provider, "analyze_patterns"))
-        self.assertTrue(hasattr(provider, "clear_cache"))
-
-        # SummarizationProvider protocol
-        self.assertTrue(hasattr(provider, "summarize"))
-        self.assertTrue(hasattr(provider, "initialize"))
-        self.assertTrue(hasattr(provider, "cleanup"))
-
     def test_provider_initialization_state(self):
         """Test that provider tracks initialization state for each capability."""
         provider = MLProvider(self.cfg)
@@ -107,77 +86,6 @@ class TestMLProviderStandalone(unittest.TestCase):
         self.assertFalse(provider._spacy_initialized)
         self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    def test_spacy_initialization(self, mock_get_ner):
-        """Test that spaCy can be initialized independently."""
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            transcription_provider=self.cfg.transcription_provider,
-            auto_speakers=True,
-            whisper_model=self.cfg.whisper_model,
-            transcribe_missing=False,
-        )
-        provider = MLProvider(cfg)
-
-        mock_nlp = Mock()
-        mock_get_ner.return_value = mock_nlp
-
-        provider.initialize()
-
-        self.assertTrue(provider._spacy_initialized)
-        self.assertEqual(provider._spacy_nlp, mock_nlp)
-        # Other capabilities should not be initialized
-        self.assertFalse(provider._whisper_initialized)
-        self.assertFalse(provider._transformers_initialized)
-
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    def test_spacy_reuse_from_preloaded_does_not_call_get_ner_model(self, mock_get_ner):
-        """When preloaded MLProvider has spaCy, second provider reuses it (Issue #428)."""
-        mock_nlp = Mock()
-        preloaded = Mock(spec=MLProvider)
-        preloaded.cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcription_provider="whisper",
-            speaker_detector_provider="spacy",
-            summary_provider="transformers",
-            whisper_model="base",
-            whisper_device="cpu",
-            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
-            summary_device="cpu",
-        )
-        preloaded._spacy_initialized = True
-        preloaded._spacy_nlp = mock_nlp
-        preloaded._spacy_heuristics = None
-        preloaded._whisper_initialized = False
-        preloaded._transformers_initialized = False
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcription_provider="whisper",
-            speaker_detector_provider="spacy",
-            summary_provider="transformers",
-            auto_speakers=True,
-            transcribe_missing=False,
-            generate_summaries=False,
-            whisper_model="base",
-            whisper_device="cpu",
-            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
-            summary_device="cpu",
-        )
-        # Patch the workflow-level attribute (which is what the test conftest's
-        # autouse cleanup fixture sets directly on the workflow module). Patching
-        # ``orchestration._preloaded_ml_provider`` alone is not enough — the
-        # autouse fixture sets ``workflow._preloaded_ml_provider = None`` as a
-        # real module attribute, which shadows workflow.__getattr__'s delegation
-        # to orchestration. So the test must patch what the conftest will read.
-        with patch("podcast_scraper.workflow._preloaded_ml_provider", preloaded):
-            provider = MLProvider(cfg)
-            provider.initialize()
-
-        mock_get_ner.assert_not_called()
-        self.assertTrue(provider._spacy_initialized)
-        self.assertIs(provider._spacy_nlp, mock_nlp)
-
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
@@ -210,59 +118,6 @@ class TestMLProviderStandalone(unittest.TestCase):
         # Other capabilities should not be initialized
         self.assertFalse(provider._whisper_initialized)
         self.assertFalse(provider._spacy_initialized)
-
-    def test_unified_initialization(self):
-        """Test that all capabilities can be initialized together."""
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            transcription_provider=self.cfg.transcription_provider,
-            transcribe_missing=True,
-            auto_speakers=True,
-            generate_summaries=True,
-            generate_metadata=True,  # Required when generate_summaries is True
-            whisper_model=self.cfg.whisper_model,
-        )
-
-        with (
-            patch(
-                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
-            ) as mock_import_whisper,
-            patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model") as mock_get_ner,
-            patch(
-                "podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model"
-            ) as mock_select_map,
-            patch(
-                "podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model"
-            ) as mock_select_reduce,
-            patch(
-                "podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel"
-            ) as mock_summary_model,
-        ):
-
-            mock_model = Mock()
-            mock_model.device.type = "cpu"
-            mock_whisper_lib = Mock()
-            mock_whisper_lib.load_model.return_value = mock_model
-            mock_import_whisper.return_value = mock_whisper_lib
-
-            mock_nlp = Mock()
-            mock_get_ner.return_value = mock_nlp
-
-            mock_transformers_model = Mock()
-            mock_transformers_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
-            mock_transformers_model.device = "cpu"
-            mock_summary_model.return_value = mock_transformers_model
-            mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
-            mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
-
-            provider = MLProvider(cfg)
-            provider.initialize()
-
-            # All should be initialized
-            self.assertTrue(provider._whisper_initialized)
-            self.assertTrue(provider._spacy_initialized)
-            self.assertTrue(provider._transformers_initialized)
-            self.assertTrue(provider.is_initialized)
 
     def test_cleanup_releases_all_resources(self):
         """Test that cleanup releases all resources."""
@@ -481,86 +336,6 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.speaker_detection.detect_speaker_names")
-    def test_detect_speakers_success(self, mock_detect, mock_get_ner):
-        """Test successful speaker detection."""
-        mock_nlp = Mock()
-        mock_get_ner.return_value = mock_nlp
-        mock_detect.return_value = (["Alice", "Bob"], {"Alice"}, True, False)
-
-        provider = MLProvider(self.cfg)
-        provider.initialize()
-
-        speakers, hosts, success, _ = provider.detect_speakers(
-            episode_title="Alice interviews Bob",
-            episode_description="A great conversation",
-            known_hosts={"Alice"},
-        )
-
-        self.assertEqual(speakers, ["Alice", "Bob"])
-        self.assertEqual(hosts, {"Alice"})
-        self.assertTrue(success)
-
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.speaker_detection.detect_hosts_from_feed")
-    def test_detect_hosts_success(self, mock_detect, mock_get_ner):
-        """Test successful host detection."""
-        mock_nlp = Mock()
-        mock_get_ner.return_value = mock_nlp
-        mock_detect.return_value = {"Alice", "Bob"}
-
-        provider = MLProvider(self.cfg)
-        provider.initialize()
-
-        hosts = provider.detect_hosts(
-            feed_title="The Podcast",
-            feed_description="A great podcast",
-            feed_authors=["Alice"],
-        )
-
-        self.assertEqual(hosts, {"Alice", "Bob"})
-
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    def test_analyze_patterns_success(self, mock_get_ner):
-        """analyze_patterns returns empty heuristics (#598 removed the learner)."""
-        from podcast_scraper import models
-
-        mock_nlp = Mock()
-        mock_get_ner.return_value = mock_nlp
-
-        provider = MLProvider(self.cfg)
-        provider.initialize()
-
-        episodes = [
-            models.Episode(
-                idx=1,
-                title="Episode 1",
-                title_safe="Episode_1",
-                item=None,
-                transcript_urls=[],
-                media_url="https://example.com/1",
-                media_type="audio/mpeg",
-            )
-        ]
-
-        result = provider.analyze_patterns(episodes=episodes, known_hosts={"Alice"})
-
-        self.assertEqual(result, {})
-        self.assertEqual(provider._spacy_heuristics, {})
-
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    def test_analyze_patterns_no_nlp(self, mock_get_ner):
-        """Test analyze_patterns returns None if nlp is None."""
-        mock_get_ner.return_value = None
-
-        provider = MLProvider(self.cfg)
-        provider._spacy_nlp = None  # Force None
-
-        result = provider.analyze_patterns(episodes=[], known_hosts=set())
-
-        self.assertIsNone(result)
-
     def test_clear_cache(self):
         """Test clear_cache method (no-op after cache removal)."""
         provider = MLProvider(self.cfg)
@@ -765,29 +540,6 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertTrue(provider._whisper_initialized)
         self.assertEqual(provider._whisper_model, mock_model)
 
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    def test_preload_spacy_success(self, mock_get_ner):
-        """Test successful spaCy model preloading."""
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            preload_models=True,
-            auto_speakers=True,
-            speaker_detector_provider="spacy",
-            ner_model="en_core_web_sm",
-            transcribe_missing=False,
-            generate_summaries=False,
-        )
-        provider = MLProvider(cfg)
-
-        mock_nlp = Mock()
-        mock_get_ner.return_value = mock_nlp
-
-        provider.preload()
-
-        # Verify model was initialized
-        self.assertTrue(provider._spacy_initialized)
-        self.assertEqual(provider._spacy_nlp, mock_nlp)
-
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
@@ -842,29 +594,6 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertIn("Failed to preload Whisper model", str(context.exception))
         self.assertIn("openai-whisper", str(context.exception))
 
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    def test_preload_spacy_fails_fast(self, mock_get_ner):
-        """Test that preload() fails fast when spaCy model cannot be loaded."""
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            preload_models=True,
-            auto_speakers=True,
-            speaker_detector_provider="spacy",
-            ner_model="en_core_web_sm",
-            transcribe_missing=False,
-            generate_summaries=False,
-        )
-        provider = MLProvider(cfg)
-
-        mock_get_ner.side_effect = OSError("Model not found")
-
-        with self.assertRaises(ProviderDependencyError) as context:
-            provider.preload()
-
-        # Verify error message
-        self.assertIn("Failed to preload spaCy model", str(context.exception))
-        self.assertIn("spacy download", str(context.exception))
-
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
@@ -893,58 +622,6 @@ class TestMLProviderPreload(unittest.TestCase):
         # Verify error message
         self.assertIn("Failed to preload Transformers models", str(context.exception))
         self.assertIn("model cache", str(context.exception).lower())
-
-    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
-    def test_preload_all_models_success(
-        self,
-        mock_summary_model,
-        mock_select_map,
-        mock_select_reduce,
-        mock_get_ner,
-        mock_import_whisper,
-    ):
-        """Test preloading all three model types together."""
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            preload_models=True,
-            transcribe_missing=True,
-            transcription_provider="whisper",
-            auto_speakers=True,
-            speaker_detector_provider="spacy",
-            generate_summaries=True,
-            summary_provider="transformers",
-            generate_metadata=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
-        )
-        provider = MLProvider(cfg)
-
-        # Setup mocks
-        mock_whisper_model = Mock()
-        mock_whisper_model.device.type = "cpu"
-        mock_whisper_lib = Mock()
-        mock_whisper_lib.load_model.return_value = mock_whisper_model
-        mock_import_whisper.return_value = mock_whisper_lib
-
-        mock_nlp = Mock()
-        mock_get_ner.return_value = mock_nlp
-
-        mock_transformers_model = Mock()
-        mock_transformers_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
-        mock_transformers_model.device = "cpu"
-        mock_summary_model.return_value = mock_transformers_model
-        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
-        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
-
-        provider.preload()
-
-        # Verify all models were initialized
-        self.assertTrue(provider._whisper_initialized)
-        self.assertTrue(provider._spacy_initialized)
-        self.assertTrue(provider._transformers_initialized)
 
     def test_preload_skips_openai_providers(self):
         """Test that preload() skips when using OpenAI providers."""
@@ -1022,113 +699,6 @@ class TestMLProviderPreload(unittest.TestCase):
         # Should still only be called once (initialize() checks _whisper_initialized)
         self.assertEqual(mock_whisper_lib.load_model.call_count, first_call_count)
 
-    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
-    def test_initialize_skips_openai_providers(
-        self,
-        mock_summary_model,
-        mock_select_map,
-        mock_select_reduce,
-        mock_get_ner,
-        mock_import_whisper,
-    ):
-        """Test that initialize() skips loading models when using OpenAI providers.
-
-        This test verifies the fix for issue #326: MLProvider should not load
-        models for capabilities that use OpenAI providers, even if the feature
-        flags are enabled.
-        """
-        # Hybrid config: Whisper (ML) + OpenAI summarization + OpenAI speaker detection
-        # Only Whisper should be loaded, not Transformers or spaCy
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            transcribe_missing=True,
-            transcription_provider="whisper",  # ML provider - should load
-            generate_summaries=True,
-            generate_metadata=True,  # Required when generate_summaries=True
-            summary_provider="openai",  # OpenAI provider - should NOT load Transformers
-            auto_speakers=True,
-            speaker_detector_provider="openai",  # OpenAI provider - should NOT load spaCy
-            openai_api_key="sk-test123",  # Required for OpenAI provider
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
-        )
-        provider = MLProvider(cfg)
-
-        # Mock Whisper model loading
-        mock_model = Mock()
-        mock_model.device.type = "cpu"
-        mock_whisper_lib = Mock()
-        mock_whisper_lib.load_model.return_value = mock_model
-        mock_import_whisper.return_value = mock_whisper_lib
-
-        # Mock spaCy and Transformers (should not be called)
-        mock_get_ner.return_value = Mock()
-        mock_select_map.return_value = "facebook/bart-large-cnn"
-        mock_select_reduce.return_value = "allenai/led-base-16384"
-        mock_summary_model.return_value = Mock()
-
-        # Call initialize() - should only load Whisper
-        provider.initialize()
-
-        # Verify Whisper was loaded (ML provider)
-        self.assertTrue(provider._whisper_initialized)
-        mock_import_whisper.assert_called()
-        mock_whisper_lib.load_model.assert_called()
-
-        # Verify Transformers was NOT loaded (OpenAI provider)
-        self.assertFalse(provider._transformers_initialized)
-        mock_select_map.assert_not_called()
-        mock_select_reduce.assert_not_called()
-        mock_summary_model.assert_not_called()
-
-        # Verify spaCy was NOT loaded (OpenAI provider)
-        self.assertFalse(provider._spacy_initialized)
-        mock_get_ner.assert_not_called()
-
-        # Test reverse: OpenAI transcription + ML summarization + ML speaker detection
-        # Only Transformers and spaCy should be loaded, not Whisper
-        cfg2 = config.Config(
-            rss_url=self.cfg.rss_url,
-            transcribe_missing=True,
-            transcription_provider="openai",  # OpenAI provider - should NOT load Whisper
-            generate_summaries=True,
-            generate_metadata=True,  # Required when generate_summaries=True
-            summary_provider="transformers",  # ML provider - should load
-            auto_speakers=True,
-            speaker_detector_provider="spacy",  # ML provider - should load
-            openai_api_key="sk-test123",  # Required for OpenAI provider
-        )
-        provider2 = MLProvider(cfg2)
-
-        # Reset mocks
-        mock_import_whisper.reset_mock()
-        mock_whisper_lib.load_model.reset_mock()
-        mock_get_ner.reset_mock()
-        mock_select_map.reset_mock()
-        mock_select_reduce.reset_mock()
-        mock_summary_model.reset_mock()
-
-        # Call initialize() - should only load Transformers and spaCy
-        provider2.initialize()
-
-        # Verify Whisper was NOT loaded (OpenAI provider)
-        self.assertFalse(provider2._whisper_initialized)
-        mock_import_whisper.assert_not_called()
-        mock_whisper_lib.load_model.assert_not_called()
-
-        # Verify Transformers WAS loaded (ML provider)
-        self.assertTrue(provider2._transformers_initialized)
-        mock_select_map.assert_called()
-        mock_select_reduce.assert_called()
-        mock_summary_model.assert_called()
-
-        # Verify spaCy WAS loaded (ML provider)
-        self.assertTrue(provider2._spacy_initialized)
-        mock_get_ner.assert_called()
-
 
 @pytest.mark.integration
 class TestMLProviderGILEvidence(unittest.TestCase):
@@ -1146,79 +716,10 @@ class TestMLProviderGILEvidence(unittest.TestCase):
             generate_summaries=False,
         )
 
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
-    def test_extract_quotes_expands_the_answer_span_to_its_sentence(self, mock_qa_candidates):
-        """A QA model answers a question; it does not quote.
-
-        Its span is the ANSWER — a few words — and a fragment that short cannot serve as an NLI
-        premise, so the grounding gate rejected every one of them and nothing ever grounded. The
-        provider now returns the sentence CONTAINING the answer, which is the evidence a reader
-        wants and what NLI needs.
-        """
-        from podcast_scraper.gi.grounding import QuoteCandidate
-
-        # answer_candidates returns a list of QASpan objects (top_k=3)
-        mock_qa_candidates.return_value = [
-            type(
-                "QASpan",
-                (),
-                {"start": 3, "end": 11, "answer": "evidence", "score": 0.88},
-            )()
-        ]
-        transcript = "We evidence here."
-        provider = MLProvider(self.cfg)
-        result = provider.extract_quotes(
-            transcript=transcript,
-            insight_text="An insight.",
-        )
-        self.assertEqual(len(result), 1)
-        self.assertIsInstance(result[0], QuoteCandidate)
-        # The bare answer span was [3:11] ("evidence"); the quote is the sentence around it.
-        self.assertLessEqual(result[0].char_start, 3)
-        self.assertGreaterEqual(result[0].char_end, 11)
-        self.assertIn("evidence", result[0].text)
-        self.assertEqual(result[0].text, transcript[result[0].char_start : result[0].char_end])
-        self.assertEqual(result[0].qa_score, 0.88)
-        mock_qa_candidates.assert_called_once()
-
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
-    def test_extract_quotes_empty_input_returns_empty(self, mock_qa_answer):
-        """extract_quotes with empty transcript returns empty list."""
-        provider = MLProvider(self.cfg)
-        result = provider.extract_quotes(transcript="", insight_text="I.")
-        self.assertEqual(result, [])
-        mock_qa_answer.assert_not_called()
-
-    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
-    def test_score_entailment_returns_float(self, mock_nli):
-        """score_entailment returns float from nli_loader."""
-        mock_nli.return_value = 0.75
-        provider = MLProvider(self.cfg)
-        result = provider.score_entailment(
-            premise="The quote text.",
-            hypothesis="The insight claim.",
-        )
-        self.assertIsInstance(result, float)
-        self.assertEqual(result, 0.75)
-        mock_nli.assert_called_once()
-
-    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
-    def test_score_entailment_empty_input_returns_zero(self, mock_nli):
-        """score_entailment with empty premise returns 0.0."""
-        provider = MLProvider(self.cfg)
-        result = provider.score_entailment(premise="", hypothesis="H.")
-        self.assertEqual(result, 0.0)
-        mock_nli.assert_not_called()
-
     def test_extract_kg_graph_not_implemented_returns_none(self):
         """Transformers summarization has no LLM KG path; API returns None."""
         provider = MLProvider(self.cfg)
         self.assertIsNone(provider.extract_kg_graph("any transcript text"))
-
-    def test_generate_insights_returns_empty(self):
-        """ML summarization does not run LLM insight extraction; stub returns []."""
-        provider = MLProvider(self.cfg)
-        self.assertEqual(provider.generate_insights("any transcript"), [])
 
 
 @pytest.mark.integration

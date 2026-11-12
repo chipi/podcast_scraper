@@ -33,10 +33,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .. import read_hooks
-from ..builders.bridge_builder import strip_layer_prefixes
 from ..graph_id_utils import (
     is_numbered_speaker_label as _looks_like_speaker_label,
     is_unresolved_speaker_placeholder,
+    strip_layer_prefixes,
 )
 
 logger = logging.getLogger(__name__)

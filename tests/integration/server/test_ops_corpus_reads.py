@@ -91,30 +91,6 @@ def corpus(tmp_path: Path) -> Path:
     return tmp_path
 
 
-class TestIntegrity:
-    def test_counts_and_verdict(self, corpus: Path) -> None:
-        before = _snapshot(corpus)
-        r = _client(corpus).get("/api/ops/corpus/integrity")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["healthy_gi"] == 1
-        assert body["no_gi_block"] == 1
-        assert body["legacy_placeholders"] == 0
-        assert body["verdict"] == "FAIL"  # the no-gi episode is a defect
-        assert _snapshot(corpus) == before, "a READ endpoint changed the corpus"
-
-    def test_clean_corpus_passes(self, tmp_path: Path) -> None:
-        _write_episode(
-            tmp_path,
-            run="run_20260820-100000",
-            name="0001 - Only",
-            episode_id="ep-1",
-            insight_texts=["one insight"],
-        )
-        body = _client(tmp_path).get("/api/ops/corpus/integrity").json()
-        assert body["verdict"] == "PASS" and body["healthy_gi"] == 1
-
-
 class TestPreprocessing:
     def test_worklist_is_json_not_a_file(self, corpus: Path) -> None:
         before = _snapshot(corpus)
@@ -149,22 +125,6 @@ class TestNoCorpus:
         app.include_router(ops.router, prefix="/api")
         r = TestClient(app).get("/api/ops/corpus/integrity")
         assert r.status_code == 400
-
-
-class TestOperatorGuard:
-    def test_403_without_operator_key(self, corpus: Path, monkeypatch) -> None:
-        """/api/ops is an _OPERATOR_BASES member: the full app must refuse keyless reads."""
-        from podcast_scraper.server.app import create_app
-
-        monkeypatch.setenv("APP_OPERATOR_API_KEY", "test-operator-key")
-        app = create_app(corpus, static_dir=False)
-        client = TestClient(app)
-        r = client.get("/api/ops/corpus/integrity")
-        assert r.status_code in (401, 403), f"keyless operator read got {r.status_code}"
-        r2 = client.get(
-            "/api/ops/corpus/integrity", headers={"X-Operator-Key": "test-operator-key"}
-        )
-        assert r2.status_code == 200
 
 
 class TestSecretsStatus:

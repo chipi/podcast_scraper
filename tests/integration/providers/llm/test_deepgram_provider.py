@@ -125,19 +125,15 @@ class TestDeepgramRealShapeParse:
         assert "welcome to the show" in result["text"].lower()
         assert "dive in" in result["text"].lower()
 
-    def test_native_diarization_renders_named_screenplay(self) -> None:
-        """The diarized segments map onto detected names in a screenplay (D1)."""
+    def test_no_screenplay_without_a_speaker_stage(self) -> None:
+        """The rendering is the speaker stage's; public writes the plain transcript (decision 8.1).
+        The extension's copy of this file checks the named screenplay."""
         provider = _provider()
         result, _ = _transcribe(provider, _REAL_SHAPE_RESPONSE)
-
-        screenplay = provider.format_screenplay_from_segments(
-            result["segments"], None, ["Maya", "Liam"]
+        assert (
+            provider.format_screenplay_from_segments(result["segments"], None, ["Maya", "Liam"])
+            is None
         )
-        assert screenplay is not None
-        assert "Maya: Welcome to the show." in screenplay
-        assert "Liam: Thanks for having me." in screenplay
-        # Speaker 0 reappears as Maya (stable first-appearance mapping).
-        assert "Maya: Let's get started." in screenplay
 
     def test_words_fallback_when_utterances_absent(self) -> None:
         """With no utterances, the words-level alternative drives multi-speaker segments."""

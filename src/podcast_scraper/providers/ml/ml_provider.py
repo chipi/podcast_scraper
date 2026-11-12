@@ -45,7 +45,6 @@ from ..common.summary_use_case import (
 )
 from ..extensible import ExtensibleProvider
 from . import summarizer
-from .ml_provider_gi_naming import MLProviderGiNamingMethods  # noqa: F401
 from .model_registry import ModelRegistry
 from .whisper_utils import normalize_whisper_model_name
 

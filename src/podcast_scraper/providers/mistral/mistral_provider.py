@@ -86,7 +86,6 @@ from ..common.transcript_cache import openai_style_messages as _openai_style_mes
 from ._mistral_provider_calls import (  # noqa: F401 - re-exported: moved there with S1
     _record_mistral_llm_call,
 )
-from .mistral_provider_gi_naming import MistralProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Mistral models lives in ``config/pricing_assumptions.yaml`` (#651).
 

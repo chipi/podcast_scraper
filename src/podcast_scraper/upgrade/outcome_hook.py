@@ -319,7 +319,7 @@ def check_accept(
 
 def score_by_episode(root: Path) -> Dict[str, Dict[str, int]]:
     """``{meta path relative to root: counts}`` over the served episodes."""
-    from ..quality.corpus_scoreboard import score_episode
+    from ..quality.scoreboard import score_episode
     from .corpus_selection import select_served_artifacts
 
     out: Dict[str, Dict[str, int]] = {}
@@ -373,23 +373,10 @@ def compare(
 
 
 def gating_metrics() -> List[str]:
-    """The method's gating metrics (the change gate's config when present, else its own list)."""
-    from ..quality.change_gate import CONFIG_PATH
+    """The installed scoreboards' gating metrics (``quality.scoreboard``)."""
+    from ..quality.scoreboard import gating_metrics as installed
 
-    cfg = PACKAGE_ROOT.parents[1] / CONFIG_PATH
-    if cfg.is_file():
-        return list(json.loads(cfg.read_text(encoding="utf-8"))["gating_metrics"])
-    return [
-        "S1_hidden_unknown",
-        "S1n_named_but_hidden",
-        "S1c_inconsistent",
-        "S2_hidden",
-        "S3_principal_unidentified",
-        "S10a_zero_visible",
-        "S10b_zero_visible_panel",
-        "S12_quotes_off_text",
-        "A1_marker_hits",
-    ]
+    return installed()
 
 
 # ---------------------------------------------------------------- the run
@@ -538,6 +525,12 @@ def measure(
 
     ``apply`` runs the migration AND records it in the ledger: an outcome failure leaves both."""
     mig = prepared.migration
+    from ..quality.scoreboard import require_scoreboard, ScoreboardMissing
+
+    try:
+        require_scoreboard(Path(root))
+    except ScoreboardMissing as exc:
+        raise HookRefused(f"{mig.id}: {exc}") from exc
     metrics = gating_metrics()
     try:
         before = score_by_episode(root)

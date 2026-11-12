@@ -75,7 +75,6 @@ from ._gemini_provider_calls import (  # noqa: F401 - re-exported: moved there w
     _should_bound_thinking_for_pro,
     _should_disable_thinking_for_model,
 )
-from .gemini_provider_gi_naming import GeminiProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 

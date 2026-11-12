@@ -6,7 +6,8 @@ stopped new research scripts from landing here: 42 of 54 under ``scripts/measure
 ``scripts/eval`` and ``scripts/audit`` were added after it. This test refuses any file in those
 directories that is not on the list below, so a new one goes to the eval repository instead.
 
-The list is in two groups. Shrink it; never grow it without a reason written beside the entry.
+What stays is public for good; the scripts that waited for E04's move went to the eval repository
+with it. Shrink the list; never grow it without a reason written beside the entry.
 """
 
 from __future__ import annotations
@@ -33,29 +34,6 @@ PUBLIC = {
     "scripts/eval/score/README.md",
 }
 
-#: Here until E04's move: each is called by a make target or a public test, imported by another
-#: script here, or fronts a src/podcast_scraper/quality module that moves with the speaker and GI
-#: stages. They go to the eval repository with that move.
-UNTIL_THE_MOVE = {
-    "scripts/audit/speaker_coherence_report.py",
-    "scripts/audit/speaker_sync_audit.py",
-    "scripts/audit/transcript_pairing_audit.py",
-    "scripts/measure/corpus_scoreboard.py",
-    "scripts/measure/gold_insights.py",
-    "scripts/measure/loss_ranking.py",
-    "scripts/measure/m0025_parity.py",
-    "scripts/measure/naming_atlas.py",
-    "scripts/measure/naming_coverage.py",
-    "scripts/measure/naming_gate.py",
-    "scripts/measure/naming_gold_cases.py",
-    "scripts/measure/naming_replay_compare.py",
-    "scripts/measure/naming_shadow_report.py",
-    "scripts/measure/roster_replay.py",
-    "scripts/measure/speaker_record_replay.py",
-    "scripts/measure/trace_rung_precision.py",
-    "scripts/measure/verdict_lines_check.py",
-}
-
 
 def _guarded_files() -> set[str]:
     if not (ROOT / ".git").exists():
@@ -67,7 +45,7 @@ def _guarded_files() -> set[str]:
 
 
 def test_no_new_research_script_lands_here() -> None:
-    extra = sorted(_guarded_files() - PUBLIC - UNTIL_THE_MOVE)
+    extra = sorted(_guarded_files() - PUBLIC)
     assert not extra, (
         "research scripts belong in the private eval repository (E04 IP extraction plan, item 3); "
         "move these there, or add them to this test's list with the reason:\n" + "\n".join(extra)
@@ -75,5 +53,5 @@ def test_no_new_research_script_lands_here() -> None:
 
 
 def test_the_list_names_only_files_that_exist() -> None:
-    stale = sorted((PUBLIC | UNTIL_THE_MOVE) - _guarded_files())
+    stale = sorted(PUBLIC - _guarded_files())
     assert not stale, "drop these from the list, they are gone:\n" + "\n".join(stale)

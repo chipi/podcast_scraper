@@ -174,6 +174,22 @@ class DbModule:
 
 
 @dataclass(frozen=True)
+class CorpusScoreboard:
+    """The corpus change method's yardstick (``docs/guides/CORPUS_CHANGE_METHOD.md`` §3), from the
+    package whose artifacts it counts. The change gate and the outcome hook read it through
+    :mod:`podcast_scraper.quality.scoreboard`."""
+
+    #: ``(metadata path) -> {"language": str, "counts": {metric: int}}``, or ``None`` when the
+    #: metadata cannot be read.
+    score_episode: Callable[[Path], Mapping[str, Any] | None]
+    #: The metrics whose move makes a migration FULL, and whose per-episode change the outcome
+    #: hook holds to the clone's.
+    gating_metrics: Sequence[str]
+    #: Every counter ``score_episode`` emits, written out with zeros in a corpus total.
+    keys: Sequence[str] = ()
+
+
+@dataclass(frozen=True)
 class CliCommand:
     """A ``podcast_scraper <name>`` subcommand. ``parse(argv)`` returns the namespace (with
     ``command`` set to the name); ``run(args, log)`` returns the exit code. Both import lazily."""
@@ -236,6 +252,8 @@ class Extension:
     #: Transports the extension adds (``podcast_scraper.content_types.Transport``): each lists a
     #: source's new items and owns its cursor, headers and rate limit. ``() -> [Transport, ...]``.
     transports: Callable[[], Sequence[Any]] = _none
+    #: The corpus scoreboard over what the extension writes (the change method's yardstick).
+    corpus_scoreboard: CorpusScoreboard | None = None
 
 
 _override: list[Extension] | None = None
@@ -300,6 +318,11 @@ def _discover() -> list[Extension]:
 def enrichment_contributions() -> list[EnrichmentContribution]:
     """Every installed extension's enrichment contribution, in load order."""
     return [ext.enrichment for ext in load_extensions() if ext.enrichment is not None]
+
+
+def corpus_scoreboards() -> list[CorpusScoreboard]:
+    """Every installed extension's corpus scoreboard, in load order."""
+    return [ext.corpus_scoreboard for ext in load_extensions() if ext.corpus_scoreboard is not None]
 
 
 def share_card_contributions() -> list[ShareCardContribution]:

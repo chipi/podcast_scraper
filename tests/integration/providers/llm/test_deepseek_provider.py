@@ -197,12 +197,6 @@ class TestFactoryDispatch:
         p = create_summarization_provider(_ds_cfg())
         assert isinstance(p, DeepSeekProvider)
 
-    def test_speaker_factory_returns_deepseek(self):
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        p = create_speaker_detector(_ds_cfg())
-        assert isinstance(p, DeepSeekProvider)
-
 
 class TestOpenAIProviderUnaffected:
     def test_openai_still_requires_sk_key(self, monkeypatch):

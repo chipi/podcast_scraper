@@ -87,41 +87,6 @@ def _rows(lance: Path) -> dict[str, list[dict]]:
     return out
 
 
-def test_reindex_removes_rows_from_the_superseded_run(tmp_path, monkeypatch):
-    monkeypatch.setattr(tti, "_embed", _embed_stub)
-    corpus = tmp_path / "corpus"
-    lance = corpus / "search" / "lance_index"
-
-    # Run 1 — the original ingest.
-    _write_run(corpus, "20260101-000000", ["alpha insight one", "alpha insight two"])
-    tti.build_two_tier_index(corpus, lance, drop_existing=True)
-    first = _rows(lance)
-    first_ids = {r["id"] for tier in first for r in first[tier]}
-    assert first_ids, "run 1 produced no rows — fixture is wrong, not the code"
-
-    # Run 2 — the SAME episode reprocessed with different derived content, so the new derived
-    # rows carry different content-keyed ids. Newest-run-wins discovery will serve this one.
-    _write_run(corpus, "20260202-000000", ["beta insight one", "beta insight two"])
-    stats = tti.build_two_tier_index(corpus, lance, drop_existing=False)
-
-    after = _rows(lance)
-    after_ids = {r["id"] for tier in after for r in after[tier]}
-    texts = {str(r.get("text") or "") for tier in after for r in after[tier]}
-
-    # The episode is still fully present …
-    assert any(r["episode_id"] == EPISODE_ID for tier in after for r in after[tier])
-    # … and nothing from the superseded run survives.
-    assert not any("alpha insight" in t for t in texts), (
-        "rows from the superseded run are still in the index: "
-        f"{sorted(t for t in texts if 'alpha' in t)}"
-    )
-    assert any("beta insight" in t for t in texts), "the current run's rows are missing"
-    assert stats.stale_rows_pruned > 0, "prune reported nothing despite a superseded run"
-    # Stale ids specifically, not merely a smaller total.
-    stale = {i for i in first_ids if i not in after_ids}
-    assert stale, "no ids were removed at all"
-
-
 def test_full_reindex_is_untouched_by_the_prune(tmp_path, monkeypatch):
     """A full reindex clears tables wholesale; the prune must stay out of its way."""
     monkeypatch.setattr(tti, "_embed", _embed_stub)
@@ -134,73 +99,6 @@ def test_full_reindex_is_untouched_by_the_prune(tmp_path, monkeypatch):
     texts = {str(r.get("text") or "") for tier in _rows(lance) for r in _rows(lance)[tier]}
     assert not any("alpha" in t for t in texts)
     assert stats.stale_rows_pruned == 0, "a full reindex must not need the incremental prune"
-
-
-def test_partial_emission_does_not_prune_the_healthy_rows(tmp_path, monkeypatch, caplog):
-    """A build that emits FEWER rows than are indexed must refuse to prune (#2158).
-
-    The empty-buffer guard was not enough. On prod 2026-09-26 two episodes had been cut to 2
-    insights and 2 quotes (from 41 and 65), kg_topic removed outright, because a build read a
-    half-written ``gi.json``, emitted a handful of rows and pruned to that set. The fingerprint was
-    then written as current, so every later incremental build skipped the episode and the loss
-    stayed invisible until a fingerprint was dropped by hand.
-
-    Here run 2 re-derives the SAME episode with 1 insight where 6 are indexed — the
-    partial-artifact signature — and the healthy rows must survive.
-    """
-    import logging
-
-    monkeypatch.setattr(tti, "_embed", _embed_stub)
-    corpus = tmp_path / "corpus"
-    lance = corpus / "search" / "lance_index"
-
-    _write_run(corpus, "20260101-000000", [f"alpha insight {i}" for i in range(6)])
-    tti.build_two_tier_index(corpus, lance, drop_existing=True)
-    before_ids = {r["id"] for tier in _rows(lance) for r in _rows(lance)[tier]}
-    assert len(before_ids) > 3, "fixture must index several rows to have something to lose"
-
-    # Run 2: same episode, but the artifact yields a single insight — as a truncated read would.
-    _write_run(corpus, "20260202-000000", ["beta insight only one"])
-    with caplog.at_level(logging.WARNING, logger="podcast_scraper.search.two_tier_indexer"):
-        tti.build_two_tier_index(corpus, lance, drop_existing=False)
-
-    texts = {str(r.get("text") or "") for tier in _rows(lance) for r in _rows(lance)[tier]}
-
-    assert any("alpha insight" in t for t in texts), (
-        "healthy rows were deleted on the strength of a partial emission — the #2158 data loss. "
-        f"surviving texts: {sorted(texts)}"
-    )
-    assert any("beta insight" in t for t in texts), "the new row should still be written"
-    assert (
-        "REFUSING to prune" in caplog.text
-    ), "the refusal must be logged loudly — a silent skip trades data loss for mystery"
-
-
-def test_a_reprocess_that_shrank_slightly_still_prunes(tmp_path, monkeypatch, caplog):
-    """A reprocess with ONE row fewer than before is a superseded run, not a partial artifact.
-
-    The partial-emission guard compared the rows this build kept with EVERYTHING indexed, and that
-    count includes the rows the build itself just wrote (pruning runs last; content-keyed ids are
-    all new after a reprocess). So ``keep * 2 < keep + old`` refused any reprocess that came out
-    smaller by even one row, and the superseded rows stayed searchable beside the new ones: 30 of
-    32 refusals on prod, 2026-10-03..10-11, e.g. "emitted 55 row(s) but 111 are indexed".
-    """
-    import logging
-
-    monkeypatch.setattr(tti, "_embed", _embed_stub)
-    corpus = tmp_path / "corpus"
-    lance = corpus / "search" / "lance_index"
-    _write_run(corpus, "20260101-000000", [f"alpha insight {i}" for i in range(6)])
-    tti.build_two_tier_index(corpus, lance, drop_existing=True)
-    _write_run(corpus, "20260202-000000", [f"beta insight {i}" for i in range(5)])
-    with caplog.at_level(logging.WARNING, logger="podcast_scraper.search.two_tier_indexer"):
-        tti.build_two_tier_index(corpus, lance, drop_existing=False)
-    texts = {str(r.get("text") or "") for tier in _rows(lance) for r in _rows(lance)[tier]}
-    assert not any(
-        "alpha insight" in t for t in texts
-    ), f"superseded rows survived a slightly smaller reprocess: {sorted(texts)}"
-    assert sum("beta insight" in t for t in texts) == 5
-    assert "REFUSING to prune" not in caplog.text
 
 
 def test_unchanged_episode_is_not_pruned(tmp_path, monkeypatch):
@@ -253,3 +151,93 @@ class TestCountEpisodeRowsFailsSafe:
         monkeypatch.setattr(be, "_open_if_exists", lambda _tier: _Exploding())
 
         assert be.count_episode_rows("insight", "ep-anything") == 0
+
+
+def _write_kg_run(corpus: Path, run: str, topics: list[str]) -> None:
+    """One run dir for the SAME episode with no GI: its content-keyed rows are kg_topic rows."""
+    base = corpus / "feeds" / "showx" / f"run_{run}"
+    (base / "metadata").mkdir(parents=True, exist_ok=True)
+    doc = {
+        "feed": {"feed_id": "showx", "title": "Show X"},
+        "episode": {
+            "episode_id": EPISODE_ID,
+            "guid": "guid-reprocessed",
+            "title": "An episode that gets reprocessed",
+            "description": "Description text.",
+            "published_date": "2026-06-15T00:00:00Z",
+        },
+        "knowledge_graph": {"artifact_path": "kg.json"},
+    }
+    (base / "metadata" / "ep.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    kg = {
+        "episode_id": EPISODE_ID,
+        "nodes": [
+            {"id": "topic:" + t.replace(" ", "-"), "type": "Topic", "properties": {"label": t}}
+            for t in topics
+        ],
+        "edges": [],
+    }
+    (base / "kg.json").write_text(json.dumps(kg), encoding="utf-8")
+
+
+def _texts(lance: Path) -> set[str]:
+    rows = _rows(lance)
+    return {str(r.get("text") or "") for tier in rows for r in rows[tier]}
+
+
+def test_reindex_removes_kg_rows_from_the_superseded_run(tmp_path, monkeypatch):
+    monkeypatch.setattr(tti, "_embed", _embed_stub)
+    corpus = tmp_path / "corpus"
+    lance = corpus / "search" / "lance_index"
+    _write_kg_run(corpus, "20260101-000000", ["alpha topic one", "alpha topic two"])
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+    assert any("alpha topic" in t for t in _texts(lance)), "run 1 indexed no topics"
+
+    _write_kg_run(corpus, "20260202-000000", ["beta topic one", "beta topic two"])
+    stats = tti.build_two_tier_index(corpus, lance, drop_existing=False)
+
+    texts = _texts(lance)
+    assert not any("alpha topic" in t for t in texts), sorted(texts)
+    assert any("beta topic" in t for t in texts), "the current run's rows are missing"
+    assert stats.stale_rows_pruned > 0
+
+
+def test_partial_emission_does_not_prune_the_healthy_kg_rows(tmp_path, monkeypatch, caplog):
+    """#2158 on public's rows: a build keeping far fewer rows than it replaces must not prune.
+
+    20 topics, not 6: the guard counts per tier, and the aux tier's per-episode rows (title,
+    description, short summary) count as kept, so with a handful of topics a one-topic emission
+    still keeps "half" and is pruned.
+    """
+    import logging
+
+    monkeypatch.setattr(tti, "_embed", _embed_stub)
+    corpus = tmp_path / "corpus"
+    lance = corpus / "search" / "lance_index"
+    _write_kg_run(corpus, "20260101-000000", [f"alpha topic {i}" for i in range(20)])
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+    assert sum("alpha topic" in t for t in _texts(lance)) == 20
+
+    _write_kg_run(corpus, "20260202-000000", ["beta topic only one"])
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.search.two_tier_indexer"):
+        tti.build_two_tier_index(corpus, lance, drop_existing=False)
+
+    assert sum("alpha topic" in t for t in _texts(lance)) == 20, "healthy rows were pruned"
+    assert "REFUSING to prune" in caplog.text
+
+
+def test_a_slightly_smaller_kg_reprocess_still_prunes(tmp_path, monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setattr(tti, "_embed", _embed_stub)
+    corpus = tmp_path / "corpus"
+    lance = corpus / "search" / "lance_index"
+    _write_kg_run(corpus, "20260101-000000", [f"alpha topic {i}" for i in range(6)])
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+    _write_kg_run(corpus, "20260202-000000", [f"beta topic {i}" for i in range(5)])
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.search.two_tier_indexer"):
+        tti.build_two_tier_index(corpus, lance, drop_existing=False)
+    texts = _texts(lance)
+    assert not any("alpha topic" in t for t in texts), sorted(texts)
+    assert sum("beta topic" in t for t in texts) == 5
+    assert "REFUSING to prune" not in caplog.text

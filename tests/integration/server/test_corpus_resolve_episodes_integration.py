@@ -11,7 +11,7 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
-from tests.integration.server.test_cil_api import _bundle
+from tests.integration.server.episode_bundle_fixture import _bundle
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 

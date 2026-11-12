@@ -26,13 +26,8 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import Config  # noqa: E402
 from podcast_scraper.providers import resilience  # noqa: E402
-from podcast_scraper.providers.ml.diarization.base import DiarizationResult  # noqa: E402
 from podcast_scraper.providers.tailnet_dgx import (  # noqa: E402
-    diarization_provider as dp,
     whisper_provider as wp,
-)
-from podcast_scraper.providers.tailnet_dgx.diarization_provider import (  # noqa: E402
-    TailnetDgxDiarizationProvider,
 )
 from podcast_scraper.providers.tailnet_dgx.whisper_provider import (  # noqa: E402
     TailnetDgxWhisperTranscriptionProvider,
@@ -50,32 +45,10 @@ def _reset_dgx_state(e2e_server):
     from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
     E2EHTTPRequestHandler.clear_all_error_behaviors()
-    dp._diarize_breaker.reset()
     wp._whisper_breaker.reset()
     yield
     E2EHTTPRequestHandler.clear_all_error_behaviors()
-    dp._diarize_breaker.reset()
     wp._whisper_breaker.reset()
-
-
-def _diarize_provider(e2e_server, **overrides):
-    host, port = e2e_server.urls.dgx_host_port()
-    cfg = Config.model_validate(
-        {
-            "rss_url": "https://example.com/feed.xml",
-            "diarization_provider": "tailnet_dgx",
-            "diarize": True,
-            "dgx_tailnet_host": host,
-            "dgx_diarize_port": port,
-            "dgx_diarize_request_timeout_sec": 0.5,
-            "dgx_diarize_timeout_per_audio_minute_sec": 0,
-            "hf_token": "hf_test",
-            **overrides,
-        }
-    )
-    p = TailnetDgxDiarizationProvider(cfg)
-    p.initialize()
-    return p
 
 
 def _whisper_provider(e2e_server, **overrides):
@@ -132,39 +105,3 @@ class TestDGXWhisperE2E:
             with pytest.raises(TimeoutLike):
                 provider.transcribe(str(_AUDIO))
         assert wp._whisper_breaker.state == "open"
-
-
-class TestDGXDiarizeE2E:
-    def test_diarizes_against_mock_server(self, e2e_server):
-        # Happy-path: give a generous request timeout so transient slowness under
-        # parallel CI load can't trip the breaker (the 0.5s default exists only for
-        # the fail-over tests, which force failure via 503 / watchdog, not this timeout).
-        result = _diarize_provider(e2e_server, dgx_diarize_request_timeout_sec=10.0).diarize(
-            str(_AUDIO)
-        )
-        assert isinstance(result, DiarizationResult)
-        assert result.num_speakers == 2
-        assert {s.speaker for s in result.segments} == {"SPEAKER_00", "SPEAKER_01"}
-        assert dp._diarize_breaker.state == "closed"
-
-    def test_http_503_raises_for_the_chain(self, e2e_server):
-        import httpx
-
-        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
-
-        E2EHTTPRequestHandler.set_error_behavior(_DIARIZE_PATH, status=503)
-        provider = _diarize_provider(e2e_server)
-        with patch.object(dp.time, "sleep"):
-            with pytest.raises(httpx.HTTPStatusError):
-                provider.diarize(str(_AUDIO))
-
-    def test_hanging_socket_watchdog_raises(self, e2e_server):
-        from podcast_scraper.providers.resilience import TimeoutLike
-        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
-
-        E2EHTTPRequestHandler.set_error_behavior(_DIARIZE_PATH, status=200, delay=10.0)
-        provider = _diarize_provider(e2e_server)
-        with patch.object(resilience, "WATCHDOG_GRACE_SEC", 0.2):
-            with pytest.raises(TimeoutLike):
-                provider.diarize(str(_AUDIO))
-        assert dp._diarize_breaker.state == "open"

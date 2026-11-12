@@ -11,7 +11,6 @@ factory functions create providers as expected:
 
 import os
 import unittest
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -155,22 +154,6 @@ class TestProviderConfigFields(unittest.TestCase):
 class TestProviderFactories(unittest.TestCase):
     """Test that factory functions create providers correctly."""
 
-    def test_speaker_detector_factory_creates_detector(self):
-        """Test that speaker detector factory creates detector."""
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
-        )
-        detector = create_speaker_detector(cfg)
-        self.assertIsNotNone(detector)
-        # Verify it's the unified ML provider
-        self.assertEqual(detector.__class__.__name__, "MLProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(detector, "detect_speakers"))
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-        self.assertTrue(hasattr(detector, "clear_cache"))
-
     def test_transcription_provider_factory_creates_provider(self):
         """Test that transcription provider factory creates provider."""
         from podcast_scraper.transcription.factory import create_transcription_provider
@@ -199,156 +182,6 @@ class TestProviderFactories(unittest.TestCase):
         self.assertIsNotNone(provider)
         # Verify it's the unified ML provider
         self.assertEqual(provider.__class__.__name__, "MLProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(provider, "summarize"))
-        self.assertTrue(hasattr(provider, "initialize"))
-        self.assertTrue(hasattr(provider, "cleanup"))
-
-    def test_openai_providers_factory_creation(self):
-        """Test that OpenAI providers can be created via factories."""
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-        from podcast_scraper.summarization.factory import create_summarization_provider
-        from podcast_scraper.transcription.factory import create_transcription_provider
-
-        # Test OpenAI transcription provider
-        cfg_transcription = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcription_provider="openai",
-            openai_api_key="sk-test123",
-        )
-        provider = create_transcription_provider(cfg_transcription)
-        self.assertIsNotNone(provider)
-        # Verify it's the unified OpenAI provider
-        self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(provider, "transcribe"))
-        self.assertTrue(hasattr(provider, "transcribe_with_segments"))
-
-        # Test OpenAI speaker detector
-        cfg_speaker = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="openai",
-            openai_api_key="sk-test123",
-            auto_speakers=True,
-        )
-        detector = create_speaker_detector(cfg_speaker)
-        self.assertIsNotNone(detector)
-        # Verify it's the unified OpenAI provider
-        self.assertEqual(detector.__class__.__name__, "OpenAIProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(detector, "detect_speakers"))
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-        self.assertTrue(hasattr(detector, "clear_cache"))
-
-        # Test OpenAI summarization provider
-        cfg_summary = config.Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="openai",
-            openai_api_key="sk-test123",
-            generate_metadata=True,  # Required when generate_summaries=True
-            generate_summaries=True,
-        )
-        provider = create_summarization_provider(cfg_summary)
-        self.assertIsNotNone(provider)
-        # Verify it's the unified OpenAI provider
-        self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(provider, "summarize"))
-        self.assertTrue(hasattr(provider, "initialize"))
-        self.assertTrue(hasattr(provider, "cleanup"))
-
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_gemini_providers_factory_creation(self, mock_genai):
-        """Test that Gemini providers can be created via factories."""
-        # Mock genai.configure for API compatibility (old API used configure, new uses Client)
-        mock_genai.configure = Mock()
-        # Mock GenerativeModel for all provider types
-        mock_model = Mock()
-        mock_genai.GenerativeModel = Mock(return_value=mock_model)
-
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-        from podcast_scraper.summarization.factory import create_summarization_provider
-        from podcast_scraper.transcription.factory import create_transcription_provider
-
-        # Test Gemini transcription provider
-        cfg_transcription = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcription_provider="gemini",
-            gemini_api_key="test-api-key-123",
-        )
-        provider = create_transcription_provider(cfg_transcription)
-        self.assertIsNotNone(provider)
-        # Verify it's the unified Gemini provider
-        self.assertEqual(provider.__class__.__name__, "GeminiProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(provider, "transcribe"))
-        self.assertTrue(hasattr(provider, "transcribe_with_segments"))
-
-        # Test Gemini speaker detector
-        cfg_speaker = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="gemini",
-            gemini_api_key="test-api-key-123",
-            auto_speakers=True,
-        )
-        detector = create_speaker_detector(cfg_speaker)
-        self.assertIsNotNone(detector)
-        # Verify it's the unified Gemini provider
-        self.assertEqual(detector.__class__.__name__, "GeminiProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(detector, "detect_speakers"))
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-        self.assertTrue(hasattr(detector, "clear_cache"))
-
-        # Test Gemini summarization provider
-        cfg_summary = config.Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="gemini",
-            gemini_api_key="test-api-key-123",
-            generate_metadata=True,  # Required when generate_summaries=True
-            generate_summaries=True,
-        )
-        provider = create_summarization_provider(cfg_summary)
-        self.assertIsNotNone(provider)
-        # Verify it's the unified Gemini provider
-        self.assertEqual(provider.__class__.__name__, "GeminiProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(provider, "summarize"))
-        self.assertTrue(hasattr(provider, "initialize"))
-        self.assertTrue(hasattr(provider, "cleanup"))
-
-    def test_grok_providers_factory_creation(self):
-        """Test that Grok providers can be created via factories."""
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-        from podcast_scraper.summarization.factory import create_summarization_provider
-
-        # Test Grok speaker detector
-        cfg_speaker = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="grok",
-            grok_api_key="test-api-key-123",
-            auto_speakers=True,
-        )
-        detector = create_speaker_detector(cfg_speaker)
-        self.assertIsNotNone(detector)
-        # Verify it's the unified Grok provider
-        self.assertEqual(detector.__class__.__name__, "GrokProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(detector, "detect_speakers"))
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-
-        # Test Grok summarization provider
-        cfg_summary = config.Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="grok",
-            grok_api_key="test-api-key-123",
-            generate_summaries=True,
-            generate_metadata=True,
-        )
-        provider = create_summarization_provider(cfg_summary)
-        self.assertIsNotNone(provider)
-        # Verify it's the unified Grok provider
-        self.assertEqual(provider.__class__.__name__, "GrokProvider")
         # Verify protocol compliance
         self.assertTrue(hasattr(provider, "summarize"))
         self.assertTrue(hasattr(provider, "initialize"))

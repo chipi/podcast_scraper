@@ -14,8 +14,6 @@ from typing import Any, Callable, cast, List, Optional, Tuple
 
 import pytest
 
-from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
-from podcast_scraper.providers.ml.diarization.fallback import FallbackChainDiarizationProvider
 from podcast_scraper.providers.resilience.fallback import (
     FallbackChainTranscriptionProvider,
 )
@@ -57,46 +55,10 @@ class _StubTranscription:
         self.cleaned = True
 
 
-class _StubDiarization:
-    """A diarization tier that either returns a fixed result or raises on every call."""
-
-    def __init__(self, *, raises: Optional[BaseException] = None, model_name: str = "") -> None:
-        self._raises = raises
-        self._model = model_name
-        self.initialized = False
-        self.cleaned = False
-
-    def initialize(self) -> None:
-        self.initialized = True
-
-    def diarize(
-        self,
-        audio_path: str,
-        *,
-        num_speakers: Optional[int] = None,
-        min_speakers: int = 2,
-        max_speakers: int = 20,
-    ) -> DiarizationResult:
-        if self._raises is not None:
-            raise self._raises
-        return DiarizationResult(
-            segments=[DiarizationSegment(start=0.0, end=1.0, speaker="SPEAKER_00")],
-            num_speakers=1,
-            model_name=self._model,
-        )
-
-    def cleanup(self) -> None:
-        self.cleaned = True
-
-
 # The chains duck-type their tiers (any object exposing the provider methods works); the stubs are
 # structural stand-ins, so cast past the nominal Protocol type the constructors annotate.
 def _t_chain(tiers: List[Tuple[str, Callable[[], Any]]]) -> FallbackChainTranscriptionProvider:
     return FallbackChainTranscriptionProvider(cast(Any, tiers))
-
-
-def _d_chain(tiers: List[Tuple[str, Callable[[], Any]]]) -> FallbackChainDiarizationProvider:
-    return FallbackChainDiarizationProvider(cast(Any, tiers))
 
 
 # --------------------------------------------------------------------------- #
@@ -160,50 +122,6 @@ def test_transcription_chain_cleanup_releases_every_built_tier() -> None:
 # --------------------------------------------------------------------------- #
 # diarization chain                                                            #
 # --------------------------------------------------------------------------- #
-def test_diarization_chain_fails_over_to_next_tier_on_infra_error() -> None:
-    primary = _StubDiarization(raises=RuntimeError("pyannote host down"))
-    fallback = _StubDiarization(model_name="deepgram-nova-3")
-    chain = _d_chain(
-        [
-            ("pyannote_diarization_community1", lambda: primary),
-            ("deepgram_diarization_nova3", lambda: fallback),
-        ]
-    )
-    chain.initialize()
-
-    result = chain.diarize("ep.wav")
-
-    assert result.model_name == "deepgram-nova-3"
-    assert result.num_speakers == 1
-    assert [s.speaker for s in result.segments] == ["SPEAKER_00"]
-    assert primary.initialized and fallback.initialized
-
-
-def test_diarization_chain_reraises_when_every_tier_fails() -> None:
-    primary = _StubDiarization(raises=RuntimeError("primary infra"))
-    last = _StubDiarization(raises=RuntimeError("last tier infra"))
-    chain = _d_chain(
-        [
-            ("pyannote_diarization_community1", lambda: primary),
-            ("deepgram_diarization_nova3", lambda: last),
-        ]
-    )
-    with pytest.raises(RuntimeError, match="last tier infra"):
-        chain.diarize("ep.wav")
-
-
-def test_diarization_chain_cleanup_releases_every_built_tier() -> None:
-    primary = _StubDiarization(raises=RuntimeError("infra"))
-    fallback = _StubDiarization(model_name="deepgram-nova-3")
-    chain = _d_chain(
-        [
-            ("pyannote_diarization_community1", lambda: primary),
-            ("deepgram_diarization_nova3", lambda: fallback),
-        ]
-    )
-    chain.diarize("ep.wav")
-    chain.cleanup()
-    assert primary.cleaned and fallback.cleaned
 
 
 # --------------------------------------------------------------------------- #

@@ -31,17 +31,13 @@ pytestmark = pytest.mark.unit
 
 LLM_PROVIDERS = ["anthropic", "deepseek", "gemini", "grok", "mistral", "ollama", "openai"]
 
-# Every capability the pipeline asks a provider for. A provider missing one does not fail loudly —
+# Every capability the pipeline asks a provider for (public's; the GI and naming ones are the
+# extension's, checked where their methods live). A provider missing one does not fail loudly —
 # the caller DEGRADES, and the model gets the blame.
 CAPABILITIES = [
     "summarize",
-    "generate_insights",
-    "classify_insights",
     "complete_text",
-    "extract_quotes",
-    "score_entailment",
     "extract_kg_graph",
-    "detect_speakers",
 ]
 
 PROMPTS = Path("src/podcast_scraper/prompts")
@@ -194,37 +190,6 @@ def test_the_prompts_are_IDENTICAL_across_providers(family: str) -> None:
         f"{sorted({p for p in texts if texts[p] != texts[LLM_PROVIDERS[0]]})} have a different "
         f"prompt. openai once asked for ONE quote here while everyone else asked for a list."
     )
-
-
-@pytest.mark.parametrize("provider", LLM_PROVIDERS)
-def test_the_extraction_prompt_version_is_a_TUNED_PARAMETER(provider: str) -> None:
-    """The prompt decides what an insight IS. Hardcoding it made this the only part of the stage
-    that could not be A/B tested — and left v3 reachable by ollama alone."""
-    body = _functions(provider)["generate_insights"]
-    assert (
-        "gi_insight_prompt_version" in body
-    ), f"{provider} hardcodes its extraction prompt version, so it can never run v3"
-
-
-@pytest.mark.parametrize("provider", LLM_PROVIDERS)
-@pytest.mark.parametrize("method", ["generate_insights", "extract_quotes", "score_entailment"])
-def test_no_prompt_is_BURIED_IN_CODE(provider: str, method: str) -> None:
-    """A prompt in a file is versioned, diffable and reviewable. A prompt in code is a bug with
-    nowhere to be seen — ollama's inline quote prompt hid THREE evidence-destroying defects at once
-    (a 50k truncation below episode length, a system/user disagreement about the output shape, and a
-    copyable example string that local models reproduced verbatim, #1179)."""
-    node, src = _nodes(provider)[method]
-    buried = []
-    for sub in ast.walk(node):
-        if isinstance(sub, ast.Assign) and isinstance(sub.value, (ast.Constant, ast.JoinedStr)):
-            target = getattr(sub.targets[0], "id", "")
-            if target in ("system", "user", "prompt", "system_prompt", "user_prompt"):
-                seg = ast.get_source_segment(src, sub) or ""
-                if len(seg) > 90:
-                    buried.append(target)
-    assert (
-        not buried
-    ), f"{provider}.{method} still builds {buried} as a literal instead of rendering a template"
 
 
 @pytest.mark.parametrize("provider", ["litellm", "vllm", "qwen", "groq"])

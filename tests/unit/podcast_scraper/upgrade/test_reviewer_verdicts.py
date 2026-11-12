@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -76,15 +75,6 @@ def test_the_list_fingerprint_moves_with_the_list() -> None:
     a = rv.list_sha256({("e", "v"): ("A", "guest")})
     assert a == rv.list_sha256({("e", "v"): ("A", "guest")})
     assert a != rv.list_sha256({("e", "v"): ("B", "guest")})
-
-
-def test_the_verdicts_ship_in_the_wheel() -> None:
-    """``pip install .`` (the images) keeps only declared package data: a verdicts file missing from
-    the wheel makes the migration refuse on prod (the known_models.yaml lesson in pyproject)."""
-    data = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
-    globs = data["tool"]["setuptools"]["package-data"]["podcast_scraper"]
-    assert "upgrade/verdicts/*.tsv" in globs
-    assert (REPO / "src/podcast_scraper/upgrade/verdicts/0031_named_voices_shown.tsv").is_file()
 
 
 def test_the_reader_names_no_entry_of_any_migration() -> None:

@@ -276,7 +276,7 @@ def test_get_run_summary_returns_payload_after_executor_run(app: FastAPI, corpus
     executor = EnrichmentExecutor(
         corpus_root=corpus,
         registry=registry,
-        enricher_set=EnricherSet(enabled_enrichers=["insight_density"]),
+        enricher_set=EnricherSet(enabled_enrichers=["topic_cooccurrence_corpus"]),
     )
     asyncio.run(executor.run())
 

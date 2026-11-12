@@ -73,16 +73,6 @@ from ._ollama_provider_calls import (  # noqa: F401 - re-exported: moved there w
     _flatten_json_speaker_names,
     _ollama_openai_chat_extra_kwargs,
 )
-from .ollama_provider_gi_naming import (  # noqa: F401 - re-exported: moved there with S1
-    _CHARS_PER_TOKEN,
-    _ENTAILMENT_FALLBACK,
-    _EXTRACT_QUOTE_RESERVE_TOKENS,
-    _json_object_from_response,
-    _render_entailment_prompt,
-    _render_extract_quote_prompt,
-    _transcript_budget_chars,
-    OllamaProviderGiNamingMethods,
-)
 
 # Error messages
 OLLAMA_NOT_RUNNING_ERROR = """

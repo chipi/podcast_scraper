@@ -16,68 +16,17 @@ from typing import List
 from .migration import Migration
 from .migrations.m0001_faiss_to_lance import FaissToLanceMigration
 from .migrations.m0002_two_tier_native_reindex import TwoTierNativeReindexMigration
-from .migrations.m0003_gi_v3_typed_mentions import GiV3TypedMentionsMigration
 from .migrations.m0004_insight_type_reindex import InsightTypeReindexMigration
-from .migrations.m0005_gi_v3_1_route_and_tag import GiV31RouteAndTagMigration
 from .migrations.m0006_kg_v2_typed_entities import KgV2TypedEntitiesMigration
 from .migrations.m0007_scope_bare_person_names import ScopeBarePersonNamesMigration
 from .migrations.m0008_object_entity_kind import ObjectEntityKindMigration
-from .migrations.m0009_backfill_speaker_roles import BackfillSpeakerRolesMigration
 from .migrations.m0010_canonical_person_names import CanonicalPersonNamesMigration
 from .migrations.m0011_shared_artwork_store import SharedArtworkStoreMigration
-from .migrations.m0012_org_speakers_removed import OrgSpeakersRemovedMigration
 from .migrations.m0013_artwork_thumbnails import ArtworkThumbnailsMigration
-from .migrations.m0014_eponymous_hosts_restored import EponymousHostsRestoredMigration
-from .migrations.m0015_unpublishable_speaker_names_removed import (
-    UnpublishableSpeakerNamesRemovedMigration,
-)
-from .migrations.m0016_ad_reader_names_removed import AdReaderNamesRemovedMigration
-from .migrations.m0017_speaker_names_canonicalised import SpeakerNamesCanonicalisedMigration
-from .migrations.m0018_org_speakers_removed_residue import OrgSpeakersRemovedResidueMigration
-from .migrations.m0019_descriptor_speaker_names_removed import (
-    DescriptorSpeakerNamesRemovedMigration,
-)
-from .migrations.m0020_titled_person_ids_remerged import TitledPersonIdsRemergedMigration
 from .migrations.m0021_backfill_feed_language import BackfillFeedLanguageMigration
-from .migrations.m0022_derived_speaker_surfaces_resynced import (
-    DerivedSpeakerSurfacesResyncedMigration,
-)
-from .migrations.m0023_transcript_speaker_prefixes_resynced import (
-    TranscriptSpeakerPrefixesResyncedMigration,
-)
-from .migrations.m0024_shared_removed_speaker_prefixes import (
-    SharedRemovedSpeakerPrefixesMigration,
-)
-from .migrations.m0025_one_person_one_entry import OnePersonOneEntryMigration
 from .migrations.m0026_artwork_medium import ArtworkMediumMigration
 from .migrations.m0027_missing_covers_stored import MissingCoversStoredMigration
 from .migrations.m0028_transcript_chunk_times import TranscriptChunkTimesMigration
-from .migrations.m0029_naming_arc_voices_repaired import NamingArcVoicesRepairedMigration
-from .migrations.m0030_adfree_cut_resynced import AdfreeCutResyncedMigration
-from .migrations.m0031_named_voices_shown import NamedVoicesShownMigration
-from .migrations.m0033_hand_removed_names_refused import HandRemovedNamesRefusedMigration
-from .migrations.m0034_talk_floor_names_removed import TalkFloorNamesRemovedMigration
-from .migrations.m0035_voice_identity_names import VoiceIdentityNamesMigration
-from .migrations.m0036_bridge_identities_restored import BridgeIdentitiesRestoredMigration
-from .migrations.m0037_named_voices_corrected import NamedVoicesCorrectedMigration
-from .migrations.m0038_raw_label_speakers_removed import RawLabelSpeakersRemovedMigration
-from .migrations.m0039_adfree_segment_offsets_realigned import (
-    AdfreeSegmentOffsetsRealignedMigration,
-)
-from .migrations.m0040_gi_quote_offsets_realigned import GiQuoteOffsetsRealignedMigration
-from .migrations.m0041_joined_names_respelled import JoinedNamesRespelledMigration
-from .migrations.m0042_insight_cluster_quotes_resynced import (
-    InsightClusterQuotesResyncedMigration,
-)
-from .migrations.m0043_non_participant_names_removed import (
-    NonParticipantNamesRemovedMigration,
-)
-from .migrations.m0044_title_spelling_voices_renamed import (
-    TitleSpellingVoicesRenamedMigration,
-)
-from .migrations.m0045_episode_voices_corrected import (
-    EpisodeVoicesCorrectedMigration,
-)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -93,24 +42,13 @@ from .migrations.m0045_episode_voices_corrected import (
 _MIGRATIONS: List[Migration] = [
     FaissToLanceMigration(),
     TwoTierNativeReindexMigration(),
-    GiV3TypedMentionsMigration(),
     InsightTypeReindexMigration(),
-    GiV31RouteAndTagMigration(),
     KgV2TypedEntitiesMigration(),
     ScopeBarePersonNamesMigration(),
     ObjectEntityKindMigration(),
-    BackfillSpeakerRolesMigration(),
     CanonicalPersonNamesMigration(),
     SharedArtworkStoreMigration(),
-    OrgSpeakersRemovedMigration(),
     ArtworkThumbnailsMigration(),
-    EponymousHostsRestoredMigration(),
-    UnpublishableSpeakerNamesRemovedMigration(),
-    AdReaderNamesRemovedMigration(),
-    SpeakerNamesCanonicalisedMigration(),
-    OrgSpeakersRemovedResidueMigration(),
-    DescriptorSpeakerNamesRemovedMigration(),
-    TitledPersonIdsRemergedMigration(),
     # 0021 backfills each show's declared RSS <language> onto its episodes (#2173).
     # It FETCHES -- the first migration here that does. Every pre-#2172 artifact
     # carries the run config in feed.language, and skip_existing is GUID-keyed, so a
@@ -127,64 +65,44 @@ _MIGRATIONS: List[Migration] = [
     # only reason renumbering is free.
     BackfillFeedLanguageMigration(),
     # 0022 makes context.json and the speaker diagnostics follow what 0012-0019 rewrote.
-    DerivedSpeakerSurfacesResyncedMigration(),
     # 0023 re-renders the text transcripts from the repaired segments, offsets carried across.
-    TranscriptSpeakerPrefixesResyncedMigration(),
     # 0024 renames what 0023 refused: a removed name on 2+ voices becomes SPEAKER (#2294).
-    SharedRemovedSpeakerPrefixesMigration(),
     # 0025 repairs one person published twice (a title or a respelling) as c05cc0273 now avoids.
-    OnePersonOneEntryMigration(),
     # 0026 writes the ≤1024px player copy of every stored cover (originals run to 3000px).
     ArtworkMediumMigration(),
     # 0027 stores covers that were only a feed-host URL (FETCHES), so every slot gets a downscale.
     MissingCoversStoredMigration(),
     # 0028 times the transcript passages already in the search index (all at 0 ms), in place.
     TranscriptChunkTimesMigration(),
-    NamingArcVoicesRepairedMigration(),
     # 0030 gives served episodes today's ad cut (#2360), offsets into the ad-free text carried.
-    AdfreeCutResyncedMigration(),
     # 0031 gives 0029's voices the fixed rewrite (#2380): named where a reprocess unnamed them
     # again, shown where 0029 left them hidden under their name. The part of 0029 that went missing.
-    NamedVoicesShownMigration(),
     # 0033 names the voice a reprocess published under a name 0015 removed by hand ("Generation"),
     # as a fresh review read it. 0032 was never registered (retired), so 0033 follows 0031.
-    HandRemovedNamesRefusedMigration(),
     # 0034 takes a name off a served voice under 5% of its episode's talk, unless the review reads
     # the name as that voice's own (frozen list + verdicts, snapshot-prod-20261025).
-    TalkFloorNamesRemovedMigration(),
     # 0035 applies the voice identity rung's text-confirmed renames and unnamings on fingerprinted
     # served episodes; it lists no voice under the floor, so it shares no voice with 0034.
-    VoiceIdentityNamesMigration(),
     # 0036 gives every published GI / KG person the bridge identity the builder makes, where the
     # bridge carries none (found by 0034's census; text only).
-    BridgeIdentitiesRestoredMigration(),
     # 0037 gives served voices holding another person's name their own (#2094 D5 and night 1's
     # blind reads; frozen list + verdicts, a swap applied whole).
-    NamedVoicesCorrectedMigration(),
     # 0038 brings served episodes' files to what the pipeline now writes for a voice that kept a
     # raw diarization label: no Person node, quotes and insights typed (RFC-131 N11, text only).
-    RawLabelSpeakersRemovedMigration(),
     # 0039 realigns ad-free segment offsets a 2026-10-06 hand repair left pointing a few
     # characters early, so every later rewrite's offset carry holds (found by 0041's guard).
-    AdfreeSegmentOffsetsRealignedMigration(),
     # 0040 realigns GI quotes whose offsets no longer slice to their text, by their own time
     # window against the transcript's segments; a quote time cannot place is left, listed.
-    GiQuoteOffsetsRealignedMigration(),
     # 0041 writes the ledger's group spelling of each joined person into the episode files, so
     # the transcript agrees with every read-time surface; item 8's duplicates fold (RFC-131 D2).
-    JoinedNamesRespelledMigration(),
     # 0042 resyncs the insight clusters' copied quote fields from the GI (0038's removed ids,
     # 0041's moved offsets; D2 item 5).
-    InsightClusterQuotesResyncedMigration(),
     # 0043 takes the name off voices that only read an ad, a promo or a shout-out, typed
     # commercial as today's roster types them (frozen, reviewed list; #2123, #2364).
-    NonParticipantNamesRemovedMigration(),
     # 0044 gives stored voices their own episode title's spelling of their person, as B5 does for
     # new episodes (frozen, reviewed list; #2363).
-    TitleSpellingVoicesRenamedMigration(),
     # 0045 corrects one episode's guest-named voices: the show's host's voice takes the host's
     # name (frozen, reviewed list; found by 0044's review).
-    EpisodeVoicesCorrectedMigration(),
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
     # the id stays unused.
 ]
