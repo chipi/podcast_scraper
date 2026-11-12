@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
@@ -10,6 +10,12 @@ import type { ArtifactData } from '../../types/artifact'
 import { localYmdDaysAgo } from '../../utils/localCalendarDate'
 import { parseArtifact } from '../../utils/parsing'
 import GraphStatusLine from './GraphStatusLine.vue'
+import { graphTypeTraits } from '../../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'] }))
+afterEach(() => graphTypeTraits.reset())
 
 const SUMMARY = '[data-testid="graph-status-line"]'
 const CONTROLS = '[data-testid="graph-status-line-controls"]'

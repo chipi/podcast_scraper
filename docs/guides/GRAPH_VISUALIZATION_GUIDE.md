@@ -144,9 +144,9 @@ to avoid Person/Episode text-outline noise.
 
 ### 4. Zoom-gated tier reshape (plumbing dots)
 
-**Rule:** below zoom `GRAPH_NODE_ZOOM_INSIGHT_MIN = 0.9`, "plumbing" types
-render as compact dots without labels. Above `0.9`, they render at full
-size with labels.
+**Rule:** below a build's zoom threshold (`graphTypeTraits.zoomHidden`; the GI
+build uses `0.9` for Insight and Quote), "plumbing" types render as compact
+dots without labels. Above it, they render at full size with labels.
 
 **Types affected:** Insight, Quote, Speaker, Person cameo (Persons with
 degree = 1).
@@ -627,8 +627,10 @@ invisible node is a broken contract.
 **Rule:** users toggle node types on/off via the Types chip in the graph
 bottom bar. Edges to filtered-out types drop with them.
 
-**Default-hidden types** (Tier 6-3): `DEFAULT_HIDDEN_TYPES = ['Quote',
-'Speaker']` — the initial `allowedTypes` map starts with these off.
+**Default-hidden types** (Tier 6-3): the types a build declares in
+`graphTypeTraits.defaultHidden` (the GI build: Quote and Speaker) — the
+initial `allowedTypes` map starts with these off. The viewer alone hides
+none.
 
 **Why the default:** Quotes and Speakers are evidence detail — useful when
 the analyst is auditing a specific claim, noise at overview. The
@@ -639,8 +641,8 @@ default* — not on "anything unchecked". A user who ticks Quote *on* and
 Speaker *off* sees the reset indicator because Speaker is at default but
 Quote isn't. The `filtersActive` computed does the deviation math.
 
-**Code:** `web/gi-kg-viewer/src/utils/parsing.ts::DEFAULT_HIDDEN_TYPES`
-and `stores/graphFilters.ts`.
+**Code:** `web/gi-kg-viewer/src/utils/parsing.ts::typeHiddenByDefault`
+(reads `graphTypeTraits.defaultHidden`) and `stores/graphFilters.ts`.
 
 ---
 
@@ -859,8 +861,8 @@ files:
   overlay functions via MockCore.
 - `stores/graphLenses.test.ts` — every flag, resetToDefaults, USERPREFS-1
   round-trip, legacy-key migration.
-- `utils/parsing.test.ts` — `DEFAULT_HIDDEN_TYPES`, `filtersActive` corner
-  cases.
+- `utils/parsing.test.ts` / `parsing.extensions.test.ts` — default-hidden
+  types from `graphTypeTraits`, `filtersActive` corner cases.
 - `utils/colors.test.ts` — brand-palette collision guard.
 
 ### E2E (Playwright)

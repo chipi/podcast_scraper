@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ArtifactData, GraphFilterState, ParsedArtifact } from '../types/artifact'
 import {
   applyGraphDefaultNodeTypeVisibility,
@@ -38,6 +38,12 @@ import {
   toCytoElements,
   toGraphElements,
 } from './parsing'
+import { graphTypeTraits } from '../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'] }))
+afterEach(() => graphTypeTraits.reset())
 
 // ── fixtures ──
 

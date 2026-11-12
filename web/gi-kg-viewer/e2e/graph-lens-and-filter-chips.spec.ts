@@ -141,7 +141,7 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await mockSignIn(page, 'creator', { liveApi: true })
   })
 
-  test('Types: Quote starts off; a change shows reset, which restores the defaults', async ({
+  test('Types: every type starts on; a change shows reset, which restores the defaults', async ({
     page,
   }) => {
     await openGraph(page)
@@ -151,18 +151,14 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     const pop = page.getByTestId('graph-popover-types')
     await expect(pop).toBeVisible()
     const box = (name: string) => pop.getByRole('checkbox', { name: new RegExp(`^${name}\\b`) })
-    // Neither the live corpus nor the offline fixture has Speaker nodes, so Quote carries the
-    // default-off assertion. Episode is deliberately NOT asserted: UXS-004 says it starts off,
-    // `utils/parsing.ts` DEFAULT_HIDDEN_TYPES leaves it on — a spec/code divergence to resolve,
-    // not something to pin either way here.
-    await expect(box('Quote')).not.toBeChecked()
-    await expect(box('Insight')).toBeChecked()
+    // This viewer hides no type by default (a build can, through graphTypeTraits.defaultHidden).
+    await expect(box('Topic')).toBeChecked()
     await expect(pop.getByTestId('graph-types-reset')).toHaveCount(0)
 
-    await box('Insight').uncheck()
+    await box('Topic').uncheck()
     await expect(chip).toHaveText(/^Types: \d+ of \d+ ▾$/)
     await pop.getByTestId('graph-types-reset').click()
-    await expect(box('Insight')).toBeChecked()
+    await expect(box('Topic')).toBeChecked()
     await expect(chip).toHaveText('Types ▾')
     await expect(pop.getByTestId('graph-types-reset')).toHaveCount(0)
   })

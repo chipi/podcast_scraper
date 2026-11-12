@@ -129,20 +129,9 @@ function semanticIdealEdgeLengthPx(edgeType: string, profile: 'main' | 'compact'
   const ext = extensionEdgeLayout(edgeType)
   if (ext) return scaled(ext.length)
   switch (edgeType) {
-    case 'HAS_INSIGHT':
-      return scaled(60)
-    case 'ABOUT':
-      return scaled(80)
-    case 'SUPPORTED_BY':
-      return scaled(40)
     case 'RELATED_TO':
       return scaled(120)
-    case 'SPOKE_IN':
-      return scaled(100)
     case 'MENTIONS':
-    case 'MENTIONS_PERSON':
-    case 'MENTIONS_ORG':
-      // RFC-097 v3.0 typed MENTIONS family — same layout treatment as legacy.
       return scaled(150)
     default:
       return profile === 'main' ? MAIN.idealEdgeLengthBase : COMPACT.idealEdgeLengthBase
@@ -154,14 +143,8 @@ function semanticEdgeElasticity(edgeType: string, profile: 'main' | 'compact'): 
   // ``MENTIONS`` elasticity so the typed split doesn't change graph layout
   // for users on the same corpus shape.
   const mainMap: Record<string, number> = {
-    HAS_INSIGHT: 180,
-    ABOUT: 200,
-    SUPPORTED_BY: 150,
     RELATED_TO: 100,
-    SPOKE_IN: 120,
     MENTIONS: 60,
-    MENTIONS_PERSON: 60,
-    MENTIONS_ORG: 60,
   }
   const v = mainMap[edgeType] ?? extensionEdgeLayout(edgeType)?.elasticity
   if (v == null) {

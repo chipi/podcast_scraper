@@ -1256,8 +1256,6 @@ function layoutOptionsFor(name: string, opts?: { numIter?: number }): Record<str
 
 const TIMELINE_TOPIC_BAND_OFFSET = 100
 const TIMELINE_PERSON_BAND_OFFSET = -180
-const TIMELINE_INSIGHT_OFFSET = 30
-const TIMELINE_QUOTE_OFFSET = -30
 const TIMELINE_DEFAULT_X = 0
 
 /** RFC-080 V3 — count of Episodes parked at the missing-date spot in the
@@ -1323,8 +1321,8 @@ function timelineLayoutSpec(core: Core): Record<string, unknown> {
   placeBand('node[type = "Entity_person"]', TIMELINE_PERSON_BAND_OFFSET)
   placeBand('node[type = "Entity_organization"]', TIMELINE_PERSON_BAND_OFFSET)
 
-  // Insights / Quotes ride near their parent Episode (small signed
-  // offset so children don't all land on the parent's exact (x, y)).
+  // Satellite types (`graphTypeTraits.episodeSatellites`) ride near their parent Episode (small
+  // signed offset so children don't all land on the parent's exact (x, y)).
   const placeChildren = (selector: string, yOffset: number): void => {
     core.nodes(selector).forEach((n) => {
       const eid = String(n.data('episodeId') ?? '').trim()
@@ -1351,8 +1349,6 @@ function timelineLayoutSpec(core: Core): Record<string, unknown> {
       }
     })
   }
-  placeChildren('node[type = "Insight"]', TIMELINE_INSIGHT_OFFSET)
-  placeChildren('node[type = "Quote"]', TIMELINE_QUOTE_OFFSET)
   for (const t of graphTypeTraits.list()) {
     for (const s of t.episodeSatellites ?? []) placeChildren(`node[type = "${s.type}"]`, s.yOffset)
   }

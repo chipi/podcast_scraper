@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GRAPH_LABEL_ZOOM_NONE_MAX,
   GRAPH_LABEL_ZOOM_SHORT_MAX,
-  GRAPH_NODE_ZOOM_INSIGHT_MIN,
   prefersReducedMotionQuery,
   syncGraphLabelTierClasses,
   syncGraphNodeVisibilityTierClasses,
@@ -135,32 +134,6 @@ describe('cyGraphLabelTier', () => {
       return { core: core as unknown as Core, nodesFn, targets, addClass, removeClass, raw: core }
     }
 
-    it('exports GRAPH_NODE_ZOOM_INSIGHT_MIN = 0.9 (canvas threshold)', () => {
-      expect(GRAPH_NODE_ZOOM_INSIGHT_MIN).toBe(0.9)
-    })
-
-    it('adds the hidden class to Insight + Quote when zoom < threshold', () => {
-      const { core, addClass, removeClass, nodesFn } = makeVisibilityCore(0.5)
-      syncGraphNodeVisibilityTierClasses(core)
-      expect(nodesFn).toHaveBeenCalledWith('[type = "Insight"], [type = "Quote"]')
-      expect(addClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
-      expect(removeClass).not.toHaveBeenCalled()
-    })
-
-    it('removes the hidden class at exactly the threshold (zoom === MIN)', () => {
-      const { core, addClass, removeClass } = makeVisibilityCore(GRAPH_NODE_ZOOM_INSIGHT_MIN)
-      syncGraphNodeVisibilityTierClasses(core)
-      expect(removeClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
-      expect(addClass).not.toHaveBeenCalled()
-    })
-
-    it('removes the hidden class above the threshold', () => {
-      const { core, addClass, removeClass } = makeVisibilityCore(2.0)
-      syncGraphNodeVisibilityTierClasses(core)
-      expect(removeClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
-      expect(addClass).not.toHaveBeenCalled()
-    })
-
     it('wraps its work in a single batch()', () => {
       const { core, raw } = makeVisibilityCore(0.5)
       syncGraphNodeVisibilityTierClasses(core)
@@ -171,7 +144,7 @@ describe('cyGraphLabelTier', () => {
       const { graphTypeTraits } = await import('../extensions')
       graphTypeTraits.register({ id: 't', zoomHidden: { types: ['Claim', 'Evidence'], minZoom: 1.5 } })
       try {
-        const below = makeVisibilityCore(1.2) // above the viewer's own threshold, below the extension's
+        const below = makeVisibilityCore(1.2)
         syncGraphNodeVisibilityTierClasses(below.core)
         expect(below.nodesFn).toHaveBeenCalledWith('[type = "Claim"], [type = "Evidence"]')
         expect(below.addClass).toHaveBeenCalledWith('graph-node-zoom-hidden')
