@@ -1,0 +1,165 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:chain-wear",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:component-wear",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:maintenance-flow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:mystery-creaks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:predictable-bike-feel",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:service-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:spoke-wrench",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:suspension-service",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-0d9100843ee555f8",
+  "extraction": {
+    "extracted_at": "2024-07-30T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p01_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-0d9100843ee555f8",
+      "properties": {
+        "podcast_id": "p01",
+        "publish_date": "2024-07-30T00:00:00",
+        "title": "The Mechanics of a Quiet, Fast Bike"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics",
+        "slug": "drivetrain-mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance",
+        "slug": "maintenance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear",
+      "properties": {
+        "label": "chain wear",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:component-wear",
+      "properties": {
+        "label": "component wear",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-flow",
+      "properties": {
+        "label": "maintenance flow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:mystery-creaks",
+      "properties": {
+        "label": "mystery creaks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:predictable-bike-feel",
+      "properties": {
+        "label": "predictable bike feel",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:service-intervals",
+      "properties": {
+        "label": "service intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench",
+      "properties": {
+        "label": "spoke wrench",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-service",
+      "properties": {
+        "label": "suspension service",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

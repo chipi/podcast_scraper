@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p03-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p03_e01.mp3",
+    "transcript_file_path": "transcripts/p03_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Marco Silva shares planning, lines, lights, and how to avoid “task loading” when the visibility drops.",
+    "duration_seconds": 332,
+    "episode_id": "ep-2a703b6f57d9020f",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-05-05T00:00:00",
+    "title": "Wreck Diving Fundamentals"
+  },
+  "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-07-09T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Below the Surface",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing this shifts decision-making toward safer, more predictable outcomes.",
+      "Silt-out from poor finning technique kills more divers in wrecks than equipment failures, making technique a primary safety factor.",
+      "Erosion on a wreck site changes the dive every season, requiring updated planning and adaptation to avoid unexpected hazards.",
+      "Dive planning and wreck diving intersect through the framing of safety stops: DAN's safety stops aren't suggestions but critical tradeoffs in risk management.",
+      "GoPro adoption in team dives makes the trade-off between documentation and situational awareness visible — the framing reveals the underlying decisions.",
+      "Soil erosion and site changes create second-order effects that most divers overlook, yet they fundamentally alter dive dynamics and navigation.",
+      "The key to effective wreck diving lies in running one idea for two weeks — testing decisions in practice to refine them through iteration.",
+      "When teams use GoPro, the trade-off between recording and awareness becomes explicit — the framing determines which decisions are prioritized."
+    ],
+    "raw_text": "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing this shifts decision-making toward safer, more predictable outcomes. Silt-out from poor finning technique kills more divers in wrecks than equipment failures, making technique a primary safety factor.",
+    "title": "Wreck Diving Fundamentals: Planning, Buoyancy, and Erosion"
+  }
+}

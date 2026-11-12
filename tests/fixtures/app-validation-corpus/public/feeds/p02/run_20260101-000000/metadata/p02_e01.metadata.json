@@ -1,0 +1,93 @@
+{
+  "content": {
+    "media_id": "sha256:p02-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p02_e01.mp3",
+    "transcript_file_path": "transcripts/p02_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "SRE Priya Nair explains alert hygiene, error budgets, and how to make incidents boring.",
+    "duration_seconds": 393,
+    "episode_id": "ep-4a1a673a7005a6b5",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-03-04T00:00:00",
+    "title": "On-Call That Doesn't Break People"
+  },
+  "feed": {
+    "authors": [
+      "Ethan Park"
+    ],
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-03-09T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [
+        {
+          "asset_scope": "unspecified",
+          "known": null,
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "2025 Practical Systems Collective",
+          "url": null
+        },
+        {
+          "asset_scope": "audio_video",
+          "known": {
+            "adaptations": true,
+            "attribution": true,
+            "commercial_use": false,
+            "id": "CC-BY-NC-SA-4.0",
+            "name": "CC BY-NC-SA 4.0",
+            "share_alike": true,
+            "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+          },
+          "level": "channel",
+          "mechanism": "podcast_license",
+          "notes": [],
+          "raw": "cc-by-nc-sa-4.0",
+          "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+        }
+      ],
+      "documents_for_review": [
+        "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+      ],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "declared"
+    },
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A good on-call rotation is designed so that waking up is rare — the goal is minimizing unnecessary disruptions by aligning alerting with actionable outcomes.",
+      "Alerting should be action-oriented rather than reactive, ensuring that every notification demands a specific, meaningful response.",
+      "Error budgets work when they change behavior — their effectiveness lies in driving operational decisions, not just tracking failures.",
+      "The framing of incident response determines the trade-offs teams make, and a clear mental model is essential for consistent decision-making.",
+      "PagerDuty’s incident response model assumes someone owns the page, but this ownership structure often overlooks the second-order effect of overburdening individuals.",
+      "Systems thinking reveals that on-call design is not just about tools but about the underlying assumptions about responsibility and response patterns.",
+      "Sentry-class tooling helps expose failure modes that are otherwise invisible — ignoring them leads to rebuilding systems from scratch later.",
+      "Adopting tools like Linear or Datadog in incident workflows makes trade-offs visible, and failing to internalize them results in repeated, avoidable work."
+    ],
+    "raw_text": "A good on-call rotation is designed so that waking up is rare — the goal is minimizing unnecessary disruptions by aligning alerting with actionable outcomes. Alerting should be action-oriented rather than reactive, ensuring that every notification demands a specific, meaningful response.",
+    "title": "On-Call Rotation and Incident Response: Designing for Reliability"
+  }
+}

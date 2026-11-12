@@ -1,0 +1,178 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:correlated-bets",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:crash-causation-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:error-propagation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:financial-risk-analogy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:performance-through-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:preemptive-risk-naming",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:race-line-strategy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:systemic-failure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:trail-run-as-a-system",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-de59d003651d9e5d",
+  "extraction": {
+    "extracted_at": "2024-12-17T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p01_e04.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-de59d003651d9e5d",
+      "properties": {
+        "podcast_id": "p01",
+        "publish_date": "2024-12-17T00:00:00",
+        "title": "The Risk You Didn't Name"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing",
+        "slug": "enduro-racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "properties": {
+        "label": "correlated bets",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:crash-causation-patterns",
+      "properties": {
+        "label": "crash causation patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:error-propagation",
+      "properties": {
+        "label": "error propagation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:financial-risk-analogy",
+      "properties": {
+        "label": "financial risk analogy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:performance-through-design",
+      "properties": {
+        "label": "performance through design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:preemptive-risk-naming",
+      "properties": {
+        "label": "preemptive risk naming",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:race-line-strategy",
+      "properties": {
+        "label": "race line strategy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-failure",
+      "properties": {
+        "label": "systemic failure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-run-as-a-system",
+      "properties": {
+        "label": "trail run as a system",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

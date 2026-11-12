@@ -1,0 +1,332 @@
+[
+  {
+    "end": 9.789,
+    "id": 0,
+    "start": 0.0,
+    "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here."
+  },
+  {
+    "end": 17.812,
+    "id": 1,
+    "start": 9.789,
+    "text": "Thanks, Cam. Excited for this one — dialogue and conversational drift is something I've been thinking about a lot."
+  },
+  {
+    "end": 25.151,
+    "id": 2,
+    "start": 17.812,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today."
+  },
+  {
+    "end": 29.878,
+    "id": 3,
+    "start": 25.151,
+    "text": "I want to dig into that. What's the most underrated piece of cultural drift?"
+  },
+  {
+    "end": 44.238,
+    "id": 4,
+    "start": 29.878,
+    "text": "Yeah, so — There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 48.727,
+    "id": 5,
+    "start": 44.238,
+    "text": "I want to dig into that. Where do dialogue and cultural drift intersect?"
+  },
+  {
+    "end": 55.95,
+    "id": 6,
+    "start": 48.727,
+    "text": "Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 60.707,
+    "id": 7,
+    "start": 55.95,
+    "text": "Let's start there. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 72.575,
+    "id": 8,
+    "start": 60.707,
+    "text": "It comes down to this: Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 73.854,
+    "id": 9,
+    "start": 72.575,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 82.412,
+    "id": 10,
+    "start": 73.854,
+    "text": "Substack is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 94.383,
+    "id": 11,
+    "start": 82.412,
+    "text": "Quick aside — I've actually been using Notion for the last six months and it's changed how I work. Notion replaces the dozen tools your team is half-using. If you want to check it out, the link's in the show notes."
+  },
+  {
+    "end": 97.572,
+    "id": 12,
+    "start": 94.383,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 112.323,
+    "id": 13,
+    "start": 97.572,
+    "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial."
+  },
+  {
+    "end": 113.767,
+    "id": 14,
+    "start": 112.323,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 118.966,
+    "id": 15,
+    "start": 113.767,
+    "text": "That's a useful framing. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 133.086,
+    "id": 16,
+    "start": 118.966,
+    "text": "It comes down to this: There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 139.369,
+    "id": 17,
+    "start": 133.086,
+    "text": "What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 148.742,
+    "id": 18,
+    "start": 139.369,
+    "text": "Let me give you the version I actually believe. The texture of dialogue is the work. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 153.277,
+    "id": 19,
+    "start": 148.742,
+    "text": "Let's start there. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 164.738,
+    "id": 20,
+    "start": 153.277,
+    "text": "Sure. Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 165.906,
+    "id": 21,
+    "start": 164.738,
+    "text": "Say more about that."
+  },
+  {
+    "end": 174.96,
+    "id": 22,
+    "start": 165.906,
+    "text": "Outside of Patreon-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 178.415,
+    "id": 23,
+    "start": 174.96,
+    "text": "And you've felt that too, I think? Yeah, you have."
+  },
+  {
+    "end": 181.755,
+    "id": 24,
+    "start": 178.415,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 184.865,
+    "id": 25,
+    "start": 181.755,
+    "text": "There's something almost — I don't know. Hard to name."
+  },
+  {
+    "end": 188.77,
+    "id": 26,
+    "start": 184.865,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 191.881,
+    "id": 27,
+    "start": 188.77,
+    "text": "There's something almost — I don't know. Hard to name."
+  },
+  {
+    "end": 196.051,
+    "id": 28,
+    "start": 191.881,
+    "text": "It depends, right? Like, on the day, on the mood —"
+  },
+  {
+    "end": 198.624,
+    "id": 29,
+    "start": 196.051,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "end": 201.964,
+    "id": 30,
+    "start": 198.624,
+    "text": "Right? Right. Exactly. That's the thing."
+  },
+  {
+    "end": 205.074,
+    "id": 31,
+    "start": 201.964,
+    "text": "There's something almost — I don't know. Hard to name."
+  },
+  {
+    "end": 210.483,
+    "id": 32,
+    "start": 205.074,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "end": 213.056,
+    "id": 33,
+    "start": 210.483,
+    "text": "Mmm. Yeah, it's interesting, isn't it?"
+  },
+  {
+    "end": 216.961,
+    "id": 34,
+    "start": 213.056,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 220.406,
+    "id": 35,
+    "start": 216.961,
+    "text": "Right, right. I think about that all the time, honestly."
+  },
+  {
+    "end": 224.311,
+    "id": 36,
+    "start": 220.406,
+    "text": "Hmm, that's a good question. Let me think about that."
+  },
+  {
+    "end": 227.422,
+    "id": 37,
+    "start": 224.311,
+    "text": "There's something almost — I don't know. Hard to name."
+  },
+  {
+    "end": 232.831,
+    "id": 38,
+    "start": 227.422,
+    "text": "Yeah. Yeah. I don't know if I'd put it that way exactly, but close."
+  },
+  {
+    "end": 236.739,
+    "id": 39,
+    "start": 232.831,
+    "text": "Let's pivot — long form is where I want to spend the last stretch."
+  },
+  {
+    "end": 243.986,
+    "id": 40,
+    "start": 236.739,
+    "text": "That's where the conversation gets interesting, because the trade-offs around long form cross-cut everything we've covered."
+  },
+  {
+    "end": 249.499,
+    "id": 41,
+    "start": 243.986,
+    "text": "Push back on the conventional wisdom for me. Where do dialogue and cultural drift intersect?"
+  },
+  {
+    "end": 263.619,
+    "id": 42,
+    "start": 249.499,
+    "text": "It comes down to this: There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 268.718,
+    "id": 43,
+    "start": 263.619,
+    "text": "What's the one heuristic you keep coming back to? How does Patreon fit into this picture?"
+  },
+  {
+    "end": 276.278,
+    "id": 44,
+    "start": 268.718,
+    "text": "Sure. The texture of dialogue is the work. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 281.226,
+    "id": 45,
+    "start": 276.278,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 293.415,
+    "id": 46,
+    "start": 281.226,
+    "text": "Yeah, so — Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 294.582,
+    "id": 47,
+    "start": 293.415,
+    "text": "Say more about that."
+  },
+  {
+    "end": 303.637,
+    "id": 48,
+    "start": 294.582,
+    "text": "Outside of Patreon-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 307.012,
+    "id": 49,
+    "start": 303.637,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 312.161,
+    "id": 50,
+    "start": 307.012,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 321.136,
+    "id": 51,
+    "start": 312.161,
+    "text": "Before we wrap, thanks again to our friends at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
+  },
+  {
+    "end": 323.605,
+    "id": 52,
+    "start": 321.136,
+    "text": "Jordan Park, thanks for the conversation."
+  },
+  {
+    "end": 325.068,
+    "id": 53,
+    "start": 323.605,
+    "text": "Thanks, Cam."
+  },
+  {
+    "end": 328.75,
+    "id": 54,
+    "start": 325.068,
+    "text": "That's it for today's episode of The Drift. See you next time."
+  }
+]

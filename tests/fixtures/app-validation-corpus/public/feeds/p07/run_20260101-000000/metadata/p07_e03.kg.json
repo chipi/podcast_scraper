@@ -1,0 +1,165 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a86da8f148d3bf29",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:correlated-risks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:coupling-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:discounted-risks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:emissions-optimization",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:modeling-interventions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:portfolio-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:sustainability-interventions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:systemic-failure",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a86da8f148d3bf29",
+  "extraction": {
+    "extracted_at": "2025-08-06T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p07_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a86da8f148d3bf29",
+      "properties": {
+        "podcast_id": "p07",
+        "publish_date": "2025-08-06T00:00:00",
+        "title": "Sustainability Is a Systems Problem"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability",
+        "slug": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-risks",
+      "properties": {
+        "label": "correlated risks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:coupling-management",
+      "properties": {
+        "label": "coupling management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:discounted-risks",
+      "properties": {
+        "label": "discounted risks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:emissions-optimization",
+      "properties": {
+        "label": "emissions optimization",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:modeling-interventions",
+      "properties": {
+        "label": "modeling interventions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:portfolio-risk",
+      "properties": {
+        "label": "portfolio risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability-interventions",
+      "properties": {
+        "label": "sustainability interventions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-failure",
+      "properties": {
+        "label": "systemic failure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

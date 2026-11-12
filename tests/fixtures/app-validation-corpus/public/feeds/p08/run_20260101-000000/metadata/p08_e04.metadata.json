@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p08-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e04.mp3",
+    "transcript_file_path": "transcripts/p08_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "A. correspondent talks with Renee Montagne-Park: Corrections, Trust, and the Long Game.",
+    "duration_seconds": 182,
+    "episode_id": "ep-d428e906f5affc60",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2026-01-05T00:00:00",
+    "title": "Corrections, Trust, and the Long Game"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-01-05T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Public Hour",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A correction is a reliability signal, not a failure, because it reveals the system's ability to self-correct and maintain integrity over time.",
+      "Managing the risk of being wrong in public is its own discipline — the framing of error determines the trade-offs teams make.",
+      "Ignoring the signal of a correction leads to rebuilding systems from scratch, as seen in teams using NPR and BBC.",
+      "Reliability is not about avoiding errors but about how systems respond to them — the response defines resilience.",
+      "The most underrated piece of reliability is the act of correcting publicly, which validates the system's trustworthiness.",
+      "Risk management is not a standalone function but a cross-cutting discipline that shapes all other decisions.",
+      "Running an idea for two weeks to test its viability enables iteration without overcommitting to a single path.",
+      "The discipline of public correction enables teams to maintain long-term reliability rather than short-term fixes."
+    ],
+    "raw_text": "A correction is a reliability signal, not a failure, because it reveals the system's ability to self-correct and maintain integrity over time. Managing the risk of being wrong in public is its own discipline — the framing of error determines the trade-offs teams make.",
+    "title": "The Reliability Signal in Public Corrections"
+  }
+}

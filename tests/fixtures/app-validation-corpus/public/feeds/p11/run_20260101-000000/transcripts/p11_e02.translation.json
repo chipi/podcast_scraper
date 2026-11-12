@@ -1,0 +1,935 @@
+{
+  "version": "1.0",
+  "episode_slug": "0002 - Tecnica Enduro Senza Clamore_20261003-140751_0ca7efcd",
+  "source_language": "it",
+  "target_language": "en",
+  "model": "google/translategemma-12b-it",
+  "prompt": {
+    "name": "shared/translation/translategemma_v1",
+    "file": "shared/translation/translategemma_v1.j2",
+    "sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+  },
+  "source": {
+    "transcript_ref": "transcripts/0002 - Tecnica Enduro Senza Clamore_20261003-140751_0ca7efcd.txt",
+    "turns": 43
+  },
+  "status": "translated",
+  "units_total": 43,
+  "units_failed": 0,
+  "english_withdrawn": false,
+  "title_en": "Enduro Technique: Quiet Excellence.",
+  "units": [
+    {
+      "unit_id": "t0000.u01",
+      "turn_id": "t0000",
+      "content_key": "e588739d7fe57ba4b7cd9af7a525edacd3506a8bcc13ac2d46e0d94cdc3c2801",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0000.s01",
+          "en_text": "Welcome back to \"Trails by the Experts.\""
+        },
+        {
+          "sent_id": "t0000.s02",
+          "en_text": "Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach."
+        },
+        {
+          "sent_id": "t0000.s03",
+          "en_text": "Chiara Ricci, thank you for being here."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0001.u01",
+      "turn_id": "t0001",
+      "content_key": "8adaac73240bab9db14d99525a17b6a6df20eabae6698d75f8f7184a3e6f2541",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0001.s01",
+          "en_text": "Thank you, Giulia."
+        },
+        {
+          "sent_id": "t0001.s02",
+          "en_text": "It's good to be back here again."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0002.u01",
+      "turn_id": "t0002",
+      "content_key": "fe2140a7913c0a378837fe4d34a01cdb8bc4d5e7d716ada689e9b7519f16d7bf",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0002.s01",
+          "en_text": "This episode is sponsored by Linear."
+        },
+        {
+          "sent_id": "t0002.s02",
+          "en_text": "Linear is the issue tracker designed for speed – built for the keyboard."
+        },
+        {
+          "sent_id": "t0002.s03",
+          "en_text": "Try linear.com today."
+        },
+        {
+          "sent_id": "t0002.s04",
+          "en_text": "Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0003.u01",
+      "turn_id": "t0003",
+      "content_key": "641b94abcfbcbfec4217506df8e90c5e26072b2fc375087da29bca2f4b7aaeff",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0003.s01",
+          "en_text": "Yes, that's correct."
+        },
+        {
+          "sent_id": "t0003.s02",
+          "en_text": "And that connects to what we're discussing today."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0004.u01",
+      "turn_id": "t0004",
+      "content_key": "c333760d817fe9a31d0084491f65633b091f424fffb87d47db942b462fa24e5c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0004.s01",
+          "en_text": "I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago."
+        },
+        {
+          "sent_id": "t0004.s02",
+          "en_text": "Can you give me a specific example?"
+        },
+        {
+          "sent_id": "t0004.s03",
+          "en_text": "Where do soil erosion and enduro races intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0005.u01",
+      "turn_id": "t0005",
+      "content_key": "48a96ad494f18d73fed9d328eb5fc15357fc7a7644f77f414a890c1e6f2e3178",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0005.s01",
+          "en_text": "Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks."
+        },
+        {
+          "sent_id": "t0005.s02",
+          "en_text": "We've seen this in teams that use RockShox."
+        },
+        {
+          "sent_id": "t0005.s03",
+          "en_text": "I've observed this pattern repeating itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0006.u01",
+      "turn_id": "t0006",
+      "content_key": "58c42e2358681abf0e01d6577bcac96edc9cd65e4e4a4870402484c35e23be52",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0006.s01",
+          "en_text": "I want to delve deeper into this."
+        },
+        {
+          "sent_id": "t0006.s02",
+          "en_text": "Where do soil erosion and enduro racing intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0007.u01",
+      "turn_id": "t0007",
+      "content_key": "6b4e597c862d9eaec487a92d5b7fde4b6565757ac5afa66ab55cb125e541611e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0007.s01",
+          "en_text": "Certainly."
+        },
+        {
+          "sent_id": "t0007.s02",
+          "en_text": "Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension."
+        },
+        {
+          "sent_id": "t0007.s03",
+          "en_text": "The framing is important because it tells you what compromises you are making."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0008.u01",
+      "turn_id": "t0008",
+      "content_key": "683079f54d479eacdd01a70f2b66b991136d1cc0a8a894109e9c3a52aadfa14e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0008.s01",
+          "en_text": "Let's start from there."
+        },
+        {
+          "sent_id": "t0008.s02",
+          "en_text": "Where do soil erosion and enduro racing intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0009.u01",
+      "turn_id": "t0009",
+      "content_key": "7280cdc77522e93766835c0b84207aa3fbdcfb61d56a427f6dd34cfb7fc72a8b",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0009.s01",
+          "en_text": "Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable."
+        },
+        {
+          "sent_id": "t0009.s02",
+          "en_text": "We've seen this in teams that use Shimano."
+        },
+        {
+          "sent_id": "t0009.s03",
+          "en_text": "If you ignore it, you end up having to rebuild everything from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0010.u01",
+      "turn_id": "t0010",
+      "content_key": "c8a49646a7a164de1720bd4914831c4cc183382fe048283a895f9db077ce8343",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0010.s01",
+          "en_text": "Where does it stop working?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0011.u01",
+      "turn_id": "t0011",
+      "content_key": "53bb744f7197ded217785d86b75d2b6edd4f18b668de9cf7263e460225df45be",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0011.s01",
+          "en_text": "The Cascadia Alliance is one of the platforms where this becomes particularly clear."
+        },
+        {
+          "sent_id": "t0011.s02",
+          "en_text": "And the second-order effect is the part that almost everyone overlooks."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0012.u01",
+      "turn_id": "t0012",
+      "content_key": "f7213984df5640421ee46c7c0ae52be7b12447475ce3e3ea302008cb082bddd2",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0012.s01",
+          "en_text": "What is the heuristic that you always find yourself using?"
+        },
+        {
+          "sent_id": "t0012.s02",
+          "en_text": "How does Spoke & Wrench fit into this picture?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0013.u01",
+      "turn_id": "t0013",
+      "content_key": "dfe4cfeddc6ba29ac42e29d69eee446d505c379408f5409d2305b8bd579defc4",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0013.s01",
+          "en_text": "That's how I see it."
+        },
+        {
+          "sent_id": "t0013.s02",
+          "en_text": "The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day."
+        },
+        {
+          "sent_id": "t0013.s03",
+          "en_text": "Once you internalize that, the rest of the decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0014.u01",
+      "turn_id": "t0014",
+      "content_key": "02950077ef833bc4c964a756e31273fe91ad3b328e4d34a21480e8d218228837",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0014.s01",
+          "en_text": "Before we continue, support the program by visiting the website of our sponsor."
+        },
+        {
+          "sent_id": "t0014.s02",
+          "en_text": "Strava is the home of athletes."
+        },
+        {
+          "sent_id": "t0014.s03",
+          "en_text": "We'll be right back, after a short commercial break."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0015.u01",
+      "turn_id": "t0015",
+      "content_key": "9e87d23d690532c98000b2f8c138d6a9448ce835ab5ce984e67ba306b8898167",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0015.s01",
+          "en_text": "This episode is sponsored by Notion."
+        },
+        {
+          "sent_id": "t0015.s02",
+          "en_text": "Notion replaces the dozen tools your team currently uses, by about half."
+        },
+        {
+          "sent_id": "t0015.s03",
+          "en_text": "Visit notion.com/podcast for a free trial."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0016.u01",
+      "turn_id": "t0016",
+      "content_key": "63ad708980b545940413f3ef92cb8527c338ae86ef47235c6d4f28656a718048",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0016.s01",
+          "en_text": "Welcome back to the program."
+        },
+        {
+          "sent_id": "t0016.s02",
+          "en_text": "I want to delve deeper into this."
+        },
+        {
+          "sent_id": "t0016.s03",
+          "en_text": "What is the most important aspect of this question?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0017.u01",
+      "turn_id": "t0017",
+      "content_key": "c4694ad4a29fab5751d3eabee6b8fa958f35b33058beb4507312efe1d8e5d8fb",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0017.s01",
+          "en_text": "I'm giving you the version that I truly believe in."
+        },
+        {
+          "sent_id": "t0017.s02",
+          "en_text": "Speed comes from braking earlier and more smoothly, not from taking greater risks."
+        },
+        {
+          "sent_id": "t0017.s03",
+          "en_text": "We've seen this in teams that use RockShox."
+        },
+        {
+          "sent_id": "t0017.s04",
+          "en_text": "And the second-order effect is the part that almost everyone overlooks."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0018.u01",
+      "turn_id": "t0018",
+      "content_key": "10590709be4eebfc9c49c7aa364771b3a6b12c1d92d0c17fa209622ece5e66ad",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0018.s01",
+          "en_text": "What is the typical failure mode?"
+        },
+        {
+          "sent_id": "t0018.s02",
+          "en_text": "What is the operational setting that most listeners do not have access to?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0019.u01",
+      "turn_id": "t0019",
+      "content_key": "4a4eb860d400e4906e437e2d3afa762068826def1e1c4c6f56fb8e1219616f5a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0019.s01",
+          "en_text": "Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension."
+        },
+        {
+          "sent_id": "t0019.s02",
+          "en_text": "The framing is important because it tells you what compromises you are making."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0020.u01",
+      "turn_id": "t0020",
+      "content_key": "5720eb9cce30762aa451fe1f46a4f03b54b3dd7c1605b84dd84a3f045dc2ef2f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0020.s01",
+          "en_text": "Give me a concrete example."
+        },
+        {
+          "sent_id": "t0020.s02",
+          "en_text": "Which version of the question is truly important?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0021.u01",
+      "turn_id": "t0021",
+      "content_key": "fc4ca1ac2bb012f0dd65f8f764477abeaf25a0d8fc5e7da71c4aae5f6d267d09",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0021.s01",
+          "en_text": "Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable."
+        },
+        {
+          "sent_id": "t0021.s02",
+          "en_text": "We've seen this in teams that use RockShox."
+        },
+        {
+          "sent_id": "t0021.s03",
+          "en_text": "I've observed this pattern repeating itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0022.u01",
+      "turn_id": "t0022",
+      "content_key": "849cffa2ed2bf076b813cefb6a0ceaff66ebf4755ad653a95fc7446472767d38",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0022.s01",
+          "en_text": "Tell me more."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0023.u01",
+      "turn_id": "t0023",
+      "content_key": "4602db4c7365c72b7a1eb72aa8bbace0f9493108958a56a4d6a61c9725098e0d",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0023.s01",
+          "en_text": "The Cascadia Alliance is one of the platforms where this becomes particularly clear."
+        },
+        {
+          "sent_id": "t0023.s02",
+          "en_text": "Once you internalize this concept, the rest of the decision-making process becomes easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0024.u01",
+      "turn_id": "t0024",
+      "content_key": "f815dcdcfd8f09acee6db683a07bf0fadd2a32fa810ecc611a1cabb1552819be",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0024.s01",
+          "en_text": "Let's start from there."
+        },
+        {
+          "sent_id": "t0024.s02",
+          "en_text": "What is the most underestimated aspect of enduro racing?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0025.u01",
+      "turn_id": "t0025",
+      "content_key": "9e9a0a59fd7e9a122e47f5b989dca117e2205e34e07951056ff7b837bb3041ed",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0025.s01",
+          "en_text": "It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day."
+        },
+        {
+          "sent_id": "t0025.s02",
+          "en_text": "I've observed this pattern repeating itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0026.u01",
+      "turn_id": "t0026",
+      "content_key": "c14d05ad9b0b911b297d4d7ee9b55c42afbd9efa7f2c8f46df257ece8e68ebd9",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0026.s01",
+          "en_text": "Let's change the subject – I want to dedicate the final part to risk management."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0027.u01",
+      "turn_id": "t0027",
+      "content_key": "e430a14649b04f5a37645400fa172bdd546d0e0a0a066f05910c015c011da673",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0027.s01",
+          "en_text": "That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0028.u01",
+      "turn_id": "t0028",
+      "content_key": "bcb92bdaa0ec604c90ec90fde92a8d78fe7296b9e3e4150d51f4a3f6c87a44a4",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0028.s01",
+          "en_text": "What is the nature of the malfunction?"
+        },
+        {
+          "sent_id": "t0028.s02",
+          "en_text": "What is the hidden or obscure aspect that most listeners are unaware of?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0029.u01",
+      "turn_id": "t0029",
+      "content_key": "813de25b009f3d5bee147183ae2e030b9d33f3e063d612af7c25babf1e69654f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0029.s01",
+          "en_text": "Certainly."
+        },
+        {
+          "sent_id": "t0029.s02",
+          "en_text": "Speed comes from braking earlier and more smoothly, not from taking greater risks."
+        },
+        {
+          "sent_id": "t0029.s03",
+          "en_text": "We've seen this in teams that use RockShox."
+        },
+        {
+          "sent_id": "t0029.s04",
+          "en_text": "I've observed this pattern repeating in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0030.u01",
+      "turn_id": "t0030",
+      "content_key": "7efff2e80576bef567491da4a913d69375ca082fa1ecbf7551f69a636aee7d77",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0030.s01",
+          "en_text": "Give me a concrete example."
+        },
+        {
+          "sent_id": "t0030.s02",
+          "en_text": "What is the most underestimated aspect of enduro racing?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0031.u01",
+      "turn_id": "t0031",
+      "content_key": "b77f69e14f5dcbc8b7e0eaa2278ef8a3cad4aee8e9da48811bd1121028e1e2e8",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0031.s01",
+          "en_text": "Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension."
+        },
+        {
+          "sent_id": "t0031.s02",
+          "en_text": "I've seen this pattern repeat itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0032.u01",
+      "turn_id": "t0032",
+      "content_key": "5720eb9cce30762aa451fe1f46a4f03b54b3dd7c1605b84dd84a3f045dc2ef2f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0032.s01",
+          "en_text": "Give me a concrete example."
+        },
+        {
+          "sent_id": "t0032.s02",
+          "en_text": "Which version of the question is truly important?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0033.u01",
+      "turn_id": "t0033",
+      "content_key": "ba6473433fc9e72833cabe31ff4690aed6a9ef63c92b970e16f82eb2006b6def",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0033.s01",
+          "en_text": "I'm giving you the version that I truly believe in."
+        },
+        {
+          "sent_id": "t0033.s02",
+          "en_text": "Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable."
+        },
+        {
+          "sent_id": "t0033.s03",
+          "en_text": "We've seen this in teams that use Spoke & Wrench."
+        },
+        {
+          "sent_id": "t0033.s04",
+          "en_text": "I've seen this pattern repeat itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0034.u01",
+      "turn_id": "t0034",
+      "content_key": "02b12d42d2455bb19052bd99bb5cd899c984edfc715cfe8868a69641a6bd7251",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0034.s01",
+          "en_text": "Come back."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0035.u01",
+      "turn_id": "t0035",
+      "content_key": "ccfb5880d673f8953d3b618b01b7ebe3b97b497fd29c9d9c6f1dcf375debccfa",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0035.s01",
+          "en_text": "And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0036.u01",
+      "turn_id": "t0036",
+      "content_key": "8084c3142f718d067e3c50b9760e862d81437ddaaa434351963f7187b9775275",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0036.s01",
+          "en_text": "What is the heuristic that you always find yourself using?"
+        },
+        {
+          "sent_id": "t0036.s02",
+          "en_text": "What is the most important aspect of this question?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0037.u01",
+      "turn_id": "t0037",
+      "content_key": "71d524178a3d0eaaf3513153b20db14ca8a7e53f4beca0f57d1ac46423759cb1",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0037.s01",
+          "en_text": "That's how I see it."
+        },
+        {
+          "sent_id": "t0037.s02",
+          "en_text": "The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day."
+        },
+        {
+          "sent_id": "t0037.s03",
+          "en_text": "I've observed this pattern repeating itself in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0038.u01",
+      "turn_id": "t0038",
+      "content_key": "85cdce8799636f382e29afc34536fbcc4089246474e66e64b13ccb29f78ffd95",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0038.s01",
+          "en_text": "Before we wrap up, what's one thing listeners can try out this week?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0039.u01",
+      "turn_id": "t0039",
+      "content_key": "4f111fa76f53ff89fce39ca51013b5b629e2c91edc8f40d50c57a8b16ad5a899",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0039.s01",
+          "en_text": "Choose one of the ideas we've discussed and implement it for two weeks."
+        },
+        {
+          "sent_id": "t0039.s02",
+          "en_text": "Everything else is iteration."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0040.u01",
+      "turn_id": "t0040",
+      "content_key": "49ba9a1ad8f8de401c56ac47d0d98da46e6bf686368b369cc36797d7e904eee4",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0040.s01",
+          "en_text": "And finally, thank you to our sponsors at Vanta."
+        },
+        {
+          "sent_id": "t0040.s02",
+          "en_text": "Vanta automates SOC 2 and ISO compliance."
+        },
+        {
+          "sent_id": "t0040.s03",
+          "en_text": "Take a look at vanta.com."
+        },
+        {
+          "sent_id": "t0040.s04",
+          "en_text": "Chiara Ricci, thank you for the conversation."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0041.u01",
+      "turn_id": "t0041",
+      "content_key": "486abb39f600d5ecf56b40c7c6d60325deedb7811cef8dce1d8457c4f12f2ffb",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0041.s01",
+          "en_text": "Thank you, Giulia."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0042.u01",
+      "turn_id": "t0042",
+      "content_key": "10c308e7d288d54e33edb77699c7656f61abb83522fcaf48841da2596d188278",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0042.s01",
+          "en_text": "That's all for today's episode of \"Author's Trails.\""
+        },
+        {
+          "sent_id": "t0042.s02",
+          "en_text": "See you next time."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    }
+  ]
+}

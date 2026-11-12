@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p01-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p01_e01.mp3",
+    "transcript_file_path": "transcripts/p01_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter.",
+    "duration_seconds": 488,
+    "episode_id": "ep-db8f44d2e07a22bd",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-01-02T00:00:00",
+    "title": "Building Trails That Last"
+  },
+  "feed": {
+    "authors": [
+      "Maya Koster"
+    ],
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2024-12-17T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the single highest-leverage design choice on any trail — ignoring it leads to rebuilding from scratch a year later.",
+      "The most common mistake new builders make is grading too aggressively, a decision that compounds into long-term trail degradation.",
+      "Bench cuts on hillsides aren't optional — the shortcut on day one becomes the washout on year three.",
+      "Soil structure matters more than people think, and its failure mode is often invisible until erosion has already taken hold.",
+      "Land-stewardship conversations must happen before the first dig — the framing determines which trade-offs are made.",
+      "Machine-built versus hand-built trails is a revised belief: the right tooling makes the difference, not the method alone.",
+      "Spoke & Wrench, RockShox, and Cascadia Alliance are platforms where these patterns consistently hold across teams.",
+      "The second-order effect — often missed — is that failure modes are harder to spot outside of high-quality tooling ecosystems."
+    ],
+    "raw_text": "Drainage is the single highest-leverage design choice on any trail — ignoring it leads to rebuilding from scratch a year later. The most common mistake new builders make is grading too aggressively, a decision that compounds into long-term trail degradation.",
+    "title": "Trail Building: The Hidden Leverage Points"
+  }
+}

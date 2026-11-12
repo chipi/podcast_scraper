@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p06-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e02.mp3",
+    "transcript_file_path": "transcripts/p06_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Testing Unicode: 你好世界 🌍 Café résumé naïve ñoño",
+    "duration_seconds": 248,
+    "episode_id": "ep-f4b940a095192621",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-03-17T00:00:00",
+    "title": "More Drift, Less Signal"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-06-20T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "The Drift",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Dialogue-heavy formats work by prioritizing texture over grounding, creating space for exploration without requiring a fixed endpoint.",
+      "The point of a conversation isn't always to have a point—some interactions gain value from openness rather than outcome.",
+      "Operational decisions hinge on the trade-off between grounding (clarity, structure) and texture (nuance, depth) in dialogue-driven formats.",
+      "This pattern holds across different teams using platforms like Patreon and Substack, suggesting a systemic tendency in long-form dialogue.",
+      "Cultural drift emerges as a key area where trade-offs across dialogue formats intersect with broader shifts in shared meaning.",
+      "Revisiting old beliefs reveals that the absence of a clear goal can itself be a functional design—sometimes the lack of a point is the point.",
+      "Listeners are encouraged to test one idea for two weeks, emphasizing iteration over immediate validation.",
+      "The core insight is that dialogue formats are not about resolution but about sustaining meaningful engagement across uncertainty."
+    ],
+    "raw_text": "Dialogue-heavy formats work by prioritizing texture over grounding, creating space for exploration without requiring a fixed endpoint. The point of a conversation isn't always to have a point—some interactions gain value from openness rather than outcome.",
+    "title": "Dialogue-Heavy Formats Trade Grounding for Texture"
+  }
+}

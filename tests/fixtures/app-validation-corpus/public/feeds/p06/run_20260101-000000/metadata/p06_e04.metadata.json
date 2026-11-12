@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p06-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e04.mp3",
+    "transcript_file_path": "transcripts/p06_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Cam talks with Jordan Park: Signal, Noise, and the Space Between.",
+    "duration_seconds": 255,
+    "episode_id": "ep-3158b8ff3e943b1e",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2026-01-11T00:00:00",
+    "title": "Signal, Noise, and the Space Between"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-06-20T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "The Drift",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Culture is a system that never sits still—its dynamic nature must be acknowledged rather than resisted.",
+      "Cultural drift cannot be gripped or controlled directly; it must be noticed and responded to through awareness.",
+      "The second-order effect of cultural drift is the part most people overlook, yet it shapes long-term outcomes.",
+      "Dialogue and cultural drift intersect when teams recognize patterns across time, not just in moment-to-moment interactions.",
+      "Systems thinking reveals trade-offs that cross-cut all aspects of cultural and organizational behavior.",
+      "Ignoring cultural drift leads to rebuilding the same structures from scratch a year later.",
+      "Running an idea for two weeks enables iteration and reveals whether it holds across time and context.",
+      "The act of noticing drift—rather than forcing control—is the core skill in navigating cultural change."
+    ],
+    "raw_text": "Culture is a system that never sits still—its dynamic nature must be acknowledged rather than resisted. Cultural drift cannot be gripped or controlled directly; it must be noticed and responded to through awareness.",
+    "title": "Cultural Drift and Systems Thinking in Practice"
+  }
+}

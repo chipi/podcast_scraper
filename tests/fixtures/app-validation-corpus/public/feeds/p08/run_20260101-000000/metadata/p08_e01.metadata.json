@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p08-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e01.mp3",
+    "transcript_file_path": "transcripts/p08_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "An in-depth discussion on how solar energy will shape grids, markets, geopolitics, and daily life over the next two decades.",
+    "duration_seconds": 271,
+    "episode_id": "ep-efc13989b676df9d",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-03-11T00:00:00",
+    "title": "Public Radio Format Conventions"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-01-05T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Public Hour",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Public radio voice is a deliberate style, not an accident — internalizing this shifts how teams approach framing and tradeoffs.",
+      "Reliability of pronunciation matters more than people think, and its second-order effect is often missed in production decisions.",
+      "Listeners trust the format before they trust the content — the framing signals underlying tradeoffs and shapes expectations.",
+      "NPR exemplifies how consistent framing enables clarity, making the platform’s decisions feel intentional rather than arbitrary.",
+      "The choice of voice and delivery reflects a set of tradeoffs — including clarity, credibility, and audience trust — that must be acknowledged explicitly.",
+      "BBC-class tooling reveals that failure modes are harder to spot when the framing isn’t examined closely.",
+      "Teams using NPR or BBC demonstrate that the format’s consistency enables content to be received as reliable, not just accurate.",
+      "The key heuristic is: focus on the version of the question that actually matters — not the one that sounds good."
+    ],
+    "raw_text": "Public radio voice is a deliberate style, not an accident — internalizing this shifts how teams approach framing and tradeoffs. Reliability of pronunciation matters more than people think, and its second-order effect is often missed in production decisions.",
+    "title": "Public Radio Voice as a Deliberate Style"
+  }
+}

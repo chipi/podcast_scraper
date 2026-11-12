@@ -1,0 +1,191 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "topic:engineering-communication",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "topic:incident-postmortems",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-35f04bce441bf827",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:architecture-tradeoffs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:decision-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:on-call-rotation-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:platform-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:postmortem-focus",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:rfc-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:risk-communication",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:systemic-failure-analysis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:writing-things-down",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-35f04bce441bf827",
+  "extraction": {
+    "extracted_at": "2024-04-18T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-35f04bce441bf827",
+      "properties": {
+        "podcast_id": "p02",
+        "publish_date": "2024-04-18T00:00:00",
+        "title": "Staff-Engineer Communication Patterns"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:engineering-communication",
+      "properties": {
+        "label": "engineering communication",
+        "slug": "engineering-communication"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-postmortems",
+      "properties": {
+        "label": "incident postmortems",
+        "slug": "incident-postmortems"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:architecture-tradeoffs",
+      "properties": {
+        "label": "architecture tradeoffs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:decision-iteration",
+      "properties": {
+        "label": "decision iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-call-rotation-design",
+      "properties": {
+        "label": "on call rotation design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-integration",
+      "properties": {
+        "label": "platform integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:postmortem-focus",
+      "properties": {
+        "label": "postmortem focus",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:rfc-structure",
+      "properties": {
+        "label": "rfc structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-communication",
+      "properties": {
+        "label": "risk communication",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-failure-analysis",
+      "properties": {
+        "label": "systemic failure analysis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:writing-things-down",
+      "properties": {
+        "label": "writing things down",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

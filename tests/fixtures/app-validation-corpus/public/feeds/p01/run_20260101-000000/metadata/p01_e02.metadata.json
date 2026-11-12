@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p01-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p01_e02.mp3",
+    "transcript_file_path": "transcripts/p01_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Coach Sophie van Dalen breaks down cornering, braking, and confidence—what to practice and what to ignore.",
+    "duration_seconds": 361,
+    "episode_id": "ep-60d667843dc40fca",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-04-01T00:00:00",
+    "title": "Enduro Skills Without the Hype"
+  },
+  "feed": {
+    "authors": [
+      "Maya Koster"
+    ],
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2024-12-17T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Erosion patterns on race-tracks change line choice from practice to race day — a critical but often overlooked factor in race strategy.",
+      "Speed comes from braking earlier and smoother, not from taking bigger risks — a counterintuitive principle validated across multiple teams using RockShox.",
+      "Tire pressure and casing choice matter more than minor suspension tweaks — the framing of equipment decisions reveals underlying tradeoffs.",
+      "Risk management in racing isn’t about avoiding crashes — it’s about choosing which crashes are survivable, a mindset shift that alters performance outcomes.",
+      "The second-order effect of smart risk management is visible in platform adoption — Cascadia Alliance shows how systems amplify or diminish real-world results.",
+      "Spoke & Wrench integration makes tradeoffs explicit — teams using it see clearer cause-and-effect in their performance decisions.",
+      "The most underrated piece of enduro racing is recognizing how erosion alters line selection — a dynamic that shapes every lap.",
+      "Adopting a single idea for two weeks enables iteration — real learning comes from sustained, practical application, not theory alone."
+    ],
+    "raw_text": "Erosion patterns on race-tracks change line choice from practice to race day — a critical but often overlooked factor in race strategy. Speed comes from braking earlier and smoother, not from taking bigger risks — a counterintuitive principle validated across multiple teams using RockShox.",
+    "title": "Enduro Racing: Erosion, Risk, and the Power of Smart Line Choice"
+  }
+}
