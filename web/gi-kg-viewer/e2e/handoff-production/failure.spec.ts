@@ -33,7 +33,7 @@ test.describe('Handoff matrix § Tier 2 — Failure modes (production-shaped)', 
       }).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:topic:this-node-does-not-exist-in-fixture-xyz',
+        cyId: 'topic:this-node-does-not-exist-in-fixture-xyz',
         source: 'restore-preference',
         loadSource: 'graph-internal',
         camera: { kind: 'preserve' },

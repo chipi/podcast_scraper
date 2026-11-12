@@ -35,10 +35,10 @@ test.describe('Handoff matrix § Tier 2 — Lifecycle (production-shaped)', () =
       }).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:topic:public-investment',
+        cyId: 'topic:public-investment',
         source: 'restore-preference',
         loadSource: 'subject-external',
-        camera: { kind: 'center', cyId: 'g:topic:public-investment' },
+        camera: { kind: 'center', cyId: 'topic:public-investment' },
       })
     })
     await assertFsmEventEnvelope(page, {

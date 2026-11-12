@@ -41,7 +41,7 @@ Adopt a **three-tier test pyramid** for the viewer:
 | Tier | Fixture | Speed | When it runs | What it catches |
 | --- | --- | --- | --- | --- |
 | **1 — Fast matrix** | Mocked (1 ep, 1 cluster) | ~30 s | Every PR | Contract regressions, FSM transitions, envelope shape |
-| **2 — Production-shaped** | Checked-in fixture (25 eps, 5 feeds, 5 clusters, GI+KG, 200–400 cy nodes) | ~3–5 min | `make ci-ui-full` | Scale + timing-sensitive bugs, KG second-wave, compound mount ordering |
+| **2 — Production-shaped** | Checked-in fixture (25 eps, 5 feeds, 5 clusters, KG; GI only in a downstream build's fixture, 200–400 cy nodes) | ~3–5 min | `make ci-ui-full` | Scale + timing-sensitive bugs, KG second-wave, compound mount ordering |
 | **3 — Real-backend validation** | Operator-supplied corpus + `make serve` | ~5–10 min | `make ci-ui-validation` + scheduled cron | Drift between Tier-2 fixture and reality |
 
 All three tiers share the same `assertHandoffApplied` helper and the

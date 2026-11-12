@@ -10,7 +10,7 @@ Usage:
         --corpus /abs/path/to/your/real-corpus \\
         --api http://localhost:8000 \\
         --output web/gi-kg-viewer/e2e/fixtures/production-shaped \\
-        [--episodes-per-feed 5] [--max-feeds 5]
+        [--episodes-per-feed 5] [--max-feeds 5] [--gi-output DIR]
 
 The ``--corpus`` argument is operator-supplied; committed code never
 names a specific local corpus path (copyright + per-operator privacy).
@@ -43,6 +43,34 @@ def fetch_json(api: str, path: str, params: dict[str, Any]) -> Any:
 def write_json(target: Path, payload: Any) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def copy_episode_artifacts(
+    picked_episodes: list[dict[str, Any]], corpus: Path, out: Path, gi_out: Path | None
+) -> int:
+    """Copy each episode's KG artifact to ``out/artifacts/<episode_id>.kg.json``.
+
+    GI artifacts go to ``gi_out/<episode_id>.gi.json`` when ``gi_out`` is given (a downstream
+    build's fixture); without it they are not copied. Returns the number of files written.
+    """
+    targets: list[tuple[str, Path | None, str]] = [
+        ("kg_relative_path", out / "artifacts", "kg"),
+        ("gi_relative_path", gi_out, "gi"),
+    ]
+    copied = 0
+    for ep in picked_episodes:
+        for kind_key, dst_dir, kind in targets:
+            rel = ep.get(kind_key)
+            if not rel or dst_dir is None:
+                continue
+            src = corpus / rel
+            if not src.is_file():
+                continue
+            dst = dst_dir / f"{ep['episode_id']}.{kind}.json"
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(src.read_bytes())
+            copied += 1
+    return copied
 
 
 def slim_episode_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -213,6 +241,15 @@ def main() -> int:
     p.add_argument("--episodes-per-feed", type=int, default=5)
     p.add_argument("--max-feeds", type=int, default=5)
     p.add_argument(
+        "--gi-output",
+        type=Path,
+        default=None,
+        help=(
+            "directory for the episodes' GI artifacts (<episode_id>.gi.json), for a downstream "
+            "build that has GI; without it GI artifacts are not copied"
+        ),
+    )
+    p.add_argument(
         "--search-slice",
         action="store_true",
         help=(
@@ -326,21 +363,8 @@ def main() -> int:
     write_json(out / "corpus" / "episode-details.json", details)
     print(f"episode details: {len(details)} captured")
 
-    # 6. Artifacts — copy GI + KG from disk.
-    copied = 0
-    for ep in picked_episodes:
-        for kind_key in ("gi_relative_path", "kg_relative_path"):
-            rel = ep.get(kind_key)
-            if not rel:
-                continue
-            src = args.corpus / rel
-            if not src.is_file():
-                continue
-            # Flatten to artifacts/<episode_id>.<kind>.json
-            kind = "gi" if kind_key == "gi_relative_path" else "kg"
-            dst = out / "artifacts" / f"{ep['episode_id']}.{kind}.json"
-            dst.write_bytes(src.read_bytes())
-            copied += 1
+    # 6. Artifacts — copy KG (and GI, when a GI output is given) from disk.
+    copied = copy_episode_artifacts(picked_episodes, args.corpus, out, args.gi_output)
     print(f"artifacts copied: {copied}")
 
     # 7. Digest, stats, coverage, persons/top, runs/summary, index/stats.
