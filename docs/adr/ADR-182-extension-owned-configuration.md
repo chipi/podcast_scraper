@@ -1,6 +1,6 @@
 # ADR-182: An installed extension declares its own configuration
 
-- **Status**: Proposed
+- **Status**: Accepted (the operator, 2026-11-12)
 - **Date**: 2026-11-12
 - **Authors**: Marko Dragoljevic
 - **Related**: [ADR-168](ADR-168-installed-extensions.md) (installed extensions),
