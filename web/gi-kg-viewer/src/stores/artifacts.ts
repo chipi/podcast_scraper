@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
-import { artifactLoadHooks, artifactTransforms } from '../extensions'
+import {
+  artifactCombiners,
+  artifactLoadHooks,
+  artifactReaders,
+  artifactTransforms,
+  type ArtifactReader,
+} from '../extensions'
 import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { BridgeDocument } from '../types/bridge'
@@ -58,11 +64,26 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
 
+  /** The graph to draw: an extension's combiner when one answers, else the viewer's merge. */
+  function combinedArtifact(): ParsedArtifact | null {
+    for (const c of artifactCombiners.list()) {
+      const out = c.combine(parsedList.value)
+      if (out !== undefined) return out
+    }
+    return buildDisplayArtifact(giArts.value, kgArts.value)
+  }
+
   const displayArtifact = computed(() =>
     artifactTransforms
       .list()
-      .reduce<ParsedArtifact | null>((art, t) => t.transform(art), buildDisplayArtifact(giArts.value, kgArts.value)),
+      .reduce<ParsedArtifact | null>((art, t) => t.transform(art), combinedArtifact()),
   )
+
+  /** The extension reader for a file name, if one takes its ending. */
+  function readerFor(name: string): ArtifactReader | undefined {
+    const lower = name.toLowerCase()
+    return artifactReaders.list().find((r) => r.suffixes.some((x) => lower.endsWith(x.toLowerCase())))
+  }
 
   /** Offline / no-backend: parse selected .gi.json / .kg.json files in the browser. */
   async function loadFromLocalFiles(files: FileList | null): Promise<void> {
@@ -92,6 +113,20 @@ export const useArtifactsStore = defineStore('artifacts', () => {
           return
         }
         const lower = file.name.toLowerCase()
+        const reader = readerFor(file.name)
+        if (reader) {
+          const read = reader.read(file.name, JSON.parse(await file.text()) as unknown)
+          if (read === 'consumed') continue
+          if (read) {
+            candidates.push({
+              art: read,
+              relKey: file.name,
+              publishYmd: calendarPublishYmdFromParsedArtifact(read, file.lastModified),
+              fileLastModifiedMs: file.lastModified,
+            })
+            continue
+          }
+        }
         if (lower.endsWith('.bridge.json')) {
           try {
             const text = await file.text()
@@ -264,6 +299,16 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         const rel = selected[i]!
         const data = mainResults[i]!
         const lower = rel.toLowerCase()
+        const base = rel.includes('/') ? rel.split('/').pop() || rel : rel
+        const reader = readerFor(rel)
+        if (reader) {
+          const read = reader.read(base, data, rel)
+          if (read === 'consumed') continue
+          if (read) {
+            out.push(read)
+            continue
+          }
+        }
         if (lower.endsWith('.bridge.json')) {
           try {
             bridgeFromSelection = parseBridgeDocument(data)
@@ -272,7 +317,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
           }
           continue
         }
-        const base = rel.includes('/') ? rel.split('/').pop() || rel : rel
         out.push(parseArtifact(base, data, rel))
       }
 
@@ -284,7 +328,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         return
       }
 
-      for (const h of artifactLoadHooks.list()) await h.beforeAssign?.()
+      for (const h of artifactLoadHooks.list()) {
+        await h.beforeAssign?.({ root, selected: [...selected], parsed: out })
+      }
       if (loadGate.isStale(seq)) {
         return
       }

@@ -319,12 +319,46 @@ export const artifactTransforms = extensionPoint<ArtifactTransform>('artifactTra
  */
 export interface ArtifactLoadHook extends Entry {
   onLoadStart?(opts: { preserveExpansion: boolean }): void
-  beforeAssign?(): Promise<void>
+  /** Before a corpus load assigns its artifacts; `ctx` is the corpus, the selection, the parse. */
+  beforeAssign?(ctx?: {
+    root: string
+    selected: string[]
+    parsed: import('../types/artifact').ParsedArtifact[]
+  }): Promise<void>
   onReset?(reason: 'clear' | 'local-files'): void
   onCorpusPathChange?(next: string, previous: string): void
 }
 
 export const artifactLoadHooks = extensionPoint<ArtifactLoadHook>('artifactLoadHooks')
+
+/**
+ * Artifact files a build reads beyond the viewer's own, by file-name ending (corpus loads and
+ * local picks alike). `read` returns the parsed graph artifact, `'consumed'` for a side document
+ * the reader keeps itself (nothing is drawn from it), or null to leave the file to the viewer.
+ */
+export interface ArtifactReader extends Entry {
+  suffixes: string[]
+  read(
+    name: string,
+    data: unknown,
+    relPath?: string,
+  ): import('../types/artifact').ParsedArtifact | 'consumed' | null
+}
+
+export const artifactReaders = extensionPoint<ArtifactReader>('artifactReaders')
+
+/**
+ * How the loaded artifacts become the one graph the viewer draws. The first combiner that returns
+ * something other than `undefined` wins (null draws nothing); with none, the viewer merges them
+ * itself. `artifactTransforms` then run on the result.
+ */
+export interface ArtifactCombiner extends Entry {
+  combine(
+    parsed: import('../types/artifact').ParsedArtifact[],
+  ): import('../types/artifact').ParsedArtifact | null | undefined
+}
+
+export const artifactCombiners = extensionPoint<ArtifactCombiner>('artifactCombiners')
 
 /**
  * A different graph for the canvas while `active()` is true and `artifact()` is not null (the first
