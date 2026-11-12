@@ -1,24 +1,9 @@
 /**
- * Catalog-resolved episode artifacts: which episodes are loaded, newest-first ordering, and the
- * gi/kg/bridge paths a resolved row contributes.
+ * Catalog-resolved episode artifacts: newest-first ordering, and the
+ * paths a resolved row contributes (its KG artifact, and what a build adds).
  */
-import type { ParsedArtifact } from '../types/artifact'
+import { episodeArtifactRelPaths } from './episodeArtifactPaths'
 import type { CorpusResolvedEpisodeArtifact } from '../api/corpusLibraryApi'
-
-export function episodeIdsFromParsedArtifacts(parsed: ParsedArtifact[]): Set<string> {
-  const s = new Set<string>()
-  for (const p of parsed) {
-    if (p.kind !== 'gi') {
-      continue
-    }
-    const data = p.data as { episode_id?: unknown }
-    const eid = data.episode_id
-    if (typeof eid === 'string' && eid.trim()) {
-      s.add(eid.trim())
-    }
-  }
-  return s
-}
 
 function publishDateKey(iso: string | null | undefined): number {
   if (!iso?.trim()) {
@@ -42,16 +27,7 @@ export function sortResolvedArtifactsNewestFirst(
   })
 }
 
+/** The row's KG artifact, then the files a build adds for it (extension point `episodeArtifactPaths`). */
 export function artifactRelPathsForResolvedRow(r: CorpusResolvedEpisodeArtifact): string[] {
-  const out: string[] = []
-  if (r.gi_relative_path?.trim()) {
-    out.push(r.gi_relative_path.trim())
-  }
-  if (r.kg_relative_path?.trim()) {
-    out.push(r.kg_relative_path.trim())
-  }
-  if (r.bridge_relative_path?.trim()) {
-    out.push(r.bridge_relative_path.trim())
-  }
-  return out
+  return episodeArtifactRelPaths(r as unknown as Parameters<typeof episodeArtifactRelPaths>[0])
 }

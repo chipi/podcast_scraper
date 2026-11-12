@@ -81,12 +81,12 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
     edgeTypes: string[],
   ): void {
     /* ``displayArtifact`` is a getter (computed) on the store, backed by
-       parsedList. Push a single stub gi entry so the computed builds a
+       parsedList. Push a single stub KG entry so the computed builds a
        merged artifact whose ``data.edges`` carry the requested types. */
     artifacts.parsedList = [
       {
         name: 'stub',
-        kind: 'gi',
+        kind: 'kg',
         episodeId: 'e1',
         nodes: 0,
         edges: 0,

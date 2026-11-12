@@ -208,7 +208,7 @@ function giData(overrides: Partial<ArtifactData> = {}): ArtifactData {
   } as ArtifactData
 }
 
-function loadGi(data: ArtifactData = giData(), name = 'ep1.gi.json'): void {
+function loadGi(data: ArtifactData = giData(), name = 'ep1.kg.json'): void {
   const artifacts = useArtifactsStore()
   artifacts.parsedList = [parseArtifact(name, data)]
 }
@@ -853,8 +853,8 @@ describe('GraphCanvas cross-episode expand', () => {
     const { append } = await armedCanvas()
     vi.mocked(fetchNodeEpisodes).mockResolvedValue({
       episodes: [
-        { gi_relative_path: 'a/ep3.gi.json', kg_relative_path: 'a/ep3.kg.json' },
-        { gi_relative_path: ' ', kg_relative_path: null },
+        { kg_relative_path: 'a/ep3.kg.json' },
+        { kg_relative_path: null },
       ],
       truncated: true,
       total_matched: 40,
@@ -862,9 +862,9 @@ describe('GraphCanvas cross-episode expand', () => {
     emitOn('topic:ai', 'dbltap')
     await tick()
     const exp = useGraphExpansionStore()
-    expect(append).toHaveBeenCalledWith(['a/ep3.gi.json', 'a/ep3.kg.json'])
+    expect(append).toHaveBeenCalledWith(['a/ep3.kg.json'])
     expect(exp.isExpanded('topic:ai')).toBe(true)
-    expect(exp.expandedBySeed['topic:ai'].addedRelPaths).toEqual(['a/ep3.gi.json', 'a/ep3.kg.json'])
+    expect(exp.expandedBySeed['topic:ai'].addedRelPaths).toEqual(['a/ep3.kg.json'])
     expect(exp.truncationLine).toContain('Showing 2 of 40 episodes')
     expect(exp.expansionBusyCyId).toBeNull()
   })
@@ -872,10 +872,7 @@ describe('GraphCanvas cross-episode expand', () => {
   it('chunks very large expansions into batches of twelve paths', async () => {
     const { append } = await armedCanvas()
     vi.mocked(fetchNodeEpisodes).mockResolvedValue({
-      episodes: Array.from({ length: 8 }, (_, i) => ({
-        gi_relative_path: `a/e${i}.gi.json`,
-        kg_relative_path: `a/e${i}.kg.json`,
-      })),
+      episodes: Array.from({ length: 16 }, (_, i) => ({ kg_relative_path: `a/e${i}.kg.json` })),
       truncated: false,
     } as never)
     emitOn('topic:ai', 'dbltap')
@@ -2179,7 +2176,7 @@ describe('GraphCanvas episode territory', () => {
     expect(w.find(STRIP).exists()).toBe(true)
     expect(fetchCorpusEpisodeDetail).toHaveBeenCalledTimes(1)
     expect(fetchCorpusEpisodeDetail).toHaveBeenCalledWith('/corpus', 'feeds/z/metadata/new.metadata.json')
-    expect(append).toHaveBeenCalledWith(['a/ep9.gi.json', 'a/ep9.kg.json'])
+    expect(append).toHaveBeenCalledWith(['a/ep9.kg.json'])
     expect(subject.episodeId).toBe('ep-9')
     expect(subject.episodeUiLabel).toBe('Nine')
     expect(useArtifactsStore().currentLoadSource).toBe('subject-external')

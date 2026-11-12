@@ -33,8 +33,10 @@ test.describe('Status bar artifact list → Load into graph (UXS-001)', () => {
     await dialog.getByRole('button', { name: 'None', exact: true }).click()
     await expect(load).toBeDisabled()
 
-    // One gi artifact is enough to draw a graph and keeps the load fast.
-    await dialog.getByRole('checkbox', { name: /^gi / }).first().check()
+    // The list offers only what this build reads: KG (the corpus also holds GI and bridge files).
+    await expect(dialog.getByRole('checkbox', { name: /^gi / })).toHaveCount(0)
+    // One KG artifact is enough to draw a graph and keeps the load fast.
+    await dialog.getByRole('checkbox', { name: /^kg / }).first().check()
     await expect(load).toBeEnabled()
     await load.click()
 
@@ -62,7 +64,7 @@ test.describe('Status bar artifact list → Load into graph (UXS-001)', () => {
     await page.getByTestId('status-bar-list-artifacts').click()
     const dialog = page.getByTestId('artifact-list-dialog')
     await dialog.getByRole('button', { name: 'None', exact: true }).click()
-    await dialog.getByRole('checkbox', { name: /^gi / }).first().check()
+    await dialog.getByRole('checkbox', { name: /^kg / }).first().check()
     await dialog.getByRole('button', { name: 'Load into graph' }).click()
 
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
@@ -88,7 +90,7 @@ test.describe('Status bar artifact list → Load into graph (UXS-001)', () => {
     await page.getByTestId('status-bar-list-artifacts').click()
     const dialog = page.getByTestId('artifact-list-dialog')
     await dialog.getByRole('button', { name: 'None', exact: true }).click()
-    await dialog.getByRole('checkbox', { name: /^gi / }).first().check()
+    await dialog.getByRole('checkbox', { name: /^kg / }).first().check()
     await dialog.getByRole('button', { name: 'Load into graph' }).click()
 
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()

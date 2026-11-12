@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import type { BridgeDocument } from "../../types/bridge"
 import type { ParsedArtifact } from "../../types/artifact"
 import { useGraphFilterStore } from "../../stores/graphFilters"
 import { useGraphHandoffStore } from "../../stores/graphHandoff"
@@ -25,7 +24,6 @@ import {
   SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from "../../utils/searchResultActionStyles"
-import { bridgeIdentityForGraphNodeId, crossLayerPresenceLabel } from "../../utils/bridgeDocument"
 import { visualGroupForNode } from "../../utils/visualGroup"
 import {
   corpusTextFileViewUrl,
@@ -62,8 +60,6 @@ const props = defineProps<{
   nodeId: string | null
   /** Embedded in App right rail: full width, no fixed 280px strip. */
   embedInRail?: boolean
-  /** bridge.json (optional) for cross-layer diagnostics. */
-  bridgeDocument?: BridgeDocument | null
   /** Offer "View in graph" on a topic — only meaningful when the Graph tab is not showing. */
   showViewInGraph?: boolean
 }>()
@@ -686,12 +682,6 @@ const nodeDiagnosticsEntries = computed((): { label: string; value: string }[] =
   return rows
 })
 
-const crossLayerBridgeLine = computed(() => {
-  const row = bridgeIdentityForGraphNodeId(props.bridgeDocument ?? null, props.nodeId)
-  if (!row) return ""
-  return crossLayerPresenceLabel(row.sources)
-})
-
 type GraphRailDetailTab =
   | "details"
   | "enrichment"
@@ -1179,11 +1169,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
         <div v-show="!props.embedInRail || graphRailDetailTab === 'details'" class="min-h-0">
           <p v-if="bodyTextForTemplate" class="mb-3 text-xs leading-relaxed text-muted">
             {{ truncate(bodyTextForTemplate, 600) }}
-          </p>
-
-          <p v-if="crossLayerBridgeLine" class="mb-2 text-[11px] leading-snug text-primary">
-            <span class="font-medium text-muted">Also in other graph layers:</span>
-            {{ crossLayerBridgeLine }}
           </p>
 
           <section v-if="transcriptSourceSection" class="mb-2 flex flex-col gap-1.5">

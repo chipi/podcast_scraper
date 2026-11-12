@@ -30,7 +30,6 @@ function counts(
 /** From an episode payload (node-episodes rows carry the paths without the flags). */
 export function episodeArtifactRelPaths(episode: EpisodeArtifactPayload): string[] {
   const own: string[] = []
-  if (counts(episode, 'has_gi', episode.gi_relative_path)) own.push(episode.gi_relative_path)
   if (counts(episode, 'has_kg', episode.kg_relative_path)) own.push(episode.kg_relative_path)
   const extra = episodeArtifactPaths
     .list()
@@ -38,9 +37,9 @@ export function episodeArtifactRelPaths(episode: EpisodeArtifactPayload): string
   return unique([...own, ...extra])
 }
 
-/** From a metadata file's stem; `withGi` says whether the corpus has GI artifacts at all. */
-export function episodeArtifactRelPathsForStem(stem: string, opts: { withGi: boolean }): string[] {
-  const own = opts.withGi ? [`${stem}.gi.json`, `${stem}.kg.json`] : [`${stem}.kg.json`]
+/** From a metadata file's stem. */
+export function episodeArtifactRelPathsForStem(stem: string): string[] {
+  const own = [`${stem}.kg.json`]
   const extra = episodeArtifactPaths.list().flatMap((x) => x.forStem?.(stem) ?? [])
   return unique([...own, ...extra])
 }

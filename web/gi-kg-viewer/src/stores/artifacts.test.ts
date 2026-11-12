@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { ArtifactData } from '../types/artifact'
-import { useArtifactsStore } from './artifacts'
+import { artifactReaders } from '../extensions'
+import { artifactFileReadable, useArtifactsStore } from './artifacts'
 import { useGraphExpansionStore } from './graphExpansion'
 import { useGraphExplorerStore } from './graphExplorer'
 
@@ -39,27 +40,6 @@ function fileList(files: File[]): FileList {
   return list
 }
 
-function giData(episodeId: string): ArtifactData {
-  return {
-    episode_id: episodeId,
-    model_version: 'm1',
-    prompt_version: 'p1',
-    nodes: [
-      {
-        id: `episode:${episodeId}`,
-        type: 'Episode',
-        properties: { publish_date: '2026-01-01' },
-      },
-      {
-        id: `g:insight:${episodeId}:1`,
-        type: 'Insight',
-        properties: { episode_id: episodeId, text: 'insight one' },
-      },
-    ],
-    edges: [],
-  } as unknown as ArtifactData
-}
-
 function kgData(episodeId: string): ArtifactData {
   return {
     episode_id: episodeId,
@@ -87,78 +67,18 @@ describe('useArtifactsStore — loadFromLocalFiles', () => {
     expect(store.parsedList).toHaveLength(0)
   })
 
-  it('parses .gi.json and .kg.json files and marks manual selection', async () => {
-    const store = useArtifactsStore()
-    const files = fileList([
-      jsonFile('ep1.gi.json', giData('ep1')),
-      jsonFile('ep1.kg.json', kgData('ep1')),
-    ])
-    await store.loadFromLocalFiles(files)
-    expect(store.parsedList).toHaveLength(2)
-    expect(store.manualGraphSelection).toBe(true)
-    expect(store.selectedRelPaths).toEqual(['ep1.gi.json', 'ep1.kg.json'])
-    expect(store.loading).toBe(false)
-    expect(store.loadError).toBeNull()
-  })
-
-  it('builds a merged GI+KG display artifact from local files', async () => {
-    const store = useArtifactsStore()
-    await store.loadFromLocalFiles(
-      fileList([
-        jsonFile('ep1.gi.json', giData('ep1')),
-        jsonFile('ep1.kg.json', kgData('ep1')),
-      ]),
-    )
-    const display = store.displayArtifact
-    expect(display).not.toBeNull()
-    expect(display!.kind).toBe('both')
-    expect(store.giArts).toHaveLength(1)
-    expect(store.kgArts).toHaveLength(1)
-  })
-
   it('ignores non-artifact files; errors when nothing usable remains', async () => {
     const store = useArtifactsStore()
     await store.loadFromLocalFiles(
       fileList([jsonFile('notes.txt.json', { a: 1 })]),
     )
     expect(store.parsedList).toHaveLength(0)
-    expect(store.loadError).toBe('No .gi.json or .kg.json files in selection.')
-  })
-
-  it('captures a matching sibling .bridge.json by episode stem', async () => {
-    const store = useArtifactsStore()
-    await store.loadFromLocalFiles(
-      fileList([
-        jsonFile('ep1.gi.json', giData('ep1')),
-        jsonFile('ep1.bridge.json', {
-          schema_version: '1.0',
-          episode_id: 'ep1',
-          identities: [],
-        }),
-      ]),
-    )
-    expect(store.bridgeDocument).not.toBeNull()
-    expect(store.bridgeDocument?.episode_id).toBe('ep1')
-  })
-
-  it('does not attach a bridge whose stem matches no kept artifact', async () => {
-    const store = useArtifactsStore()
-    await store.loadFromLocalFiles(
-      fileList([
-        jsonFile('ep1.gi.json', giData('ep1')),
-        jsonFile('other.bridge.json', {
-          schema_version: '1.0',
-          episode_id: 'other',
-          identities: [],
-        }),
-      ]),
-    )
-    expect(store.bridgeDocument).toBeNull()
+    expect(store.loadError).toBe('No graph artifact files (.kg.json) in selection.')
   })
 
   it('sets loadError when a file contains invalid JSON', async () => {
     const store = useArtifactsStore()
-    const bad = new File(['{ not json'], 'ep1.gi.json', {
+    const bad = new File(['{ not json'], 'ep1.kg.json', {
       type: 'application/json',
       lastModified: Date.UTC(2026, 0, 1),
     })
@@ -170,8 +90,8 @@ describe('useArtifactsStore — loadFromLocalFiles', () => {
   it('resets graph expansion state on local-file load', async () => {
     const store = useArtifactsStore()
     const expansion = useGraphExpansionStore()
-    expansion.recordExpand('n:episode:1', ['extra.gi.json'])
-    await store.loadFromLocalFiles(fileList([jsonFile('ep1.gi.json', giData('ep1'))]))
+    expansion.recordExpand('n:episode:1', ['extra.kg.json'])
+    await store.loadFromLocalFiles(fileList([jsonFile('ep1.kg.json', kgData('ep1'))]))
     // resetExpansionState is dispatched via a dynamic import; flush its
     // promise chain on a macrotask before asserting.
     await new Promise((r) => setTimeout(r, 0))
@@ -182,17 +102,17 @@ describe('useArtifactsStore — loadFromLocalFiles', () => {
 describe('useArtifactsStore — selection actions', () => {
   it('toggleSelection adds then removes a path', () => {
     const store = useArtifactsStore()
-    store.toggleSelection('a.gi.json')
-    expect(store.selectedRelPaths).toEqual(['a.gi.json'])
-    store.toggleSelection('b.gi.json')
-    expect(store.selectedRelPaths).toEqual(['a.gi.json', 'b.gi.json'])
-    store.toggleSelection('a.gi.json')
-    expect(store.selectedRelPaths).toEqual(['b.gi.json'])
+    store.toggleSelection('a.kg.json')
+    expect(store.selectedRelPaths).toEqual(['a.kg.json'])
+    store.toggleSelection('b.kg.json')
+    expect(store.selectedRelPaths).toEqual(['a.kg.json', 'b.kg.json'])
+    store.toggleSelection('a.kg.json')
+    expect(store.selectedRelPaths).toEqual(['b.kg.json'])
   })
 
   it('selectAllListed replaces the selection with a copy', () => {
     const store = useArtifactsStore()
-    const src = ['a.gi.json', 'b.gi.json']
+    const src = ['a.kg.json', 'b.kg.json']
     store.selectAllListed(src)
     expect(store.selectedRelPaths).toEqual(src)
     expect(store.selectedRelPaths).not.toBe(src)
@@ -200,15 +120,15 @@ describe('useArtifactsStore — selection actions', () => {
 
   it('deselectAllListed empties the selection', () => {
     const store = useArtifactsStore()
-    store.selectAllListed(['a.gi.json'])
+    store.selectAllListed(['a.kg.json'])
     store.deselectAllListed()
     expect(store.selectedRelPaths).toEqual([])
   })
 
   it('clearManualGraphSelection flips the manual flag off', () => {
     const store = useArtifactsStore()
-    store.selectAllListed(['a.gi.json'])
-    void store.loadRelativeArtifacts(['a.gi.json'])
+    store.selectAllListed(['a.kg.json'])
+    void store.loadRelativeArtifacts(['a.kg.json'])
     expect(store.manualGraphSelection).toBe(true)
     store.clearManualGraphSelection()
     expect(store.manualGraphSelection).toBe(false)
@@ -217,15 +137,14 @@ describe('useArtifactsStore — selection actions', () => {
   it('clearSelection wipes selection and list', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['ep1.gi.json'])
-    vi.mocked(fetchArtifactJson).mockResolvedValue(giData('ep1'))
+    store.selectAllListed(['ep1.kg.json'])
+    vi.mocked(fetchArtifactJson).mockResolvedValue(kgData('ep1'))
     await store.loadSelected()
     expect(store.parsedList.length).toBeGreaterThan(0)
 
     store.clearSelection()
     expect(store.selectedRelPaths).toEqual([])
     expect(store.parsedList).toHaveLength(0)
-    expect(store.bridgeDocument).toBeNull()
     expect(store.loadError).toBeNull()
     expect(store.manualGraphSelection).toBe(false)
   })
@@ -237,26 +156,43 @@ describe('useArtifactsStore — selection actions', () => {
   })
 })
 
-describe('useArtifactsStore — displayArtifact / getters', () => {
-  it('is null with no artifacts and single GI returns that artifact', async () => {
+describe('artifactFileReadable', () => {
+  afterEach(() => artifactReaders.reset())
+
+  it('takes KG files, and the files a registered reader takes', () => {
+    expect(artifactFileReadable('a/ep.kg.json')).toBe(true)
+    expect(artifactFileReadable('a/ep.gi.json')).toBe(false)
+    expect(artifactFileReadable('a/ep.bridge.json')).toBe(false)
+    artifactReaders.register({ id: 'x', suffixes: ['.GI.json'], read: () => null })
+    expect(artifactFileReadable('a/ep.gi.json')).toBe(true)
+  })
+})
+
+describe('useArtifactsStore — displayArtifact', () => {
+  it('is null with no artifacts, a single KG as is, and several KG merged', async () => {
     const store = useArtifactsStore()
     expect(store.displayArtifact).toBeNull()
-
-    store.setCorpusPath('/c')
-    store.selectAllListed(['ep1.gi.json'])
-    vi.mocked(fetchArtifactJson).mockResolvedValue(giData('ep1'))
-    await store.loadSelected()
-    expect(store.displayArtifact?.kind).toBe('gi')
-    expect(store.giArts).toHaveLength(1)
-    expect(store.kgArts).toHaveLength(0)
+    await store.loadFromLocalFiles(fileList([jsonFile('ep1.kg.json', kgData('ep1'))]))
+    expect(store.displayArtifact?.kind).toBe('kg')
+    expect(store.displayArtifact?.name).toBe('ep1.kg.json')
+    await store.loadFromLocalFiles(
+      fileList([jsonFile('ep1.kg.json', kgData('ep1')), jsonFile('ep2.kg.json', kgData('ep2'))]),
+    )
+    expect(store.displayArtifact?.name).toContain('Merged KG')
   })
 
+  it('draws nothing from a .gi.json the viewer has no reader for', async () => {
+    const store = useArtifactsStore()
+    await store.loadFromLocalFiles(fileList([jsonFile('ep1.gi.json', { nodes: [], edges: [] })]))
+    expect(store.parsedList).toHaveLength(0)
+    expect(store.loadError).toBe('No graph artifact files (.kg.json) in selection.')
+  })
 })
 
 describe('useArtifactsStore — appendRelativeArtifacts / removeRelativeArtifacts', () => {
   it('appendRelativeArtifacts no-ops without a corpus path', async () => {
     const store = useArtifactsStore()
-    await store.appendRelativeArtifacts(['a.gi.json'])
+    await store.appendRelativeArtifacts(['a.kg.json'])
     expect(fetchArtifactJson).not.toHaveBeenCalled()
     expect(store.selectedRelPaths).toEqual([])
   })
@@ -264,27 +200,27 @@ describe('useArtifactsStore — appendRelativeArtifacts / removeRelativeArtifact
   it('appendRelativeArtifacts adds only new normalized paths and reloads', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['ep1.gi.json'])
+    store.selectAllListed(['ep1.kg.json'])
     vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) =>
-      rel === 'ep1.gi.json' ? giData('ep1') : giData('ep2'),
+      rel === 'ep1.kg.json' ? kgData('ep1') : kgData('ep2'),
     )
     await store.loadSelected()
 
-    await store.appendRelativeArtifacts(['ep2.gi.json', 'ep1.gi.json'])
+    await store.appendRelativeArtifacts(['ep2.kg.json', 'ep1.kg.json'])
     // ep1 already present (dedup); ep2 added.
-    expect(store.selectedRelPaths).toEqual(['ep1.gi.json', 'ep2.gi.json'])
+    expect(store.selectedRelPaths).toEqual(['ep1.kg.json', 'ep2.kg.json'])
     expect(store.parsedList).toHaveLength(2)
   })
 
   it('appendRelativeArtifacts no-ops when nothing new', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['ep1.gi.json'])
-    vi.mocked(fetchArtifactJson).mockResolvedValue(giData('ep1'))
+    store.selectAllListed(['ep1.kg.json'])
+    vi.mocked(fetchArtifactJson).mockResolvedValue(kgData('ep1'))
     await store.loadSelected()
     const calls = vi.mocked(fetchArtifactJson).mock.calls.length
 
-    await store.appendRelativeArtifacts(['ep1.gi.json'])
+    await store.appendRelativeArtifacts(['ep1.kg.json'])
     // No reload because nothing new was appended.
     expect(vi.mocked(fetchArtifactJson).mock.calls.length).toBe(calls)
   })
@@ -292,35 +228,35 @@ describe('useArtifactsStore — appendRelativeArtifacts / removeRelativeArtifact
   it('removeRelativeArtifacts drops paths and reloads', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['ep1.gi.json', 'ep2.gi.json'])
+    store.selectAllListed(['ep1.kg.json', 'ep2.kg.json'])
     vi.mocked(fetchArtifactJson).mockImplementation(async (_c, rel) =>
-      rel === 'ep1.gi.json' ? giData('ep1') : giData('ep2'),
+      rel === 'ep1.kg.json' ? kgData('ep1') : kgData('ep2'),
     )
     await store.loadSelected()
     expect(store.parsedList).toHaveLength(2)
 
-    await store.removeRelativeArtifacts(['ep2.gi.json'])
-    expect(store.selectedRelPaths).toEqual(['ep1.gi.json'])
+    await store.removeRelativeArtifacts(['ep2.kg.json'])
+    expect(store.selectedRelPaths).toEqual(['ep1.kg.json'])
     expect(store.parsedList).toHaveLength(1)
   })
 
   it('removeRelativeArtifacts no-ops when path is absent', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    store.selectAllListed(['ep1.gi.json'])
-    vi.mocked(fetchArtifactJson).mockResolvedValue(giData('ep1'))
+    store.selectAllListed(['ep1.kg.json'])
+    vi.mocked(fetchArtifactJson).mockResolvedValue(kgData('ep1'))
     await store.loadSelected()
     const calls = vi.mocked(fetchArtifactJson).mock.calls.length
 
-    await store.removeRelativeArtifacts(['nope.gi.json'])
-    expect(store.selectedRelPaths).toEqual(['ep1.gi.json'])
+    await store.removeRelativeArtifacts(['nope.kg.json'])
+    expect(store.selectedRelPaths).toEqual(['ep1.kg.json'])
     expect(vi.mocked(fetchArtifactJson).mock.calls.length).toBe(calls)
   })
 
   it('removeRelativeArtifacts no-ops without corpus or empty input', async () => {
     const store = useArtifactsStore()
-    store.selectAllListed(['ep1.gi.json'])
-    await store.removeRelativeArtifacts(['ep1.gi.json'])
+    store.selectAllListed(['ep1.kg.json'])
+    await store.removeRelativeArtifacts(['ep1.kg.json'])
     expect(fetchArtifactJson).not.toHaveBeenCalled()
     store.setCorpusPath('/c')
     await store.removeRelativeArtifacts([])
@@ -344,9 +280,9 @@ describe('useArtifactsStore — loadRelativeArtifacts', () => {
   it('trims, filters empties and loads', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
-    vi.mocked(fetchArtifactJson).mockResolvedValue(giData('ep1'))
-    await store.loadRelativeArtifacts(['  ep1.gi.json  ', '', '   '])
-    expect(store.selectedRelPaths).toEqual(['ep1.gi.json'])
+    vi.mocked(fetchArtifactJson).mockResolvedValue(kgData('ep1'))
+    await store.loadRelativeArtifacts(['  ep1.kg.json  ', '', '   '])
+    expect(store.selectedRelPaths).toEqual(['ep1.kg.json'])
     expect(store.manualGraphSelection).toBe(true)
     expect(store.parsedList).toHaveLength(1)
   })
@@ -355,7 +291,7 @@ describe('useArtifactsStore — loadRelativeArtifacts', () => {
 describe('useArtifactsStore — loadSelected guard branches', () => {
   it('errors when corpus path is empty', async () => {
     const store = useArtifactsStore()
-    store.selectAllListed(['ep1.gi.json'])
+    store.selectAllListed(['ep1.kg.json'])
     await store.loadSelected()
     expect(store.loadError).toBe(
       'Set corpus path and select at least one artifact file.',
@@ -363,7 +299,7 @@ describe('useArtifactsStore — loadSelected guard branches', () => {
     expect(store.parsedList).toHaveLength(0)
   })
 
-  it('errors when selection only carries a bridge (no gi/kg output)', async () => {
+  it('errors when the selection carries no graph artifact (a bridge alone)', async () => {
     const store = useArtifactsStore()
     store.setCorpusPath('/c')
     store.selectAllListed(['ep1.bridge.json'])
@@ -373,7 +309,7 @@ describe('useArtifactsStore — loadSelected guard branches', () => {
       identities: [],
     } as unknown as ArtifactData)
     await store.loadSelected()
-    expect(store.loadError).toBe('No .gi.json or .kg.json files in selection.')
+    expect(store.loadError).toBe('No graph artifact files (.kg.json) in selection.')
     expect(store.parsedList).toHaveLength(0)
   })
 
@@ -382,7 +318,7 @@ describe('useArtifactsStore — loadSelected guard branches', () => {
     const explorer = useGraphExplorerStore()
     explorer.setSinceYmd('2099-01-01')
     await store.loadFromLocalFiles(
-      fileList([jsonFile('old.gi.json', giData('old'), Date.UTC(2000, 0, 1))]),
+      fileList([jsonFile('old.kg.json', kgData('old'), Date.UTC(2000, 0, 1))]),
     )
     // Local file load ignores the lens — the old episode is kept.
     expect(store.parsedList).toHaveLength(1)
