@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref, useSlots, watch } from 'vue'
-import { topicGrouping } from '../../extensions'
+import { episodeDetailSections, topicGrouping } from '../../extensions'
 import { storeToRefs } from 'pinia'
 import { fetchIndexStats, type IndexStatsEnvelope } from '../../api/indexStatsApi'
 import {
@@ -914,6 +914,13 @@ watch(
         don't render an empty placeholder.
       -->
       <EpisodeBridgePartition :partition="detail.bridge_partition" />
+      <component
+        :is="section.component"
+        v-for="section in episodeDetailSections.list().filter((s) => s.region === 'summary-head')"
+        :key="section.id"
+        :detail="detail"
+        :corpus-path="shell.corpusPath"
+      />
       <p
         v-if="detail.summary_text"
         class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"
@@ -1110,6 +1117,14 @@ watch(
         </ul>
       </div>
 
+      <component
+        :is="section.component"
+        v-for="section in episodeDetailSections.list().filter((s) => s.region === 'end')"
+        :key="section.id"
+        :detail="detail"
+        :corpus-path="shell.corpusPath"
+      />
+
       <p v-if="graphActionError" class="mt-1 text-xs text-danger">
         {{ graphActionError }}
       </p>
@@ -1132,6 +1147,13 @@ watch(
             :corpus-path="shell.corpusPath"
             :metadata-relpath="detail.metadata_relative_path || ''"
             @has-content="emit('enrichment-has-content', $event)"
+          />
+          <component
+            :is="section.component"
+            v-for="section in episodeDetailSections.list().filter((s) => s.region === 'enrichment')"
+            :key="section.id"
+            :detail="detail"
+            :corpus-path="shell.corpusPath"
           />
         </div>
         <div
