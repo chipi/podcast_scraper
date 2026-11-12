@@ -254,6 +254,15 @@ class Extension:
     transports: Callable[[], Sequence[Any]] = _none
     #: The corpus scoreboard over what the extension writes (the change method's yardstick).
     corpus_scoreboard: CorpusScoreboard | None = None
+    #: The settings only this extension reads, as a pydantic model (ADR-182). Their keys stay
+    #: flat in operator YAML, profiles and ``Config(...)``; loading hands them to this model,
+    #: read back with ``cfg.extension(name)``.
+    config_model: type | None = None
+
+
+def extension_config_models() -> list[tuple[str, type]]:
+    """``(extension name, settings model)`` for each installed extension that declares one."""
+    return [(ext.name, ext.config_model) for ext in load_extensions() if ext.config_model]
 
 
 _override: list[Extension] | None = None

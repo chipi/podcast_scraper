@@ -2333,7 +2333,7 @@ def _config_yaml_allowed_top_level_keys() -> set[str]:
     strings (e.g. ``feeds`` for ``rss_urls``).
     """
     allowed: set[str] = set()
-    for field_name, finfo in config.Config.model_fields.items():
+    for field_name, finfo in config.config_fields().items():
         allowed.add(field_name)
         if finfo.alias:
             allowed.add(finfo.alias)
@@ -2356,7 +2356,7 @@ def _yaml_top_level_key_to_model_field(yaml_key: str) -> Optional[str]:
     """Map a YAML/JSON top-level key to :class:`~podcast_scraper.config.Config` field name."""
     if yaml_key in config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS or yaml_key == "profile":
         return None
-    for fname, finfo in config.Config.model_fields.items():
+    for fname, finfo in config.config_fields().items():
         if fname == yaml_key:
             return fname
         if finfo.alias == yaml_key:
@@ -3882,7 +3882,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # is resolved again by ``model_validate`` below, so leaving it out silently restored the
     # profile's value.
     _file_nulls: frozenset[str] = getattr(args, "_config_yaml_null_keys", frozenset())
-    for _name, _field_info in config.Config.model_fields.items():
+    for _name, _field_info in config.config_fields().items():
         if _name in payload:
             continue
         _alias = _field_info.alias or _name
