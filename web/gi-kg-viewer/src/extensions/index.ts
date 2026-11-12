@@ -400,6 +400,17 @@ export interface NodeDetailExtension extends Entry {
   title?(ctx: NodeDetailContext): string | null
   avatarGroup?(ctx: NodeDetailContext): string | null
   sections?: Array<{ region: 'header' | 'overview' | 'after-aliases'; component: Component }>
+  /**
+   * Extra tabs of the panel when it sits in the rail, after the viewer's own. Each shows only for
+   * the nodes `shows` accepts and renders with a `ctx` prop; the panel falls back to Details when
+   * the current tab stops showing.
+   */
+  tabs?: Array<{
+    id: string
+    label: string
+    shows(ctx: NodeDetailContext): boolean
+    component: Component
+  }>
   timeline?(ctx: NodeDetailContext, toggled: boolean): string[] | 'hidden' | null
   timelineToggle?(ctx: NodeDetailContext): {
     label: string

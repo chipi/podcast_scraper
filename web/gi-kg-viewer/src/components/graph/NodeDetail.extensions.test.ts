@@ -133,6 +133,36 @@ describe('NodeDetail extensions', () => {
     w.unmount()
   })
 
+  it('adds an extension tab for the nodes it shows for, with its panel and the ctx', async () => {
+    readyShell()
+    nodeDetailExtensions.register({
+      id: 'x',
+      tabs: [
+        { id: 'ext-tab', label: 'Ext', shows: (ctx) => ctx.isTopicNode, component: ctxSection('tab') },
+      ],
+    })
+    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
+    await flushPromises()
+    const tab = w.get('[data-testid="node-detail-rail-tab-ext:ext-tab"]')
+    expect(tab.text()).toBe('Ext')
+    await tab.trigger('click')
+    expect(tab.attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="section-tab"]').text()).toBe('topic:a|Topic')
+    w.unmount()
+  })
+
+  it('shows no extension tab for a node its test refuses', async () => {
+    readyShell()
+    nodeDetailExtensions.register({
+      id: 'x',
+      tabs: [{ id: 'ext-tab', label: 'Ext', shows: () => false, component: ctxSection('tab') }],
+    })
+    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
+    await flushPromises()
+    expect(w.find('[data-testid="node-detail-rail-tab-ext:ext-tab"]').exists()).toBe(false)
+    w.unmount()
+  })
+
   it("'hidden' removes the Timeline tab even for a topic", async () => {
     readyShell()
     nodeDetailExtensions.register({ id: 'x', timeline: () => 'hidden' })

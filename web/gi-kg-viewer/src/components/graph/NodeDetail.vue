@@ -1205,7 +1205,13 @@ const crossLayerBridgeLine = computed(() => {
 })
 
 type GraphRailDetailTab =
-  "details" | "timeline" | "position_tracker" | "enrichment" | "neighbourhood" | "perspectives"
+  | "details"
+  | "timeline"
+  | "position_tracker"
+  | "enrichment"
+  | "neighbourhood"
+  | "perspectives"
+  | `ext:${string}`
 
 const graphRailDetailTab = ref<GraphRailDetailTab>("details")
 
@@ -1226,6 +1232,22 @@ watch(
 )
 watch(hasTimelineTab, (has) => {
   if (!has && graphRailDetailTab.value === "timeline") {
+    graphRailDetailTab.value = "details"
+  }
+})
+
+// Tabs extensions add (`NodeDetailExtension.tabs`); the id is prefixed so it never collides
+// with the panel's own. Fall back to Details when the current one stops showing.
+const extensionTabs = computed(() =>
+  nodeDetailExtensions
+    .list()
+    .flatMap((e) => e.tabs ?? [])
+    .filter((t) => t.shows(extensionContext.value))
+    .map((t) => ({ ...t, key: `ext:${t.id}` as const }))
+)
+watch(extensionTabs, (tabs) => {
+  const current = graphRailDetailTab.value
+  if (current.startsWith("ext:") && !tabs.some((t) => t.key === current)) {
     graphRailDetailTab.value = "details"
   }
 })
@@ -1546,6 +1568,26 @@ const graphConnectionsCenterInView = computed((): boolean => {
         @click="graphRailDetailTab = 'position_tracker'"
       >
         Positions
+      </button>
+      <button
+        v-for="tab in extensionTabs"
+        :id="`node-detail-rail-tab-${tab.key}`"
+        :key="tab.key"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === tab.key
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === tab.key"
+        :aria-controls="`node-detail-rail-panel-${tab.key}`"
+        :data-testid="`node-detail-rail-tab-${tab.key}`"
+        :tabindex="graphRailDetailTab === tab.key ? 0 : -1"
+        @click="graphRailDetailTab = tab.key"
+      >
+        {{ tab.label }}
       </button>
       <button
         v-if="signalsTabHasContent"
@@ -2578,6 +2620,19 @@ const graphConnectionsCenterInView = computed((): boolean => {
           :corpus-path="perspectivesCorpusPath"
           :topic-id="perspectivesTopicId"
         />
+      </div>
+
+      <div
+        v-for="tab in extensionTabs"
+        v-show="graphRailDetailTab === tab.key"
+        :id="`node-detail-rail-panel-${tab.key}`"
+        :key="tab.key"
+        class="min-h-0"
+        role="tabpanel"
+        :aria-labelledby="`node-detail-rail-tab-${tab.key}`"
+        :tabindex="-1"
+      >
+        <component :is="tab.component" :ctx="extensionContext" />
       </div>
 
       <div
