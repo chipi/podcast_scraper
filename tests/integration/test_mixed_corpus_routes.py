@@ -40,8 +40,9 @@ _RUN = "feeds/p01/run_20260101-000000"
 
 #: Values for the path and required query parameters: ids both corpora hold (the validation
 #: corpus's p01_e01 and its guest). ``slug`` is added at run time from the app's own episode list.
-#: Left out, so those routes answer 422 on both sides: auth and OAuth flow parameters, ``ref``
-#: (a signed artwork or unsubscribe token), ``path`` (the corpus root, which differs), ``channel``.
+#: ``ref`` is added at run time too (an artwork ref the app hands out); ``path`` is each side's own
+#: corpus root. Left out, as they read no corpus, so those routes answer 422 on both sides: auth
+#: and OAuth flow parameters, an unsubscribe token, the outbox ``channel``.
 _PARAMS: Dict[str, str] = {
     "q": "trail building",
     "query": "trail building",
@@ -62,6 +63,7 @@ _PARAMS: Dict[str, str] = {
     "metadata_relpath": f"{_RUN}/metadata/p01_e01.metadata.json",
     "relpath": f"{_RUN}/transcripts/p01_e01.txt",
     "enricher_id": "insight_sentiment",
+    "path": "{CORPUS}",
 }
 
 _ISO_TIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?")
@@ -177,6 +179,18 @@ def _slug(client: TestClient) -> str:
     return str(items[0]["slug"])
 
 
+def _artwork_ref(client: TestClient) -> str:
+    """An artwork ``ref`` the app itself hands out, from its podcast list."""
+    from urllib.parse import parse_qs, urlsplit
+
+    for item in client.get("/api/app/podcasts").json()["items"]:
+        url = str(item.get("artwork_url") or "")
+        ref = parse_qs(urlsplit(url).query).get("ref")
+        if ref:
+            return ref[0]
+    raise AssertionError("no podcast has an artwork ref")
+
+
 def _masked(resp: Any, roots: Tuple[Path, ...]) -> Tuple[int, str]:
     # Both roots: the baseline is a copy of the mixed tree, so its stored documents (the manifest,
     # the run summary) name the mixed corpus's path.
@@ -194,15 +208,24 @@ def test_every_get_route_answers_the_same(
         "baseline": _client(baseline, tmp_path / "baseline-data"),
         "mixed": _client(mixed, tmp_path / "mixed-data"),
     }
-    params = {**_PARAMS, "slug": _slug(clients["baseline"])}
+    # The app's own slug and artwork ref; ``ref`` here is an artwork's (``collections/containing``
+    # takes a person id with ``kind=person``, and gets the same value only by name).
+    params = {
+        **_PARAMS,
+        "slug": _slug(clients["baseline"]),
+        "ref": _artwork_ref(clients["baseline"]),
+    }
     compared: List[str] = []
     differ: List[str] = []
     for path, route in _get_routes(baseline):
         url = _url(path, route, params)
         if url is None:
             continue
-        b = _masked(clients["baseline"].get(url), (baseline, mixed))
-        m = _masked(clients["mixed"].get(url), (baseline, mixed))
+        # ``path`` is the corpus root itself (``/api/artifacts``): each side is asked for its own.
+        b_url = url.replace("{CORPUS}", str(baseline))
+        m_url = url.replace("{CORPUS}", str(mixed))
+        b = _masked(clients["baseline"].get(b_url), (baseline, mixed))
+        m = _masked(clients["mixed"].get(m_url), (baseline, mixed))
         compared.append(f"{b[0]} {url}")
         if b != m:
             at = next(
@@ -216,4 +239,4 @@ def test_every_get_route_answers_the_same(
     print("\n".join(compared))
     assert not differ, "\n".join(differ)
     ok = [c for c in compared if c.startswith("200 ")]
-    assert len(ok) > 120, f"only {len(ok)} routes answered 200: {compared}"
+    assert len(ok) > 130, f"only {len(ok)} routes answered 200: {compared}"
