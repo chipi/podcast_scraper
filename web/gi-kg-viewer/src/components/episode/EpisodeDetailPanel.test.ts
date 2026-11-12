@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
 import EpisodeDetailPanel from './EpisodeDetailPanel.vue'
+import { episodeDetailSections } from '../../extensions'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import type { CorpusEpisodeDetailResponse } from '../../api/corpusLibraryApi'
@@ -263,5 +265,37 @@ describe('EpisodeDetailPanel.vue', () => {
     // Details stays mounted (v-show) but hidden; enrichment section lives only here.
     expect(w.find('#episode-detail-rail-panel-details').exists()).toBe(true)
     expect(w.find('#episode-detail-rail-panel-neighbourhood').exists()).toBe(false)
+  })
+
+  describe('episodeDetailSections', () => {
+    afterEach(() => episodeDetailSections.reset())
+
+    function section(region: 'summary-head' | 'end' | 'enrichment') {
+      return defineComponent({
+        props: { detail: { type: Object, required: true }, corpusPath: String },
+        setup(p) {
+          return () =>
+            h('div', { 'data-testid': `ext-${region}` }, `${p.detail.episode_id}@${p.corpusPath}`)
+        },
+      })
+    }
+
+    it('renders a registered section in each region with the episode and the corpus', async () => {
+      for (const region of ['summary-head', 'end', 'enrichment'] as const) {
+        episodeDetailSections.register({ id: region, region, component: section(region) })
+      }
+      const { w } = await mountWithEpisode(detailOf(), { railDetailTab: 'details' })
+      const details = w.find('#episode-detail-rail-panel-details')
+      expect(details.find('[data-testid="ext-summary-head"]').text()).toBe('ep-1@/corpus')
+      expect(details.find('[data-testid="ext-end"]').text()).toBe('ep-1@/corpus')
+      expect(w.find('#episode-detail-rail-panel-enrichment [data-testid="ext-enrichment"]').text()).toBe(
+        'ep-1@/corpus',
+      )
+    })
+
+    it('renders nothing extra when nothing is registered', async () => {
+      const { w } = await mountWithEpisode(detailOf())
+      expect(w.find('[data-testid^="ext-"]').exists()).toBe(false)
+    })
   })
 })

@@ -119,6 +119,18 @@ export interface ResultCardSection extends Entry {
 
 export const resultCardSections = extensionPoint<ResultCardSection>('resultCardSections')
 
+/**
+ * A section of the episode detail panel, rendered with `detail` (the episode detail payload) and
+ * `corpusPath` props: `summary-head` under the summary title, `end` after the panel's own lists
+ * (the details tab), `enrichment` in the Enrichment tab.
+ */
+export interface EpisodeDetailSection extends Entry {
+  region: 'summary-head' | 'end' | 'enrichment'
+  component: Component
+}
+
+export const episodeDetailSections = extensionPoint<EpisodeDetailSection>('episodeDetailSections')
+
 /** A command in the command palette. */
 export interface PaletteCommandEntry extends Entry {
   label: string
