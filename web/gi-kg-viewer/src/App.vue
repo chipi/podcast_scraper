@@ -732,22 +732,8 @@ function onGraphNodeSpeakerOpenSearchFilter(payload: { speaker: string }): void 
   void focusSearchWorkspace(false)
 }
 
-/**
- * Graph Insight node detail: set grounded/min-confidence on the Search
- * filters + switch to Search workspace. ``groundedOnly`` is server-side;
- * ``minConfidence`` is client-side over top-K.
- */
-function onGraphNodeInsightOpenSearchFilters(payload: {
-  groundedOnly: boolean
-  minConfidence: number | null
-}): void {
-  search.filters.topic = ''
-  search.filters.speaker = ''
-  search.filters.groundedOnly = payload.groundedOnly
-  search.filters.minConfidence =
-    payload.minConfidence != null && Number.isFinite(payload.minConfidence)
-      ? String(payload.minConfidence)
-      : ''
+/** Graph node detail: switch to the Search workspace with the filters as they are. */
+function onGraphNodeOpenSearch(): void {
   void focusSearchWorkspace(false)
 }
 
@@ -1225,7 +1211,7 @@ watch(
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
             @open-search-topic-filter="onGraphNodeTopicOpenSearchFilter"
             @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"
-            @open-search-insight-filters="onGraphNodeInsightOpenSearchFilters"
+            @open-search="onGraphNodeOpenSearch"
             @open-library-episode="onSearchOpenLibraryEpisode"
             @switch-main-tab="onSwitchMainTab($event)"
           />

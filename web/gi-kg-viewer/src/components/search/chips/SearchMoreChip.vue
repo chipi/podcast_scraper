@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * More chip (#671) — opens the slimmed Advanced search dialog (Feed
- * substring, Speaker, Embedding model, Grounded only, Merge KG surfaces).
+ * substring, Speaker, Embedding model, Merge KG surfaces).
  * Active when any of those values deviate from the default.
  */
 import { computed } from 'vue'
@@ -14,8 +14,7 @@ const search = useSearchStore()
 const isActive = computed(() => {
   const f = search.filters
   return Boolean(
-    f.groundedOnly
-      || f.feed.trim()
+    f.feed.trim()
       || f.speaker.trim()
       || f.embeddingModel.trim()
       || !f.dedupeKgSurfaces,
@@ -25,7 +24,6 @@ const isActive = computed(() => {
 const activeCount = computed(() => {
   const f = search.filters
   let n = 0
-  if (f.groundedOnly) n += 1
   if (f.feed.trim()) n += 1
   if (f.speaker.trim()) n += 1
   if (f.embeddingModel.trim()) n += 1

@@ -62,6 +62,16 @@ export interface SearchRequestParams extends Entry {
 export const searchRequestParams = extensionPoint<SearchRequestParams>('searchRequestParams')
 
 /**
+ * A client-side filter over the returned page (the store's `filteredResults`): a hit stays when
+ * every registered filter keeps it. `results` itself stays the server's page.
+ */
+export interface SearchResultFilter extends Entry {
+  keep(hit: import('../api/searchApi').SearchHit): boolean
+}
+
+export const searchResultFilters = extensionPoint<SearchResultFilter>('searchResultFilters')
+
+/**
  * Told about each search: `onResponse` with the raw response body of a successful run (fields
  * this viewer does not read included), `onClear` when results are cleared or a new run starts,
  * `onFiltersReset` when the user resets the filters.
@@ -77,7 +87,7 @@ export const searchListeners = extensionPoint<SearchListener>('searchListeners')
 
 /**
  * A result-set operator chip on the operator bar. The viewer's own chips are timeline (order
- * 10), graph (20) and compare (30). `activate` runs when the chip turns on; `panel` renders under
+ * 10) and graph (20). `activate` runs when the chip turns on; `panel` renders under
  * the bar while it is on; `busy` shows the chip's loading state.
  */
 export interface SearchOperator extends Entry {
@@ -525,8 +535,8 @@ export interface NodeDetailContext {
   focusOnGraph(nodeId: string): void
   /** Switch to Search with this query (the panel's `prefill-semantic-search`). */
   prefillSearch(query: string): void
-  /** Switch to Search with these result filters (the panel's `open-search-insight-filters`). */
-  openSearchFilters(filters: { groundedOnly: boolean; minConfidence: number | null }): void
+  /** Switch to Search with the filters as they are (the panel's `open-search`). */
+  openSearch(): void
   /** Open the panel's transcript dialog (one per panel, so a section must not mount its own). */
   openTranscript(
     payload: import('../components/shared/TranscriptViewerDialog.vue').TranscriptViewerOpenPayload,

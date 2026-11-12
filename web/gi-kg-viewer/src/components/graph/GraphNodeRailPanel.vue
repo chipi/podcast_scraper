@@ -22,7 +22,7 @@ const emit = defineEmits<{
   'prefill-semantic-search': [{ query: string }]
   'open-search-topic-filter': [{ topic: string }]
   'open-search-speaker-filter': [{ speaker: string }]
-  'open-search-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
+  'open-search': []
   'open-library-episode': [{ metadata_relative_path: string }]
   'close-subject-rail': []
 }>()
@@ -142,7 +142,7 @@ function onClose(): void {
       @prefill-semantic-search="emit('prefill-semantic-search', $event)"
       @open-search-topic-filter="emit('open-search-topic-filter', $event)"
       @open-search-speaker-filter="emit('open-search-speaker-filter', $event)"
-      @open-search-insight-filters="emit('open-search-insight-filters', $event)"
+      @open-search="emit('open-search')"
       @open-library-episode="emit('open-library-episode', $event)"
     />
   </div>

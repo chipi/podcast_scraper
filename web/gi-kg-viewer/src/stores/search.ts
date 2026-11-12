@@ -10,7 +10,7 @@ import {
 import { useGraphNavigationStore } from './graphNavigation'
 import { useActiveSearchContextStore } from './activeSearchContext'
 import { useSavedQueriesStore } from './savedQueries'
-import { searchListeners, searchRequestParams } from '../extensions'
+import { searchListeners, searchRequestParams, searchResultFilters } from '../extensions'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -59,7 +59,6 @@ export const useSearchStore = defineStore('search', () => {
 
   const filters = reactive({
     topK: 10,
-    groundedOnly: false,
     feed: '',
     since: '',
     speaker: '',
@@ -79,12 +78,6 @@ export const useSearchStore = defineStore('search', () => {
      */
     topic: '',
     /**
-     * Client-side minimum confidence filter (Search v3 §S1 — Explore merge). Same
-     * caveat as ``topic`` — applied over ``results``, not driving retrieval. Empty
-     * string means no filter; a numeric string like "0.7" means ≥0.7 confidence.
-     */
-    minConfidence: '',
-    /**
      * Search v3 §S6 — exact ``episode_id`` scope. Set by the "Search
      * within this episode" rail launcher on EpisodeDetailPanel; empty
      * string means no episode scope. Server-side (drives retrieval),
@@ -94,25 +87,14 @@ export const useSearchStore = defineStore('search', () => {
   })
 
   /**
-   * Results with the client-side ``minConfidence`` filter applied. ``topic`` is
-   * server-side since the S1 follow-up; ``minConfidence`` is still client-side
-   * because /api/search doesn't accept a numeric confidence threshold param.
-   * Keeps ``results`` untouched so callers that need the pre-filter page (intent
-   * chip, tier counts) still see the server's top-K.
+   * The page after every registered client-side filter (`searchResultFilters`). Keeps
+   * ``results`` untouched so callers that need the server's page (intent chip, tier counts)
+   * still see the top-K.
    */
   const filteredResults = computed<SearchHit[]>(() => {
-    const minRaw = filters.minConfidence.trim()
-    let minConf: number | null = null
-    if (minRaw) {
-      const n = Number(minRaw)
-      if (Number.isFinite(n)) minConf = n
-    }
-    if (minConf == null) return results.value
-    return results.value.filter((hit) => {
-      const conf = (hit.metadata?.confidence as number | undefined) ?? null
-      if (conf == null || conf < minConf) return false
-      return true
-    })
+    const active = searchResultFilters.list()
+    if (!active.length) return results.value
+    return results.value.filter((hit) => active.every((f) => f.keep(hit)))
   })
 
   function applyLibrarySearchHandoff(
@@ -170,7 +152,8 @@ export const useSearchStore = defineStore('search', () => {
     queryType.value = null
     for (const l of searchListeners.list()) l.onClear?.()
     try {
-      const body = await searchCorpus(q, requestOptions(root))
+      const opts = requestOptions(root)
+      const body = await searchCorpus(q, opts)
       if (searchRunGate.isStale(seq)) {
         return
       }
@@ -198,7 +181,7 @@ export const useSearchStore = defineStore('search', () => {
         has_feed_filter: Boolean(filters.feed),
         has_speaker_filter: Boolean(filters.speaker),
         has_since_filter: Boolean(filters.since),
-        grounded_only: filters.groundedOnly,
+        ...opts.extraParams,
         top_k: filters.topK,
       })
     } catch (e) {
@@ -230,7 +213,6 @@ export const useSearchStore = defineStore('search', () => {
       speaker: filters.speaker || undefined,
       topic: filters.topic || undefined,
       episodeId: filters.episodeId || undefined,
-      groundedOnly: filters.groundedOnly,
       topK: topK ?? filters.topK,
       embeddingModel: filters.embeddingModel.trim() || undefined,
       dedupeKgSurfaces: filters.dedupeKgSurfaces,

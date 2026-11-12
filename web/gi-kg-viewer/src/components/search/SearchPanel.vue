@@ -378,7 +378,7 @@ const advancedFeedCombinedTitle = computed(() =>
           <li>
             <strong>Since (date)</strong> limits hits to episodes on or after that day (UTC).
             <strong>Top‑k</strong> is the max number of vector hits to return. Other filters are in
-            <strong>Advanced search</strong> (doc types, feed filter, speaker, grounded, embedding
+            <strong>Advanced search</strong> (doc types, feed filter, speaker, embedding
             model). The feed field matches <strong>catalog feed id</strong> in the index; after
             <strong>Prefill semantic search</strong> from Library it shows the <strong>feed title</strong>
             from the catalog when known (hover for the id). Non-default choices appear as a read-only
@@ -515,16 +515,6 @@ const advancedFeedCombinedTitle = computed(() =>
         </button>
       </div>
       <div class="space-y-2">
-        <label class="flex cursor-pointer items-center gap-2 text-xs text-muted">
-          <input
-            v-model="search.filters.groundedOnly"
-            type="checkbox"
-            class="rounded border-border"
-            :disabled="!searchFieldsEnabled"
-            :title="searchFieldDisabledTitle"
-          >
-          Grounded insights only
-        </label>
         <label class="block text-xs text-muted" for="search-advanced-feed">
           Feed
           <input
