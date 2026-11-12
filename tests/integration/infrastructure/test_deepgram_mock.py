@@ -67,8 +67,6 @@ class TestDeepgramE2EServerIntegration:
         assert [s.get("speaker") for s in segments] == [0, 1]
         assert segments[0]["text"] == "Welcome to the show."
 
-        # And the native diarization renders a named screenplay end-to-end.
-        screenplay = provider.format_screenplay_from_segments(segments, None, ["Maya", "Liam"])
-        assert screenplay is not None
-        assert "Maya: Welcome to the show." in screenplay
-        assert "Liam: Thanks for having me." in screenplay
+        # The screenplay is the speaker stage's; without one installed the plain transcript is
+        # written (operator decision 8.1). The extension's copy of this test checks the rendering.
+        assert provider.format_screenplay_from_segments(segments, None, ["Maya", "Liam"]) is None

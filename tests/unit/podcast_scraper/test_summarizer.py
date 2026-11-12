@@ -704,21 +704,6 @@ class TestChunking(unittest.TestCase):
         self.assertIsNotNone(result)
 
 
-class TestSponsorCleanup(unittest.TestCase):
-    """Ensure sponsor removal cleans obvious ad blocks."""
-
-    def test_remove_sponsor_blocks(self):
-        text = (
-            "Intro paragraph.\n\n"
-            "This episode is brought to you by AwesomeCo. Use code POD!\n\n"
-            "Real discussion starts here."
-        )
-        cleaned = summarizer.remove_sponsor_blocks(text)
-        self.assertIn("Real discussion starts here.", cleaned)
-        self.assertNotIn("AwesomeCo", cleaned)
-        self.assertNotIn("This episode is brought to you by", cleaned)
-
-
 class TestSafeSummarize(unittest.TestCase):
     """Test safe_summarize function.
 

@@ -33,6 +33,10 @@ CONTRACT: dict[str, tuple[str, str]] = {
         "a pure function of its three string arguments",
     ),
     "server/og/card.py::_font": ("static", "a font file shipped with the code"),
+    "server/routes/corpus_library.py::episode_scope_enricher_ids": (
+        "static",
+        "the installed enrichers' manifests; extensions are discovered once per process",
+    ),
     "server/app_audio_bridge.py::_https_cache": ("ttl", "1 h (_HTTPS_TTL_S)"),
     "server/routes/corpus_enrichments.py::_CATALOGUE_CACHE": (
         "mtime",

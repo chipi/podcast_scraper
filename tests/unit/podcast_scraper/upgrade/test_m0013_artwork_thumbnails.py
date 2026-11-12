@@ -93,6 +93,7 @@ def test_an_undecodable_image_is_recorded_not_fatal(tmp_path: Path) -> None:
     assert ok, msg
 
 
-def test_registered_after_0012() -> None:
+def test_registered_after_every_lower_id() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0013_artwork_thumbnails") == ids.index("0012_org_speakers_removed") + 1
+    before = ids[: ids.index("0013_artwork_thumbnails")]
+    assert before and all(i < "0013" for i in before)

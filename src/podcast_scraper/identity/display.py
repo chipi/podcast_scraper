@@ -70,16 +70,6 @@ def _current_builder() -> DisplayBuilder:
     return owner if owner is not None else plain_display
 
 
-def display_from_ledger(ledger: Optional[Dict[str, Any]]) -> PersonDisplay:
-    """The view a ledger gives (None: no joins, every episode's own name).
-
-    Kept here for its callers (migration 0041); the code is ``ledger_display``'s.
-    """
-    from .ledger_display import display_from_ledger as _from_ledger
-
-    return _from_ledger(ledger)
-
-
 def person_display(root: Path | str) -> PersonDisplay:
     """The view for corpus ``root``, cached by the corpus token. The token includes the ledger file,
     so a rebuilt ledger is picked up without a restart."""

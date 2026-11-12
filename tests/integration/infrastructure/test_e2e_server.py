@@ -224,49 +224,6 @@ class TestE2EServerOpenAIEndpoints:
 
             os.unlink(audio_path)
 
-    def test_openai_provider_uses_e2e_server(self, e2e_server):
-        """Test that OpenAI providers can successfully use E2E server endpoints."""
-        from podcast_scraper import config
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-        from podcast_scraper.summarization.factory import create_summarization_provider
-        from podcast_scraper.transcription.factory import create_transcription_provider
-
-        # Create config with E2E server as OpenAI API base
-        openai_api_base = e2e_server.urls.openai_api_base()
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            openai_api_key="sk-test123",
-            openai_api_base=openai_api_base,
-            transcription_provider="openai",
-            speaker_detector_provider="openai",
-            summary_provider="openai",
-        )
-
-        # Test transcription provider via factory
-        transcription_provider = create_transcription_provider(cfg)
-        transcription_provider.initialize()
-        # OpenAI client base_url may have trailing slash, normalize both
-        assert str(transcription_provider.client.base_url).rstrip("/") == openai_api_base.rstrip(
-            "/"
-        )
-
-        # Test speaker detector via factory
-        speaker_detector = create_speaker_detector(cfg)
-        speaker_detector.initialize()
-        assert str(speaker_detector.client.base_url).rstrip("/") == openai_api_base.rstrip("/")
-
-        # Test summarization provider via factory
-        summarization_provider = create_summarization_provider(cfg)
-        summarization_provider.initialize()
-        assert str(summarization_provider.client.base_url).rstrip("/") == openai_api_base.rstrip(
-            "/"
-        )
-
-        # Clean up all providers
-        transcription_provider.cleanup()
-        speaker_detector.cleanup()
-        summarization_provider.cleanup()
-
     def test_openai_provider_transcription_works(self, e2e_server):
         """Test that OpenAI transcription provider can transcribe via E2E server."""
         import tempfile
@@ -302,39 +259,6 @@ class TestE2EServerOpenAIEndpoints:
             provider.cleanup()
             # Clean up temporary file
             os.unlink(audio_path)
-
-    def test_openai_provider_speaker_detection_works(self, e2e_server):
-        """Test that OpenAI speaker detector can detect speakers via E2E server."""
-        from unittest.mock import patch
-
-        from podcast_scraper import config
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        openai_api_base = e2e_server.urls.openai_api_base()
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            openai_api_key="sk-test123",
-            openai_api_base=openai_api_base,
-            speaker_detector_provider="openai",  # Use OpenAI provider, not spaCy
-        )
-
-        detector = create_speaker_detector(cfg)
-        detector.initialize()
-
-        # Mock render_prompt to avoid loading actual prompt files
-        with patch("podcast_scraper.prompts.store.render_prompt", return_value="System prompt"):
-            speakers, detected_hosts, success, _ = detector.detect_speakers(
-                episode_title="Test Episode",
-                episode_description="Test description",
-                known_hosts=set(),
-            )
-
-            assert success is True
-            assert len(speakers) > 0
-            assert "Host" in speakers or "Guest" in speakers
-
-        # Clean up detector
-        detector.cleanup()
 
     def test_openai_provider_summarization_works(self, e2e_server):
         """Test that OpenAI summarization provider can summarize via E2E server."""

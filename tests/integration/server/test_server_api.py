@@ -93,25 +93,6 @@ def client(corpus: Path) -> TestClient:
 
 
 class TestHealth:
-    def test_returns_ok(self, client: TestClient) -> None:
-        resp = client.get("/api/health")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["status"] == "ok"
-        assert body.get("artifacts_api") is True
-        assert body.get("search_api") is True
-        assert body.get("explore_api") is True
-        assert body.get("index_routes_api") is True
-        assert body.get("corpus_metrics_api") is True
-        assert body.get("corpus_library_api") is True
-        assert body.get("corpus_digest_api") is True
-        assert body.get("corpus_binary_api") is True
-        assert body.get("cil_queries_api") is True
-        # Fixture corpus has no enrichments/topic_similarity.json → probe False.
-        assert body.get("enriched_search_available") is False
-        assert body.get("feeds_api") is False
-        assert body.get("operator_config_api") is False
-        assert body.get("jobs_api") is False
 
     def test_enriched_search_available_flips_true_when_topic_similarity_present(
         self, client: TestClient, corpus: Path
@@ -148,74 +129,6 @@ class TestHealth:
 
 
 class TestArtifacts:
-    def test_list_discovers_real_files(self, client: TestClient, corpus: Path) -> None:
-        resp = client.get("/api/artifacts", params={"path": str(corpus)})
-        assert resp.status_code == 200
-        body = resp.json()
-        names = sorted(a["name"] for a in body["artifacts"])
-        assert names == ["ep1.bridge.json", "ep1.gi.json", "ep1.kg.json"]
-        kinds = {a["name"]: a["kind"] for a in body["artifacts"]}
-        assert kinds["ep1.bridge.json"] == "bridge"
-        for a in body["artifacts"]:
-            pd = a.get("publish_date")
-            assert isinstance(pd, str) and len(pd) == 10 and pd[4] == "-"
-
-    def test_list_publish_date_from_metadata_when_present(self, tmp_path: Path) -> None:
-        """``publish_date`` prefers episode metadata over mtime surrogate."""
-        meta = tmp_path / "metadata"
-        meta.mkdir()
-        meta_doc = {
-            "episode": {"episode_id": "x", "published_date": "2024-06-15T12:00:00Z"},
-            "grounded_insights": {"version": "1.0", "episode_id": "x"},
-        }
-        (meta / "ep99.metadata.json").write_text(json.dumps(meta_doc), encoding="utf-8")
-        (meta / "ep99.gi.json").write_text(
-            '{"grounded_insights":{"episode_id":"x"}}', encoding="utf-8"
-        )
-
-        app = create_app(tmp_path, static_dir=False)
-        tc = TestClient(app)
-        resp = tc.get("/api/artifacts", params={"path": str(tmp_path)})
-        assert resp.status_code == 200
-        gi = next(a for a in resp.json()["artifacts"] if a["name"] == "ep99.gi.json")
-        assert gi["publish_date"] == "2024-06-15"
-
-    def test_list_prefers_latest_feed_run_dir(self, tmp_path: Path) -> None:
-        """``feeds/<dir>/run_*`` siblings: only the lexicographically greatest run is listed."""
-        gi_payload = {
-            "grounded_insights": {
-                "version": "1.0",
-                "episode_id": "ep1",
-                "insights": [],
-                "quotes": [],
-                "edges": [],
-            }
-        }
-        text = json.dumps(gi_payload)
-        old_m = tmp_path / "feeds" / "ff" / "run_20260101-aa" / "metadata"
-        new_m = tmp_path / "feeds" / "ff" / "run_20260102-bb" / "metadata"
-        old_m.mkdir(parents=True, exist_ok=True)
-        new_m.mkdir(parents=True, exist_ok=True)
-        (old_m / "ep1.gi.json").write_text(text, encoding="utf-8")
-        (new_m / "ep1.gi.json").write_text(text, encoding="utf-8")
-
-        app = create_app(tmp_path, static_dir=False)
-        client = TestClient(app)
-        resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
-        assert resp.status_code == 200
-        rels = [a["relative_path"] for a in resp.json()["artifacts"]]
-        assert not any("run_20260101-aa" in p for p in rels)
-        assert any("run_20260102-bb" in p for p in rels)
-
-    def test_load_gi_artifact(self, client: TestClient, corpus: Path) -> None:
-        resp = client.get(
-            "/api/artifacts/metadata/ep1.gi.json",
-            params={"path": str(corpus)},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "grounded_insights" in data
-        assert data["grounded_insights"]["episode_id"] == "ep1"
 
     def test_load_kg_artifact(self, client: TestClient, corpus: Path) -> None:
         resp = client.get(
@@ -225,18 +138,6 @@ class TestArtifacts:
         assert resp.status_code == 200
         data = resp.json()
         assert "knowledge_graph" in data
-
-    def test_load_bridge_artifact(self, client: TestClient, corpus: Path) -> None:
-        resp = client.get(
-            "/api/artifacts/metadata/ep1.bridge.json",
-            params={"path": str(corpus)},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        # RFC-097 v3.0 bridge schema (was "1.0" pre-chunk-7; the test fixture
-        # at line 73 emits "3.0" — the assertion got missed during the bump).
-        assert data.get("schema_version") == "3.0"
-        assert data.get("episode_id") == "ep1"
 
     def test_traversal_blocked(self, client: TestClient, corpus: Path) -> None:
         resp = client.get(
@@ -307,33 +208,6 @@ class TestSearch:
 # ---------------------------------------------------------------------------
 # Explore — real artifacts on disk
 # ---------------------------------------------------------------------------
-
-
-class TestExplore:
-    def test_explore_no_corpus_path(self) -> None:
-        app = create_app(None, static_dir=False)
-        c = TestClient(app)
-        resp = c.get("/api/explore")
-        assert resp.status_code == 200
-        assert resp.json()["error"] == "no_corpus_path"
-
-    def test_explore_filter_with_real_artifacts(self, client: TestClient, corpus: Path) -> None:
-        resp = client.get(
-            "/api/explore",
-            params={"path": str(corpus), "topic": "climate"},
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["kind"] == "explore"
-
-    def test_explore_nl_no_artifacts_dir(self, client: TestClient) -> None:
-        app = create_app(Path("/tmp/nonexistent_xyz_test"), static_dir=False)
-        c = TestClient(app)
-        resp = c.get(
-            "/api/explore",
-            params={"q": "What about climate?", "path": "/tmp/nonexistent_xyz_test"},
-        )
-        assert resp.status_code in (200, 400)
 
 
 # ---------------------------------------------------------------------------

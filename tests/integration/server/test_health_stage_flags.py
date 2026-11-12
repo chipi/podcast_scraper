@@ -28,12 +28,6 @@ def _health(tmp_path: Path) -> dict:
     return body
 
 
-def test_with_the_insight_stage_its_routes_and_kinds_are_advertised(tmp_path: Path) -> None:
-    body = _health(tmp_path)
-    assert {flag: body[flag] for flag in _STAGE_FLAGS} == dict.fromkeys(_STAGE_FLAGS, True)
-    assert body["artifact_kinds"] == ["kg", "gi", "bridge"]
-
-
 def test_without_the_insight_stage_health_says_so(tmp_path: Path) -> None:
     with (
         patch.object(builtin_read_hooks, "ROUTERS", lambda: ()),

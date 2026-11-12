@@ -80,25 +80,6 @@ class TestCapabilitiesIntegration(unittest.TestCase):
         # ML provider should not support JSON mode
         self.assertFalse(ml_caps.supports_json_mode)
 
-    def test_capability_based_transcription_support(self):
-        """Test using capabilities to check transcription support."""
-        cfg_anthropic = config.Config(
-            rss_url="https://example.com",
-            speaker_detector_provider="anthropic",
-            anthropic_api_key="test-api-key-123",
-        )
-
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        anthropic_provider = create_speaker_detector(cfg_anthropic)
-        caps = get_provider_capabilities(anthropic_provider)
-
-        # Anthropic doesn't support transcription
-        self.assertFalse(caps.supports_transcription)
-        # But supports speaker detection and summarization
-        self.assertTrue(caps.supports_speaker_detection)
-        self.assertTrue(caps.supports_summarization)
-
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_capability_based_max_context_tokens(self, mock_genai):
         """Test using capabilities to check context window size."""

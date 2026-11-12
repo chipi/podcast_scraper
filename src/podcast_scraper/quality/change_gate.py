@@ -427,11 +427,12 @@ def classify_written(
 
 
 def gating_moves(
-    before: Dict[str, int], after: Dict[str, int], config: Dict[str, Any]
+    before: Dict[str, int], after: Dict[str, int], metrics: Iterable[str]
 ) -> Dict[str, int]:
-    """Gating scoreboard numbers that moved, ``{metric: delta}``."""
+    """Gating scoreboard numbers that moved, ``{metric: delta}``; ``metrics`` are the installed
+    scoreboards' (``quality.scoreboard.gating_metrics``)."""
     return {
         m: int(after.get(m, 0)) - int(before.get(m, 0))
-        for m in config["gating_metrics"]
+        for m in metrics
         if int(after.get(m, 0)) != int(before.get(m, 0))
     }

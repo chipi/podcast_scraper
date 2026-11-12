@@ -648,13 +648,6 @@ def _install_job_age_metrics(app: FastAPI) -> None:
         enrichment_run_prometheus.install_enrichment_metrics(Path(corpus_root))
     except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
         logger.exception("job age gauge failed to install — continuing without")
-    # The naming coverage snapshot the batch finalize writes (#2304 S8); same corpus anchor.
-    try:
-        from podcast_scraper.quality import naming_coverage
-
-        naming_coverage.install_metrics(Path(corpus_root))
-    except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
-        logger.exception("naming coverage gauges failed to install — continuing without")
     # Which search-index rows a vector query would scan whole: rows no ANN index covers.
     try:
         from podcast_scraper.search import index_metrics

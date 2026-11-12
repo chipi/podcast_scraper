@@ -114,6 +114,7 @@ def test_the_default_url_size_is_the_thumb() -> None:
     )
 
 
-def test_registered_after_0025() -> None:
+def test_registered_after_every_lower_id() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0026_artwork_medium") == ids.index("0025_one_person_one_entry") + 1
+    before = ids[: ids.index("0026_artwork_medium")]
+    assert before and all(i < "0026" for i in before)

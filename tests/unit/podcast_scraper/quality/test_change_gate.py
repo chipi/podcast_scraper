@@ -255,10 +255,11 @@ def test_a_written_file_is_classed_by_what_changed_in_it() -> None:
 
 
 def test_any_gating_move_is_reported() -> None:
-    config = cg.load_config(REPO)
-    assert cg.gating_moves({"S1n_named_but_hidden": 5}, {"S1n_named_but_hidden": 5}, config) == {}
-    moves = cg.gating_moves({"S1n_named_but_hidden": 5, "quotes": 1}, {"quotes": 9}, config)
-    assert moves == {"S1n_named_but_hidden": -5}
+    metrics = ["X_hidden"]
+    assert cg.gating_moves({"X_hidden": 5}, {"X_hidden": 5}, metrics) == {}
+    # A missing number reads as 0, and a number that is not gating never moves the class.
+    moves = cg.gating_moves({"X_hidden": 5, "quotes": 1}, {"quotes": 9}, metrics)
+    assert moves == {"X_hidden": -5}
 
 
 def _hook():

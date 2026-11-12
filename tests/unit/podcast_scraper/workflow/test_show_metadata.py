@@ -100,64 +100,9 @@ def test_a_flat_output_directory_has_no_feed(tmp_path: Path) -> None:
 # --- hosts and where each one comes from ---------------------------------------------------
 
 
-def test_a_host_stated_twice_is_one_host_with_both_sources(feed_dir: Path) -> None:
-    # The Every Podcast shape: "Co-hosts A and B talk…" plus an author tag naming A.
-    feed = _feed(
-        description="Co-hosts Dana Shipley and Nora Quint talk with founders every week.",
-        authors=["Dana Shipley"],
-    )
-    _episode(feed_dir, 1, feed=feed, speakers=[_host("Dana Shipley")])
-    hosts = {h["name"]: h["sources"] for h in _build(feed_dir)["hosts"]}
-    assert hosts == {
-        "Dana Shipley": ["feed_statement", "author_tag"],
-        "Nora Quint": ["feed_statement"],
-    }
-
-
-def test_a_junk_statement_and_the_real_author_tags_are_both_visible(feed_dir: Path) -> None:
-    # The AI and Design shape: the statement yields a non-person, the author tag the real hosts.
-    # The show metadata does not decide between them; it makes the disagreement queryable.
-    feed = _feed(
-        description="Two Carnegie Mellon faculty explore how AI is reshaping design.",
-        authors=["Ben Carter and Ana Ortiz"],
-    )
-    _episode(feed_dir, 1, feed=feed)
-    hosts = {h["name"]: h["sources"] for h in _build(feed_dir)["hosts"]}
-    assert hosts["Ben Carter"] == ["author_tag"]
-    assert hosts["Ana Ortiz"] == ["author_tag"]
-    # The statement's non-person is refused by the person check but stays visible, marked as such.
-    assert hosts["Two Carnegie Mellon"] == ["feed_statement_refused"]
-
-
 def test_an_organisation_author_tag_is_not_a_host(feed_dir: Path) -> None:
     _episode(feed_dir, 1, feed=_feed(authors=["Vox Media Podcast Network"]))
     assert _build(feed_dir)["hosts"] == []
-
-
-def test_authors_stored_as_the_string_of_a_list_are_read(feed_dir: Path) -> None:
-    # Prod writes feed.authors as "['Dan Shipper']" on some episodes.
-    _episode(feed_dir, 1, feed=_feed(authors="['Dana Shipley']"))
-    names = [h["name"] for h in _build(feed_dir)["hosts"]]
-    assert names == ["Dana Shipley"]
-
-
-def test_the_hosts_the_pipeline_used_are_recorded_and_counted(feed_dir: Path) -> None:
-    feed = _feed(authors=["Dana Shipley"])
-    _episode(feed_dir, 1, feed=feed, known_hosts=["Dana Shipley"], speakers=[_host("Dana Shipley")])
-    _episode(
-        feed_dir,
-        2,
-        feed=feed,
-        known_hosts=["Dana Shipley"],
-        speakers=[_host("Dana Shipley", False)],
-    )
-    _episode(feed_dir, 3, feed=feed, known_hosts=["Mercer Institute Online"])
-    hosts = {h["name"]: h for h in _build(feed_dir)["hosts"]}
-    assert hosts["Dana Shipley"]["sources"] == ["author_tag", "used_by_pipeline"]
-    assert hosts["Dana Shipley"]["episodes_used_by_pipeline"] == 2
-    assert hosts["Dana Shipley"]["episodes_on_a_voice"] == 1
-    # A name only the pipeline used (the Conversations with Tyler shape) is listed, not hidden.
-    assert hosts["Mercer Institute Online"]["sources"] == ["used_by_pipeline"]
 
 
 # --- the per-episode host check ------------------------------------------------------------

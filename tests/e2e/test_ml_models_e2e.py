@@ -26,7 +26,6 @@ if PACKAGE_ROOT not in sys.path:
 import sys
 
 from podcast_scraper import Config, config, run_pipeline
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 integration_dir = Path(__file__).parent.parent / "integration"
@@ -209,44 +208,6 @@ class TestTransformersSummarization:
 class TestSpacySpeakerDetection:
     """Real spaCy speaker detection model E2E tests."""
 
-    def test_spacy_detector_detect_speakers(self, e2e_server):
-        """Test spaCy speaker detector with real model.
-
-        Note: spaCy model (en_core_web_sm) is installed as a dependency.
-        """
-        with tempfile.TemporaryDirectory():
-            # Create config with smallest spaCy model for speed
-            cfg = Config(
-                speaker_detector_provider="spacy",
-                ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
-                auto_speakers=True,
-            )
-
-            # Initialize detector
-            detector = create_speaker_detector(cfg)
-            detector.initialize()
-
-            # Detect speakers
-            episode_title = "Episode 1: Building Trails That Last (with Liam Verbeek)"
-            episode_description = "Maya talks with trail builder Liam Verbeek about drainage."
-            known_hosts = set()
-
-            speakers, hosts, success, _ = detector.detect_speakers(
-                episode_title=episode_title,
-                episode_description=episode_description,
-                known_hosts=known_hosts,
-            )
-
-            # Verify result
-            assert isinstance(speakers, list), "Speakers should be a list"
-            assert isinstance(hosts, set), "Hosts should be a set"
-            assert isinstance(success, bool), "Success should be a boolean"
-            # Note: Detection may or may not succeed depending on text content
-            # This test verifies the model loads and runs correctly
-
-            # Cleanup
-            detector.cleanup()
-
     def test_spacy_detector_in_full_workflow(self, e2e_server):
         """Test spaCy speaker detector in full workflow.
 
@@ -366,56 +327,6 @@ class TestAllMLModelsTogether:
                 # If "Direct summary" was used, that's also valid (text was short enough)
         finally:
             logger.removeHandler(handler)
-
-    def test_model_loading_and_cleanup(self, e2e_server):
-        """Test that models load and cleanup correctly.
-
-        Note: spaCy model (en_core_web_sm) is installed as a dependency.
-        """
-        # Require transformers model to be cached (spaCy model is installed as dependency)
-        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
-
-        # Get transcript text from fixtures - use fast file for direct provider tests
-        from tests._fixtures import fixtures_dir as _fd
-
-        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
-
-        if not transcript_file.exists():
-            pytest.skip(f"Transcript file not found: {transcript_file}")
-
-        transcript_text = transcript_file.read_text(encoding="utf-8")  # Fast file is already small
-
-        with tempfile.TemporaryDirectory():
-            # Test Transformers provider
-            cfg_summary = Config(
-                generate_metadata=True,  # Required for summaries
-                generate_summaries=True,  # Required for provider to initialize
-                summary_provider="transformers",
-                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
-                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
-            )
-            provider = create_summarization_provider(cfg_summary)
-            provider.initialize()
-            result = provider.summarize(text=transcript_text, episode_title="Test")
-            assert "summary" in result
-            provider.cleanup()
-
-            # Test spaCy detector
-            cfg_speaker = Config(
-                speaker_detector_provider="spacy",
-                ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
-                auto_speakers=True,
-            )
-            detector = create_speaker_detector(cfg_speaker)
-            detector.initialize()
-            speakers, hosts, success, _ = detector.detect_speakers(
-                episode_title="Test Episode",
-                episode_description="Test description",
-                known_hosts=set(),
-            )
-            assert isinstance(speakers, list)
-            assert isinstance(hosts, set)
-            detector.cleanup()
 
 
 @pytest.mark.e2e

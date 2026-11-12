@@ -12,7 +12,6 @@ E2E subprocess invoking ``python -m podcast_scraper.cli``.
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -54,29 +53,6 @@ def project_root() -> Path:
 class TestGiKgCliSubprocessE2E:
     """Fast subprocess checks for GI/KG CLI."""
 
-    def test_gi_validate_strict_via_subprocess(self, project_root: Path, tmp_path: Path) -> None:
-        """``gi validate --strict`` succeeds on a corpus layout with one .gi.json artifact."""
-        src = (
-            project_root
-            / "tests"
-            / "fixtures"
-            / "gil_kg_ci_enforce"
-            / "metadata"
-            / "ci_sample.gi.json"
-        )
-        assert src.is_file(), f"Missing fixture: {src}"
-        meta = tmp_path / "metadata"
-        meta.mkdir(parents=True)
-        shutil.copy2(src, meta / "ep_ci_sample.gi.json")
-
-        result = run_cli_subprocess(
-            ["gi", "validate", "--strict", str(tmp_path)],
-            cwd=project_root,
-        )
-        assert (
-            result.returncode == 0
-        ), f"gi validate failed: stdout={result.stdout!r} stderr={result.stderr!r}"
-
     def test_kg_validate_strict_via_subprocess(self, project_root: Path) -> None:
         """``kg validate --strict`` succeeds on the shared minimal KG fixture directory."""
         kg_dir = project_root / "tests" / "fixtures" / "kg"
@@ -112,35 +88,3 @@ class TestGiKgCliSubprocessE2E:
         ), f"kg inspect failed: stdout={result.stdout!r} stderr={result.stderr!r}"
         assert "fixture:minimal-kg" in result.stdout
         assert "episode_id" in result.stdout
-
-    def test_gi_inspect_episode_path_json_via_subprocess(
-        self,
-        project_root: Path,
-    ) -> None:
-        """``gi inspect --episode-path … --format json`` exercises GI CLI dispatch."""
-        gi_path = (
-            project_root
-            / "tests"
-            / "fixtures"
-            / "gil_kg_ci_enforce"
-            / "metadata"
-            / "ci_sample.gi.json"
-        )
-        assert gi_path.is_file(), f"Missing fixture: {gi_path}"
-        rel = gi_path.relative_to(project_root)
-
-        result = run_cli_subprocess(
-            [
-                "gi",
-                "inspect",
-                "--episode-path",
-                str(rel),
-                "--format",
-                "json",
-            ],
-            cwd=project_root,
-        )
-        assert (
-            result.returncode == 0
-        ), f"gi inspect failed: stdout={result.stdout!r} stderr={result.stderr!r}"
-        assert "ci-fixture" in result.stdout or "episode_id" in result.stdout

@@ -62,7 +62,6 @@ from ..common.transcript_cache import openai_style_messages as _openai_style_mes
 from ._grok_provider_calls import (  # noqa: F401 - re-exported: moved there with S1
     _record_grok_llm_call,
 )
-from .grok_provider_gi_naming import GrokProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Grok models lives in ``config/pricing_assumptions.yaml`` (#651).
 

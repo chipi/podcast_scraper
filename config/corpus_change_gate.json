@@ -28,15 +28,5 @@
       "episode.language"
     ]
   },
-  "gating_metrics": [
-    "S1_hidden_unknown",
-    "S1n_named_but_hidden",
-    "S1c_inconsistent",
-    "S2_hidden",
-    "S3_principal_unidentified",
-    "S10a_zero_visible",
-    "S10b_zero_visible_panel",
-    "S12_quotes_off_text",
-    "A1_marker_hits"
-  ]
+  "_gating_doc": "The gating metrics come from the installed corpus scoreboards (podcast_scraper.quality.scoreboard), not from this file."
 }

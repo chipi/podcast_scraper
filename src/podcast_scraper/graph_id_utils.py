@@ -455,3 +455,15 @@ def normalized_entity_kind_from_node(node: Dict[str, Any]) -> str:
     if raw_ek == "person":
         return "person"
     return "person"
+
+
+def strip_layer_prefixes(raw_id: str) -> str:
+    """A graph node id without the viewer's layer prefix (``g:`` GI, ``k:`` / ``kg:`` KG)."""
+    s = str(raw_id).strip()
+    if s.startswith("g:"):
+        s = s[2:]
+    if s.startswith("k:") and not s.startswith("kg:"):
+        s = s[2:]
+    if s.startswith("kg:"):
+        s = s[3:]
+    return s

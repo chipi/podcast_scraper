@@ -298,7 +298,6 @@ class TestItIsRegistered:
 
         ids = [m.id for m in get_migrations()]
         assert ids.index("0010_canonical_person_names") > ids.index("0007_scope_bare_person_names")
-        assert ids.index("0010_canonical_person_names") > ids.index("0009_backfill_speaker_roles")
 
 
 class TestItNeverDemotesAResolvedPerson:

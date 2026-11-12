@@ -18,7 +18,6 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search import relational_queries as rq
 from podcast_scraper.search.corpus_graph import CorpusGraph
 
 pytestmark = pytest.mark.integration

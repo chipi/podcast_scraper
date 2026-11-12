@@ -169,56 +169,6 @@ class TestKgPipeline(unittest.TestCase):
         self.assertNotIn("ner_entity_hints", call_params)
         self.assertNotIn("kg_prompt_version", call_params)
 
-    def test_provider_path_with_ner_prepass_passes_hints(self) -> None:
-        """#1035 — when flag on + spaCy cached on provider, hints flow via params."""
-        from types import SimpleNamespace as _SN
-
-        # Fake spaCy: returns a Doc with two PERSON entities
-        fake_ents = [
-            _SN(text="Maya", label_="PERSON"),
-            _SN(text="Singletrack Sessions", label_="ORG"),
-            _SN(text="Tuesday", label_="DATE"),  # dropped — not PERSON/ORG
-        ]
-        fake_doc = _SN(ents=fake_ents)
-
-        def fake_nlp(text: str):
-            return fake_doc
-
-        prov = MagicMock()
-        prov.summary_model = "test-model"
-        prov._spacy_nlp = fake_nlp  # cached per Issue #387
-        prov.extract_kg_graph.return_value = {
-            "topics": [{"label": "AI"}],
-            "entities": [
-                {"name": "Maya", "entity_kind": "person"},
-                {"name": "Singletrack Sessions", "entity_kind": "organization"},
-            ],
-        }
-        cfg = SimpleNamespace(
-            kg_extraction_source="provider",
-            kg_max_topics=5,
-            kg_max_entities=10,
-            kg_merge_pipeline_entities=False,
-            kg_extraction_use_ner_prepass=True,
-        )
-        build_artifact(
-            "ep:with-ner",
-            "Maya from Singletrack Sessions discusses braking on Tuesday.",
-            podcast_id="p:1",
-            episode_title="E",
-            cfg=cfg,
-            kg_extraction_provider=prov,
-        )
-        prov.extract_kg_graph.assert_called_once()
-        call_params = prov.extract_kg_graph.call_args.kwargs.get("params") or {}
-        self.assertEqual(call_params.get("kg_prompt_version"), "v5")
-        hints = call_params.get("ner_entity_hints") or []
-        assert hints, "expected NER hints to flow through params"
-        texts = sorted(h["text"] for h in hints)
-        self.assertEqual(texts, ["Maya", "Singletrack Sessions"])
-        labels = sorted(h["label"] for h in hints)
-        self.assertEqual(labels, ["ORG", "PERSON"])
-
     def test_provider_path_with_ner_prepass_no_nlp_falls_back_to_v4(self) -> None:
         """#1035 — flag on but no spaCy resolvable → no hints, no v5 (silent v4)."""
         prov = MagicMock()

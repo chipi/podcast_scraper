@@ -215,23 +215,6 @@ from ._openai_provider_calls import (  # noqa: F401 - re-exported: moved there w
     _openai_response_cost_usd,
     _repetition_signal,
 )
-from .openai_provider_gi_naming import (  # noqa: F401 - re-exported: moved there with S1
-    _as_known_host,
-    _BUNDLE_CAPTURE_DIR,
-    _BUNDLE_CAPTURE_MAX_CHARS,
-    _BUNDLE_KEY_RE,
-    _capture_bundle_failure,
-    _clip_speaker_description,
-    _DECODING_LOOP_MIN_REPEATS,
-    _fold_name,
-    _is_decoding_loop,
-    _JSON_STRING_RE,
-    _record_openai_summarization_call,
-    _salvage_closed_quotes,
-    _SPEAKER_DESCRIPTION_MAX_CHARS,
-    _tail_degeneracy,
-    OpenAICompatibleProviderGiNamingMethods,
-)
 
 
 class OpenAICompatibleProvider(ExtensibleProvider):

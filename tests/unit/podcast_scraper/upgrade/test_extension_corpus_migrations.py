@@ -45,7 +45,7 @@ def test_an_extension_migration_sorts_into_the_one_sequence() -> None:
 @pytest.mark.parametrize(
     "mid, refusal",
     [
-        ("0031_again", "is already"),  # a number this package uses
+        ("0021_again", "is already"),  # a number this package uses
         ("0032_reused", "retired"),
         ("9001", "NNNN_name"),
         ("12_short", "NNNN_name"),

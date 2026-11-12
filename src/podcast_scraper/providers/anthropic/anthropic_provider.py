@@ -60,7 +60,6 @@ from ._anthropic_provider_calls import (  # noqa: F401 - re-exported: moved ther
     _anthropic_finish_reason,
     _record_anthropic_llm_call,
 )
-from .anthropic_provider_gi_naming import AnthropicProviderGiNamingMethods  # noqa: F401
 
 # Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
 

@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-kg-schema kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict upgrade-undo-roles
 
 help:
 	@echo "Common developer commands:"
@@ -107,10 +107,7 @@ help:
 	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
 	@echo "  make check-test-policy   Enforce 3-tier ML/AI testing policy (no importorskip in unit, etc.)"
 	@echo "  make check-pricing-assumptions  Show config/pricing_assumptions.yaml status (optional --strict)"
-	@echo "  make validate-gi-schema [ARTIFACTS_DIR=path]  Validate gi.json files against GIL schema (strict)"
 	@echo "  make validate-kg-schema [ARTIFACTS_DIR=path]  Validate kg.json files against KG schema (strict)"
-	@echo "  make gil-quality-metrics [DIR=path]  PRD-017 metrics over .gi.json (optional --enforce via ARGS)"
-	@echo "  make compare-gil-runs REF=run1 CAND=run2  Compare GIL gi.json stats between two run roots"
 	@echo "  make kg-quality-metrics [DIR=path]   PRD-019 metrics over .kg.json (optional --enforce via ARGS)"
 	@echo "  make quality-metrics-ci              GIL+KG enforce on tests/fixtures/gil_kg_ci_enforce (matches CI)"
 	@echo "  make fetch-ci-metrics [N=40]       Download metrics/ artifacts from last N successful main runs (needs gh; default N=40)"
@@ -744,16 +741,6 @@ check-pricing-assumptions:
 	$(PYTHON) scripts/validate/check_profile_pricing_coverage.py
 	$(PYTHON) scripts/validate/check_pricing_yaml_bundled_sync.py
 
-validate-gi-schema:
-	# Validate gi.json files against docs/architecture/gi/gi.schema.json (strict mode).
-	# Usage: make validate-gi-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
-	# E2E tests that produce gi.json also run strict validation inline (ci-fast covers them).
-	@if [ -n "$(ARTIFACTS_DIR)" ]; then \
-		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_gi_schema.py "$(ARTIFACTS_DIR)"; \
-	else \
-		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_gi_schema.py tests/fixtures; \
-	fi
-
 validate-kg-schema:
 	# Validate kg.json files against docs/architecture/kg/kg.schema.json (strict mode).
 	# Usage: make validate-kg-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
@@ -1364,15 +1351,6 @@ upgrade-verify:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
 
-# Speaker/role coherence over a corpus, and what m0009 WOULD do to it (#2065 advisor S5).
-# The post-deploy runbook's verification steps had no commands behind them: "re-run the migration
-# and expect 0/0" is blocked by the upgrade ledger, and `check_corpus` had no CLI.
-#   make speaker-coherence CORPUS_DIR=<corpus>              # is the corpus self-consistent now
-#   make speaker-migration-preview CORPUS_DIR=<corpus>      # dry-run m0009, bypassing the ledger
-# The preview prints the two classes that need a human — SUSPECT demotions (the node had a voice,
-# which is what an eponymous-show host looks like) and AMBIGUOUS nodes — plus a node-level role
-# TRANSITION table. The violation count alone cannot see a wrongful demotion: the coherence checks
-# share the migration's own predicates, so a wrong demotion scores as a violation FIXED.
 # Roll back the role changes m0009 made, from the ledger it wrote (#2069). Refuses any node that
 # something else has written since — a rollback that overwrites a later re-enrich is a regression
 # wearing a rollback's clothes — and reports those rather than forcing.
@@ -1380,38 +1358,6 @@ upgrade-verify:
 upgrade-undo-roles:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) scripts/ops/undo_speaker_roles.py --corpus-dir "$${CORPUS_DIR}"
-
-speaker-coherence:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/speaker_coherence_report.py --corpus-dir "$${CORPUS_DIR}"
-
-# Does every episode's metadata point at ITS OWN transcript? (#2082)
-# A reprocess used to take `idx` from the episode's FILENAME, and every run dir numbers from 0001 —
-# so a feed with fourteen run dirs has fourteen "episode 1"s, and `idx` keys per-episode state.
-# They collided: metadata written for one episode carrying another's transcript, and the roster
-# computed from that other episode's words. On the 2026-09-14 snapshot, 275 of 2,256 files (12.2%)
-# and 119 confirmed crediting another episode's people.
-# RUN THIS BEFORE ANY MIGRATION: every measurement the post-deploy runbook takes reads
-# `content.speakers`, which on an affected episode describes a different episode.
-#   make transcript-pairing-audit CORPUS_DIR=<corpus>
-# Read-only. Exits 1 when any mismatch is found, so it can gate a deploy step.
-transcript-pairing-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/transcript_pairing_audit.py --corpus-dir "$${CORPUS_DIR}"
-
-# #2075: is every episode's people surface in sync with its speaker record?
-# Checks the transcript's speaker names, quote attribution (gi.json) and cast (kg.json) against
-# `content.speakers`. Pre-1.2.0 artifacts are skipped unless LEGACY=1.
-#   make speaker-sync-audit CORPUS_DIR=<corpus> [LEGACY=1]
-# Read-only. Exits 1 when any episode is out of sync, so it can gate a validation run.
-speaker-sync-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/speaker_sync_audit.py --corpus-dir "$${CORPUS_DIR}" $(if $(LEGACY),--legacy-as-placed,)
-
-speaker-migration-preview:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/speaker_coherence_report.py --corpus-dir "$${CORPUS_DIR}" \
-		--migration-preview --roles
 
 # Run the RFC-088 enrichment layer over a corpus (#1127). Invokes the
 # `podcast_scraper.cli enrich` subcommand — the same verb a manual job / cron
@@ -1541,23 +1487,6 @@ verify-gil-offsets-after-acceptance:
 	fi; \
 	echo "OK: verified GIL vs indexed transcript offsets for $$n acceptance run(s)"
 
-gil-quality-metrics:
-	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
-	# Usage: make gil-quality-metrics DIR=path/to/run [ARGS='--enforce --json']
-	@if [ -z "$(DIR)" ]; then \
-		echo "DIR is required (e.g. make gil-quality-metrics DIR=./output)"; exit 2; \
-	fi
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(DIR)" $(ARGS)
-
-compare-gil-runs:
-	# Compare GIL outcomes between two pipeline run directories (metadata/*.gi.json).
-	# Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run
-	# See scripts/tools/compare_gil_runs.py
-	@if [ -z "$(REF)" ] || [ -z "$(CAND)" ]; then \
-		echo "Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run"; exit 2; \
-	fi
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/compare_gil_runs.py "$(REF)" "$(CAND)"
-
 kg-quality-metrics:
 	# PRD-019 KG quality metrics over .kg.json (see scripts/tools/kg_quality_metrics.py).
 	@if [ -z "$(DIR)" ]; then \
@@ -1597,8 +1526,8 @@ search-quality-reseed:
 	@echo "  git diff --stat $(SEARCH_CORPUS)/search-queries.json"
 
 quality-metrics-ci:
-	# Same GIL+KG enforce as GitHub Actions test-unit job (committed fixtures).
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-extraction-coverage 1.0 --min-grounded-insight-rate 1.0 --min-quote-validity-rate 1.0 --min-avg-insights 1 --min-avg-quotes 1
+	# Same KG enforce as GitHub Actions test-unit job (committed fixtures); the GIL half runs
+	# where GI lives (E04 move).
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:

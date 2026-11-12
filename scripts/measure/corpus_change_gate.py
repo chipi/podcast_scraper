@@ -37,7 +37,12 @@ from podcast_scraper.quality.change_gate import (  # noqa: E402
     gating_moves,
     load_config,
 )
-from podcast_scraper.quality.corpus_scoreboard import score_corpus  # noqa: E402
+from podcast_scraper.quality.scoreboard import (  # noqa: E402
+    gating_metrics,
+    require_scoreboard,
+    score_corpus,
+    ScoreboardMissing,
+)
 from podcast_scraper.upgrade import outcome_hook  # noqa: E402
 from podcast_scraper.upgrade.migration import MigrationContext  # noqa: E402
 from podcast_scraper.upgrade.registry import get_migrations  # noqa: E402
@@ -137,6 +142,12 @@ def main() -> int:
     if args.work.exists():
         print(f"--work must not exist: {args.work}", file=sys.stderr)
         return 2
+    try:
+        require_scoreboard(args.clone)
+    except ScoreboardMissing as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    metrics = gating_metrics()
     # The outcome records the migrations the clone held; its ledger must say so truthfully (a
     # migration applied directly, as this script applies, is not in the ledger by itself).
     applied = FilesystemStateStore(args.clone).applied_migration_ids()
@@ -167,7 +178,7 @@ def main() -> int:
     )
     written = [(rel, _read(args.clone / rel), _read(args.work / rel)) for rel in changed]
     file_class, reasons = classify_written(written, config)
-    moves = gating_moves(before, after, config)
+    moves = gating_moves(before, after, metrics)
     computed = "full" if file_class == "full" or moves else "light"
     by_suffix: Dict[str, int] = {}
     for rel in changed:
@@ -196,7 +207,8 @@ def main() -> int:
         "applied_before": sorted(applied),
         "code_digest": outcome_hook.migration_digest(migration),
         "verdicts_sha256": _verdicts_sha(migration),
-        "episode_deltas": outcome_hook.deltas(before_ep, after_ep, config["gating_metrics"]),
+        "gating_metrics": metrics,
+        "episode_deltas": outcome_hook.deltas(before_ep, after_ep, metrics),
         "plan": plan,
         "plan_sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
         "targets": {"before": _targets(planned), "after": _targets(left)},

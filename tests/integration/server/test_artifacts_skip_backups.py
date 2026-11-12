@@ -23,46 +23,6 @@ BOOKKEEPING = (
 )
 
 
-def test_the_artifact_listing_ignores_backups(tmp_path: Path) -> None:
-    for stem in (LIVE, *BOOKKEEPING):
-        for suffix in (".gi.json", ".kg.json", ".metadata.json"):
-            path = tmp_path / f"{stem}{suffix}"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
-    client = TestClient(create_app(tmp_path, static_dir=False))
-    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
-    assert resp.status_code == 200
-    listed = {a["relative_path"] for a in resp.json()["artifacts"]}
-    assert listed == {f"{LIVE}.gi.json", f"{LIVE}.kg.json"}
-
-
-def test_only_the_latest_run_is_listed_and_only_it_costs_a_publish_date(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The latest-run filter runs BEFORE the per-file work (2026-10-15: a publish date for each of
-    9,531 files, of which 1,191 were listed, was 2.7 s of an 8.5 s listing)."""
-    for run in ("run_1", "run_2", "run_3"):
-        for suffix in (".gi.json", ".kg.json", ".bridge.json"):
-            path = tmp_path / f"feeds/f/{run}/metadata/ep{suffix}"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
-    dated: list[str] = []
-
-    def spy(base, rel, mtime):
-        dated.append(rel)
-        return "2026-10-15"
-
-    monkeypatch.setattr(
-        "podcast_scraper.server.routes.artifacts.publish_calendar_date_for_artifact_listing", spy
-    )
-    client = TestClient(create_app(tmp_path, static_dir=False))
-    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
-    assert resp.status_code == 200
-    latest = {f"feeds/f/run_3/metadata/ep{s}" for s in (".bridge.json", ".gi.json", ".kg.json")}
-    assert [a["relative_path"] for a in resp.json()["artifacts"]] == sorted(latest)
-    assert sorted(dated) == sorted(latest)
-
-
 def test_concurrent_listings_of_one_corpus_compute_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -98,35 +58,6 @@ def test_concurrent_listings_of_one_corpus_compute_once(
     assert calls == [1]
 
 
-def test_every_member_episode_is_listed_newest_copy_only(tmp_path: Path) -> None:
-    """Prod writes one run per nightly with that night's episodes, named
-    ``run_<uuid>_<timestamp>_<hash>``. Keeping the run whose NAME sorted highest listed 289 of
-    3,668 GI files on snapshot-prod-20261103, and in 70 of 80 multi-run feeds not even the newest.
-    The listing now follows the central membership rule, as the CIL readers do."""
-    older = "feeds/f/run_ffff0000-0000-0000-0000-000000000000_20260101-000000_aaaa/metadata"
-    newer = "feeds/f/run_00000000-0000-0000-0000-00000000ffff_20260201-000000_bbbb/metadata"
-    episodes = {
-        f"{older}/only_old": "ep_old",
-        f"{older}/both": "ep_both",
-        f"{newer}/both": "ep_both",
-        f"{newer}/only_new": "ep_new",
-    }
-    for stem, eid in episodes.items():
-        for suffix in (".gi.json", ".kg.json", ".bridge.json"):
-            path = tmp_path / f"{stem}{suffix}"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
-        (tmp_path / f"{stem}.metadata.json").write_text(
-            json.dumps({"feed": {"feed_id": "f"}, "episode": {"episode_id": eid}}),
-            encoding="utf-8",
-        )
-    client = TestClient(create_app(tmp_path, static_dir=False))
-    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
-    assert resp.status_code == 200
-    gi = {a["relative_path"] for a in resp.json()["artifacts"] if a["kind"] == "gi"}
-    assert gi == {f"{older}/only_old.gi.json", f"{newer}/both.gi.json", f"{newer}/only_new.gi.json"}
-
-
 def test_without_the_insight_stage_only_kg_artifacts_are_listed(tmp_path: Path) -> None:
     from unittest.mock import patch
 
@@ -147,3 +78,66 @@ def test_without_the_insight_stage_only_kg_artifacts_are_listed(tmp_path: Path) 
         assert {a["relative_path"] for a in resp.json()["artifacts"]} == {f"{LIVE}.kg.json"}
         gi = client.get(f"/api/artifacts/{LIVE}.gi.json", params={"path": str(tmp_path)})
         assert gi.status_code == 400
+
+
+def test_backups_are_not_listed_kg_only(tmp_path: Path) -> None:
+    """Public's own kind: backup and trash copies of a kg.json are never listed."""
+    for stem in (LIVE, *BOOKKEEPING):
+        for suffix in (".kg.json", ".metadata.json"):
+            path = tmp_path / f"{stem}{suffix}"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
+    assert resp.status_code == 200
+    assert {a["relative_path"] for a in resp.json()["artifacts"]} == {f"{LIVE}.kg.json"}
+
+
+def test_only_the_latest_run_is_listed_kg_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The latest-run filter runs before the per-file publish-date work."""
+    for run in ("run_1", "run_2", "run_3"):
+        path = tmp_path / f"feeds/f/{run}/metadata/ep.kg.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
+    dated: list[str] = []
+
+    def spy(base, rel, mtime):
+        dated.append(rel)
+        return "2026-10-15"
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.artifacts.publish_calendar_date_for_artifact_listing", spy
+    )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
+    assert resp.status_code == 200
+    latest = ["feeds/f/run_3/metadata/ep.kg.json"]
+    assert [a["relative_path"] for a in resp.json()["artifacts"]] == latest
+    assert dated == latest
+
+
+def test_every_member_episode_is_listed_newest_copy_only_kg(tmp_path: Path) -> None:
+    """The central membership rule, on kg.json: each episode once, from its newest run."""
+    older = "feeds/f/run_ffff0000-0000-0000-0000-000000000000_20260101-000000_aaaa/metadata"
+    newer = "feeds/f/run_00000000-0000-0000-0000-00000000ffff_20260201-000000_bbbb/metadata"
+    episodes = {
+        f"{older}/only_old": "ep_old",
+        f"{older}/both": "ep_both",
+        f"{newer}/both": "ep_both",
+        f"{newer}/only_new": "ep_new",
+    }
+    for stem, eid in episodes.items():
+        path = tmp_path / f"{stem}.kg.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
+        (tmp_path / f"{stem}.metadata.json").write_text(
+            json.dumps({"feed": {"feed_id": "f"}, "episode": {"episode_id": eid}}),
+            encoding="utf-8",
+        )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
+    assert resp.status_code == 200
+    kg = {a["relative_path"] for a in resp.json()["artifacts"] if a["kind"] == "kg"}
+    assert kg == {f"{older}/only_old.kg.json", f"{newer}/both.kg.json", f"{newer}/only_new.kg.json"}

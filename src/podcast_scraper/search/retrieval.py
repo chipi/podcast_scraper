@@ -7,7 +7,7 @@ slot below without touching this layer's contract (RFC-090 KD-1).
 
 from __future__ import annotations
 
-from typing import List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, TYPE_CHECKING
 
 from .backend import SearchBackend, SearchQuery, Tier
 from .dedup import deduplicate, Result
@@ -15,7 +15,6 @@ from .fusion import rrf_fuse
 from .router import classify_query, signal_weights_for, tier_weights_for
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from ..identity.resolver import EntityResolver
     from .kg_proximity import KGProximitySearch
     from .query_router import QueryRouter
 
@@ -28,7 +27,7 @@ class RetrievalLayer:
         backend: SearchBackend,
         *,
         kg_proximity: "Optional[KGProximitySearch]" = None,
-        entity_resolver: "Optional[EntityResolver]" = None,
+        entity_resolver: Optional[Any] = None,
         router: "Optional[QueryRouter]" = None,
     ):
         self.backend = backend

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 from pathlib import Path
@@ -66,12 +67,30 @@ router = APIRouter(tags=["corpus"])
 # real per-episode sidecars for every episode in the corpus — the endpoint returned 200 with a
 # full payload for an enricher this list said was unavailable. A consumer trusting the flags
 # could not discover half the per-episode enrichment that existed.
-#
-# Kept as an explicit tuple (the request path must not import the enrichment registry), but
-# ``tests/unit/podcast_scraper/server/test_enrichments_available_matches_registry.py`` asserts
-# it equals the registry's episode-scope ids, so the next enricher added cannot drift out of
-# it silently — the drift fails CI instead of under-reporting in production.
-_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("insight_density", "insight_sentiment")
+
+
+@functools.lru_cache(maxsize=1)
+def episode_scope_enricher_ids() -> tuple[str, ...]:
+    """Every installed deterministic episode-scope enricher id, platform first.
+
+    Read from the installed enrichers' class-level manifests (the platform's, then each
+    extension's), so the list follows what is installed and the request path never builds the
+    enrichment registry. ``test_enrichments_available_matches_registry.py`` asserts it equals the
+    registry's deterministic episode-scope ids.
+    """
+    from podcast_scraper.enrichment.enrichers import PUBLIC_ENRICHER_CLASSES
+    from podcast_scraper.enrichment.protocol import EnricherScope, EnricherTier
+    from podcast_scraper.extensions import enrichment_contributions
+
+    classes = list(PUBLIC_ENRICHER_CLASSES) + [
+        cls for c in enrichment_contributions() for cls in c.enricher_classes()
+    ]
+    return tuple(
+        cls.manifest.id
+        for cls in classes
+        if cls.manifest.scope is EnricherScope.EPISODE
+        and cls.manifest.tier is EnricherTier.DETERMINISTIC
+    )
 
 
 def _resolve_episode_enrichments_available(
@@ -83,12 +102,12 @@ def _resolve_episode_enrichments_available(
     """
     rel = (metadata_relpath or "").strip()
     if not rel or not rel.endswith(".metadata.json"):
-        return {eid: False for eid in _EPISODE_SCOPE_ENRICHER_IDS}
+        return {eid: False for eid in episode_scope_enricher_ids()}
     meta_path = corpus_root / rel
     stem = meta_path.name[: -len(".metadata.json")]
     enrich_dir = meta_path.parent / "enrichments"
     return {
-        eid: (enrich_dir / f"{stem}.{eid}.json").is_file() for eid in _EPISODE_SCOPE_ENRICHER_IDS
+        eid: (enrich_dir / f"{stem}.{eid}.json").is_file() for eid in episode_scope_enricher_ids()
     }
 
 

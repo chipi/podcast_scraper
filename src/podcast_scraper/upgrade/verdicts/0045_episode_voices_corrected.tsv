@@ -1,8 +1,0 @@
-# migration: 0045_episode_voices_corrected
-# reviewed_commit: c3feed13f
-# list_sha256: 4beb62b8361aea75c2d1ffba3039b73c67d4f28c1af78eaf9ba773ade0823eb6
-# reviewer: fresh blind reader (Sonnet), packet with the title, description and the voice's first 20 segments; deciding segment by index and sha256
-# date: 2026-11-04
-episode_id	meta	voice	name	verdict	evidence	basis	segment_idx	line_sha256
-a02c151a-dde6-4804-9827-a3df80b8352c	feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.metadata.json	SPEAKER_01	Jill Lepore	WRONG_PERSON	the segments read are co-host talk, not the guest	another_person	14	4a5a1bd1997dcad53b586294096bc96d218e05180e9a8da0161d45a92c8f4052
-a02c151a-dde6-4804-9827-a3df80b8352c	feeds/rss_feeds.simplecast.com_2e104dc7/run_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2/metadata/0001 - OpenAI_s Two-Week Pause _ Jill L_e1b90677-bbd3-42c2-81ad-61466098c322_20260826-210320_285e51f2.metadata.json	SPEAKER_02	Kevin Roose	CORRECT	states own employer and the show's disclosure; the host	self_intro	23	0de3f4374bf4966195899713ca73d3064872e5509bedb9967572509e5e623cdc

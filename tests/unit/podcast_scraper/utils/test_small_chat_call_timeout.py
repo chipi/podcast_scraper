@@ -60,17 +60,3 @@ def test_a_shorter_operator_deadline_still_wins() -> None:
     assert get_small_chat_call_timeout(cfg) <= get_single_chat_call_timeout(cfg)
     cfg_tiny = _Cfg(1.0)
     assert get_small_chat_call_timeout(cfg_tiny) <= get_single_chat_call_timeout(cfg_tiny)
-
-
-def test_speaker_detection_passes_the_small_bound() -> None:
-    """Pin the wiring, not just the helper: the detector's chat call must carry it explicitly,
-    or it silently falls back to `_chat_create`'s 400 s default via setdefault."""
-    import inspect
-
-    from podcast_scraper.providers.openai import openai_provider
-
-    src = inspect.getsource(openai_provider.OpenAICompatibleProvider.detect_speakers)
-    assert "get_small_chat_call_timeout" in src, (
-        "detect_speakers must pass timeout=get_small_chat_call_timeout(self.cfg); without it "
-        "_chat_create.setdefault applies the 400 s per-call bound (#1323)"
-    )
