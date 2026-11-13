@@ -92,6 +92,16 @@ export interface FeedCoverageColumn extends Entry {
 
 export const feedCoverageColumns = extensionPoint<FeedCoverageColumn>('feedCoverageColumns')
 
+/**
+ * A section at the bottom of each dashboard topic briefing card, rendered with the card's
+ * `topicId`, `graphTopicId` (empty when the topic maps to no graph node) and `label`.
+ */
+export interface TopicBriefingSection extends Entry {
+  component: Component
+}
+
+export const topicBriefingSections = extensionPoint<TopicBriefingSection>('topicBriefingSections')
+
 /** Extra query parameters for every `/api/search` request the search store sends. */
 export interface SearchRequestParams extends Entry {
   params(): Record<string, string> | undefined

@@ -550,7 +550,8 @@ semantic search per topic, so each card surfaces:
   opens the **Topic Entity View** rail via `focusTopic`; plain text otherwise) + episode count.
 - **Top segment**: the band's best-scored hit (`summary_preview`) with its retrieval
   score badge — the "grounded in retrieval" evidence.
-- **Cross-show** (`topic-briefing-card-cross-show`, mapped topics only): the top insight
+- **Cross-show** (`topic-briefing-card-cross-show`, mapped topics only; a downstream build's
+  section on each card since E04 step 8b, `topicBriefingSections`): the top insight
   from `cross_show_synthesis` plus the number of distinct shows — the corpus
   differentiator, lazily fetched from `GET /api/relational/cross-show`.
 
