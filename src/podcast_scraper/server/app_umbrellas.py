@@ -56,7 +56,7 @@ def corpus_episode_topics(root: Path) -> list[frozenset[str]]:
         return out
 
     result: list[frozenset[str]] = perf_cache.get_or_compute(
-        _CORPUS_EPISODE_TOPICS_NS, str(root), perf_cache.corpus_mtime(root), build
+        _CORPUS_EPISODE_TOPICS_NS, str(root), perf_cache.corpus_mtime(root), build, stale_ok=True
     )
     return result
 
@@ -89,7 +89,7 @@ def umbrella_tokens(root: Path) -> frozenset[str]:
 
     try:
         result: frozenset[str] = perf_cache.get_or_compute(
-            _UMBRELLA_NS, str(root), perf_cache.corpus_mtime(root), build
+            _UMBRELLA_NS, str(root), perf_cache.corpus_mtime(root), build, stale_ok=True
         )
         return result
     except Exception:  # noqa: BLE001 — a guard must not take a page down

@@ -611,6 +611,7 @@ def cached_episode_gi_paths(output_dir: Path) -> Dict[str, Path]:
         str(root.resolve()),
         perf_cache.corpus_mtime(root),
         lambda: merged_episode_gi_paths(output_dir),
+        stale_ok=True,
     )
     return paths
 
@@ -624,6 +625,7 @@ def cached_metadata_relpath_by_scope(output_dir: Path) -> Dict[str, str]:
         str(root.resolve()),
         perf_cache.corpus_mtime(root),
         lambda: _metadata_relpath_by_scope_from_corpus(output_dir),
+        stale_ok=True,
     )
     return relpaths
 

@@ -71,6 +71,7 @@ def _slug_index(corpus_root: Path) -> dict[str, CatalogEpisodeRow]:
         str(Path(corpus_root).resolve()),
         perf_cache.corpus_mtime(corpus_root),
         lambda: {slug_for_row(row): row for row in cached_catalog(corpus_root)},
+        stale_ok=True,
     )
     return index
 

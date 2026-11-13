@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -200,3 +202,105 @@ class TestEveryOutOfBandWriterMovesTheToken:
         os.utime(new, (base + 5000, base + 5000))
         # First-found ordering would return the run-summary's older stamp and lose the edge write.
         assert perf_cache.corpus_mtime(tmp_path) == pytest.approx(base + 5000)
+
+
+def _wait_until(predicate) -> None:
+    deadline = time.time() + 5
+    while not predicate():
+        assert time.time() < deadline, "timed out"
+        time.sleep(0.01)
+
+
+class TestStaleWhileRebuilding:
+    def test_the_previous_value_serves_while_one_background_build_runs(self):
+        perf_cache.get_or_compute("swr", "k", 1.0, lambda: "old", stale_ok=True)
+        started, release = threading.Event(), threading.Event()
+
+        def compute():
+            started.set()
+            assert release.wait(5)
+            return "new"
+
+        assert perf_cache.get_or_compute("swr", "k", 2.0, compute, stale_ok=True) == "old"
+        assert started.wait(5)
+        # A second reader during the build gets the old value too, and starts no second build.
+        assert perf_cache.get_or_compute("swr", "k", 2.0, lambda: "dup", stale_ok=True) == "old"
+        release.set()
+        _wait_until(lambda: perf_cache.cache_peek("swr", "k", 2.0) is not None)
+        assert perf_cache.get_or_compute("swr", "k", 2.0, lambda: "dup", stale_ok=True) == "new"
+        assert perf_cache.stats()["swr"]["stale_served"] == 2
+
+    def test_nothing_cached_still_computes_inline(self):
+        assert perf_cache.get_or_compute("swr", "k", 1.0, lambda: "v", stale_ok=True) == "v"
+
+    def test_without_stale_ok_a_new_token_gets_the_current_value(self):
+        perf_cache.get_or_compute("plain", "k", 1.0, lambda: "old")
+        assert perf_cache.get_or_compute("plain", "k", 2.0, lambda: "new") == "new"
+
+    def test_fresh_gets_the_current_value_where_stale_is_allowed(self):
+        perf_cache.get_or_compute("swr", "k", 1.0, lambda: "old", stale_ok=True)
+        with perf_cache.fresh():
+            assert perf_cache.get_or_compute("swr", "k", 2.0, lambda: "new", stale_ok=True) == "new"
+
+    def test_a_compute_reads_its_inputs_fresh(self):
+        # An outer value cached under a new token must not be built from a stale inner one.
+        perf_cache.get_or_compute("inner", "k", 1.0, lambda: "inner-old", stale_ok=True)
+
+        def outer():
+            inner = perf_cache.get_or_compute("inner", "k", 2.0, lambda: "inner-new", stale_ok=True)
+            return f"outer({inner})"
+
+        assert perf_cache.get_or_compute("outer", "k", 2.0, outer) == "outer(inner-new)"
+
+    def test_a_failed_background_build_keeps_the_old_value_and_the_next_reader_retries(self):
+        perf_cache.get_or_compute("swr", "k", 1.0, lambda: "old", stale_ok=True)
+
+        def boom():
+            raise RuntimeError("build failed")
+
+        assert perf_cache.get_or_compute("swr", "k", 2.0, boom, stale_ok=True) == "old"
+        _wait_until(lambda: ("swr", "k", 2.0) not in perf_cache._IN_FLIGHT)
+        assert perf_cache.get_or_compute("swr", "k", 2.0, lambda: "new", stale_ok=True) == "old"
+        _wait_until(lambda: perf_cache.cache_peek("swr", "k", 2.0) is not None)
+        assert perf_cache.cache_peek("swr", "k", 2.0) == "new"
+
+    def test_a_build_that_needs_a_key_queued_behind_it_builds_that_key_itself(self):
+        # One builder: if the outer build waited for the queued inner one, nothing would build it.
+        perf_cache.get_or_compute("inner", "k", 1.0, lambda: "inner-old", stale_ok=True)
+        perf_cache.get_or_compute("outer", "k", 1.0, lambda: "outer-old", stale_ok=True)
+        release = threading.Event()
+
+        def outer():
+            assert release.wait(5)
+            inner = perf_cache.get_or_compute("inner", "k", 2.0, lambda: "inner-new", stale_ok=True)
+            return f"outer({inner})"
+
+        assert perf_cache.get_or_compute("outer", "k", 2.0, outer, stale_ok=True) == "outer-old"
+        assert (
+            perf_cache.get_or_compute("inner", "k", 2.0, lambda: "inner-new", stale_ok=True)
+            == "inner-old"
+        )
+        release.set()
+        _wait_until(lambda: perf_cache.cache_peek("outer", "k", 2.0) is not None)
+        assert perf_cache.cache_peek("outer", "k", 2.0) == "outer(inner-new)"
+        assert perf_cache.cache_peek("inner", "k", 2.0) == "inner-new"
+
+    def test_one_background_build_runs_at_a_time(self):
+        running, peak = [0], [0]
+        lock = threading.Lock()
+
+        def compute():
+            with lock:
+                running[0] += 1
+                peak[0] = max(peak[0], running[0])
+            time.sleep(0.02)
+            with lock:
+                running[0] -= 1
+            return "new"
+
+        for i in range(5):
+            perf_cache.get_or_compute("swr", i, 1.0, lambda: "old", stale_ok=True)
+        for i in range(5):
+            assert perf_cache.get_or_compute("swr", i, 2.0, compute, stale_ok=True) == "old"
+        _wait_until(lambda: all(perf_cache.cache_peek("swr", i, 2.0) for i in range(5)))
+        assert peak[0] == 1

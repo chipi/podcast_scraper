@@ -64,6 +64,7 @@ def test_an_ingest_rebuilds_them(tmp_path, counted) -> None:
     _new_generation(tmp_path, 1_000_500)
     corpus_search.cached_episode_gi_paths(tmp_path)
     corpus_search.cached_metadata_relpath_by_scope(tmp_path)
+    assert perf_cache.wait_for_rebuilds()
     assert counted == {"gi": 2, "rel": 2}
 
 

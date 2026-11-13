@@ -55,6 +55,7 @@ def cached_catalog(root: Path) -> list[CatalogEpisodeRow]:
         _key(root),
         perf_cache.corpus_mtime(root),
         lambda: _sharing_rows(build_catalog_rows_cumulative(root), _cached_last_run(root)),
+        stale_ok=True,
     )
     return list(rows)
 
@@ -78,6 +79,7 @@ def cached_catalog_last_run(root: Path) -> list[CatalogEpisodeRow]:
         _key(root),
         perf_cache.corpus_mtime(root),
         lambda: _sharing_rows(build_catalog_rows(root), _cached_cumulative(root)),
+        stale_ok=True,
     )
     return list(rows)
 

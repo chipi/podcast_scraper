@@ -23,20 +23,33 @@ pre-opens LanceDB tables; ``corpus_graph`` builds graphs) — those stay bespoke
 
 from __future__ import annotations
 
+import logging
 import os
+import queue
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Hashable, Tuple
+from typing import Any, Callable, Dict, Hashable, Iterator, Tuple
+
+logger = logging.getLogger(__name__)
 
 _LOCK = threading.Lock()
 # namespace -> { key -> (token, value) }
 _STORE: Dict[str, Dict[Hashable, Tuple[float, Any]]] = {}
-# namespace -> [hits, misses, build_seconds_total] — build time lets stats() report whether the
-# cache is actually EARNING its keep (time saved on hits) vs just being overhead.
+# namespace -> [hits, misses, build_seconds_total, stale_served] — build time lets stats() report
+# whether the cache is actually EARNING its keep (time saved on hits) vs just being overhead.
 _STATS: Dict[str, list] = {}
 # (namespace, key, token) -> set when the build in progress for it finishes (single-flight).
 _IN_FLIGHT: Dict[Tuple[str, Hashable, float], threading.Event] = {}
+# depth > 0 on a thread inside fresh(): no stale values for it.
+_FRESH = threading.local()
+# Stale rebuilds queued for the one background builder, not yet started: flight key -> compute.
+# A caller that needs the value now (inside fresh(), or without stale_ok) claims it and builds it
+# itself, so a build that needs a key queued behind it cannot deadlock the builder.
+_QUEUED: Dict[Tuple[str, Hashable, float], Callable[[], Any]] = {}
+_ORDER: "queue.SimpleQueue[Tuple[str, Hashable, float]]" = queue.SimpleQueue()
+_BUILDER: list[threading.Thread] = []
 
 
 def _ns(namespace: str) -> Dict[Hashable, Tuple[float, Any]]:
@@ -44,7 +57,7 @@ def _ns(namespace: str) -> Dict[Hashable, Tuple[float, Any]]:
     if store is None:
         store = {}
         _STORE[namespace] = store
-        _STATS[namespace] = [0, 0, 0.0]
+        _STATS[namespace] = [0, 0, 0.0, 0]
     return store
 
 
@@ -65,7 +78,29 @@ def cache_peek(namespace: str, key: Hashable, token: float) -> Any:
     return hit[1] if hit is not None and hit[0] == token else None
 
 
-def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callable[[], Any]) -> Any:
+@contextmanager
+def fresh() -> Iterator[None]:
+    """Inside this block every :func:`get_or_compute` returns a value for the CURRENT token.
+
+    For the cache warmer, whose job is building current values, and for every ``compute()`` (it
+    runs inside one), so a value cached under a new token is never built from a stale input.
+    """
+    depth = getattr(_FRESH, "depth", 0)
+    _FRESH.depth = depth + 1
+    try:
+        yield
+    finally:
+        _FRESH.depth = depth
+
+
+def get_or_compute(
+    namespace: str,
+    key: Hashable,
+    token: float,
+    compute: Callable[[], Any],
+    *,
+    stale_ok: bool = False,
+) -> Any:
     """Return the cached value for ``(namespace, key)`` when its stored token
     matches *token*; otherwise call *compute*, store, and return it.
 
@@ -77,6 +112,14 @@ def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callabl
     starved each other (api at 160-180% CPU) and the first answer took 131 s against ~17 s alone,
     so the smoke's digest probe never passed on a cold api. If the build raises, waiters fall
     back to computing themselves.
+
+    ``stale_ok``: when the entry holds an OLDER token's value, return that value at once and queue
+    the current one for the background builder, unless the caller is inside :func:`fresh`. One
+    builder, not a thread per key: several rebuilds at once competed with the requests they were
+    meant to spare. For corpus-wide caches the warmer rebuilds after each ingest: an ingest
+    invalidates all of them at the same moment, and requests that arrived before the warmer
+    rebuilt them each built several in turn, 8-10 s for Home's burst on a prod-shaped corpus
+    against 1.6 s warm (2026-11-13), and 14.4 s for one /your-week on prod (2026-11-07).
     """
     flight_key = (namespace, key, token)
     while True:
@@ -86,7 +129,19 @@ def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callabl
             if hit is not None and hit[0] == token:
                 _STATS[namespace][0] += 1
                 return hit[1]
+            if stale_ok and hit is not None and not getattr(_FRESH, "depth", 0):
+                _STATS[namespace][3] += 1
+                if flight_key not in _IN_FLIGHT:
+                    _STATS[namespace][1] += 1
+                    _IN_FLIGHT[flight_key] = threading.Event()
+                    _QUEUED[flight_key] = compute
+                    _ORDER.put(flight_key)
+                    _ensure_builder()
+                return hit[1]
             in_flight = _IN_FLIGHT.get(flight_key)
+            if in_flight is not None and _QUEUED.pop(flight_key, None) is not None:
+                done = in_flight  # queued, not started: build it here rather than wait on it
+                break
             if in_flight is None:
                 _STATS[namespace][1] += 1
                 done = threading.Event()
@@ -99,14 +154,26 @@ def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callabl
                 _STATS[namespace][0] += 1
                 return hit[1]
             if flight_key in _IN_FLIGHT:
-                continue  # another waiter already took over the build; wait for it
+                continue  # another waiter already took over the build, or it is queued
             _STATS[namespace][1] += 1
             done = threading.Event()
             _IN_FLIGHT[flight_key] = done
             break  # the build we waited on failed: compute ourselves
+    return _build(namespace, key, token, compute, flight_key, done)
+
+
+def _build(
+    namespace: str,
+    key: Hashable,
+    token: float,
+    compute: Callable[[], Any],
+    flight_key: Tuple[str, Hashable, float],
+    done: threading.Event,
+) -> Any:
     try:
         started = time.perf_counter()
-        value = compute()
+        with fresh():
+            value = compute()
         elapsed = time.perf_counter() - started
         with _LOCK:
             _ns(namespace)[key] = (token, value)
@@ -116,6 +183,47 @@ def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callabl
         with _LOCK:
             _IN_FLIGHT.pop(flight_key, None)
         done.set()
+
+
+def _ensure_builder() -> None:
+    """Start the background builder if it is not running. Call with ``_LOCK`` held."""
+    if _BUILDER and _BUILDER[0].is_alive():
+        return
+    thread = threading.Thread(target=_builder_loop, name="perf-cache-rebuild", daemon=True)
+    _BUILDER[:] = [thread]
+    thread.start()
+
+
+def _builder_loop() -> None:
+    while True:
+        flight_key = _ORDER.get()
+        with _LOCK:
+            compute = _QUEUED.pop(flight_key, None)
+            done = _IN_FLIGHT.get(flight_key)
+        if compute is None or done is None:
+            continue  # a caller that needed it now claimed it
+        namespace, key, token = flight_key
+        try:
+            _build(namespace, key, token, compute, flight_key, done)
+        except Exception:  # noqa: BLE001 - the stale value keeps serving; the next caller retries
+            logger.warning("perf_cache: background rebuild of %s failed", namespace, exc_info=True)
+
+
+def wait_for_rebuilds(timeout: float = 30.0) -> bool:
+    """Block until no build is queued or in progress; ``False`` if *timeout* passed first.
+
+    For tests and tools that change the corpus and then need the rebuilt values, which stale
+    readers only see once the background builder has finished.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        with _LOCK:
+            pending = list(_IN_FLIGHT.values())
+        if not pending:
+            return True
+        for event in pending:
+            if not event.wait(max(0.0, deadline - time.monotonic())):
+                return False
 
 
 def clear(namespace: str | None = None) -> None:
@@ -155,6 +263,7 @@ def stats() -> Dict[str, Dict[str, Any]]:
                 "build_seconds_total": round(build_s, 3),
                 "avg_build_ms": round(avg_build_s * 1000.0, 1),
                 "est_saved_seconds": round(hits * avg_build_s, 2),
+                "stale_served": counters[3],
             }
         return out
 

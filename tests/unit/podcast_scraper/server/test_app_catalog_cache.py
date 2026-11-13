@@ -82,10 +82,13 @@ def test_invalidates_when_the_corpus_changes(tmp_path: Path, monkeypatch) -> Non
     assert len(catalog_cache.cached_catalog(tmp_path)) == 1
     assert calls[0] == 1
 
-    # A new episode lands and the ingest stamp advances → the next read MUST reflect it.
+    # A new episode lands and the ingest stamp advances: the next read gets the previous catalog
+    # at once while the background builder rebuilds; reads after the rebuild reflect it.
     _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
     _set_corpus_stamp(tmp_path, 2_000_000.0)
 
+    assert len(catalog_cache.cached_catalog(tmp_path)) == 1
+    assert perf_cache.wait_for_rebuilds()
     after = catalog_cache.cached_catalog(tmp_path)
     assert len(after) == 2, "a stale catalog hid the new episode"
     assert calls[0] == 2, "invalidation did not trigger a rebuild"
@@ -139,6 +142,8 @@ def test_last_run_invalidates_when_the_corpus_changes(tmp_path: Path, monkeypatc
     _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
     _set_corpus_stamp(tmp_path, 2_000_000.0)
 
+    assert len(catalog_cache.cached_catalog_last_run(tmp_path)) == 1
+    assert perf_cache.wait_for_rebuilds()
     after = catalog_cache.cached_catalog_last_run(tmp_path)
     assert len(after) == 2, "a stale last-run catalog hid the new episode"
     assert calls[0] == 2, "invalidation did not trigger a rebuild"
@@ -170,6 +175,9 @@ def test_resolve_slug_is_correct_and_survives_invalidation(tmp_path: Path) -> No
     # After an ingest, a newly-added episode's slug resolves through the refreshed index.
     _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
     _set_corpus_stamp(tmp_path, 2_000_000.0)
+    catalog_cache.cached_catalog(tmp_path)
+    slugs.resolve_slug(tmp_path, slug)
+    assert perf_cache.wait_for_rebuilds()
     new_row = next(r for r in catalog_cache.cached_catalog(tmp_path) if r.episode_id == "e2")
     new_slug = slugs.slug_for_row(new_row)
     assert slugs.resolve_slug(tmp_path, new_slug) is not None
