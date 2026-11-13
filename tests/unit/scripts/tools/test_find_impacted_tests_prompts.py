@@ -23,7 +23,7 @@ def _load_find_impacted_tests_module():
 def test_prompts_src_path_maps_to_module_prompts() -> None:
     mod = _load_find_impacted_tests_module()
     marker = mod.extract_module_marker(
-        "src/podcast_scraper/prompts/gemini/cleaning/v1.j2",
+        "src/podcast_scraper/prompts/gemini/summarization/long_v1.j2",
     )
     assert marker == "module_prompts"
 
@@ -31,7 +31,7 @@ def test_prompts_src_path_maps_to_module_prompts() -> None:
 def test_prompts_unit_test_path_maps_to_module_prompts() -> None:
     mod = _load_find_impacted_tests_module()
     marker = mod.extract_module_marker(
-        "tests/unit/podcast_scraper/prompts/test_cleaning_prompt_templates.py",
+        "tests/unit/podcast_scraper/prompts/test_jinja_prompt_templates_parse.py",
     )
     assert marker == "module_prompts"
 

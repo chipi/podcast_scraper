@@ -664,7 +664,7 @@ def build_gi(
     # RFC-097 v3 insight types (deterministic spread so the §S8 compare insight_type
     # filter has claim/observation/recommendation to select over).
     _INSIGHT_TYPES = ("claim", "observation", "recommendation")
-    # RFC-097 v3 ABOUT edges: mirror the real extractor (src/podcast_scraper/gi/about_edges.py —
+    # RFC-097 v3 ABOUT edges: mirror the real extractor (
     # top-2 topics by relevance, insights below the similarity floor get NO ABOUT edge). Blanket
     # fan-out (every insight ABOUT every episode topic) is WRONG: it makes filler/greeting lines
     # "about" contested topics, so topic_perspectives returns dozens of bogus speakers. No-ML

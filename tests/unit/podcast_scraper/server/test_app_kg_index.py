@@ -145,7 +145,7 @@ class TestSpellingVariantsCollapseInTheAppIndex:
     ids share a show. Nothing was wrong with the matcher — it was never consulted.
 
     ``build_kg_index`` reads entities straight out of each ``*.kg.json`` via ``iter_kg_entities``
-    and canonicalises NOTHING. Only ``search/corpus_graph.py`` and ``server/cil_queries.py`` apply
+    and canonicalises NOTHING. Only ``search/corpus_graph.py`` and the CIL query helpers apply
     ``build_entity_id_map``; the consumer relational cards ("Related people") bypass both. That is
     candidate 2 in #2056 — "the surface may not go through CorpusGraph" — confirmed.
 

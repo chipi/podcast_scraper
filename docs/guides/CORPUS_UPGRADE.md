@@ -141,7 +141,7 @@ X.Y this was checked" — future migrations can rely on that history.
    - Any RFC / ADR you're implementing — link the migration id
      (`m0004_<name>`) back from the RFC.
 8. **Resync the ad cut when a migration re-renders transcript text.** The ad cut
-   (`workflow/adfree_transcript.py`, `build_adfree_artifacts`) is computed from the LABELLED
+   (`build_adfree_artifacts`) is computed from the LABELLED
    screenplay: `Name:` markers, same-speaker turns merging, and the opening host-read
    cross-promo detector all read the labels. A migration that renames voices and re-renders the
    raw transcript while carrying the stored ad map leaves 0030's check failing where the new

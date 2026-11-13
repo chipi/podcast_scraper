@@ -139,7 +139,6 @@ Both workflows should be tested at **all three levels** of the test pyramid:
 - `rss_parser.py`: Parse RSS feeds correctly
 - `rss/downloader.py`: Download transcripts/audio correctly
 - `providers/ml/whisper_utils.py`: Transcribe audio correctly
-- `speaker_detection.py`: Detect speakers from text
 - `providers/ml/summarizer.py`: Generate summaries from transcripts
 - `metadata.py`: Generate metadata files
 

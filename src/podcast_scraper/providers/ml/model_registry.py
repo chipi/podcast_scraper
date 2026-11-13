@@ -1473,7 +1473,7 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 # its option entry here is gone. The (max_topics, max_entities) = (10, 15)
 # tuple is the universal default across every YAML — these are caps, not
 # sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
-# thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
+# thresholds 0.65 / 0.70 baked into entity clustering ARE measured
 # (see #853 report).
 
 # GROUNDING — who finds the quote that backs an insight.
@@ -1655,7 +1655,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
 # 0.85}. The current default of 0.75 is Pareto-optimal: max cross-feed
 # parent clusters (4) at the lowest tc:* total (6). No Config field exposes
 # this knob today — the threshold is a function-default in
-# the topic and insight clustering modules (``insight_stage/insight_clusters.py``). The
+# the topic and insight clustering modules. The
 # registry entry is documentation/provenance until a config surface lands;
 # ``resolve_profile_to_settings`` does NOT yet plumb a clustering field
 # into runtime settings.

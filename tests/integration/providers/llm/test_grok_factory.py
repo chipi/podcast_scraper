@@ -4,7 +4,6 @@
 These tests verify Grok provider implementations with mocked API calls,
 using factory functions to create providers (tests factory integration).
 
-For standalone provider tests, see test_grok_provider.py.
 """
 
 import os

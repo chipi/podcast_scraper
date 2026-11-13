@@ -149,7 +149,7 @@ Current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound
 - **In scope:** CLI-triggered clustering via `insight-clusters` command; `--expand-clusters` flag on `gi explore` for cross-episode evidence; insight_clusters.json artifact.
 - **Out of scope:** Speaker profiles, consensus detection, temporal tracking (parked — need diarization data).
 
-**Design:** Same average-linkage algorithm as topic clustering. Reads insight texts from `*.gi.json` artifacts, embeds with sentence-transformers, clusters at configurable threshold (default 0.75). The cluster context expansion layer (`insight_cluster_context.py`) adds cross-episode quotes to explore results without modifying the core explore pipeline.
+**Design:** Same average-linkage algorithm as topic clustering. Reads insight texts from `*.gi.json` artifacts, embeds with sentence-transformers, clusters at configurable threshold (default 0.75). The cluster context expansion layer adds cross-episode quotes to explore results without modifying the core explore pipeline.
 
 **Multi-quote extraction (#600):** All 8 providers extract multiple verbatim quotes per insight (uncapped, typically 3-5 on real podcasts). Parser handles both new `{"quotes": [...]}` format and backward-compatible `{"quote_text": "..."}`. ML provider uses `answer_candidates(top_k=3)`. Quote deduplication by text prevents LLM repetition.
 
@@ -304,7 +304,6 @@ graph TB
         HybridMLProvider[providers/ml/hybrid_ml_provider.py]
         ModelRegistry[providers/ml/model_registry.py]
         Whisper[providers/ml/whisper_utils.py]
-        SpeakerDetect[providers/ml/speaker_detection.py]
         Summarizer[providers/ml/summarizer.py]
         NER[providers/ml/ner_extraction.py]
     end
@@ -435,7 +434,6 @@ graph TB
     SummaryFactory --> GrokProvider
     SummaryFactory --> OllamaProvider
     MLProvider --> Whisper
-    MLProvider --> SpeakerDetect
     MLProvider --> Summarizer
     MLProvider --> NER
     MLProvider --> ModelRegistry
@@ -464,7 +462,6 @@ graph TB
     EpisodeProc --> Filesystem
     RSSParser --> Models
     Summarizer --> Models
-    SpeakerDetect --> Models
     TranscriptionFactory --> Capabilities
     SpeakerFactory --> Capabilities
     SummaryFactory --> Capabilities
@@ -933,7 +930,6 @@ flowchart TD
     Config --> RSSParser[rss.parser]
     Config --> Downloader[rss.downloader]
     Config --> Whisper[providers.ml.whisper_utils]
-    Config --> SpeakerDetect[providers.ml.speaker_detection]
     Config --> Metadata[workflow.metadata_generation]
     Config --> Summarizer[providers.ml.summarizer]
 

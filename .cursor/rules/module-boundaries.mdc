@@ -19,7 +19,6 @@
 | `episode_processor.py` | Episode processing | Process single episode | CLI interaction, orchestration |
 | `filesystem.py` | File utilities | Read/write files, paths | HTTP, parsing, business logic |
 | `whisper_integration.py` | Whisper interface | Transcription | HTTP, RSS parsing |
-| `speaker_detection.py` | NER extraction | Detect speakers | HTTP, file I/O |
 | `summarizer.py` | Summarization | Generate summaries | Episode processing, HTTP |
 | `metadata.py` | Metadata generation | Create JSON/YAML | HTTP, RSS parsing |
 | `progress.py` | Progress reporting | Abstract progress bar | Business logic |
@@ -160,7 +159,6 @@ RSS Feed → rss_parser.py (parse)
          → episode_processor.py (process each episode)
          → downloader.py (HTTP operations)
          → whisper_integration.py (transcription)
-         → speaker_detection.py (NER)
          → summarizer.py (summarization)
          → metadata.py (generate metadata)
          → filesystem.py (write files)

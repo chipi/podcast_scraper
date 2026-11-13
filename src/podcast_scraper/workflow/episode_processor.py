@@ -5739,7 +5739,7 @@ def process_transcript_download(
             segments = rostered.get("segments") or segments
 
             # HONOUR `cfg.screenplay`, as the ASR path does. GI quote attribution reads `Name:`
-            # line markers (`gi/speakers.py::build_named_turns`), so a plain-text transcript gives
+            # line markers, so a plain-text transcript gives
             # every quote no SPOKEN_BY edge — the speakers would resolve and the people surfaces
             # would still be empty. Falls back to `plain` whenever the roster named nobody.
             # HONOUR `cfg.screenplay`, as the ASR path does, WHENEVER THE TRANSCRIPT SEPARATED
@@ -5750,7 +5750,7 @@ def process_transcript_download(
             # one for every voice the roster clustered, real name or bare `SPEAKER_NN`. That is
             # deliberate, not an oversight: the ASR + diarize path writes the same screenplay with
             # the same bare labels, and the markers carry TURN BOUNDARIES that GI reads for quote
-            # attribution (`gi/speakers.py::build_named_turns`) even when nobody is named. Storing
+            # attribution even when nobody is named. Storing
             # prose instead would throw that structure away to no benefit.
             #
             # The case that must NOT be reformatted is a transcript with no spans at all: nothing

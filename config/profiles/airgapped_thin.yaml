@@ -96,7 +96,7 @@ kg_max_entities: 15
 #
 # Validation against the prod-v2 corpus (209 GI files, 2026-06-24):
 #   Pre-migration measurement (regex-only baseline vs regex+NER on raw
-#   v2 envelopes via scripts/dev/measure_ner_mentions_diff.py):
+#   v2 envelopes):
 #     12 → 90 MP edges, +78 NER-only delta over the regex-only floor.
 #   Post-migration on-disk retro sweep (`enrich-edges --use-ner
 #   --retro-audit`, marker `#1076-ner-2026-06-24`):

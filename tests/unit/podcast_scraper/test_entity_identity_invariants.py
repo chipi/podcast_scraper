@@ -171,7 +171,7 @@ class TestEveryLayerMintsTheSameId:
 
     @pytest.mark.parametrize("name", REAL_NAMES)
     def test_the_legacy_slugify_path_still_agrees_for_real_names(self, name: str) -> None:
-        # The swap in gi/speakers.py is only safe because these are byte-identical.
+        # The swap in the GI speaker builder is only safe because these are byte-identical.
         from podcast_scraper.identity.slugify import person_id
 
         assert person_id(name) == entity_node_id("person", name)

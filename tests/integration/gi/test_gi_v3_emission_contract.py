@@ -47,7 +47,7 @@ pytestmark = [pytest.mark.integration]
 class _StubEncoder:
     """Returns unit vectors whose dot products produce deterministic cosines.
 
-    Mirrors the helper used in tests/unit/podcast_scraper/gi/test_pipeline.py
+    Mirrors the GI pipeline unit tests' helper
     so the topic-ABOUT edge emission can be exercised without a real
     sentence-transformers load.
     """

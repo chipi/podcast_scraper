@@ -19,7 +19,7 @@ Hand-checked examples of what they actually are:
                            co-speaker in that same episode — and a different Alex in the other feed
 
 THE RULE is the one production already trusts for insight mentions
-(`gi/relational_edges.py::_resolve_span_to_index`, #1076 chunk 4-A): resolve a bare token against
+(#1076 chunk 4-A): resolve a bare token against
 the episode's own people by TOKEN SUBSET, and refuse when more than one candidate qualifies.
 
     exactly one candidate  ->  heal: use the full id (`alex` -> `person:alex-mayassi`)
@@ -220,7 +220,7 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
             # Quote nodes carry `properties.speaker_id`, which is where ALL 23 production
             # coexistence cases lived. Rewriting the node id without this leaves the quote
             # attributed to an id that no longer exists — the same dangling reference one level
-            # down. Precedent: `migrations/gil_kg_identity_migrations.py:49-57` (speaker: ->
+            # down. Precedent: the GIL/KG identity migration (speaker: ->
             # person:).
             #
             # BEFORE the merge branch, deliberately. Placing it after meant a duplicate node took
@@ -401,8 +401,8 @@ def unresolved_persons_in_episode(gi_payload: Mapping, kg_payload: Mapping) -> L
 def _speaker_id_of(container: Mapping) -> Optional[str]:
     """A `person:` id in this node's or edge's ``properties.speaker_id``, if any.
 
-    Deliberately NOT filtered by node ``type``, though the precedent
-    ``migrations/gil_kg_identity_migrations.py:49-57`` filters on ``type == "Quote"``. Two
+    Deliberately NOT filtered by node ``type``, though the precedent,
+    the GIL/KG identity migration, filters on ``type == "Quote"``. Two
     reasons. `capability_audit`'s ``node_speaker`` bucket does not filter either, and a measure
     that looks in more places than the fix is exactly how this bug survived a first attempt. And
     a rewrite is plan-gated: it substitutes only ids already in the map, and only to their

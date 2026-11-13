@@ -4,7 +4,7 @@ THE DISTINCTION THIS FILE EXISTS TO MAKE. There are two kinds of detector test a
 them is evidence about the corpus:
 
 1. A detector fed a sentence written in the test file. Proves the regex is well-formed.
-   ``test_detector_vocabulary_is_language_keyed.py`` is this, for all six languages.
+   The detector-vocabulary test is this, for all six languages.
 2. A detector run over the real fixture episodes. Proves the pattern survives being turned into a
    diarized screenplay with ``Name:`` prefixes, segmented and offset-indexed — and proves the
    corpus can exercise the path at all.

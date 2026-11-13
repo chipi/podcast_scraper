@@ -912,8 +912,6 @@ slower; (b) use the loaded graph in memory if available — faster but
 state-dependent. Prefer (a) for correctness — this is a background
 fetch, latency is acceptable.
 
-**Test:** `tests/unit/podcast_scraper/server/test_viewer_corpus_persons.py`
-
 ---
 
 ### 9. Open Questions

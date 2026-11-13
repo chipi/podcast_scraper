@@ -221,7 +221,7 @@ def test_cross_show_topic_exists() -> None:
 #
 # The rules live in `kg.speaker_coherence` so the fixture corpus, a freshly ingested corpus and a
 # production remediation are all judged by ONE implementation. Each rule is proved to fire on its
-# own defect in tests/unit/podcast_scraper/kg/test_speaker_coherence.py; what these add is breadth —
+# own defect in the speaker-coherence unit tests; what these add is breadth —
 # the same rules over all 36 committed episodes, where a fixture edit that quietly breaks the model
 # would otherwise go unnoticed until it reached a UI test.
 # ---------------------------------------------------------------------------------------------

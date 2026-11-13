@@ -116,7 +116,7 @@ class TestTheBlock:
 class TestIdempotence:
     def test_running_twice_leaves_one_block(self) -> None:
         """Three writers produce gi.json — the artifact builder,
-        `add_spoken_by_edges(replace=True)` and `gi/repair.py` — so a node passing through two
+        `add_spoken_by_edges(replace=True)` and the GI repair pass — so a node passing through two
         must not end up with two blocks or a half-updated one."""
         payload = _payload((6, 10))
         attach_translation_provenance(payload, _doc(), _EN_SEGMENTS)

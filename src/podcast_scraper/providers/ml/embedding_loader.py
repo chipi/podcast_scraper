@@ -47,10 +47,10 @@ class EmbeddingEvidenceBackend(HFEvidenceBackend):
     kind = "embedding"
     # NEVER MPS: the all-MiniLM SentenceTransformer flaky-SIGSEGVs mid-`encode` on Apple MPS
     # (the native crash that paused Goal-1). This is a THIRD embedding path — alongside
-    # gi/about_edges.py and gi/chunked_extraction.py, which route through resolve_embedding_device()
-    # — that the earlier never-MPS fix missed, because it resolves its device via
-    # resolve_evidence_device(mps_supported=...). QA/NLI evidence backends may keep MPS; the
-    # embedding backend must not.
+    # the GI ABOUT-edge and chunked-extraction stages, which route through
+    # resolve_embedding_device() — that the earlier never-MPS fix missed, because it resolves its
+    # device via resolve_evidence_device(mps_supported=...). QA/NLI evidence backends may keep MPS;
+    # the embedding backend must not.
     mps_supported = False
 
     _instances: ClassVar[dict] = {}

@@ -13,7 +13,7 @@ the first hex character of a UUID rather than on time.
 Two consequences, measured on prod 2026-08-31:
 
 1. The index and search disagreed about which artifact is canonical for the same episode
-   (already noted in ``gi/integrity.py``), and the disagreement was not rare: 12,608
+   (already noted by the GI integrity check), and the disagreement was not rare: 12,608
    duplicate warnings in one batch, a single guid warned 1,120 times.
 2. ``corpus_rollback`` locates an episode's run dir through ``by_id``. Keeping the OLDER
    entry means "roll back this episode" deleted the superseded copy and LEFT the newest one

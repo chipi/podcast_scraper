@@ -233,7 +233,7 @@ def _reject_destroyed_cleaning(
     assert that the strategy was ``pattern`` and that "pattern is deterministic and cannot do
     this". Both halves were wrong: the running cleaner was never recorded, and pattern cleaning
     demonstrably CAN do this — overlapping sponsor spans merged transitively into one span
-    covering 86% of a transcript (#1641-#1645, fixed in ``cleaning/commercial/detector.py``).
+    covering 86% of a transcript (#1641-#1645, fixed in the commercial detector).
     Five separate issues were filed against the wrong component because this line guessed.
     """
     # Only a real string can be judged; anything else (a provider stub, a mock) passes through.

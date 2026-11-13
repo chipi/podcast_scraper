@@ -207,9 +207,8 @@ Implementation lives in `workflow/metrics.py` (`_merge_intervals`,
   - **Capabilities**: `providers/capabilities.py` defines `ProviderCapabilities` — a dataclass describing what each provider supports (JSON mode, tool calls, streaming, etc.). Used by factories and orchestration to select appropriate providers.
   - **Prompt Management** (RFC-017): `prompts/store.py` implements versioned Jinja2 prompt templates organized by `<provider>/<task>/<version>.j2`. Each of the 9 providers has tuned templates for summarization and NER. LLM providers load prompts via `PromptStore.render()` ensuring consistent, version-tracked prompt engineering.
 - **providers/ml/whisper_utils.py**: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Accessed via `MLProvider` (unified provider pattern).
-- **speaker_detection.py** (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
 - **providers/ml/summarizer.py** (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for details.
-- **gi/** (PRD-017): Grounded Insight Layer — structured insight and quote extraction with evidence grounding. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `grounding.py` (insight-quote linking), `contracts.py` (grounding contract), `explore.py` (CLI exploration), `corpus.py` (cross-episode operations), `io.py` (serialization), `provenance.py` (provenance tracking), `compare_runs.py` (cross-run comparison), `quality_metrics.py` (quality scoring).
+- **Speaker detection and the Grounded Insight Layer** (RFC-010, PRD-017) are an installed extension's stages, reached through `stage_hooks` (ADR-176); public's pipeline runs without them.
 - **kg/** (RFC-055): Knowledge Graph extraction — structured topic graphs from transcripts and summaries. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `llm_extract.py` (LLM-based extraction), `cli_handlers.py` (CLI subcommands), `io.py` (serialization), `corpus.py` (cross-episode operations), `contracts.py` (KG contract enforcement), `quality_metrics.py` (quality scoring).
 - **utils.progress**: Minimal global progress publishing API so callers can swap in alternative UIs.
 - **models/** (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules.
@@ -256,7 +255,6 @@ graph TB
         MLProvider[providers/ml/ml_provider.py]
         HybridMLProvider[providers/ml/hybrid_ml_provider.py]
         Whisper[providers/ml/whisper_utils.py]
-        SpeakerDetect[providers/ml/speaker_detection.py]
         Summarizer[providers/ml/summarizer.py]
         NER[providers/ml/ner_extraction.py]
     end
@@ -318,7 +316,6 @@ graph TB
     SummaryFactory --> GrokProvider
     SummaryFactory --> OllamaProvider
     MLProvider --> Whisper
-    MLProvider --> SpeakerDetect
     MLProvider --> Summarizer
     MLProvider --> NER
     HybridMLProvider --> Summarizer
@@ -344,7 +341,6 @@ graph TB
     EpisodeProc --> Filesystem
     RSSParser --> Models
     Summarizer --> Models
-    SpeakerDetect --> Models
     TranscriptionFactory --> Capabilities
     SpeakerFactory --> Capabilities
     SummaryFactory --> Capabilities

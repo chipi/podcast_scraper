@@ -1,9 +1,9 @@
 [codespell]
 skip = *.pyc,*.patch,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
 ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo,Wege,Technik,Shepard,Didi
-# ist / sie / te: German and Dutch function words in the ad-language detector's word lists
-# (providers/ml/diarization/ad_signatures.py); not typos
-# coo: the job title COO in the stated-name trailing job tokens (speaker_detectors/hosts.py)
+# ist / sie / te: German and Dutch function words in the ad-language detector's word lists;
+# not typos
+# coo: the job title COO in the stated-name trailing job tokens
 # canonicalizations: legitimate plural (a count of host-identity canonicalization steps, RFC-109); codespell false-positives -izations plurals
 # covert: real word ("a covert vLLM shim" — hidden/disguised, ADR-147); not a typo of "convert"
 # disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149); not a typo
@@ -29,7 +29,7 @@ ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,
 # Empress: a real title, in the worked example for the matched-bracket rule in
 # identity/slugify.py ("Empress Elisabeth (Sisi)"); not a typo of "Impress"
 # fo: placeholder; rouge: metric name; Exting: transcript artifact pattern in preprocessing (literal, not typo of "Existing")
-# pres: deliberate title abbreviation ("Pres"/"Gov") in the political-title token set (hosts.py); not a typo of "press"
+# pres: deliberate title abbreviation ("Pres"/"Gov") in the political-title token set; not a typo of "press"
 # UE: macOS kernel uninterruptible wait process state (RFC-074)
 # patter: rapid/glib speech (podcast host patter); not a typo of "pattern"
 # Speaches/speaches: product name (github.com/speaches-ai/speaches — renamed faster-whisper-server), not a typo of "Speeches"
@@ -37,12 +37,7 @@ ignore-words-list = Ned,rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,
 # sting: a real word (the musician Sting / a bee sting) — used as a mononym example in the speaker roster (#876); not a typo of "string"
 # summar: intentional prefix in provider_metrics.py operation-name matching (catches "summary", "summarize", "summarization") — not a typo of "summary"
 # isnt/arent/wasnt/werent/dont/doesnt/didnt/hasnt/havent: intentional patterns in
-# gi/insight_type_classifier.py — apostrophe-stripped contractions that match
+# the GI insight-type classifier — apostrophe-stripped contractions that match
 # transcript artifacts where the transcriber dropped the apostrophe. Not typos.
 # *.patch is SKIPPED: preserved, unapplied patches (docs/wip/parked/) are code diffs whose hunk headers
 # git truncates mid-word ("-> Optio"); they are not prose.
-# speaker_detectors/naming_vocabulary.py is SKIPPED whole, not word by word: it is the per-language
-# naming vocabulary (six languages × ~43 maps), so nearly every non-English row is a word codespell
-# reads as an English typo (vor, unser, oder, nome, meu, hace, studi, groupe, ...). Adding those to
-# ignore-words-list would hide real typos of the same spelling in every other file. The cost is
-# that English typos in that one file's comments go unchecked.

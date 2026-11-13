@@ -44,7 +44,6 @@ src/podcast_scraper/
 │   │   ├── ml_provider.py           # Unified Local ML implementation
 │   │   ├── hybrid_ml_provider.py    # Hybrid MAP-REDUCE implementation
 │   │   ├── whisper_utils.py         # Whisper transcription utilities
-│   │   ├── speaker_detection.py     # spaCy NER speaker detection
 │   │   └── summarizer.py            # Transformers summarization
 │   ├── openai/
 │   │   └── openai_provider.py       # Unified OpenAI API implementation

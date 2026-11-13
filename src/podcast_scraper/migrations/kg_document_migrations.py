@@ -74,7 +74,7 @@ def migrate_kg_document_v2(data: Dict[str, Any]) -> Dict[str, Any]:
 
     HAS_EPISODE edges + Podcast nodes are NOT synthesised here — those require
     feed metadata not present in the kg.json artifact. Use the GI workflow
-    (``add_episode_show_edges`` in ``gi/relational_edges.py``) for that.
+    (``add_episode_show_edges``) for that.
 
     Idempotent: a v2.0 artifact passes through unchanged.
     """
