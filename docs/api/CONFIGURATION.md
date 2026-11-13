@@ -6,6 +6,8 @@ The `Config` class is the central configuration model for podcast_scraper, built
 
 All runtime options flow through the `Config` model.
 
+**Settings an installed extension declares** ([ADR-182](../adr/ADR-182-extension-owned-configuration.md)) use the same flat keys in YAML, profiles and `Config(...)`, but they are the extension's: it validates and documents them, and code reads them as `cfg.extension("<name>").<key>`. This page documents public's fields only. A key that neither public nor an installed extension declares is refused at load time.
+
 **Canonical vs examples:** This **CONFIGURATION.md** document (plus [CLI.md](CLI.md) for command-line flag names) is the **authoritative** reference for fields, defaults, validation, environment-variable mapping, and operational patterns such as download resilience. Files under `config/examples/` are **non-canonical** illustrations for local copy-paste; if anything disagrees with this document, **this document wins**.
 
 **YAML preset (`profile:`):** At load time, an optional root key **`profile: <name>`** merges packaged defaults from `config/profiles/<name>.yaml` before applying other keys in the same file ([GitHub #593](https://github.com/chipi/podcast_scraper/issues/593)); resolution tries **cwd** `config/profiles/` first, then **repo** `config/profiles/` (same order as `Config._resolve_profile`). The viewer **`/api/operator-config`** **`available_profiles`** field lists preset **names** from the **union** of those directories (see [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) and [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md)). Use **`profile:`** plus thin overrides in operator YAML; keep feed URLs in corpus **`feeds.spec.yaml`** (Feeds API / CLI **`--feeds-spec`**), not in operator YAML (**PUT** rejects root feed keys).
@@ -430,8 +432,6 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 | `diarization_max_speakers` | `--diarization-max-speakers` | `20` | Maximum speakers when auto-detecting |
 | `diarization_device` | `--diarization-device` | `auto` | `cpu`, `cuda`, or `mps` |
 | `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, gated: needs `HF_TOKEN`; 3.1 is the fallback) |
-| `diarization_clustering_threshold` | _(config only)_ | `None` | pyannote clustering-threshold override; higher merges → fewer speakers (curbs over-segmentation) |
-| `diarization_min_cluster_size` | _(config only)_ | `None` | Clusters smaller than this (≈12 default) are reassigned to the nearest speaker — drops short over-seg fragments |
 | `diarization_min_segment_ms` | _(config only)_ | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |
 
 When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
@@ -1893,8 +1893,8 @@ tasks). "Y" means the field is defined on that provider.
 |`_retry_max_delay_seconds`||||Y|||||
 |`_retry_max_retries`||||Y|||||
 |`_speaker_model`|Y||Y|Y|Y|Y|Y|Y|
-|`_speaker_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
-|`_speaker_user_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_speaker_system_prompt`|||Y|||||Y|
+|`_speaker_user_prompt`|||Y|||||Y|
 |`_summary_model`|Y||Y|Y|Y|Y|Y|Y|
 |`_summary_seed`||||||||Y|
 |`_summary_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
@@ -1920,13 +1920,11 @@ Fields with numeric or length constraints enforced by pydantic (via
 |`deepseek_timeout`|ge=30|
 |`dgx_diarize_port`|ge=1, le=65535|
 |`dgx_diarize_request_timeout_sec`|gt=0|
-|`dgx_diarize_timeout_per_audio_minute_sec`|ge=0|
 |`dgx_max_attempts`|ge=1|
 |`dgx_ollama_port`|ge=1, le=65535|
 |`dgx_request_timeout_sec`|gt=0|
 |`dgx_timeout_per_audio_minute_sec`|ge=0|
 |`dgx_whisper_port`|ge=1, le=65535|
-|`diarization_min_cluster_size`|ge=1|
 |`diarization_min_segment_ms`|ge=0, le=60000|
 |`episode_retry_delay_sec`|ge=0.0, le=120.0|
 |`episode_retry_max`|ge=0, le=10|
@@ -1942,7 +1940,6 @@ Fields with numeric or length constraints enforced by pydantic (via
 |`gi_qa_window_chars`|ge=0, le=500_000|
 |`gi_qa_window_overlap_chars`|ge=0, le=100_000|
 |`gi_value_gate_min_tier`|ge=0, le=3|
-|`gil_evidence_nli_chunk_size`|ge=1, le=100|
 |`grok_timeout`|ge=30|
 |`host_max_concurrent`|ge=0, le=64|
 |`host_request_interval_ms`|ge=0, le=600_000|

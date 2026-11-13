@@ -350,7 +350,7 @@ The **evidence stack** provides embedding, extractive QA, and NLI models used by
 * **Extractive QA**: `extractive_qa` — question-answering over context; returns answer spans with character offsets and scores; used for quote extraction ("What evidence supports this insight?").
 * **NLI**: `nli_loader` — premise/hypothesis entailment scoring; used to validate that a quote supports an insight.
 
-Config keys: `embedding_model`, `embedding_device`, `extractive_qa_model`, `extractive_qa_device`, `nli_model`, `nli_device`. Model IDs can be aliases (e.g. `minilm-l6`, `roberta-squad2`, `nli-deberta-base`) or full HuggingFace IDs.
+Config keys: `embedding_model`, `extractive_qa_model`, `extractive_qa_device`, `nli_model`, `nli_device`. Model IDs can be aliases (e.g. `minilm-l6`, `roberta-squad2`, `nli-deberta-base`) or full HuggingFace IDs.
 
 ### 9.4 Evolution Roadmap
 

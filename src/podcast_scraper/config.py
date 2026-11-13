@@ -1268,15 +1268,6 @@ class Config(BaseModel):
         alias="hf_token",
         description="HuggingFace token for pyannote models (prefer HF_TOKEN env var)",
     )
-    labeling_profile: str = Field(
-        default="naming-4",
-        alias="labeling_profile",
-        description=(
-            "Versioned labeling profile ID (ADR-140) — the knob-bundle + per-fix feature flags "
-            "that drive speaker naming/classification. 'naming-4' is production; 'naming-3-legacy' "
-            "turns the ADR-139 fixes + Pattern-B off for A/B. Recorded in the per-episode sidecar."
-        ),
-    )
     diarization_num_speakers: Optional[int] = Field(
         default=None,
         alias="diarization_num_speakers",
@@ -1291,15 +1282,6 @@ class Config(BaseModel):
         default=20,
         alias="diarization_max_speakers",
         description="Maximum speakers when auto-detecting diarization count",
-    )
-    diarization_clustering_threshold: Optional[float] = Field(
-        default=None,
-        alias="diarization_clustering_threshold",
-        description=(
-            "pyannote clustering threshold override (None = the model default). Higher merges "
-            "more agglomerative clusters → FEWER speakers, curbing over-segmentation on noisy / "
-            "montage podcast audio; lower splits more. Tune via the diarization eval harness."
-        ),
     )
     transcript_naming: Literal["off", "shadow", "publish"] = Field(
         default="off",
@@ -1333,18 +1315,6 @@ class Config(BaseModel):
         alias="merge_split_voices_threshold",
         description="Cosine similarity at which two voices of one episode are one person.",
     )
-    speaker_naming_passes: int = Field(
-        default=1,
-        ge=1,
-        le=5,
-        alias="speaker_naming_passes",
-        description=(
-            "How many times each naming LLM call is asked: the ladder's resolution call and "
-            "transcript naming. With more than one, a voice keeps a name only when every pass "
-            "gave it the same one (vLLM is not deterministic even at temperature 0). 1 = one "
-            "call, as before; each extra pass costs one more call of each."
-        ),
-    )
     ladder_rescue_rules: bool = Field(
         default=False,
         alias="ladder_rescue_rules",
@@ -1367,13 +1337,6 @@ class Config(BaseModel):
             "'publish' = the rung changes the roster. Off by default."
         ),
     )
-    voice_identity_threshold: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=1.0,
-        alias="voice_identity_threshold",
-        description="Cosine similarity a voice needs to its feed group (0.7 as measured).",
-    )
     speaker_name_min_talk_share: float = Field(
         default=0.0,
         ge=0.0,
@@ -1383,17 +1346,6 @@ class Config(BaseModel):
             "Talk floor: take the name off any voice holding less than this share of the "
             "episode's talk (a name on a voice that barely speaks is, as measured, almost always "
             "on an ad, a promo or a clip). 0 = off; 0.05 as measured."
-        ),
-    )
-    diarization_min_cluster_size: Optional[int] = Field(
-        default=None,
-        ge=1,
-        alias="diarization_min_cluster_size",
-        description=(
-            "pyannote clustering min_cluster_size override (None = the model default, ~12). "
-            "Clusters smaller than this are reassigned to the nearest real speaker — raising it "
-            "drops the short (6–30s) over-segmentation FRAGMENTS surgically, without over-merging "
-            "quiet real speakers the way a high clustering_threshold can. Tune via the harness."
         ),
     )
     diarization_min_segment_ms: Optional[int] = Field(
@@ -1687,29 +1639,6 @@ class Config(BaseModel):
             "off or empty it is a no-op (the raw transcription_coverage_min gate applies instead). "
             "0.0 = off; a reprocess sets ~0.85. Preferred over transcription_coverage_min when "
             "diarization runs (they should not both be active)."
-        ),
-    )
-    transcription_recover_untranscribed_speech: bool = Field(
-        default=True,
-        alias="transcription_recover_untranscribed_speech",
-        description=(
-            "#2187 A2 -- when diarization hears speech the transcript has no words for (3 s or "
-            "more), cut that stretch from the audio, transcribe it again with the same provider "
-            "and language, and splice what it says into the transcript as segments tagged "
-            "recovered. One extra ASR call per stretch. False = detect and record the stretches "
-            "only (untranscribed_speech in .asr.json), never re-transcribe."
-        ),
-    )
-    transcription_recover_silent_gaps: bool = Field(
-        default=True,
-        alias="transcription_recover_silent_gaps",
-        description=(
-            "#2187 -- with transcription_recover_untranscribed_speech, also re-transcribe every "
-            "gap of 3 s or more between transcript segments that the diarizer heard no voice in "
-            "(a voice over a music bed: intros, headlines, sign-offs), keeping a gap's text only "
-            "when it holds 3+ words that are not fillers (asr_silent_gap_recovery in .asr.json). "
-            "One extra ASR call per such gap. Measured on 24 reference episodes: main-voice "
-            "adjusted errors 2861 -> 2761, no episode of the 6 English worse."
         ),
     )
     transcription_repair_unpunctuated_windows: bool = Field(
@@ -2022,16 +1951,6 @@ class Config(BaseModel):
             "audio length via ``dgx_diarize_timeout_per_audio_minute_sec``."
         ),
     )
-    dgx_diarize_timeout_per_audio_minute_sec: float = Field(
-        default=6.0,
-        ge=0,
-        alias="dgx_diarize_timeout_per_audio_minute_sec",
-        description=(
-            "Seconds of DGX diarize timeout budget added per minute of audio, on top of "
-            "``dgx_diarize_request_timeout_sec``. Lets diarization wait out brief GPU "
-            "contention before failing over to in-process pyannote. 0 disables scaling."
-        ),
-    )
     transcription_parallelism: int = Field(
         default=1,
         alias="transcription_parallelism",
@@ -2272,11 +2191,6 @@ class Config(BaseModel):
         alias="openai_speaker_user_prompt",
         description="User prompt name for speaker detection/NER. "
         "Uses prompt_store  for versioned prompts.",
-    )
-    ner_prompt_params: Dict[str, Any] = Field(
-        default_factory=dict,
-        alias="ner_prompt_params",
-        description="Template parameters for NER prompts (passed to Jinja2 templates).",
     )
 
     # --- vLLM provider (ADR-147) --------------------------------------------------------------
@@ -3022,20 +2936,6 @@ class Config(BaseModel):
         alias="gemini_summary_user_prompt",
         description="Gemini user prompt for summarization. Uses prompt_store.",
     )
-    gemini_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="gemini_speaker_system_prompt",
-        description=(
-            "Gemini system prompt for speaker detection (default: gemini/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    gemini_speaker_user_prompt: str = Field(
-        default="gemini/ner/guest_host_v1",
-        alias="gemini_speaker_user_prompt",
-        description="Gemini user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     gemini_retry_max_retries: int = Field(
         default=6,
         alias="gemini_retry_max_retries",
@@ -3123,20 +3023,6 @@ class Config(BaseModel):
         alias="anthropic_summary_user_prompt",
         description="Anthropic user prompt for summarization. Uses prompt_store.",
     )
-    anthropic_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="anthropic_speaker_system_prompt",
-        description=(
-            "Anthropic system prompt for speaker detection (default: anthropic/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    anthropic_speaker_user_prompt: str = Field(
-        default="anthropic/ner/guest_host_v1",
-        alias="anthropic_speaker_user_prompt",
-        description="Anthropic user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     # Ollama API configuration (Issue #196)
     ollama_api_base: Optional[str] = Field(
         default=None,
@@ -3212,20 +3098,6 @@ class Config(BaseModel):
         description="Timeout in seconds for Ollama API calls (local inference can be slow)",
     )
     # Ollama Prompt Configuration (following OpenAI pattern)
-    ollama_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="ollama_speaker_system_prompt",
-        description=(
-            "Ollama system prompt for speaker detection (default: ollama/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    ollama_speaker_user_prompt: str = Field(
-        default="ollama/ner/guest_host_v1",
-        alias="ollama_speaker_user_prompt",
-        description="Ollama user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     ollama_summary_system_prompt: str = Field(
         default="ollama/summarization/system_bullets_v1",
         alias="ollama_summary_system_prompt",
@@ -3393,20 +3265,6 @@ class Config(BaseModel):
         alias="grok_summary_user_prompt",
         description="Grok user prompt for summarization. Uses prompt_store.",
     )
-    grok_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="grok_speaker_system_prompt",
-        description=(
-            "Grok system prompt for speaker detection (default: grok/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    grok_speaker_user_prompt: str = Field(
-        default="grok/ner/guest_host_v1",
-        alias="grok_speaker_user_prompt",
-        description="Grok user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     # Mistral API configuration (Issue #106)
     mistral_api_key: Optional[str] = Field(
         default=None,
@@ -3486,20 +3344,6 @@ class Config(BaseModel):
         description="Max tokens for Mistral generation (None = model default)",
     )
     # Mistral Prompt Configuration (following OpenAI pattern)
-    mistral_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="mistral_speaker_system_prompt",
-        description=(
-            "Mistral system prompt for speaker detection (default: mistral/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    mistral_speaker_user_prompt: str = Field(
-        default="mistral/ner/guest_host_v1",
-        alias="mistral_speaker_user_prompt",
-        description="Mistral user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     mistral_summary_system_prompt: str = Field(
         default="mistral/summarization/system_bullets_v1",
         alias="mistral_summary_system_prompt",
@@ -3544,11 +3388,6 @@ class Config(BaseModel):
         default=config_constants.DEFAULT_EMBEDDING_MODEL,
         alias="embedding_model",
         description="Model for sentence embeddings (GIL grounding). Alias or full HF ID.",
-    )
-    embedding_device: Optional[str] = Field(
-        default=None,
-        alias="embedding_device",
-        description="Device for embedding model (cpu, cuda, mps, or None for auto).",
     )
     extractive_qa_model: str = Field(
         default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
@@ -3640,17 +3479,6 @@ class Config(BaseModel):
             "controlled by ``gil_evidence_nli_chunk_size``) when the provider implements "
             "``score_entailment_bundled``. Per-pair fallback runs for any pair the bundled "
             "call doesn't return a usable score for."
-        ),
-    )
-    gil_evidence_nli_chunk_size: int = Field(
-        default=15,
-        ge=1,
-        le=100,
-        alias="gil_evidence_nli_chunk_size",
-        description=(
-            "Pairs per bundled NLI call when ``gil_evidence_nli_mode='bundled'``. Tuning "
-            "lever between call count (lower = more calls, smaller prompts) and prompt "
-            "size (higher = fewer calls, longer prompts; risk of token-budget pressure)."
         ),
     )
     gil_evidence_quote_bundle_chunk: int = Field(
@@ -3905,24 +3733,6 @@ class Config(BaseModel):
             "view). Per-surface overrides: player 6 (surface-tagged only), operator viewer 12 (all "
             "tiers + routing_tag filter chip), graph API 8. Search ignores this (rerank boost, no "
             "hard cap). This is the SSOT the surfaces read once wired — until then it is inert."
-        ),
-    )
-    bare_name_heal: bool = Field(
-        default=True,
-        alias="bare_name_heal",
-        description=(
-            "#1685. When a single-token person name (`person:jensen`) has EXACTLY ONE full-name "
-            "candidate among that episode's people, mint the full id instead — `person:alex` "
-            "with `person:alex-mayassi` in the same episode becomes the latter. All other bare "
-            "names (no candidate, or two or more) are episode-scoped regardless of this flag. "
-            "\n\n"
-            "Set False to scope EVERYTHING, which is the strictly safer setting. The two "
-            "branches carry asymmetric risk: a wrong scoping is cheap and reversible, while a "
-            "wrong heal writes a real person's id onto someone else's content — a new pooled "
-            "node on a high-traffic id, worse than the problem being fixed. The measurement "
-            "behind this can prove a bare name is RESOLVABLE; it cannot prove the resolution is "
-            "CORRECT. Production: 12 of 208 occurrences are resolvable, so the flag governs ~6% "
-            "of cases and the prevention half is unaffected."
         ),
     )
     gi_typed_mentions_use_ner: bool = Field(
@@ -5641,21 +5451,6 @@ class Config(BaseModel):
             raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {value}")
         if not parsed.netloc:
             raise ValueError(f"RSS URL must include a valid hostname: {value}")
-        return value
-
-    @field_validator("labeling_profile", mode="after")
-    @classmethod
-    def _validate_labeling_profile(cls, value: str) -> str:
-        """ADR-140: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
-        HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). The
-        profiles are the speaker stage's, so it is the one that checks (E04 S6). Lazy import —
-        config is imported by the diarization package, so a top-level import would cycle.
-        """
-        if not value:
-            return value
-        from podcast_scraper import stage_hooks
-
-        stage_hooks.validate_labeling_profile(value)  # raises ValueError on an unregistered id
         return value
 
     @field_validator("rss_urls", mode="before")

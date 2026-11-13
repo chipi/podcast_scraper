@@ -821,7 +821,6 @@ class TestValidationEdgeCases(unittest.TestCase):
         cfg = Config(rss_url="https://example.com/feed.xml")
         self.assertIsNotNone(cfg.embedding_model)
         self.assertIn("/", cfg.embedding_model)
-        self.assertIsNone(cfg.embedding_device)
         self.assertIsNotNone(cfg.extractive_qa_model)
         self.assertIn("/", cfg.extractive_qa_model)
         self.assertIsNone(cfg.extractive_qa_device)
