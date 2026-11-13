@@ -132,7 +132,7 @@ def test_every_gi_tunable_is_either_governed_or_explicitly_exempt() -> None:
     """
     tunables = {
         name
-        for name in cfgmod.Config.model_fields
+        for name in cfgmod.config_fields()
         if name.startswith(("gi_", "gil_"))
         or name in ("quote_extraction_provider", "entailment_provider")
     }
@@ -247,7 +247,7 @@ def test_the_config_default_is_not_a_trap() -> None:
         "gi_insight_dedupe_threshold",
         "gi_value_gate_enabled",
     ):
-        field = cfgmod.Config.model_fields.get(key)
+        field = cfgmod.config_fields().get(key)
         if field is None or key not in ref:
             continue
         if field.default != ref[key]:

@@ -97,7 +97,6 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 #   quote_extraction_provider and entailment_provider are still default transformers. Set false for local QA+NLI.
 # Evidence stack (used when GIL is enabled); models load lazily on first use
 # embedding_model: sentence-transformers/all-MiniLM-L6-v2  # Or alias: minilm-l6
-# embedding_device: null  # cpu, cuda, mps, or null for auto
 # extractive_qa_model: deepset/roberta-base-squad2  # Or alias: roberta-squad2
 # extractive_qa_device: null
 # nli_model: cross-encoder/nli-deberta-v3-base  # Or alias: nli-deberta-base

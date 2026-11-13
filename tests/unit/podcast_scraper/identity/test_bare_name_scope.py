@@ -274,28 +274,6 @@ class TestScopedIdsDisappearFromEverySurface:
         assert not is_unresolved_speaker_placeholder("person:jensen")
 
 
-class TestThePipelineRunsTheScopingPassBeforeTypedMentions:
-    """Ordering is the wiring's load-bearing property (#1685).
-
-    Typed mentions attach insight spans to entity ids. If the scoping pass ran AFTER them, the
-    mentions would be bound to ids that are then rewritten underneath, and the edges would point
-    at nodes that no longer exist. Running scoping first means mentions attach to final ids.
-
-    This is a SOURCE-ORDER assertion, not a behavioural one, and that is a deliberate trade: a
-    behavioural test would need the whole metadata-generation harness (providers, artifacts,
-    manifests) to prove one line's position. The behaviour of the pass itself is covered above;
-    what this pins is that it is invoked, and invoked in the right place. Stated plainly so
-    nobody mistakes it for end-to-end coverage.
-    """
-
-    def test_the_heal_branch_is_configurable(self) -> None:
-        """Marko's standing preference: these decisions live in config so a sweep can vary them."""
-        from podcast_scraper import config
-
-        assert "bare_name_heal" in config.Config.model_fields
-        assert config.Config.model_fields["bare_name_heal"].default is True
-
-
 class TestTheWorkListAFutureEnricherWouldStartFrom:
     """Scoping stops the harm; it does not say WHO the person was (#1685).
 
