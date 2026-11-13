@@ -143,11 +143,10 @@ export const useShellStore = defineStore('shell', () => {
   /** True when /api/health reports GET /api/corpus/persons/top (dashboard top voices). */
   const corpusPersonsApiAvailable = ref(true)
   /**
-   * True when the server serves GI artifacts (``artifact_kinds`` includes ``gi``). Without the
-   * insight stage a corpus is KG-only, which is a normal state, not an error. Older servers omit
-   * ``artifact_kinds``: assume GI.
+   * The artifact kinds the server serves (``artifact_kinds`` from health), or ``null`` when an older
+   * server does not say. A downstream build reads it for its own kinds (GI).
    */
-  const giArtifactsAvailable = ref(true)
+  const artifactKinds = ref<string[] | null>(null)
   /** True only when GET/PUT /api/feeds is advertised (strict). */
   const feedsApiAvailable = ref(false)
   /** True only when GET/PUT /api/operator-config is advertised (strict). */
@@ -263,9 +262,9 @@ export const useShellStore = defineStore('shell', () => {
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
       corpusPersonsApiAvailable.value = healthAdvertisesRoute(body.corpus_persons_api)
-      giArtifactsAvailable.value = Array.isArray(body.artifact_kinds)
-        ? body.artifact_kinds.includes('gi')
-        : true
+      artifactKinds.value = Array.isArray(body.artifact_kinds)
+        ? body.artifact_kinds.filter((k: unknown): k is string => typeof k === 'string')
+        : null
       feedsApiAvailable.value = body.feeds_api === true
       operatorConfigApiAvailable.value = body.operator_config_api === true
       jobsApiAvailable.value = body.jobs_api === true
@@ -288,8 +287,8 @@ export const useShellStore = defineStore('shell', () => {
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
       corpusPersonsApiAvailable.value = false
-      // Unknown is not KG-only: keep assuming GI, as before this flag existed.
-      giArtifactsAvailable.value = true
+      // Unknown, not an empty list.
+      artifactKinds.value = null
       feedsApiAvailable.value = false
       operatorConfigApiAvailable.value = false
       jobsApiAvailable.value = false
@@ -381,7 +380,7 @@ export const useShellStore = defineStore('shell', () => {
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,
     corpusPersonsApiAvailable,
-    giArtifactsAvailable,
+    artifactKinds,
     feedsApiAvailable,
     operatorConfigApiAvailable,
     jobsApiAvailable,

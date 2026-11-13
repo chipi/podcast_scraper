@@ -396,12 +396,12 @@ describe('useShellStore /api/health discovery flags', () => {
     )
     const shell = useShellStore()
     await shell.fetchHealth()
-    expect(shell.giArtifactsAvailable).toBe(false)
+    expect(shell.artifactKinds).toEqual(['kg'])
     expect(shell.corpusPersonsApiAvailable).toBe(false)
     expect(shell.cilQueriesApiAvailable).toBe(false)
   })
 
-  it('assumes GI and top persons when an older server omits the new fields', async () => {
+  it('reports unknown kinds and assumes top persons when an older server omits the new fields', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -411,7 +411,7 @@ describe('useShellStore /api/health discovery flags', () => {
     )
     const shell = useShellStore()
     await shell.fetchHealth()
-    expect(shell.giArtifactsAvailable).toBe(true)
+    expect(shell.artifactKinds).toBeNull()
     expect(shell.corpusPersonsApiAvailable).toBe(true)
   })
 })

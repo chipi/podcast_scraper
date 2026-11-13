@@ -258,8 +258,6 @@ export type FetchEpisodesOptions = {
   since?: string
   /** Publish date on/before this ``YYYY-MM-DD`` (inclusive). */
   until?: string
-  /** When false, only episodes missing a GI artifact. */
-  hasGi?: boolean
   /** When false, only episodes missing a KG artifact. */
   hasKg?: boolean
   /** Extra query parameters (a build's own filters); they never override the ones above. */
@@ -285,8 +283,6 @@ export async function fetchCorpusEpisodes(
   if (options.topicClusterOnly) q.set('topic_cluster_only', 'true')
   if (options.since?.trim()) q.set('since', options.since.trim())
   if (options.until?.trim()) q.set('until', options.until.trim())
-  if (options.hasGi === true) q.set('has_gi', 'true')
-  if (options.hasGi === false) q.set('has_gi', 'false')
   if (options.hasKg === true) q.set('has_kg', 'true')
   if (options.hasKg === false) q.set('has_kg', 'false')
   for (const [k, v] of Object.entries(options.extraParams ?? {})) {

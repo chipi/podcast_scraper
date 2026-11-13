@@ -293,6 +293,5 @@ describe('LibraryView — search context and handoff', () => {
       hasKg: false,
       extraParams: { has_gi: 'false' },
     })
-    expect(lastEpisodesCall()[1].hasGi).toBeUndefined()
   })
 })
