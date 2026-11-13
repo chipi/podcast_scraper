@@ -615,7 +615,7 @@ The requirements, kept for the record:
 | **>15 feeds** | viewer `library.spec.ts` feed-filter search | the control renders only above a 15-feed threshold; v3 ships 9 |
 | An episode with **no nearest neighbours** | viewer `library.spec.ts` similar-empty branch | against a real index every episode has peers, so `items: []` is unreachable |
 | Run counters in **three states** — positive, explicit `0`, legacy `null` | viewer `dashboard-pipeline-metrics-mocks.spec.ts` | one committed run cannot be all three at once |
-| **Lifted / compound results** — a segment chunk resolving to an insight with an attributed speaker | `search-fr1` compound badge, and the person spec (now downstream, E04 step 8b) | 50 of 50 results across five queries return `"lifted": null` |
+| **Lifted / compound results** — a segment chunk resolving to an insight with an attributed speaker | the compound badge and the person spec (both now downstream, E04 step 8b) | 50 of 50 results across five queries return `"lifted": null` |
 | Search results carrying **speaker/topic subject metadata**, ≥2 surfaceable by one query | the Compare operator spec (now downstream, E04 step 8b) | no `speaker_name` / `topic_label` on any result; ≤1 `kg_entity`/`kg_topic` per query across four probes |
 | A **consensus pair with named speakers** | `search-operator-bar` consensus assertions | pairs exist, but `person_a_label` / `person_b_label` / `cosine_similarity` are all `null` |
 | Corpus content that **answers the default digest topic queries** (or a corpus-local `digest_topics` config) | `digest.spec.ts` topic bands, `dashboard.spec.ts` FR6.1 | `DEFAULT_DIGEST_TOPICS` is configured, but every band resolves to `None` — and reports `topics_unavailable_reason: null`, which reads as "nothing configured" |
@@ -668,7 +668,7 @@ That single gap blocks more than it looks like:
 
 | Blocked surface | Why |
 | --- | --- |
-| `search-fr1.spec.ts` compound badge + lifted entity links | the badge and links only render on a compound row |
+| the compound badge + lifted entity links (now downstream, E04 step 8b) | the badge and links only render on a compound row |
 | `person-landing.spec.ts` — **the whole file** (since E04 step 8b in a downstream build, with the Positions tab) | its only shipped entry point is clicking the `lifted.speaker` link on a search hit |
 
 So a working index did **not** unblock `person-landing`, contrary to the earlier note here. **v4

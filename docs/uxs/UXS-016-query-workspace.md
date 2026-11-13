@@ -45,8 +45,7 @@ SearchTab.vue                                    [w-full main area]
 │    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | (a downstream build's chips) | More (feed / embedding model)
 ├─ ResultSetOperatorBar.vue                      On graph | Timeline | Compare
 └─ WorkspaceResults.vue                          scrollable
-     ├─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + compound "+ insight" badge
-     └─ CompoundCard.vue                         when hit has `lifted` (RFC-072 KL1)
+     └─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + a downstream build's badges and sections
 ```
 
 **Revised in §S4-shell:** `WorkspaceSidebar.vue` is now hosted in the LeftPanel (not as a child of SearchTab), supporting the pattern that LeftPanel is visible on all main tabs. See §Sidebar below for details.
@@ -84,7 +83,7 @@ Operator bar `aria-role="toolbar"`; buttons `aria-role="button"` with visible fo
 Each `ResultCard`:
 
 - **Tier badge** (`search-result-tier`, from UXS-005 PRD-033 FR1.1): **Insight** (`primary`) / **Transcript** (`success`) / **Reference** (`muted`), from `source_tier`.
-- **Compound `+ insight` badge** (`search-result-compound`) when the hit is a transcript-lifted-to-insight compound (`lifted` block, RFC-072 KL1).
+- **Compound `+ insight` badge** (`search-result-compound`; a downstream build's since E04 step 8b, as are the Lifted GI insight region and supporting quotes below) when the hit is a transcript-lifted-to-insight compound (`lifted` block, RFC-072 KL1).
 - **Actions**: `G` (graph focus), `L` (Library episode) — same rules as UXS-005 (L requires `source_metadata_relative_path` + healthy API); `E` (episode id chip, informational). When KG-surface merged, only `G` shows.
 - **Lifted GI insight** region (when `lifted` present, UXS-005-inherited): linked insight id/text, speaker/topic labels, quote time range. Includes the `No speaker detected` muted line (`GI_QUOTE_SPEAKER_UNAVAILABLE_HINT`, #541) when `lifted.quote` has timestamps but no speaker label.
 - **Supporting quotes** (collapsible, UXS-005-inherited): same `No speaker detected` treatment when speaker missing.

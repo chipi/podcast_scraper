@@ -138,6 +138,13 @@ export interface SearchFilterChip extends Entry {
 
 export const searchFilterChips = extensionPoint<SearchFilterChip>('searchFilterChips')
 
+/** A badge on a search result card's title row, after its icon; rendered with the card's `hit` prop. */
+export interface ResultCardBadge extends Entry {
+  component: Component
+}
+
+export const resultCardBadges = extensionPoint<ResultCardBadge>('resultCardBadges')
+
 /** A section at the bottom of each search result card; rendered with the card's `hit` prop. */
 export interface ResultCardSection extends Entry {
   component: Component

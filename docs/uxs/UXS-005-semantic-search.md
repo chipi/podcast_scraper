@@ -150,6 +150,9 @@ Each hit can expose:
 - When **Merge duplicate KG surfaces** merged a row (`kg_surface_match_count` >= 2),
   G only -- L and E are hidden so actions are not tied to a single representative
   episode
+- The two items below, and the compound badge and lifted links under PRD-033 FR1, are a
+  downstream build's since E04 step 8b (registered at `resultCardBadges` /
+  `resultCardSections`); the platform's card renders none of them.
 - **Transcript** hits may include a collapsible **`region` Lifted GI insight** (linked
   insight id/text, speaker/topic labels, quote time range) when the server attaches
   **`lifted`** (#528). When **`lifted.quote`** has at least one finite **`timestamp_*_ms`**
