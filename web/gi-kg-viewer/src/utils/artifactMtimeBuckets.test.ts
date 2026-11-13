@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bucketGiKgMtimesByDay,
-  bucketGiMtimesByDay,
-  cumulativeGiKgByDay,
   dailyNewCountsLastDays,
   sortedMonthHistogram,
   utcDayFromMtime,
@@ -20,50 +17,6 @@ describe('utcDayFromMtime', () => {
   it('returns empty for garbage', () => {
     expect(utcDayFromMtime('')).toBe('')
     expect(utcDayFromMtime('not-a-date')).toBe('')
-  })
-})
-
-describe('bucketGiMtimesByDay', () => {
-  it('counts only gi kind and groups by day', () => {
-    const rows = bucketGiMtimesByDay([
-      { kind: 'gi', mtime_utc: '2024-01-02T10:00:00Z' },
-      { kind: 'gi', mtime_utc: '2024-01-02T15:00:00Z' },
-      { kind: 'kg', mtime_utc: '2024-01-03T10:00:00Z' },
-      { kind: 'gi', mtime_utc: '2024-01-03T08:00:00Z' },
-    ])
-    expect(rows).toEqual([
-      { day: '2024-01-02', count: 2 },
-      { day: '2024-01-03', count: 1 },
-    ])
-  })
-})
-
-describe('bucketGiKgMtimesByDay', () => {
-  it('counts gi and kg per day', () => {
-    const rows = bucketGiKgMtimesByDay([
-      { kind: 'gi', mtime_utc: '2024-01-01T00:00:00Z' },
-      { kind: 'kg', mtime_utc: '2024-01-01T12:00:00Z' },
-      { kind: 'gi', mtime_utc: '2024-01-02T00:00:00Z' },
-    ])
-    expect(rows).toEqual([
-      { day: '2024-01-01', count: 2 },
-      { day: '2024-01-02', count: 1 },
-    ])
-  })
-})
-
-describe('cumulativeGiKgByDay', () => {
-  it('returns running totals per kind ordered by day', () => {
-    const rows = cumulativeGiKgByDay([
-      { kind: 'gi', mtime_utc: '2024-01-01T10:00:00Z' },
-      { kind: 'kg', mtime_utc: '2024-01-01T12:00:00Z' },
-      { kind: 'gi', mtime_utc: '2024-01-02T08:00:00Z' },
-      { kind: 'kg', mtime_utc: '2024-01-02T09:00:00Z' },
-    ])
-    expect(rows).toEqual([
-      { day: '2024-01-01', gi: 1, kg: 1 },
-      { day: '2024-01-02', gi: 2, kg: 2 },
-    ])
   })
 })
 
