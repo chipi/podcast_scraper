@@ -316,12 +316,13 @@ test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
     await expect(page.getByTestId('briefing-card')).toBeVisible()
   }
 
-  test('artifact activity names the newest GI and KG days', async ({ page }) => {
+  test('artifact activity names the newest KG day, and no GI one (a downstream build\'s series)', async ({ page }) => {
     await listArtifactsThenOpenDashboard(page)
     const activity = page.getByTestId('artifact-activity-chart')
     await expect(activity.locator('canvas')).toBeVisible()
     const ymd = (offset: number) => new Date(Date.now() - offset * DAY).toISOString().slice(0, 10)
-    await expect(activity).toContainText(`Last GI: ${ymd(1)} · Last KG: ${ymd(3)}`)
+    await expect(activity).toContainText(`Last KG: ${ymd(3)}`)
+    await expect(activity).not.toContainText('Last GI')
   })
 
   test('artifact activity calls out 14 silent days', async ({ page }) => {
@@ -386,9 +387,8 @@ test.describe('Dashboard Coverage tab — live corpus', () => {
     await statusBarCorpusPathInput(page).fill(root)
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await expect(page.getByTestId('briefing-card')).toBeVisible()
-    await expect(page.getByTestId('artifact-activity-chart')).toContainText(
-      `Last GI: ${newest('gi')} · Last KG: ${newest('kg')}`,
-      { timeout: 10_000 },
-    )
+    await expect(page.getByTestId('artifact-activity-chart')).toContainText(`Last KG: ${newest('kg')}`, {
+      timeout: 10_000,
+    })
   })
 })

@@ -444,7 +444,9 @@ days.
 when work has stopped. A recency chart makes silence visually obvious.
 
 **What it shows:** For each day in the last 30 days: count of new
-GI artifacts + count of new KG artifacts written that day.
+GI artifacts + count of new KG artifacts written that day. Since E04 step 8b the platform
+charts KG and a downstream build adds the GI series before it (`artifactActivitySeries`);
+the insight names each series' newest day in that order.
 
 **Tufte compliance:**
 

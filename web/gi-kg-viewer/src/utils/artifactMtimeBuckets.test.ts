@@ -3,7 +3,7 @@ import {
   bucketGiKgMtimesByDay,
   bucketGiMtimesByDay,
   cumulativeGiKgByDay,
-  dailyGiKgNewCountsLastDays,
+  dailyNewCountsLastDays,
   sortedMonthHistogram,
   utcDayFromMtime,
 } from './artifactMtimeBuckets'
@@ -67,21 +67,28 @@ describe('cumulativeGiKgByDay', () => {
   })
 })
 
-describe('dailyGiKgNewCountsLastDays', () => {
-  it('fills a fixed UTC window with per-day new counts', () => {
+describe('dailyNewCountsLastDays', () => {
+  it('fills a fixed UTC window with per-day new counts for the kinds asked', () => {
     const end = new Date(Date.UTC(2024, 5, 10))
-    const rows = dailyGiKgNewCountsLastDays(
+    const rows = dailyNewCountsLastDays(
       [
         { kind: 'gi', mtime_utc: '2024-06-10T10:00:00Z' },
         { kind: 'kg', mtime_utc: '2024-06-09T12:00:00Z' },
+        { kind: 'other', mtime_utc: '2024-06-09T12:00:00Z' },
+        { kind: 'kg', mtime_utc: 'not a date' },
       ],
+      ['gi', 'kg'],
       3,
       end,
     )
     expect(rows).toHaveLength(3)
-    expect(rows[0]?.day).toBe('2024-06-08')
-    expect(rows[1]).toEqual({ day: '2024-06-09', gi: 0, kg: 1 })
-    expect(rows[2]).toEqual({ day: '2024-06-10', gi: 1, kg: 0 })
+    expect(rows[0]).toEqual({ day: '2024-06-08', counts: { gi: 0, kg: 0 } })
+    expect(rows[1]).toEqual({ day: '2024-06-09', counts: { gi: 0, kg: 1 } })
+    expect(rows[2]).toEqual({ day: '2024-06-10', counts: { gi: 1, kg: 0 } })
+    // A kind not asked for is not counted.
+    expect(dailyNewCountsLastDays([{ kind: 'gi', mtime_utc: '2024-06-10T10:00:00Z' }], ['kg'], 1, end)).toEqual([
+      { day: '2024-06-10', counts: { kg: 0 } },
+    ])
   })
 })
 
