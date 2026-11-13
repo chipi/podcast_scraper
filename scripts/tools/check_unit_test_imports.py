@@ -47,9 +47,8 @@ MODULES_TO_TEST = [
     "podcast_scraper",
     "podcast_scraper.config",
     "podcast_scraper.kg",
-    "podcast_scraper.metadata",
-    "podcast_scraper.rss_parser",
-    "podcast_scraper.speaker_detectors.factory",
+    "podcast_scraper.workflow.metadata_generation",
+    "podcast_scraper.rss.parser",
     "podcast_scraper.summarization.factory",
     "podcast_scraper.transcription.factory",
     "podcast_scraper.providers.ml.ml_provider",  # Should use lazy imports
