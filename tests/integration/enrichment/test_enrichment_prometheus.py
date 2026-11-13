@@ -94,9 +94,17 @@ def test_a_missing_summary_never_raises(tmp_path: Path, monkeypatch) -> None:
 def test_non_terminal_status_is_ignored(corpus: Path, monkeypatch) -> None:
     """A running job has no totals to record yet."""
     monkeypatch.setenv("PODCAST_METRICS_ENABLED", "1")
-    before = _scrape().count("podcast_enrichment_runs_total")
+
+    def samples() -> list[str]:
+        # Sample lines only: the first call in a process registers the family, which adds its
+        # # HELP / # TYPE lines but no sample; counting those made the result depend on order.
+        return [
+            ln for ln in _scrape().splitlines() if ln.startswith("podcast_enrichment_runs_total")
+        ]
+
+    before = samples()
     erp.observe_enrichment_terminal_metrics(corpus, {"status": "running"})
-    assert _scrape().count("podcast_enrichment_runs_total") == before
+    assert samples() == before
 
 
 # --- traces (#2071) ----------------------------------------------------------------------------
