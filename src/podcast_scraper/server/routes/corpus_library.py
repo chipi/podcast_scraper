@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -222,6 +223,40 @@ def corpus_resolve_episode_artifacts(
     )
 
 
+def _kg_node_episodes(
+    root: Path, node_id: str, max_episodes: int | None
+) -> tuple[str, list[dict[str, Any]], bool, int | None]:
+    """The episodes whose KG carries *node_id*, from the KG index, when no stage reads bridges.
+
+    Without the cross-layer stage (a build without GI) the bridge answer is always empty, so the
+    graph could never bring in a topic, person or organisation outside its first slice. The KG
+    index holds the same "which episodes mention it" for the KG's own nodes.
+    """
+    from podcast_scraper.server.kg_index import get_kg_index
+
+    canon = re.sub(r"^[gk]:", "", node_id.strip())
+    index = get_kg_index(root)
+    if canon.startswith("topic:"):
+        found = index.topic_episodes(canon)
+    elif canon.startswith("person:"):
+        found = index.person_episodes(canon)
+    else:
+        found = index.org_episodes(canon)
+    total = len(found)
+    kept = found[:max_episodes] if max_episodes else found
+    rows = [
+        {
+            "gi_relative_path": "",
+            "kg_relative_path": e.row.kg_relative_path,
+            "bridge_relative_path": "",
+            "episode_id": e.row.episode_id,
+        }
+        for e in kept
+        if e.row.kg_relative_path
+    ]
+    return canon, rows, len(kept) < total, total
+
+
 @router.post("/corpus/node-episodes", response_model=CorpusNodeEpisodesResponse)
 def corpus_node_episodes(
     request: Request,
@@ -236,12 +271,17 @@ def corpus_node_episodes(
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
     anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
-    canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
-        root_s,
-        anchor_path,
-        body.node_id,
-        max_episodes=body.max_episodes,
-    )
+    if read_hooks.bridge_node_episodes_installed():
+        canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
+            root_s,
+            anchor_path,
+            body.node_id,
+            max_episodes=body.max_episodes,
+        )
+    else:
+        canon, rows, truncated, total_matched = _kg_node_episodes(
+            root, body.node_id, body.max_episodes
+        )
     items = [
         CorpusNodeEpisodeItem(
             gi_relative_path=str(r["gi_relative_path"]),
