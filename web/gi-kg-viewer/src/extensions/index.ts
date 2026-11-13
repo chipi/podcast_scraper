@@ -568,7 +568,8 @@ export interface NodeDetailContext {
  * `avatarGroup` overrides the header glyph group; `hiddenProperties` keeps keys a section shows
  * out of the generic property list; `sections` render with a `ctx` prop (`header` under the title,
  * `overview` after the topic search shortcuts, `body` after the person shortcuts, `after-aliases`
- * after the topic aliases); `connections` replaces the neighbour list (and the minimap's
+ * after the topic aliases, `details` in the Details tab after the body text and before the property
+ * list); `connections` replaces the neighbour list (and the minimap's
  * neighbourhood) for this node.
  */
 export interface NodeDetailExtension extends Entry {
@@ -579,7 +580,10 @@ export interface NodeDetailExtension extends Entry {
   title?(ctx: NodeDetailContext): string | null
   avatarGroup?(ctx: NodeDetailContext): string | null
   hiddenProperties?(ctx: NodeDetailContext): string[]
-  sections?: Array<{ region: 'header' | 'overview' | 'body' | 'after-aliases'; component: Component }>
+  sections?: Array<{
+    region: 'header' | 'overview' | 'body' | 'after-aliases' | 'details'
+    component: Component
+  }>
   /**
    * Extra tabs of the panel when it sits in the rail, after the viewer's own. Each shows only for
    * the nodes `shows` accepts and renders with a `ctx` prop; the panel falls back to Details when
