@@ -54,6 +54,9 @@ const headerSections = computed(() => searchPanelSections.list().filter((s) => s
 const aboveResultsSections = computed(() =>
   searchPanelSections.list().filter((s) => s.region === 'above-results'),
 )
+const resultsHeaderSections = computed(() =>
+  searchPanelSections.list().filter((s) => s.region === 'results-header'),
+)
 
 const activeOperator = computed<string | null>({
   get: () => search.activeOperator,
@@ -105,23 +108,9 @@ function openSearchResultsViz(): void {
   vizDialogRef.value?.open()
 }
 
-/** PRD-033 FR1.3 — raw-evidence toggle: constrain the rendered tier. */
-type EvidenceFilter = 'both' | 'insight' | 'segment'
-const evidenceFilter = ref<EvidenceFilter>('both')
-const EVIDENCE_OPTIONS: { value: EvidenceFilter; label: string }[] = [
-  { value: 'insight', label: 'Insights' },
-  { value: 'segment', label: 'Transcript' },
-  { value: 'both', label: 'Both' },
-]
-
-// From ``filteredResults``, not ``results``: the Min confidence chip is a client-side filter and
-// this list is where it shows. Read from ``results`` it filtered nothing.
-const visibleResults = computed((): SearchHit[] => {
-  if (evidenceFilter.value === 'both') return search.filteredResults
-  return search.filteredResults.filter(
-    (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
-  )
-})
+// From ``filteredResults``, not ``results``: client-side filters a downstream build registers
+// (``searchResultFilters``) show here. Read from ``results`` they filtered nothing.
+const visibleResults = computed((): SearchHit[] => search.filteredResults)
 
 /**
  * The collapsed render list — same order as ``visibleResults`` but
@@ -605,39 +594,11 @@ const advancedFeedCombinedTitle = computed(() =>
           >
             Intent: {{ queryTypeLabel }}
           </span>
-          <div
-            class="flex items-center overflow-hidden rounded border border-border text-[10px]"
-            role="group"
-            aria-label="Evidence tier filter"
-            data-testid="search-evidence-toggle"
-          >
-            <button
-              v-for="opt in EVIDENCE_OPTIONS"
-              :key="opt.value"
-              type="button"
-              class="px-1.5 py-0.5 leading-none"
-              :class="
-                evidenceFilter === opt.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted hover:bg-overlay'
-              "
-              :aria-pressed="evidenceFilter === opt.value"
-              :data-testid="`search-evidence-${opt.value}`"
-              @click="evidenceFilter = opt.value"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
-          <p
-            v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
-            class="text-[10px] text-muted"
-            title="Transcript lift coverage for this result page (rows returned vs rows with a linked GI insight)."
-          >
-            Lift:
-            {{ search.liftStats.lift_applied }} /
-            {{ search.liftStats.transcript_hits_returned }}
-            transcript rows linked to GI
-          </p>
+          <component
+            :is="section.component"
+            v-for="section in resultsHeaderSections"
+            :key="section.id"
+          />
           <button
             type="button"
             class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"

@@ -78,7 +78,7 @@ Operator bar `aria-role="toolbar"`; buttons `aria-role="button"` with visible fo
 
 ## Results
 
-`WorkspaceResults.vue` renders the muted "N results" / "1 result" line (unchanged from UXS-005), the optional `Lift: applied / transcript rows` line (from RFC-072 KL1 lift stats), and the hit list.
+`WorkspaceResults.vue` renders the muted "N results" / "1 result" line (unchanged from UXS-005), any `results-header` sections a downstream build registers (the evidence toggle and the optional `Lift: applied / transcript rows` line moved there, E04 step 8b), and the hit list.
 
 Each `ResultCard`:
 
