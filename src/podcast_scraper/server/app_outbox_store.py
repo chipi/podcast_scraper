@@ -31,7 +31,7 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import comms, outbox
 from podcast_scraper.server import app_comms_store
 from podcast_scraper.server.app_user_store import get_user
@@ -223,7 +223,7 @@ def list_pending(
     )
 
     def read(engine: Any) -> list[Any]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return list(conn.execute(query).all())
 
     out: list[dict[str, Any]] = []

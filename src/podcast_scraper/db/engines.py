@@ -105,7 +105,7 @@ def check_ready(engines: _Engines) -> None:
     plane = engines.settings.plane
     for label, engine in (("rw", engines.rw), ("ro", engines.ro)):
         try:
-            with engine.connect() as conn:
+            with read_connection(engine) as conn:
                 conn.execute(text("SELECT 1"))
         except sa_exc.SQLAlchemyError as exc:
             raise DatabaseNotReady(f"database ({label}) is not reachable: {exc}") from exc
@@ -113,7 +113,7 @@ def check_ready(engines: _Engines) -> None:
 
     checks = [("schema", SHARED_SCHEMA, migrate.SHARED), ("plane", plane, migrate.KERNEL)]
     checks += [(f"module {h.name} on plane", plane, h) for h in migrate.modules(plane)]
-    with engines.rw.connect() as conn:
+    with read_connection(engines.rw) as conn:
         found = [
             (label, schema, *migrate.readiness(conn, schema, hist))
             for label, schema, hist in checks
@@ -218,9 +218,12 @@ def plane_schema() -> str:
 
 
 def read_connection(engine: Engine) -> Connection:
-    """A connection for a read of ONE statement: autocommit, so the read costs no BEGIN and no
-    ROLLBACK round trip. A read of several statements that must see one snapshot uses
-    ``engine.connect()`` instead."""
+    """The connection every read uses: autocommit, so a read sends no BEGIN, no COMMIT and no
+    ROLLBACK, and Postgres counts each statement as an implicit commit. A read closed by
+    ``engine.connect()`` without a commit ends in a ROLLBACK, which makes the rollback counter
+    (``pg_stat_database.xact_rollback``) count reads instead of failures. Each statement sees its
+    own snapshot; a read that needs several statements on one snapshot is rare enough to be named
+    where it happens."""
     return engine.connect().execution_options(isolation_level="AUTOCOMMIT")
 
 
