@@ -1,20 +1,25 @@
 <script setup lang="ts">
 /**
  * Doc types chip (#671). Replaces the multi-checkbox row in the Advanced
- * search dialog. Empty selection = all types.
+ * search dialog. Empty selection = all types. A downstream build's types
+ * (``searchDocTypes``) come first.
  */
 import { computed, ref } from 'vue'
 import { useSearchStore } from '../../../stores/search'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
+import { searchDocTypes } from '../../../extensions'
 
-const TYPE_OPTIONS = [
-  { value: 'insight', label: 'Insights' },
-  { value: 'quote', label: 'Quotes' },
+const PLATFORM_TYPES = [
   { value: 'kg_entity', label: 'KG entities' },
   { value: 'kg_topic', label: 'KG topics' },
   { value: 'summary', label: 'Summary bullets' },
   { value: 'transcript', label: 'Transcript chunks' },
-] as const
+]
+
+const TYPE_OPTIONS = [
+  ...searchDocTypes.list().map((d) => ({ value: d.id, label: d.label })),
+  ...PLATFORM_TYPES,
+]
 
 const search = useSearchStore()
 const anchorRef = ref<HTMLButtonElement | null>(null)
