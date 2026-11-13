@@ -12,12 +12,10 @@ check is measured on real language, not on a word list fed back to itself.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import MagicMock
+from typing import Any, List
 
 import pytest
 
-from podcast_scraper import config as config_mod
 from podcast_scraper.languages_guard import (
     transcript_language_contradiction,
     TRANSCRIPT_LANGUAGE_MIN_WORDS,
@@ -89,92 +87,3 @@ class TestWhatItDoesNotJudge:
         """No list, no opinion: refusing would stop a language the text check cannot read."""
         _, _, spanish = next(f for f in FIXTURES if f[1] == "es")
         assert transcript_language_contradiction(spanish, declared) is None
-
-
-class _ReachedDiarization(Exception):
-    pass
-
-
-def _run_pipeline(monkeypatch, text: str, requested: str, **overrides: Any) -> Dict[str, Any]:
-    from podcast_scraper.workflow import episode_processor as ep
-
-    seen: Dict[str, Any] = {"recorded": [], "decided": [], "incidents": [], "saved": False}
-    result = {"text": text, "segments": [], "language_requested": requested}
-    monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
-    monkeypatch.setattr(ep, "_maybe_dispatch_reprocess_stage", lambda *a, **k: None)
-    monkeypatch.setattr(ep, "_check_and_reuse_existing_transcript", lambda *a, **k: None)
-    monkeypatch.setattr(ep, "_check_transcript_cache", lambda *a, **k: None)
-    monkeypatch.setattr(ep, "_preprocess_audio_if_needed", lambda job, cfg, m, pm: m)
-    monkeypatch.setattr(ep, "_cleanup_temp_media", lambda *a, **k: None)
-    monkeypatch.setattr(
-        ep, "_transcribe_with_segments_maybe_chunked", lambda *a, **k: (dict(result), 1.0)
-    )
-
-    def _saved(*a: Any, **k: Any) -> str:
-        seen["saved"] = True
-        return "transcripts/x.txt"
-
-    monkeypatch.setattr(ep, "_save_transcript_file", _saved)
-    monkeypatch.setattr(
-        ep,
-        "_record_unresolved_transcript",
-        lambda job, cfg, pm, stage, *, error_type="", detail=None: seen["recorded"].append(
-            {"stage": stage, "error_type": error_type, "detail": detail}
-        ),
-    )
-    monkeypatch.setattr(
-        ep,
-        "_mark_reprocess_nothing_to_do",
-        lambda episode, cfg, pm, stage, *, error_type, detail, satisfied=False, refused=False: seen[
-            "decided"
-        ].append({"stage": stage, "error_type": error_type, "refused": refused}),
-    )
-    monkeypatch.setattr(
-        ep,
-        "_append_transcription_incident",
-        lambda cfg, job, *, category="", message="", exception_type="": seen["incidents"].append(
-            {"category": category, "exception_type": exception_type}
-        ),
-    )
-
-    def _diarization(*a: Any, **k: Any) -> Any:
-        # Not an exception the pipeline catches, so reaching diarization ends the run here.
-        seen["diarized"] = True
-        seen["transcribe_clip"] = k.get("transcribe_clip")
-        seen["diarized_result"], seen["diarized_cfg"] = a[0], a[2]
-        raise _ReachedDiarization
-
-    seen["diarized"] = False
-    monkeypatch.setattr(
-        "podcast_scraper.providers.ml.diarization.pipeline.apply_diarization_to_result",
-        _diarization,
-    )
-    monkeypatch.setattr(
-        ep,
-        "_record_language_refusal",
-        lambda episode, cfg, detail, *, detected=None: seen.setdefault("refusals", []).append(
-            {"detail": detail, "detected": detected}
-        ),
-    )
-    # #2375: a refusal withdraws the episode's served runs; recorded here, never a real corpus scan.
-    monkeypatch.setattr(
-        ep,
-        "_withdraw_served_runs",
-        lambda episode, cfg, detected: seen.setdefault("withdrawn", []).append(detected) or 0,
-    )
-    if "identified" in overrides:
-        identified = overrides.pop("identified")
-        monkeypatch.setattr(ep, "_identify_episode_language", lambda *a, **k: identified)
-    cfg = config_mod.Config(rss="https://example.com/f.xml").model_copy(
-        update={"feed_declared_language": requested, "diarize": True, **overrides}
-    )
-    job = MagicMock()
-    job.idx = 1
-    job.temp_media = None
-    try:
-        seen["return"] = ep.transcribe_media_to_text(
-            job, cfg, None, None, "/tmp/out", MagicMock(), None
-        )
-    except _ReachedDiarization:
-        seen["return"] = None
-    return seen
