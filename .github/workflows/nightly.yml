@@ -680,6 +680,14 @@ jobs:
       run: |
         cd web/gi-kg-viewer
         npm run test:e2e
+    - name: Upload Playwright traces of failed tests
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: viewer-e2e-test-results
+        path: web/gi-kg-viewer/test-results/
+        retention-days: 7
+        if-no-files-found: ignore
 
   # ===========================================================================
   # Tier-3 viewer validation (RFC-086 / ADR-095 / GH #774)
