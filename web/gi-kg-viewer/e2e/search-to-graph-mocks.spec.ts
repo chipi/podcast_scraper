@@ -10,12 +10,8 @@ const artifactJson = readFileSync(KG_SAMPLE_FIXTURE, 'utf-8')
  * #1619 — stays fixture-driven, deliberately. It serves **`KG_SAMPLE_FIXTURE`** — a checked-in
  * graph artifact — through `/api/artifacts/metadata/ci_sample.kg.json` and drives search against
  * that graph, so the assertions do not move with whatever today's ranking surfaces. The Insight's
- * graph detail (provenance, supporting quotes, transcript) is a downstream build's, with GI.
- *
- * The genuinely corpus-blocked parts, measured rather than assumed: the **`lifted` quote tests**
- * (`search supporting quotes without speaker…`, `transcript hit with lifted quote timing…`) — the
- * corpus returns `"lifted": null` on every result (50/50 across five queries), so the
- * muted-attribution hints have no reachable state. Ladder §B.
+ * graph detail (provenance, supporting quotes, transcript) is a downstream build's, with GI, and so
+ * are the result card's supporting quotes and lifted block (E04 step 8b): their tests moved there.
  */
 test.describe('Search → graph (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
@@ -179,121 +175,5 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('.graph-canvas')).toBeVisible()
-  })
-
-  test('search supporting quotes without speaker show muted attribution hint', async ({ page }) => {
-    await page.unroute('**/api/search?**')
-    await page.route('**/api/search?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          query: 'with-quotes',
-          results: [
-            {
-              doc_id: 'doc-ins-q',
-              score: 0.92,
-              text: 'Insight with supporting quote (no speaker).',
-              metadata: {
-                doc_type: 'insight',
-                source_id: 'insight:with-q',
-                episode_id: 'ci-fixture',
-                source_metadata_relative_path: 'metadata/ci_sample.metadata.json',
-              },
-              supporting_quotes: [{ text: 'Quoted evidence without speaker fields.' }],
-            },
-          ],
-        }),
-      })
-    })
-
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await page.locator('#search-q').fill('with quotes')
-    await page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
-      .getByRole('button', { name: 'Search', exact: true })
-      .click()
-
-    await page.getByText('Insight with supporting quote', { exact: false }).waitFor({ timeout: 10_000 })
-
-    await page.getByRole('button', { name: 'Show 1 supporting quote' }).click()
-
-    const hint = page.getByTestId('supporting-quote-speaker-unavailable')
-    await expect(hint).toBeVisible()
-    await expect(hint).toContainText('No speaker detected')
-  })
-
-  test('transcript hit with lifted quote timing and no speaker shows muted lifted hint', async ({
-    page,
-  }) => {
-    await page.unroute('**/api/search?**')
-    await page.route('**/api/search?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          query: 'lift-no-speaker',
-          lift_stats: { transcript_hits_returned: 1, lift_applied: 1 },
-          results: [
-            {
-              doc_id: 'doc-tr-lift',
-              score: 0.88,
-              text: 'Transcript chunk text for lift hint.',
-              metadata: {
-                doc_type: 'transcript',
-                episode_id: 'ci-fixture',
-                source_metadata_relative_path: 'metadata/ci_sample.metadata.json',
-                char_start: 0,
-                char_end: 40,
-              },
-              lifted: {
-                insight: {
-                  id: 'ins:lift-hint',
-                  text: 'Linked GI insight (lift mock).',
-                  grounded: true,
-                },
-                quote: { timestamp_start_ms: 5000, timestamp_end_ms: 9000 },
-              },
-            },
-          ],
-        }),
-      })
-    })
-
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-
-    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-    await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-    await page.locator('#search-q').fill('lift no speaker')
-    await page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
-      .getByRole('button', { name: 'Search', exact: true })
-      .click()
-
-    await page.getByText('Transcript chunk text for lift hint', { exact: false }).waitFor({
-      timeout: 10_000,
-    })
-
-    // Lifted block defaults expanded (`liftedOpen`); toggle label is **Hide** linked GI insight.
-    const liftedHint = page.getByTestId('search-lifted-quote-speaker-unavailable')
-    await expect(liftedHint).toBeVisible()
-    await expect(liftedHint).toContainText('No speaker detected')
   })
 })
