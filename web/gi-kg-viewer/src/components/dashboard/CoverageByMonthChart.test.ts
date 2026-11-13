@@ -21,8 +21,9 @@ vi.mock('../../utils/chartRegister', () => ({ ensureChartJsRegistered: vi.fn() }
 
 let getContext: ReturnType<typeof vi.spyOn>
 
-function m(month: string, total: number, with_gi: number): CoverageByMonthItem {
-  return { month, total, with_gi, with_kg: 0, with_both: 0 }
+/** A month with `with_kg` covered (the chart's default layer); `with_gi` holds a decoy. */
+function m(month: string, total: number, with_kg: number): CoverageByMonthItem {
+  return { month, total, with_gi: total, with_kg, with_both: 0 }
 }
 
 describe('CoverageByMonthChart', () => {
@@ -38,7 +39,7 @@ describe('CoverageByMonthChart', () => {
   it('shows the empty message when there are no rows with episodes', () => {
     const w = mount(CoverageByMonthChart, { props: { rows: [m('2026-01', 0, 0)] } })
     expect(w.text()).toContain('No episode metadata found.')
-    expect(w.get('h3').text()).toBe('GI coverage by month')
+    expect(w.get('h3').text()).toBe('KG coverage by month')
     expect(w.find('canvas').exists()).toBe(false)
     expect(h.instances).toHaveLength(0)
   })
@@ -48,7 +49,7 @@ describe('CoverageByMonthChart', () => {
       props: { rows: [m('2026-01', 10, 10), m('2026-02', 10, 2), m('2026-03', 10, 9)] },
     })
     // 100, 20, 90 -> avg 70 -> only 2026-02 below.
-    expect(w.get('h3').text()).toBe('1 months below average GI coverage')
+    expect(w.get('h3').text()).toBe('1 months below average KG coverage')
     expect(w.text()).toContain('Lowest: 2026-02 — 20%')
     expect(w.text()).toContain('1 month below average — 2026-02 need attention')
   })
@@ -64,7 +65,7 @@ describe('CoverageByMonthChart', () => {
     const w = mount(CoverageByMonthChart, {
       props: { rows: [m('2026-01', 10, 5), m('2026-02', 10, 5)] },
     })
-    expect(w.get('h3').text()).toBe('GI coverage by month — at or above average')
+    expect(w.get('h3').text()).toBe('KG coverage by month — at or above average')
     expect(w.text()).toContain('Coverage stable: 0pp from 2026-01 to 2026-02')
   })
 
@@ -74,8 +75,8 @@ describe('CoverageByMonthChart', () => {
     expect(w.text()).toContain('Lowest: 2026-01 — 50%')
   })
 
-  it('builds a bar chart of GI percentages, colouring below-average months differently', () => {
-    document.documentElement.style.setProperty('--ps-gi', '#112233')
+  it('builds a bar chart of KG percentages, colouring below-average months differently', () => {
+    document.documentElement.style.setProperty('--ps-kg', '#112233')
     document.documentElement.style.setProperty('--ps-warning', '#aa5500')
     mount(CoverageByMonthChart, {
       props: { rows: [m('2026-01', 10, 10), m('2026-02', 10, 2), m('2026-00', 0, 0)] },
@@ -98,7 +99,7 @@ describe('CoverageByMonthChart', () => {
   it('formats the tooltip as a percentage', () => {
     mount(CoverageByMonthChart, { props: { rows: [m('2026-01', 10, 5)] } })
     const label = h.instances[0].config.options.plugins.tooltip.callbacks.label
-    expect(label({ parsed: { y: 66.6 } })).toBe('67% GI')
+    expect(label({ parsed: { y: 66.6 } })).toBe('67% KG')
     expect(label({ parsed: { y: null } })).toBe('null')
   })
 
@@ -148,5 +149,24 @@ describe('CoverageByMonthChart', () => {
     expect(h.instances[0].destroy).toHaveBeenCalledTimes(1)
     w.unmount()
     expect(h.instances[1].destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('charts another layer from the count, label, token and testid suffix it is given', () => {
+    document.documentElement.style.setProperty('--ps-probe', '#010203')
+    const w = mount(CoverageByMonthChart, {
+      props: {
+        rows: [m('2026-01', 10, 0), m('2026-02', 10, 0)],
+        count: (r: CoverageByMonthItem) => r.with_gi / 2,
+        label: 'Probe',
+        token: '--ps-probe',
+        testidSuffix: 'probe',
+      },
+    })
+    expect(w.find('[data-testid="coverage-by-month-chart-probe"]').exists()).toBe(true)
+    expect(w.get('h3').text()).toBe('Probe coverage by month — at or above average')
+    const cfg = h.instances[0].config
+    expect(cfg.data.datasets[0].data).toEqual([50, 50])
+    expect(cfg.data.datasets[0].backgroundColor[0]).toBe('rgba(1,2,3,0.75)')
+    expect(cfg.options.plugins.tooltip.callbacks.label({ parsed: { y: 50 } })).toBe('50% Probe')
   })
 })

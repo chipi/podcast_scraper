@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CorpusCoverageResponse } from '../../api/corpusCoverageApi'
 import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
 import type { IndexStatsEnvelope } from '../../api/indexStatsApi'
+import { briefingCoverage } from '../../extensions'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import BriefingCard from './BriefingCard.vue'
 
@@ -167,11 +168,12 @@ describe('BriefingCard', () => {
   })
 
   describe('corpus health line', () => {
-    it('shows episode count, GI percentage, vectors label and feed count', () => {
+    it('shows episode count, KG percentage, vectors label and feed count', () => {
       const w = mountCard()
       const t = w.get('[data-testid="briefing-corpus-health"]').text()
       expect(t).toContain('100 episodes')
-      expect(t).toContain('90% with GI')
+      expect(t).toContain('90% with KG')
+      expect(t).not.toContain('with GI')
       expect(t).toContain('5.0k vectors')
       expect(t).toContain('2 feeds')
     })
@@ -190,13 +192,13 @@ describe('BriefingCard', () => {
       const w = mountCard({ coverage: null, indexEnv: { available: false } })
       const t = w.get('[data-testid="briefing-corpus-health"]').text()
       expect(t).toContain('0 episodes')
-      expect(t).toContain('— with GI')
+      expect(t).toContain('— with KG')
       expect(t).not.toContain('vectors')
     })
 
-    it('warns on low GI coverage and low index feed coverage', () => {
+    it('warns on low KG coverage and low index feed coverage', () => {
       const w = mountCard({
-        coverage: coverage({ with_gi: 10 }),
+        coverage: coverage({ with_kg: 10 }),
         catalogFeedCount: 10,
       })
       const buttons = w.get('[data-testid="briefing-corpus-health"]').findAll('button')
@@ -204,7 +206,7 @@ describe('BriefingCard', () => {
       expect(buttons[2].classes()).toContain('text-warning')
     })
 
-    it('does not warn when GI and index coverage are healthy', () => {
+    it('does not warn when KG and index coverage are healthy', () => {
       const w = mountCard()
       const buttons = w.get('[data-testid="briefing-corpus-health"]').findAll('button')
       expect(buttons[1].classes()).not.toContain('text-warning')
@@ -222,7 +224,7 @@ describe('BriefingCard', () => {
       ).toBe('Vector index stats unavailable.')
     })
 
-    it('selects the coverage tab from the GI and index buttons', async () => {
+    it('selects the coverage tab from the KG and index buttons', async () => {
       const w = mountCard()
       const buttons = w.get('[data-testid="briefing-corpus-health"]').findAll('button')
       await buttons[1].trigger('click')
@@ -255,7 +257,7 @@ describe('BriefingCard', () => {
       expect(actionTexts(w)).toEqual(['→ 1 episode failed in last run'])
       const nav = useDashboardNavStore()
       await w.get('[data-testid="briefing-action-item"] button').trigger('click')
-      expect(nav.pending).toEqual({ kind: 'library', missingGiOnly: false, since: '2026-06-15' })
+      expect(nav.pending).toEqual({ kind: 'library', since: '2026-06-15' })
       expect(w.emitted('open-library')).toHaveLength(1)
     })
 
@@ -264,31 +266,35 @@ describe('BriefingCard', () => {
       expect(actionTexts(w)[0]).toBe('→ 4 episodes failed in last run')
     })
 
-    it('flags missing GI when coverage is below the threshold and hands off missingGiOnly', async () => {
-      const w = mountCard({ coverage: coverage({ with_gi: 40, with_neither: 60 }) })
-      expect(actionTexts(w)).toEqual(['→ 60 episodes have no GI artifacts'])
+    it('flags missing KG when coverage is below the threshold and hands off missingKgOnly', async () => {
+      const w = mountCard({ coverage: coverage({ with_kg: 40, with_neither: 60 }) })
+      expect(actionTexts(w)).toEqual(['→ 60 episodes have no KG artifacts'])
       const nav = useDashboardNavStore()
       await w.get('[data-testid="briefing-action-item"] button').trigger('click')
-      expect(nav.pending).toEqual({ kind: 'library', missingGiOnly: true })
+      expect(nav.pending).toEqual({ kind: 'library', missingKgOnly: true })
     })
 
-    it('uses singular wording for exactly one episode without GI', () => {
-      const w = mountCard({ coverage: coverage({ total_episodes: 2, with_gi: 1, with_neither: 1 }) })
-      expect(actionTexts(w)).toEqual(['→ 1 episode have no GI artifacts'])
+    it('uses singular wording for exactly one episode without KG', () => {
+      const w = mountCard({ coverage: coverage({ total_episodes: 3, with_kg: 1, with_neither: 1 }) })
+      expect(actionTexts(w)).toEqual(['→ 2 episodes have no KG artifacts'])
+      const one = mountCard({ coverage: coverage({ total_episodes: 2, with_kg: 1, with_neither: 0 }) })
+      expect(actionTexts(one)).toEqual([])
+      const neither = mountCard({ coverage: coverage({ total_episodes: 10, with_kg: 9, with_neither: 1 }) })
+      expect(actionTexts(neither)).toEqual(['→ 1 episode have no KG artifacts'])
     })
 
-    it('falls back to the with_neither count when GI coverage is healthy and nothing else is listed', async () => {
-      const w = mountCard({ coverage: coverage({ with_gi: 90, with_neither: 3 }) })
-      expect(actionTexts(w)).toEqual(['→ 3 episodes have no GI artifacts'])
+    it('falls back to the with_neither count when KG coverage is healthy and nothing else is listed', async () => {
+      const w = mountCard({ coverage: coverage({ with_kg: 90, with_neither: 3 }) })
+      expect(actionTexts(w)).toEqual(['→ 3 episodes have no KG artifacts'])
       const nav = useDashboardNavStore()
       await w.get('[data-testid="briefing-action-item"] button').trigger('click')
-      expect(nav.pending).toEqual({ kind: 'library', missingGiOnly: true })
+      expect(nav.pending).toEqual({ kind: 'library' })
     })
 
     it('does not use the with_neither fallback when a failure item is already listed', () => {
       const w = mountCard({
         runs: [run({ episode_outcomes: { ok: 1, failed: 1 } })],
-        coverage: coverage({ with_gi: 90, with_neither: 3 }),
+        coverage: coverage({ with_kg: 90, with_neither: 3 }),
       })
       expect(actionTexts(w)).toEqual(['→ 1 episode failed in last run'])
     })
@@ -365,12 +371,47 @@ describe('BriefingCard', () => {
       ]
       const w = mountCard({
         runs,
-        coverage: coverage({ with_gi: 10 }),
+        coverage: coverage({ with_kg: 10 }),
         indexEnv: { available: false },
       })
-      // failed + no GI + no index + stale = 4 candidates, 3 shown.
+      // failed + no KG + no index + stale = 4 candidates, 3 shown.
       expect(actionTexts(w)).toHaveLength(3)
       expect(actionTexts(w)[2]).toBe('→ Vector index has not been built')
+    })
+  })
+
+  describe('a build\'s coverage (briefingCoverage)', () => {
+    afterEach(() => briefingCoverage.reset())
+
+    it('adds its stat after the KG share and its actions after the KG item, each opening the Library', async () => {
+      const seen: number[] = []
+      briefingCoverage.register({
+        id: 'probe',
+        stat: (c) => ({ text: `${c.with_gi} probed`, title: 'Probe', warn: true }),
+        actions: (_c, before) => {
+          seen.push(before)
+          return [{ text: 'Probe needs a look', primary: 'Open', handoff: { kind: 'library', params: { probe: '1' } } }]
+        },
+      })
+      const w = mountCard({ coverage: coverage({ with_kg: 40, with_neither: 60 }) })
+      const stat = w.get('[data-testid="briefing-stat-probe"]')
+      expect(stat.text()).toBe('90 probed')
+      expect(stat.classes()).toContain('text-warning')
+      expect(actionTexts(w)).toEqual(['→ 60 episodes have no KG artifacts', '→ Probe needs a look'])
+      expect(seen.at(-1)).toBe(1)
+      const nav = useDashboardNavStore()
+      await w.findAll('[data-testid="briefing-action-item"]')[1].get('button').trigger('click')
+      expect(nav.pending).toEqual({ kind: 'library', params: { probe: '1' } })
+      expect(w.emitted('open-library')).toHaveLength(1)
+      await stat.trigger('click')
+      expect(w.emitted('select-tab')).toEqual([['coverage']])
+    })
+
+    it('skips a null stat and shows no build figures without coverage', () => {
+      briefingCoverage.register({ id: 'quiet', stat: () => null })
+      expect(mountCard().find('[data-testid="briefing-stat-quiet"]').exists()).toBe(false)
+      briefingCoverage.register({ id: 'loud', stat: () => ({ text: 'x', title: 't', warn: false }) })
+      expect(mountCard({ coverage: null }).find('[data-testid="briefing-stat-loud"]').exists()).toBe(false)
     })
   })
 })

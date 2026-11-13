@@ -323,7 +323,8 @@ Action item rules:
 | --- | --- | --- |
 | Last run has failures | "N episodes failed in last run" | [View failures] → Library |
 | Last run failed entirely | "Last run failed — no episodes processed" | [View in Pipeline] |
-| GI coverage < 50% | "N episodes have no GI artifacts" | [View in Library] |
+| KG coverage < 50% | "N episodes have no KG artifacts" | [View in Library] (missing KG) |
+| GI coverage < 50% (a downstream build's, E04 step 8b) | "N episodes have no GI artifacts" | [View in Library] (missing GI) |
 | Index not built | "Vector index has not been built" | [Open index controls] |
 | Index stale > 7 days | "Index last rebuilt N days ago" | [Open index controls] |
 | Feed not indexed | "Feed X is not in the vector index" | [View coverage] |
@@ -353,7 +354,12 @@ where are the gaps?"
 
 Four sections, top to bottom.
 
-#### 4.1 GI coverage by month
+#### 4.1 KG coverage by month
+
+Since E04 step 8b the platform charts KG coverage here and a downstream build adds the GI
+chart after it (a `coverage` dashboard card); a month click opens the Library on that month's
+episodes missing that layer (`has_kg=false` / `has_gi=false`). The GI wording below describes
+the original chart; the KG one is the same with KG in place of GI.
 
 **Chart type:** Single-series bar chart.
 
@@ -400,7 +406,8 @@ generate corpus data."
 **Not a chart — a table with inline data bars.**
 
 **What it shows:** Per-feed coverage summary. Each row = one feed.
-Columns: Feed name | Episodes | GI coverage | KG coverage | Indexed.
+Columns: Feed name | Episodes | GI coverage | KG coverage | Indexed. Since E04 step 8b the
+GI column is a downstream build's (`feedCoverageColumns`) and the table sorts by KG.
 
 GI coverage and KG coverage columns show a 40px inline progress bar
 (CSS, not Chart.js) plus the percentage number. This gives visual
@@ -410,14 +417,14 @@ comparison without a separate chart.
 direct labelled (number next to bar), and scannable. No legend, no
 axis, no gridlines.
 
-**Sort order:** ascending by GI coverage — worst-covered feeds at
-top, since those are the action targets.
+**Sort order:** ascending by KG coverage (client-side; the API orders by GI) — worst-covered
+feeds at top, since those are the action targets.
 
 **Row interaction:** clicking a row navigates to Library filtered to
 that feed.
 
-**Insight line:** "Feed [name] has lowest GI coverage at [N]% — [M]
-episodes without GI artifacts."
+**Insight line:** "Feed [name] has lowest KG coverage at [N]% — [M]
+episodes without KG artifacts." (none when the lowest feed is fully covered)
 
 **Source:** `GET /api/corpus/coverage` → `by_feed` array (NEW).
 

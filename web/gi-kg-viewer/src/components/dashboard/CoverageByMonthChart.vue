@@ -12,9 +12,22 @@ import {
   rgbaFromToken,
 } from '../../utils/chartTheme'
 
-const props = defineProps<{
-  rows: CoverageByMonthItem[]
-}>()
+/**
+ * One layer's coverage per month: KG by default; a build passes its own `count` (the covered
+ * episodes of a month), `label` and colour `token`, and a `testid` suffix.
+ */
+const props = withDefaults(
+  defineProps<{
+    rows: CoverageByMonthItem[]
+    count?: (row: CoverageByMonthItem) => number
+    label?: string
+    token?: `--ps-${string}`
+    testidSuffix?: string
+  }>(),
+  { count: (row: CoverageByMonthItem) => row.with_kg, label: 'KG', token: '--ps-kg', testidSuffix: '' },
+)
+
+const LAYER = computed(() => props.label)
 
 const emit = defineEmits<{
   'select-month': [ym: string]
@@ -26,7 +39,7 @@ let chart: Chart | null = null
 const chartModel = computed(() => {
   const list = props.rows.filter((r) => r.total > 0)
   const labels = list.map((r) => r.month)
-  const values = list.map((r) => (r.with_gi / r.total) * 100)
+  const values = list.map((r) => (props.count(r) / r.total) * 100)
   if (labels.length === 0) {
     return null
   }
@@ -56,10 +69,12 @@ const chartModel = computed(() => {
 const monthChartTitle = computed(() => {
   const m = chartModel.value
   if (!m) {
-    return 'GI coverage by month'
+    return `${LAYER.value} coverage by month`
   }
   const n = m.values.filter((_, i) => m.below[i]).length
-  return n > 0 ? `${n} months below average GI coverage` : 'GI coverage by month — at or above average'
+  return n > 0
+    ? `${n} months below average ${LAYER.value} coverage`
+    : `${LAYER.value} coverage by month — at or above average`
 })
 
 const lowestMonthLine = computed(() => {
@@ -88,9 +103,9 @@ function buildChart(): void {
   if (!ctx) {
     return
   }
-  const gi = rgbaFromToken('--ps-gi', 0.75)
+  const fill = rgbaFromToken(props.token, 0.75)
   const warn = rgbaFromToken('--ps-warning', 0.75)
-  const borderGi = rgbaFromToken('--ps-gi', 0.95)
+  const borderFill = rgbaFromToken(props.token, 0.95)
   const borderWarn = rgbaFromToken('--ps-warning', 0.95)
   const avgLinePlugin = {
     id: 'psAvgLine',
@@ -124,8 +139,8 @@ function buildChart(): void {
         {
           label: 'Coverage %',
           data: m.values,
-          backgroundColor: m.values.map((_, i) => (m.below[i] ? warn : gi)),
-          borderColor: m.values.map((_, i) => (m.below[i] ? borderWarn : borderGi)),
+          backgroundColor: m.values.map((_, i) => (m.below[i] ? warn : fill)),
+          borderColor: m.values.map((_, i) => (m.below[i] ? borderWarn : borderFill)),
           borderWidth: 1,
         },
       ],
@@ -149,7 +164,7 @@ function buildChart(): void {
           callbacks: {
             label: (item) => {
               const v = item.parsed.y
-              return typeof v === 'number' ? `${v.toFixed(0)}% GI` : String(v)
+              return typeof v === 'number' ? `${v.toFixed(0)}% ${LAYER.value}` : String(v)
             },
           },
         },
@@ -200,7 +215,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="rounded border border-border bg-surface p-3 text-surface-foreground"
-    data-testid="coverage-by-month-chart"
+    :data-testid="testidSuffix ? `coverage-by-month-chart-${testidSuffix}` : 'coverage-by-month-chart'"
   >
     <h3 class="mb-1 text-sm font-semibold">
       {{ monthChartTitle }}

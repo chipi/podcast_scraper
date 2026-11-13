@@ -962,8 +962,9 @@ def filter_rows(
     since: Optional[str] = None,
     until: Optional[str] = None,
     has_gi: Optional[bool] = None,
+    has_kg: Optional[bool] = None,
 ) -> list[CatalogEpisodeRow]:
-    """Filter catalog rows by feed id, title/topic substrings, publish date range, GI presence."""
+    """Filter catalog rows by feed id, title/topic substrings, publish date range, GI/KG."""
     out = rows
     if feed_id is not None:
         want = str(feed_id).strip()
@@ -1011,6 +1012,10 @@ def filter_rows(
         out = [r for r in out if r.has_gi]
     elif has_gi is False:
         out = [r for r in out if not r.has_gi]
+    if has_kg is True:
+        out = [r for r in out if r.has_kg]
+    elif has_kg is False:
+        out = [r for r in out if not r.has_kg]
     return out
 
 

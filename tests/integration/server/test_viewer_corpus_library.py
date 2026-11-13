@@ -755,6 +755,32 @@ def test_corpus_episodes_topic_q_filters(tmp_path: Path) -> None:
     assert body["items"][0]["episode_id"] == "o1"
 
 
+def test_corpus_episodes_has_kg_filter(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "kg.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="k1", episode_title="With KG")),
+        encoding="utf-8",
+    )
+    (meta / "kg.kg.json").write_text("{}", encoding="utf-8")
+    (meta / "bare.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="b1", episode_title="No KG")),
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+
+    def ids(**extra: object) -> set[str]:
+        r = client.get("/api/corpus/episodes", params={"path": str(tmp_path), "limit": 10, **extra})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["total"] == len(body["items"])
+        return {x["episode_id"] for x in body["items"]}
+
+    assert ids() == {"k1", "b1"}
+    assert ids(has_kg="false") == {"b1"}
+    assert ids(has_kg="true") == {"k1"}
+
+
 def test_corpus_episodes_pagination_cursor(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()

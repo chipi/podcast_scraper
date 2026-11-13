@@ -4434,7 +4434,7 @@ class CorpusEpisodesResponse(BaseModel):
         ge=0,
         description=(
             "Total cumulative-unique episode count across all runs that match the "
-            "request's filters (feed_id, q, topic_q, since, until, has_gi, "
+            "request's filters (feed_id, q, topic_q, since, until, has_gi, has_kg, "
             "topic_cluster_only). Independent of pagination ``limit``/``cursor`` — "
             "callers can render 'X of Y' counts (v2.6.1 #818/#819)."
         ),

@@ -330,6 +330,10 @@ def corpus_episodes(
         default=None,
         description="When true, only rows with GI; when false, only rows missing GI.",
     ),
+    has_kg: bool | None = Query(
+        default=None,
+        description="When true, only rows with KG; when false, only rows missing KG.",
+    ),
     topic_cluster_only: bool = Query(
         default=False,
         description="When true, keep only episodes whose bridge topics appear on a corpus "
@@ -374,6 +378,7 @@ def corpus_episodes(
         since=since,
         until=until,
         has_gi=has_gi,
+        has_kg=has_kg,
     )
     cluster_index = (
         load_topic_cluster_index(root) if (topic_cluster_only or with_cil_topics) else None

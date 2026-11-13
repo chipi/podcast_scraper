@@ -6,7 +6,10 @@ export type DashboardLibraryHandoff = {
   feedId?: string
   since?: string
   until?: string
-  missingGiOnly?: boolean
+  /** Only episodes without a KG artifact (`has_kg=false`). */
+  missingKgOnly?: boolean
+  /** Extra `/api/corpus/episodes` parameters a build adds (e.g. `has_gi`), kept until the next handoff. */
+  params?: Record<string, string>
 }
 
 export type DashboardDigestHandoff = {

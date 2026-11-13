@@ -11,9 +11,10 @@ import {
 /**
  * UXS-006 §3.3–3.5 (briefing) and §4.1–4.3 (Coverage tab).
  *
- * Mocked on purpose: the briefing's action items are thresholds (GI < 50%, index missing/stale,
+ * Mocked on purpose: the briefing's action items are thresholds (KG < 50%, index missing/stale,
  * failed episodes) and the v3 fixture corpus sits on the all-clear side of every one of them
- * (40/40 GI, a fresh index, no run.json summaries). Each case below is a corpus STATE the live
+ * (full KG, a fresh index, no run.json summaries). GI coverage (share, warning, chart, feed
+ * column) is a downstream build's (E04 step 8b); these assert it is absent. Each case below is a corpus STATE the live
  * fixture cannot be put into without rewriting it. The last describe runs on the live corpus,
  * because the defect it pins only shows against real artifact mtimes.
  */
@@ -91,15 +92,16 @@ async function mockIndex(page: Page, available: boolean): Promise<void> {
 
 async function mockCoverage(
   page: Page,
-  c: { total: number; withGi: number; byFeed?: unknown[]; byMonth?: unknown[] },
+  c: { total: number; withKg: number; byFeed?: unknown[]; byMonth?: unknown[] },
 ): Promise<void> {
+  // GI mirrors KG, so a GI figure leaking back into the platform's views would read the same.
   await fulfillJson(page, '**/api/corpus/coverage?**', {
     path: '/mock/corpus',
     total_episodes: c.total,
-    with_gi: c.withGi,
-    with_kg: c.withGi,
-    with_both: c.withGi,
-    with_neither: c.total - c.withGi,
+    with_gi: c.withKg,
+    with_kg: c.withKg,
+    with_both: c.withKg,
+    with_neither: c.total - c.withKg,
     by_month: c.byMonth ?? [],
     by_feed: c.byFeed ?? [],
   })
@@ -119,7 +121,7 @@ test.describe('Dashboard briefing (UXS-006 §3.3–3.5)', () => {
   }) => {
     await setupCorpus(page)
     await mockIndex(page, true)
-    await mockCoverage(page, { total: 10, withGi: 10 })
+    await mockCoverage(page, { total: 10, withKg: 10 })
     await fulfillJson(page, '**/api/corpus/runs/summary?**', {
       path: '/mock/corpus',
       runs: [
@@ -160,7 +162,7 @@ test.describe('Dashboard briefing (UXS-006 §3.3–3.5)', () => {
   }) => {
     await setupCorpus(page)
     await mockIndex(page, true)
-    await mockCoverage(page, { total: 10, withGi: 10 })
+    await mockCoverage(page, { total: 10, withKg: 10 })
     await fulfillJson(page, '**/api/corpus/runs/summary?**', {
       path: '/mock/corpus',
       runs: [
@@ -176,7 +178,8 @@ test.describe('Dashboard briefing (UXS-006 §3.3–3.5)', () => {
 
     const health = page.getByTestId('briefing-corpus-health')
     await expect(health).toContainText('10 episodes')
-    await expect(health).toContainText('100% with GI')
+    await expect(health).toContainText('100% with KG')
+    await expect(health).not.toContainText('with GI')
     await expect(health).toContainText('1.2k vectors')
     await expect(health).toContainText('3 feeds')
 
@@ -184,12 +187,12 @@ test.describe('Dashboard briefing (UXS-006 §3.3–3.5)', () => {
     await expect(page.getByTestId('briefing-action-item')).toHaveCount(0)
   })
 
-  test('failures, low GI coverage and a missing index each produce an action item, worst first', async ({
+  test('failures, low KG coverage and a missing index each produce an action item, worst first', async ({
     page,
   }) => {
     await setupCorpus(page)
     await mockIndex(page, false)
-    await mockCoverage(page, { total: 10, withGi: 3 })
+    await mockCoverage(page, { total: 10, withKg: 3 })
     await fulfillJson(page, '**/api/corpus/runs/summary?**', {
       path: '/mock/corpus',
       runs: [
@@ -205,31 +208,33 @@ test.describe('Dashboard briefing (UXS-006 §3.3–3.5)', () => {
 
     await expect(page.getByTestId('briefing-last-run')).toContainText('Partial')
     await expect(page.getByTestId('briefing-last-run')).toContainText('1h 1m 40s')
-    await expect(page.getByTestId('briefing-corpus-health')).toContainText('30% with GI')
+    await expect(page.getByTestId('briefing-corpus-health')).toContainText('30% with KG')
 
     const items = page.getByTestId('briefing-action-item')
     await expect(items).toHaveCount(3)
     await expect(items.nth(0)).toContainText('2 episodes failed in last run')
     await expect(items.nth(0)).toContainText('View failures')
-    await expect(items.nth(1)).toContainText('7 episodes have no GI artifacts')
+    await expect(items.nth(1)).toContainText('7 episodes have no KG artifacts')
     await expect(items.nth(1)).toContainText('View in Library')
     await expect(items.nth(2)).toContainText('Vector index has not been built')
     await expect(items.nth(2)).toContainText('Open index controls')
     await expect(page.getByTestId('briefing-all-clear')).toHaveCount(0)
 
-    // "View in Library" for the GI gap lands on Library asking only for episodes WITHOUT GI.
+    await expect(page.getByText(/have no GI artifacts/)).toHaveCount(0)
+
+    // "View in Library" for the KG gap lands on Library asking only for episodes WITHOUT KG.
     const episodesReq = page.waitForRequest(
-      (r) => r.url().includes('/api/corpus/episodes') && r.url().includes('has_gi=false'),
+      (r) => r.url().includes('/api/corpus/episodes') && r.url().includes('has_kg=false'),
     )
     await items.nth(1).getByRole('button', { name: 'View in Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await episodesReq
+    expect((await episodesReq).url()).not.toContain('has_gi=')
   })
 
   test('episode count metric navigates to the Library', async ({ page }) => {
     await setupCorpus(page)
     await mockIndex(page, true)
-    await mockCoverage(page, { total: 10, withGi: 10 })
+    await mockCoverage(page, { total: 10, withKg: 10 })
     await openDashboard(page)
 
     await page
@@ -242,10 +247,11 @@ test.describe('Dashboard briefing (UXS-006 §3.3–3.5)', () => {
 })
 
 test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
-  // Server order (`routes/corpus_coverage.py` sorts by GI ratio ascending) — the table must keep it.
+  // Served in GI order (`routes/corpus_coverage.py` sorts by GI ratio); the table orders by KG,
+  // so the GI-sorted order here (Mid's GI is lowest) must not survive.
   const BY_FEED = [
-    { feed_id: 'f-low', display_title: 'Feed Low', total: 5, with_gi: 1, with_kg: 1 },
-    { feed_id: 'f-mid', display_title: 'Feed Mid', total: 5, with_gi: 3, with_kg: 2 },
+    { feed_id: 'f-mid', display_title: 'Feed Mid', total: 5, with_gi: 0, with_kg: 2 },
+    { feed_id: 'f-low', display_title: 'Feed Low', total: 5, with_gi: 3, with_kg: 1 },
     { feed_id: 'f-high', display_title: 'Feed High', total: 5, with_gi: 5, with_kg: 5 },
   ]
   const BY_MONTH = [
@@ -257,7 +263,7 @@ test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
   test.beforeEach(async ({ page }) => {
     await setupCorpus(page)
     await mockIndex(page, true)
-    await mockCoverage(page, { total: 15, withGi: 9, byFeed: BY_FEED, byMonth: BY_MONTH })
+    await mockCoverage(page, { total: 15, withKg: 9, byFeed: BY_FEED, byMonth: BY_MONTH })
     const day = (offset: number) => new Date(Date.now() - offset * DAY).toISOString()
     await fulfillJson(page, '**/api/artifacts?**', {
       path: '/mock/corpus',
@@ -268,7 +274,7 @@ test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
     })
   })
 
-  test('month chart and feed table (lowest GI first) render with their insight lines', async ({
+  test('month chart and feed table (lowest KG first) render with their insight lines', async ({
     page,
   }) => {
     await openDashboard(page)
@@ -277,16 +283,20 @@ test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
     await expect(month).toBeVisible()
     await expect(month.locator('canvas')).toBeVisible()
     await expect(month).toContainText('1 month below average — 2024-02 need attention')
+    await expect(month.getByRole('heading')).toHaveText('1 months below average KG coverage')
+    await expect(page.getByTestId('coverage-by-month-chart-gi')).toHaveCount(0)
 
     const table = page.getByTestId('feed-coverage-table')
     const rows = table.getByTestId('feed-coverage-row')
     await expect(rows).toHaveCount(3)
+    await expect(table.getByRole('columnheader')).toHaveText(['Feed', 'Episodes', 'KG', 'In index'])
     await expect(rows.nth(0)).toContainText('Feed Low')
     await expect(rows.nth(0)).toContainText('20%')
-    await expect(rows.nth(1)).toContainText('60%')
+    await expect(rows.nth(1)).toContainText('Feed Mid')
+    await expect(rows.nth(1)).toContainText('40%')
     await expect(rows.nth(2)).toContainText('100%')
     await expect(table).toContainText(
-      'Feed Feed Low has lowest GI coverage at 20% — 4 episodes without GI artifacts.',
+      'Feed Feed Low has lowest KG coverage at 20% — 4 episodes without KG artifacts.',
     )
   })
 

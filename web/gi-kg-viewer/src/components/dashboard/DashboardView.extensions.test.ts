@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 import { dashboardCards } from '../../extensions'
+import { useShellStore } from '../../stores/shell'
 import DashboardView from './DashboardView.vue'
 
 vi.mock('../../api/corpusCoverageApi', () => ({ fetchCorpusCoverage: vi.fn(() => new Promise(() => {})) }))
@@ -60,5 +61,39 @@ describe('DashboardView extension cards', () => {
     expect(w.find('[data-testid="card-voices"]').element.parentElement!.className).toContain('xl:col-span-2')
     await w.find('[data-testid="card-first"]').trigger('click')
     expect(w.emitted('go-graph')).toEqual([['t:first', undefined]])
+  })
+
+  it('renders Coverage tab cards after the by-month chart with the coverage, and forwards open-library', async () => {
+    const { fetchCorpusCoverage } = await import('../../api/corpusCoverageApi')
+    const { fetchCorpusRunsSummary } = await import('../../api/corpusMetricsApi')
+    // Coverage loads after the runs summary.
+    vi.mocked(fetchCorpusRunsSummary).mockResolvedValueOnce({ path: '/c', runs: [] } as never)
+    const cov = { path: '/c', total_episodes: 1, with_gi: 0, with_kg: 1, with_both: 0, with_neither: 0, by_month: [], by_feed: [] }
+    vi.mocked(fetchCorpusCoverage).mockResolvedValueOnce(cov as never)
+    const shell = useShellStore()
+    shell.corpusPath = '/c'
+    shell.healthStatus = 'ok'
+    let received: unknown
+    dashboardCards.register({
+      id: 'cov',
+      region: 'coverage',
+      component: defineComponent({
+        props: { coverage: { type: Object, default: null } },
+        emits: ['open-library'],
+        setup(props, { emit }) {
+          return () => {
+            received = props.coverage
+            return h('button', { 'data-testid': 'card-cov', onClick: () => emit('open-library') }, 'cov')
+          }
+        },
+      }),
+    })
+    const w = mount(DashboardView, { global: { stubs: { CoverageByMonthChart: { template: '<div data-testid="month-chart" />' } } } })
+    await flushPromises()
+    const html = w.html()
+    expect(html.indexOf('month-chart')).toBeLessThan(html.indexOf('card-cov'))
+    expect(received).toEqual(cov)
+    await w.get('[data-testid="card-cov"]').trigger('click')
+    expect(w.emitted('open-library')).toHaveLength(1)
   })
 })

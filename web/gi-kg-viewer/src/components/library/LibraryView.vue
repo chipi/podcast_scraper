@@ -71,8 +71,10 @@ async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
 
 /** Optional upper bound (``YYYY-MM-DD``) from Dashboard handoff; cleared after load. */
 const libraryUntilYmd = ref('')
-/** When ``false``, request episodes missing GI from the API. */
-const libraryHasGiFilter = ref<boolean | undefined>(undefined)
+/** When ``false``, request episodes missing KG from the API (the dashboard's missing-KG handoff). */
+const libraryHasKgFilter = ref<boolean | undefined>(undefined)
+/** A build's extra episode-list parameters from the last dashboard handoff. */
+const libraryExtraParams = ref<Record<string, string>>({})
 const { sinceYmd } = storeToRefs(corpusLens)
 
 /** Debounce episode reload when the shared date field changes (keystrokes). */
@@ -360,7 +362,8 @@ async function loadEpisodes(append: boolean): Promise<void> {
       topicClusterOnly: topicClusterOnly.value || undefined,
       since: sinceYmd.value.trim() || undefined,
       until: libraryUntilYmd.value.trim() || undefined,
-      hasGi: libraryHasGiFilter.value,
+      hasKg: libraryHasKgFilter.value,
+      extraParams: libraryExtraParams.value,
       limit: LIBRARY_EPISODES_PAGE_SIZE,
       cursor,
     }
@@ -619,7 +622,8 @@ function applyDashboardLibraryHandoff(): void {
     corpusLens.sinceYmd = nav.since ?? ''
   }
   libraryUntilYmd.value = nav.until?.trim() ?? ''
-  libraryHasGiFilter.value = nav.missingGiOnly === true ? false : undefined
+  libraryHasKgFilter.value = nav.missingKgOnly === true ? false : undefined
+  libraryExtraParams.value = { ...(nav.params ?? {}) }
   subject.clearSubject()
   void loadEpisodes(false)
 }
