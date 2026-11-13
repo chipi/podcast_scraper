@@ -70,7 +70,7 @@ export default defineConfig({
   use: {
     /* Dedicated port so local `npm run dev` on 5173 does not collide with E2E. */
     baseURL: 'http://127.0.0.1:5174',
-    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
+    trace: 'retain-on-failure',
     ...devices['Desktop Firefox'],
   },
   projects: [{ name: 'firefox', use: {} }],
