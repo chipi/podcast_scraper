@@ -751,7 +751,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
 SERVE_OUTPUT_DIR ?= ./output
 # serve-api bind — DEFAULT 0.0.0.0:8000 so `make serve` "just works" for off-box dev:
 # a dev-signed iOS build's APNs token registration + the homelab delivery worker pulling
@@ -1080,7 +1080,7 @@ reprocess-corpus-from-transcripts:
 	  --single-feed-uses-corpus-layout \
 	  --reprocess-existing-only \
 	  --pipeline-stage rederive_only; \
-	echo "Optional: rebuild topic clusters when search/ index exists:"; \
+	echo "Optional, with the extension that provides topic-clusters installed, when search/ exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
 
 # Report corpus/code compatibility for a on-disk corpus parent (#796 / #797).
@@ -1197,55 +1197,12 @@ index-two-tier-docker:
 	docker cp $$CT:/w/corpus/search/metadata.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
 	echo "index written to $${CORPUS_DIR}/search/lance_index"
 
-# Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
-# so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
-# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). CORPUS_DIR req'd.
-#
-# THRESHOLD is deliberately NOT defaulted here: unset means the CLI applies
-# search/topic_clusters.DEFAULT_TOPIC_CLUSTER_THRESHOLD (0.70, measured on the real
-# corpus). Pinning a literal here is how the old 0.75 survived the af6bed32 retune —
-# every invocation passed it explicitly, so the config change never took effect.
-topic-clusters:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" \
-		$${THRESHOLD:+--threshold "$${THRESHOLD}"}
-
-# Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
-# Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).
-# Idempotent cross-layer pass; re-run after new diarization (#876) to fill SPOKEN_BY.
-enrich-relational-edges:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
-
-# Re-diarize the whisper_transcription episodes (#876/#925) and cascade downstream.
-# Diarization rewrites the transcript (offsets shift), so re-running those episodes
-# re-does transcription+diarization+GI/KG/CIL; --reprocess-source scopes it to the
-# whisper set so the already-diarized direct_download episodes are untouched.
-# Diarization is driven entirely by PROFILE (must enable `diarize:`, e.g.
-# config/profiles/local.yaml) -- never hardcoded here. HF_NET_ENV allows the gated
-# pyannote weights to download on first run (needs HF_TOKEN). After the run, re-derive
-# relational edges so corpus-wide SPOKEN_BY is filled.
-#   make redo-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/local.yaml
-redo-diarization:
-	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
-	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/local.yaml)"; exit 1; }; \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
-	echo "Re-diarizing whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
-	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
-	  --config "$${PROFILE}" \
-	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
-	  --output-dir "$${CORPUS_DIR}" \
-	  --skip-existing \
-	  --reprocess-source whisper_transcription; \
-	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
-	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
-
 # Phase 1 of staged re-diarization (#947): download + cache RAW audio for the existing
 # corpus episodes only, WITHOUT transcribing/diarizing. --reprocess-existing-only scopes
 # to on-disk GUIDs; --reprocess-source forces the existing whisper episodes back through
 # download; --pipeline-stage download_only stops before transcription. The audio lands in
 # the durable cache (default .cache/audio, external to the corpus) so phase 2
-# (migrate-diarization) reprocesses off the cache with no feed re-fetch. Set
+# (the extension Makefile's migrate-diarization) reprocesses off the cache with no feed re-fetch. Set
 # AUDIO_CACHE_IN_CORPUS=1 to store the cache inside the corpus for a portable snapshot.
 #   make download-audio CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
 download-audio:
@@ -1262,31 +1219,6 @@ download-audio:
 	  --reprocess-existing-only \
 	  --pipeline-stage download_only \
 	  $${AUDIO_CACHE_IN_CORPUS:+--audio-cache-in-corpus}
-
-# Strict existing-only re-diarization MIGRATION (#876/#946). Like redo-diarization but
-# adds --reprocess-existing-only: the episode set is restricted to GUIDs already on disk
-# under each feed's run_*/metadata/. New feed items are dropped and max/offset/date caps
-# are ignored, so the corpus NEVER grows -- a migration of existing data while ingestion
-# is paused, not an ingest. Audio comes from the #947 raw-audio cache when present (run
-# ``make download-audio`` first to prime it -> cache HIT, no feed fetch, and rolled-off
-# episodes stay re-diarizable); otherwise it is re-fetched from the live feed enclosure
-# and cached for next time. Aborts loudly if no on-disk GUIDs are found (mis-pointed
-# CORPUS_DIR). Set AUDIO_CACHE_IN_CORPUS=1 to keep the cache inside the corpus.
-#   make migrate-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
-migrate-diarization:
-	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
-	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/cloud_with_dgx_primary.yaml)"; exit 1; }; \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
-	echo "Migrating (existing-only) whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
-	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
-	  --config "$${PROFILE}" \
-	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
-	  --output-dir "$${CORPUS_DIR}" \
-	  --skip-existing \
-	  --reprocess-source whisper_transcription \
-	  --reprocess-existing-only; \
-	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
-	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
 # pipeline-check (#2287): run the pipeline under variants (locale, profile, overrides), record every
 # decision it makes, and compare runs — code vs code (BASE=<ref>) and variant vs variant (LOCALES).
@@ -2493,7 +2425,7 @@ serve-for-validation:
 
 APP_TIER3_CORPUS ?= tests/fixtures/app-validation-corpus/v3
 
-.PHONY: build-app-validation-index build-validation-index build-validation-topic-clusters
+.PHONY: build-app-validation-index build-validation-index
 # Corpus this target indexes. Its own variable, NOT `$(if $(CORPUS),...)`: CORPUS is globally
 # defaulted to the viewer corpus at the top of this file, so it is never empty and that
 # conditional could never choose the app corpus.
@@ -2506,7 +2438,7 @@ build-app-validation-index:
 	#
 	# The app corpus's search/topic_clusters.json is TRACKED and is now the EMBEDDING-DERIVED
 	# artifact: 14 clusters / 16 singletons from all-MiniLM-L6-v2 at threshold 0.35, produced by
-	# `cli topic-clusters` against the index this target builds (2026-10-01).
+	# `cli topic-clusters` (an installed extension's command) against this target's index (2026-10-01).
 	#
 	# It used to be the synthetic one build_app_validation_corpus.py authors (threshold 0.75, 2
 	# clusters), and this comment used to warn that regenerating turned 80 passed into 6 failed.
@@ -2545,7 +2477,8 @@ build-validation-index:
 	# was gitignored and nothing under it could be clobbered. topic_clusters.json is now a
 	# COMMITTED fixture for both corpora, so "build me an index" silently rewriting it is
 	# the same hazard that turned 80 passed into 6 failed on the app corpus. Regenerating a
-	# tracked fixture is a deliberate act with its own verb: build-validation-topic-clusters.
+	# tracked fixture is a deliberate act with its own verb: build-validation-topic-clusters,
+	# in the Makefile of the extension that provides topic-clusters.
 	#
 	# Run this BEFORE ``make serve-for-validation``. It unlocks V3 (semantic search → Show
 	# on graph); without an index V3 is SKIPPED (test.skip on ``!indexJson.available``).
@@ -2559,22 +2492,6 @@ build-validation-index:
 	@echo "Done — LanceDB two-tier index built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
 	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
-
-build-validation-topic-clusters:
-	# Regenerate the COMMITTED topic_clusters.json for a validation corpus. Deliberate:
-	# the output is a tracked fixture and several tests assert its cluster ids, so the
-	# diff this produces is the thing to review, not a side effect to skim past.
-	#
-	# Needs the ML extras — the clusters are embedding-derived (all-MiniLM-L6-v2). That is
-	# also why it is committed: a clean clone must be able to run V2/V4 without them.
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== Building topic_clusters.json at $$CORPUS/search (threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)) ==="; \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters \
-		--output-dir $$CORPUS \
-		--threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)
-	@echo ""
-	@echo "Done. Review the diff before committing it:"
-	@echo "  git diff --stat $(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS))/search/topic_clusters.json"
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 

@@ -1,5 +1,9 @@
 # Corpus reprocessing runbook
 
+> The `make migrate-diarization`, `redo-diarization` and `enrich-relational-edges` targets in
+> this runbook run the speaker stages and the edge pass, which an installed extension provides;
+> they are targets of the extension's Makefile, run from its checkout. `make download-audio` stays here.
+
 **How to rebuild an existing corpus's artifacts (diarization, cleaning, GI, KG,
 enrichment) by re-running our real, profile-driven pipeline — never a bespoke
 script.**

@@ -4916,9 +4916,10 @@ def _episode_existing_transcript_source(
 
     The effect was that ``--reprocess-source`` NEVER FIRED on a corpus: the "#925 forcing
     re-transcription" branch is unreachable and every episode falls through to the ordinary
-    "transcript already exists; skipping" path. ``make redo-diarization`` is built entirely on
-    that flag, so it reported success and re-diarized nothing. Verified 2026-08-16 on a corpus
-    copy whose metadata declared ``transcript_source: whisper_transcription`` while
+    "transcript already exists; skipping" path. ``make redo-diarization`` (the extension's
+    Makefile) is built on that flag, so it reported success and re-diarized nothing. Verified
+    2026-08-16 on a corpus copy whose metadata declared
+    ``transcript_source: whisper_transcription`` while
     ``--reprocess-source whisper_transcription`` was passed: the forcing log line never appeared.
 
     This is the same defect the TRANSCRIPT lookup already fixed (see the D7 note above
