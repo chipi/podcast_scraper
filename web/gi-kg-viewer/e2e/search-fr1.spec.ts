@@ -8,8 +8,7 @@ import {
 } from './helpers'
 
 /**
- * PRD-033 FR1 (#884) — Search/Explore surface: source_tier badges, the
- * Insights/Transcript/Both evidence toggle,
+ * PRD-033 FR1 (#884) — Search/Explore surface: source_tier badges,
  * the query-type indicator, and entity names that link to a Detail panel.
  *
  * #1619 — migrated to the live search index.
@@ -20,10 +19,10 @@ import {
  *
  * Against the real index, ranking decides how many rows come back and in what order, so the
  * assertions here are **relational** rather than absolute: every rendered tier badge must be one of
- * the three known tiers, each tier the query actually returns must appear, the evidence toggle must
- * narrow to exactly one tier, and Both must restore a superset. Those hold for any healthy result
- * set and still fail if the surface stops rendering tiers or entity rows. Compound (segment +
- * lifted insight) cards and their speaker/topic links are a downstream build's (E04 step 8b).
+ * the three known tiers, and each tier the query actually returns must appear. Those hold for any
+ * healthy result set and still fail if the surface stops rendering tiers or entity rows. Compound
+ * (segment + lifted insight) cards, their speaker/topic links, the Insights/Transcript/Both
+ * evidence toggle and the lift line are a downstream build's (E04 step 8b).
  */
 
 /** `source_tier` → the `data-tier` the SearchResultRowIcon carries. */
@@ -77,31 +76,10 @@ test.describe('Search FR1 surfaces (live index)', () => {
     expect(seen.size).toBeGreaterThan(1)
   })
 
-  test('evidence toggle constrains results to a single tier', async ({ page }) => {
+  test('the evidence toggle and lift line are not offered (downstream, E04 step 8b)', async ({ page }) => {
     await runSearch(page)
-    const tiers = page.getByTestId('search-result-tier')
-    const both = await tiers.count()
-    expect(both).toBeGreaterThan(0)
-
-    await page.getByTestId('search-evidence-insight').click()
-    await expect.poll(() => tiers.count()).toBeGreaterThan(0)
-    for (let i = 0; i < (await tiers.count()); i++) {
-      await expect(tiers.nth(i)).toHaveAttribute('data-tier', 'Insight')
-    }
-    const insightOnly = await tiers.count()
-
-    await page.getByTestId('search-evidence-segment').click()
-    await expect.poll(() => tiers.count()).toBeGreaterThan(0)
-    for (let i = 0; i < (await tiers.count()); i++) {
-      await expect(tiers.nth(i)).toHaveAttribute('data-tier', 'Transcript')
-    }
-    const segmentOnly = await tiers.count()
-
-    await page.getByTestId('search-evidence-both').click()
-    // Both restores a superset of either single tier.
-    await expect.poll(() => tiers.count()).toBeGreaterThanOrEqual(
-      Math.max(insightOnly, segmentOnly),
-    )
+    await expect(page.getByTestId('search-evidence-toggle')).toHaveCount(0)
+    await expect(page.getByText(/transcript rows linked to GI/)).toHaveCount(0)
   })
 
 })

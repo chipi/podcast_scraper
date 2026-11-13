@@ -179,9 +179,10 @@ The search surface makes that legible without re-querying:
   insight is a *compound* — the card shows both the segment text and the linked
   insight (the existing **Lifted GI insight** block) and is marked with a **`+ insight`**
   badge (`search-result-compound`).
-- **Evidence toggle (FR1.3).** A small **Insights / Transcript / Both** segmented
-  control (`search-evidence-toggle`) in the results header constrains the rendered
-  cards to a tier (Both = no constraint). Client-side over the returned page; the
+- **Evidence toggle (FR1.3).** (A downstream build's since E04 step 8b, registered as a
+  `results-header` search panel section, with the lift coverage line.) A small **Insights /
+  Transcript / Both** segmented control (`search-evidence-toggle`) in the results
+  header constrains the rendered cards to a tier (Both = no constraint). Client-side over the returned page; the
   active button uses `aria-pressed`.
 - **Query-type indicator (FR1.4).** When the response carries a detected intent, an
   **Intent: `<label>`** chip (`search-query-type`) sits in the results header

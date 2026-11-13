@@ -575,7 +575,7 @@ Prefer updating this section when Playwright assertions change.
 - `#semantic-search-form` — wraps **`#search-q`** + **Since (date)** + **`#search-top-k`**; **Search** submit button may be a sibling with `form="semantic-search-form"`.
 - **PRD-033 FR1 (#884) results chrome + cards:**
   - **`data-testid="search-query-type"`** (FR1.4) — intent indicator chip in the results header, **`Intent: <label>`** (Entity lookup / Raw evidence / Temporal tracking / Cross-show synthesis / Semantic); present only when the response carries `query_type`.
-  - **`data-testid="search-evidence-toggle"`** (FR1.3) — `role="group"` segmented control with buttons **`search-evidence-insight`** / **`search-evidence-segment`** / **`search-evidence-both`** (labels **Insights** / **Transcript** / **Both**); `aria-pressed` marks the active tier; filters the rendered cards by `source_tier` client-side (Both = no filter).
+  - The **Insights / Transcript / Both** evidence toggle (`search-evidence-toggle`, FR1.3) and the **Lift:** coverage line are a downstream build's (E04 step 8b), registered as `results-header` search panel sections; `search-fr1.spec.ts` asserts neither renders here.
   - **`data-testid="search-result-tier"`** (FR1.1) — per-card tier badge: **Insight** (`insight`) / **Transcript** (`segment`) / **Reference** (`aux`), derived from the server `source_tier`.
   - The **`+ insight`** compound badge (`search-result-compound`), the lifted block's speaker / topic links (`search-result-lifted-speaker-link` / `-topic-link`) and supporting quotes are a downstream build's (E04 step 8b), registered at `resultCardBadges` / `resultCardSections`; `search-fr1.spec.ts` asserts none renders here.
   - ~~**`search-result-entity-link`**~~ (FR1.5) — **RETIRED** in the 2026-07-22 UX cleanup, along with the standalone **L** and **S** buttons: the whole result-row body is now the affordance, with the aria-label carrying the intent ("Open Topic/Person panel"). The id exists nowhere in `src/`, and `ResultCard.test.ts:291` asserts its **absence**. Target the row, not this selector. (Supporting-quote speaker links keep their existing **`search-result-speaker-link`**.)
@@ -666,7 +666,7 @@ Documented above **except** these, which had no map row at all:
 | Spec | Covers | Note |
 | ---- | ------ | ---- |
 | `auth-roles.spec.ts` | the whole auth/role matrix — anonymous → `login-button`; listener → `no-access-message` / `no-access-signout`; creator sees no Dashboard/Ops/Admin; admin sees all + `users-admin`, `user-row-{email}`, and **self-lockout** (`role-select-admin@x.io` disabled) | Rules existed **only** here. See [Auth gate and roles](#auth-gate-and-roles-1128--read-this-before-writing-any-spec). |
-| `search-fr1.spec.ts` | FR1 tier badges, evidence toggle; no compound or lifted rows | The testids were documented; the owning spec was not, so coverage looked absent. |
+| `search-fr1.spec.ts` | FR1 tier badges; no evidence toggle, compound or lifted rows | The testids were documented; the owning spec was not, so coverage looked absent. |
 | ~~`person-landing.spec.ts`~~ | Person Landing | moved to a downstream build with the person's Positions tab (E04 step 8b). |
 | `topic-entity-view.spec.ts` (387 lines) | Topic Entity View | Ditto — the densest testid sections in this file cited no spec. |
 | `dashboard-pipeline-metrics-mocks.spec.ts` | `PipelineCleanupMetrics`, `PipelineAdExcisionMetrics` (#652/#663/#656) | Neither panel nor spec appeared in the Dashboard row. |

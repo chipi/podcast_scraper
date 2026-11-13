@@ -122,10 +122,10 @@ export const paletteHitActions = extensionPoint<PaletteHitAction>('paletteHitAct
 
 /**
  * A section of the search panel: `header` sits in the title row, `above-results` above the
- * operator bar and hit cards.
+ * operator bar and hit cards, `results-header` in the results row after the intent chip.
  */
 export interface SearchPanelSection extends Entry {
-  region: 'header' | 'above-results'
+  region: 'header' | 'above-results' | 'results-header'
   component: Component
 }
 
