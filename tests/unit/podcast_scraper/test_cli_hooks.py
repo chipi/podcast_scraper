@@ -70,3 +70,41 @@ def test_upgrade_run_refreshes_through_the_seam() -> None:
 
     text = inspect.getsource(cli_handlers)
     assert "cli_hooks.ledger_refresh(" in text and "refresh_guard" not in text
+
+
+def test_a_command_no_one_provides_is_named_not_read_as_a_feed(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Without the extension that owns it, ``identity-ledger`` fails as a missing command. Read as
+    a feed, its flags failed as the pipeline's ("--corpus" matched --corpus-media-link-mode)."""
+    from podcast_scraper import cli
+    from podcast_scraper.extensions import use_extensions
+
+    with patch.object(builtin_cli_hooks, "CLI_COMMANDS", {}), use_extensions([]):
+        with pytest.raises(SystemExit) as exc:
+            cli.parse_args(["identity-ledger", "--corpus", "/c"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "no command named 'identity-ledger'" in err
+    assert "RSS URL" not in err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["https://example.com/feed.xml", "--dry-run"],
+        ["doctor"],
+    ],
+)
+def test_feeds_and_built_in_commands_never_reach_the_missing_command_message(
+    argv: List[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    from podcast_scraper import cli
+    from podcast_scraper.extensions import use_extensions
+
+    with use_extensions([]):
+        try:
+            cli.parse_args(argv)
+        except SystemExit:
+            pass
+    assert "no command named" not in capsys.readouterr().err

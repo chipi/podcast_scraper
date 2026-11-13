@@ -9,6 +9,7 @@ import argparse
 import copy
 import logging
 import os
+import re
 import sys
 import time
 import traceback
@@ -3272,6 +3273,10 @@ def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     return args
 
 
+#: A subcommand-shaped word ("identity-ledger"): never a feed URL, which needs a scheme.
+_UNKNOWN_COMMAND_RE = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
     # Subcommands a stage owns (gi, gi-repair, identity-ledger, enrich-edges,
@@ -3411,6 +3416,16 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
             command="enrich",
             enrich_argv=list(argv[1:]) if len(argv) > 1 else [],
         )
+
+    # A bare word no command claimed is a command that is not here, not a feed: the feed must be an
+    # http(s) URL, so read as one it only failed as "RSS URL must be http or https: <word>".
+    if argv and _UNKNOWN_COMMAND_RE.fullmatch(argv[0]):
+        print(
+            f"podcast_scraper: no command named {argv[0]!r}; an installed extension may provide it "
+            "(the feed to scrape must be an http or https URL).",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
     # Normal parsing for the main pipeline command.
     return _parse_pipeline_argv(argv)
