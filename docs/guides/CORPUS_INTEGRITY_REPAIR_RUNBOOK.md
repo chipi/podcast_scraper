@@ -186,7 +186,7 @@ Run in order. Steps 1–2 are baselines; do not skip them, because steps 8–9 c
 ### 1. Baseline: GI integrity
 
 ```bash
-make corpus-gi-integrity-check CORPUS_DIR=<corpus>
+make corpus-gi-integrity-check CORPUS_DIR=<corpus>   # the extension's Makefile
 ```
 
 Per **episode** (scoped to corpus members — newest run per episode, using the project's own
@@ -197,8 +197,8 @@ Record the numbers. `legacy placeholders` is the work step 3 must clear.
 
 > Do **not** use a placeholder-absence check as the exit criterion. It only asks "is the bad
 > string absent?", which **passes** on a corpus whose artifacts were deleted and never
-> regenerated — demonstrated 2026-08-16. Use `make corpus-gi-integrity-check`, which runs the
-> extension's `gi-integrity` verb.
+> regenerated — demonstrated 2026-08-16. Use `make corpus-gi-integrity-check` (a target of the
+> extension's Makefile), which runs the extension's `gi-integrity` verb.
 
 ### 2. Baseline: unpreprocessed-audio damage
 
@@ -309,7 +309,7 @@ which is what `make corpus-completeness-check` exists to catch.
 ### 8. Re-run both gates — they must be green
 
 ```bash
-make corpus-gi-integrity-check    CORPUS_DIR=<corpus>   # placeholders 0, healthy == episode count
+make corpus-gi-integrity-check    CORPUS_DIR=<corpus>   # the extension's Makefile; placeholders 0, healthy == episode count
 make corpus-preprocessing-audit   CORPUS_DIR=<corpus>   # 0 damaged, IF step 6 was run
 make corpus-completeness-check    CORPUS_DIR=<corpus>
 ```

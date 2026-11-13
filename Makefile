@@ -1117,19 +1117,6 @@ withdraw-language:
 	$(PYTHON) scripts/tools/withdraw_language.py --corpus "$${CORPUS_DIR}" \
 		--language "$${LANGUAGE}" $${APPLY:+--apply}
 
-# THE repair exit criterion (#1655). Asserts, per EPISODE, that declared GI actually exists:
-# artifact resolves + parses, is not a pre-#1657 placeholder, and no episode_id resolves to more
-# than one gi.json (the supersede hazard — corpus_metadata_index keeps the OLDEST, search keeps
-# the NEWEST, so duplicates mean two subsystems disagree on the canonical artifact).
-#
-# A check that only asks "is the placeholder string absent?" passes on a corpus whose artifacts
-# were deleted and never regenerated (proven 2026-08-16); this one counts placeholders AND
-# missing artifacts. Needs the GI extension installed (its `gi-integrity` verb). CORPUS_DIR
-# required.
-corpus-gi-integrity-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli gi-integrity --output-dir "$${CORPUS_DIR}"
-
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:

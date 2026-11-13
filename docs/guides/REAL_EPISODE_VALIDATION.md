@@ -77,6 +77,9 @@ assert (output_dir / "feeds" / "rss_<slug>" / "run_<ts>").exists()
 
 ### `validate_post_reingestion.py` — re-ingested corpus
 
+This harness is in the extension's `scripts/validate/`: the commands it runs and the GI files
+it counts belong to the extension.
+
 Use when you need to validate that a large re-ingested corpus produced the
 expected artifact quality. Pattern: run every explore-expansion CLI
 command, aggregate `gi.json` / `kg.json` counts across the full corpus,
@@ -123,6 +126,6 @@ Pair them. Neither alone is enough for a production-facing change.
 - `AGENTS.md` — *Final validation before push: real episodes, not just
   unit tests* section.
 - `scripts/validate/validate_layout_644.py` — canonical CLI harness.
-- `scripts/validate/validate_post_reingestion.py` — corpus-level harness.
+- `scripts/validate/validate_post_reingestion.py` in the extension — corpus-level harness.
 - `docs/guides/UNIT_TESTING_GUIDE.md` — unit test rules (complementary).
 - `docs/architecture/TESTING_STRATEGY.md` — unit + integration + e2e + validation.
