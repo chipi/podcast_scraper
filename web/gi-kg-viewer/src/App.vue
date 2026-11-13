@@ -52,7 +52,11 @@ import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
 import { stripLayerPrefixesForCil } from './utils/mergeGiKg'
 import { topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
 import { fetchTopicTimeline } from './api/cilApi'
-import { fetchResolveEpisodeArtifacts } from './api/corpusLibraryApi'
+import {
+  fetchNodeEpisodes,
+  fetchResolveEpisodeArtifacts,
+  GRAPH_NODE_EPISODES_EXPAND_MAX,
+} from './api/corpusLibraryApi'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
@@ -383,6 +387,15 @@ async function handOffTopic(
   graphNav.requestFocusNode(topicId, focusFallbackId || null)
 }
 
+/** The topic timeline's episode ids, or none when this build does not serve the timeline. */
+async function topicTimelineEpisodeIds(root: string, topicId: string): Promise<string[]> {
+  try {
+    return (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
+  } catch {
+    return []
+  }
+}
+
 async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) return
@@ -390,7 +403,12 @@ async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
   try {
     // A grouping provider may already know the topic's episodes; the timeline is the fallback.
     let ids = topicGrouping.list().flatMap((g) => g.episodeIdsForTopic?.(topicId) ?? [])
-    if (ids.length === 0) ids = (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
+    if (ids.length === 0) ids = await topicTimelineEpisodeIds(root, topicId)
+    // A build without GI serves no timeline: then the episodes whose KG names the topic.
+    if (ids.length === 0) {
+      const res = await fetchNodeEpisodes(root, topicId, GRAPH_NODE_EPISODES_EXPAND_MAX)
+      ids = res.episodes.map((e) => e.episode_id).filter((x): x is string => !!x)
+    }
     if (ids.length === 0) return
     const paths = topicHandoffArtifactPaths((await fetchResolveEpisodeArtifacts(root, ids)).resolved)
     if (paths.length === 0) return
