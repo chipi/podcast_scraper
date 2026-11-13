@@ -299,7 +299,7 @@ def _bridge_id_positions(
 
     value: tuple[list[tuple[str, dict[str, Any]]], dict[str, tuple[int, ...]]]
     value = perf_cache.get_or_compute(
-        "cil_bridge_id_positions", key, perf_cache.corpus_mtime(root_path), build
+        "cil_bridge_id_positions", key, perf_cache.corpus_mtime(root_path), build, stale_ok=True
     )
     return value
 
@@ -400,6 +400,7 @@ def _cached_bridge_bundles(root_path: str, anchor_path: str) -> list[tuple[str, 
         key,
         perf_cache.corpus_mtime(root_path),
         lambda: _walk_and_register(key, root_path, anchor_path),
+        stale_ok=True,
     )
     return bundles
 

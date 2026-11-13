@@ -126,6 +126,8 @@ def test_index_invalidates_on_ingest(tmp_path: Path) -> None:
         topics=[("topic:ml", "Machine Learning")],
     )
     _stamp(tmp_path, 2_000_000.0)
+    assert len(kg_index.get_kg_index(tmp_path).topic_episodes("topic:ml")) == 1
+    assert perf_cache.wait_for_rebuilds()
     idx = kg_index.get_kg_index(tmp_path)
     assert len(idx.topic_episodes("topic:ml")) == 2, "a stale KG index hid the new episode"
     assert idx.person_ref_by_norm["carol"].id == "person:carol"

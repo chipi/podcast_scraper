@@ -218,5 +218,6 @@ def get_kg_index(root: Path) -> KgEntityIndex:
         str(Path(root).resolve()),
         perf_cache.corpus_mtime(root),
         lambda: build_kg_index(root),
+        stale_ok=True,
     )
     return index

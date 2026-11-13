@@ -11,6 +11,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper import perf_cache
 from podcast_scraper.server.app import create_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
@@ -516,6 +517,9 @@ def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
     # only ever arrives via a pipeline run, which rewrites corpus_run_summary.json
     # — so signal that here (a raw file edit with no run isn't a real flow).
     (tmp_path / "corpus_run_summary.json").write_text("{}", encoding="utf-8")
+    # The catalog cache serves the previous catalog while it rebuilds; wait for the rebuild.
+    client.get("/api/corpus/feeds", params={"path": str(tmp_path)})
+    assert perf_cache.wait_for_rebuilds()
 
     fr2 = client.get("/api/corpus/feeds", params={"path": str(tmp_path)})
     assert fr2.status_code == 200
