@@ -3,9 +3,14 @@
 The mixed-corpus guards (``test_mixed_corpus_guards``) cover the readers. This covers the writers:
 the real batch entry (``cli.main`` with a feeds spec, the nightly's path) runs two podcast feeds
 with only HTTP mocked, once alone and once with a source of the test-only text type in the same
-spec. Every file under ``feeds/`` must be the same set, and must differ between the two runs only
-where two runs of the podcasts alone already differ (run timestamps and ids), so the third run,
-podcasts alone again, measures that noise instead of a hand-kept list of volatile keys.
+spec. Every podcast artifact under ``feeds/`` must be the same set, and must differ between the
+two runs only where two runs of the podcasts alone already differ (timestamps and paths that carry
+them), so the third run, podcasts alone again, measures that noise instead of a hand-kept list.
+
+The run's own records, the files directly in a run directory (``run.json``, ``metrics.json``,
+``index.json``, the run manifest), are left out, as the gate leaves out run manifests: their
+timings are coarse, so two runs alone could agree on one by chance and the run beside the text type
+was then flagged for a timing (4 of 10 runs, 2026-11-13).
 """
 
 from __future__ import annotations
@@ -111,11 +116,11 @@ def _run(corpus: Path, with_text_type: bool) -> None:
 
 
 def _podcast_files(corpus: Path) -> Dict[str, Any]:
-    """Every file under ``feeds/``, keyed by its path with the run dir's name normalised."""
+    """Every podcast artifact under ``feeds/``, keyed by its path with run names normalised."""
     out: Dict[str, Any] = {}
     for path in sorted((corpus / "feeds").rglob("*")):
-        if not path.is_file():
-            continue
+        if not path.is_file() or _RUN_DIR.fullmatch(path.parent.name):
+            continue  # directly in a run dir: the run's records, not an episode's artifact
         rel = _RUN_TIME.sub("_*_", _RUN_DIR.sub("run_*", path.relative_to(corpus).as_posix()))
         text = path.read_text(encoding="utf-8", errors="replace")
         try:
