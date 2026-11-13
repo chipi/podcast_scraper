@@ -42,11 +42,12 @@ export function extensionPoint<T extends Entry>(name: string): ExtensionPoint<T>
 
 /**
  * A card on the dashboard's Intelligence tab. `region` picks the row: `overview` is the
- * full-width row under the snapshot, `topics` the topic grid. `span` is the card's width in the
- * 4-column grid (topics only). The dashboard forwards a card's `go-graph` event.
+ * full-width row under the snapshot, `topics` the topic grid, `people` the People grid (the
+ * section shows only when a card is registered there). `span` is the card's width in the
+ * 4-column grid (topics and people). The dashboard forwards a card's `go-graph` event.
  */
 export interface DashboardCard extends Entry {
-  region: 'overview' | 'topics'
+  region: 'overview' | 'topics' | 'people'
   span?: 1 | 2 | 4
   component: Component
   props?: Record<string, unknown>

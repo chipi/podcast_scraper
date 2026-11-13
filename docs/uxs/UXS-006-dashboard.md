@@ -567,6 +567,10 @@ over time*. The chart is hidden until the log has entries (`total > 0`).
 
 #### 5.2 Top voices
 
+A downstream build's card since E04 step 8b, with the topic perspectives card: the
+platform's People section shows only cards registered in its `people` region
+(`dashboardCards`), and its topic grid the perspectives card only when registered.
+
 **Available when `GET /api/corpus/persons/top` exists (NEW endpoint —
 see Section 8).**
 
@@ -936,7 +940,6 @@ a real large corpus during implementation.
 web/gi-kg-viewer/src/components/dashboard/ArtifactActivityChart.vue
 web/gi-kg-viewer/src/components/dashboard/FeedRunHistoryGrid.vue
 web/gi-kg-viewer/src/components/dashboard/IntelligenceSnapshot.vue
-web/gi-kg-viewer/src/components/dashboard/TopVoices.vue
 web/gi-kg-viewer/src/components/dashboard/EmergingConnections.vue
 ```
 

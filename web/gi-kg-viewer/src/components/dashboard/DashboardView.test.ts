@@ -8,7 +8,6 @@ import type { CorpusCoverageResponse } from '../../api/corpusCoverageApi'
 import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import { fetchCorpusRunsSummary } from '../../api/corpusMetricsApi'
 import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
-import { fetchCorpusTopPersons } from '../../api/corpusPersonsApi'
 import { fetchCorpusDigest } from '../../api/digestApi'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useIndexStatsStore } from '../../stores/indexStats'
@@ -19,14 +18,12 @@ vi.mock('../../api/corpusCoverageApi', () => ({ fetchCorpusCoverage: vi.fn() }))
 vi.mock('../../api/digestApi', () => ({ fetchCorpusDigest: vi.fn() }))
 vi.mock('../../api/corpusLibraryApi', () => ({ fetchCorpusFeeds: vi.fn() }))
 vi.mock('../../api/corpusMetricsApi', () => ({ fetchCorpusRunsSummary: vi.fn() }))
-vi.mock('../../api/corpusPersonsApi', () => ({ fetchCorpusTopPersons: vi.fn() }))
 vi.mock('../../lib/analytics', () => ({ track: vi.fn() }))
 
 const mockCoverage = vi.mocked(fetchCorpusCoverage)
 const mockDigest = vi.mocked(fetchCorpusDigest)
 const mockFeeds = vi.mocked(fetchCorpusFeeds)
 const mockRuns = vi.mocked(fetchCorpusRunsSummary)
-const mockPersons = vi.mocked(fetchCorpusTopPersons)
 
 const STUBS = {
   BriefingCard: true,
@@ -36,12 +33,10 @@ const STUBS = {
   IndexStatusCard: true,
   CostRollupCard: true,
   IntelligenceSnapshot: true,
-  DashboardTopicPerspectives: true,
   TopicBriefingCards: true,
   QueryActivityChart: true,
   PipelineCleanupMetrics: true,
   PipelineAdExcisionMetrics: true,
-  TopVoices: true,
   PipelineJobsCard: true,
   PipelineJobHistoryStrip: true,
   PipelineRunHistoryStrip: true,
@@ -126,12 +121,11 @@ async function openTab(w: Awaited<ReturnType<typeof mountView>>, id: string) {
 describe('DashboardView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    for (const m of [mockCoverage, mockDigest, mockFeeds, mockRuns, mockPersons]) m.mockReset()
+    for (const m of [mockCoverage, mockDigest, mockFeeds, mockRuns]) m.mockReset()
     mockRuns.mockResolvedValue({ path: '/corpus', runs: [] })
     mockCoverage.mockResolvedValue(COVERAGE)
     mockFeeds.mockResolvedValue({ path: '/corpus', feeds: [] } as never)
     mockDigest.mockResolvedValue(DIGEST)
-    mockPersons.mockResolvedValue({ path: '/corpus', persons: [], total_persons: 0 })
     HTMLElement.prototype.scrollIntoView ??= () => {}
   })
 
@@ -375,52 +369,23 @@ describe('DashboardView', () => {
   })
 
   describe('Intelligence tab', () => {
-    it('shows the digest snapshot and the people widget with top persons', async () => {
+    it('shows the digest snapshot and its sections; People only with a registered card', async () => {
       connect()
-      mockPersons.mockResolvedValue({
-        path: '/corpus',
-        persons: [{ person_id: 'p', display_name: 'P', episode_count: 1, insight_count: 1, top_topics: [] }],
-        total_persons: 1,
-      })
       const w = await mountView()
       await openTab(w, 'intelligence')
       expect(comp(w, 'IntelligenceSnapshot').props('digest')).toEqual(DIGEST)
-      expect(comp(w, 'TopVoices').props('persons')).toHaveLength(1)
-      expect(comp(w, 'TopVoices').props('error')).toBeNull()
       expect(w.text()).toContain('Topics')
       expect(w.text()).toContain('Pipeline & activity')
-      expect(w.text()).toContain('People')
+      // Top voices is a downstream build's card (E04 step 8b); with none registered, no People.
+      expect(w.text()).not.toContain('People')
     })
 
-    it('re-fetches the digest (7d, 3 rows) and people when the tab opens', async () => {
+    it('re-fetches the digest (7d, 3 rows) when the tab opens', async () => {
       connect()
       const w = await mountView()
       mockDigest.mockClear()
-      mockPersons.mockClear()
       await openTab(w, 'intelligence')
       expect(mockDigest).toHaveBeenCalledWith('/corpus', { window: '7d', compact: false, maxRows: 3 })
-      expect(mockPersons).toHaveBeenCalledWith('/corpus', 5)
-    })
-
-    it('surfaces a people fetch error and empties the list', async () => {
-      connect()
-      mockPersons.mockRejectedValue(new Error('people down'))
-      const w = await mountView()
-      await openTab(w, 'intelligence')
-      expect(comp(w, 'TopVoices').props('error')).toBe('people down')
-      expect(comp(w, 'TopVoices').props('persons')).toEqual([])
-      expect(comp(w, 'TopVoices').props('loading')).toBe(false)
-    })
-
-    it('stringifies a non-Error people failure and tolerates a non-array payload', async () => {
-      connect()
-      mockPersons.mockRejectedValueOnce('nope')
-      const w = await mountView()
-      expect(mockPersons).toHaveBeenCalled()
-      mockPersons.mockResolvedValue({ path: '/c', persons: null as never, total_persons: 0 })
-      await openTab(w, 'intelligence')
-      expect(comp(w, 'TopVoices').props('persons')).toEqual([])
-      expect(comp(w, 'TopVoices').props('error')).toBeNull()
     })
 
     it('keeps a null digest when the intelligence digest refresh fails', async () => {
@@ -437,11 +402,8 @@ describe('DashboardView', () => {
       shell.healthStatus = null
       await flushPromises()
       mockDigest.mockClear()
-      mockPersons.mockClear()
       await openTab(w, 'intelligence')
       expect(mockDigest).not.toHaveBeenCalled()
-      expect(mockPersons).not.toHaveBeenCalled()
-      expect(comp(w, 'TopVoices').props('persons')).toEqual([])
     })
 
     it('forwards open-digest from the snapshot', async () => {
@@ -452,11 +414,11 @@ describe('DashboardView', () => {
       expect(w.emitted('open-digest')).toHaveLength(1)
     })
 
-    it('forwards go-graph from the built-in topic cards', async () => {
+    it('forwards go-graph from the built-in topic card', async () => {
       connect()
       const w = await mountView()
       await openTab(w, 'intelligence')
-      comp(w, 'DashboardTopicPerspectives').vm.$emit('go-graph', 'topic:a', 'fallback')
+      comp(w, 'TopicBriefingCards').vm.$emit('go-graph', 'topic:a', 'fallback')
       expect(w.emitted('go-graph')).toEqual([['topic:a', 'fallback']])
     })
 
