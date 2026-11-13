@@ -260,6 +260,10 @@ export type FetchEpisodesOptions = {
   until?: string
   /** When false, only episodes missing a GI artifact. */
   hasGi?: boolean
+  /** When false, only episodes missing a KG artifact. */
+  hasKg?: boolean
+  /** Extra query parameters (a build's own filters); they never override the ones above. */
+  extraParams?: Record<string, string>
   /** Publish-date order: ``newest`` (default) or ``oldest``. */
   sort?: 'newest' | 'oldest'
   /** When true, ask the server to populate cil_digest_topics per row (digest-parity pills). */
@@ -283,6 +287,11 @@ export async function fetchCorpusEpisodes(
   if (options.until?.trim()) q.set('until', options.until.trim())
   if (options.hasGi === true) q.set('has_gi', 'true')
   if (options.hasGi === false) q.set('has_gi', 'false')
+  if (options.hasKg === true) q.set('has_kg', 'true')
+  if (options.hasKg === false) q.set('has_kg', 'false')
+  for (const [k, v] of Object.entries(options.extraParams ?? {})) {
+    if (!q.has(k)) q.set(k, v)
+  }
   if (options.sort) q.set('sort', options.sort)
   if (options.withCilTopics) q.set('with_cil_topics', 'true')
   if (options.limit != null) q.set('limit', String(options.limit))

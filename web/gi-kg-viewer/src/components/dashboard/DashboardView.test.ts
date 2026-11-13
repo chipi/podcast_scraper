@@ -344,7 +344,7 @@ describe('DashboardView', () => {
       expect(comp(w, 'ArtifactActivityChart').props('loaded')).toBe(true)
     })
 
-    it('hands a month off to the library as a missing-GI date range', async () => {
+    it('hands a month off to the library as a missing-KG date range', async () => {
       connect()
       const w = await mountView()
       const nav = useDashboardNavStore()
@@ -353,7 +353,7 @@ describe('DashboardView', () => {
         kind: 'library',
         since: '2026-02-01',
         until: '2026-02-28',
-        missingGiOnly: true,
+        missingKgOnly: true,
       })
       expect(w.emitted('open-library')).toHaveLength(1)
     })

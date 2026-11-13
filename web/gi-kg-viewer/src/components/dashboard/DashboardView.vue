@@ -48,6 +48,7 @@ const topicCards = computed<DashboardCard[]>(() =>
 )
 const overviewCards = computed(() => dashboardCards.list().filter((c) => c.region === 'overview'))
 const peopleCards = computed(() => dashboardCards.list().filter((c) => c.region === 'people'))
+const coverageCards = computed(() => dashboardCards.list().filter((c) => c.region === 'coverage'))
 const SPAN_CLASS = { 1: 'xl:col-span-1', 2: 'xl:col-span-2', 4: 'xl:col-span-4' } as const
 const dashboardNav = useDashboardNavStore()
 
@@ -247,7 +248,7 @@ function onSelectMonth(ym: string): void {
     kind: 'library',
     since: `${ym}-01`,
     until: lastYmdOfMonth(ym),
-    missingGiOnly: true,
+    missingKgOnly: true,
   })
   emit('open-library')
 }
@@ -354,6 +355,15 @@ function openLibraryFailures(): void {
         :rows="coverage.by_month"
         @select-month="onSelectMonth"
       />
+      <component
+        :is="card.component"
+        v-for="card in coverageCards"
+        :key="card.id"
+        v-bind="card.props ?? {}"
+        :coverage="coverage"
+        @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
+        @open-library="emit('open-library')"
+      />
       <FeedCoverageTable
         v-if="coverage"
         :rows="coverage.by_feed"
@@ -385,6 +395,7 @@ function openLibraryFailures(): void {
         :key="card.id"
         v-bind="card.props ?? {}"
         @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
+        @open-library="emit('open-library')"
       />
 
       <!-- Topic intelligence — the topic-related widgets grouped together (#1), laid out on a
@@ -407,6 +418,7 @@ function openLibraryFailures(): void {
               :is="card.component"
               v-bind="card.props ?? {}"
               @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
+              @open-library="emit('open-library')"
             />
           </div>
         </div>
@@ -448,6 +460,7 @@ function openLibraryFailures(): void {
               :is="card.component"
               v-bind="card.props ?? {}"
               @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
+              @open-library="emit('open-library')"
             />
           </div>
         </div>

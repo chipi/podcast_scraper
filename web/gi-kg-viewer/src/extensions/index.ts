@@ -41,19 +41,56 @@ export function extensionPoint<T extends Entry>(name: string): ExtensionPoint<T>
 }
 
 /**
- * A card on the dashboard's Intelligence tab. `region` picks the row: `overview` is the
+ * A card on the dashboard. `region` picks the place: on the Intelligence tab, `overview` is the
  * full-width row under the snapshot, `topics` the topic grid, `people` the People grid (the
- * section shows only when a card is registered there). `span` is the card's width in the
- * 4-column grid (topics and people). The dashboard forwards a card's `go-graph` event.
+ * section shows only when a card is registered there); `coverage` is the Coverage tab, after its
+ * by-month chart, rendered with the dashboard's `coverage` (the corpus coverage response, or null).
+ * `span` is the card's width in the 4-column grid (topics and people). The
+ * dashboard forwards a card's `go-graph` and `open-library` events (set the Library handoff on the
+ * dashboard nav store first).
  */
 export interface DashboardCard extends Entry {
-  region: 'overview' | 'topics' | 'people'
+  region: 'overview' | 'topics' | 'people' | 'coverage'
   span?: 1 | 2 | 4
   component: Component
   props?: Record<string, unknown>
 }
 
 export const dashboardCards = extensionPoint<DashboardCard>('dashboardCards')
+
+/**
+ * What a build adds to the dashboard briefing from the corpus coverage: `stat`, a figure in the
+ * Corpus line after the viewer's own (null to skip); `actions`, attention items after the viewer's
+ * coverage item, each opening the Library with its handoff. `itemsBefore` counts the items already
+ * listed, so an entry can stay quiet unless it would be the only one. The briefing shows 3 items.
+ */
+export interface BriefingCoverage extends Entry {
+  stat?(coverage: import('../api/corpusCoverageApi').CorpusCoverageResponse): {
+    text: string
+    title: string
+    warn: boolean
+  } | null
+  actions?(
+    coverage: import('../api/corpusCoverageApi').CorpusCoverageResponse,
+    itemsBefore: number,
+  ): Array<{ text: string; primary: string; handoff: import('../stores/dashboardNav').DashboardLibraryHandoff }>
+}
+
+export const briefingCoverage = extensionPoint<BriefingCoverage>('briefingCoverage')
+
+/**
+ * A column of the dashboard's feed coverage table, before the viewer's KG column: `count` is how
+ * many of the feed's episodes it covers, drawn as a share bar in `barClass`; `noun` names it in
+ * the cell's title ("GI coverage").
+ */
+export interface FeedCoverageColumn extends Entry {
+  label: string
+  noun: string
+  barClass: string
+  count(row: import('../api/corpusCoverageApi').CoverageFeedItem): number
+}
+
+export const feedCoverageColumns = extensionPoint<FeedCoverageColumn>('feedCoverageColumns')
 
 /** Extra query parameters for every `/api/search` request the search store sends. */
 export interface SearchRequestParams extends Entry {

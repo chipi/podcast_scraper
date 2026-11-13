@@ -5,8 +5,8 @@ import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
 import type { IndexStatsEnvelope } from '../../api/indexStatsApi'
 import { formatDashboardRunDurationSeconds } from '../../utils/formatDuration'
 import { formatRelativeRunAge } from '../../utils/dashboardTime'
-import { useDashboardNavStore } from '../../stores/dashboardNav'
-import { useShellStore } from '../../stores/shell'
+import { briefingCoverage } from '../../extensions'
+import { useDashboardNavStore, type DashboardLibraryHandoff } from '../../stores/dashboardNav'
 
 const props = defineProps<{
   runs: CorpusRunSummaryItem[]
@@ -30,7 +30,7 @@ const emit = defineEmits<{
 
 const dashNav = useDashboardNavStore()
 
-const GI_WARN = 0.5
+const KG_WARN = 0.5
 const INDEX_WARN = 0.6
 
 const latestRun = computed(() => props.runs[0] ?? null)
@@ -55,12 +55,12 @@ const runStatus = computed((): 'none' | 'success' | 'partial' | 'failed' => {
 })
 
 const totalEpisodes = computed(() => props.coverage?.total_episodes ?? 0)
-const giRate = computed(() => {
+const kgRate = computed(() => {
   const t = totalEpisodes.value
   if (!t || !props.coverage) {
     return null
   }
-  return props.coverage.with_gi / t
+  return props.coverage.with_kg / t
 })
 /** search-index row count (many per episode) — do not divide by episode count as a “%”. */
 const indexVectorCount = computed(() => props.indexEnv?.stats?.total_vectors ?? null)
@@ -116,15 +116,25 @@ const indexDaysSince = computed((): number | null => {
   return Math.floor((Date.now() - t) / 86_400_000)
 })
 
-const giPctDisplay = computed(() => {
-  const r = giRate.value
+const kgPctDisplay = computed(() => {
+  const r = kgRate.value
   return r == null ? '—' : `${Math.round(r * 100)}%`
 })
 
-const giCoverageTitle = computed(
+const kgCoverageTitle = computed(
   () =>
-    'Episodes that have at least one GI artifact file, as a share of episodes in the corpus catalog (Coverage tab).',
+    'Episodes that have a KG artifact file, as a share of episodes in the corpus catalog (Coverage tab).',
 )
+
+/** A build's figures for the Corpus line (`briefingCoverage`). */
+const extraStats = computed(() => {
+  const c = props.coverage
+  if (!c) return []
+  return briefingCoverage
+    .list()
+    .map((e) => ({ id: e.id, stat: e.stat?.(c) ?? null }))
+    .filter((x): x is { id: string; stat: { text: string; title: string; warn: boolean } } => x.stat != null)
+})
 
 const feedsIndexedCount = computed(() => props.indexEnv?.stats?.feeds_indexed?.length ?? 0)
 
@@ -136,7 +146,7 @@ const indexFeedsCoverageRatio = computed(() => {
   return feedsIndexedCount.value / fc
 })
 
-const giWarn = computed(() => giRate.value != null && giRate.value < GI_WARN)
+const kgWarn = computed(() => kgRate.value != null && kgRate.value < KG_WARN)
 /** Warn when few catalog feeds appear in index stats — not vector/episodes ratio. */
 const indexWarn = computed(
   () =>
@@ -157,47 +167,36 @@ const actionItems = computed(() => {
       onPrimary: () => {
         dashNav.setHandoff({
           kind: 'library',
-          missingGiOnly: false,
           since: r?.created_at?.slice(0, 10),
         })
         emit('open-library')
       },
     })
   }
-  const noGi = props.coverage?.with_neither ?? 0
-  const wg = props.coverage?.with_gi ?? 0
   const t = props.coverage?.total_episodes ?? 0
-  if (!useShellStore().giArtifactsAvailable) {
-    // KG-only corpus: no GI is expected, so only an episode with neither artifact is news.
-    if (noGi > 0 && out.length === 0) {
-      out.push({
-        text: `${noGi} episode${noGi === 1 ? '' : 's'} have no KG artifacts`,
-        primary: 'View in Library',
-        onPrimary: () => {
-          dashNav.setHandoff({ kind: 'library' })
-          emit('open-library')
-        },
-      })
+  const noKg = t - (props.coverage?.with_kg ?? 0)
+  const neither = props.coverage?.with_neither ?? 0
+  if (t > 0 && kgRate.value != null && kgRate.value < KG_WARN) {
+    out.push({
+      text: `${noKg} episode${noKg === 1 ? '' : 's'} have no KG artifacts`,
+      primary: 'View in Library',
+      onPrimary: () => openLibrary({ kind: 'library', missingKgOnly: true }),
+    })
+  } else if (neither > 0 && out.length === 0) {
+    // Coverage is healthy, but some episodes have no artifact at all: news only when alone.
+    out.push({
+      text: `${neither} episode${neither === 1 ? '' : 's'} have no KG artifacts`,
+      primary: 'View in Library',
+      onPrimary: () => openLibrary({ kind: 'library' }),
+    })
+  }
+  const c = props.coverage
+  if (c) {
+    for (const e of briefingCoverage.list()) {
+      for (const a of e.actions?.(c, out.length) ?? []) {
+        out.push({ text: a.text, primary: a.primary, onPrimary: () => openLibrary(a.handoff) })
+      }
     }
-  } else if (t > 0 && giRate.value != null && giRate.value < GI_WARN) {
-    const n = t - wg
-    out.push({
-      text: `${n} episode${n === 1 ? '' : 's'} have no GI artifacts`,
-      primary: 'View in Library',
-      onPrimary: () => {
-        dashNav.setHandoff({ kind: 'library', missingGiOnly: true })
-        emit('open-library')
-      },
-    })
-  } else if (noGi > 0 && out.length === 0) {
-    out.push({
-      text: `${noGi} episode${noGi === 1 ? '' : 's'} have no GI artifacts`,
-      primary: 'View in Library',
-      onPrimary: () => {
-        dashNav.setHandoff({ kind: 'library', missingGiOnly: true })
-        emit('open-library')
-      },
-    })
   }
   if (!props.indexEnv?.available) {
     out.push({
@@ -238,6 +237,11 @@ const actionItems = computed(() => {
 
 function openLastRunDetails(): void {
   emit('open-pipeline-job-history')
+}
+
+function openLibrary(handoff: DashboardLibraryHandoff): void {
+  dashNav.setHandoff(handoff)
+  emit('open-library')
 }
 
 function goLibraryAll(): void {
@@ -324,12 +328,28 @@ function goLibraryAll(): void {
             <button
               type="button"
               class="hover:underline"
-              :class="giWarn ? 'text-warning' : ''"
-              :title="giCoverageTitle"
+              :class="kgWarn ? 'text-warning' : ''"
+              :title="kgCoverageTitle"
               @click="emit('select-tab', 'coverage')"
             >
-              {{ giPctDisplay }} with GI
+              {{ kgPctDisplay }} with KG
             </button>
+            <template
+              v-for="x in extraStats"
+              :key="x.id"
+            >
+              <span class="text-muted"> · </span>
+              <button
+                type="button"
+                class="hover:underline"
+                :class="x.stat.warn ? 'text-warning' : ''"
+                :title="x.stat.title"
+                :data-testid="`briefing-stat-${x.id}`"
+                @click="emit('select-tab', 'coverage')"
+              >
+                {{ x.stat.text }}
+              </button>
+            </template>
             <span class="text-muted"> · </span>
             <button
               type="button"

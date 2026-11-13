@@ -275,10 +275,24 @@ describe('LibraryView — search context and handoff', () => {
     expect(w.find('[data-testid="library-row-why"]').text()).toContain('risk lives in the couplings')
   })
 
-  it('a Dashboard handoff applies its show, dates and missing-GI filter', async () => {
+  it('a Dashboard handoff applies its show, dates, missing-KG filter and a build\'s params', async () => {
     serve([ep(1)])
-    useDashboardNavStore().setHandoff({ kind: 'library', feedId: 'f1', since: '2026-01-01', until: '2026-02-01', missingGiOnly: true })
+    useDashboardNavStore().setHandoff({
+      kind: 'library',
+      feedId: 'f1',
+      since: '2026-01-01',
+      until: '2026-02-01',
+      missingKgOnly: true,
+      params: { has_gi: 'false' },
+    })
     await mountLibrary()
-    expect(lastEpisodesCall()[1]).toMatchObject({ feedId: 'f1', since: '2026-01-01', until: '2026-02-01', hasGi: false })
+    expect(lastEpisodesCall()[1]).toMatchObject({
+      feedId: 'f1',
+      since: '2026-01-01',
+      until: '2026-02-01',
+      hasKg: false,
+      extraParams: { has_gi: 'false' },
+    })
+    expect(lastEpisodesCall()[1].hasGi).toBeUndefined()
   })
 })
