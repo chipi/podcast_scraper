@@ -138,12 +138,16 @@ describe('EpisodeDetailPanel.vue', () => {
     expect(w.text()).toContain('No summary text in metadata.')
   })
 
-  it('disables "Open in graph" only when the episode has no GI/KG artifacts', async () => {
-    const { w } = await mountWithEpisode(detailOf({ has_gi: false, has_kg: false }))
-    const openBtn = w
-      .findAll('button')
-      .find((b) => b.text().includes('Open in graph'))!
-    expect(openBtn.attributes('disabled')).toBeDefined()
+  it('disables "Open in graph" when the episode has nothing the graph loads', async () => {
+    const openBtn = (w: Awaited<ReturnType<typeof mountWithEpisode>>['w']) =>
+      w.findAll('button').find((b) => b.text().includes('Open in graph'))!
+    const none = await mountWithEpisode(detailOf({ has_gi: false, has_kg: false }))
+    expect(openBtn(none.w).attributes('disabled')).toBeDefined()
+    // GI alone loads nothing here (the viewer's graph is KG; a downstream build adds GI paths).
+    const giOnly = await mountWithEpisode(detailOf({ has_gi: true, has_kg: false }))
+    expect(openBtn(giOnly.w).attributes('disabled')).toBeDefined()
+    const kg = await mountWithEpisode(detailOf({ has_gi: false, has_kg: true }))
+    expect(openBtn(kg.w).attributes('disabled')).toBeUndefined()
   })
 
   it('emits focus-search with feed + query from "Prefill semantic search"', async () => {

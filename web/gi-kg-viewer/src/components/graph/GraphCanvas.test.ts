@@ -934,7 +934,7 @@ describe('GraphCanvas cross-episode expand', () => {
     shell.healthStatus = 'ok'
     shell.corpusLibraryApiAvailable = true
     vi.mocked(fetchNodeEpisodes).mockImplementation(async (_root, id) => ({
-      episodes: id === 'topic:ai' ? [{ gi_relative_path: 'z/new.gi.json', kg_relative_path: null }] : [],
+      episodes: id === 'topic:ai' ? [{ gi_relative_path: null, kg_relative_path: 'z/new.kg.json' }] : [],
       truncated: false,
     }) as never)
     await mountTracked()
@@ -942,6 +942,20 @@ describe('GraphCanvas cross-episode expand', () => {
     const exp = useGraphExpansionStore()
     expect(exp.corpusBeyondAppendKnown('topic:ai')).toBe(true)
     expect(classesOf('topic:ai')).toContain('graph-expand-eligible')
+  })
+
+  it('does not offer an expand for an episode with only GI: the viewer\'s expand loads KG', async () => {
+    const shell = useShellStore()
+    shell.healthStatus = 'ok'
+    shell.corpusLibraryApiAvailable = true
+    vi.mocked(fetchNodeEpisodes).mockImplementation(async (_root, id) => ({
+      episodes: id === 'topic:ai' ? [{ gi_relative_path: 'z/new.gi.json', kg_relative_path: null }] : [],
+      truncated: false,
+    }) as never)
+    await mountTracked()
+    await tick(SETTLE_MS)
+    expect(useGraphExpansionStore().corpusBeyondAppendKnown('topic:ai')).toBe(false)
+    expect(classesOf('topic:ai')).not.toContain('graph-expand-eligible')
   })
 
   it('records a failed probe as "nothing beyond"', async () => {
