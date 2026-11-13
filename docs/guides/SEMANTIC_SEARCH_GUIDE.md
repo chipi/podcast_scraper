@@ -28,7 +28,7 @@ no fallback).
   - Build the two-tier index (populates insight↔segment links + compounds):
     `make index-two-tier CORPUS_DIR=<corpus>`.
   - Derive the relational edges into the corpus (`Person→Insight`, `MENTIONS`, `HAS_EPISODE`; #874):
-    `make enrich-relational-edges CORPUS_DIR=<corpus>`.
+    `make enrich-relational-edges CORPUS_DIR=<corpus>`, a target of the extension's Makefile.
 - **Config (`config/search.yaml`):** `router.mode` (`rules` | `ml`).
 - **Not a retrieval signal:** KG-proximity was evaluated and **rejected** (RFC-091 Decision
   Record); the KG's value is the relational edges above, consumed by viewer surfaces (PRD-033 /

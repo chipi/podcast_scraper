@@ -11,7 +11,7 @@
 #
 # Usage (into a SEPARATE corpus root, existing-only so the set can only shrink, audio from the
 # #947 GUID-keyed cache, no network):
-#   make redo-diarization CORPUS_DIR=<prod-v3-turbo copy> PROFILE=config/profiles/reprocess_dgx_turbo.yaml
+#   make redo-diarization (the extension's Makefile) CORPUS_DIR=<prod-v3-turbo copy> PROFILE=config/profiles/reprocess_dgx_turbo.yaml
 # then: .venv/bin/python scripts/eval/compare_corpora_v1.py <prod-v3> <prod-v3-turbo>
 #
 # No `profile:` key on purpose (pins no LLM models; opts out of the registry drift check), same as

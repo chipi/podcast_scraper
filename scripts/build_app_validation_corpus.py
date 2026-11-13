@@ -2883,7 +2883,8 @@ def main() -> int:
             print(f"  {show_dir}/{ep_label}: {episode_title!r} ({len(offset_segs)} segs)")
 
     # --- search/topic_clusters.json -----------------------------------------
-    # The themes are EMBEDDING-derived and committed (`make build-validation-topic-clusters`);
+    # The themes are EMBEDDING-derived and committed (`make build-validation-topic-clusters`,
+    # in the extension's Makefile);
     # `_write_topic_clusters_scaffold` never overwrites them. Without that file — a clean build with
     # no ML extras — the scaffold is empty: it used to bundle the stamped umbrellas into two
     # synthetic themes (tc:lifelong-learning, tc:show-themes), and there are no stamps any more.

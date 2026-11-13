@@ -14,8 +14,8 @@ Reproduced on a corpus copy whose metadata declared ``transcript_source:
 whisper_transcription`` while ``--reprocess-source whisper_transcription`` was passed: the
 forcing log line never appeared, result was ``episodes=1 ok=0``, ``Episodes skipped: 1``.
 
-``make redo-diarization`` is built entirely on that flag, so it would report success and
-re-diarize nothing.
+``make redo-diarization`` (the extension's Makefile) is built on that flag, so it would report
+success and re-diarize nothing.
 
 The transcript lookup fixed exactly this in D7 (``existing_transcript_path_in_corpus``); the
 metadata lookup did not get the same treatment. These tests hold both halves together.

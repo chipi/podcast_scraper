@@ -36,11 +36,12 @@ from .utils.path_validation import safe_resolve_directory
 # Stage → (edge types that satisfy it, MCP tools it kills). From #1497's evidence table.
 # ``any_of`` = the stage is satisfied when ANY of these edge types is present in the corpus.
 _HARD_STAGES: Dict[str, Dict[str, Tuple[str, ...]]] = {
-    "relational edges — HAS_EPISODE (make enrich-relational-edges)": {
+    "relational edges — HAS_EPISODE (make enrich-relational-edges, the extension's Makefile)": {
         "any_of": ("HAS_EPISODE",),
         "kills": ("show_episodes",),
     },
-    "relational edges — typed MENTIONS_PERSON/ORG (make enrich-relational-edges)": {
+    "relational edges — typed MENTIONS_PERSON/ORG"
+    " (make enrich-relational-edges, the extension's Makefile)": {
         "any_of": ("MENTIONS_PERSON", "MENTIONS_ORG", "MENTIONS_OBJECT"),
         "kills": (
             "entities_in_topic",

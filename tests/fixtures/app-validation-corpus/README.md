@@ -233,7 +233,7 @@ HF_HUB_OFFLINE=1 .venv/bin/python -m podcast_scraper.cli enrich --output-dir \
   tests/fixtures/app-validation-corpus/v3 --only topic_cooccurrence_corpus \
   --corpus-only --force                                                   # the framework's one
 make build-app-validation-index && \
-  make build-validation-topic-clusters CORPUS=tests/fixtures/app-validation-corpus/v3  # themes
+  make build-validation-topic-clusters CORPUS=<public>/tests/fixtures/app-validation-corpus/v3  # themes, the extension's Makefile
 ```
 
 The tool re-authors the four enrichments the builder writes (`temporal_velocity`,

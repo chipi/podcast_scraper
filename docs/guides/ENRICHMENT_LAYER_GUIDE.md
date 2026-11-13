@@ -781,7 +781,7 @@ This artifact is built from the LanceDB index, not by the enrichment run, so
 step 1 does not touch it:
 
 ```bash
-make topic-clusters CORPUS_DIR=<corpus-dir>       # host; needs the search extras
+make topic-clusters CORPUS_DIR=<corpus-dir>       # the extension's Makefile; needs the search extras
 make index-two-tier-docker CORPUS_DIR=<corpus-dir>  # if the index itself is stale
 ```
 

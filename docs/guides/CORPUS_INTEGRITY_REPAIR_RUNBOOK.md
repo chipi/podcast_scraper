@@ -299,7 +299,7 @@ Still pass `--max-episodes` if you want a hard ceiling on a first cautious run.
 ```bash
 podcast-scraper enrich-edges  --output-dir <corpus>
 make index-two-tier  CORPUS_DIR=<corpus>
-make topic-clusters  CORPUS_DIR=<corpus>
+make topic-clusters  CORPUS_DIR=<corpus>   # the extension's Makefile
 make enrich CORPUS=<corpus>
 ```
 
@@ -358,7 +358,7 @@ next time someone audits.
   cannot resolve even though the IP is reachable. Pass `--add-host <name>:<ip>`.
 - **Container stdout can be dropped** through a relayed Docker socket. If a container run prints
   nothing, do not conclude it crashed — write results to a file inside and `docker cp` them out.
-- **`make redo-diarization`** was inert on corpus-layout corpora until #33 (the `--reprocess-source`
+- **`make redo-diarization`** (now in the extension's Makefile) was inert on corpus-layout corpora until #33 (the `--reprocess-source`
   force predicate resolved metadata against the current run dir, so it never fired). If you relied
   on it before 2026-08-17, grep old run logs for `#925 forcing` — if absent, that migration
   no-opped.
