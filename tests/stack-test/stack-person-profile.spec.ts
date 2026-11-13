@@ -1,6 +1,6 @@
 /**
- * #1075 chunk 3 — Tier-3 stack-test for the Person Profile / Position
- * Tracker viewer surfaces shipped in #1048 + #1049 + #1050.
+ * #1075 chunk 3 — Tier-3 stack-test for the Person Profile viewer surface
+ * shipped in #1048 + #1049 + #1050.
  *
  * Sibling to stack-viewer.spec.ts which verifies the data-layer v3
  * contract at API level. This spec walks the *rendered* viewer through
@@ -8,25 +8,17 @@
  *
  *   1. Mount the viewer against the stack-built corpus.
  *   2. Open the graph and surface a real Person via the subject store.
- *   3. Assert the Person Profile + Position Tracker tab pair renders,
- *      identity header + ranked-topics section + episodes-appeared-in
- *      section are present (per the airgapped_thin capability set).
- *   4. When the loaded artifact slice happens to carry MENTIONS_PERSON
- *      ∩ ABOUT edges (which airgapped_thin emits conditionally — see
- *      stack-viewer.spec.ts § "airgapped_thin v3.0 capability set"
- *      caveat), follow the click-to-PositionTracker path and assert
- *      timeline rows.
+ *   3. Assert the person rail renders with its Details tab and the profile
+ *      panel (per the airgapped_thin capability set).
  *
- * The strict shell assertions (steps 1–3) are gated only on the data
- * stack-viewer.spec.ts already asserts holds across runs. The
- * conditional click-through (step 4) auto-strengthens if a future
- * profile change makes the edge emission deterministic.
+ * The Positions tab and its click-through to the position arc left public's
+ * viewer with E04 step 8b; a build that adds them tests them.
  */
 import { expect, test } from "@playwright/test"
 
 const STACK_TEST_CORPUS_PATH = "/app/output"
 
-test.describe("Stack — Person Profile / Position Tracker (#1075 chunk 3)", () => {
+test.describe("Stack — Person Profile (#1075 chunk 3)", () => {
   test.beforeEach(async ({ page }) => {
     // Pre-seed the corpus path so the auto-graph-sync chain resolves a
     // non-empty selection; skip the first-run gesture overlay so any
@@ -41,7 +33,7 @@ test.describe("Stack — Person Profile / Position Tracker (#1075 chunk 3)", () 
     }, STACK_TEST_CORPUS_PATH)
   })
 
-  test("Person Profile rail renders against a stack-built corpus + tab pair operates", async ({
+  test("Person Profile rail renders against a stack-built corpus", async ({
     page,
     request,
   }) => {
@@ -127,33 +119,9 @@ test.describe("Stack — Person Profile / Position Tracker (#1075 chunk 3)", () 
     // resolves via NodeDetail's inferredKindFromId).
     await expect(rail.getByRole("heading").first()).toContainText("Person")
 
-    // NodeDetail rail tabs — Details (profile) + Positions per the folded shell.
+    // NodeDetail rail: the Details tab and the profile panel are public's.
     await expect(page.getByTestId("node-detail-rail-tab-details")).toHaveText(/Details/)
     await expect(page.getByTestId("person-landing-panel-profile")).toBeVisible()
-
-    // Switching to the Positions rail tab surfaces the positions lens view.
-    await page.getByTestId("node-detail-rail-tab-position-tracker").click()
-    await expect(page.getByTestId("person-landing-positions-view")).toBeVisible()
-
-    // === Conditional rich-data path ===
-    //
-    // airgapped_thin emits MENTIONS_PERSON conditionally (BART paraphrases
-    // speaker names in some episodes). The "click a topic → Position Tracker
-    // arc" entry point now lives in the Positions tab's default "By topic" lens
-    // (Insights voiced), computed over `MENTIONS_PERSON ∩ ABOUT`, so it only
-    // renders when both fire. When it does, exercise the click-to-arc path.
-    const insightsVoiced = page.getByTestId("person-landing-insights-voiced")
-    if (await insightsVoiced.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await page
-        .getByTestId("person-landing-insights-voiced-topic-button")
-        .first()
-        .click()
-      // NodeDetail auto-switches to keep the arc visible for the (Person, Topic) pair.
-      await expect(page.getByTestId("position-tracker-arc")).toBeVisible({
-        timeout: 5_000,
-      })
-      await expect(page.getByTestId("position-tracker-row").first()).toBeVisible()
-    }
 
     if (consoleErrors.length) {
       // Allow benign warnings; flag fatal errors. Same noise filter as
