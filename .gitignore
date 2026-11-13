@@ -146,6 +146,7 @@ crash_dump_*.log
 .coverage
 .coverage.*
 /coverage.json
+/coverage.lcov
 
 # IDE
 .vscode/
