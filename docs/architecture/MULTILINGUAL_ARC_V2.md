@@ -312,8 +312,8 @@ invalidates all fifteen together, which is the point.
 WHAT MOVED. Every English-only naming collection we knew about is now a per-language map in
 the speaker detector's naming vocabulary (43 maps, six rows each), read through
 `hosts._NAMING_VOCABULARY_MAPS` (56 entries) and advertised by the fail-closed intersection
-`NAMING_VOCABULARY_LANGUAGES`. Four modules were converted: `hosts.py`, `roster.py`,
-`resolution.py`, and the GI speaker check. English is unchanged — 18 of 23 converted patterns in `hosts.py`
+`NAMING_VOCABULARY_LANGUAGES`. Four modules were converted: host detection, the roster,
+speaker resolution, and the GI speaker check. English is unchanged — 18 of 23 converted patterns in host detection
 rebuild byte-identically, and the five that differ do so only by `(?:x)` around a single literal or
 a positional group becoming a named one, proven equivalent on 5,296 matches (full match plus every
 capture group) over 592 KB of fixture and test text.
@@ -357,9 +357,9 @@ words and only its own. `Anfitrión Miguel` was publishable before and is refuse
 while `Host Mike` was already refused under `en`; `Lucía Herrera` survives in all six.
 
 ONE DELIBERATE WIDENING, recorded because it is NOT a no-op. Three sites held three different
-hand-written copies of the self-introduction cue — `roster.py`'s match-form detector
-(`i'm|i am|my name is`), `roster.py`'s sign-off reader (`I['’]?m` alone) and `resolution.py`'s
-window anchor — while `roster.py`'s own comment claims they "match the SAME cue vocabulary
+hand-written copies of the self-introduction cue — the roster's match-form detector
+(`i'm|i am|my name is`), the roster's sign-off reader (`I['’]?m` alone) and speaker resolution's
+window anchor — while the roster's own comment claims they "match the SAME cue vocabulary
 (imported, so they cannot drift)". They had drifted and were not imported. All four sites now read
 `SELF_INTRO_WORDS`, which adds `my name's` everywhere and `i['’]?m` (which also admits the
 apostrophe-stripped "im" a folded transcript produces). This widens English recall on three paths
@@ -367,7 +367,7 @@ and is unmeasured.
 
 WHAT THIS DOES NOT DO — and this is the larger half.
 
-- ~~`roster.py`, `resolution.py` and the GI speaker check do not take a `language` parameter~~
+- ~~the roster, speaker resolution and the GI speaker check do not take a `language` parameter~~
   **Threaded, same day.** The SOURCE language (`transcription_language(cfg)`, the one reader)
   reaches `resolve_speaker_roster`, `build_speaker_diagnostics` and the resolution prompt from
   `diarization/pipeline.py`; `None` reads the analysis row (unchanged behaviour), and a language

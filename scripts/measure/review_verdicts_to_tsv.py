@@ -4,7 +4,7 @@
     python scripts/measure/review_verdicts_to_tsv.py --migration 0031_named_voices_shown \\
         --corpus <clone> --reviewed-commit 97c551101 --reviewer "step-8 reviewer (fresh advisor)" \\
         --read <reviewer read file.tsv> [--read <another>] \\
-        --out src/podcast_scraper/upgrade/verdicts/0031_named_voices_shown.tsv
+        --out <the migration's verdicts directory>/0031_named_voices_shown.tsv
 
 A reviewer's read file has one row per insight read (columns ``episode, voice, name, verdict``; the
 episode as its title). This maps every row to the list entry it judged, by the episode's own

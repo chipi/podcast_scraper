@@ -19,7 +19,7 @@ migration's own hand-read guard stayed silent about it (see ``m0009``'s pairing-
 Migrating only served copies makes that whole class unreachable: the copies with stale rosters are
 no longer selected at all.
 
-THE AUDIT SCRIPT MUST STAY IN STEP. ``scripts/audit/speaker_coherence_report.py`` deliberately
+THE AUDIT SCRIPT MUST STAY IN STEP. The speaker-coherence audit report deliberately
 mirrored the migrations' undeduped selection, on the principle that an instrument which models the
 migration differently reports a run that is not the one about to happen. It now mirrors this
 instead; that is one change, not two independent ones.

@@ -243,7 +243,7 @@ class TestANonEnglishCorpusEpisodeCarriesItsEnglishRender:
     """RFC-124's output must survive into the corpus, not just into a run's output directory.
 
     THE GAP THIS CLOSES. The committed app corpus had five non-English episodes and ZERO English
-    renders, and every gate stayed green. `test_translation_artifacts.py` proves the stage writes
+    renders, and every gate stayed green. The translation-artifact test proves the stage writes
     `.en.txt` + `.en.segments.json` — but it runs the stage against a temp dir, so it says nothing
     about what the corpus ends up holding. The corpus side was never asked the question. The
     translation really did run (the committed summaries, GI and KG for p10-p14 are English,

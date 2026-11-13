@@ -23,7 +23,7 @@ profile: cloud_balanced
 #              implied ≈ 0.547. No regression within eval noise.
 #   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
 #   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
-#   Clustering: 0.75 threshold (code default, insight_clusters.py)
+#   Clustering: 0.75 threshold (code default)
 #   NER:       spaCy trf = 1.000 F1 with show-title fix
 #
 # Usage:
@@ -124,7 +124,7 @@ preprocessing_enabled: true
 # Pipeline mode — mega_bundled (#646 real-episode validation):
 # 1 LLM call returns summary + bullets + insights + topics + entities.
 # Gemini flash-lite mega_bundled measured on real investor-podcast traffic
-# (scripts/validate/validate_phase3c.py, 2026-04-21):
+# (real-episode validation, 2026-04-21):
 #   $0.00127/ep medium (~45min audio), 17.8 s, 12 insights / 10 topics / 15 entities.
 # vs extraction_bundled ($0.00265/ep, 2 calls) same artifact counts → 52 % cheaper.
 # vs staged ($0.00445/ep, 3 calls) → 72 % cheaper.

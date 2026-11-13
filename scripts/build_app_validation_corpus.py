@@ -1151,7 +1151,7 @@ def _canonicalize_persons_in(
 
     This is the corpus-build analogue of what diarization does for real audio: the roster resolves
     a voice to ONE person, and the knowledge graph records that person. It is deliberately NOT a
-    similarity match — every mapping here is authored ground truth. ``name_canonicalization.py``
+    similarity match — every mapping here is authored ground truth. Name canonicalization
     documents why the heuristic version is unsafe (#876: a wrong name is worse than a garble left
     alone), which is exactly why this reads the manifest instead of guessing.
 
@@ -2287,7 +2287,7 @@ def _speaker_diagnostics(
 ) -> dict[str, Any]:
     """Author a ``.speakers.diagnostics.json`` from the deterministic roster + segments.
 
-    Mirrors the real ``build_speaker_diagnostics`` shape (roster.py): talk-share per voice,
+    Mirrors the real ``build_speaker_diagnostics`` shape: talk-share per voice,
     host/guest roles, the exposed roster, and the unattributed (sponsor/commercial) share —
     so the diarized-speaker read surfaces (MCP ``episode_speaker_roster``) see real fixture
     data. No ML: talk-share is summed from segment durations.

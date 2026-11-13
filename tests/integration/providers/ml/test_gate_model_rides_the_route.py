@@ -91,7 +91,7 @@ def test_production_profile_rates_on_the_summarisers_route(name: str) -> None:
     rater = getattr(cfg, "gi_value_gate_provider", None)
     if rater is None:
         # An LLM summariser + gate ENABLED + no rater is not "inapplicable" — it is a silent
-        # self-grade at half strictness, taking gi/value_gate.py:90-91 where nothing is logged and
+        # self-grade at half strictness, taking the value gate's branch where nothing is logged and
         # nothing is measured. cloud_split_dgx_down sat in exactly this state: the DGX-outage
         # failover profile quietly halving gate strictness during the window its output is compared
         # against baseline. Returning early here is what let it through the first time.

@@ -100,8 +100,7 @@ routes/
   search.py          # viewer — semantic corpus search (+ query-activity logging)
   relational.py      # viewer — /relational/* relational-query layer (RFC-094, #882)
   query_activity.py  # viewer — GET /corpus/query-activity (search-volume; FR6.2)
-  explore.py         # viewer — GI explore + UC4 NL query
-  cil.py             # viewer — CIL position arc, person profile, topic timeline (#527)
+    cil.py             # viewer — CIL position arc, person profile, topic timeline (#527)
   corpus_library.py  # viewer — /corpus/* catalog + similar episodes
   corpus_text_file.py # viewer — GET /corpus/text-file (transcript / caption files under corpus root)
   corpus_digest.py   # viewer — GET /corpus/digest
@@ -187,7 +186,7 @@ instead of a recency view.)
    parameter resolve it against `request.app.state.output_dir` as a
    fallback.
    The private `_resolve_corpus_root(path, fallback)` pattern is repeated
-   in `index_stats.py`, `index_rebuild.py`, `search.py`, `explore.py`,
+   in `index_stats.py`, `index_rebuild.py`, `search.py`,
    `cil.py`, `corpus_library.py`, `corpus_digest.py`, and `corpus_metrics.py`.
 5. **RFC-077 routes** live as top-level `routes/*.py` files (same router pattern).
    **`routes/platform/`** is reserved for future #50/#347 surfaces, not feeds/jobs v1.

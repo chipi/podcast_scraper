@@ -1,15 +1,13 @@
 # roster-golden fixture schema (v4 Phase 0 — #1189)
 
-Golden diarization fixtures for the speaker roster (`resolve_speaker_roster`,
-`src/podcast_scraper/providers/ml/diarization/roster.py`). Tracked by #1189;
+Golden diarization fixtures for the speaker roster (`resolve_speaker_roster`). Tracked by #1189;
 the case
 catalogue and rationale live in `docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md` (§G,
 "The anatomy of a real episode").
 
 ## The one rule
 
-The runner (`tests/unit/podcast_scraper/providers/ml/diarization/
-test_roster_golden_fixtures.py`) DRIVES `resolve_speaker_roster`. It never
+The runner DRIVES `resolve_speaker_roster`. It never
 re-implements any part of the roster's decision logic. A fixture is inputs in,
 real function call, assert on the real output. This is the §F0 lesson: a
 diagnostic that restates the rule in its own words measures its own words, not
@@ -25,10 +23,10 @@ expected_roster:
 ```
 
 **`role: advertisement` does not exist.** `SpeakerRole.role` is one of exactly
-`"host" | "guest" | "unknown"` (see `roster.py:762` docstring and
+`"host" | "guest" | "unknown"` (see the
 `SpeakerRole` dataclass). An advertisement is a `voice_type`, not a role:
 `SpeakerRole.voice_type` is one of `"person" | "cameo" | "commercial" |
-"unidentified" | "unknown"` (constants `VOICE_*`, `roster.py:121-142`). This
+"unidentified" | "unknown"` (the roster's `VOICE_*` constants). This
 schema uses the real fields; the spec's shorthand is translated below.
 
 ### Translation table (spec shorthand → real fields)
@@ -120,7 +118,7 @@ list of `[speaker, text]` pairs in chronological order.
    a name appears that has no source) — that is a FINDING, not a fixture bug
    to paper over. Do not encode the wrong value as "expected." Keep the case
    (or the specific perturbation) out of the asserted/green suite and report
-   it for triage. See `test_roster_golden_fixtures.py`'s per-perturbation
+   it for triage. See the runner's per-perturbation
    PENDING notes for the standing findings from this seed.
 
 ## Out of scope for Phase 0 (documented, not silent)
@@ -132,7 +130,7 @@ description-vs-transcript gate), and the LLM voice-resolution path
 (`resolve_voices_from_conversation`) — all require spaCy (and, for the LLM
 path, a completion provider) and are NOT driven by this harness.
 
-This keeps `test_roster_golden_fixtures.py` a `tests/unit` test with only
+This keeps the runner a `tests/unit` test with only
 `[dev]` dependencies (PyYAML), matching the 3-tier test policy (`U1`: no
 `importorskip` gymnastics to pull in `[ml]` for a unit test).
 

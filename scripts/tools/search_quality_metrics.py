@@ -7,7 +7,7 @@ Usage (from project root)::
     python scripts/tools/search_quality_metrics.py path/to/corpus --json --no-embed
     python scripts/tools/search_quality_metrics.py path/to/corpus --enforce --min-ndcg 0.8
 
-The third sibling of ``gil_quality_metrics.py`` and ``kg_quality_metrics.py``: a thin CLI
+A sibling of ``kg_quality_metrics.py``: a thin CLI
 over a product module (``podcast_scraper.search.quality_metrics``), which is where the
 measurement actually lives.
 

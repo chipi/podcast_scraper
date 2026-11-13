@@ -58,7 +58,6 @@ The following modules are **internal implementation details** and should not be 
 - `downloader.py` - HTTP download internals.
 - `filesystem.py` - File system utilities.
 - `metadata.py` - Metadata generation internals.
-- `speaker_detection.py` - Speaker detection internals.
 - `summarizer.py` - Summarization internals.
 - `whisper_integration.py` - Whisper integration internals.
 - `progress.py` - Progress reporting internals.

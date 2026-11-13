@@ -424,7 +424,7 @@ class TestFilterRowsByInsightType:
     def test_missing_insight_type_treated_as_unknown_and_dropped(self) -> None:
         """Insight-tier row with no ``insight_type`` doesn't match ``claim`` —
         so the filter drops it. The migration in
-        ``migrations/gil_kg_identity_migrations.py`` stamps ``unknown`` on
+        the GIL/KG identity migration stamps ``unknown`` on
         legacy insights; the filter honours that by matching ``unknown`` too
         when it's in the allowed set."""
         rows = [

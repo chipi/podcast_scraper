@@ -1287,8 +1287,8 @@ class Config(BaseModel):
         default="off",
         alias="transcript_naming",
         description=(
-            "Transcript naming: the LLM reads the WHOLE diarized transcript and names every voice "
-            "(providers/ml/diarization/transcript_naming.py). 'off'; 'shadow' = the ladder "
+            "Transcript naming: the LLM reads the WHOLE diarized transcript and names every voice. "
+            "'off'; 'shadow' = the ladder "
             "publishes and the model's answer is written beside it in the speaker-diagnostics "
             "sidecar (key `transcript_naming`) for comparison; 'publish' = a voice the model calls "
             "host or guest takes that name, every other voice is unnamed, and the ladder's names "
@@ -1304,7 +1304,7 @@ class Config(BaseModel):
         description=(
             "Before naming, two diarized voices of one episode whose fingerprints are at least "
             "merge_split_voices_threshold similar are merged into the one that talks more (one "
-            "person split by the diarizer; providers/ml/diarization/split_voices.py). Needs a "
+            "person split by the diarizer). Needs a "
             "diarizer that returns fingerprints. Off by default."
         ),
     )
@@ -1319,7 +1319,7 @@ class Config(BaseModel):
         default=False,
         alias="ladder_rescue_rules",
         description=(
-            "Two rescues right after the ladder (providers/ml/diarization/ladder_rescues.py): a "
+            "Two rescues right after the ladder: a "
             "split host's unnamed half named as the host (S30s), and an unnamed voice given the "
             "LLM's third-person-refused name when the conversation introduces it to that voice "
             "(E1d). Measured held out: 9 fires, 8 right. Off by default."
@@ -3739,8 +3739,7 @@ class Config(BaseModel):
         default=False,
         alias="gi_typed_mentions_use_ner",
         description=(
-            "#1076 chunk 4-A. When True, the typed-MENTIONS post-pass "
-            "(gi/relational_edges.py::add_insight_entity_edges) augments "
+            "#1076 chunk 4-A. When True, the typed-MENTIONS post-pass augments "
             "the literal whole-word regex match with a spaCy NER pass. "
             "Catches BART-paraphrased name fragments under airgapped_thin: "
             "if the KG carries 'Maya Hutchinson' but the GI Insight text "
@@ -3756,7 +3755,6 @@ class Config(BaseModel):
         alias="kg_organizations_use_ner",
         description=(
             "#1058 chunk 1. When True, a KG post-pass "
-            "(kg/ner_postpass.py::apply_org_postpass_to_kg_artifact) "
             "runs spaCy NER over the GI Insight texts and adds "
             "Organization nodes for every distinct ORG span. Closes "
             "the airgapped capability gap where the no-LLM summary "
@@ -3773,7 +3771,6 @@ class Config(BaseModel):
         alias="kg_topic_corpus_clustering",
         description=(
             "#1058 chunk 3. When True, a corpus-level post-pass "
-            "(kg/topic_clustering.py::cluster_and_apply_corpus_topics) "
             "clusters per-episode Topic labels across the corpus via "
             "sentence-transformers cosine similarity and emits a "
             "synthetic concept-Topic node + RELATED_TO edges from each "
@@ -3854,8 +3851,8 @@ class Config(BaseModel):
         le=1.0,
         alias="insight_cluster_threshold",
         description=(
-            "Minimum mean cosine similarity for merging insight clusters in "
-            "``insight_stage/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
+            "Minimum mean cosine similarity for merging insight clusters "
+            "in the insight-clustering stage. Defaults to 0.75 to match the topic-cluster "
             "default; conceptually independent and may be tuned separately when "
             "insight-side autoresearch motivates it."
         ),

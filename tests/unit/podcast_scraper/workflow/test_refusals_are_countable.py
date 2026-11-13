@@ -162,7 +162,7 @@ def test_every_refusal_return_is_accompanied_by_a_ledger_write():
                 unaccounted.append(getattr(stmt, "lineno", "?"))
     assert not unaccounted, (
         "refusal return(s) with no ledger write in the same block, at "
-        f"episode_processor.py / speaker_stage/reprocess.py lines {sorted(unaccounted)} — the "
+        f"episode_processor.py lines {sorted(unaccounted)} — the "
         "episode will land in neither "
         "ok nor failed, exactly the 2026-09-23 silent-underwork shape"
     )

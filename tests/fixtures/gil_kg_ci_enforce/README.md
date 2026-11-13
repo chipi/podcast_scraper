@@ -2,7 +2,7 @@
 
 Committed **`metadata/*.gi.json`** and **`*.kg.json`** used by:
 
-- GitHub Actions (`python-app.yml`): `gil_quality_metrics.py` and `kg_quality_metrics.py` with `--enforce`
+- GitHub Actions (`python-app.yml`): `kg_quality_metrics.py` with `--enforce`
 - Local: `make quality-metrics-ci`
 
 Regenerate `ci_sample.gi.json` if the GIL schema or stub shape changes:

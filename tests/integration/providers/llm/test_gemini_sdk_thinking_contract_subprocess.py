@@ -2,7 +2,7 @@
 """Subprocess check: real ``google.genai`` types accept ``thinking_budget``.
 
 Runs in :mod:`tests.integration` with ``.[llm]`` installed (CI integration jobs).
-Kept separate from ``test_gemini_provider.py``, which patches ``sys.modules`` for
+Kept separate from the Gemini provider unit tests, which patch ``sys.modules`` for
 ``google.genai`` and would hide SDK shape regressions.
 """
 

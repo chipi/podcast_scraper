@@ -6,7 +6,7 @@ build time, the knowledge graph carries a separate ``person:`` node per spelling
 lists the same guest three times.
 
 The fold is authored ground truth from the manifest — deliberately NOT a similarity match.
-``speaker_detectors/name_canonicalization.py`` documents why the heuristic version is unsafe
+Name canonicalization documents why the heuristic version is unsafe
 (#876: a wrong name is worse than a garble left alone), so the safety property asserted here is
 that two DIFFERENT guests who share a first name are never merged.
 """

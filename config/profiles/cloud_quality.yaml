@@ -56,7 +56,7 @@ speaker_detector_provider: gemini
 auto_speakers: true
 
 # Summarization — Anthropic haiku-4.5 for tier-1 mega-bundle (#646 validation).
-# Real-episode test (scripts/validate/validate_phase3c.py, 2026-04-21):
+# Real-episode test (2026-04-21):
 # 1 LLM call / ep, 12 insights / 10 topics / 7+ entities, ~15 s, entity F1 = 1.000.
 # DeepSeek deepseek-chat is a validated tier-2 alternative (~10× cheaper, ~50 s,
 # 12 / 10 / 8–15 artifacts) IF deepseek_timeout ≥ 300 — switch to:

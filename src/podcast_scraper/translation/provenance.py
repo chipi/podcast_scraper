@@ -119,7 +119,7 @@ def attach_translation_provenance(
     """Decorate every span-bearing node with its ``translation`` block. Returns how many.
 
     IDEMPOTENT, because three different writers produce ``gi.json`` — the artifact builder,
-    ``add_spoken_by_edges(replace=True)`` and ``gi/repair.py`` — and a node that passed through
+    ``add_spoken_by_edges(replace=True)`` and the GI repair pass — and a node that passed through
     two of them must not end up with two blocks or a half-updated one.
 
     A node whose span resolves to NO units gets no block rather than an empty one. An empty
@@ -209,7 +209,7 @@ def load_for_provenance(rel_transcript_path: str, effective_output_dir: str) -> 
 #:
 #: WHY A CONTEXTVAR AND NOT A PARAMETER. ``gi/io.write_artifact`` is the single choke point every
 #: ``gi.json`` writer passes through — and there are more than ten call sites, including
-#: ``add_spoken_by_edges(replace=True)``, ``gi/repair.py``, the bridge post-pass and topic
+#: ``add_spoken_by_edges(replace=True)``, the GI repair pass, the bridge post-pass and topic
 #: clustering. S2.11 requires provenance from EVERY one of them, and a parameter threaded to ten
 #: sites is a parameter that will be missed at the eleventh. The alternative was deriving the
 #: transcript path from the artifact's own path, which is corpus-layout archaeology in a

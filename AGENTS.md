@@ -428,8 +428,7 @@ forever than have this violated. Full failure-mode analysis lives in
        per-provider test class to:
        - `tests/e2e/test_cloud_guardrails_e2e.py`
        - `tests/e2e/test_cloud_resilience_e2e.py`
-       - `tests/e2e/test_cloud_cleaning_degrades_e2e.py`
-       - `tests/e2e/test_cloud_circuit_breaker_e2e.py` (parameterized list)
+              - `tests/e2e/test_cloud_circuit_breaker_e2e.py` (parameterized list)
        - `tests/e2e/test_cloud_guardrails_fallback_e2e.py`
 
     Reference implementations: OpenAI / Anthropic / Gemini / DeepSeek /

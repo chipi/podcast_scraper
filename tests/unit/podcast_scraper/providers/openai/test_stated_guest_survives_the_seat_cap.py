@@ -1,7 +1,7 @@
 """The LLM detector must not drop a stated guest either (#2095, #2078).
 
 WHY THIS FILE EXISTS SEPARATELY FROM THE SPACY ONE. The seat cap was fixed in
-`speaker_detectors/detection.py` first, and that covered only the spaCy detector. Production
+the spaCy detector first, and that covered only that detector. Production
 does not use spaCy: `config/profiles/prod_dgx_full.yaml` sets `speaker_detector_provider: vllm`,
 and `VLLMProvider(OpenAICompatibleProvider)` inherits `_parse_speakers_from_response` from this
 module — as do the groq, qwen, deepseek, litellm and openai providers, 21 of the 41 configured

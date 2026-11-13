@@ -14,7 +14,7 @@ Locks the contract that:
 Without this test the cfg → workflow wiring could silently regress
 (a YAML drop, a refactor that renames the field) without any
 existing test catching it, because the leaf-level unit tests in
-``tests/unit/gi/test_relational_edges.py`` exercise the helper
+the relational-edges unit tests exercise the helper
 directly with ``nlp=...`` and don't care how the workflow chose to
 pass it.
 """

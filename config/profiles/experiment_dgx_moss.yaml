@@ -132,7 +132,7 @@ enrichment:
 
 # Value-gate rater, made EXPLICIT (2026-08-29). ollama is a local route with no curated stronger
 # sibling, so this is a self-grade — accepted for an airgapped profile, but pinning it routes the
-# build through the path that LOGS it (gi/value_gate.py) instead of the silent early return, where
+# build through the path that LOGS it instead of the silent early return, where
 # a half-strength gate looked identical to a full-strength one.
 gi_value_gate_provider: ollama
 gi_value_gate_model: qwen3.5:35b

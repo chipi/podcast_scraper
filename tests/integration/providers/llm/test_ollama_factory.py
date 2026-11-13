@@ -4,7 +4,6 @@
 These tests verify Ollama provider implementations with mocked API calls,
 using factory functions to create providers (tests factory integration).
 
-For standalone provider tests, see test_ollama_provider.py.
 """
 
 import unittest

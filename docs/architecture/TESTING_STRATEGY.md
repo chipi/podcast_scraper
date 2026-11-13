@@ -443,7 +443,7 @@ The decision questions above provide a quick way to determine test type. For cri
   - Progress update calls
   - Context manager behavior
 
-#### Speaker Detection (`speaker_detection.py`) - RFC-010
+#### Speaker Detection - RFC-010
 
 - **RFC-010**: NER extraction scenarios, host/guest distinction
 - **Test Cases**:
@@ -1024,7 +1024,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [ ] Language handling
 - [ ] Error handling (missing dependency)
 
-### `speaker_detection.py` (RFC-010)
+### Speaker detection (RFC-010)
 
 - [ ] NER extraction
 - [ ] Host/guest distinction

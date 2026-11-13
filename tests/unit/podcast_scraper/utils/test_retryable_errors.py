@@ -16,7 +16,7 @@ from podcast_scraper.utils.retryable_errors import (
 class _MiniHttpResponse:
     """Minimal ``response`` with a real ``int`` status (not ``httpx.Response``).
 
-    ``tests/unit/.../test_ollama_provider.py`` replaces ``sys.modules['httpx']`` with a
+    the Ollama provider unit test replaces ``sys.modules['httpx']`` with a
     ``MagicMock`` at import time. Importing real ``httpx`` in this module would yield a
     mock ``Response`` whose ``status_code`` is not an ``int``, breaking
     ``_http_status_as_int`` and this test under full unit collection (CI / ``pytest -n 0``).

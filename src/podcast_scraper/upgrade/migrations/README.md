@@ -29,9 +29,9 @@ already at the target shape, must be a clean no-op (detect `before == after` and
    - implement `apply(ctx) -> MigrationResult`; optionally override `plan(ctx)` (dry read summary)
      and `verify(ctx)` (checkable post-condition).
 2. **Reuse the transform logic — don't re-implement it.** The document rewrite functions live in
-   `podcast_scraper/migrations/gil_kg_identity_migrations.py` (`migrate_gi_document_v3`,
-   `migrate_gi_document_v3_1`, `migrate_kg_document_v2`, …). A framework migration is a thin walker
-   that globs the artifacts and applies the matching transform (see `m0003` and `m0005`). Keep pure
+   `podcast_scraper/migrations/kg_document_migrations.py` (`migrate_kg_document_v2`). A framework
+   migration is a thin walker that globs the artifacts and applies the matching transform (see
+   `m0006`). Keep pure
    transforms there; keep the walk/write/ledger concerns here.
 3. **Write atomically.** tmp-file + `os.replace` — a kill mid-write must not leave a truncated,
    unparsable artifact. Record unparsable files in `details` but do not fail the run on them.
