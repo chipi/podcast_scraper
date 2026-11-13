@@ -1068,8 +1068,8 @@ stack-test-ml-ci:
 # For GI ONLY — in place, diffable, with an audit trail — `gi-repair --episode-ids ...
 # --force-healthy` remains the narrower tool (docs/guides/CORPUS_REPROCESSING.md).
 reprocess-corpus-from-transcripts:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
 	OP_CFG="$${CORPUS_DIR}/viewer_operator.yaml"; \
 	test -f "$$OP_CFG" || OP_CFG="config/profiles/cloud_balanced.yaml"; \
 	echo "Reprocessing $${CORPUS_DIR} (enrich_only, scoped to on-disk episodes)..."; \
@@ -1085,7 +1085,7 @@ reprocess-corpus-from-transcripts:
 
 # Report corpus/code compatibility for a on-disk corpus parent (#796 / #797).
 corpus-compat-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
 
 # Pre-deploy gate (#1494 / #1497): fail if a corpus would silently under-serve the MCP —
@@ -1093,7 +1093,7 @@ corpus-compat-check:
 # enrichments (relational tools → empty). Non-zero exit on a HARD gap; diarization is a
 # soft warn. Run before shipping a corpus (or wire into the deploy). CORPUS_DIR required.
 corpus-completeness-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Phase 0 gate (#2175): what language is every episode in, and WHERE did that answer come from?
@@ -1103,7 +1103,7 @@ corpus-completeness-check:
 # non-English episode is a RESULT, not a failure. Run AFTER the m0011 backfill, and before S0.6:
 # after S0.6 a feed whose RSS says `de` is genuinely transcribed as German. CORPUS_DIR required.
 corpus-language-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_language_audit import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # S3.2 / D-43: withdraw a published language from DISCOVERY (search index rows only; the corpus
@@ -1112,15 +1112,15 @@ corpus-language-audit:
 #   make withdraw-language CORPUS_DIR=<corpus> LANGUAGE=es
 #   make withdraw-language CORPUS_DIR=<corpus> LANGUAGE=es APPLY=1
 withdraw-language:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -n "$${LANGUAGE:-}" || (echo "LANGUAGE required (e.g. LANGUAGE=es)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${LANGUAGE:-}" || { echo "LANGUAGE required (e.g. LANGUAGE=es)"; exit 1; }; \
 	$(PYTHON) scripts/tools/withdraw_language.py --corpus "$${CORPUS_DIR}" \
 		--language "$${LANGUAGE}" $${APPLY:+--apply}
 
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
 
 # Same build, in a container — for hosts where the [search] extra CANNOT be installed.
@@ -1142,8 +1142,8 @@ index-two-tier:
 #   make index-two-tier-docker CORPUS_DIR=tests/fixtures/app-validation-corpus/v3
 INDEX_DOCKER_IMAGE ?= podcast-scraper-stack-pipeline-llm:latest
 index-two-tier-docker:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -d "$${CORPUS_DIR}" || (echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -d "$${CORPUS_DIR}" || { echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1; }; \
 	set -e; \
 	VOL=podcast-index-$$$$; CT=podcast-index-ct-$$$$; LOG=/tmp/podcast-index-$$$$.log; \
 	trap 'docker rm -f $$CT >/dev/null 2>&1 || true; docker volume rm $$VOL >/dev/null 2>&1 || true' EXIT INT TERM; \
@@ -1162,11 +1162,11 @@ index-two-tier-docker:
 		if grep -q "^BUILD_DONE" $$LOG 2>/dev/null; then break; fi; \
 		i=$$((i+1)); sleep 10; \
 	done; \
-	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || (echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1); \
-	grep -q "^rc=0" $$LOG || (echo "index build FAILED; log:"; cat $$LOG; exit 1); \
-	grep -E "Two-tier index built" $$LOG || (echo "no index summary line; log:"; cat $$LOG; exit 1); \
+	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || { echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1; }; \
+	grep -q "^rc=0" $$LOG || { echo "index build FAILED; log:"; cat $$LOG; exit 1; }; \
+	grep -E "Two-tier index built" $$LOG || { echo "no index summary line; log:"; cat $$LOG; exit 1; }; \
 	grep -E "Two-tier index built" $$LOG | grep -qE "segments=[1-9]" \
-		|| (echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1); \
+		|| { echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1; }; \
 	echo "--> copying index back to $${CORPUS_DIR}/search/"; \
 	if [ -e "$${CORPUS_DIR}/search/lance_index" ] && ! rm -rf "$${CORPUS_DIR}/search/lance_index" 2>/dev/null; then \
 		echo ""; \
@@ -1234,16 +1234,16 @@ pipeline-check:
 # selects the corpus parent. `upgrade-check` exits 2 when migrations are pending —
 # wire it into boot/CI to detect a corpus that needs upgrading.
 upgrade-status:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade status --corpus-dir "$${CORPUS_DIR}"
 
 upgrade-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade status --corpus-dir "$${CORPUS_DIR}" --json
 
 # Preview the plan without writing anything.
 upgrade-dry-run:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --dry-run
 
 # Apply pending migrations. Non-interactive (--yes) for automated upgrades; drop
@@ -1254,12 +1254,12 @@ upgrade-dry-run:
 # container. The run prints the path it used; capture it.
 #   make upgrade-corpus CORPUS_DIR=<corpus> SNAPSHOT_DIR=/persistent/path
 upgrade-corpus:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --yes \
 		$${SNAPSHOT_DIR:+--snapshot-dir "$${SNAPSHOT_DIR}"}
 
 upgrade-verify:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
 
 # Roll back the role changes m0009 made, from the ledger it wrote (#2069). Refuses any node that
@@ -1267,7 +1267,7 @@ upgrade-verify:
 # wearing a rollback's clothes — and reports those rather than forcing.
 #   make upgrade-undo-roles CORPUS_DIR=<corpus>
 upgrade-undo-roles:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) scripts/ops/undo_speaker_roles.py --corpus-dir "$${CORPUS_DIR}"
 
 # Run the RFC-088 enrichment layer over a corpus (#1127). Invokes the
@@ -3158,7 +3158,7 @@ preprod-chaos-both-down:
 # nor reprocess-corpus-from-transcripts (transcribe=off) can fix it — only re-transcription can,
 # which is an explicit cost decision. This makes the number known. CORPUS_DIR required.
 corpus-preprocessing-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Which episodes are serving WITHOUT a summary (#1686)? Reads the per-episode stage ledger
@@ -3167,7 +3167,7 @@ corpus-preprocessing-audit:
 # ANY episode lacks a summary: one is too many, and a tolerance threshold is how 8 of them became
 # normal in production. CORPUS_DIR required.
 corpus-summary-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.summary_repair import check_corpus_summaries; ok, report = check_corpus_summaries(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Emit the #1686 repair work-list: episode_ids to feed --reprocess-episode-ids. Writes
@@ -3176,12 +3176,12 @@ corpus-summary-audit:
 # dropping them silently would repeat the mistake this issue is about. Re-summarisation costs
 # provider money. CORPUS_DIR required.
 corpus-summary-worklist:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.summary_repair import write_work_list, terminal_episode_ids; root = Path('$${CORPUS_DIR}').expanduser(); d = Path('$${WORKLIST:-$${CORPUS_DIR}/summary_repair_worklist.txt}'); n = write_work_list(root, d); t = terminal_episode_ids(root); print(f'{n} retryable episode(s) written to {d}'); print(f'{len(t)} TERMINAL episode(s) in {d.name}.terminal — investigate by hand') if t else None"
 
 # Emit the #18 repair work-list: the episode_ids to feed --reprocess-episode-ids. Writes
 # <corpus>/preprocessing_repair_worklist.txt (override with WORKLIST=). Re-transcription costs
 # real money — read the list before running it. CORPUS_DIR required.
 corpus-preprocessing-worklist:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); b = float('$${CHUNK_USD:-0}' or 0); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d, chunk_budget_usd=(b or None)); print(f'{n} episode(s) written to {d}' + (f' in \$${b:.2f} batches (see {d.name}.001, .002, ...)' if b else ''))"

@@ -17,7 +17,7 @@ design. It re-runs speaker naming, summary, GI, KG. That means:
 
 | Damage | Layer | Fixed by a reprocess? |
 | --- | --- | --- |
-| Placeholder GI artifacts (#19/#1657) | GI | **No** — the episode is *skipped*, see below |
+| Placeholder GI artifacts (#19/#1657) | GI | **No** — the episode is *skipped*; the extension's runbook, steps 1 and 3 |
 | Dedupe bar too high (#27) | GI | Yes, on any GI re-derivation |
 | Composite host names (#17/#1646/#1652) | naming | Yes |
 | Stage ledger / provenance (#1647/#21/#30) | recorded on any run | Yes |
@@ -25,25 +25,14 @@ design. It re-runs speaker naming, summary, GI, KG. That means:
 | Diarization turn boundaries | diarization | No (`diarization=none`) |
 | Enrichment, relational edges, search index | corpus-level | No — separate passes, see step 7 |
 | **Episode persisted with NO summary (#1686)** | summary | **Only via the work-list** — see below |
-| **Bare person name minted as a global id (#1685)** | KG + GI | **Yes — `upgrade run` (m0007)**, see below |
+| **Bare person name minted as a global id (#1685)** | KG + GI | **Yes — `upgrade run` (m0007)**, see the extension's runbook |
 
-Two of those need spelling out, because both were verified the hard way.
+The grounded-insight and person-identity damage (the placeholder GI artifacts, the bare names) is
+repaired by the extension that owns those layers, and its own corpus repair runbook covers it:
+steps 1 and 3 below, and the GI gate in step 8. Without such an extension installed a corpus has
+no GI, and those steps do not apply.
 
-### Placeholder episodes are SKIPPED, not repaired
-
-Rehearsed 2026-08-16 on a copy of a real corpus. Four flag combinations, none reprocessed a
-placeholder episode:
-
-```text
---skip-existing                                    -> "no transcript for ..."
---skip-existing --single-feed-uses-corpus-layout   -> transcript found, still skipped, GI:0
---reprocess-existing-only                          -> "no transcript for ..."
---reprocess-source whisper_transcription           -> force path never fired (that was #33)
-```
-
-The skip predicates key on the **presence** of a transcript/metadata file and never look at GI,
-so a placeholder artifact reads as "this episode is done". Deleting the artifact does not help
-either — transcript and metadata still satisfy them. This is what `gi-repair` (step 3) exists for.
+The summary gap needs spelling out, because it was verified the hard way.
 
 ### An episode with no summary has to be named explicitly
 
@@ -95,83 +84,9 @@ an unchanging corpus dispatch it once and then stay silent.
 the transcript and metadata skip checks in the code, so it may — but that would re-summarise the
 WHOLE corpus at provider expense, which is why the work-list exists. Use the explicit list.
 
-### A bare first name became a global, followable person
-
-`person:jensen` is not a person. It is what happens when three different shows each say "Jensen"
-with no surname: `entity_node_id()` slugs whatever string it was handed, three identical slugs
-collide, and the result is one **followable** node pooling three people. `POST /interests/{token}`
-accepts `person:` tokens, and derived interests mint them straight from `entities_from_kg`, so a
-pooled token can enter a profile with no click at all.
-
-Measured on production (678 episodes): **208 occurrences of 172 single-word person ids — 12
-resolvable within their own episode, 0 ambiguous, 196 orphan.** Hand-checked, they are three
-shapes: hollow (`person:jensen` — no insights, topics or quotes at all), pooled
-(`person:sam` — carrying a stated position about *Samuel Moyn*), and locally resolvable
-(`person:alex`, whose full name `person:alex-mayassi` is a co-speaker in that same episode).
-
-The pipeline no longer mints them (`identity/bare_name_scope.py` runs during metadata generation,
-before typed mentions). Existing corpora need the backfill:
-
-```bash
-# What would change, no writes:
-podcast-scraper upgrade plan --corpus /path/to/corpus
-
-# Apply (m0007 among any other pending steps):
-podcast-scraper upgrade run --yes --corpus /path/to/corpus
-```
-
-**What it does.** Pairs each episode's `.gi.json` and `.kg.json` (the roster is split across both
-layers — the KG alone reports `person:alex` as an orphan while the full name sits in the GI), then
-per episode: exactly one full-name candidate → **heal** to the full id; two or more, or none →
-**scope** to `person:unresolved-{name}-{episode}`. Scoped ids match
-`is_unresolved_speaker_placeholder`, so they stop appearing as entity cards, follow targets and
-derived interests.
-
-**Verified** on a copy of the 36-episode validation corpus: 7 bare ids → 0, dry-run wrote nothing,
-re-apply was a clean no-op, and a post-migration check found **0 dangling person edges and 0
-duplicate node ids** — identical to the untouched baseline.
-
-**ORDER MATTERS: deploy the new image FIRST, then migrate.** The `person:unresolved-…` branch of
-`is_unresolved_speaker_placeholder` ships with the image. Running m0007 against a corpus an OLDER
-image is still serving means that image does not recognise the scoped ids — every one renders as
-a followable entity card (scoping preserves `name`, so it shows as "Jensen"), and its derived
-interests can mint `person:unresolved-…` tokens into profiles. That is strictly worse than not
-migrating. The reverse order is safe: a new image over an unmigrated corpus behaves exactly as
-today, and a half-migrated corpus is fine.
-
-**Rebuild BRIDGES too, not just enrichment and the index.** m0007 rewrites `.gi.json` and
-`.kg.json` only. `*.bridge.json` carries `person:` CIL ids and the CIL read surfaces walk every
-bridge file at request time (the CIL queries — timeline, position-arc, conversation-arc),
-so after migration they keep serving pre-migration bare ids that no longer exist in the KG: dead
-cross-references, silently. `build_bridge` runs from metadata generation, so the practical options
-are a reprocess pass over the corpus or accepting the staleness knowingly. **Decide explicitly —
-this step is easy to skip because nothing errors.**
-
-**Existing follows are not migrated.** Interests are per-user token lists in state files; m0007
-never touches them. A followed `person:sam` matches zero episodes afterwards — silently, no error.
-There is no tool for this; it needs a one-time sweep or a deliberate shrug.
-
-**Check for real mononyms before running it.** The plan output counts but does not name. Grep the
-corpus for single-token person ids first: scoping a genuine mononym (Grimes, Beyoncé) is the one
-case where this destroys a legitimate follow target, and no allowlist exists yet.
-
-**Afterwards, rebuild enrichment and the search index.** Ids changed, so anything derived from
-them is stale. Per the corpus-index note: delete `episode_fingerprints.json` alongside
-`lance_index`, or every episode is skipped and you get a silent empty index.
-
-**Not fixed by this.** Scoping stops the harm; it does not say *who* the person was. That is
-tracked separately (#1801) — the enricher would read `unresolved_persons_in_episode()`, which
-reports `ambiguous` (candidates listed, a bounded choice) versus `no_candidate` (the answer is not
-in the graph at all — 196 of the 208).
-
-**Also unchanged:** the 180 shared surnames and 420 prefix-overlapping ids are a different
-problem — full names disagreeing with each other, not names that identify nobody.
-
----
-
 ### Transcript damage survives every repair we have
 
-`gi-repair` rebuilds insights **from** the transcript. `reprocess-corpus-from-transcripts` reuses
+A GI repair rebuilds insights **from** the transcript. `reprocess-corpus-from-transcripts` reuses
 transcripts by design. So an episode whose transcript came from unpreprocessed, oversized audio
 keeps that transcript and everything derived from it. Only **re-transcription** fixes it, and that
 is the expensive stage (~$2.88 of a $3.48 14-episode run). Steps 4–6 make that a costed decision
@@ -183,22 +98,10 @@ instead of an invisible gap.
 
 Run in order. Steps 1–2 are baselines; do not skip them, because steps 8–9 compare against them.
 
-### 1. Baseline: GI integrity
+### 1. Baseline: GI integrity (the extension's runbook)
 
-```bash
-make corpus-gi-integrity-check CORPUS_DIR=<corpus>   # the extension's Makefile
-```
-
-Per **episode** (scoped to corpus members — newest run per episode, using the project's own
-`dedupe_metadata_paths_newest_run_per_episode` rule), asserts the declared GI actually exists,
-parses, and is not a pre-#1657 placeholder. Non-zero exit on any failure.
-
-Record the numbers. `legacy placeholders` is the work step 3 must clear.
-
-> Do **not** use a placeholder-absence check as the exit criterion. It only asks "is the bad
-> string absent?", which **passes** on a corpus whose artifacts were deleted and never
-> regenerated — demonstrated 2026-08-16. Use `make corpus-gi-integrity-check` (a target of the
-> extension's Makefile), which runs the extension's `gi-integrity` verb.
+Only with an extension that owns grounded insights installed: run its GI integrity check and
+record the numbers. Its runbook gives the command and what the numbers mean.
 
 ### 2. Baseline: unpreprocessed-audio damage
 
@@ -213,21 +116,11 @@ Corroborated by `avg_preprocessing_wall_ms` sitting at the old flat 300 s budget
 Record the count. On a pre-#558 corpus this was **9 of 15 runs (60 %)**, all clustered at
 297,064–300,845 ms. On a post-fix corpus, 0 of 14.
 
-### 3. Repair the placeholders (cheap, safe)
+### 3. Repair the placeholders (the extension's runbook)
 
-```bash
-podcast-scraper gi-repair --output-dir <corpus> --config <profile> --dry-run   # review first
-podcast-scraper gi-repair --output-dir <corpus> --config <profile>
-```
-
-Standalone, corpus-driven, rewrites each `gi.json` **in place** — no RSS fetch, no new run dir, no
-skip logic. Rebuilds from the episode's own run dir (ad-free transcript + matching segments
-sidecar + summary bullets) and re-applies KG topic alignment (#585/#653) so repaired episodes
-carry the same topic vocabulary as everything else.
-
-A per-episode failure writes **nothing** for that episode, leaves the placeholder byte-identical,
-and exits non-zero — so an unrepaired episode stays on step 1's red list and can never look
-repaired. Audit trail lands at `<corpus>/gi_repair_report.jsonl`.
+Only with that extension installed: its GI repair rewrites each placeholder artifact in place
+from the episode's own transcript and summary. Its runbook gives the command and the gate it
+must leave green.
 
 ### 4. Produce the re-transcription work-list
 
@@ -306,10 +199,11 @@ make enrich CORPUS=<corpus>
 Skipping these leaves the MCP/viewer serving stale or empty relational and search results —
 which is what `make corpus-completeness-check` exists to catch.
 
-### 8. Re-run both gates — they must be green
+### 8. Re-run the gates — they must be green
+
+With the GI extension installed, its GI gate runs here too (its runbook, step 8).
 
 ```bash
-make corpus-gi-integrity-check    CORPUS_DIR=<corpus>   # the extension's Makefile; placeholders 0, healthy == episode count
 make corpus-preprocessing-audit   CORPUS_DIR=<corpus>   # 0 damaged, IF step 6 was run
 make corpus-completeness-check    CORPUS_DIR=<corpus>
 ```
@@ -373,5 +267,3 @@ next time someone audits.
   production corpus before treating it as representative.
 - `--reprocess-episode-ids` has unit-tested selection logic but has **not** been exercised end to
   end against a corpus.
-- Whether the placeholder count in production is still ~112 is unverified; step 1 is what answers
-  it.
