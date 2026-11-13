@@ -102,6 +102,20 @@ export interface TopicBriefingSection extends Entry {
 
 export const topicBriefingSections = extensionPoint<TopicBriefingSection>('topicBriefingSections')
 
+/**
+ * A series of the dashboard's artifact activity chart, before the viewer's KG one: new files of
+ * artifact `kind` per day, drawn in the colour `token`, named `label` in the legend (in
+ * `textClass`) and in the "Last …" line.
+ */
+export interface ArtifactActivitySeries extends Entry {
+  kind: string
+  label: string
+  token: `--ps-${string}`
+  textClass: string
+}
+
+export const artifactActivitySeries = extensionPoint<ArtifactActivitySeries>('artifactActivitySeries')
+
 /** Extra query parameters for every `/api/search` request the search store sends. */
 export interface SearchRequestParams extends Entry {
   params(): Record<string, string> | undefined
