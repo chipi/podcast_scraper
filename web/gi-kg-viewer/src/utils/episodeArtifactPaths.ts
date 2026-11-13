@@ -1,5 +1,5 @@
 /**
- * The artifact files to load for one episode, in one place: the viewer's own (GI, then KG), then
+ * The artifact files to load for one episode, in one place: the viewer's own (KG), then
  * what extensions add (`episodeArtifactPaths`). Every "open this episode in the graph" path builds
  * its list here, so an extension's files follow it everywhere.
  */
@@ -7,8 +7,6 @@ import { episodeArtifactPaths } from '../extensions'
 
 /** The fields of an episode payload the viewer reads; the rest go to extensions untouched. */
 export interface EpisodeArtifactPayload {
-  has_gi?: boolean | null
-  gi_relative_path?: string | null
   has_kg?: boolean | null
   kg_relative_path?: string | null
 }
@@ -20,7 +18,7 @@ function unique(paths: string[]): string[] {
 /** A payload path counts when its `has_*` flag is true, or, with no such key, when it is set. */
 function counts(
   episode: EpisodeArtifactPayload,
-  flag: 'has_gi' | 'has_kg',
+  flag: 'has_kg',
   path: string | null | undefined,
 ): path is string {
   if (!path) return false

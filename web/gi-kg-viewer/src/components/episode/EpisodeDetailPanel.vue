@@ -433,6 +433,9 @@ async function loadSimilarEpisodes(forSeq: number, forMetaPath: string): Promise
   }
 }
 
+/** The artifacts "Open in graph" loads for this episode; none means nothing to open. */
+const graphPaths = computed(() => (detail.value ? episodeArtifactRelPaths(detail.value) : []))
+
 async function openInGraph(): Promise<void> {
   graphActionError.value = null
   if (!detail.value) {
@@ -440,7 +443,7 @@ async function openInGraph(): Promise<void> {
   }
   const paths = episodeArtifactRelPaths(detail.value)
   if (paths.length === 0) {
-    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
+    graphActionError.value = 'No graph artifacts on disk for this episode.'
     return
   }
   /** Baseline + append await graph/corpus reloads; ``detail`` can swap if another fetch completes — must not focus using a stale ref after awaits. */
@@ -828,7 +831,7 @@ watch(
         <button
           type="button"
           class="min-w-0 flex-1 rounded bg-gi px-2 py-1.5 text-center text-xs font-medium leading-snug text-gi-foreground disabled:opacity-40"
-          :disabled="!detail.has_gi && !detail.has_kg"
+          :disabled="!graphPaths.length"
           @click="openInGraph()"
         >
           Open in graph
