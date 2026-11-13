@@ -32,7 +32,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import apple_tokens, users
 from podcast_scraper.extensions import load_extensions
 from podcast_scraper.server import app_magic_link, app_outbox_store
@@ -69,7 +69,7 @@ def apple_refresh_token(data_dir: Path, user_id: str) -> str | None:
         return None
 
     def read(engine: Any) -> str | None:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             token = conn.execute(
                 select(apple_tokens.c.refresh_token).where(apple_tokens.c.user_id == user_id)
             ).scalar()

@@ -336,7 +336,7 @@ def list_users(data_dir: Path) -> list[User]:
     """List all users (id-sorted); empty when there are none."""
 
     def read(engine: Any) -> list[User]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             rows = conn.execute(select(users).order_by(users.c.user_id.collate("C"))).mappings()
             return [row_to_user(r) for r in rows]
 
@@ -348,7 +348,7 @@ def list_user_ids(data_dir: Path) -> list[str]:
     directory under ``users/`` is per-user file state, which may not exist yet."""
 
     def read(engine: Any) -> list[str]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return list(
                 conn.execute(select(users.c.user_id).order_by(users.c.user_id.collate("C")))
                 .scalars()

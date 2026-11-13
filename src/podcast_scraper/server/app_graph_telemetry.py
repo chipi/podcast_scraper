@@ -21,7 +21,7 @@ from typing import Any, Sequence
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import graph_events
 
 #: The file the log was kept in before the database; the importer reads it.
@@ -77,7 +77,7 @@ def _read(where: Any = None) -> list[dict[str, Any]]:
         query = query.where(where)
 
     def read(engine: Any) -> list[dict[str, Any]]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return [e for e in conn.execute(query).scalars() if isinstance(e, dict)]
 
     return read_with_retry(read)
@@ -100,7 +100,7 @@ def users_with_events(data_dir: Path) -> int:
     """How many accounts have recorded any graph event."""
 
     def read(engine: Any) -> int:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return int(
                 conn.execute(select(func.count(func.distinct(graph_events.c.user_id)))).scalar()
                 or 0

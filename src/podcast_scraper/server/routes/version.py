@@ -56,7 +56,7 @@ def _database_snapshot() -> dict[str, Any]:
                 settings.ro_url, connect_args=engines.app_connect_args(settings, read_only=True)
             )
         head = migrate.head_revision()
-        with engine.connect() as conn:
+        with engines.read_connection(engine) as conn:
             current = migrate.current_revision(conn, settings.plane)
             server_version = conn.execute(text("SHOW server_version")).scalar()
         out.update(

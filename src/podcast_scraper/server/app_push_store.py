@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db import read_with_retry, rw_engine
+from podcast_scraper.db import read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import push_subscriptions
 from podcast_scraper.server.app_user_store import _is_safe_user_id
 
@@ -40,7 +40,7 @@ def list_subscriptions(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
         return []
 
     def read(engine: Any) -> list[dict[str, Any]]:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             return _select(conn, user_id)
 
     return read_with_retry(read)
