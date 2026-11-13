@@ -17,24 +17,14 @@ The edge pass itself stays per feed: it is per-episode and scoped to the run's o
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
-from unittest.mock import patch
 
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.workflow import metrics, orchestration
-from podcast_scraper.workflow.corpus_operations import (
-    is_multi_feed_batch_child,
-    MultiFeedFeedResult,
-)
+from podcast_scraper.workflow.corpus_operations import is_multi_feed_batch_child
 
 pytestmark = pytest.mark.unit
-
-_LOG = logging.getLogger("test-multi-feed-child")
 
 
 def _cfg(output_dir: Path, *, corpus_layout: bool = False) -> config.Config:
@@ -64,45 +54,3 @@ class TestWhoIsABatchChild:
 
     def test_a_legacy_single_feed_run_is_not(self, tmp_path: Path) -> None:
         assert not is_multi_feed_batch_child(_cfg(tmp_path / "out"))
-
-
-def _finalize(cfg: config.Config, run_dir: Path) -> dict[str, Any]:
-    calls: dict[str, Any] = {"enqueue": [], "edges": [], "delta": []}
-    with (
-        patch.object(
-            orchestration,
-            "_maybe_spawn_enrichment_after_pipeline",
-            side_effect=lambda c, d: calls["enqueue"].append(d),
-        ),
-        patch.object(
-            orchestration,
-            "_finalize_enrich_edges",
-            side_effect=lambda d, m, **kw: calls["edges"].append((d, kw)),
-        ),
-        patch.object(
-            orchestration,
-            "_compute_corpus_delta_safe",
-            side_effect=lambda d, m: calls["delta"].append(d),
-        ),
-        patch("podcast_scraper.search.indexer.maybe_index_corpus"),
-        patch.object(orchestration, "_maybe_build_topic_clusters_after_index"),
-        patch("podcast_scraper.providers.ml.diarization.ad_signatures.write_for_corpus"),
-        patch.object(orchestration.wf_helpers, "generate_pipeline_summary", return_value=(0, "")),
-        patch.object(orchestration.wf_helpers, "cleanup_pipeline"),
-        patch.object(orchestration, "_log_episode_results"),
-    ):
-        res = SimpleNamespace(temp_dir=None)
-        orchestration._finalize_pipeline(
-            cfg, 0, res, str(run_dir), "t", metrics.Metrics(), [], None, None, None, None
-        )
-    return calls
-
-
-def _result() -> MultiFeedFeedResult:
-    return MultiFeedFeedResult(
-        feed_url="https://feeds.example/podcast.xml",
-        ok=True,
-        error=None,
-        episodes_processed=1,
-        finished_at="2026-11-07T00:00:00Z",
-    )
