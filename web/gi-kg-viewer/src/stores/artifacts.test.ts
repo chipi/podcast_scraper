@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { ArtifactData } from '../types/artifact'
 import { artifactReaders } from '../extensions'
-import { artifactFileReadable, useArtifactsStore } from './artifacts'
+import { artifactFileReadable, readableArtifactSuffixes, useArtifactsStore } from './artifacts'
 import { useGraphExpansionStore } from './graphExpansion'
 import { useGraphExplorerStore } from './graphExplorer'
 
@@ -165,6 +165,13 @@ describe('artifactFileReadable', () => {
     expect(artifactFileReadable('a/ep.bridge.json')).toBe(false)
     artifactReaders.register({ id: 'x', suffixes: ['.GI.json'], read: () => null })
     expect(artifactFileReadable('a/ep.gi.json')).toBe(true)
+  })
+
+  it('lists KG, then each registered reader\'s suffixes once (the offline picker\'s accept list)', () => {
+    expect(readableArtifactSuffixes()).toEqual(['.kg.json'])
+    artifactReaders.register({ id: 'a', suffixes: ['.gi.json', '.bridge.json'], read: () => null })
+    artifactReaders.register({ id: 'b', suffixes: ['.kg.json'], read: () => null })
+    expect(readableArtifactSuffixes()).toEqual(['.kg.json', '.gi.json', '.bridge.json'])
   })
 })
 

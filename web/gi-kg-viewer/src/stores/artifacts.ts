@@ -27,8 +27,12 @@ import {
  */
 export function artifactFileReadable(relPath: string): boolean {
   const lower = relPath.trim().toLowerCase()
-  if (lower.endsWith('.kg.json')) return true
-  return artifactReaders.list().some((r) => r.suffixes.some((x) => lower.endsWith(x.toLowerCase())))
+  return readableArtifactSuffixes().some((x) => lower.endsWith(x.toLowerCase()))
+}
+
+/** The file suffixes this build can draw from: `.kg.json`, then each registered reader's. */
+export function readableArtifactSuffixes(): string[] {
+  return [...new Set(['.kg.json', ...artifactReaders.list().flatMap((r) => r.suffixes)])]
 }
 
 export const useArtifactsStore = defineStore('artifacts', () => {
