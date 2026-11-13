@@ -28,6 +28,7 @@
 import { expect, test } from '@playwright/test'
 import {
   liveCorpusRoot,
+  liveKgTopic,
   mainViewsNav,
   SHELL_HEADING_RE,
   statusBarCorpusPathInput,
@@ -57,12 +58,8 @@ test.describe('Topic / Entity rail panel (TEV) — live', () => {
     await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 30_000 })
 
-    /* Pick a topic many speakers discuss, so `focusTopic` lands on a node that exists. */
-    const leaders = (await (
-      await page.request.get('/api/topics/perspective-leaders?limit=20')
-    ).json()) as { topics: { topic_id: string }[] }
-    const topicId = leaders.topics[0]?.topic_id
-    expect(topicId, 'expected the corpus to expose at least one topic').toBeTruthy()
+    /* A topic of the KG index, so `focusTopic` lands on a node that exists. */
+    const topicId = (await liveKgTopic(page)).topic_id
 
     // Open the Graph workspace so the artifact slice loads and TEV can resolve the topic node.
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()

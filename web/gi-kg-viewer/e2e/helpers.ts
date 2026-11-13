@@ -103,6 +103,25 @@ export async function liveCorpusRoot(page: Page): Promise<string> {
 }
 
 /**
+ * A KG topic of the live corpus, with its label, from the search index's `kg_topic` rows.
+ *
+ * Not `/api/topics/perspective-leaders`: that ranking is GI's, a downstream build's route since
+ * E04, so this build does not serve it. A dense index answers any query, so the query only orders.
+ */
+export async function liveKgTopic(page: Page): Promise<{ topic_id: string; label: string }> {
+  const resp = await page.request.get('/api/search?q=technology&type=kg_topic&top_k=20')
+  if (!resp.ok()) throw new Error(`liveKgTopic: /api/search returned ${resp.status()}`)
+  const body = (await resp.json()) as {
+    results?: { text?: string; metadata?: { source_id?: string } }[]
+  }
+  const hit = (body.results ?? []).find(
+    (r) => r.metadata?.source_id?.startsWith('topic:') && r.text?.trim(),
+  )
+  if (!hit) throw new Error('liveKgTopic: no kg_topic row with a label in the live index')
+  return { topic_id: hit.metadata!.source_id!, label: hit.text!.trim() }
+}
+
+/**
  * A real per-run `.../metadata` directory inside the live corpus, discovered from the API.
  *
  * The run directory is named for the run that produced it (`run_20260101-000000` in the v3
