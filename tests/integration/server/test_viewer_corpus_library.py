@@ -1037,3 +1037,92 @@ def test_corpus_node_episodes_returns_empty_for_unknown_node(tmp_path: Path) -> 
     # node_id is normalised through canonical_cil_entity_id; just verify it's a string.
     assert isinstance(body["node_id"], str)
     assert body["episodes"] == []
+
+
+_V3 = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus" / "v3"
+
+
+def _kg_files_naming(root: Path, node_id: str) -> set[str]:
+    """Every KG artifact under *root* whose nodes include *node_id*, as corpus-relative paths."""
+    out = set()
+    for p in root.rglob("*.kg.json"):
+        nodes = json.loads(p.read_text(encoding="utf-8")).get("nodes") or []
+        if any(isinstance(n, dict) and n.get("id") == node_id for n in nodes):
+            out.add(p.relative_to(root).as_posix())
+    return out
+
+
+def _shared_topic(root: Path) -> str:
+    """A topic two or more episodes' KG name, so the answer is more than one episode."""
+    counts: dict[str, int] = {}
+    for p in sorted(root.rglob("*.kg.json")):
+        ids = {
+            str(n["id"])
+            for n in json.loads(p.read_text(encoding="utf-8")).get("nodes") or []
+            if isinstance(n, dict) and str(n.get("id", "")).startswith("topic:")
+        }
+        for i in ids:
+            counts[i] = counts.get(i, 0) + 1
+    return max(sorted(counts), key=lambda k: counts[k])
+
+
+def test_node_episodes_answers_from_the_kg_without_a_bridge_stage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A build without GI has no bridge reader, so the KG index answers (E04 move).
+
+    Without it every answer was empty, and the graph could never bring in a topic outside its
+    first slice on a public-only install.
+    """
+    import shutil
+
+    from podcast_scraper import read_hooks
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: False)
+    topic = _shared_topic(root)
+    want = _kg_files_naming(root, topic)
+    assert len(want) >= 2
+
+    client = TestClient(create_app(root, static_dir=False))
+    body = client.post(
+        "/api/corpus/node-episodes", json={"path": str(root), "node_id": f"k:{topic}"}
+    ).json()
+    assert body["node_id"] == topic
+    assert {e["kg_relative_path"] for e in body["episodes"]} == want
+    assert all(
+        e["gi_relative_path"] == "" and e["bridge_relative_path"] == "" for e in body["episodes"]
+    )
+    assert body["truncated"] is False and body["total_matched"] == len(want)
+
+    capped = client.post(
+        "/api/corpus/node-episodes",
+        json={"path": str(root), "node_id": topic, "max_episodes": 1},
+    ).json()
+    assert len(capped["episodes"]) == 1 and capped["truncated"] is True
+    assert capped["total_matched"] == len(want)
+
+
+def test_node_episodes_keeps_the_bridge_answer_when_a_stage_reads_bridges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from podcast_scraper import read_hooks
+
+    row = {
+        "gi_relative_path": "m/e.gi.json",
+        "kg_relative_path": "m/e.kg.json",
+        "bridge_relative_path": "m/e.bridge.json",
+        "episode_id": "e",
+    }
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: True)
+    monkeypatch.setattr(
+        read_hooks,
+        "bridge_node_episodes",
+        lambda root, anchor, node_id, max_episodes=None: ("topic:x", [row], False, None),
+    )
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    body = client.post(
+        "/api/corpus/node-episodes", json={"path": str(tmp_path), "node_id": "topic:x"}
+    ).json()
+    assert body["episodes"] == [row]

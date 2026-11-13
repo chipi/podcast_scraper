@@ -194,6 +194,11 @@ def served_id_map(root: Path) -> Dict[str, str]:
     return fn(root) if fn is not None else {}
 
 
+def bridge_node_episodes_installed() -> bool:
+    """Whether a stage answers :func:`bridge_node_episodes` (else callers use the KG index)."""
+    return _owner("bridge_node_episodes") is not None
+
+
 def bridge_node_episodes(
     root: str, anchor: str, node_id: str, *, max_episodes: Optional[int] = None
 ) -> NodeEpisodes:
