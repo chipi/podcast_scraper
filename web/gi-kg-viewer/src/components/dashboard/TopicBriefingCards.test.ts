@@ -1,18 +1,15 @@
 // @vitest-environment happy-dom
-import { flushPromises, mount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
 import type { CorpusDigestResponse, CorpusDigestTopicBand } from '../../api/digestApi'
-import { fetchCrossShow } from '../../api/relationalApi'
-import { useShellStore } from '../../stores/shell'
+import { topicBriefingSections } from '../../extensions'
 import { useSubjectStore } from '../../stores/subject'
 import TopicBriefingCards from './TopicBriefingCards.vue'
 
-vi.mock('../../api/relationalApi', () => ({ fetchCrossShow: vi.fn() }))
 vi.mock('../../lib/analytics', () => ({ track: vi.fn() }))
-
-const mockCross = vi.mocked(fetchCrossShow)
 
 type Hit = { score: number | null; feed?: string; preview?: string | null; title?: string }
 
@@ -45,18 +42,11 @@ function digest(topics: CorpusDigestTopicBand[]): CorpusDigestResponse {
   }
 }
 
-function ready(): void {
-  const shell = useShellStore()
-  shell.corpusPath = '/corpus'
-  shell.healthStatus = 'ok'
-}
-
 describe('TopicBriefingCards', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    mockCross.mockReset()
-    mockCross.mockResolvedValue({ groups: {} } as never)
   })
+  afterEach(() => topicBriefingSections.reset())
 
   it('renders nothing for a null digest or when no band has hits', () => {
     expect(mount(TopicBriefingCards, { props: { digest: null } }).find('section').exists()).toBe(false)
@@ -145,59 +135,23 @@ describe('TopicBriefingCards', () => {
     expect(spy).toHaveBeenCalledWith('topic:ai')
   })
 
-  it('loads the cross-show insight for mapped topics when the API is healthy', async () => {
-    ready()
-    mockCross.mockResolvedValue({
-      groups: { showA: [], showB: [{ text: 'Cross-show insight text' }], showC: [{ text: 'other' }] },
-    } as never)
-    const w = mount(TopicBriefingCards, {
-      props: { digest: digest([band('a', [{ score: 0.9 }], 'topic:ai')]) },
+  it('renders registered sections in each card with its topic ids and label', () => {
+    topicBriefingSections.register({
+      id: 'probe',
+      component: defineComponent({
+        props: { topicId: String, graphTopicId: String, label: String },
+        setup: (p) => () => h('p', { 'data-testid': 'probe' }, `${p.topicId}|${p.graphTopicId}|${p.label}`),
+      }),
     })
-    await flushPromises()
-    expect(mockCross).toHaveBeenCalledWith('/corpus', 'topic:ai')
-    const cs = w.get('[data-testid="topic-briefing-card-cross-show"]')
-    expect(cs.text()).toContain('Across 3 shows:')
-    expect(cs.text()).toContain('Cross-show insight text')
+    const w = mount(TopicBriefingCards, {
+      props: { digest: digest([band('a', [{ score: 0.9 }], 'topic:ai'), band('b', [{ score: 0.8 }])]) },
+    })
+    expect(w.findAll('[data-testid="probe"]').map((x) => x.text())).toEqual(['a|topic:ai|Topic a', 'b||Topic b'])
   })
 
-  it('shows no cross-show line when groups are empty or the request fails', async () => {
-    ready()
-    mockCross.mockRejectedValueOnce(new Error('nope'))
-    const w = mount(TopicBriefingCards, {
-      props: {
-        digest: digest([
-          band('a', [{ score: 0.9 }], 'topic:a'),
-          band('b', [{ score: 0.8 }], 'topic:b'),
-        ]),
-      },
-    })
-    await flushPromises()
-    expect(mockCross).toHaveBeenCalledTimes(2)
+  it('has no cross-show line of its own (a downstream build adds it, E04 step 8b)', () => {
+    const w = mount(TopicBriefingCards, { props: { digest: digest([band('a', [{ score: 0.9 }], 'topic:ai')]) } })
     expect(w.find('[data-testid="topic-briefing-card-cross-show"]').exists()).toBe(false)
-  })
-
-  it('does not call the relational API without a corpus path, health, or graph topic id', async () => {
-    mount(TopicBriefingCards, {
-      props: { digest: digest([band('a', [{ score: 0.9 }], 'topic:a')]) },
-    })
-    await flushPromises()
-    expect(mockCross).not.toHaveBeenCalled()
-    ready()
-    mount(TopicBriefingCards, {
-      props: { digest: digest([band('b', [{ score: 0.9 }])]) },
-    })
-    await flushPromises()
-    expect(mockCross).not.toHaveBeenCalled()
-  })
-
-  it('fetches each topic once even when the digest object is replaced', async () => {
-    ready()
-    const w = mount(TopicBriefingCards, {
-      props: { digest: digest([band('a', [{ score: 0.9 }], 'topic:a')]) },
-    })
-    await flushPromises()
-    await w.setProps({ digest: digest([band('a', [{ score: 0.9 }], 'topic:a')]) })
-    await flushPromises()
-    expect(mockCross).toHaveBeenCalledTimes(1)
+    expect(w.text()).not.toContain('cross-show')
   })
 })

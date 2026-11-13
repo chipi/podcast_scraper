@@ -121,22 +121,6 @@ test.describe('Dashboard tab', () => {
         }),
       })
     })
-    await page.route('**/api/relational/cross-show**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          subject: 'topic:climate',
-          groups: {
-            'podcast:show-a': [
-              { id: 'insight:1', type: 'insight', text: 'Show A take on climate.', show_id: 'podcast:show-a', episode_id: 'e1' },
-            ],
-          },
-          error: null,
-        }),
-      })
-    })
-
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
@@ -148,7 +132,8 @@ test.describe('Dashboard tab', () => {
     const card = cards.getByTestId('topic-briefing-card').first()
     await expect(card).toContainText('Climate Policy')
     await expect(card).toContainText('0.92')
-    await expect(card.getByTestId('topic-briefing-card-cross-show')).toContainText('Show A take on climate.')
+    // The cross-show line is a downstream build's (E04 step 8b).
+    await expect(card.getByTestId('topic-briefing-card-cross-show')).toHaveCount(0)
 
     // Card link opens the Topic Entity View rail.
     await card.getByTestId('topic-briefing-card-link').click()
