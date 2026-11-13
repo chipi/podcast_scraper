@@ -154,27 +154,6 @@ describe('corpusLibraryApi', () => {
       expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/[&?]until=/)
     })
 
-    it('sets has_gi=true when hasGi is true', async () => {
-      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
-      mockFetchJson(true, payload)
-      await fetchCorpusEpisodes('/c', { hasGi: true })
-      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('has_gi=true')
-    })
-
-    it('sets has_gi=false when hasGi is false', async () => {
-      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
-      mockFetchJson(true, payload)
-      await fetchCorpusEpisodes('/c', { hasGi: false })
-      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('has_gi=false')
-    })
-
-    it('omits has_gi when hasGi is undefined', async () => {
-      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
-      mockFetchJson(true, payload)
-      await fetchCorpusEpisodes('/c', {})
-      expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/has_gi=/)
-    })
-
     it.each([
       [false, 'has_kg=false'],
       [true, 'has_kg=true'],
