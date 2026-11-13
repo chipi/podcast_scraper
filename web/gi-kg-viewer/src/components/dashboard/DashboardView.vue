@@ -4,7 +4,6 @@ import { fetchCorpusCoverage, type CorpusCoverageResponse } from '../../api/corp
 import { fetchCorpusDigest, type CorpusDigestResponse } from '../../api/digestApi'
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
 import { fetchCorpusRunsSummary, type CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
-import { fetchCorpusTopPersons, type TopPersonItem } from '../../api/corpusPersonsApi'
 import { dashboardCards, type DashboardCard } from '../../extensions'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useIndexStatsStore } from '../../stores/indexStats'
@@ -15,7 +14,6 @@ import ArtifactActivityChart from './ArtifactActivityChart.vue'
 import BriefingCard from './BriefingCard.vue'
 import CoverageByMonthChart from './CoverageByMonthChart.vue'
 import FeedCoverageTable from './FeedCoverageTable.vue'
-import DashboardTopicPerspectives from './DashboardTopicPerspectives.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import CostRollupCard from './CostRollupCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
@@ -29,7 +27,6 @@ import PipelineJobLogDialog from './PipelineJobLogDialog.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
-import TopVoices from './TopVoices.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
 
 const emit = defineEmits<{
@@ -44,13 +41,13 @@ const indexStats = useIndexStatsStore()
 /** The topic grid: this viewer's own cards plus any a build registered, in `order`. */
 const topicCards = computed<DashboardCard[]>(() =>
   [
-    { id: 'topic-perspectives', region: 'topics' as const, order: 20, span: 2 as const, component: DashboardTopicPerspectives },
     { id: 'topic-briefing', region: 'topics' as const, order: 50, span: 2 as const, component: TopicBriefingCards,
       props: { digest: digestIntel.value } },
     ...dashboardCards.list().filter((c) => c.region === 'topics'),
   ].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
 )
 const overviewCards = computed(() => dashboardCards.list().filter((c) => c.region === 'overview'))
+const peopleCards = computed(() => dashboardCards.list().filter((c) => c.region === 'people'))
 const SPAN_CLASS = { 1: 'xl:col-span-1', 2: 'xl:col-span-2', 4: 'xl:col-span-4' } as const
 const dashboardNav = useDashboardNavStore()
 
@@ -61,9 +58,6 @@ const runs = ref<CorpusRunSummaryItem[]>([])
 const coverage = ref<CorpusCoverageResponse | null>(null)
 const feeds = ref<CorpusFeedItem[]>([])
 const digestIntel = ref<CorpusDigestResponse | null>(null)
-const topPersons = ref<TopPersonItem[]>([])
-const topPersonsLoading = ref(false)
-const topPersonsError = ref<string | null>(null)
 const dashLoading = ref(false)
 const dashError = ref<string | null>(null)
 const dashGate = new StaleGeneration()
@@ -96,25 +90,6 @@ async function openPipelineRunHistory(): Promise<void> {
   document
     .querySelector<HTMLElement>('[data-testid="pipeline-jobs-history-panel"]')
     ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-}
-
-async function fetchTopPersons(): Promise<void> {
-  const root = shell.corpusPath.trim()
-  if (!root || !shell.healthStatus || !shell.corpusPersonsApiAvailable) {
-    topPersons.value = []
-    return
-  }
-  topPersonsLoading.value = true
-  topPersonsError.value = null
-  try {
-    const res = await fetchCorpusTopPersons(root, 5)
-    topPersons.value = Array.isArray(res.persons) ? res.persons : []
-  } catch (e) {
-    topPersonsError.value = e instanceof Error ? e.message : String(e)
-    topPersons.value = []
-  } finally {
-    topPersonsLoading.value = false
-  }
 }
 
 /** Corpus snapshot (7d digest) for Intelligence — not tied to full dashboard load. */
@@ -179,7 +154,6 @@ async function refreshDashboard(): Promise<void> {
     if (dashGate.isStale(seq)) {
       return
     }
-    await fetchTopPersons()
   } catch (e) {
     if (dashGate.isStale(seq)) {
       return
@@ -205,7 +179,6 @@ watch(
 watch(dashTab, (t) => {
   if (t === 'intelligence') {
     void refreshIntelligenceDigest()
-    void fetchTopPersons()
   }
 })
 
@@ -454,8 +427,11 @@ function openLibraryFailures(): void {
         </div>
       </section>
 
-      <!-- People. -->
-      <section aria-labelledby="dash-intel-people">
+      <!-- People: only a build's cards (`dashboardCards`, region `people`). -->
+      <section
+        v-if="peopleCards.length"
+        aria-labelledby="dash-intel-people"
+      >
         <h3
           id="dash-intel-people"
           class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted"
@@ -463,11 +439,15 @@ function openLibraryFailures(): void {
           People
         </h3>
         <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="xl:col-span-2">
-            <TopVoices
-              :persons="topPersons"
-              :loading="topPersonsLoading"
-              :error="topPersonsError"
+          <div
+            v-for="card in peopleCards"
+            :key="card.id"
+            :class="SPAN_CLASS[card.span ?? 2]"
+          >
+            <component
+              :is="card.component"
+              v-bind="card.props ?? {}"
+              @go-graph="(id?: string, fb?: string) => emit('go-graph', id, fb)"
             />
           </div>
         </div>
