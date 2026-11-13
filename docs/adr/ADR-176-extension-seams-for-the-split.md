@@ -62,7 +62,9 @@ with no way to prove each caller on prod before the move.
    is what public alone shows.
 7. **Configuration and flags stay plain.** A stage's switches stay ordinary `Config` fields, so
    operator YAML and profiles keep working. A stage-owned value is validated through its hook (the
-   labeling profile through `stage_hooks.validate_labeling_profile`).
+   labeling profile through `stage_hooks.validate_labeling_profile`). Amended by
+   [ADR-182](ADR-182-extension-owned-configuration.md): a setting only an extension reads is
+   declared and validated by that extension, and that hook is gone.
 8. **Prompts and transcript cleaning are seams too** (added 2026-11-11, for what else leaves
    public):
    - **Prompts:** `Extension.prompt_dirs` adds prompt directories. The prompt store looks for a
