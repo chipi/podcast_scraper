@@ -1,10 +1,11 @@
-"""Connectivity over the pre-seeded production-shaped fixture (#1055).
+"""Connectivity over checked-in corpora (#1055).
 
-The exploration/relational connectivity (#1054/#1055) is exercised here against the
-**checked-in** production-shaped corpus (`web/gi-kg-viewer/e2e/fixtures/production-shaped`,
-the Tier-2 deterministic fixture extracted from a real snapshot) — no LLM, no live
-pipeline. This guards the *real* relational traversal (not a hand-built graph) against
-realistic data: `related_topics` should surface adjacent themes that share insights.
+The exploration/relational connectivity (#1054/#1055) is exercised here against checked-in
+corpora — no LLM, no live pipeline. This guards the *real* relational traversal (not a
+hand-built graph) against realistic data: `related_topics` should surface adjacent themes that
+share insights. Insights are GI, so that test reads the app validation corpus (``v3``, which
+carries GI); the viewer's production-shaped fixture (``web/gi-kg-viewer/e2e/fixtures/
+production-shaped``, a Tier-2 slice of a real snapshot) is KG-only since E04 step 8b.
 
 Person-side connectivity (`topics_of` / `co_speakers`) needs grounded
 `person→STATES→insight→ABOUT→topic` chains, which this snapshot slice doesn't carry;
@@ -33,14 +34,23 @@ def _repo_fixture() -> Path:
     pytest.skip("production-shaped fixture not found")
 
 
+def _gi_corpus() -> Path:
+    root = Path(__file__).resolve()
+    for parent in root.parents:
+        candidate = parent / "tests/fixtures/app-validation-corpus/v3"
+        if candidate.is_dir():
+            return candidate
+    pytest.skip("app validation corpus not found")
+
+
 def test_related_topics_surfaces_adjacent_themes_on_real_fixture() -> None:
-    graph = CorpusGraph.build(_repo_fixture(), derive_speaker_links=True, reconcile_hosts=True)
+    graph = CorpusGraph.build(_gi_corpus(), derive_speaker_links=True, reconcile_hosts=True)
     topics = graph.nodes_by_type("topic")
     assert topics, "fixture should carry topic nodes"
     # At least one topic has adjacent themes (topics sharing an insight) — the
     # TopicEntityView "Related topics" surface is non-empty on real pre-seeded data.
     with_related = [t for t in topics if rq.related_topics(graph, t, k=5)]
-    assert with_related, "expected related_topics to be non-empty on the production-shaped fixture"
+    assert with_related, "expected related_topics to be non-empty on the GI-bearing corpus"
     # Adjacency is symmetric-ish and never returns the subject itself.
     sample = with_related[0]
     related = rq.related_topics(graph, sample, k=5)
