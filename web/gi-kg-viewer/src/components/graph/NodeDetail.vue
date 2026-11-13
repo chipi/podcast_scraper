@@ -8,7 +8,6 @@ import { useGraphAnalyticsStore } from "../../stores/graphAnalytics"
 import { useShellStore } from "../../stores/shell"
 import { graphNodeTypeChrome } from "../../utils/colors"
 import { truncate } from "../../utils/formatting"
-import { quoteAttributionDisplayFromId } from "../../utils/parsing"
 import { nodeDetailExtensions, type NodeDetailContext } from "../../extensions"
 import {
   findRawNodeInArtifact,
@@ -25,14 +24,6 @@ import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from "../../utils/searchResultActionStyles"
 import { visualGroupForNode } from "../../utils/visualGroup"
-import {
-  corpusTextFileViewUrl,
-  formatAudioTimingRange,
-  formatTranscriptCharRange,
-  GI_QUOTE_SPEAKER_UNAVAILABLE_HINT,
-  resolveGiPathForTranscript,
-  resolveTranscriptCorpusRelpath,
-} from "../../utils/transcriptSourceDisplay"
 import GraphConnectionsSection from "./GraphConnectionsSection.vue"
 import NodeEnrichmentSection from "./NodeEnrichmentSection.vue"
 import TopicEntityView from "../subject/TopicEntityView.vue"
@@ -76,16 +67,6 @@ const fullMergedArtifactForMetadata = computed(
 )
 
 const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
-
-/** Shown in **Where this appears**; omit from the generic property list. */
-const TRANSCRIPT_ANCHOR_PROP_KEYS = new Set([
-  "transcript_ref",
-  "char_start",
-  "char_end",
-  "timestamp_start_ms",
-  "timestamp_end_ms",
-  "speaker_id",
-])
 
 const HIDDEN_PROPS = new Set([
   "slug",
@@ -179,7 +160,7 @@ const extensionKnowsNode = computed(() => {
   const id = props.nodeId?.trim()
   return Boolean(id && nodeDetailExtensions.list().some((e) => e.knowsNode?.(id)))
 })
-function extensionSections(region: "header" | "overview" | "body" | "after-aliases") {
+function extensionSections(region: "header" | "overview" | "body" | "after-aliases" | "details") {
   return nodeDetailExtensions.list().flatMap((e) => (e.sections ?? []).filter((x) => x.region === region))
 }
 /** An extension's neighbour list for this node (with the minimap neighbourhood). */
@@ -565,69 +546,6 @@ const showNodeTypeChipInDetails = computed(
   () => !props.embedInRail && Boolean(nodeType.value?.trim())
 )
 
-const transcriptSourceSection = computed(() => {
-  const p = node.value?.properties
-  if (!p || typeof p !== "object") {
-    return null
-  }
-  const ref = typeof p.transcript_ref === "string" ? p.transcript_ref.trim() : ""
-  const charLine = formatTranscriptCharRange(p.char_start, p.char_end)
-  const timeLine = formatAudioTimingRange(p.timestamp_start_ms, p.timestamp_end_ms)
-  const sp = p.speaker_id
-  let speakerLine = ""
-  if (typeof sp === "string" && sp.trim()) {
-    // Humanize the raw speaker id so the chip shows "Pushkin", not "person:pushkin" (#1011).
-    speakerLine = quoteAttributionDisplayFromId(sp.trim())
-  } else if (typeof sp === "number" && Number.isFinite(sp)) {
-    speakerLine = String(sp)
-  }
-  if (!ref && !charLine && !timeLine && !speakerLine) {
-    return null
-  }
-  // Slim rail: char range and audio timing live in the transcript dialog; need a file ref or speaker to show.
-  if (!ref && !speakerLine) {
-    return null
-  }
-  const rawEp = p.episode_id
-  const quoteEpId =
-    typeof rawEp === "string" && rawEp.trim()
-      ? rawEp.trim()
-      : typeof rawEp === "number" && Number.isFinite(rawEp)
-        ? String(rawEp)
-        : null
-  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, quoteEpId)
-  const root = shell.corpusPath.trim()
-  const resolvedRelpath = ref ? resolveTranscriptCorpusRelpath(ref, giPath) : ""
-  const href =
-    shell.healthStatus && root && resolvedRelpath
-      ? corpusTextFileViewUrl(root, resolvedRelpath)
-      : null
-  const rawNt = node.value?.type
-  const isQuoteKind = typeof rawNt === "string" && rawNt.trim().toLowerCase() === "quote"
-  const showMissingSpeakerHint = isQuoteKind && Boolean(ref) && !speakerLine
-  return { ref, charLine, timeLine, speakerLine, href, resolvedRelpath, showMissingSpeakerHint }
-})
-
-function openTranscriptViewer(): void {
-  const sec = transcriptSourceSection.value
-  const root = shell.corpusPath.trim()
-  if (!sec?.href || !root || !sec.resolvedRelpath) {
-    return
-  }
-  const p = node.value?.properties
-  transcriptViewerRef.value?.open({
-    corpusRoot: root,
-    transcriptRelpath: sec.resolvedRelpath,
-    rawTabUrl: sec.href,
-    charStart: p?.char_start,
-    charEnd: p?.char_end,
-    audioTimingLabel: sec.timeLine,
-    charPositionLabel: sec.charLine,
-    subtitle: sec.ref || null,
-    audioSeekStartMs: p?.timestamp_start_ms,
-  })
-}
-
 function humanizePropertyKey(k: string): string {
   return k.replace(/_/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
@@ -643,7 +561,6 @@ const extraProps = computed(() => {
   const out: { k: string; v: string }[] = []
   for (const k of Object.keys(p).sort()) {
     if (HIDDEN_PROPS.has(k)) continue
-    if (TRANSCRIPT_ANCHOR_PROP_KEYS.has(k)) continue
     if (isTopicNode.value && k === "aliases") continue
     if (isPersonEntityRailNode.value && k === "aliases") continue
     if (extensionHiddenProperties.value.has(k)) continue
@@ -1171,52 +1088,12 @@ const graphConnectionsCenterInView = computed((): boolean => {
             {{ truncate(bodyTextForTemplate, 600) }}
           </p>
 
-          <section v-if="transcriptSourceSection" class="mb-2 flex flex-col gap-1.5">
-            <div v-if="transcriptSourceSection.href" class="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                class="rounded border border-border bg-canvas px-2 py-0.5 text-[11px] font-medium text-surface-foreground hover:bg-elevated"
-                aria-label="View transcript"
-                data-testid="node-detail-view-transcript"
-                @click="openTranscriptViewer"
-              >
-                View transcript
-              </button>
-              <span
-                v-if="transcriptSourceSection.showMissingSpeakerHint"
-                class="text-[10px] leading-snug text-muted"
-                data-testid="node-detail-quote-speaker-unavailable"
-              >
-                {{ GI_QUOTE_SPEAKER_UNAVAILABLE_HINT }}
-              </span>
-            </div>
-            <div v-else-if="transcriptSourceSection.ref" class="text-[10px] leading-snug">
-              <span class="font-mono text-[11px] text-surface-foreground">{{
-                transcriptSourceSection.ref
-              }}</span>
-              <p class="mt-0.5 text-muted">
-                Connect to the API and set
-                <strong class="font-medium text-surface-foreground/90">Corpus path</strong>
-                in the left panel to open this file in your browser.
-              </p>
-            </div>
-            <p
-              v-if="transcriptSourceSection.speakerLine"
-              class="text-[10px] leading-snug text-muted"
-            >
-              <span class="font-medium text-surface-foreground/80">Speaker:</span>
-              {{ transcriptSourceSection.speakerLine }}
-            </p>
-            <p
-              v-else-if="
-                transcriptSourceSection.showMissingSpeakerHint && !transcriptSourceSection.href
-              "
-              class="text-[10px] leading-snug text-muted"
-              data-testid="node-detail-quote-speaker-unavailable"
-            >
-              {{ GI_QUOTE_SPEAKER_UNAVAILABLE_HINT }}
-            </p>
-          </section>
+          <component
+            :is="section.component"
+            v-for="(section, i) in extensionSections('details')"
+            :key="`details-${i}`"
+            :ctx="extensionContext"
+          />
 
           <dl v-if="extraProps.length" class="mb-2 space-y-1.5">
             <template v-for="(r, i) in extraProps" :key="i">

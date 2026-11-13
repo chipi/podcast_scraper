@@ -163,6 +163,27 @@ describe('NodeDetail extensions', () => {
     w.unmount()
   })
 
+  it('renders a details section after the body text, and no transcript block of its own', () => {
+    readyShell()
+    const quote = {
+      id: 'quote:1',
+      type: 'Quote',
+      properties: { text: 'Quoted words.', transcript_ref: 'transcripts/ep.txt', char_start: 1, char_end: 5 },
+    } as RawGraphNode
+    const plain = mountDetail({ viewArtifact: artifactOf([quote]), nodeId: 'quote:1' })
+    expect(plain.find('[data-testid="node-detail-view-transcript"]').exists()).toBe(false)
+    expect(plain.find('[data-testid="node-detail-quote-speaker-unavailable"]').exists()).toBe(false)
+    // Without a section hiding them, the anchor keys are ordinary properties now.
+    expect(plain.text()).toContain('Transcript Ref')
+    plain.unmount()
+    nodeDetailExtensions.register({ id: 'x', sections: [{ region: 'details', component: ctxSection('details') }] })
+    const w = mountDetail({ viewArtifact: artifactOf([quote]), nodeId: 'quote:1' })
+    const html = w.html()
+    expect(w.get('[data-testid="section-details"]').text()).toBe('quote:1|Quote')
+    expect(html.indexOf('Quoted words.')).toBeLessThan(html.indexOf('section-details'))
+    w.unmount()
+  })
+
   it('keeps the keys a section shows out of the generic property list', () => {
     const node = { id: 'n:1', type: 'Thing', properties: { label: 'N', weight: 3, colour: 'red' } } as RawGraphNode
     const mountWith = () => mountDetail({ viewArtifact: artifactOf([node]), nodeId: 'n:1' })
