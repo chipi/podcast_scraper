@@ -131,6 +131,18 @@ export interface SearchPanelSection extends Entry {
 
 export const searchPanelSections = extensionPoint<SearchPanelSection>('searchPanelSections')
 
+/**
+ * A search document type a downstream build adds; its `id` is the `doc_type` value (sent as
+ * `type=` when picked). It is an option on the Doc types chip, before the viewer's own, and the
+ * leading icon of a hit of that type.
+ */
+export interface SearchDocType extends Entry {
+  label: string
+  icon: { letter: string; classes: string; title: string }
+}
+
+export const searchDocTypes = extensionPoint<SearchDocType>('searchDocTypes')
+
 /** A chip on the search filter bar, after the viewer's own. */
 export interface SearchFilterChip extends Entry {
   component: Component

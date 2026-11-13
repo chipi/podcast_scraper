@@ -4,7 +4,8 @@
  * shapes:
  *   - Letter avatar in a colored badge (matches the letter chrome the
  *     graph node detail panel uses, so entities are recognizable across
- *     surfaces). Used for Insight / Quote / Topic / Person / Summary and
+ *     surfaces). Used for Topic / Person / Summary, a downstream build's
+ *     types (``searchDocTypes``) and
  *     the transcript-cluster episode row.
  *   - Small episode artwork thumbnail when the hit resolves to an
  *     episode with a locally-cached cover (mirrors the digest / library
@@ -16,6 +17,7 @@
  */
 import { computed } from 'vue'
 import PodcastCover from '../shared/PodcastCover.vue'
+import { searchDocTypes } from '../../extensions'
 import { useShellStore } from '../../stores/shell'
 
 type IconKind = 'letter' | 'image'
@@ -90,21 +92,16 @@ const meta = computed<IconMeta>((): IconMeta => {
       alt: `${tierBit()}Episode${subtitleBit}`.trim() || 'Episode',
     }
   }
+  const added = searchDocTypes.list().find((d) => d.id === dt)
+  if (added) {
+    return {
+      kind: 'letter',
+      letter: added.icon.letter,
+      classes: added.icon.classes,
+      title: `${tierBit()}${added.icon.title}${subtitleBit}`,
+    }
+  }
   switch (dt) {
-    case 'insight':
-      return {
-        kind: 'letter',
-        letter: 'I',
-        classes: 'bg-primary/15 text-primary',
-        title: `${tierBit()}Insight${subtitleBit}`,
-      }
-    case 'quote':
-      return {
-        kind: 'letter',
-        letter: 'Q',
-        classes: 'bg-warning/15 text-warning',
-        title: `${tierBit()}Quote${subtitleBit}`,
-      }
     case 'kg_topic':
       return {
         kind: 'letter',

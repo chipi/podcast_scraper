@@ -86,17 +86,20 @@ test.describe('Search header chips (UXS-016 / UXS-005)', () => {
     expect((await submit(page)).searchParams.get('top_k')).toBe('25')
   })
 
-  test('Doc types → "Doc types: 2 of 6" and one type= per pick', async ({ page }) => {
+  test('Doc types → "Doc types: 2 of 4" and one type= per pick', async ({ page }) => {
     const chip = page.getByTestId('search-chip-doctypes')
     await expect(chip).toHaveText('Doc types ▾')
     await chip.click()
     const pop = page.getByTestId('search-popover-doctypes')
-    await pop.getByRole('checkbox', { name: 'Insights' }).check()
-    await pop.getByRole('checkbox', { name: 'Quotes' }).check()
-    await expect(chip).toHaveText('Doc types: 2 of 6 ▾')
+    // Insights and Quotes are a downstream build's doc types (E04 step 8b).
+    await expect(pop.getByRole('checkbox', { name: 'Insights' })).toHaveCount(0)
+    await expect(pop.getByRole('checkbox', { name: 'Quotes' })).toHaveCount(0)
+    await pop.getByRole('checkbox', { name: 'KG entities' }).check()
+    await pop.getByRole('checkbox', { name: 'KG topics' }).check()
+    await expect(chip).toHaveText('Doc types: 2 of 4 ▾')
     await chip.click()
     const types = (await submit(page)).searchParams.getAll('type').sort()
-    expect(types).toEqual(['insight', 'quote'])
+    expect(types).toEqual(['kg_entity', 'kg_topic'])
   })
 
 })

@@ -85,7 +85,8 @@ Search query field (no separate label; placeholder + **Semantic search** heading
 **Shift+Enter** inserts a newline; **IME** composition does not trigger submit.
 Then a **filter chip bar** (#671, `data-testid="search-filter-bar"`) with four chips —
 **Since** (`search-chip-since`, shared `DateChip`), **Top‑k** (`search-chip-topk`,
-default 10), **Doc types** (`search-chip-doctypes`, empty = all), **More**
+default 10), **Doc types** (`search-chip-doctypes`, empty = all; a downstream build's
+types such as Insights and Quotes come first, through `searchDocTypes`, E04 step 8b), **More**
 (`search-chip-more`, opens the slim Advanced search dialog). Each chip's label
 switches from `Label ▾` (default) to `Label: detail ▾` when active; the **More**
 chip shows `More: N` reflecting the count of non-default fields it hosts. Replaces
