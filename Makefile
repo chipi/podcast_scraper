@@ -1554,12 +1554,12 @@ stack-test-reap:
 	@echo "Reaping stack-test artifacts (this repo only)..."
 	@$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true
 	@# Playwright runner + node launched from THIS repo's stack-test dir.
-	@pkill -f "$(CURDIR)/tests/stack-test/node_modules/.bin/playwright" 2>/dev/null || true
-	@pkill -f "$(CURDIR)/tests/stack-test/node_modules/.bin/playwright-core" 2>/dev/null || true
+	@pkill -f "$(CURDIR)/[t]ests/stack-test/node_modules/.bin/playwright" 2>/dev/null || true
+	@pkill -f "$(CURDIR)/[t]ests/stack-test/node_modules/.bin/playwright-core" 2>/dev/null || true
 	@# Orphan docker build for THIS project's stack (make + buildx bake + compose build).
-	@pkill -f "$(CURDIR).*make stack-test-build" 2>/dev/null || true
-	@pkill -f "docker-buildx bake.*$(notdir $(CURDIR))" 2>/dev/null || true
-	@pkill -f "compose.*$(CURDIR)/compose/docker-compose.stack-test" 2>/dev/null || true
+	@pkill -f "$(CURDIR).*[m]ake stack-test-build" 2>/dev/null || true
+	@pkill -f "[d]ocker-buildx bake.*$(notdir $(CURDIR))" 2>/dev/null || true
+	@pkill -f "[c]ompose.*$(CURDIR)/compose/docker-compose.stack-test" 2>/dev/null || true
 	@$(MAKE) cleanup-processes >/dev/null 2>&1 || true
 	@echo "Reap complete."
 
