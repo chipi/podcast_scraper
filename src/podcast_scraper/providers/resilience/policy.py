@@ -23,7 +23,7 @@ import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Sequence, TypeVar
+from typing import Callable, Optional, Sequence, TypeVar
 
 from ..guardrails.exceptions import GuardrailViolation
 from .breakers import CircuitBreaker
@@ -98,6 +98,17 @@ class ResilienceFuseOpenError(RuntimeError):
     """
 
 
+class ResilienceInputFailedError(RuntimeError):
+    """The endpoint is up and answered every attempt at this one input with an error.
+
+    Not an outage, so neither a hold nor the operator alert: the probe would resend the same input
+    and get the same answer. Colombia Calling 639 (26d7aade, 2026-11-11 to 11-14) made
+    faster-whisper answer 500 on every attempt and every probe while it served 130-188 other
+    episodes a night, and each night held transcription for 900 s and reported "endpoint did not
+    recover". The caller records the input's failure; repeated, it is parked.
+    """
+
+
 def _emit_fuse_open_alert(name: str, waited_sec: float) -> None:
     """Operator alert for a sustained fuse-open (ADR-122): a reprocess held the chosen model for
     the full max-wait and the endpoint never recovered. Capture it as a Sentry issue (level=error)
@@ -131,6 +142,11 @@ class ResiliencePolicy:
     on_open_max_wait_sec: float = DEFAULT_ON_OPEN_MAX_WAIT_SEC
     probe_interval_sec: float = DEFAULT_PROBE_INTERVAL_SEC
     name: str = "resilience"
+    # Both set: attempts that all end in an answered error (``answered(exc)``, e.g. an HTTP 5xx)
+    # while ``endpoint_up()`` holds fail the input with ResilienceInputFailedError instead of
+    # holding. Either unset: the hold as before.
+    answered: Optional[Callable[[Exception], bool]] = None
+    endpoint_up: Optional[Callable[[], bool]] = None
 
     def _backoff_for(self, attempt_index: int) -> float:
         """Wait before the attempt after ``attempt_index`` (0-based). Repeats the
@@ -162,7 +178,7 @@ class ResiliencePolicy:
         if self.breaker.state == "closed":
             try:
                 return self._attempt_with_backoff(call, timeout_sec, sleep)
-            except GuardrailViolation:
+            except (GuardrailViolation, ResilienceInputFailedError):
                 raise
             except Exception as exc:  # noqa: BLE001 - retries exhausted; breaker now open
                 logger.warning(
@@ -183,6 +199,7 @@ class ResiliencePolicy:
         rolling-window threshold (mirrors how a serve-mode hard timeout already force-trips
         bypassing that same threshold)."""
         last_exc: Exception | None = None
+        all_answered = self.answered is not None and self.endpoint_up is not None
         for attempt in range(self.retries_before_trip):
             try:
                 result = run_with_watchdog(call, timeout_sec + WATCHDOG_GRACE_SEC, label=self.name)
@@ -194,6 +211,7 @@ class ResiliencePolicy:
                 raise
             except Exception as exc:  # noqa: BLE001 - retried below; re-raised once exhausted
                 last_exc = exc
+                all_answered = all_answered and bool(self.answered and self.answered(exc))
                 logger.warning(
                     "%s: attempt %d/%d failed (%s); backing off",
                     self.name,
@@ -206,8 +224,20 @@ class ResiliencePolicy:
                 continue
             self.breaker.record_success()
             return result
-        self.breaker.record_failure(hard=True)
         assert last_exc is not None
+        if all_answered and self.endpoint_up is not None and self.endpoint_up():
+            logger.warning(
+                "%s: the endpoint is up and answered all %d attempts at this input with an error; "
+                "failing the input, not holding: %s",
+                self.name,
+                self.retries_before_trip,
+                last_exc,
+            )
+            raise ResilienceInputFailedError(
+                f"{self.name}: the endpoint is up and answered this input with an error on all "
+                f"{self.retries_before_trip} attempts: {last_exc}"
+            ) from last_exc
+        self.breaker.record_failure(hard=True)
         raise last_exc
 
     def _pause_and_probe(
@@ -254,6 +284,7 @@ __all__ = [
     "DEFAULT_RETRIES_BEFORE_TRIP",
     "FailureStrategy",
     "ResilienceFuseOpenError",
+    "ResilienceInputFailedError",
     "ResiliencePolicy",
     "RunContext",
     "resolve_failure_strategy",

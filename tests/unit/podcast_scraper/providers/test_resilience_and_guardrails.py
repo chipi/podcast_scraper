@@ -295,6 +295,26 @@ class TestWhisperGuardrail:
         with pytest.raises(guardrails.GuardrailViolation):
             guardrails.check_whisper_response("", audio_duration_sec=None)
 
+    def test_a_full_chinese_transcript_is_not_a_short_one(self):
+        # ChinaTalk's 中文版 episode (c18f57c6, 3816 s), requested as `en`: whisper wrote 21,749
+        # characters of Chinese, which split() counts as 1,791 words against a floor of 4,769, so
+        # it failed every night as a hard error before the language guard could refuse it.
+        line = "当然其实AI行业的人很多意识不到 如果你是一个纯技术背景的人 "
+        text = line * 760
+        assert len(text.split()) < 4769 < len(text)
+        guardrails.check_whisper_response(text, audio_duration_sec=3815.6)  # no raise
+
+    def test_a_short_chinese_answer_still_fires(self):
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_whisper_response("你好 谢谢", audio_duration_sec=60.0)
+        assert exc_info.value.reason == guardrails.REASON_TRANSCRIPTION_LENGTH_FLOOR
+
+    def test_latin_script_counts_words_as_before(self):
+        text = "Hola, ¿qué tal? Ça va très bien — straße naïve " * 3
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_whisper_response(text, audio_duration_sec=60.0)
+        assert f"word_count={len(text.split())} " in exc_info.value.response_summary
+
 
 class TestOllamaGuardrail:
     """Ollama empty + thinking-prose guardrail."""

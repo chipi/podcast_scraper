@@ -26,6 +26,7 @@ from .exceptions import TimeoutLike
 from .policy import (
     FailureStrategy,
     ResilienceFuseOpenError,
+    ResilienceInputFailedError,
     ResiliencePolicy,
     resolve_failure_strategy,
     RunContext,
@@ -41,6 +42,7 @@ __all__ = [
     "CircuitBreaker",
     "FailureStrategy",
     "ResilienceFuseOpenError",
+    "ResilienceInputFailedError",
     "ResiliencePolicy",
     "RunContext",
     "TimeoutLike",

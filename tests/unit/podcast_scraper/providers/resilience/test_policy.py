@@ -197,3 +197,64 @@ def test_a_guardrail_violation_is_raised_at_once_and_does_not_trip_the_fuse() ->
     assert calls == [1]
     assert sleeps == []
     assert breaker.state == "closed"
+
+
+class _ServerError(Exception):
+    """Stands in for an HTTP 5xx: the server answered, with an error."""
+
+
+def _input_policy(breaker: CircuitBreaker, *, up: bool) -> ResiliencePolicy:
+    return ResiliencePolicy(
+        breaker=breaker,
+        retries_before_trip=3,
+        backoff_schedule_sec=(30.0, 60.0, 120.0),
+        on_open_max_wait_sec=90.0,
+        probe_interval_sec=30.0,
+        name="test",
+        answered=lambda exc: isinstance(exc, _ServerError),
+        endpoint_up=lambda: up,
+    )
+
+
+def test_a_server_error_on_one_input_fails_that_input_without_holding() -> None:
+    """The server is up and answers this one input with an error every time: not an outage.
+
+    Colombia Calling 639 (26d7aade, 2026-11-11 to 11-14): faster-whisper answered 500
+    (cudaErrorInvalidDevice in word alignment) to its audio on every attempt and every probe, and
+    served 130-188 other episodes each night. The probe resent the same audio, so the policy held
+    for 900 s each night and alerted "endpoint did not recover".
+    """
+    from podcast_scraper.providers.resilience.policy import ResilienceInputFailedError
+
+    calls: list[int] = []
+    sleeps: list[float] = []
+
+    def bad_input() -> str:
+        calls.append(1)
+        raise _ServerError("500 Internal Server Error")
+
+    breaker = _breaker()
+    with pytest.raises(ResilienceInputFailedError) as exc_info:
+        _input_policy(breaker, up=True).run(bad_input, timeout_sec=1.0, sleep=sleeps.append)
+    assert calls == [1, 1, 1]
+    assert sleeps == [30.0, 60.0]
+    assert breaker.state == "closed"
+    assert isinstance(exc_info.value.__cause__, _ServerError)
+
+
+def test_a_server_error_while_the_endpoint_is_down_still_holds() -> None:
+    def bad_input() -> str:
+        raise _ServerError("500 Internal Server Error")
+
+    sleeps: list[float] = []
+    with pytest.raises(ResilienceFuseOpenError):
+        _input_policy(_breaker(), up=False).run(bad_input, timeout_sec=1.0, sleep=sleeps.append)
+    assert sleeps[:2] == [30.0, 60.0] and 30.0 in sleeps[2:]
+
+
+def test_a_timeout_is_an_outage_even_when_the_health_check_answers() -> None:
+    def hangs() -> str:
+        raise TimeoutError("read timed out")
+
+    with pytest.raises(ResilienceFuseOpenError):
+        _input_policy(_breaker(), up=True).run(hangs, timeout_sec=1.0, sleep=lambda s: None)

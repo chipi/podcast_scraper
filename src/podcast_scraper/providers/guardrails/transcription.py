@@ -9,6 +9,7 @@ expected word count derived from audio duration.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from ._telemetry import raise_violation
@@ -21,6 +22,19 @@ REASON_TRANSCRIPTION_LENGTH_FLOOR = "length_floor_violated"
 # without false-firing on natural silence stretches.
 _WORDS_PER_SEC_ESTIMATE = 2.5
 _LENGTH_FLOOR_FRACTION = 0.5
+
+# Chinese and Japanese are written without spaces between words, so split() reads a full transcript
+# as a few hundred "words": ChinaTalk's 中文版 episode (c18f57c6, 3816 s) failed the floor every
+# night with 21,749 characters of Chinese, before the language guard could refuse it. Each of these
+# characters counts as a word here.
+_UNSPACED_SCRIPT = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]")
+
+
+def _word_count(text: str) -> int:
+    unspaced = len(_UNSPACED_SCRIPT.findall(text))
+    if not unspaced:
+        return len(text.split())
+    return len(_UNSPACED_SCRIPT.sub(" ", text).split()) + unspaced
 
 
 def check_whisper_response(
@@ -42,7 +56,7 @@ def check_whisper_response(
         raise_violation(service, REASON_TRANSCRIPTION_EMPTY, "")
     if audio_duration_sec is None or audio_duration_sec <= 0:
         return
-    word_count = len(text.split())
+    word_count = _word_count(text)
     floor = int(audio_duration_sec * _WORDS_PER_SEC_ESTIMATE * _LENGTH_FLOOR_FRACTION)
     if word_count < floor:
         summary = f"word_count={word_count} floor={floor} " f"duration_sec={audio_duration_sec:.1f}"
