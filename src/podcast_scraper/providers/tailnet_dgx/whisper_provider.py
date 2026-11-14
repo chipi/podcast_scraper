@@ -62,11 +62,16 @@ _whisper_breaker = CircuitBreaker(
 )
 
 
+#: "Not now" statuses (rate limit, bad gateway, unavailable, gateway timeout) say the server is busy
+#: or unreachable, not that this input fails, so they are held for like an outage.
+_BUSY_STATUSES = frozenset({429, 502, 503, 504})
+
+
 def _server_answered_with_error(exc: Exception) -> bool:
-    """An HTTP error status is the server's answer to this input, not a missing server."""
+    """An HTTP error status is the server's answer to this input, unless it says "not now"."""
     import httpx
 
-    return isinstance(exc, httpx.HTTPStatusError)
+    return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code not in _BUSY_STATUSES
 
 
 def _refine_segment_times(

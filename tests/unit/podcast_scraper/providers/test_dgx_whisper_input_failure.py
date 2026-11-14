@@ -58,14 +58,14 @@ def _provider() -> TailnetDgxWhisperTranscriptionProvider:
     return p
 
 
-def _answers_500(calls: List[Any]):
+def _answers_500(calls: List[Any], status: int = 500):
     def post(audio_path, language, timeout_sec=None, model_override=None, prompt=None):
         calls.append(audio_path)
         request = httpx.Request("POST", URL)
         raise httpx.HTTPStatusError(
-            "Server error '500 Internal Server Error'",
+            f"Server error '{status}'",
             request=request,
-            response=httpx.Response(500, request=request),
+            response=httpx.Response(status, request=request),
         )
 
     return post
@@ -94,3 +94,12 @@ def test_a_500_while_the_server_is_down_still_holds(tmp_path) -> None:
     with patch.object(wp, "check_faster_whisper_health", side_effect=lambda *a, **k: next(health)):
         with pytest.raises(ResilienceFuseOpenError):
             _transcribe(_provider(), tmp_path, _answers_500(calls))
+
+
+@pytest.mark.parametrize("status", [429, 502, 503, 504])
+def test_a_busy_status_from_a_server_that_is_up_still_holds(tmp_path, status: int) -> None:
+    """429/502/503/504 say "not now" (overload, a gateway), not "this input fails"."""
+    calls: List[Any] = []
+    with patch.object(wp, "check_faster_whisper_health", return_value=True):
+        with pytest.raises(ResilienceFuseOpenError):
+            _transcribe(_provider(), tmp_path, _answers_500(calls, status))
