@@ -62,6 +62,13 @@ _whisper_breaker = CircuitBreaker(
 )
 
 
+def _server_answered_with_error(exc: Exception) -> bool:
+    """An HTTP error status is the server's answer to this input, not a missing server."""
+    import httpx
+
+    return isinstance(exc, httpx.HTTPStatusError)
+
+
 def _refine_segment_times(
     segments: list[dict[str, object]], flat_words: object
 ) -> list[dict[str, object]]:
@@ -118,6 +125,8 @@ class TailnetDgxWhisperTranscriptionProvider:
             on_open_max_wait_sec=float(getattr(cfg, "resilience_on_open_max_wait_sec", 900.0)),
             probe_interval_sec=float(getattr(cfg, "resilience_probe_interval_sec", 30.0)),
             name="dgx-whisper",
+            answered=_server_answered_with_error,
+            endpoint_up=lambda: check_faster_whisper_health(self._host, port=self._port),
         )
         self._initialized = False
         # #2284: when the punctuation prompt is sent (see Config.dgx_whisper_punctuation_prompt)

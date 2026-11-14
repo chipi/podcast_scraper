@@ -69,7 +69,9 @@ def _cfg(corpus: Path) -> config.Config:
     ).model_copy(update={"feed_declared_language": "en"})
 
 
-def _fail_transcription(monkeypatch, cfg: config.Config, episode: Episode) -> None:
+def _fail_transcription(
+    monkeypatch, cfg: config.Config, episode: Episode, failure: Exception | None = None
+) -> None:
     """The real handler path for a fuse-open failure, with the real incident append."""
     monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
     monkeypatch.setattr(ep, "_maybe_dispatch_reprocess_stage", lambda *a, **k: None)
@@ -81,7 +83,9 @@ def _fail_transcription(monkeypatch, cfg: config.Config, episode: Episode) -> No
     monkeypatch.setattr(ep, "_record_unresolved_transcript", lambda *a, **k: None)
 
     def _raise(*a: Any, **k: Any) -> Any:
-        raise ResilienceFuseOpenError("dgx-whisper: endpoint did not recover within 900s")
+        raise failure or ResilienceFuseOpenError(
+            "dgx-whisper: endpoint did not recover within 900s"
+        )
 
     monkeypatch.setattr(ep, "_transcribe_with_segments_maybe_chunked", _raise)
     job = MagicMock()
@@ -111,8 +115,10 @@ def _schedule(cfg: config.Config, corpus: Path, episode: Episode):
     )
 
 
-def _batch(monkeypatch, cfg, hanging: Episode, others_transcribed: bool) -> dict:
-    _fail_transcription(monkeypatch, cfg, hanging)
+def _batch(
+    monkeypatch, cfg, hanging: Episode, others_transcribed: bool, failure: Exception | None = None
+) -> dict:
+    _fail_transcription(monkeypatch, cfg, hanging, failure)
     if others_transcribed:
         episode_park.note_transcribed(cfg.incident_log_path, "some-other-episode")
     return episode_park.commit_batch(cfg.incident_log_path)
@@ -246,3 +252,33 @@ def test_an_operator_parks_by_hand_and_the_next_batch_skips_it(
         ep, "_download_or_reuse_media", lambda *a, **k: pytest.fail("a parked episode downloaded")
     )
     assert _schedule(cfg, corpus, hanging) is None
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param("guardrail", id="length-floor"),
+        pytest.param("input", id="server-error-on-one-input"),
+    ],
+)
+def test_the_other_repeat_failures_are_parked_too(monkeypatch, corpus: Path, failure: str) -> None:
+    """ChinaTalk c18f57c6 failed the length floor every night from 2026-11-04; the reprocess policy
+    now fails an input the server keeps answering with an error. Both go through the same handler
+    as the fuse, so both are counted and parked."""
+    from podcast_scraper.providers.guardrails import GuardrailViolation
+    from podcast_scraper.providers.resilience.policy import ResilienceInputFailedError
+
+    def make() -> Exception:
+        if failure == "guardrail":
+            return GuardrailViolation("whisper", "length_floor_violated", "word_count=185")
+        return ResilienceInputFailedError("dgx-whisper: the server answered this input with errors")
+
+    cfg = _cfg(corpus)
+    episode = _episode(5, "c18f57c6")
+    eid = _eid(episode)
+    assert _batch(monkeypatch, cfg, episode, True, make())["parked"] == []
+    assert _batch(monkeypatch, cfg, episode, True, make())["parked"] == [eid]
+    entry = episode_park.parked_entry(cfg.incident_log_path, eid)
+    assert entry is not None
+    expected = make().__class__.__name__
+    assert entry["failures"][-1]["exception_type"] == expected
