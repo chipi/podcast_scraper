@@ -34,7 +34,8 @@ episode's public audio against the DGX on 2026-11-14:
   timestamps, so the cause of the 500 is not reproduced. Change: when all attempts end in an HTTP
   error status and the server's health check passes, the input fails
   (`ResilienceInputFailedError`, a hard transcription incident) with no hold and no fuse-open alert.
-  A health check that fails, or a timeout, is held for as before.
+  A health check that fails, a timeout, or a "not now" status (429, 502, 503, 504: overload or a
+  gateway) is held for as before.
 
 What it writes: nothing a listener or reader is shown. c18f57c6 goes from a hard failure to the
 language guard's refusal (`zh` is not enabled in `config/languages.yaml`), which writes the
