@@ -88,9 +88,10 @@ def _index_rows(root: Path) -> Dict[Tuple[str, str], Dict[str, str]]:
         table = backend._open_if_exists(tier)
         if table is None:
             continue
-        frame = table.to_pandas()
-        cols = [c for c in frame.columns if c not in ("vector", "embedding")]
-        for rec in frame[cols].to_dict("records"):
+        # Arrow, not pandas: public's CI installs no pandas (lancedb's to_pandas imports it).
+        arrow = table.to_arrow()
+        cols = [c for c in arrow.column_names if c not in ("vector", "embedding")]
+        for rec in arrow.select(cols).to_pylist():
             rows[(tier, str(rec.get("id")))] = {k: str(v) for k, v in rec.items()}
     return rows
 
