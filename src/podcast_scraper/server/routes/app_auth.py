@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from podcast_scraper.extensions import run_account_created
@@ -854,6 +854,32 @@ def app_auth_magic_verify(
             detail="This sign-in link has already been used. Request a new one.",
         )
 
+    session, is_new = _email_session(request, data_dir, secret, email)
+    _magic_event(
+        "magic_link_verified",
+        outcome="created" if is_new else "returning",
+        email_fp=_email_fingerprint(email),
+        platform=platform or "web",
+    )
+
+    if platform == "native":
+        # Same contract as the OAuth callback: the token rides the fragment (never logged or cached
+        # the way a query string is). `new` tells the shell which screen to open.
+        deep_link = f"{_native_scheme(request)}://auth#token={session}&new={'1' if is_new else '0'}"
+        return RedirectResponse(deep_link, status_code=307)
+
+    dest = _safe_return_to(return_to) or (_NEW_ACCOUNT_DEST if is_new else _RETURNING_DEST)
+    resp = RedirectResponse(dest, status_code=307)
+    _set_session_cookie(resp, request, session)
+    return resp
+
+
+def _email_session(request: Request, data_dir: Path, secret: str, email: str) -> tuple[str, bool]:
+    """Create or sign in the email account ``email``; return its session and whether it is new.
+
+    Shared by the emailed link and the store-review code, so the two can never differ in what
+    account they open or with what role. The access policy is the CALLER's check, before this.
+    """
     # `on_created` fires from INSIDE the store's creation branch, so it is exactly once per account
     # even if a link is somehow verified twice — and it is also how we learn whether to land the
     # person on the profile or on home. Checking existence beforehand would race and could send a
@@ -884,24 +910,11 @@ def app_auth_magic_verify(
     if effective != user.role:
         set_role(data_dir, user.user_id, effective)
         user = replace(user, role=effective)
-
-    is_new = was_created
-    _magic_event(
-        "magic_link_verified",
-        outcome="created" if is_new else "returning",
-        email_fp=_email_fingerprint(email),
-        platform=platform or "web",
-    )
     session = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, secret)
+    return session, was_created
 
-    if platform == "native":
-        # Same contract as the OAuth callback: the token rides the fragment (never logged or cached
-        # the way a query string is). `new` tells the shell which screen to open.
-        deep_link = f"{_native_scheme(request)}://auth#token={session}&new={'1' if is_new else '0'}"
-        return RedirectResponse(deep_link, status_code=307)
 
-    dest = _safe_return_to(return_to) or (_NEW_ACCOUNT_DEST if is_new else _RETURNING_DEST)
-    resp = RedirectResponse(dest, status_code=307)
+def _set_session_cookie(resp: Response, request: Request, session: str) -> None:
     resp.set_cookie(
         app_sessions.SESSION_COOKIE,
         session,
@@ -911,4 +924,77 @@ def app_auth_magic_verify(
         secure=request.url.scheme == "https",
         path="/",
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# Store review sign-in (app_review_signin): one configured address, a code instead of a link.
+# ---------------------------------------------------------------------------------------------
+
+#: After a wrong code, the next attempt from anyone is refused for this long. With a long random
+#: code that alone makes guessing hopeless; a reviewer's typo costs a few seconds.
+_REVIEW_FAILURE_PAUSE_S = 5
+
+
+class ReviewCodeRequest(BaseModel):
+    """The review address and its code. ``platform`` mirrors the magic-link request's switch."""
+
+    email: str = Field(min_length=3, max_length=254)
+    code: str = Field(min_length=1, max_length=256)
+    platform: str | None = None
+    return_to: str | None = Field(default=None, max_length=_MAX_RETURN_TO_CHARS)
+
+
+def _review_paused(request: Request, *, now: float) -> bool:
+    until: float = getattr(request.app.state, "review_signin_paused_until", 0.0)
+    return now < until
+
+
+@router.post("/auth/email/code")
+def app_auth_review_code(body: ReviewCodeRequest, request: Request) -> Response:
+    """Sign in the store-review address with its code (see ``app_review_signin``).
+
+    404 when no review sign-in is configured, so the route does not exist on a server without one.
+    A wrong address and a wrong code get the same answer. On success it opens the session exactly
+    as the emailed link does: native gets the token in the JSON (the app called this itself, so no
+    deep link is needed), web gets the cookie and where to go.
+    """
+    review = getattr(request.app.state, "review_signin", None)
+    secret = _secret(request)
+    data_dir = _data_dir(request)
+    if review is None or not secret:
+        raise HTTPException(status_code=404, detail="Not Found")
+    now = time.time()
+    if _review_paused(request, now=now):
+        _magic_event("review_code_signin", outcome="paused")
+        raise HTTPException(status_code=429, detail="Wait a few seconds and try again.")
+    if not review.matches(body.email, body.code):
+        request.app.state.review_signin_paused_until = now + _REVIEW_FAILURE_PAUSE_S
+        _magic_event("review_code_signin", outcome="wrong_code")
+        raise HTTPException(status_code=400, detail="That email and code do not match.")
+
+    email = review.email
+    policy = app_access_store.effective_policy(
+        data_dir, getattr(request.app.state, "access_policy", None)
+    )
+    if policy is not None and not policy.is_allowed(email):
+        _magic_event(
+            "review_code_signin", outcome="refused_policy", email_fp=_email_fingerprint(email)
+        )
+        raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
+    if data_dir is None:
+        raise HTTPException(status_code=503, detail="Sign-in is not available.")
+
+    session, is_new = _email_session(request, data_dir, secret, email)
+    _magic_event(
+        "review_code_signin",
+        outcome="created" if is_new else "returning",
+        email_fp=_email_fingerprint(email),
+        platform=body.platform or "web",
+    )
+    headers = {"Cache-Control": "no-store"}
+    if body.platform == "native":
+        return JSONResponse({"token": session, "new": is_new}, headers=headers)
+    dest = _safe_return_to(body.return_to) or (_NEW_ACCOUNT_DEST if is_new else _RETURNING_DEST)
+    resp = JSONResponse({"dest": dest}, headers=headers)
+    _set_session_cookie(resp, request, session)
     return resp

@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 
 from podcast_scraper import __version__, read_hooks
 from podcast_scraper.extensions import load_extensions, run_app_configured, run_server_started
-from podcast_scraper.server import app_access_store, app_roles
+from podcast_scraper.server import app_access_store, app_review_signin, app_roles
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_csrf import CrossSiteWriteGuard
 from podcast_scraper.server.app_oauth import providers_from_env
@@ -113,6 +113,8 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     app.state.oauth_provider = next(iter(app.state.oauth_providers.values()), None)
     app.state.access_policy = policy_from_env()
     app.state.admin_emails = app_roles.admin_emails_from_env()
+    # The store reviewer's code sign-in; None (the route answers 404) unless both values are set.
+    app.state.review_signin = app_review_signin.review_signin_from_env()
     # Seed a fixed dev roster (1 admin / 2 creators / 2 listeners, mock identities) when
     # APP_SEED_USERS_FILE is set — so a fresh local platform has known users in the admin surface.
     seed_from_env(app.state.app_data_dir)
