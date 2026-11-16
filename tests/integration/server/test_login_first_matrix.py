@@ -38,6 +38,9 @@ _ANON_ALLOW = {
     # OAuth — so "anonymous" here means "no session yet", never "anyone may sign in".
     "/api/app/auth/email/request",
     "/api/app/auth/email/verify",
+    # The store reviewer's code sign-in (app_review_signin): creates a session, same reason. It is
+    # 404 unless configured, opens one configured address only, and the allowlist still applies.
+    "/api/app/auth/email/code",
     "/api/app/auth/logout",
     "/api/app/auth/dev-users",
     "/api/app/auth/status",
