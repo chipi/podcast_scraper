@@ -1,14 +1,33 @@
 /// <reference types="vitest/config" />
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 const viewerBuildTimestamp = new Date().toISOString()
+
+// The git branch this build runs from: dev Sentry events carry it as `worktree` (the dev telemetry
+// contract). PODCAST_WORKTREE wins (a container without .git); '' when neither is known.
+function gitWorktree(): string {
+  const explicit = (process.env.PODCAST_WORKTREE || '').trim()
+  if (explicit) return explicit
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim()
+    return branch === 'HEAD' ? '' : branch
+  } catch {
+    return ''
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
   define: {
     __VIEWER_BUILD_TIMESTAMP__: JSON.stringify(viewerBuildTimestamp),
+    __VIEWER_WORKTREE__: JSON.stringify(gitWorktree()),
   },
   server: {
     port: 5173,

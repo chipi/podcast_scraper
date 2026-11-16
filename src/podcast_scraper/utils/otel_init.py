@@ -97,6 +97,15 @@ def _instrument_logging() -> None:
         _LOGGER.debug("otel log correlation skipped", exc_info=True)
 
 
+def _resource_attributes() -> dict[str, str]:
+    """Attributes added to the env's resource: dev traces carry the git branch as ``worktree``
+    (the dev telemetry contract); prod traces never do."""
+    from podcast_scraper.obs.dev_push import dev_worktree
+
+    branch = dev_worktree()
+    return {"worktree": branch} if branch else {}
+
+
 def init_otel(default_service_name: str = "podcast-pipeline") -> bool:
     """Initialise OTLP tracing if the env asks for it. Returns True when activated, else False.
 
@@ -137,7 +146,7 @@ def init_otel(default_service_name: str = "podcast-pipeline") -> bool:
         return False
 
     try:
-        provider = TracerProvider(resource=Resource.create())
+        provider = TracerProvider(resource=Resource.create(_resource_attributes()))
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
         trace.set_tracer_provider(provider)
         _instrument_http()

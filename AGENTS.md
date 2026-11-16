@@ -26,6 +26,13 @@ Detail manuals (load on demand by any agent):
 `docs/wip/changes/TEMPLATE.md`, steps 1 to 5 done before any code
 (`docs/guides/CORPUS_CHANGE_METHOD.md`). A hook, the pre-commit hook and CI refuse it otherwise.
 
+**Dev observability is part of the dev cycle, apart from prod's.** Before opening a PR, read your
+branch's own errors, logs and traces with the `o11y-dev` skill, run inside the worktree. Dev
+telemetry carries environment=dev and `worktree` (the git branch: `PODCAST_WORKTREE`, else the
+checkout's branch) and goes to the `-dev` GlitchTip projects; dev never sends to a prod DSN or
+target. Dev errors are never filed as GitHub issues, and dev agents only read GlitchTip, never
+resolve. Production questions use `o11y-prod` and the notes below.
+
 ---
 
 ## Deployment topology — GROUND TRUTH, never re-derived from config files

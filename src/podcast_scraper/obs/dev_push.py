@@ -24,10 +24,12 @@ swallowed — telemetry must never break the app.
 from __future__ import annotations
 
 import atexit
+import functools
 import json
 import logging
 import os
 import queue
+import subprocess
 import threading
 import urllib.request
 from typing import Any, Optional
@@ -56,13 +58,51 @@ def _instance() -> str:
     return f"{worktree}-{port}" if port else worktree
 
 
+def environment() -> str:
+    """``PODCAST_ENV``, ``dev`` when unset (the same default Sentry uses)."""
+    return os.environ.get("PODCAST_ENV", "dev").strip() or "dev"
+
+
+@functools.lru_cache(maxsize=1)
+def worktree() -> Optional[str]:
+    """The git branch this process runs from: the dev telemetry contract's ``worktree`` label.
+
+    ``PODCAST_WORKTREE`` wins (a container without ``.git`` sets it); else the current branch of
+    the checkout the process runs in; None when neither is known (no git, a detached HEAD).
+    """
+    explicit = os.environ.get("PODCAST_WORKTREE", "").strip()
+    if explicit:
+        return explicit
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    branch = out.stdout.strip()
+    return branch if out.returncode == 0 and branch and branch != "HEAD" else None
+
+
+def dev_worktree() -> Optional[str]:
+    """:func:`worktree` for a dev process, None otherwise: only dev telemetry carries the branch."""
+    return worktree() if environment() == "dev" else None
+
+
 def obs_labels() -> dict[str, str]:
-    """Common OTLP resource labels (service / environment / instance) for dev pushes."""
-    return {
+    """Common OTLP resource labels (service / environment / instance / worktree) for dev pushes."""
+    labels = {
         "service": (os.environ.get("OTEL_SERVICE_NAME", "").strip() or "podcast-pipeline"),
-        "environment": (os.environ.get("PODCAST_ENV", "dev").strip() or "dev"),
+        "environment": environment(),
         "instance": _instance(),
     }
+    branch = dev_worktree()
+    if branch:
+        labels["worktree"] = branch
+    return labels
 
 
 def _post(url: str, body: bytes, content_type: str, timeout: float = 3.0) -> None:
@@ -91,7 +131,7 @@ def _logs_endpoint() -> str:
     # VictoriaLogs jsonline: label fields become the stream; ts/event_type map the envelope.
     q = urlencode(
         {
-            "_stream_fields": "service,environment,instance",
+            "_stream_fields": "service,environment,instance,worktree",
             "_time_field": "ts",
             "_msg_field": "event_type",
         }
@@ -176,7 +216,7 @@ def _metrics_endpoint() -> str:
     base = os.environ[_METRICS_URL_ENV].strip()
     labels = obs_labels()
     # VM import/prometheus injects extra labels into every pushed series via query params.
-    q = "&".join(f"extra_label={k}={v}" for k, v in labels.items())
+    q = urlencode([("extra_label", f"{k}={v}") for k, v in labels.items()])
     return f"{base}{'&' if '?' in base else '?'}{q}"
 
 
