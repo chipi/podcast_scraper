@@ -112,6 +112,9 @@ def baseline_and_mixed(
 
     _podcast, mixed = corpora
     baseline = mixed.parent / "baseline"
+    # A rerun reuses the module's corpora; without this its setup failed on the earlier attempt's
+    # copy (FileExistsError) and hid that attempt's own error (CI run 43949561223).
+    shutil.rmtree(baseline, ignore_errors=True)
     shutil.copytree(mixed, baseline, dirs_exist_ok=False)
     shutil.rmtree(baseline / "sources")
     with pytest.MonkeyPatch.context() as mp:
