@@ -91,10 +91,6 @@ Practical guides for using and developing Podcast Scraper.
 | [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md) | Operator and developer reference for transcription, speaker attribution, API audio chunking and commercial/sponsor cleaning (Audio Wave 1 and Wave 2) |
 | [Enrichment Layer Guide](ENRICHMENT_LAYER_GUIDE.md) | Operator/developer reference for the enrichment layer (RFC-088): typed, opt-in enrichers on top of GIL / KG / bridge |
 | [Graph Visualization Guide](GRAPH_VISUALIZATION_GUIDE.md) | Every visual rule and business decision of the gi-kg-viewer graph canvas, with the code path where it lives |
-| [Naming ladder](NAMING_LADDER.md) | The naming rungs, the decision trace, and how to reconstruct any episode's speaker names |
-| [Naming ladder — known issues](NAMING_KNOWN_ISSUES.md) | Known issues and limits of the naming ladder |
-| [Naming gate runbook](NAMING_GATE_RUNBOOK.md) | Labelled speaker sets and how every naming change is judged |
-| [Speaker attribution trace](SPEAKER_ATTRIBUTION_TRACE_GUIDE.md) | How a name becomes a role, and how to debug it |
 
 ## Evaluation and baselines
 
