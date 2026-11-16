@@ -115,14 +115,17 @@ def test_it_opens_the_same_account_as_the_emailed_link(tmp_path: Path) -> None:
     """One account per address, whichever door: the code must not create a second one."""
     client, _ = _client(tmp_path)
     via_code = client.post(_URL, json={"email": _REVIEW, "code": _CODE, "platform": "native"})
-    user_id = app_sessions.verify(via_code.json()["token"], _SECRET)["user_id"]
+    code_payload = app_sessions.verify(via_code.json()["token"], _SECRET)
+    assert code_payload is not None
 
     from podcast_scraper.server import app_magic_link
 
     token, _ = app_magic_link.issue(_REVIEW, _SECRET)
     via_link = client.get(f"/api/app/auth/email/verify?token={token}&platform=native")
     link_session = via_link.headers["location"].split("token=", 1)[1].split("&", 1)[0]
-    assert app_sessions.verify(link_session, _SECRET)["user_id"] == user_id
+    link_payload = app_sessions.verify(link_session, _SECRET)
+    assert link_payload is not None
+    assert link_payload["user_id"] == code_payload["user_id"]
 
 
 @pytest.mark.parametrize(
