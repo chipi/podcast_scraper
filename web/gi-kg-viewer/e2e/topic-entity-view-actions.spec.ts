@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   liveCorpusRoot,
+  liveKgTopic,
   mainViewsNav,
   mockSignIn,
   SHELL_HEADING_RE,
@@ -24,12 +25,7 @@ async function openTopicRailOnDigest(page: Page): Promise<Topic> {
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
   await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
   await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 30_000 })
-  const leaders = (await (await page.request.get('/api/topics/perspective-leaders?limit=20')).json()) as {
-    topics: { topic_id: string; topic_label: string }[]
-  }
-  const row = leaders.topics.find((t) => t.topic_label?.trim())
-  expect(row, 'expected the corpus to expose at least one labelled topic').toBeTruthy()
-  const topic: Topic = { topic_id: row!.topic_id, label: row!.topic_label }
+  const topic: Topic = await liveKgTopic(page)
   await page.evaluate((id) => {
     const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
       .__GIKG_SUBJECT__

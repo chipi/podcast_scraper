@@ -271,25 +271,6 @@ _SIBLING_IMPORTS = [
 ]
 
 
-@pytest.mark.parametrize(
-    "builder",
-    ["build_megabundle_prompt", "build_extraction_bundle_prompt"],
-)
-def test_megabundle_builders_relocate_transcript_when_enabled(builder: str) -> None:
-    """The mega-bundle builders truncate the transcript internally, so they relocate it themselves
-    (the provider can't match the truncated string). Flag on -> transcript-first; off -> legacy."""
-    import podcast_scraper.prompting.megabundle as mb
-
-    fn = getattr(mb, builder)
-    long_transcript = ("HOST: durable software for small teams. " * 100).strip()
-    sys_on, user_on = fn(long_transcript, cache_transcript_prefix=True)
-    assert sys_on.startswith(_TRANSCRIPT_BLOCK_HEADER)
-    assert long_transcript not in user_on  # moved out of the user prompt
-    sys_off, user_off = fn(long_transcript, cache_transcript_prefix=False)
-    assert not sys_off.startswith(_TRANSCRIPT_BLOCK_HEADER)
-    assert long_transcript in user_off  # legacy keeps it in the user prompt
-
-
 @pytest.mark.parametrize("module_path, class_name", _SIBLING_IMPORTS)
 def test_every_autocache_sibling_inherits_the_base_layout(
     module_path: str, class_name: str
@@ -311,78 +292,6 @@ def test_every_autocache_sibling_inherits_the_base_layout(
 
 def _first_messages(client: Mock) -> list:
     return list(client.chat.completions.create.call_args_list[0].kwargs["messages"])
-
-
-def test_summary_gi_kg_share_one_transcript_block() -> None:
-    """The three stages must lead with a BYTE-IDENTICAL transcript block so the provider caches the
-    transcript once and stages 2-3 read it. Uses a realistic transcript with a trailing newline —
-    summary embeds it raw, GI/KG pre-strip it — proving normalisation keeps the block stable."""
-    raw = TRANSCRIPT + "\n"  # real cleaned transcripts carry a trailing newline
-    prefix = _cacheable_transcript_prefix(raw.strip())
-    p = _provider(cache=True)
-    p._summarization_initialized = True
-
-    def run(kind: str) -> str:
-        client = Mock()
-        resp = Mock()
-        resp.choices = [Mock()]
-        # content that each parser tolerates without throwing before the captured call
-        resp.choices[0].message.content = (
-            '{"topics": [], "entities": []}' if kind == "kg" else "insight one\ninsight two"
-        )
-        resp.choices[0].finish_reason = "stop"
-        resp.usage = Mock(prompt_tokens=100, completion_tokens=20)
-        resp.usage.prompt_tokens_details = Mock(cached_tokens=0)
-        resp.model = "gpt-4o-mini"
-        resp.id = "r"
-        client.chat.completions.create.return_value = resp
-        p.client = client
-        if kind == "summary":
-            p.summarize(text=raw, episode_title="Ep")
-        elif kind == "gi":
-            p.generate_insights(text=raw, episode_title="Ep", max_insights=3)
-        else:
-            p.extract_kg_graph(text=raw, episode_title="Ep")
-        return str(_first_messages(client)[0]["content"])
-
-    summary_sys, gi_sys, kg_sys = run("summary"), run("gi"), run("kg")
-    for name, sysmsg in [("summary", summary_sys), ("gi", gi_sys), ("kg", kg_sys)]:
-        assert sysmsg.startswith(prefix), f"{name} stage did not lead with the transcript block"
-    # The shared cache prefix must be byte-identical across the three stages.
-    assert summary_sys[: len(prefix)] == gi_sys[: len(prefix)] == kg_sys[: len(prefix)]
-
-
-def test_quote_stages_are_transcript_first() -> None:
-    """The grounding quote stages (single + bundled) must also lead with the transcript block, so
-    the prod quote path (gil_evidence_quote_mode: bundled) joins the shared cross-stage cache."""
-    p = _provider(cache=True)
-    p._summarization_initialized = True
-    prefix = _cacheable_transcript_prefix(TRANSCRIPT)
-
-    def messages_for(kind: str) -> list:
-        client = Mock()
-        resp = Mock()
-        resp.choices = [Mock()]
-        resp.choices[0].message.content = (
-            '{"0": ["a quote"]}' if kind == "bundled" else '{"quotes": []}'
-        )
-        resp.choices[0].finish_reason = "stop"
-        resp.usage = Mock(prompt_tokens=100, completion_tokens=20)
-        resp.usage.prompt_tokens_details = Mock(cached_tokens=0)
-        resp.model = "gpt-4o-mini"
-        resp.id = "r"
-        client.chat.completions.create.return_value = resp
-        p.client = client
-        if kind == "bundled":
-            p.extract_quotes_bundled(TRANSCRIPT, ["insight one"])
-        else:
-            p.extract_quotes(TRANSCRIPT, "insight one")
-        return _first_messages(client)
-
-    for kind in ("single", "bundled"):
-        msgs = messages_for(kind)
-        assert msgs[0]["content"].startswith(prefix), f"{kind} quote stage not transcript-first"
-        assert TRANSCRIPT not in msgs[1]["content"]
 
 
 def test_relocation_normalises_surrounding_whitespace() -> None:

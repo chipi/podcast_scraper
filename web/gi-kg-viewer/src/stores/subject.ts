@@ -53,7 +53,7 @@ export const useSubjectStore = defineStore('subject', () => {
   const personId = ref<string | null>(null)
   /**
    * #1049 — Topic drill-in for the Position Tracker tab on Person Landing
-   * (PRD-028 / RFC-072 §5A `position_arc`). When non-null AND `kind` is
+   * (`position_arc`). When non-null AND `kind` is
    * `'person'`, the Position Tracker panel renders insights for the pair
    * (``personId``, ``positionTrackerTopicId``) ordered by publish_date +
    * position_hint. Cleared whenever ``focusPerson`` switches to a different

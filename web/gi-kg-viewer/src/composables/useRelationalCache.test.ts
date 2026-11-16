@@ -199,6 +199,46 @@ describe('useRelationalCache (#1075 chunk 4)', () => {
     expect(getRelationalCacheStats().evictions).toBe(1)
   })
 
+  it('two callers for the same key while it loads share one request', async () => {
+    let resolve!: (v: unknown) => void
+    vi.mocked(rawFetchPersonProfile).mockReturnValueOnce(
+      new Promise((r) => {
+        resolve = r
+      }) as never,
+    )
+    const a = cachedFetchPersonProfile('/c', 'person:a')
+    const b = cachedFetchPersonProfile('/c', 'person:a')
+    resolve({ subject: 'person:a' })
+    expect(await a).toEqual({ subject: 'person:a' })
+    expect(await b).toEqual({ subject: 'person:a' })
+    expect(rawFetchPersonProfile).toHaveBeenCalledTimes(1)
+    // ...and the shared result is cached for the next caller.
+    await cachedFetchPersonProfile('/c', 'person:a')
+    expect(rawFetchPersonProfile).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed request is not cached, and the next caller asks again', async () => {
+    vi.mocked(rawFetchPositions).mockRejectedValueOnce(new Error('down'))
+    await expect(cachedFetchPositions('/c', 'person:a')).rejects.toThrow('down')
+    vi.mocked(rawFetchPositions).mockResolvedValueOnce({ subject: 'person:a', results: [] } as never)
+    await expect(cachedFetchPositions('/c', 'person:a')).resolves.toEqual({ subject: 'person:a', results: [] })
+    expect(rawFetchPositions).toHaveBeenCalledTimes(2)
+  })
+
+  it('invalidating while a request loads does not cache its late answer', async () => {
+    let resolve!: (v: unknown) => void
+    vi.mocked(rawFetchPersonProfile).mockReturnValueOnce(
+      new Promise((r) => {
+        resolve = r
+      }) as never,
+    )
+    const stale = cachedFetchPersonProfile('/c', 'person:a')
+    invalidateRelationalCache()
+    resolve({ subject: 'old' })
+    await stale
+    expect(_cacheSizeForTest()).toBe(0)
+  })
+
   it('separate fetch fns are cached independently', async () => {
     vi.mocked(rawFetchPersonTopics).mockResolvedValue({ subject: 'x', results: [] })
     vi.mocked(rawFetchCoSpeakers).mockResolvedValue({ subject: 'x', results: [] })

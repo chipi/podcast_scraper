@@ -125,4 +125,6 @@ def test_all_deterministic_register_in_correct_scope() -> None:
         for eid in ALL_DETERMINISTIC_ENRICHER_IDS
         if registry.get(eid).manifest.scope is EnricherScope.EPISODE
     }
-    assert episode_ids == {"insight_density", "insight_sentiment"}
+    # Public's one deterministic enricher is corpus-scope; the episode-scope ones are the
+    # extension's (insight density and sentiment), pinned in its copy of this test.
+    assert episode_ids == set()

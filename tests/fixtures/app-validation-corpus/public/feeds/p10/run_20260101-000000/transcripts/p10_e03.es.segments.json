@@ -1,0 +1,296 @@
+[
+  {
+    "end": 11.06,
+    "id": 0,
+    "start": 0.0,
+    "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de mecánica de transmisión, y me acompaña Diego Ferrer, mecánico en Spoke & Wrench. Diego Ferrer, gracias por estar aquí."
+  },
+  {
+    "end": 14.832,
+    "id": 1,
+    "start": 11.06,
+    "text": "Gracias, Lucía. Contento de estar de vuelta."
+  },
+  {
+    "end": 22.685,
+    "id": 2,
+    "start": 14.832,
+    "text": "El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Prueba notion.com hoy."
+  },
+  {
+    "end": 31.498,
+    "id": 3,
+    "start": 22.685,
+    "text": "Antes de entrar en materia — Marta Solís estuvo en el episodio anterior contando que la presión de los neumáticos importa más que los ajustes de suspensión."
+  },
+  {
+    "end": 35.388,
+    "id": 4,
+    "start": 31.498,
+    "text": "Sí, exacto. Y se conecta con lo que vamos a cubrir hoy."
+  },
+  {
+    "end": 40.398,
+    "id": 5,
+    "start": 35.388,
+    "text": "Quiero señalar algo — Marta Solís mencionó esta misma dinámica hace un par de episodios."
+  },
+  {
+    "end": 45.693,
+    "id": 6,
+    "start": 40.398,
+    "text": "Quiero señalar algo — Javier Benavides mencionó esta misma dinámica hace un par de episodios."
+  },
+  {
+    "end": 50.646,
+    "id": 7,
+    "start": 45.693,
+    "text": "Quiero profundizar en eso. ¿Qué es algo que solías creer sobre esto y que has revisado?"
+  },
+  {
+    "end": 69.081,
+    "id": 8,
+    "start": 50.646,
+    "text": "Se reduce a esto: la mayoría de los crujidos misteriosos se resuelven limpiando las superficies de contacto y volviendo a apretar al par especificado. Lo hemos visto en equipos que usan Spoke & Wrench. El marco importa porque te dice qué concesiones estás haciendo."
+  },
+  {
+    "end": 74.034,
+    "id": 9,
+    "start": 69.081,
+    "text": "Ese es un marco útil. ¿Dónde se cruzan el mantenimiento y la mecánica de transmisión?"
+  },
+  {
+    "end": 86.108,
+    "id": 10,
+    "start": 74.034,
+    "text": "Así lo veo yo. Una bici debería sentirse silenciosa y predecible para que tu atención se quede en el sendero. Y el efecto de segundo orden es la parte que casi todos pasan por alto."
+  },
+  {
+    "end": 91.695,
+    "id": 11,
+    "start": 86.108,
+    "text": "Quiero profundizar en eso. ¿Cuál es el ángulo estructural al que la mayoría de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 107.323,
+    "id": 12,
+    "start": 91.695,
+    "text": "Claro. El desgaste de la cadena es el mejor indicador adelantado de cuándo vas a tener que cambiar el casete. Lo hemos visto en equipos que usan Spoke & Wrench. El marco importa porque te dice qué concesiones estás haciendo."
+  },
+  {
+    "end": 108.672,
+    "id": 13,
+    "start": 107.323,
+    "text": "Cuéntame más sobre eso."
+  },
+  {
+    "end": 117.811,
+    "id": 14,
+    "start": 108.672,
+    "text": "Spoke & Wrench es una de las plataformas donde esto se ve con claridad. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 122.213,
+    "id": 15,
+    "start": 117.811,
+    "text": "Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?"
+  },
+  {
+    "end": 133.603,
+    "id": 16,
+    "start": 122.213,
+    "text": "Claro. Los intervalos de servicio de la suspensión son una decisión de gestión del riesgo. Si ignoras eso, acabas reconstruyéndolo desde cero un año después."
+  },
+  {
+    "end": 145.727,
+    "id": 17,
+    "start": 133.603,
+    "text": "¿Sabes qué? Lo digo sin más: Linear lleva toda mi operación de ingeniería. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Usa el enlace en las notas del episodio."
+  },
+  {
+    "end": 149.346,
+    "id": 18,
+    "start": 145.727,
+    "text": "Volvemos enseguida, después de una breve pausa publicitaria."
+  },
+  {
+    "end": 168.376,
+    "id": 19,
+    "start": 149.346,
+    "text": "El episodio de hoy cuenta con el patrocinio de Stripe. Stripe simplifica los pagos, ya sea que gestiones un marketplace o un negocio de suscripciones. Visita stripe.com/podcast para una prueba gratuita."
+  },
+  {
+    "end": 170.323,
+    "id": 20,
+    "start": 168.376,
+    "text": "Bienvenidos de nuevo al programa."
+  },
+  {
+    "end": 175.338,
+    "id": 21,
+    "start": 170.323,
+    "text": "Ese es un marco útil. ¿Dónde se cruzan el mantenimiento y la mecánica de transmisión?"
+  },
+  {
+    "end": 192.559,
+    "id": 22,
+    "start": 175.338,
+    "text": "Así lo veo yo. La mayoría de los crujidos misteriosos se resuelven limpiando las superficies de contacto y volviendo a apretar al par especificado. Lo hemos visto en equipos que usan Shimano. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 197.252,
+    "id": 23,
+    "start": 192.559,
+    "text": "Cuéntame un ejemplo concreto. ¿Qué es algo que solías creer sobre esto y que has revisado?"
+  },
+  {
+    "end": 210.668,
+    "id": 24,
+    "start": 197.252,
+    "text": "Sí, mira — una bici debería sentirse silenciosa y predecible para que tu atención se quede en el sendero. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles."
+  },
+  {
+    "end": 214.843,
+    "id": 25,
+    "start": 210.668,
+    "text": "Empecemos por ahí. ¿Qué es algo que solías creer sobre esto y que has revisado?"
+  },
+  {
+    "end": 231.783,
+    "id": 26,
+    "start": 214.843,
+    "text": "Así lo veo yo. El desgaste de la cadena es el mejor indicador adelantado de cuándo vas a tener que cambiar el casete. Lo hemos visto en equipos que usan Shimano. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles."
+  },
+  {
+    "end": 232.532,
+    "id": 27,
+    "start": 231.783,
+    "text": "Eso cuadra."
+  },
+  {
+    "end": 244.133,
+    "id": 28,
+    "start": 232.532,
+    "text": "Y cuando los equipos adoptan Spoke & Wrench en ese flujo, la concesión se vuelve visible — si ignoras eso, acabas reconstruyéndolo desde cero un año después."
+  },
+  {
+    "end": 249.341,
+    "id": 29,
+    "start": 244.133,
+    "text": "Empecemos por ahí. ¿Cuál es el ángulo operativo al que la mayoría de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 260.317,
+    "id": 30,
+    "start": 249.341,
+    "text": "Así lo veo yo. Los intervalos de servicio de la suspensión son una decisión de gestión del riesgo. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 264.29,
+    "id": 31,
+    "start": 260.317,
+    "text": "Cambiemos de tema — quiero dedicar el último tramo a la gestión del riesgo."
+  },
+  {
+    "end": 274.089,
+    "id": 32,
+    "start": 264.29,
+    "text": "Ahí es donde la conversación se pone interesante, porque las concesiones alrededor de la gestión del riesgo atraviesan todo lo que hemos cubierto."
+  },
+  {
+    "end": 279.489,
+    "id": 33,
+    "start": 274.089,
+    "text": "Cuéntame un ejemplo concreto. ¿Cuál es el aspecto más subestimado de la mecánica de transmisión?"
+  },
+  {
+    "end": 296.731,
+    "id": 34,
+    "start": 279.489,
+    "text": "Claro. La mayoría de los crujidos misteriosos se resuelven limpiando las superficies de contacto y volviendo a apretar al par especificado. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 302.02,
+    "id": 35,
+    "start": 296.731,
+    "text": "Ese es un marco útil. ¿Cuál es el ángulo contrario al que la mayoría de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 314.389,
+    "id": 36,
+    "start": 302.02,
+    "text": "Se reduce a esto: una bici debería sentirse silenciosa y predecible para que tu atención se quede en el sendero. El marco importa porque te dice qué concesiones estás haciendo."
+  },
+  {
+    "end": 319.557,
+    "id": 37,
+    "start": 314.389,
+    "text": "¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestimado de la mecánica de transmisión?"
+  },
+  {
+    "end": 334.953,
+    "id": 38,
+    "start": 319.557,
+    "text": "Sinceramente, el desgaste de la cadena es el mejor indicador adelantado de cuándo vas a tener que cambiar el casete. Lo hemos visto en equipos que usan Shimano. He visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 336.713,
+    "id": 39,
+    "start": 334.953,
+    "text": "¿Dónde deja de funcionar eso?"
+  },
+  {
+    "end": 346.776,
+    "id": 40,
+    "start": 336.713,
+    "text": "Y cuando los equipos adoptan Shimano en ese flujo, la concesión se vuelve visible — he visto este patrón repetirse en tres equipos distintos."
+  },
+  {
+    "end": 352.723,
+    "id": 41,
+    "start": 346.776,
+    "text": "¿Cuál es la heurística a la que siempre vuelves? ¿Dónde se cruzan el mantenimiento y la mecánica de transmisión?"
+  },
+  {
+    "end": 364.16,
+    "id": 42,
+    "start": 352.723,
+    "text": "Sinceramente, los intervalos de servicio de la suspensión son una decisión de gestión del riesgo. Y el efecto de segundo orden es la parte que casi todos pasan por alto."
+  },
+  {
+    "end": 368.3,
+    "id": 43,
+    "start": 364.16,
+    "text": "Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?"
+  },
+  {
+    "end": 374.849,
+    "id": 44,
+    "start": 368.3,
+    "text": "Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración."
+  },
+  {
+    "end": 383.617,
+    "id": 45,
+    "start": 374.849,
+    "text": "Antes de cerrar, gracias de nuevo a nuestros amigos de Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado."
+  },
+  {
+    "end": 386.105,
+    "id": 46,
+    "start": 383.617,
+    "text": "Diego Ferrer, gracias por la conversación."
+  },
+  {
+    "end": 387.745,
+    "id": 47,
+    "start": 386.105,
+    "text": "Gracias, Lucía."
+  },
+  {
+    "end": 392.314,
+    "id": 48,
+    "start": 387.745,
+    "text": "Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima."
+  }
+]

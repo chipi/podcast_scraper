@@ -24,7 +24,7 @@ describe('graphNodeLegendLabel', () => {
 describe('graphNodeFill', () => {
   it('returns correct fill for known types', () => {
     expect(graphNodeFill('Episode')).toBe(graphNodeTypeStyles.Episode.background)
-    expect(graphNodeFill('Insight')).toBe(graphNodeTypeStyles.Insight.background)
+    expect(graphNodeFill('Topic')).toBe(graphNodeTypeStyles.Topic.background)
   })
 
   it('falls back to Entity_person for bare Entity', () => {

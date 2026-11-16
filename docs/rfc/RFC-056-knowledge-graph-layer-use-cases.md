@@ -1,9 +1,8 @@
 # RFC-056: Knowledge Graph Layer – Use Cases & End-to-End Consumption
 
 - **Status**: Completed — single-layer consumption patterns retained; cross-layer use
-  cases (opinion tracking, guest intelligence, controversy detection) moved to
-  [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md)
-- **v2 closure (RFC-097, 2026-06-20)**: cross-layer use cases (now owned by RFC-072) get shipped surfaces via RFC-097 chunk 8. NL query translation + KG semantic dedup remain v3. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
+  cases (opinion tracking, guest intelligence, controversy detection) moved out of this RFC
+- **v2 closure (RFC-097, 2026-06-20)**: cross-layer use cases (now owned by the cross-layer identity layer) get shipped surfaces via RFC-097 chunk 8. NL query translation + KG semantic dedup remain v3. See [RFC-097](RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers, integrators
 - **Execution Timing**: **Parallel with RFC-055 implementation** — Consumption patterns,
@@ -27,8 +26,6 @@
 
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout and run scoping)
 
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
-    (cross-layer use cases — Position Tracker, Person Profile)
 - **Related Documents**:
   - `docs/architecture/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
   - `docs/architecture/kg/kg.schema.json` — Normative JSON Schema (v1 frozen, #464)
@@ -42,7 +39,7 @@ this RFC specifies **how** operators and developers **consume** that data: explo
 patterns, export and merge strategies, optional database-backed queries, and the **`kg`**
 CLI surface (aligned with PRD-019).
 
-**Relationship to GIL (RFC-050):** GIL optimizes for **insights + verbatim evidence**
+**Relationship to GIL:** GIL optimizes for **insights + verbatim evidence**
 (trust and navigation). KG optimizes for **entities, topics, and typed relationships**
 (linking and discovery). Consumption shapes differ: GIL responses center on
 `insights[]` and `supporting_quotes[]`; KG responses center on **graph traversals**
@@ -236,5 +233,4 @@ symmetry with `gi/`).
 
 - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
 - [RFC-055: KG Core Concepts & Data Model](RFC-055-knowledge-graph-layer-core.md)
-- [RFC-050: GIL Use Cases](RFC-050-grounded-insight-layer-use-cases.md) (analogous split)
 - [PRD-018: Database Projection](../prd/PRD-018-database-projection-gil-kg.md)

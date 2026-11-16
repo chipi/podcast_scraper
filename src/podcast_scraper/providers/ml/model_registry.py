@@ -1473,7 +1473,7 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 # its option entry here is gone. The (max_topics, max_entities) = (10, 15)
 # tuple is the universal default across every YAML — these are caps, not
 # sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
-# thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
+# thresholds 0.65 / 0.70 baked into entity clustering ARE measured
 # (see #853 report).
 
 # GROUNDING — who finds the quote that backs an insight.
@@ -1655,7 +1655,7 @@ _NER_OPTIONS: Dict[str, StageOption] = {
 # 0.85}. The current default of 0.75 is Pareto-optimal: max cross-feed
 # parent clusters (4) at the lowest tc:* total (6). No Config field exposes
 # this knob today — the threshold is a function-default in
-# the topic and insight clustering modules (``insight_stage/insight_clusters.py``). The
+# the topic and insight clustering modules. The
 # registry entry is documentation/provenance until a config surface lands;
 # ``resolve_profile_to_settings`` does NOT yet plumb a clustering field
 # into runtime settings.
@@ -1670,9 +1670,8 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
         # 0.75 treated them as one knob — the same eval this option supersedes — so carrying the
         # topic result across to insights would be inheriting the very reasoning being retired.
         extra_settings={"threshold": 0.70, "insight_threshold": 0.75},
-        research_ref="docs/rfc/RFC-075-corpus-topic-clustering.md",
         headline_metric=(
-            "0.70 on the REAL corpus, measured twice independently: RFC-075's production sweep "
+            "0.70 on the REAL corpus, measured twice independently: the production sweep "
             "(1,178 topics, 2026-04) and a ~9.5k-topic sweep on 1,066 episodes (2026-09-02). "
             "0.75 -> 0.70 roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode "
             "merges stay a minority; below 0.70 the good-per-bad ratio decays (1.70 -> 1.19 by "

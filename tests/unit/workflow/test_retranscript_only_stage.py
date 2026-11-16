@@ -16,7 +16,6 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.speaker_stage import reprocess
 from podcast_scraper.workflow import episode_processor as ep
 
 VTT_WITH_VOICES = """WEBVTT
@@ -74,77 +73,8 @@ class TestTheStageIsReachableAtAll:
         assert out == (True, "p", 1)
 
 
-class TestItRepairsWhatItIsFor:
-    def test_a_vtt_with_voice_spans_is_written_back_with_its_speakers(self, tmp_path, monkeypatch):
-        job, txt = _job(tmp_path, [{"url": "https://ex.com/t.vtt", "type": "text/vtt"}])
-        monkeypatch.setattr(
-            ep, "_fetch_transcript_content", lambda u, c: (VTT_WITH_VOICES.encode(), "text/vtt")
-        )
-        relabelled = {}
-        monkeypatch.setattr(
-            reprocess,
-            "_relabel_existing_transcript",
-            lambda *a, **k: (relabelled.update(yes=True), (True, "rel", 2))[1],
-        )
-        out = ep._refetch_and_reparse_transcript(
-            job, SimpleNamespace(), None, str(tmp_path), None, None
-        )
-        assert out == (True, "rel", 2)
-        assert relabelled == {"yes": True}, "the repair must hand off to the naming path"
-        segs = json.loads((tmp_path / "0001 - Episode.segments.json").read_text(encoding="utf-8"))
-        # THE POINT: two named speakers where the stored file had none.
-        assert {s.get("speaker") for s in segs} == {"Joe Wiesenthal", "Tracy Alloway"}
-        assert "Odd Lots" in txt.read_text(encoding="utf-8")
-
-    def test_the_format_is_chosen_by_RESULT_not_by_its_declared_type(self, tmp_path, monkeypatch):
-        """A feed offers several formats and only some carry speakers.
-
-        Odd Lots publishes srt, text/plain and vtt; In Moscow's Shadows publishes json, srt, html
-        and vtt. Guessing from the MIME type picks wrong. Parsing each candidate and keeping the
-        first that yields two or more distinct speakers cannot.
-        """
-        job, _txt = _job(
-            tmp_path,
-            [
-                {"url": "https://ex.com/a.vtt", "type": "text/vtt"},
-                {"url": "https://ex.com/b.vtt", "type": "text/vtt"},
-            ],
-        )
-        bodies = {
-            "https://ex.com/a.vtt": VTT_WITHOUT_VOICES,
-            "https://ex.com/b.vtt": VTT_WITH_VOICES,
-        }
-        monkeypatch.setattr(
-            ep, "_fetch_transcript_content", lambda u, c: (bodies[u].encode(), "text/vtt")
-        )
-        monkeypatch.setattr(
-            reprocess, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 2)
-        )
-        ep._refetch_and_reparse_transcript(job, SimpleNamespace(), None, str(tmp_path), None, None)
-        segs = json.loads((tmp_path / "0001 - Episode.segments.json").read_text(encoding="utf-8"))
-        assert {s.get("speaker") for s in segs} == {"Joe Wiesenthal", "Tracy Alloway"}
-
-
 class TestItRefusesRatherThanPretending:
     """A no-op that looks like success is worse than a refusal, because the operator moves on."""
-
-    def test_a_still_speakerless_transcript_does_not_overwrite_the_stored_one(
-        self, tmp_path, monkeypatch
-    ):
-        job, txt = _job(tmp_path, [{"url": "https://ex.com/t.vtt", "type": "text/vtt"}])
-        monkeypatch.setattr(
-            ep, "_fetch_transcript_content", lambda u, c: (VTT_WITHOUT_VOICES.encode(), "text/vtt")
-        )
-        monkeypatch.setattr(
-            reprocess,
-            "_relabel_existing_transcript",
-            lambda *a, **k: pytest.fail("must not relabel an unrepaired transcript"),
-        )
-        ok, path, n = ep._refetch_and_reparse_transcript(
-            job, SimpleNamespace(), None, str(tmp_path), None, None
-        )
-        assert (ok, path, n) == (False, None, 0)
-        assert txt.read_text(encoding="utf-8") == "old text\n", "the stored transcript is untouched"
 
     def test_an_episode_with_no_stored_transcript_url_is_reported_not_guessed(
         self, tmp_path, monkeypatch

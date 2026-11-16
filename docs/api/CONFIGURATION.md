@@ -6,6 +6,8 @@ The `Config` class is the central configuration model for podcast_scraper, built
 
 All runtime options flow through the `Config` model.
 
+**Settings an installed extension declares** ([ADR-182](../adr/ADR-182-extension-owned-configuration.md)) use the same flat keys in YAML, profiles and `Config(...)`, but they are the extension's: it validates and documents them, and code reads them as `cfg.extension("<name>").<key>`. This page documents public's fields only. A key that neither public nor an installed extension declares is refused at load time.
+
 **Canonical vs examples:** This **CONFIGURATION.md** document (plus [CLI.md](CLI.md) for command-line flag names) is the **authoritative** reference for fields, defaults, validation, environment-variable mapping, and operational patterns such as download resilience. Files under `config/examples/` are **non-canonical** illustrations for local copy-paste; if anything disagrees with this document, **this document wins**.
 
 **YAML preset (`profile:`):** At load time, an optional root key **`profile: <name>`** merges packaged defaults from `config/profiles/<name>.yaml` before applying other keys in the same file ([GitHub #593](https://github.com/chipi/podcast_scraper/issues/593)); resolution tries **cwd** `config/profiles/` first, then **repo** `config/profiles/` (same order as `Config._resolve_profile`). The viewer **`/api/operator-config`** **`available_profiles`** field lists preset **names** from the **union** of those directories (see [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) and [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md)). Use **`profile:`** plus thin overrides in operator YAML; keep feed URLs in corpus **`feeds.spec.yaml`** (Feeds API / CLI **`--feeds-spec`**), not in operator YAML (**PUT** rejects root feed keys).
@@ -405,7 +407,7 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Screenplay vs transcription provider (GitHub #562):** **`screenplay: true`** (or **`--screenplay`**) only changes transcript layout when **`transcription_provider`** is **`whisper`** or **`tailnet_dgx_whisper`** (local Whisper paths). For **`openai`**, **`gemini`**, **`mistral`**, or **`deepgram`** audio transcription, screenplay-style formatting is **not** implemented in this codebase: a **`mode='before'`** validator coerces truthy values (including **`1`**, **`"yes"`**, **`"on"`**, and boolean **`true`**) to **`screenplay: false`** and emits **one** INFO line while a process-wide gate is set; **`workflow.orchestration.run_pipeline`** clears that gate (and related screenplay warning gates) in **`finally`** so a later **`Config(...)`** or another pipeline run can log again. **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** (or **`true`** / **`yes`**) makes the invalid combination a **validation error** instead of coercion. In **our** OpenAI integration, **`whisper-1`** still writes **plain dialogue text** in the main transcript file even when segment metadata exists separately.
 
-**Neural diarization (RFC-058 / Audio Wave 2):** See [Speaker diarization](#speaker-diarization-rfc-058) below. **`diarize`** defaults to **`true`** for local Whisper; API providers coerce **`diarize: false`**. When diarization succeeds, screenplay uses voice-based speaker IDs instead of gap-based rotation.
+**Neural diarization (Audio Wave 2):** See [Speaker diarization](#speaker-diarization) below. **`diarize`** defaults to **`true`** for local Whisper; API providers coerce **`diarize: false`**. When diarization succeeds, screenplay uses voice-based speaker IDs instead of gap-based rotation.
 
 **Deepgram transcription (Wave 1 / #597):** Set **`transcription_provider: deepgram`**, **`deepgram_api_key`** (or **`DEEPGRAM_API_KEY`**), optional **`deepgram_model`** (default **`nova-3`**) and optional **`deepgram_api_base`** (or **`DEEPGRAM_API_BASE`**, **`--deepgram-api-base`**) to point at a self-hosted/on-prem deployment or a test mock server (default uses the hosted endpoint). Requires **`pip install -e ".[llm]"`**. Deepgram returns utterance-level speaker labels in the API response — separate from local pyannote diarization. See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
@@ -416,7 +418,7 @@ Anthropic providers support configurable model selection for dev/test vs product
 | `save_adfree_transcript` | `--save-adfree-transcript` / `--no-save-adfree-transcript` | `true` | **#974** — produce the **ad-free processing base** next to the raw `.txt`: `*.adfree.txt` (ads excised), `*.adfree.segments.json` (segments carrying exact `char_start`/`char_end`), and `*.adfree.admap.json` (excised ranges, for a future subtitle player). GI, KG, search-chunking, enrich-edges, and the viewer reader **prefer** this base so quote `char_start` lives in one saved coordinate space (fixes #545 offset drift). The raw `.txt` is left untouched as the canonical source. Disable only to save disk if not using GI/KG/search. |
 | `save_cleaned_transcript` | `--save-cleaned-transcript` / `--no-save-cleaned-transcript` | `true` | Save the **summarization-cleaned** transcript (`*.cleaned.txt`): timestamps/filler/sponsor reads removed. Separate concern from the ad-free base — it is the summarizer's input, not the GI offset base. |
 
-### Speaker diarization (RFC-058)
+### Speaker diarization
 
 Neural speaker diarization runs as an **additive second pass** after local Whisper transcription
 (`whisper` or `tailnet_dgx_whisper`). Requires **`pip install -e ".[ml]"`** and a HuggingFace token.
@@ -430,8 +432,6 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 | `diarization_max_speakers` | `--diarization-max-speakers` | `20` | Maximum speakers when auto-detecting |
 | `diarization_device` | `--diarization-device` | `auto` | `cpu`, `cuda`, or `mps` |
 | `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-community-1` | HuggingFace pipeline id (v4, gated: needs `HF_TOKEN`; 3.1 is the fallback) |
-| `diarization_clustering_threshold` | _(config only)_ | `None` | pyannote clustering-threshold override; higher merges → fewer speakers (curbs over-segmentation) |
-| `diarization_min_cluster_size` | _(config only)_ | `None` | Clusters smaller than this (≈12 default) are reassigned to the nearest speaker — drops short over-seg fragments |
 | `diarization_min_segment_ms` | _(config only)_ | `None` | Squelch: drop any speaker whose longest segment < this (ms); kills phantom micro-clusters, keeps real cameos. Per-feed overridable |
 
 When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
@@ -1058,7 +1058,7 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 
 <a id="llm-cleaning-length-guard-issue-564"></a>
 
-**LLM cleaning length guard (GitHub #564):** When `transcript_cleaning_strategy` is `llm` or the LLM stage of `hybrid`, `LLMBasedCleaner` in `src/podcast_scraper/cleaning/llm_based.py` compares the LLM output to the **pattern-cleaned** transcript (not the raw file). If the pattern-cleaned string is at least **2000** characters and the stripped LLM output length divided by that length is **strictly below 0.20** (20%), the pipeline **discards the LLM output** and keeps the pattern-cleaned text. A **warning** is logged (`LLM cleaning shortened transcript excessively (output/input length ratio=…)`). At **debug** log level, the same decision also logs input length, output length, ratio, and threshold.
+**LLM cleaning length guard (GitHub #564):** When `transcript_cleaning_strategy` is `llm` or the LLM stage of `hybrid`, `LLMBasedCleaner` (provided by an installed extension) compares the LLM output to the **pattern-cleaned** transcript (not the raw file). If the pattern-cleaned string is at least **2000** characters and the stripped LLM output length divided by that length is **strictly below 0.20** (20%), the pipeline **discards the LLM output** and keeps the pattern-cleaned text. A **warning** is logged (`LLM cleaning shortened transcript excessively (output/input length ratio=…)`). At **debug** log level, the same decision also logs input length, output length, ratio, and threshold.
 
 This guard targets model **collapse** (a short unrelated paragraph instead of a full cleaned transcript). It is a **hard cliff**: for example, ratio **0.179** is rejected and **0.20** is accepted, so dense shows that legitimately remove most boilerplate can still fall slightly below 20% and trigger fallback. Mitigations without code changes: use **`pattern`** only for those feeds, or try a different **`{provider}_cleaning_model`** / temperature. There are **no** YAML knobs for the 2000 / 0.20 constants in the current release (Path A for #564).
 
@@ -1078,7 +1078,7 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | `kg_extraction_model` | `--kg-extraction-model` | (none) | Optional model override for KG LLM calls; else summary model. |
 | `kg_merge_pipeline_entities` | `--no-kg-merge-pipeline-entities` | `true` | Merge hosts/guests after provider extraction (dedup vs existing entities by **entity_kind + name**); disable with flag. |
 
-**Shallow v1 decisions (KG):** Extraction vs ML, entity roll-up limits, CLI surface (no `kg query` IR), and Postgres deferral are summarized in [KNOWLEDGE_GRAPH_GUIDE § Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). For GIL, see [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+**Shallow v1 decisions (KG):** Extraction vs ML, entity roll-up limits, CLI surface (no `kg query` IR), and Postgres deferral are summarized in [KNOWLEDGE_GRAPH_GUIDE § Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
 
 #### Grounded Insights (GIL)
 
@@ -1086,7 +1086,7 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | --- | --- | --- | --- |
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
 | `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
-| `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
+| `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). |
 | `gi_max_insights` | `--gi-max-insights` | `50` | Max insights when using `provider` or `summary_bullets` (range `1`–`200`; hard cap not a target). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
 | `gi_fail_on_missing_grounding` | (config) | `false` | When true with `gi_require_grounding`, raise `GILGroundingUnsatisfiedError` if an episode ends with zero grounded quotes (strict CI). |
@@ -1101,13 +1101,11 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 
 **Config file and the CLI:** For `python -m podcast_scraper.cli --config <file.yaml>`, validated YAML is merged into argparse defaults, then `cli._build_config()` rebuilds `Config`. GIL tuning keys (thresholds, `gi_qa_model`, `gi_nli_model`, `gi_embedding_model`, `extractive_qa_device`, `nli_device`, window sizes, retries, `gi_require_grounding`, etc.) must be **copied in `_build_config`**; otherwise file values are dropped and model defaults apply. If you add new `Config` fields for GIL, extend that forward list in `cli.py`.
 
-`gi.json` **model_version** is not a separate config field: it is derived from `gi_insight_source` and the summarization / insight model in use (see `podcast_scraper.gi.provenance`).
+`gi.json` **model_version** is not a separate config field: it is derived from `gi_insight_source` and the summarization / insight model in use.
 
 When `summary_provider` is `transformers` or `hybrid_ml`, use **`gi_insight_source: summary_bullets`** (with bullets) or an LLM provider for real insight wording; **`stub`** is for tests/smoke only (CLI warns outside pytest when `generate_gi` + `stub`).
 
 Local entailment (`entailment_provider`: `transformers` or `hybrid_ml`) requires **`sentence-transformers`** (install **`pip install -e ".[ml]"`**). The pipeline validates this at startup when `generate_gi` and `gi_require_grounding` are true.
-
-**Shallow v1 decisions (issue #460):** ML vs `stub` vs `summary_bullets`, topic explore semantics, speaker best-effort behavior, and Postgres deferral are summarized in [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
 
 #### Grounded Insights (GIL) evidence providers
 
@@ -1119,11 +1117,11 @@ When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a config
 | `entailment_provider` | `--entailment-provider` | `transformers` | Provider for GIL entailment (NLI). Same options as quote_extraction_provider. |
 | `gil_evidence_match_summary_provider` | N/A | `true` | When `generate_gi` is true: if `summary_provider` is an API LLM or `hybrid_ml` and both evidence fields are still default `transformers`, align them to `summary_provider` so grounding matches the summary backend. Set `false` to keep local QA + NLI with API summaries. |
 
-**GIL evidence × provider (parity):** All backends in the `quote_extraction_provider` / `entailment_provider` enums implement `extract_quotes` and `score_entailment`. ML backends use local QA + NLI; LLM backends use chat-style calls. Full table: [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix).
+**GIL evidence × provider (parity):** All backends in the `quote_extraction_provider` / `entailment_provider` enums implement `extract_quotes` and `score_entailment`. ML backends use local QA + NLI; LLM backends use chat-style calls.
 
 When `summary_provider` is an API but either evidence field remains `transformers` or `hybrid_ml` (after your overrides), the CLI emits a **WARNING** at config log time about **`.[ml]`** / **sentence-transformers** so hybrid setups are visible.
 
-If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set. See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md) and RFC-049.
+If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set.
 
 <a id="live-pipeline-monitor-rfc-065-512"></a>
 
@@ -1520,6 +1518,13 @@ You can target **one** feed with `rss` (string) or **multiple** feeds with **`fe
 
 **Incident log (GitHub #557 / #558):** Optional config field **`incident_log_path`** points at **`corpus_incidents.jsonl`** (append-only JSONL: scope, category, message, feed URL, optional episode id/index). When unset, **`run_pipeline`** defaults to **`<effective_output_dir>/corpus_incidents.jsonl`**. Multi-feed **`service.run`** and the CLI set the default to **`<corpus_parent>/corpus_incidents.jsonl`** so every feed appends to one corpus-level file unless you override **`incident_log_path`** in YAML. Episode-level rows include predictable skips (oversize / payload limit after preprocessing), **preprocessing fallback** after ffmpeg failure (#558), and hard transcription errors.
 
+**Parked episodes:** **`transcription_park_after_failures`** (default **2**, **0** turns it off)
+parks an episode after that many counted transcription failures; later batches skip it before
+download until it is released with **`parked-episodes --release`**. A failure counts once per
+multi-feed batch and only when another episode in that batch transcribed, so an endpoint outage
+parks nothing. State is **`parked_episodes.json`** beside **`corpus_incidents.jsonl`**. See
+[CLI: parked episodes](CLI.md#parked-episodes-parked-episodes).
+
 **Deprecated key (file and dict validation only):** In YAML/JSON (and in dicts passed to **`Config.model_validate`**), **`multi_feed_soft_fail_exit_zero`** is still accepted and mapped to **`multi_feed_strict = not`** that boolean. Do not set both **`multi_feed_strict`** and the deprecated key. There is **no** environment variable for this flag; use YAML, JSON, or **`Config(multi_feed_strict=...)`**. **`Config(multi_feed_soft_fail_exit_zero=...)`** is **not** supported as a keyword argument because the legacy name is not a field on the model (**`extra=forbid`**).
 
 **Rules:**
@@ -1536,7 +1541,7 @@ You can target **one** feed with `rss` (string) or **multiple** feeds with **`fe
 
 **Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`**, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`**, **`gi explore --topic`**, and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
 
-**Hybrid retrieval config (RFC-090).** The hybrid search backend is configured **separately** in **`config/search.yaml`** (not the pipeline `Config` above): **`router.mode`** (`rules` | `ml`). When a two-tier LanceDB index exists at **`<corpus>/search/lance_index`**, `GET /api/search` and `podcast search` route through hybrid (BM25 + dense + RRF, compounds); when no usable index is present they report `no_index` (FAISS was retired in #995, ADR-099; there is no fallback). Build the index with **`make index-two-tier`**; derive relational edges with **`make enrich-relational-edges`**. See [Semantic Search Guide — Hybrid retrieval](../guides/SEMANTIC_SEARCH_GUIDE.md#hybrid-retrieval-rfc-090).
+**Hybrid retrieval config (RFC-090).** The hybrid search backend is configured **separately** in **`config/search.yaml`** (not the pipeline `Config` above): **`router.mode`** (`rules` | `ml`). When a two-tier LanceDB index exists at **`<corpus>/search/lance_index`**, `GET /api/search` and `podcast search` route through hybrid (BM25 + dense + RRF, compounds); when no usable index is present they report `no_index` (FAISS was retired in #995, ADR-099; there is no fallback). Build the index with **`make index-two-tier`**; derive relational edges with **`make enrich-relational-edges`**, a target of the extension's Makefile. See [Semantic Search Guide — Hybrid retrieval](../guides/SEMANTIC_SEARCH_GUIDE.md#hybrid-retrieval-rfc-090).
 
 **Interim search maintenance checkpoints:** During long runs, orchestration can trigger best-effort interim
 indexing/topic clustering before finalize. Optional fields:
@@ -1888,8 +1893,8 @@ tasks). "Y" means the field is defined on that provider.
 |`_retry_max_delay_seconds`||||Y|||||
 |`_retry_max_retries`||||Y|||||
 |`_speaker_model`|Y||Y|Y|Y|Y|Y|Y|
-|`_speaker_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
-|`_speaker_user_prompt`|Y||Y|Y|Y|Y|Y|Y|
+|`_speaker_system_prompt`|||Y|||||Y|
+|`_speaker_user_prompt`|||Y|||||Y|
 |`_summary_model`|Y||Y|Y|Y|Y|Y|Y|
 |`_summary_seed`||||||||Y|
 |`_summary_system_prompt`|Y||Y|Y|Y|Y|Y|Y|
@@ -1915,13 +1920,11 @@ Fields with numeric or length constraints enforced by pydantic (via
 |`deepseek_timeout`|ge=30|
 |`dgx_diarize_port`|ge=1, le=65535|
 |`dgx_diarize_request_timeout_sec`|gt=0|
-|`dgx_diarize_timeout_per_audio_minute_sec`|ge=0|
 |`dgx_max_attempts`|ge=1|
 |`dgx_ollama_port`|ge=1, le=65535|
 |`dgx_request_timeout_sec`|gt=0|
 |`dgx_timeout_per_audio_minute_sec`|ge=0|
 |`dgx_whisper_port`|ge=1, le=65535|
-|`diarization_min_cluster_size`|ge=1|
 |`diarization_min_segment_ms`|ge=0, le=60000|
 |`episode_retry_delay_sec`|ge=0.0, le=120.0|
 |`episode_retry_max`|ge=0, le=10|
@@ -1937,7 +1940,6 @@ Fields with numeric or length constraints enforced by pydantic (via
 |`gi_qa_window_chars`|ge=0, le=500_000|
 |`gi_qa_window_overlap_chars`|ge=0, le=100_000|
 |`gi_value_gate_min_tier`|ge=0, le=3|
-|`gil_evidence_nli_chunk_size`|ge=1, le=100|
 |`grok_timeout`|ge=30|
 |`host_max_concurrent`|ge=0, le=64|
 |`host_request_interval_ms`|ge=0, le=600_000|

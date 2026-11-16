@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import {
   giKgCoseEdgeElasticity,
@@ -15,6 +15,12 @@ import {
   RECENTER_SAFETY_TAIL_TIMINGS_MS,
   redrawDebounceMs,
 } from './cyCoseLayoutOptions'
+import { graphTypeTraits } from '../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', edgeLayout: { HAS_INSIGHT: { length: 60, elasticity: 180 }, ABOUT: { length: 80, elasticity: 200 }, SUPPORTED_BY: { length: 40, elasticity: 150 }, SPOKE_IN: { length: 100, elasticity: 120 }, MENTIONS_PERSON: { length: 150, elasticity: 60 }, MENTIONS_ORG: { length: 150, elasticity: 60 } } }))
+afterEach(() => graphTypeTraits.reset())
 
 function mockNode(type: string | undefined, parent: string | null | undefined): NodeSingular {
   return {
@@ -447,5 +453,22 @@ describe('#767-C — RECENTER_SAFETY_TAIL_TIMINGS_MS (behavior contract)', () =>
     // shape so the constant is the single source of truth for the schedule.
     expect(Array.isArray(RECENTER_SAFETY_TAIL_TIMINGS_MS)).toBe(true)
     expect(RECENTER_SAFETY_TAIL_TIMINGS_MS.length).toBeLessThanOrEqual(3)
+  })
+})
+
+describe('graphTypeTraits edge layout', () => {
+  it('lays out an extension’s edge type with its length (compact-scaled) and elasticity', async () => {
+    const { graphTypeTraits } = await import('../extensions')
+    graphTypeTraits.register({ id: 't', edgeLayout: { BACKS: { length: 70, elasticity: 140 } } })
+    try {
+      const edge = mockEdge(null, null, 'BACKS')
+      expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(70)
+      expect(giKgCoseIdealEdgeLength(edge, 'compact')).toBeLessThan(70)
+      expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(140)
+      // The viewer's own types keep their values.
+      expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS'), 'main')).toBe(150)
+    } finally {
+      graphTypeTraits.reset()
+    }
   })
 })

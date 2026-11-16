@@ -969,9 +969,20 @@ def assert_cost_fields_populated(
     row; asserting "cost == 0 on every stage" would wrongly pass on a
     regression that zeroed out the Anthropic summarization cost. Both
     invariants have to be stated explicitly.
+    Speaker detection is a stage an extension installs (E04 move). Without one installed it never
+    runs, so it is held to the local rule (no cost dropped, none charged) instead of the billable
+    one; with one installed the caller's billable list applies unchanged.
     """
     import json as _json
     from pathlib import Path as _Path
+
+    from podcast_scraper import stage_hooks
+
+    # Private on purpose: the question "does any installed owner set this hook" has no caller in
+    # the package, only here.
+    if not any(h.create_speaker_detector is not None for h in stage_hooks._all()):
+        billable_stages = [s for s in billable_stages if s != "speaker_detection"]
+        local_stages = [*local_stages, "speaker_detection"]
 
     metrics_files = list(_Path(temp_dir).rglob("metrics.json"))
     assert metrics_files, (

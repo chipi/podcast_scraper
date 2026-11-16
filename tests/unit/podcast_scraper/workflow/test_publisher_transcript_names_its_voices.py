@@ -29,14 +29,12 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List
 
 import pytest
 
 from podcast_scraper import config as config_module
 from podcast_scraper.models.entities import Episode
-from podcast_scraper.speaker_stage import native
-from podcast_scraper.transcript_formats import parse_webvtt
 from podcast_scraper.workflow import episode_processor as epx
 
 pytestmark = [pytest.mark.unit]
@@ -84,78 +82,6 @@ def _episode() -> Any:
     )
 
 
-def _roster(vtt: str, *, feed_hosts: Optional[List[str]] = None) -> Tuple[dict, List[dict]]:
-    plain, segments = parse_webvtt(vtt)
-    out = native._roster_native_segments(
-        {"text": plain, "segments": segments},
-        config_module.Config(),
-        idx=1,
-        detected_speaker_names=_DETECTED,
-        metadata_named=_DETECTED,
-        feed_hosts=_FEED_HOSTS if feed_hosts is None else feed_hosts,
-        detection_ran=True,
-    )
-    return out, list(out.get("segments") or [])
-
-
-def test_the_voice_spans_become_named_placed_voices() -> None:
-    """The names the file states must reach the segments, which is where ``content.speakers`` is
-    derived from (``metadata_generation``, #876)."""
-    out, segs = _roster(_NAMED)
-    labelled = [s for s in segs if s.get("speaker_label")]
-    assert labelled, (
-        "a transcript that names every turn produced no speaker_label at all — the voice spans "
-        "were parsed and then discarded, which is the 128-of-128 defect"
-    )
-    assert {str(s["speaker_label"]) for s in labelled} == {"Maya", "Liam"}
-    assert out.get("diarization_num_speakers") == 2
-
-
-def test_the_roles_come_from_the_roster_not_from_cue_order() -> None:
-    """A publisher transcript states WHO speaks, never who HOSTS, so roles must be resolved as
-    evidence — the guess-from-ordering bug the roster exists to replace."""
-    _, segs = _roster(_NAMED)
-    roles = {
-        str(s.get("speaker_label")): s.get("speaker_role") for s in segs if s.get("speaker_label")
-    }
-    assert roles == {"Maya": "host", "Liam": "guest"}, roles
-
-
-def test_the_publisher_names_its_voices_without_any_feed_host() -> None:
-    """THE GATE THIS REPLACED. An earlier attempt skipped the roster entirely when no feed host
-    was known, because without one the roster could only emit bare ``SPEAKER_NN`` ids — true only
-    while the publisher's names were being discarded before it ever saw them.
-
-    With the names carried through, the file alone is sufficient: identity comes from the source,
-    roles from the conversation. The skip was also never inert — it left the raw ``speaker`` on the
-    segments, where ``adfree`` promoted it and ``metadata_generation`` defaulted a role-less name
-    to host + placed, publishing the publisher's GUEST as a placed host.
-    """
-    _out, segs = _roster(_NAMED, feed_hosts=[])
-    labels = {str(s.get("speaker_label")) for s in segs if s.get("speaker_label")}
-    assert labels == {
-        "Maya",
-        "Liam",
-    }, f"the transcript names these voices; a missing feed host must not silence it: {labels}"
-
-
-def test_a_transcript_without_voice_spans_is_untouched() -> None:
-    """Gated on the DATA, so an ordinary unlabelled transcript keeps its behaviour exactly."""
-    out, segs = _roster(_UNNAMED)
-    assert not any(s.get("speaker_label") for s in segs)
-    assert not out.get("speaker_diagnostics")
-
-
-def test_it_never_invents_a_voice_the_file_did_not_name() -> None:
-    """#876: a heuristic may identify a voice, never author a name."""
-    _, segs = _roster(_NAMED)
-    stated = {s["speaker"] for s in parse_webvtt(_NAMED)[1] if s.get("speaker")}
-    for s in segs:
-        label = s.get("speaker_label")
-        if label:
-            assert str(label) in stated, f"{label!r} is a name the transcript never said"
-
-
 # --------------------------------------------------------------------------------------------
 # The wiring. These drive the real entry point; the ones above would all have passed on the
 # broken code, because the helper was never the thing that was wrong.
@@ -180,49 +106,6 @@ def test_episode_does_not_carry_the_roster_fields() -> None:
             f"Episode now has {field!r}; the download path was written on the assumption that it "
             "does not, and passes these explicitly instead"
         )
-
-
-def test_the_download_path_rosters_a_named_transcript(tmp_path, monkeypatch) -> None:
-    """END TO END through `process_transcript_download` with a real Episode.
-
-    This is the test the first attempt did not have. It would have failed on be1ed96d with
-    ``AttributeError: 'Episode' object has no attribute 'detected_speaker_names'`` instead of
-    letting CI discover it.
-    """
-    monkeypatch.setattr(
-        epx,
-        "_fetch_transcript_content",
-        lambda url, cfg: (_NAMED.encode("utf-8"), "text/vtt"),
-    )
-    cfg = config_module.Config(output_dir=str(tmp_path))
-
-    ok, rel_path, source, _ = epx.process_transcript_download(
-        _episode(),
-        "http://feed.example/t.vtt",
-        "text/vtt",
-        cfg,
-        str(tmp_path),
-        None,
-        detected_speaker_names=_DETECTED,
-        metadata_named=_DETECTED,
-        feed_hosts=_FEED_HOSTS,
-    )
-
-    assert ok and rel_path, f"the download failed outright: ok={ok} path={rel_path}"
-    assert source == "direct_download"
-
-    segments_files = list(Path(tmp_path).rglob("*.segments.json"))
-    assert segments_files, "no .segments.json was saved, so content.speakers has nothing to read"
-
-    import json
-
-    saved = json.loads(segments_files[0].read_text(encoding="utf-8"))
-    rows = saved if isinstance(saved, list) else saved.get("segments") or []
-    roles = {s.get("speaker_label"): s.get("speaker_role") for s in rows if s.get("speaker_label")}
-    assert roles == {
-        "Maya": "host",
-        "Liam": "guest",
-    }, f"the saved segments must carry the roster's names and roles, got {roles}"
 
 
 def test_the_download_path_leaves_an_unlabelled_transcript_alone(tmp_path, monkeypatch) -> None:
@@ -396,39 +279,6 @@ _ANON_TURNS = """WEBVTT
 """
 
 
-def test_anonymous_turns_are_still_written_as_a_screenplay(tmp_path, monkeypatch) -> None:
-    """A transcript that separates turns but names NOBODY keeps its turn boundaries.
-
-    `_enriched_segments` writes a `speaker_label` for every clustered voice, bare `SPEAKER_NN`
-    included, and the ASR + diarize path stores exactly the same screenplay. The markers are what
-    GI reads for quote attribution (`build_named_turns`), so keeping them is the point — an
-    earlier comment claimed this only happened when the roster named somebody, which was never
-    what the code did.
-    """
-    monkeypatch.setattr(
-        epx, "_fetch_transcript_content", lambda url, cfg: (_ANON_TURNS.encode("utf-8"), "text/vtt")
-    )
-    # NO hints: with detected names or feed hosts the roster resolves these anonymous turns to
-    # real people (that is the Odd Lots case and it is covered elsewhere). Here nobody can be
-    # named, so the labels stay bare — which is exactly the condition under test.
-    ok, rel_path, _source, _ = epx.process_transcript_download(
-        _episode(),
-        "http://feed.example/t.vtt",
-        "text/vtt",
-        config_module.Config(output_dir=str(tmp_path)),
-        str(tmp_path),
-        None,
-    )
-    assert ok and rel_path
-    stored = next(
-        p for p in Path(tmp_path).rglob("*.txt") if not any(d in p.name for d in (".adfree.",))
-    ).read_text(encoding="utf-8")
-    assert "SPEAKER_0" in stored, (
-        "anonymous turns must survive as screenplay markers; storing prose would discard the turn "
-        f"boundaries GI attributes quotes with. Got: {stored[:120]!r}"
-    )
-
-
 def test_a_transcript_with_no_turns_is_stored_byte_for_byte(tmp_path, monkeypatch) -> None:
     """The case that must NOT be reformatted. Nothing was clustered, so there is no structure to
     preserve and rewriting only mangles the text — the two-cue "Hello world" became
@@ -475,16 +325,6 @@ def test_a_single_anonymous_voice_does_not_count_as_separated_turns(tmp_path, mo
         tmp_path, monkeypatch, _ONE_ANON_VOICE, require_transcript_speakers=True
     )
     assert source == epx.TRANSCRIPT_LACKS_SPEAKERS
-
-
-def test_a_single_NAMED_voice_is_a_real_roster_and_is_kept(tmp_path, monkeypatch) -> None:
-    """A solo show whose publisher names the speaker is exactly what this feature is for —
-    In Moscow's Shadows tags every turn `<v MG>`. One named voice is a roster of one."""
-    ok, rel_path, source, _ = _download(
-        tmp_path, monkeypatch, _ONE_NAMED_VOICE, require_transcript_speakers=True
-    )
-    assert ok and rel_path
-    assert source == "direct_download"
 
 
 def test_a_plain_text_transcript_is_refused_too(tmp_path, monkeypatch) -> None:
@@ -672,93 +512,6 @@ def test_a_refused_transcript_tries_the_feeds_other_candidates_first(tmp_path, m
 # outright is indistinguishable from one where it succeeded, so the roster is told "measured" for
 # an episode nobody measured. The ASR path has read the ledger since #1647 for exactly this
 # reason; these tests pin the download path onto the same source of truth.
-
-
-def _spy_detection_ran(monkeypatch) -> dict:
-    """Capture what `_roster_native_segments` is told, without running the roster."""
-    seen: dict = {}
-
-    def _fake(result, cfg, **kwargs):
-        seen.update(kwargs)
-        return result
-
-    monkeypatch.setattr(native, "_roster_native_segments", _fake)
-    return seen
-
-
-class _Ledger:
-    """The slice of `workflow.metrics.Metrics` the download path reads."""
-
-    def __init__(self, outcome: Optional[str]) -> None:
-        self._outcome = outcome
-
-    def stage_did_run(self, stage: str, episode_idx: int) -> Optional[bool]:
-        if self._outcome is None:
-            return None
-        return self._outcome in ("ran", "degraded")
-
-
-def _download_with_metrics(tmp_path, monkeypatch, pipeline_metrics, detected):
-    monkeypatch.setattr(
-        epx, "_fetch_transcript_content", lambda url, cfg: (_NAMED.encode("utf-8"), "text/vtt")
-    )
-    seen = _spy_detection_ran(monkeypatch)
-    epx.process_episode_download(
-        _episode(),
-        config_module.Config(output_dir=str(tmp_path)),
-        None,
-        str(tmp_path),
-        None,
-        __import__("queue").Queue(),
-        None,
-        detected_speaker_names=detected,
-        metadata_named=None,
-        feed_hosts=_FEED_HOSTS,
-        pipeline_metrics=pipeline_metrics,
-    )
-    return seen
-
-
-def test_a_skipped_detection_is_reported_as_not_having_run(tmp_path, monkeypatch) -> None:
-    """THE regression, half one: ``False`` was unreachable, so a skipped stage read as "unknown"
-    at best and "ran" at worst. Detection names here to make the point sharply — the OUTPUT looks
-    like a successful detection, and the LEDGER says the stage never did any work."""
-    seen = _download_with_metrics(tmp_path, monkeypatch, _Ledger("skipped"), ["Maya"])
-    assert seen.get("detection_ran") is False, (
-        "the ledger says speaker detection was skipped, but the download path reported "
-        f"{seen.get('detection_ran')!r} — inferred from the names rather than read from the ledger"
-    )
-
-
-def test_a_ledger_that_says_it_ran_is_reported_as_having_run(tmp_path, monkeypatch) -> None:
-    """A detection that ran and named NOBODY is a measured negative, and stays one (#2075)."""
-    seen = _download_with_metrics(tmp_path, monkeypatch, _Ledger("ran"), [])
-    assert seen.get("detection_ran") is True, seen
-
-
-def test_an_empty_ledger_stays_unknown(tmp_path, monkeypatch) -> None:
-    """THE regression, half two: names present + nothing recorded used to read as ``True``. None
-    means "we genuinely do not know" and must not be upgraded to a claim the ledger never made,
-    nor flattened into False — callers use it to preserve pre-ledger behaviour (#1647)."""
-    seen = _download_with_metrics(tmp_path, monkeypatch, _Ledger(None), ["Maya"])
-    assert seen.get("detection_ran") is None, seen
-
-
-def test_no_metrics_object_at_all_is_unknown_not_false(tmp_path, monkeypatch) -> None:
-    """`pipeline_metrics` is optional on this entry point (tests, dry runs)."""
-    seen = _download_with_metrics(tmp_path, monkeypatch, None, ["Maya"])
-    assert seen.get("detection_ran") is None, seen
-
-
-def test_the_real_metrics_ledger_answers_the_same_way(tmp_path, monkeypatch) -> None:
-    """Not a hand-rolled double: the actual `Metrics` class, driven through its own recorder, so a
-    rename or a change to the outcome vocabulary fails here rather than drifting silently."""
-    from podcast_scraper.workflow import metrics as metrics_mod
-
-    real = metrics_mod.Metrics()
-    real.record_stage_outcome("speaker_detection", 1, "ran")
-    seen = _download_with_metrics(tmp_path, monkeypatch, real, [])
-    assert seen.get("detection_ran") is True, seen
 
 
 def test_an_already_present_publisher_transcript_is_counted_as_skipped(

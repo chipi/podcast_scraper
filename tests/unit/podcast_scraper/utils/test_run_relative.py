@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-from podcast_scraper.upgrade.migrations.m0025_one_person_one_entry import _run_relative as m25_rule
 from podcast_scraper.utils.run_relative import run_relative
 
 pytestmark = pytest.mark.unit
@@ -39,13 +38,3 @@ def _script(name: str) -> Any:
 @pytest.mark.parametrize(("value", "want"), CASES)
 def test_the_rule(value: Any, want: str) -> None:
     assert run_relative(value, RUN) == want
-
-
-@pytest.mark.parametrize(("value", "want"), CASES)
-def test_m0025_keeps_the_same_rule(value: Any, want: str) -> None:
-    assert m25_rule(value, RUN) == want
-
-
-def test_the_measure_scripts_use_the_shared_rule() -> None:
-    assert _script("naming_gold_cases").run_relative is run_relative
-    assert _script("naming_replay_compare")._run_relative is run_relative

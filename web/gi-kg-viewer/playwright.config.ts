@@ -70,7 +70,7 @@ export default defineConfig({
   use: {
     /* Dedicated port so local `npm run dev` on 5173 does not collide with E2E. */
     baseURL: 'http://127.0.0.1:5174',
-    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
+    trace: 'retain-on-failure',
     ...devices['Desktop Firefox'],
   },
   projects: [{ name: 'firefox', use: {} }],
@@ -95,8 +95,9 @@ export default defineConfig({
       // `prepare-corpus.mjs` is chained into the command rather than run from `globalSetup`
       // because Playwright starts webServer BEFORE globalSetup — seeding there lost the race and
       // the server exited 2 on a corpus directory that did not exist yet.
-      // The identity ledger before the API boots (ADR-166): without it there are no cross-episode joins.
-      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli identity-ledger --output-dir .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli db upgrade --plane player && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
+      // No identity ledger step: `identity-ledger` is a stage's command since E04 (public has no
+      // such command without that stage installed, and read the word as a feed URL).
+      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli db upgrade --plane player && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
       cwd: __dirname,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       env: {

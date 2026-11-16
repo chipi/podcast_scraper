@@ -28,7 +28,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from podcast_scraper.db import database_available, read_with_retry, rw_engine
+from podcast_scraper.db import database_available, read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import access_policy
 from podcast_scraper.server.app_access import AccessPolicy
 
@@ -83,7 +83,7 @@ def load_policy(data_dir: Path | None) -> AccessPolicy | None:
         return None
 
     def read(engine: Any) -> AccessPolicy | None:
-        with engine.connect() as conn:
+        with read_connection(engine) as conn:
             row = conn.execute(select(access_policy)).mappings().first()
         if row is None:
             return None

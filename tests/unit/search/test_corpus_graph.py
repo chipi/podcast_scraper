@@ -89,26 +89,6 @@ def _clear_cache():
 # --- cross-layer join ----------------------------------------------------------
 
 
-def test_person_node_unified_across_layers(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    node = g.get_node("person:alice")
-    assert node is not None
-    assert node.type == "person"
-    assert node.layers == {"gi", "kg"}
-    # Merged payload: GI name + aliases AND KG kind/role.
-    assert node.payload["name"] == "Alice"
-    assert node.payload["kind"] == "person"
-    assert node.payload["role"] == "guest"
-    assert node.payload["aliases"] == ["Al"]
-
-
-def test_neighbors_span_both_layers(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    nbrs = set(g.neighbors("person:alice"))
-    assert "quote:q1" in nbrs  # GIL SPOKEN_BY
-    assert "episode:e1" in nbrs  # KG MENTIONS
-
-
 def test_layer_prefixed_id_canonicalizes(tmp_path):
     g = CorpusGraph.build(_write_corpus(tmp_path))
     assert g.get_node("topic:ai") is not None
@@ -116,15 +96,6 @@ def test_layer_prefixed_id_canonicalizes(tmp_path):
 
 
 # --- traversal -----------------------------------------------------------------
-
-
-def test_bfs_reaches_insight_from_person(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    dist = g.bfs("person:alice", max_hops=3)
-    # person:alice -SPOKEN_BY- quote:q1 -SUPPORTED_BY- insight:i1  (2 hops)
-    # (also person -MENTIONS- episode -HAS_INSIGHT- insight = 2 hops)
-    assert dist.get("insight:i1") == 2
-    assert dist["person:alice"] == 0
 
 
 def test_bfs_respects_max_hops(tmp_path):
@@ -140,22 +111,6 @@ def test_bfs_unknown_start_returns_empty(tmp_path):
 
 
 # --- access helpers ------------------------------------------------------------
-
-
-def test_nodes_by_type_and_degree(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    assert g.nodes_by_type("insight") == ["insight:i1"]
-    assert "podcast:show1" in g.nodes_by_type("podcast")
-    # episode:e1 connects to: podcast, insight, person, topic, org -> degree 5
-    assert g.degree("episode:e1") == 5
-    assert g.get_node("missing") is None
-    assert g.get_node(None) is None
-
-
-def test_show_connectivity_present(tmp_path):
-    # FROM_SHOW is satisfied natively: Podcast --HAS_EPISODE--> Episode.
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    assert "episode:e1" in g.neighbors("podcast:show1")
 
 
 def test_empty_corpus_builds_empty_graph(tmp_path):
@@ -186,51 +141,7 @@ def test_build_from_real_fixture_corpus():
 # --- Slice C: derived person -> insight shortcut -------------------------------
 
 
-def test_derive_speaker_links_adds_one_hop_person_to_insight(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path), derive_speaker_links=True)
-    assert "insight:i1" in g.neighbors("person:alice")
-    assert g.bfs("person:alice", max_hops=1).get("insight:i1") == 1
-
-
-def test_derive_off_by_default_keeps_insight_two_hops(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    assert "insight:i1" not in g.neighbors("person:alice")
-    assert g.bfs("person:alice").get("insight:i1") == 2
-
-
-def test_get_corpus_graph_caches_per_derive_flag(tmp_path):
-    _write_corpus(tmp_path)
-    plain = get_corpus_graph(tmp_path)
-    derived = get_corpus_graph(tmp_path, derive_speaker_links=True)
-    assert plain is not derived
-    assert "insight:i1" not in plain.neighbors("person:alice")
-    assert "insight:i1" in derived.neighbors("person:alice")
-
-
 # --- #882: typed adjacency (relational-query substrate) -------------------------
-
-
-def test_typed_neighbors_filters_by_edge_type(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    # insight:i1 has an ABOUT edge to topic:ai and a SUPPORTED_BY edge to quote:q1.
-    assert g.typed_neighbors("insight:i1", "ABOUT") == ["topic:ai"]
-    assert g.typed_neighbors("insight:i1", "SUPPORTED_BY") == ["quote:q1"]
-    # HAS_INSIGHT is the episode edge — not present from the insight via ABOUT.
-    assert "episode:e1" in g.typed_neighbors("insight:i1", "HAS_INSIGHT")
-
-
-def test_typed_neighbors_is_undirected(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path))
-    # HAS_EPISODE declared podcast→episode; reachable from either endpoint.
-    assert g.typed_neighbors("podcast:show1", "HAS_EPISODE") == ["episode:e1"]
-    assert g.typed_neighbors("episode:e1", "HAS_EPISODE") == ["podcast:show1"]
-
-
-def test_derive_speaker_links_emits_states_edge(tmp_path):
-    g = CorpusGraph.build(_write_corpus(tmp_path), derive_speaker_links=True)
-    # The synthesized person→insight shortcut carries the STATES type, so the
-    # relational layer can distinguish "stated" from "mentioned".
-    assert g.typed_neighbors("person:alice", "STATES") == ["insight:i1"]
 
 
 def test_typed_neighbors_unknown_returns_empty(tmp_path):
@@ -296,26 +207,6 @@ def test_no_identity_map_keeps_variants_separate(tmp_path):
     assert g.get_node("org:cargill") is not None
 
 
-def test_get_corpus_graph_canonicalizes_entities_by_default(tmp_path):
-    # Prod path: the identity ledger step writes the map, and get_corpus_graph applies it
-    # (#852, ADR-166). Without a ledger there are no joins, never the in-memory build.
-    from podcast_scraper import perf_cache
-    from podcast_scraper.identity.ledger import build_ledger, write_ledger
-
-    corpus = _write_variant_corpus(tmp_path)
-    perf_cache.clear()
-    clear_corpus_graph_cache()
-    assert get_corpus_graph(corpus).get_node("org:cargil") is not None  # no ledger: no join
-    write_ledger(corpus, build_ledger(corpus))
-    clear_corpus_graph_cache()
-    g = get_corpus_graph(corpus)  # canonicalize_entities=True by default
-    assert g.get_node("org:cargil").id == "org:cargill"  # auto-merged: no node of its own
-    assert g.get_node("org:cargill") is not None
-    clear_corpus_graph_cache()
-    g_off = get_corpus_graph(corpus, canonicalize_entities=False)
-    assert g_off.get_node("org:cargil") is not None  # faithful union when off
-
-
 # --- #1056: feed-anchored host reconciliation ----------------------------------
 
 
@@ -376,29 +267,6 @@ def test_reconcile_names_unnamed_host_from_sibling_episode():
     assert katie is not None and katie.payload["name"] == "Katie Martin"
     # …and it now reaches the previously-orphaned third episode.
     assert "episode:u3" in g.neighbors("person:katie-martin")
-
-
-def test_reconcile_collapses_host_spelling_variants():
-    # B1 (#1190): the same recurring host spelled two ways across episodes (Planet Money's
-    # "Erica Barris" / "Erika Barris") — no metadata anchor, so the per-episode roster can't unify
-    # them. The dominant spelling (more episodes) wins; the variant is collapsed into it.
-    g = _graph_from(
-        _kg_episode(
-            "podcast:pm", "episode:p1", host_id="person:erica-barris", host_name="Erica Barris"
-        ),
-        _kg_episode(
-            "podcast:pm", "episode:p2", host_id="person:erica-barris", host_name="Erica Barris"
-        ),
-        _kg_episode(
-            "podcast:pm", "episode:p3", host_id="person:erika-barris", host_name="Erika Barris"
-        ),
-    )
-    g._reconcile_feed_hosts()
-    # Minority variant collapsed: no node of its own; looked up, it is the dominant's node.
-    assert g.get_node("person:erika-barris").id == "person:erica-barris"
-    dom = g.get_node("person:erica-barris")
-    assert dom is not None and dom.payload["name"] == "Erica Barris"
-    assert "episode:p3" in g.neighbors("person:erica-barris")  # inherits the variant's episode
 
 
 def test_reconcile_does_not_merge_distinct_same_surname_hosts():

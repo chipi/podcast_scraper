@@ -4,7 +4,7 @@
 - **Date**: 2026-07-29
 - **Authors**: Marko Dragoljevic
 - **Related**: ADR-017 (Registered Preprocessing Profiles — the cleaning precedent), ADR-130
-  (ASR-mangled name recovery), ADR-137 (additive LLM role resolution), ADR-139 (text-normalization
+  (ASR-mangled name recovery), ADR-139 (text-normalization
   contract). `METHOD_VERSIONS["naming"]` in `workflow/processing_manifest.py`.
 
 ## Context & Problem Statement

@@ -300,7 +300,6 @@ mock_nlp.return_value = [MagicMock(text="John", label_="PERSON")]
 | `rss/downloader.py` | `tests/unit/podcast_scraper/test_downloader.py` |
 | `service.py` | `tests/unit/podcast_scraper/test_service.py` |
 | `providers/ml/summarizer.py` | `tests/unit/podcast_scraper/test_summarizer.py` |
-| `speaker_detection.py` | `tests/unit/podcast_scraper/test_speaker_detection.py` |
 | `metadata.py` | `tests/unit/podcast_scraper/test_metadata.py` |
 | Provider factories | `tests/unit/podcast_scraper/*/test_*_provider.py` |
 | MLProvider | `tests/unit/podcast_scraper/ml/test_ml_provider.py` |

@@ -41,17 +41,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
-from podcast_scraper.gi.relational_edges import add_insight_entity_edges
-from podcast_scraper.gi.schema import validate_artifact
-
 pytestmark = [pytest.mark.integration]
 
 
 class _StubEncoder:
     """Returns unit vectors whose dot products produce deterministic cosines.
 
-    Mirrors the helper used in tests/unit/podcast_scraper/gi/test_pipeline.py
+    Mirrors the GI pipeline unit tests' helper
     so the topic-ABOUT edge emission can be exercised without a real
     sentence-transformers load.
     """
@@ -70,83 +66,6 @@ class _StubEncoder:
 
     def encode(self, texts, normalize_embeddings=True):  # noqa: D401
         return np.stack([self._by_text[t] for t in texts])
-
-
-def test_v3_emission_contract_real_fields_present() -> None:
-    """All four v3 fields/edges land in one round-trip through the emit
-    functions the real pipeline calls.
-
-    Asserted invariants (the Person Profile / Position Tracker viewer
-    surfaces depend on every single one of these):
-
-    - ≥1 ``ABOUT`` edge from Insight → Topic
-    - ≥1 ``MENTIONS_PERSON`` edge from Insight → Person
-    - every Insight has ``insight_type`` (strict v3.0 schema)
-    - every Insight has ``position_hint`` (strict v3.0 schema)
-    """
-    # Stage 1 — build a 2-insight GI artifact with topic edges via the
-    # real ``_artifact_from_multi_insight`` emit function.
-    artifact = _artifact_from_multi_insight(
-        "ep:demo",
-        [
-            ("Alice argues climate policy needs urgent action", "claim"),
-            ("Bob says energy transition is the bigger challenge", "observation"),
-        ],
-        [[]],
-        model_version="m",
-        prompt_version="v1",
-        podcast_id="podcast:test",
-        episode_title="Test Episode",
-        date_str="2026-06-23T00:00:00Z",
-        transcript_ref="transcript.txt",
-        topic_labels=["Climate Policy", "Energy"],
-        about_edge_encoder=_StubEncoder(),
-    )
-
-    # Stage 2 — materialize typed MENTIONS_PERSON edges via the same
-    # emit function the workflow's metadata-generation step calls. It
-    # synthesizes the missing Person node when the edge target isn't
-    # already in ``nodes`` (RFC-097 chunk-4 retroactive sweep). Map
-    # shape is ``entity_id → (name, kind)``; the function matches the
-    # name as a whole-word phrase in each Insight's text.
-    added = add_insight_entity_edges(
-        artifact,
-        entity_index={
-            "person:alice": ("Alice", "person"),
-            "person:bob": ("Bob", "person"),
-        },
-    )
-    assert added > 0, "add_insight_entity_edges added no edges"
-
-    # === The contract assertions ===
-
-    # 1. ≥1 ABOUT edge — Topic Tab + Position Tracker timeline both
-    #    pivot on this. Without it the ranked-topics list is empty.
-    about_edges = [e for e in artifact["edges"] if e.get("type") == "ABOUT"]
-    assert about_edges, "no ABOUT edges in v3 artifact"
-
-    # 2. ≥1 MENTIONS_PERSON edge — the Person Profile grouping key.
-    mp_edges = [e for e in artifact["edges"] if e.get("type") == "MENTIONS_PERSON"]
-    assert mp_edges, "no MENTIONS_PERSON edges in v3 artifact"
-
-    # 3. Every Insight carries insight_type (strict v3 schema requires
-    #    it; Position Tracker filter chips depend on it).
-    insights = [n for n in artifact["nodes"] if n.get("type") == "Insight"]
-    assert insights, "no Insight nodes — emission test ill-formed"
-    for ins in insights:
-        props = ins.get("properties", {})
-        assert "insight_type" in props, f"Insight {ins.get('id')} missing insight_type"
-
-    # 4. Every Insight carries position_hint (strict v3 schema requires
-    #    it; Position Tracker timeline sort depends on it).
-    for ins in insights:
-        props = ins.get("properties", {})
-        assert "position_hint" in props, f"Insight {ins.get('id')} missing position_hint"
-
-    # 5. The whole thing passes strict schema validation — catches
-    #    a forgotten field or a malformed edge that the contract above
-    #    might miss.
-    validate_artifact(artifact, strict=True)
 
 
 def test_v3_emission_contract_real_validation_corpus_artifacts() -> None:

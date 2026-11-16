@@ -1,0 +1,893 @@
+[
+  {
+    "char_end": 33,
+    "char_start": 0,
+    "end": 2.025,
+    "sent_id": "t0000.s01",
+    "start": 0.0,
+    "text": "Welcome back to Sessions Sentier.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 138,
+    "char_start": 34,
+    "end": 8.408,
+    "sent_id": "t0000.s02",
+    "start": 2.025,
+    "text": "Today, we're talking about enduro racing, and I'm joined by Élodie Chevalier, an enduro rider and coach.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 182,
+    "char_start": 139,
+    "end": 11.047,
+    "sent_id": "t0000.s03",
+    "start": 8.408,
+    "text": "Élodie Chevalier, thank you for being here.",
+    "unit_id": "t0000.u01"
+  },
+  {
+    "char_end": 202,
+    "char_start": 183,
+    "end": 12.893,
+    "sent_id": "t0001.s01",
+    "start": 11.047,
+    "text": "Thank you, Camille.",
+    "unit_id": "t0001.u01"
+  },
+  {
+    "char_end": 219,
+    "char_start": 203,
+    "end": 14.448,
+    "sent_id": "t0001.s02",
+    "start": 12.893,
+    "text": "Glad to be back.",
+    "unit_id": "t0001.u01"
+  },
+  {
+    "char_end": 256,
+    "char_start": 220,
+    "end": 16.956,
+    "sent_id": "t0002.s01",
+    "start": 14.448,
+    "text": "This episode is sponsored by Linear.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 332,
+    "char_start": 257,
+    "end": 22.18,
+    "sent_id": "t0002.s02",
+    "start": 16.956,
+    "text": "Linear is the ticketing system designed for speed – built for the keyboard.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 354,
+    "char_start": 333,
+    "end": 23.643,
+    "sent_id": "t0002.s03",
+    "start": 22.18,
+    "text": "Try linear.com today.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 480,
+    "char_start": 355,
+    "end": 31.913,
+    "sent_id": "t0002.s04",
+    "start": 23.643,
+    "text": "Before we get into the details, Julien Mercier was on the show and explained that drainage is the most crucial design choice.",
+    "unit_id": "t0002.u01"
+  },
+  {
+    "char_end": 494,
+    "char_start": 481,
+    "end": 32.682,
+    "sent_id": "t0003.s01",
+    "start": 31.913,
+    "text": "Yes, exactly.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 545,
+    "char_start": 495,
+    "end": 35.64,
+    "sent_id": "t0003.s02",
+    "start": 32.682,
+    "text": "And that ties in with what we're discussing today.",
+    "unit_id": "t0003.u01"
+  },
+  {
+    "char_end": 640,
+    "char_start": 546,
+    "end": 41.471,
+    "sent_id": "t0004.s01",
+    "start": 35.64,
+    "text": "I want to point out something – Julien Mercier mentioned this same dynamic a few episodes ago.",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 668,
+    "char_start": 641,
+    "end": 43.215,
+    "sent_id": "t0004.s02",
+    "start": 41.471,
+    "text": "Give me a concrete example.",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 719,
+    "char_start": 669,
+    "end": 46.444,
+    "sent_id": "t0004.s03",
+    "start": 43.215,
+    "text": "Where do soil erosion and enduro racing intersect?",
+    "unit_id": "t0004.u01"
+  },
+  {
+    "char_end": 821,
+    "char_start": 720,
+    "end": 52.031,
+    "sent_id": "t0005.s01",
+    "start": 46.444,
+    "text": "Honestly, the increased speed comes from braking earlier and more gently, not from taking more risks.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 865,
+    "char_start": 822,
+    "end": 54.409,
+    "sent_id": "t0005.s02",
+    "start": 52.031,
+    "text": "We've seen this in teams that use RockShox.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 935,
+    "char_start": 866,
+    "end": 58.226,
+    "sent_id": "t0005.s03",
+    "start": 54.409,
+    "text": "I've observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0005.u01"
+  },
+  {
+    "char_end": 967,
+    "char_start": 936,
+    "end": 59.806,
+    "sent_id": "t0006.s01",
+    "start": 58.226,
+    "text": "I want to explore this further.",
+    "unit_id": "t0006.u01"
+  },
+  {
+    "char_end": 1018,
+    "char_start": 968,
+    "end": 62.355,
+    "sent_id": "t0006.s02",
+    "start": 59.806,
+    "text": "Where do soil erosion and enduro racing intersect?",
+    "unit_id": "t0006.u01"
+  },
+  {
+    "char_end": 1029,
+    "char_start": 1019,
+    "end": 62.882,
+    "sent_id": "t0007.s01",
+    "start": 62.355,
+    "text": "Of course.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1126,
+    "char_start": 1030,
+    "end": 67.943,
+    "sent_id": "t0007.s02",
+    "start": 62.882,
+    "text": "Tire pressure and the choice of tire casing often matter more than minor suspension adjustments.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1202,
+    "char_start": 1127,
+    "end": 71.897,
+    "sent_id": "t0007.s03",
+    "start": 67.943,
+    "text": "The setup is important because it tells you what compromises you're making.",
+    "unit_id": "t0007.u01"
+  },
+  {
+    "char_end": 1225,
+    "char_start": 1203,
+    "end": 73.18,
+    "sent_id": "t0008.s01",
+    "start": 71.897,
+    "text": "Let's start with that.",
+    "unit_id": "t0008.u01"
+  },
+  {
+    "char_end": 1276,
+    "char_start": 1226,
+    "end": 76.096,
+    "sent_id": "t0008.s02",
+    "start": 73.18,
+    "text": "Where do soil erosion and enduro racing intersect?",
+    "unit_id": "t0008.u01"
+  },
+  {
+    "char_end": 1392,
+    "char_start": 1277,
+    "end": 82.678,
+    "sent_id": "t0009.s01",
+    "start": 76.096,
+    "text": "Honestly, risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1435,
+    "char_start": 1393,
+    "end": 85.082,
+    "sent_id": "t0009.s02",
+    "start": 82.678,
+    "text": "We've seen this in teams that use Shimano.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1522,
+    "char_start": 1436,
+    "end": 90.005,
+    "sent_id": "t0009.s03",
+    "start": 85.082,
+    "text": "If you ignore that, you end up having to rebuild everything from scratch a year later.",
+    "unit_id": "t0009.u01"
+  },
+  {
+    "char_end": 1553,
+    "char_start": 1523,
+    "end": 91.633,
+    "sent_id": "t0010.s01",
+    "start": 90.005,
+    "text": "Where is it no longer working?",
+    "unit_id": "t0010.u01"
+  },
+  {
+    "char_end": 1635,
+    "char_start": 1554,
+    "end": 95.637,
+    "sent_id": "t0011.s01",
+    "start": 91.633,
+    "text": "The Cascadia Alliance is one of the platforms where this is particularly evident.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1704,
+    "char_start": 1636,
+    "end": 98.999,
+    "sent_id": "t0011.s02",
+    "start": 95.637,
+    "text": "And the second-order effect is the part that almost everyone misses.",
+    "unit_id": "t0011.u01"
+  },
+  {
+    "char_end": 1748,
+    "char_start": 1705,
+    "end": 101.89,
+    "sent_id": "t0012.s01",
+    "start": 98.999,
+    "text": "What heuristic do you consistently rely on?",
+    "unit_id": "t0012.u01"
+  },
+  {
+    "char_end": 1789,
+    "char_start": 1749,
+    "end": 104.58,
+    "sent_id": "t0012.s02",
+    "start": 101.89,
+    "text": "How does RockShox fit into this picture?",
+    "unit_id": "t0012.u01"
+  },
+  {
+    "char_end": 1810,
+    "char_start": 1790,
+    "end": 105.716,
+    "sent_id": "t0013.s01",
+    "start": 104.58,
+    "text": "That's how I see it.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 1943,
+    "char_start": 1811,
+    "end": 113.215,
+    "sent_id": "t0013.s02",
+    "start": 105.716,
+    "text": "The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2015,
+    "char_start": 1944,
+    "end": 117.248,
+    "sent_id": "t0013.s03",
+    "start": 113.215,
+    "text": "Once you've internalized that, the rest of the decisions become easier.",
+    "unit_id": "t0013.u01"
+  },
+  {
+    "char_end": 2102,
+    "char_start": 2016,
+    "end": 122.683,
+    "sent_id": "t0014.s01",
+    "start": 117.248,
+    "text": "Before we continue, please support the program by visiting the website of our sponsor.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2134,
+    "char_start": 2103,
+    "end": 124.642,
+    "sent_id": "t0014.s02",
+    "start": 122.683,
+    "text": "Strava is the home of athletes.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2186,
+    "char_start": 2135,
+    "end": 128.527,
+    "sent_id": "t0014.s03",
+    "start": 124.642,
+    "text": "We'll be right back after a short commercial break.",
+    "unit_id": "t0014.u01"
+  },
+  {
+    "char_end": 2223,
+    "char_start": 2187,
+    "end": 132.594,
+    "sent_id": "t0015.s01",
+    "start": 128.527,
+    "text": "This episode is sponsored by Notion.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2285,
+    "char_start": 2224,
+    "end": 139.485,
+    "sent_id": "t0015.s02",
+    "start": 132.594,
+    "text": "Notion replaces the dozen tools your team is only half using.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2328,
+    "char_start": 2286,
+    "end": 144.23,
+    "sent_id": "t0015.s03",
+    "start": 139.485,
+    "text": "Visit notion.com/podcast for a free trial.",
+    "unit_id": "t0015.u01"
+  },
+  {
+    "char_end": 2354,
+    "char_start": 2329,
+    "end": 146.113,
+    "sent_id": "t0016.s01",
+    "start": 144.23,
+    "text": "Welcome back to the show.",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2389,
+    "char_start": 2355,
+    "end": 147.784,
+    "sent_id": "t0016.s02",
+    "start": 146.113,
+    "text": "I want to delve into that further.",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2439,
+    "char_start": 2390,
+    "end": 150.192,
+    "sent_id": "t0016.s03",
+    "start": 147.784,
+    "text": "Which version of the question is truly important?",
+    "unit_id": "t0016.u01"
+  },
+  {
+    "char_end": 2491,
+    "char_start": 2440,
+    "end": 153.213,
+    "sent_id": "t0017.s01",
+    "start": 150.192,
+    "text": "I'm giving you the version that I truly believe in.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2573,
+    "char_start": 2492,
+    "end": 158.01,
+    "sent_id": "t0017.s02",
+    "start": 153.213,
+    "text": "The speed comes from braking earlier and more gently, not from taking more risks.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2617,
+    "char_start": 2574,
+    "end": 160.557,
+    "sent_id": "t0017.s03",
+    "start": 158.01,
+    "text": "We've seen this in teams that use RockShox.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2683,
+    "char_start": 2618,
+    "end": 164.407,
+    "sent_id": "t0017.s04",
+    "start": 160.557,
+    "text": "And the secondary effect is the part that almost everyone misses.",
+    "unit_id": "t0017.u01"
+  },
+  {
+    "char_end": 2721,
+    "char_start": 2684,
+    "end": 166.64,
+    "sent_id": "t0018.s01",
+    "start": 164.407,
+    "text": "What does the failure mode look like?",
+    "unit_id": "t0018.u01"
+  },
+  {
+    "char_end": 2794,
+    "char_start": 2722,
+    "end": 170.984,
+    "sent_id": "t0018.s02",
+    "start": 166.64,
+    "text": "What is the operational aspect that most auditors do not have access to?",
+    "unit_id": "t0018.u01"
+  },
+  {
+    "char_end": 2901,
+    "char_start": 2795,
+    "end": 176.763,
+    "sent_id": "t0019.s01",
+    "start": 170.984,
+    "text": "Yes, so – tire pressure and the choice of tire casing often matter more than minor suspension adjustments.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 2977,
+    "char_start": 2902,
+    "end": 180.852,
+    "sent_id": "t0019.s02",
+    "start": 176.763,
+    "text": "The setup is important because it tells you what compromises you're making.",
+    "unit_id": "t0019.u01"
+  },
+  {
+    "char_end": 3005,
+    "char_start": 2978,
+    "end": 182.525,
+    "sent_id": "t0020.s01",
+    "start": 180.852,
+    "text": "Give me a concrete example.",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 3055,
+    "char_start": 3006,
+    "end": 185.56,
+    "sent_id": "t0020.s02",
+    "start": 182.525,
+    "text": "Which version of the question is truly important?",
+    "unit_id": "t0020.u01"
+  },
+  {
+    "char_end": 3171,
+    "char_start": 3056,
+    "end": 192.567,
+    "sent_id": "t0021.s01",
+    "start": 185.56,
+    "text": "Yes, so – risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3215,
+    "char_start": 3172,
+    "end": 195.187,
+    "sent_id": "t0021.s02",
+    "start": 192.567,
+    "text": "We've seen this in teams that use RockShox.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3278,
+    "char_start": 3216,
+    "end": 198.964,
+    "sent_id": "t0021.s03",
+    "start": 195.187,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0021.u01"
+  },
+  {
+    "char_end": 3292,
+    "char_start": 3279,
+    "end": 199.735,
+    "sent_id": "t0022.s01",
+    "start": 198.964,
+    "text": "Tell me more.",
+    "unit_id": "t0022.u01"
+  },
+  {
+    "char_end": 3374,
+    "char_start": 3293,
+    "end": 204.39,
+    "sent_id": "t0023.s01",
+    "start": 199.735,
+    "text": "The Cascadia Alliance is one of the platforms where this is particularly evident.",
+    "unit_id": "t0023.u01"
+  },
+  {
+    "char_end": 3442,
+    "char_start": 3375,
+    "end": 208.24,
+    "sent_id": "t0023.s02",
+    "start": 204.39,
+    "text": "Once you internalize that, the rest of the decisions become easier.",
+    "unit_id": "t0023.u01"
+  },
+  {
+    "char_end": 3465,
+    "char_start": 3443,
+    "end": 209.5,
+    "sent_id": "t0024.s01",
+    "start": 208.24,
+    "text": "Let's start with that.",
+    "unit_id": "t0024.u01"
+  },
+  {
+    "char_end": 3522,
+    "char_start": 3466,
+    "end": 212.706,
+    "sent_id": "t0024.s02",
+    "start": 209.5,
+    "text": "What is the most underestimated aspect of enduro racing?",
+    "unit_id": "t0024.u01"
+  },
+  {
+    "char_end": 3676,
+    "char_start": 3523,
+    "end": 220.632,
+    "sent_id": "t0025.s01",
+    "start": 212.706,
+    "text": "It boils down to this: the erosion patterns on the special stages change the optimal racing line between the reconnaissance runs and the actual race day.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 3739,
+    "char_start": 3677,
+    "end": 223.844,
+    "sent_id": "t0025.s02",
+    "start": 220.632,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0025.u01"
+  },
+  {
+    "char_end": 3823,
+    "char_start": 3740,
+    "end": 228.551,
+    "sent_id": "t0026.s01",
+    "start": 223.844,
+    "text": "Let's change the subject – I want to dedicate the final section to risk management.",
+    "unit_id": "t0026.u01"
+  },
+  {
+    "char_end": 3964,
+    "char_start": 3824,
+    "end": 236.596,
+    "sent_id": "t0027.s01",
+    "start": 228.551,
+    "text": "That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.",
+    "unit_id": "t0027.u01"
+  },
+  {
+    "char_end": 4002,
+    "char_start": 3965,
+    "end": 238.824,
+    "sent_id": "t0028.s01",
+    "start": 236.596,
+    "text": "What does the failure mode look like?",
+    "unit_id": "t0028.u01"
+  },
+  {
+    "char_end": 4075,
+    "char_start": 4003,
+    "end": 243.161,
+    "sent_id": "t0028.s02",
+    "start": 238.824,
+    "text": "What is the counter-flow angle that most auditors do not have access to?",
+    "unit_id": "t0028.u01"
+  },
+  {
+    "char_end": 4086,
+    "char_start": 4076,
+    "end": 243.722,
+    "sent_id": "t0029.s01",
+    "start": 243.161,
+    "text": "Of course.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4178,
+    "char_start": 4087,
+    "end": 248.825,
+    "sent_id": "t0029.s02",
+    "start": 243.722,
+    "text": "The increased speed comes from braking earlier and more gently, not from taking more risks.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4222,
+    "char_start": 4179,
+    "end": 251.236,
+    "sent_id": "t0029.s03",
+    "start": 248.825,
+    "text": "We've seen this in teams that use RockShox.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4292,
+    "char_start": 4223,
+    "end": 255.105,
+    "sent_id": "t0029.s04",
+    "start": 251.236,
+    "text": "I've observed this pattern repeating itself in three different teams.",
+    "unit_id": "t0029.u01"
+  },
+  {
+    "char_end": 4320,
+    "char_start": 4293,
+    "end": 256.761,
+    "sent_id": "t0030.s01",
+    "start": 255.105,
+    "text": "Give me a concrete example.",
+    "unit_id": "t0030.u01"
+  },
+  {
+    "char_end": 4377,
+    "char_start": 4321,
+    "end": 260.196,
+    "sent_id": "t0030.s02",
+    "start": 256.761,
+    "text": "What is the most underestimated aspect of enduro racing?",
+    "unit_id": "t0030.u01"
+  },
+  {
+    "char_end": 4484,
+    "char_start": 4378,
+    "end": 266.362,
+    "sent_id": "t0031.s01",
+    "start": 260.196,
+    "text": "Yes, so – tire pressure and the choice of tire casing often matter more than minor suspension adjustments.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4547,
+    "char_start": 4485,
+    "end": 269.969,
+    "sent_id": "t0031.s02",
+    "start": 266.362,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0031.u01"
+  },
+  {
+    "char_end": 4575,
+    "char_start": 4548,
+    "end": 271.642,
+    "sent_id": "t0032.s01",
+    "start": 269.969,
+    "text": "Give me a concrete example.",
+    "unit_id": "t0032.u01"
+  },
+  {
+    "char_end": 4625,
+    "char_start": 4576,
+    "end": 274.677,
+    "sent_id": "t0032.s02",
+    "start": 271.642,
+    "text": "Which version of the question is truly important?",
+    "unit_id": "t0032.u01"
+  },
+  {
+    "char_end": 4677,
+    "char_start": 4626,
+    "end": 277.529,
+    "sent_id": "t0033.s01",
+    "start": 274.677,
+    "text": "I'm giving you the version that I truly believe in.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 4783,
+    "char_start": 4678,
+    "end": 283.402,
+    "sent_id": "t0033.s02",
+    "start": 277.529,
+    "text": "Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 4833,
+    "char_start": 4784,
+    "end": 286.142,
+    "sent_id": "t0033.s03",
+    "start": 283.402,
+    "text": "We've seen this in teams that use Spoke & Wrench.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 4896,
+    "char_start": 4834,
+    "end": 289.61,
+    "sent_id": "t0033.s04",
+    "start": 286.142,
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0033.u01"
+  },
+  {
+    "char_end": 5038,
+    "char_start": 4897,
+    "end": 290.474,
+    "sent_id": "t0034.s01",
+    "start": 289.61,
+    "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\n(The best option depends on the specific context.)",
+    "unit_id": "t0034.u01"
+  },
+  {
+    "char_end": 5192,
+    "char_start": 5039,
+    "end": 298.751,
+    "sent_id": "t0035.s01",
+    "start": 290.474,
+    "text": "And when teams adopt Spoke & Wrench within this workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.",
+    "unit_id": "t0035.u01"
+  },
+  {
+    "char_end": 5236,
+    "char_start": 5193,
+    "end": 301.392,
+    "sent_id": "t0036.s01",
+    "start": 298.751,
+    "text": "What heuristic do you consistently rely on?",
+    "unit_id": "t0036.u01"
+  },
+  {
+    "char_end": 5286,
+    "char_start": 5237,
+    "end": 304.401,
+    "sent_id": "t0036.s02",
+    "start": 301.392,
+    "text": "Which version of the question is truly important?",
+    "unit_id": "t0036.u01"
+  },
+  {
+    "char_end": 5307,
+    "char_start": 5287,
+    "end": 305.453,
+    "sent_id": "t0037.s01",
+    "start": 304.401,
+    "text": "That's how I see it.",
+    "unit_id": "t0037.u01"
+  },
+  {
+    "char_end": 5440,
+    "char_start": 5308,
+    "end": 312.394,
+    "sent_id": "t0037.s02",
+    "start": 305.453,
+    "text": "The erosion patterns on the special stages change the choice of racing line between the reconnaissance runs and the actual race day.",
+    "unit_id": "t0037.u01"
+  },
+  {
+    "char_end": 5499,
+    "char_start": 5441,
+    "end": 315.444,
+    "sent_id": "t0037.s03",
+    "start": 312.394,
+    "text": "I saw this pattern repeat itself in three different teams.",
+    "unit_id": "t0037.u01"
+  },
+  {
+    "char_end": 5571,
+    "char_start": 5500,
+    "end": 320.175,
+    "sent_id": "t0038.s01",
+    "start": 315.444,
+    "text": "Before we conclude, what is one thing that listeners can try this week?",
+    "unit_id": "t0038.u01"
+  },
+  {
+    "char_end": 5636,
+    "char_start": 5572,
+    "end": 323.971,
+    "sent_id": "t0039.s01",
+    "start": 320.175,
+    "text": "Choose one of the ideas we discussed and apply it for two weeks.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5672,
+    "char_start": 5637,
+    "end": 326.047,
+    "sent_id": "t0039.s02",
+    "start": 323.971,
+    "text": "Everything else is about iteration.",
+    "unit_id": "t0039.u01"
+  },
+  {
+    "char_end": 5721,
+    "char_start": 5673,
+    "end": 329.612,
+    "sent_id": "t0040.s01",
+    "start": 326.047,
+    "text": "And finally, thank you to our sponsors at Vanta.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 5763,
+    "char_start": 5722,
+    "end": 332.658,
+    "sent_id": "t0040.s02",
+    "start": 329.612,
+    "text": "Vanta automates SOC 2 and ISO compliance.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 5789,
+    "char_start": 5764,
+    "end": 334.515,
+    "sent_id": "t0040.s03",
+    "start": 332.658,
+    "text": "Take a look at vanta.com.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 5839,
+    "char_start": 5790,
+    "end": 337.745,
+    "sent_id": "t0040.s04",
+    "start": 334.515,
+    "text": "Élodie Chevalier, thank you for the conversation.",
+    "unit_id": "t0040.u01"
+  },
+  {
+    "char_end": 5859,
+    "char_start": 5840,
+    "end": 339.571,
+    "sent_id": "t0041.s01",
+    "start": 337.745,
+    "text": "Thank you, Camille.",
+    "unit_id": "t0041.u01"
+  },
+  {
+    "char_end": 5911,
+    "char_start": 5860,
+    "end": 342.63,
+    "sent_id": "t0042.s01",
+    "start": 339.571,
+    "text": "That's all for today's episode of Sessions Sentier.",
+    "unit_id": "t0042.u01"
+  },
+  {
+    "char_end": 5930,
+    "char_start": 5912,
+    "end": 343.709,
+    "sent_id": "t0042.s02",
+    "start": 342.63,
+    "text": "See you next time.",
+    "unit_id": "t0042.u01"
+  }
+]

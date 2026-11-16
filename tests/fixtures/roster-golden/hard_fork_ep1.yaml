@@ -9,7 +9,7 @@
 # The mid-roll ad in the doc's canonical timeline (~36:00, #1188) is DELIBERATELY OMITTED here:
 # a probe of the real roster with a mid-roll ad voice added showed it gets `role: guest` (not
 # `unknown`) whenever the episode has any real guest name at all — see
-# test_roster_golden_fixtures.py's reported finding. That is the same failure shape as the
+# the roster golden-fixture test's reported finding. That is the same failure shape as the
 # open #1188 bug (an unnamed ad voice enters the corpus with a GUESTS_ON-shaped role), so
 # adding it here would make this seed non-green. Kept out per "do not encode the wrong value
 # as expected" (SCHEMA.md, honesty workflow).

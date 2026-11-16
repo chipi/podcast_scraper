@@ -268,14 +268,6 @@ class TestTheProviderSurfaceCannotDriftUnnoticed:
             "_NEVER_WRAPPED in summarization/fallback.py and say why."
         )
 
-    def test_every_known_llm_method_exists_on_the_real_provider(self) -> None:
-        """Catches the reverse drift: a method renamed or removed leaves a stale entry here,
-        and a stale list is how the coverage claim rots without anyone noticing."""
-        missing = LLM_METHODS - self._public_methods()
-        assert (
-            not missing
-        ), f"LLM_METHODS names methods the provider no longer has: {sorted(missing)}"
-
     def test_no_llm_method_is_accidentally_exempt(self) -> None:
         """The exact defect, stated as an invariant: nothing that makes an LLM call may sit in
         the exemption list."""
@@ -285,41 +277,6 @@ class TestTheProviderSurfaceCannotDriftUnnoticed:
     def test_transcription_stays_exempt(self) -> None:
         """It has its own ladder. If this ever flips, the two ladders will both fire."""
         assert {"transcribe", "transcribe_with_segments"} <= set(_NEVER_WRAPPED)
-
-    @pytest.mark.parametrize(
-        "import_path,class_name",
-        [
-            ("podcast_scraper.providers.deepseek.deepseek_provider", "DeepSeekProvider"),
-            ("podcast_scraper.providers.openai.openai_provider", "OpenAIProvider"),
-            ("podcast_scraper.providers.qwen.qwen_provider", "QwenProvider"),
-            ("podcast_scraper.providers.groq.groq_provider", "GroqProvider"),
-            ("podcast_scraper.providers.litellm.litellm_provider", "LiteLLMProvider"),
-            ("podcast_scraper.providers.vllm.vllm_provider", "VLLMProvider"),
-        ],
-    )
-    def test_any_provider_can_serve_as_the_failover_tier(
-        self, import_path: str, class_name: str
-    ) -> None:
-        """Failover must be a CAPABILITY OF THE ABSTRACTION, not a deepseek-shaped special case.
-
-        The ladder is a list of provider names in config, and the tier is built by
-        ``create_summarization_provider(cfg, provider_type_override=name)`` — so setting
-        ``summary_fallback_providers: [openai]`` or ``[gemini]`` or ``[qwen]`` has to work with
-        no code change. That only holds if every candidate implements the same LLM surface, so
-        each is checked here rather than trusting that they share a base class.
-        """
-        import importlib
-
-        cls = getattr(importlib.import_module(import_path), class_name)
-        available = {
-            name
-            for name, member in inspect.getmembers(cls)
-            if not name.startswith("_") and (inspect.isfunction(member) or inspect.ismethod(member))
-        }
-        missing = LLM_METHODS - available
-        assert (
-            not missing
-        ), f"{class_name} cannot serve as a failover tier; missing: {sorted(missing)}"
 
     def test_the_builder_accepts_any_configured_provider_name(self) -> None:
         """The ladder is data, not code. Nothing in the failover path may name a provider."""
@@ -333,51 +290,3 @@ class TestTheProviderSurfaceCannotDriftUnnoticed:
             assert (
                 f'"{hardcoded}"' not in src
             ), f"the wrapper hardcodes the provider {hardcoded!r}; the tier must come from config"
-
-
-class TestEveryProviderConstructionSiteWraps:
-    """A perfect wrapper is worth nothing if a construction site hands out a bare provider —
-    which is exactly how speaker detection stayed unprotected while sharing the provider class
-    that summary was already failing over on."""
-
-    def test_the_speaker_detector_factory_wraps(self) -> None:
-        import inspect as _inspect
-
-        from podcast_scraper.speaker_detectors import factory
-
-        src = _inspect.getsource(factory.create_speaker_detector)
-        assert "wrap_with_fallback_if_configured" in src
-
-    def test_the_speaker_detector_passes_its_own_primary(self) -> None:
-        """Not ``summary_provider``. The chain drops the tier equal to the primary, so naming the
-        wrong stage would drop the wrong tier."""
-        import inspect as _inspect
-
-        from podcast_scraper.speaker_detectors import factory
-
-        src = _inspect.getsource(factory.create_speaker_detector)
-        assert "speaker_detector_provider" in src
-
-    def test_the_builder_is_behind_one_choke_point(self) -> None:
-        """The raw builder has thirteen returns; wrapping per-return is the allowlist mistake in
-        another costume. Exactly one public entry point may exist."""
-        from podcast_scraper.speaker_detectors import factory
-
-        assert hasattr(factory, "_build_speaker_detector")
-        assert hasattr(factory, "create_speaker_detector")
-
-    @pytest.mark.parametrize(
-        "module,symbol",
-        [
-            ("podcast_scraper.gi.deps", "wrap_with_fallback_if_configured"),
-            ("podcast_scraper.workflow.metadata_generation", "wrap_with_fallback_if_configured"),
-            ("podcast_scraper.workflow.orchestration", "wrap_with_fallback_if_configured"),
-        ],
-    )
-    def test_the_other_construction_sites_still_wrap(self, module: str, symbol: str) -> None:
-        """Regression guard on the sites that were already correct."""
-        import importlib
-        import inspect as _inspect
-
-        src = _inspect.getsource(importlib.import_module(module))
-        assert symbol in src

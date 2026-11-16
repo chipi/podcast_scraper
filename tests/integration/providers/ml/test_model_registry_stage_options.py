@@ -204,7 +204,7 @@ class TestResolveProfileToSettings:
         settings = resolve_profile_to_settings("cloud_with_dgx_primary")
         for stage in ("transcription", "summary", "kg", "ner", "gi", "diarization", "clustering"):
             assert f"_{stage}_research_ref" in settings, stage
-        assert settings["_clustering_research_ref"] == "docs/rfc/RFC-075-corpus-topic-clustering.md"
+        assert settings["_clustering_research_ref"] is None
         assert settings["_profile_preset"] == "cloud_with_dgx_primary"
 
 

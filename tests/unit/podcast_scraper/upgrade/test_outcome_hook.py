@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import shutil
 from pathlib import Path
 from typing import Any, cast, Dict, List
 
@@ -116,24 +115,6 @@ def test_a_missing_or_unreadable_outcome_is_refused(_reset: Path) -> None:
     _reset.unlink()
     with pytest.raises(oh.HookRefused, match="no shipped outcome"):
         oh.load_outcome("0099_fake")
-
-
-def test_the_code_digest_covers_the_imported_modules_and_the_verdicts(tmp_path: Path) -> None:
-    name = "podcast_scraper.upgrade.migrations.m0031_named_voices_shown"
-    closure = oh.module_closure(name)
-    for dep in (
-        "podcast_scraper.upgrade.migrations.m0025_one_person_one_entry",
-        "podcast_scraper.upgrade.migrations.m0029_naming_arc_voices_repaired",
-        "podcast_scraper.upgrade.reviewer_verdicts",
-        "podcast_scraper.gi.pipeline",
-    ):
-        assert dep in closure, dep
-    extra = tmp_path / "v.tsv"
-    extra.write_text("a")
-    first = oh.code_digest(name, [extra])
-    assert first == oh.code_digest(name, [extra])
-    extra.write_text("b")
-    assert oh.code_digest(name, [extra]) != first
 
 
 def test_static_checks_refuse_a_wrong_run(_reset: Path, monkeypatch) -> None:
@@ -270,96 +251,6 @@ def test_an_inputs_only_row_passes_the_rise_the_clone_measured(
     assert r["inputs_only_matched"] == [EP]
 
 
-@pytest.mark.parametrize(
-    "clone, before, after, why",
-    [
-        (
-            {EP: {"S2_hidden": 1}},
-            {EP: {"S2_hidden": 0}},
-            {EP: {"S2_hidden": 1, "S12_quotes_off_text": 1}},
-            "S12_quotes_off_text",
-        ),
-        (
-            {EP: {"S2_hidden": 2}},
-            {EP: {"S2_hidden": 0}},
-            {EP: {"S2_hidden": 1}},
-            "S2_hidden changed +1, the clone's +2",
-        ),
-        (
-            {EP: {"S2_hidden": 1}},
-            {EP: {"S2_hidden": 1}},
-            {EP: {"S2_hidden": 0}},
-            "S2_hidden changed -1, the clone's +1",
-        ),
-        (
-            {EP: {"S2_hidden": 1}},
-            {EP: {"S2_hidden": 0}},
-            {EP: {"S2_hidden": 0}},
-            "S2_hidden changed +0, the clone's +1",
-        ),
-        (
-            {},
-            {EP: {"S2_hidden": 0}},
-            {EP: {"S2_hidden": 1}},
-            "S2_hidden changed +1, the clone's +0",
-        ),
-    ],
-    ids=["other-metric", "smaller", "fall-vs-rise", "not-made", "unmeasured"],
-)
-def test_an_inputs_only_row_is_held_to_the_clones_delta_exactly(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clone, before, after, why
-) -> None:
-    r = _measured(tmp_path, monkeypatch, clone, [_row(EP)], before, after)
-    assert r["verdict"] == "FAIL"
-    assert len(r["failures"]) == 1 and why in r["failures"][0]
-
-
-@pytest.mark.parametrize(
-    "row",
-    [
-        _row(EP, fields=("counts", "inputs")),
-        _row(NEW, kind="prod_only", fields=None),
-        _row(EP, kind="clone_only", fields=None),
-    ],
-    ids=["differs-counts", "prod_only", "clone_only"],
-)
-def test_other_diff_rows_keep_the_no_rise_rule(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, row
-) -> None:
-    """An equal rise is no proof where the plan itself differs, or on a new episode."""
-    meta = row["meta"]
-    r = _measured(
-        tmp_path,
-        monkeypatch,
-        {meta: {"S2_hidden": 1}},
-        [row],
-        {meta: {"S2_hidden": 0}},
-        {meta: {"S2_hidden": 1}},
-    )
-    assert r["verdict"] == "FAIL" and "rose by 1" in r["failures"][0]
-    assert "inputs_only_matched" not in r
-
-
-def test_a_mixed_run_fails_only_the_mismatch_and_s1c_is_still_checked(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    clone = {EP: {"S2_hidden": 1}, OTHER: {"S1_hidden_unknown": -1}}
-    before = {EP: {"S2_hidden": 0}, OTHER: {"S1_hidden_unknown": 2}}
-    after = {EP: {"S2_hidden": 1}, OTHER: {"S1_hidden_unknown": 2}}
-    r = _measured(tmp_path, monkeypatch, clone, [_row(EP)], before, after)
-    assert r["verdict"] == "FAIL" and len(r["failures"]) == 1 and OTHER in r["failures"][0]
-    clone = {EP: {"S1c_inconsistent": 1}}
-    r = _measured(
-        tmp_path,
-        monkeypatch,
-        clone,
-        [_row(EP)],
-        {EP: {"S1c_inconsistent": 0}},
-        {EP: {"S1c_inconsistent": 1}},
-    )
-    assert r["failures"] == ["S1c is 1 after, not 0"], r["failures"]
-
-
 def test_a_non_gating_metric_is_never_compared(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -367,24 +258,6 @@ def test_a_non_gating_metric_is_never_compared(
         tmp_path, monkeypatch, {}, [_row(EP)], {EP: {"not_gating": 0}}, {EP: {"not_gating": 9}}
     )
     assert r["verdict"] == "PASS"
-
-
-def test_measure_fails_loudly_and_keeps_the_apply(
-    _reset: Path, tmp_path: Path, monkeypatch
-) -> None:
-    root = tmp_path / "corpus"
-    root.mkdir()
-    prep = oh.prepare(Fake(), root, ["0099_fake"], {"0001"})
-    scores = iter(
-        [{ROW["meta"]: {"S1_hidden_unknown": 3}}, {ROW["meta"]: {"S1_hidden_unknown": 3}}]
-    )
-    monkeypatch.setattr(oh, "score_by_episode", lambda r: next(scores))
-    applied = []
-    with pytest.raises(oh.HookOutcomeFailed, match="not the measured one") as exc:
-        oh.measure(prep, root, lambda: applied.append(1), None)
-    assert applied == [1] and "to undo" in str(exc.value)
-    receipt = json.loads((root / ".podcast_scraper/upgrade-outcomes/0099_fake.json").read_text())
-    assert receipt["verdict"] == "FAIL" and receipt["failures"]
 
 
 def test_measure_passes_when_prod_moves_as_the_clone(
@@ -573,20 +446,6 @@ def test_a_lone_regime_migration_is_prepared(_reset: Path, tmp_path: Path) -> No
     assert list(runner.prepared) == ["0099_fake"]
 
 
-def test_measure_fails_when_s1c_is_left_after_even_if_deltas_match(
-    _reset: Path, tmp_path: Path, monkeypatch
-) -> None:
-    root = tmp_path / "corpus"
-    root.mkdir()
-    prep = oh.prepare(Fake(), root, ["0099_fake"], {"0001"})
-    before = {ROW["meta"]: {"S1_hidden_unknown": 3, "S1c_inconsistent": 2}}
-    after = {ROW["meta"]: {"S1_hidden_unknown": 2, "S1c_inconsistent": 2}}
-    scores = iter([before, after])
-    monkeypatch.setattr(oh, "score_by_episode", lambda r: next(scores))
-    with pytest.raises(oh.HookOutcomeFailed, match="S1c is 2 after"):
-        oh.measure(prep, root, lambda: None, None)
-
-
 def test_an_accepted_run_records_the_accept_file_in_its_receipt(
     _reset: Path, tmp_path: Path, monkeypatch
 ) -> None:
@@ -609,11 +468,19 @@ def test_an_accepted_run_records_the_accept_file_in_its_receipt(
     assert receipt["plan_diff"] == prep.diff
 
 
-def test_the_built_in_gating_metrics_equal_the_gate_config(monkeypatch, tmp_path: Path) -> None:
-    """Prod runs the installed package, where the config file may be absent."""
-    from_config = oh.gating_metrics()
-    monkeypatch.setattr(oh, "PACKAGE_ROOT", tmp_path / "a" / "b")
-    assert oh.gating_metrics() == from_config
+def test_measure_refuses_a_scored_corpus_without_a_scoreboard(tmp_path: Path) -> None:
+    """Nothing is applied when the corpus holds scored files no installed package can score:
+    every gating number would read as unchanged."""
+    from types import SimpleNamespace
+
+    from podcast_scraper.extensions import use_extensions
+
+    (tmp_path / "e.gi.json").write_text("{}", encoding="utf-8")
+    applied = []
+    prepared = SimpleNamespace(migration=SimpleNamespace(id="0099_x"))
+    with use_extensions([]), pytest.raises(oh.HookRefused, match="no corpus scoreboard"):
+        oh.measure(prepared, tmp_path, lambda: applied.append(1), None)  # type: ignore[arg-type]
+    assert applied == []
 
 
 @pytest.mark.parametrize("side", ["prod_only", "clone_only"])
@@ -635,40 +502,7 @@ def test_a_row_on_one_side_only_stops_the_run(_reset: Path, tmp_path: Path, side
     assert side in {e["kind"] for e in diff["entries"]}
 
 
-def test_the_verdicts_file_is_in_the_migration_digest(tmp_path: Path, monkeypatch) -> None:
-    """Hook condition C5: a changed verdicts row moves the digest (criterion A2)."""
-    monkeypatch.undo()  # the autouse fixture stubs migration_digest; this test needs the real one
-    from podcast_scraper.upgrade.migrations import m0031_named_voices_shown as m31
-    from podcast_scraper.upgrade.registry import get_migrations
-
-    mig = next(m for m in get_migrations() if m.id == m31.NamedVoicesShownMigration().id)
-    copy = tmp_path / "v.tsv"
-    copy.write_bytes(m31.verdicts_file().read_bytes())
-    monkeypatch.setattr(m31, "verdicts_file", lambda: copy)
-    before = oh.migration_digest(mig)
-    copy.write_bytes(copy.read_bytes() + b"\n")
-    assert oh.migration_digest(mig) != before
-
-
 M31 = "podcast_scraper.upgrade.migrations.m0031_named_voices_shown"
-
-
-def test_a_parent_package_init_is_in_the_closure() -> None:
-    """Hook condition C3: importing a.b.c runs a/__init__.py and a/b/__init__.py. ``identity`` and
-    ``translation`` are reached only that way (0031 imports their submodules, never them)."""
-    closure = oh.module_closure(M31)
-    for pkg in ("podcast_scraper.identity", "podcast_scraper.translation"):
-        assert pkg in closure and closure[pkg].name == "__init__.py", pkg
-
-
-def test_editing_a_parent_package_init_moves_the_digest(tmp_path: Path, monkeypatch) -> None:
-    copy = tmp_path / "podcast_scraper"
-    shutil.copytree(oh.PACKAGE_ROOT, copy, ignore=shutil.ignore_patterns("__pycache__"))
-    monkeypatch.setattr(oh, "PACKAGE_ROOT", copy)
-    before = oh.code_digest(M31)
-    init = copy / "identity" / "__init__.py"
-    init.write_bytes(init.read_bytes() + b"\n")
-    assert oh.code_digest(M31) != before
 
 
 def test_the_regime_starts_at_0031() -> None:

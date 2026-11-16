@@ -43,7 +43,6 @@ from podcast_scraper.providers.params import (
     SummarizationParams,
     TranscriptionParams,
 )
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
@@ -253,34 +252,3 @@ class TestTranscriptionFactoryExperimentMode(unittest.TestCase):
         params = TranscriptionParams(model_name="test")
         with self.assertRaises(TypeError):
             create_transcription_provider(cfg, params)
-
-
-class TestSpeakerDetectionFactoryExperimentMode(unittest.TestCase):
-    """Test speaker detection factory with experiment-style params."""
-
-    def test_config_mode_backward_compatible(self):
-        """Test Config-based mode still works."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="spacy",
-        )
-        detector = create_speaker_detector(cfg)
-        self.assertIsNotNone(detector)
-        self.assertEqual(detector.__class__.__name__, "MLProvider")
-
-    def test_experiment_mode_with_params(self):
-        """Test experiment mode with params."""
-        params = SpeakerDetectionParams(
-            model_name="en_core_web_sm",
-            temperature=0.5,
-        )
-        detector = create_speaker_detector("spacy", params)
-        self.assertIsNotNone(detector)
-        self.assertEqual(detector.__class__.__name__, "MLProvider")
-
-    def test_error_params_with_config(self):
-        """Test error when params provided with Config."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        params = SpeakerDetectionParams(model_name="test")
-        with self.assertRaises(TypeError):
-            create_speaker_detector(cfg, params)

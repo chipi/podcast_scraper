@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p08-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e03.mp3",
+    "transcript_file_path": "transcripts/p08_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "A. correspondent talks with Renee Montagne-Park: The Desk That Never Sleeps.",
+    "duration_seconds": 187,
+    "episode_id": "ep-b3570c1ceb5eca41",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-09-02T00:00:00",
+    "title": "The Desk That Never Sleeps"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-01-05T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Public Hour",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A newsroom functions as a reliability system with a deadline — its primary operational constraint is not speed but the maintenance of trustworthiness over time.",
+      "Trust is the only asset a public broadcaster actually owns — without it, all other efforts to inform the public are fundamentally undermined.",
+      "The framing of journalism matters because it reveals which trade-offs are being made — especially in how reliability is prioritized across editorial decisions.",
+      "Reliability is not a feature but a foundational condition — ignoring it leads to the need to rebuild credibility from scratch, a process that can take a year or more.",
+      "The second-order effect of prioritizing reliability is often missed: it shapes how teams respond to pressure, risk, and deadline demands across news cycles.",
+      "A key heuristic in journalism is that trust enables sustained public engagement — without it, even accurate reporting fails to resonate or influence.",
+      "The most underrated piece of journalism is not a story or a source but the consistent practice of maintaining reliability as a systemic priority.",
+      "Listeners can test a concept by running it for two weeks — the rest of the process is iteration, not invention."
+    ],
+    "raw_text": "A newsroom functions as a reliability system with a deadline — its primary operational constraint is not speed but the maintenance of trustworthiness over time. Trust is the only asset a public broadcaster actually owns — without it, all other efforts to inform the public are fundamentally undermined.",
+    "title": "Trust as the Core Asset in Public Broadcasting"
+  }
+}

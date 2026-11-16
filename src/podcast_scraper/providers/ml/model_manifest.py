@@ -28,7 +28,7 @@ from typing import NamedTuple
 from podcast_scraper import config_constants as cc
 
 # Pyannote diarization pipeline id (mirrors config.py's diarization default /
-# pyannote_provider.py). A ModelRegistry _DIARIZATION_OPTIONS stage, but preloaded
+# the diarization provider). A ModelRegistry _DIARIZATION_OPTIONS stage, but preloaded
 # here (not a "capability" model). community-1 (v4) is the promoted default.
 DIARIZATION_PIPELINE_ID = "pyannote/speaker-diarization-community-1"
 

@@ -83,15 +83,6 @@ def test_importing_it_loads_no_speaker_stage_module(module: str) -> None:
     assert json.loads(out.stdout.strip().splitlines()[-1]) == []
 
 
-def test_the_dgx_diarization_provider_is_still_importable_from_the_package() -> None:
-    from podcast_scraper.providers.tailnet_dgx import TailnetDgxDiarizationProvider
-    from podcast_scraper.providers.tailnet_dgx.diarization_provider import (
-        TailnetDgxDiarizationProvider as direct,
-    )
-
-    assert TailnetDgxDiarizationProvider is direct
-
-
 def test_the_package_no_longer_hands_out_the_speaker_stage() -> None:
     """S8: ``podcast_scraper.speaker_detection`` was a lazy alias for the speaker stage's module."""
     import podcast_scraper

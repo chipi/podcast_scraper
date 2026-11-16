@@ -82,7 +82,7 @@ def _person_web_payload(root: Path) -> dict[str, Any] | None:
 
     The executor writes every enrichment artifact as an envelope
     (``{derived, status, data:{provider, persons}, …}``), so the payload the card reads lives under
-    ``data`` — the same convention every other enrichment reader uses (cil_queries.py). Reading
+    ``data`` — the same convention every other enrichment reader uses. Reading
     the top level instead found nothing on a real corpus (only the hand-written flat test
     fixtures matched), so bios/photos never surfaced. Tolerates an already-flat dict too.
     Uncached: the corpus-mtime token keys on corpus_run_summary.json, which an enrichment run

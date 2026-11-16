@@ -9,6 +9,7 @@ import argparse
 import copy
 import logging
 import os
+import re
 import sys
 import time
 import traceback
@@ -33,7 +34,7 @@ from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import __version__, config, config_constants
+from . import __version__, config, config_constants, content_types
 from .languages import transcription_language
 from .rss.feeds_spec import load_feeds_spec_file, merge_feed_entry_into_config, RssFeedEntry
 from .utils import filesystem, progress
@@ -399,7 +400,9 @@ def single_feeds_spec_output_dir(args: argparse.Namespace, entry: RssFeedEntry) 
     """
     corpus_raw = (getattr(args, "output_dir", None) or "").strip()
     if corpus_raw:
-        return filesystem.corpus_feed_output_dir(corpus_raw, entry.url)
+        return filesystem.corpus_source_output_dir(
+            corpus_raw, entry.url, getattr(entry, "content_type", None)
+        )
     return filesystem.derive_output_dir(entry.url, None)
 
 
@@ -1476,7 +1479,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         dest="generate_gi",
         help="Generate Grounded Insight Layer (GIL) artifacts (gi.json) per episode. "
-        "Requires generate_metadata. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
+        "Requires generate_metadata.",
     )
     parser.add_argument(
         "--gi-max-insights",
@@ -2331,7 +2334,7 @@ def _config_yaml_allowed_top_level_keys() -> set[str]:
     strings (e.g. ``feeds`` for ``rss_urls``).
     """
     allowed: set[str] = set()
-    for field_name, finfo in config.Config.model_fields.items():
+    for field_name, finfo in config.config_fields().items():
         allowed.add(field_name)
         if finfo.alias:
             allowed.add(finfo.alias)
@@ -2354,7 +2357,7 @@ def _yaml_top_level_key_to_model_field(yaml_key: str) -> Optional[str]:
     """Map a YAML/JSON top-level key to :class:`~podcast_scraper.config.Config` field name."""
     if yaml_key in config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS or yaml_key == "profile":
         return None
-    for fname, finfo in config.Config.model_fields.items():
+    for fname, finfo in config.config_fields().items():
         if fname == yaml_key:
             return fname
         if finfo.alias == yaml_key:
@@ -2661,6 +2664,93 @@ def _parse_corpus_status_args(argv: Optional[Sequence[str]] = None) -> argparse.
     args = parser.parse_args(argv or [])
     args.command = "corpus-status"
     return args
+
+
+def _parse_parked_episodes_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse ``parked-episodes``: list or release episodes parked after transcription failures."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "List the episodes parked after repeated transcription failures (and those counting "
+            "towards it), or release parked episodes so the next batch tries them again."
+        ),
+        prog="podcast_scraper parked-episodes",
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Corpus parent directory (holds parked_episodes.json beside corpus_incidents.jsonl).",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--release",
+        nargs="+",
+        metavar="EPISODE_ID",
+        default=[],
+        help="Release these parked episodes.",
+    )
+    group.add_argument("--release-all", action="store_true", help="Release every parked episode.")
+    group.add_argument(
+        "--park",
+        nargs="+",
+        metavar="EPISODE_ID",
+        default=[],
+        help="Park these episodes by hand (requires --reason).",
+    )
+    parser.add_argument("--reason", default="", help="Why the episodes are parked by hand.")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="parked_format",
+        help="Output format for the listing (default: text).",
+    )
+    args = parser.parse_args(argv or [])
+    args.command = "parked-episodes"
+    return args
+
+
+def _run_parked_episodes(args: argparse.Namespace, log: logging.Logger) -> int:
+    import json as _json
+
+    from .workflow import episode_park
+
+    corpus = str(args.output_dir)
+    try:
+        if args.park:
+            if not args.reason.strip():
+                log.error("--park needs --reason: the listing shows it to whoever releases it")
+                return 1
+            newly = episode_park.park(corpus, args.park, reason=args.reason.strip())
+            print(f"parked {len(newly)}: {' '.join(newly)}".rstrip())
+            return 0
+        if args.release or args.release_all:
+            released = episode_park.release(corpus, args.release, all_parked=bool(args.release_all))
+            print(f"released {len(released)}: {' '.join(released)}".rstrip())
+            return 0
+        doc = episode_park.list_episodes(corpus)
+    except KeyError as exc:
+        log.error("Not parked, nothing released: %s", exc.args[0])
+        return 1
+    except (OSError, ValueError) as exc:
+        log.error("Cannot read parked episodes: %s", exc)
+        return 1
+    if args.parked_format == "json":
+        print(_json.dumps(doc, indent=2, sort_keys=True))
+        return 0
+    episodes = doc.get("episodes", {})
+    parked = {e: v for e, v in episodes.items() if v.get("parked_at")}
+    counting = {e: v for e, v in episodes.items() if not v.get("parked_at")}
+    print(f"parked: {len(parked)}  counting: {len(counting)}")
+    for label, group in (("PARKED", parked), ("counting", counting)):
+        for eid, v in sorted(group.items()):
+            fails = v.get("failures") or []
+            last = fails[-1] if fails else {}
+            print(
+                f"{label} {eid} failures={len(fails)} parked_at={v.get('parked_at') or '-'} "
+                f"last={last.get('exception_type', '-')} {last.get('at', '-')} "
+                f"feed={v.get('feed_url') or '-'}"
+            )
+    return 0
 
 
 def _parse_pricing_assumptions_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -3183,6 +3273,10 @@ def _parse_pipeline_argv(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     return args
 
 
+#: A subcommand-shaped word ("identity-ledger"): never a feed URL, which needs a scheme.
+_UNKNOWN_COMMAND_RE = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
     # Subcommands a stage owns (gi, gi-repair, identity-ledger, enrich-edges,
@@ -3299,6 +3393,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         cs_argv = list(argv[1:]) if len(argv) > 1 else []
         return _parse_corpus_status_args(cs_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "parked-episodes":
+        return _parse_parked_episodes_args(list(argv[1:]))
+
     if argv and len(argv) > 0 and argv[0] == "pricing-assumptions":
         pa_argv = list(argv[1:]) if len(argv) > 1 else []
         args = _parse_pricing_assumptions_args(pa_argv)
@@ -3319,6 +3416,16 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
             command="enrich",
             enrich_argv=list(argv[1:]) if len(argv) > 1 else [],
         )
+
+    # A bare word no command claimed is a command that is not here, not a feed: the feed must be an
+    # http(s) URL, so read as one it only failed as "RSS URL must be http or https: <word>".
+    if argv and _UNKNOWN_COMMAND_RE.fullmatch(argv[0]):
+        print(
+            f"podcast_scraper: no command named {argv[0]!r}; an installed extension may provide it "
+            "(the feed to scrape must be an http or https URL).",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
     # Normal parsing for the main pipeline command.
     return _parse_pipeline_argv(argv)
@@ -3790,7 +3897,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # is resolved again by ``model_validate`` below, so leaving it out silently restored the
     # profile's value.
     _file_nulls: frozenset[str] = getattr(args, "_config_yaml_null_keys", frozenset())
-    for _name, _field_info in config.Config.model_fields.items():
+    for _name, _field_info in config.config_fields().items():
         if _name in payload:
             continue
         _alias = _field_info.alias or _name
@@ -3903,7 +4010,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
             "local Hugging Face QA/NLI (requires .[ml] / sentence-transformers for NLI). "
             "For API-only grounding, set both evidence providers to match "
             "summary_provider, or leave defaults with gil_evidence_match_summary_provider: "
-            "true (default). See GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix.",
+            "true (default).",
             _sp,
             _qe,
             _en,
@@ -4357,6 +4464,7 @@ def _main(  # noqa: C901 - main function handles multiple command paths
             "index",
             "insight-clusters",
             "kg",
+            "parked-episodes",
             "pricing-assumptions",
             "search",
             "serve",
@@ -4422,6 +4530,9 @@ def _main(  # noqa: C901 - main function handles multiple command paths
         else:
             print(format_corpus_status_text(st), end="")
         return 0
+
+    if hasattr(args, "command") and args.command == "parked-episodes":
+        return _run_parked_episodes(args, log)
 
     if hasattr(args, "command") and args.command == "pricing-assumptions":
         return _run_pricing_assumptions(args)
@@ -4704,9 +4815,10 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                 reset_worklist_report().set_feeds_planned(len(feed_targets))
                 for entry in feed_targets:
                     url = entry.url
-                    sub = filesystem.feed_workspace_dirname(url)
                     try:
-                        out_path = filesystem.corpus_feed_output_dir(corpus_parent, url)
+                        out_path = filesystem.corpus_source_output_dir(
+                            corpus_parent, url, getattr(entry, "content_type", None)
+                        )
                     except ValueError as exc:
                         log.error("Invalid feed output path for %s: %s", url, exc)
                         any_hard_failed = True
@@ -4730,7 +4842,9 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                             )
                         )
                         continue
-                    log.info("Feed start: rss=%s -> feeds/%s", url, sub)
+                    log.info(
+                        "Feed start: rss=%s -> %s", url, os.path.relpath(out_path, corpus_parent)
+                    )
                     try:
                         cfg = _build_config_for_feed_entry(
                             args, entry, output_dir_override=out_path
@@ -4776,7 +4890,10 @@ def _main(  # noqa: C901 - main function handles multiple command paths
                         )
                     _log_configuration(cfg, log)
                     try:
-                        count, summary = run_pipeline_fn(cfg)
+                        # One dispatch point for both batch loops (ADR-177 decision 7).
+                        count, summary = content_types.run_source(
+                            cfg, entry, run_pipeline_fn=run_pipeline_fn
+                        )
                     except Exception as exc:  # pragma: no cover - defensive
                         log.exception(
                             "Feed failed: rss=%s detail=%s",
@@ -4920,6 +5037,7 @@ def _main(  # noqa: C901 - main function handles multiple command paths
             log.error("%s", exc)
             return 1
 
+    only: Optional[RssFeedEntry] = None
     try:
         if getattr(args, "feeds_spec", None):
             only = resolve_cli_feed_targets(args)[0]
@@ -4956,7 +5074,11 @@ def _main(  # noqa: C901 - main function handles multiple command paths
     try:
         with _single_feed_corpus_lock(cfg.output_dir or ".", logger=log):
             try:
-                episode_count, summary = run_pipeline_fn(cfg)
+                # The one dispatch point, for a single source as for a batch (ADR-177
+                # decision 7): a spec holding one text source must not reach run_pipeline.
+                episode_count, summary = content_types.run_source(
+                    cfg, only, run_pipeline_fn=run_pipeline_fn
+                )
             except Exception as exc:  # pragma: no cover - defensive
                 # log.exception (not log.error) attaches the stack to structured sink / Sentry.
                 log.exception("Unexpected failure: %s", exc)

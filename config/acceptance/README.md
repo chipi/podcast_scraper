@@ -55,7 +55,7 @@ external placeholder URLs with distinct local fixture feeds.
 For operator examples (profile + feeds spec), see **`docs/api/CONFIGURATION.md#multi-feed-compose`**
 and **`config/examples/feeds.spec.example.yaml`**.
 
-### Optional corpus topic clustering (RFC-075)
+### Optional corpus topic clustering
 
 After a successful run with **`vector_search: true`**, you can build **`search/topic_clusters.json`**:
 
@@ -63,8 +63,7 @@ After a successful run with **`vector_search: true`**, you can build **`search/t
 python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent>
 ```
 
-See [RFC-075](../../docs/rfc/RFC-075-corpus-topic-clustering.md) and
-[Semantic Search Guide](../../docs/guides/SEMANTIC_SEARCH_GUIDE.md).
+See the [Semantic Search Guide](../../docs/guides/SEMANTIC_SEARCH_GUIDE.md).
 
 ## CI: GIL vs indexed-transcript offset check after the fast matrix
 
@@ -72,7 +71,7 @@ On **push** to `main` / release branches, `.github/workflows/python-app.yml` run
 `make test-acceptance-fixtures-fast`, then **`make verify-gil-offsets-after-acceptance`**.
 That walks the latest acceptance **`session_*/runs/run_*`** trees and runs
 `verify-gil-chunk-offsets --strict` on every run that has **`search/metadata.json`**
-(RFC-072 / issue #528).
+(issue #528).
 
 ```bash
 make verify-gil-offsets-after-acceptance

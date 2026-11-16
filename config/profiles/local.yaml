@@ -31,7 +31,7 @@ profile: local
 transcription_provider: whisper
 whisper_model: small.en
 
-# Screenplay + neural diarization (RFC-058) — local Whisper path only
+# Screenplay + neural diarization — local Whisper path only
 screenplay: true
 diarize: true
 diarization_model: pyannote/speaker-diarization-community-1  # from registry: pyannote_diarization_community1
@@ -62,7 +62,7 @@ gi_require_grounding: true
 # which is operationally infeasible. Bundling cuts to ~6 calls (~10min/ep on
 # an 8B-class model). The bundled Ollama path requires num_ctx=32k (default
 # 2048 truncates the bundled prompt); this is wired into OllamaProvider's
-# bundled methods, no extra config needed. ADR-078. (Coverage vs Sonnet-4.6
+# bundled methods, no extra config needed. (Coverage vs Sonnet-4.6
 # silver was 72% / 72% on the prior qwen3.5:9b run; hermes3:8b GIL coverage
 # is tracked as a follow-up — finale only judged the summarization stage.)
 gil_evidence_quote_mode: bundled

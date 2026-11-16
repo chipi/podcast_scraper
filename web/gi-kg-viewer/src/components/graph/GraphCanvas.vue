@@ -25,8 +25,13 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
-import { graphCanvasPlugins, graphLenses as registeredGraphLenses } from '../../extensions'
+import {
+  graphCanvasPlugins,
+  graphLenses as registeredGraphLenses,
+  graphTypeTraits,
+} from '../../extensions'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
+import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
@@ -36,13 +41,10 @@ import { useThemeStore } from '../../stores/theme'
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import {
   applyCoGuestEdges,
-  applyCredibilityBorder,
   applyPersonCommunityRegions,
   clearCoGuestEdges,
-  clearCredibilityBorder,
   clearPersonCommunityRegions,
   type CoGuestEnvelopeData,
-  type GroundingEnvelopeData,
 } from '../../utils/cyGraphLensOverlays'
 import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
@@ -279,14 +281,7 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
     const res = await fetchNodeEpisodes(root, id, GRAPH_NODE_EPISODES_EXPAND_MAX)
     const flat: string[] = []
     for (const ep of res.episodes) {
-      const gi = ep.gi_relative_path?.trim()
-      const kg = ep.kg_relative_path?.trim()
-      if (gi) {
-        flat.push(gi)
-      }
-      if (kg) {
-        flat.push(kg)
-      }
+      flat.push(...episodeArtifactRelPaths(ep))
     }
     if (flat.length === 0) {
       graphExpansion.setTruncationLine('No other episodes in the corpus reference this node.')
@@ -926,13 +921,7 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
     if (d.episode_id?.trim()) {
       subject.setEpisodeId(d.episode_id.trim())
     }
-    const paths: string[] = []
-    if (d.has_gi && d.gi_relative_path?.trim()) {
-      paths.push(d.gi_relative_path.trim())
-    }
-    if (d.has_kg && d.kg_relative_path?.trim()) {
-      paths.push(d.kg_relative_path.trim())
-    }
+    const paths = episodeArtifactRelPaths(d)
     if (paths.length === 0) {
       return
     }
@@ -1036,19 +1025,6 @@ function refreshEnricherLensOverlays(): void {
   const core = cy
   if (!core) return
   const root = shell.corpusPath.trim()
-  // Person credibility border
-  if (lenses.personCredibility && root) {
-    void fetchCachedCorpusEnvelope<GroundingEnvelopeData>(root, 'grounding_rate')
-      .then((env) => {
-        if (!cy) return
-        applyCredibilityBorder(cy, env?.data ?? null)
-      })
-      .catch(() => {
-        /* silently degrade */
-      })
-  } else {
-    clearCredibilityBorder(core)
-  }
   // Co-guest edges
   if (lenses.coGuestEdges && root) {
     void fetchCachedCorpusEnvelope<CoGuestEnvelopeData>(root, 'guest_coappearance')
@@ -1264,8 +1240,6 @@ function layoutOptionsFor(name: string, opts?: { numIter?: number }): Record<str
 
 const TIMELINE_TOPIC_BAND_OFFSET = 100
 const TIMELINE_PERSON_BAND_OFFSET = -180
-const TIMELINE_INSIGHT_OFFSET = 30
-const TIMELINE_QUOTE_OFFSET = -30
 const TIMELINE_DEFAULT_X = 0
 
 /** RFC-080 V3 — count of Episodes parked at the missing-date spot in the
@@ -1331,8 +1305,8 @@ function timelineLayoutSpec(core: Core): Record<string, unknown> {
   placeBand('node[type = "Entity_person"]', TIMELINE_PERSON_BAND_OFFSET)
   placeBand('node[type = "Entity_organization"]', TIMELINE_PERSON_BAND_OFFSET)
 
-  // Insights / Quotes ride near their parent Episode (small signed
-  // offset so children don't all land on the parent's exact (x, y)).
+  // Satellite types (`graphTypeTraits.episodeSatellites`) ride near their parent Episode (small
+  // signed offset so children don't all land on the parent's exact (x, y)).
   const placeChildren = (selector: string, yOffset: number): void => {
     core.nodes(selector).forEach((n) => {
       const eid = String(n.data('episodeId') ?? '').trim()
@@ -1359,8 +1333,9 @@ function timelineLayoutSpec(core: Core): Record<string, unknown> {
       }
     })
   }
-  placeChildren('node[type = "Insight"]', TIMELINE_INSIGHT_OFFSET)
-  placeChildren('node[type = "Quote"]', TIMELINE_QUOTE_OFFSET)
+  for (const t of graphTypeTraits.list()) {
+    for (const s of t.episodeSatellites ?? []) placeChildren(`node[type = "${s.type}"]`, s.yOffset)
+  }
 
   return {
     name: 'preset',
@@ -4327,7 +4302,6 @@ watch(
    same fetch cadence and error handling. */
 watch(
   () => [
-    lenses.personCredibility,
     lenses.coGuestEdges,
     lenses.personCommunities,
     lenses.registered,

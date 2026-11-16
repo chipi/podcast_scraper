@@ -30,22 +30,6 @@ class TestProtocolVerificationIntegration(unittest.TestCase):
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))
 
-    def test_speaker_detector_verification(self):
-        """Test that speaker detectors are verified at creation."""
-        cfg = config.Config(
-            rss_url="https://example.com",
-            speaker_detector_provider="spacy",
-        )
-
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        provider = create_speaker_detector(cfg)
-
-        # Provider should implement the protocol correctly
-        self.assertTrue(hasattr(provider, "detect_speakers"))
-        self.assertTrue(hasattr(provider, "initialize"))
-        self.assertTrue(hasattr(provider, "cleanup"))
-
     def test_summarization_provider_verification(self):
         """Test that summarization providers are verified at creation."""
         cfg = config.Config(

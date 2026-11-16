@@ -69,64 +69,6 @@ class TestWhatIsRefused:
         assert REASON_INPUT_NOT_TARGET_LANGUAGE == "input_not_english"
 
 
-class TestTheNerEntryPointHonoursIt:
-    def test_spanish_prose_yields_no_candidates(self) -> None:
-        """The measured hazard: English NER over Spanish does not find nothing, it finds wrong
-        things that survive `_looks_like_person` and become people."""
-        from podcast_scraper.speaker_detectors.hosts import detect_hosts_from_transcript_intro
-
-        class _FakeNlp:
-            def __call__(self, _text: str) -> object:
-                raise AssertionError("the NER model must not be invoked on non-English text")
-
-        got = detect_hosts_from_transcript_intro(
-            "Bienvenidos de nuevo. Soy Maya Koster y hoy hablamos de senderos.",
-            nlp=_FakeNlp(),
-            text_language="es",
-        )
-        assert got == set()
-
-    def test_english_prose_is_unaffected(self) -> None:
-        """The path 678 episodes take. The guard must be inert for them."""
-        from podcast_scraper.speaker_detectors.hosts import detect_hosts_from_transcript_intro
-
-        called: list[str] = []
-
-        class _Nlp:
-            def __call__(self, text: str) -> object:
-                called.append(text)
-
-                class _Doc:
-                    ents: list = []
-
-                return _Doc()
-
-        detect_hosts_from_transcript_intro(
-            "Welcome back. I'm Maya Koster and today we talk trails.",
-            nlp=_Nlp(),
-            text_language="en",
-        )
-        assert called, "English text must still reach the model"
-
-    def test_no_language_offered_keeps_the_old_behaviour(self) -> None:
-        """Every existing caller passes no language, and none of them may change behaviour."""
-        from podcast_scraper.speaker_detectors.hosts import detect_hosts_from_transcript_intro
-
-        called: list[str] = []
-
-        class _Nlp:
-            def __call__(self, text: str) -> object:
-                called.append(text)
-
-                class _Doc:
-                    ents: list = []
-
-                return _Doc()
-
-        detect_hosts_from_transcript_intro("Welcome back. I'm Maya.", nlp=_Nlp())
-        assert called
-
-
 class TestTheSniffGateHonoursIt:
     def test_a_non_english_episode_goes_deep_only_without_a_sniff_pass(self) -> None:
         """Cheaper AND correct: the gate's entity count uses an English NER model, so on
@@ -187,66 +129,12 @@ class TestTheGuardIsActuallyREACHABLE:
     a caller.
     """
 
-    def test_detect_speaker_names_ACCEPTS_a_language(self) -> None:
-        """The parameter whose absence made the guard unreachable."""
-        import inspect
-
-        from podcast_scraper.speaker_detectors.detection import detect_speaker_names
-
-        assert "text_language" in inspect.signature(detect_speaker_names).parameters
-
-    def test_it_refuses_spanish_and_returns_the_defaults(self) -> None:
-        """Refuses rather than raising: a mis-ordered stage costs an episode's names, which a
-        relabel recovers, while invented people propagate into the roster and then the KG."""
-        from podcast_scraper.speaker_detectors.constants import DEFAULT_SPEAKER_NAMES
-        from podcast_scraper.speaker_detectors.detection import detect_speaker_names
-
-        names, hosts, succeeded, used_defaults = detect_speaker_names(
-            episode_title="Entrevista con María González sobre la inflación",
-            episode_description="Hablamos con María González y Juan Pérez.",
-            nlp=object(),  # never reached — the guard returns first
-            text_language="es",
-        )
-        assert names == DEFAULT_SPEAKER_NAMES
-        assert hosts == set()
-        assert succeeded is False
-        assert used_defaults is True
-
-    def test_english_is_unaffected(self) -> None:
-        """The guard must not touch the 678-episode English corpus. `nlp=None` short-circuits
-        before any NER, so this asserts the guard did NOT fire rather than what NER found."""
-        from podcast_scraper.speaker_detectors.detection import detect_speaker_names
-
-        _names, _hosts, succeeded, _used = detect_speaker_names(
-            episode_title="Interview with Maria Gonzalez",
-            episode_description=None,
-            nlp=None,
-            text_language="en",
-        )
-        # nlp=None returns the defaults too, so this only proves no exception and no refusal
-        # path divergence; the real English behaviour is covered by TestTheNerEntryPointHonoursIt.
-        assert succeeded is False
-
     def test_no_language_still_proceeds(self) -> None:
         """Most of the corpus predates language resolution. Refusing those would stop naming
         for the corpus that works today."""
         from podcast_scraper.languages_guard import refuse_unsupported_language
 
         assert refuse_unsupported_language("speaker-name detection", None) is None
-
-    def test_the_ml_provider_PASSES_the_episode_language(self) -> None:
-        """Not `"en"`, and the difference is load-bearing: the inputs are the feed's title and
-        description, which stay in the source language even after the TRANSCRIPT is translated.
-        Nothing translates feed metadata, so English NER over a Spanish title is a live hazard
-        for a translated episode too.
-        """
-        import inspect
-
-        from podcast_scraper.providers.ml.ml_provider import MLProvider
-
-        # The method's own source, wherever it lives (S1 moved it to ml_provider_gi_naming).
-        source = inspect.getsource(MLProvider.detect_speakers)
-        assert "text_language=transcription_language(self.cfg)" in source
 
     def test_the_three_hazard_sites_share_ONE_predicate(self) -> None:
         """Three copies of `language is None or language == "en"` had drifted into three

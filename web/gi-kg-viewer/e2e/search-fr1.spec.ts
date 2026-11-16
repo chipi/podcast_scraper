@@ -8,8 +8,7 @@ import {
 } from './helpers'
 
 /**
- * PRD-033 FR1 (#884) — Search/Explore surface: source_tier badges, compound
- * (segment + lifted insight) cards, the Insights/Transcript/Both evidence toggle,
+ * PRD-033 FR1 (#884) — Search/Explore surface: source_tier badges,
  * the query-type indicator, and entity names that link to a Detail panel.
  *
  * #1619 — migrated to the live search index.
@@ -20,9 +19,10 @@ import {
  *
  * Against the real index, ranking decides how many rows come back and in what order, so the
  * assertions here are **relational** rather than absolute: every rendered tier badge must be one of
- * the three known tiers, each tier the query actually returns must appear, the evidence toggle must
- * narrow to exactly one tier, and Both must restore a superset. Those hold for any healthy result
- * set and still fail if the surface stops rendering tiers, compounds, or entity rows.
+ * the three known tiers, and each tier the query actually returns must appear. Those hold for any
+ * healthy result set and still fail if the surface stops rendering tiers or entity rows. Compound
+ * (segment + lifted insight) cards, their speaker/topic links, the Insights/Transcript/Both
+ * evidence toggle and the lift line are a downstream build's (E04 step 8b).
  */
 
 /** `source_tier` → the `data-tier` the SearchResultRowIcon carries. */
@@ -76,50 +76,20 @@ test.describe('Search FR1 surfaces (live index)', () => {
     expect(seen.size).toBeGreaterThan(1)
   })
 
-  test('evidence toggle constrains results to a single tier', async ({ page }) => {
+  test('the evidence toggle and lift line are not offered (downstream, E04 step 8b)', async ({ page }) => {
     await runSearch(page)
-    const tiers = page.getByTestId('search-result-tier')
-    const both = await tiers.count()
-    expect(both).toBeGreaterThan(0)
-
-    await page.getByTestId('search-evidence-insight').click()
-    await expect.poll(() => tiers.count()).toBeGreaterThan(0)
-    for (let i = 0; i < (await tiers.count()); i++) {
-      await expect(tiers.nth(i)).toHaveAttribute('data-tier', 'Insight')
-    }
-    const insightOnly = await tiers.count()
-
-    await page.getByTestId('search-evidence-segment').click()
-    await expect.poll(() => tiers.count()).toBeGreaterThan(0)
-    for (let i = 0; i < (await tiers.count()); i++) {
-      await expect(tiers.nth(i)).toHaveAttribute('data-tier', 'Transcript')
-    }
-    const segmentOnly = await tiers.count()
-
-    await page.getByTestId('search-evidence-both').click()
-    // Both restores a superset of either single tier.
-    await expect.poll(() => tiers.count()).toBeGreaterThanOrEqual(
-      Math.max(insightOnly, segmentOnly),
-    )
+    await expect(page.getByTestId('search-evidence-toggle')).toHaveCount(0)
+    await expect(page.getByText(/transcript rows linked to GI/)).toHaveCount(0)
   })
 
 })
 
 /**
- * #1619 category B — the corpus cannot produce a **compound** result, so these two keep their stub.
- *
- * A compound row is a `segment` hit whose payload carries a non-null `lifted` block (the insight
- * the chunk was lifted into, plus its speaker/topic). Measured against the live index on
- * 2026-08-14 across five queries — `systems thinking`, `risk management`, `Dr. Elena Fischer`,
- * `lifelong learning`, `expert interviews` — **every** result came back `"lifted": null`, 0 of 50.
- * So the compound badge and the lifted speaker/topic links are unreachable: there is no assertion
- * to rewrite, the surface simply never renders.
- *
- * This is the same gap that blocks `person-landing.spec.ts`, whose only shipped entry point is the
- * lifted speaker link — that file is NOT unblocked by the search index alone. Recorded in
- * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
+ * Stubbed: a segment hit carrying a `lifted` block (the live index returns `"lifted": null`; ladder
+ * §B). The compound badge, the lifted block and its speaker/topic links are a downstream build's
+ * (E04 step 8b), so here the row renders without them; a kg_entity row still opens its panel.
  */
-test.describe('Search FR1 — compound/lifted surfaces (stubbed: corpus produces no lifted blocks)', () => {
+test.describe('Search FR1 — entity rows; no compound or lifted rows (stubbed)', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'creator')
     await page.route('**/api/health**', async (route) => {
@@ -191,35 +161,16 @@ test.describe('Search FR1 — compound/lifted surfaces (stubbed: corpus produces
     await expect(page.getByTestId('search-result-tier').first()).toBeVisible()
   }
 
-  test('compound badge marks a segment hit with a lifted insight', async ({ page }) => {
+  test('a kg_entity row opens the Person panel; no compound badge or lifted links', async ({ page }) => {
     await runStubbedSearch(page)
-    await expect(page.getByTestId('search-result-compound')).toHaveCount(1)
-  })
-
-  test('entity names link to a Detail panel', async ({ page }) => {
-    await runStubbedSearch(page)
-    await expect(page.getByTestId('search-result-lifted-speaker-link')).toBeVisible()
-    await expect(page.getByTestId('search-result-lifted-topic-link')).toBeVisible()
+    await expect(page.getByTestId('search-result-compound')).toHaveCount(0)
+    await expect(page.getByTestId('search-result-lifted-speaker-link')).toHaveCount(0)
+    await expect(page.getByTestId('search-result-lifted-topic-link')).toHaveCount(0)
+    await expect(page.getByText('Lifted insight text.')).toHaveCount(0)
     // The standalone "Open Topic panel →" / "Open Person panel →" text link on kg_entity /
     // kg_topic rows was retired (2026-07-22 UX cleanup); the whole row is the affordance now.
     await expect(
       page.getByTestId('search-workspace').locator('article[aria-label="Open Person panel"]'),
     ).toHaveCount(1)
-  })
-
-  test('FR1.5: the lifted TOPIC link opens that topic in the rail', async ({ page }) => {
-    await runStubbedSearch(page)
-    await page.getByTestId('search-result-lifted-topic-link').click()
-    const rail = page.getByTestId('graph-node-detail-rail')
-    await expect(rail).toBeVisible()
-    await expect(rail.getByRole('heading').first()).toHaveText('Topic')
-    // The rail is on THAT topic — the lifted block's id, not merely some topic.
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () => (window as unknown as { __GIKG_SUBJECT__: { graphNodeCyId: string | null } }).__GIKG_SUBJECT__.graphNodeCyId,
-        ),
-      )
-      .toBe('topic:climate')
   })
 })

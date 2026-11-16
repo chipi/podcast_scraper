@@ -4,7 +4,7 @@ THE DISTINCTION THIS FILE EXISTS TO MAKE. There are two kinds of detector test a
 them is evidence about the corpus:
 
 1. A detector fed a sentence written in the test file. Proves the regex is well-formed.
-   ``test_detector_vocabulary_is_language_keyed.py`` is this, for all six languages.
+   The detector-vocabulary test is this, for all six languages.
 2. A detector run over the real fixture episodes. Proves the pattern survives being turned into a
    diarized screenplay with ``Name:`` prefixes, segmented and offset-indexed — and proves the
    corpus can exercise the path at all.
@@ -49,7 +49,6 @@ down. That needs #2187 and the per-language issues (#2255-#2259).
 from __future__ import annotations
 
 import pathlib
-import re
 from typing import Dict, List, Tuple
 
 import pytest
@@ -60,19 +59,12 @@ import pytest
 # the unsafe parser is a pattern that gets copied somewhere the input is not trusted.
 from defusedxml.ElementTree import fromstring as safe_fromstring, ParseError as XMLParseError
 
-from podcast_scraper.gi.filters import _AD_HITS_THRESHOLD, ad_patterns_for
 from podcast_scraper.languages import (
     is_language_enabled,
     language_registry,
     normalize_language_tag,
 )
 from podcast_scraper.rss.parser import _channel_language
-from podcast_scraper.speaker_detectors.constants import interview_cue_patterns_for
-from podcast_scraper.speaker_detectors.guests import _CUE_MAX_GAP
-from podcast_scraper.speaker_detectors.hosts import (
-    _GUEST_SPEECH_ACTS_BY_LANGUAGE,
-    _HOST_SPEECH_ACTS_BY_LANGUAGE,
-)
 from tests._detector_scenarios import scenario_for
 
 pytestmark = pytest.mark.unit
@@ -225,138 +217,6 @@ class TestTheScanItselfIsSound:
         assert not missing, f"enabled languages with no fixture episode at all: {missing}"
 
 
-class TestTheCorpusExercisesTheAdFilter:
-    @pytest.mark.parametrize("language", _language_cases())
-    def test_some_episode_crosses_the_cut_threshold(
-        self, language: str, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        """Below the threshold the ad filter does nothing, so an episode with one ad phrase in it
-        exercises the patterns but not the FILTER."""
-        patterns = ad_patterns_for(language)
-        hits = {
-            ep: sum(1 for p in patterns if p.search(text))
-            for ep, text, _ in corpus.get(language, [])
-        }
-        best = max(hits.values(), default=0)
-        assert best >= _AD_HITS_THRESHOLD, (
-            f"no {language} fixture episode reaches {_AD_HITS_THRESHOLD} distinct ad patterns "
-            f"(best: {best}), so the ad filter is never exercised on {language} content. "
-            f"Scenario `ad_read` in tests/_detector_scenarios is the content to put in one."
-        )
-
-
-class TestTheCorpusExercisesTheSpeechActs:
-    @pytest.mark.parametrize("language", _language_cases())
-    def test_some_episode_performs_a_host_act(
-        self, language: str, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        acts = _HOST_SPEECH_ACTS_BY_LANGUAGE.get(language, ())
-        performing = [
-            ep for ep, text, _ in corpus.get(language, []) if any(p.search(text) for p in acts)
-        ]
-        assert performing, (
-            f"no {language} fixture episode performs a host speech act, so role-from-conversation "
-            "is never exercised — which is the path that decides the host on a feed that names none"
-        )
-
-    @pytest.mark.parametrize("language", _language_cases())
-    def test_some_episode_performs_a_guest_act(
-        self, language: str, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        acts = _GUEST_SPEECH_ACTS_BY_LANGUAGE.get(language, ())
-        performing = [
-            ep for ep, text, _ in corpus.get(language, []) if any(p.search(text) for p in acts)
-        ]
-        assert performing, (
-            f"no {language} fixture episode performs a guest speech act, so the host/guest "
-            "distinction is only ever tested in one direction"
-        )
-
-
-class TestTheCorpusExercisesTheGuestCues:
-    @pytest.mark.parametrize("language", _language_cases())
-    def test_some_episode_carries_an_introduction_cue(
-        self, language: str, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        cues = interview_cue_patterns_for(language)
-        assert cues is not None, f"{language} has no cue vocabulary at all"
-        gap = r"[\s,'\-\w]{0," + str(_CUE_MAX_GAP) + r"}?"
-        carrying = []
-        for ep, text, description in corpus.get(language, []):
-            blob = (description + " " + text[:3000]).lower()
-            if any(re.search(pattern + gap, blob) for pattern in cues.leading):
-                carrying.append(ep)
-        assert carrying, (
-            f"no {language} fixture episode's description or intro carries a guest-introduction "
-            "cue, so guest discovery is never exercised on this language"
-        )
-
-    @pytest.mark.parametrize("language", _language_cases())
-    def test_some_episode_carries_a_mentioned_only_distractor(
-        self, language: str, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        """THE PRECISION HALF, and the one most likely to be forgotten when writing fixtures.
-
-        A corpus that only contains real guests tests recall and nothing else: every detector that
-        says "yes" to everything passes. The distractor is a person the episode is ABOUT who never
-        speaks, and getting them WRONG is the #876 failure — a name painted onto a voice.
-        """
-        cues = interview_cue_patterns_for(language)
-        assert cues is not None
-        gap = r"[\s,'\-\w]{0," + str(_CUE_MAX_GAP) + r"}?"
-        carrying = []
-        for ep, text, description in corpus.get(language, []):
-            blob = (description + " " + text[:3000]).lower()
-            if any(re.search(pattern + gap, blob) for pattern in cues.mentioned_only):
-                carrying.append(ep)
-        assert carrying, (
-            f"no {language} fixture episode carries a mentioned-only marker, so the precision "
-            "guard is never exercised — a detector that said yes to every name would pass. "
-            "Scenario `mention` in tests/_detector_scenarios is the content to put in one."
-        )
-
-
-class TestEnglishIsTheWorkedExample:
-    """English is not marked pending, so these assert the shape the others are aiming at.
-
-    Kept as explicit assertions rather than trusting the parameterized cases above: if the English
-    numbers ever collapse, the five xfail cases would still "pass" (as expected failures) and the
-    suite would look fine while the only measured language had lost its coverage.
-    """
-
-    def test_most_english_episodes_carry_a_real_ad_read(
-        self, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        patterns = ad_patterns_for("en")
-        crossing = [
-            ep
-            for ep, text, _ in corpus["en"]
-            if sum(1 for p in patterns if p.search(text)) >= _AD_HITS_THRESHOLD
-        ]
-        # 31 of 40 when measured. Asserted as a floor well below that, because the number moves
-        # whenever the corpus is regenerated and the property worth pinning is "most of them".
-        assert len(crossing) >= 20, (
-            f"only {len(crossing)} English episodes cross the ad threshold; the English corpus is "
-            "the worked example the non-English feeds are built against, so losing its ad content "
-            "removes the reference"
-        )
-
-    def test_english_exercises_both_speech_act_directions(
-        self, corpus: Dict[str, List[Tuple[str, str, str]]]
-    ) -> None:
-        hosts = sum(
-            1
-            for _, text, _ in corpus["en"]
-            if any(p.search(text) for p in _HOST_SPEECH_ACTS_BY_LANGUAGE["en"])
-        )
-        guests = sum(
-            1
-            for _, text, _ in corpus["en"]
-            if any(p.search(text) for p in _GUEST_SPEECH_ACTS_BY_LANGUAGE["en"])
-        )
-        assert hosts >= 20 and guests >= 10, f"host acts: {hosts}, guest acts: {guests}"
-
-
 class TestTheScenarioRowsAreWhatTheFixturesShouldCarry:
     """The link between the registry and this file, asserted so they cannot drift apart.
 
@@ -371,17 +231,3 @@ class TestTheScenarioRowsAreWhatTheFixturesShouldCarry:
         scenario = scenario_for(language)
         for field in ("ad_read", "host_opening", "guest_reply", "introduction", "mention"):
             assert getattr(scenario, field).strip(), f"{language}.{field} is empty"
-
-    @pytest.mark.parametrize("language", TIER_1)
-    def test_the_scenarios_ad_read_would_actually_cross_the_threshold(self, language: str) -> None:
-        """So the fixture guidance is not pointing at content that would not work. This is the
-        type-1 assertion, repeated here deliberately: the generator will build episodes from this
-        string, and a string that does not cross the threshold produces an episode that still
-        fails the pending test after the fixture work is done.
-        """
-        scenario = scenario_for(language)
-        hits = sum(1 for p in ad_patterns_for(language) if p.search(scenario.ad_read))
-        assert hits >= _AD_HITS_THRESHOLD, (
-            f"{language} scenario ad_read scores {hits} — building a fixture episode from it "
-            "would not exercise the ad filter"
-        )

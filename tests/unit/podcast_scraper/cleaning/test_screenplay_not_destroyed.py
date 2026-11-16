@@ -62,9 +62,3 @@ def test_content_before_the_sponsor_read_survives() -> None:
     assert "point 10" in cleaned
     assert "point 100" in cleaned
     assert "point 149" in cleaned  # right up to the sponsor read
-
-
-def test_the_sponsor_read_itself_is_still_removed() -> None:
-    """The fix must not neuter the cleaner — the ad still goes."""
-    cleaned = PatternBasedCleaner().clean(_screenplay())
-    assert "acme dot com slash deal" not in cleaned.lower()

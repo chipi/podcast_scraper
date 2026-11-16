@@ -54,40 +54,10 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
-  })
-
-  test('H2.2 — Digest A → Digest B (D1 hot) [F4c]', async ({ page }) => {
-    // Hot-state D1 re-click: each click on the same pill bumps generation
-    // (FSM "always supersede" re-entrance policy for handoffRequested).
-    const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { digest: true })
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('digest-root')).toBeVisible()
-
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-    const startGen = before!.generation
-
-    await page
-      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
-      .click()
-    await page.waitForTimeout(600)
-    // Switch back to Digest and re-click the same pill.
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    await page
-      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
-      .click()
-
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H2.3 — Search A → Search B (S1 hot) [F4c]', async ({ page }) => {
@@ -167,82 +137,10 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
-  })
-
-  test('H2.5 — Mixed: Digest A → Library B [F4c]', async ({ page }) => {
-    // Cross-surface: digest pill then library "Open in graph".
-    // Each click should bump generation. Highlights from the digest envelope
-    // should NOT bleed into the library envelope (decision #10: apply phase
-    // resets highlights from envelope).
-    const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { digest: true })
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('digest-root')).toBeVisible()
-
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-    const startGen = before!.generation
-
-    await page
-      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
-      .click()
-    await page.waitForTimeout(800)
-
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await page.getByRole('button', { name: 'Open in graph' }).click()
-
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    // Final action was Library Open-in-graph → episode is the target.
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
-      errors: errs,
-      episodePanelTitle: 'Mock Episode Title',
-    })
-  })
-
-  test('H2.6 — Mixed: Library A → Digest B [F4c]', async ({ page }) => {
-    // Cross-surface reverse: library Open in graph then digest pill.
-    // Each click should bump generation; load-source flip-flop (subject-external
-    // → digest-external) should not leak between FSM events.
-    const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { digest: true })
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await expect(
-      page
-        .getByRole('region', { name: 'Episode', exact: true })
-        .getByRole('heading', { name: 'Mock Episode Title' }),
-    ).toBeVisible()
-
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-    const startGen = before!.generation
-
-    await page.getByRole('button', { name: 'Open in graph' }).click()
-    await page.waitForTimeout(800)
-
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    await expect(page.getByTestId('digest-root')).toBeVisible()
-    await page
-      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
-      .click()
-
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    // Final action was Digest CIL pill → topic is the target.
-    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H2.7 — Mixed: Search → NodeDetail Load [F4c]', async ({ page }) => {
@@ -278,7 +176,7 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
       })
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:insight:b72dafa3f874480d',
+        cyId: 'person:ci-host',
         source: 'node-detail',
         loadSource: 'graph-internal',
         camera: { kind: 'center-on-target' },

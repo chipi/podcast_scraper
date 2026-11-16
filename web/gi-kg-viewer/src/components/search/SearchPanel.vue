@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { episodeArtifactRelPathsForStem } from '../../utils/episodeArtifactPaths'
 import { computed, ref } from 'vue'
 import { searchPanelSections } from '../../extensions'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -53,6 +54,9 @@ const headerSections = computed(() => searchPanelSections.list().filter((s) => s
 const aboveResultsSections = computed(() =>
   searchPanelSections.list().filter((s) => s.region === 'above-results'),
 )
+const resultsHeaderSections = computed(() =>
+  searchPanelSections.list().filter((s) => s.region === 'results-header'),
+)
 
 const activeOperator = computed<string | null>({
   get: () => search.activeOperator,
@@ -104,23 +108,9 @@ function openSearchResultsViz(): void {
   vizDialogRef.value?.open()
 }
 
-/** PRD-033 FR1.3 — raw-evidence toggle: constrain the rendered tier. */
-type EvidenceFilter = 'both' | 'insight' | 'segment'
-const evidenceFilter = ref<EvidenceFilter>('both')
-const EVIDENCE_OPTIONS: { value: EvidenceFilter; label: string }[] = [
-  { value: 'insight', label: 'Insights' },
-  { value: 'segment', label: 'Transcript' },
-  { value: 'both', label: 'Both' },
-]
-
-// From ``filteredResults``, not ``results``: the Min confidence chip is a client-side filter and
-// this list is where it shows. Read from ``results`` it filtered nothing.
-const visibleResults = computed((): SearchHit[] => {
-  if (evidenceFilter.value === 'both') return search.filteredResults
-  return search.filteredResults.filter(
-    (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
-  )
-})
+// From ``filteredResults``, not ``results``: client-side filters a downstream build registers
+// (``searchResultFilters``) show here. Read from ``results`` they filtered nothing.
+const visibleResults = computed((): SearchHit[] => search.filteredResults)
 
 /**
  * The collapsed render list — same order as ``visibleResults`` but
@@ -266,10 +256,7 @@ async function onFocusHit(hit: SearchHit): Promise<void> {
     const stem = metaRel.endsWith('.metadata.json')
       ? metaRel.slice(0, -'.metadata.json'.length)
       : metaRel.replace(/\.(metadata\.ya?ml|json)$/i, '')
-    // A KG-only corpus (no insight stage) has no ``.gi.json``: asking for it fails the whole load.
-    const paths = shell.giArtifactsAvailable
-      ? [`${stem}.gi.json`, `${stem}.kg.json`]
-      : [`${stem}.kg.json`]
+    const paths = episodeArtifactRelPathsForStem(stem)
     try {
       await artifacts.appendRelativeArtifacts(paths)
     } catch {
@@ -380,7 +367,7 @@ const advancedFeedCombinedTitle = computed(() =>
           <li>
             <strong>Since (date)</strong> limits hits to episodes on or after that day (UTC).
             <strong>Top‑k</strong> is the max number of vector hits to return. Other filters are in
-            <strong>Advanced search</strong> (doc types, feed filter, speaker, grounded, embedding
+            <strong>Advanced search</strong> (doc types, feed filter, speaker, embedding
             model). The feed field matches <strong>catalog feed id</strong> in the index; after
             <strong>Prefill semantic search</strong> from Library it shows the <strong>feed title</strong>
             from the catalog when known (hover for the id). Non-default choices appear as a read-only
@@ -517,16 +504,6 @@ const advancedFeedCombinedTitle = computed(() =>
         </button>
       </div>
       <div class="space-y-2">
-        <label class="flex cursor-pointer items-center gap-2 text-xs text-muted">
-          <input
-            v-model="search.filters.groundedOnly"
-            type="checkbox"
-            class="rounded border-border"
-            :disabled="!searchFieldsEnabled"
-            :title="searchFieldDisabledTitle"
-          >
-          Grounded insights only
-        </label>
         <label class="block text-xs text-muted" for="search-advanced-feed">
           Feed
           <input
@@ -617,39 +594,11 @@ const advancedFeedCombinedTitle = computed(() =>
           >
             Intent: {{ queryTypeLabel }}
           </span>
-          <div
-            class="flex items-center overflow-hidden rounded border border-border text-[10px]"
-            role="group"
-            aria-label="Evidence tier filter"
-            data-testid="search-evidence-toggle"
-          >
-            <button
-              v-for="opt in EVIDENCE_OPTIONS"
-              :key="opt.value"
-              type="button"
-              class="px-1.5 py-0.5 leading-none"
-              :class="
-                evidenceFilter === opt.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted hover:bg-overlay'
-              "
-              :aria-pressed="evidenceFilter === opt.value"
-              :data-testid="`search-evidence-${opt.value}`"
-              @click="evidenceFilter = opt.value"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
-          <p
-            v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
-            class="text-[10px] text-muted"
-            title="Transcript lift coverage for this result page (rows returned vs rows with a linked GI insight)."
-          >
-            Lift:
-            {{ search.liftStats.lift_applied }} /
-            {{ search.liftStats.transcript_hits_returned }}
-            transcript rows linked to GI
-          </p>
+          <component
+            :is="section.component"
+            v-for="section in resultsHeaderSections"
+            :key="section.id"
+          />
           <button
             type="button"
             class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"
@@ -661,12 +610,7 @@ const advancedFeedCombinedTitle = computed(() =>
         <ResultSetOperatorBar
           v-model:active="activeOperator"
           :visible-hits="visibleResults"
-          :compare-result="search.compareResult"
-          :compare-loading="search.compareLoading"
-          :compare-error="search.compareError"
           @focus-set="(ids: string[]) => emit('focus-set', ids)"
-          @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB, { insightTypes: payload.insightTypes })"
-          @clear-compare="() => search.clearCompare()"
         />
         <template
           v-for="(row, i) in collapsedResults"

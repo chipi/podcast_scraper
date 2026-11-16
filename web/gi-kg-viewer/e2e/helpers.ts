@@ -1,5 +1,5 @@
 import { expect, type Page, type TestInfo } from '@playwright/test'
-import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { KG_SAMPLE_FIXTURE } from './fixtures'
 import { declareInjectedFault } from './injected-faults'
 
 /**
@@ -100,6 +100,25 @@ export async function liveCorpusRoot(page: Page): Promise<string> {
   const body = (await resp.json()) as { path?: string }
   if (!body.path) throw new Error('liveCorpusRoot: /api/corpus/feeds returned no `path`')
   return body.path
+}
+
+/**
+ * A KG topic of the live corpus, with its label, from the search index's `kg_topic` rows.
+ *
+ * Not `/api/topics/perspective-leaders`: that ranking is GI's, a downstream build's route since
+ * E04, so this build does not serve it. A dense index answers any query, so the query only orders.
+ */
+export async function liveKgTopic(page: Page): Promise<{ topic_id: string; label: string }> {
+  const resp = await page.request.get('/api/search?q=technology&type=kg_topic&top_k=20')
+  if (!resp.ok()) throw new Error(`liveKgTopic: /api/search returned ${resp.status()}`)
+  const body = (await resp.json()) as {
+    results?: { text?: string; metadata?: { source_id?: string } }[]
+  }
+  const hit = (body.results ?? []).find(
+    (r) => r.metadata?.source_id?.startsWith('topic:') && r.text?.trim(),
+  )
+  if (!hit) throw new Error('liveKgTopic: no kg_topic row with a label in the live index')
+  return { topic_id: hit.metadata!.source_id!, label: hit.text!.trim() }
 }
 
 /**
@@ -339,7 +358,8 @@ export async function dismissGraphGestureOverlayIfPresent(page: Page): Promise<v
   await btn.click({ force: true })
 }
 
-export async function loadGraphViaFilePicker(page: Page): Promise<void> {
+/** Load a graph artifact offline through the status bar's file picker (the KG sample by default). */
+export async function loadGraphViaFilePicker(page: Page, fixture: string = KG_SAMPLE_FIXTURE): Promise<void> {
   declareInjectedFault(page, /\/api\/health/)
   await page.route('**/api/health**', async (route) => {
     await route.abort('failed')
@@ -351,7 +371,7 @@ export async function loadGraphViaFilePicker(page: Page): Promise<void> {
   await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
   const fileInput = page.getByTestId('status-bar-local-file-input')
-  await fileInput.setInputFiles(GI_SAMPLE_FIXTURE)
+  await fileInput.setInputFiles(fixture)
 
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 }

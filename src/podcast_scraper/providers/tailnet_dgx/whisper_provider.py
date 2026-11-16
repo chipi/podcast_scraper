@@ -62,6 +62,18 @@ _whisper_breaker = CircuitBreaker(
 )
 
 
+#: "Not now" statuses (rate limit, bad gateway, unavailable, gateway timeout) say the server is busy
+#: or unreachable, not that this input fails, so they are held for like an outage.
+_BUSY_STATUSES = frozenset({429, 502, 503, 504})
+
+
+def _server_answered_with_error(exc: Exception) -> bool:
+    """An HTTP error status is the server's answer to this input, unless it says "not now"."""
+    import httpx
+
+    return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code not in _BUSY_STATUSES
+
+
 def _refine_segment_times(
     segments: list[dict[str, object]], flat_words: object
 ) -> list[dict[str, object]]:
@@ -118,6 +130,8 @@ class TailnetDgxWhisperTranscriptionProvider:
             on_open_max_wait_sec=float(getattr(cfg, "resilience_on_open_max_wait_sec", 900.0)),
             probe_interval_sec=float(getattr(cfg, "resilience_probe_interval_sec", 30.0)),
             name="dgx-whisper",
+            answered=_server_answered_with_error,
+            endpoint_up=lambda: check_faster_whisper_health(self._host, port=self._port),
         )
         self._initialized = False
         # #2284: when the punctuation prompt is sent (see Config.dgx_whisper_punctuation_prompt)

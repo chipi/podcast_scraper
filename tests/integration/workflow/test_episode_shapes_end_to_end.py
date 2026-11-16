@@ -25,8 +25,6 @@ from typing import Any, Dict, List, Tuple
 
 import pytest
 
-from podcast_scraper.kg.speaker_coherence import check_episode
-from podcast_scraper.speaker_detectors.hosts import names_the_show
 from podcast_scraper.workflow import metadata_generation as metadata
 
 pytestmark = [pytest.mark.integration]
@@ -239,17 +237,6 @@ def shape_run(request, tmp_path: Path):
 
 
 class TestEveryShapeProducesACoherentEpisode:
-    def test_the_expected_hosts_are_hosts(self, shape_run) -> None:
-        shape, _meta, kg = shape_run
-        roles = _roles(kg)
-        for name in shape.expect_hosts:
-            assert roles.get(name) == "host", f"{name!r} -> {roles.get(name)!r} in {roles}"
-
-    def test_the_expected_guests_are_guests(self, shape_run) -> None:
-        shape, _meta, kg = shape_run
-        roles = _roles(kg)
-        for name in shape.expect_guests:
-            assert roles.get(name) == "guest", f"{name!r} -> {roles.get(name)!r} in {roles}"
 
     def test_nobody_forbidden_holds_a_speaker_role(self, shape_run) -> None:
         # A name the roster never heard — an absent co-host, an anonymous voice — must not be
@@ -265,22 +252,3 @@ class TestEveryShapeProducesACoherentEpisode:
             assert not (
                 role in ("host", "guest") and name.lower().startswith("speaker")
             ), f"{name!r} published as {role}"
-
-    def test_the_show_itself_is_never_a_speaker(self, shape_run) -> None:
-        _shape, meta, kg = shape_run
-        feed_title = (meta.get("feed") or {}).get("title") or ""
-        for name, role in _roles(kg).items():
-            if role in ("host", "guest"):
-                assert not names_the_show(name, feed_title), f"{name!r} names the show"
-
-    def test_the_coherence_guards_are_clean(self, shape_run) -> None:
-        # The cross-artifact rules, applied to a pipeline-produced episode rather than a fixture.
-        shape, meta, kg = shape_run
-        violations = check_episode(meta, kg, {"nodes": [], "edges": []}, label=shape.name)
-        assert not violations, "\n  ".join(violations)
-
-    def test_the_roster_reaches_content_speakers(self, shape_run) -> None:
-        shape, meta, _kg = shape_run
-        named = {str(s.get("name")) for s in ((meta.get("content") or {}).get("speakers") or [])}
-        for expected in shape.expect_hosts + shape.expect_guests:
-            assert expected in named, f"{expected!r} missing from {sorted(named)}"

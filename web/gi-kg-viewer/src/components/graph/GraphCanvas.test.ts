@@ -84,6 +84,12 @@ import { useThemeStore } from '../../stores/theme'
 import type { ArtifactData } from '../../types/artifact'
 import { parseArtifact } from '../../utils/parsing'
 import GraphCanvas from './GraphCanvas.vue'
+import { graphElementDecorators, graphTypeTraits } from '../../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'], episodeSatellites: [{ type: 'Insight', yOffset: 30 }, { type: 'Quote', yOffset: -30 }] }))
+afterEach(() => graphTypeTraits.reset())
 
 // happy-dom's Storage is unreliable here; same Map-backed stub as GraphBottomBar.test.ts.
 const storage = new Map<string, string>()
@@ -202,7 +208,7 @@ function giData(overrides: Partial<ArtifactData> = {}): ArtifactData {
   } as ArtifactData
 }
 
-function loadGi(data: ArtifactData = giData(), name = 'ep1.gi.json'): void {
+function loadGi(data: ArtifactData = giData(), name = 'ep1.kg.json'): void {
   const artifacts = useArtifactsStore()
   artifacts.parsedList = [parseArtifact(name, data)]
 }
@@ -445,6 +451,14 @@ describe('GraphCanvas rendering', () => {
       { from: 'episode:ep-1', to: 'insight:i1', type: 'HAS_INSIGHT' },
       { from: 'insight:i1', to: 'topic:ai', type: 'ABOUT' },
     ]
+    // A decorator rolls Insight→ABOUT→Topic up into Episode→Topic when the lens asks for it.
+    graphElementDecorators.register({
+      id: 'agg',
+      edges: (_art, drawn, { aggregated }) =>
+        aggregated && drawn('episode:ep-1') && drawn('topic:ai')
+          ? [{ data: { id: 'agg:1', source: 'episode:ep-1', target: 'topic:ai', edgeType: 'ABOUT_AGG' } }]
+          : [],
+    })
     const lenses = useGraphLensesStore()
     lenses.setAggregatedEdges(true)
     await mountTracked(data)
@@ -454,6 +468,7 @@ describe('GraphCanvas rendering', () => {
     lenses.setAggregatedEdges(false)
     await mountTracked(data)
     expect(liveCore().edges('[edgeType = "ABOUT_AGG"]').length).toBe(0)
+    graphElementDecorators.reset()
   })
 })
 
@@ -838,8 +853,8 @@ describe('GraphCanvas cross-episode expand', () => {
     const { append } = await armedCanvas()
     vi.mocked(fetchNodeEpisodes).mockResolvedValue({
       episodes: [
-        { gi_relative_path: 'a/ep3.gi.json', kg_relative_path: 'a/ep3.kg.json' },
-        { gi_relative_path: ' ', kg_relative_path: null },
+        { kg_relative_path: 'a/ep3.kg.json' },
+        { kg_relative_path: null },
       ],
       truncated: true,
       total_matched: 40,
@@ -847,9 +862,9 @@ describe('GraphCanvas cross-episode expand', () => {
     emitOn('topic:ai', 'dbltap')
     await tick()
     const exp = useGraphExpansionStore()
-    expect(append).toHaveBeenCalledWith(['a/ep3.gi.json', 'a/ep3.kg.json'])
+    expect(append).toHaveBeenCalledWith(['a/ep3.kg.json'])
     expect(exp.isExpanded('topic:ai')).toBe(true)
-    expect(exp.expandedBySeed['topic:ai'].addedRelPaths).toEqual(['a/ep3.gi.json', 'a/ep3.kg.json'])
+    expect(exp.expandedBySeed['topic:ai'].addedRelPaths).toEqual(['a/ep3.kg.json'])
     expect(exp.truncationLine).toContain('Showing 2 of 40 episodes')
     expect(exp.expansionBusyCyId).toBeNull()
   })
@@ -857,10 +872,7 @@ describe('GraphCanvas cross-episode expand', () => {
   it('chunks very large expansions into batches of twelve paths', async () => {
     const { append } = await armedCanvas()
     vi.mocked(fetchNodeEpisodes).mockResolvedValue({
-      episodes: Array.from({ length: 8 }, (_, i) => ({
-        gi_relative_path: `a/e${i}.gi.json`,
-        kg_relative_path: `a/e${i}.kg.json`,
-      })),
+      episodes: Array.from({ length: 16 }, (_, i) => ({ kg_relative_path: `a/e${i}.kg.json` })),
       truncated: false,
     } as never)
     emitOn('topic:ai', 'dbltap')
@@ -922,7 +934,7 @@ describe('GraphCanvas cross-episode expand', () => {
     shell.healthStatus = 'ok'
     shell.corpusLibraryApiAvailable = true
     vi.mocked(fetchNodeEpisodes).mockImplementation(async (_root, id) => ({
-      episodes: id === 'topic:ai' ? [{ gi_relative_path: 'z/new.gi.json', kg_relative_path: null }] : [],
+      episodes: id === 'topic:ai' ? [{ gi_relative_path: null, kg_relative_path: 'z/new.kg.json' }] : [],
       truncated: false,
     }) as never)
     await mountTracked()
@@ -930,6 +942,20 @@ describe('GraphCanvas cross-episode expand', () => {
     const exp = useGraphExpansionStore()
     expect(exp.corpusBeyondAppendKnown('topic:ai')).toBe(true)
     expect(classesOf('topic:ai')).toContain('graph-expand-eligible')
+  })
+
+  it('does not offer an expand for an episode with only GI: the viewer\'s expand loads KG', async () => {
+    const shell = useShellStore()
+    shell.healthStatus = 'ok'
+    shell.corpusLibraryApiAvailable = true
+    vi.mocked(fetchNodeEpisodes).mockImplementation(async (_root, id) => ({
+      episodes: id === 'topic:ai' ? [{ gi_relative_path: 'z/new.gi.json', kg_relative_path: null }] : [],
+      truncated: false,
+    }) as never)
+    await mountTracked()
+    await tick(SETTLE_MS)
+    expect(useGraphExpansionStore().corpusBeyondAppendKnown('topic:ai')).toBe(false)
+    expect(classesOf('topic:ai')).not.toContain('graph-expand-eligible')
   })
 
   it('records a failed probe as "nothing beyond"', async () => {
@@ -1521,11 +1547,20 @@ describe('GraphCanvas search highlights and context emphasis', () => {
       { from: 'episode:ep-1', to: 'insight:i1', type: 'HAS_INSIGHT' },
       { from: 'episode:ep-2', to: 'insight:i2', type: 'HAS_INSIGHT' },
     ]
+    // The node's `episodeId` (a GI build's decorator sets it) is what the emphasis reads.
+    graphElementDecorators.register({
+      id: 'ep',
+      node: (raw) => {
+        const eid = (raw.properties as Record<string, unknown> | undefined)?.episode_id
+        return typeof eid === 'string' ? { data: { episodeId: `episode:${eid}` } } : null
+      },
+    })
     await mountTracked(data)
     useActiveSearchContextStore().setContext('ai', [hit('topic:ai', { episode_id: 'ep-1' })] as never)
     await tick()
     expect(classesOf('insight:i1')).toContain('context-relevant')
     expect(classesOf('insight:i2')).not.toContain('context-relevant')
+    graphElementDecorators.reset()
   })
 })
 
@@ -1622,22 +1657,6 @@ describe('GraphCanvas lens overlays', () => {
     storage.set('ps_corpus_path', '/corpus')
   })
 
-  it('paints person credibility from the grounding_rate enricher and clears it when switched off', async () => {
-    vi.mocked(fetchCachedCorpusEnvelope).mockImplementation((async (_root: string, name: string) =>
-      name === 'grounding_rate'
-        ? { data: { persons: [{ person_id: 'person:ada', rate: 0.9 }] } }
-        : null) as never)
-    await mountTracked()
-    const lenses = useGraphLensesStore()
-    lenses.setPersonCredibility(true)
-    await tick()
-    expect(fetchCachedCorpusEnvelope).toHaveBeenCalledWith('/corpus', 'grounding_rate')
-    expect(classesOf('person:ada')).toContain('credibility-high')
-    lenses.setPersonCredibility(false)
-    await tick()
-    expect(classesOf('person:ada')).not.toContain('credibility-high')
-  })
-
   it('adds co-guest edges from the guest_coappearance enricher', async () => {
     const data = giData()
     data.nodes = [...(data.nodes ?? []), { id: 'person:bo', type: 'Person', properties: { name: 'Bo' } }]
@@ -1672,18 +1691,17 @@ describe('GraphCanvas lens overlays', () => {
     vi.mocked(fetchCachedCorpusEnvelope).mockRejectedValue(new Error('404'))
     await mountTracked()
     const lenses = useGraphLensesStore()
-    lenses.setPersonCredibility(true)
     lenses.setCoGuestEdges(true)
     lenses.setPersonCommunities(true)
     await tick()
-    expect(classesOf('person:ada')).not.toContain('credibility-high')
+    expect(liveCore().edges('.lens-coguest-edge')).toHaveLength(0)
     expect(liveCore().nodes()).toHaveLength(5)
   })
 
   it('does not fetch any enricher without a corpus path', async () => {
     storage.set('ps_corpus_path', '')
     await mountTracked()
-    useGraphLensesStore().setPersonCredibility(true)
+    useGraphLensesStore().setCoGuestEdges(true)
     await tick()
     expect(fetchCachedCorpusEnvelope).not.toHaveBeenCalled()
   })
@@ -2172,7 +2190,7 @@ describe('GraphCanvas episode territory', () => {
     expect(w.find(STRIP).exists()).toBe(true)
     expect(fetchCorpusEpisodeDetail).toHaveBeenCalledTimes(1)
     expect(fetchCorpusEpisodeDetail).toHaveBeenCalledWith('/corpus', 'feeds/z/metadata/new.metadata.json')
-    expect(append).toHaveBeenCalledWith(['a/ep9.gi.json', 'a/ep9.kg.json'])
+    expect(append).toHaveBeenCalledWith(['a/ep9.kg.json'])
     expect(subject.episodeId).toBe('ep-9')
     expect(subject.episodeUiLabel).toBe('Nine')
     expect(useArtifactsStore().currentLoadSource).toBe('subject-external')

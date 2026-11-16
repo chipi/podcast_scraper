@@ -145,17 +145,6 @@ def test_a_huge_message_is_bounded(bound: Path) -> None:
 # --- the emit sites ----------------------------------------------------------------------------
 
 
-def test_feed_host_detection_records_the_hosts_and_their_source(bound: Path) -> None:
-    from podcast_scraper.speaker_stage.detection import _record_hosts_detected
-
-    _record_hosts_detected({"Dana Shipley"}, "RSS author tags", {"Dana Shipley"}, {"Mercer Inc"})
-    (event,) = _events(bound)
-    assert event["event_type"] == "hosts_detected"
-    assert event["hosts"] == ["Dana Shipley"]
-    assert event["source"] == "RSS author tags"
-    assert event["dropped_non_person"] == ["Mercer Inc"]
-
-
 def test_a_failed_kg_extraction_is_recorded(bound: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The Huberman case: a provider is configured and returns no graph."""
     from podcast_scraper.kg import pipeline

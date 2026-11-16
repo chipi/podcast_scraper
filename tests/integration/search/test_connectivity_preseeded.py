@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search import relational_queries as rq
 from podcast_scraper.search.corpus_graph import CorpusGraph
 
 pytestmark = pytest.mark.integration
@@ -31,20 +30,6 @@ def _repo_fixture() -> Path:
         if candidate.is_dir():
             return candidate
     pytest.skip("production-shaped fixture not found")
-
-
-def test_related_topics_surfaces_adjacent_themes_on_real_fixture() -> None:
-    graph = CorpusGraph.build(_repo_fixture(), derive_speaker_links=True, reconcile_hosts=True)
-    topics = graph.nodes_by_type("topic")
-    assert topics, "fixture should carry topic nodes"
-    # At least one topic has adjacent themes (topics sharing an insight) — the
-    # TopicEntityView "Related topics" surface is non-empty on real pre-seeded data.
-    with_related = [t for t in topics if rq.related_topics(graph, t, k=5)]
-    assert with_related, "expected related_topics to be non-empty on the production-shaped fixture"
-    # Adjacency is symmetric-ish and never returns the subject itself.
-    sample = with_related[0]
-    related = rq.related_topics(graph, sample, k=5)
-    assert sample not in {n.id for n in related}
 
 
 def test_reconciliation_is_safe_on_real_fixture() -> None:

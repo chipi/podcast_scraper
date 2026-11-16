@@ -2,16 +2,13 @@
 
 - **Status**: Partial
 - **Related RFCs**:
-  - [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) — audio-based speaker diarization (**open**)
-  - [RFC-059](../rfc/RFC-059-speaker-detection-refactor-test-audio.md) — speaker detection refactor & test audio (**open**)
-  - [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) — multi-signal commercial detection & cleaning (**open**; Phase 2 diarization tie-in pending)
 - **Supersedes non-goals in**: PRD-008
 
 ## Summary
 
 Add true audio-based speaker diarization to the local transcription pipeline, replacing the current gap-based round-robin speaker rotation with neural voice-embedding-driven attribution. This enables accurate "who said what" labeling in screenplay-format transcripts, especially for interviews with rapid exchanges, multi-guest panels, and overlapping speech.
 
-**Downstream value — commercial content cleaning:** Accurate diarization unlocks a critical downstream capability: identifying and removing host-read sponsor segments from transcripts before summarization. Commercial content leaking into summaries, quotes, and knowledge graphs fundamentally breaks the pipeline's core value. While expanded pattern matching and positional heuristics can improve commercial detection independently (RFC-060 Phase 1), diarization provides the "who + when" context needed to catch host-read ads that blend seamlessly into conversation (RFC-060 Phase 2). This makes diarization not just an accuracy improvement but an enabler of clean, trustworthy output across the entire pipeline.
+**Downstream value — commercial content cleaning:** Accurate diarization unlocks a critical downstream capability: identifying and removing host-read sponsor segments from transcripts before summarization. Commercial content leaking into summaries, quotes, and knowledge graphs fundamentally breaks the pipeline's core value. While expanded pattern matching and positional heuristics can improve commercial detection independently, diarization provides the "who + when" context needed to catch host-read ads that blend seamlessly into conversation. This makes diarization not just an accuracy improvement but an enabler of clean, trustworthy output across the entire pipeline.
 
 ## Background & Context
 
@@ -38,7 +35,7 @@ PRD-008 explicitly listed audio-based diarization as a non-goal. With the matura
 - Maintain the existing NER name-mapping pipeline (detect names from metadata, then map to diarized speaker IDs)
 - Offer diarization as a configurable feature (`diarize` in YAML / `--diarize` / `--no-diarize` on CLI); **default on** for local Whisper, coerced off for API transcription providers
 - Keep the current gap-based fallback as default for users without GPU or HuggingFace token
-- Enable diarization-enhanced commercial detection (RFC-060 Phase 2) — providing the "who + when" context that makes host-read sponsor identification reliable
+- Enable diarization-enhanced commercial detection — providing the "who + when" context that makes host-read sponsor identification reliable
 
 ## Non-Goals
 
@@ -174,7 +171,7 @@ Audio-based diarization enhances the transcript pipeline by:
 - **Screenplay formatting**: `format_screenplay_from_segments()` uses diarized speaker assignments instead of gap-based rotation
 - **Cache**: Diarization results cached alongside transcripts to avoid re-processing
 - **GIL / KG downstream**: More accurate speaker attribution improves quote extraction and knowledge graph speaker nodes
-- **Commercial cleaning**: Diarization data feeds into the `CommercialDetector` (RFC-060) to boost confidence when identifying host-read sponsor segments — host monologues in mid-episode, topic discontinuity, and single-speaker candidate regions are strong signals
+- **Commercial cleaning**: Diarization data feeds into the commercial detector to boost confidence when identifying host-read sponsor segments — host monologues in mid-episode, topic discontinuity, and single-speaker candidate regions are strong signals
 
 ## Example Output
 

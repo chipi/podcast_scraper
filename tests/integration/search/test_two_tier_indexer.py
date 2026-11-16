@@ -15,7 +15,6 @@ pytestmark = pytest.mark.integration
 
 pytest.importorskip("lancedb")
 
-from podcast_scraper.insight_stage import grounding_links  # noqa: E402
 from podcast_scraper.search import hybrid_search as hs, two_tier_indexer as tti  # noqa: E402
 from podcast_scraper.search.backends import lancedb_backend as lancedb_backend  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
@@ -125,72 +124,6 @@ def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
     # Bloat guard: the sidecar must NOT re-duplicate the embedded chunk text — the verifier
     # only needs the char offsets (see two_tier_indexer text-strip).
     assert "text" not in meta_map["chunk:0"], "sidecar should not carry full chunk text"
-
-
-@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
-def test_linking_populates_compounds(tmp_path, monkeypatch):
-    """Native index links insight↔segment so dedup actually produces a CompoundResult."""
-    import json
-
-    from podcast_scraper.search.backend import SearchQuery
-    from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
-    from podcast_scraper.search.dedup import deduplicate
-
-    corpus = tmp_path / "corpus"
-    (corpus / "metadata").mkdir(parents=True)
-    gi = corpus / "ep1.gi.json"
-    gi.write_text(
-        json.dumps(
-            {
-                "nodes": [
-                    {"id": "insight:n1", "type": "Insight", "properties": {"text": "x"}},
-                    {
-                        "id": "quote:q1",
-                        "type": "Quote",
-                        "properties": {"timestamp_start_ms": 1000, "timestamp_end_ms": 4000},
-                    },
-                ],
-                "edges": [{"type": "SUPPORTED_BY", "from": "insight:n1", "to": "quote:q1"}],
-            }
-        ),
-        encoding="utf-8",
-    )
-    rows = [
-        (
-            "insight:s:insight:n1",
-            "central bank policy shift",
-            {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s", "source_id": "insight:n1"},
-        ),
-        (
-            "chunk:s:1",
-            "the central bank signaled a policy shift in markets",
-            {
-                "doc_type": "transcript",
-                "episode_id": "ep1",
-                "feed_id": "s",
-                "timestamp_start_ms": 0,
-                "timestamp_end_ms": 10000,
-            },
-        ),  # span covers the quote (1–4s)
-    ]
-    monkeypatch.setattr(
-        tti, "discover_metadata_files", lambda root: [corpus / "metadata" / "ep1.json"]
-    )
-    monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep1"}})
-    monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
-    monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
-    monkeypatch.setattr("podcast_scraper.search.indexer._gi_path", lambda root, mp, doc: gi)
-
-    lance = corpus / "search" / "lance_index"
-    stats = tti.build_two_tier_index(corpus, lance)
-    assert stats.linked == 1  # the insight linked to the segment
-
-    backend = LanceDBBackend(str(lance))
-    hits = backend.search_bm25(
-        SearchQuery(text="central bank policy shift", embedding=[], tier="all")
-    )
-    compounds = [r for r in deduplicate(hits) if r.source_tier == "compound"]
-    assert compounds, "linked insight+segment must dedup into a CompoundResult"
 
 
 @requires("sentence_transformers")  # builds a real LanceDB index / embeds text
@@ -447,77 +380,6 @@ def test_aux_buffer_flushes_mid_build_at_batch_size(tmp_path, monkeypatch):
 
 
 @requires("sentence_transformers")  # builds a real LanceDB index / embeds text
-def test_grounding_quote_texts_links_insight_to_segment(tmp_path, monkeypatch):
-    """Text-containment grounding (verbatim quote text) links an insight to the segment that
-    contains it — the primary linking path that needs no segment timestamps."""
-    import json
-
-    corpus = tmp_path / "corpus"
-    (corpus / "metadata").mkdir(parents=True)
-    gi = corpus / "ep1.gi.json"
-    gi.write_text(
-        json.dumps(
-            {
-                "nodes": [
-                    {"id": "insight:n1", "type": "Insight", "properties": {"text": "x"}},
-                    # A Quote with verbatim text (drives _insight_grounding_quote_texts).
-                    {
-                        "id": "quote:q1",
-                        "type": "Quote",
-                        "properties": {"text": "central bank signaled a policy shift"},
-                    },
-                    # A Quote with blank text must be ignored (the strip()/isinstance guard).
-                    {"id": "quote:q2", "type": "Quote", "properties": {"text": "   "}},
-                ],
-                "edges": [{"type": "SUPPORTED_BY", "from": "insight:n1", "to": "quote:q1"}],
-            }
-        ),
-        encoding="utf-8",
-    )
-    rows = [
-        (
-            "insight:s:insight:n1",
-            "the central bank policy outlook",
-            {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s", "source_id": "insight:n1"},
-        ),
-        (
-            "chunk:s:1",
-            "markets reacted after the central bank signaled a policy shift today",
-            {"doc_type": "transcript", "episode_id": "ep1", "feed_id": "s"},
-        ),  # contains the verbatim quote text -> text-containment link
-    ]
-    monkeypatch.setattr(
-        tti, "discover_metadata_files", lambda root: [corpus / "metadata" / "ep1.json"]
-    )
-    monkeypatch.setattr(tti, "_load_metadata_file", lambda p: {"episode": {"episode_id": "ep1"}})
-    monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
-    monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
-    monkeypatch.setattr("podcast_scraper.search.indexer._gi_path", lambda root, mp, doc: gi)
-
-    stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
-    assert stats.linked == 1  # insight linked to the segment via verbatim quote text
-
-
-def test_grounding_quote_texts_handles_unreadable_gi(tmp_path):
-    """_insight_grounding_quote_texts returns {} for a missing or malformed gi.json
-    (covers the is_file()=False and the OSError/ValueError guards)."""
-    # Missing file -> {}.
-    assert grounding_links._insight_grounding_quote_texts(tmp_path / "nope.gi.json") == {}
-    # Malformed JSON -> the try/except returns {}.
-    bad = tmp_path / "bad.gi.json"
-    bad.write_text("{not json", encoding="utf-8")
-    assert grounding_links._insight_grounding_quote_texts(bad) == {}
-
-
-def test_grounding_quotes_handles_unreadable_gi(tmp_path):
-    """_insight_grounding_quotes (timestamp variant) returns {} for missing/malformed gi.json."""
-    assert grounding_links._insight_grounding_quotes(tmp_path / "nope.gi.json") == {}
-    bad = tmp_path / "bad.gi.json"
-    bad.write_text("{not json", encoding="utf-8")
-    assert grounding_links._insight_grounding_quotes(bad) == {}
-
-
-@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_limit_episodes_breaks_after_first_episode(tmp_path, monkeypatch):
     """limit_episodes=1 over two metadata files processes one then breaks on the second
     (covers the mid-walk break after a prior episode was counted)."""
@@ -572,31 +434,6 @@ def test_unknown_doc_type_rows_are_ignored(tmp_path, monkeypatch):
     (corpus / "metadata").mkdir(parents=True)
     stats = tti.build_two_tier_index(corpus, corpus / "search" / "li")
     assert stats.insights == 1 and stats.segments == 0 and stats.aux == 0  # unknowns ignored
-
-
-def test_grounding_quote_text_edge_without_matching_quote(tmp_path):
-    """A SUPPORTED_BY edge pointing at a quote id with no captured text yields no mapping
-    (covers the edge-loop branch where quote_id is absent from quote_text)."""
-    import json
-
-    gi = tmp_path / "ep.gi.json"
-    gi.write_text(
-        json.dumps(
-            {
-                "nodes": [
-                    {"id": "q1", "type": "Quote", "properties": {"text": "captured"}},
-                ],
-                "edges": [
-                    # A non-SUPPORTED_BY edge is skipped by the type guard.
-                    {"type": "MENTIONS", "from": "ins1", "to": "q1"},
-                    # Edge references q_missing, which has no text entry -> skipped.
-                    {"type": "SUPPORTED_BY", "from": "ins1", "to": "q_missing"},
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-    assert grounding_links._insight_grounding_quote_texts(gi) == {}
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff

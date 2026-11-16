@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, cast, Dict, Optional, Set, TYPE_CHECKING
+from typing import Any, Dict, Optional, Set, TYPE_CHECKING
 
 # Import Anthropic SDK
 try:
@@ -40,19 +40,14 @@ else:
     from ... import models
 
     Episode = models.Episode  # type: ignore[assignment]
-from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
-from ...utils.cleaning_max_tokens import (
-    ANTHROPIC_CLEANING_MAX_TOKENS,
-    clamp_cleaning_max_tokens,
-    estimate_cleaning_output_tokens,
-)
 from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
 from ..common.transcript_cache import anthropic_style_system as _anthropic_style_system
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +55,6 @@ from ._anthropic_provider_calls import (  # noqa: F401 - re-exported: moved ther
     _anthropic_finish_reason,
     _record_anthropic_llm_call,
 )
-from .anthropic_provider_gi_naming import AnthropicProviderGiNamingMethods
 
 # Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
 
@@ -75,7 +69,7 @@ from .anthropic_provider_gi_naming import AnthropicProviderGiNamingMethods
 _TEMPERATURE_DEPRECATED_SEED = frozenset({"claude-sonnet-5", "claude-opus-4-8"})
 
 
-class AnthropicProvider(AnthropicProviderGiNamingMethods):
+class AnthropicProvider(ExtensibleProvider):
     """Unified Anthropic provider: SpeakerDetector and SummarizationProvider (no transcription).
 
     Manages Claude chat models for speaker detection and summarization. All capabilities
@@ -126,15 +120,10 @@ class AnthropicProvider(AnthropicProviderGiNamingMethods):
         self._cache_transcript_prefix = bool(getattr(cfg, "cache_transcript_prefix", True))
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
-        from ...cleaning import HybridCleaner, LLMBasedCleaner
+        from ... import stage_hooks
 
         cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-        if cleaning_strategy == "pattern":
-            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
-        elif cleaning_strategy == "llm":
-            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
-        else:  # hybrid (default)
-            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+        self.cleaning_processor = stage_hooks.transcript_cleaner(cleaning_strategy)
 
         # Cleaning model settings (cheaper model for cost efficiency).
         # Temperature tuned in #594 (data/eval/runs/baseline_cleaning_autoresearch_v1):
@@ -768,211 +757,10 @@ class AnthropicProvider(AnthropicProviderGiNamingMethods):
             or self._summarization_initialized
         )
 
-    def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
-        """Clean transcript using LLM for semantic filtering.
-
-        Args:
-            text: Transcript text to clean (should already be pattern-cleaned)
-
-        Returns:
-            Cleaned transcript text
-
-        Raises:
-            RuntimeError: If provider is not initialized or cleaning fails
-        """
-        if not self._summarization_initialized:
-            raise RuntimeError("AnthropicProvider not initialized. Call initialize() first.")
-
-        from ...prompts.store import render_prompt
-
-        # Build cleaning prompt using prompt_store
-        prompt_name = "anthropic/cleaning/v1"
-        user_prompt = render_prompt(prompt_name, transcript=text)
-
-        # Use system prompt (Anthropic pattern)
-        system_prompt = (
-            "You are a transcript cleaning assistant. "
-            "Remove sponsors, ads, intros, outros, and meta-commentary. "
-            "Preserve all substantive content and speaker information. "
-            "Return only the cleaned text, no explanations."
-        )
-
-        logger.debug(
-            "Cleaning transcript via Anthropic API (model: %s, text length: %d chars)",
-            self.cleaning_model,
-            len(text),
-        )
-
-        try:
-            # Track retries and rate limits
-            from ...utils.provider_metrics import (
-                _safe_anthropic_retryable,
-                ProviderCallMetrics,
-                retry_with_metrics,
-            )
-
-            call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("anthropic")
-            call_metrics.set_breaker_config_from_cfg(self.cfg)
-
-            # Wrap API call with retry tracking
-            def _make_api_call():
-                return self._messages_create(
-                    model=self.cleaning_model,
-                    max_tokens=clamp_cleaning_max_tokens(
-                        estimate_cleaning_output_tokens(len(text.split())),
-                        ANTHROPIC_CLEANING_MAX_TOKENS,
-                    ),
-                    temperature=self.cleaning_temperature,
-                    system=system_prompt,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": user_prompt,
-                        }
-                    ],
-                )
-
-            try:
-                response = retry_with_metrics(
-                    _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
-                    retryable_exceptions=_safe_anthropic_retryable(),
-                    metrics=call_metrics,
-                )
-            except Exception:
-                call_metrics.finalize()
-                raise
-
-            call_metrics.finalize()
-
-            _record_anthropic_llm_call(
-                response,
-                pipeline_metrics,
-                recorder_name="record_llm_cleaning_call",
-                cfg=self.cfg,
-                model=self.cleaning_model,
-            )
-
-            # Extract text from response
-            cleaned = ""
-            if response.content and len(response.content) > 0:
-                first_block = response.content[0]
-                if hasattr(first_block, "text"):
-                    cleaned = first_block.text
-                elif isinstance(first_block, str):
-                    cleaned = first_block
-
-            # Cost capture up-front so cost emits on both happy path and the
-            # GuardrailViolation catch-and-degrade path (ADR-100).
-            in_tok_cl = None
-            out_tok_cl = None
-            if hasattr(response, "usage") and response.usage:
-                ir = getattr(response.usage, "input_tokens", None)
-                or_ = getattr(response.usage, "output_tokens", None)
-                in_tok_cl = int(ir) if isinstance(ir, (int, float)) else None
-                out_tok_cl = int(or_) if isinstance(or_, (int, float)) else None
-            cleaning_cost: Optional[float] = None
-            if in_tok_cl is not None and out_tok_cl is not None:
-                from ...workflow.helpers import calculate_provider_cost
-
-                cleaning_cost = calculate_provider_cost(
-                    cfg=self.cfg,
-                    provider_type="anthropic",
-                    capability="cleaning",
-                    model=self.cleaning_model,
-                    prompt_tokens=in_tok_cl,
-                    completion_tokens=out_tok_cl,
-                )
-
-            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
-                if in_tok_cl is None or out_tok_cl is None:
-                    return
-                try:
-                    from ...workflow.cost_monitoring import emit_llm_cost_event
-
-                    emit_llm_cost_event(
-                        self.cfg,
-                        provider="anthropic",
-                        stage="cleaning",
-                        model=self.cleaning_model,
-                        estimated_cost_usd=float(cleaning_cost or 0.0),
-                        prompt_tokens=in_tok_cl,
-                        completion_tokens=out_tok_cl,
-                        triggered_guardrail=triggered_guardrail,
-                        served_model=getattr(response, "model", None),
-                        response=response,
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-
-            if not cleaned:
-                logger.warning("Anthropic API returned empty cleaned text, using original")
-                _emit_cleaning_cost()
-                return text
-            # ADR-100: cleaning catch-and-degrade. Cost emitted in both branches.
-            try:
-                _guardrails.check_chat_response(
-                    cleaned,
-                    service="anthropic",
-                    finish_reason=_anthropic_finish_reason(response),
-                )
-            except _guardrails.GuardrailViolation:
-                _emit_cleaning_cost(triggered_guardrail=True)
-                logger.warning(
-                    "Anthropic cleaning output failed guardrail; "
-                    "returning original transcript text"
-                )
-                return text
-
-            _emit_cleaning_cost()
-            logger.debug("Anthropic cleaning completed: %d -> %d chars", len(text), len(cleaned))
-            return cast(str, cleaned)
-
-        except _guardrails.GuardrailViolation:
-            # Defensive: outer catch in case a future change adds a guardrail
-            # call outside the inline-handled if/else. Re-affirms the
-            # catch-and-degrade contract.
-            logger.warning(
-                "Anthropic cleaning output failed guardrail (outer); "
-                "returning original transcript text"
-            )
-            return text
-        except Exception as exc:
-            logger.error("Anthropic API error in cleaning: %s", format_exception_for_log(exc))
-            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
-
-            # Handle Anthropic-specific error types
-            error_msg = str(exc).lower()
-            if (
-                "api key" in error_msg
-                or "authentication" in error_msg
-                or "permission" in error_msg
-                or "401" in error_msg
-            ):
-                raise ProviderAuthError(
-                    message=f"Anthropic authentication failed: {format_exception_for_log(exc)}",
-                    provider="AnthropicProvider/Cleaning",
-                    suggestion="Check your ANTHROPIC_API_KEY environment variable or config setting",  # noqa: E501
-                ) from exc
-            elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
-                raise ProviderRuntimeError(
-                    message=f"Anthropic rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="AnthropicProvider/Cleaning",
-                    suggestion="Wait before retrying or check your API quota",
-                ) from exc
-            else:
-                raise ProviderRuntimeError(
-                    message=f"Anthropic cleaning failed: {format_exception_for_log(exc)}",
-                    provider="AnthropicProvider/Cleaning",
-                ) from exc
-
     def complete_text(
         self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
     ) -> str:
-        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+        """One prompt in, one JSON answer out — the generic call the speaker resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
         from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a

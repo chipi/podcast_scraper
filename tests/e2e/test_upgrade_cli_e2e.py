@@ -228,14 +228,18 @@ def _build_real_corpus(root: Path) -> None:
 
 class TestIndexTwoTierCliE2E:
     @requires("sentence_transformers")  # builds a real index / runs the ML pipeline
-    def test_index_two_tier_real_corpus(self, project_root: Path, tmp_path: Path) -> None:
+    def test_index_two_tier_real_corpus_without_gi(
+        self, project_root: Path, tmp_path: Path
+    ) -> None:
+        """Public's rows only: the transcript's segments. Insight rows come from GI, which an
+        installed extension indexes (its copy of this test checks ``insights=1``)."""
         corpus = tmp_path / "corpus"
         _build_real_corpus(corpus)
         r = _run_cli(
             ["index-two-tier", "--output-dir", str(corpus), "--allow-download"], project_root
         )
         assert r.returncode == 0, f"index-two-tier: {r.returncode} {r.stderr!r}"
-        assert "segments=1" in r.stdout and "insights=1" in r.stdout
+        assert "segments=1" in r.stdout and "insights=0" in r.stdout
         assert (corpus / "search" / "lance_index").exists()
 
     def test_index_two_tier_empty_corpus(self, project_root: Path, tmp_path: Path) -> None:

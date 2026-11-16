@@ -4,7 +4,6 @@
  * Drives ``make serve-for-validation`` against a real operator-supplied
  * corpus and exercises the shipped Search v3 surfaces end-to-end:
  *
- *   T4 — POST /api/search/compare (§S8)      → operator-compare-columns
  *   T5 — GET /api/search?episode_id=…        → rail "Search within episode"
  *
  * Each walk defensively skips when the corpus lacks the required
@@ -89,54 +88,6 @@ test.describe('Search v3 real-corpus validation', () => {
     expect(resp?.ok(), 'api at localhost:8000 must be reachable (start `make serve-for-validation`)').toBe(
       true,
     )
-  })
-
-  test('T4 — POST /api/search/compare returns two grounded packs (§S8)', async ({
-    page,
-  }, testInfo) => {
-    const hasIndex = await corpusHasSearchIndex(page)
-    test.skip(!hasIndex, 'corpus has no vector index')
-    await signInIsolated(page, 'search-v3-t4', testInfo)
-    await landOnSearch(page)
-    await submitSearch(page, 'compute')
-    const chip = page.getByTestId('operator-chip-compare')
-    await expect(chip).toBeVisible({ timeout: 10_000 })
-    // The chip disables when the visible hit set has < 2 comparable
-    // subjects — real corpora sometimes produce single-episode top pages
-    // where that happens. Accept it as a valid terminal (Tier-2 covers
-    // the enable / render contract).
-    const disabled = await chip.isDisabled()
-    if (disabled) {
-      // eslint-disable-next-line no-console
-      console.log('[validation T4] < 2 comparable subjects in top page — chip disabled, valid terminal')
-      return
-    }
-    await chip.click()
-    await expect(page.getByTestId('operator-compare-panel')).toBeVisible()
-    await page.getByTestId('operator-compare-run').click()
-    // Terminal: columns render (both packs came back — grounded or not)
-    // OR an operator-compare-error is visible.
-    await expect(async () => {
-      const columns = page.getByTestId('operator-compare-columns')
-      const error = page.getByTestId('operator-compare-error')
-      const columnsVisible = await columns.isVisible().catch(() => false)
-      const errorVisible = await error.isVisible().catch(() => false)
-      if (!columnsVisible && !errorVisible) throw new Error('compare panel still loading')
-    }).toPass({ timeout: 30_000 })
-    await page.screenshot({
-      path: 'validation-results/search-v3-t4-compare.png',
-      fullPage: false,
-    })
-    // If both packs rendered, at least one side must be non-empty
-    // (either the top-insight OR the "Ungrounded" badge is visible).
-    // This guards against a silently-empty pack view.
-    const columnsVisible = await page.getByTestId('operator-compare-columns').isVisible()
-    if (columnsVisible) {
-      const packA = page.getByTestId('operator-compare-pack-a')
-      const packB = page.getByTestId('operator-compare-pack-b')
-      await expect(packA).toBeVisible()
-      await expect(packB).toBeVisible()
-    }
   })
 
   test('T5 — episode_id rail scope filters the hit set to that episode only', async ({

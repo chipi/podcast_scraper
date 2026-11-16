@@ -1,0 +1,77 @@
+# ADR-178: Ontology v3 is adopted in two halves: the schema now, the podcast corpus later
+
+- **Status**: Proposed
+- **Date**: 2026-11-11
+- **Authors**: Marko Dragoljevic
+- **Related**: [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) (news as the second
+  content type), `docs/architecture/kg/kg.schema.json`, `docs/architecture/gi/gi.schema.json`
+
+## Context & Problem Statement
+
+Ontology v3 (the R3 step of the terminology refactor; named by decision T-7, which also moves the
+artifact schemas to GI 4.0 and KG 3.0) makes evidence medium-neutral:
+
+- evidence anchored by a character range in its item's text, with a time range only when the item
+  is timed;
+- `text_origin` (`spoken`, `translated`, `authored`);
+- `ATTRIBUTED_TO`;
+- roles on people;
+- declared `Place` and time fields.
+
+Today's GI schema (3.1) requires `episode_id`, `timestamp_start_ms`, `timestamp_end_ms` and
+`transcript_ref` on every quote. A news article has no timestamps and no transcript.
+
+R3 was planned as one step: the schema and the migration of the whole podcast corpus together.
+The migration is the large, risky part, and news only needs the schema.
+
+## Decision
+
+1. **R3a, the schema, comes first, in the core release.** Items of new types write v3 from the start. Every reader of
+   insights, quotes and entities accepts both versions. v3 is written so later types need no schema
+   bump:
+   - **evidence locators:**
+     - a character range in a named document of the item, always, with its variant for
+       translations;
+     - a time range only when timed (an untimed quote carries no time, never 0);
+     - an optional page and section for documents.
+     - Untimed types write paragraph segments without times, so evidence anchors to a segment
+       range for every type (DECISIONS rule 3).
+   - **the item id** is read wherever `episode_id` is read for evidence, starting with the identity
+     guards' evidence builder;
+   - **the KG 3.0 edge set:** `ATTRIBUTED_TO` (`SPOKEN_BY` stays as its audio specialisation),
+     `HAS_ITEM`, `PARTICIPATES_IN`, `CONTRIBUTES_TO`, `PUBLISHED_BY`;
+   - **time fields kept apart:** published, filed, period covered (start and end), observed and
+     ingested, each optional;
+   - **person roles are an open vocabulary:** author, host, guest and participant now, others later;
+   - **organisations hold external identifiers side by side:** web domain, CIK, ticker, LEI.
+2. **A GI 3.x artifact reads as v3:**
+   - its quotes carry their character range and their time range;
+   - `text_origin` is `spoken`;
+   - nothing in the file changes.
+3. **Podcasts keep writing GI 3.x until R3b.** R3b ships the writer switch with the migration, so
+   the first nightly after it writes v3.
+4. **R3b,** the podcast corpus migration to v3 under the change method, comes in its own release,
+   strictly before the corpus database's importer. The importer then reads one version, and the
+   database schema is designed once, against v3. Landing R3b with the importer would migrate the
+   podcast corpus twice in one step.
+5. **Each schema stays with its owner.** KG's schema is public's and is versioned here. GI's moves
+   with the private extension and follows these rules there.
+
+## Consequences
+
+- **Positive:**
+  - news ships without the corpus migration and without a freeze for it;
+  - v3 is practised on real data in the file corpus before the database schema is fixed.
+- **Negative:**
+  - two versions live side by side until R3b, and every reader must handle both;
+  - tests cover both versions on every route that reads insights or quotes.
+- **Neutral:** no podcast artifact changes in this release.
+
+## Alternatives considered
+
+- **R3 in one step, with news waiting for it.** Rejected. News would wait on the largest migration
+  of the release.
+- **News writes 3.x with placeholder timestamps.** Rejected. The placeholders would be read as real
+  times by the player, search and the graph.
+- **A separate news-only schema.** Rejected. It would be a third shape to migrate later, instead of
+  the one the corpus is moving to.

@@ -9,7 +9,7 @@ framework — see [Corpus upgrade framework (#862)](../guides/CORPUS_UPGRADE.md)
 same release cadence; read both when moving both callers and a deployed corpus across a version.
 
 **Read-time schema shims** for legacy artifacts live in
-`src/podcast_scraper/migrations/gil_kg_identity_migrations.py` — used by the server and graph build to
+an installed extension — used by the server and graph build to
 accept older artifact shapes without an in-place upgrade. See the [Corpus upgrade framework](../guides/CORPUS_UPGRADE.md#other-migration-surfaces-in-the-repo)
 guide's "Other migration surfaces" section.
 
@@ -70,8 +70,7 @@ Grounded Insight artifacts (`*.gi.json`) move to `schema_version: 3.0`:
 passes through unchanged.
 
 **API impact:** consumers reading `gi.json` directly must accept both edge-type sets
-until every corpus in flight has been upgraded. The read-time helpers in
-`podcast_scraper.migrations.gil_kg_identity_migrations.migrate_gi_document_v3`
+until every corpus in flight has been upgraded. The extension's read-time helpers
 provide a runtime shim if you cannot upgrade a corpus in place.
 
 ### Additive: enrichment layer + read-time cross-episode surfaces

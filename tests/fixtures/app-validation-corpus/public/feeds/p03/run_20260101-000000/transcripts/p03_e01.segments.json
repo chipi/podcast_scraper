@@ -1,0 +1,272 @@
+[
+  {
+    "end": 12.661,
+    "id": 0,
+    "start": 0.0,
+    "text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here."
+  },
+  {
+    "end": 20.909,
+    "id": 1,
+    "start": 12.661,
+    "text": "Thanks, Rina. Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot."
+  },
+  {
+    "end": 29.349,
+    "id": 2,
+    "start": 20.909,
+    "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast."
+  },
+  {
+    "end": 36.449,
+    "id": 3,
+    "start": 29.349,
+    "text": "What does the failure mode look like? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 52.863,
+    "id": 4,
+    "start": 36.449,
+    "text": "Let me give you the version I actually believe. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 57.357,
+    "id": 5,
+    "start": 52.863,
+    "text": "I want to dig into that. Where do dive planning and wreck diving intersect?"
+  },
+  {
+    "end": 68.699,
+    "id": 6,
+    "start": 57.357,
+    "text": "Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 73.692,
+    "id": 7,
+    "start": 68.699,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "end": 86.298,
+    "id": 8,
+    "start": 73.692,
+    "text": "Yeah, so — Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 87.291,
+    "id": 9,
+    "start": 86.298,
+    "text": "That tracks."
+  },
+  {
+    "end": 95.129,
+    "id": 10,
+    "start": 87.291,
+    "text": "DAN is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 99.246,
+    "id": 11,
+    "start": 95.129,
+    "text": "Let's start there. Where do dive planning and wreck diving intersect?"
+  },
+  {
+    "end": 108.508,
+    "id": 12,
+    "start": 99.246,
+    "text": "Yeah, so — DAN's safety stops aren't suggestions. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 117.238,
+    "id": 13,
+    "start": 108.508,
+    "text": "Before we keep going — head over to our sponsor's website if you want to support the show. PADI is the global standard for dive education."
+  },
+  {
+    "end": 120.844,
+    "id": 14,
+    "start": 117.238,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 134.132,
+    "id": 15,
+    "start": 120.844,
+    "text": "Today's episode is sponsored by PADI. PADI is the global standard for dive education. Visit padi.com/podcast for a free trial."
+  },
+  {
+    "end": 135.658,
+    "id": 16,
+    "start": 134.132,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 140.175,
+    "id": 17,
+    "start": 135.658,
+    "text": "I want to dig into that. What's the most underrated piece of wreck diving?"
+  },
+  {
+    "end": 154.894,
+    "id": 18,
+    "start": 140.175,
+    "text": "Honestly, Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using PADI. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 159.283,
+    "id": 19,
+    "start": 154.894,
+    "text": "I want to dig into that. What's the most underrated piece of wreck diving?"
+  },
+  {
+    "end": 170.369,
+    "id": 20,
+    "start": 159.283,
+    "text": "Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 175.566,
+    "id": 21,
+    "start": 170.369,
+    "text": "Walk me through a concrete example. What's the most underrated piece of wreck diving?"
+  },
+  {
+    "end": 187.996,
+    "id": 22,
+    "start": 175.566,
+    "text": "Sure. Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 189.732,
+    "id": 23,
+    "start": 187.996,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "end": 198.258,
+    "id": 24,
+    "start": 189.732,
+    "text": "DAN is one of the platforms where this shows up cleanly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 203.547,
+    "id": 25,
+    "start": 198.258,
+    "text": "Walk me through a concrete example. Where do dive planning and wreck diving intersect?"
+  },
+  {
+    "end": 211.962,
+    "id": 26,
+    "start": 203.547,
+    "text": "Yeah, so — DAN's safety stops aren't suggestions. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 216.288,
+    "id": 27,
+    "start": 211.962,
+    "text": "Let's pivot — soil erosion is where I want to spend the last stretch."
+  },
+  {
+    "end": 224.487,
+    "id": 28,
+    "start": 216.288,
+    "text": "That's where the conversation gets interesting, because the trade-offs around soil erosion cross-cut everything we've covered."
+  },
+  {
+    "end": 230.462,
+    "id": 29,
+    "start": 224.487,
+    "text": "What does the failure mode look like? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 246.38,
+    "id": 30,
+    "start": 230.462,
+    "text": "Here's how I think about it. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 250.464,
+    "id": 31,
+    "start": 246.38,
+    "text": "Take me through the decision. How does GoPro fit into this picture?"
+  },
+  {
+    "end": 262.751,
+    "id": 32,
+    "start": 250.464,
+    "text": "Yeah, so — Silt-out from poor finning technique kills more divers in wrecks than equipment failures. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 267.308,
+    "id": 33,
+    "start": 262.751,
+    "text": "That's a useful framing. Where do dive planning and wreck diving intersect?"
+  },
+  {
+    "end": 279.594,
+    "id": 34,
+    "start": 267.308,
+    "text": "Yeah, so — Erosion on a wreck site changes the dive every season. We've seen this play out at teams using GoPro. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 280.587,
+    "id": 35,
+    "start": 279.594,
+    "text": "That tracks."
+  },
+  {
+    "end": 289.977,
+    "id": 36,
+    "start": 280.587,
+    "text": "And when teams adopt GoPro in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 295.266,
+    "id": 37,
+    "start": 289.977,
+    "text": "Walk me through a concrete example. Where do dive planning and wreck diving intersect?"
+  },
+  {
+    "end": 303.729,
+    "id": 38,
+    "start": 295.266,
+    "text": "Yeah, so — DAN's safety stops aren't suggestions. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 307.519,
+    "id": 39,
+    "start": 303.729,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 313.623,
+    "id": 40,
+    "start": 307.519,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 322.44,
+    "id": 41,
+    "start": 313.623,
+    "text": "And finally, a big thank you to our partners at GoPro. GoPro captures the moments words don't reach. Check out gopro.com."
+  },
+  {
+    "end": 325.427,
+    "id": 42,
+    "start": 322.44,
+    "text": "Marco Sylva, thanks for the conversation."
+  },
+  {
+    "end": 327.146,
+    "id": 43,
+    "start": 325.427,
+    "text": "Thanks, Rina."
+  },
+  {
+    "end": 331.679,
+    "id": 44,
+    "start": 327.146,
+    "text": "That's it for today's episode of Below the Surface. See you next time."
+  }
+]

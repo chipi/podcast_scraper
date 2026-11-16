@@ -14,8 +14,6 @@
 - **Related RFCs**:
   - [RFC-070: Semantic corpus search — platform & future](RFC-070-semantic-corpus-search-platform-future.md) —
     Qdrant, scale, hybrid quality (Draft)
-  - [RFC-049: GIL core](RFC-049-grounded-insight-layer-core.md)
-  - [RFC-050: GIL use cases](RFC-050-grounded-insight-layer-use-cases.md)
   - [RFC-051: Database projection](RFC-051-database-projection-gil-kg.md)
   - [RFC-055: KG core](RFC-055-knowledge-graph-layer-core.md)
   - [RFC-056: KG use cases](RFC-056-knowledge-graph-layer-use-cases.md)
@@ -51,7 +49,7 @@ GIL and KG produce rich, structured artifacts per episode, but consumption is li
 - `gi query` maps regex patterns to the same substring path — not semantic
 - `kg entities` / `kg topics` match by exact string — "Elon Musk" and "Musk" are separate
 - No cross-corpus question like "what do my podcasts say about X?"
-- RFC-050 explicitly defers UC4 (Semantic QA) as "post-v1, after Insight Explorer validated"
+- the GIL use-case design explicitly defers UC4 (Semantic QA) as "post-v1, after Insight Explorer validated"
 - `gi explore` hits a ~100 episode performance ceiling (file scan)
 
 The project already loads `sentence-transformers` (`all-MiniLM-L6-v2`) and has
@@ -466,8 +464,8 @@ re-ranking) live in **[RFC-070](RFC-070-semantic-corpus-search-platform-future.m
 This RFC (RFC-061) is part of the GIL/KG **depth** initiative ([#466](https://github.com/chipi/podcast_scraper/issues/466)):
 
 ```text
-RFC-049 (GIL Core)              → artifacts to index
-RFC-050 (GIL Use Cases)         → UC4/UC5 that search enables
+The GIL core design (GIL Core)              → artifacts to index
+The GIL use-case design (GIL Use Cases)         → UC4/UC5 that search enables
     ↓
 RFC-061 (this RFC)              → FAISS semantic search + CLI + protocol (Completed)
     ↓
@@ -479,7 +477,7 @@ Platform megasketch              → multi-tenant search, remote vector DB
 
 **Key distinction:**
 
-- **RFC-049/050**: *What* GIL extracts and *how* it's consumed (structured)
+- **the GIL core and use-case designs**: *What* GIL extracts and *how* it's consumed (structured)
 - **RFC-061**: *Meaning-based discovery* over GIL + KG + summary + transcript (**FAISS**, shipped)
 - **RFC-070**: *Platform and backend* extensions (Draft)
 - **RFC-051**: *SQL-based serving* (complementary)
@@ -489,7 +487,7 @@ planned hook for **remote / filtered** vector backends when needed.
 
 ## Benefits
 
-1. **Unlocks UC4 (Semantic QA)**: The explicitly deferred RFC-050 use case becomes functional
+1. **Unlocks UC4 (Semantic QA)**: The explicitly deferred the GIL use-case design use case becomes functional
 2. **Removes scale ceiling**: `gi explore` goes from ~100 episode file scan to vector index
 3. **Cross-feed discovery**: "What do all my podcasts say about X?" becomes answerable
 4. **Preserves GIL provenance**: Search results carry grounding, quotes, timestamps — not
@@ -515,7 +513,7 @@ N/A — this is a new additive feature. Existing behavior is unchanged when
 
 - [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
 - [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) (deferred / platform scope)
-- [RFC-049](RFC-049-grounded-insight-layer-core.md), [RFC-050](RFC-050-grounded-insight-layer-use-cases.md),
+- 
   [RFC-051](RFC-051-database-projection-gil-kg.md)
 - [ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)
 - **Source:** `src/podcast_scraper/search/`, `podcast_scraper/providers/ml/embedding_loader.py`,

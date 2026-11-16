@@ -126,6 +126,8 @@ def test_index_invalidates_on_ingest(tmp_path: Path) -> None:
         topics=[("topic:ml", "Machine Learning")],
     )
     _stamp(tmp_path, 2_000_000.0)
+    assert len(kg_index.get_kg_index(tmp_path).topic_episodes("topic:ml")) == 1
+    assert perf_cache.wait_for_rebuilds()
     idx = kg_index.get_kg_index(tmp_path)
     assert len(idx.topic_episodes("topic:ml")) == 2, "a stale KG index hid the new episode"
     assert idx.person_ref_by_norm["carol"].id == "person:carol"
@@ -145,7 +147,7 @@ class TestSpellingVariantsCollapseInTheAppIndex:
     ids share a show. Nothing was wrong with the matcher — it was never consulted.
 
     ``build_kg_index`` reads entities straight out of each ``*.kg.json`` via ``iter_kg_entities``
-    and canonicalises NOTHING. Only ``search/corpus_graph.py`` and ``server/cil_queries.py`` apply
+    and canonicalises NOTHING. Only ``search/corpus_graph.py`` and the CIL query helpers apply
     ``build_entity_id_map``; the consumer relational cards ("Related people") bypass both. That is
     candidate 2 in #2056 — "the surface may not go through CorpusGraph" — confirmed.
 
@@ -202,40 +204,11 @@ class TestSpellingVariantsCollapseInTheAppIndex:
         )
         _stamp(root, 1000.0)
 
-    def _two_spellings_with_ledger(self, root: Path) -> None:
-        """The served path since ADR-166: the ledger step writes the map the index applies."""
-        from podcast_scraper.identity.ledger import build_ledger, write_ledger
-
-        self._two_spellings(root)
-        write_ledger(root, build_ledger(root))
-
     def test_without_a_ledger_the_two_spellings_stay_two(self, tmp_path: Path) -> None:
-        # ADR-166: no ledger means no cross-episode joins, never the in-memory build.
+        # No ledger means no cross-episode joins, never the in-memory build.
         self._two_spellings(tmp_path)
         index = kg_index.build_kg_index(tmp_path)
         assert len({pid for pid in index.person_to_eps if "jaffe" in pid}) == 2
-
-    def test_both_spellings_resolve_to_one_person(self, tmp_path: Path) -> None:
-        self._two_spellings_with_ledger(tmp_path)
-        index = kg_index.build_kg_index(tmp_path)
-        jaffe_ids = {pid for pid in index.person_to_eps if "jaffe" in pid}
-        assert len(jaffe_ids) == 1, f"one human must have one id on the cards, got {jaffe_ids}"
-
-    def test_the_surviving_person_carries_both_episodes(self, tmp_path: Path) -> None:
-        self._two_spellings_with_ledger(tmp_path)
-        index = kg_index.build_kg_index(tmp_path)
-        pid = next(p for p in index.person_to_eps if "jaffe" in p)
-        assert len(index.person_to_eps[pid]) == 3, "the merged person appears in every episode"
-
-    def test_searching_either_spelling_finds_the_same_person(self, tmp_path: Path) -> None:
-        self._two_spellings_with_ledger(tmp_path)
-        index = kg_index.build_kg_index(tmp_path)
-        refs = {
-            kg_index.normalize_label("Theo Jaffee"),
-            kg_index.normalize_label("Theo Jaffe"),
-        }
-        found = {index.person_ref_by_norm[r].id for r in refs if r in index.person_ref_by_norm}
-        assert len(found) == 1, f"both spellings must lead to one id, got {found}"
 
     def test_two_different_people_are_still_two(self, tmp_path: Path) -> None:
         # The canonical map must not become a blunt instrument on this surface either.

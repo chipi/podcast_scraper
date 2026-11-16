@@ -4,10 +4,8 @@
 These tests verify Grok provider implementations with mocked API calls,
 using factory functions to create providers (tests factory integration).
 
-For standalone provider tests, see test_grok_provider.py.
 """
 
-import json
 import os
 import unittest
 from unittest.mock import MagicMock, Mock, patch
@@ -37,7 +35,6 @@ def tearDownModule():
 
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 pytestmark = [pytest.mark.integration, pytest.mark.module_grok_providers]
@@ -57,52 +54,6 @@ class TestGrokSpeakerDetectorFactory(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_provider_initialization(self, mock_openai):
-        """Test that Grok speaker detector initializes correctly via factory."""
-        provider = create_speaker_detector(self.cfg)
-        provider.initialize()
-
-        # Verify OpenAI client was created
-        mock_openai.assert_called_once()
-        self.assertTrue(provider._speaker_detection_initialized)
-
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_detect_speakers_success(self, mock_render, mock_openai):
-        """Test successful speaker detection via Grok API via factory."""
-        # Mock OpenAI client and response
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = json.dumps(
-            {
-                "speakers": ["John Doe", "Jane Smith"],
-                "hosts": ["John Doe"],
-                "guests": ["Jane Smith"],
-            }
-        )
-        mock_response.usage = Mock()
-        mock_response.usage.prompt_tokens = 100
-        mock_response.usage.completion_tokens = 50
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_client
-
-        mock_render.side_effect = lambda name, **kwargs: "test prompt"
-
-        provider = create_speaker_detector(self.cfg)
-        provider.initialize()
-
-        speakers, hosts, success, _ = provider.detect_speakers(
-            episode_title="Test Episode",
-            episode_description="Test description",
-            known_hosts={"John Doe"},
-        )
-
-        self.assertEqual(speakers, ["John Doe", "Jane Smith"])
-        self.assertEqual(hosts, {"John Doe"})
-        self.assertTrue(success)
-
     def test_detect_speakers_missing_api_key(self):
         """Test that missing API key raises ValidationError."""
         from pydantic import ValidationError
@@ -119,15 +70,6 @@ class TestGrokSpeakerDetectorFactory(unittest.TestCase):
             # Restore original environment variable if it existed
             if original_key is not None:
                 os.environ["GROK_API_KEY"] = original_key
-
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_factory_creates_grok_provider(self, mock_openai):
-        """Test that factory creates Grok speaker detector."""
-        mock_client = Mock()
-        mock_openai.return_value = mock_client
-        provider = create_speaker_detector(self.cfg)
-        # Factory returns unified GrokProvider
-        self.assertEqual(provider.__class__.__name__, "GrokProvider")
 
 
 @pytest.mark.llm

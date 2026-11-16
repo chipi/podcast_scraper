@@ -9,8 +9,6 @@
 - **Related RFCs**:
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
-  - [RFC-072: Canonical identity + cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (chunk-to-Insight **lift** on transcript hits)
-  - [RFC-075: Corpus Topic Clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **Show on graph** / cluster follow-ups)
   - [RFC-090: Hybrid Retrieval](../rfc/RFC-090-hybrid-retrieval.md) — **hybrid is now the default** backend; FAISS retained as fallback
   - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational queries the surfaces consume
 
@@ -60,7 +58,7 @@ Track shell work in [GitHub #606](https://github.com/chipi/podcast_scraper/issue
 and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, update this **Active** UXS in the same PR — see
 [Living documents and ship boundary](index.md#living-documents-and-ship-boundary).
 
-**RFC-075:** When corpus clustering JSON is available, **Show on graph** from search still selects the
+**topic clustering:** When corpus clustering JSON is available, **Show on graph** from search still selects the
 **leaf** node id (e.g. `topic:…`) as today. The **graph node rail** shows **Topic cluster:** for Topic
 nodes (Phase 1; see [UXS-004](UXS-004-graph-exploration.md)). **Search result cards** may show a
 **Topic cluster:** line when the API joined **`metadata.topic_cluster`** (canonical label and compound
@@ -85,7 +83,8 @@ Search query field (no separate label; placeholder + **Semantic search** heading
 **Shift+Enter** inserts a newline; **IME** composition does not trigger submit.
 Then a **filter chip bar** (#671, `data-testid="search-filter-bar"`) with four chips —
 **Since** (`search-chip-since`, shared `DateChip`), **Top‑k** (`search-chip-topk`,
-default 10), **Doc types** (`search-chip-doctypes`, empty = all), **More**
+default 10), **Doc types** (`search-chip-doctypes`, empty = all; a downstream build's
+types such as Insights and Quotes come first, through `searchDocTypes`, E04 step 8b), **More**
 (`search-chip-more`, opens the slim Advanced search dialog). Each chip's label
 switches from `Label ▾` (default) to `Label: detail ▾` when active; the **More**
 chip shows `More: N` reflecting the count of non-default fields it hosts. Replaces
@@ -137,7 +136,7 @@ counts; **Similarity** bars proportional to score / max(score) in the list
 A muted "N results" / "1 result" line only (the query stays in the textarea; it is
 not repeated here). When the API returns **`lift_stats`** and at least one transcript
 row is on the page, a compact **Lift: applied / transcript rows** ratio appears on
-the same row (native **`title`** explains RFC-072 lift coverage).
+the same row (native **`title`** explains the cross-layer identity design lift coverage).
 
 Each hit can expose:
 
@@ -150,6 +149,9 @@ Each hit can expose:
 - When **Merge duplicate KG surfaces** merged a row (`kg_surface_match_count` >= 2),
   G only -- L and E are hidden so actions are not tied to a single representative
   episode
+- The two items below, and the compound badge and lifted links under PRD-033 FR1, are a
+  downstream build's since E04 step 8b (registered at `resultCardBadges` /
+  `resultCardSections`); the platform's card renders none of them.
 - **Transcript** hits may include a collapsible **`region` Lifted GI insight** (linked
   insight id/text, speaker/topic labels, quote time range) when the server attaches
   **`lifted`** (#528). When **`lifted.quote`** has at least one finite **`timestamp_*_ms`**
@@ -176,9 +178,10 @@ The search surface makes that legible without re-querying:
   insight is a *compound* — the card shows both the segment text and the linked
   insight (the existing **Lifted GI insight** block) and is marked with a **`+ insight`**
   badge (`search-result-compound`).
-- **Evidence toggle (FR1.3).** A small **Insights / Transcript / Both** segmented
-  control (`search-evidence-toggle`) in the results header constrains the rendered
-  cards to a tier (Both = no constraint). Client-side over the returned page; the
+- **Evidence toggle (FR1.3).** (A downstream build's since E04 step 8b, registered as a
+  `results-header` search panel section, with the lift coverage line.) A small **Insights /
+  Transcript / Both** segmented control (`search-evidence-toggle`) in the results
+  header constrains the rendered cards to a tier (Both = no constraint). Client-side over the returned page; the
   active button uses `aria-pressed`.
 - **Query-type indicator (FR1.4).** When the response carries a detected intent, an
   **Intent: `<label>`** chip (`search-query-type`) sits in the results header

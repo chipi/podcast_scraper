@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ArtifactData, GraphFilterState, ParsedArtifact } from '../types/artifact'
 import {
   applyGraphDefaultNodeTypeVisibility,
@@ -6,7 +6,6 @@ import {
   buildNodeTitle,
   countPersonEntityIncidentEdges,
   defaultFilterState,
-  ensureEpisodeToInsightEdges,
   entityDisplayNameFromId,
   findEpisodeGraphNodeIdForEpisodeKey,
   quoteAttributionDisplayFromId,
@@ -17,27 +16,23 @@ import {
   graphTypesDeviateFromGraphSpec,
   findRawNodeInArtifact,
   fullPrimaryNodeLabel,
-  insightProvenanceLine,
-  insightRelatedTopicRows,
-  insightSupportingQuoteRows,
   canonicalTopicKey,
-  insightSupportingTranscriptAggregate,
   nodeLabel,
   personEpisodeAppearances,
-  personInsightsByTopic,
   personRoleFromNode,
-  personTopicPositionArc,
   primaryTextFromLooseGiNode,
   parseArtifact,
   rankedPersonOrganizations,
   rankedPersonTopicMentions,
-  aggregateEpisodePersonEdges,
-  aggregateEpisodeTopicEdges,
-  confidenceTierFromInsightProperties,
-  isInsightUngrounded,
   toCytoElements,
   toGraphElements,
 } from './parsing'
+import { graphTypeTraits } from '../extensions'
+
+// The traits a GI build registers (E04 step 8b), so the viewer's generic type mechanics are
+// exercised with the types they were written for.
+beforeEach(() => graphTypeTraits.register({ id: 'gi', defaultHidden: ['Quote', 'Speaker'] }))
+afterEach(() => graphTypeTraits.reset())
 
 // ── fixtures ──
 
@@ -57,15 +52,15 @@ function giData(): ArtifactData {
 }
 
 function parsedGi(): ParsedArtifact {
-  return parseArtifact('ep1.gi.json', giData())
+  return parseArtifact('ep1.kg.json', giData())
 }
 
 // ── parseArtifact ──
 
 describe('parseArtifact', () => {
-  it('detects GI from filename', () => {
+  it('reads a .gi.json as unknown (GI is a downstream build\'s reader)', () => {
     const art = parseArtifact('ep1.gi.json', { nodes: [], edges: [] })
-    expect(art.kind).toBe('gi')
+    expect(art.kind).toBe('unknown')
   })
 
   it('detects KG from filename', () => {
@@ -73,9 +68,9 @@ describe('parseArtifact', () => {
     expect(art.kind).toBe('kg')
   })
 
-  it('infers GI from model_version + prompt_version', () => {
+  it('does not infer GI from model_version + prompt_version', () => {
     const art = parseArtifact('data.json', { model_version: 'x', prompt_version: 'y', nodes: [], edges: [] })
-    expect(art.kind).toBe('gi')
+    expect(art.kind).toBe('unknown')
   })
 
   it('infers KG from extraction field', () => {
@@ -86,7 +81,7 @@ describe('parseArtifact', () => {
   it('counts nodes and edges', () => {
     const art = parsedGi()
     expect(art.nodes).toBe(4)
-    expect(art.edges).toBeGreaterThanOrEqual(2)
+    expect(art.edges).toBe(1)
   })
 
   it('builds nodeTypes map', () => {
@@ -95,44 +90,9 @@ describe('parseArtifact', () => {
     expect(art.nodeTypes.Insight).toBe(2)
   })
 
-  it('adds synthetic HAS_INSIGHT edges for GI', () => {
+  it('adds no edges of its own (the data is drawn as it is)', () => {
     const art = parsedGi()
-    const hasInsight = (art.data.edges ?? []).filter((e) => e.type === 'HAS_INSIGHT')
-    expect(hasInsight.length).toBeGreaterThanOrEqual(1)
-  })
-})
-
-// ── ensureEpisodeToInsightEdges ──
-
-describe('ensureEpisodeToInsightEdges', () => {
-  it('adds HAS_INSIGHT for matching episode_id', () => {
-    const nodes = [
-      { id: 'episode:ep1', type: 'Episode' },
-      { id: 'i1', type: 'Insight', properties: { episode_id: 'ep1' } },
-    ]
-    const result = ensureEpisodeToInsightEdges(nodes, [])
-    expect(result.edges).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: 'HAS_INSIGHT', from: 'episode:ep1', to: 'i1' }),
-      ]),
-    )
-  })
-
-  it('does not duplicate existing edges', () => {
-    const nodes = [
-      { id: 'episode:ep1', type: 'Episode' },
-      { id: 'i1', type: 'Insight', properties: { episode_id: 'ep1' } },
-    ]
-    const edges = [{ type: 'HAS_INSIGHT', from: 'episode:ep1', to: 'i1' }]
-    const result = ensureEpisodeToInsightEdges(nodes, edges)
-    const hi = result.edges.filter((e) => e.type === 'HAS_INSIGHT')
-    expect(hi).toHaveLength(1)
-  })
-
-  it('returns unchanged when no episodes', () => {
-    const nodes = [{ id: 'i1', type: 'Insight' }]
-    const result = ensureEpisodeToInsightEdges(nodes, [])
-    expect(result.edges).toHaveLength(0)
+    expect((art.data.edges ?? []).map((e) => e.type)).toEqual(['supported_by'])
   })
 })
 
@@ -263,9 +223,7 @@ describe('defaultFilterState', () => {
     const state = defaultFilterState(parsedGi())!
     expect(state.allowedTypes.Episode).toBe(true)
     expect(state.allowedTypes.Insight).toBe(true)
-    expect(state.hideUngroundedInsights).toBe(false)
     expect(state.allowedEdgeTypes.supported_by).toBe(true)
-    expect(state.allowedEdgeTypes.HAS_INSIGHT).toBe(true)
   })
 
   it('returns null for null artifact', () => {
@@ -310,13 +268,6 @@ describe('filtersActive', () => {
     expect(filtersActive(art, state)).toBe(true)
   })
 
-  it('returns true when hideUngroundedInsights is on for GI', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.hideUngroundedInsights = true
-    expect(filtersActive(art, state)).toBe(true)
-  })
-
   it('returns true when an edge type is disabled', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
@@ -337,12 +288,6 @@ describe('filtersActiveExcludingNodeTypes', () => {
     expect(filtersActiveExcludingNodeTypes(art, state)).toBe(false)
   })
 
-  it('returns true when hideUngroundedInsights is on', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.hideUngroundedInsights = true
-    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(true)
-  })
 })
 
 // ── applyGraphFilters ──
@@ -369,14 +314,6 @@ describe('applyGraphFilters', () => {
     expect(filtered.sourceCorpusRelPathByEpisodeId).toEqual(art.sourceCorpusRelPathByEpisodeId)
   })
 
-  it('hides ungrounded insights', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.hideUngroundedInsights = true
-    const filtered = applyGraphFilters(art, state)
-    expect(filtered.nodeTypes.Insight).toBe(1)
-  })
-
   it('filters edges to remaining nodes', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
@@ -396,38 +333,6 @@ describe('applyGraphFilters', () => {
     const filtered = applyGraphFilters(art, state)
     const types = (filtered.data.edges ?? []).map((e) => String(e.type || ''))
     expect(types).not.toContain('supported_by')
-  })
-
-  it('filters GI/KG layers for "both" kind', () => {
-    const art: ParsedArtifact = {
-      name: 'merged',
-      kind: 'both',
-      episodeId: 'ep1',
-      nodes: 3,
-      edges: 0,
-      nodeTypes: {},
-      data: {
-        nodes: [
-          { id: 'g:i1', type: 'Insight' },
-          { id: 'k:t1', type: 'Topic' },
-          { id: '__unified_ep__:ep1', type: 'Episode' },
-        ],
-        edges: [],
-      },
-    }
-    const state: GraphFilterState = {
-      allowedTypes: { Insight: true, Topic: true, Episode: true },
-      allowedEdgeTypes: {},
-      hideUngroundedInsights: false,
-      showGiLayer: true,
-      showKgLayer: false,
-      graphFeedFilterId: null,
-    }
-    const filtered = applyGraphFilters(art, state)
-    const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
-    expect(ids).toContain('g:i1')
-    expect(ids).toContain('__unified_ep__:ep1')
-    expect(ids).not.toContain('k:t1')
   })
 
   // #658 — feed filter prunes Episode nodes by ``properties.feed_id`` and
@@ -624,285 +529,6 @@ describe('findEpisodeGraphNodeIdForEpisodeKey', () => {
   })
 })
 
-describe('insightSupportingQuoteRows', () => {
-  it('lists quotes from SUPPORTED_BY out-edges (underscore type)', () => {
-    const art = parsedGi()
-    const rows = insightSupportingQuoteRows(art, 'i1')
-    expect(rows.map((r) => r.id)).toEqual(['q1'])
-    expect(rows[0]?.preview).toContain('planet')
-  })
-
-  it('matches SUPPORTED_BY uppercase from GI JSON', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
-        { id: 'ins:x', type: 'Insight', properties: { text: 'I', episode_id: 'e', grounded: true } },
-        { id: 'quo:y', type: 'Quote', properties: { text: 'Quote body here.' } },
-      ],
-      edges: [{ type: 'SUPPORTED_BY', from: 'ins:x', to: 'quo:y' }],
-    })
-    const rows = insightSupportingQuoteRows(art, 'ins:x')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]?.id).toBe('quo:y')
-  })
-
-  it('sorts by char_start then timestamp_start_ms', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        {
-          id: 'episode:e',
-          type: 'Episode',
-          properties: {
-            podcast_id: 'p',
-            title: 'E',
-            publish_date: '2020-01-01T00:00:00Z',
-          },
-        },
-        { id: 'ins', type: 'Insight', properties: { text: 'I', episode_id: 'e', grounded: true } },
-        {
-          id: 'qLate',
-          type: 'Quote',
-          properties: {
-            text: 'Late',
-            episode_id: 'e',
-            char_start: 100,
-            char_end: 101,
-            timestamp_start_ms: 0,
-            timestamp_end_ms: 1,
-            transcript_ref: 't.txt',
-          },
-        },
-        {
-          id: 'qEarly',
-          type: 'Quote',
-          properties: {
-            text: 'Early',
-            episode_id: 'e',
-            char_start: 10,
-            char_end: 11,
-            timestamp_start_ms: 0,
-            timestamp_end_ms: 1,
-            transcript_ref: 't.txt',
-          },
-        },
-      ],
-      edges: [
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'qLate' },
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'qEarly' },
-      ],
-    })
-    const rows = insightSupportingQuoteRows(art, 'ins')
-    expect(rows.map((r) => r.id)).toEqual(['qEarly', 'qLate'])
-  })
-})
-
-describe('insightSupportingTranscriptAggregate', () => {
-  it('returns one transcript ref and all char ranges when quotes agree', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
-        { id: 'ins', type: 'Insight', properties: { text: 'I', episode_id: 'e', grounded: true } },
-        {
-          id: 'q1',
-          type: 'Quote',
-          properties: {
-            text: 'A',
-            episode_id: 'e',
-            char_start: 0,
-            char_end: 2,
-            transcript_ref: 't.txt',
-          },
-        },
-        {
-          id: 'q2',
-          type: 'Quote',
-          properties: {
-            text: 'B',
-            episode_id: 'e',
-            char_start: 10,
-            char_end: 12,
-            transcript_ref: 't.txt',
-          },
-        },
-      ],
-      edges: [
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q1' },
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q2' },
-      ],
-    })
-    const agg = insightSupportingTranscriptAggregate(art, 'ins')
-    expect(agg).not.toBeNull()
-    expect(agg!.transcriptRef).toBe('t.txt')
-    expect(agg!.episodeId).toBe('e')
-    expect(agg!.charRanges).toEqual([
-      { charStart: 0, charEnd: 2 },
-      { charStart: 10, charEnd: 12 },
-    ])
-  })
-
-  it('uses first quote episode_id when insight omits episode_id', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
-        { id: 'ins', type: 'Insight', properties: { text: 'I', grounded: true } },
-        {
-          id: 'q1',
-          type: 'Quote',
-          properties: {
-            text: 'A',
-            episode_id: 'e',
-            char_start: 0,
-            char_end: 2,
-            transcript_ref: 't.txt',
-          },
-        },
-        {
-          id: 'q2',
-          type: 'Quote',
-          properties: {
-            text: 'B',
-            episode_id: 'e',
-            char_start: 10,
-            char_end: 12,
-            transcript_ref: 't.txt',
-          },
-        },
-      ],
-      edges: [
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q1' },
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q2' },
-      ],
-    })
-    const agg = insightSupportingTranscriptAggregate(art, 'ins')
-    expect(agg).not.toBeNull()
-    expect(agg!.episodeId).toBe('e')
-  })
-
-  it('returns null when supporting quotes use different transcript_ref values', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
-        { id: 'ins', type: 'Insight', properties: { text: 'I', episode_id: 'e', grounded: true } },
-        {
-          id: 'q1',
-          type: 'Quote',
-          properties: {
-            text: 'A',
-            char_start: 0,
-            char_end: 1,
-            transcript_ref: 'a.txt',
-          },
-        },
-        {
-          id: 'q2',
-          type: 'Quote',
-          properties: {
-            text: 'B',
-            char_start: 0,
-            char_end: 1,
-            transcript_ref: 'b.txt',
-          },
-        },
-      ],
-      edges: [
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q1' },
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q2' },
-      ],
-    })
-    expect(insightSupportingTranscriptAggregate(art, 'ins')).toBeNull()
-  })
-
-  it('returns null when a quote lacks finite char offsets', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
-        { id: 'ins', type: 'Insight', properties: { text: 'I', episode_id: 'e', grounded: true } },
-        {
-          id: 'q1',
-          type: 'Quote',
-          properties: { text: 'A', char_start: 0, char_end: 1, transcript_ref: 't.txt' },
-        },
-        {
-          id: 'q2',
-          type: 'Quote',
-          properties: { text: 'B', transcript_ref: 't.txt' },
-        },
-      ],
-      edges: [
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q1' },
-        { type: 'SUPPORTED_BY', from: 'ins', to: 'q2' },
-      ],
-    })
-    expect(insightSupportingTranscriptAggregate(art, 'ins')).toBeNull()
-  })
-})
-
-describe('insightRelatedTopicRows', () => {
-  it('collects Topic neighbors via ABOUT / RELATED_TO (either direction)', () => {
-    const art = parseArtifact('x.gi.json', {
-      episode_id: 'e',
-      model_version: 'm',
-      prompt_version: 'p',
-      nodes: [
-        {
-          id: 'episode:e',
-          type: 'Episode',
-          properties: {
-            podcast_id: 'p',
-            title: 'E',
-            publish_date: '2020-01-01T00:00:00Z',
-          },
-        },
-        { id: 'ins', type: 'Insight', properties: { text: 'I', episode_id: 'e', grounded: true } },
-        { id: 't1', type: 'Topic', properties: { label: 'Alpha' } },
-        { id: 't2', type: 'Topic', properties: { label: 'Beta' } },
-      ],
-      edges: [
-        { type: 'ABOUT', from: 'ins', to: 't1' },
-        { type: 'related-to', from: 't2', to: 'ins' },
-      ],
-    })
-    const rows = insightRelatedTopicRows(art, 'ins')
-    expect(rows.map((r) => r.label)).toEqual(['Alpha', 'Beta'])
-  })
-})
-
-describe('insightProvenanceLine', () => {
-  it('joins model, prompt, optional extraction timestamp, and filename', () => {
-    const art = parseArtifact('file.gi.json', {
-      episode_id: 'e',
-      model_version: 'mv',
-      prompt_version: 'pv',
-      extraction: { extracted_at: '2024-02-01' },
-      nodes: [],
-      edges: [],
-    })
-    const line = insightProvenanceLine(art)
-    expect(line).toContain('model mv')
-    expect(line).toContain('prompt pv')
-    expect(line).toContain('extracted 2024-02-01')
-    expect(line).toContain('from file.gi.json')
-  })
-})
-
 describe('countPersonEntityIncidentEdges', () => {
   it('returns zeros when artifact or id missing', () => {
     expect(countPersonEntityIncidentEdges(null, 'p1')).toEqual({
@@ -1029,144 +655,6 @@ describe('rankedPersonOrganizations', () => {
   })
 })
 
-describe('personTopicPositionArc (#1049)', () => {
-  it('orders the arc OLDEST-FIRST across dates (#1600)', () => {
-    // The direction had no comment, no test, and contradicts UXS-009 (":63-64, :186-187 — most
-    // recent first"). The existing sort test uses two SAME-DATE rows, so it pins only the
-    // within-date tiebreak and passes under either direction — the direction itself was unpinned.
-    //
-    // Oldest-first is kept: the panel answers "how did this position EVOLVE", and an arc reads
-    // forwards. Reverse-chronological shows the conclusion before the reasoning. The spec is stale.
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 'ep:2', type: 'Episode', properties: { publish_date: '2025-06-01' } },
-        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2024-01-01' } },
-        { id: 'i:late', type: 'Insight', properties: { text: 'Later stance.', episode_id: 'ep:2' } },
-        { id: 'i:early', type: 'Insight', properties: { text: 'Earlier stance.', episode_id: 'ep:1' } },
-        { id: 'p1', type: 'Person', properties: { name: 'A' } },
-        { id: 't1', type: 'Topic', properties: { label: 'T' } },
-      ],
-      edges: [
-        { from: 'i:late', to: 'p1', type: 'MENTIONS_PERSON' },
-        { from: 'i:early', to: 'p1', type: 'MENTIONS_PERSON' },
-        { from: 'i:late', to: 't1', type: 'ABOUT' },
-        { from: 'i:early', to: 't1', type: 'ABOUT' },
-      ],
-    })
-    const rows = personTopicPositionArc(art, 'p1', 't1')
-    expect(rows.map((r) => r.insightId)).toEqual(['i:early', 'i:late'])
-  })
-
-  it('returns [] for missing inputs', () => {
-    expect(personTopicPositionArc(null, 'p1', 't1')).toEqual([])
-    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
-    expect(personTopicPositionArc(art, null, 't1')).toEqual([])
-    expect(personTopicPositionArc(art, 'p1', null)).toEqual([])
-  })
-
-  it('intersects MENTIONS_PERSON ∩ ABOUT and sorts by date then position_hint', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        {
-          id: 'i_old',
-          type: 'Insight',
-          properties: { text: 'older claim', insight_type: 'claim', position_hint: 0.4 },
-        },
-        {
-          id: 'i_new_early',
-          type: 'Insight',
-          properties: { text: 'newer early', insight_type: 'observation', position_hint: 0.2 },
-        },
-        {
-          id: 'i_new_late',
-          type: 'Insight',
-          properties: { text: 'newer late', insight_type: 'recommendation', position_hint: 0.8 },
-        },
-        // Distractor — wrong topic
-        {
-          id: 'i_wrong_topic',
-          type: 'Insight',
-          properties: { text: 'wrong topic', insight_type: 'claim', position_hint: 0.1 },
-        },
-        // Distractor — wrong person
-        {
-          id: 'i_wrong_person',
-          type: 'Insight',
-          properties: { text: 'wrong person', insight_type: 'claim', position_hint: 0.1 },
-        },
-        { id: 'ep:old', type: 'Episode', properties: { publish_date: '2026-01-10' } },
-        { id: 'ep:new', type: 'Episode', properties: { publish_date: '2026-02-15' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i_old', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_new_early', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_new_late', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_wrong_topic', to: 'p:alice' },
-        { type: 'MENTIONS_PERSON', from: 'i_wrong_person', to: 'p:bob' },
-        { type: 'ABOUT', from: 'i_old', to: 't:ai' },
-        { type: 'ABOUT', from: 'i_new_early', to: 't:ai' },
-        { type: 'ABOUT', from: 'i_new_late', to: 't:ai' },
-        { type: 'ABOUT', from: 'i_wrong_topic', to: 't:other' },
-        { type: 'ABOUT', from: 'i_wrong_person', to: 't:ai' },
-        { type: 'IN_EPISODE', from: 'i_old', to: 'ep:old' },
-        { type: 'IN_EPISODE', from: 'i_new_early', to: 'ep:new' },
-        { type: 'IN_EPISODE', from: 'i_new_late', to: 'ep:new' },
-      ],
-    })
-    const arc = personTopicPositionArc(art, 'p:alice', 't:ai')
-    expect(arc.map((r) => r.insightId)).toEqual(['i_old', 'i_new_early', 'i_new_late'])
-    expect(arc[0].publishDate).toBe('2026-01-10')
-    expect(arc[1].publishDate).toBe('2026-02-15')
-    expect(arc[1].positionHint).toBe(0.2)
-    expect(arc[2].positionHint).toBe(0.8)
-    expect(arc[0].insightType).toBe('claim')
-    expect(arc[1].text).toBe('newer early')
-  })
-
-  it('attaches supporting quote texts via SUPPORTED_BY', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 'i1', type: 'Insight', properties: { text: 'argued for X', insight_type: 'claim' } },
-        { id: 'q1', type: 'Quote', properties: { text: 'i think X is true' } },
-        { id: 'q2', type: 'Quote', properties: { text: 'X matters because Y' } },
-        // Not a Quote (Insight self-reference) — should be ignored.
-        { id: 'q3', type: 'Insight', properties: { text: 'not a quote' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:x' },
-        { type: 'SUPPORTED_BY', from: 'i1', to: 'q1' },
-        { type: 'SUPPORTED_BY', from: 'i1', to: 'q2' },
-        { type: 'SUPPORTED_BY', from: 'i1', to: 'q3' },
-      ],
-    })
-    const arc = personTopicPositionArc(art, 'p:a', 't:x')
-    expect(arc.length).toBe(1)
-    expect(arc[0].supportingQuoteTexts).toEqual(['i think X is true', 'X matters because Y'])
-  })
-
-  it('sinks undated insights to the tail (consistent with sibling helpers)', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 'i_dated', type: 'Insight', properties: { text: 'dated', position_hint: 0.5 } },
-        { id: 'i_undated', type: 'Insight', properties: { text: 'no date', position_hint: 0.5 } },
-        { id: 'ep:1', type: 'Episode', properties: { publish_date: '2026-03-01' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i_dated', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i_undated', to: 'p:a' },
-        { type: 'ABOUT', from: 'i_dated', to: 't:x' },
-        { type: 'ABOUT', from: 'i_undated', to: 't:x' },
-        { type: 'IN_EPISODE', from: 'i_dated', to: 'ep:1' },
-      ],
-    })
-    const arc = personTopicPositionArc(art, 'p:a', 't:x')
-    expect(arc.map((r) => r.insightId)).toEqual(['i_dated', 'i_undated'])
-    expect(arc[0].publishDate).toBe('2026-03-01')
-    expect(arc[1].publishDate).toBeNull()
-  })
-})
-
 describe('canonicalTopicKey (#1076 chunk 2)', () => {
   it('lowercases', () => {
     expect(canonicalTopicKey('AI Ethics')).toBe('ai ethics')
@@ -1250,36 +738,6 @@ describe('rankedPersonTopicMentions — near-duplicate fold (#1076 chunk 2)', ()
   })
 })
 
-describe('personInsightsByTopic — near-duplicate fold (#1076 chunk 2)', () => {
-  it('merges insights across near-duplicate Topic groups', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai-1', type: 'Topic', properties: { name: 'AI ethics' } },
-        { id: 't:ai-2', type: 'Topic', properties: { name: 'AI Ethics' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'first' } },
-        { id: 'i2', type: 'Insight', properties: { text: 'second' } },
-        { id: 'i3', type: 'Insight', properties: { text: 'third' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai-1' },
-        { type: 'ABOUT', from: 'i2', to: 't:ai-2' },
-        // i3 is ABOUT both near-duplicates → should appear once.
-        { type: 'ABOUT', from: 'i3', to: 't:ai-1' },
-        { type: 'ABOUT', from: 'i3', to: 't:ai-2' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups.length).toBe(1)
-    expect(groups[0].topicId).toBe('t:ai-1')
-    expect(groups[0].count).toBe(3)
-    const insightIds = groups[0].insights.map((i) => i.insightId).sort()
-    expect(insightIds).toEqual(['i1', 'i2', 'i3'])
-  })
-})
-
 describe('personEpisodeAppearances (#1050)', () => {
   it('returns [] for missing artifact or id', () => {
     expect(personEpisodeAppearances(null, 'p1')).toEqual([])
@@ -1335,78 +793,6 @@ describe('personEpisodeAppearances (#1050)', () => {
     const byId = new Map(rows.map((r) => [r.episodeId, r]))
     expect(byId.get('ep:1')!.title).toBe('Alt title')
     expect(byId.get('ep:2')!.title).toBeNull()
-  })
-})
-
-describe('personInsightsByTopic (#1050)', () => {
-  it('returns [] for missing inputs', () => {
-    expect(personInsightsByTopic(null, 'p1')).toEqual([])
-    const art = parseArtifact('x.gi.json', { nodes: [], edges: [] })
-    expect(personInsightsByTopic(art, null)).toEqual([])
-  })
-
-  it('groups insights by Topic, sorts groups by count desc then name', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai', type: 'Topic', properties: { name: 'AI ethics' } },
-        { id: 't:reg', type: 'Topic', properties: { name: 'AI regulation' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'first', insight_type: 'claim' } },
-        { id: 'i2', type: 'Insight', properties: { text: 'second', insight_type: 'observation' } },
-        { id: 'i3', type: 'Insight', properties: { text: 'third', insight_type: 'recommendation' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i2', to: 'p:a' },
-        { type: 'MENTIONS_PERSON', from: 'i3', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-        { type: 'ABOUT', from: 'i2', to: 't:ai' },
-        { type: 'ABOUT', from: 'i3', to: 't:reg' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups.map((g) => [g.topicName, g.count])).toEqual([
-      ['AI ethics', 2],
-      ['AI regulation', 1],
-    ])
-    expect(groups[0].insights.map((i) => i.insightId)).toEqual(['i1', 'i2'])
-    expect(groups[0].insights[0].text).toBe('first')
-    expect(groups[1].insights[0].insightType).toBe('recommendation')
-  })
-
-  it('places an Insight into every Topic it is ABOUT', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai', type: 'Topic', properties: { name: 'AI' } },
-        { id: 't:law', type: 'Topic', properties: { name: 'Law' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'bridge insight' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-        { type: 'ABOUT', from: 'i1', to: 't:law' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups.length).toBe(2)
-    expect(groups.every((g) => g.count === 1)).toBe(true)
-    expect(groups.every((g) => g.insights[0].insightId === 'i1')).toBe(true)
-  })
-
-  it('collapses duplicate (insight, topic) pairs', () => {
-    const art = parseArtifact('x.gi.json', {
-      nodes: [
-        { id: 't:ai', type: 'Topic', properties: { name: 'AI' } },
-        { id: 'i1', type: 'Insight', properties: { text: 'dup' } },
-      ],
-      edges: [
-        { type: 'MENTIONS_PERSON', from: 'i1', to: 'p:a' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-        { type: 'ABOUT', from: 'i1', to: 't:ai' },
-      ],
-    })
-    const groups = personInsightsByTopic(art, 'p:a')
-    expect(groups[0].count).toBe(1)
-    expect(groups[0].insights.length).toBe(1)
   })
 })
 
@@ -1526,291 +912,10 @@ describe('toCytoElements', () => {
     expect(hit?.data.parent).toBe('tc:test')
   })
 
-  // RFC-080 V2 — Insight grounding + confidence tier classes are
-  // attached at element-build time so the stylesheet can hook them
-  // (insight-confidence-high|medium|low + insight-ungrounded). Legacy
-  // insights without confidence get no tier class — the default
-  // Insight styling still applies.
-  it('attaches insight-ungrounded class when grounded is false', () => {
-    const art: ParsedArtifact = {
-      ...parsedGi(),
-    }
-    const elems = toCytoElements(art)
-    const ungroundedInsight = elems.find((e) => e.data.id === 'i2')
-    expect(ungroundedInsight?.classes).toMatch(/\binsight-ungrounded\b/)
-  })
-
-  it('omits insight-ungrounded class when grounded is true or missing', () => {
-    const elems = toCytoElements(parsedGi())
-    const groundedInsight = elems.find((e) => e.data.id === 'i1')
-    expect(groundedInsight?.classes ?? '').not.toMatch(/insight-ungrounded/)
-  })
-
-  it('attaches confidence tier class based on properties.confidence buckets', () => {
-    const buildArt = (insightConf: number | undefined): ParsedArtifact =>
-      parseArtifact('ep.gi.json', {
-        episode_id: 'ep1',
-        model_version: 'm',
-        prompt_version: 'v',
-        nodes: [
-          {
-            id: 'i:tier',
-            type: 'Insight',
-            properties: insightConf == null
-              ? { text: 'no conf', episode_id: 'ep1' }
-              : { text: 't', episode_id: 'ep1', confidence: insightConf },
-          },
-        ],
-        edges: [],
-      })
-    const high = toCytoElements(buildArt(0.85)).find((e) => e.data.id === 'i:tier')
-    const med = toCytoElements(buildArt(0.5)).find((e) => e.data.id === 'i:tier')
-    const low = toCytoElements(buildArt(0.2)).find((e) => e.data.id === 'i:tier')
-    const none = toCytoElements(buildArt(undefined)).find((e) => e.data.id === 'i:tier')
-    expect(high?.classes).toMatch(/insight-confidence-high/)
-    expect(med?.classes).toMatch(/insight-confidence-medium/)
-    expect(low?.classes).toMatch(/insight-confidence-low/)
-    // Legacy artifacts (no confidence): no tier class assigned.
-    expect(none?.classes ?? '').not.toMatch(/insight-confidence-/)
-  })
 })
 
-describe('confidenceTierFromInsightProperties (RFC-080 V2)', () => {
-  it('buckets confidence at the documented thresholds', () => {
-    expect(confidenceTierFromInsightProperties({ confidence: 1.0 })).toBe('high')
-    expect(confidenceTierFromInsightProperties({ confidence: 0.7 })).toBe('high')
-    expect(confidenceTierFromInsightProperties({ confidence: 0.69 })).toBe('medium')
-    expect(confidenceTierFromInsightProperties({ confidence: 0.4 })).toBe('medium')
-    expect(confidenceTierFromInsightProperties({ confidence: 0.39 })).toBe('low')
-    expect(confidenceTierFromInsightProperties({ confidence: 0 })).toBe('low')
-  })
-
-  it('parses stringified numeric confidence', () => {
-    expect(confidenceTierFromInsightProperties({ confidence: '0.8' })).toBe('high')
-  })
-
-  it('returns null for missing / non-finite confidence', () => {
-    expect(confidenceTierFromInsightProperties(undefined)).toBeNull()
-    expect(confidenceTierFromInsightProperties({})).toBeNull()
-    expect(confidenceTierFromInsightProperties({ confidence: 'abc' })).toBeNull()
-    expect(confidenceTierFromInsightProperties({ confidence: NaN })).toBeNull()
-  })
-})
-
-describe('isInsightUngrounded (RFC-080 V2)', () => {
-  it('returns true only when grounded === false', () => {
-    expect(isInsightUngrounded({ grounded: false })).toBe(true)
-    expect(isInsightUngrounded({ grounded: true })).toBe(false)
-    // Missing / null / non-boolean → grounded by default (no warning border
-    // for legacy artifacts predating the field).
-    expect(isInsightUngrounded({})).toBe(false)
-    expect(isInsightUngrounded(undefined)).toBe(false)
-    expect(isInsightUngrounded({ grounded: null as unknown as boolean })).toBe(false)
-  })
-})
-
-// ── RFC-080 V1: aggregated Episode↔Topic / Episode↔Person edges ──
-
-function v1Fixture(): ParsedArtifact {
-  // Episode E1 with 3 insights about Topic T1 and 1 about Topic T2;
-  // Episode E2 with 1 insight about T1. Quotes attributed to a Person.
-  return parseArtifact('mix.gi.json', {
-    episode_id: 'e1',
-    model_version: 'm',
-    prompt_version: 'v',
-    nodes: [
-      { id: 'episode:e1', type: 'Episode', properties: { title: 'E1' } },
-      { id: 'episode:e2', type: 'Episode', properties: { title: 'E2' } },
-      { id: 't:1', type: 'Topic', properties: { label: 'AI policy' } },
-      { id: 't:2', type: 'Topic', properties: { label: 'Climate' } },
-      { id: 'p:ada', type: 'Person', properties: { name: 'Ada' } },
-      { id: 'i:e1-a', type: 'Insight', properties: { text: 'a', episode_id: 'e1' } },
-      { id: 'i:e1-b', type: 'Insight', properties: { text: 'b', episode_id: 'e1' } },
-      { id: 'i:e1-c', type: 'Insight', properties: { text: 'c', episode_id: 'e1' } },
-      { id: 'i:e1-d', type: 'Insight', properties: { text: 'd', episode_id: 'e1' } },
-      { id: 'i:e2-a', type: 'Insight', properties: { text: 'e2-a', episode_id: 'e2' } },
-      { id: 'q:e1-1', type: 'Quote', properties: { text: 'q1', episode_id: 'e1' } },
-      { id: 'q:e1-2', type: 'Quote', properties: { text: 'q2', episode_id: 'e1' } },
-      { id: 'q:e2-1', type: 'Quote', properties: { text: 'q3', episode_id: 'e2' } },
-    ],
-    edges: [
-      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-a' },
-      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-b' },
-      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-c' },
-      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-d' },
-      { type: 'HAS_INSIGHT', from: 'episode:e2', to: 'i:e2-a' },
-      // 3 insights from e1 about t:1 → ABOUT_AGG (e1, t:1) weight = 3
-      { type: 'ABOUT', from: 'i:e1-a', to: 't:1' },
-      { type: 'ABOUT', from: 'i:e1-b', to: 't:1' },
-      { type: 'ABOUT', from: 'i:e1-c', to: 't:1' },
-      // 1 insight from e1 about t:2
-      { type: 'ABOUT', from: 'i:e1-d', to: 't:2' },
-      // 1 insight from e2 about t:1
-      { type: 'ABOUT', from: 'i:e2-a', to: 't:1' },
-      // Quotes spoken by Ada — 2 from e1 + 1 from e2
-      { type: 'SUPPORTED_BY', from: 'i:e1-a', to: 'q:e1-1' },
-      { type: 'SUPPORTED_BY', from: 'i:e1-b', to: 'q:e1-2' },
-      { type: 'SUPPORTED_BY', from: 'i:e2-a', to: 'q:e2-1' },
-      { type: 'SPOKEN_BY', from: 'q:e1-1', to: 'p:ada' },
-      { type: 'SPOKEN_BY', from: 'q:e1-2', to: 'p:ada' },
-      { type: 'SPOKEN_BY', from: 'q:e2-1', to: 'p:ada' },
-    ],
-  })
-}
-
-describe('aggregateEpisodeTopicEdges (RFC-080 V1)', () => {
-  it('counts insights bridging each (episode, topic) pair', () => {
-    const out = aggregateEpisodeTopicEdges(v1Fixture())
-    const e1t1 = out.find((e) => e.episodeId === 'episode:e1' && e.topicId === 't:1')
-    const e1t2 = out.find((e) => e.episodeId === 'episode:e1' && e.topicId === 't:2')
-    const e2t1 = out.find((e) => e.episodeId === 'episode:e2' && e.topicId === 't:1')
-    expect(e1t1?.weight).toBe(3)
-    expect(e1t2?.weight).toBe(1)
-    expect(e2t1?.weight).toBe(1)
-  })
-
-  it('exposes contributing insight ids for rail filtering', () => {
-    const out = aggregateEpisodeTopicEdges(v1Fixture())
-    const e1t1 = out.find((e) => e.episodeId === 'episode:e1' && e.topicId === 't:1')
-    expect(e1t1?.contributingInsightIds).toEqual(['i:e1-a', 'i:e1-b', 'i:e1-c'])
-  })
-
-  it('ignores ABOUT edges whose target is not a Topic', () => {
-    // V1 spec scope is Episode↔Topic only — ABOUT-to-Person edges must
-    // not show up in the topic aggregate (they're handled by the
-    // analogous SPOKE_IN_AGG path or future Person aggregate).
-    const art = parseArtifact('p.gi.json', {
-      episode_id: 'e1',
-      model_version: 'm',
-      prompt_version: 'v',
-      nodes: [
-        { id: 'episode:e1', type: 'Episode', properties: {} },
-        { id: 'p:ada', type: 'Person', properties: { name: 'Ada' } },
-        { id: 'i:1', type: 'Insight', properties: { text: 'i', episode_id: 'e1' } },
-      ],
-      edges: [
-        { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:1' },
-        { type: 'ABOUT', from: 'i:1', to: 'p:ada' },
-      ],
-    })
-    expect(aggregateEpisodeTopicEdges(art)).toEqual([])
-  })
-
-  it('returns empty when an artifact has no ABOUT edges', () => {
-    const art = parseArtifact('empty.gi.json', {
-      episode_id: 'e1',
-      model_version: 'm',
-      prompt_version: 'v',
-      nodes: [{ id: 'episode:e1', type: 'Episode', properties: {} }],
-      edges: [],
-    })
-    expect(aggregateEpisodeTopicEdges(art)).toEqual([])
-  })
-})
-
-describe('aggregateEpisodePersonEdges (RFC-080 V1)', () => {
-  it('counts quotes from each (episode, person) pair via SPOKEN_BY', () => {
-    const out = aggregateEpisodePersonEdges(v1Fixture())
-    const e1ada = out.find((e) => e.episodeId === 'episode:e1' && e.personId === 'p:ada')
-    const e2ada = out.find((e) => e.episodeId === 'episode:e2' && e.personId === 'p:ada')
-    expect(e1ada?.weight).toBe(2)
-    expect(e2ada?.weight).toBe(1)
-  })
-
-  it('falls back to insight episode when quote.properties.episode_id is absent', () => {
-    const art = parseArtifact('q.gi.json', {
-      episode_id: 'e1',
-      model_version: 'm',
-      prompt_version: 'v',
-      nodes: [
-        { id: 'episode:e1', type: 'Episode', properties: {} },
-        { id: 'p:ada', type: 'Person', properties: { name: 'Ada' } },
-        { id: 'i:1', type: 'Insight', properties: { text: 'i', episode_id: 'e1' } },
-        // Quote without episode_id property — must inherit from supporting insight.
-        { id: 'q:1', type: 'Quote', properties: { text: 'q' } },
-      ],
-      edges: [
-        { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:1' },
-        { type: 'SUPPORTED_BY', from: 'i:1', to: 'q:1' },
-        { type: 'SPOKEN_BY', from: 'q:1', to: 'p:ada' },
-      ],
-    })
-    const out = aggregateEpisodePersonEdges(art)
-    expect(out).toHaveLength(1)
-    expect(out[0]?.episodeId).toBe('episode:e1')
-    expect(out[0]?.weight).toBe(1)
-  })
-
-  it('ignores SPOKEN_BY edges whose target is not a person-typed node', () => {
-    const art = parseArtifact('o.gi.json', {
-      episode_id: 'e1',
-      model_version: 'm',
-      prompt_version: 'v',
-      nodes: [
-        { id: 'episode:e1', type: 'Episode', properties: {} },
-        { id: 'org:acme', type: 'Entity_organization', properties: { name: 'Acme' } },
-        { id: 'q:1', type: 'Quote', properties: { episode_id: 'e1' } },
-      ],
-      edges: [{ type: 'SPOKEN_BY', from: 'q:1', to: 'org:acme' }],
-    })
-    expect(aggregateEpisodePersonEdges(art)).toEqual([])
-  })
-})
-
-describe('toCytoElements with enableAggregatedEdges (RFC-080 V1)', () => {
-  it('omits aggregated edges by default (flag off)', () => {
-    const elems = toCytoElements(v1Fixture())
-    const aggregated = elems.filter(
-      (e) => (e.classes ?? '').includes('graph-edge-about-agg') ||
-        (e.classes ?? '').includes('graph-edge-spoke-in-agg'),
-    )
-    expect(aggregated).toEqual([])
-  })
-
-  it('appends ABOUT_AGG edges with weight + contributing insights when flag is on', () => {
-    const elems = toCytoElements(v1Fixture(), { enableAggregatedEdges: true })
-    const aggE1T1 = elems.find(
-      (e) =>
-        'source' in e.data &&
-        e.data.source === 'episode:e1' &&
-        e.data.target === 't:1' &&
-        (e.classes ?? '').includes('graph-edge-about-agg'),
-    )
-    expect(aggE1T1).toBeTruthy()
-    expect((aggE1T1!.data as { weight?: number }).weight).toBe(3)
-    expect((aggE1T1!.data as { edgeType?: string }).edgeType).toBe('ABOUT_AGG')
-    expect((aggE1T1!.data as { contributingInsightIds?: string[] }).contributingInsightIds).toEqual([
-      'i:e1-a',
-      'i:e1-b',
-      'i:e1-c',
-    ])
-  })
-
-  it('appends SPOKE_IN_AGG edges with weight + contributing quotes when flag is on', () => {
-    const elems = toCytoElements(v1Fixture(), { enableAggregatedEdges: true })
-    const aggE1Ada = elems.find(
-      (e) =>
-        'source' in e.data &&
-        e.data.source === 'episode:e1' &&
-        e.data.target === 'p:ada' &&
-        (e.classes ?? '').includes('graph-edge-spoke-in-agg'),
-    )
-    expect(aggE1Ada).toBeTruthy()
-    expect((aggE1Ada!.data as { weight?: number }).weight).toBe(2)
-    expect((aggE1Ada!.data as { edgeType?: string }).edgeType).toBe('SPOKE_IN_AGG')
-  })
-
-  it('aggregated edge ids follow the documented `about_agg:src->tgt` shape', () => {
-    const elems = toCytoElements(v1Fixture(), { enableAggregatedEdges: true })
-    const ids = elems
-      .filter((e) => (e.classes ?? '').includes('graph-edge-about-agg'))
-      .map((e) => e.data.id as string)
-    expect(ids).toContain('about_agg:episode:e1->t:1')
-  })
-
-  // RFC-080 V3 — Episode nodes carry `publishDate` (Unix ms) and
-  // Insight/Quote nodes carry `episodeId` so the timeline layout can
-  // park children near their parent without a neighbourhood walk.
+describe('toCytoElements — Episode publishDate (RFC-080 V3)', () => {
+  // Episode nodes carry `publishDate` (Unix ms) so the timeline layout can order them.
   it('attaches publishDate (Unix ms) on Episode nodes when publish_date is parseable', () => {
     const art = parseArtifact('p.gi.json', {
       episode_id: 'e1',
@@ -1847,13 +952,6 @@ describe('toCytoElements with enableAggregatedEdges (RFC-080 V1)', () => {
     expect((elems.find((e) => e.data.id === 'episode:e2')?.data as { publishDate?: number }).publishDate).toBeUndefined()
   })
 
-  it('attaches episodeId on Insight/Quote nodes when properties.episode_id is set', () => {
-    const elems = toCytoElements(v1Fixture())
-    const insight = elems.find((e) => e.data.id === 'i:e1-a')
-    const quote = elems.find((e) => e.data.id === 'q:e1-1')
-    expect((insight?.data as { episodeId?: string }).episodeId).toBe('episode:e1')
-    expect((quote?.data as { episodeId?: string }).episodeId).toBe('episode:e1')
-  })
 })
 
 describe('applyGraphFilters topic cluster pruning', () => {
@@ -1881,9 +979,6 @@ describe('applyGraphFilters topic cluster pruning', () => {
     const state: GraphFilterState = {
       allowedTypes: { TopicCluster: true, Topic: false },
       allowedEdgeTypes: {},
-      hideUngroundedInsights: false,
-      showGiLayer: true,
-      showKgLayer: true,
     }
     const out = applyGraphFilters(fullArt, state)
     expect(out.data.nodes?.some((n) => String(n.id) === 'tc:1')).toBe(false)

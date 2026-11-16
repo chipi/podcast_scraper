@@ -12,7 +12,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
@@ -20,34 +19,6 @@ from podcast_scraper.transcription.factory import create_transcription_provider
 @pytest.mark.integration
 class TestFactoryErrorHandling(unittest.TestCase):
     """Test factory error handling."""
-
-    def test_factory_raises_value_error_for_invalid_provider(self):
-        """Test that factories raise ValueError for invalid provider types."""
-        from unittest.mock import MagicMock
-
-        # Test transcription factory
-        with self.assertRaises(ValueError) as context:
-            mock_cfg = MagicMock(spec=config.Config)
-            mock_cfg.transcription_provider = "invalid"
-            mock_cfg.__class__ = config.Config
-            create_transcription_provider(mock_cfg)
-        self.assertIn("Unsupported transcription provider", str(context.exception))
-
-        # Test speaker detector factory
-        with self.assertRaises(ValueError) as context:
-            mock_cfg = MagicMock(spec=config.Config)
-            mock_cfg.speaker_detector_provider = "invalid"
-            mock_cfg.__class__ = config.Config
-            create_speaker_detector(mock_cfg)
-        self.assertIn("Unsupported speaker detector type", str(context.exception))
-
-        # Test summarization factory
-        with self.assertRaises(ValueError) as context:
-            mock_cfg = MagicMock(spec=config.Config)
-            mock_cfg.summary_provider = "invalid"
-            mock_cfg.__class__ = config.Config
-            create_summarization_provider(mock_cfg)
-        self.assertIn("Unsupported summarization provider", str(context.exception))
 
     def test_openai_factory_requires_api_key(self):
         """Test that OpenAI factories require API key."""

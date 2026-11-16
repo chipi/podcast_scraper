@@ -5,23 +5,21 @@
  * Each card is grounded in a *direct retrieval query*, not a briefing pack
  * (the MCP briefing-pack form is orthogonal): the digest topic bands are
  * already built by running a semantic search per topic (`run_corpus_search`), so each
- * band's best-scored hit is the top segment + score. For topics that map to a KG node
- * we additionally pull the top cross-show insight from the relational layer
- * (`cross_show_synthesis`). Cards rank by retrieval signal and drill into the
+ * band's best-scored hit is the top segment + score. A downstream build adds sections to each
+ * card (``topicBriefingSections``). Cards rank by retrieval signal and drill into the
  * Topic Entity View rail.
  */
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { CorpusDigestResponse, CorpusDigestTopicBand } from '../../api/digestApi'
-import { fetchCrossShow } from '../../api/relationalApi'
-import { useShellStore } from '../../stores/shell'
+import { topicBriefingSections } from '../../extensions'
 import { useSubjectStore } from '../../stores/subject'
 
 const props = defineProps<{
   digest: CorpusDigestResponse | null
 }>()
 
-const shell = useShellStore()
 const subject = useSubjectStore()
+const sections = topicBriefingSections.list()
 
 const CARD_COUNT = 4
 
@@ -65,35 +63,6 @@ const cards = computed<BriefingCard[]>(() => {
     })
 })
 
-/** Lazily-fetched top cross-show insight per mapped topic (the relational differentiator). */
-const crossShow = ref<Record<string, { shows: number; insight: string } | null>>({})
-
-async function loadCrossShow(card: BriefingCard): Promise<void> {
-  const root = shell.corpusPath?.trim()
-  if (!card.graphTopicId || !root || !shell.healthStatus) return
-  if (card.topicId in crossShow.value) return
-  crossShow.value = { ...crossShow.value, [card.topicId]: null }
-  try {
-    const body = await fetchCrossShow(root, card.graphTopicId)
-    const groups = Object.values(body.groups ?? {})
-    const first = groups.find((g) => g.length > 0)?.[0]
-    crossShow.value = {
-      ...crossShow.value,
-      [card.topicId]: first ? { shows: groups.length, insight: first.text } : null,
-    }
-  } catch {
-    crossShow.value = { ...crossShow.value, [card.topicId]: null }
-  }
-}
-
-watch(
-  cards,
-  (list) => {
-    for (const card of list) void loadCrossShow(card)
-  },
-  { immediate: true },
-)
-
 function openTopic(card: BriefingCard): void {
   if (card.graphTopicId) subject.focusTopic(card.graphTopicId)
 }
@@ -110,8 +79,7 @@ function openTopic(card: BriefingCard): void {
       Topic briefings
     </h3>
     <p class="mb-2 text-[11px] text-muted">
-      Top topics by retrieval signal — each grounded in a live search; mapped topics add the
-      cross-show synthesis.
+      Top topics by retrieval signal — each grounded in a live search.
     </p>
     <div class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
       <article
@@ -145,15 +113,14 @@ function openTopic(card: BriefingCard): void {
           >{{ card.topScore.toFixed(2) }}</span>
           {{ card.topSegment }}
         </p>
-        <p
-          v-if="crossShow[card.topicId]"
-          data-testid="topic-briefing-card-cross-show"
-          class="mt-1 border-l-2 border-primary/40 pl-1.5 text-[10px] leading-snug text-surface-foreground/80"
-          :title="crossShow[card.topicId]?.insight"
-        >
-          <span class="font-medium text-primary">Across {{ crossShow[card.topicId]?.shows }} shows:</span>
-          <span class="line-clamp-2">{{ crossShow[card.topicId]?.insight }}</span>
-        </p>
+        <component
+          :is="section.component"
+          v-for="section in sections"
+          :key="section.id"
+          :topic-id="card.topicId"
+          :graph-topic-id="card.graphTopicId"
+          :label="card.label"
+        />
       </article>
     </div>
   </section>

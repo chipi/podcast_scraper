@@ -11,7 +11,6 @@ Protocols define the interface that all providers must implement. When adding ne
 Protocols are defined using Python's `Protocol` type from `typing` in `{capability}/base.py`:
 
 - `TranscriptionProvider` in `transcription/base.py`
-- `SpeakerDetector` in `speaker_detectors/base.py`
 - `SummarizationProvider` in `summarization/base.py`
 
 ## Step-by-Step: Extending a Protocol

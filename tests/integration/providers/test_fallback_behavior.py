@@ -11,10 +11,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
-from tests.integration.conftest import requires
 
 
 @pytest.mark.integration
@@ -69,60 +67,6 @@ class TestTranscriptionProviderFallback(unittest.TestCase):
 
 @pytest.mark.integration
 @pytest.mark.critical_path
-class TestSpeakerDetectorFallback(unittest.TestCase):
-    """Test speaker detector fallback behavior."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="spacy",
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not production default (base)
-            auto_speakers=True,  # Required for speaker detection tests
-        )
-
-    def test_no_fallback_for_speaker_detector(self):
-        """Test that speaker detector doesn't have fallback (fail-fast pattern)."""
-        # Speaker detector should fail fast if provider creation fails
-        # No fallback to direct speaker_detection calls
-        detector = create_speaker_detector(self.cfg)
-
-        # Should create provider successfully
-        self.assertIsNotNone(detector)
-        # Verify it's the unified ML provider
-        self.assertEqual(detector.__class__.__name__, "MLProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(detector, "detect_speakers"))
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-        self.assertTrue(hasattr(detector, "clear_cache"))
-
-    @requires(
-        "spacy"
-    )  # the test runs NER speaker detection, which imports spaCy at the point of use
-    def test_detect_hosts_no_fallback(self):
-        """Test that detect_hosts() doesn't use fallback."""
-        # Ensure auto_speakers is enabled for speaker detection
-        cfg = config.Config(
-            rss_url=self.cfg.rss_url,
-            speaker_detector_provider=self.cfg.speaker_detector_provider,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not production default (base)
-            auto_speakers=True,  # Required for speaker detection
-        )
-        detector = create_speaker_detector(cfg)
-        detector.initialize()
-
-        # detect_hosts() should be available via protocol
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-
-        # Should not need fallback to direct speaker_detection calls
-        result = detector.detect_hosts(
-            feed_title="Test Podcast", feed_description=None, feed_authors=None
-        )
-        self.assertIsInstance(result, set)
-
-
-@pytest.mark.integration
-@pytest.mark.critical_path
 class TestSummarizationProviderFallback(unittest.TestCase):
     """Test summarization provider fallback behavior."""
 
@@ -148,41 +92,6 @@ class TestSummarizationProviderFallback(unittest.TestCase):
         self.assertTrue(hasattr(provider, "summarize"))
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))
-
-
-@pytest.mark.integration
-@pytest.mark.critical_path
-class TestCacheClearingFallback(unittest.TestCase):
-    """Test cache clearing fallback behavior."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="spacy",
-            auto_speakers=False,
-        )
-
-    def test_cache_clearing_no_fallback_needed(self):
-        """Test that cache clearing doesn't need fallback (protocol method available)."""
-        detector = create_speaker_detector(self.cfg)
-
-        # clear_cache() should be available via protocol
-        self.assertTrue(hasattr(detector, "clear_cache"))
-
-        # clear_cache() is now a no-op (cache was removed)
-        detector.clear_cache()  # Should work without fallback
-
-    @patch("podcast_scraper.providers.ml.speaker_detection._load_spacy_model")
-    def test_ner_detector_cache_clearing(self, mock_load_spacy):
-        """Test that NER detector clear_cache() works correctly (no-op)."""
-        # Mock spaCy model loading to prevent network calls
-        mock_load_spacy.return_value = Mock()
-
-        detector = create_speaker_detector(self.cfg)
-
-        # Call clear_cache via protocol method (now a no-op)
-        detector.clear_cache()
 
         # clear_cache() is now a no-op, should not raise
 
@@ -225,59 +134,6 @@ class TestBackwardCompatibilityFallbacks(unittest.TestCase):
 
         # In metadata, if provider is None, it falls back with deprecation warning
         # This is intentional for backward compatibility during migration
-
-
-@pytest.mark.integration
-@pytest.mark.critical_path
-class TestFallbackRemovalImpact(unittest.TestCase):
-    """Test that removing fallbacks doesn't break functionality."""
-
-    def test_providers_always_available(self):
-        """Test that providers are always available (no fallback needed)."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcription_provider="whisper",
-            speaker_detector_provider="spacy",
-            summary_provider="transformers",
-            generate_summaries=False,
-            auto_speakers=False,
-        )
-
-        # All providers should be creatable
-        transcription_provider = create_transcription_provider(cfg)
-        speaker_detector = create_speaker_detector(cfg)
-        summarization_provider = create_summarization_provider(cfg)
-
-        # None should be None (all should succeed)
-        self.assertIsNotNone(transcription_provider)
-        self.assertIsNotNone(speaker_detector)
-        self.assertIsNotNone(summarization_provider)
-
-        # All should have protocol methods (no fallback needed)
-        self.assertTrue(hasattr(transcription_provider, "transcribe"))
-        self.assertTrue(hasattr(speaker_detector, "detect_hosts"))
-        self.assertTrue(hasattr(speaker_detector, "clear_cache"))
-        self.assertTrue(hasattr(summarization_provider, "summarize"))
-
-    @requires(
-        "spacy"
-    )  # the test runs NER speaker detection, which imports spaCy at the point of use
-    def test_protocol_methods_always_available(self):
-        """Test that protocol methods are always available (no hasattr checks needed)."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="spacy",
-            auto_speakers=True,  # Required for speaker detection methods
-        )
-
-        detector = create_speaker_detector(cfg)
-
-        # Protocol methods should always be available
-        # No need for hasattr() checks
-        detector.initialize()
-        detector.detect_hosts("Test", None, None)
-        detector.clear_cache()
-        detector.cleanup()
 
         # All should work without checks
 

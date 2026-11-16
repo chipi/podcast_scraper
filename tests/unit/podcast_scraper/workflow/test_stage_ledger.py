@@ -12,12 +12,11 @@ reporting bug; it restores the blindness.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from unittest.mock import MagicMock
 
 import pytest
 
-from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import metrics as metrics_mod
 from podcast_scraper.workflow.metadata_generation import _extract_episode_stage_ledger, StageOutcome
 from podcast_scraper.workflow.stages import processing
@@ -66,10 +65,6 @@ def _size_skip(cfg: Any, episode: Any) -> Any:
     ``arg-type`` ignore on every call site.
     """
     return processing._check_episode_size_skip(cfg, episode)
-
-
-def _detect(episode: Any, cfg: Any, host_result: Any, m: Any, **kwargs: Any) -> Any:
-    return detection._detect_speakers_for_episode(episode, cfg, host_result, m, **kwargs)
 
 
 class TestRecordStageOutcome:
@@ -199,117 +194,3 @@ class TestSizeGateCarriesItsReason:
 
         assert result.skip_speaker_detection is False
         assert result.reason is None
-
-
-class TestDetectSpeakersRecordsEveryExit:
-    """Each early return used to be silent. Silence is the bug."""
-
-    @staticmethod
-    def _run(cfg: _Cfg, m: metrics_mod.Metrics, **kwargs: Any) -> Optional[Any]:
-        host_result = MagicMock()
-        host_result.speaker_detector = None
-        host_result.cached_hosts = set()
-        return _detect(_Episode(), cfg, host_result, m, **kwargs)
-
-    def test_skip_requested_by_caller_records_the_reason_it_was_given(self) -> None:
-        m = metrics_mod.Metrics()
-        self._run(
-            _Cfg(),
-            m,
-            skip_speaker_detection=True,
-            skip_reason="media_over_size_limit_no_transcript_urls",
-            skip_detail={"media_bytes": 1},
-        )
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "skipped"
-        assert record["reason"] == "media_over_size_limit_no_transcript_urls"
-        assert record["detail"] == {"media_bytes": 1}
-
-    def test_skip_without_a_supplied_reason_still_records_one(self) -> None:
-        """An unattributed skip is still a skip — it must never be recorded as nothing."""
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(), m, skip_speaker_detection=True)
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "skipped"
-        assert record["reason"] == "skip_requested_by_caller"
-
-    def test_auto_speakers_disabled_is_recorded(self) -> None:
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(auto_speakers=False), m)
-        assert _ledger_for(m)["speaker_detection"]["reason"] == "auto_speakers_disabled"
-
-    def test_auto_speakers_disabled_with_configured_names_is_distinguished(self) -> None:
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(auto_speakers=False, screenplay_speaker_names=["Host", "Guest"]), m)
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["reason"] == "auto_speakers_disabled_using_configured_names"
-
-    def test_dry_run_is_recorded(self) -> None:
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(dry_run=True), m)
-        assert _ledger_for(m)["speaker_detection"]["reason"] == "dry_run"
-
-    def test_missing_detector_is_recorded_with_the_configured_provider(self, monkeypatch) -> None:
-        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: None)
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(speaker_detector_provider="litellm"), m)
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "skipped"
-        assert record["reason"] == "no_speaker_detector_available"
-        assert record["detail"] == {"speaker_detector_provider": "litellm"}
-
-    def test_successful_detection_records_ran_with_proposal_counts(self, monkeypatch) -> None:
-        detector = MagicMock()
-        detector.detect_speakers.return_value = (["Sarah Sachs", "Simon Last"], set(), True, False)
-        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: detector)
-        monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "desc")
-        monkeypatch.setattr(detection, "corroborate_guests", lambda proposed, **k: proposed[:1])
-
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(), m)
-
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "ran"
-        assert record["detail"]["proposed_count"] == 2
-        assert record["detail"]["corroborated_count"] == 1
-        assert record["duration_seconds"] is not None
-
-    def test_detector_returning_nothing_is_ran_not_skipped(self, monkeypatch) -> None:
-        """'Ran and found nothing' and 'never ran' are different facts about the episode.
-
-        That intent is unchanged; the OUTCOME that expresses it was wrong. This asserted
-        ``failed``, but ``detection_succeeded`` is ``bool(hosts or guests)`` — emptiness, not
-        error — so nothing had failed. The real corpus showed the cost: Planet Money, whose feed
-        states no hosts, recorded ``failed`` on a stage that had completed correctly, and
-        ``stage_did_run`` then told the roster it never ran at all (#1657 acceptance).
-
-        ``failed`` now means the detector raised; see
-        ``test_speaker_detection_outcome_truthfulness.py``.
-        """
-        detector = MagicMock()
-        detector.detect_speakers.return_value = ([], set(), False, False)
-        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: detector)
-        monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "desc")
-
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(), m)
-
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "ran"
-        assert record["reason"] == "no_names_found_in_metadata"
-        # The distinction the original test existed to protect, stated directly.
-        assert record["outcome"] != "skipped"
-        assert record["duration_seconds"] is not None
-
-    def test_fallback_to_configured_names_is_degraded_not_ran(self, monkeypatch) -> None:
-        detector = MagicMock()
-        detector.detect_speakers.return_value = ([], set(), False, False)
-        monkeypatch.setattr(detection, "_get_speaker_detector", lambda *a, **k: detector)
-        monkeypatch.setattr(detection, "extract_episode_description", lambda _item: "desc")
-
-        m = metrics_mod.Metrics()
-        self._run(_Cfg(screenplay_speaker_names=["Host", "Guest"]), m)
-
-        record = _ledger_for(m)["speaker_detection"]
-        assert record["outcome"] == "degraded"
-        assert record["reason"] == "detection_failed_using_configured_names"

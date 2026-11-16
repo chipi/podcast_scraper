@@ -1,0 +1,178 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:asset-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:borrowing-against-assets",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:financial-blow-ups",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:forced-selling",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:index-fund-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:investment-financing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:leverage-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:margin-trading",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:market-timing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-6351d18dc6f1ff70",
+      "target": "topic:patience-in-investing",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-6351d18dc6f1ff70",
+  "extraction": {
+    "extracted_at": "2025-09-11T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-6351d18dc6f1ff70",
+      "properties": {
+        "podcast_id": "p05",
+        "publish_date": "2025-09-11T00:00:00",
+        "title": "From the Archive"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing",
+        "slug": "index-investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:asset-risk",
+      "properties": {
+        "label": "asset risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:borrowing-against-assets",
+      "properties": {
+        "label": "borrowing against assets",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:financial-blow-ups",
+      "properties": {
+        "label": "financial blow ups",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:forced-selling",
+      "properties": {
+        "label": "forced selling",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:index-fund-investing",
+      "properties": {
+        "label": "index fund investing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:investment-financing",
+      "properties": {
+        "label": "investment financing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:leverage-risk",
+      "properties": {
+        "label": "leverage risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:margin-trading",
+      "properties": {
+        "label": "margin trading",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:market-timing",
+      "properties": {
+        "label": "market timing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:patience-in-investing",
+      "properties": {
+        "label": "patience in investing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

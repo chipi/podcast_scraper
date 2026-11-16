@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from podcast_scraper.gi.pipeline import build_artifact as gi_build_artifact
 from podcast_scraper.kg.pipeline import build_artifact as kg_build_artifact
 from podcast_scraper.providers.common.megabundle_parser import MegaBundleResult
 
@@ -71,80 +70,6 @@ class TestKGPrefilled:
         )
 
         assert any(n["type"] == "Episode" for n in out["nodes"])
-
-
-class TestGIPrefilled:
-    def test_prefilled_insights_short_circuits_provider(self):
-        provider = MagicMock()
-        prefilled = _make_result().to_extraction_partial()["insights"]
-
-        out = gi_build_artifact(
-            "ep1",
-            "transcript " * 50,
-            podcast_id="feed",
-            episode_title="Ep",
-            insight_provider=provider,
-            prefilled_insights=prefilled,
-        )
-
-        provider.generate_insights.assert_not_called()
-        insights = [n for n in out["nodes"] if n["type"] == "Insight"]
-        assert len(insights) == 2
-        types = {n["properties"].get("insight_type") for n in insights}
-        # RFC-097 v3.0 vocab: legacy "fact" maps to "claim" via the legacy
-        # synonym layer (megabundle prompt pre-update emitted claim|fact|opinion).
-        # Both bundle insights ("claim", "fact") normalise to "claim".
-        assert types == {"claim"}
-
-    def test_empty_prefilled_yields_no_insights(self):
-        """Empty prefilled input and no provider means nothing was extracted.
-
-        This was ``test_empty_prefilled_falls_back_to_stub`` and asserted ``>= 1`` insight,
-        because the pipeline manufactured a placeholder to fill the gap. #1657 deleted it: an
-        empty input produces an empty artifact, which is the truth.
-        """
-        out = gi_build_artifact(
-            "ep1",
-            "transcript " * 20,
-            podcast_id="feed",
-            episode_title="Ep",
-            prefilled_insights=[],
-        )
-        assert [n for n in out["nodes"] if n["type"] == "Insight"] == []
-
-    def test_prefilled_skips_blank_items(self):
-        out = gi_build_artifact(
-            "ep1",
-            "transcript " * 20,
-            podcast_id="feed",
-            episode_title="Ep",
-            prefilled_insights=[
-                {"text": "", "insight_type": "claim"},
-                {"text": "Valid one.", "insight_type": "fact"},
-                {"insight_type": "claim"},
-            ],
-        )
-        insights = [n for n in out["nodes"] if n["type"] == "Insight"]
-        texts = [n["properties"].get("text") for n in insights]
-        assert "Valid one." in texts
-        assert "" not in texts
-
-    def test_prefilled_unknown_type_normalized_to_unknown(self):
-        """RFC-097 v3.0: out-of-vocab insight types fall to "unknown" (schema valid).
-
-        Pre-RFC-097 the fallback was "claim" because the prefilled-only path
-        used a different vocab ({claim, fact, opinion}). Aligned with
-        _normalize_insight_type for consistency across all entry points.
-        """
-        out = gi_build_artifact(
-            "ep1",
-            "transcript " * 20,
-            podcast_id="feed",
-            episode_title="Ep",
-            prefilled_insights=[{"text": "X", "insight_type": "weird"}],
-        )
-        insights = [n for n in out["nodes"] if n["type"] == "Insight"]
-        assert insights[0]["properties"].get("insight_type") == "unknown"
 
 
 class TestMegaBundleHelpers:

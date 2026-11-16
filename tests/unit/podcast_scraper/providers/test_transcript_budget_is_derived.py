@@ -66,15 +66,6 @@ class TestAnUnknownWindowMeansUnboundedNotGuessed:
 
         assert len(transcript_clip("x" * 300_000, max_chars=None)) == 300_000
 
-    def test_the_quote_prompt_does_not_clip_on_an_unknown_budget(self) -> None:
-        from podcast_scraper.providers.common.evidence_prompts import (
-            render_extract_quote_prompt,
-        )
-
-        long = "word " * 60_000
-        _, user = render_extract_quote_prompt("openai", long, "an insight", budget_chars=None)
-        assert len(user) > 250_000, "an unknown window must send the transcript, not truncate it"
-
 
 class TestTheBudgetRatioIsMeasuredNotAssumed:
     """The ratio governs how much of every episode the model sees, so it is measured, not argued.

@@ -53,12 +53,10 @@ ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
 # Build deps are needed for compiling some packages from source if wheels aren't available
 # Python 3.12 has good wheel support, so most packages won't need compilation
 #
-# ffmpeg is required HERE (builder stage), not just at runtime: when
-# PRELOAD_ML_MODELS=true the preload imports pyannote.audio, whose torchcodec
-# backend dlopen()s the FFmpeg shared libraries (libav*) at import time. Without
-# them the preload aborts with "Could not load libtorchcodec_core*.so". This is
-# the builder's own (discarded) copy — the runtime stage installs ffmpeg
-# separately, so the final image is unaffected.
+# ffmpeg in the builder stage was added because the preload imported pyannote.audio, whose
+# torchcodec dlopen()s FFmpeg at import time. pyannote left with the diarization stage (E04); the
+# builder copy is kept until a build without it is checked. It is discarded either way — the
+# runtime stage installs ffmpeg separately.
 RUN if [ -n "$INSTALL_EXTRAS" ] && { [ "$INSTALL_EXTRAS" = "ml" ] || [ "$INSTALL_EXTRAS" = "llm" ]; }; then \
         set -ux; \
         for attempt in 1 2 3 4 5; do \
@@ -93,11 +91,10 @@ COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     export PIP_CACHE_DIR=/root/.cache/pip && \
     if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
-        # Install the CPU torch stack first (optimization: smaller than CUDA version, ~150MB vs 4GB+).
-        # torchaudio + torchcodec must be CPU too: pyannote 4.x decodes audio via torchcodec, whose
-        # libtorchcodec_core*.so link CUDA in the default (PyPI) wheels and fail to load on this
-        # CPU image with "libnvrtc.so.13: cannot open shared object file".
-        pip install torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu && \
+        # Install the CPU torch first (optimization: smaller than CUDA version, ~150MB vs 4GB+).
+        # torchaudio + torchcodec (pyannote's audio stack) left with the diarization stage (E04);
+        # an image that installs that stage brings them, CPU builds included.
+        pip install torch --index-url https://download.pytorch.org/whl/cpu && \
         # Install core + ML deps, plus [search] (lancedb): the pipeline image runs corpus
         # upgrade/migrations which build the LanceDB index, and lancedb is search-only (#1019).
         # Opt in the o11y extensions this deployed image uses: [sentry] error reporting +
@@ -105,10 +102,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # core dep (see pyproject [project.optional-dependencies] / OBSERVABILITY_EXTENSIONS.md).
         pip install '.[ml,search,sentry,langfuse]' && \
         pip uninstall -y podcast-scraper && \
-        # `.[ml]` pulls CUDA-linked torch/torchaudio/torchcodec from PyPI; force the whole stack back
-        # to the CPU builds so torchcodec loads against the system FFmpeg (not CUDA/libnvrtc). Installing
-        # all three together keeps them a matched, ABI-compatible set.
-        pip install --force-reinstall --no-deps torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu; \
+        # `.[ml]` may pull a CUDA-linked torch from PyPI; force it back to the CPU build.
+        pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
     elif [ "$INSTALL_EXTRAS" = "llm" ]; then \
         # cloud-API pipeline image. Includes [search] (lancedb + sentence-transformers + torch CPU)
         # so cloud_balanced can build its LanceDB vector index without [ml]'s spaCy/Whisper/Pegasus.

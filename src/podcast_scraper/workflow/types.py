@@ -87,10 +87,13 @@ class ProcessingJob(NamedTuple):
 
     episode: Episode  # type: ignore[valid-type]
     transcript_path: str
-    transcript_source: Literal["direct_download", "whisper_transcription"]
+    transcript_source: Literal["direct_download", "whisper_transcription", "text_body"]
     detected_names: Optional[List[str]]
     whisper_model: Optional[str]
     queued_at: Optional[float] = None
+    #: The item's ``content_types.ItemContext`` (type, id, body path); ``None`` is a podcast
+    #: episode, so every podcast job is unchanged (ADR-177 decision 7).
+    item: Optional[Any] = None
 
 
 class ProcessingResources(NamedTuple):

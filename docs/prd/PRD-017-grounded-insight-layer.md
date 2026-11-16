@@ -1,13 +1,10 @@
 # PRD-017: Grounded Insight Layer (GIL)
 
 - **Status**: Implemented (v2.7)
-- **v2 closure (RFC-097, 2026-06-20)**: FR1.3 (Insight → Topic via ABOUT), FR1.4 (`insight_type` marking), entity v1.1 deferral retired (Person/Org first-class via MENTIONS_PERSON/MENTIONS_ORG attribution per Insight), GI schema v3.0 ships. Cross-layer bridge ([RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)) Completed. Single-layer use cases ([RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md)) Completed. Postgres database projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) remains Draft — orthogonal persistence-layer scope, not gating GIL itself. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **v2 closure (RFC-097, 2026-06-20)**: FR1.3 (Insight → Topic via ABOUT), FR1.4 (`insight_type` marking), entity v1.1 deferral retired (Person/Org first-class via MENTIONS_PERSON/MENTIONS_ORG attribution per Insight), GI schema v3.0 ships. Cross-layer bridge Completed. Single-layer use cases Completed. Postgres database projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) remains Draft — orthogonal persistence-layer scope, not gating GIL itself. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Related RFCs** (RFCs whose **Related PRD** is PRD-017 in [RFC index](../rfc/index.md); they specify or ship this feature):
-  - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core & artifacts (**complete**)
-  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — Use cases & Insight Explorer (**complete**)
   - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer (GIL surfaces: explore, search, evidence UI) (**complete**)
-  - [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) — Canonical Identity Layer + cross-layer bridge (**complete**)
   - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — Unified KG + GI ontology v2 (**complete**)
   - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — Postgres projection (**Draft**, deferred persistence-layer scope)
 - **Related PRDs** (separate feature — not GIL):
@@ -28,10 +25,10 @@ The internal graph structure enables semantic organization, but the primary deli
 [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md),
 [RFC-044](../rfc/RFC-044-model-registry.md), and
 [RFC-052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md) are **done**. GIL **core**
-[RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) is **done** (`gi.json`, grounding contract,
+is **done** (`gi.json`, grounding contract,
 schema, `gi` CLI). **Not done** for full PRD closure:
-[RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) (full use-case and Insight Explorer
-spec) and [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) / [PRD-018](PRD-018-database-projection-gil-kg.md)
+the full use-case and Insight Explorer
+spec, and [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) / [PRD-018](PRD-018-database-projection-gil-kg.md)
 (relational projection).
 
 ## Background & Context
@@ -171,10 +168,6 @@ The existing podcast scraper produces transcripts and summaries, but summaries l
 
 **GIL-specific design:**
 
-- **RFC-049**: Core GIL Concepts & Data Model
-  (defines ontology, grounding contract, storage)
-- **RFC-050**: GIL Use Cases & Insight Explorer
-  (defines query patterns and CLI tooling)
 - **RFC-051**: Database Projection (defines Postgres
   export for fast queries)
 
@@ -378,7 +371,7 @@ are recorded here for traceability.
 
 5. **How to handle ungroundable insights?**
    Mark `grounded=false` explicitly. The grounding
-   contract (RFC-049 §5) requires every insight to
+   contract requires every insight to
    declare its grounding status. Ungrounded insights
    are honest about extraction limits and can be
    filtered in the UI. Target: ≥90% grounding rate.
@@ -396,10 +389,6 @@ are recorded here for traceability.
 
 **GIL Design:**
 
-- **RFC-049**: Core GIL Concepts & Data Model —
-  ontology, grounding contract, storage
-- **RFC-050**: GIL Use Cases & Insight Explorer —
-  query patterns, CLI, consumption
 - **RFC-051**: Database Projection — Postgres export
   for fast queries
 - **PRD-018**: Database Projection PRD — product
@@ -413,8 +402,8 @@ are recorded here for traceability.
 ## Release Checklist
 
 - [ ] PRD reviewed and approved
-- [ ] RFC-049 updated with Insight + Quote ontology
-- [ ] RFC-050 updated with Insight Explorer use case
+- [ ] the GIL core design updated with Insight + Quote ontology
+- [ ] the GIL use-case design updated with Insight Explorer use case
 - [ ] RFC-051 updated with insights/quotes/insight_support tables
 - [ ] Ontology specification (`docs/architecture/gi/ontology.md`) finalized
 - [ ] Schema specification (`docs/architecture/gi/gi.schema.json`) finalized

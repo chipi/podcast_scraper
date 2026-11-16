@@ -100,8 +100,7 @@ docker run --rm --name "$CONTAINER-prep" --memory "$API_MEMORY" \
   -e TRANSFORMERS_OFFLINE=1 \
   -e PODCAST_SEARCH_EXACT_VECTORS=1 \
   --entrypoint sh "$IMAGE" -c \
-  'python -m podcast_scraper.cli index-two-tier --output-dir /corpus &&
-   python -m podcast_scraper.cli identity-ledger --output-dir /corpus'
+  'python -m podcast_scraper.cli index-two-tier --output-dir /corpus'
 
 # ── Env the suite actually needs ───────────────────────────────────────────────────────────────
 #

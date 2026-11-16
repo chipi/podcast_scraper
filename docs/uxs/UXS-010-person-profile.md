@@ -21,8 +21,6 @@
   - [PRD-029: Person Profile](../prd/PRD-029-person-profile.md) -- full requirements
     and API contract
 - **Related RFCs**:
-  - [RFC-072: Canonical Identity Layer](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) --
-    bridge artifact, Flagship 2, query Pattern B
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) -- the relational-query layer (`positions_of` over the #874 `Person→Insight` edge, + compounds) that assembles this profile; surface plan in [PRD-033](../prd/PRD-033-search-powered-surfaces.md) FR4.1, tracked in [#886](https://github.com/chipi/podcast_scraper/issues/886). Speaker attribution coverage is gated on diarization (#875/#876).
 - **Related UX specs**:
@@ -152,7 +150,7 @@ Person Landing in the main column are part of the visual contract so work is not
 blocked when browse exists.
 
 **Where browse should live (product decision before implementation):** Pick one
-primary host and record it in PRD-028, PRD-029, and the RFC-062 viewer checklist
+primary host and record it in the Position Tracker, PRD-029, and the RFC-062 viewer checklist
 (selectors and `E2E_SURFACE_MAP.md` follow the real control). Representative options:
 
 1. **Fifth main tab** (working name **People**) -- corpus-wide list or search of
@@ -238,7 +236,7 @@ Below the header, a row of action buttons:
 
 - **View in graph** -- navigates to the Graph tab and focuses on this person's node.
   Uses `primary` token.
-- **Track positions** -- navigates to the Position Tracker (PRD-028) for this person
+- **Track positions** -- navigates to the Position Tracker for this person
   (topic selector opens there). Uses `primary` token.
 
 ### Topic Overview section

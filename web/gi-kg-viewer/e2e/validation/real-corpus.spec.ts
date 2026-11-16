@@ -15,10 +15,8 @@
 
 import { expect, test, type Page } from '@playwright/test'
 import {
-  SHELL_HEADING_RE,
   dismissGraphGestureOverlayIfPresent,
   mainViewsNav,
-  signInAsAdmin,
   signInIsolated,
   statusBarCorpusPathInput,
 } from '../helpers'
@@ -273,60 +271,6 @@ test.describe('Real-corpus validation', () => {
     expect(report.selectedId).toBeTruthy()
     expect(report.zoomOk).toBe(true)
     expect(report.cameraOk).toBe(true)
-  })
-
-  test('V2 — Digest topic pill (real corpus)', async ({ page }, testInfo) => {
-    // Post-V2-fix behavior: digest pill may resolve to a real cy node
-    // (happy path) OR may target a topic-band aggregation bucket whose
-    // cy id doesn't exist in the currently-loaded artifacts. The fix
-    // makes the second case surface as ``lastResult.status === 'failed'``
-    // with the error strip visible, instead of silently lying. Both are
-    // valid terminal states; the bug class we catch is "FSM never
-    // reaches a terminal state" (stuck-timeout).
-    await signInIsolated(page, 'real-corpus', testInfo)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
-    await page.screenshot({ path: 'validation-results/v2-1-digest.png', fullPage: false })
-
-    const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
-    await pill.waitFor({ state: 'visible', timeout: 30_000 })
-    await pill.click()
-    // Poll until lastResult lands — accept either applied or failed.
-    const fsm = await page.evaluate(async ({ maxMs }: { maxMs: number }) => {
-      const deadline = Date.now() + maxMs
-      while (Date.now() < deadline) {
-        const w = window as unknown as {
-          __GIKG_FSM__?: {
-            state: string
-            lastResult: { status: string; reason?: string } | null
-          }
-        }
-        if (w.__GIKG_FSM__?.lastResult) {
-          return {
-            state: w.__GIKG_FSM__.state,
-            lastResult: w.__GIKG_FSM__.lastResult,
-          }
-        }
-        await new Promise((r) => setTimeout(r, 200))
-      }
-      const w2 = window as unknown as {
-        __GIKG_FSM__?: { state: string; lastResult: { status: string; reason?: string } | null }
-      }
-      return {
-        state: w2.__GIKG_FSM__?.state ?? 'unknown',
-        lastResult: w2.__GIKG_FSM__?.lastResult ?? null,
-      }
-    }, { maxMs: 30_000 })
-    await page.screenshot({ path: 'validation-results/v2-2-graph-applied.png', fullPage: false })
-    // eslint-disable-next-line no-console
-    console.log('[validation V2]', JSON.stringify({ fsm, errs: errs.errors }, null, 2))
-    // FSM must reach a terminal lastResult (not stuck).
-    expect(fsm.lastResult).not.toBeNull()
-    expect(['applied', 'failed']).toContain(fsm.lastResult?.status)
-    // Console errors are a real regression — the failure UX is a logged
-    // warning, not an error.
-    expect(errs.errors).toEqual([])
   })
 
   test('V3 — Search "Show on graph" (real corpus, F1.6 wiring)', async ({ page }, testInfo) => {

@@ -664,7 +664,7 @@ def build_gi(
     # RFC-097 v3 insight types (deterministic spread so the §S8 compare insight_type
     # filter has claim/observation/recommendation to select over).
     _INSIGHT_TYPES = ("claim", "observation", "recommendation")
-    # RFC-097 v3 ABOUT edges: mirror the real extractor (src/podcast_scraper/gi/about_edges.py —
+    # RFC-097 v3 ABOUT edges: mirror the real extractor (
     # top-2 topics by relevance, insights below the similarity floor get NO ABOUT edge). Blanket
     # fan-out (every insight ABOUT every episode topic) is WRONG: it makes filler/greeting lines
     # "about" contested topics, so topic_perspectives returns dozens of bogus speakers. No-ML
@@ -774,7 +774,7 @@ def _route_and_tag(text: str) -> dict:
     corpus.
 
     Why this exists (2026-10-02): the three fields were simply absent. Consumers sort by
-    ``salience`` desc and exclude ``routing_tag == "drop"`` (ADR-135/#1191), so with none of them
+    ``salience`` desc and exclude ``routing_tag == "drop"``, so with none of them
     present every insight tied at 0.0, the sort fell through to ``position_hint`` ascending, and the
     earliest line in the episode won. The earliest line is the host saying hello — which is how
     "Thanks, Maya. Excited for this one" became the lead quote on a storyline page while the real

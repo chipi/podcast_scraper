@@ -323,7 +323,8 @@ Action item rules:
 | --- | --- | --- |
 | Last run has failures | "N episodes failed in last run" | [View failures] → Library |
 | Last run failed entirely | "Last run failed — no episodes processed" | [View in Pipeline] |
-| GI coverage < 50% | "N episodes have no GI artifacts" | [View in Library] |
+| KG coverage < 50% | "N episodes have no KG artifacts" | [View in Library] (missing KG) |
+| GI coverage < 50% (a downstream build's, E04 step 8b) | "N episodes have no GI artifacts" | [View in Library] (missing GI) |
 | Index not built | "Vector index has not been built" | [Open index controls] |
 | Index stale > 7 days | "Index last rebuilt N days ago" | [Open index controls] |
 | Feed not indexed | "Feed X is not in the vector index" | [View coverage] |
@@ -353,7 +354,12 @@ where are the gaps?"
 
 Four sections, top to bottom.
 
-#### 4.1 GI coverage by month
+#### 4.1 KG coverage by month
+
+Since E04 step 8b the platform charts KG coverage here and a downstream build adds the GI
+chart after it (a `coverage` dashboard card); a month click opens the Library on that month's
+episodes missing that layer (`has_kg=false` / `has_gi=false`). The GI wording below describes
+the original chart; the KG one is the same with KG in place of GI.
 
 **Chart type:** Single-series bar chart.
 
@@ -400,7 +406,8 @@ generate corpus data."
 **Not a chart — a table with inline data bars.**
 
 **What it shows:** Per-feed coverage summary. Each row = one feed.
-Columns: Feed name | Episodes | GI coverage | KG coverage | Indexed.
+Columns: Feed name | Episodes | GI coverage | KG coverage | Indexed. Since E04 step 8b the
+GI column is a downstream build's (`feedCoverageColumns`) and the table sorts by KG.
 
 GI coverage and KG coverage columns show a 40px inline progress bar
 (CSS, not Chart.js) plus the percentage number. This gives visual
@@ -410,14 +417,14 @@ comparison without a separate chart.
 direct labelled (number next to bar), and scannable. No legend, no
 axis, no gridlines.
 
-**Sort order:** ascending by GI coverage — worst-covered feeds at
-top, since those are the action targets.
+**Sort order:** ascending by KG coverage (client-side; the API orders by GI) — worst-covered
+feeds at top, since those are the action targets.
 
 **Row interaction:** clicking a row navigates to Library filtered to
 that feed.
 
-**Insight line:** "Feed [name] has lowest GI coverage at [N]% — [M]
-episodes without GI artifacts."
+**Insight line:** "Feed [name] has lowest KG coverage at [N]% — [M]
+episodes without KG artifacts." (none when the lowest feed is fully covered)
 
 **Source:** `GET /api/corpus/coverage` → `by_feed` array (NEW).
 
@@ -437,7 +444,9 @@ days.
 when work has stopped. A recency chart makes silence visually obvious.
 
 **What it shows:** For each day in the last 30 days: count of new
-GI artifacts + count of new KG artifacts written that day.
+GI artifacts + count of new KG artifacts written that day. Since E04 step 8b the platform
+charts KG and a downstream build adds the GI series before it (`artifactActivitySeries`);
+the insight names each series' newest day in that order.
 
 **Tufte compliance:**
 
@@ -543,7 +552,8 @@ semantic search per topic, so each card surfaces:
   opens the **Topic Entity View** rail via `focusTopic`; plain text otherwise) + episode count.
 - **Top segment**: the band's best-scored hit (`summary_preview`) with its retrieval
   score badge — the "grounded in retrieval" evidence.
-- **Cross-show** (`topic-briefing-card-cross-show`, mapped topics only): the top insight
+- **Cross-show** (`topic-briefing-card-cross-show`, mapped topics only; a downstream build's
+  section on each card since E04 step 8b, `topicBriefingSections`): the top insight
   from `cross_show_synthesis` plus the number of distinct shows — the corpus
   differentiator, lazily fetched from `GET /api/relational/cross-show`.
 
@@ -566,6 +576,10 @@ mislabel corpus volume as query volume. This ships the supported subset: *search
 over time*. The chart is hidden until the log has entries (`total > 0`).
 
 #### 5.2 Top voices
+
+A downstream build's card since E04 step 8b, with the topic perspectives card: the
+platform's People section shows only cards registered in its `people` region
+(`dashboardCards`), and its topic grid the perspectives card only when registered.
 
 **Available when `GET /api/corpus/persons/top` exists (NEW endpoint —
 see Section 8).**
@@ -898,8 +912,6 @@ slower; (b) use the loaded graph in memory if available — faster but
 state-dependent. Prefer (a) for correctness — this is a background
 fetch, latency is acceptable.
 
-**Test:** `tests/unit/podcast_scraper/server/test_viewer_corpus_persons.py`
-
 ---
 
 ### 9. Open Questions
@@ -936,7 +948,6 @@ a real large corpus during implementation.
 web/gi-kg-viewer/src/components/dashboard/ArtifactActivityChart.vue
 web/gi-kg-viewer/src/components/dashboard/FeedRunHistoryGrid.vue
 web/gi-kg-viewer/src/components/dashboard/IntelligenceSnapshot.vue
-web/gi-kg-viewer/src/components/dashboard/TopVoices.vue
 web/gi-kg-viewer/src/components/dashboard/EmergingConnections.vue
 ```
 

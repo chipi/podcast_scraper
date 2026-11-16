@@ -30,7 +30,6 @@ import pytest
 from podcast_scraper.enrichment.enrichers._loaders import topic_nodes
 from podcast_scraper.kg.corpus import topic_cooccurrence
 from podcast_scraper.kg.filters import is_filler_topic
-from podcast_scraper.kg.topic_clustering import is_concept_topic
 from podcast_scraper.server.feed_signals import _accumulate_kg_entities
 from podcast_scraper.server.kg_view import entities_from_kg
 
@@ -135,14 +134,6 @@ def test_removing_fabricated_nodes_does_not_change_the_real_ones() -> None:
 # --------------------------------------------------------------------------- #
 # clustering — the storyline substrate. MUST keep working.
 # --------------------------------------------------------------------------- #
-
-
-def test_concept_topic_detection_is_unaffected_by_fabricated_neighbours() -> None:
-    """``is_concept_topic`` gates cross-episode topic identity, which storylines build on."""
-    real = _topic_node("monetary policy")
-    assert is_concept_topic(real) is not None or is_concept_topic(real) in (True, False)
-    # Non-Topic nodes are never concept topics.
-    assert is_concept_topic({"id": "episode:x", "type": "Episode", "properties": {}}) is False
 
 
 def test_cooccurrence_BYPASSES_the_filler_filter_and_pairs_fabricated_topics() -> None:

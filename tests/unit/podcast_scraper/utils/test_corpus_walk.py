@@ -14,8 +14,6 @@ from typing import List
 
 import pytest
 
-from podcast_scraper.gi.explore import scan_artifact_paths
-from podcast_scraper.kg.corpus import scan_kg_artifact_paths
 from podcast_scraper.utils.corpus_walk import (
     corpus_files_with_suffixes,
     corpus_rglob,
@@ -95,12 +93,6 @@ def test_prune_excluded_dirs_keeps_the_walk_out() -> None:
     assert dirnames == ["feeds", "run_1"]
 
 
-def test_the_gi_and_kg_scanners_ignore_backups(tmp_path: Path) -> None:
-    _corpus(tmp_path)
-    assert _rels(tmp_path, scan_artifact_paths(tmp_path)) == {f"{LIVE}.gi.json"}
-    assert _rels(tmp_path, scan_kg_artifact_paths(tmp_path)) == {f"{LIVE}.kg.json"}
-
-
 # The guard. A recursive scan written as ``root.rglob(...)`` walks straight into the backups; it
 # happened in `upgrade verify` (2026-10-03, fixed alone) and then in ~30 other places. New corpus
 # scanners use corpus_rglob; anything that walks a NON-corpus tree is named here with its reason.
@@ -153,10 +145,11 @@ def test_no_corpus_scanner_walks_without_the_exclusion_rule() -> None:
             continue
         source = path.read_text(encoding="utf-8")
         walks = _raw_walks(ast.parse(source))
-        # An os.walk that prunes with the rule is fine; nothing else is.
+        # An os.walk that prunes with the corpus rule (dot-directories, and sources/ at the root)
+        # is fine; nothing else is.
         lines = source.splitlines()
         for n in walks:
-            if "os.walk" in lines[n - 1] and "prune_excluded_dirs" in source:
+            if "os.walk" in lines[n - 1] and "prune_corpus_dirs" in source:
                 continue
             offenders.append(f"{rel}:{n}: {lines[n - 1].strip()}")
-    assert not offenders, "use corpus_rglob / prune_excluded_dirs:\n" + "\n".join(offenders)
+    assert not offenders, "use corpus_rglob / prune_corpus_dirs:\n" + "\n".join(offenders)

@@ -35,34 +35,6 @@ def _corpus(root: Path, mtime: float) -> None:
     os.utime(stamp, (mtime, mtime))
 
 
-class TestTheCilEntityMapFollowsTheCorpus:
-    def test_a_changed_corpus_yields_a_fresh_map(self, tmp_path: Path) -> None:
-        from podcast_scraper.insight_stage import cil_queries
-
-        cil_queries._cil_id_maps.clear()
-        _corpus(tmp_path, 1000.0)
-        cil_queries._cil_entity_id_map(str(tmp_path))
-        first_keys = set(cil_queries._cil_id_maps)
-        assert first_keys, "the first call must cache something"
-
-        _corpus(tmp_path, 2000.0)
-        cil_queries._cil_entity_id_map(str(tmp_path))
-        assert (
-            set(cil_queries._cil_id_maps) != first_keys
-        ), "the cache key must carry the corpus token, so a migration invalidates it"
-
-    def test_an_unchanged_corpus_is_served_from_cache(self, tmp_path: Path) -> None:
-        # The cache must still BE a cache — this is a hot serving path.
-        from podcast_scraper.insight_stage import cil_queries
-
-        cil_queries._cil_id_maps.clear()
-        _corpus(tmp_path, 1000.0)
-        cil_queries._cil_entity_id_map(str(tmp_path))
-        n = len(cil_queries._cil_id_maps)
-        cil_queries._cil_entity_id_map(str(tmp_path))
-        assert len(cil_queries._cil_id_maps) == n, "a second call on an unchanged corpus adds none"
-
-
 class TestTheCorpusGraphFollowsTheCorpus:
     def test_a_changed_corpus_yields_a_fresh_graph(self, tmp_path: Path) -> None:
         from podcast_scraper.search import corpus_graph

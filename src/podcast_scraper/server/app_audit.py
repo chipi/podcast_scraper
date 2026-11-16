@@ -19,7 +19,7 @@ from typing import Any
 
 from sqlalchemy import exc as sa_exc, select
 
-from podcast_scraper.db import database_available, read_with_retry, rw_engine
+from podcast_scraper.db import database_available, read_connection, read_with_retry, rw_engine
 from podcast_scraper.db.schema import audit_log
 from podcast_scraper.utils.privileges import match_data_owner
 
@@ -58,7 +58,7 @@ def read_audit(audit_path: Path | None) -> list[dict[str, Any]]:
     if database_available():
 
         def read(engine: Any) -> list[dict[str, Any]]:
-            with engine.connect() as conn:
+            with read_connection(engine) as conn:
                 rows = conn.execute(select(audit_log.c.record).order_by(audit_log.c.id)).scalars()
                 return [r for r in rows if isinstance(r, dict)]
 

@@ -154,7 +154,7 @@ def _bundled_gil_json(text: str) -> Optional[str]:
     return None
 
 
-# The ADR-110/135 speaker-resolution prompt (build_resolution_prompt) is distinct from the older
+# The speaker-resolution prompt (build_resolution_prompt) is distinct from the older
 # detect_speakers call: it asks the model to match diarized SPEAKER_NN voices to the episode's
 # metadata names and return {"voices": {"SPEAKER_00": {"name": ..., "role": ...}}}. Both mock chat
 # paths (Gemini + OpenAI) must answer it in that shape, or the LLM naming layer is silently inert.
@@ -204,7 +204,7 @@ def _resolution_response_json(prompt: str) -> Optional[str]:
     return json.dumps({"voices": voices})
 
 
-# Transcript naming (providers/ml/diarization/transcript_naming.py): the WHOLE diarized transcript
+# Transcript naming: the WHOLE diarized transcript
 # as "[mm:ss] SPEAKER_NN: text" turns, answered {"voices": {SPEAKER_NN: {name, role, confidence,
 # evidence}}}. Content driven, like the resolution mock: a voice that introduces itself is named,
 # with that sentence as its evidence; "welcome" makes a host, "thanks for having me" a guest, an
@@ -259,7 +259,7 @@ def _naming_response_json(
     return json.dumps({"voices": voices})
 
 
-# Transcript naming inside a bundled call (speaker_stage/bundled_speaker_naming.py): a bundled,
+# Transcript naming inside a bundled call: a bundled,
 # mega- or extraction-bundle prompt that ends its field list with "SPEAKER LABELS TO JUDGE:".
 # Answered with a complete bundle plus "speakers": a label that is a name is that person (host),
 # a raw SPEAKER_xx label is null. Recorded like the standalone naming requests.

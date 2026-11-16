@@ -19,7 +19,6 @@ function noopDeps(overrides: Partial<PaletteCommandDeps> = {}): PaletteCommandDe
     openHealth: vi.fn(),
     rebuildIndex: vi.fn(),
     openTimelineForLastQuery: vi.fn(),
-    openCompareForLastQuery: vi.fn(),
     isAdmin: false,
     ...overrides,
   }
@@ -119,15 +118,13 @@ describe('buildPaletteCommands', () => {
     await byId.get('admin.rebuild-index')!.run()
     expect(deps.rebuildIndex).toHaveBeenCalled()
 
-    // The private Cluster / Consensus operators have no command here (ADR-170).
+    // The downstream Cluster / Consensus / Compare operators have no command here (ADR-170).
     expect(byId.has('operator.cluster-last')).toBe(false)
     expect(byId.has('operator.consensus-last')).toBe(false)
+    expect(byId.has('operator.compare-last')).toBe(false)
 
     await byId.get('operator.timeline-last')!.run()
     expect(deps.openTimelineForLastQuery).toHaveBeenCalled()
-
-    await byId.get('operator.compare-last')!.run()
-    expect(deps.openCompareForLastQuery).toHaveBeenCalled()
   })
 
   it('excludes admin-only commands when isAdmin is false', () => {

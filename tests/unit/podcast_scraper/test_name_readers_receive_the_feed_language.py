@@ -37,12 +37,6 @@ READERS = {
 
 #: (file relative to the package, enclosing function) -> why English alone is right there.
 ENGLISH_BY_DESIGN = {
-    ("builtin_stage_hooks.py", "_split_person_list"): (
-        "splits a person name from the KG model's output, English (D-44)"
-    ),
-    ("gi/pipeline.py", "_label_names_the_show"): (
-        "GI attributes quotes in the English canonical body; the label is already resolved"
-    ),
     ("server/feed_signals.py", "_accumulate_kg_entities"): (
         "KG person nodes, extracted from the English canonical body (D-44)"
     ),

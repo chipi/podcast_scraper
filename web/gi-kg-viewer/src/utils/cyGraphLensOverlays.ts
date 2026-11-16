@@ -24,21 +24,12 @@ import type { Core, EdgeSingular, NodeSingular } from 'cytoscape'
 /** Class names + edge type tags — kept in constants so the           */
 /** stylesheet + the apply functions share one source of truth.       */
 /** ---------------------------------------------------------------- */
-export const CREDIBILITY_CLASSES = ['credibility-high', 'credibility-med', 'credibility-low'] as const
 export const COGUEST_EDGE_CLASS = 'lens-coguest-edge'
 export const COGUEST_EDGE_TYPE = '_lens_coguest'
 
 /** ---------------------------------------------------------------- */
 /** Envelope shapes — narrow subsets so callers can type payloads.   */
 /** ---------------------------------------------------------------- */
-
-export interface GroundingPersonRow {
-  person_id?: string
-  rate?: number
-}
-export interface GroundingEnvelopeData {
-  persons?: GroundingPersonRow[]
-}
 
 export interface CoGuestPairRow {
   person_a_id?: string
@@ -90,44 +81,6 @@ export function findNodeByBareId(core: Core, bareId: string): NodeSingular | nul
     if (bareSuffix(String(n.id())) === wanted) found = n as NodeSingular
   })
   return found
-}
-
-/** ---------------------------------------------------------------- */
-/** Tier 5C-2 — Person credibility border (grounding_rate enricher). */
-/** ---------------------------------------------------------------- */
-
-/** Rate ≥ 0.7 → high (solid green); ≥ 0.4 → med (solid amber); < 0.4
- *  → low (dashed red). Absent rate → no class (default node border). */
-function credibilityClass(rate: number): (typeof CREDIBILITY_CLASSES)[number] | null {
-  if (!Number.isFinite(rate)) return null
-  if (rate >= 0.7) return 'credibility-high'
-  if (rate >= 0.4) return 'credibility-med'
-  return 'credibility-low'
-}
-
-export function applyCredibilityBorder(
-  core: Core,
-  envelope: GroundingEnvelopeData | null | undefined,
-): void {
-  clearCredibilityBorder(core)
-  if (!envelope?.persons?.length) return
-  core.batch(() => {
-    for (const row of envelope.persons ?? []) {
-      const pid = typeof row?.person_id === 'string' ? row.person_id.trim() : ''
-      const rate = typeof row?.rate === 'number' ? row.rate : NaN
-      const cls = credibilityClass(rate)
-      if (!pid || !cls) continue
-      const node = findNodeByBareId(core, pid)
-      if (!node || node.empty()) continue
-      node.addClass(cls)
-    }
-  })
-}
-
-export function clearCredibilityBorder(core: Core): void {
-  core.batch(() => {
-    for (const c of CREDIBILITY_CLASSES) core.nodes().removeClass(c)
-  })
 }
 
 /** ---------------------------------------------------------------- */

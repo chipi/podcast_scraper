@@ -9,9 +9,10 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Collection, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
+from podcast_scraper.content_types import asks_other_types, is_wanted, PODCAST_ONLY
 from podcast_scraper.languages import (
     episode_is_unusable,
     episode_language as _episode_language,
@@ -23,6 +24,7 @@ from podcast_scraper.search.corpus_scope import (
     feed_dir_and_run_segment_from_relpath,
     normalize_feed_id,
     run_recency_epoch,
+    source_dir_and_run_segment_from_relpath,
 )
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (
@@ -357,15 +359,18 @@ class CatalogEpisodeRow:
         return (1, 0, self.metadata_relative_path)
 
 
-def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
-    """Scan corpus for ``*.metadata.*`` and build catalog rows."""
+def build_catalog_rows(
+    corpus_root: Path, *, content_types: Collection[str] = PODCAST_ONLY
+) -> list[CatalogEpisodeRow]:
+    """Scan corpus for ``*.metadata.*`` and build catalog rows (podcast episodes unless
+    ``content_types`` asks for others, ADR-177)."""
     root = safe_resolve_directory(corpus_root)
     if root is None:
         return []
     root_s = os.path.normpath(str(root))
     safe_prefix = root_s + os.sep
     rows: list[CatalogEpisodeRow] = []
-    for meta_path in discover_metadata_files(root):
+    for meta_path in discover_metadata_files(root, include_sources=asks_other_types(content_types)):
         try:
             rel = meta_path.relative_to(root).as_posix()
         except ValueError:
@@ -394,7 +399,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         # three readers, all of them filters, so after this an unusable episode is absent from the
         # audit's denominator as well — correct for a coverage metric, and still no surface an
         # operator can ask "what did the pipeline fail to finish".
-        if episode_is_unusable(doc):
+        if episode_is_unusable(doc) or not is_wanted(doc, content_types):
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
         feed_id = fid_norm or ""
@@ -469,7 +474,9 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
     return rows
 
 
-def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
+def build_catalog_rows_cumulative(
+    corpus_root: Path, *, content_types: Collection[str] = PODCAST_ONLY
+) -> list[CatalogEpisodeRow]:
     """Cumulative-unique catalog rows across ALL runs (v2.6.1 hotfix #818/#820/#821).
 
     Differs from :func:`build_catalog_rows`:
@@ -493,7 +500,9 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
     # Build rows for ALL files, then dedupe by (feed_id, episode_id) keeping
     # the row whose metadata_relative_path has the greatest run segment.
     all_rows: list[CatalogEpisodeRow] = []
-    for meta_path in discover_all_metadata_files(root):
+    for meta_path in discover_all_metadata_files(
+        root, include_sources=asks_other_types(content_types)
+    ):
         try:
             rel = meta_path.relative_to(root).as_posix()
         except ValueError:
@@ -503,7 +512,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
             continue
         # D-44 point 2, same rule as `build_catalog_rows`: an episode the pipeline could not
         # complete appears NOWHERE — including the operator library and stats this builder feeds.
-        if episode_is_unusable(doc):
+        if episode_is_unusable(doc) or not is_wanted(doc, content_types):
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
         feed_id = fid_norm or ""
@@ -583,6 +592,8 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
     def _recency(row: CatalogEpisodeRow) -> tuple[float, str, str]:
         rel = row.metadata_relative_path
         _fd, run_seg = feed_dir_and_run_segment_from_relpath(rel)
+        if run_seg is None:
+            _sd, run_seg = source_dir_and_run_segment_from_relpath(rel)
         return (run_recency_epoch(root / rel, run_seg or ""), run_seg or "", rel)
 
     deduped: dict[tuple[str, Optional[str]], CatalogEpisodeRow] = {}
@@ -598,7 +609,10 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
 
 
 def catalog_row_for_metadata_path(
-    corpus_root: Path, metadata_relative_path: str
+    corpus_root: Path,
+    metadata_relative_path: str,
+    *,
+    content_types: Collection[str] = PODCAST_ONLY,
 ) -> Optional[CatalogEpisodeRow]:
     """Build a single catalog row from a metadata relative path (no full corpus scan)."""
     root = corpus_root.resolve()
@@ -619,7 +633,7 @@ def catalog_row_for_metadata_path(
     # D-44 point 2, same rule as the two scanning builders. This one is reached by the MCP
     # catalog/GI tools and the capability audit, where an unusable episode showing up as a row
     # with empty fields is exactly the "shows up empty instead of not at all" failure.
-    if episode_is_unusable(doc):
+    if episode_is_unusable(doc) or not is_wanted(doc, content_types):
         return None
     fid_norm, eid = _feed_and_episode_ids(doc)
     feed_id = fid_norm or ""
@@ -948,8 +962,9 @@ def filter_rows(
     since: Optional[str] = None,
     until: Optional[str] = None,
     has_gi: Optional[bool] = None,
+    has_kg: Optional[bool] = None,
 ) -> list[CatalogEpisodeRow]:
-    """Filter catalog rows by feed id, title/topic substrings, publish date range, GI presence."""
+    """Filter catalog rows by feed id, title/topic substrings, publish date range, GI/KG."""
     out = rows
     if feed_id is not None:
         want = str(feed_id).strip()
@@ -997,6 +1012,10 @@ def filter_rows(
         out = [r for r in out if r.has_gi]
     elif has_gi is False:
         out = [r for r in out if not r.has_gi]
+    if has_kg is True:
+        out = [r for r in out if r.has_kg]
+    elif has_kg is False:
+        out = [r for r in out if not r.has_kg]
     return out
 
 

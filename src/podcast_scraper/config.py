@@ -16,11 +16,23 @@ from urllib.parse import urlparse
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+    PrivateAttr,
+)
 
 from . import config_constants
 from .languages import normalize_language_tag
-from .rss.feeds_spec import append_normalized_feed_items, RssFeedEntry
+from .rss.feeds_spec import (
+    append_normalized_feed_items,
+    RSS_FEED_ENTRY_IDENTITY_KEYS,
+    RssFeedEntry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -510,6 +522,92 @@ def _expand_env_in_string(value: str) -> str:
     return _ENV_VAR_PATTERN.sub(_replace, value)
 
 
+def _field_keys(fields: Dict[str, Any]) -> Dict[str, str]:
+    """Every key a model accepts (name, alias, validation aliases) -> its field name."""
+    keys: Dict[str, str] = {}
+    for name, info in fields.items():
+        keys[name] = name
+        if isinstance(info.alias, str):
+            keys[info.alias] = name
+        va = info.validation_alias
+        if isinstance(va, str):
+            keys[va] = name
+        else:
+            for choice in getattr(va, "choices", None) or ():
+                if isinstance(choice, str):
+                    keys[choice] = name
+    return keys
+
+
+def public_config_keys() -> Dict[str, str]:
+    """Every key :class:`Config` itself accepts -> its field name."""
+    return _field_keys(dict(Config.model_fields))
+
+
+def extension_config_keys() -> Dict[str, str]:
+    """Every key an installed extension's settings model accepts -> that extension's name."""
+    from .extensions import extension_config_models
+
+    owners: Dict[str, str] = {}
+    for name, model in extension_config_models():
+        for key in _field_keys(dict(model.model_fields)):
+            owners[key] = name
+    return owners
+
+
+def config_fields() -> Dict[str, Any]:
+    """Every configuration field, public and installed extensions', by name (``FieldInfo``).
+
+    What reads a configuration's keys (profile layers, a config file, a pin's declared keys)
+    uses this rather than ``Config.model_fields``, so an extension's settings are keys too.
+    """
+    from .extensions import extension_config_models
+
+    fields: Dict[str, Any] = {
+        name: info for name, info in Config.model_fields.items() if name != "extension_settings"
+    }
+    for _ext, model in extension_config_models():
+        fields.update(model.model_fields)
+    return fields
+
+
+def config_value(cfg: Any, name: str, default: Any = None) -> Any:
+    """A setting's value by field name, public or an installed extension's, without the
+    moved-read warning (for code that walks every field)."""
+    if name in type(cfg).model_fields:
+        return getattr(cfg, name, default)
+    for ext_cfg in getattr(cfg, "_extension_configs", {}).values():
+        if name in type(ext_cfg).model_fields:
+            return getattr(ext_cfg, name)
+    return default
+
+
+def config_fields_set(cfg: Any) -> set:
+    """The fields set explicitly, public and installed extensions' (what ``model_fields_set``
+    answers for :class:`Config` alone)."""
+    explicit = set(getattr(cfg, "model_fields_set", set())) - {"extension_settings"}
+    for ext_cfg in getattr(cfg, "_extension_configs", {}).values():
+        explicit |= set(ext_cfg.model_fields_set)
+    return explicit
+
+
+_warned_moved_reads: set = set()
+
+
+def _warn_moved_read_once(field_name: str, extension: str) -> None:
+    """A moved setting read as ``cfg.<name>``: still answered, warned about once (ADR-182)."""
+    if field_name in _warned_moved_reads:
+        return
+    _warned_moved_reads.add(field_name)
+    logging.getLogger(__name__).warning(
+        "cfg.%s is the %s extension's setting: read it as cfg.extension(%r).%s",
+        field_name,
+        extension,
+        extension,
+        field_name,
+    )
+
+
 def resolve_profile_layers(
     profile_name: str, *, dgx_tailnet_host: Any = None
 ) -> Tuple[Dict[str, Any], bool]:
@@ -528,7 +626,7 @@ def resolve_profile_layers(
         from podcast_scraper.providers.ml.model_registry import resolve_profile_to_settings
 
         raw = resolve_profile_to_settings(profile_name, dgx_tailnet_host=dgx_tailnet_host)
-        config_field_names = set(Config.model_fields.keys())
+        config_field_names = set(config_fields())
         registry_settings = {
             k: v for k, v in raw.items() if not k.startswith("_") and k in config_field_names
         }
@@ -793,6 +891,16 @@ class Config(BaseModel):
             "``run_pipeline`` defaults to ``<effective_output_dir>/corpus_incidents.jsonl``. "
             "Multi-feed ``service.run`` sets this to the corpus parent so all feeds append to "
             "one log."
+        ),
+    )
+    transcription_park_after_failures: int = Field(
+        default=2,
+        ge=0,
+        description=(
+            "Park an episode after this many counted transcription failures, so later batches "
+            "skip it until it is released by hand (``parked-episodes --release``). A failure "
+            "counts once per multi-feed batch, and only when another episode in the batch "
+            "transcribed. 0 turns parking off."
         ),
     )
     output_dir: Optional[str] = Field(
@@ -1160,15 +1268,6 @@ class Config(BaseModel):
         alias="hf_token",
         description="HuggingFace token for pyannote models (prefer HF_TOKEN env var)",
     )
-    labeling_profile: str = Field(
-        default="naming-4",
-        alias="labeling_profile",
-        description=(
-            "Versioned labeling profile ID (ADR-140) — the knob-bundle + per-fix feature flags "
-            "that drive speaker naming/classification. 'naming-4' is production; 'naming-3-legacy' "
-            "turns the ADR-139 fixes + Pattern-B off for A/B. Recorded in the per-episode sidecar."
-        ),
-    )
     diarization_num_speakers: Optional[int] = Field(
         default=None,
         alias="diarization_num_speakers",
@@ -1184,21 +1283,12 @@ class Config(BaseModel):
         alias="diarization_max_speakers",
         description="Maximum speakers when auto-detecting diarization count",
     )
-    diarization_clustering_threshold: Optional[float] = Field(
-        default=None,
-        alias="diarization_clustering_threshold",
-        description=(
-            "pyannote clustering threshold override (None = the model default). Higher merges "
-            "more agglomerative clusters → FEWER speakers, curbing over-segmentation on noisy / "
-            "montage podcast audio; lower splits more. Tune via the diarization eval harness."
-        ),
-    )
     transcript_naming: Literal["off", "shadow", "publish"] = Field(
         default="off",
         alias="transcript_naming",
         description=(
-            "Transcript naming: the LLM reads the WHOLE diarized transcript and names every voice "
-            "(providers/ml/diarization/transcript_naming.py). 'off'; 'shadow' = the ladder "
+            "Transcript naming: the LLM reads the WHOLE diarized transcript and names every voice. "
+            "'off'; 'shadow' = the ladder "
             "publishes and the model's answer is written beside it in the speaker-diagnostics "
             "sidecar (key `transcript_naming`) for comparison; 'publish' = a voice the model calls "
             "host or guest takes that name, every other voice is unnamed, and the ladder's names "
@@ -1214,7 +1304,7 @@ class Config(BaseModel):
         description=(
             "Before naming, two diarized voices of one episode whose fingerprints are at least "
             "merge_split_voices_threshold similar are merged into the one that talks more (one "
-            "person split by the diarizer; providers/ml/diarization/split_voices.py). Needs a "
+            "person split by the diarizer). Needs a "
             "diarizer that returns fingerprints. Off by default."
         ),
     )
@@ -1225,23 +1315,11 @@ class Config(BaseModel):
         alias="merge_split_voices_threshold",
         description="Cosine similarity at which two voices of one episode are one person.",
     )
-    speaker_naming_passes: int = Field(
-        default=1,
-        ge=1,
-        le=5,
-        alias="speaker_naming_passes",
-        description=(
-            "How many times each naming LLM call is asked: the ladder's resolution call and "
-            "transcript naming. With more than one, a voice keeps a name only when every pass "
-            "gave it the same one (vLLM is not deterministic even at temperature 0). 1 = one "
-            "call, as before; each extra pass costs one more call of each."
-        ),
-    )
     ladder_rescue_rules: bool = Field(
         default=False,
         alias="ladder_rescue_rules",
         description=(
-            "Two rescues right after the ladder (providers/ml/diarization/ladder_rescues.py): a "
+            "Two rescues right after the ladder: a "
             "split host's unnamed half named as the host (S30s), and an unnamed voice given the "
             "LLM's third-person-refused name when the conversation introduces it to that voice "
             "(E1d). Measured held out: 9 fires, 8 right. Off by default."
@@ -1259,13 +1337,6 @@ class Config(BaseModel):
             "'publish' = the rung changes the roster. Off by default."
         ),
     )
-    voice_identity_threshold: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=1.0,
-        alias="voice_identity_threshold",
-        description="Cosine similarity a voice needs to its feed group (0.7 as measured).",
-    )
     speaker_name_min_talk_share: float = Field(
         default=0.0,
         ge=0.0,
@@ -1275,17 +1346,6 @@ class Config(BaseModel):
             "Talk floor: take the name off any voice holding less than this share of the "
             "episode's talk (a name on a voice that barely speaks is, as measured, almost always "
             "on an ad, a promo or a clip). 0 = off; 0.05 as measured."
-        ),
-    )
-    diarization_min_cluster_size: Optional[int] = Field(
-        default=None,
-        ge=1,
-        alias="diarization_min_cluster_size",
-        description=(
-            "pyannote clustering min_cluster_size override (None = the model default, ~12). "
-            "Clusters smaller than this are reassigned to the nearest real speaker — raising it "
-            "drops the short (6–30s) over-segmentation FRAGMENTS surgically, without over-merging "
-            "quiet real speakers the way a high clustering_threshold can. Tune via the harness."
         ),
     )
     diarization_min_segment_ms: Optional[int] = Field(
@@ -1484,7 +1544,7 @@ class Config(BaseModel):
         default=True,
         alias="speaker_resolution_llm",
         description=(
-            "ADR-110: after diarization, ask the LLM which STATED name each voice is, using that "
+            "After diarization, ask the LLM which STATED name each voice is, using that "
             "voice's own words plus the retrieved passages where the name is spoken. Speaker "
             "detection runs before the audio is even downloaded, so it can only answer from show "
             "notes -- which name the people an episode is ABOUT as readily as the people in the "
@@ -1579,29 +1639,6 @@ class Config(BaseModel):
             "off or empty it is a no-op (the raw transcription_coverage_min gate applies instead). "
             "0.0 = off; a reprocess sets ~0.85. Preferred over transcription_coverage_min when "
             "diarization runs (they should not both be active)."
-        ),
-    )
-    transcription_recover_untranscribed_speech: bool = Field(
-        default=True,
-        alias="transcription_recover_untranscribed_speech",
-        description=(
-            "#2187 A2 -- when diarization hears speech the transcript has no words for (3 s or "
-            "more), cut that stretch from the audio, transcribe it again with the same provider "
-            "and language, and splice what it says into the transcript as segments tagged "
-            "recovered. One extra ASR call per stretch. False = detect and record the stretches "
-            "only (untranscribed_speech in .asr.json), never re-transcribe."
-        ),
-    )
-    transcription_recover_silent_gaps: bool = Field(
-        default=True,
-        alias="transcription_recover_silent_gaps",
-        description=(
-            "#2187 -- with transcription_recover_untranscribed_speech, also re-transcribe every "
-            "gap of 3 s or more between transcript segments that the diarizer heard no voice in "
-            "(a voice over a music bed: intros, headlines, sign-offs), keeping a gap's text only "
-            "when it holds 3+ words that are not fillers (asr_silent_gap_recovery in .asr.json). "
-            "One extra ASR call per such gap. Measured on 24 reference episodes: main-voice "
-            "adjusted errors 2861 -> 2761, no episode of the 6 English worse."
         ),
     )
     transcription_repair_unpunctuated_windows: bool = Field(
@@ -1914,16 +1951,6 @@ class Config(BaseModel):
             "audio length via ``dgx_diarize_timeout_per_audio_minute_sec``."
         ),
     )
-    dgx_diarize_timeout_per_audio_minute_sec: float = Field(
-        default=6.0,
-        ge=0,
-        alias="dgx_diarize_timeout_per_audio_minute_sec",
-        description=(
-            "Seconds of DGX diarize timeout budget added per minute of audio, on top of "
-            "``dgx_diarize_request_timeout_sec``. Lets diarization wait out brief GPU "
-            "contention before failing over to in-process pyannote. 0 disables scaling."
-        ),
-    )
     transcription_parallelism: int = Field(
         default=1,
         alias="transcription_parallelism",
@@ -2164,11 +2191,6 @@ class Config(BaseModel):
         alias="openai_speaker_user_prompt",
         description="User prompt name for speaker detection/NER. "
         "Uses prompt_store  for versioned prompts.",
-    )
-    ner_prompt_params: Dict[str, Any] = Field(
-        default_factory=dict,
-        alias="ner_prompt_params",
-        description="Template parameters for NER prompts (passed to Jinja2 templates).",
     )
 
     # --- vLLM provider (ADR-147) --------------------------------------------------------------
@@ -2914,20 +2936,6 @@ class Config(BaseModel):
         alias="gemini_summary_user_prompt",
         description="Gemini user prompt for summarization. Uses prompt_store.",
     )
-    gemini_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="gemini_speaker_system_prompt",
-        description=(
-            "Gemini system prompt for speaker detection (default: gemini/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    gemini_speaker_user_prompt: str = Field(
-        default="gemini/ner/guest_host_v1",
-        alias="gemini_speaker_user_prompt",
-        description="Gemini user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     gemini_retry_max_retries: int = Field(
         default=6,
         alias="gemini_retry_max_retries",
@@ -3015,20 +3023,6 @@ class Config(BaseModel):
         alias="anthropic_summary_user_prompt",
         description="Anthropic user prompt for summarization. Uses prompt_store.",
     )
-    anthropic_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="anthropic_speaker_system_prompt",
-        description=(
-            "Anthropic system prompt for speaker detection (default: anthropic/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    anthropic_speaker_user_prompt: str = Field(
-        default="anthropic/ner/guest_host_v1",
-        alias="anthropic_speaker_user_prompt",
-        description="Anthropic user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     # Ollama API configuration (Issue #196)
     ollama_api_base: Optional[str] = Field(
         default=None,
@@ -3104,20 +3098,6 @@ class Config(BaseModel):
         description="Timeout in seconds for Ollama API calls (local inference can be slow)",
     )
     # Ollama Prompt Configuration (following OpenAI pattern)
-    ollama_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="ollama_speaker_system_prompt",
-        description=(
-            "Ollama system prompt for speaker detection (default: ollama/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    ollama_speaker_user_prompt: str = Field(
-        default="ollama/ner/guest_host_v1",
-        alias="ollama_speaker_user_prompt",
-        description="Ollama user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     ollama_summary_system_prompt: str = Field(
         default="ollama/summarization/system_bullets_v1",
         alias="ollama_summary_system_prompt",
@@ -3285,20 +3265,6 @@ class Config(BaseModel):
         alias="grok_summary_user_prompt",
         description="Grok user prompt for summarization. Uses prompt_store.",
     )
-    grok_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="grok_speaker_system_prompt",
-        description=(
-            "Grok system prompt for speaker detection (default: grok/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    grok_speaker_user_prompt: str = Field(
-        default="grok/ner/guest_host_v1",
-        alias="grok_speaker_user_prompt",
-        description="Grok user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     # Mistral API configuration (Issue #106)
     mistral_api_key: Optional[str] = Field(
         default=None,
@@ -3378,20 +3344,6 @@ class Config(BaseModel):
         description="Max tokens for Mistral generation (None = model default)",
     )
     # Mistral Prompt Configuration (following OpenAI pattern)
-    mistral_speaker_system_prompt: Optional[str] = Field(
-        default=None,
-        alias="mistral_speaker_system_prompt",
-        description=(
-            "Mistral system prompt for speaker detection (default: mistral/ner/system_ner_v1). "
-            "Uses prompt_store  for versioned prompts."
-        ),
-    )
-    mistral_speaker_user_prompt: str = Field(
-        default="mistral/ner/guest_host_v1",
-        alias="mistral_speaker_user_prompt",
-        description="Mistral user prompt for speaker detection. "
-        "Uses prompt_store  for versioned prompts.",
-    )
     mistral_summary_system_prompt: str = Field(
         default="mistral/summarization/system_bullets_v1",
         alias="mistral_summary_system_prompt",
@@ -3436,11 +3388,6 @@ class Config(BaseModel):
         default=config_constants.DEFAULT_EMBEDDING_MODEL,
         alias="embedding_model",
         description="Model for sentence embeddings (GIL grounding). Alias or full HF ID.",
-    )
-    embedding_device: Optional[str] = Field(
-        default=None,
-        alias="embedding_device",
-        description="Device for embedding model (cpu, cuda, mps, or None for auto).",
     )
     extractive_qa_model: str = Field(
         default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
@@ -3532,17 +3479,6 @@ class Config(BaseModel):
             "controlled by ``gil_evidence_nli_chunk_size``) when the provider implements "
             "``score_entailment_bundled``. Per-pair fallback runs for any pair the bundled "
             "call doesn't return a usable score for."
-        ),
-    )
-    gil_evidence_nli_chunk_size: int = Field(
-        default=15,
-        ge=1,
-        le=100,
-        alias="gil_evidence_nli_chunk_size",
-        description=(
-            "Pairs per bundled NLI call when ``gil_evidence_nli_mode='bundled'``. Tuning "
-            "lever between call count (lower = more calls, smaller prompts) and prompt "
-            "size (higher = fewer calls, longer prompts; risk of token-budget pressure)."
         ),
     )
     gil_evidence_quote_bundle_chunk: int = Field(
@@ -3791,7 +3727,7 @@ class Config(BaseModel):
         le=100,
         alias="gi_surface_default_limit",
         description=(
-            "ADR-135/#1191 §6: the shared read-time default for how many insights a surface shows "
+            "The shared read-time default for how many insights a surface shows "
             "before 'show more'. Consumers sort by `salience` desc, exclude `routing_tag=drop`, "
             "and cap at this N (per topic for player/viewer lists; per episode on the detail "
             "view). Per-surface overrides: player 6 (surface-tagged only), operator viewer 12 (all "
@@ -3799,30 +3735,11 @@ class Config(BaseModel):
             "hard cap). This is the SSOT the surfaces read once wired — until then it is inert."
         ),
     )
-    bare_name_heal: bool = Field(
-        default=True,
-        alias="bare_name_heal",
-        description=(
-            "#1685. When a single-token person name (`person:jensen`) has EXACTLY ONE full-name "
-            "candidate among that episode's people, mint the full id instead — `person:alex` "
-            "with `person:alex-mayassi` in the same episode becomes the latter. All other bare "
-            "names (no candidate, or two or more) are episode-scoped regardless of this flag. "
-            "\n\n"
-            "Set False to scope EVERYTHING, which is the strictly safer setting. The two "
-            "branches carry asymmetric risk: a wrong scoping is cheap and reversible, while a "
-            "wrong heal writes a real person's id onto someone else's content — a new pooled "
-            "node on a high-traffic id, worse than the problem being fixed. The measurement "
-            "behind this can prove a bare name is RESOLVABLE; it cannot prove the resolution is "
-            "CORRECT. Production: 12 of 208 occurrences are resolvable, so the flag governs ~6% "
-            "of cases and the prevention half is unaffected."
-        ),
-    )
     gi_typed_mentions_use_ner: bool = Field(
         default=False,
         alias="gi_typed_mentions_use_ner",
         description=(
-            "#1076 chunk 4-A. When True, the typed-MENTIONS post-pass "
-            "(gi/relational_edges.py::add_insight_entity_edges) augments "
+            "#1076 chunk 4-A. When True, the typed-MENTIONS post-pass augments "
             "the literal whole-word regex match with a spaCy NER pass. "
             "Catches BART-paraphrased name fragments under airgapped_thin: "
             "if the KG carries 'Maya Hutchinson' but the GI Insight text "
@@ -3838,7 +3755,6 @@ class Config(BaseModel):
         alias="kg_organizations_use_ner",
         description=(
             "#1058 chunk 1. When True, a KG post-pass "
-            "(kg/ner_postpass.py::apply_org_postpass_to_kg_artifact) "
             "runs spaCy NER over the GI Insight texts and adds "
             "Organization nodes for every distinct ORG span. Closes "
             "the airgapped capability gap where the no-LLM summary "
@@ -3855,7 +3771,6 @@ class Config(BaseModel):
         alias="kg_topic_corpus_clustering",
         description=(
             "#1058 chunk 3. When True, a corpus-level post-pass "
-            "(kg/topic_clustering.py::cluster_and_apply_corpus_topics) "
             "clusters per-episode Topic labels across the corpus via "
             "sentence-transformers cosine similarity and emits a "
             "synthetic concept-Topic node + RELATED_TO edges from each "
@@ -3914,13 +3829,14 @@ class Config(BaseModel):
         description=(
             "Minimum mean cosine similarity for merging topic clusters. "
             "0.70 measured on the REAL corpus, twice and "
-            "independently: RFC-075's production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
+            "independently: the production sweep (1,178 topics, 2026-04) and a ~9.5k-topic "
             "sweep on the 1,066-episode corpus (2026-09-02; the exact topic count is "
             "quoted inconsistently across this work and is approximate). "
             "The previous 0.75 came from v2 FIXTURES "
             "(tier-1 tuning, 6 clusters) and did not survive contact "
             "with a real corpus: at 0.75 the live corpus sat at 85.7% singletons against the 69% "
-            "RFC-075 measured at 0.70 on a corpus 8x smaller, and 38.6% of surviving clusters had "
+            "the production sweep measured at 0.70 on a corpus 8x smaller, and 38.6% of surviving "
+            "clusters had "
             "merged within 0.03 of the threshold — mass piled against the wall. 0.75 -> 0.70 "
             "roughly doubles CROSS-FEED clusters (275 -> 461) while intra-episode merges stay a "
             "minority (17% -> 22% of clusters). Scored on cross-feed reach, not cluster count: "
@@ -3935,8 +3851,8 @@ class Config(BaseModel):
         le=1.0,
         alias="insight_cluster_threshold",
         description=(
-            "Minimum mean cosine similarity for merging insight clusters in "
-            "``insight_stage/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
+            "Minimum mean cosine similarity for merging insight clusters "
+            "in the insight-clustering stage. Defaults to 0.75 to match the topic-cluster "
             "default; conceptually independent and may be tuned separately when "
             "insight-side autoresearch motivates it."
         ),
@@ -4827,8 +4743,118 @@ class Config(BaseModel):
             "scope made explicit in name)."
         ),
     )
+    #: The installed extensions' own settings as they arrived, by extension name (ADR-182).
+    #: Read them as ``cfg.extension(name)``; ``model_dump`` writes them back flat.
+    extension_settings: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, exclude=True, repr=False
+    )
+    _extension_configs: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
+
+    # Defined FIRST so it runs LAST of the ``before`` validators (pydantic runs them in reverse
+    # definition order): the profile layers have merged their keys in by then.
+    @model_validator(mode="before")
+    @classmethod
+    def _route_extension_settings(cls, data: Any) -> Any:
+        """Hand each installed extension the keys its settings model declares (ADR-182).
+
+        A key that neither this model nor an installed extension declares is refused, naming
+        the installed extensions, so a key written for an extension fails loudly without it.
+        """
+        if not isinstance(data, dict):
+            return data
+        owners = extension_config_keys()
+        if not owners and "extension_settings" not in data:
+            return data
+        data = dict(data)
+        routed: Dict[str, Dict[str, Any]] = {
+            name: dict(values)
+            for name, values in (data.pop("extension_settings", None) or {}).items()
+        }
+        public = public_config_keys()
+        for key in list(data):
+            if key in owners and key not in public:
+                routed.setdefault(owners[key], {})[key] = data.pop(key)
+        unknown = sorted(key for key in data if key not in public)
+        if unknown:
+            installed = sorted({name for name in owners.values()}) or ["none that declare settings"]
+            raise ValueError(
+                f"unknown configuration keys {unknown}: neither podcast_scraper nor an installed "
+                f"extension ({', '.join(installed)}) declares them"
+            )
+        if routed:
+            data["extension_settings"] = routed
+        return data
+
+    @model_validator(mode="after")
+    def _build_extension_configs(self) -> "Config":
+        """Validate each installed extension's settings into its model (defaults if none)."""
+        from .extensions import extension_config_models
+
+        configs: Dict[str, Any] = {}
+        for name, model in extension_config_models():
+            configs[name] = model.model_validate(self.extension_settings.get(name, {}))
+        self._extension_configs = configs
+        return self
+
+    def extension(self, name: str) -> Any:
+        """The installed extension ``name``'s settings model (ADR-182)."""
+        try:
+            return self._extension_configs[name]
+        except KeyError:
+            raise LookupError(
+                f"no installed extension {name!r} declares settings; installed: "
+                f"{sorted(self._extension_configs) or 'none'}"
+            ) from None
+
+    def __getattr__(self, item: str) -> Any:
+        try:
+            return super().__getattr__(item)  # type: ignore[misc]
+        except AttributeError:
+            private = object.__getattribute__(self, "__pydantic_private__") or {}
+            for name, ext_cfg in (private.get("_extension_configs") or {}).items():
+                if item in type(ext_cfg).model_fields:
+                    _warn_moved_read_once(item, name)
+                    return getattr(ext_cfg, item)
+            raise
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
+        """The flat configuration, the installed extensions' settings included (ADR-182)."""
+        out = super().model_dump(**kwargs)
+        passthrough = {
+            k: v
+            for k, v in kwargs.items()
+            if k in ("mode", "by_alias", "exclude_unset", "exclude_defaults", "exclude_none")
+        }
+        include, exclude = kwargs.get("include"), kwargs.get("exclude")
+        for ext_cfg in self._extension_configs.values():
+            for key, value in ext_cfg.model_dump(**passthrough).items():
+                if include is not None and key not in include:
+                    continue
+                if exclude is not None and key in exclude:
+                    continue
+                out[key] = value
+        return out
+
+    def model_copy(  # type: ignore[override]
+        self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+    ) -> "Config":
+        """A copy; ``update`` keys an installed extension declares update its settings."""
+        owners = extension_config_keys()
+        ext_updates = {k: v for k, v in (update or {}).items() if k in owners}
+        rest = {k: v for k, v in (update or {}).items() if k not in ext_updates}
+        new = super().model_copy(update=rest or None, deep=deep)
+        if ext_updates:
+            configs = dict(new._extension_configs)
+            settings = {name: dict(v) for name, v in new.extension_settings.items()}
+            for key, value in ext_updates.items():
+                name = owners[key]
+                configs[name] = configs[name].model_copy(update={key: value})
+                settings.setdefault(name, {})[key] = value
+            new._extension_configs = configs
+            new.__dict__["extension_settings"] = settings
+        return new
 
     @model_validator(mode="before")
     @classmethod
@@ -5043,6 +5069,10 @@ class Config(BaseModel):
                 d["rss"] = url
                 d.pop("feeds", None)
                 d.pop("rss_urls", None)
+                if isinstance(one, dict) and any(one.get(k) for k in RSS_FEED_ENTRY_IDENTITY_KEYS):
+                    # A single source of another type keeps its entry: its type and transport
+                    # live there, and the dispatch reads them (ADR-177).
+                    d["rss_urls"] = [one]
         return d
 
     @model_validator(mode="before")
@@ -5418,21 +5448,6 @@ class Config(BaseModel):
             raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {value}")
         if not parsed.netloc:
             raise ValueError(f"RSS URL must include a valid hostname: {value}")
-        return value
-
-    @field_validator("labeling_profile", mode="after")
-    @classmethod
-    def _validate_labeling_profile(cls, value: str) -> str:
-        """ADR-140: a labeling profile ID must be registered. A typo ("naming-3-legac") must fail
-        HERE, not silently fall back to naming-4 and mislabel a whole run (F6, advisor review). The
-        profiles are the speaker stage's, so it is the one that checks (E04 S6). Lazy import —
-        config is imported by the diarization package, so a top-level import would cycle.
-        """
-        if not value:
-            return value
-        from podcast_scraper import stage_hooks
-
-        stage_hooks.validate_labeling_profile(value)  # raises ValueError on an unregistered id
         return value
 
     @field_validator("rss_urls", mode="before")
@@ -6742,13 +6757,19 @@ class Config(BaseModel):
         if not isinstance(self.output_dir, str) or not self.output_dir:
             return self
         # Idempotency check: skip if output_dir already looks wrapped.
-        if "/feeds/rss_" in self.output_dir or self.output_dir.rstrip("/").endswith(
-            tuple(f"/feeds/{s}" for s in ("",))
+        if (
+            "/feeds/rss_" in self.output_dir
+            or "/sources/" in self.output_dir
+            or self.output_dir.rstrip("/").endswith(tuple(f"/feeds/{s}" for s in ("",)))
         ):
             return self
-        from .utils.filesystem import corpus_feed_output_dir
+        from .utils.filesystem import corpus_source_output_dir
 
-        wrapped = corpus_feed_output_dir(self.output_dir, self.rss_url)
+        # A single source of another content type lives under sources/<type>/ (ADR-177).
+        only = self.rss_urls[0] if self.rss_urls and len(self.rss_urls) == 1 else None
+        wrapped = corpus_source_output_dir(
+            self.output_dir, self.rss_url, getattr(only, "content_type", None)
+        )
         # Assign via object.__setattr__ because model_validator(after) runs
         # before the model becomes fully "frozen" for mutation but pydantic v2
         # still routes direct assignment through validation — this bypasses it.

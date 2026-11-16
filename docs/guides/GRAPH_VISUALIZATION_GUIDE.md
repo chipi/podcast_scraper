@@ -144,9 +144,9 @@ to avoid Person/Episode text-outline noise.
 
 ### 4. Zoom-gated tier reshape (plumbing dots)
 
-**Rule:** below zoom `GRAPH_NODE_ZOOM_INSIGHT_MIN = 0.9`, "plumbing" types
-render as compact dots without labels. Above `0.9`, they render at full
-size with labels.
+**Rule:** below a build's zoom threshold (`graphTypeTraits.zoomHidden`; the GI
+build uses `0.9` for Insight and Quote), "plumbing" types render as compact
+dots without labels. Above it, they render at full size with labels.
 
 **Types affected:** Insight, Quote, Speaker, Person cameo (Persons with
 degree = 1).
@@ -257,14 +257,17 @@ controls per operator direction).
 **Enricher:** `grounding_rate` — counts a Person's Insights that carry
 supporting Quote evidence vs total, per corpus.
 
-**Gate:** `useGraphLensesStore.personCredibility`. Enricher-gated.
+**Gate:** a lens a build registers (`graphLenses`, id `personCredibility`);
+the viewer alone has none. Enricher-gated: offered only when the envelope's
+`data.persons` is non-empty (#1927 — `grounding_rate` became per-episode, so
+it carries no `persons` today and the row stays hidden).
 
 **Composes with:** velocity halo. Velocity is a **halo** (outer glow class);
 credibility is a **border colour**. Both are on Person; they never conflict
 because they use different visual channels.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` —
-`applyPersonCredibilityClasses`.
+**Code:** registered at `web/gi-kg-viewer/src/extensions/index.ts` —
+`graphLenses`; the viewer draws no credibility border of its own.
 
 **Live count (prod-v2):** 51 Persons at high credibility.
 
@@ -290,7 +293,7 @@ adding a fourth border layer.
 **Code:**
 
 - `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` — `applyPersonCommunityClasses`.
-- Enricher: `src/podcast_scraper/enrichment/enrichers/guest_coappearance.py`.
+- Enricher: `guest_coappearance`, provided by an installed extension.
 
 ---
 
@@ -430,13 +433,16 @@ tells you nothing. One thick Episode→Topic ABOUT_AGG edge says "this
 episode is about this topic" at a glance.
 
 **Gate:** `useGraphLensesStore.aggregatedEdges`. **Data-gated** (not
-enricher-gated): the roll-up happens at runtime in `toCytoElements`. The
-lens row is hidden when the artifact has no source `ABOUT` / `SPOKEN_BY`
-edges to roll up — check runs against `artifacts.displayArtifact?.data?.edges`.
+enricher-gated): a build's `graphElementDecorators` entry rolls the edges up
+at runtime (its `edges` hook, which `toCytoElements` calls with the lens flag)
+and says through `aggregates(art)` whether the drawn artifact has anything to
+roll up (the GI build: source `ABOUT` / `SPOKEN_BY` edges). The lens row is
+hidden when no decorator does; the viewer alone has none.
 
 **Code:**
 
-- Roll-up: `web/gi-kg-viewer/src/utils/cyGraphElements.ts` — `toCytoElements`.
+- Decorator hooks: `web/gi-kg-viewer/src/extensions/index.ts` —
+  `GraphElementDecorator`, applied in `utils/parsing.ts::toCytoElements`.
 - Chip data-gate: `web/gi-kg-viewer/src/components/graph/chips/GraphLensesChip.vue`
   — `aggregatedEdgesAvailable` computed.
 
@@ -627,8 +633,10 @@ invisible node is a broken contract.
 **Rule:** users toggle node types on/off via the Types chip in the graph
 bottom bar. Edges to filtered-out types drop with them.
 
-**Default-hidden types** (Tier 6-3): `DEFAULT_HIDDEN_TYPES = ['Quote',
-'Speaker']` — the initial `allowedTypes` map starts with these off.
+**Default-hidden types** (Tier 6-3): the types a build declares in
+`graphTypeTraits.defaultHidden` (the GI build: Quote and Speaker) — the
+initial `allowedTypes` map starts with these off. The viewer alone hides
+none.
 
 **Why the default:** Quotes and Speakers are evidence detail — useful when
 the analyst is auditing a specific claim, noise at overview. The
@@ -639,8 +647,8 @@ default* — not on "anything unchecked". A user who ticks Quote *on* and
 Speaker *off* sees the reset indicator because Speaker is at default but
 Quote isn't. The `filtersActive` computed does the deviation math.
 
-**Code:** `web/gi-kg-viewer/src/utils/parsing.ts::DEFAULT_HIDDEN_TYPES`
-and `stores/graphFilters.ts`.
+**Code:** `web/gi-kg-viewer/src/utils/parsing.ts::typeHiddenByDefault`
+(reads `graphTypeTraits.defaultHidden`) and `stores/graphFilters.ts`.
 
 ---
 
@@ -666,11 +674,11 @@ persisted to localStorage and synced to the server via USERPREFS-1.
 | Bridge nodes | `bridgeRing` | on | always visible | node border |
 | Theme regions | `themeClusterRegions` | off | `topic_theme_clusters` enricher present | node underlay tint |
 | Velocity halo | `velocityHalo` | off | `temporal_velocity` enricher present | node halo |
-| Person credibility | `personCredibility` | off | `grounding_rate` enricher present | node border |
+| Person credibility | `personCredibility` (registered) | off | `grounding_rate` has `persons` | node border |
 | Consensus edges | `consensusEdges` | off | `topic_consensus` enricher present | new edges |
 | Co-guest edges | `coGuestEdges` | off | `guest_coappearance` enricher present | new edges |
 | Person communities | `personCommunities` | off | `guest_coappearance` enricher present | node underlay tint |
-| Aggregated edges | `aggregatedEdges` | off | artifact has ABOUT/SPOKEN_BY edges (data-gated) | new edges |
+| Aggregated edges | `aggregatedEdges` | off | a registered decorator `aggregates` the artifact (data-gated) | new edges |
 
 **Enricher-gated pattern:**
 
@@ -859,8 +867,8 @@ files:
   overlay functions via MockCore.
 - `stores/graphLenses.test.ts` — every flag, resetToDefaults, USERPREFS-1
   round-trip, legacy-key migration.
-- `utils/parsing.test.ts` — `DEFAULT_HIDDEN_TYPES`, `filtersActive` corner
-  cases.
+- `utils/parsing.test.ts` / `parsing.extensions.test.ts` — default-hidden
+  types from `graphTypeTraits`, `filtersActive` corner cases.
 - `utils/colors.test.ts` — brand-palette collision guard.
 
 ### E2E (Playwright)
@@ -891,7 +899,6 @@ main and in `ci-ui-full` locally.
   Tier 5 lenses (aggregated edges, velocity halo, etc.).
 - `docs/rfc/RFC-069-graph-exploration-toolkit.md` — the graph-exploration
   primitives (ego, expand-on-tap, matrix contracts).
-- `docs/rfc/RFC-075-corpus-topic-clustering.md` — the theme-cluster enricher.
 
 **Implementation specs:**
 
@@ -904,8 +911,6 @@ main and in `ci-ui-full` locally.
 
 - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — node/edge kinds at the
   data layer; entity resolution.
-- `docs/guides/GIL_KG_CIL_CROSS_LAYER.md` — how GI, KG, and CIL layers
-  merge into the artifact the viewer receives.
 
 **Change history:**
 

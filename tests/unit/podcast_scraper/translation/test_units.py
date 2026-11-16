@@ -76,7 +76,7 @@ class TestTurnBoundaries:
             assert len({s.sent_id.split(".")[0] for s in u.sentences}) == 1
 
     def test_a_backchannel_turn_is_its_own_unit(self) -> None:
-        """RFC-123 flags backchannels rather than merging them, precisely so they are not folded
+        """Backchannels are flagged rather than merged, precisely so they are not folded
         into a neighbour's context. Packing one with a neighbour would undo that on the way to
         the model."""
         units = _pack(
@@ -317,50 +317,6 @@ class TestDeterminismAndStats:
 
     def test_stats_survive_an_empty_episode(self) -> None:
         assert pack_stats([])["units"] == 0
-
-
-class TestOverRealTurns:
-    def test_it_packs_the_real_fixture_corpus_turns(self) -> None:
-        """Driven through the REAL builder over a real English episode, so the packer is tested
-        against the artifact shape the pipeline actually writes rather than hand-made dicts."""
-        import json
-        from pathlib import Path
-
-        from podcast_scraper.providers.ml.diarization.formatting import (
-            format_diarized_screenplay_with_offsets,
-        )
-        from podcast_scraper.providers.ml.diarization.turns import build_turns
-
-        repo = Path(__file__).resolve().parents[4]
-        seg = (
-            repo
-            / "tests/fixtures/app-validation-corpus/v3/feeds/p01/run_20260101-000000"
-            / "transcripts/p01_e01.segments.json"
-        )
-        raw = json.loads(seg.read_text(encoding="utf-8"))
-        text, offsets = format_diarized_screenplay_with_offsets(raw)
-        turns = build_turns(offsets, screenplay_text=text)
-
-        units = pack_units(
-            [t.to_dict() for t in turns.turns],
-            screenplay_text=text,
-            source_language="en",
-            max_input_tokens=2048,
-        )
-        assert units, "a real episode must produce units"
-        # Every sentence of every turn survives packing, in order.
-        expected = [
-            text[s.char_start : s.char_end]
-            for t in turns.turns
-            for s in t.sentences
-            if text[s.char_start : s.char_end].strip()
-        ]
-        got = [s.text for u in units for s in u.sentences]
-        assert got == expected
-        # And every unit's span is real text from the screenplay.
-        for u in units:
-            for s in u.sentences:
-                assert text[s.char_start : s.char_end] == s.text
 
 
 class TestTheWordCap:

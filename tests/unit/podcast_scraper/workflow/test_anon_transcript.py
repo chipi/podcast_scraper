@@ -14,12 +14,10 @@ worth stating because it bounds how much the loss of this file costs: nothing.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
 
-from podcast_scraper.speaker_stage.sidecars import _write_anon_transcript
 from podcast_scraper.workflow.transcript_resolution import (
     anon_transcript_relpath,
     text_relpath_candidates,
@@ -48,81 +46,6 @@ def _segments(named: bool) -> List[Dict[str, Any]]:
         }
         for s, e, voice, person, text in rows
     ]
-
-
-class TestWhatItWrites:
-    def test_it_writes_the_anonymous_render(self, tmp_path: Path) -> None:
-        rel = _write_anon_transcript(_segments(named=True), REL, str(tmp_path))
-        assert rel == "transcripts/01 - ep.anon.txt"
-        body = (tmp_path / rel).read_text(encoding="utf-8")
-        assert "SPEAKER_00:" in body and "SPEAKER_01:" in body
-
-    def test_no_LABEL_is_a_resolved_name(self, tmp_path: Path) -> None:
-        """The whole point. A name in the label position would mean it rendered
-        `speaker_label`, which is the named view `.txt` already holds.
-
-        Checked on the LABELS, not on the whole body: the names also appear inside the SPEECH
-        ("I'm Dana Reyes") and must survive there verbatim — that is the sentence the roster
-        reads to resolve the voice in the first place. A blanket "the name is absent" assertion
-        is what this test said first, and it was wrong in a way that would have pushed the fix
-        toward stripping real transcript content.
-        """
-        rel = _write_anon_transcript(_segments(named=True), REL, str(tmp_path))
-        assert rel is not None
-        body = (tmp_path / rel).read_text(encoding="utf-8")
-        labels = {
-            line.split(":", 1)[0]
-            for line in body.splitlines()
-            if ":" in line and not line.startswith(" ")
-        }
-        assert labels == {"SPEAKER_00", "SPEAKER_01"}, sorted(labels)
-
-    def test_the_name_still_appears_in_the_SPEECH(self, tmp_path: Path) -> None:
-        """The other side of it. The self-intro is the evidence naming runs ON, so stripping it
-        would break the thing this file exists to serve."""
-        rel = _write_anon_transcript(_segments(named=True), REL, str(tmp_path))
-        assert rel is not None
-        assert "I'm Dana Reyes" in (tmp_path / rel).read_text(encoding="utf-8")
-
-    def test_the_SPEECH_survives_verbatim(self, tmp_path: Path) -> None:
-        """Only the labels change. If the text moved too, this would not be the same episode."""
-        rel = _write_anon_transcript(_segments(named=True), REL, str(tmp_path))
-        assert rel is not None
-        body = (tmp_path / rel).read_text(encoding="utf-8")
-        for expected in ("Welcome back. I'm Dana Reyes.", "Thanks for having me."):
-            assert expected in body
-
-    def test_it_does_not_touch_the_named_transcript(self, tmp_path: Path) -> None:
-        """D-40's rule, asserted directly: no stage overwrites another stage's output."""
-        named_path = tmp_path / REL
-        named_path.parent.mkdir(parents=True, exist_ok=True)
-        named_path.write_text("Dana Reyes: original\n", encoding="utf-8")
-        _write_anon_transcript(_segments(named=True), REL, str(tmp_path))
-        assert named_path.read_text(encoding="utf-8") == "Dana Reyes: original\n"
-
-
-class TestWhenItWritesNOTHING:
-    def test_undiarized_segments_produce_no_file(self, tmp_path: Path) -> None:
-        """No `speaker` field means no diarization ran, so there is no anonymous view to keep."""
-        segments = [{"start": 0.0, "end": 30.0, "text": "Hello.", "speaker_label": "SPEAKER_00"}]
-        assert _write_anon_transcript(segments, REL, str(tmp_path)) is None
-        assert not (tmp_path / "transcripts").exists()
-
-    def test_an_IDENTICAL_render_produces_no_file(self, tmp_path: Path) -> None:
-        """Naming resolved nothing, so the two renders are the same bytes. An identical copy is
-        not a second artifact — writing one for every unnamed episode would double the transcript
-        corpus to say nothing."""
-        assert _write_anon_transcript(_segments(named=False), REL, str(tmp_path)) is None
-
-    def test_empty_segments_produce_no_file(self, tmp_path: Path) -> None:
-        assert _write_anon_transcript([], REL, str(tmp_path)) is None
-
-    def test_a_write_failure_is_not_fatal(self, tmp_path: Path) -> None:
-        """A debugging view must not cost the episode. Its real artifacts are already on disk by
-        the time this runs."""
-        blocker = tmp_path / "transcripts"
-        blocker.write_text("not a directory", encoding="utf-8")
-        assert _write_anon_transcript(_segments(named=True), REL, str(tmp_path)) is None
 
 
 class TestItIsNotARESOLUTIONCandidate:

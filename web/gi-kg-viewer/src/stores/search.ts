@@ -2,18 +2,15 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { track } from '../lib/analytics'
 import {
-  compareSubjects as compareSubjectsApi,
   searchCorpus,
   type SearchRequestOptions,
-  type CompareSubjectRef,
   type CorpusSearchLiftStats,
-  type SearchCompareResponse,
   type SearchHit,
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
 import { useActiveSearchContextStore } from './activeSearchContext'
 import { useSavedQueriesStore } from './savedQueries'
-import { searchListeners, searchRequestParams } from '../extensions'
+import { searchListeners, searchRequestParams, searchResultFilters } from '../extensions'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -45,51 +42,13 @@ export const useSearchStore = defineStore('search', () => {
    * Search v3 §S4a/S8 — which operator panel is currently open on
    * ``ResultSetOperatorBar``. Promoted from the bar's local ref
    * (#1259-4 followup) so external surfaces — the Cmd-K palette's
-   * ``operator.timeline-last`` / ``operator.compare-last`` commands —
+   * ``operator.timeline-last`` command and registered operators' commands —
    * can toggle the panel visible without also clicking the chip.
    * ``null`` means no panel is open.
    */
   const activeOperator = ref<string | null>(null)
 
-  /**
-   * Search v3 §S8 — Compare (2 subjects) state. Populated by ``runCompare``
-   * (POST /api/search/compare); ``runSearch`` does NOT
-   * clear this so the caller can leave the panel open across a re-run of
-   * the underlying query.
-   */
-  const compareResult = ref<SearchCompareResponse | null>(null)
-  const compareLoading = ref(false)
-  const compareError = ref<string | null>(null)
-
-  /**
-   * Search v3 §S8 — subjects pinned for Compare. The CompareOperatorPanel
-   * seeds slot A / slot B from the LAST TWO pins (pin[0] → A, pin[1] → B)
-   * in preference to the visible-hit discovery default, so a user can
-   * assemble a comparison from anywhere in the app (e.g. the command
-   * palette "Pin to Compare" action) before opening the operator.
-   *
-   * Ring buffer of length 2, deduped on ``kind + id``: pinning a third
-   * distinct subject evicts the oldest. Pinning an already-pinned subject
-   * is a no-op (no reorder — avoids surprising slot churn).
-   */
-  const comparePins = ref<CompareSubjectRef[]>([])
-
-  function pinCompareSubject(ref_: CompareSubjectRef): void {
-    const id = ref_.id.trim()
-    if (!id) return
-    const key = `${ref_.kind}::${id}`
-    if (comparePins.value.some((p) => `${p.kind}::${p.id.trim()}` === key)) return
-    const next = [...comparePins.value, { ...ref_, id }]
-    // Keep only the two most recent pins.
-    comparePins.value = next.slice(-2)
-  }
-
-  function clearComparePins(): void {
-    comparePins.value = []
-  }
-
   const searchRunGate = new StaleGeneration()
-  const compareRunGate = new StaleGeneration()
 
   /**
    * When set with ``feedFilterHandoffPristine``, Advanced feed input shows this title while
@@ -100,7 +59,6 @@ export const useSearchStore = defineStore('search', () => {
 
   const filters = reactive({
     topK: 10,
-    groundedOnly: false,
     feed: '',
     since: '',
     speaker: '',
@@ -120,12 +78,6 @@ export const useSearchStore = defineStore('search', () => {
      */
     topic: '',
     /**
-     * Client-side minimum confidence filter (Search v3 §S1 — Explore merge). Same
-     * caveat as ``topic`` — applied over ``results``, not driving retrieval. Empty
-     * string means no filter; a numeric string like "0.7" means ≥0.7 confidence.
-     */
-    minConfidence: '',
-    /**
      * Search v3 §S6 — exact ``episode_id`` scope. Set by the "Search
      * within this episode" rail launcher on EpisodeDetailPanel; empty
      * string means no episode scope. Server-side (drives retrieval),
@@ -135,25 +87,14 @@ export const useSearchStore = defineStore('search', () => {
   })
 
   /**
-   * Results with the client-side ``minConfidence`` filter applied. ``topic`` is
-   * server-side since the S1 follow-up; ``minConfidence`` is still client-side
-   * because /api/search doesn't accept a numeric confidence threshold param.
-   * Keeps ``results`` untouched so callers that need the pre-filter page (intent
-   * chip, tier counts) still see the server's top-K.
+   * The page after every registered client-side filter (`searchResultFilters`). Keeps
+   * ``results`` untouched so callers that need the server's page (intent chip, tier counts)
+   * still see the top-K.
    */
   const filteredResults = computed<SearchHit[]>(() => {
-    const minRaw = filters.minConfidence.trim()
-    let minConf: number | null = null
-    if (minRaw) {
-      const n = Number(minRaw)
-      if (Number.isFinite(n)) minConf = n
-    }
-    if (minConf == null) return results.value
-    return results.value.filter((hit) => {
-      const conf = (hit.metadata?.confidence as number | undefined) ?? null
-      if (conf == null || conf < minConf) return false
-      return true
-    })
+    const active = searchResultFilters.list()
+    if (!active.length) return results.value
+    return results.value.filter((hit) => active.every((f) => f.keep(hit)))
   })
 
   function applyLibrarySearchHandoff(
@@ -211,7 +152,8 @@ export const useSearchStore = defineStore('search', () => {
     queryType.value = null
     for (const l of searchListeners.list()) l.onClear?.()
     try {
-      const body = await searchCorpus(q, requestOptions(root))
+      const opts = requestOptions(root)
+      const body = await searchCorpus(q, opts)
       if (searchRunGate.isStale(seq)) {
         return
       }
@@ -239,7 +181,7 @@ export const useSearchStore = defineStore('search', () => {
         has_feed_filter: Boolean(filters.feed),
         has_speaker_filter: Boolean(filters.speaker),
         has_since_filter: Boolean(filters.since),
-        grounded_only: filters.groundedOnly,
+        ...opts.extraParams,
         top_k: filters.topK,
       })
     } catch (e) {
@@ -271,7 +213,6 @@ export const useSearchStore = defineStore('search', () => {
       speaker: filters.speaker || undefined,
       topic: filters.topic || undefined,
       episodeId: filters.episodeId || undefined,
-      groundedOnly: filters.groundedOnly,
       topK: topK ?? filters.topK,
       embeddingModel: filters.embeddingModel.trim() || undefined,
       dedupeKgSurfaces: filters.dedupeKgSurfaces,
@@ -287,65 +228,6 @@ export const useSearchStore = defineStore('search', () => {
     for (const l of searchListeners.list()) l.onClear?.()
     useActiveSearchContextStore().clear()
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
-  }
-
-  /**
-   * Search v3 §S8 — Compare 2 subjects over the corpus.
-   *
-   * Wraps ``POST /api/search/compare``. Never re-uses the visible hit
-   * page — the endpoint runs its own subject-scoped searches for each
-   * side. Silent-no-op when either picker slot is empty; errors surface
-   * via ``compareError``.
-   */
-  async function runCompare(
-    corpusPath: string,
-    subjectA: CompareSubjectRef,
-    subjectB: CompareSubjectRef,
-    opts: {
-      q?: string
-      topK?: number
-      maxTokens?: number
-      /** Search v3 §S8 — RFC-072 GIL v1.1 insight_type filter forwarded
-       *  to ``POST /api/search/compare``. Undefined / empty array ⇒
-       *  no server-side filter. */
-      insightTypes?: string[]
-    } = {},
-  ): Promise<void> {
-    const root = corpusPath.trim()
-    if (!root) return
-    if (!subjectA.id.trim() || !subjectB.id.trim()) return
-    const seq = compareRunGate.bump()
-    compareLoading.value = true
-    compareError.value = null
-    try {
-      const body = await compareSubjectsApi(subjectA, subjectB, {
-        path: root,
-        q: opts.q ?? query.value,
-        topK: opts.topK ?? filters.topK,
-        maxTokens: opts.maxTokens,
-        insightTypes: opts.insightTypes,
-      })
-      if (compareRunGate.isStale(seq)) return
-      if (body.error) {
-        compareError.value = mapSearchError(body.error, body.detail ?? null)
-        compareResult.value = null
-        return
-      }
-      compareResult.value = body
-    } catch (e) {
-      if (compareRunGate.isStale(seq)) return
-      compareError.value = e instanceof Error ? e.message : String(e)
-      compareResult.value = null
-    } finally {
-      if (compareRunGate.isCurrent(seq)) {
-        compareLoading.value = false
-      }
-    }
-  }
-
-  function clearCompare(): void {
-    compareResult.value = null
-    compareError.value = null
   }
 
   return {
@@ -366,13 +248,5 @@ export const useSearchStore = defineStore('search', () => {
     clearResults,
     requestOptions,
     activeOperator,
-    compareResult,
-    compareLoading,
-    compareError,
-    runCompare,
-    clearCompare,
-    comparePins,
-    pinCompareSubject,
-    clearComparePins,
   }
 })

@@ -1,0 +1,48 @@
+{
+  "schema_version": "2.0",
+  "episode_id": "ci-fixture",
+  "extraction": {
+    "extracted_at": "2020-01-01T00:00:00Z",
+    "model_version": "stub",
+    "transcript_ref": "transcript.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ci-fixture",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "podcast:unknown",
+        "title": "Episode",
+        "publish_date": "2020-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "topic:ci-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "Climate policy",
+        "slug": "ci-policy"
+      }
+    },
+    {
+      "id": "person:ci-host",
+      "type": "Person",
+      "properties": {
+        "name": "Casey",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "MENTIONS",
+      "from": "episode:ci-fixture",
+      "to": "topic:ci-policy"
+    },
+    {
+      "type": "MENTIONS",
+      "from": "episode:ci-fixture",
+      "to": "person:ci-host"
+    }
+  ]
+}

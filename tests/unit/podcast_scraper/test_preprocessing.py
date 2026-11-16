@@ -140,67 +140,11 @@ class TestCleanTranscript(unittest.TestCase):
 class TestRemoveSponsorBlocks(unittest.TestCase):
     """Test remove_sponsor_blocks() function."""
 
-    def test_remove_brought_to_you_by(self):
-        """Test removal of 'this episode is brought to you by'."""
-        text = (
-            "Content before.\n\nThis episode is brought to you by AwesomeCo. "
-            "Use code POD!\n\nContent after."
-        )
-        result = preprocessing.remove_sponsor_blocks(text)
-        self.assertNotIn("This episode is brought to you by", result)
-        self.assertNotIn("AwesomeCo", result)
-        self.assertIn("Content before", result)
-        self.assertIn("Content after", result)
-
-    def test_remove_sponsored_by(self):
-        """Test removal of 'today's episode is sponsored by'."""
-        text = "Content.\n\nToday's episode is sponsored by BrandX.\n\nMore content."
-        result = preprocessing.remove_sponsor_blocks(text)
-        self.assertNotIn("sponsored by", result.lower())
-        self.assertNotIn("BrandX", result)
-        self.assertIn("Content", result)
-        self.assertIn("More content", result)
-
-    def test_remove_our_sponsors(self):
-        """Test removal of 'our sponsors today are'."""
-        text = "Content.\n\nOur sponsors today are CompanyA and CompanyB.\n\nMore content."
-        result = preprocessing.remove_sponsor_blocks(text)
-        self.assertNotIn("our sponsors today are", result.lower())
-        self.assertIn("Content", result)
-        self.assertIn("More content", result)
-
     def test_no_sponsor_blocks(self):
         """Test that text without sponsor blocks is unchanged."""
         text = "This is regular content without any sponsor mentions."
         result = preprocessing.remove_sponsor_blocks(text)
         self.assertEqual(result, text)
-
-    def test_multiple_sponsor_blocks(self):
-        """Test removal of multiple sponsor blocks."""
-        text = (
-            "Content 1.\n\nThis episode is brought to you by Sponsor1.\n\n"
-            "Content 2.\n\nToday's episode is sponsored by Sponsor2.\n\nContent 3."
-        )
-        result = preprocessing.remove_sponsor_blocks(text)
-        self.assertNotIn("Sponsor1", result)
-        self.assertNotIn("Sponsor2", result)
-        self.assertIn("Content 1", result)
-        self.assertIn("Content 2", result)
-        self.assertIn("Content 3", result)
-
-    def test_sponsor_block_at_start(self):
-        """Test removal of sponsor block at start of text."""
-        text = "This episode is brought to you by Sponsor.\n\nContent after."
-        result = preprocessing.remove_sponsor_blocks(text)
-        self.assertNotIn("This episode is brought to you by", result)
-        self.assertIn("Content after", result)
-
-    def test_sponsor_block_at_end(self):
-        """Test removal of sponsor block at end of text."""
-        text = "Content before.\n\nThis episode is brought to you by Sponsor."
-        result = preprocessing.remove_sponsor_blocks(text)
-        self.assertNotIn("This episode is brought to you by", result)
-        self.assertIn("Content before", result)
 
     def test_podcast_intro_not_removed(self):
         """Phase 1: normal podcast intros must not be treated as post-ad breaks."""
@@ -280,26 +224,6 @@ class TestRemoveOutroBlocks(unittest.TestCase):
 class TestCleanForSummarization(unittest.TestCase):
     """Test clean_for_summarization() function."""
 
-    def test_full_pipeline(self):
-        """Test that full cleaning pipeline is applied."""
-        text = (
-            "[00:12:34] SPEAKER 1: Hello world.\n\n"
-            "This episode is brought to you by Sponsor.\n\n"
-            "Thank you so much for listening.\n\n"
-        )
-        result = preprocessing.clean_for_summarization(text)
-        # Timestamps removed
-        self.assertNotIn("[00:12:34]", result)
-        # Generic speaker tags removed
-        self.assertNotIn("SPEAKER 1:", result)
-        # Sponsor blocks removed
-        self.assertNotIn("This episode is brought to you by", result)
-        # Outro blocks removed
-        self.assertNotIn("thank you so much for listening", result.lower())
-        # Content preserved
-        self.assertIn("Hello", result)
-        self.assertIn("world", result)
-
     def test_empty_string(self):
         """Test that empty string is handled correctly."""
         result = preprocessing.clean_for_summarization("")
@@ -310,22 +234,6 @@ class TestCleanForSummarization(unittest.TestCase):
         text = "This is already clean content without any timestamps or sponsor blocks."
         result = preprocessing.clean_for_summarization(text)
         self.assertIn("This is already clean content", result)
-
-    def test_all_cleaning_steps(self):
-        """Test that all cleaning steps are applied in order."""
-        text = (
-            "[00:12:34] Host: Content with timestamps.\n\n"
-            "This episode is brought to you by Sponsor.\n\n"
-            "Thank you so much for listening.\n\n"
-        )
-        result = preprocessing.clean_for_summarization(text)
-        # Verify all cleaning steps were applied
-        self.assertNotIn("[00:12:34]", result)
-        self.assertNotIn("Host:", result)
-        self.assertNotIn("This episode is brought to you by", result)
-        self.assertNotIn("thank you so much for listening", result.lower())
-        # Content should remain
-        self.assertIn("Content", result)
 
     def test_preserves_actual_speaker_names(self):
         """Test that actual speaker names are preserved."""
@@ -502,25 +410,3 @@ class TestOutroRemovalDestructionGuard:
         text = "please subscribe " + ("word " * 900)  # ~4.5k chars, no newlines
         out = core.remove_outro_blocks(text)
         assert out == text
-
-
-class TestHybridCleanerDestructionGuard:
-    """#1822 defense-in-depth: a fragment from the pattern stage must not survive."""
-
-    def test_pattern_fragment_falls_back_to_original_with_warning(self, caplog):
-        import logging
-
-        from podcast_scraper.cleaning.hybrid import HybridCleaner
-
-        cleaner = HybridCleaner()
-
-        class _Eater:
-            def clean(self, text, **_kw):
-                return text[:100]
-
-        cleaner.pattern_cleaner = _Eater()
-        text = "content " * 1000  # 8000 chars
-        with caplog.at_level(logging.WARNING):
-            out = cleaner.clean(text)
-        assert out == text
-        assert any("rejecting the pattern pass" in r.message for r in caplog.records)

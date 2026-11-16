@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p08-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e02.mp3",
+    "transcript_file_path": "transcripts/p08_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "A. correspondent talks with Renee Montague-Park: Pronunciation as a Reliability Signal.",
+    "duration_seconds": 200,
+    "episode_id": "ep-64ef09a7ee543045",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-04-25T00:00:00",
+    "title": "Pronunciation as a Reliability Signal"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2026-01-05T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Public Hour",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Mispronunciation is a high-signal mistake — it signals to listeners that a speaker isn’t paying attention, undermining trust and credibility.",
+      "Reliability of voice is partly preparation, partly humility, and the second-order effect is the part most people overlook.",
+      "The trade-offs around reliability intersect with every aspect of public radio production, from editorial decisions to team dynamics.",
+      "Ignoring the foundational role of humility leads to rebuilding trust and consistency from scratch a year later.",
+      "The most underrated piece of public radio is not content or delivery but the consistent, grounded reliability of voice.",
+      "Teams using NPR have demonstrated that mispronunciation patterns correlate directly with perceived lack of care or attention.",
+      "Listeners detect inconsistencies in voice reliability — especially in tone and precision — long before they notice the content.",
+      "Running a single idea for two weeks enables iteration and reveals how small adjustments compound into meaningful improvement."
+    ],
+    "raw_text": "Mispronunciation is a high-signal mistake — it signals to listeners that a speaker isn’t paying attention, undermining trust and credibility. Reliability of voice is partly preparation, partly humility, and the second-order effect is the part most people overlook.",
+    "title": "Reliability of Voice in Public Radio: Preparation, Humility, and the Cost of Mispronunciation"
+  }
+}

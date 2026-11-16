@@ -29,7 +29,6 @@ else:
 
     Episode = models.Episode  # type: ignore[assignment]
 from ...cache import get_whisper_cache_dir
-from ...cleaning import PatternBasedCleaner
 from ...exceptions import (
     ProviderConfigError,
     ProviderDependencyError,
@@ -44,8 +43,8 @@ from ..common.summary_use_case import (
     use_case_from_params,
     use_case_prompt_metadata,
 )
-from . import speaker_detection, summarizer
-from .ml_provider_gi_naming import MLProviderGiNamingMethods
+from ..extensible import ExtensibleProvider
+from . import summarizer
 from .model_registry import ModelRegistry
 from .whisper_utils import normalize_whisper_model_name
 
@@ -175,7 +174,7 @@ def _guard_supported_languages(
     )
 
 
-class MLProvider(MLProviderGiNamingMethods):
+class MLProvider(ExtensibleProvider):
     """Unified ML provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
 
     This provider initializes and manages:
@@ -195,9 +194,12 @@ class MLProvider(MLProviderGiNamingMethods):
         """
         self.cfg = cfg
 
-        # Set up transcript cleaning processor (default pattern-based)
-        self.cleaning_processor = PatternBasedCleaner(
-            confidence_threshold=getattr(cfg, "commercial_confidence_threshold", None)
+        # Set up transcript cleaning processor (always pattern-based for the local ML path)
+        from ... import stage_hooks
+
+        self.cleaning_processor = stage_hooks.transcript_cleaner(
+            "pattern",
+            confidence_threshold=getattr(cfg, "commercial_confidence_threshold", None),
         )
 
         # Whisper transcription state
@@ -776,7 +778,9 @@ class MLProvider(MLProviderGiNamingMethods):
                 suggestion="Set auto_speakers=True to enable speaker detection",
             )
         logger.debug("Initializing spaCy NER model (model: %s)", self.cfg.ner_model)
-        self._spacy_nlp = speaker_detection.get_ner_model(self.cfg)
+        from ... import stage_hooks
+
+        self._spacy_nlp = stage_hooks.ner_model(self.cfg)
         if self._spacy_nlp is None:
             logger.warning(
                 "Failed to load spaCy NER model. Speaker detection may be limited. Model: %s",

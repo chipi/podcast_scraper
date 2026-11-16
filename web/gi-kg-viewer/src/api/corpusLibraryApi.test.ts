@@ -154,25 +154,28 @@ describe('corpusLibraryApi', () => {
       expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/[&?]until=/)
     })
 
-    it('sets has_gi=true when hasGi is true', async () => {
-      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
-      mockFetchJson(true, payload)
-      await fetchCorpusEpisodes('/c', { hasGi: true })
-      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('has_gi=true')
+    it.each([
+      [false, 'has_kg=false'],
+      [true, 'has_kg=true'],
+    ] as const)('sets has_kg when hasKg is %s', async (hasKg, want) => {
+      mockFetchJson(true, { path: '/r', feed_id: null, items: [], next_cursor: null })
+      await fetchCorpusEpisodes('/c', { hasKg })
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain(want)
     })
 
-    it('sets has_gi=false when hasGi is false', async () => {
-      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
-      mockFetchJson(true, payload)
-      await fetchCorpusEpisodes('/c', { hasGi: false })
-      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('has_gi=false')
-    })
-
-    it('omits has_gi when hasGi is undefined', async () => {
-      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
-      mockFetchJson(true, payload)
+    it('omits has_kg when hasKg is undefined', async () => {
+      mockFetchJson(true, { path: '/r', feed_id: null, items: [], next_cursor: null })
       await fetchCorpusEpisodes('/c', {})
-      expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/has_gi=/)
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/has_kg=/)
+    })
+
+    it('adds extraParams without overriding the options it already set', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { q: 'mine', extraParams: { has_gi: 'false', q: 'theirs' } })
+      const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string, 'http://x')
+      expect(url.searchParams.get('has_gi')).toBe('false')
+      expect(url.searchParams.getAll('q')).toEqual(['mine'])
     })
 
     it('includes limit=0 (limit != null) and omits a null cursor', async () => {

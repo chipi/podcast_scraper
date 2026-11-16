@@ -50,7 +50,7 @@ DEFAULT_EMBED_DIM = 384
 #   1 — initial two-tier schema (#855)
 #   2 — added fields: ``publish_date`` (date/``since`` filter) on all tiers +
 #       ``source_id`` (canonical graph node id → "Show on graph") on insight/aux
-#   3 — added ``insight_type`` (RFC-072 GIL v1.1) on the insight tier so the
+#   3 — added ``insight_type`` (GIL v1.1) on the insight tier so the
 #       Search v3 §S8 compare ``insight_types`` filter can scope by type.
 #       Corpora indexed at v2 report stale → operator reindexes to populate it.
 LANCE_SCHEMA_VERSION = 3
@@ -145,7 +145,7 @@ def _insight_schema(dim: int) -> "pa.Schema":
             ("source_tier", pa.string()),
             ("publish_date", pa.string()),
             ("source_id", pa.string()),
-            ("insight_type", pa.string()),  # RFC-072 GIL v1.1 (Search v3 §S8 compare filter)
+            ("insight_type", pa.string()),  # GIL v1.1 (Search v3 §S8 compare filter)
         ]
     )
 
@@ -637,7 +637,9 @@ class LanceDBBackend:
                 score = raw if query_type == "fts" else 1.0 / (1.0 + raw)
                 row.pop("embedding", None)  # keep payload lean
                 hits.append((score, row, tier))
-        hits.sort(key=lambda h: h[0], reverse=True)
+        # Equal scores ranked by the doc id, then the tier, never by the order the table returned
+        # them in: that order varies between index builds over the same rows (2026-11-12).
+        hits.sort(key=lambda h: (-h[0], str(h[1].get("id")), h[2]))
         signal = "bm25" if query_type == "fts" else "vector"
         return [
             ScoredResult(

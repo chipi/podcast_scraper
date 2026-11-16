@@ -151,7 +151,7 @@ ALLOWLIST: frozenset[str] = frozenset(
 #:
 #: ``translation`` is therefore HERE, and an English episode records it with ``ran=False``.
 #:
-#: ``turns`` (RFC-123 / S1.2) is here too, but is deliberately NOT in ``CANONICAL_STAGE_ORDER``
+#: ``turns`` (S1.2) is here too, but is deliberately NOT in ``CANONICAL_STAGE_ORDER``
 #: — it is a structural view of an artifact rather than a stage in the graph, so it does not
 #: enter the composition hash. Asserted directly in ``TestCompositionVersion``.
 #:
@@ -295,82 +295,6 @@ def _metadata_key_paths(
     return out
 
 
-def _stage_metrics(stage: str) -> Optional[Dict[str, Any]]:
-    """The real metrics for the stages that report any; ``None`` for the rest."""
-    if stage == "turns":
-        return _turns_metrics()
-    if stage == "translation":
-        return _translation_metrics()
-    return None
-
-
-def _turns_metrics() -> Dict[str, Any]:
-    """The real ``turns`` metrics shape, from the reporter the pipeline uses (RFC-123 §Monitoring).
-
-    Both variants present and both available, because that is the shape an English diarized
-    episode produces; the ``unavailable_reason`` key is conditional and therefore deliberately
-    absent from the pinned shape.
-    """
-    from podcast_scraper.workflow.turns_artifact import turns_manifest_metrics, TurnsOutcome
-
-    return turns_manifest_metrics(
-        TurnsOutcome(
-            relpath="transcripts/01 - ep.turns.json", count=42, backchannels=3, median_turn_s=8.4
-        ),
-        TurnsOutcome(
-            relpath="transcripts/01 - ep.adfree.turns.json",
-            count=38,
-            backchannels=3,
-            median_turn_s=8.1,
-        ),
-    )
-
-
-def _translation_metrics() -> Dict[str, Any]:
-    """The real ``translation`` metrics shape, from the stage's own reporter (RFC-124 / S2.2).
-
-    Built from an English episode's outcome, because that is the one every episode in the
-    corpus produces today — the stage ran and found nothing to translate.
-    """
-    from podcast_scraper.workflow.translation_stage import TranslationOutcome
-
-    return TranslationOutcome(
-        status="skipped",
-        source_language="en",
-        language_source="profile_default",
-        reason="already_english",
-    ).to_metrics()
-
-
-def _generated_manifest(stages: tuple[str, ...] = _PIPELINE_STAGES) -> Dict[str, Any]:
-    """A manifest built the way the pipeline builds one, in a throwaway directory."""
-    with tempfile.TemporaryDirectory() as d:
-        rel = "transcripts/01 - ep.txt"
-        (Path(d) / "transcripts").mkdir(parents=True)
-        for stage in stages:
-            pm.update_stage(
-                d,
-                rel,
-                stage,
-                pm.stage_block(
-                    ran=True,
-                    method_version=f"{stage}-1",
-                    # A block whose metrics are absent pins three key paths instead of ten, so
-                    # every stage that reports metrics is built from its own real reporter.
-                    metrics=_stage_metrics(stage),
-                ),
-                episode_id="ep1",
-                feed_id="f1",
-                run_id="r1",
-            )
-        raw = Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8")
-        return cast(Dict[str, Any], json.loads(raw))
-
-
-def _manifest_key_paths() -> Set[str]:
-    return set(_key_paths(_generated_manifest()))
-
-
 def _build() -> Dict[str, Any]:
     return {
         "_readme": (
@@ -379,7 +303,8 @@ def _build() -> Dict[str, Any]:
             "appear here if it is in ALLOWLIST; a key may never disappear."
         ),
         "episode_metadata_key_paths": sorted(_metadata_key_paths()),
-        "manifest_key_paths": sorted(_manifest_key_paths()),
+        # The processing manifest's half carries the speaker stage's `turns` block (an installed
+        # extension's, E04): its baseline, comparison and regeneration live with that stage.
         "pipeline_composition_version": pm.pipeline_composition_version(_PIPELINE_STAGES),
     }
 
@@ -419,13 +344,8 @@ class TestArtifactShape:
             f"ALLOWLIST deliberately, or stop adding them. Currently declared: {sorted(ALLOWLIST)}"
         )
 
-    def test_manifest_shape_is_unchanged_outside_the_allowlist(self) -> None:
-        vanished, undeclared = _verdict(_manifest_key_paths(), _baseline()["manifest_key_paths"])
-        assert not vanished, f"manifest LOST key paths: {sorted(vanished)}"
-        assert not undeclared, f"manifest gained undeclared key paths: {sorted(undeclared)}"
-
     def test_the_turns_block_does_not_move_the_composition_hash(self) -> None:
-        """RFC-123's block is recorded without disturbing the reprocess query key.
+        """The turns block is recorded without disturbing the reprocess query key.
 
         ``pipeline_composition_version`` is what "reprocess everything below version X" and the
         prod-state pin key on. Putting ``turns`` in ``CANONICAL_STAGE_ORDER`` would rewrite it for

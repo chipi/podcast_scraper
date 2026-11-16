@@ -1151,7 +1151,7 @@ def _canonicalize_persons_in(
 
     This is the corpus-build analogue of what diarization does for real audio: the roster resolves
     a voice to ONE person, and the knowledge graph records that person. It is deliberately NOT a
-    similarity match — every mapping here is authored ground truth. ``name_canonicalization.py``
+    similarity match — every mapping here is authored ground truth. Name canonicalization
     documents why the heuristic version is unsafe (#876: a wrong name is worse than a garble left
     alone), which is exactly why this reads the manifest instead of guessing.
 
@@ -2090,7 +2090,7 @@ def _accumulate_topic_persons(
     episode-level in this fixture), which gives topic_consensus its cross-Person pairs per Topic.
     Each (topic, person) also takes, at first sight, one of this episode's GI insights ABOUT the
     topic, so a pair names real insights: search keeps only pairs whose insights the episode view
-    shows (RFC-131 S6c), as the real enricher's GI ids are.
+    shows, as the real enricher's GI ids are.
     """
     for tid in topic_ids:
         # The insights ABOUT the topic first, then the episode's others: in this fixture a person
@@ -2287,7 +2287,7 @@ def _speaker_diagnostics(
 ) -> dict[str, Any]:
     """Author a ``.speakers.diagnostics.json`` from the deterministic roster + segments.
 
-    Mirrors the real ``build_speaker_diagnostics`` shape (roster.py): talk-share per voice,
+    Mirrors the real ``build_speaker_diagnostics`` shape: talk-share per voice,
     host/guest roles, the exposed roster, and the unattributed (sponsor/commercial) share —
     so the diarized-speaker read surfaces (MCP ``episode_speaker_roster``) see real fixture
     data. No ML: talk-share is summed from segment durations.
@@ -2883,7 +2883,8 @@ def main() -> int:
             print(f"  {show_dir}/{ep_label}: {episode_title!r} ({len(offset_segs)} segs)")
 
     # --- search/topic_clusters.json -----------------------------------------
-    # The themes are EMBEDDING-derived and committed (`make build-validation-topic-clusters`);
+    # The themes are EMBEDDING-derived and committed (`make build-validation-topic-clusters`,
+    # in the extension's Makefile);
     # `_write_topic_clusters_scaffold` never overwrites them. Without that file — a clean build with
     # no ML extras — the scaffold is empty: it used to bundle the stamped umbrellas into two
     # synthetic themes (tc:lifelong-learning, tc:show-themes), and there are no stamps any more.

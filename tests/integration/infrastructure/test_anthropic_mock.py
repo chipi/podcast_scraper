@@ -9,7 +9,6 @@ These tests verify component interactions with infrastructure, not complete
 user workflows.
 """
 
-import json
 import os
 import sys
 from unittest.mock import Mock, patch
@@ -22,7 +21,6 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 
@@ -79,52 +77,3 @@ class TestAnthropicE2EServerIntegration:
 
         # Clean up provider
         provider.cleanup()
-
-    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
-    def test_anthropic_speaker_detector_uses_e2e_server(self, mock_anthropic, e2e_server):
-        """Test that Anthropic speaker detector can be used with E2E server."""
-        mock_client = Mock()
-        mock_anthropic.return_value = mock_client
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            anthropic_api_key="test-api-key-123",
-            anthropic_api_base=e2e_server.urls.anthropic_api_base(),  # Use E2E server
-            speaker_detector_provider="anthropic",
-            auto_speakers=True,
-        )
-
-        # Mock Anthropic SDK response
-        mock_response = Mock()
-        mock_response.content = [Mock()]
-        mock_response.content[0].text = json.dumps(
-            {
-                "speakers": ["Alice", "Bob"],
-                "hosts": ["Alice"],
-                "guests": ["Bob"],
-            }
-        )
-        mock_response.usage = Mock()
-        mock_response.usage.input_tokens = 100
-        mock_response.usage.output_tokens = 50
-
-        mock_client.messages.create.return_value = mock_response
-
-        detector = create_speaker_detector(cfg)
-        detector.initialize()
-
-        # Detect speakers should work with mocked SDK
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with Alice and Bob",
-            episode_description="Alice interviews Bob about their work",
-            known_hosts={"Alice"},
-        )
-
-        # Verify the mocked response's actual values flow through the parse path
-        # (not just isinstance/non-empty — that passed even on a garbage parse).
-        assert success is True
-        assert "Alice" in speakers and "Bob" in speakers
-        assert "Alice" in detected_hosts
-
-        # Clean up detector
-        detector.cleanup()

@@ -1,15 +1,12 @@
 # PRD-029: Person Profile
 
 - **Status**: Draft
-- **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: Person Profile **data foundation** delivered by RFC-097 v2 (chunks 1–7) — typed Person/Organization nodes, `MENTIONS_PERSON` + `MENTIONS_ORG` descriptive edges, `insight_type` LLM classification, `SPOKE_IN`/`SPOKEN_BY` already shipped. **Viewer surface delivered** by **#1048** (Person Landing shared shell — Person Profile + Position Tracker tab pair, identity-header role/episode-count/organization-chips), **#1049** (Position Tracker per PRD-028), and **#1050** (Person Profile aggregate view, 2026-06-23 — UXS-010 sections: Topics discussed / Insights voiced grouped by Topic / Episodes appeared in / Organizations affiliated / Quotes attributable; each Topic-group header reuses the #1049 entry point so the Profile tab is the canonical way into the Position Tracker). `person_profile` query pattern (RFC-072 §5B) consumed via `GET /api/persons/{id}/brief`. Analytical ranking/curation (analysis layer) + multi-corpus aggregation + Person ↔ Person relationships remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
+- **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: Person Profile **data foundation** delivered by RFC-097 v2 (chunks 1–7) — typed Person/Organization nodes, `MENTIONS_PERSON` + `MENTIONS_ORG` descriptive edges, `insight_type` LLM classification, `SPOKE_IN`/`SPOKEN_BY` already shipped. **Viewer surface delivered** by **#1048** (Person Landing shared shell — Person Profile + Position Tracker tab pair, identity-header role/episode-count/organization-chips), **#1049** (Position Tracker), and **#1050** (Person Profile aggregate view, 2026-06-23 — UXS-010 sections: Topics discussed / Insights voiced grouped by Topic / Episodes appeared in / Organizations affiliated / Quotes attributable; each Topic-group header reuses the #1049 entry point so the Profile tab is the canonical way into the Position Tracker). `person_profile` query pattern consumed via `GET /api/persons/{id}/brief`. Analytical ranking/curation (analysis layer) + multi-corpus aggregation + Person ↔ Person relationships remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:
-  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- CIL identity
-    layer, bridge artifact, and query Pattern B (`person_profile`)
   - `docs/rfc/RFC-062-gi-kg-viewer-v2.md` -- viewer SPA shell and tab model
   - `docs/rfc/RFC-069-graph-exploration-toolkit.md` -- graph chrome (Cytoscape)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` -- GIL Insight and Quote nodes
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` -- KG Episode and Entity nodes
   - `docs/rfc/RFC-061-semantic-corpus-search.md` -- FAISS search and chunk-to-Insight
     lift (Phase 5)
@@ -20,8 +17,6 @@
     from each topic group in the profile
   - `docs/prd/PRD-027-enriched-search.md` -- enriched search entry point; speaker
     names in enriched sources can open Person Profile via Person Landing
-  - `docs/prd/PRD-028-position-tracker.md` -- companion flagship; each topic group
-    in the profile links to the Position Tracker for that person + topic
 - **Related UX specs**:
   - `docs/uxs/UXS-010-person-profile.md` -- visual contract for Person
     Profile panel layout and degradation states
@@ -40,11 +35,11 @@ The **Person Profile** answers: "What has person X talked about across this corp
 It is a dedicated viewer panel where `person:{slug}` is the subject. The user
 navigates to a person and sees their corpus presence at a glance: identity metadata,
 the list of topics they have discussed (with Insight counts), their episode
-appearances, and navigation links to drill deeper via the Position Tracker (PRD-028)
+appearances, and navigation links to drill deeper via the Position Tracker
 or Topic Entity View (PRD-026).
 
 The Person Profile provides the **shared Person Landing component** used by both this
-PRD and PRD-028 (Position Tracker).
+PRD and the Position Tracker.
 
 No LLM and no database are required. All data comes from the CIL bridge artifact,
 GIL Insights, and KG episode metadata.
@@ -53,15 +48,15 @@ GIL Insights, and KG episode metadata.
 
 ## Background
 
-RFC-072 defines the Person Profile as Flagship 2 of the Canonical Identity Layer.
+The cross-layer identity design defines the Person Profile as Flagship 2 of the Canonical Identity Layer.
 The CIL bridge makes corpus-wide person queries possible by scanning small
-`bridge.json` files. The query pattern (`person_profile`) is defined in RFC-072
+`bridge.json` files. The query pattern (`person_profile`) is
 and exposed via `GET /api/persons/{person_id}/brief` (GitHub #527).
 
 This PRD defines the person surface: the Person Landing component, identity header,
 topic overview, cross-navigation, and degraded states.
 
-PRD-028 (Position Tracker) is the companion flagship. Clicking a topic group in the
+the Position Tracker is the companion flagship. Clicking a topic group in the
 Person Profile navigates to the Position Tracker for that person + topic combination,
 enabling a drill-down from "what topics does this person discuss?" to "how has their
 position on this specific topic evolved?"
@@ -73,11 +68,11 @@ position on this specific topic evolved?"
 1. Make `person:{slug}` a navigable concept in the viewer -- the user can see a
    person's corpus presence and topic footprint.
 2. Own the shared Person Landing component that hosts both Person Profile and
-   Position Tracker (PRD-028).
+   Position Tracker.
 3. Present the list of topics a person has discussed, with Insight counts per topic.
 4. Enable multiple entry points: graph Person node click, search result speaker click,
    and a dedicated person browse.
-5. Cross-link to PRD-028 Position Tracker (per-topic drill-down) and PRD-026 Topic
+5. Cross-link to the Position Tracker (per-topic drill-down) and PRD-026 Topic
    Entity View (topic-first navigation).
 6. Work entirely from core artifacts (bridge, GIL, KG) -- no LLM, no database, no
    new extraction.
@@ -116,7 +111,7 @@ position on this specific topic evolved?"
   glance._
 - _As a user, I can see which topics a person has discussed and how many Insights
   exist per topic so that I know what to explore further._
-- _As a user, I can click a topic to drill into the Position Tracker (PRD-028) so
+- _As a user, I can click a topic to drill into the Position Tracker so
   that I can see how the person's thinking on that topic evolved._
 - _As a user, I can click "View topic" to navigate to the Topic Entity View (PRD-026)
   so that I see the topic from a corpus-wide perspective._
@@ -147,14 +142,14 @@ The Person Profile API uses the existing CIL endpoint with a lightweight respons
 ### FR2: Viewer Panel -- Person Profile
 
 - **FR2.1**: This PRD **owns the shared Person Landing component** -- the
-  entry-point surface that hosts both Person Profile and Position Tracker (PRD-028).
+  entry-point surface that hosts both Person Profile and Position Tracker.
   The Person Landing opens from three entry points:
   - Clicking a Person node in the Cytoscape graph (right rail panel).
   - Clicking a speaker name in a search result card (including lifted results).
   - A dedicated person browse (accessible from the viewer navigation).
 
   The Person Landing defaults to the Person Profile tab. A tab or toggle switches to
-  the Position Tracker (PRD-028). PRD-028 references this component; it does not
+  the Position Tracker. The Position Tracker references this component; it does not
   define its own landing.
 - **FR2.2**: Person header section shows:
   - Person display name (`text-lg font-semibold`).
@@ -166,13 +161,13 @@ The Person Profile API uses the existing CIL endpoint with a lightweight respons
     (most-discussed topic first).
   - Each topic row shows: topic display name, Insight count badge.
   - Each topic row has two navigation links:
-    - "Track positions" navigates to the Position Tracker (PRD-028) for this
+    - "Track positions" navigates to the Position Tracker for this
       person + topic.
     - "View topic" navigates to the Topic Entity View (PRD-026) for that topic.
 - **FR2.4**: Cross-navigation:
   - "View in graph" button navigates to the Graph tab and focuses on this person's
     node.
-  - "Track positions" on each topic row navigates to Position Tracker (PRD-028).
+  - "Track positions" on each topic row navigates to Position Tracker.
   - "View topic" on each topic row navigates to Topic Entity View (PRD-026).
 
 ### FR3: Empty and Degraded States
@@ -267,7 +262,7 @@ rendered by the Person Profile viewer. Future extensions may use it.
 2. The person header shows display name, slug, appearance count, and date range.
 3. The Topic Overview lists all topics with correct Insight counts, sorted by count
    descending.
-4. Cross-navigation to Position Tracker (PRD-028), Topic Entity View (PRD-026), and
+4. Cross-navigation to Position Tracker, Topic Entity View (PRD-026), and
    Graph all work from the Person Profile panel.
 5. All four degraded states (FR3.1 -- FR3.4) render correctly with honest messaging
    and no broken UI.
@@ -278,12 +273,8 @@ rendered by the Person Profile viewer. Future extensions may use it.
 
 ## Dependencies
 
-- **RFC-072** (Phases 1--4): CIL identity, bridge artifact, `person_profile` query
-  pattern, and CIL API endpoints.
 - **PRD-026** (Topic Entity View): cross-linked from each topic row.
 - **PRD-027** (Enriched Search): entry point via speaker names in enriched sources.
-- **PRD-028** (Position Tracker): companion flagship; "Track positions" navigates
-  there. References the Person Landing component owned by this PRD.
 
 ---
 
@@ -329,7 +320,7 @@ sections when data is present and omits them otherwise -- no feature flags are n
 
 1. **Appearance count source**: Bridge scan (GIL attribution) vs KG (mentions).
    Recommend: bridge scan for consistency with the profile's CIL-centric data.
-   (Same question as PRD-028.)
+   (Same question as the Position Tracker.)
 
 ---
 
@@ -337,8 +328,6 @@ sections when data is present and omits them otherwise -- no feature flags are n
 
 - Issue #527: CIL query API implementation
 - PRD-026: Topic Entity View
-- PRD-028: Position Tracker
-- RFC-072: Canonical Identity Layer
 
 ---
 
@@ -353,5 +342,5 @@ sections when data is present and omits them otherwise -- no feature flags are n
 - [ ] Empty/degraded states implemented and tested (FR3.1 -- FR3.4)
 - [ ] Playwright E2E coverage for populated and empty states
 - [ ] Documentation updated (SERVER_GUIDE, E2E_SURFACE_MAP)
-- [ ] Integration with PRD-028 (Position Tracker) verified
+- [ ] Integration with the Position Tracker verified
 - [ ] Integration with PRD-026 (Topic Entity View) verified

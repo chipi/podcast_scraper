@@ -247,8 +247,9 @@ def corpus_parent_for_manifest_stamp_from_cfg(cfg: "config.Config") -> Optional[
     # multi-feed loops: cli.py's own, the prod nightly path, and service.run_multi_feed)
     # rebases child output_dir to <corpus>/feeds/<slug> with the flag off, and flag-only
     # gating left every batch child resolving None.
-    if out.parent.name == "feeds" and out.parent.parent.name:
-        return str(out.parent.parent)
+    root = filesystem.corpus_root_of_workspace(out)
+    if root is not None:
+        return str(root)
     if getattr(cfg, "single_feed_uses_corpus_layout", False):
         return str(out)
     if (out / "feeds").is_dir():
@@ -273,7 +274,7 @@ def is_multi_feed_batch_child(cfg: "config.Config") -> bool:
     ):
         return False
     out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
-    return out.parent.name == "feeds" and bool(out.parent.parent.name)
+    return filesystem.corpus_root_of_workspace(out) is not None
 
 
 def upsert_corpus_manifest_feed(
@@ -572,6 +573,13 @@ def finalize_multi_feed_batch(
     overall_ok = all(fr.ok for fr in feed_results) if feed_results else True
     write_corpus_manifest(corpus_parent, feed_results)
     inc_path = (incident_log_path or "").strip() or _default_corpus_incident_log_path(corpus_parent)
+    # Before the incident window is read, so this batch's EpisodeParked rows are in its summary.
+    from podcast_scraper.workflow import episode_park
+
+    episode_park.commit_batch(
+        inc_path,
+        int(getattr(template_cfg, "transcription_park_after_failures", 2)),
+    )
     records, end_off = parse_corpus_incident_jsonl_window(inc_path, int(incident_log_start_offset))
     batch_counts, per_feed_inc = rollup_corpus_incidents_for_multi_feed_summary(records)
     ep_u = batch_counts["episode_incidents_unique"]

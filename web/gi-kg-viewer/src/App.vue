@@ -30,7 +30,7 @@ import SubjectRail from './components/shell/SubjectRail.vue'
 import UserMenu from './components/shell/UserMenu.vue'
 import { useAuthStore } from './stores/auth'
 import { useGraphAnalyticsStore } from './stores/graphAnalytics'
-import { useArtifactsStore } from './stores/artifacts'
+import { artifactFileReadable, useArtifactsStore } from './stores/artifacts'
 import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useGraphExplorerStore } from './stores/graphExplorer'
 import { useGraphHandoffStore } from './stores/graphHandoff'
@@ -52,7 +52,11 @@ import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
 import { stripLayerPrefixesForCil } from './utils/mergeGiKg'
 import { topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
 import { fetchTopicTimeline } from './api/cilApi'
-import { fetchResolveEpisodeArtifacts } from './api/corpusLibraryApi'
+import {
+  fetchNodeEpisodes,
+  fetchResolveEpisodeArtifacts,
+  GRAPH_NODE_EPISODES_EXPAND_MAX,
+} from './api/corpusLibraryApi'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
@@ -282,14 +286,6 @@ async function onPaletteOperatorOnLast(id: string): Promise<void> {
   searchOperators.list().find((op) => op.id === id)?.activate?.()
 }
 
-async function onPaletteCompareOnLast(): Promise<void> {
-  const q = await ensureLastQueryLoaded()
-  if (!q) return
-  // Compare picker lives on ResultSetOperatorBar — flip the flag so the
-  // panel is open with the auto-seeded slots ready for one-click Run.
-  search.activeOperator = 'compare'
-}
-
 /* A loaded graph on the graph tab: tell registered hooks (for example to grow the selection). */
 watch(
   () => ({ loading: artifacts.loading, parsedLen: artifacts.parsedList.length, tab: mainTab.value }) as const,
@@ -391,6 +387,15 @@ async function handOffTopic(
   graphNav.requestFocusNode(topicId, focusFallbackId || null)
 }
 
+/** The topic timeline's episode ids, or none when this build does not serve the timeline. */
+async function topicTimelineEpisodeIds(root: string, topicId: string): Promise<string[]> {
+  try {
+    return (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
+  } catch {
+    return []
+  }
+}
+
 async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) return
@@ -398,7 +403,12 @@ async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
   try {
     // A grouping provider may already know the topic's episodes; the timeline is the fallback.
     let ids = topicGrouping.list().flatMap((g) => g.episodeIdsForTopic?.(topicId) ?? [])
-    if (ids.length === 0) ids = (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
+    if (ids.length === 0) ids = await topicTimelineEpisodeIds(root, topicId)
+    // A build without GI serves no timeline: then the episodes whose KG names the topic.
+    if (ids.length === 0) {
+      const res = await fetchNodeEpisodes(root, topicId, GRAPH_NODE_EPISODES_EXPAND_MAX)
+      ids = res.episodes.map((e) => e.episode_id).filter((x): x is string => !!x)
+    }
     if (ids.length === 0) return
     const paths = topicHandoffArtifactPaths((await fetchResolveEpisodeArtifacts(root, ids)).resolved)
     if (paths.length === 0) return
@@ -536,7 +546,7 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   if (corpusGraphSyncGate.isStale(gen)) {
     return
   }
-  const rows = shell.artifactList.map((a) => ({
+  const rows = shell.artifactList.filter((a) => artifactFileReadable(a.relative_path)).map((a) => ({
     relative_path: a.relative_path,
     kind: a.kind,
     publish_date: a.publish_date ?? '',
@@ -740,22 +750,8 @@ function onGraphNodeSpeakerOpenSearchFilter(payload: { speaker: string }): void 
   void focusSearchWorkspace(false)
 }
 
-/**
- * Graph Insight node detail: set grounded/min-confidence on the Search
- * filters + switch to Search workspace. ``groundedOnly`` is server-side;
- * ``minConfidence`` is client-side over top-K.
- */
-function onGraphNodeInsightOpenSearchFilters(payload: {
-  groundedOnly: boolean
-  minConfidence: number | null
-}): void {
-  search.filters.topic = ''
-  search.filters.speaker = ''
-  search.filters.groundedOnly = payload.groundedOnly
-  search.filters.minConfidence =
-    payload.minConfidence != null && Number.isFinite(payload.minConfidence)
-      ? String(payload.minConfidence)
-      : ''
+/** Graph node detail: switch to the Search workspace with the filters as they are. */
+function onGraphNodeOpenSearch(): void {
   void focusSearchWorkspace(false)
 }
 
@@ -842,6 +838,7 @@ async function onSearchFocusSet(ids: string[]): Promise<void> {
         const stemMatch = base.match(/^(.+)\.(gi|kg|bridge)\.json$/i)
         if (!stemMatch) continue
         if (!wantedBaseNames.has(stemMatch[1])) continue
+        if (!artifactFileReadable(rel)) continue
         extras.push(rel)
       }
       if (extras.length > 0) {
@@ -1232,7 +1229,7 @@ watch(
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
             @open-search-topic-filter="onGraphNodeTopicOpenSearchFilter"
             @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"
-            @open-search-insight-filters="onGraphNodeInsightOpenSearchFilters"
+            @open-search="onGraphNodeOpenSearch"
             @open-library-episode="onSearchOpenLibraryEpisode"
             @switch-main-tab="onSwitchMainTab($event)"
           />
@@ -1253,7 +1250,6 @@ watch(
         @open-health="onPaletteOpenHealth"
         @rebuild-index="onPaletteRebuildIndex"
         @timeline-on-last="onPaletteTimelineOnLast"
-        @compare-on-last="onPaletteCompareOnLast"
         @operator-on-last="onPaletteOperatorOnLast"
       />
     </div>

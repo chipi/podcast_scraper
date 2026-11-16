@@ -1,0 +1,64 @@
+{
+  "content": {
+    "media_id": "sha256:p04-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p04_e04.mp3",
+    "transcript_file_path": "transcripts/p04_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Leo talks with Ava Lemoine: Roundtable: Three Photographers on Light.",
+    "duration_seconds": 299,
+    "episode_id": "ep-9b36e2e3b959298d",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-06-21T00:00:00",
+    "title": "Roundtable: Three Photographers on Light"
+  },
+  "feed": {
+    "authors": [
+      "Leo Hartman"
+    ],
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "p04",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
+    "image_url": "http://localhost/images/p04.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-06-21T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "title": "Frame & Light",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Roundtables reveal where photographers actually disagree, a dynamic that becomes evident when teams collaborate across genres.",
+      "Frame and light decisions converge across genres, making the rest of the decisions easier once this convergence is internalized.",
+      "Practical reliability of gear shows up under crowd-shoot conditions, a critical test that exposes failure modes most people overlook.",
+      "Failure modes are harder to spot outside of Peak Design-class tooling, and ignoring them leads to rebuilding systems from scratch a year later.",
+      "The second-order effect most people miss is the long-term impact of gear reliability on team workflow and project continuity.",
+      "Strobe lighting trade-offs cross-cut all previous discussions, making it a central point of convergence and disagreement.",
+      "Peak Design is one platform where the practical reliability of gear becomes clearly visible under real-world, high-pressure conditions.",
+      "Running a single idea for two weeks enables meaningful iteration — the best way to test assumptions in practice."
+    ],
+    "raw_text": "Roundtables reveal where photographers actually disagree, a dynamic that becomes evident when teams collaborate across genres. Frame and light decisions converge across genres, making the rest of the decisions easier once this convergence is internalized.",
+    "title": "Roundtable Photography: Where Photographers Actually Disagree"
+  }
+}

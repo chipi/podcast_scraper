@@ -31,7 +31,6 @@ from typing import Any, Dict
 
 import pytest
 
-from podcast_scraper.gi.speakers import add_spoken_by_edges
 from podcast_scraper.kg.io import write_artifact
 from podcast_scraper.kg.pipeline import build_artifact
 from podcast_scraper.server.kg_view import entities_from_kg
@@ -155,41 +154,3 @@ class TestWhatTheClientActuallyReceives:
             f"the client was served the guest as role={guest.role!r} — this is the operator-"
             "reported symptom: the guest always shown as a contributor"
         )
-
-
-class TestAttributionAgreesWithTheRoles:
-    """The graph says who they ARE; SPOKEN_BY says who SPOKE. They must not contradict."""
-
-    def test_each_speaker_gets_their_own_quote(self) -> None:
-        art = _gi_artifact()
-        add_spoken_by_edges(art, TRANSCRIPT, hosts=[HOST], guests=[GUEST])
-        spoken = {e["from"]: e["to"] for e in art["edges"] if e.get("type") == "SPOKEN_BY"}
-        assert spoken.get("quote:host-1") == "person:kevin-roose"
-        assert spoken.get("quote:guest-1") == "person:brian-chesky"
-
-    def test_the_guest_quote_is_not_stamped_with_the_host(self) -> None:
-        art = _gi_artifact()
-        add_spoken_by_edges(art, TRANSCRIPT, hosts=[HOST], guests=[GUEST])
-        spoken = {e["from"]: e["to"] for e in art["edges"] if e.get("type") == "SPOKEN_BY"}
-        assert spoken.get("quote:guest-1") != "person:kevin-roose"
-
-    def test_the_mentioned_person_never_speaks(self) -> None:
-        art = _gi_artifact()
-        add_spoken_by_edges(art, TRANSCRIPT, hosts=[HOST], guests=[GUEST])
-        targets = {e["to"] for e in art["edges"] if e.get("type") == "SPOKEN_BY"}
-        assert "person:elon-musk" not in targets, (
-            "a person who is only TALKED ABOUT was attributed a quote — the name appears inside "
-            "the host's turn, and a marker-blind reader will hand them the turn"
-        )
-
-    def test_an_undetected_guest_yields_nobody_not_the_host(self) -> None:
-        # The mixed-marker shape: 63.1% of prod episodes. The roster named the host, left the
-        # guest's voice as SPEAKER_NN, so the transcript carries a marker with no name behind it.
-        mixed = TRANSCRIPT.replace(f"{GUEST}:", "SPEAKER_01:")
-        art = _gi_artifact()
-        for n in art["nodes"]:
-            n["properties"]["char_start"] = mixed.index(n["properties"]["text"])
-        add_spoken_by_edges(art, mixed, hosts=[HOST], guests=[])
-        spoken = {e["from"]: e["to"] for e in art["edges"] if e.get("type") == "SPOKEN_BY"}
-        assert spoken.get("quote:host-1") == "person:kevin-roose"
-        assert "quote:guest-1" not in spoken

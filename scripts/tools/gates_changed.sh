@@ -83,6 +83,16 @@ if [ -n "$py" ]; then
   tests=$(printf '%s\n' "$tests" | sed '/^$/d' | sort -u)
   if [ -n "$tests" ]; then
     echo "    $(printf '%s\n' "$tests" | wc -l | tr -d ' ') test file(s) name a changed module or changed"
+    # Tests of app state assert on a Postgres; without its URL they fail as if the change broke
+    # them. This checkout's test database (make test-db-up) is used when it is running.
+    if [ -z "${PODCAST_TEST_DATABASE_URL:-}" ]; then
+      if db_url=$(bash scripts/tools/test_db.sh url 2>/dev/null); then
+        export PODCAST_TEST_DATABASE_URL="$db_url"
+        echo "    test database: this checkout's (make test-db-up)"
+      else
+        echo "    test database: none running; tests that need it fail (make test-db-up)"
+      fi
+    fi
     # shellcheck disable=SC2086
     gate pytest "$PY" -m pytest -q -n 4 -p no:cacheprovider $tests
   else

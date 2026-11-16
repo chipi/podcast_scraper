@@ -13,7 +13,7 @@ ollama_api_base: http://${DGX_TAILNET_HOST}:11434/v1
 transcription_provider: whisper
 whisper_model: small.en
 
-# Screenplay + neural diarization (RFC-058 + #926)
+# Screenplay + neural diarization
 screenplay: true
 diarize: true
 

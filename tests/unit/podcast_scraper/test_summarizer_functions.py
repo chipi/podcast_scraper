@@ -1225,16 +1225,6 @@ class TestResolveModelNameAndSponsorBlocks(unittest.TestCase):
             summarizer.resolve_model_name("not-a-known-alias-xyz-123")
         self.assertIn("Unknown model id", str(ctx.exception))
 
-    def test_remove_sponsor_blocks_removes_phrase_block(self):
-        text = (
-            "Intro line.\n\n"
-            "This episode is brought to you by ACME Corp.\n\n"
-            "Main discussion continues here."
-        )
-        out = summarizer.remove_sponsor_blocks(text)
-        self.assertNotIn("brought to you by", out.lower())
-        self.assertIn("Main discussion continues", out)
-
 
 if __name__ == "__main__":
     unittest.main()

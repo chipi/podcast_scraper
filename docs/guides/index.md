@@ -81,10 +81,8 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md) | **RFC-072** map: **`bridge.json`**, CIL HTTP routes, semantic **lift**, offset verification, CLI/Make, and test entry points |
 | [RSS and feed ingestion](RSS_GUIDE.md) | How RSS URLs become `RssFeed` and `Episode` objects: HTTP, caches, parsing, selection, multi-feed; entry point for future non-RSS ingestion docs |
 | [Semantic Search](SEMANTIC_SEARCH_GUIDE.md) | RFC-061 corpus vector index; **`GET /api/search`**; **chunk-to-Insight lift** and **`verify-gil-chunk-offsets`** when GIL + index share transcript space |
-| [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | GIL: **`gi.json`**, quotes, schema, CLI; **`bridge.json`** sibling for canonical ids; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG: **`kg.json`**, entities/topics/relationships; **bridge** aligns KG with GIL for APIs; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
 | [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on a server |
@@ -93,10 +91,6 @@ Practical guides for using and developing Podcast Scraper.
 | [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md) | Operator and developer reference for transcription, speaker attribution, API audio chunking and commercial/sponsor cleaning (Audio Wave 1 and Wave 2) |
 | [Enrichment Layer Guide](ENRICHMENT_LAYER_GUIDE.md) | Operator/developer reference for the enrichment layer (RFC-088): typed, opt-in enrichers on top of GIL / KG / bridge |
 | [Graph Visualization Guide](GRAPH_VISUALIZATION_GUIDE.md) | Every visual rule and business decision of the gi-kg-viewer graph canvas, with the code path where it lives |
-| [Naming ladder](NAMING_LADDER.md) | The naming rungs, the decision trace, and how to reconstruct any episode's speaker names |
-| [Naming ladder — known issues](NAMING_KNOWN_ISSUES.md) | Known issues and limits of the naming ladder |
-| [Naming gate runbook](NAMING_GATE_RUNBOOK.md) | Labelled speaker sets and how every naming change is judged |
-| [Speaker attribution trace](SPEAKER_ATTRIBUTION_TRACE_GUIDE.md) | How a name becomes a role, and how to debug it |
 
 ## Evaluation and baselines
 

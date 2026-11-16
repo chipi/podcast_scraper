@@ -12,9 +12,6 @@ from typing import Any, Optional
 
 import pytest
 
-from podcast_scraper.insight_stage.gi_view import insights_from_gi
-from podcast_scraper.insight_stage.perspectives import _node_to_app_insight
-from podcast_scraper.server.app_moments import MomentsConfig, score_candidates
 from podcast_scraper.translation.provenance import translated_from
 
 pytestmark = pytest.mark.unit
@@ -77,30 +74,3 @@ class TestTranslatedFrom:
     )
     def test_anything_else_is_not_translated(self, props: dict[str, Any]) -> None:
         assert translated_from(props) is None
-
-
-class TestAppPayloads:
-    def test_translated_quote_and_its_insight_carry_the_language(self) -> None:
-        (insight,) = insights_from_gi(_artifact("es"))
-        assert insight.quotes[0].translated_from == "es"
-        assert insight.translated_from == "es"
-
-    def test_native_english_carries_none(self) -> None:
-        (insight,) = insights_from_gi(_artifact(None))
-        assert insight.quotes[0].translated_from is None
-        assert insight.translated_from is None
-
-    def test_moment_carries_the_language(self) -> None:
-        (moment,) = score_candidates(_artifact("pt"), MomentsConfig())
-        assert moment.translated_from == "pt"
-
-    def test_topic_perspective_insight_carries_the_language(self) -> None:
-        node = {
-            "id": "insight:1",
-            "type": "Insight",
-            "properties": {"text": "the point"},
-            "_quote_translated_from": "de",
-        }
-        assert _node_to_app_insight(node).translated_from == "de"
-        node.pop("_quote_translated_from")
-        assert _node_to_app_insight(node).translated_from is None

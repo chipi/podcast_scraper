@@ -88,7 +88,7 @@ separate, deliberate verb, because the output is a tracked fixture whose
 cluster ids several tests assert:
 
 ```bash
-make build-validation-topic-clusters     # then review the diff before committing
+make build-validation-topic-clusters     # the extension's Makefile; then review the diff before committing
 ```
 
 ## What works against the synthetic corpus

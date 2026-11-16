@@ -4,8 +4,8 @@ RFC-091's KG-proximity signal needs to traverse from a query entity to the
 *insight* nodes that retrieval ranks. Insights live only in the GIL layer, while
 entities/episodes/topics live in the KG layer; the two are joined on **exact
 shared canonical IDs** (`person:{slug}`, `org:{slug}`, `topic:{slug}`,
-`episode:{episode_id}` are identical across `*.gi.json` and `*.kg.json`,
-RFC-072). This module loads both layers and unifies them into one undirected
+`episode:{episode_id}` are identical across `*.gi.json` and `*.kg.json`).
+This module loads both layers and unifies them into one undirected
 in-memory graph with `neighbors()` / `get_node()` / `bfs()`.
 
 Design notes:
@@ -33,10 +33,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .. import read_hooks
-from ..builders.bridge_builder import strip_layer_prefixes
 from ..graph_id_utils import (
     is_numbered_speaker_label as _looks_like_speaker_label,
     is_unresolved_speaker_placeholder,
+    strip_layer_prefixes,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,7 +90,7 @@ class CorpusGraph:
         # variant_id -> canonical_id (#852). Collapses cross-episode entity-spelling
         # variants at read-time; empty = faithful artifact union.
         self._id_map: Dict[str, str] = dict(identity_map or {})
-        # The ledger's display view (RFC-131 S6d): a joined person's node carries the group's one
+        # The ledger's display view: a joined person's node carries the group's one
         # spelling, not whichever artifact's name was ingested last.
         self._people = people
 

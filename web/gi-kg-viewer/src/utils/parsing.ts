@@ -9,77 +9,12 @@ import type {
   RawGraphEdge,
   RawGraphNode,
 } from '../types/artifact'
+import { graphElementDecorators, graphNodeFilters, graphTypeTraits } from '../extensions'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
-import { stripLayerPrefixesForCil } from './mergeGiKg'
 import { visualGroupForNode } from './visualGroup'
 
 export { visualGroupForNode, visualNodeTypeCounts } from './visualGroup'
-
-export function ensureEpisodeToInsightEdges(
-  nodes: RawGraphNode[],
-  edges: RawGraphEdge[],
-): { nodes: RawGraphNode[]; edges: RawGraphEdge[] } {
-  const nList = Array.isArray(nodes) ? nodes.slice() : []
-  const eList: RawGraphEdge[] = Array.isArray(edges)
-    ? edges.map((e) => ({ ...e }))
-    : []
-  const episodes = nList.filter((n) => n && n.type === 'Episode')
-  const insights = nList.filter((n) => n && n.type === 'Insight')
-  if (episodes.length === 0 || insights.length === 0) {
-    return { nodes: nList, edges: eList }
-  }
-
-  function episodeKeyFromNode(ep: RawGraphNode): string | null {
-    return logicalEpisodeIdFromGraphNodeId(String(ep.id ?? ''))
-  }
-
-  const seen = new Set<string>()
-  for (const e of eList) {
-    if (!e) continue
-    seen.add(`${String(e.from)}\0${String(e.to)}\0${String(e.type || '')}`)
-  }
-
-  for (const ep of episodes) {
-    const eid = episodeKeyFromNode(ep)
-    if (eid == null) continue
-    const epId = String(ep.id)
-    for (const ins of insights) {
-      const p = ins.properties || {}
-      if (String(p.episode_id || '') !== eid) continue
-      const iid = String(ins.id)
-      const k = `${epId}\0${iid}\0HAS_INSIGHT`
-      if (seen.has(k)) continue
-      eList.push({ type: 'HAS_INSIGHT', from: epId, to: iid })
-      seen.add(k)
-    }
-  }
-
-  if (episodes.length === 1) {
-    const soleEp = episodes[0]
-    const epId = String(soleEp.id)
-    for (const ins of insights) {
-      const iid = String(ins.id)
-      let hasIncoming = false
-      for (const e of eList) {
-        if (
-          e &&
-          String(e.type || '') === 'HAS_INSIGHT' &&
-          String(e.to) === iid
-        ) {
-          hasIncoming = true
-          break
-        }
-      }
-      if (hasIncoming) continue
-      const k = `${epId}\0${iid}\0HAS_INSIGHT`
-      if (seen.has(k)) continue
-      eList.push({ type: 'HAS_INSIGHT', from: epId, to: iid })
-      seen.add(k)
-    }
-  }
-  return { nodes: nList, edges: eList }
-}
 
 /**
  * Episode graph node id in ``art`` whose logical id matches ``episodeKey`` (GI ``properties.episode_id``).
@@ -103,16 +38,14 @@ export function parseArtifact(
   data: ArtifactData,
   sourceCorpusRelPath?: string | null,
 ): ParsedArtifact {
-  let nodes = Array.isArray(data.nodes) ? data.nodes.slice() : []
-  let edges = Array.isArray(data.edges) ? data.edges.slice() : []
+  const nodes = Array.isArray(data.nodes) ? data.nodes.slice() : []
+  const edges = Array.isArray(data.edges) ? data.edges.slice() : []
   const episodeId =
     typeof data.episode_id === 'string' ? data.episode_id : null
 
   let kind: ArtifactKind = 'unknown'
   const lower = filename.toLowerCase()
-  if (lower.endsWith('.gi.json')) {
-    kind = 'gi'
-  } else if (lower.endsWith('.kg.json')) {
+  if (lower.endsWith('.kg.json')) {
     kind = 'kg'
   } else if (
     data.extraction &&
@@ -120,17 +53,6 @@ export function parseArtifact(
     !Object.prototype.hasOwnProperty.call(data, 'prompt_version')
   ) {
     kind = 'kg'
-  } else if (
-    typeof data.model_version === 'string' &&
-    typeof data.prompt_version === 'string'
-  ) {
-    kind = 'gi'
-  }
-
-  if (kind === 'gi') {
-    const aug = ensureEpisodeToInsightEdges(nodes, edges)
-    nodes = aug.nodes
-    edges = aug.edges
   }
 
   const nodeTypes: Record<string, number> = {}
@@ -139,8 +61,7 @@ export function parseArtifact(
     nodeTypes[t] = (nodeTypes[t] || 0) + 1
   }
 
-  const dataOut =
-    kind === 'gi' ? { ...data, nodes, edges } : { ...data }
+  const dataOut = { ...data }
 
   const rel = sourceCorpusRelPath != null && String(sourceCorpusRelPath).trim()
     ? String(sourceCorpusRelPath).trim().replace(/\\/g, '/').replace(/^\/+/, '')
@@ -327,59 +248,6 @@ function recencyWeightFromPublishMs(ms: number | null): number {
   return Math.max(0.4, 1.0 - (daysSince / 90) * 0.6)
 }
 
-function confidenceOpacityFromInsightProperties(
-  properties: Record<string, unknown> | undefined,
-): number {
-  const raw = properties?.confidence
-  let c = Number.NaN
-  if (typeof raw === 'number') {
-    c = raw
-  } else if (typeof raw === 'string' && raw.trim()) {
-    c = Number(raw)
-  }
-  const conf = Number.isFinite(c) ? Math.max(0, Math.min(1, c)) : 0.7
-  return 0.5 + conf * 0.5
-}
-
-/**
- * Map an Insight's raw confidence to a coarse tier class. Tiers exist as
- * stylesheet hooks so future selectors (e.g. "hide all low-confidence")
- * can target them directly without recomputing thresholds. Returns
- * `null` when confidence is missing / non-finite — callers omit the
- * class so the default Insight styling applies.
- *
- * Bucket thresholds match the planned RFC-080 V2 stylesheet:
- *   high   ≥ 0.7
- *   medium ≥ 0.4
- *   low    < 0.4
- */
-export function confidenceTierFromInsightProperties(
-  properties: Record<string, unknown> | undefined,
-): 'high' | 'medium' | 'low' | null {
-  const raw = properties?.confidence
-  let c = Number.NaN
-  if (typeof raw === 'number') {
-    c = raw
-  } else if (typeof raw === 'string' && raw.trim()) {
-    c = Number(raw)
-  }
-  if (!Number.isFinite(c)) return null
-  if (c >= 0.7) return 'high'
-  if (c >= 0.4) return 'medium'
-  return 'low'
-}
-
-/**
- * Insight is "ungrounded" when its raw `grounded` property is explicitly
- * `false`. Treats missing / null / non-boolean as grounded so legacy
- * artifacts predating the field don't all light up with warning borders.
- */
-export function isInsightUngrounded(
-  properties: Record<string, unknown> | undefined,
-): boolean {
-  return properties?.grounded === false
-}
-
 export function buildNodeTitle(n: RawGraphNode): string {
   try {
     const disp = nodeLabel(n)
@@ -473,7 +341,7 @@ export function countPersonEntityIncidentEdges(
  * Real corpora frequently emit near-duplicate Topic names ("AI ethics",
  * "AI Ethics", "AI-ethics") which scatter the user across multiple
  * rows for what is one conceptual topic. Until full corpus-wide
- * clustering ships (RFC-075 Phase 0-4), the viewer dedupes on the
+ * clustering ships, the viewer dedupes on the
  * read side via simple normalization: lowercase, strip ASCII
  * punctuation, collapse whitespace. Groups produced by this key
  * surface under the canonical (= first-seen-after-sort) Topic id +
@@ -697,317 +565,6 @@ export function personEpisodeAppearances(
 }
 
 /**
- * Insights this Person mentioned in, grouped by the Topic each Insight
- * is ABOUT. PRD-029 § "Insights voiced (grouped by Topic)".
- *
- * Returns a list of `{topicId, topicName, count, insights[]}` rows so
- * the renderer doesn't need to manage Map ordering. Sorted by count
- * desc, then alphabetic by topic name. Each Insight is keyed under
- * exactly one (insight, topic) pair (duplicates collapsed), but a
- * single Insight that is ABOUT multiple topics will appear under each
- * of those topic groups — that's the desired UX (you scan the topic
- * groups to find arguments that bridge topics).
- *
- * Insight text falls back to the insight id; insight_type is preserved
- * for filter / classification UX.
- */
-export interface PersonInsightUnderTopic {
-  insightId: string
-  text: string
-  insightType: string | null
-  episodeId: string | null
-}
-export interface PersonTopicGroup {
-  topicId: string
-  topicName: string
-  count: number
-  insights: PersonInsightUnderTopic[]
-}
-export function personInsightsByTopic(
-  art: ParsedArtifact | null,
-  personGraphId: string | null,
-): PersonTopicGroup[] {
-  if (!art?.data?.edges || personGraphId == null) return []
-  const pid = String(personGraphId).trim()
-  if (!pid) return []
-
-  const mentioningInsights = new Set<string>()
-  for (const e of art.data.edges) {
-    if (!e) continue
-    if (normalizeGiEdgeType(e.type) !== 'mentions_person') continue
-    if (String(e.to ?? '').trim() !== pid) continue
-    const from = String(e.from ?? '').trim()
-    if (from) mentioningInsights.add(from)
-  }
-  if (mentioningInsights.size === 0) return []
-
-  // topic id → Map<insightId, PersonInsightUnderTopic> (dedup at the pair level).
-  const groups = new Map<string, Map<string, PersonInsightUnderTopic>>()
-  for (const e of art.data.edges) {
-    if (!e) continue
-    if (normalizeGiEdgeType(e.type) !== 'about') continue
-    const from = String(e.from ?? '').trim()
-    if (!mentioningInsights.has(from)) continue
-    const to = String(e.to ?? '').trim()
-    if (!to) continue
-    const insightNode = findRawNodeInArtifact(art, from)
-    if (!insightNode || String(insightNode.type) !== 'Insight') continue
-    let bucket = groups.get(to)
-    if (!bucket) {
-      bucket = new Map()
-      groups.set(to, bucket)
-    }
-    if (bucket.has(from)) continue
-    const ip = insightNode.properties as Record<string, unknown> | undefined
-    const text = typeof ip?.text === 'string' ? ip.text.trim() : ''
-    const insightType = typeof ip?.insight_type === 'string' ? ip.insight_type.trim() : ''
-    const epRaw = typeof ip?.episode_id === 'string' ? ip.episode_id.trim() : ''
-    bucket.set(from, {
-      insightId: from,
-      text,
-      insightType: insightType || null,
-      episodeId: epRaw || null,
-    })
-  }
-
-  const raw: PersonTopicGroup[] = []
-  for (const [topicId, bucket] of groups) {
-    const n = findRawNodeInArtifact(art, topicId)
-    const p = n?.properties as Record<string, unknown> | undefined
-    const rawName = typeof p?.name === 'string' ? p.name.trim() : ''
-    const label = typeof p?.label === 'string' ? p.label.trim() : ''
-    const insights = Array.from(bucket.values())
-    insights.sort((a, b) =>
-      a.insightId < b.insightId ? -1 : a.insightId > b.insightId ? 1 : 0,
-    )
-    raw.push({
-      topicId,
-      topicName: rawName || label || topicId,
-      count: bucket.size,
-      insights,
-    })
-  }
-  // #1076 chunk 2 — fold near-duplicate Topic groups by canonical key
-  // (lowercase + strip punctuation + collapse whitespace). Insights
-  // from grouped Topics merge into a single group under the
-  // alphabetically-smallest topic id + its name. Topics with no
-  // extractable name pass through ungrouped.
-  const dedupedGroups = new Map<string, PersonTopicGroup>()
-  const ungroupedGroups: PersonTopicGroup[] = []
-  const seenInsightIdsByKey = new Map<string, Set<string>>()
-  for (const g of raw) {
-    const key = canonicalTopicKey(g.topicName)
-    if (!key) {
-      ungroupedGroups.push(g)
-      continue
-    }
-    const existing = dedupedGroups.get(key)
-    if (!existing) {
-      dedupedGroups.set(key, {
-        topicId: g.topicId,
-        topicName: g.topicName,
-        count: 0,
-        insights: [],
-      })
-      seenInsightIdsByKey.set(key, new Set())
-    }
-    const target = dedupedGroups.get(key)!
-    const seen = seenInsightIdsByKey.get(key)!
-    if (g.topicId < target.topicId) {
-      target.topicId = g.topicId
-      target.topicName = g.topicName
-    }
-    // Dedup insights across the grouped Topics — the same Insight
-    // ABOUT both "AI ethics" and "AI Ethics" must surface once.
-    for (const ins of g.insights) {
-      if (seen.has(ins.insightId)) continue
-      seen.add(ins.insightId)
-      target.insights.push(ins)
-    }
-    target.count = target.insights.length
-  }
-  const out: PersonTopicGroup[] = [...dedupedGroups.values(), ...ungroupedGroups]
-  for (const g of out) {
-    g.insights.sort((a, b) =>
-      a.insightId < b.insightId ? -1 : a.insightId > b.insightId ? 1 : 0,
-    )
-  }
-  out.sort((a, b) => b.count - a.count || a.topicName.localeCompare(b.topicName))
-  return out
-}
-
-/**
- * One row of the Person × Topic position arc per RFC-072 §5A / PRD-028.
- *
- * Each row is one Insight that both ``MENTIONS_PERSON → personId`` AND
- * ``ABOUT → topicId``, with its temporal placement (``publish_date`` from
- * the parent Episode, ``position_hint`` from the Insight itself) and the
- * supporting Quote excerpts so the UI can render quote cards without a
- * second pass through the artifact.
- */
-export interface PersonTopicPositionRow {
-  insightId: string
-  text: string
-  insightType: string | null
-  positionHint: number | null
-  episodeId: string | null
-  publishDate: string | null
-  supportingQuoteTexts: string[]
-}
-
-/**
- * Ordered position-arc rows for a (Person, Topic) pair, joined off the
- * loaded graph slice.
- *
- * Algorithm:
- *   1. Insights that ``MENTIONS_PERSON → personGraphId``.
- *   2. Intersected with Insights that ``ABOUT → topicGraphId``.
- *   3. For each surviving Insight, attach: insight_type, position_hint,
- *      episode_id (via ``IN_EPISODE`` or the Insight's
- *      ``properties.episode_id``), publish_date (via the Episode node),
- *      and the supporting Quote texts (via ``SUPPORTED_BY → Quote``).
- *   4. Sort by (publish_date asc, position_hint asc, insightId asc).
- *      Undated insights sink to the TAIL (treating "no date" as "we don't
- *      know when" is more honest than "treat as oldest"; this matches the
- *      sibling helpers ``personEpisodeAppearances`` and the existing
- *      attributed-quotes ``positionRows`` in PersonLandingView, so all
- *      person-scoped lists agree on the missing-date convention).
- *
- * Insights with no episode_id / publish_date still surface — they group
- * at the head of the timeline with a "date unknown" UX affordance.
- */
-export function personTopicPositionArc(
-  art: ParsedArtifact | null,
-  personGraphId: string | null,
-  topicGraphId: string | null,
-): PersonTopicPositionRow[] {
-  if (!art?.data?.edges || personGraphId == null || topicGraphId == null) return []
-  const pid = String(personGraphId).trim()
-  const tid = String(topicGraphId).trim()
-  if (!pid || !tid) return []
-
-  const mentioningPerson = new Set<string>()
-  const aboutTopic = new Set<string>()
-  // From-insight → list of supporting quote node ids (preserves order).
-  const supportingByInsight = new Map<string, string[]>()
-  // insight → episode id (from explicit IN_EPISODE edges).
-  const insightToEpisode = new Map<string, string>()
-  for (const e of art.data.edges) {
-    if (!e) continue
-    const ty = normalizeGiEdgeType(e.type)
-    const from = String(e.from ?? '').trim()
-    const to = String(e.to ?? '').trim()
-    if (!from || !to) continue
-    if (ty === 'mentions_person' && to === pid) {
-      mentioningPerson.add(from)
-    } else if (ty === 'about' && to === tid) {
-      aboutTopic.add(from)
-    } else if (ty === 'supported_by') {
-      const arr = supportingByInsight.get(from)
-      if (arr) arr.push(to)
-      else supportingByInsight.set(from, [to])
-    } else if (ty === 'in_episode') {
-      insightToEpisode.set(from, to)
-    }
-  }
-  if (mentioningPerson.size === 0 || aboutTopic.size === 0) return []
-
-  // Build Episode → publish_date lookup for the slice. Pull both the
-  // graph-node id form and the logical episode id form to handle the
-  // unified-merge graph (where Insight.properties.episode_id often carries
-  // the logical id while Episode nodes carry the prefixed graph id).
-  const episodeByGraphId = new Map<string, RawGraphNode>()
-  const episodeByLogicalId = new Map<string, RawGraphNode>()
-  for (const n of art.data.nodes ?? []) {
-    if (!n || String(n.type) !== 'Episode') continue
-    const gid = n.id != null ? String(n.id).trim() : ''
-    if (gid) episodeByGraphId.set(gid, n)
-    const lid = logicalEpisodeIdFromGraphNodeId(gid)
-    if (lid) episodeByLogicalId.set(lid, n)
-  }
-
-  function episodeFor(epId: string | null): RawGraphNode | null {
-    if (!epId) return null
-    return episodeByGraphId.get(epId) || episodeByLogicalId.get(epId) || null
-  }
-
-  const insightIds: string[] = []
-  for (const id of mentioningPerson) if (aboutTopic.has(id)) insightIds.push(id)
-  if (insightIds.length === 0) return []
-
-  const rows: PersonTopicPositionRow[] = []
-  for (const insightId of insightIds) {
-    const n = findRawNodeInArtifact(art, insightId)
-    if (!n || String(n.type) !== 'Insight') continue
-    const p = n.properties as Record<string, unknown> | undefined
-    const text = typeof p?.text === 'string' ? p.text.trim() : ''
-    const insightType = typeof p?.insight_type === 'string' ? p.insight_type.trim() : ''
-    const positionHintRaw = p?.position_hint
-    const positionHint =
-      typeof positionHintRaw === 'number' && Number.isFinite(positionHintRaw)
-        ? positionHintRaw
-        : null
-    const explicitEp = insightToEpisode.get(insightId)
-    const propsEp = typeof p?.episode_id === 'string' ? p.episode_id.trim() : ''
-    const episodeId = (explicitEp || propsEp || '').trim() || null
-    const epNode = episodeFor(episodeId)
-    const epP = epNode?.properties as Record<string, unknown> | undefined
-    const publishDate =
-      typeof epP?.publish_date === 'string' && epP.publish_date.trim()
-        ? epP.publish_date.trim().slice(0, 10)
-        : null
-    const supportingIds = supportingByInsight.get(insightId) ?? []
-    const supportingTexts: string[] = []
-    const seenQuoteId = new Set<string>()
-    for (const qid of supportingIds) {
-      if (seenQuoteId.has(qid)) continue
-      seenQuoteId.add(qid)
-      const qn = findRawNodeInArtifact(art, qid)
-      if (!qn || String(qn.type) !== 'Quote') continue
-      const qp = qn.properties as Record<string, unknown> | undefined
-      const qt = typeof qp?.text === 'string' ? qp.text.trim() : ''
-      if (qt) supportingTexts.push(qt)
-    }
-    rows.push({
-      insightId,
-      text,
-      insightType: insightType || null,
-      positionHint,
-      episodeId,
-      publishDate,
-      supportingQuoteTexts: supportingTexts,
-    })
-  }
-
-  rows.sort((a, b) => {
-    // Undated insights sink to the tail; among dated rows, asc by
-    // (publish_date, position_hint, insightId).
-    //
-    // OLDEST-FIRST is deliberate (#1600), though UXS-009 says "most recent first" twice (:63-64,
-    // :186-187). This panel answers "how did this person's position on X EVOLVE", and an arc reads
-    // forwards: earliest stance first, later revisions after it. Reverse-chronological would show
-    // the conclusion before the reasoning.
-    //
-    // Nothing recorded this before — the direction had no comment and no test, and the existing
-    // spec used two same-date rows so it pinned only the within-date tiebreak and would have passed
-    // under EITHER direction. The spec is stale here; the test below now pins the direction.
-    if (a.publishDate && b.publishDate) {
-      if (a.publishDate !== b.publishDate) return a.publishDate < b.publishDate ? -1 : 1
-    } else if (a.publishDate) {
-      return -1
-    } else if (b.publishDate) {
-      return 1
-    }
-    const aPos = a.positionHint ?? Number.POSITIVE_INFINITY
-    const bPos = b.positionHint ?? Number.POSITIVE_INFINITY
-    if (aPos !== bPos) return aPos - bPos
-    return a.insightId < b.insightId ? -1 : a.insightId > b.insightId ? 1 : 0
-  })
-
-  return rows
-}
-
-/**
  * Read Person.role from the node's ``properties.role`` when present and
  * normalize to lowercase trimmed text. Returns null for unknown / missing.
  * The role value is one of ``"host" | "guest" | "mention"`` by RFC-097
@@ -1022,15 +579,6 @@ export function personRoleFromNode(node: RawGraphNode | null): string | null {
   return trimmed || null
 }
 
-export interface InsightSupportingQuoteRow {
-  id: string
-  preview: string
-  /** Sort key from quote ``char_start`` when finite. */
-  charStart: number | null
-  /** Fallback sort key from ``timestamp_start_ms`` when ``char_start`` ties or is absent. */
-  timestampStartMs: number | null
-}
-
 export function normalizeGiEdgeType(type: string | undefined | null): string {
   return String(type ?? '')
     .trim()
@@ -1038,245 +586,9 @@ export function normalizeGiEdgeType(type: string | undefined | null): string {
     .replace(/[\s-]+/g, '_')
 }
 
-function quoteSortKeysFromNode(n: RawGraphNode | null): {
-  charStart: number | null
-  timestampStartMs: number | null
-} {
-  if (!n?.properties || typeof n.properties !== 'object') {
-    return { charStart: null, timestampStartMs: null }
-  }
-  const p = n.properties as Record<string, unknown>
-  const cs = p.char_start
-  const charStart =
-    typeof cs === 'number' && Number.isFinite(cs) ? cs : null
-  const ts = p.timestamp_start_ms
-  const timestampStartMs =
-    typeof ts === 'number' && Number.isFinite(ts) ? ts : null
-  return { charStart, timestampStartMs }
-}
-
-/** Quote targets of ``SUPPORTED_BY`` out-edges from this insight (GI). Sorted by ``char_start``, then ``timestamp_start_ms``. */
-export function insightSupportingQuoteRows(
-  art: ParsedArtifact | null,
-  insightGraphId: string | null,
-): InsightSupportingQuoteRow[] {
-  if (!art?.data?.edges || insightGraphId == null) return []
-  const sid = String(insightGraphId).trim()
-  if (!sid) return []
-  const sidBare = stripLayerPrefixesForCil(sid)
-  const toIds: string[] = []
-  for (const e of art.data.edges) {
-    if (!e) continue
-    const etNorm = normalizeGiEdgeType(e.type).replace(/_/g, '')
-    if (etNorm !== 'supportedby') continue
-    const from = String(e.from ?? '').trim()
-    if (from !== sid && stripLayerPrefixesForCil(from) !== sidBare) continue
-    const to = String(e.to ?? '').trim()
-    if (!to) continue
-    const qn = findRawNodeInArtifact(art, to)
-    if (!qn || String(qn.type) !== 'Quote') continue
-    toIds.push(to)
-  }
-  const seen = new Set<string>()
-  const out: InsightSupportingQuoteRow[] = []
-  for (const id of toIds) {
-    if (seen.has(id)) continue
-    seen.add(id)
-    const n = findRawNodeInArtifact(art, id)
-    const raw =
-      n?.properties && typeof (n.properties as Record<string, unknown>).text === 'string'
-        ? (n.properties as Record<string, unknown>).text
-        : ''
-    const preview = truncate(String(raw).trim(), 120)
-    const { charStart, timestampStartMs } = quoteSortKeysFromNode(n)
-    out.push({
-      id,
-      preview: preview || id,
-      charStart,
-      timestampStartMs,
-    })
-  }
-  out.sort((a, b) => {
-    const ca = a.charStart ?? Number.POSITIVE_INFINITY
-    const cb = b.charStart ?? Number.POSITIVE_INFINITY
-    if (ca !== cb) return ca - cb
-    const ta = a.timestampStartMs ?? Number.POSITIVE_INFINITY
-    const tb = b.timestampStartMs ?? Number.POSITIVE_INFINITY
-    return ta - tb
-  })
-  return out
-}
-
-/** Resolved transcript + char ranges when every supporting quote shares one ``transcript_ref`` and finite GI offsets. */
-export type InsightSupportingTranscriptAggregate = {
-  transcriptRef: string
-  episodeId: string | null
-  charRanges: Array<{ charStart: unknown; charEnd: unknown }>
-}
-
-/**
- * Collect ``SUPPORTED_BY`` quotes for an insight for a single-file transcript open.
- * Returns null when there are no quotes, mixed ``transcript_ref`` values, or any supporting quote
- * lacks a non-empty ``transcript_ref`` with both finite ``char_start`` and ``char_end``.
- */
-export function insightSupportingTranscriptAggregate(
-  art: ParsedArtifact | null,
-  insightGraphId: string | null,
-): InsightSupportingTranscriptAggregate | null {
-  const rows = insightSupportingQuoteRows(art, insightGraphId)
-  if (rows.length === 0) {
-    return null
-  }
-  const insight = findRawNodeInArtifact(art, insightGraphId ?? '')
-  const iep = insight?.properties as Record<string, unknown> | undefined
-  const rawEp = iep?.episode_id
-  let episodeId =
-    typeof rawEp === 'string' && rawEp.trim()
-      ? rawEp.trim()
-      : typeof rawEp === 'number' && Number.isFinite(rawEp)
-        ? String(rawEp)
-        : null
-
-  const refs = new Set<string>()
-  const charRanges: Array<{ charStart: unknown; charEnd: unknown }> = []
-  for (const row of rows) {
-    const n = findRawNodeInArtifact(art, row.id)
-    const p = n?.properties as Record<string, unknown> | undefined
-    if (!p) {
-      continue
-    }
-    const ref = typeof p.transcript_ref === 'string' ? p.transcript_ref.trim() : ''
-    const cs = p.char_start
-    const ce = p.char_end
-    if (!ref) {
-      continue
-    }
-    if (typeof cs !== 'number' || !Number.isFinite(cs)) {
-      continue
-    }
-    if (typeof ce !== 'number' || !Number.isFinite(ce)) {
-      continue
-    }
-    refs.add(ref)
-    charRanges.push({ charStart: cs, charEnd: ce })
-  }
-  if (charRanges.length === 0 || refs.size !== 1 || charRanges.length !== rows.length) {
-    return null
-  }
-  if (!episodeId && rows.length > 0) {
-    const qn = findRawNodeInArtifact(art, rows[0]!.id)
-    const qp = qn?.properties as Record<string, unknown> | undefined
-    const qe = qp?.episode_id
-    if (typeof qe === 'string' && qe.trim()) {
-      episodeId = qe.trim()
-    } else if (typeof qe === 'number' && Number.isFinite(qe)) {
-      episodeId = String(qe)
-    }
-  }
-  return {
-    transcriptRef: [...refs][0],
-    episodeId,
-    charRanges,
-  }
-}
-
-export interface InsightRelatedTopicRow {
-  topicId: string
-  label: string
-}
-
-const INSIGHT_TOPIC_EDGE_TYPES = new Set(['about', 'related_to'])
-
-/**
- * Topic neighbors of an insight linked by ``ABOUT`` / ``RELATED_TO`` (either direction).
- */
-export function insightRelatedTopicRows(
-  art: ParsedArtifact | null,
-  insightGraphId: string | null,
-): InsightRelatedTopicRow[] {
-  if (!art?.data?.edges || insightGraphId == null) return []
-  const sid = String(insightGraphId).trim()
-  if (!sid) return []
-  const sidBare = stripLayerPrefixesForCil(sid)
-  const nodes = Array.isArray(art.data.nodes) ? art.data.nodes : []
-  const idSet = new Set(
-    nodes.map((n) => (n?.id != null ? String(n.id) : '')).filter(Boolean),
-  )
-  const topicIds: string[] = []
-  for (const e of art.data.edges) {
-    if (!e) continue
-    const t = normalizeGiEdgeType(e.type)
-    if (!INSIGHT_TOPIC_EDGE_TYPES.has(t)) continue
-    const from = String(e.from ?? '').trim()
-    const to = String(e.to ?? '').trim()
-    const fromBare = stripLayerPrefixesForCil(from)
-    const toBare = stripLayerPrefixesForCil(to)
-    let topicId: string | null = null
-    if ((from === sid || fromBare === sidBare) && idSet.has(to)) {
-      topicId = to
-    } else if ((to === sid || toBare === sidBare) && idSet.has(from)) {
-      topicId = from
-    } else {
-      continue
-    }
-    const tn = findRawNodeInArtifact(art, topicId)
-    if (!tn || String(tn.type) !== 'Topic') continue
-    topicIds.push(topicId)
-  }
-  const seen = new Set<string>()
-  const out: InsightRelatedTopicRow[] = []
-  for (const topicId of topicIds) {
-    if (seen.has(topicId)) continue
-    seen.add(topicId)
-    const n = findRawNodeInArtifact(art, topicId)
-    const p = n?.properties as Record<string, unknown> | undefined
-    const labelRaw =
-      (typeof p?.label === 'string' && p.label.trim()) ||
-      (typeof p?.name === 'string' && p.name.trim()) ||
-      ''
-    const label = labelRaw || topicId
-    out.push({ topicId, label })
-  }
-  return out
-}
-
-/** Compact provenance line from GI artifact root + optional ``extraction`` (viewer-only; may be absent in strict schema files). */
-export function insightProvenanceLine(art: ParsedArtifact | null): string | null {
-  if (!art?.data) return null
-  const d = art.data as Record<string, unknown>
-  const parts: string[] = []
-  const mv = d.model_version
-  if (typeof mv === 'string' && mv.trim()) {
-    parts.push(`model ${mv.trim()}`)
-  }
-  const pv = d.prompt_version
-  if (typeof pv === 'string' && pv.trim()) {
-    parts.push(`prompt ${pv.trim()}`)
-  }
-  const ex = d.extraction
-  if (ex && typeof ex === 'object' && !Array.isArray(ex)) {
-    const ext = (ex as Record<string, unknown>).extracted_at
-    if (typeof ext === 'string' && ext.trim()) {
-      parts.push(`extracted ${ext.trim()}`)
-    }
-  }
-  const nm = art.name?.trim()
-  if (nm) {
-    parts.push(`from ${nm}`)
-  }
-  if (parts.length === 0) return null
-  return parts.join(' · ')
-}
-
 function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
   const allowedEdgeTypes: Record<string, boolean> = {}
-  let rawNodes = Array.isArray(art.data.nodes) ? art.data.nodes.slice() : []
-  let rawEdges = Array.isArray(art.data.edges) ? art.data.edges.map((e) => ({ ...e })) : []
-  if (art.kind === 'gi' || art.kind === 'both') {
-    const aug = ensureEpisodeToInsightEdges(rawNodes, rawEdges)
-    rawNodes = aug.nodes
-    rawEdges = aug.edges
-  }
+  const rawEdges = Array.isArray(art.data.edges) ? art.data.edges.map((e) => ({ ...e })) : []
   const seenE = new Set<string>()
   for (const e of rawEdges) {
     if (!e || typeof e !== 'object') continue
@@ -1295,7 +607,15 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
  *  re-enable via the Types chip. Deliberately conservative: only the
  *  highest-count evidence types default off; anything a viewer might
  *  reasonably expect to see on first load stays on. */
-const DEFAULT_HIDDEN_TYPES: ReadonlySet<string> = new Set(['Quote', 'Speaker'])
+/** Off by default: the types a build declares in `graphTypeTraits.defaultHidden`. */
+function typeHiddenByDefault(type: string): boolean {
+  return graphTypeTraits.list().some((t) => t.defaultHidden?.includes(type))
+}
+
+/** A registered node filter with state of its own is set away from its default. */
+function nodeFiltersActive(art: ParsedArtifact): boolean {
+  return graphNodeFilters.list().some((f) => f.active?.(art) === true)
+}
 
 export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState | null {
   if (!art) return null
@@ -1307,15 +627,12 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
     const t = n.type || '?'
     if (!seen.has(t)) {
       seen.add(t)
-      allowedTypes[t] = !DEFAULT_HIDDEN_TYPES.has(t)
+      allowedTypes[t] = !typeHiddenByDefault(t)
     }
   }
   return {
     allowedTypes,
     allowedEdgeTypes: collectEdgeTypeKeys(art),
-    hideUngroundedInsights: false,
-    showGiLayer: true,
-    showKgLayer: true,
     graphFeedFilterId: null,
   }
 }
@@ -1365,13 +682,11 @@ function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
   return out
 }
 
-const GRAPH_TYPES_OFF_BY_DEFAULT = new Set(['Quote', 'Speaker'])
-
 /** Graph tab: hide noisy node types on first paint (see docs/architecture/VIEWER_GRAPH_SPEC.md). */
 export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): void {
   const next: Record<string, boolean> = { ...state.allowedTypes }
   for (const k of Object.keys(next)) {
-    next[k] = !GRAPH_TYPES_OFF_BY_DEFAULT.has(k)
+    next[k] = !typeHiddenByDefault(k)
   }
   state.allowedTypes = next
 }
@@ -1380,7 +695,7 @@ export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): vo
 export function graphTypesDeviateFromGraphSpec(state: GraphFilterState | null): boolean {
   if (!state) return false
   for (const [k, on] of Object.entries(state.allowedTypes)) {
-    const expected = !GRAPH_TYPES_OFF_BY_DEFAULT.has(k)
+    const expected = !typeHiddenByDefault(k)
     if (Boolean(on) !== expected) return true
   }
   return false
@@ -1397,20 +712,8 @@ export function filtersActive(
    * when it deviates from its default-visibility. */
   const keys = Object.keys(state.allowedTypes)
   for (const k of keys) {
-    const defaultVisible = !DEFAULT_HIDDEN_TYPES.has(k)
+    const defaultVisible = !typeHiddenByDefault(k)
     if (state.allowedTypes[k] !== defaultVisible) return true
-  }
-  if (
-    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
-    state.hideUngroundedInsights
-  ) {
-    return true
-  }
-  if (
-    fullArt.kind === 'both' &&
-    (state.showGiLayer === false || state.showKgLayer === false)
-  ) {
-    return true
   }
   const aet = state.allowedEdgeTypes
   if (aet && typeof aet === 'object') {
@@ -1421,7 +724,7 @@ export function filtersActive(
     }
   }
   if (state.graphFeedFilterId !== null) return true
-  return false
+  return nodeFiltersActive(fullArt)
 }
 
 /** Like ``filtersActive`` but ignores per-node-type visibility toggles (used for graph “more filters” popover indicator). */
@@ -1430,18 +733,6 @@ export function filtersActiveExcludingNodeTypes(
   state: GraphFilterState | null,
 ): boolean {
   if (!fullArt || !state) return false
-  if (
-    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
-    state.hideUngroundedInsights
-  ) {
-    return true
-  }
-  if (
-    fullArt.kind === 'both' &&
-    (state.showGiLayer === false || state.showKgLayer === false)
-  ) {
-    return true
-  }
   const aet = state.allowedEdgeTypes
   if (aet && typeof aet === 'object') {
     for (const k of Object.keys(aet)) {
@@ -1451,7 +742,7 @@ export function filtersActiveExcludingNodeTypes(
     }
   }
   if (state.graphFeedFilterId !== null) return true
-  return false
+  return nodeFiltersActive(fullArt)
 }
 
 export function applyGraphFilters(
@@ -1459,33 +750,9 @@ export function applyGraphFilters(
   state: GraphFilterState,
 ): ParsedArtifact {
   let nodes = (fullArt.data.nodes || []).slice()
-  if (fullArt.kind === 'both' && (!state.showGiLayer || !state.showKgLayer)) {
-    const gi = state.showGiLayer
-    const kg = state.showKgLayer
-    nodes = nodes.filter((n) => {
-      if (!n || typeof n !== 'object') return false
-      const id = String(n.id ?? '')
-      if (id.startsWith('__unified_ep__:')) {
-        return gi || kg
-      }
-      if (id.startsWith('g:')) {
-        return gi
-      }
-      if (id.startsWith('k:')) {
-        return kg
-      }
-      return true
-    })
-  }
-  if (
-    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
-    state.hideUngroundedInsights
-  ) {
-    nodes = nodes.filter((n) => {
-      if (!n || typeof n !== 'object') return false
-      if (n.type !== 'Insight') return true
-      return Boolean(n.properties && n.properties.grounded === true)
-    })
+  const nodeFilters = graphNodeFilters.list()
+  if (nodeFilters.length) {
+    nodes = nodes.filter((n) => Boolean(n) && nodeFilters.every((f) => f.keep(n, state, fullArt)))
   }
   const { allowedTypes } = state
   nodes = nodes.filter((n) => {
@@ -1684,13 +951,8 @@ export function toGraphElements(art: ParsedArtifact): {
   idSet: Set<string>
 } {
   const d = art.data
-  let rawNodes = Array.isArray(d.nodes) ? d.nodes.slice() : []
-  let rawEdges = Array.isArray(d.edges) ? d.edges.map((e) => ({ ...e })) : []
-  if (art.kind === 'gi' || art.kind === 'both') {
-    const aug = ensureEpisodeToInsightEdges(rawNodes, rawEdges)
-    rawNodes = aug.nodes
-    rawEdges = aug.edges
-  }
+  const rawNodes = Array.isArray(d.nodes) ? d.nodes.slice() : []
+  const rawEdges = Array.isArray(d.edges) ? d.edges.map((e) => ({ ...e })) : []
   const nodesById = new Map<string, RawGraphNode>()
   for (const n of rawNodes) {
     if (n && n.id != null) {
@@ -1734,175 +996,12 @@ export function toGraphElements(art: ParsedArtifact): {
   return { visNodes, visEdges, idSet }
 }
 
-/**
- * RFC-080 V1 — render-only aggregated edge from Episode → Topic.
- *
- * `weight` is the number of `Insight → ABOUT → Topic` triples whose
- * insight belongs to the episode. `contributingInsightIds` carries the
- * raw insight ids so a click on the aggregated edge can open the rail
- * pre-filtered to those insights.
- */
-export interface AboutAggregateEdge {
-  episodeId: string
-  topicId: string
-  weight: number
-  contributingInsightIds: string[]
-}
-
-/**
- * RFC-080 V1 — render-only aggregated edge from Episode → Person.
- *
- * `weight` is the number of `Quote → SPOKEN_BY → Person` triples whose
- * quote belongs to the episode (resolved via the quote's `episode_id`
- * property when present, else via the supporting insight's episode).
- */
-export interface SpokeInAggregateEdge {
-  episodeId: string
-  personId: string
-  weight: number
-  contributingQuoteIds: string[]
-}
-
-function buildInsightToEpisodeMap(art: ParsedArtifact): Map<string, string> {
-  const map = new Map<string, string>()
-  const edges = art.data.edges ?? []
-  for (const e of edges) {
-    if (!e || typeof e !== 'object') continue
-    if (normalizeGiEdgeType(e.type) !== 'has_insight') continue
-    const ep = e.from != null ? String(e.from).trim() : ''
-    const ins = e.to != null ? String(e.to).trim() : ''
-    if (ep && ins) map.set(ins, ep)
-  }
-  return map
-}
-
-/**
- * Aggregate `Insight → ABOUT → Topic` edges into Episode → Topic edges
- * with a `weight` count. Render-only (not persisted). Used by RFC-080
- * V1 to surface "which episode is most about this topic".
- */
-export function aggregateEpisodeTopicEdges(art: ParsedArtifact): AboutAggregateEdge[] {
-  const insightToEpisode = buildInsightToEpisodeMap(art)
-  const nodesById = new Map<string, RawGraphNode>()
-  for (const n of art.data.nodes ?? []) {
-    if (n && n.id != null) nodesById.set(String(n.id), n)
-  }
-  // (episode, topic) → ordered list of contributing insight ids
-  // (Map preserves insertion order so contributingInsightIds reads
-  // as deterministic for downstream tests / rail-filter UX.)
-  const grouped = new Map<string, { episodeId: string; topicId: string; insightIds: string[] }>()
-  for (const e of art.data.edges ?? []) {
-    if (!e || typeof e !== 'object') continue
-    if (normalizeGiEdgeType(e.type) !== 'about') continue
-    const insight = e.from != null ? String(e.from).trim() : ''
-    const target = e.to != null ? String(e.to).trim() : ''
-    if (!insight || !target) continue
-    const targetType = String(nodesById.get(target)?.type ?? '').toLowerCase()
-    if (targetType !== 'topic') continue
-    const episode = insightToEpisode.get(insight)
-    if (!episode) continue
-    const key = `${episode} ${target}`
-    const bucket = grouped.get(key)
-    if (bucket) {
-      if (!bucket.insightIds.includes(insight)) bucket.insightIds.push(insight)
-    } else {
-      grouped.set(key, { episodeId: episode, topicId: target, insightIds: [insight] })
-    }
-  }
-  const out: AboutAggregateEdge[] = []
-  for (const v of grouped.values()) {
-    out.push({
-      episodeId: v.episodeId,
-      topicId: v.topicId,
-      weight: v.insightIds.length,
-      contributingInsightIds: v.insightIds,
-    })
-  }
-  return out
-}
-
-/**
- * Aggregate `Quote → SPOKEN_BY → Person` edges into Episode → Person
- * edges with a `weight` count. Quote's episode resolves via:
- *   1. `quote.properties.episode_id` (canonical), else
- *   2. The episode of the first supporting insight (SUPPORTED_BY chain).
- * Render-only.
- */
-export function aggregateEpisodePersonEdges(art: ParsedArtifact): SpokeInAggregateEdge[] {
-  const insightToEpisode = buildInsightToEpisodeMap(art)
-  const nodesById = new Map<string, RawGraphNode>()
-  for (const n of art.data.nodes ?? []) {
-    if (n && n.id != null) nodesById.set(String(n.id), n)
-  }
-  // Build quote → episode (via property OR via supporting insight chain).
-  const quoteToEpisode = new Map<string, string>()
-  for (const n of art.data.nodes ?? []) {
-    if (!n || String(n.type).toLowerCase() !== 'quote' || n.id == null) continue
-    const ep = (n.properties as Record<string, unknown> | undefined)?.episode_id
-    if (typeof ep === 'string' && ep.trim()) {
-      // Prefix with the conventional `episode:` to match Episode node ids.
-      quoteToEpisode.set(String(n.id), `episode:${ep.trim()}`)
-    }
-  }
-  // Fallback: walk SUPPORTED_BY edges (insight → quote); inherit
-  // insight's episode if the quote didn't expose one directly.
-  for (const e of art.data.edges ?? []) {
-    if (!e || typeof e !== 'object') continue
-    if (normalizeGiEdgeType(e.type) !== 'supported_by') continue
-    const insight = e.from != null ? String(e.from).trim() : ''
-    const quote = e.to != null ? String(e.to).trim() : ''
-    if (!quote || quoteToEpisode.has(quote)) continue
-    const ep = insightToEpisode.get(insight)
-    if (ep) quoteToEpisode.set(quote, ep)
-  }
-  // Now group SPOKEN_BY edges by (episode, person).
-  const grouped = new Map<
-    string,
-    { episodeId: string; personId: string; quoteIds: string[] }
-  >()
-  for (const e of art.data.edges ?? []) {
-    if (!e || typeof e !== 'object') continue
-    if (normalizeGiEdgeType(e.type) !== 'spoken_by') continue
-    const quote = e.from != null ? String(e.from).trim() : ''
-    const person = e.to != null ? String(e.to).trim() : ''
-    if (!quote || !person) continue
-    const personType = String(nodesById.get(person)?.type ?? '').toLowerCase()
-    // Person, Entity_person — accept the canonical person types.
-    if (!personType.includes('person')) continue
-    const episode = quoteToEpisode.get(quote)
-    if (!episode) continue
-    const key = `${episode} ${person}`
-    const bucket = grouped.get(key)
-    if (bucket) {
-      if (!bucket.quoteIds.includes(quote)) bucket.quoteIds.push(quote)
-    } else {
-      grouped.set(key, { episodeId: episode, personId: person, quoteIds: [quote] })
-    }
-  }
-  const out: SpokeInAggregateEdge[] = []
-  for (const v of grouped.values()) {
-    out.push({
-      episodeId: v.episodeId,
-      personId: v.personId,
-      weight: v.quoteIds.length,
-      contributingQuoteIds: v.quoteIds,
-    })
-  }
-  return out
-}
-
 /** Cytoscape element list (nodes + edges). */
 export function toCytoElements(
   art: ParsedArtifact,
   options?: {
-    /**
-     * RFC-080 V1 — when true, append render-only aggregated
-     * Episode↔Topic (`ABOUT_AGG`) and Episode↔Person (`SPOKE_IN_AGG`)
-     * edges with a `weight` data attribute. The aggregated edges carry
-     * a discriminator class (`graph-edge-about-agg` / `graph-edge-spoke-in-agg`)
-     * so stylesheet selectors stay disjoint from real ABOUT / SPOKE_IN
-     * edges. Off by default (lens flag — see RFC rollout).
-     */
+    /** RFC-080 V1 — the aggregated-edges lens, passed to `graphElementDecorators.edges` so a
+     *  decorator can add render-only aggregated edges. */
     enableAggregatedEdges?: boolean
   },
 ): import('cytoscape').ElementDefinition[] {
@@ -1930,17 +1029,6 @@ export function toCytoElements(
     if (String(raw?.type) === 'Episode' && typeof publishMs === 'number' && Number.isFinite(publishMs)) {
       data.publishDate = publishMs
     }
-    // RFC-080 V3 — surface `episodeId` on Insight/Quote nodes so the
-    // timeline layout can park children near their parent without
-    // walking neighbours. Falls back to a neighbourhood walk in the
-    // layout helper when this isn't set (legacy artifacts).
-    const rawType = String(raw?.type ?? '')
-    if (rawType === 'Insight' || rawType === 'Quote') {
-      const eid = (raw?.properties as Record<string, unknown> | undefined)?.episode_id
-      if (typeof eid === 'string' && eid.trim()) {
-        data.episodeId = `episode:${eid.trim()}`
-      }
-    }
     if (n.parent) {
       data.parent = n.parent
     }
@@ -1957,15 +1045,13 @@ export function toCytoElements(
       classes.push('theme-member')
     }
     const elem: import('cytoscape').ElementDefinition = { data }
-    if (String(raw?.type) === 'Insight') {
-      data.confidenceOpacity = confidenceOpacityFromInsightProperties(raw?.properties)
-      // RFC-080 V2: tier + grounding classes for stylesheet hooks. Tiers
-      // are coarse buckets a future "hide low-confidence" filter can
-      // toggle. Ungrounded paints a dashed warning border without
-      // disturbing the existing opacity signal.
-      const tier = confidenceTierFromInsightProperties(raw?.properties)
-      if (tier) classes.push(`insight-confidence-${tier}`)
-      if (isInsightUngrounded(raw?.properties)) classes.push('insight-ungrounded')
+    if (raw) {
+      for (const d of graphElementDecorators.list()) {
+        const add = d.node?.(raw)
+        if (!add) continue
+        Object.assign(data, add.data ?? {})
+        classes.push(...(add.classes ?? []))
+      }
     }
     if (classes.length) elem.classes = classes.join(' ')
     return elem
@@ -1981,44 +1067,11 @@ export function toCytoElements(
         edgeType: e.label || '(unknown)',
       },
     }))
-  const aggregatedEdges: import('cytoscape').ElementDefinition[] = []
-  if (options?.enableAggregatedEdges) {
-    // RFC-080 V1 — append render-only aggregated edges. Filtered to
-    // pairs whose both endpoints are visible in the current slice
-    // (g.idSet) so they never paint as "edges to nowhere" after a
-    // type filter or RFC-076 partial expand.
-    for (const a of aggregateEpisodeTopicEdges(art)) {
-      if (!g.idSet.has(a.episodeId) || !g.idSet.has(a.topicId)) continue
-      aggregatedEdges.push({
-        data: {
-          id: `about_agg:${a.episodeId}->${a.topicId}`,
-          source: a.episodeId,
-          target: a.topicId,
-          label: 'ABOUT_AGG',
-          edgeType: 'ABOUT_AGG',
-          weight: a.weight,
-          contributingInsightIds: a.contributingInsightIds,
-        },
-        classes: 'graph-edge-about-agg',
-      })
-    }
-    for (const a of aggregateEpisodePersonEdges(art)) {
-      if (!g.idSet.has(a.episodeId) || !g.idSet.has(a.personId)) continue
-      aggregatedEdges.push({
-        data: {
-          id: `spoke_in_agg:${a.episodeId}->${a.personId}`,
-          source: a.episodeId,
-          target: a.personId,
-          label: 'SPOKE_IN_AGG',
-          edgeType: 'SPOKE_IN_AGG',
-          weight: a.weight,
-          contributingQuoteIds: a.contributingQuoteIds,
-        },
-        classes: 'graph-edge-spoke-in-agg',
-      })
-    }
-  }
-  return [...nodes, ...edges, ...aggregatedEdges]
+  const drawn = (id: string) => g.idSet.has(id)
+  const decoratorEdges = graphElementDecorators
+    .list()
+    .flatMap((d) => d.edges?.(art, drawn, { aggregated: Boolean(options?.enableAggregatedEdges) }) ?? [])
+  return [...nodes, ...edges, ...decoratorEdges]
 }
 
 /**

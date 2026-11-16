@@ -1,0 +1,74 @@
+{
+  "content": {
+    "media_id": "sha256:p05-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e03.mp3",
+    "transcript_file_path": "transcripts/p05_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "A longer conversation on risk: position sizing, drawdowns, diversification that actually diversifies, and decision rules you can follow when emotions spike.",
+    "duration_seconds": 364,
+    "episode_id": "ep-8aa4d883afa10fa4",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2025-02-28T00:00:00",
+    "title": "The Bessent Tape"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-09-11T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [
+        {
+          "asset_scope": "unspecified",
+          "known": null,
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null
+        }
+      ],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "declared"
+    },
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Macro policy is primarily about avoiding being on the wrong side of a regime change — a critical insight that determines success or failure in forecasting and positioning.",
+      "Currency intervention can be effective in thin overnight markets, challenging the prior belief that such interventions are always counter-productive.",
+      "Reliability of expectations is the most underrated piece of macro policy — expectations must be stable and predictable to enable effective risk management.",
+      "Risk you can articulate is risk you can manage — the ability to name and describe a risk is essential for mitigating it effectively.",
+      "The dollar functions as a system, not a price — ignoring its systemic nature leads to repeated, costly rework of models and strategies.",
+      "Systems thinking reveals that trade-offs are embedded in every policy decision — the failure mode lies in not recognizing these embedded trade-offs.",
+      "Platforms like Bloomberg and Vanguard enable teams to observe how macro policy plays out — the second-order effect is often missed because it's not visible in the initial design.",
+      "Adopting tools like Vanguard exposes the trade-off between efficiency and adaptability — the real cost is not in the tool, but in the assumptions it embeds."
+    ],
+    "raw_text": "Macro policy is primarily about avoiding being on the wrong side of a regime change — a critical insight that determines success or failure in forecasting and positioning. Currency intervention can be effective in thin overnight markets, challenging the prior belief that such interventions are always counter-productive.",
+    "title": "Macro Policy, Systems Thinking, and the Reliability of Expectations"
+  }
+}

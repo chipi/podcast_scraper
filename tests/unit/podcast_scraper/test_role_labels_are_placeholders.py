@@ -12,9 +12,9 @@ words are the same failure and were missed for a year because the guard was
 `^speaker[\\s_-]*\\d+$` — it required DIGITS.
 
 These tests exist because nothing in the pyramid asserted the property itself: "a placeholder must
-never become a followable global person". Cases were tested; the rule was not — and one test in
-`gi/test_pipeline.py` went further and asserted `speaker_id == "person:guest"`, pinning the defect
-in place. That gap is #2058.
+never become a followable global person". Cases were tested; the rule was not — and one GI
+pipeline unit test went further and asserted `speaker_id == "person:guest"`, pinning the defect in
+place. That gap is #2058.
 """
 
 from __future__ import annotations

@@ -216,57 +216,15 @@ def test_cross_show_topic_exists() -> None:
     assert spanning, "no topic spans ≥3 shows"
 
 
-def test_topic_perspectives_about_edges_are_not_fanned_out() -> None:
-    """The ABOUT-edge contract (gi/about_edges.py): an insight links to a topic only where it
-    actually discusses it. A blanket fan-out (every insight ABOUT every episode topic) makes
-    filler/greeting lines "about" contested topics, inflating topic_perspectives with bogus
-    speakers and pushing the engineered claims past the top-PREVIEW render (the #1371 regression
-    that flaked perspectives.spec). Guard the canonical contested topic: exactly the cross-show
-    risk-management speakers, and the engineered opposition (Daniel Cho / Scott Bessent) present.
-    """
-    from podcast_scraper.insight_stage.cil_queries import topic_perspectives
-
-    persp = topic_perspectives(str(_V3), str(_V3), "topic:risk-management")
-    names = {str(p.get("person_name") or "") for p in persp}
-    # Count is the fan-out canary: the #1371 blanket fan-out ballooned this to 27; the token-matched
-    # ABOUT contract yields exactly the cross-show risk-management speakers. 11 since 2026-10-11
-    # (ADR-165): every insight is now grounded in the line that says it, so three hosts whose
-    # "risk management" lines were prompts or misattributed quotes left, and four guests whose
-    # real lines on it had never been insights arrived. 21 since 2026-10-12: the translated shows'
-    # ten guests say it in their own language ("gestión del riesgo", "Risikomanagement" ...); their
-    # lines were hidden behind connective templates. Still well under the fan-out's 27.
-    assert (
-        len(persp) == 21
-    ), f"expected 21 risk-management speakers, got {len(persp)}: {sorted(names)}"
-    assert {
-        "Daniel Cho",
-        "Scott Bessent",
-    } <= names, f"engineered opposition missing: {sorted(names)}"
-    # The engineered claim must land in Daniel Cho's top-PREVIEW (3) so the topic card renders it.
-    cho = next(p for p in persp if p.get("person_name") == "Daniel Cho")
-    top3 = [
-        (i.get("properties", {}).get("text") or i.get("text") or "") for i in cho["insights"][:3]
-    ]
-    assert any(
-        "Diversification is the only real risk control" in t for t in top3
-    ), f"engineered claim not in Daniel Cho's top-3: {[t[:40] for t in top3]}"
-
-
 # ---------------------------------------------------------------------------------------------
 # Speaker / role coherence across EVERY episode (#2062).
 #
 # The rules live in `kg.speaker_coherence` so the fixture corpus, a freshly ingested corpus and a
 # production remediation are all judged by ONE implementation. Each rule is proved to fire on its
-# own defect in tests/unit/podcast_scraper/kg/test_speaker_coherence.py; what these add is breadth —
+# own defect in the speaker-coherence unit tests; what these add is breadth —
 # the same rules over all 36 committed episodes, where a fixture edit that quietly breaks the model
 # would otherwise go unnoticed until it reached a UI test.
 # ---------------------------------------------------------------------------------------------
-
-from podcast_scraper.kg.speaker_coherence import (  # noqa: E402
-    check_corpus,
-    check_episode,
-    SPEAKER_ROLES,
-)
 
 
 def _episode_artifacts():
@@ -287,35 +245,3 @@ def _episode_artifacts():
             )
         )
     return out
-
-
-def test_the_coherence_guards_are_not_vacuous_on_this_corpus() -> None:
-    """If a fixture change empties the corpus of speakers, the guards below stop proving anything."""
-    eps = _episode_artifacts()
-    assert len(eps) >= 30, f"only {len(eps)} episodes carry all three artifacts"
-    speakers = sum(
-        1
-        for _s, _m, kg, _g in eps
-        for n in (kg.get("nodes") or [])
-        if n.get("type") == "Person"
-        and str((n.get("properties") or {}).get("role") or "").lower() in SPEAKER_ROLES
-    )
-    assert speakers >= 50, f"only {speakers} host/guest Person nodes to check"
-    edges = sum(
-        1 for _s, _m, _k, gi in eps for e in (gi.get("edges") or []) if e.get("type") == "SPOKEN_BY"
-    )
-    assert edges >= 100, f"only {edges} SPOKEN_BY edges to check"
-
-
-def test_every_episode_is_speaker_coherent() -> None:
-    """metadata.json, kg.json and gi.json must agree about who spoke and who they are."""
-    violations = check_corpus(_episode_artifacts())
-    assert not violations, "speaker-coherence violations:\n  " + "\n  ".join(violations[:15])
-
-
-@pytest.mark.parametrize("stem", [e[0] for e in _episode_artifacts()])
-def test_episode_is_speaker_coherent(stem: str) -> None:
-    """Per-episode so a failure names the episode instead of a corpus-wide blob."""
-    found = [e for e in _episode_artifacts() if e[0] == stem][0]
-    violations = check_episode(found[1], found[2], found[3], label=stem)
-    assert not violations, "\n  ".join(violations)

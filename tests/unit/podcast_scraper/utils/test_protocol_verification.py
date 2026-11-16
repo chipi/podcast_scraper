@@ -8,7 +8,6 @@ import unittest
 from typing import Protocol, runtime_checkable
 from unittest.mock import Mock, patch
 
-from podcast_scraper.speaker_detectors.base import SpeakerDetector
 from podcast_scraper.summarization.base import SummarizationProvider
 from podcast_scraper.transcription.base import TranscriptionProvider
 from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
@@ -79,20 +78,6 @@ class TestProtocolVerification(unittest.TestCase):
         result = verify_protocol_compliance(
             mock_provider, TranscriptionProvider, "TranscriptionProvider"
         )
-        self.assertTrue(result)
-
-    def test_verify_speaker_detector(self):
-        """Test verification with actual SpeakerDetector protocol."""
-        # Create a mock provider that implements the protocol
-        mock_provider = Mock(spec=SpeakerDetector)
-        mock_provider.initialize = Mock()
-        mock_provider.detect_hosts = Mock()
-        mock_provider.detect_speakers = Mock()
-        mock_provider.analyze_patterns = Mock()
-        mock_provider.cleanup = Mock()
-        mock_provider.clear_cache = Mock()
-
-        result = verify_protocol_compliance(mock_provider, SpeakerDetector, "SpeakerDetector")
         self.assertTrue(result)
 
     def test_verify_summarization_provider(self):

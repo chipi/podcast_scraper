@@ -156,36 +156,6 @@ def test_the_input_is_not_mutated(no_ffmpeg: List[tuple]) -> None:
     assert result == before
 
 
-def test_the_diarization_pipeline_replaces_it_before_alignment(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from podcast_scraper.config import Config
-    from podcast_scraper.providers.ml.diarization import pipeline as P
-    from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
-
-    monkeypatch.setattr(G, "cut_clip", lambda path, s, e, out: None)
-    diar = DiarizationResult(segments=[DiarizationSegment(0, 40, "SPEAKER_00")], num_speakers=1)
-    clip = _clip(
-        (" ¿no?", 1.0, 1.4),
-        (" Y", 2.0, 2.2),
-        (" entonces", 2.2, 2.8),
-        (" llegó", 2.8, 3.2),
-        (" la", 3.2, 3.3),
-        (" policía", 3.3, 3.9),
-    )
-    out = P.apply_diarization_to_result(
-        _result(),
-        "ep.mp3",
-        Config(speaker_resolution_llm=False),
-        [],
-        precomputed_diarization=diar,
-        transcribe_clip=clip,
-    )
-    assert out["asr_stretched_word_recovery"][0]["status"] == "replaced"
-    assert "policía" in " ".join(s["text"] for s in out["segments"])
-    assert out["asr_stretched_words"] == []
-
-
 def test_the_recovery_is_kept_in_the_asr_record(tmp_path: Path) -> None:
     """The first real run (SWR, 2026-10-10) left no trace of what was decided: ``.asr.json`` copies
     named keys only, and this one was not among them."""

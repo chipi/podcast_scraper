@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { dailyGiKgNewCountsLastDays, type DayGiKgBucket } from '../../utils/artifactMtimeBuckets'
+import { artifactActivitySeries } from '../../extensions'
+import { dailyNewCountsLastDays, type DayKindBucket } from '../../utils/artifactMtimeBuckets'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
 import { chartAxisBorderColor, chartGridColor, chartTickColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
@@ -16,8 +17,14 @@ const props = defineProps<{
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
 
-const buckets = computed((): DayGiKgBucket[] =>
-  dailyGiKgNewCountsLastDays(props.artifactItems, 30, new Date()),
+/** A build's series first (`artifactActivitySeries`), then the viewer's own KG. */
+const series = [
+  ...artifactActivitySeries.list(),
+  { id: 'kg', kind: 'kg', label: 'KG', token: '--ps-kg' as const, textClass: 'text-kg' },
+]
+
+const buckets = computed((): DayKindBucket[] =>
+  dailyNewCountsLastDays(props.artifactItems, series.map((x) => x.kind), 30, new Date()),
 )
 
 const insight = computed(() => {
@@ -27,8 +34,7 @@ const insight = computed(() => {
   }
   let streak = 0
   for (let i = b.length - 1; i >= 0; i -= 1) {
-    const row = b[i]!
-    if (row.gi + row.kg === 0) {
+    if (Object.values(b[i]!.counts).every((n) => n === 0)) {
       streak += 1
     } else {
       break
@@ -37,21 +43,12 @@ const insight = computed(() => {
   if (streak >= 14) {
     return 'No new artifacts in 14 days — pipeline may not be running'
   }
-  let lastGi = ''
-  let lastKg = ''
-  for (let i = b.length - 1; i >= 0; i -= 1) {
-    const row = b[i]!
-    if (!lastGi && row.gi > 0) {
-      lastGi = row.day
-    }
-    if (!lastKg && row.kg > 0) {
-      lastKg = row.day
-    }
-    if (lastGi && lastKg) {
-      break
-    }
-  }
-  return `Last GI: ${lastGi || '—'} · Last KG: ${lastKg || '—'}`
+  return series
+    .map((x) => {
+      const last = [...b].reverse().find((row) => (row.counts[x.kind] ?? 0) > 0)
+      return `Last ${x.label}: ${last?.day ?? '—'}`
+    })
+    .join(' · ')
 })
 
 function buildChart(): void {
@@ -73,16 +70,16 @@ function buildChart(): void {
     return
   }
   const labels = b.map((x) => x.day.slice(5))
-  const gi = rgbaFromToken('--ps-gi', 0.8)
-  const kg = rgbaFromToken('--ps-kg', 0.8)
   chart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
-      datasets: [
-        { label: 'GI', data: b.map((x) => x.gi), backgroundColor: gi, borderWidth: 0 },
-        { label: 'KG', data: b.map((x) => x.kg), backgroundColor: kg, borderWidth: 0 },
-      ],
+      datasets: series.map((x) => ({
+        label: x.label,
+        data: b.map((row) => row.counts[x.kind] ?? 0),
+        backgroundColor: rgbaFromToken(x.token, 0.8),
+        borderWidth: 0,
+      })),
     },
     options: {
       responsive: true,
@@ -145,11 +142,16 @@ onBeforeUnmount(() => {
     data-testid="artifact-activity-chart"
   >
     <h3 class="mb-1 text-sm font-semibold">
-      New GI/KG artifacts per day (last 30 UTC days)
+      New artifacts per day (last 30 UTC days)
     </h3>
     <div class="mb-1 flex gap-4 text-[10px] text-muted">
-      <span><span class="font-medium text-gi">GI</span> new files / day</span>
-      <span><span class="font-medium text-kg">KG</span> new files / day</span>
+      <span
+        v-for="x in series"
+        :key="x.id"
+      ><span
+        class="font-medium"
+        :class="x.textClass"
+      >{{ x.label }}</span> new files / day</span>
     </div>
     <div class="h-[220px]">
       <canvas ref="canvasRef" />

@@ -298,7 +298,7 @@ def _scan_corpus_metadata_index(output_dir: str) -> Dict[str, Dict[str, CorpusMe
     # that did not, and it kept the OLDEST copy of a reprocessed episode.
     #
     # Two things that cost us (measured 2026-08-31):
-    #   * ``gi/integrity.py`` documents the split: this index kept the OLDER entry while
+    #   * the GI integrity check documents the split: this index kept the OLDER entry while
     #     search's ``merged_episode_gi_paths`` took the NEWEST, so the two disagreed about
     #     which artifact is canonical for the same episode.
     #   * ``corpus_rollback`` locates an episode's run dir through ``by_id``. Keeping the
@@ -427,9 +427,12 @@ def corpus_root_from_cfg(cfg: Any) -> Optional[str]:
     out = getattr(cfg, "output_dir", None)
     if not out:
         return None
+    from ..utils.filesystem import corpus_root_of_workspace
+
     p = Path(str(out)).resolve()
-    if p.parent.name == "feeds" and p.parent.parent.name:
-        return str(p.parent.parent)
+    root = corpus_root_of_workspace(p)
+    if root is not None:
+        return str(root)
     if getattr(cfg, "single_feed_uses_corpus_layout", False):
         return str(p)
     return None

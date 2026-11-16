@@ -54,10 +54,10 @@ test.describe('Handoff matrix § Section 7 — Lifecycle', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'graph-node',
-        cyId: 'g:episode:e1',
+        cyId: 'episode:e1',
         source: 'restore-preference',
         loadSource: 'subject-external',
-        camera: { kind: 'center', cyId: 'g:episode:e1' },
+        camera: { kind: 'center', cyId: 'episode:e1' },
       })
     })
     await page.waitForTimeout(500)
@@ -94,7 +94,7 @@ test.describe('Handoff matrix § Section 7 — Lifecycle', () => {
 
     // Initial handoff — assert full outcome.
     await page.getByRole('button', { name: 'Open in graph' }).click()
-    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+    await assertHandoffApplied(page, 'episode:ci-fixture', {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })

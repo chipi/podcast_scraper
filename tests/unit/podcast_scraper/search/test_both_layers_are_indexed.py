@@ -239,31 +239,6 @@ class TestTheQuoteOffsetVerifierSkipsTheSourceLayer:
         assert transcript_chunk_spans_by_episode(legacy) == {"ep1": [(10, 20)]}
 
 
-class TestTheLiftPathSkipsTheSourceLayer:
-    def test_a_source_layer_row_is_never_lifted(self, tmp_path: Path) -> None:
-        """A char-range overlap against the English-derived GI artifact would attach Spanish
-        text as the evidence under an English insight, and the overlap would look valid."""
-        from podcast_scraper.insight_stage.transcript_chunk_lift import (
-            lift_row_if_transcript,
-            TranscriptLiftGiCache,
-        )
-
-        row: Dict[str, Any] = {
-            "metadata": {
-                "doc_type": "transcript",
-                "episode_id": "ep1",
-                "char_start": 0,
-                "char_end": 100,
-                "language": "es",
-                INDEX_LAYER_KEY: INDEX_LAYER_SOURCE,
-            }
-        }
-        lift_row_if_transcript(
-            row, Path(str(tmp_path)), Path(str(tmp_path)) / "gi.json", TranscriptLiftGiCache()
-        )
-        assert "lifted" not in row
-
-
 class TestInsightLinkingSkipsTheSourceLayer:
     """Both layers share the audio timeline, so a time-based link cannot tell them apart."""
 

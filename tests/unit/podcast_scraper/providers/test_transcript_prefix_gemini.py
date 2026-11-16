@@ -101,15 +101,6 @@ def test_gemini_cache_off_is_legacy() -> None:
     assert TRANSCRIPT in str(_last_call(p.client)["contents"])
 
 
-def test_gemini_cache_reused_across_stages() -> None:
-    p = _provider(enabled=True)
-    p.client = _mock_client()
-    p.summarize(text=TRANSCRIPT, episode_title="Ep")
-    p.generate_insights(text=TRANSCRIPT, episode_title="Ep", max_insights=3)
-    # same transcript + model -> the handle is created once and reused
-    p.client.caches.create.assert_called_once()
-
-
 def test_gemini_short_transcript_skips_cache() -> None:
     p = _provider(enabled=True)
     p.client = _mock_client()

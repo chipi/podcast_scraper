@@ -7,9 +7,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from podcast_scraper.gi.grounding import GroundedQuote
-from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
-from podcast_scraper.transcript_formats import parse_webvtt
 from podcast_scraper.workflow import episode_processor
 
 # Reach ``tests/conftest.py`` from this file's location
@@ -22,39 +19,6 @@ _integration_ct = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_integration_ct)
 create_test_config = _integration_ct.create_test_config
 create_test_episode = _integration_ct.create_test_episode
-
-
-def test_vtt_segments_yield_nonzero_quote_timestamps_in_gi_artifact() -> None:
-    """Parsed VTT segments align with plain text so quotes get timestamp_*_ms."""
-    vtt = (
-        "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n\n"
-        "00:00:01.000 --> 00:00:02.000\n world\n"
-    )
-    plain, segs = parse_webvtt(vtt)
-    gq = GroundedQuote(
-        char_start=0,
-        char_end=5,
-        text="Hello",
-        qa_score=0.9,
-        nli_score=0.85,
-    )
-    out = _artifact_from_multi_insight(
-        "ep:1",
-        [("One insight", "unknown")],
-        [[gq]],
-        model_version="m",
-        prompt_version="v1",
-        podcast_id="p",
-        episode_title="T",
-        date_str="2025-01-01T00:00:00Z",
-        transcript_ref="t.txt",
-        transcript_text=plain,
-        transcript_segments=segs,
-    )
-    quotes = [n for n in out["nodes"] if n["type"] == "Quote"]
-    assert len(quotes) == 1
-    assert quotes[0]["properties"]["timestamp_start_ms"] == 0
-    assert quotes[0]["properties"]["timestamp_end_ms"] == 1000
 
 
 def test_process_transcript_download_srt_writes_txt_and_segments(tmp_path) -> None:

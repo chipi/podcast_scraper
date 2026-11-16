@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Dict
-from urllib.parse import quote
 
 import pytest
 
@@ -156,37 +155,25 @@ def cil_client(cil_corpus: Path) -> TestClient:
 
 
 class TestServerViewerHealthArtifacts:
-    def test_health_ok(self, client: TestClient) -> None:
+    def test_health_ok_without_the_insight_stage(self, client: TestClient) -> None:
+        """Public alone: healthy, and the CIL query routes (the extension's) are not advertised."""
         resp = client.get("/api/health")
         assert resp.status_code == 200
         body = resp.json()
         assert body["status"] == "ok"
-        assert body.get("cil_queries_api") is True
+        assert body.get("cil_queries_api") is False
 
-    def test_artifacts_lists_files(self, client: TestClient, corpus: Path) -> None:
+    def test_artifacts_lists_the_kg_files(self, client: TestClient, corpus: Path) -> None:
+        """Public alone lists its own kind; gi and bridge are listed when the extension is in."""
         resp = client.get("/api/artifacts", params={"path": str(corpus)})
         assert resp.status_code == 200
-        names = sorted(a["name"] for a in resp.json()["artifacts"])
-        assert names == ["ep1.bridge.json", "ep1.gi.json", "ep1.kg.json"]
+        assert sorted(a["name"] for a in resp.json()["artifacts"]) == ["ep1.kg.json"]
 
     def test_index_stats_no_index(self, client: TestClient, corpus: Path) -> None:
         resp = client.get("/api/index/stats", params={"path": str(corpus)})
         assert resp.status_code == 200
         body = resp.json()
         assert body["available"] is False
-
-
-class TestServerViewerCil:
-    def test_person_positions(self, cil_client: TestClient, cil_corpus: Path) -> None:
-        pid = quote("person:pat", safe="")
-        resp = cil_client.get(
-            f"/api/persons/{pid}/positions",
-            params={"topic": "topic:science", "path": str(cil_corpus)},
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["person_id"] == "person:pat"
-        assert len(body["episodes"]) == 1
 
 
 class TestServerViewerCorpusLibrary:
@@ -229,40 +216,6 @@ class TestServerViewerCorpusLibrary:
         items = er.json()["items"]
         assert len(items) == 1
         assert items[0]["episode_title"] == "Hello"
-
-
-class TestServerViewerExplorePatched:
-    def test_explore_filter_mocked(
-        self,
-        corpus: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        from podcast_scraper.gi.explore import build_explore_output
-
-        def fake_uc5(root: Path, **kwargs: Any) -> Any:
-            assert root == corpus.resolve()
-            assert kwargs.get("topic") == "climate"
-            return build_explore_output(
-                [],
-                2,
-                topic="climate",
-                speaker_filter=None,
-                topics=[],
-            )
-
-        monkeypatch.setattr(
-            "podcast_scraper.insight_stage.routes.explore.run_uc5_insight_explorer",
-            fake_uc5,
-        )
-        http_client = TestClient(create_app(corpus, static_dir=False))
-        resp = http_client.get(
-            "/api/explore",
-            params={"path": str(corpus), "topic": "climate"},
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["kind"] == "explore"
-        assert body["error"] is None
 
 
 class TestServerViewerSearchPatched:

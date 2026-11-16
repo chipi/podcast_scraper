@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -16,9 +14,6 @@ from podcast_scraper.upgrade.migrations.m0001_faiss_to_lance import (  # noqa: E
 )
 from podcast_scraper.upgrade.migrations.m0002_two_tier_native_reindex import (  # noqa: E402
     TwoTierNativeReindexMigration,
-)
-from podcast_scraper.upgrade.migrations.m0003_gi_v3_typed_mentions import (  # noqa: E402
-    GiV3TypedMentionsMigration,
 )
 
 
@@ -36,40 +31,6 @@ _LEGACY_GI = {
     ],
     "edges": [{"type": "MENTIONS", "from": "insight:1", "to": "person:p"}],
 }
-
-
-@pytest.mark.critical_path
-def test_m0003_verify_vacuous_on_empty_corpus(tmp_path):
-    ok, msg = GiV3TypedMentionsMigration().verify(_ctx(tmp_path))
-    assert ok and "0 .gi.json" in msg
-
-
-@pytest.mark.critical_path
-def test_m0003_verify_fails_on_unparsable(tmp_path):
-    (tmp_path / "metadata").mkdir()
-    (tmp_path / "metadata" / "ep.gi.json").write_text("{ not json", encoding="utf-8")
-    ok, msg = GiV3TypedMentionsMigration().verify(_ctx(tmp_path))
-    assert not ok and "unparsable" in msg
-
-
-@pytest.mark.critical_path
-def test_m0003_verify_fails_on_pending_then_apply_makes_it_pass(tmp_path):
-    gi = tmp_path / "metadata" / "ep.gi.json"
-    gi.parent.mkdir()
-    gi.write_text(json.dumps(_LEGACY_GI), encoding="utf-8")
-
-    # Legacy doc still carries pending v3 changes → verify() must fail.
-    ok, msg = GiV3TypedMentionsMigration().verify(_ctx(tmp_path))
-    assert not ok and "pending v3 changes" in msg
-
-    # apply() atomically rewrites it (tmp + os.replace), leaving a valid v3 doc.
-    result = GiV3TypedMentionsMigration().apply(_ctx(tmp_path))
-    assert result.applied and result.details["files_changed"] == 1
-    assert json.loads(gi.read_text(encoding="utf-8"))["schema_version"] == "3.0"
-
-    # Now idempotent → verify() passes.
-    ok, msg = GiV3TypedMentionsMigration().verify(_ctx(tmp_path))
-    assert ok and "fully migrated" in msg
 
 
 def test_m0001_verify_is_noop(tmp_path):

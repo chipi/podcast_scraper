@@ -53,17 +53,12 @@ else:
     from ... import models
 
     Episode = models.Episode  # type: ignore[assignment]
-from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
-from ...utils.cleaning_max_tokens import (
-    clamp_cleaning_max_tokens,
-    estimate_cleaning_output_tokens,
-    GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
-)
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
+from ..extensible import ExtensibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +70,11 @@ from ._gemini_provider_calls import (  # noqa: F401 - re-exported: moved there w
     _should_bound_thinking_for_pro,
     _should_disable_thinking_for_model,
 )
-from .gemini_provider_gi_naming import GeminiProviderGiNamingMethods
 
 # Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
-class GeminiProvider(GeminiProviderGiNamingMethods):
+class GeminiProvider(ExtensibleProvider):
     """Unified Gemini provider: TranscriptionProvider, SpeakerDetector, SummarizationProvider.
 
     Uses Gemini native audio for transcription and chat models for speaker detection
@@ -130,15 +124,10 @@ class GeminiProvider(GeminiProviderGiNamingMethods):
         self.api_key = cfg.gemini_api_key
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
-        from ...cleaning import HybridCleaner, LLMBasedCleaner
+        from ... import stage_hooks
 
         cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-        if cleaning_strategy == "pattern":
-            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
-        elif cleaning_strategy == "llm":
-            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
-        else:  # hybrid (default)
-            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+        self.cleaning_processor = stage_hooks.transcript_cleaner(cleaning_strategy)
 
         # Cleaning model settings (cheaper model for cost efficiency)
         # Note: gemini-1.5-flash not available in new API; default flash-tier model in config.
@@ -1171,7 +1160,7 @@ class GeminiProvider(GeminiProviderGiNamingMethods):
     def complete_text(
         self, prompt: str, max_tokens: int = 800, stage: str = "speaker_detection"
     ) -> str:
-        """One prompt in, one JSON answer out — the generic call ADR-110's resolver needs.
+        """One prompt in, one JSON answer out — the generic call the speaker resolver needs.
 
         `detect_speakers` is asked who speaks BEFORE the audio is downloaded, so it can only answer
         from show notes and returns the people an episode is ABOUT (that is how Elon Musk became a
@@ -1195,7 +1184,7 @@ class GeminiProvider(GeminiProviderGiNamingMethods):
             contents=prompt,
             config=cast(Any, generation_config),
         )
-        # Observability (ADR-137): a real per-episode gemini call (speaker resolution, transcript
+        # Observability: a real per-episode gemini call (speaker resolution, transcript
         # naming). Priced and counted against the run budget like every other stage; it used to
         # emit tokens with a cost of 0 (2026-10-23 cost audit). Never raises.
         from ...utils.provider_metrics import record_response_cost
@@ -1321,198 +1310,6 @@ class GeminiProvider(GeminiProviderGiNamingMethods):
         except Exception as e:
             logger.debug("Gemini extract_kg_graph failed: %s", e, exc_info=True)
             return None
-
-    def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
-        """Clean transcript using LLM for semantic filtering.
-
-        Args:
-            text: Transcript text to clean (should already be pattern-cleaned)
-
-        Returns:
-            Cleaned transcript text
-
-        Raises:
-            RuntimeError: If provider is not initialized or cleaning fails
-        """
-        if not self._summarization_initialized:
-            raise RuntimeError("GeminiProvider not initialized. Call initialize() first.")
-
-        from ...prompts.store import render_prompt
-
-        # Build cleaning prompt using prompt_store
-        prompt_name = "gemini/cleaning/v1"
-        user_prompt = render_prompt(prompt_name, transcript=text)
-
-        # Use system instruction (Gemini pattern)
-        system_prompt = (
-            "You are a transcript cleaning assistant. "
-            "Remove sponsors, ads, intros, outros, and meta-commentary. "
-            "Preserve all substantive content and speaker information. "
-            "Return only the cleaned text, no explanations."
-        )
-
-        logger.debug(
-            "Cleaning transcript via Gemini API (model: %s, text length: %d chars)",
-            self.cleaning_model,
-            len(text),
-        )
-
-        try:
-            from ...utils.provider_metrics import (
-                _safe_gemini_retryable,
-                ProviderCallMetrics,
-                retry_with_metrics,
-            )
-
-            call_metrics = ProviderCallMetrics()
-            call_metrics.set_provider_name("gemini")
-            call_metrics.set_breaker_config_from_cfg(self.cfg)
-
-            def _make_api_call():
-                generation_config = _merge_generate_content_config(
-                    self.cleaning_model,
-                    {
-                        "temperature": self.cleaning_temperature,
-                        "max_output_tokens": clamp_cleaning_max_tokens(
-                            estimate_cleaning_output_tokens(len(text.split())),
-                            GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
-                        ),
-                        "system_instruction": system_prompt,
-                    },
-                )
-
-                return self.client.models.generate_content(
-                    model=self.cleaning_model,
-                    contents=user_prompt,
-                    config=cast(Any, generation_config),
-                )
-
-            try:
-                response = retry_with_metrics(
-                    _make_api_call,
-                    **self._gemini_retry_params(
-                        {"stage": "gemini_clean_transcript"},
-                        pipeline_metrics=pipeline_metrics,
-                    ),
-                    retryable_exceptions=_safe_gemini_retryable(),
-                    metrics=call_metrics,
-                )
-            except Exception:
-                call_metrics.finalize()
-                raise
-
-            call_metrics.finalize()
-
-            _record_gemini_llm_call(
-                response,
-                pipeline_metrics,
-                recorder_name="record_llm_cleaning_call",
-                cfg=self.cfg,
-                model=self.cleaning_model,
-            )
-
-            cleaned = response.text if hasattr(response, "text") else str(response)
-
-            # Cost capture up-front (ADR-100 cost-attribution in both branches).
-            in_tok_cl = None
-            out_tok_cl = None
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                u = response.usage_metadata
-                ir = getattr(u, "prompt_token_count", 0)
-                or_ = getattr(u, "candidates_token_count", 0)
-                try:
-                    in_tok_cl = int(ir) if ir is not None else None
-                except (TypeError, ValueError):
-                    in_tok_cl = None
-                try:
-                    out_tok_cl = int(or_) if or_ is not None else None
-                except (TypeError, ValueError):
-                    out_tok_cl = None
-            cleaning_cost: Optional[float] = None
-            if in_tok_cl is not None and out_tok_cl is not None:
-                from ...workflow.helpers import calculate_provider_cost
-
-                cleaning_cost = calculate_provider_cost(
-                    cfg=self.cfg,
-                    provider_type="gemini",
-                    capability="cleaning",
-                    model=self.cleaning_model,
-                    prompt_tokens=in_tok_cl,
-                    completion_tokens=out_tok_cl,
-                )
-
-            def _emit_cleaning_cost(*, triggered_guardrail: bool = False) -> None:
-                if in_tok_cl is None or out_tok_cl is None:
-                    return
-                try:
-                    from ...workflow.cost_monitoring import emit_llm_cost_event
-
-                    emit_llm_cost_event(
-                        self.cfg,
-                        provider="gemini",
-                        stage="cleaning",
-                        model=self.cleaning_model,
-                        estimated_cost_usd=float(cleaning_cost or 0.0),
-                        prompt_tokens=in_tok_cl,
-                        completion_tokens=out_tok_cl,
-                        triggered_guardrail=triggered_guardrail,
-                        served_model=getattr(response, "model", None),
-                        response=response,
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-
-            if not cleaned:
-                logger.warning("Gemini API returned empty cleaned text, using original")
-                _emit_cleaning_cost()
-                return text
-            # ADR-100: cleaning catch-and-degrade; cost emitted in both branches.
-            try:
-                _guardrails.check_chat_response(
-                    cleaned, service="gemini", finish_reason=_gemini_finish_reason(response)
-                )
-            except _guardrails.GuardrailViolation:
-                _emit_cleaning_cost(triggered_guardrail=True)
-                logger.warning(
-                    "Gemini cleaning output failed guardrail; " "returning original transcript text"
-                )
-                return text
-
-            _emit_cleaning_cost()
-            logger.debug("Gemini cleaning completed: %d -> %d chars", len(text), len(cleaned))
-            return cast(str, cleaned)
-
-        except _guardrails.GuardrailViolation:
-            # Defensive outer catch — preserve the catch-and-degrade contract
-            # if a future change adds a guardrail call outside the inline block.
-            logger.warning(
-                "Gemini cleaning output failed guardrail (outer); "
-                "returning original transcript text"
-            )
-            return text
-        except Exception as exc:
-            logger.error("Gemini API error in cleaning: %s", format_exception_for_log(exc))
-            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
-
-            # Handle Gemini-specific error types
-            error_msg = str(exc).lower()
-            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
-                raise ProviderAuthError(
-                    message=f"Gemini authentication failed: {format_exception_for_log(exc)}",
-                    provider="GeminiProvider/Cleaning",
-                    suggestion="Check your GEMINI_API_KEY environment variable or config setting",
-                ) from exc
-            elif "quota" in error_msg or "rate limit" in error_msg:
-                raise ProviderRuntimeError(
-                    message=f"Gemini rate limit exceeded: {format_exception_for_log(exc)}",
-                    provider="GeminiProvider/Cleaning",
-                    suggestion="Wait before retrying or check your API quota",
-                ) from exc
-            else:
-                raise ProviderRuntimeError(
-                    message=f"Gemini cleaning failed: {format_exception_for_log(exc)}",
-                    provider="GeminiProvider/Cleaning",
-                ) from exc
 
     def get_capabilities(self) -> ProviderCapabilities:
         """Get provider capabilities.

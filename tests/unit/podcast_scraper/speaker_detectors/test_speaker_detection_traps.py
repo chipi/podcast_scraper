@@ -19,11 +19,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any, Dict, List
 
-import pytest
 import yaml
-
-from podcast_scraper.speaker_detectors.corroboration import corroborate_guests
-from podcast_scraper.speaker_detectors.guests import _is_likely_actual_guest
 
 FIXTURES = pathlib.Path("tests/fixtures/speaker_detection_traps.yaml")
 
@@ -37,67 +33,6 @@ def _cases() -> List[Dict[str, Any]]:
 
 CASES = _cases()
 IDS = [c["id"] for c in CASES]
-
-
-@pytest.mark.parametrize("case", CASES, ids=IDS)
-def test_impostors_are_rejected(case: Dict[str, Any]) -> None:
-    """Nobody the episode is merely ABOUT may be accepted as a speaker.
-
-    This is the half that matters. Every name here is a person (or a company) the episode discusses
-    and who never says a word.
-    """
-    for impostor in case["must_not_include"]:
-        assert not _is_likely_actual_guest(impostor, case["title"], case["description"]), (
-            f"{case['id']}: '{impostor}' was accepted as a guest, but the episode only talks "
-            "ABOUT them. Their name would be painted onto a real person's voice."
-        )
-
-
-@pytest.mark.parametrize("case", CASES, ids=IDS)
-def test_real_guests_are_found(case: Dict[str, Any]) -> None:
-    """The detector must not become so timid that it finds nobody.
-
-    Rejecting everything would pass the impostor test and be useless. A guest introduced with a cue
-    directly before their name has to be found.
-    """
-    for guest in case["must_include"]:
-        assert _is_likely_actual_guest(
-            guest, case["title"], case["description"]
-        ), f"{case['id']}: real guest '{guest}' was rejected, but the episode introduces them."
-
-
-@pytest.mark.parametrize("case", CASES, ids=IDS)
-def test_an_llm_proposal_is_corroborated_before_it_reaches_a_voice(case: Dict[str, Any]) -> None:
-    """THE PRODUCTION BUG. An LLM detector returns a name list and ``success=True``, and nothing
-    checks either.
-
-    ``llm_proposes`` in the first fixture is qwen3.5:35b's verbatim live output on the real Hard
-    Fork metadata: it named Elon Musk and Sam Altman as *speakers* on an episode where one is being
-    sued and the other is merely discussed. The prompt forbids exactly this. The model did it
-    anyway and reported success — a prompt is not an enforcement mechanism.
-
-    The gate re-checks the model's claim against the same text the model was shown.
-    """
-    kept = corroborate_guests(
-        case["llm_proposes"],
-        episode_title=case["title"],
-        episode_description=case["description"],
-        known_hosts=set(case["known_hosts"]),
-    )
-    kept_lower = {k.lower() for k in kept}
-
-    for impostor in case["must_not_include"]:
-        assert impostor.lower() not in kept_lower, (
-            f"{case['id']}: the LLM proposed '{impostor}' and the gate let it through. "
-            f"It would be painted onto a real person's diarized voice. Kept: {kept}"
-        )
-    for host in case["known_hosts"]:
-        assert host.lower() not in kept_lower, f"{case['id']}: host '{host}' leaked into the guests"
-    for guest in case["must_include"]:
-        assert any(guest.lower() in k for k in kept_lower), (
-            f"{case['id']}: the LLM proposed real guest '{guest}' and the gate dropped them. "
-            f"Kept: {kept}"
-        )
 
 
 def test_the_fixtures_actually_contain_traps() -> None:

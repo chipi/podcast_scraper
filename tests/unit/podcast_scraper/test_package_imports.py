@@ -211,13 +211,6 @@ class TestPackageImports(unittest.TestCase):
 
         self.assertIsNotNone(podcast_scraper.preprocessing)
 
-    def test_speaker_detectors_package_importable(self):
-        """Test that speaker_detectors package can be imported."""
-        from podcast_scraper.speaker_detectors import base, factory
-
-        self.assertIsNotNone(base)
-        self.assertIsNotNone(factory)
-
     def test_transcription_package_importable(self):
         """Test that transcription package can be imported."""
         from podcast_scraper.transcription import base, factory

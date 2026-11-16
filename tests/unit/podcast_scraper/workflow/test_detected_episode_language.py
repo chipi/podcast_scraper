@@ -112,13 +112,15 @@ def test_translation_reads_the_episodes_language(tmp_path) -> None:
 def test_translation_and_the_gate_are_handed_the_episodes_cfg() -> None:
     """Structural: the two calls are deep in the metadata path; this pins what they receive."""
     import inspect
+    import re
 
     from podcast_scraper.workflow import metadata_generation as mg
 
     source = inspect.getsource(mg)
     assert "episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)" in source
-    assert "run_translation_stage(\n        episode_cfg," in source
-    assert "analysis_blocked_reason(\n        episode_cfg," in source
+    # Indentation-free: both calls sit under the item's stage-profile check (ADR-177).
+    assert re.search(r"run_translation_stage\(\s*episode_cfg,", source)
+    assert re.search(r"analysis_blocked_reason\(\s*episode_cfg,", source)
 
 
 def test_the_asr_record_carries_the_detected_language() -> None:

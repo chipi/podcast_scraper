@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-07-28
 - **Authors**: Marko Dragoljevic
-- **Related issues**: v2.4 arc (GI/KG optimizations), #1220 (KG Voice node), ADR-135 (route-and-tag + Voice)
+- **Related issues**: v2.4 arc (GI/KG optimizations), #1220 (KG Voice node)
 - **Related work**: labeling-output `exposed` metric (36af801e); sidecar-completeness directive
 - **Design source**: this ADR (operator proposal, 2026-07-28)
 

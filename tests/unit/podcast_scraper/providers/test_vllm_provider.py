@@ -120,12 +120,6 @@ class TestFactoryDispatch:
         p = create_summarization_provider(_vllm_cfg())
         assert isinstance(p, VLLMProvider)
 
-    def test_speaker_factory_returns_vllm(self):
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        p = create_speaker_detector(_vllm_cfg())
-        assert isinstance(p, VLLMProvider)
-
 
 class TestServedModelVerification:
     """ADR-147 B3: fail-closed served-model check.

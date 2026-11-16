@@ -77,18 +77,6 @@ describe('searchApi', () => {
       expect(calledParams().get('top_k')).toBe('1')
     })
 
-    it('sets grounded_only=true when groundedOnly is set', async () => {
-      mockFetchJson(true, emptyResponse)
-      await searchCorpus('q', { path: '/c', groundedOnly: true })
-      expect(calledParams().get('grounded_only')).toBe('true')
-    })
-
-    it('omits grounded_only when groundedOnly is false', async () => {
-      mockFetchJson(true, emptyResponse)
-      await searchCorpus('q', { path: '/c', groundedOnly: false })
-      expect(calledParams().has('grounded_only')).toBe(false)
-    })
-
     it('sets trimmed feed/since/speaker/embedding_model when provided', async () => {
       mockFetchJson(true, emptyResponse)
       await searchCorpus('q', {

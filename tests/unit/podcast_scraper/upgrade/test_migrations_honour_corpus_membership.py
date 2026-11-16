@@ -26,9 +26,6 @@ import json
 from pathlib import Path
 
 from podcast_scraper.upgrade.corpus_selection import select_served_artifacts
-from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
-    transcript_pairing_is_vouched,
-)
 
 FEED_ID = "sha256:feed-aaa"
 EP_ID = "ep-krishna"
@@ -123,74 +120,9 @@ def test_an_artifact_with_no_metadata_sibling_is_kept(tmp_path: Path):
     assert superseded == []
 
 
-def test_all_three_migrations_select_through_the_central_rule():
-    """Structural: a future migration reverting to `rglob` reintroduces the whole class.
-
-    Cheap, and it survives refactors of the helper's internals — which a behavioural test of one
-    migration would not.
-    """
-    import inspect
-
-    from podcast_scraper.upgrade import rewrite_bridges_m0007
-    from podcast_scraper.upgrade.migrations import (
-        m0009_backfill_speaker_roles,
-        m0010_canonical_person_names,
-    )
-
-    for mod, fn in (
-        (m0009_backfill_speaker_roles, "_iter_kg_files"),
-        (m0010_canonical_person_names, "_iter_gi_files"),
-        (rewrite_bridges_m0007, "_iter_bridges"),
-    ):
-        target = getattr(mod, fn)
-        src = inspect.getsource(target)
-        assert "select_served_artifacts" in src, f"{mod.__name__}.{fn} bypasses the central rule"
-        # CODE ONLY, not the docstring. Each of those functions explains in prose that it is
-        # deliberately "not a bare rglob", so scanning the whole source failed on its own
-        # explanation. Checking the text a comment can trip is not checking the code.
-        body = src.replace(target.__doc__ or "", "") if target.__doc__ else src
-        assert "rglob" not in body, f"{mod.__name__}.{fn} still globs every run copy"
-
-
 # ---------------------------------------------------------------------------
 # Defect 2
 # ---------------------------------------------------------------------------
-
-
-def test_a_transcript_naming_another_episode_is_not_vouched(tmp_path: Path):
-    """The corruption signature — and the one thing the poisoned graph cannot hide."""
-    meta = tmp_path / "0001 - Anthropic_s CFO on Managing Co_20260818.metadata.json"
-    content = {
-        "transcript_file_path": "transcripts/0010 - Re-engineering the Semicondu_20260818.txt"
-    }
-    assert transcript_pairing_is_vouched(meta, content) is False
-
-
-def test_a_truncated_title_still_counts_as_the_same_episode(tmp_path: Path):
-    """Equality would be WRONG here and the number it produces is wrong.
-
-    The metadata filename truncates the title and the transcript filename does not. A plain
-    equality test called 128 correctly-paired episodes mispaired, which is how #2082's headline
-    read 275 instead of 147. Flagging those as mispaired would bury the real ones.
-    """
-    meta = tmp_path / "0006 - This Funding Model is Helping Fi_guid123.metadata.json"
-    long_name = "0006 - This Funding Model is Helping Fight Climate Change_guid123.txt"
-    content = {"transcript_file_path": f"transcripts/{long_name}"}
-    assert transcript_pairing_is_vouched(meta, content) is True
-
-
-def test_no_recorded_transcript_is_vouched_not_suspect(tmp_path: Path):
-    """Nothing to mispair. Treating absence as corruption would flood the hand-read list."""
-    meta = tmp_path / "0001 - A_20260818.metadata.json"
-    assert transcript_pairing_is_vouched(meta, {}) is True
-    assert transcript_pairing_is_vouched(meta, {"transcript_file_path": ""}) is True
-
-
-def test_the_vouch_check_never_raises(tmp_path: Path):
-    """It gates a hand-read list, not correctness — it must not be able to fail a migration."""
-    meta = tmp_path / "weird-name-with-no-suffix"
-    assert transcript_pairing_is_vouched(meta, {"transcript_file_path": 12345}) in (True, False)
-    assert transcript_pairing_is_vouched(meta, None) is True  # type: ignore[arg-type]
 
 
 def test_a_backup_copy_is_never_served(tmp_path: Path) -> None:

@@ -225,7 +225,7 @@ def _quotes_for_insight(
     artifact: Dict[str, Any], insight_id: str, people: Any = None
 ) -> List[Dict[str, Any]]:
     """The insight's supporting quotes, each with the name the episode view shows for its speaker
-    (``speaker_name``, spelled through ``people``; RFC-131 S6c). ``speaker_id`` stays the episode's.
+    (``speaker_name``, spelled through ``people``). ``speaker_id`` stays the episode's.
     """
     from podcast_scraper.read_hooks import quote_speaker_name
 
@@ -266,7 +266,7 @@ def _quotes_for_insight(
 
 
 def _speaker_matches(sid: Any, key: str, id_map: Optional[Dict[str, str]]) -> bool:
-    """A speaker scope matches the id, or its group's canonical id (RFC-131 S6c)."""
+    """A speaker scope matches the id, or its group's canonical id."""
     if not isinstance(sid, str):
         return False
     canonical = (id_map or {}).get(sid) or ""
@@ -493,7 +493,7 @@ def _enrich_hit(
     people: Any = None,
     docs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """One search row. ``people`` spells supporting quotes' speakers (RFC-131 S6c); ``docs`` is a
+    """One search row. ``people`` spells supporting quotes' speakers; ``docs`` is a
     per-query cache of parsed GI artifacts, so several hits from one episode parse it once."""
     meta = dict(hit.metadata)
     if metadata_relpath_by_scope:

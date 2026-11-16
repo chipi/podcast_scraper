@@ -120,41 +120,6 @@ def _ids(out: dict) -> list:
     return [r["metadata"].get("source_id") for r in out["results"]]
 
 
-def test_a_speaker_scope_finds_their_insight_on_a_crowded_corpus(tmp_path, monkeypatch):
-    from podcast_scraper.search.capability import structured_corpus_search
-
-    _corpus(tmp_path, monkeypatch)
-    out = structured_corpus_search(tmp_path, "risk", speaker="quiet-voice", top_k=1)
-    assert _ids(out) == ["insight:q0"]
-
-
-def test_a_topic_scope_finds_its_insight_on_a_crowded_corpus(tmp_path, monkeypatch):
-    from podcast_scraper.search.capability import structured_corpus_search
-
-    _corpus(tmp_path, monkeypatch)
-    out = structured_corpus_search(
-        tmp_path, "risk", topic="risk-management", doc_types=["insight"], top_k=1
-    )
-    assert _ids(out) == ["insight:q0"]
-
-
-def test_the_scopes_never_let_anything_else_through(tmp_path, monkeypatch):
-    from podcast_scraper.search.capability import structured_corpus_search
-
-    _corpus(tmp_path, monkeypatch)
-    by_speaker = _ids(structured_corpus_search(tmp_path, "risk", speaker="quiet-voice", top_k=20))
-    # Only their insight among the insights; rows with no speaker (a topic here) pass a speaker
-    # scope, as they always have in the result filter.
-    assert [i for i in by_speaker if i.startswith("insight:")] == ["insight:q0"]
-    by_topic = set(_ids(structured_corpus_search(tmp_path, "risk", topic="risk", top_k=20)))
-    assert by_topic == {"insight:q0", "topic:risk-management"}
-    both = _ids(
-        structured_corpus_search(tmp_path, "risk", speaker="crowd", topic="risk-man", top_k=20)
-    )
-    # No insight by crowd is about risk management; the topic row has no speaker, so it passes.
-    assert both == ["topic:risk-management"]
-
-
 def test_the_resolution_matches_the_result_filters_exactly(tmp_path):
     """The prefilter is resolved from the GI files the same way the result filters read them, so it
     is never stricter: same insights for every key, speaker and topic."""

@@ -88,35 +88,6 @@ def test_a_raising_hook_stops_the_point_as_it_did_inline() -> None:
     assert later == []
 
 
-def test_the_built_in_hooks_call_todays_stages(tmp_path: Path) -> None:
-    with (
-        patch("podcast_scraper.gi.deps.validate_gil_grounding_dependencies") as deps,
-        patch("podcast_scraper.providers.ml.diarization.ad_signatures.write_for_corpus") as ads,
-        patch("podcast_scraper.quality.naming_coverage.measure_and_record") as coverage,
-        patch("podcast_scraper.audio_sync.references.write_for_run") as refs,
-        use_extensions([]),
-    ):
-        stage_hooks.run_started("cfg")
-        stage_hooks.corpus_derived(tmp_path)
-        stage_hooks.batch_finalized(tmp_path)
-        stage_hooks.run_finalized("root", "run")
-    deps.assert_called_once_with("cfg")
-    ads.assert_called_once_with(tmp_path)
-    coverage.assert_called_once_with(tmp_path)
-    refs.assert_called_once_with("root", "run")
-
-
-def test_a_failing_audio_reference_pass_never_fails_the_run(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with (
-        patch("podcast_scraper.audio_sync.references.write_for_run", side_effect=OSError("disk")),
-        use_extensions([]),
-    ):
-        stage_hooks.run_finalized("root", "run")
-    assert "audio references: end-of-run pass failed (non-fatal)" in caplog.text
-
-
 @pytest.mark.parametrize(
     "module, moved",
     [
@@ -142,36 +113,6 @@ class _Cfg:
     def __init__(self, on: bool, dry_run: bool = False) -> None:
         self.kg_topic_corpus_clustering = on
         self.dry_run = dry_run
-
-
-@pytest.mark.parametrize("cfg", [_Cfg(False), _Cfg(True, dry_run=True)])
-def test_corpus_topic_clustering_runs_only_when_on_and_not_a_dry_run(cfg: _Cfg) -> None:
-    with (
-        patch("podcast_scraper.kg.topic_clustering.cluster_and_apply_corpus_topics") as cluster,
-        use_extensions([]),
-    ):
-        stage_hooks.run_completed(cfg, "out")
-    cluster.assert_not_called()
-
-
-def test_corpus_topic_clustering_runs_and_a_failure_is_not_fatal(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with (
-        patch("podcast_scraper.kg.topic_clustering.cluster_and_apply_corpus_topics") as cluster,
-        use_extensions([]),
-    ):
-        stage_hooks.run_completed(_Cfg(True), "out")
-    cluster.assert_called_once_with(Path("out"))
-    with (
-        patch(
-            "podcast_scraper.kg.topic_clustering.cluster_and_apply_corpus_topics",
-            side_effect=RuntimeError("boom"),
-        ),
-        use_extensions([]),
-    ):
-        stage_hooks.run_completed(_Cfg(True), "out")
-    assert "corpus topic clustering failed (non-fatal): boom" in caplog.text
 
 
 def test_kg_prompt_hints_take_the_first_owner_and_default_to_plain_v4() -> None:
@@ -223,25 +164,6 @@ def test_without_an_ad_stage_no_ad_free_base_is_written_and_nothing_is_cut() -> 
     assert meta.chars_removed == 0 and meta.preroll_cut_end is None
 
 
-def test_the_built_in_ad_stage_calls_todays_code() -> None:
-    with (
-        patch(
-            "podcast_scraper.workflow.adfree_transcript.produce_adfree_artifacts",
-            return_value=("t.adfree.txt", "artifacts"),
-        ) as produce,
-        patch(
-            "podcast_scraper.gi.ad_regions.excise_ad_regions", return_value=("cut", None, "meta")
-        ) as excise,
-        use_extensions([]),
-    ):
-        got = stage_hooks.adfree_base("text", [], "t.txt", "/out", extra_cue_patterns=["p"])
-        cut = stage_hooks.excise_ads("text", segments=None)
-    assert got == ("t.adfree.txt", "artifacts")
-    produce.assert_called_once_with("text", [], "t.txt", "/out", extra_cue_patterns=["p"])
-    assert cut == ("cut", None, "meta")
-    excise.assert_called_once_with("text", segments=None)
-
-
 @pytest.mark.parametrize(
     "module",
     [
@@ -263,25 +185,6 @@ def test_without_a_speaker_stage_there_are_no_turns_and_no_screenplay() -> None:
         stage_hooks.write_variant_turns(None, "hi", [], "t.txt", "/out")
         with pytest.raises(RuntimeError, match="no speaker stage"):
             stage_hooks.speaker_turns([], screenplay_text="", max_sentence_words=0)
-
-
-def test_the_built_in_speaker_stage_renders_and_builds_turns_with_todays_code() -> None:
-    with (
-        patch(
-            "podcast_scraper.providers.ml.diarization.formatting."
-            "format_diarized_screenplay_with_offsets",
-            return_value=("A: hi", [{"char_start": 0}]),
-        ) as render,
-        patch(
-            "podcast_scraper.providers.ml.diarization.turns.build_turns", return_value="turns"
-        ) as build,
-        use_extensions([]),
-    ):
-        assert stage_hooks.screenplay([{"x": 1}]) == ("A: hi", [{"char_start": 0}])
-        got = stage_hooks.speaker_turns([{"y": 2}], screenplay_text="A: hi", max_sentence_words=7)
-    render.assert_called_once_with([{"x": 1}])
-    build.assert_called_once_with([{"y": 2}], screenplay_text="A: hi", max_sentence_words=7)
-    assert got == "turns"
 
 
 @pytest.mark.parametrize(
@@ -308,38 +211,6 @@ def test_without_a_speaker_stage_a_feed_has_no_hosts_and_an_episode_no_speakers(
         assert stage_hooks.episode_speakers(object(), object(), result, None) is None
 
 
-def test_the_built_in_speaker_stage_detects_with_todays_code() -> None:
-    with (
-        patch(
-            "podcast_scraper.speaker_stage.detection.detect_feed_hosts_and_patterns",
-            return_value="feed",
-        ) as feed,
-        patch(
-            "podcast_scraper.speaker_stage.detection.hosts_for_episode", return_value={"A"}
-        ) as hosts,
-        patch(
-            "podcast_scraper.speaker_stage.detection._detect_speakers_for_episode",
-            return_value="speakers",
-        ) as speakers,
-        use_extensions([]),
-    ):
-        assert stage_hooks.feed_hosts("cfg", "f", [], "m", speaker_detector="d") == "feed"
-        assert stage_hooks.episode_hosts("r", "e", ["p"]) == {"A"}
-        got = stage_hooks.episode_speakers("e", "cfg", "r", "m", skip_reason="big")
-    feed.assert_called_once_with("cfg", "f", [], "m", speaker_detector="d")
-    hosts.assert_called_once_with("r", "e", ["p"])
-    speakers.assert_called_once_with(
-        "e",
-        "cfg",
-        "r",
-        "m",
-        skip_speaker_detection=False,
-        skip_reason="big",
-        skip_detail=None,
-    )
-    assert got == "speakers"
-
-
 @pytest.mark.parametrize(
     "module",
     [
@@ -364,14 +235,6 @@ def test_without_a_speaker_stage_a_show_states_no_hosts_and_names_match_only_exa
         assert stage_hooks.stated_show_hosts("T", "Hosted by Jane Roe", "en", ["Jane Roe"]) == []
         match = stage_hooks.person_matcher()
         assert match("Jane Roe", "Jane Roe") and not match("Joe Weisenthal", "Joe Wiesenthal")
-
-
-def test_the_built_in_person_matcher_is_todays_same_person_itself() -> None:
-    from podcast_scraper.kg.speaker_coherence import same_person
-
-    with use_extensions([]):
-        assert stage_hooks.person_matcher() is same_person
-        assert stage_hooks.same_person("Joe Weisenthal", "Joe Wiesenthal")
 
 
 def test_show_metadata_no_longer_imports_host_rules() -> None:
@@ -407,39 +270,12 @@ def test_without_a_speaker_stage_a_reprocess_is_refused_and_counted(mode: str) -
     assert recorded == [(f"{mode}_only", "NoSpeakerStage")]
 
 
-@pytest.mark.parametrize(
-    "mode, fn",
-    [("relabel", "_relabel_existing_transcript"), ("rediarize", "_rediarize_existing_transcript")],
-)
-def test_the_built_in_reprocess_runs_todays_stage_for_the_mode(mode: str, fn: str) -> None:
-    with (
-        patch(f"podcast_scraper.speaker_stage.reprocess.{fn}", return_value=(True, "r", 3)) as run,
-        use_extensions([]),
-    ):
-        got = stage_hooks.speaker_reprocess(mode, "job", "cfg", "sfx", "/out", "prov", "m")
-    run.assert_called_once_with("job", "cfg", "sfx", "/out", "prov", "m")
-    assert got == (True, "r", 3)
-
-
 def test_without_a_speaker_stage_the_asr_result_is_kept_as_it_came() -> None:
     result = {"segments": [{"start": 0.0, "end": 1.0, "text": "hi", "speaker": "SPEAKER_00"}]}
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         got = stage_hooks.speakers_after_asr(result, "a.wav", None, None, "/o", None, 60.0, None)
     assert got == (result, None, None, None)
     assert got[0] is result
-
-
-def test_the_built_in_speaker_stage_after_asr_gets_every_input() -> None:
-    args = ("result", "a.wav", "cfg", "job", "/o", "metrics", 60.0, "provider")
-    with (
-        patch(
-            "podcast_scraper.speaker_stage.after_asr.speakers_after_asr",
-            return_value=("r2", 1.0, 0.5, None),
-        ) as run,
-        use_extensions([]),
-    ):
-        assert stage_hooks.speakers_after_asr(*args) == ("r2", 1.0, 0.5, None)
-    run.assert_called_once_with(*args)
 
 
 def test_transcription_no_longer_imports_the_diarization_pipeline() -> None:
@@ -463,50 +299,11 @@ def test_without_a_speaker_stage_no_anon_render_and_no_speaker_lines(tmp_path: P
     assert list(tmp_path.iterdir()) == []
 
 
-def test_the_built_in_speaker_stage_renders_and_writes_the_anon_transcript_with_todays_code() -> (
-    None
-):
-    with (
-        patch(
-            "podcast_scraper.providers.ml.diarization.formatting."
-            "format_diarized_screenplay_from_segments",
-            return_value="A: hi",
-        ) as render,
-        patch(
-            "podcast_scraper.speaker_stage.sidecars._write_anon_transcript",
-            return_value="t.anon.txt",
-        ) as anon,
-        use_extensions([]),
-    ):
-        assert stage_hooks.render_speakers([{"x": 1}]) == "A: hi"
-        assert stage_hooks.anon_transcript([{"x": 1}], "t.txt", "/o") == "t.anon.txt"
-    render.assert_called_once_with([{"x": 1}])
-    anon.assert_called_once_with([{"x": 1}], "t.txt", "/o")
-
-
 def test_without_a_speaker_stage_no_voice_label_is_a_person_and_cues_are_kept() -> None:
     result = {"text": "hi", "segments": [{"speaker": "Jane Roe", "text": "hi"}]}
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         assert stage_hooks.person_voice_label("Jane Roe") is False
         assert stage_hooks.native_roster(result, None, idx=1) is result
-
-
-def test_the_built_in_native_roster_and_voice_check_are_todays_code() -> None:
-    with (
-        patch(
-            "podcast_scraper.providers.ml.diarization.roster._is_person_voice_label",
-            return_value=True,
-        ) as is_person,
-        patch(
-            "podcast_scraper.speaker_stage.native._roster_native_segments",
-            return_value={"segments": []},
-        ) as roster,
-        use_extensions([]),
-    ):
-        assert stage_hooks.person_voice_label("Jane Roe") is True
-        assert stage_hooks.native_roster({"text": ""}, "cfg", idx=3) == {"segments": []}
-    is_person.assert_called_once_with("Jane Roe")
-    roster.assert_called_once_with({"text": ""}, "cfg", idx=3)
 
 
 def test_the_episode_processor_imports_no_diarization_roster_pipeline_or_base() -> None:
@@ -530,34 +327,9 @@ def test_without_a_speaker_stage_repaired_segments_come_back_unlabelled_copies()
     assert got == new and got[0] is not new[0]
 
 
-def test_the_built_in_carry_is_todays_alignment() -> None:
-    with (
-        patch(
-            "podcast_scraper.providers.ml.diarization.alignment.carry_speaker_identity",
-            return_value=[{"speaker_label": "A"}],
-        ) as carry,
-        use_extensions([]),
-    ):
-        assert stage_hooks.carry_speaker_identity(["n"], ["o"]) == [{"speaker_label": "A"}]
-    carry.assert_called_once_with(["n"], ["o"])
-
-
 def test_without_an_insight_stage_no_gi_is_built() -> None:
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         assert stage_hooks.episode_insights(cfg=None, episode=None) is None
-
-
-def test_the_built_in_insight_stage_gets_the_whole_context() -> None:
-    with (
-        patch(
-            "podcast_scraper.insight_stage.episode.build_episode_insights",
-            return_value=("payload", "p", 0.1, 2.0, "meta", "p"),
-        ) as build,
-        use_extensions([]),
-    ):
-        got = stage_hooks.episode_insights(cfg="cfg", episode="e", gi_meta=None)
-    build.assert_called_once_with(cfg="cfg", episode="e", gi_meta=None)
-    assert got == ("payload", "p", 0.1, 2.0, "meta", "p")
 
 
 def test_metadata_generation_no_longer_builds_gi_itself() -> None:
@@ -578,17 +350,6 @@ def test_metadata_generation_no_longer_builds_gi_itself() -> None:
 def test_without_an_insight_stage_no_gi_kg_passes_run_and_no_bridge_is_written() -> None:
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         assert stage_hooks.gi_kg_passes(bridge_gi_payload=None, bridge_kg_payload={}) is None
-
-
-def test_the_built_in_gi_kg_passes_get_the_whole_context() -> None:
-    with (
-        patch(
-            "podcast_scraper.insight_stage.passes.run_gi_kg_passes", return_value=("gi", "kg")
-        ) as run,
-        use_extensions([]),
-    ):
-        assert stage_hooks.gi_kg_passes(cfg="cfg", kg_path=None) == ("gi", "kg")
-    run.assert_called_once_with(cfg="cfg", kg_path=None)
 
 
 def test_metadata_generation_imports_no_gi_or_identity_merge_code() -> None:
@@ -612,28 +373,6 @@ def test_without_a_speaker_stage_the_record_is_empty_and_claims_no_origin() -> N
         assert stage_hooks.roster_source([object()], diarized=True) is None
 
 
-def test_the_built_in_speaker_record_is_todays_code() -> None:
-    with (
-        patch(
-            "podcast_scraper.speaker_stage.record._build_speaker_record", return_value=(["s"], 2)
-        ) as build,
-        patch(
-            "podcast_scraper.speaker_stage.record._speaker_lists_for_graph",
-            return_value=(["h"], ["g"]),
-        ) as lists,
-        patch(
-            "podcast_scraper.identity.roster_provenance.roster_source", return_value="diarized"
-        ) as source,
-        use_extensions([]),
-    ):
-        assert stage_hooks.speaker_record("/o", "t", ["H"], ["G"], "S", language="es") == (["s"], 2)
-        assert stage_hooks.speaker_lists_for_graph(["sp"], "S", "es") == (["h"], ["g"])
-        assert stage_hooks.roster_source(["sp"], diarized=True) == "diarized"
-    build.assert_called_once_with("/o", "t", ["H"], ["G"], "S", language="es")
-    lists.assert_called_once_with(["sp"], feed_title="S", language="es")
-    source.assert_called_once_with(["sp"], diarized=True)
-
-
 def test_metadata_generation_imports_no_speaker_code() -> None:
     src = (Path(stage_hooks.__file__).parent / "workflow" / "metadata_generation.py").read_text(
         encoding="utf-8"
@@ -654,55 +393,6 @@ def test_without_a_speaker_stage_no_naming_rides_on_the_summary_and_no_ner_loads
         assert stage_hooks.ner_model(None) is None
 
 
-def test_the_built_in_bundled_naming_is_todays_sidecar_and_param_key() -> None:
-    from podcast_scraper.providers.ml.diarization.transcript_naming import PARAMS_LABELS
-
-    with (
-        patch(
-            "podcast_scraper.speaker_stage.bundled_speaker_naming.labels_for_call",
-            return_value=["SPEAKER_00"],
-        ),
-        patch("podcast_scraper.speaker_stage.bundled_speaker_naming.record") as record,
-        patch(
-            "podcast_scraper.speaker_stage.bundled_speaker_naming.take_speakers",
-            return_value={"SPEAKER_00": "Jane"},
-        ) as take,
-        use_extensions([]),
-    ):
-        naming = stage_hooks.bundled_naming("cfg", "bundled", "/o", "t.txt")
-        assert naming is not None
-        assert naming.params() == {PARAMS_LABELS: ["SPEAKER_00"]}
-        assert naming.take_speakers({"summary": "{}"}) == {"SPEAKER_00": "Jane"}
-        naming.record("bundled", {"SPEAKER_00": "Jane"})
-    take.assert_called_once_with({"summary": "{}"})
-    record.assert_called_once_with("cfg", "/o", "t.txt", "bundled", {"SPEAKER_00": "Jane"})
-
-
-def test_no_labels_means_no_naming_session() -> None:
-    with (
-        patch(
-            "podcast_scraper.speaker_stage.bundled_speaker_naming.labels_for_call",
-            return_value=None,
-        ),
-        use_extensions([]),
-    ):
-        assert stage_hooks.bundled_naming("cfg", "staged", "/o", "t.txt") is None
-
-
-def test_the_built_in_default_names_and_ner_model_are_todays() -> None:
-    from podcast_scraper.providers.ml.speaker_detection import DEFAULT_SPEAKER_NAMES
-
-    with (
-        patch(
-            "podcast_scraper.providers.ml.speaker_detection.get_ner_model", return_value="nlp"
-        ) as get,
-        use_extensions([]),
-    ):
-        assert list(stage_hooks.default_speaker_names()) == list(DEFAULT_SPEAKER_NAMES)
-        assert stage_hooks.ner_model("cfg") == "nlp"
-    get.assert_called_once_with("cfg")
-
-
 def test_without_a_speaker_stage_the_run_has_no_speaker_detector() -> None:
     from podcast_scraper.workflow import orchestration
 
@@ -715,18 +405,6 @@ def test_without_a_speaker_stage_the_run_has_no_speaker_detector() -> None:
         assert orchestration._create_speaker_detector(_Cfg()) is None  # type: ignore[arg-type]
 
 
-def test_the_built_in_detector_is_the_speaker_detector_factory() -> None:
-    with (
-        patch(
-            "podcast_scraper.speaker_detectors.factory.create_speaker_detector",
-            return_value="detector",
-        ) as make,
-        use_extensions([]),
-    ):
-        assert stage_hooks.create_speaker_detector("cfg") == "detector"
-    make.assert_called_once_with("cfg")
-
-
 def test_without_a_speaker_stage_deepgram_writes_no_screenplay() -> None:
     from podcast_scraper.providers.deepgram.deepgram_provider import DeepgramTranscriptionProvider
 
@@ -734,20 +412,6 @@ def test_without_a_speaker_stage_deepgram_writes_no_screenplay() -> None:
     provider = DeepgramTranscriptionProvider.__new__(DeepgramTranscriptionProvider)
     with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
         assert provider.format_screenplay_from_segments(segments, None, ["Maya"]) is None
-
-
-def test_a_labeling_profile_typo_still_fails_config_and_without_a_speaker_stage_any_id_passes() -> (
-    None
-):
-    from pydantic import ValidationError
-
-    from podcast_scraper import config
-
-    with use_extensions([]):
-        with pytest.raises(ValidationError, match="naming-3-legac"):
-            config.Config(labeling_profile="naming-3-legac")
-    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
-        assert config.Config(labeling_profile="naming-3-legac").labeling_profile == "naming-3-legac"
 
 
 def test_without_an_insight_stage_the_index_takes_no_gi_rows(tmp_path: Path) -> None:
@@ -773,16 +437,3 @@ def test_index_rows_come_from_every_owner_built_in_first(tmp_path: Path) -> None
             tmp_path, tmp_path, {}, scope_tag="t", episode_id="e", raw_feed_id="f", published=None
         )
     assert [r[0] for r in rows] == ["builtin:1", "ext:1"]
-
-
-def test_artifact_kinds_are_public_kg_plus_each_stages(tmp_path: Path) -> None:
-    from podcast_scraper.search.corpus_scope import episode_artifact_kinds
-
-    assert episode_artifact_kinds() == [
-        ("kg", ".kg.json"),
-        ("gi", ".gi.json"),
-        ("bridge", ".bridge.json"),
-    ]
-    with patch.object(builtin_stage_hooks, "BUILTIN", PipelineHooks(name="b")), use_extensions([]):
-        assert stage_hooks.artifact_kinds() == []
-        assert episode_artifact_kinds() == [("kg", ".kg.json")]

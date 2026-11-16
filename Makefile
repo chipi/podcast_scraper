@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure llms-txt llms-txt-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure llms-txt llms-txt-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-kg-schema kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict upgrade-undo-roles
 
 help:
 	@echo "Common developer commands:"
@@ -107,10 +107,7 @@ help:
 	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
 	@echo "  make check-test-policy   Enforce 3-tier ML/AI testing policy (no importorskip in unit, etc.)"
 	@echo "  make check-pricing-assumptions  Show config/pricing_assumptions.yaml status (optional --strict)"
-	@echo "  make validate-gi-schema [ARTIFACTS_DIR=path]  Validate gi.json files against GIL schema (strict)"
 	@echo "  make validate-kg-schema [ARTIFACTS_DIR=path]  Validate kg.json files against KG schema (strict)"
-	@echo "  make gil-quality-metrics [DIR=path]  PRD-017 metrics over .gi.json (optional --enforce via ARGS)"
-	@echo "  make compare-gil-runs REF=run1 CAND=run2  Compare GIL gi.json stats between two run roots"
 	@echo "  make kg-quality-metrics [DIR=path]   PRD-019 metrics over .kg.json (optional --enforce via ARGS)"
 	@echo "  make quality-metrics-ci              GIL+KG enforce on tests/fixtures/gil_kg_ci_enforce (matches CI)"
 	@echo "  make fetch-ci-metrics [N=40]       Download metrics/ artifacts from last N successful main runs (needs gh; default N=40)"
@@ -519,7 +516,7 @@ docstrings:
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*.patch,*/speaker_detectors/naming_vocabulary.py"
+	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*.patch"
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
@@ -754,16 +751,6 @@ check-pricing-assumptions:
 	$(PYTHON) scripts/validate/check_profile_pricing_coverage.py
 	$(PYTHON) scripts/validate/check_pricing_yaml_bundled_sync.py
 
-validate-gi-schema:
-	# Validate gi.json files against docs/architecture/gi/gi.schema.json (strict mode).
-	# Usage: make validate-gi-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
-	# E2E tests that produce gi.json also run strict validation inline (ci-fast covers them).
-	@if [ -n "$(ARTIFACTS_DIR)" ]; then \
-		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_gi_schema.py "$(ARTIFACTS_DIR)"; \
-	else \
-		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_gi_schema.py tests/fixtures; \
-	fi
-
 validate-kg-schema:
 	# Validate kg.json files against docs/architecture/kg/kg.schema.json (strict mode).
 	# Usage: make validate-kg-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
@@ -774,7 +761,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
 SERVE_OUTPUT_DIR ?= ./output
 # serve-api bind — DEFAULT 0.0.0.0:8000 so `make serve` "just works" for off-box dev:
 # a dev-signed iOS build's APNs token registration + the homelab delivery worker pulling
@@ -1091,8 +1078,8 @@ stack-test-ml-ci:
 # For GI ONLY — in place, diffable, with an audit trail — `gi-repair --episode-ids ...
 # --force-healthy` remains the narrower tool (docs/guides/CORPUS_REPROCESSING.md).
 reprocess-corpus-from-transcripts:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
 	OP_CFG="$${CORPUS_DIR}/viewer_operator.yaml"; \
 	test -f "$$OP_CFG" || OP_CFG="config/profiles/cloud_balanced.yaml"; \
 	echo "Reprocessing $${CORPUS_DIR} (enrich_only, scoped to on-disk episodes)..."; \
@@ -1103,12 +1090,12 @@ reprocess-corpus-from-transcripts:
 	  --single-feed-uses-corpus-layout \
 	  --reprocess-existing-only \
 	  --pipeline-stage rederive_only; \
-	echo "Optional: rebuild topic clusters when search/ index exists:"; \
+	echo "Optional, with the extension that provides topic-clusters installed, when search/ exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
 
 # Report corpus/code compatibility for a on-disk corpus parent (#796 / #797).
 corpus-compat-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
 
 # Pre-deploy gate (#1494 / #1497): fail if a corpus would silently under-serve the MCP —
@@ -1116,7 +1103,7 @@ corpus-compat-check:
 # enrichments (relational tools → empty). Non-zero exit on a HARD gap; diarization is a
 # soft warn. Run before shipping a corpus (or wire into the deploy). CORPUS_DIR required.
 corpus-completeness-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Phase 0 gate (#2175): what language is every episode in, and WHERE did that answer come from?
@@ -1126,7 +1113,7 @@ corpus-completeness-check:
 # non-English episode is a RESULT, not a failure. Run AFTER the m0011 backfill, and before S0.6:
 # after S0.6 a feed whose RSS says `de` is genuinely transcribed as German. CORPUS_DIR required.
 corpus-language-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_language_audit import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # S3.2 / D-43: withdraw a published language from DISCOVERY (search index rows only; the corpus
@@ -1135,36 +1122,15 @@ corpus-language-audit:
 #   make withdraw-language CORPUS_DIR=<corpus> LANGUAGE=es
 #   make withdraw-language CORPUS_DIR=<corpus> LANGUAGE=es APPLY=1
 withdraw-language:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -n "$${LANGUAGE:-}" || (echo "LANGUAGE required (e.g. LANGUAGE=es)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${LANGUAGE:-}" || { echo "LANGUAGE required (e.g. LANGUAGE=es)"; exit 1; }; \
 	$(PYTHON) scripts/tools/withdraw_language.py --corpus "$${CORPUS_DIR}" \
 		--language "$${LANGUAGE}" $${APPLY:+--apply}
-
-# Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
-# ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —
-# before the repair to size the work-list, and after to prove the repair landed. Those episodes
-# are invisible to any check that only asks "does this episode have GI?", so an append-mode
-# re-run skips them forever; this is the only thing that names them. CORPUS_DIR required.
-corpus-placeholder-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.corpus import check_corpus_for_placeholders; ok, report = check_corpus_for_placeholders(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
-
-# THE repair exit criterion (#1655). Asserts, per EPISODE, that declared GI actually exists:
-# artifact resolves + parses, is not a pre-#1657 placeholder, and no episode_id resolves to more
-# than one gi.json (the supersede hazard — corpus_metadata_index keeps the OLDEST, search keeps
-# the NEWEST, so duplicates mean two subsystems disagree on the canonical artifact).
-#
-# Use this, NOT corpus-placeholder-check, to decide whether a repair worked.
-# corpus-placeholder-check only asks "is the bad string absent?", which passes on a corpus whose
-# artifacts were deleted and never regenerated — proven 2026-08-16. CORPUS_DIR required.
-corpus-gi-integrity-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.gi.integrity import check_corpus_gi_integrity; ok, report = check_corpus_gi_integrity(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2, follow-up
 # B). Native path for corpora with no legacy index to migrate. CORPUS_DIR required.
 index-two-tier:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
 
 # Same build, in a container — for hosts where the [search] extra CANNOT be installed.
@@ -1186,8 +1152,8 @@ index-two-tier:
 #   make index-two-tier-docker CORPUS_DIR=tests/fixtures/app-validation-corpus/v3
 INDEX_DOCKER_IMAGE ?= podcast-scraper-stack-pipeline-llm:latest
 index-two-tier-docker:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -d "$${CORPUS_DIR}" || (echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -d "$${CORPUS_DIR}" || { echo "CORPUS_DIR does not exist: $${CORPUS_DIR}"; exit 1; }; \
 	set -e; \
 	VOL=podcast-index-$$$$; CT=podcast-index-ct-$$$$; LOG=/tmp/podcast-index-$$$$.log; \
 	trap 'docker rm -f $$CT >/dev/null 2>&1 || true; docker volume rm $$VOL >/dev/null 2>&1 || true' EXIT INT TERM; \
@@ -1206,11 +1172,11 @@ index-two-tier-docker:
 		if grep -q "^BUILD_DONE" $$LOG 2>/dev/null; then break; fi; \
 		i=$$((i+1)); sleep 10; \
 	done; \
-	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || (echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1); \
-	grep -q "^rc=0" $$LOG || (echo "index build FAILED; log:"; cat $$LOG; exit 1); \
-	grep -E "Two-tier index built" $$LOG || (echo "no index summary line; log:"; cat $$LOG; exit 1); \
+	grep -q "^BUILD_DONE" $$LOG 2>/dev/null || { echo "index build did not finish in 20min; log:"; cat $$LOG 2>/dev/null; exit 1; }; \
+	grep -q "^rc=0" $$LOG || { echo "index build FAILED; log:"; cat $$LOG; exit 1; }; \
+	grep -E "Two-tier index built" $$LOG || { echo "no index summary line; log:"; cat $$LOG; exit 1; }; \
 	grep -E "Two-tier index built" $$LOG | grep -qE "segments=[1-9]" \
-		|| (echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1); \
+		|| { echo "EMPTY INDEX — segments=0. Was the fingerprint sidecar left in place?"; exit 1; }; \
 	echo "--> copying index back to $${CORPUS_DIR}/search/"; \
 	if [ -e "$${CORPUS_DIR}/search/lance_index" ] && ! rm -rf "$${CORPUS_DIR}/search/lance_index" 2>/dev/null; then \
 		echo ""; \
@@ -1228,55 +1194,12 @@ index-two-tier-docker:
 	docker cp $$CT:/w/corpus/search/metadata.json "$${CORPUS_DIR}/search/" 2>/dev/null || true; \
 	echo "index written to $${CORPUS_DIR}/search/lance_index"
 
-# Build search/topic_clusters.json — a query-time-read file the pipeline/prep never generated,
-# so a prepped corpus shipped without it and the post-deploy smoke 404'd /api/corpus/topic-clusters
-# (#14 cutover). Run AFTER index-two-tier (reads search/lance_index/). CORPUS_DIR req'd.
-#
-# THRESHOLD is deliberately NOT defaulted here: unset means the CLI applies
-# search/topic_clusters.DEFAULT_TOPIC_CLUSTER_THRESHOLD (0.70, measured on the real
-# corpus). Pinning a literal here is how the old 0.75 survived the af6bed32 retune —
-# every invocation passed it explicitly, so the config change never took effect.
-topic-clusters:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir "$${CORPUS_DIR}" \
-		$${THRESHOLD:+--threshold "$${THRESHOLD}"}
-
-# Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
-# Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).
-# Idempotent cross-layer pass; re-run after new diarization (#876) to fill SPOKEN_BY.
-enrich-relational-edges:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
-
-# Re-diarize the whisper_transcription episodes (#876/#925) and cascade downstream.
-# Diarization rewrites the transcript (offsets shift), so re-running those episodes
-# re-does transcription+diarization+GI/KG/CIL; --reprocess-source scopes it to the
-# whisper set so the already-diarized direct_download episodes are untouched.
-# Diarization is driven entirely by PROFILE (must enable `diarize:`, e.g.
-# config/profiles/local.yaml) -- never hardcoded here. HF_NET_ENV allows the gated
-# pyannote weights to download on first run (needs HF_TOKEN). After the run, re-derive
-# relational edges so corpus-wide SPOKEN_BY is filled.
-#   make redo-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/local.yaml
-redo-diarization:
-	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
-	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/local.yaml)"; exit 1; }; \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
-	echo "Re-diarizing whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
-	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
-	  --config "$${PROFILE}" \
-	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
-	  --output-dir "$${CORPUS_DIR}" \
-	  --skip-existing \
-	  --reprocess-source whisper_transcription; \
-	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
-	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
-
 # Phase 1 of staged re-diarization (#947): download + cache RAW audio for the existing
 # corpus episodes only, WITHOUT transcribing/diarizing. --reprocess-existing-only scopes
 # to on-disk GUIDs; --reprocess-source forces the existing whisper episodes back through
 # download; --pipeline-stage download_only stops before transcription. The audio lands in
 # the durable cache (default .cache/audio, external to the corpus) so phase 2
-# (migrate-diarization) reprocesses off the cache with no feed re-fetch. Set
+# (the extension Makefile's migrate-diarization) reprocesses off the cache with no feed re-fetch. Set
 # AUDIO_CACHE_IN_CORPUS=1 to store the cache inside the corpus for a portable snapshot.
 #   make download-audio CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
 download-audio:
@@ -1293,31 +1216,6 @@ download-audio:
 	  --reprocess-existing-only \
 	  --pipeline-stage download_only \
 	  $${AUDIO_CACHE_IN_CORPUS:+--audio-cache-in-corpus}
-
-# Strict existing-only re-diarization MIGRATION (#876/#946). Like redo-diarization but
-# adds --reprocess-existing-only: the episode set is restricted to GUIDs already on disk
-# under each feed's run_*/metadata/. New feed items are dropped and max/offset/date caps
-# are ignored, so the corpus NEVER grows -- a migration of existing data while ingestion
-# is paused, not an ingest. Audio comes from the #947 raw-audio cache when present (run
-# ``make download-audio`` first to prime it -> cache HIT, no feed fetch, and rolled-off
-# episodes stay re-diarizable); otherwise it is re-fetched from the live feed enclosure
-# and cached for next time. Aborts loudly if no on-disk GUIDs are found (mis-pointed
-# CORPUS_DIR). Set AUDIO_CACHE_IN_CORPUS=1 to keep the cache inside the corpus.
-#   make migrate-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
-migrate-diarization:
-	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
-	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/cloud_with_dgx_primary.yaml)"; exit 1; }; \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
-	echo "Migrating (existing-only) whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
-	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
-	  --config "$${PROFILE}" \
-	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
-	  --output-dir "$${CORPUS_DIR}" \
-	  --skip-existing \
-	  --reprocess-source whisper_transcription \
-	  --reprocess-existing-only; \
-	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
-	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
 # pipeline-check (#2287): run the pipeline under variants (locale, profile, overrides), record every
 # decision it makes, and compare runs — code vs code (BASE=<ref>) and variant vs variant (LOCALES).
@@ -1346,16 +1244,16 @@ pipeline-check:
 # selects the corpus parent. `upgrade-check` exits 2 when migrations are pending —
 # wire it into boot/CI to detect a corpus that needs upgrading.
 upgrade-status:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade status --corpus-dir "$${CORPUS_DIR}"
 
 upgrade-check:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade status --corpus-dir "$${CORPUS_DIR}" --json
 
 # Preview the plan without writing anything.
 upgrade-dry-run:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --dry-run
 
 # Apply pending migrations. Non-interactive (--yes) for automated upgrades; drop
@@ -1366,62 +1264,21 @@ upgrade-dry-run:
 # container. The run prints the path it used; capture it.
 #   make upgrade-corpus CORPUS_DIR=<corpus> SNAPSHOT_DIR=/persistent/path
 upgrade-corpus:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --yes \
 		$${SNAPSHOT_DIR:+--snapshot-dir "$${SNAPSHOT_DIR}"}
 
 upgrade-verify:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
 
-# Speaker/role coherence over a corpus, and what m0009 WOULD do to it (#2065 advisor S5).
-# The post-deploy runbook's verification steps had no commands behind them: "re-run the migration
-# and expect 0/0" is blocked by the upgrade ledger, and `check_corpus` had no CLI.
-#   make speaker-coherence CORPUS_DIR=<corpus>              # is the corpus self-consistent now
-#   make speaker-migration-preview CORPUS_DIR=<corpus>      # dry-run m0009, bypassing the ledger
-# The preview prints the two classes that need a human — SUSPECT demotions (the node had a voice,
-# which is what an eponymous-show host looks like) and AMBIGUOUS nodes — plus a node-level role
-# TRANSITION table. The violation count alone cannot see a wrongful demotion: the coherence checks
-# share the migration's own predicates, so a wrong demotion scores as a violation FIXED.
 # Roll back the role changes m0009 made, from the ledger it wrote (#2069). Refuses any node that
 # something else has written since — a rollback that overwrites a later re-enrich is a regression
 # wearing a rollback's clothes — and reports those rather than forcing.
 #   make upgrade-undo-roles CORPUS_DIR=<corpus>
 upgrade-undo-roles:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) scripts/ops/undo_speaker_roles.py --corpus-dir "$${CORPUS_DIR}"
-
-speaker-coherence:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/speaker_coherence_report.py --corpus-dir "$${CORPUS_DIR}"
-
-# Does every episode's metadata point at ITS OWN transcript? (#2082)
-# A reprocess used to take `idx` from the episode's FILENAME, and every run dir numbers from 0001 —
-# so a feed with fourteen run dirs has fourteen "episode 1"s, and `idx` keys per-episode state.
-# They collided: metadata written for one episode carrying another's transcript, and the roster
-# computed from that other episode's words. On the 2026-09-14 snapshot, 275 of 2,256 files (12.2%)
-# and 119 confirmed crediting another episode's people.
-# RUN THIS BEFORE ANY MIGRATION: every measurement the post-deploy runbook takes reads
-# `content.speakers`, which on an affected episode describes a different episode.
-#   make transcript-pairing-audit CORPUS_DIR=<corpus>
-# Read-only. Exits 1 when any mismatch is found, so it can gate a deploy step.
-transcript-pairing-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/transcript_pairing_audit.py --corpus-dir "$${CORPUS_DIR}"
-
-# #2075: is every episode's people surface in sync with its speaker record?
-# Checks the transcript's speaker names, quote attribution (gi.json) and cast (kg.json) against
-# `content.speakers`. Pre-1.2.0 artifacts are skipped unless LEGACY=1.
-#   make speaker-sync-audit CORPUS_DIR=<corpus> [LEGACY=1]
-# Read-only. Exits 1 when any episode is out of sync, so it can gate a validation run.
-speaker-sync-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/speaker_sync_audit.py --corpus-dir "$${CORPUS_DIR}" $(if $(LEGACY),--legacy-as-placed,)
-
-speaker-migration-preview:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) scripts/audit/speaker_coherence_report.py --corpus-dir "$${CORPUS_DIR}" \
-		--migration-preview --roles
 
 # Run the RFC-088 enrichment layer over a corpus (#1127). Invokes the
 # `podcast_scraper.cli enrich` subcommand — the same verb a manual job / cron
@@ -1551,23 +1408,6 @@ verify-gil-offsets-after-acceptance:
 	fi; \
 	echo "OK: verified GIL vs indexed transcript offsets for $$n acceptance run(s)"
 
-gil-quality-metrics:
-	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
-	# Usage: make gil-quality-metrics DIR=path/to/run [ARGS='--enforce --json']
-	@if [ -z "$(DIR)" ]; then \
-		echo "DIR is required (e.g. make gil-quality-metrics DIR=./output)"; exit 2; \
-	fi
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(DIR)" $(ARGS)
-
-compare-gil-runs:
-	# Compare GIL outcomes between two pipeline run directories (metadata/*.gi.json).
-	# Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run
-	# See scripts/tools/compare_gil_runs.py
-	@if [ -z "$(REF)" ] || [ -z "$(CAND)" ]; then \
-		echo "Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run"; exit 2; \
-	fi
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/compare_gil_runs.py "$(REF)" "$(CAND)"
-
 kg-quality-metrics:
 	# PRD-019 KG quality metrics over .kg.json (see scripts/tools/kg_quality_metrics.py).
 	@if [ -z "$(DIR)" ]; then \
@@ -1607,8 +1447,8 @@ search-quality-reseed:
 	@echo "  git diff --stat $(SEARCH_CORPUS)/search-queries.json"
 
 quality-metrics-ci:
-	# Same GIL+KG enforce as GitHub Actions test-unit job (committed fixtures).
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-extraction-coverage 1.0 --min-grounded-insight-rate 1.0 --min-quote-validity-rate 1.0 --min-avg-insights 1 --min-avg-quotes 1
+	# Same KG enforce as GitHub Actions test-unit job (committed fixtures); the GIL half runs
+	# where GI lives (E04 move).
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:
@@ -1643,12 +1483,12 @@ stack-test-reap:
 	@echo "Reaping stack-test artifacts (this repo only)..."
 	@$(MAKE) stack-test-down STACK_TEST_DOWN_VOLUMES=1 >/dev/null 2>&1 || true
 	@# Playwright runner + node launched from THIS repo's stack-test dir.
-	@pkill -f "$(CURDIR)/tests/stack-test/node_modules/.bin/playwright" 2>/dev/null || true
-	@pkill -f "$(CURDIR)/tests/stack-test/node_modules/.bin/playwright-core" 2>/dev/null || true
+	@pkill -f "$(CURDIR)/[t]ests/stack-test/node_modules/.bin/playwright" 2>/dev/null || true
+	@pkill -f "$(CURDIR)/[t]ests/stack-test/node_modules/.bin/playwright-core" 2>/dev/null || true
 	@# Orphan docker build for THIS project's stack (make + buildx bake + compose build).
-	@pkill -f "$(CURDIR).*make stack-test-build" 2>/dev/null || true
-	@pkill -f "docker-buildx bake.*$(notdir $(CURDIR))" 2>/dev/null || true
-	@pkill -f "compose.*$(CURDIR)/compose/docker-compose.stack-test" 2>/dev/null || true
+	@pkill -f "$(CURDIR).*[m]ake stack-test-build" 2>/dev/null || true
+	@pkill -f "[d]ocker-buildx bake.*$(notdir $(CURDIR))" 2>/dev/null || true
+	@pkill -f "[c]ompose.*$(CURDIR)/compose/docker-compose.stack-test" 2>/dev/null || true
 	@$(MAKE) cleanup-processes >/dev/null 2>&1 || true
 	@echo "Reap complete."
 
@@ -1845,16 +1685,6 @@ test-analytical:
 	# Uses E2E infrastructure (E2E server, fixtures) but separate from regular E2E tests
 	# Run explicitly when investigating specific issues or capturing metrics
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/analytical/ -m "analytical" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=10
-
-test-diarization: cleanup-processes
-	# Speaker-diarization tests (RFC-058). Two tiers under the ``diarization`` marker:
-	#   - integration: factory + provider wiring with pyannote MOCKED (always runs, no token).
-	#   - e2e (tests/e2e/test_diarization_e2e.py): the REAL pyannote full flow — needs the
-	#     gated models cached (``make preload-ml-models`` with an HF token that accepted the
-	#     model terms) and skips when the model/token isn't available.
-	# The e2e tier is selected by NO other target, so without this it never runs in CI/nightly.
-	@echo "🎙️  Running pyannote diarization tests at $$(date '+%H:%M:%S')..."
-	$(PYTHON) -m pytest tests/ -m diarization -v --tb=short --allow-hosts=127.0.0.1,localhost
 
 test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
@@ -2594,7 +2424,7 @@ serve-for-validation:
 
 APP_TIER3_CORPUS ?= tests/fixtures/app-validation-corpus/v3
 
-.PHONY: build-app-validation-index build-validation-index build-validation-topic-clusters
+.PHONY: build-app-validation-index build-validation-index
 # Corpus this target indexes. Its own variable, NOT `$(if $(CORPUS),...)`: CORPUS is globally
 # defaulted to the viewer corpus at the top of this file, so it is never empty and that
 # conditional could never choose the app corpus.
@@ -2607,7 +2437,7 @@ build-app-validation-index:
 	#
 	# The app corpus's search/topic_clusters.json is TRACKED and is now the EMBEDDING-DERIVED
 	# artifact: 14 clusters / 16 singletons from all-MiniLM-L6-v2 at threshold 0.35, produced by
-	# `cli topic-clusters` against the index this target builds (2026-10-01).
+	# `cli topic-clusters` (an installed extension's command) against this target's index (2026-10-01).
 	#
 	# It used to be the synthetic one build_app_validation_corpus.py authors (threshold 0.75, 2
 	# clusters), and this comment used to warn that regenerating turned 80 passed into 6 failed.
@@ -2646,7 +2476,8 @@ build-validation-index:
 	# was gitignored and nothing under it could be clobbered. topic_clusters.json is now a
 	# COMMITTED fixture for both corpora, so "build me an index" silently rewriting it is
 	# the same hazard that turned 80 passed into 6 failed on the app corpus. Regenerating a
-	# tracked fixture is a deliberate act with its own verb: build-validation-topic-clusters.
+	# tracked fixture is a deliberate act with its own verb: build-validation-topic-clusters,
+	# in the Makefile of the extension that provides topic-clusters.
 	#
 	# Run this BEFORE ``make serve-for-validation``. It unlocks V3 (semantic search → Show
 	# on graph); without an index V3 is SKIPPED (test.skip on ``!indexJson.available``).
@@ -2660,22 +2491,6 @@ build-validation-index:
 	@echo "Done — LanceDB two-tier index built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
 	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
-
-build-validation-topic-clusters:
-	# Regenerate the COMMITTED topic_clusters.json for a validation corpus. Deliberate:
-	# the output is a tracked fixture and several tests assert its cluster ids, so the
-	# diff this produces is the thing to review, not a side effect to skim past.
-	#
-	# Needs the ML extras — the clusters are embedding-derived (all-MiniLM-L6-v2). That is
-	# also why it is committed: a clean clone must be able to run V2/V4 without them.
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== Building topic_clusters.json at $$CORPUS/search (threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)) ==="; \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters \
-		--output-dir $$CORPUS \
-		--threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)
-	@echo ""
-	@echo "Done. Review the diff before committing it:"
-	@echo "  git diff --stat $(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS))/search/topic_clusters.json"
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 
@@ -3355,7 +3170,7 @@ preprod-chaos-both-down:
 # nor reprocess-corpus-from-transcripts (transcribe=off) can fix it — only re-transcription can,
 # which is an explicit cost decision. This makes the number known. CORPUS_DIR required.
 corpus-preprocessing-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.preprocessing.audit import check_corpus_preprocessing; ok, report = check_corpus_preprocessing(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Which episodes are serving WITHOUT a summary (#1686)? Reads the per-episode stage ledger
@@ -3364,7 +3179,7 @@ corpus-preprocessing-audit:
 # ANY episode lacks a summary: one is too many, and a tolerance threshold is how 8 of them became
 # normal in production. CORPUS_DIR required.
 corpus-summary-audit:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.summary_repair import check_corpus_summaries; ok, report = check_corpus_summaries(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
 # Emit the #1686 repair work-list: episode_ids to feed --reprocess-episode-ids. Writes
@@ -3373,12 +3188,12 @@ corpus-summary-audit:
 # dropping them silently would repeat the mistake this issue is about. Re-summarisation costs
 # provider money. CORPUS_DIR required.
 corpus-summary-worklist:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.summary_repair import write_work_list, terminal_episode_ids; root = Path('$${CORPUS_DIR}').expanduser(); d = Path('$${WORKLIST:-$${CORPUS_DIR}/summary_repair_worklist.txt}'); n = write_work_list(root, d); t = terminal_episode_ids(root); print(f'{n} retryable episode(s) written to {d}'); print(f'{len(t)} TERMINAL episode(s) in {d.name}.terminal — investigate by hand') if t else None"
 
 # Emit the #18 repair work-list: the episode_ids to feed --reprocess-episode-ids. Writes
 # <corpus>/preprocessing_repair_worklist.txt (override with WORKLIST=). Re-transcription costs
 # real money — read the list before running it. CORPUS_DIR required.
 corpus-preprocessing-worklist:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.preprocessing.audit import write_work_list; d = Path('$${WORKLIST:-$${CORPUS_DIR}/preprocessing_repair_worklist.txt}'); b = float('$${CHUNK_USD:-0}' or 0); n = write_work_list(Path('$${CORPUS_DIR}').expanduser(), d, chunk_budget_usd=(b or None)); print(f'{n} episode(s) written to {d}' + (f' in \$${b:.2f} batches (see {d.name}.001, .002, ...)' if b else ''))"

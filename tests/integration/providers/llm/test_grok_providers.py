@@ -3,7 +3,6 @@
 These tests verify Grok provider implementations with mocked API calls.
 """
 
-import json
 import os
 import unittest
 from unittest.mock import Mock, patch
@@ -11,7 +10,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 pytestmark = [pytest.mark.integration, pytest.mark.module_grok_providers]
@@ -32,70 +30,6 @@ class TestGrokSpeakerDetector(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    def test_provider_initialization(self, mock_openai_class):
-        """Test that Grok speaker detector initializes correctly via factory."""
-        detector = create_speaker_detector(self.cfg)
-        detector.initialize()
-
-        # Verify client was created with API key and Grok base URL
-        mock_openai_class.assert_called_once()
-        call_kwargs = mock_openai_class.call_args[1]
-        self.assertEqual(call_kwargs["api_key"], "test-api-key-123")
-        self.assertEqual(call_kwargs["base_url"], "https://api.x.ai/v1")
-        self.assertTrue(detector._speaker_detection_initialized)
-
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    @patch(
-        "podcast_scraper.providers.grok.grok_provider.GrokProvider._build_speaker_detection_prompt"
-    )
-    @patch(
-        "podcast_scraper.providers.grok.grok_provider.GrokProvider._parse_speakers_from_response"
-    )
-    def test_detect_speakers_success(
-        self, mock_parse, mock_build_prompt, mock_render_prompt, mock_openai_class
-    ):
-        """Test successful speaker detection via Grok API via factory."""
-        # Mock OpenAI client and response
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
-        mock_build_prompt.return_value = "User Prompt"
-        mock_render_prompt.return_value = "System Prompt"
-
-        # Mock API response
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = json.dumps(
-            {
-                "speakers": ["John Doe", "Jane Smith"],
-                "hosts": ["John Doe"],
-                "guests": ["Jane Smith"],
-            }
-        )
-        mock_response.usage = Mock()
-        mock_response.usage.prompt_tokens = 100
-        mock_response.usage.completion_tokens = 50
-        mock_client.chat.completions.create.return_value = mock_response
-        # _parse_speakers_from_response returns (speaker_names_list, detected_hosts_set, detection_succeeded)
-        mock_parse.return_value = (["John Doe", "Jane Smith"], {"John Doe"}, True)
-
-        detector = create_speaker_detector(self.cfg)
-        detector.client = mock_client
-        detector.initialize()
-
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with John Doe and Jane Smith",
-            episode_description="A test episode",
-            known_hosts={"John Doe"},
-        )
-
-        self.assertEqual(len(speakers), 2)
-        self.assertIn("John Doe", speakers)
-        self.assertIn("Jane Smith", speakers)
-        self.assertEqual(detected_hosts, {"John Doe"})
-        self.assertTrue(success)
-
     def test_detect_speakers_missing_api_key(self):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
@@ -114,17 +48,6 @@ class TestGrokSpeakerDetector(unittest.TestCase):
             # Restore original environment variable if it existed
             if original_key is not None:
                 os.environ["GROK_API_KEY"] = original_key
-
-    def test_factory_creates_grok_detector(self):
-        """Test that factory creates unified Grok provider."""
-        detector = create_speaker_detector(self.cfg)
-        # Verify it's the unified Grok provider
-        self.assertEqual(detector.__class__.__name__, "GrokProvider")
-        # Verify protocol compliance
-        self.assertTrue(hasattr(detector, "detect_speakers"))
-        self.assertTrue(hasattr(detector, "detect_hosts"))
-        self.assertTrue(hasattr(detector, "analyze_patterns"))
-        self.assertTrue(hasattr(detector, "clear_cache"))
 
 
 @pytest.mark.integration
@@ -232,43 +155,3 @@ class TestGrokSummarizationProvider(unittest.TestCase):
         self.assertTrue(hasattr(provider, "summarize"))
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))
-
-
-@pytest.mark.integration
-@pytest.mark.llm
-@pytest.mark.grok
-class TestGrokProviderErrorHandling(unittest.TestCase):
-    """Test error handling for Grok providers."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="grok",
-            grok_api_key="test-api-key-123",
-            auto_speakers=True,
-        )
-
-    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_detect_speakers_api_error(self, mock_render_prompt, mock_openai_class):
-        """Test that API errors are handled gracefully via factory."""
-        # Mock OpenAI client to raise exception
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
-        mock_render_prompt.return_value = "System Prompt"
-
-        detector = create_speaker_detector(self.cfg)
-        detector.client = mock_client
-        detector.initialize()
-
-        from podcast_scraper.exceptions import ProviderRuntimeError
-
-        with self.assertRaises(ProviderRuntimeError) as cm:
-            detector.detect_speakers(
-                episode_title="Test Episode",
-                episode_description="A test episode",
-                known_hosts=set(),
-            )
-        self.assertIn("Grok speaker detection failed", str(cm.exception))

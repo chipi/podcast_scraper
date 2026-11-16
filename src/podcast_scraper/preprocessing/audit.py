@@ -401,7 +401,8 @@ def check_corpus_preprocessing(corpus_root: Path) -> Tuple[bool, str]:
         "    cannot fix it; reprocess-corpus-from-transcripts runs transcribe=off by design."
     )
     lines.append(
-        "    The only repair is re-transcription (make redo-diarization / --reprocess-source),"
+        "    The only repair is re-transcription (--reprocess-source; make redo-diarization in "
+        "the extension's Makefile),"
     )
     lines.append("    which re-runs ASR and cascades GI/KG. That is an explicit cost decision.")
     no_metrics = [r for r in runs if r.attempts is None]

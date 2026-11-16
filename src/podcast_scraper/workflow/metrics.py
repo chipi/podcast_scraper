@@ -150,10 +150,10 @@ class Metrics:
     gi_insight_salvage_events: int = 0
     gi_insight_salvage_lines_recovered: int = 0
     gi_insight_salvage_failed_events: int = 0
-    # Chunked extraction (gi/chunked_extraction.py).
+    # Chunked extraction.
     gi_insight_chunks: int = 0  # Σ chunks the transcript was split into
     gi_insights_deduped: int = 0  # Σ insights dropped as near-duplicates across chunks
-    # Value gate (gi/value_gate.py). ``self_grade`` is the one to watch on single-model
+    # Value gate. ``self_grade`` is the one to watch on single-model
     # profiles: rater and summariser are the same model, so it grades its own output.
     gi_value_gate_calls: int = 0
     gi_insights_dropped_by_value_gate: int = 0

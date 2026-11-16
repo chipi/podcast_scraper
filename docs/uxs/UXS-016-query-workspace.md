@@ -42,11 +42,10 @@ SearchTab.vue                                    [w-full main area]
 ├─ WorkspaceHeader.vue
 │    ├─ QueryField.vue                           input; Preset dropdown; Enter=submit
 │    ├─ IntentChip.vue                           search-query-type (RFC-092 label)
-│    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | Min confidence | Grounded only | More (feed / embedding model)
+│    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | (a downstream build's chips) | More (feed / embedding model)
 ├─ ResultSetOperatorBar.vue                      On graph | Timeline | Compare
 └─ WorkspaceResults.vue                          scrollable
-     ├─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + compound "+ insight" badge
-     └─ CompoundCard.vue                         when hit has `lifted` (RFC-072 KL1)
+     └─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + a downstream build's badges and sections
 ```
 
 **Revised in §S4-shell:** `WorkspaceSidebar.vue` is now hosted in the LeftPanel (not as a child of SearchTab), supporting the pattern that LeftPanel is visible on all main tabs. See §Sidebar below for details.
@@ -59,7 +58,7 @@ SearchTab.vue                                    [w-full main area]
 
 1. **Query row**: `QueryField.vue` (`min-w-0 flex-1`, sm text, Enter = submit, Shift+Enter = newline, IME-safe — same rules as UXS-005). Preset dropdown to the left of the field (`Preset: <label> ▾` when active; `Preset ▾` default). Search button + Clear button to the right.
 2. **Intent row**: `IntentChip.vue` when the response carries `query_type` (RFC-092 label — Entity lookup / Raw evidence / Temporal tracking / Cross-show synthesis / Semantic). Muted; transparency-only. `data-testid="search-query-type"` (unchanged from UXS-005).
-3. **Filter chip bar**: `SearchFilterBar.vue`. Chips left-to-right: **Since** (`search-chip-since`), **Top-k** (`search-chip-topk`, default 10), **Doc types** (`search-chip-doctypes`), **Topic contains** (`search-chip-topic-contains`, new — from merged Explore), **Speaker contains** (`search-chip-speaker-contains`, new), **Min confidence** (`search-chip-min-confidence`, new), **Grounded only** (`search-chip-grounded-only`, new), **More** (`search-chip-more` — hosts low-traffic fields: feed, embedding model, merge-duplicate-KG-surfaces). Each chip's label switches from `Label ▾` (default) to `Label: detail ▾` (active); **More** shows `More: N` reflecting non-default field count.
+3. **Filter chip bar**: `SearchFilterBar.vue`. Chips left-to-right: **Since** (`search-chip-since`), **Top-k** (`search-chip-topk`, default 10), **Doc types** (`search-chip-doctypes`), **Topic contains** (`search-chip-topic-contains`, new — from merged Explore), **Speaker contains** (`search-chip-speaker-contains`, new), then any chips a downstream build registers (`searchFilterChips`; Min confidence and Grounded only moved there, E04 step 8b), **More** (`search-chip-more` — hosts low-traffic fields: feed, embedding model, merge-duplicate-KG-surfaces). Each chip's label switches from `Label ▾` (default) to `Label: detail ▾` (active); **More** shows `More: N` reflecting non-default field count.
 
 ---
 
@@ -79,12 +78,12 @@ Operator bar `aria-role="toolbar"`; buttons `aria-role="button"` with visible fo
 
 ## Results
 
-`WorkspaceResults.vue` renders the muted "N results" / "1 result" line (unchanged from UXS-005), the optional `Lift: applied / transcript rows` line (from RFC-072 KL1 lift stats), and the hit list.
+`WorkspaceResults.vue` renders the muted "N results" / "1 result" line (unchanged from UXS-005), any `results-header` sections a downstream build registers (the evidence toggle and the optional `Lift: applied / transcript rows` line moved there, E04 step 8b), and the hit list.
 
 Each `ResultCard`:
 
 - **Tier badge** (`search-result-tier`, from UXS-005 PRD-033 FR1.1): **Insight** (`primary`) / **Transcript** (`success`) / **Reference** (`muted`), from `source_tier`.
-- **Compound `+ insight` badge** (`search-result-compound`) when the hit is a transcript-lifted-to-insight compound (`lifted` block, RFC-072 KL1).
+- **Compound `+ insight` badge** (`search-result-compound`; a downstream build's since E04 step 8b, as are the Lifted GI insight region and supporting quotes below) when the hit is a transcript-lifted-to-insight compound (`lifted` block, the cross-layer identity design KL1).
 - **Actions**: `G` (graph focus), `L` (Library episode) — same rules as UXS-005 (L requires `source_metadata_relative_path` + healthy API); `E` (episode id chip, informational). When KG-surface merged, only `G` shows.
 - **Lifted GI insight** region (when `lifted` present, UXS-005-inherited): linked insight id/text, speaker/topic labels, quote time range. Includes the `No speaker detected` muted line (`GI_QUOTE_SPEAKER_UNAVAILABLE_HINT`, #541) when `lifted.quote` has timestamps but no speaker label.
 - **Supporting quotes** (collapsible, UXS-005-inherited): same `No speaker detected` treatment when speaker missing.

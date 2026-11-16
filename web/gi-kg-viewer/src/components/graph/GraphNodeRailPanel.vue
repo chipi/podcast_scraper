@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { topicGrouping } from '../../extensions'
-import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -11,7 +10,6 @@ import NodeDetail from './NodeDetail.vue'
 const gf = useGraphFilterStore()
 const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
-const artifacts = useArtifactsStore()
 
 defineProps<{
   /** Pass-through to ``NodeDetail``: offer "View in graph" (the rail is not on the Graph tab). */
@@ -24,7 +22,7 @@ const emit = defineEmits<{
   'prefill-semantic-search': [{ query: string }]
   'open-search-topic-filter': [{ topic: string }]
   'open-search-speaker-filter': [{ speaker: string }]
-  'open-search-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
+  'open-search': []
   'open-library-episode': [{ metadata_relative_path: string }]
   'close-subject-rail': []
 }>()
@@ -137,7 +135,6 @@ function onClose(): void {
       embed-in-rail
       :view-artifact="viewArtifact"
       :node-id="nodeId"
-      :bridge-document="artifacts.bridgeDocument"
       :show-view-in-graph="showViewInGraph"
       @close="onClose"
       @go-graph="emit('go-graph')"
@@ -145,7 +142,7 @@ function onClose(): void {
       @prefill-semantic-search="emit('prefill-semantic-search', $event)"
       @open-search-topic-filter="emit('open-search-topic-filter', $event)"
       @open-search-speaker-filter="emit('open-search-speaker-filter', $event)"
-      @open-search-insight-filters="emit('open-search-insight-filters', $event)"
+      @open-search="emit('open-search')"
       @open-library-episode="emit('open-library-episode', $event)"
     />
   </div>

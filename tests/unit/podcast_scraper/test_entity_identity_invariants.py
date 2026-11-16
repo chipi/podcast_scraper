@@ -158,12 +158,6 @@ class TestEveryLayerMintsTheSameId:
     graphs disagreeing about who a person is — worse than not migrating".
     """
 
-    @pytest.mark.parametrize("name", REAL_NAMES + PLACEHOLDERS)
-    def test_gi_and_kg_agree(self, name: str) -> None:
-        from podcast_scraper.gi.speakers import _person_node_id
-
-        assert _person_node_id(name, _EP) == entity_node_id("person", name, episode_id=_EP)
-
     @pytest.mark.parametrize(
         "name", REAL_NAMES + ["Professor Hannah Fry", "Dr. Moriba Jah", "Sir Francis Walsingham"]
     )
@@ -177,7 +171,7 @@ class TestEveryLayerMintsTheSameId:
 
     @pytest.mark.parametrize("name", REAL_NAMES)
     def test_the_legacy_slugify_path_still_agrees_for_real_names(self, name: str) -> None:
-        # The swap in gi/speakers.py is only safe because these are byte-identical.
+        # The swap in the GI speaker builder is only safe because these are byte-identical.
         from podcast_scraper.identity.slugify import person_id
 
         assert person_id(name) == entity_node_id("person", name)
@@ -345,13 +339,6 @@ class TestATitleIsNotPartOfTheIdentity:
 
         assert person_id(titled) == person_id("Maria Lindqvist")
         assert entity_node_id("person", titled) == entity_node_id("person", "Maria Lindqvist")
-
-    def test_gi_and_kg_agree_on_a_titled_name(self) -> None:
-        from podcast_scraper.gi.speakers import _person_node_id
-
-        assert _person_node_id("Professor Maria Lindqvist", _EP) == _person_node_id(
-            "Maria Lindqvist", _EP
-        )
 
     def test_a_title_that_is_the_only_qualifier_is_kept(self) -> None:
         # "Lord Kinnock" — strip the title and one word would stand for the whole person.

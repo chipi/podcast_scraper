@@ -12,7 +12,6 @@
 import { graphStylesheet } from '../extensions'
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'
-import { aboutConfidenceOpacity, aboutConfidenceWidth } from './cyEdgeWeight'
 import { THEME_REGION_PALETTE } from './themeRegionPalette'
 
 export function cytoscapeNodeLabelColorFromTheme(): string {
@@ -77,9 +76,6 @@ export function resolveThemeColor(varName: string, fallback?: string): string {
 
 const VISUAL_TYPES = [
   'Episode',
-  'Insight',
-  'Quote',
-  'Speaker',
   'Topic',
   'Entity_person',
   'Entity_organization',
@@ -92,7 +88,6 @@ const VISUAL_TYPES = [
 
 /** Tier 1–2 (WIP §3.5): show truncated labels in the medium-zoom band. */
 const LABEL_SHORT_TIER_TYPES = [
-  'Insight',
   'Topic',
   'Entity_person',
   'Entity_organization',
@@ -120,14 +115,11 @@ const LABEL_SHORT_TIER_TYPES = [
  *    Insight 44 · Topic 40 · TopicCluster 48 · Entity_person 34 ·
  *    Entity_organization 26 · Quote 22 · Speaker 18 · Episode 22 · Podcast 18 */
 const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
-  Insight: 44,
   Topic: 40,
   Episode: 22,
   Entity_person: 12,
   Entity_organization: 12,
   Entity_object: 12,
-  Quote: 12,
-  Speaker: 12,
   Podcast: 12,
 }
 
@@ -199,11 +191,6 @@ function graphEdgeOpacity(ele: EdgeSingular): number {
   return isLightThemeActive() ? 0.5 : 0.3
 }
 
-function insightBackgroundOpacity(ele: NodeSingular): number {
-  const c = Number(ele.data('confidenceOpacity'))
-  return Number.isFinite(c) ? Math.max(0.35, Math.min(1, c)) : 0.85
-}
-
 /**
  * Topic hub border from normalized `degreeHeat` (0–1). **0** when there is no heat
  * signal so expand / search-hit / selection rings are not visually crowded (UXS-004).
@@ -264,8 +251,9 @@ export function sideLabelTextMarginX(
   }
   const r = nodeBodyWidthPx / 2
   const halfW = estimateLabelHalfWidthPx(label, maxWrapPx, avgCharPx)
-  /** Extra px: outline + background padding make bbox wider than char estimate (e2e: disc vs label rect). */
-  return Math.round(r + halfW + gapPx + 4)
+  /** Extra px: the label bbox also holds the background padding (3px) and the outline (2.75px), which
+   *  the char estimate does not; 4 left a five-letter label ~1px inside the disc (e2e: disc vs label rect). */
+  return Math.round(r + halfW + gapPx + 6)
 }
 
 /** Cytoscape style callback — append after `buildGiKgCyStylesheet` for `nodeLabelPlacement: side`. */
@@ -364,8 +352,6 @@ export function buildGiKgCyStylesheet(options?: {
   // warnings while still tracking the active theme.
   const psMuted = resolveThemeColor('--ps-muted')
   const psPrimary = resolveThemeColor('--ps-primary')
-  const psWarning = resolveThemeColor('--ps-warning')
-  const psGi = resolveThemeColor('--ps-gi')
   const psKg = resolveThemeColor('--ps-kg')
   const placement: GiKgNodeLabelPlacement = options?.nodeLabelPlacement ?? 'side'
   const labelPos = nodeLabelOffsetStyle(placement, nw, nh, compact)
@@ -454,11 +440,8 @@ export function buildGiKgCyStylesheet(options?: {
      Person + Entity_person stay ellipse (humans-as-circles default). */
   const shapeByType: Partial<Record<(typeof VISUAL_TYPES)[number], string>> = {
     Topic: 'round-rectangle',
-    Insight: 'ellipse',
     Podcast: 'hexagon',
     Episode: 'round-rectangle',
-    Quote: 'round-tag',
-    Speaker: 'round-diamond',
     Entity_organization: 'round-rectangle',
     Entity_object: 'diamond',
   }
@@ -517,34 +500,6 @@ export function buildGiKgCyStylesheet(options?: {
       })
     }
   }
-
-  style.push({
-    selector: 'node[type = "Insight"]',
-    style: {
-      'background-opacity': (ele: NodeSingular) => insightBackgroundOpacity(ele),
-    },
-  })
-
-  // RFC-080 V2 — Insight grounding + confidence tier hooks. These rules
-  // are always present in the stylesheet but only fire when the
-  // matching class is assigned at element-build time
-  // (`toCytoElements`). Tier classes are stylesheet hooks for future
-  // selectors (e.g. "hide low-confidence" filters); they don't override
-  // the existing `confidenceOpacity` mapping that drives
-  // `background-opacity`. The ungrounded dashed border draws attention
-  // to `grounded: false` insights without disturbing opacity. The
-  // `.search-hit` selector pushed later in this stylesheet wins on
-  // border styling when both apply (same-property override by source
-  // order).
-  style.push({
-    selector: 'node[type = "Insight"].insight-ungrounded',
-    style: {
-      'border-width': compact ? 1.25 : 1.5,
-      'border-style': 'dashed',
-      'border-color': psWarning,
-      'border-opacity': 0.7,
-    },
-  })
 
   style.push({
     selector: 'node[type = "Topic"]',
@@ -622,41 +577,6 @@ export function buildGiKgCyStylesheet(options?: {
      chunkiest render at 5px. */
   const edgeStrokes: { selector: string; style: Record<string, unknown> }[] = [
     {
-      selector: 'edge[edgeType = "HAS_INSIGHT"]',
-      style: {
-        width: compact ? 2 : 2.75,
-        'line-color': psPrimary,
-        'line-style': 'solid',
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psPrimary,
-      },
-    },
-    {
-      // #664 + #656-foundation: ABOUT edges now carry
-      // ``properties.confidence`` (cosine similarity, 0.25–1.0). Map it to
-      // line-opacity + width so strong "about X" edges stand out and weak
-      // ones fade. Legacy edges without the property fall back to uniform
-      // rendering via the helpers' defaults.
-      selector: 'edge[edgeType = "ABOUT"]',
-      style: {
-        width: aboutConfidenceWidth(compact ? 1.5 : 2),
-        'line-color': psGi,
-        'line-style': 'solid',
-        'line-opacity': aboutConfidenceOpacity(),
-        'target-arrow-shape': 'none',
-      },
-    },
-    {
-      selector: 'edge[edgeType = "SUPPORTED_BY"]',
-      style: {
-        width: compact ? 0.7 : 0.85,
-        'line-color': psMuted,
-        'line-style': 'dashed',
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psMuted,
-      },
-    },
-    {
       selector: 'edge[edgeType = "RELATED_TO"]',
       style: {
         width: compact ? 0.7 : 0.85,
@@ -672,16 +592,6 @@ export function buildGiKgCyStylesheet(options?: {
         'line-color': psMuted,
         'line-style': 'dotted',
         'target-arrow-shape': 'none',
-      },
-    },
-    {
-      selector: 'edge[edgeType = "SPOKE_IN"]',
-      style: {
-        width: compact ? 2 : 2.75,
-        'line-color': psPrimary,
-        'line-style': 'solid',
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psPrimary,
       },
     },
     {
@@ -704,45 +614,6 @@ export function buildGiKgCyStylesheet(options?: {
     // the new selectors below add MENTIONS_PERSON, MENTIONS_ORG, MENTIONS_OBJECT (#2057),
     // HAS_EPISODE, SPOKEN_BY.
     {
-      // descriptive: same visual class as ABOUT (gi color, confidence opacity).
-      // Insight → Person edge, so add an arrow to make the direction explicit.
-      selector: 'edge[edgeType = "MENTIONS_PERSON"]',
-      style: {
-        width: aboutConfidenceWidth(compact ? 1.5 : 2),
-        'line-color': psGi,
-        'line-style': 'solid',
-        'line-opacity': aboutConfidenceOpacity(),
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psGi,
-      },
-    },
-    {
-      // descriptive: same visual class as ABOUT / MENTIONS_PERSON / MENTIONS_ORG. #2057 — without
-      // it an Insight→Object mention rendered in the unstyled default, so the third entity kind's
-      // edges looked like a different relation from its two siblings.
-      selector: 'edge[edgeType = "MENTIONS_OBJECT"]',
-      style: {
-        width: aboutConfidenceWidth(compact ? 1.5 : 2),
-        'line-color': psGi,
-        'line-style': 'solid',
-        'line-opacity': aboutConfidenceOpacity(),
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psGi,
-      },
-    },
-    {
-      // descriptive: same visual class as ABOUT / MENTIONS_PERSON.
-      selector: 'edge[edgeType = "MENTIONS_ORG"]',
-      style: {
-        width: aboutConfidenceWidth(compact ? 1.5 : 2),
-        'line-color': psGi,
-        'line-style': 'solid',
-        'line-opacity': aboutConfidenceOpacity(),
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psGi,
-      },
-    },
-    {
       // structural: Podcast → Episode, same visual class as HAS_INSIGHT.
       selector: 'edge[edgeType = "HAS_EPISODE"]',
       style: {
@@ -751,20 +622,6 @@ export function buildGiKgCyStylesheet(options?: {
         'line-style': 'solid',
         'target-arrow-shape': 'triangle',
         'target-arrow-color': psPrimary,
-      },
-    },
-    {
-      // attribution: Quote → Person. Distinctive warning-tone accent to set apart
-      // from structural primary-tone edges; carries an arrow because direction
-      // matters (the Quote is spoken BY the Person).
-      selector: 'edge[edgeType = "SPOKEN_BY"]',
-      style: {
-        width: compact ? 1 : 1.25,
-        'line-color': psWarning,
-        'line-style': 'solid',
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': psWarning,
-        'line-opacity': 0.85,
       },
     },
   ]
@@ -806,44 +663,6 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'edge.graph-edge-neighbour',
     style: {
       opacity: 0.9,
-    },
-  })
-
-  // RFC-080 V1 — render-only aggregated edges (Episode→Topic ABOUT_AGG,
-  // Episode→Person SPOKE_IN_AGG). These selectors are always present in
-  // the stylesheet but only fire when `toCytoElements` was called with
-  // `enableAggregatedEdges: true` (so production builds without the
-  // lens enabled get no behaviour change). Width maps `data(weight)` —
-  // a count of contributing per-Insight edges — into a 1.5px..5px
-  // range. Mapping is per-element, not normalised against the whole
-  // graph; tightening to a slice-relative max is in #667's open
-  // questions.
-  const aboutAggBaseWidth = compact ? 1 : 1.5
-  const aboutAggMaxWidth = compact ? 4 : 5
-  style.push({
-    selector: 'edge.graph-edge-about-agg',
-    style: {
-      width: `mapData(weight, 1, 12, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
-      'line-color': psGi,
-      'line-style': 'solid',
-      'line-opacity': 0.85,
-      'target-arrow-shape': 'none',
-      // Slightly higher z so the chunky aggregate sits over the
-      // per-Insight ABOUT fan when both are visible (e.g. tier-full
-      // before #667 ships the tier gating).
-      'z-index': 5,
-    },
-  })
-  style.push({
-    selector: 'edge.graph-edge-spoke-in-agg',
-    style: {
-      width: `mapData(weight, 1, 8, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
-      'line-color': psPrimary,
-      'line-style': 'solid',
-      'line-opacity': 0.85,
-      'target-arrow-shape': 'triangle',
-      'target-arrow-color': psPrimary,
-      'z-index': 5,
     },
   })
 
@@ -902,39 +721,6 @@ export function buildGiKgCyStylesheet(options?: {
         'underlay-shape': 'ellipse',
       },
     })
-  })
-
-  /* graph-v3 Tier 5C-2 — Person credibility border. Reads the
-     grounding_rate envelope (Insights supported by a Person that are
-     grounded / total). High = solid green, medium = solid amber, low
-     = dashed red. Direct analog of `.insight-ungrounded` for Persons. */
-  const credibilityBorder = compact ? 1.5 : 2
-  style.push({
-    selector: 'node.credibility-high',
-    style: {
-      'border-width': credibilityBorder,
-      'border-style': 'solid',
-      'border-color': resolveThemeColor('--ps-credibility-high', '#22c55e'),
-      'border-opacity': 0.85,
-    },
-  })
-  style.push({
-    selector: 'node.credibility-med',
-    style: {
-      'border-width': credibilityBorder,
-      'border-style': 'solid',
-      'border-color': resolveThemeColor('--ps-credibility-medium', '#f59e0b'),
-      'border-opacity': 0.8,
-    },
-  })
-  style.push({
-    selector: 'node.credibility-low',
-    style: {
-      'border-width': credibilityBorder,
-      'border-style': 'dashed',
-      'border-color': resolveThemeColor('--ps-credibility-low', '#ef4444'),
-      'border-opacity': 0.8,
-    },
   })
 
   /* graph-v3 Tier 5D-2 — co-guest edges (guest_coappearance). Dotted

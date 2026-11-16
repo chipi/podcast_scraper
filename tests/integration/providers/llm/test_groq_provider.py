@@ -143,12 +143,6 @@ class TestFactoryDispatch:
         p = create_summarization_provider(_groq_cfg())
         assert isinstance(p, GroqProvider)
 
-    def test_speaker_factory_returns_groq(self):
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        p = create_speaker_detector(_groq_cfg())
-        assert isinstance(p, GroqProvider)
-
     def test_transcription_factory_returns_groq(self):
         # Dual-use (ADR-147): the SAME factory-created instance is also the transcription
         # provider — whisper-large-v3-turbo by default.

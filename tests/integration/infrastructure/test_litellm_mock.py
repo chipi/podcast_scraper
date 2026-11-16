@@ -18,7 +18,6 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 
@@ -56,33 +55,3 @@ class TestLiteLLME2EServerIntegration:
         assert isinstance(result["summary"], str)
         assert "test summary" in result["summary"].lower()
         provider.cleanup()
-
-    def test_litellm_speaker_detector_uses_e2e_server(self, e2e_server):
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            litellm_api_key="sk-test-gateway-key",
-            litellm_api_base=e2e_server.urls.litellm_api_base(),
-            litellm_speaker_model="homelab-qwen",
-            litellm_verify_served_model=False,
-            speaker_detector_provider="litellm",
-            auto_speakers=True,
-        )
-
-        detector = create_speaker_detector(cfg)
-        detector.initialize()
-
-        assert str(detector.client.base_url).rstrip(
-            "/"
-        ) == e2e_server.urls.litellm_api_base().rstrip(
-            "/"
-        ), "Detector should use the E2E (mock gateway) base URL"
-
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with Alice and Bob",
-            episode_description="Alice interviews Bob about their work",
-            known_hosts={"Alice"},
-        )
-        assert isinstance(speakers, list)
-        assert isinstance(detected_hosts, set)
-        assert isinstance(success, bool)
-        detector.cleanup()

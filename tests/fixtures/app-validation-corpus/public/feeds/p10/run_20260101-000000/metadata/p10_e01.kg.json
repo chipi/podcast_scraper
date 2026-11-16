@@ -1,0 +1,178 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-7072d2e85dcd5233",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7072d2e85dcd5233",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7072d2e85dcd5233",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:cut-bank-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:excavation-slope",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:land-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:machine-made-vs-handmade",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:soil-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:tool-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:trail-failure-mode",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-7072d2e85dcd5233",
+  "extraction": {
+    "extracted_at": "2025-01-19T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p10_e01.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-7072d2e85dcd5233",
+      "properties": {
+        "podcast_id": "p10",
+        "publish_date": "2025-01-19T00:00:00",
+        "title": "Construyendo Senderos Que Duran"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building",
+        "slug": "trail-building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion",
+        "slug": "soil-erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship",
+        "slug": "land-stewardship"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cut-bank-design",
+      "properties": {
+        "label": "cut bank design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:excavation-slope",
+      "properties": {
+        "label": "excavation slope",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management",
+      "properties": {
+        "label": "land management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-made-vs-handmade",
+      "properties": {
+        "label": "machine made vs handmade",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-structure",
+      "properties": {
+        "label": "soil structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tool-integration",
+      "properties": {
+        "label": "tool integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-failure-mode",
+      "properties": {
+        "label": "trail failure mode",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

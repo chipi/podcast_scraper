@@ -52,7 +52,6 @@ See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*)
 |--------------|---------|----------|
 | Whisper integration (`whisper_integration.py`) | `make test-integration-slow` | ~5-10 min |
 | Summarization with ML (`summarizer.py`) | `make test-integration-slow` | ~5-10 min |
-| Speaker detection (`speaker_detection.py`) | `make test-integration-slow` | ~5-10 min |
 | Full workflow with ML (`workflow.py`) | `make test-all-slow` | ~20-30 min |
 | E2E tests with ML models | `make test-e2e-slow` | ~15-20 min |
 

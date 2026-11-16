@@ -274,62 +274,6 @@ class TestScopedIdsDisappearFromEverySurface:
         assert not is_unresolved_speaker_placeholder("person:jensen")
 
 
-class TestThePipelineRunsTheScopingPassBeforeTypedMentions:
-    """Ordering is the wiring's load-bearing property (#1685).
-
-    Typed mentions attach insight spans to entity ids. If the scoping pass ran AFTER them, the
-    mentions would be bound to ids that are then rewritten underneath, and the edges would point
-    at nodes that no longer exist. Running scoping first means mentions attach to final ids.
-
-    This is a SOURCE-ORDER assertion, not a behavioural one, and that is a deliberate trade: a
-    behavioural test would need the whole metadata-generation harness (providers, artifacts,
-    manifests) to prove one line's position. The behaviour of the pass itself is covered above;
-    what this pins is that it is invoked, and invoked in the right place. Stated plainly so
-    nobody mistakes it for end-to-end coverage.
-    """
-
-    @staticmethod
-    def _source() -> str:
-        from pathlib import Path
-
-        import podcast_scraper.insight_stage.passes as passes
-
-        return Path(passes.__file__).read_text(encoding="utf-8")
-
-    def test_the_pass_is_actually_called(self) -> None:
-        src = self._source()
-        assert "plan_bare_name_ids" in src, "the pipeline never invokes the scoping pass"
-        assert "rewrite_ids" in src
-
-    def test_it_runs_before_typed_mentions(self) -> None:
-        """CALL SITES, not mentions. `str.index` on the raw source finds the first occurrence
-        anywhere — including inside a comment. A comment that merely NAMED
-        `apply_typed_mentions_and_rewrite_gi` while explaining the ordering was enough to fail
-        this assertion, which is the test measuring prose rather than code. Matching on the
-        opening paren pins the invocation, which is the thing that actually has to be ordered.
-        """
-        src = self._source()
-        scoping = src.index("plan_bare_name_ids(")
-        mentions = src.index("apply_typed_mentions_and_rewrite_gi(")
-        assert scoping < mentions, (
-            "scoping must run BEFORE typed mentions, or mentions bind to ids that are "
-            "rewritten underneath them"
-        )
-
-    def test_both_layers_feed_the_roster(self) -> None:
-        """The measurement proved the KG alone gives the wrong answer — `person:alex` was
-        reported orphan while `person:alex-mayassi` sat in the episode's GI layer."""
-        src = self._source()
-        assert "person_ids_in(bridge_gi_payload) | person_ids_in(bridge_kg_payload)" in src
-
-    def test_the_heal_branch_is_configurable(self) -> None:
-        """Marko's standing preference: these decisions live in config so a sweep can vary them."""
-        from podcast_scraper import config
-
-        assert "bare_name_heal" in config.Config.model_fields
-        assert config.Config.model_fields["bare_name_heal"].default is True
-
-
 class TestTheWorkListAFutureEnricherWouldStartFrom:
     """Scoping stops the harm; it does not say WHO the person was (#1685).
 

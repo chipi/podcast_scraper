@@ -114,6 +114,14 @@ def test_the_default_url_size_is_the_thumb() -> None:
     )
 
 
-def test_registered_after_0025() -> None:
+def test_registered_after_every_lower_id() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0026_artwork_medium") == ids.index("0025_one_person_one_entry") + 1
+    before = ids[: ids.index("0026_artwork_medium")]
+    assert before and all(i < "0026" for i in before)
+
+
+def test_registered_between_every_lower_and_every_higher_id() -> None:
+    """Its neighbours by id may be an installed extension's (E04); the order holds either way."""
+    ids = [m.id for m in get_migrations()]
+    at = ids.index("0026_artwork_medium")
+    assert all(i < "0026" for i in ids[:at]) and all(i > "0026" for i in ids[at + 1 :])

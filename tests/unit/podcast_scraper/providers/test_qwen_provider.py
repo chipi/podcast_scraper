@@ -145,12 +145,6 @@ class TestFactoryDispatch:
         p = create_summarization_provider(_qwen_cfg())
         assert isinstance(p, QwenProvider)
 
-    def test_speaker_factory_returns_qwen(self):
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        p = create_speaker_detector(_qwen_cfg())
-        assert isinstance(p, QwenProvider)
-
 
 class TestServedModelVerification:
     """ADR-147 B3: fail-closed served-model check.

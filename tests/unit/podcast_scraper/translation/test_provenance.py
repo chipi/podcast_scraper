@@ -116,7 +116,7 @@ class TestTheBlock:
 class TestIdempotence:
     def test_running_twice_leaves_one_block(self) -> None:
         """Three writers produce gi.json — the artifact builder,
-        `add_spoken_by_edges(replace=True)` and `gi/repair.py` — so a node passing through two
+        `add_spoken_by_edges(replace=True)` and the GI repair pass — so a node passing through two
         must not end up with two blocks or a half-updated one."""
         payload = _payload((6, 10))
         attach_translation_provenance(payload, _doc(), _EN_SEGMENTS)
@@ -218,80 +218,3 @@ class TestCoverage:
 
     def test_an_empty_artifact_reports_zeroes_rather_than_dividing_by_them(self) -> None:
         assert provenance_coverage({"nodes": []}) == {"span_nodes": 0, "with_provenance": 0}
-
-
-class TestItReachesEveryWriter:
-    """S2.11 requires provenance from EVERY gi.json writer, and there are more than ten call
-    sites — the artifact builder, `add_spoken_by_edges(replace=True)`, `gi/repair.py`, the
-    bridge post-pass, topic clustering. A decoration step added at each is one that will be
-    missed at the eleventh, so it hangs off the single choke point they all pass through.
-    """
-
-    def test_write_artifact_decorates_from_the_ambient_episode(self, tmp_path: Any) -> None:
-        from podcast_scraper.gi.io import write_artifact
-        from podcast_scraper.translation.provenance import publish_episode_translation
-
-        publish_episode_translation(_doc(), _EN_SEGMENTS)
-        try:
-            payload = _payload((6, 10))
-            out = tmp_path / "ep.gi.json"
-            write_artifact(out, payload, validate=False)
-
-            import json
-
-            written = json.loads(out.read_text(encoding="utf-8"))
-            block = written["nodes"][0]["properties"][PROVENANCE_KEY]
-            assert block["unit_ids"] == ["t0000.u01"]
-        finally:
-            publish_episode_translation(None, None)
-
-    def test_an_english_episode_writes_no_provenance(self, tmp_path: Any) -> None:
-        """The no-op path, which every one of the 678 English episodes takes."""
-        import json
-
-        from podcast_scraper.gi.io import write_artifact
-        from podcast_scraper.translation.provenance import publish_episode_translation
-
-        publish_episode_translation(None, None)
-        payload = _payload((6, 10))
-        out = tmp_path / "ep.gi.json"
-        write_artifact(out, payload, validate=False)
-        written = json.loads(out.read_text(encoding="utf-8"))
-        assert PROVENANCE_KEY not in written["nodes"][0]["properties"]
-
-    def test_publishing_a_second_episode_replaces_the_first(self, tmp_path: Any) -> None:
-        """The leak this design prevents. Workers are reused across episodes, so a value set and
-        never replaced would decorate episode B with episode A's units — provenance pointing at
-        text from a different show."""
-        import json
-
-        from podcast_scraper.gi.io import write_artifact
-        from podcast_scraper.translation.provenance import publish_episode_translation
-
-        publish_episode_translation(_doc(), _EN_SEGMENTS)
-        publish_episode_translation(None, None)  # the next episode is English
-        payload = _payload((6, 10))
-        out = tmp_path / "ep2.gi.json"
-        write_artifact(out, payload, validate=False)
-        written = json.loads(out.read_text(encoding="utf-8"))
-        assert PROVENANCE_KEY not in written["nodes"][0]["properties"]
-
-    def test_a_broken_decoration_never_blocks_the_write(self, tmp_path: Any) -> None:
-        """An artifact that fails to write is an episode lost. Provenance is not worth that."""
-        import json
-
-        from podcast_scraper.gi.io import write_artifact
-        from podcast_scraper.translation.provenance import publish_episode_translation
-
-        class _Exploding(dict):
-            def get(self, *_a: Any, **_k: Any) -> Any:
-                raise RuntimeError("boom")
-
-        publish_episode_translation(_doc(), [_Exploding()])
-        try:
-            payload = _payload((6, 10))
-            out = tmp_path / "ep3.gi.json"
-            write_artifact(out, payload, validate=False)
-            assert json.loads(out.read_text(encoding="utf-8"))["nodes"], "the artifact landed"
-        finally:
-            publish_episode_translation(None, None)

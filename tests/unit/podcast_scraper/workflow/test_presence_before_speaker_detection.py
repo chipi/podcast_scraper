@@ -17,16 +17,13 @@ import queue
 import typing
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from podcast_scraper import Config, models
-from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow import episode_processor, run_index
 from podcast_scraper.workflow.helpers import get_episode_id_from_episode
-from podcast_scraper.workflow.stages import processing
 
 pytestmark = pytest.mark.unit
 
@@ -174,40 +171,3 @@ def test_the_nightly_case_is_skipped_early_on_both_routes(tmp_path):
 
 
 # --- the ordering: nothing per-episode runs before identification ----------------------------
-
-
-def test_prepare_runs_no_per_episode_work_for_a_present_episode(tmp_path):
-    cfg = _cfg(tmp_path)
-    _seed(Path(str(cfg.output_dir)), "gA")
-    fresh = _fresh_run(cfg)
-    present, new = _episode("gA", 1), _episode("gNEW", 2)
-    metrics = MagicMock()
-    resources = SimpleNamespace(
-        temp_dir=str(tmp_path / "tmp"), transcription_jobs=None, transcription_jobs_lock=None
-    )
-
-    with (
-        patch.object(
-            processing, "_check_episode_size_skip", return_value=processing._NO_SIZE_SKIP
-        ) as size_probe,
-        patch.object(detection, "_detect_speakers_for_episode", return_value=None) as detect,
-    ):
-        args = processing.prepare_episode_download_args(
-            [present, new],
-            cfg,
-            str(fresh),
-            None,
-            resources,
-            SimpleNamespace(cached_hosts=set()),
-            metrics,
-        )
-
-    assert [a[0] for a in args] == [new]
-    assert [c.args[0] for c in detect.call_args_list] == [new]
-    assert [c.args[1] for c in size_probe.call_args_list] == [new]
-    skipped = [
-        c.kwargs
-        for c in metrics.update_episode_status.call_args_list
-        if c.kwargs["status"] == "skipped"
-    ]
-    assert len(skipped) == 1 and skipped[0]["error_type"] == "SkipExisting"

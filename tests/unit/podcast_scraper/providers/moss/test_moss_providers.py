@@ -13,10 +13,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.providers.ml.diarization.moss_provider import (
-    _normalize_speaker,
-    MossDiarizationProvider,
-)
 from podcast_scraper.providers.moss.moss_provider import MossTranscriptionProvider
 
 pytestmark = pytest.mark.unit
@@ -72,80 +68,11 @@ def test_transcription_returns_text_and_segments(mock_http, tmp_path) -> None:
     assert segments[0]["speaker"] == "S01"
 
 
-@patch("podcast_scraper.providers.ml.diarization.moss_provider.hardened_http_client")
-def test_diarization_speaks_pyannote_dialect(mock_http, tmp_path) -> None:
-    """MOSS's S01/S02 must arrive as SPEAKER_01/SPEAKER_02 — the naming everything downstream
-    keys off (roster, the #1167 placeholder guard, host/guest attribution)."""
-    audio = tmp_path / "ep.mp3"
-    audio.write_bytes(b"audio")
-    mock_http.return_value = _mock_client(_RESPONSE)
-
-    provider = MossDiarizationProvider(_cfg())
-    provider.initialize()
-    result = provider.diarize(str(audio))
-
-    assert result.num_speakers == 2
-    assert [s.speaker for s in result.segments] == ["SPEAKER_01", "SPEAKER_02"]
-    assert (result.segments[0].start, result.segments[0].end) == (0.48, 1.66)
-    assert "MOSS" in result.model_name
-
-
-def test_speaker_normalization() -> None:
-    assert _normalize_speaker("S01") == "SPEAKER_01"
-    assert _normalize_speaker("S9") == "SPEAKER_09"
-    assert _normalize_speaker("S123") == "SPEAKER_123"
-    assert _normalize_speaker("") == "SPEAKER_00"  # never emit an empty label
-    assert _normalize_speaker("SPEAKER_02") == "SPEAKER_02"  # already normalized, left alone
-
-
-@patch("podcast_scraper.providers.ml.diarization.moss_provider.hardened_http_client")
-def test_malformed_turns_are_skipped_not_fatal(mock_http, tmp_path) -> None:
-    """One bad turn must not cost the episode — the model is a decoder and will emit junk."""
-    audio = tmp_path / "ep.mp3"
-    audio.write_bytes(b"audio")
-    mock_http.return_value = _mock_client(
-        {
-            "model": "moss",
-            "segments": [
-                {"start": 0.0, "end": 1.0, "text": "fine", "speaker": "S01"},
-                {"start": "nonsense", "end": 2.0, "text": "bad", "speaker": "S02"},
-                {"end": 3.0, "text": "no start", "speaker": "S02"},
-                {"start": 4.0, "end": 5.0, "text": "also fine", "speaker": "S02"},
-            ],
-        }
-    )
-
-    result = MossDiarizationProvider(_cfg()).diarize(str(audio))
-    assert [(s.start, s.speaker) for s in result.segments] == [
-        (0.0, "SPEAKER_01"),
-        (4.0, "SPEAKER_02"),
-    ]
-    assert result.num_speakers == 2
-
-
 def test_transcription_rejects_a_missing_file(tmp_path) -> None:
     provider = MossTranscriptionProvider(_cfg())
     provider.initialize()
     with pytest.raises(FileNotFoundError):
         provider.transcribe_with_segments(str(tmp_path / "nope.mp3"))
-
-
-def test_both_factories_resolve_to_moss() -> None:
-    """`transcription_provider: moss` + `diarization_provider: moss` must construct the two halves
-    of the joint model — the wiring, not just the classes."""
-    from podcast_scraper.providers.ml.diarization.factory import create_diarization_provider
-    from podcast_scraper.transcription.factory import create_transcription_provider
-
-    # No fallback ladder here: with one configured the factory would (correctly) wrap this in a
-    # FallbackChain (RFC-106); this test isolates the moss wiring itself, so it stays bare.
-    cfg = config.Config(
-        rss="https://example.com/feed.xml",
-        transcription_provider="moss",
-        diarization_provider="moss",
-        dgx_tailnet_host="dgx.test",
-    )
-    assert isinstance(create_transcription_provider(cfg), MossTranscriptionProvider)
-    assert isinstance(create_diarization_provider(cfg), MossDiarizationProvider)
 
 
 def test_experiment_dgx_moss_profile_is_fully_local() -> None:

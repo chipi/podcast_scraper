@@ -127,7 +127,7 @@ See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - `screenplay_num_speakers` (`int`, default: `2`, alias: `"num_speakers"`): Speaker count hint for gap-based rotation (minimum: 1).
 - `screenplay_speaker_names` (`List[str]`, default: `[]`, alias: `"speaker_names"`): Manual speaker names (fallback when auto-detection fails). Format: `["Host", "Guest"]`.
 
-#### Neural speaker diarization (RFC-058)
+#### Neural speaker diarization
 
 - `diarize` (`bool`, default: `True`, alias: `"diarize"`): pyannote second pass after local Whisper; coerced off for API providers.
 - `hf_token` (`Optional[str]`, default: from `HF_TOKEN`, alias: `"hf_token"`): HuggingFace token for gated models.
@@ -136,8 +136,6 @@ See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - `diarization_max_speakers` (`int`, default: `20`): Auto-detect maximum.
 - `diarization_device` (`str`, default: `"auto"`): `cpu`, `cuda`, or `mps`.
 - `diarization_model` (`str`, default: `"pyannote/speaker-diarization-community-1"`): HuggingFace pipeline id (v4, gated: needs `HF_TOKEN`; 3.1 is the fallback).
-- `diarization_clustering_threshold` (`float | None`, default: `None`): pyannote clustering-threshold override; higher merges more → fewer speakers (curbs over-segmentation), lower splits more.
-- `diarization_min_cluster_size` (`int | None`, default: `None` ≈ 12): clusters smaller than this are reassigned to the nearest speaker — drops short (6–30s) over-segmentation fragments surgically.
 - `diarization_min_segment_ms` (`int | None`, default: `None`/off): squelch — drop any diarized speaker whose LONGEST segment is shorter than this (ms); removes phantom sub-second micro-clusters without touching a real cameo. Per-feed overridable; validated ~1000ms (#1170).
 
 #### Deepgram transcription

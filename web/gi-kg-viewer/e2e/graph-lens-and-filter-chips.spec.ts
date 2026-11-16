@@ -141,7 +141,7 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await mockSignIn(page, 'creator', { liveApi: true })
   })
 
-  test('Types: Quote starts off; a change shows reset, which restores the defaults', async ({
+  test('Types: every type starts on; a change shows reset, which restores the defaults', async ({
     page,
   }) => {
     await openGraph(page)
@@ -151,23 +151,19 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     const pop = page.getByTestId('graph-popover-types')
     await expect(pop).toBeVisible()
     const box = (name: string) => pop.getByRole('checkbox', { name: new RegExp(`^${name}\\b`) })
-    // Neither the live corpus nor the offline fixture has Speaker nodes, so Quote carries the
-    // default-off assertion. Episode is deliberately NOT asserted: UXS-004 says it starts off,
-    // `utils/parsing.ts` DEFAULT_HIDDEN_TYPES leaves it on — a spec/code divergence to resolve,
-    // not something to pin either way here.
-    await expect(box('Quote')).not.toBeChecked()
-    await expect(box('Insight')).toBeChecked()
+    // This viewer hides no type by default (a build can, through graphTypeTraits.defaultHidden).
+    await expect(box('Topic')).toBeChecked()
     await expect(pop.getByTestId('graph-types-reset')).toHaveCount(0)
 
-    await box('Insight').uncheck()
+    await box('Topic').uncheck()
     await expect(chip).toHaveText(/^Types: \d+ of \d+ ▾$/)
     await pop.getByTestId('graph-types-reset').click()
-    await expect(box('Insight')).toBeChecked()
+    await expect(box('Topic')).toBeChecked()
     await expect(chip).toHaveText('Types ▾')
     await expect(pop.getByTestId('graph-types-reset')).toHaveCount(0)
   })
 
-  test('Feed, Sources and Degree open their popovers, relabel when set, and reset all clears them', async ({
+  test('Feed and Degree open their popovers, relabel when set, and reset all clears them', async ({
     page,
   }) => {
     await openGraph(page)
@@ -185,16 +181,6 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await expect(feedChip).toHaveText(`Feed: ${feed.display_title} ▾`)
     if (await feedPop.isVisible()) await feedChip.click()
 
-    // Sources — the corpus graph is GI + KG, so the chip is offered.
-    const sourcesChip = page.getByTestId('graph-chip-sources')
-    await expect(sourcesChip).toHaveText('Sources ▾')
-    await sourcesChip.click()
-    const sourcesPop = page.getByTestId('graph-popover-sources')
-    await expect(sourcesPop).toBeVisible()
-    await sourcesPop.getByRole('checkbox', { name: 'KG' }).uncheck()
-    await expect(sourcesChip).toHaveText('Sources: GI only ▾')
-    await sourcesChip.click()
-
     // Degree
     const degreeChip = page.getByTestId('graph-chip-degree')
     await expect(degreeChip).toHaveText('Degree ▾')
@@ -211,7 +197,6 @@ test.describe('Graph filter chip bar (UXS-004 #658)', () => {
     await expect(reset).toBeVisible()
     await reset.click()
     await expect(feedChip).toHaveText('Feed ▾')
-    await expect(sourcesChip).toHaveText('Sources ▾')
     await expect(degreeChip).toHaveText('Degree ▾')
     await expect(reset).toHaveCount(0)
   })

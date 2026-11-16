@@ -197,7 +197,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Do not rebuild the identity ledger after the run. By default a successful run "
-            "rebuilds it (ADR-166): the post-pipeline chain runs enrichment after every ingest "
+            "rebuilds it: the post-pipeline chain runs enrichment after every ingest "
             "and reprocess batch, so this is where new episodes get their cross-episode joins."
         ),
     )

@@ -2,7 +2,7 @@
 id: s5a_person_variants
 class: full
 status: landed
-issue: none (RFC-131 S5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
+issue: none (the person-identity design S5; plan in podcast-scraper-eval-data docs/wip/NAME-CONSOLIDATION-ARC-V3-2026-10-30.md)
 touches:
   - src/podcast_scraper/identity/person_match.py
   - src/podcast_scraper/identity/ledger.py
@@ -18,7 +18,7 @@ kept out of this public record. The pairs are in the eval-data repo under
 
 ## 1. Intake
 
-- RFC-131, ADR-166 (the ledger), ADR-167 (guards inside the join): the design.
+- the person-identity design, the identity ledger (the ledger), the join guards (guards inside the join): the design.
 - D1's record (`d1_name_consolidation.md`): the rule this extends (mode `cluster_person`, linkage
   `no_one_word_bridge`, guards a/b/c) and its numbers.
 - Plan V3, S5: only failure classes with counted training cases; every join passes the guards; replay
@@ -43,7 +43,7 @@ equals D1's:
 The training splits by cause (eval-data `s5/inv.py`, `s5/why.py`, `s5/s4split.py`):
 
 | Cause | Training truth-set pairs | In scope here |
-|---|---|---|
+| --- | --- | --- |
 | A hyphen against a space in a compound name (word counts differ) | 4 | yes |
 | One middle initial on one side | 2 (one also held by guard c) | yes, the exact form only |
 | One-word drift | 1, plus 3 in S4's corpus read | no: the show signal fails on train (2 of 5 admitted are two people) |
@@ -58,6 +58,7 @@ Dated: 2026-10-31
 
 The rule: `cluster_person_variants` accepts a pair if D1's rule accepts it as written. If not, it also
 accepts the pair when either of these holds:
+
 - D1's rule accepts the two names with each hyphen read as a space;
 - exactly one side carries exactly one one-letter middle initial, and with that initial removed the
   two names are identical, at least two words.
@@ -122,7 +123,7 @@ Predicted on the S4 export (prototype `s5/proto.py`, variant `either_initial_exa
   step 7.
 - **Ledger:** `RULE_VERSION` moves to `cluster-person-no-bridge-guarded/3`.
   - Today `read_ledger` treats every other rule version as `version_mismatch`, and the api then
-    serves no cross-episode joins at all (ADR-166).
+    serves no cross-episode joins at all.
   - A bare bump would give D2 a window with zero joins, whichever comes first. With the new image
     first, the api refuses D1's `/2` ledger until the rebuild. With the rebuild first, D1's live api
     refuses `/3`.
@@ -137,6 +138,7 @@ Predicted on the S4 export (prototype `s5/proto.py`, variant `either_initial_exa
 
 Fresh reader, 2026-10-31, a sonnet reviewer subagent with read-only tools, about 1 minute: "Not
 complete". Rows added to section 4 from its findings:
+
 - "only adds" is about the pair test, not the map; "moved" defined; the 11 joins classified; blocked
   compared by content;
 - the `ok_previous_rule` callers: `write_ledger`, `restore_previous`, the CLI, the name report and
@@ -145,6 +147,7 @@ complete". Rows added to section 4 from its findings:
 - what a listener sees, and what happens to an unclear join judged wrong.
 
 Spot checks for step 8:
+
 1. Read the 2 unclear pairs in the after-state.
 2. One initial-form join with an episode-count tie: confirm the canonical name shown.
 3. A `/2` ledger: confirm the gauge and `--status`.
@@ -154,6 +157,7 @@ Spot checks for step 8:
 ## 6. Build
 
 Scenario tests, written first and failing before the code (8 failed, 56 passed):
+
 - `tests/unit/podcast_scraper/identity/test_person_match.py::test_cluster_person_hyphen_and_middle_initial`:
   12 pairs, both orders, with invented names;
 - `test_cluster_person_only_adds_to_the_cluster_rule`;
@@ -162,15 +166,17 @@ Scenario tests, written first and failing before the code (8 failed, 56 passed):
   states; `--dry-run` names the state.
 
 Code:
+
 - `identity/person_match.py`: `cluster_person_variants` falls through to `_hyphen_or_initial_variant`
   only when mode `cluster` refuses;
 - `identity/ledger.py`: `RULE_VERSION` `/3`, `PREVIOUS_RULE_VERSION` `/2`, `STATE_OK_PREVIOUS_RULE`,
   `LEDGER_STATES`, and `rebuild_needed` and `rule_version` in `ledger_status`;
-- ADR-166, decision 3: the one-step-back exception and the undo order.
+- the identity ledger, decision 3: the one-step-back exception and the undo order.
 - `identity/ledger_cli.py` needed no change: `--dry-run` reports `read_ledger`'s state, and
   `--status` prints `ledger_status`.
 
 Checks:
+
 - Identity unit tests: `227 passed`.
 - The real code over the S4 export: `joins=731 blocked=9 sha=13c1fa0188d5`, the prototype's sha.
 - Replay gate `s5/s5a_gate.sh`, with D1's code from a git worktree at 540fb20: `S5A GATE: PASS`.
@@ -214,7 +220,7 @@ Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (
 
 ## 12. Retrospective
 
-MISSED: no retrospective of its own. D2's lessons are in `../HANDOVER-NAMING-2026-11-03.md`, section 3.
+MISSED: no retrospective of its own.
 
 Operator accepted: 2026-11-03 this step was covered only by D2 as stated above (A1 close-out of feat/ingestion-arc, option 1).
 

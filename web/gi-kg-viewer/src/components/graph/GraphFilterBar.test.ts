@@ -2,7 +2,9 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { ref } from 'vue'
 
+import { graphNodeFilters } from '../../extensions'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -19,9 +21,6 @@ function makeState(
   return {
     allowedTypes: {},
     allowedEdgeTypes: {},
-    hideUngroundedInsights: false,
-    showGiLayer: true,
-    showKgLayer: true,
     graphFeedFilterId: null,
     ...overrides,
   }
@@ -30,8 +29,8 @@ function makeState(
 /** Minimal parsed GI artifact so artifacts.displayArtifact is non-null. */
 function makeGiArtifact(): ParsedArtifact {
   return {
-    name: 'ep.gi.json',
-    kind: 'gi',
+    name: 'ep.kg.json',
+    kind: 'kg',
     episodeId: 'ep1',
     nodes: 0,
     edges: 0,
@@ -41,7 +40,7 @@ function makeGiArtifact(): ParsedArtifact {
 }
 
 /**
- * Stub the five child chips so the bar renders standalone. Each stub emits a
+ * Stub the four child chips so the bar renders standalone. Each stub emits a
  * predictable testid and surfaces its bound props as JSON for assertions.
  */
 const chipStub = (name: string) => ({
@@ -53,7 +52,6 @@ const chipStub = (name: string) => ({
 const STUBS = {
   GraphTypesChip: chipStub('types'),
   GraphFeedChip: chipStub('feed'),
-  GraphSourcesChip: chipStub('sources'),
   GraphEdgesChip: chipStub('edges'),
   GraphDegreeChip: chipStub('degree'),
 }
@@ -85,15 +83,31 @@ describe('GraphFilterBar', () => {
     expect(w.get(BAR).exists()).toBe(true)
   })
 
-  it('renders all five chips plus the divider', () => {
+  it('renders its four chips plus the divider', () => {
     const gf = useGraphFilterStore()
     gf.state = makeState()
     const w = mountBar()
-    for (const id of ['types', 'feed', 'sources', 'edges', 'degree']) {
+    for (const id of ['types', 'feed', 'edges', 'degree']) {
       expect(w.find(`[data-testid="stub-${id}"]`).exists()).toBe(true)
     }
     // The decorative divider between filter and view chips.
     expect(w.get(BAR).find('span[aria-hidden="true"]').exists()).toBe(true)
+  })
+
+  it('renders registered filter-bar chips after its own, before the divider', async () => {
+    const { graphFilterBarChips } = await import('../../extensions')
+    graphFilterBarChips.register({
+      id: 'x',
+      component: { template: '<span data-testid="ext-chip">x</span>' },
+    })
+    const gf = useGraphFilterStore()
+    gf.state = makeState()
+    const w = mountBar()
+    const html = w.get(BAR).html()
+    expect(html.indexOf('ext-chip')).toBeGreaterThan(html.indexOf('stub-feed'))
+    expect(html.indexOf('ext-chip')).toBeLessThan(html.indexOf('aria-hidden'))
+    graphFilterBarChips.reset()
+    w.unmount()
   })
 
   it('passes typeHistogramCounts down to the Types chip', () => {
@@ -137,7 +151,7 @@ describe('GraphFilterBar', () => {
     artifacts.parsedList = [makeGiArtifact()]
     const gf = useGraphFilterStore()
     // The displayArtifact watcher populated gf.state; mark a filter active.
-    gf.state!.hideUngroundedInsights = true
+    gf.setFeedFilter('feed-a')
     const w = mountBar()
     await w.vm.$nextTick()
     expect(gf.filtersAreActive).toBe(true)
@@ -148,7 +162,7 @@ describe('GraphFilterBar', () => {
     const artifacts = useArtifactsStore()
     artifacts.parsedList = [makeGiArtifact()]
     const gf = useGraphFilterStore()
-    gf.state!.hideUngroundedInsights = true
+    gf.setFeedFilter('feed-a')
     const ge = useGraphExplorerStore()
     ge.toggleDegreeBucket('1-2')
     const w = mountBar()
@@ -158,10 +172,28 @@ describe('GraphFilterBar', () => {
     await w.get(RESET).trigger('click')
 
     expect(ge.activeDegreeBucket).toBeNull()
-    expect(gf.state!.hideUngroundedInsights).toBe(false)
+    expect(gf.state!.graphFeedFilterId).toBeNull()
     expect(gf.filtersAreActive).toBe(false)
     // Button disappears once everything is reset.
     expect(w.find(RESET).exists()).toBe(false)
+  })
+
+  it('a registered node filter set away from its default shows reset-all, and reset-all resets it', async () => {
+    const on = ref(false)
+    graphNodeFilters.register({ id: 'ext', keep: () => true, active: () => on.value, reset: () => (on.value = false) })
+    const artifacts = useArtifactsStore()
+    artifacts.parsedList = [makeGiArtifact()]
+    const gf = useGraphFilterStore()
+    const w = mountBar()
+    await w.vm.$nextTick()
+    expect(w.find(RESET).exists()).toBe(false)
+    on.value = true
+    await w.vm.$nextTick()
+    expect(gf.filtersAreActive).toBe(true)
+    await w.get(RESET).trigger('click')
+    expect(on.value).toBe(false)
+    expect(gf.filtersAreActive).toBe(false)
+    graphNodeFilters.reset()
   })
 
   it('exposes an accessible label on the reset button', () => {

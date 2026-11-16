@@ -233,7 +233,7 @@ def _reject_destroyed_cleaning(
     assert that the strategy was ``pattern`` and that "pattern is deterministic and cannot do
     this". Both halves were wrong: the running cleaner was never recorded, and pattern cleaning
     demonstrably CAN do this — overlapping sponsor spans merged transitively into one span
-    covering 86% of a transcript (#1641-#1645, fixed in ``cleaning/commercial/detector.py``).
+    covering 86% of a transcript (#1641-#1645, fixed in the commercial detector).
     Five separate issues were filed against the wrong component because this line guessed.
     """
     # Only a real string can be judged; anything else (a provider stub, a mock) passes through.
@@ -313,6 +313,51 @@ SCHEMA_VERSION = "1.2.0"
 #: :func:`identity.roster_provenance.roster_provenance` reports those as ``unknown``, which is its
 #: own answer and never silently upgraded to ``diarized``.
 PROVENANCE_SCHEMA_VERSION = "1.1.0"
+
+
+def _kg_v3_for_item(
+    v2_payload: Dict[str, Any],
+    item: Any,
+    *,
+    item_title: str,
+    item_url: Optional[str],
+    source_title: Optional[str],
+    source_url: Optional[str],
+    document_ref: str,
+) -> Dict[str, Any]:
+    """A non-podcast item's KG 3.0 artifact from the KG 2.x graph its extraction built, checked
+    against kg.v3.schema.json before it is written."""
+    from ..kg import v3 as kg_v3
+    from ..kg.schema import validate_artifact
+
+    ctype = item.content_type
+    if not item.item_id or not item.source_id or not item.transport:
+        raise ValueError(f"{ctype.name}: the item context lacks its id, source or transport")
+    payload = kg_v3.item_artifact(
+        v2_payload,
+        item_id=item.item_id,
+        content_type=ctype.name,
+        item_title=item_title,
+        source_id=item.source_id,
+        source_title=source_title or source_url or ctype.name,
+        source_kind=ctype.source_kind,
+        transport=item.transport,
+        document_ref=document_ref,
+        variant="raw",
+        item_url=item_url,
+        source_url=source_url,
+        times=item.times,
+    )
+    validate_artifact(payload, strict=True)
+    return payload
+
+
+def _non_podcast_item_type() -> Optional[str]:
+    """The current item's type name when it is not a podcast episode; ``None`` for a podcast."""
+    from .. import content_types
+
+    name = content_types.current_item().content_type.name
+    return None if name == content_types.PODCAST_EPISODE else name
 
 
 def generate_feed_id(feed_url: str) -> str:
@@ -637,7 +682,9 @@ class ContentMetadata(BaseModel):
     media_id: Optional[str] = None  # Optional stable identifier for media file
     media_type: Optional[str] = None
     transcript_file_path: Optional[str] = None
-    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]] = None
+    transcript_source: Optional[
+        Literal["direct_download", "whisper_transcription", "text_body"]
+    ] = None
     audio_relpath: Optional[str] = Field(
         default=None,
         description="Corpus-relative path to persisted episode audio under media/ (Wave 3)",
@@ -1975,7 +2022,7 @@ def _build_content_metadata(
     transcript_infos: List[TranscriptInfo],
     media_id: Optional[str],
     transcript_file_path: Optional[str],
-    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]],
+    transcript_source: Optional[Literal["direct_download", "whisper_transcription", "text_body"]],
     whisper_model: Optional[str],
     speakers: List[SpeakerInfo],
     detected_hosts: Optional[List[str]] = None,
@@ -2570,9 +2617,7 @@ def _generate_episode_summary(  # noqa: C901
         logger.debug("[%s] Transcript too short for summarization, skipping", episode_idx)
         return None, call_metrics
 
-    from ..cleaning.commercial.context import diarization_cleaning_context
-
-    diarization_segments, host_speaker_id = diarization_cleaning_context(full_transcript_path)
+    diarization_segments, host_speaker_id = stage_hooks.cleaning_context(full_transcript_path)
     pattern_clean_kwargs: Dict[str, Any] = {}
     if diarization_segments is not None:
         pattern_clean_kwargs = {
@@ -2826,37 +2871,22 @@ def _generate_episode_summary(  # noqa: C901
             if result is None:
                 # Clean transcript before summarization using provider's cleaning processor
                 logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
-                from ..cleaning import PatternBasedCleaner
-
                 # Get cleaning processor from provider if available, otherwise use default
                 cleaning_processor = getattr(summary_provider, "cleaning_processor", None)
                 if cleaning_processor is None:
                     # Default to pattern-based cleaner
-                    cleaning_processor = PatternBasedCleaner()
-
-                # Pass provider to cleaner if it supports it (HybridCleaner / LLMBasedCleaner)
-                from ..cleaning import HybridCleaner, LLMBasedCleaner
+                    cleaning_processor = stage_hooks.transcript_cleaner("pattern")
 
                 cleaning_started = time.perf_counter()
                 try:
-                    if isinstance(cleaning_processor, HybridCleaner):
-                        cleaned_text = cleaning_processor.clean(
-                            transcript_text,
-                            provider=summary_provider,
-                            pipeline_metrics=pipeline_metrics,
-                            **pattern_clean_kwargs,
-                        )
-                    elif isinstance(cleaning_processor, LLMBasedCleaner):
-                        cleaned_text = cleaning_processor.clean(
-                            transcript_text,
-                            summary_provider,
-                            pipeline_metrics=pipeline_metrics,
-                        )
-                    else:
-                        cleaned_text = cleaning_processor.clean(
-                            transcript_text,
-                            **pattern_clean_kwargs,
-                        )
+                    # Each kind of cleaner gets what it takes (the provider for the LLM ones).
+                    cleaned_text = stage_hooks.clean_for_summary(
+                        cleaning_processor,
+                        transcript_text,
+                        provider=summary_provider,
+                        pipeline_metrics=pipeline_metrics,
+                        pattern_kwargs=pattern_clean_kwargs,
+                    )
                 finally:
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(
@@ -3392,6 +3422,15 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         json_start = time.time()
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
+        item_type = _non_podcast_item_type()
+        if item_type is not None:
+            # Only a non-podcast item records its type; a podcast document stays byte-identical
+            # (ADR-177 decision 6: an absent content_type reads as podcast_episode).
+            content_str = json.dumps(
+                {"content_type": item_type, **json.loads(content_str)},
+                indent=2,
+                ensure_ascii=False,
+            )
         json_elapsed = time.time() - json_start
 
         # Time actual file write
@@ -3416,6 +3455,9 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
+        item_type = _non_podcast_item_type()
+        if item_type is not None:
+            content_dict = {"content_type": item_type, **content_dict}
         yaml_serialize_elapsed = time.time() - yaml_start
 
         # Time actual file write
@@ -4335,7 +4377,9 @@ def generate_episode_metadata(  # noqa: C901
     output_dir: str,
     run_suffix: Optional[str] = None,
     transcript_file_path: Optional[str] = None,
-    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]] = None,
+    transcript_source: Optional[
+        Literal["direct_download", "whisper_transcription", "text_body"]
+    ] = None,
     whisper_model: Optional[str] = None,
     detected_hosts: Optional[List[str]] = None,
     detected_guests: Optional[List[str]] = None,
@@ -4491,37 +4535,45 @@ def generate_episode_metadata(  # noqa: C901
     # KG were slow".
     # #2369: an episode the ASR identified as another language than its show's is translated (and
     # gated) in that language; the run's own config describes the show.
-    episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
-    _translation = run_translation_stage(
-        episode_cfg,
-        feed_language=getattr(feed, "language", None),
-        transcript_relpath=transcript_file_path,
-        effective_output_dir=output_dir,
-        episode_id=episode_id,
-        feed_id=feed_id,
-        run_id=_resolved_run_id(cfg),
-        # S2.4's title decision: the EPISODE title goes through the translator so the roster
-        # reads it in English (§5.4 C-6). The SHOW name deliberately does not — ADR-157 measured
-        # the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's name is its
-        # identity on every surface, in search, and in every listener's saved library.
-        episode_title=getattr(episode, "title", None),
-        # The names the episode states about itself (`translation_protect_names`).
-        episode_description=getattr(episode, "description", None),
-        feed_title=getattr(feed, "title", None),
-    )
+    from .. import content_types
 
-    # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the
-    # translation
-    # when a translation is incomplete; this is what stops the English stages reading the SOURCE
-    # anyway. Without it a pending translation falls through the resolver's precedence to
-    # `.adfree.txt`/`.txt` and runs English prompts over Spanish — which §5.2 measured as
-    # confidently wrong, not blind. English episodes cost one language comparison here.
-    _blocked = analysis_blocked_reason(
-        episode_cfg,
-        transcript_relpath=transcript_file_path,
-        effective_output_dir=output_dir,
-        feed_language=getattr(feed, "language", None),
-    )
+    _profile = content_types.current_item().content_type.stage_profile
+    episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
+    # ADR-177 decision 7: an item whose profile has no translation skips it and its completeness
+    # gate (a gate waiting on a translation that never runs would block the item for good).
+    _blocked: Optional[str] = None
+    if _profile.runs(content_types.TRANSLATION):
+        run_translation_stage(
+            episode_cfg,
+            feed_language=getattr(feed, "language", None),
+            transcript_relpath=transcript_file_path,
+            effective_output_dir=output_dir,
+            episode_id=episode_id,
+            feed_id=feed_id,
+            run_id=_resolved_run_id(cfg),
+            # S2.4's title decision: the EPISODE title goes through the translator so the roster
+            # reads it in English (§5.4 C-6). The SHOW name deliberately does not — ADR-157
+            # measured the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's
+            # name is its identity on every surface, in search, and in every listener's saved
+            # library.
+            episode_title=getattr(episode, "title", None),
+            # The names the episode states about itself (`translation_protect_names`).
+            episode_description=getattr(episode, "description", None),
+            feed_title=getattr(feed, "title", None),
+        )
+
+        # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the
+        # translation when a translation is incomplete; this is what stops the English stages
+        # reading the SOURCE anyway. Without it a pending translation falls through the
+        # resolver's precedence to `.adfree.txt`/`.txt` and runs English prompts over Spanish —
+        # which §5.2 measured as confidently wrong, not blind. English episodes cost one
+        # language comparison here.
+        _blocked = analysis_blocked_reason(
+            episode_cfg,
+            transcript_relpath=transcript_file_path,
+            effective_output_dir=output_dir,
+            feed_language=getattr(feed, "language", None),
+        )
     if _blocked:
         logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
         _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
@@ -4538,7 +4590,7 @@ def generate_episode_metadata(  # noqa: C901
     )
 
     # Generate summary if enabled and transcript is available
-    if _blocked:
+    if _blocked or not _profile.runs(content_types.SUMMARY):
         # Skipped, not failed. `metadata.json` is still written below, so the episode EXISTS —
         # the player serves its source text through the resolver's tail, S2.8's
         # `translation_status` reports it, and the backlog is queryable. Raising here instead
@@ -4690,7 +4742,7 @@ def generate_episode_metadata(  # noqa: C901
     # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
     # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts
     # contradicting each other, with the wrong one being the durable corpus fact.
-    if getattr(cfg, "generate_kg", False) and not _blocked:
+    if getattr(cfg, "generate_kg", False) and not _blocked and _profile.runs(content_types.KG):
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)
@@ -4790,6 +4842,19 @@ def generate_episode_metadata(  # noqa: C901
                 )
                 if _kg_probe is not None:
                     kg_cost = _kg_probe.kg_cost_usd
+                _kg_item = content_types.current_item()
+                if _kg_item.content_type.name != content_types.PODCAST_EPISODE:
+                    # ADR-178 / ontology v3: a new type's items are written in KG 3.0 from the
+                    # start; podcasts keep KG 2.x until R3b.
+                    kg_payload = _kg_v3_for_item(
+                        kg_payload,
+                        _kg_item,
+                        item_title=episode.title,
+                        item_url=episode_link,
+                        source_title=getattr(feed, "title", None),
+                        source_url=getattr(cfg, "rss_url", None),
+                        document_ref=transcript_ref_for_kg,
+                    )
                 from ..kg.io import previous_artifact_to_keep as _kg_previous_to_keep
 
                 _kg_kept = _kg_previous_to_keep(Path(kg_path), kg_payload)

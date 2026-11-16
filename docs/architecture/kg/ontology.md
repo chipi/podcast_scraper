@@ -26,7 +26,7 @@
 | --- | --- |
 | `Episode` | `episode:{episode_id}` (same anchor string as artifact `episode_id`; shared with GI) |
 | `Topic` | `topic:{slug}` — global by normalized label slug (bullets or provider) |
-| `Entity` | **v1.2 (RFC-072):** `person:{slug}` or `org:{slug}`; properties use **`kind`**: `person` \| `org`. Person ids also have two **episode-scoped** forms for names that identify nobody globally — `person:speaker-{episode}-{n}` (#1b) and `person:unresolved-{name}-{episode}` (#1685); see the GI ontology for why, and `upgrade run` (m0007) to backfill. **Legacy:** `entity:person:{slug}` / `entity:organization:{slug}` with **`entity_kind`** — migrate with `cli upgrade run` (m0006). Properties include **`name`** and optional **`label`**. |
+| `Entity` | **v1.2:** `person:{slug}` or `org:{slug}`; properties use **`kind`**: `person` \| `org`. Person ids also have two **episode-scoped** forms for names that identify nobody globally — `person:speaker-{episode}-{n}` (#1b) and `person:unresolved-{name}-{episode}` (#1685); see the GI ontology for why, and `upgrade run` (m0007) to backfill. **Legacy:** `entity:person:{slug}` / `entity:organization:{slug}` with **`entity_kind`** — migrate with `cli upgrade run` (m0006). Properties include **`name`** and optional **`label`**. |
 
 **Slug:** Derived from the topic label via the pipeline slugifier (lowercase, hyphenated, max length capped in code) — must be non-empty in artifacts.
 
@@ -58,7 +58,7 @@ Fields and enums are normative in **`kg.schema.json`**.
 
 ## Provenance
 
-- **`schema_version`:** `1.0` (legacy), **`1.1`** (optional Topic/Entity `description` per #487), or **`1.2`** (RFC-072: `kind`, `person:` / `org:` ids).
+- **`schema_version`:** `1.0` (legacy), **`1.1`** (optional Topic/Entity `description` per #487), or **`1.2`** (the cross-layer identity design: `kind`, `person:` / `org:` ids).
 - **`extraction.model_version`:** `stub` \| `summary_bullets` \| `provider:<summarization_model_id>` \| `provider:summary_bullets:<summarization_model_id>`.
 - **`extraction.extracted_at`:** ISO-8601 timestamp (UTC `Z` in shipped output).
 - **`extraction.transcript_ref`:** Relative transcript path or label for the text used in extraction.

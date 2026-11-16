@@ -61,7 +61,7 @@ class ReadHooks:
     insights_from_gi: Optional[Callable[..., List[Any]]] = None
     #: ``(gi_artifact, quote_props, spoken_by_id, people) -> name``: who a quote names as speaker.
     quote_speaker_name: Optional[Callable[..., Optional[str]]] = None
-    #: ``(root) -> {entity_id: canonical_id}``: the identity map the server applies (ADR-166).
+    #: ``(root) -> {entity_id: canonical_id}``: the identity map the server applies.
     served_id_map: Optional[Callable[[Path], Dict[str, str]]] = None
     #: ``(root, anchor, node_id, *, max_episodes) -> (canonical_id, rows, truncated, total)``: the
     #: episodes whose cross-layer bridge lists a node.
@@ -74,6 +74,9 @@ class ReadHooks:
     graph_artifacts: Optional[Callable[..., Iterable[Tuple[str, Dict[str, Any]]]]] = None
     #: ``(name_a, name_b) -> bool``: whether two host spellings name one person.
     host_variants: Optional[Callable[[str, str], bool]] = None
+    #: ``(corpus_root) -> PersonDisplay``: the display builder (``identity.display``); without an
+    #: owner, ``plain_display``, where every person shows their own episode's name.
+    person_display_builder: Optional[Callable[[Path], Any]] = None
 
 
 def _all() -> Iterator[ReadHooks]:
@@ -92,6 +95,13 @@ def _owner(field: str) -> Any:
         if fn is not None:
             return fn
     return None
+
+
+def person_display_builder() -> Optional[Callable[[Path], Any]]:
+    """The owner's display builder, or ``None`` (``identity.display`` then shows each person's own
+    episode name)."""
+    fn: Optional[Callable[[Path], Any]] = _owner("person_display_builder")
+    return fn
 
 
 def segment_speaker(raw: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
@@ -182,6 +192,11 @@ def served_id_map(root: Path) -> Dict[str, str]:
     """The identity map the server applies; without the identity stage, no joins."""
     fn = _owner("served_id_map")
     return fn(root) if fn is not None else {}
+
+
+def bridge_node_episodes_installed() -> bool:
+    """Whether a stage answers :func:`bridge_node_episodes` (else callers use the KG index)."""
+    return _owner("bridge_node_episodes") is not None
 
 
 def bridge_node_episodes(

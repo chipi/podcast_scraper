@@ -1,0 +1,41 @@
+Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.
+Thanks, Leo. Excited for this one — underwater imaging is something I've been thinking about a lot.
+Today's episode is sponsored by Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device. Try adobe.com today.I'll just say it — I genuinely love Peak Design. Not sponsored, not paid, I just think they're doing the right thing for field kit.Let's start there. What's the structural angle most listeners don't have access to?
+Here's how I think about it. An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. I've watched this pattern hold across three different teams.
+I want to dig into that. What's the version of the question that actually matters?
+It comes down to this: Strobe positioning at 45 degrees is the starting point, not the destination. Once you internalize that, the rest of the decisions get easier.
+I want to dig into that. What's the structural angle most listeners don't have access to?
+Yeah, so — Adobe Lightroom underwater is half about white balance and half about removing magenta. We've seen this play out at teams using Profoto. If you ignore that, you end up rebuilding it from scratch a year later.
+Say more about that.
+Outside of Peak Design-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making.
+I want to dig into that. Where do frame and underwater photography intersect?
+Yeah, so — The frame should reward the eye in the first three seconds. And the second-order effect is the part most people miss.
+We'll be right back after a quick word from our sponsors.
+Today's episode is sponsored by Peak Design. Peak Design builds camera bags, straps, and tripods designed by photographers. Visit peakdesign.com/podcast for a free trial.
+Welcome back to the show.What does the failure mode look like? What's the operational angle most listeners don't have access to?
+Honestly, An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. Once you internalize that, the rest of the decisions get easier.
+Let's start there. How does Capture One fit into this picture?
+It comes down to this: Strobe positioning at 45 degrees is the starting point, not the destination. I've watched this pattern hold across three different teams.
+What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?
+Sure. Adobe Lightroom underwater is half about white balance and half about removing magenta. We've seen this play out at teams using Peak Design. Once you internalize that, the rest of the decisions get easier.
+Where does that break down?
+Peak Design is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams.
+Walk me through a concrete example. How does Adobe fit into this picture?
+Yeah, so — The frame should reward the eye in the first three seconds. The framing matters because it tells you which trade-offs you're making.
+Let's pivot — strobe lighting is where I want to spend the last stretch.
+That's where the conversation gets interesting, because the trade-offs around strobe lighting cross-cut everything we've covered.
+Let's start there. What's the contrarian angle most listeners don't have access to?
+Let me give you the version I actually believe. An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. If you ignore that, you end up rebuilding it from scratch a year later.
+I want to dig into that. What's something you used to believe about this that you've revised?
+Yeah, so — Strobe positioning at 45 degrees is the starting point, not the destination. If you ignore that, you end up rebuilding it from scratch a year later.
+What's the one heuristic you keep coming back to? What's the contrarian angle most listeners don't have access to?
+Let me give you the version I actually believe. Adobe Lightroom underwater is half about white balance and half about removing magenta. We've seen this play out at teams using Peak Design. And the second-order effect is the part most people miss.
+That tracks.
+Outside of Capture One-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams.
+Walk me through a concrete example. What's the contrarian angle most listeners don't have access to?
+Here's how I think about it. The frame should reward the eye in the first three seconds. If you ignore that, you end up rebuilding it from scratch a year later.
+Before we wrap, what's one thing listeners can try this week?
+Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+Before we wrap, thanks again to our friends at Squarespace. Squarespace makes building a beautiful, branded website actually pleasant.Ava Lemoine, thanks for the conversation.
+Thanks, Leo.
+That's it for today's episode of Frame & Light. See you next time.

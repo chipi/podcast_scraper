@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from . import __version__, config
+from . import __version__, config, content_types
 from .utils import filesystem
 from .utils.corpus_incidents import append_corpus_incident
 from .utils.log_redaction import redact_for_log
@@ -123,7 +123,9 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
                 )
                 for idx, entry in enumerate(entries):
                     url = entry.url
-                    child_dir = filesystem.corpus_feed_output_dir(parent, url)
+                    child_dir = filesystem.corpus_source_output_dir(
+                        parent, url, getattr(entry, "content_type", None)
+                    )
                     incident_log = (cfg.incident_log_path or "").strip()
                     if not incident_log:
                         incident_log = str(Path(parent) / "corpus_incidents.jsonl")
@@ -142,7 +144,10 @@ def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> S
                         # prevent. UnsanctionedModelError is a RuntimeError, so it is not
                         # caught by ValidationError-only handlers either.
                         sub_cfg = merge_feed_entry_into_config(base, entry)
-                        count, summary = workflow.run_pipeline(sub_cfg)
+                        # One dispatch point for both batch loops (ADR-177 decision 7).
+                        count, summary = content_types.run_source(
+                            sub_cfg, entry, run_pipeline_fn=workflow.run_pipeline
+                        )
                         total += count
                         ok_parts.append(f"{url}: {summary}")
                         batch.append(
@@ -308,7 +313,12 @@ def run(cfg: config.Config) -> ServiceResult:
         from podcast_scraper.utils.corpus_lock import corpus_parent_lock
 
         with corpus_parent_lock(cfg.output_dir or ".", logger=logger):
-            count, summary = workflow.run_pipeline(cfg)
+            # The one dispatch point, for a single source as for a batch (ADR-177 decision 7).
+            count, summary = content_types.run_source(
+                cfg,
+                multi_entries[0] if multi_entries else None,
+                run_pipeline_fn=workflow.run_pipeline,
+            )
 
         rss_url_raw = getattr(cfg, "rss_url", None)
         feed_url = rss_url_raw.strip() if isinstance(rss_url_raw, str) else ""

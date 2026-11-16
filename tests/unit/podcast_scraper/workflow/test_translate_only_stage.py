@@ -26,7 +26,6 @@ TWO OPERATIONS WEAR THIS NAME, and conflating them is the trap:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, cast
 
@@ -179,82 +178,6 @@ class TestWhatItActuallyDOES:
     """Driven through the real stage function, with the relabel hand-off stubbed — the relabel
     path is covered by its own tests, and what is under test here is the discard."""
 
-    @staticmethod
-    def _episode(tmp_path: Path) -> Path:
-        run = tmp_path / "run_20260101-000000"
-        tx = run / "transcripts"
-        tx.mkdir(parents=True)
-        (tx / "01 - ep.txt").write_text("SPEAKER_00: Hola.\n", encoding="utf-8")
-        (tx / "01 - ep.segments.json").write_text("[]", encoding="utf-8")
-        for name in (
-            "01 - ep.en.txt",
-            "01 - ep.en.segments.json",
-            "01 - ep.en.adfree.txt",
-            "01 - ep.translation.json",
-        ):
-            (tx / name).write_text("{}", encoding="utf-8")
-        return tx / "01 - ep.txt"
-
-    def _run(self, tmp_path: Path, monkeypatch: Any, *, discard: bool) -> Any:
-        from podcast_scraper.workflow import episode_processor as ep
-
-        txt = self._episode(tmp_path)
-        monkeypatch.setattr(ep, "_existing_transcript_for", lambda *a, **k: txt)
-        from podcast_scraper.speaker_stage import reprocess
-
-        monkeypatch.setattr(
-            reprocess, "_relabel_existing_transcript", lambda *a, **k: (True, "rel", 1)
-        )
-        cfg = config.Config(
-            rss="https://e.com/f.xml",
-            pipeline_stage="translate_only",
-            translation_discard_memory=discard,
-        )
-
-        class _Job:
-            idx = 1
-
-        return ep._retranslate_existing_transcript(
-            cast(Any, _Job()), cfg, None, str(tmp_path), None, None
-        )
-
-    def test_it_swaps_the_SOURCE_back_to_the_canonical_path(
-        self, tmp_path: Path, monkeypatch: Any
-    ) -> None:
-        """D-44: there is no English set to delete. The stale translation is discarded by the source
-        trading places back with it, so the episode keeps a canonical transcript throughout."""
-        tx = tmp_path / "run_20260101-000000" / "transcripts"
-        self._run(tmp_path, monkeypatch, discard=False)
-        assert (tx / "01 - ep.txt").is_file(), "the episode lost its canonical transcript"
-        assert not (tx / "01 - ep.es.txt").exists(), "the tagged source should have moved back"
-        assert not [q for q in tx.iterdir() if ".tmp" in q.name]
-
-    def test_it_KEEPS_the_source_transcript(self, tmp_path: Path, monkeypatch: Any) -> None:
-        """The source is the INPUT to the re-translation. Deleting it would make the mode
-        unable to do the one thing it is for."""
-        tx = tmp_path / "run_20260101-000000" / "transcripts"
-        self._run(tmp_path, monkeypatch, discard=False)
-        assert (tx / "01 - ep.txt").read_text(encoding="utf-8") == "SPEAKER_00: Hola.\n"
-        assert (tx / "01 - ep.segments.json").exists()
-
-    def test_by_default_it_keeps_the_memory(self, tmp_path: Path, monkeypatch: Any) -> None:
-        tx = tmp_path / "run_20260101-000000" / "transcripts"
-        self._run(tmp_path, monkeypatch, discard=False)
-        assert (tx / "01 - ep.translation.json").exists(), (
-            "the retry must keep the memory, or every `translation_pending` recovery becomes a "
-            "full re-translation"
-        )
-
-    def test_with_the_flag_it_discards_the_memory(self, tmp_path: Path, monkeypatch: Any) -> None:
-        tx = tmp_path / "run_20260101-000000" / "transcripts"
-        self._run(tmp_path, monkeypatch, discard=True)
-        assert not (tx / "01 - ep.translation.json").exists()
-
-    def test_it_hands_off_to_the_relabel_path(self, tmp_path: Path, monkeypatch: Any) -> None:
-        """The hand-off is the mode: relabel re-renders the source with ANONYMOUS labels for a
-        non-English episode (D-34), which is what the translator must be given."""
-        assert self._run(tmp_path, monkeypatch, discard=False) == (True, "rel", 1)
-
     def test_a_missing_transcript_is_recorded_not_crashed(
         self, tmp_path: Path, monkeypatch: Any
     ) -> None:
@@ -272,65 +195,3 @@ class TestWhatItActuallyDOES:
             cast(Any, _Job()), cfg, None, str(tmp_path), None, None
         ) == (False, None, 0)
         assert recorded, "an unresolvable episode must be recorded, not silently skipped"
-
-
-class TestARelabelOfATranslatedEpisodeReadsTheSource:
-    """relabel_only on a TRANSLATED episode read `<base>.txt` — under D-44 the English render — and
-    named the speakers on it with the source language's vocabulary; then the post-processing
-    swap-back moved that English aside and restored the source, discarding the relabel's work.
-    Found re-labelling Radio Ambulante (es, 2026-10-09): the LLM proposed "Daniel Alarcón" from the
-    English, and the episode ended with 0 named entries. translate_only already swaps back BEFORE
-    handing off to the relabel; relabel_only now does the same."""
-
-    @staticmethod
-    def _translated_episode(tmp_path: Path) -> Path:
-        tx = tmp_path / "run_20260101-000000" / "transcripts"
-        tx.mkdir(parents=True)
-        # Under D-44 the canonical pair is the ENGLISH render; the source sits at `.es.*`.
-        (tx / "01 - ep.txt").write_text("SPEAKER_00: Hello, I'm Ana Ruiz.\n", encoding="utf-8")
-        (tx / "01 - ep.es.txt").write_text("SPEAKER_00: Hola, soy Ana Ruiz.\n", encoding="utf-8")
-        seg = [{"start": 0.0, "end": 2.0, "speaker_label": "SPEAKER_00", "text": "{}"}]
-        for name, text in (
-            ("01 - ep", "Hello, I'm Ana Ruiz."),
-            ("01 - ep.es", "Hola, soy Ana Ruiz."),
-        ):
-            rows = [dict(seg[0], text=text)]
-            (tx / f"{name}.segments.json").write_text(json.dumps(rows), encoding="utf-8")
-        (tx / "01 - ep.translation.json").write_text("{}", encoding="utf-8")
-        return tx / "01 - ep.txt"
-
-    def test_the_naming_reads_the_spanish_source(self, tmp_path: Path, monkeypatch: Any) -> None:
-        from podcast_scraper.providers.ml.diarization import pipeline as dp
-        from podcast_scraper.speaker_stage import reprocess
-
-        txt = self._translated_episode(tmp_path)
-        monkeypatch.setattr(reprocess, "_existing_transcript_for", lambda *a, **k: txt)
-        seen: list = []
-
-        class _Stop(Exception):
-            pass
-
-        def fake_apply(result: Any, *a: Any, **k: Any) -> Any:
-            seen.append(result)
-            raise _Stop
-
-        monkeypatch.setattr(dp, "apply_diarization_to_result", fake_apply)
-        cfg = config.Config(
-            rss="https://e.com/f.xml", pipeline_stage="relabel_only", feed_declared_language="es"
-        )
-
-        class _Job:
-            idx = 1
-            episode = None
-            detected_speaker_names = None
-            metadata_named = None
-            ep_title = "t"
-
-        with pytest.raises(_Stop):
-            reprocess._relabel_existing_transcript(
-                cast(Any, _Job()), cfg, None, str(tmp_path), None, None
-            )
-        assert seen, "the naming step was never reached"
-        texts = " ".join(str(s.get("text", "")) for s in seen[0]["segments"])
-        assert "soy Ana Ruiz" in texts and "I'm" not in texts
-        assert "Hola" in txt.read_text(encoding="utf-8"), "the source is back at the canonical path"

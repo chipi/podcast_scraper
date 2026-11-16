@@ -4,11 +4,9 @@
 These tests verify Gemini provider implementations with mocked API calls,
 using factory functions to create providers (tests factory integration).
 
-For standalone provider tests, see test_gemini_provider.py.
 """
 
 import importlib.util
-import json
 import os
 import unittest
 from unittest.mock import MagicMock, Mock, patch
@@ -50,7 +48,6 @@ def tearDownModule():
 
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
@@ -154,42 +151,6 @@ class TestGeminiSpeakerDetectorFactory(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_detect_speakers_success(self, mock_render_prompt, mock_genai):
-        """Test successful speaker detection via Gemini API via factory."""
-        # Mock Gemini client and response
-        mock_response = Mock()
-        mock_response.text = json.dumps(
-            {
-                "speakers": ["John Doe", "Jane Smith"],
-                "hosts": ["John Doe"],
-                "guests": ["Jane Smith"],
-            }
-        )
-
-        mock_client = Mock()
-        mock_client.models.generate_content.return_value = mock_response
-        mock_genai.Client.return_value = mock_client
-
-        # Mock prompt rendering
-        mock_render_prompt.side_effect = lambda name, **kwargs: "test prompt"
-
-        detector = create_speaker_detector(self.cfg)
-        detector.initialize()
-
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with John Doe and Jane Smith",
-            episode_description="A test episode",
-            known_hosts={"John Doe"},
-        )
-
-        self.assertEqual(len(speakers), 2)
-        self.assertIn("John Doe", speakers)
-        self.assertIn("Jane Smith", speakers)
-        self.assertEqual(detected_hosts, {"John Doe"})
-        self.assertTrue(success)
-
     def test_detect_speakers_missing_api_key(self):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
@@ -208,16 +169,6 @@ class TestGeminiSpeakerDetectorFactory(unittest.TestCase):
             # Restore original environment variable if it existed
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
-
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_factory_creates_gemini_detector(self, mock_genai):
-        """Test that factory creates Gemini speaker detector."""
-        # Ensure genai is not None (module-level import check)
-        if mock_genai is None:
-            mock_genai = Mock()
-        detector = create_speaker_detector(self.cfg)
-        # Factory now returns unified GeminiProvider, not separate provider classes
-        self.assertEqual(detector.__class__.__name__, "GeminiProvider")
 
 
 @pytest.mark.llm

@@ -57,16 +57,6 @@ DERIVED_SUFFIXES = (ADFREE_SUFFIX, CLEANED_SUFFIX, ANON_SUFFIX)
 #: and asserting otherwise would have been me changing semantics I had not investigated to satisfy
 #: a test I had just written.
 FILTER_SITES = {
-    "src/podcast_scraper/providers/ml/diarization/pipeline.py": (
-        DERIVED_SUFFIXES,
-        "the #1188 recurring-script detector — double-counting defeats its three-transcript "
-        "abstention and doubles new episodes' weight in the shingle tally",
-    ),
-    "scripts/audit/transcript_pairing_audit.py": (
-        DERIVED_SUFFIXES,
-        "Step 0a of the post-deploy runbook (#2082), which exists to produce trustworthy counts "
-        "before every other measurement is taken",
-    ),
     "scripts/acceptance/run_acceptance_tests.py": (
         (CLEANED_SUFFIX, ANON_SUFFIX),
         "the acceptance harness's transcript tally — it deliberately counts `.adfree`, so only "

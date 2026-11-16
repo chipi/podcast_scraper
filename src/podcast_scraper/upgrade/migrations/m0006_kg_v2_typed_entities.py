@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 from typing import Iterable
 
-from ...migrations.gil_kg_identity_migrations import migrate_kg_document_v2
+from ...migrations.kg_document_migrations import migrate_kg_document_v2
 from ...utils.corpus_walk import corpus_rglob
 from ..migration import Migration, MigrationContext, MigrationResult
 

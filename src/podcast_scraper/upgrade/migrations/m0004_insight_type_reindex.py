@@ -1,7 +1,7 @@
 """0004 — reindex to populate ``insight_type`` on the insight tier (Search v3 §S8).
 
 ``LANCE_SCHEMA_VERSION`` bumped 2 → 3: the insight tier gained an ``insight_type``
-column (RFC-072 GIL v1.1) so the Search v3 §S8 compare ``insight_types`` filter can
+column (GIL v1.1) so the Search v3 §S8 compare ``insight_types`` filter can
 scope by type. An index built at v2 has no such column, so the read path
 (``hybrid_search``) reports ``no_index`` for it (fail-safe — it never serves an
 index missing a column the read path expects).

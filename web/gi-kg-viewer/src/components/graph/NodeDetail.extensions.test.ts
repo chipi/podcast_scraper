@@ -24,7 +24,6 @@ import NodeDetail from './NodeDetail.vue'
 const STUBS = {
   PersonLandingView: true,
   PodcastNodeView: true,
-  InsightNodeView: true,
   TopicEntityView: true,
   TranscriptViewerDialog: true,
   PodcastCover: true,
@@ -106,62 +105,33 @@ describe('NodeDetail extensions', () => {
     w.unmount()
   })
 
-  it('merges an extension’s topics on the Timeline tab, and passes its toggle state', async () => {
-    readyShell()
-    const seen: boolean[] = []
-    nodeDetailExtensions.register({
-      id: 'x',
-      timeline: (ctx, toggled) => {
-        seen.push(toggled)
-        return toggled && ctx.isTopicNode ? ['topic:a', 'topic:b'] : null
-      },
-      timelineToggle: (ctx) =>
-        ctx.isTopicNode ? { label: 'Group', titleOn: 'on', titleOff: 'off', testid: 'tl-toggle' } : null,
-    })
-    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
-    await flushPromises()
-    expect(fetchTopicTimeline).toHaveBeenCalledTimes(1)
-    await w.get('#node-detail-rail-tab-timeline').trigger('click')
-    await flushPromises()
-    const toggle = w.get('[data-testid="tl-toggle"]')
-    expect(toggle.attributes('title')).toBe('off')
-    await toggle.trigger('click')
-    await flushPromises()
-    expect(seen).toContain(true)
-    expect(fetchTopicTimelineMerged).toHaveBeenCalledWith('/corpus', ['topic:a', 'topic:b'])
-    expect(w.get('[data-testid="tl-toggle"]').attributes('aria-pressed')).toBe('true')
-    w.unmount()
-  })
-
-  it("'hidden' removes the Timeline tab even for a topic", async () => {
-    readyShell()
-    nodeDetailExtensions.register({ id: 'x', timeline: () => 'hidden' })
-    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
-    await flushPromises()
-    expect(w.find('#node-detail-rail-tab-timeline').exists()).toBe(false)
-    expect(fetchTopicTimeline).not.toHaveBeenCalled()
-    w.unmount()
-  })
-
-  it('a non-topic node with merged topics gets the Timeline tab and its body; an on toggle takes its colour', async () => {
+  it('adds an extension tab for the nodes it shows for, with its panel and the ctx', async () => {
     readyShell()
     nodeDetailExtensions.register({
       id: 'x',
-      knowsNode: (id) => id === 'grp:1',
-      timeline: (ctx) => (ctx.nodeId === 'grp:1' ? ['topic:a', 'topic:b'] : null),
-      timelineToggle: (ctx) =>
-        ctx.nodeId === 'grp:1' ? { label: 'G', titleOn: 'on', titleOff: 'off', testid: 'tl-toggle', color: 'rgb(1, 2, 3)' } : null,
+      tabs: [
+        { id: 'ext-tab', label: 'Ext', shows: (ctx) => ctx.isTopicNode, component: ctxSection('tab') },
+      ],
     })
-    const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'grp:1', embedInRail: true })
+    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
     await flushPromises()
-    expect(fetchTopicTimelineMerged).toHaveBeenCalledWith('/corpus', ['topic:a', 'topic:b'])
-    await w.get('#node-detail-rail-tab-timeline').trigger('click')
+    const tab = w.get('[data-testid="node-detail-rail-tab-ext:ext-tab"]')
+    expect(tab.text()).toBe('Ext')
+    await tab.trigger('click')
+    expect(tab.attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="section-tab"]').text()).toBe('topic:a|Topic')
+    w.unmount()
+  })
+
+  it('shows no extension tab for a node its test refuses', async () => {
+    readyShell()
+    nodeDetailExtensions.register({
+      id: 'x',
+      tabs: [{ id: 'ext-tab', label: 'Ext', shows: () => false, component: ctxSection('tab') }],
+    })
+    const w = mountDetail({ viewArtifact: artifactOf([topic('topic:a', 'A')]), nodeId: 'topic:a', embedInRail: true })
     await flushPromises()
-    expect(w.find('[data-testid="node-detail-inline-timeline"]').exists()).toBe(true)
-    const toggle = w.get('[data-testid="tl-toggle"]')
-    expect(toggle.attributes('style') ?? '').not.toContain('rgb(1, 2, 3)')
-    await toggle.trigger('click')
-    expect(w.get('[data-testid="tl-toggle"]').attributes('style')).toContain('rgb(1, 2, 3)')
+    expect(w.find('[data-testid="node-detail-rail-tab-ext:ext-tab"]').exists()).toBe(false)
     w.unmount()
   })
 
@@ -177,6 +147,86 @@ describe('NodeDetail extensions', () => {
     expect(c.props('aggregatedNeighborRows')).toEqual(rows)
     expect(c.props('connectionsEmptyHint')).toBe('none here')
     expect(c.props('compoundNeighborhood')).toEqual({ compoundId: 'grp:1', memberIds: ['topic:a'] })
+    w.unmount()
+  })
+
+  it('names the kind of a node outside the slice, and renders its body section', () => {
+    nodeDetailExtensions.register({
+      id: 'x',
+      kindOf: (id) => (id.startsWith('claim:') ? 'Claim' : null),
+      sections: [{ region: 'body', component: ctxSection('body') }],
+    })
+    const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'claim:1', embedInRail: true })
+    // The kind alone shows the panel (no `knowsNode`), and the body section sees it.
+    expect(w.find('aside').exists()).toBe(true)
+    expect(w.get('[data-testid="section-body"]').text()).toBe('claim:1|Claim')
+    w.unmount()
+  })
+
+  it('renders a details section after the body text, and no transcript block of its own', () => {
+    readyShell()
+    const quote = {
+      id: 'quote:1',
+      type: 'Quote',
+      properties: { text: 'Quoted words.', transcript_ref: 'transcripts/ep.txt', char_start: 1, char_end: 5 },
+    } as RawGraphNode
+    const plain = mountDetail({ viewArtifact: artifactOf([quote]), nodeId: 'quote:1' })
+    expect(plain.find('[data-testid="node-detail-view-transcript"]').exists()).toBe(false)
+    expect(plain.find('[data-testid="node-detail-quote-speaker-unavailable"]').exists()).toBe(false)
+    // Without a section hiding them, the anchor keys are ordinary properties now.
+    expect(plain.text()).toContain('Transcript Ref')
+    plain.unmount()
+    nodeDetailExtensions.register({ id: 'x', sections: [{ region: 'details', component: ctxSection('details') }] })
+    const w = mountDetail({ viewArtifact: artifactOf([quote]), nodeId: 'quote:1' })
+    const html = w.html()
+    expect(w.get('[data-testid="section-details"]').text()).toBe('quote:1|Quote')
+    expect(html.indexOf('Quoted words.')).toBeLessThan(html.indexOf('section-details'))
+    w.unmount()
+  })
+
+  it('keeps the keys a section shows out of the generic property list', () => {
+    const node = { id: 'n:1', type: 'Thing', properties: { label: 'N', weight: 3, colour: 'red' } } as RawGraphNode
+    const mountWith = () => mountDetail({ viewArtifact: artifactOf([node]), nodeId: 'n:1' })
+    const plain = mountWith()
+    expect(plain.text()).toContain('Weight')
+    plain.unmount()
+    nodeDetailExtensions.register({ id: 'x', hiddenProperties: (ctx) => (ctx.nodeType === 'Thing' ? ['weight'] : []) })
+    const w = mountWith()
+    expect(w.text()).not.toContain('Weight')
+    expect(w.text()).toContain('Colour')
+    w.unmount()
+  })
+
+  it('gives sections the node, the full graph and the panel actions', async () => {
+    readyShell()
+    let seen: NodeDetailContext | null = null
+    nodeDetailExtensions.register({
+      id: 'x',
+      sections: [
+        {
+          region: 'body',
+          component: defineComponent({
+            props: { ctx: { type: Object, required: true } },
+            setup(props) {
+              seen = props.ctx as NodeDetailContext
+              return () => h('p')
+            },
+          }),
+        },
+      ],
+    })
+    const art = artifactOf([topic('topic:a', 'A')])
+    const w = mountDetail({ viewArtifact: art, nodeId: 'topic:a' })
+    await flushPromises()
+    expect(seen!.node?.id).toBe('topic:a')
+    expect(seen!.fullArtifact).toEqual(art)
+    seen!.prefillSearch('  rates  ')
+    seen!.prefillSearch('   ')
+    seen!.openSearch()
+    seen!.focusOnGraph('topic:b')
+    expect(w.emitted('prefill-semantic-search')).toEqual([[{ query: 'rates' }]])
+    expect(w.emitted('open-search')).toHaveLength(1)
+    expect(w.emitted('go-graph')).toHaveLength(1)
     w.unmount()
   })
 })

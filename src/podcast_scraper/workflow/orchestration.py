@@ -3005,6 +3005,72 @@ def stamp_run_identity(cfg: Any) -> Dict[str, Any]:
         return {}
 
 
+def _begin_run(
+    cfg: config.Config,
+) -> Tuple[config.Config, str, Optional[str], Optional[str], Any]:
+    """The start every run shares, podcast or text (ADR-177): the run-level LLM call fuse, the
+    correlation id, the run identity stamp, the pipeline environment, the show sidecar and the
+    default incident log. Returns ``(cfg, effective_output_dir, run_suffix, full_config_string,
+    pipeline_metrics)``; ``cfg`` may be a copy with the incident log path set."""
+    # Install the run-level LLM call fuse for the WHOLE production run, in the main thread, before
+    # any stage or worker starts. This is the hard ceiling on total spend: retry_with_metrics ticks
+    # it on every attempt, and the fuse is process-global so it is enforced inside the
+    # summarization/processing ThreadPoolExecutor workers too (a ContextVar would not reach them).
+    # The finer per-episode fuse — which catches a single-episode storm below the run ceiling (the
+    # ~3,500-call incident) — is installed per episode in generate_episode_metadata, where that
+    # storm (bundled GI evidence → per-pair fallback) actually runs.
+    from ..utils import llm_call_fuse
+
+    llm_call_fuse.install_run(getattr(cfg, "llm_max_calls_per_run", 0))
+
+    # GitHub #562: reset gates before setup (setup is outside try/finally below).
+    try:
+        config.reset_screenplay_issue_562_gates()
+    except Exception:  # pragma: no cover - defensive import/cleanup
+        logger.debug("reset_screenplay_issue_562_gates (startup) failed", exc_info=True)
+
+    # #1053: resolve this run's correlation id ONCE, up front, so every o11y signal
+    # (Loki cost event + logs, Sentry scope, Langfuse trace) for the run stamps the same
+    # join key. Process-global because the pipeline is a per-run subprocess.
+    from podcast_scraper.utils import correlation
+
+    correlation.set_run_id(correlation.resolve_run_id(cfg.run_id))
+    # Mirror the join key onto the Sentry scope so errors correlate too (no-op without Sentry).
+    try:
+        from podcast_scraper.utils.sentry_init import set_run_tag
+
+        set_run_tag(correlation.get_run_id())
+    except Exception:  # pragma: no cover - never block a run on o11y tagging
+        logger.debug("sentry run-tag skipped", exc_info=True)
+
+    # Same idea one level up: stamp WHICH profile this run resolved to, and what that
+    # profile actually routed each stage to, onto every event the run emits. Resolved here
+    # (not from the profile name at read time) because three layers can move routing under a
+    # profile — corpus YAML, the feed's own pin, and a per-request override (#1872) — so the
+    # name alone no longer implies the routing, and a cost anomaly's first question ("which
+    # profile, and was ASR on the DGX or Deepgram?") must be answerable from the event.
+    stamp_run_identity(cfg)
+
+    # Step 1: Setup pipeline environment
+    effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
+        _setup_pipeline_environment(cfg)
+    )
+    # Show sidecar: from here on, this run's show events (and every ERROR it logs) are appended
+    # to feeds/<feed>/show_events/<run>.jsonl, folded into show.json at finalize.
+    from .show_events import bind_show
+
+    bind_show(effective_output_dir)
+
+    # GitHub #557: structured incident log (episode/feed scope); default beside run artifacts.
+    if not (cfg.incident_log_path or "").strip():
+        cfg = cfg.model_copy(
+            update={
+                "incident_log_path": str(Path(effective_output_dir) / "corpus_incidents.jsonl"),
+            }
+        )
+    return cfg, effective_output_dir, run_suffix, full_config_string, pipeline_metrics
+
+
 def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     """Execute the main podcast scraping pipeline.
 
@@ -3097,62 +3163,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             "RSS URL is required: set `rss` (positional / --rss / --rss-file), a `--feeds-spec`, "
             "or `rss_urls` in config before running the pipeline."
         )
-    # Install the run-level LLM call fuse for the WHOLE production run, in the main thread, before
-    # any stage or worker starts. This is the hard ceiling on total spend: retry_with_metrics ticks
-    # it on every attempt, and the fuse is process-global so it is enforced inside the
-    # summarization/processing ThreadPoolExecutor workers too (a ContextVar would not reach them).
-    # The finer per-episode fuse — which catches a single-episode storm below the run ceiling (the
-    # ~3,500-call incident) — is installed per episode in generate_episode_metadata, where that
-    # storm (bundled GI evidence → per-pair fallback) actually runs.
-    from ..utils import llm_call_fuse
-
-    llm_call_fuse.install_run(getattr(cfg, "llm_max_calls_per_run", 0))
-
-    # GitHub #562: reset gates before setup (setup is outside try/finally below).
-    try:
-        config.reset_screenplay_issue_562_gates()
-    except Exception:  # pragma: no cover - defensive import/cleanup
-        logger.debug("reset_screenplay_issue_562_gates (startup) failed", exc_info=True)
-
-    # #1053: resolve this run's correlation id ONCE, up front, so every o11y signal
-    # (Loki cost event + logs, Sentry scope, Langfuse trace) for the run stamps the same
-    # join key. Process-global because the pipeline is a per-run subprocess.
-    from podcast_scraper.utils import correlation
-
-    correlation.set_run_id(correlation.resolve_run_id(cfg.run_id))
-    # Mirror the join key onto the Sentry scope so errors correlate too (no-op without Sentry).
-    try:
-        from podcast_scraper.utils.sentry_init import set_run_tag
-
-        set_run_tag(correlation.get_run_id())
-    except Exception:  # pragma: no cover - never block a run on o11y tagging
-        logger.debug("sentry run-tag skipped", exc_info=True)
-
-    # Same idea one level up: stamp WHICH profile this run resolved to, and what that
-    # profile actually routed each stage to, onto every event the run emits. Resolved here
-    # (not from the profile name at read time) because three layers can move routing under a
-    # profile — corpus YAML, the feed's own pin, and a per-request override (#1872) — so the
-    # name alone no longer implies the routing, and a cost anomaly's first question ("which
-    # profile, and was ASR on the DGX or Deepgram?") must be answerable from the event.
-    stamp_run_identity(cfg)
-
-    # Step 1: Setup pipeline environment
-    effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
-        _setup_pipeline_environment(cfg)
-    )
-    # Show sidecar: from here on, this run's show events (and every ERROR it logs) are appended
-    # to feeds/<feed>/show_events/<run>.jsonl, folded into show.json at finalize.
-    from .show_events import bind_show
-
-    bind_show(effective_output_dir)
-
-    # GitHub #557: structured incident log (episode/feed scope); default beside run artifacts.
-    if not (cfg.incident_log_path or "").strip():
-        cfg = cfg.model_copy(
-            update={
-                "incident_log_path": str(Path(effective_output_dir) / "corpus_incidents.jsonl"),
-            }
-        )
+    cfg, effective_output_dir, run_suffix, full_config_string, pipeline_metrics = _begin_run(cfg)
 
     monitor_proc: Optional[Any] = None
     py_spy_stop: Optional[Callable[[], None]] = None

@@ -48,32 +48,11 @@ METHODS: Dict[str, tuple] = {
         lambda p: p.complete_text('{"q": 1}', max_tokens=50, stage="speaker_naming"),
         "speaker_naming",
     ),
-    "detect_speakers": (
-        lambda p: p.detect_speakers("Ep 1 with Maria Lindqvist", "A talk.", {"Tobias Wren"}),
-        "speaker_detection",
-    ),
-    "classify_insights": (
-        lambda p: p.classify_insights(["Soil health drives yield.", "Water is scarce."]),
-        "gi",
-    ),
     "extract_kg_graph": (lambda p: p.extract_kg_graph(TRANSCRIPT, episode_title="Ep 1"), "kg"),
-    "summarize_mega_bundled": (lambda p: p.summarize_mega_bundled(TRANSCRIPT), "summarization"),
-    "summarize_extraction_bundled": (
-        lambda p: p.summarize_extraction_bundled(TRANSCRIPT),
-        "extraction_bundle",
-    ),
-    "summarize_bundled": (lambda p: p.summarize_bundled(TRANSCRIPT), "summarization"),
-    "extract_quotes": (
-        lambda p: p.extract_quotes(TRANSCRIPT, "Farming is changing fast."),
-        "extract_quotes",
-    ),
-    "score_entailment": (
-        lambda p: p.score_entailment(TRANSCRIPT, "Farming is changing fast."),
-        "score_entailment",
-    ),
 }
-# Ollama has no mega or extraction bundle (llm_pipeline_mode falls back to staged there).
-NOT_IMPLEMENTED = {("ollama", "summarize_mega_bundled"), ("ollama", "summarize_extraction_bundled")}
+# The GI, naming and bundle methods are the extension's (E04 move); their events are checked
+# where those methods live.
+NOT_IMPLEMENTED: set = set()
 
 
 def _provider(e2e_server: Any, name: str, tmp_path: Path) -> Any:

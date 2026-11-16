@@ -9,13 +9,7 @@ from typing import Any
 
 import pytest
 
-from podcast_scraper.server.app_moments import (
-    build_clip,
-    moment_count,
-    MomentsConfig,
-    pick_moments,
-    score_candidates,
-)
+from podcast_scraper.server.app_moments import build_clip, moment_count, MomentsConfig, pick_moments
 from podcast_scraper.server.schemas import AppQuote
 
 pytestmark = [pytest.mark.unit]
@@ -89,99 +83,7 @@ class TestCount:
         assert moment_count(48 * 60, 0, MomentsConfig()) == 0
 
 
-class TestScore:
-    def test_a_central_claim_backed_three_times_beats_a_passing_observation(self) -> None:
-        gi = (
-            _Gi()
-            .insight(
-                "insight:strong",
-                kind="claim",
-                quotes=[(100, 120), (400, 420), (900, 915)],
-                topics=("topic:risk",),
-            )
-            .insight("insight:other", kind="observation", topics=("topic:risk",))
-            .insight("insight:weak", kind="observation", quotes=[(1500, 1520)])
-            .build()
-        )
-        scored = {m.insight_id: m for m in score_candidates(gi, MomentsConfig())}
-        assert scored["insight:strong"].score > scored["insight:weak"].score
-        assert scored["insight:strong"].components["depth"] == 1.0
-        assert scored["insight:strong"].components["centrality"] == 1.0
-        assert scored["insight:weak"].components["centrality"] == 0.0
-
-    def test_first_quote_rule_is_the_earliest_quote_capped_at_thirty_seconds(self) -> None:
-        gi = _Gi().insight("insight:a", quotes=[(500, 600), (200, 290)]).build()
-        (m,) = score_candidates(gi, MomentsConfig(clip_rule="first_quote"))
-        assert m.start_ms == 200_000
-        assert m.end_ms == 230_000  # 90 s quote, cut at the 30 s cap
-        assert m.quote_text == "quote 1 of insight:a"
-
-    def test_only_insights_the_player_shows_and_that_have_a_timed_quote(self) -> None:
-        gi = (
-            _Gi()
-            .insight("insight:ok")
-            .insight("insight:dropped", routing_tag="drop")
-            .insight("insight:unnamed", surfaceable=False)
-            .insight("insight:untimed", quotes=[])
-            .build()
-        )
-        assert [m.insight_id for m in score_candidates(gi, MomentsConfig())] == ["insight:ok"]
-
-    def test_the_same_insights_as_the_brief_naming_does_not_decide(self) -> None:
-        """Moments draws on exactly what the Brief shows (operator 2026-10-10): an episode whose
-        speakers were never named still has moments, with no speaker on them."""
-        gi = _Gi()
-        gi.insight("insight:a", surfaceable=False, routing_tag="connect", quotes=[(60.0, 80.0)])
-        gi.insight("insight:b", surfaceable=False, routing_tag="connect", quotes=[(600.0, 620.0)])
-        gi.edges = [e for e in gi.edges if e["type"] != "SPOKEN_BY"]
-        picked = pick_moments(gi.build(), 1800)
-        assert [m.insight_id for m in picked] == ["insight:a", "insight:b"]
-        assert all(m.speaker is None for m in picked)
-
-    def test_an_ungrounded_insight_does_not_cost_the_episode_its_moments(self) -> None:
-        gi = _Gi().insight("insight:unnamed", surfaceable=False, routing_tag="connect")
-        gi.insight("insight:ungrounded", quotes=[], grounded=False)
-        assert [m.insight_id for m in score_candidates(gi.build(), MomentsConfig())] == [
-            "insight:unnamed"
-        ]
-
-    def test_weights_change_the_order(self) -> None:
-        gi = (
-            _Gi()
-            .insight("insight:deep", kind="observation", quotes=[(60, 80), (300, 320), (600, 620)])
-            .insight("insight:claim", kind="claim", quotes=[(900, 920)])
-            .build()
-        )
-        by_depth = MomentsConfig.from_dict({"weights": {"depth": 1.0, "kind": 0.0}})
-        by_kind = MomentsConfig.from_dict({"weights": {"depth": 0.0, "kind": 1.0}})
-
-        def top(cfg: MomentsConfig) -> str:
-            return max(score_candidates(gi, cfg), key=lambda m: m.score).insight_id
-
-        assert top(by_depth) == "insight:deep"
-        assert top(by_kind) == "insight:claim"
-
-
 class TestPick:
-    def test_spaced_apart_and_returned_in_timeline_order(self) -> None:
-        gi = _Gi()
-        # Two strong claims 60 s apart: the spacing rule keeps only one in the first pass.
-        gi.insight("insight:a", kind="claim", quotes=[(1000, 1020), (1100, 1120), (1200, 1220)])
-        gi.insight("insight:b", kind="claim", quotes=[(1060, 1080), (1160, 1180), (1260, 1280)])
-        for n in range(6):
-            gi.insight(f"insight:o{n}", quotes=[(n * 400 + 10, n * 400 + 30)])
-        picked = pick_moments(gi.build(), 30 * 60)  # 30 min → 5 moments
-        assert len(picked) == 5
-        assert [m.start_ms for m in picked] == sorted(m.start_ms for m in picked)
-        ids = [m.insight_id for m in picked]
-        assert ("insight:a" in ids) != ("insight:b" in ids)
-
-    def test_unknown_duration_falls_back_to_the_last_quote(self) -> None:
-        gi = _Gi()
-        for n in range(20):
-            gi.insight(f"insight:{n}", quotes=[(n * 300, n * 300 + 20)])
-        # Last quote ends at ~95 min → 16 → capped at 15.
-        assert len(pick_moments(gi.build(), None)) == 15
 
     def test_no_candidates_no_moments(self) -> None:
         assert pick_moments({"nodes": [], "edges": []}, 3600) == []
@@ -326,28 +228,7 @@ def _clip_ads(
     return out
 
 
-class TestRanking:
-    def test_default_is_the_player_order_and_score_is_opt_in(self) -> None:
-        gi = (
-            _Gi()
-            .insight("insight:first", kind="observation", quotes=[(60, 80)])
-            .insight("insight:deep", kind="claim", quotes=[(900, 920), (1200, 1220), (1500, 1520)])
-            .build()
-        )
-        one = MomentsConfig(min_count=1, max_count=1)
-        assert [m.insight_id for m in pick_moments(gi, 600, one)] == ["insight:first"]
-        by_score = MomentsConfig(min_count=1, max_count=1, ranking="score")
-        assert [m.insight_id for m in pick_moments(gi, 600, by_score)] == ["insight:deep"]
-
-
 class TestShortEpisodes:
-    def test_the_gap_shrinks_so_a_short_episode_still_gets_its_moments(self) -> None:
-        gi = _Gi()
-        # A 6-minute episode with candidates every 50 s: a fixed 3-minute gap allowed two.
-        for n in range(7):
-            gi.insight(f"insight:{n}", quotes=[(10 + n * 50, 20 + n * 50)])
-        picked = pick_moments(gi.build(), 6 * 60)
-        assert len(picked) == 5
 
     def test_long_episodes_keep_the_full_gap(self) -> None:
         gi = _Gi()

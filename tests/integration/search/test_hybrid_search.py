@@ -121,7 +121,7 @@ def test_grounded_flag_roundtrips_through_lancedb(tmp_path):
     grounded = {r.doc_id: r.metadata.get("grounded") for r in rows}
     assert grounded.get("insight:grounded") is True
     assert grounded.get("insight:ungrounded") is False
-    # The grounded_only filter (explore.py: `if grounded_only and not ins.grounded`) keeps only the
+    # The grounded_only filter (`if grounded_only and not ins.grounded`) keeps only the
     # grounded row — before #19 the flag was absent so EVERY insight was dropped.
     kept = [r.doc_id for r in rows if r.metadata.get("grounded")]
     assert kept == ["insight:grounded"]

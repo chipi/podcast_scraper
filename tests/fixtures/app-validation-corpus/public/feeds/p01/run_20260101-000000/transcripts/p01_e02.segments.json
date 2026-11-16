@@ -1,0 +1,290 @@
+[
+  {
+    "end": 11.935,
+    "id": 0,
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here."
+  },
+  {
+    "end": 14.836,
+    "id": 1,
+    "start": 11.935,
+    "text": "Thanks, Maya. Great to be back."
+  },
+  {
+    "end": 22.827,
+    "id": 2,
+    "start": 14.836,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Try linear.com today."
+  },
+  {
+    "end": 30.947,
+    "id": 3,
+    "start": 22.827,
+    "text": "Before we get into it — Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice."
+  },
+  {
+    "end": 35.419,
+    "id": 4,
+    "start": 30.947,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 41.242,
+    "id": 5,
+    "start": 35.419,
+    "text": "I want to flag something — Liam Verbeck mentioned this same dynamic a couple episodes back."
+  },
+  {
+    "end": 46.745,
+    "id": 6,
+    "start": 41.242,
+    "text": "Walk me through a concrete example. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "end": 60.521,
+    "id": 7,
+    "start": 46.745,
+    "text": "Honestly, Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 65.334,
+    "id": 8,
+    "start": 60.521,
+    "text": "I want to dig into that. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "end": 75.998,
+    "id": 9,
+    "start": 65.334,
+    "text": "Sure. Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 80.366,
+    "id": 10,
+    "start": 75.998,
+    "text": "Let's start there. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "end": 96.29,
+    "id": 11,
+    "start": 80.366,
+    "text": "Honestly, Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 97.753,
+    "id": 12,
+    "start": 96.29,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 106.432,
+    "id": 13,
+    "start": 97.753,
+    "text": "Cascadia Alliance is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 111.97,
+    "id": 14,
+    "start": 106.432,
+    "text": "What's the one heuristic you keep coming back to? How does Spoke & Wrench fit into this picture?"
+  },
+  {
+    "end": 124.236,
+    "id": 15,
+    "start": 111.97,
+    "text": "Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 131.893,
+    "id": 16,
+    "start": 124.236,
+    "text": "Before we keep going — head over to our sponsor's website if you want to support the show. Strava is the home for athletes."
+  },
+  {
+    "end": 135.441,
+    "id": 17,
+    "start": 131.893,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 147.649,
+    "id": 18,
+    "start": 135.441,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial."
+  },
+  {
+    "end": 149.154,
+    "id": 19,
+    "start": 147.649,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 154.092,
+    "id": 20,
+    "start": 149.154,
+    "text": "I want to dig into that. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 170.292,
+    "id": 21,
+    "start": 154.092,
+    "text": "Let me give you the version I actually believe. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 176.516,
+    "id": 22,
+    "start": 170.292,
+    "text": "What does the failure mode look like? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 187.86,
+    "id": 23,
+    "start": 176.516,
+    "text": "Yeah, so — Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 193.213,
+    "id": 24,
+    "start": 187.86,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 208.586,
+    "id": 25,
+    "start": 193.213,
+    "text": "Yeah, so — Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 209.887,
+    "id": 26,
+    "start": 208.586,
+    "text": "Say more about that."
+  },
+  {
+    "end": 219.297,
+    "id": 27,
+    "start": 209.887,
+    "text": "Cascadia Alliance is one of the platforms where this shows up cleanly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 223.444,
+    "id": 28,
+    "start": 219.297,
+    "text": "Let's start there. What's the most underrated piece of enduro racing?"
+  },
+  {
+    "end": 234.209,
+    "id": 29,
+    "start": 223.444,
+    "text": "It comes down to this: Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 238.53,
+    "id": 30,
+    "start": 234.209,
+    "text": "Let's pivot — risk management is where I want to spend the last stretch."
+  },
+  {
+    "end": 246.574,
+    "id": 31,
+    "start": 238.53,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "end": 252.705,
+    "id": 32,
+    "start": 246.574,
+    "text": "What does the failure mode look like? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 266.329,
+    "id": 33,
+    "start": 252.705,
+    "text": "Sure. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 271.53,
+    "id": 34,
+    "start": 266.329,
+    "text": "Walk me through a concrete example. What's the most underrated piece of enduro racing?"
+  },
+  {
+    "end": 282.097,
+    "id": 35,
+    "start": 271.53,
+    "text": "Yeah, so — Tire pressure and casing choice often matter more than a minor suspension tweak. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 287.45,
+    "id": 36,
+    "start": 282.097,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 304.88,
+    "id": 37,
+    "start": 287.45,
+    "text": "Let me give you the version I actually believe. Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 305.751,
+    "id": 38,
+    "start": 304.88,
+    "text": "That tracks."
+  },
+  {
+    "end": 315.255,
+    "id": 39,
+    "start": 305.751,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible — I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 321.281,
+    "id": 40,
+    "start": 315.255,
+    "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 332.594,
+    "id": 41,
+    "start": 321.281,
+    "text": "Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 336.473,
+    "id": 42,
+    "start": 332.594,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 342.166,
+    "id": 43,
+    "start": 336.473,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 351.204,
+    "id": 44,
+    "start": 342.166,
+    "text": "And finally, a big thank you to our partners at Vanta. Vanta automates SOC 2 and ISO compliance. Check out vanta.com."
+  },
+  {
+    "end": 354.526,
+    "id": 45,
+    "start": 351.204,
+    "text": "Sophie Lorenz, thanks for the conversation."
+  },
+  {
+    "end": 356.011,
+    "id": 46,
+    "start": 354.526,
+    "text": "Thanks, Maya."
+  },
+  {
+    "end": 360.79,
+    "id": 47,
+    "start": 356.011,
+    "text": "That's it for today's episode of Singletrack Sessions. See you next time."
+  }
+]

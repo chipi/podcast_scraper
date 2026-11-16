@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.audio_sync import drift
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 from podcast_scraper.providers.resilience import sockets
 
@@ -28,10 +27,6 @@ def fake_ffprobe(monkeypatch, tmp_path: Path) -> Path:
     fake.chmod(0o755)
     monkeypatch.setenv("PATH", f"{tmp_path}:/usr/bin:/bin")
     return tmp_path
-
-
-def test_drift_served_seconds(fake_ffprobe: Path) -> None:
-    assert drift._served_seconds(str(fake_ffprobe / "ep.mp3"), timeout=10) == pytest.approx(1834.5)
 
 
 def test_mistral_probe_audio_duration(fake_ffprobe: Path) -> None:

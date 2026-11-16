@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from platformdirs import user_cache_dir, user_data_dir
 
 from .. import config
+from .corpus_walk import SOURCES_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +237,35 @@ def corpus_feed_output_dir(corpus_parent: str, rss_url: str) -> str:
     parent = validate_and_normalize_output_dir(corpus_parent)
     leaf = os.path.join(parent, "feeds", feed_workspace_dirname(rss_url))
     return validate_and_normalize_output_dir(leaf)
+
+
+def corpus_source_output_dir(
+    corpus_parent: str, source_url: str, content_type: Optional[str] = None
+) -> str:
+    """A source's workspace in the corpus: ``feeds/<slug>/`` for a podcast (no type, or
+    ``podcast_episode``), ``sources/<type>/<slug>/`` for any other type; the same slug either way.
+    """
+    if not content_type or content_type == "podcast_episode":
+        return corpus_feed_output_dir(corpus_parent, source_url)
+    parent = validate_and_normalize_output_dir(corpus_parent)
+    leaf = os.path.join(
+        parent, SOURCES_DIR, sanitize_filename(content_type), feed_workspace_dirname(source_url)
+    )
+    return validate_and_normalize_output_dir(leaf)
+
+
+def corpus_root_of_workspace(workspace: Path) -> Optional[Path]:
+    """The corpus root a source's workspace sits in: ``<root>/feeds/<slug>`` for a podcast,
+    ``<root>/sources/<type>/<slug>`` for another type; ``None`` for any other path."""
+    if workspace.parent.name == "feeds" and workspace.parent.parent.name:
+        return workspace.parent.parent
+    if (
+        workspace.parent.parent.name == SOURCES_DIR
+        and workspace.parent.name
+        and workspace.parent.parent.parent.name
+    ):
+        return workspace.parent.parent.parent
+    return None
 
 
 def derive_output_dir(rss_url: str, override: Optional[str]) -> str:

@@ -7,7 +7,6 @@ using factory functions to create providers (tests factory integration).
 For standalone provider tests, see test_mistral_provider.py.
 """
 
-import json
 import os
 import unittest
 from unittest.mock import Mock, patch
@@ -15,7 +14,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 pytestmark = [pytest.mark.integration, pytest.mark.module_mistral_providers]
@@ -35,58 +33,6 @@ class TestMistralSpeakerDetectorFactory(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_provider_initialization(self, mock_mistral_class):
-        """Test that Mistral speaker detector initializes correctly via factory."""
-        mock_client = Mock()
-        mock_mistral_class.return_value = mock_client
-
-        detector = create_speaker_detector(self.cfg)
-        detector.initialize()
-
-        # Verify client was created with API key
-        mock_mistral_class.assert_called_once()
-        self.assertTrue(detector._speaker_detection_initialized)
-
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_detect_speakers_success(self, mock_render_prompt, mock_mistral_class):
-        """Test successful speaker detection via Mistral API via factory."""
-        mock_client = Mock()
-        mock_mistral_class.return_value = mock_client
-
-        # Mock Mistral API response
-        # Mistral uses client.chat.complete() not completions.create()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message = Mock()
-        mock_response.choices[0].message.content = json.dumps(
-            {
-                "speakers": ["John Doe"],
-                "hosts": ["John Doe"],
-                "guests": [],
-            }
-        )
-        mock_response.usage = Mock()
-        mock_response.usage.prompt_tokens = 100
-        mock_response.usage.completion_tokens = 50
-        mock_client.chat.complete.return_value = mock_response
-
-        # Mock prompt rendering
-        mock_render_prompt.side_effect = ["System prompt", "User prompt"]
-
-        detector = create_speaker_detector(self.cfg)
-        detector.initialize()
-
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with John Doe",
-            episode_description="A test episode",
-            known_hosts={"John Doe"},
-        )
-
-        self.assertEqual(detected_hosts, {"John Doe"})
-        self.assertTrue(success)
-
     def test_detect_speakers_missing_api_key(self):
         """Test that missing API key raises ValidationError."""
         from pydantic import ValidationError
@@ -105,15 +51,6 @@ class TestMistralSpeakerDetectorFactory(unittest.TestCase):
             # Restore original environment variable if it existed
             if original_key is not None:
                 os.environ["MISTRAL_API_KEY"] = original_key
-
-    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
-    def test_factory_creates_mistral_detector(self, mock_mistral):
-        """Test that factory creates Mistral speaker detector."""
-        mock_client = Mock()
-        mock_mistral.return_value = mock_client
-        detector = create_speaker_detector(self.cfg)
-        # Factory returns unified MistralProvider
-        self.assertEqual(detector.__class__.__name__, "MistralProvider")
 
 
 @pytest.mark.llm

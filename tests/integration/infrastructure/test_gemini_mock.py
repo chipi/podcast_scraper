@@ -22,7 +22,6 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
@@ -114,48 +113,3 @@ class TestGeminiE2EServerIntegration:
 
         # Clean up provider
         provider.cleanup()
-
-    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_gemini_speaker_detector_uses_e2e_server(self, mock_genai, e2e_server):
-        """Test that Gemini speaker detector can be used with E2E server."""
-        import json
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            gemini_api_key="test-api-key-123",
-            gemini_api_base=e2e_server.urls.gemini_api_base(),  # Use E2E server
-            speaker_detector_provider="gemini",
-            auto_speakers=True,
-        )
-
-        # Mock Client API
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.text = json.dumps(
-            {
-                "speakers": ["Alice", "Bob"],
-                "hosts": ["Alice"],
-                "guests": ["Bob"],
-            }
-        )
-        mock_client.models.generate_content.return_value = mock_response
-        mock_genai.Client.return_value = mock_client
-
-        detector = create_speaker_detector(cfg)
-        detector.initialize()
-
-        # Detect speakers should work with mocked SDK
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with Alice and Bob",
-            episode_description="Alice interviews Bob about their work",
-            known_hosts={"Alice"},
-        )
-
-        # Verify speakers are returned
-        assert isinstance(speakers, list)
-        assert len(speakers) > 0
-        assert isinstance(detected_hosts, set)
-        assert isinstance(success, bool)
-
-        # Clean up detector
-        detector.cleanup()

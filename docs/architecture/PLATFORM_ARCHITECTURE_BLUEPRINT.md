@@ -416,7 +416,7 @@ transcription job. Each stage targets the worker pool with the right resource pr
 | Queue | Payload | Worker pool | Concurrency |
 | --- | --- | --- | --- |
 | **`ingest`** | Poll RSS, download audio/transcripts | `worker-io` | High (I/O-bound) |
-| **`transcribe`** | Whisper / diarization (RFC-058) | `worker-gpu` | 1 per GPU |
+| **`transcribe`** | Whisper / diarization | `worker-gpu` | 1 per GPU |
 | **`enrich`** | Summarize, GIL, KG, NLI, adaptive routing (RFC-053) | `worker-ml` | 2–4 (CPU/RAM) |
 | **`index`** | Embed + LanceDB upsert (RFC-090), vector index maintenance | `worker-ml` | Medium |
 | **`projection`** | Files → Postgres (RFC-051) | `worker-io` | Medium |
@@ -460,7 +460,7 @@ podcast scheduler              → Scheduler process (distributed tier only)
 - **Simple tier:** Full episode on `heavy` queue, concurrency 1 (or 2 if VRAM allows) per GPU.
   Other queues handle RSS/projection so they don't sit behind a Whisper pile.
 - **Distributed tier:** `transcribe` queue is GPU-exclusive; other stages flow freely.
-- When diarization (RFC-058, pyannote) is enabled, transcription time roughly doubles —
+- When diarization (pyannote) is enabled, transcription time roughly doubles —
   a strong trigger to move from simple to distributed tier.
 
 ### B.9 API + worker separation — timing
@@ -497,7 +497,7 @@ version. The image includes all dependencies (ML models, GPU libs, Python packag
 **When to split images:** Split into `podcast-scraper-gpu` and `podcast-scraper-base` when
 the GPU dependencies (CUDA runtime, cuDNN, PyTorch with CUDA) make the image > 8 GB and
 `worker-io` containers are paying for 4+ GB of unused GPU libraries. Expected timing:
-when adding pyannote (RFC-058) or when CUDA runtime pushes the image past the threshold.
+when adding pyannote or when CUDA runtime pushes the image past the threshold.
 
 | Image | Contains | Used by |
 | --- | --- | --- |
@@ -767,7 +767,7 @@ Today: **per-episode** artifacts only; no **first-class time-scoped cross-feed d
 | --- | --- | --- |
 | **Summaries** | Fast **consumption** | PRD-005, metadata |
 | **KG** | **Navigation** across episodes | PRD-019, RFC-055/056 |
-| **GIL** | **Value and trust** | PRD-017, RFC-049/050 |
+| **GIL** | **Value and trust** | PRD-017, the GIL core and use-case designs |
 | **Semantic search** | **Discovery** across corpus | PRD-021, RFC-061 |
 
 Digest features should assume these layers are **stable and versioned** before hard rollups.
@@ -888,7 +888,7 @@ current codebase (`providers/ml/`, `evaluation/`, `search/`, `gi/`, `kg/`):
 | Component | Models (from `model_registry.py`) | VRAM / RAM | GPU benefit | Typical duration |
 | --- | --- | --- | --- | --- |
 | **Whisper transcription** | `openai/whisper` (base/small/medium/large-v3) | 1–6 GB VRAM | **Critical** (10–40× faster) | 5–60 min per episode |
-| **Speaker diarization** | `pyannote/speaker-diarization-community-1` (v4; RFC-058, 3.1 fallback) | 2–4 GB VRAM | **Critical** | 2–10 min per episode |
+| **Speaker diarization** | `pyannote/speaker-diarization-community-1` (v4; 3.1 fallback) | 2–4 GB VRAM | **Critical** | 2–10 min per episode |
 | **Summarization (local)** | BART, DistilBART, PEGASUS, LED-16384 | 1–3 GB RAM/VRAM | Helpful (2–5× faster) | 30s–5 min per episode |
 | **Hybrid MAP-REDUCE** | LongT5 MAP + Ollama/FLAN-T5 REDUCE (RFC-042) | 2–6 GB RAM | Helpful | 1–5 min per episode |
 | **GIL extraction** | Provider-dependent (ML tier: FLAN-T5 + QA + NLI) | 2–4 GB RAM | Moderate | 1–3 min per episode |
@@ -2498,7 +2498,7 @@ This is a **v3.0 effort** -- after podcast capabilities are fully solid:
 | Prerequisite | Status |
 | --- | --- |
 | GI/KG Viewer v2 (RFC-062) | Shipped |
-| Canonical Identity Layer + bridge (RFC-072) | Shipped |
+| Canonical Identity Layer + bridge | Shipped |
 | Semantic search (RFC-061) | Shipped |
 | Enrichment layer (RFC-088 + v2 config surface) | Shipped |
 | Postgres projection (RFC-051) | Next major infrastructure |
@@ -2507,7 +2507,7 @@ This is a **v3.0 effort** -- after podcast capabilities are fully solid:
 
 **Parallel work during v2.x:** Keep module boundaries clean; design Postgres schema with
 generic `content_item_id` (not `episode_id`) in new tables; design adaptive routing to
-accept content type as an input dimension. RFC-072 and RFC-088 are already content-agnostic
+accept content type as an input dimension. The cross-layer identity design and RFC-088 are already content-agnostic
 by design -- their protocols work for any content type producing GIL/KG/bridge artifacts.
 
 ### G.8 Full specification
@@ -2544,7 +2544,6 @@ land as ADRs and RFCs in this repository.
 - [PRD-025: Corpus Intelligence Dashboard](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md)
 - [PRD-026: Topic Entity View](../prd/PRD-026-topic-entity-view.md)
 - [PRD-027: Enriched Search](../prd/PRD-027-enriched-search.md)
-- [PRD-028: Position Tracker](../prd/PRD-028-position-tracker.md)
 - [PRD-029: Person Profile](../prd/PRD-029-person-profile.md)
 
 ### Technical designs (RFCs)
@@ -2558,15 +2557,10 @@ land as ADRs and RFCs in this repository.
 - [RFC-042: Hybrid summarization pipeline](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - [RFC-043: Automated metrics alerts](../rfc/RFC-043-automated-metrics-alerts.md)
 - [RFC-044: Model registry](../rfc/RFC-044-model-registry.md)
-- [RFC-049: GIL core](../rfc/RFC-049-grounded-insight-layer-core.md)
-- [RFC-050: GIL use cases](../rfc/RFC-050-grounded-insight-layer-use-cases.md)
 - [RFC-051: Database projection](../rfc/RFC-051-database-projection-gil-kg.md)
 - [RFC-053: Adaptive summarization routing](../rfc/RFC-053-adaptive-summarization-routing.md)
 - [RFC-055: KG core](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - [RFC-056: KG use cases](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
-- [RFC-058: Audio speaker diarization](../rfc/RFC-058-audio-speaker-diarization.md)
-- [RFC-059: Speaker detection refactor](../rfc/RFC-059-speaker-detection-refactor-test-audio.md)
-- [RFC-060: Diarization-aware commercial cleaning](../rfc/RFC-060-diarization-aware-commercial-cleaning.md)
 - [RFC-061: Semantic corpus search (FAISS)](../rfc/RFC-061-semantic-corpus-search.md)
 - [RFC-062: GI/KG Viewer v2 & server architecture](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - [RFC-063: Multi-feed corpus, append/resume, and unified discovery](../rfc/RFC-063-multi-feed-corpus-append-resume.md)
@@ -2576,7 +2570,6 @@ land as ADRs and RFCs in this repository.
 - [RFC-069: Graph Exploration Toolkit](../rfc/RFC-069-graph-exploration-toolkit.md)
 - [RFC-070: Semantic corpus search -- platform & future](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - [RFC-071: Corpus Intelligence Dashboard](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)
-- [RFC-072: Canonical Identity Layer & cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
 - [RFC-088: Enrichment Layer architecture](../rfc/RFC-088-enrichment-layer-architecture.md)
 - [RFC-074: Process safety for ML workloads on macOS](../rfc/RFC-074-process-safety-ml-workloads-macos.md)
 
@@ -2590,7 +2583,6 @@ land as ADRs and RFCs in this repository.
 - [ADR-060: VectorStore protocol with backend abstraction](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)
 - [ADR-061: FAISS Phase 1](../adr/ADR-061-faiss-phase-1-with-post-filter-metadata.md)
 - [ADR-062: Sentence-boundary transcript chunking](../adr/ADR-062-sentence-boundary-transcript-chunking.md)
-- [ADR-063: Transparent semantic upgrade for gi explore](../adr/ADR-063-transparent-semantic-upgrade-for-gi-explore.md)
 - [ADR-064: Canonical server layer with feature-flagged routes](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)
 - [ADR-065: Vue 3 + Vite + Cytoscape frontend stack](../adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md)
 - [ADR-066: Playwright for UI E2E testing](../adr/ADR-066-playwright-for-ui-e2e-testing.md)
@@ -2609,7 +2601,6 @@ land as ADRs and RFCs in this repository.
 
 ### Guides
 
-- [Grounded Insights Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md)
 - [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md)
 - [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md)
 

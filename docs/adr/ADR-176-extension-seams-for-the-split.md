@@ -62,7 +62,20 @@ with no way to prove each caller on prod before the move.
    is what public alone shows.
 7. **Configuration and flags stay plain.** A stage's switches stay ordinary `Config` fields, so
    operator YAML and profiles keep working. A stage-owned value is validated through its hook (the
-   labeling profile through `stage_hooks.validate_labeling_profile`).
+   labeling profile through `stage_hooks.validate_labeling_profile`). Amended by
+   [ADR-182](ADR-182-extension-owned-configuration.md): a setting only an extension reads is
+   declared and validated by that extension, and that hook is gone.
+8. **Prompts and transcript cleaning are seams too** (added 2026-11-11, for what else leaves
+   public):
+   - **Prompts:** `Extension.prompt_dirs` adds prompt directories. The prompt store looks for a
+     template's exact name in every extension's directory, then this package's, and only then
+     for the shared summarization fallback in the same order. A template's recorded `file` is
+     relative to the directory it was found in, so this package's prompts record what they
+     recorded before.
+   - **Cleaning:** five single-owner stage hooks, `transcript_cleaner`, `clean_for_summary`,
+     `cleaning_context`, `remove_commercials` and `excise_crosspromo`, with today's cleaners and
+     ad steps as the built-in owner. Without an owner the pattern cleaner does generic cleaning
+     only: no commercial removal, no cross-promo excision.
 
 ## Consequences
 

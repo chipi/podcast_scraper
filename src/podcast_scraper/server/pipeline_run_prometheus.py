@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from podcast_scraper.utils.corpus_walk import prune_excluded_dirs
+from podcast_scraper.utils.corpus_walk import prune_corpus_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,8 @@ def discover_run_json_paths_in_mtime_window(
     out: list[Path] = []
     try:
         for dirpath, dirnames, filenames in os.walk(root_safe):
-            prune_excluded_dirs(dirnames)
+            # Every run counts toward cost and volume, whatever its content type.
+            prune_corpus_dirs(root_safe, dirpath, dirnames, include_sources=True)
             if "run.json" not in filenames:
                 continue
             candidate = os.path.normpath(os.path.join(dirpath, "run.json"))

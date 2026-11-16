@@ -43,26 +43,8 @@ def test_the_pipeline_cut_is_the_evidence_when_it_is_on_disk() -> None:
     assert ad_spans_from_segments(EPISODE, adfree) == [(12_000, 18_000), (42_000, 54_000)]
 
 
-def test_without_it_the_detector_marks_the_reads_not_the_content_between_them() -> None:
-    """The detector's range here is 0-54 s; the points at 24 and 36 s are not ads."""
-    spans = ad_spans_from_segments(EPISODE, None)
-    assert spans == [(12_000, 18_000), (42_000, 54_000)]
-    assert not any(a < 30_000 and b > 24_000 for a, b in spans)
-
-
 def test_an_empty_adfree_file_is_not_an_episode_of_ads() -> None:
     assert ad_spans_from_segments(EPISODE, []) == ad_spans_from_segments(EPISODE, None)
-
-
-def test_a_read_split_over_three_lines_is_one_span() -> None:
-    tail = [
-        *EPISODE,
-        _seg(300, 303, "Today's episode is brought to you by Stripe."),
-        _seg(303, 309, "Stripe simplifies payments for marketplaces."),
-        _seg(309, 312, "Visit stripe.com/podcast for a free trial."),
-        _seg(312, 318, "That's it for today's episode. See you next time."),
-    ]
-    assert (300_000, 312_000) in ad_spans_from_segments(tail, None)
 
 
 def test_a_commercial_voice_is_an_ad_whatever_it_says() -> None:

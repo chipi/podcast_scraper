@@ -17,9 +17,6 @@ function stateWithEdges(
   return {
     allowedTypes: {},
     allowedEdgeTypes,
-    hideUngroundedInsights: false,
-    showGiLayer: true,
-    showKgLayer: true,
     graphFeedFilterId: null,
   }
 }

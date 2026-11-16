@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 
 import EpisodeDetailPanel from './EpisodeDetailPanel.vue'
+import { episodeDetailSections } from '../../extensions'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import type { CorpusEpisodeDetailResponse } from '../../api/corpusLibraryApi'
@@ -25,11 +27,6 @@ vi.mock('../../api/corpusLibraryApi', () => ({
 const fetchIndexStats = vi.fn()
 vi.mock('../../api/indexStatsApi', () => ({
   fetchIndexStats: (...a: unknown[]) => fetchIndexStats(...a),
-}))
-
-const fetchEpisodeRelatedInsights = vi.fn()
-vi.mock('../../api/relationalApi', () => ({
-  fetchEpisodeRelatedInsights: (...a: unknown[]) => fetchEpisodeRelatedInsights(...a),
 }))
 
 // ── Child stubs ──────────────────────────────────────────────────────────────
@@ -107,7 +104,6 @@ describe('EpisodeDetailPanel.vue', () => {
     fetchCorpusFeeds.mockResolvedValue({ path: '/corpus', feeds: [] })
     fetchIndexStats.mockResolvedValue({ available: true, stats: null })
     fetchCorpusSimilarEpisodes.mockResolvedValue(similarOk([]))
-    fetchEpisodeRelatedInsights.mockResolvedValue({ subject: 'ep-1', results: [] })
   })
 
   it('renders the "No episode selected" empty state with no focused episode', () => {
@@ -142,12 +138,16 @@ describe('EpisodeDetailPanel.vue', () => {
     expect(w.text()).toContain('No summary text in metadata.')
   })
 
-  it('disables "Open in graph" only when the episode has no GI/KG artifacts', async () => {
-    const { w } = await mountWithEpisode(detailOf({ has_gi: false, has_kg: false }))
-    const openBtn = w
-      .findAll('button')
-      .find((b) => b.text().includes('Open in graph'))!
-    expect(openBtn.attributes('disabled')).toBeDefined()
+  it('disables "Open in graph" when the episode has nothing the graph loads', async () => {
+    const openBtn = (w: Awaited<ReturnType<typeof mountWithEpisode>>['w']) =>
+      w.findAll('button').find((b) => b.text().includes('Open in graph'))!
+    const none = await mountWithEpisode(detailOf({ has_gi: false, has_kg: false }))
+    expect(openBtn(none.w).attributes('disabled')).toBeDefined()
+    // GI alone loads nothing here (the viewer's graph is KG; a downstream build adds GI paths).
+    const giOnly = await mountWithEpisode(detailOf({ has_gi: true, has_kg: false }))
+    expect(openBtn(giOnly.w).attributes('disabled')).toBeDefined()
+    const kg = await mountWithEpisode(detailOf({ has_gi: false, has_kg: true }))
+    expect(openBtn(kg.w).attributes('disabled')).toBeUndefined()
   })
 
   it('emits focus-search with feed + query from "Prefill semantic search"', async () => {
@@ -159,17 +159,6 @@ describe('EpisodeDetailPanel.vue', () => {
     const payload = ev![0][0] as { feed: string; query: string }
     expect(payload.feed).toBe('feed-a')
     expect(typeof payload.query).toBe('string')
-  })
-
-  it('emits switch-main-tab when a CIL topic pill is clicked', async () => {
-    const { w } = await mountWithEpisode(
-      detailOf({ cil_digest_topics: [{ topic_id: 'topic:oil', label: 'Oil' }] }),
-    )
-    await w.get('[data-testid="cil-pill"]').trigger('click')
-    // Flush the async openDetailCilTopicInGraph chain.
-    for (let i = 0; i < 6; i++) await w.vm.$nextTick()
-    expect(w.emitted('switch-main-tab')).toBeTruthy()
-    expect(w.emitted('switch-main-tab')![0]).toEqual(['graph'])
   })
 
   it('renders the similar-episodes empty state when the search runs with no matches', async () => {
@@ -211,25 +200,6 @@ describe('EpisodeDetailPanel.vue', () => {
     )
   })
 
-  it('renders related-insight rows from the relational layer', async () => {
-    fetchEpisodeRelatedInsights.mockResolvedValue({
-      subject: 'ep-1',
-      results: [
-        { id: 'i:1', type: 'Insight', text: 'A related insight', show_id: '', episode_id: 'ep-9' },
-      ],
-    })
-    const { w } = await mountWithEpisode(detailOf())
-    expect(w.find('[data-testid="episode-related-insights"]').exists()).toBe(true)
-    expect(w.findAll('[data-testid="episode-related-insights-row"]')).toHaveLength(1)
-    expect(w.text()).toContain('A related insight')
-  })
-
-  it('shows the related-insights error state when the relational fetch rejects', async () => {
-    fetchEpisodeRelatedInsights.mockRejectedValue(new Error('rel down'))
-    const { w } = await mountWithEpisode(detailOf())
-    expect(w.find('[data-testid="episode-related-insights"]').text()).toContain('rel down')
-  })
-
   // ── Rail tab branches (prop-driven) ─────────────────────────────────────────
 
   it('renders the neighbourhood tab slot when railNeighbourhoodEnabled + tab=neighbourhood', async () => {
@@ -263,5 +233,68 @@ describe('EpisodeDetailPanel.vue', () => {
     // Details stays mounted (v-show) but hidden; enrichment section lives only here.
     expect(w.find('#episode-detail-rail-panel-details').exists()).toBe(true)
     expect(w.find('#episode-detail-rail-panel-neighbourhood').exists()).toBe(false)
+  })
+
+  describe('episodeDetailSections', () => {
+    afterEach(() => episodeDetailSections.reset())
+
+    function section(region: 'summary-head' | 'end' | 'enrichment') {
+      return defineComponent({
+        props: { detail: { type: Object, required: true }, corpusPath: String },
+        setup(p) {
+          return () =>
+            h('div', { 'data-testid': `ext-${region}` }, `${p.detail.episode_id}@${p.corpusPath}`)
+        },
+      })
+    }
+
+    it('renders a registered section in each region with the episode and the corpus', async () => {
+      for (const region of ['summary-head', 'end', 'enrichment'] as const) {
+        episodeDetailSections.register({ id: region, region, component: section(region) })
+      }
+      const { w } = await mountWithEpisode(detailOf(), { railDetailTab: 'details' })
+      const details = w.find('#episode-detail-rail-panel-details')
+      expect(details.find('[data-testid="ext-summary-head"]').text()).toBe('ep-1@/corpus')
+      expect(details.find('[data-testid="ext-end"]').text()).toBe('ep-1@/corpus')
+      expect(w.find('#episode-detail-rail-panel-enrichment [data-testid="ext-enrichment"]').text()).toBe(
+        'ep-1@/corpus',
+      )
+    })
+
+    it('passes a section’s switch-main-tab and an Enrichment section’s has-content up', async () => {
+      episodeDetailSections.register({
+        id: 'head',
+        region: 'summary-head',
+        component: defineComponent({
+          props: ['detail', 'corpusPath'],
+          emits: ['switch-main-tab'],
+          setup(_p, { emit }) {
+            return () =>
+              h('button', { 'data-testid': 'ext-go', onClick: () => emit('switch-main-tab', 'graph') })
+          },
+        }),
+      })
+      episodeDetailSections.register({
+        id: 'enr',
+        region: 'enrichment',
+        component: defineComponent({
+          props: ['detail', 'corpusPath'],
+          emits: ['has-content'],
+          setup(_p, { emit }) {
+            emit('has-content', true)
+            return () => h('div')
+          },
+        }),
+      })
+      const { w } = await mountWithEpisode(detailOf())
+      await w.get('[data-testid="ext-go"]').trigger('click')
+      expect(w.emitted('switch-main-tab')?.[0]).toEqual(['graph'])
+      expect(w.emitted('enrichment-has-content')?.[0]).toEqual([true])
+    })
+
+    it('renders nothing extra when nothing is registered', async () => {
+      const { w } = await mountWithEpisode(detailOf())
+      expect(w.find('[data-testid^="ext-"]').exists()).toBe(false)
+    })
   })
 })

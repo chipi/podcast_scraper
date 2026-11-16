@@ -10,7 +10,8 @@
  * - 9 episodes across 5 feeds (~270 cy nodes after GI+KG merge)
  * - 150 topic clusters defined; compound parents formed for any cluster
  *   whose members are present in cy
- * - GI + KG both populated per episode → triggers KG second-wave merge
+ * - KG per episode; with `giArtifactsDir` (a downstream build's GI artifacts) GI too, which
+ *   triggers the KG second-wave merge
  * - 1–3 s layout times → exposes supersession races
  *
  * Re-exports ``assertHandoffApplied`` / ``assertFsmEventEnvelope`` /
@@ -58,6 +59,22 @@ interface Manifest {
   }
 }
 
+/** A KG-only corpus's payloads: every `gi_relative_path` null and `has_gi` false, at any depth. */
+function withoutGiUnless(withGi: boolean, value: unknown): unknown {
+  if (withGi) return value
+  if (Array.isArray(value)) return value.map((v) => withoutGiUnless(false, v))
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) {
+      if (k === 'gi_relative_path') out[k] = null
+      else if (k === 'has_gi') out[k] = false
+      else out[k] = withoutGiUnless(false, v)
+    }
+    return out
+  }
+  return value
+}
+
 let cachedManifest: Manifest | null = null
 function manifest(): Manifest {
   if (!cachedManifest) {
@@ -83,6 +100,12 @@ export async function setupProductionShapedMocks(
      * have a window to fire. Default 0 — pure mock speed.
      */
     artifactLatencyMs?: number
+    /**
+     * A directory holding `<episode_id>.gi.json` for the fixture's episodes. Without it the corpus
+     * is KG-only: no GI artifacts, `artifact_kinds: ['kg']`, and no GI paths in the episode,
+     * detail and digest payloads.
+     */
+    giArtifactsDir?: string
   },
 ): Promise<void> {
   const artifactDelayMs = opts?.artifactLatencyMs ?? 0
@@ -91,7 +114,8 @@ export async function setupProductionShapedMocks(
   const epIds = new Set(m.picked.episodes.map((e) => e.episode_id))
 
   // Map metadata_relative_path → episode for the detail endpoint.
-  const detailsByPath = readFixtureJson('corpus/episode-details.json') as Record<
+  const withGi = Boolean(opts?.giArtifactsDir)
+  const detailsByPath = withoutGiUnless(withGi, readFixtureJson('corpus/episode-details.json')) as Record<
     string,
     unknown
   >
@@ -101,7 +125,9 @@ export async function setupProductionShapedMocks(
   for (const ep of m.picked.episodes) {
     if (ep.gi_relative_path) {
       try {
-        giByEpId.set(ep.episode_id, readFixtureText(`artifacts/${ep.episode_id}.gi.json`))
+        if (opts?.giArtifactsDir) {
+          giByEpId.set(ep.episode_id, readFileSync(path.join(opts.giArtifactsDir, `${ep.episode_id}.gi.json`), 'utf-8'))
+        }
       } catch {
         /* skip — fixture may have skipped this episode */
       }
@@ -118,8 +144,8 @@ export async function setupProductionShapedMocks(
 
   // Pre-load static endpoint payloads.
   const feedsBody = readFixtureText('corpus/feeds.json')
-  const episodesBody = readFixtureText('corpus/episodes.json')
-  const digestBody = readFixtureText('corpus/digest.json')
+  const episodesBody = JSON.stringify(withoutGiUnless(withGi, readFixtureJson('corpus/episodes.json')))
+  const digestBody = JSON.stringify(withoutGiUnless(withGi, readFixtureJson('corpus/digest.json')))
   const statsBody = readFixtureText('corpus/stats.json')
   const coverageBody = readFixtureText('corpus/coverage.json')
   const personsTopBody = readFixtureText('corpus/persons-top.json')
@@ -145,6 +171,7 @@ export async function setupProductionShapedMocks(
         corpus_digest_api: true,
         cil_queries_api: true,
         search_api: true,
+        artifact_kinds: withGi ? ['gi', 'kg'] : ['kg'],
       }),
     }),
   )

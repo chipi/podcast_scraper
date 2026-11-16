@@ -59,14 +59,12 @@ Verified by `git grep -c "pytest.mark.<name>" -- tests/` returning zero files fo
 Either wire one to real tests or drop the declaration; do not leave a selector advertising
 a suite that does not exist.
 
-**Tests that cannot fail.** Three wrap the call in `try/except`, swallow the exception and
-assert nothing — they pass whether the code works or not:
+**Tests that cannot fail.** One wraps the call in `try/except`, swallows the exception and
+asserts nothing — it passes whether the code works or not:
 
 | Test | Location |
 | ---- | -------- |
 | `test_pipeline_handles_invalid_config_gracefully` | `tests/e2e/test_pipeline_error_recovery_e2e.py:448` |
-| `test_cleanup_after_failed_initialization` | `tests/integration/providers/test_provider_error_handling_extended.py:98` |
-| `test_provider_cleanup_on_exception` | `tests/integration/providers/test_provider_error_handling_extended.py:467` |
 
 Each needs a decision about what it was meant to prove before it can be strengthened —
 which is why they are listed rather than deleted.
@@ -188,20 +186,17 @@ indexing**, or **search response shape**.
 
 | Change area | Suggested checks |
 | ----------- | ---------------- |
-| GIL pipeline, `gi.json`, `gi` CLI | `make test-unit -k gi` (or scoped paths), `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`gi validate` smoke); see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
+| GIL pipeline, `gi.json`, `gi` CLI | `make test-unit -k gi` (or scoped paths), `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`gi validate` smoke); see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017) |
 | KG pipeline, `kg` CLI | `tests/unit/kg/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`kg validate` / `kg inspect`) |
-| `bridge.json` builder | `tests/unit/builders/test_bridge_builder.py`, `tests/unit/builders/test_bridge_artifact_paths.py` |
-| CIL query helpers / HTTP | `tests/integration/server/test_cil_queries.py`, `tests/integration/server/test_cil_api.py` |
-| Transcript search + **lift** + offset math | `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`, `tests/integration/server/test_viewer_search.py` |
+| CIL query helpers | `tests/integration/server/test_cil_queries.py` |
+| Transcript search | `tests/integration/server/test_viewer_search.py` |
 | Viewer merge / bridge TS | `make test-ui`; UX changes also `make test-ui-e2e` + [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) |
 
 **Corpus-level gate (indexed run only):** `make verify-gil-offsets-strict` runs
 `verify-gil-chunk-offsets` with **`--strict`** and **`--min-overlap-rate 0.95`** (override
 **`GIL_OFFSET_VERIFY_DIR`**). Use after acceptance or nightly jobs that produce
 **`search/metadata.json`** + GI quotes, not as a substitute for pytest on every PR without
-such a tree. Rationale: [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md).
-
-**Single overview:** [GIL / KG / CIL cross-layer guide](GIL_KG_CIL_CROSS_LAYER.md).
+such a tree.
 
 **Nightly** (`.github/workflows/nightly.yml`): **`nightly-viewer-unit`** and
 **`nightly-viewer-e2e`** run the same Vitest / Playwright commands on every scheduled or
@@ -779,8 +774,8 @@ that no read path consults `is_language_enabled` lives in
 ### Language-specific data is a MAP, never a list
 
 Detector vocabularies are keyed by language —
-`gi.filters.AD_PATTERNS_BY_LANGUAGE`, `speaker_detectors.constants.INTERVIEW_*_BY_LANGUAGE`,
-`speaker_detectors.hosts._{HOST,GUEST}_SPEECH_ACTS_BY_LANGUAGE` — because a flat list is a list in
+the GI filters' `AD_PATTERNS_BY_LANGUAGE`, the speaker detector's `INTERVIEW_*_BY_LANGUAGE`,
+and its `_{HOST,GUEST}_SPEECH_ACTS_BY_LANGUAGE` — because a flat list is a list in
 one language wearing no label. Read against another language it matches nothing, and **zero hits
 is indistinguishable from "this episode has no ads / no guest"**: a confident wrong answer rather
 than a missing one. Lookups return empty/`None` for an unknown language rather than falling back to
@@ -821,7 +816,6 @@ test asserts the intersection equals each individual key set so the half-add is 
 
 | You are testing | Layer |
 | --------------- | ----- |
-| A vocabulary row is well-formed; the registry covers every enabled language; name cleanup keeps particles | **unit** — `test_detector_vocabulary_is_language_keyed.py` |
 | The committed fixtures actually trigger each detector per language | **unit** — `test_fixture_corpus_exercises_detectors.py` (reads authored transcripts, not the built corpus) |
 | Translation, the atomic swap, the completeness gate, the two index tiers | **integration** — `tests/integration/translation/`, `tests/integration/search/` |
 | Non-English **ASR** | **E2E** — and it has never run (#2187) |

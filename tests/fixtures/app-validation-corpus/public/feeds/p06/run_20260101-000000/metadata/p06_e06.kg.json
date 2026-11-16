@@ -1,0 +1,165 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:edge-cases",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:code-switching",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:canonical-labeling",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:edge-case-episode",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:language-alternation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:multilingual-input",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:parser-robustness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:processor-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:robustness-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:system-validation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:transcription-robustness",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-26eaa57651247221",
+  "extraction": {
+    "extracted_at": "2026-06-20T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e06.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-26eaa57651247221",
+      "properties": {
+        "podcast_id": "p06",
+        "publish_date": "2026-06-20T00:00:00",
+        "title": "Mixed Languages"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:edge-cases",
+      "properties": {
+        "label": "edge cases",
+        "slug": "edge-cases"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:code-switching",
+      "properties": {
+        "label": "code switching",
+        "slug": "code-switching"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:canonical-labeling",
+      "properties": {
+        "label": "canonical labeling",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:edge-case-episode",
+      "properties": {
+        "label": "edge case episode",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:language-alternation",
+      "properties": {
+        "label": "language alternation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:multilingual-input",
+      "properties": {
+        "label": "multilingual input",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:parser-robustness",
+      "properties": {
+        "label": "parser robustness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:processor-testing",
+      "properties": {
+        "label": "processor testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:robustness-testing",
+      "properties": {
+        "label": "robustness testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:system-validation",
+      "properties": {
+        "label": "system validation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:transcription-robustness",
+      "properties": {
+        "label": "transcription robustness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

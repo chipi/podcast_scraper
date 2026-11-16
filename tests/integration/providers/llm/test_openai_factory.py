@@ -7,7 +7,6 @@ using factory functions to create providers (tests factory integration).
 For standalone provider tests, see test_openai_provider.py.
 """
 
-import json
 import os
 import unittest
 from unittest.mock import MagicMock, Mock, patch
@@ -37,7 +36,6 @@ def tearDownModule():
 
 
 from podcast_scraper import config
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
@@ -137,52 +135,6 @@ class TestOpenAISpeakerDetectorFactory(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("openai.OpenAI")
-    @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_detect_speakers_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful speaker detection via OpenAI API via factory."""
-        # Mock OpenAI client and response
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
-
-        # Mock prompt rendering
-        mock_render_prompt.side_effect = [
-            "System prompt",  # system prompt
-            "User prompt",  # user prompt
-        ]
-
-        # Mock API response with JSON
-        mock_response = Mock()
-        mock_response.choices = [
-            Mock(
-                message=Mock(
-                    content=json.dumps(
-                        {
-                            "speakers": ["John Doe", "Jane Smith"],
-                            "hosts": ["John Doe"],
-                            "guests": ["Jane Smith"],
-                        }
-                    )
-                )
-            )
-        ]
-        mock_client.chat.completions.create.return_value = mock_response
-
-        detector = create_speaker_detector(self.cfg)
-        detector.initialize()
-
-        speakers, detected_hosts, success, _ = detector.detect_speakers(
-            episode_title="Test Episode with John Doe and Jane Smith",
-            episode_description="A test episode",
-            known_hosts={"John Doe"},
-        )
-
-        self.assertEqual(len(speakers), 2)
-        self.assertIn("John Doe", speakers)
-        self.assertIn("Jane Smith", speakers)
-        self.assertEqual(detected_hosts, {"John Doe"})
-        self.assertTrue(success)
-
     def test_detect_speakers_missing_api_key(self):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
@@ -201,12 +153,6 @@ class TestOpenAISpeakerDetectorFactory(unittest.TestCase):
             # Restore original environment variable if it existed
             if original_key is not None:
                 os.environ["OPENAI_API_KEY"] = original_key
-
-    def test_factory_creates_openai_detector(self):
-        """Test that factory creates OpenAI speaker detector."""
-        detector = create_speaker_detector(self.cfg)
-        # Factory now returns unified OpenAIProvider, not separate provider classes
-        self.assertEqual(detector.__class__.__name__, "OpenAIProvider")
 
 
 @pytest.mark.llm

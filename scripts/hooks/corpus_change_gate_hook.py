@@ -31,8 +31,14 @@ REPO = Path(__file__).resolve().parents[2]
 
 def _gate(root: Path):
     """``change_gate`` loaded from ``root``'s own file: importing the package would pull in its
-    whole ``__init__`` (yaml and the rest), which the system Python running this hook lacks."""
+    whole ``__init__`` (yaml and the rest), which the system Python running this hook lacks.
+
+    An extension's checkout keeps its own config and records but no copy of the gate: its content
+    code (moved here in E04 arc 2) is judged by this checkout's gate module.
+    """
     path = root / "src" / "podcast_scraper" / "quality" / "change_gate.py"
+    if not path.is_file():
+        path = REPO / "src" / "podcast_scraper" / "quality" / "change_gate.py"
     name = f"change_gate_{abs(hash(str(root)))}"
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
@@ -42,7 +48,7 @@ def _gate(root: Path):
     return mod
 
 
-_PY_PATH = r"(?:[\w./-]*/)?src/podcast_scraper/[\w./*-]+\.py"
+_PY_PATH = r"(?:[\w./-]*/)?src/\w+/[\w./*-]+\.py"
 #: Commands that rewrite the files they name: every guarded path in such a command is a target.
 _IN_PLACE = re.compile(
     r"\bsed\s+(?:-[a-zA-Z]*\s+)*-i|\bperl\s+-[a-z]*i|\bblack\b(?!.*--check)|"
@@ -109,14 +115,16 @@ def _deny(reason: str) -> None:
 
 def main() -> int:
     if "--staged" in sys.argv:
+        # --root: an extension's own commit hook gates that checkout with this gate.
+        root = Path(sys.argv[sys.argv.index("--root") + 1]) if "--root" in sys.argv else REPO
         out = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-            cwd=REPO,
+            cwd=root,
             capture_output=True,
             text=True,
             check=True,
         ).stdout.split()
-        problems = _gate(REPO).check_edit(REPO, out)
+        problems = _gate(root).check_edit(root, out)
         for p in problems:
             print(f"corpus change gate: {p}", file=sys.stderr)
         return 1 if problems else 0

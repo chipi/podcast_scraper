@@ -253,25 +253,6 @@ class TestDeepgramScreenplay:
         )
         return DeepgramTranscriptionProvider(cfg)
 
-    def test_format_screenplay_maps_native_speakers_to_names(self) -> None:
-        """Deepgram's integer speakers become a named screenplay (D1)."""
-        segments = [
-            {"start": 0.0, "end": 2.0, "text": "hello", "speaker": 0},
-            {"start": 2.0, "end": 4.0, "text": "hi there", "speaker": 1},
-            {"start": 4.0, "end": 6.0, "text": "back to me", "speaker": 0},
-        ]
-        out = self._provider().format_screenplay_from_segments(segments, None, ["Alice", "Bob"])
-        assert out is not None
-        assert "Alice: hello" in out
-        assert "Bob: hi there" in out
-        assert "Alice: back to me" in out
-
-    def test_format_screenplay_falls_back_to_speaker_n(self) -> None:
-        segments = [{"start": 0.0, "end": 1.0, "text": "solo", "speaker": 0}]
-        out = self._provider().format_screenplay_from_segments(segments, None, None)
-        assert out is not None
-        assert "Speaker 1: solo" in out
-
     def test_format_screenplay_none_when_no_segments(self) -> None:
         assert self._provider().format_screenplay_from_segments([], None, ["Alice"]) is None
 

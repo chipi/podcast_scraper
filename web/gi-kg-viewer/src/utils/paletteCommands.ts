@@ -118,12 +118,6 @@ export interface PaletteCommandDeps {
   openTimelineForLastQuery: () => Promise<void> | void
   /** A registered result-set operator, opened on the last query (by operator id). */
   openOperatorForLastQuery?: (id: string) => Promise<void> | void
-  /**
-   * #1259-4 compare kicker — open the Search tab on the most recent
-   * query and pop the Compare picker. Silent no-op when there is no
-   * recent query.
-   */
-  openCompareForLastQuery: () => Promise<void> | void
   /** True when the signed-in user is an admin. */
   isAdmin: boolean
 }
@@ -239,13 +233,6 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       category: 'operator',
       keywords: ['timeline', 'histogram', 'when', 'months', 'operator', 's4a'],
       run: () => deps.openTimelineForLastQuery(),
-    },
-    {
-      id: 'operator.compare-last',
-      label: 'Compare on last query',
-      category: 'operator',
-      keywords: ['compare', 'subjects', 'operator', 's8', 'briefing'],
-      run: () => deps.openCompareForLastQuery(),
     },
   ]
   for (const op of searchOperators.list()) {

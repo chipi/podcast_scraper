@@ -24,7 +24,6 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper.rss import feed_cache
-from podcast_scraper.speaker_stage import detection
 from podcast_scraper.workflow.helpers import (
     cleanup_pipeline,
     generate_pipeline_summary,
@@ -516,106 +515,6 @@ class TestTranscriptionStage(unittest.TestCase):
         cfg = create_test_config(transcribe_missing=True, dry_run=True)
         resources = transcription.setup_transcription_resources(cfg, self.temp_dir)
         self.assertIsNone(resources.transcription_provider)
-
-
-@pytest.mark.integration
-class TestProcessingStage(unittest.TestCase):
-    """Integration tests for processing stage."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config()
-        self.feed = create_test_feed()
-        self.episodes = [create_test_episode(idx=1, title="Episode 1")]
-
-    def test_detect_feed_hosts_and_patterns_disabled(self):
-        """Test detect_feed_hosts_and_patterns returns empty when disabled."""
-        cfg = create_test_config(auto_speakers=False)
-        result = detection.detect_feed_hosts_and_patterns(cfg, self.feed, self.episodes)
-        self.assertEqual(len(result.cached_hosts), 0)
-        self.assertIsNone(result.heuristics)
-        self.assertIsNone(result.speaker_detector)
-
-    def test_detect_feed_hosts_and_patterns_dry_run(self):
-        """Test detect_feed_hosts_and_patterns skips in dry run."""
-        cfg = create_test_config(auto_speakers=True, dry_run=True)
-        result = detection.detect_feed_hosts_and_patterns(cfg, self.feed, self.episodes)
-        # In dry run, hosts may still be detected from RSS author tags (no ML needed)
-        # So cached_hosts may not be empty if feed has authors
-        # The important thing is that speaker_detector is None (no ML model initialized)
-        self.assertIsNone(result.speaker_detector)
-
-    @patch("podcast_scraper.speaker_detectors.factory.create_speaker_detector")
-    def test_detect_feed_hosts_and_patterns_with_detector(self, mock_create):
-        """Test detect_feed_hosts_and_patterns uses speaker detector."""
-        mock_detector = Mock()
-        mock_detector.initialize = Mock()
-        # Use person-shaped names (First Last) without digits — the #876 network/org
-        # filter (_NONPERSON_AUTHOR_MARKERS) drops anything containing a digit, so the
-        # old placeholders "Host 1"/"Host 2" would get filtered out before validation.
-        feed_hosts_set = {"Alice Smith", "Bob Jones"}
-        mock_detector.detect_hosts = Mock(return_value=feed_hosts_set)
-
-        # Mock detect_speakers to return both hosts so validation passes
-        # The validation checks if hosts appear in first episode, so return them
-        # detect_speakers returns (speaker_names_list, known_hosts_set, success_bool, used_defaults)
-        # Need to handle both with and without pipeline_metrics parameter
-        def mock_detect_speakers(*args, **kwargs):
-            return (["Alice Smith", "Bob Jones"], set(), True, False)
-
-        mock_detector.detect_speakers = Mock(side_effect=mock_detect_speakers)
-        # Mock inspect.signature to return a signature that doesn't have pipeline_metrics
-        # so it uses the simpler call path
-        import inspect
-
-        original_signature = inspect.signature
-
-        def mock_signature(obj):
-            if obj == mock_detector.detect_speakers:
-                # Return a signature without pipeline_metrics
-                from inspect import Parameter, Signature
-
-                sig = Signature(
-                    [
-                        Parameter("episode_title", Parameter.POSITIONAL_OR_KEYWORD),
-                        Parameter("episode_description", Parameter.POSITIONAL_OR_KEYWORD),
-                        Parameter("known_hosts", Parameter.POSITIONAL_OR_KEYWORD),
-                    ]
-                )
-                return sig
-            return original_signature(obj)
-
-        mock_detector.analyze_patterns = Mock(return_value={"pattern": "value"})
-        mock_create.return_value = mock_detector
-
-        # Create feed without authors so it uses the detector instead of RSS author tags
-        from podcast_scraper import models
-
-        feed_no_authors = models.RssFeed(
-            title=self.feed.title,
-            authors=[],  # Empty authors so detector is used
-            items=self.feed.items,
-            base_url=self.feed.base_url,
-        )
-
-        cfg = create_test_config(
-            auto_speakers=True,
-            cache_detected_hosts=True,
-            dry_run=False,
-        )
-
-        with patch("inspect.signature", side_effect=mock_signature):
-            result = detection.detect_feed_hosts_and_patterns(cfg, feed_no_authors, self.episodes)
-
-        # Validation should pass since both hosts appear in first episode
-        # feed_hosts = {"Alice Smith", "Bob Jones"}
-        # first_episode_persons = {"Alice Smith", "Bob Jones"} (from detect_speakers mock)
-        # validated_hosts = feed_hosts & first_episode_persons = {"Alice Smith", "Bob Jones"}
-        self.assertEqual(len(result.cached_hosts), 2)
-        mock_detector.detect_hosts.assert_called_once()
-        self.assertIsNotNone(result.heuristics)
-        mock_detector.initialize.assert_called_once()
-        mock_detector.detect_hosts.assert_called_once()
 
 
 @pytest.mark.integration

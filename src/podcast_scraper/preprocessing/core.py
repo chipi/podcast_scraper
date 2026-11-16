@@ -236,8 +236,9 @@ def remove_sponsor_blocks(
 ) -> str:
     """Remove sponsor/advertisement blocks from transcript.
 
-    Delegates to :class:`~podcast_scraper.cleaning.commercial.CommercialDetector`
-    (confidence-scored patterns + positional heuristics).
+    Through the ``remove_commercials`` stage hook; the built-in owner is
+    :class:`~podcast_scraper.cleaning.commercial.CommercialDetector` (confidence-scored
+    patterns + positional heuristics). Without an owner the text comes back unchanged.
 
     Args:
         text: Transcript text potentially containing sponsor blocks
@@ -247,18 +248,14 @@ def remove_sponsor_blocks(
     Returns:
         Text with sponsor blocks removed
     """
-    from ..cleaning.commercial import CommercialDetector
-    from ..cleaning.commercial.patterns import DEFAULT_CONFIDENCE_THRESHOLD
+    from .. import stage_hooks
 
-    return CommercialDetector(
-        confidence_threshold=(
-            confidence_threshold
-            if confidence_threshold is not None
-            else DEFAULT_CONFIDENCE_THRESHOLD
-        ),
+    return stage_hooks.remove_commercials(
+        text,
         diarization_segments=diarization_segments,
         host_speaker_id=host_speaker_id,
-    ).remove(text)
+        confidence_threshold=confidence_threshold,
+    )
 
 
 #: Outro patterns only apply within this many characters of the transcript END.
@@ -612,9 +609,9 @@ def clean_for_summarization(
     # the diarization segment texts (before normalization). Diarization-driven:
     # a leading block by voices that never recur later (#1188). No-op without
     # segments.
-    from ..cleaning.commercial.crosspromo import excise_opening_crosspromo
+    from .. import stage_hooks
 
-    text = excise_opening_crosspromo(
+    text = stage_hooks.excise_crosspromo(
         text,
         diarization_segments=diarization_segments,
         host_speaker_id=host_speaker_id,

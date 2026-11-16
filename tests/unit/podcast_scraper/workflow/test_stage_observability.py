@@ -17,7 +17,6 @@ from unittest import mock
 
 import pytest
 
-from podcast_scraper import builtin_stage_hooks
 from podcast_scraper.utils import correlation
 from podcast_scraper.workflow import episode_processor, processing_manifest as pm
 from podcast_scraper.workflow.metrics import Metrics
@@ -101,25 +100,6 @@ def test_relabel_naming_duration_is_its_own(out_dir):
     events = _stage_events(emit)
     assert events["naming"]["duration_s"] == 3.25
     assert "diarization" not in events
-
-
-def test_turns_event_carries_duration(out_dir):
-    outcome = SimpleNamespace(relpath="t.turns.json", count=3)
-    with (
-        mock.patch("podcast_scraper.obs.events.emit_event") as emit,
-        mock.patch(
-            "podcast_scraper.workflow.turns_artifact.write_turns_artifact", return_value=outcome
-        ),
-        mock.patch(
-            "podcast_scraper.workflow.turns_artifact.turns_manifest_metrics",
-            return_value={"turns": 3},
-        ),
-    ):
-        builtin_stage_hooks._write_turns_artifacts(
-            _cfg(), "hello", [{"start": 0.0, "end": 1.0, "text": "hello"}], REL, out_dir
-        )
-    turns = _stage_events(emit)["turns"]
-    assert isinstance(turns["duration_s"], float) and turns["duration_s"] >= 0.0
 
 
 def test_failed_diarization_is_recorded_with_status_and_error_class(out_dir):

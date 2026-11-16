@@ -343,6 +343,22 @@ def test_filter_rows_until_and_has_gi(tmp_path: Path) -> None:
     assert all(not r.has_gi for r in missing)
 
 
+def test_filter_rows_has_kg(tmp_path: Path) -> None:
+    root = tmp_path
+    mdir = root / "metadata"
+    _write_meta(mdir / "withkg.metadata.json", episode_id="1", published="2024-01-10T00:00:00")
+    (mdir / "withkg.kg.json").write_text("{}", encoding="utf-8")
+    _write_meta(mdir / "nokg.metadata.json", episode_id="2", published="2024-02-10T00:00:00")
+    (mdir / "nokg.gi.json").write_text("{}", encoding="utf-8")
+    rows = build_catalog_rows(root)
+    assert {r.episode_id for r in filter_rows(rows, has_kg=True)} == {"1"}
+    assert {r.episode_id for r in filter_rows(rows, has_kg=False)} == {"2"}
+    assert {r.episode_id for r in filter_rows(rows, has_kg=None)} == {"1", "2"}
+    # The two presence filters combine: missing KG but with GI.
+    assert {r.episode_id for r in filter_rows(rows, has_kg=False, has_gi=True)} == {"2"}
+    assert filter_rows(rows, has_kg=False, has_gi=False) == []
+
+
 def test_filter_rows_feed_id_empty_string(tmp_path: Path) -> None:
     root = tmp_path
     mdir = root / "metadata"

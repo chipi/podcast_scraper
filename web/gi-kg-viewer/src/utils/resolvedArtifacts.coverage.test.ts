@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import type { CorpusResolvedEpisodeArtifact } from '../api/corpusLibraryApi'
 import type { ParsedArtifact } from '../types/artifact'
 import {
   artifactRelPathsForResolvedRow,
-  episodeIdsFromParsedArtifacts,
   sortResolvedArtifactsNewestFirst,
 } from './resolvedArtifacts'
+import { episodeArtifactPaths } from '../extensions'
 
 function parsed(kind: 'gi' | 'kg', data: unknown): ParsedArtifact {
   return {
@@ -34,32 +34,6 @@ function row(
     ...extra,
   }
 }
-
-describe('episodeIdsFromParsedArtifacts', () => {
-  it('collects trimmed episode ids from gi artifacts only', () => {
-    const ids = episodeIdsFromParsedArtifacts([
-      parsed('gi', { episode_id: '  ep:1 ' }),
-      parsed('kg', { episode_id: 'ep:kg' }),
-      parsed('gi', { episode_id: 'ep:2' }),
-    ])
-    expect([...ids].sort()).toEqual(['ep:1', 'ep:2'])
-  })
-
-  it('skips missing, blank and non-string ids and dedupes', () => {
-    const ids = episodeIdsFromParsedArtifacts([
-      parsed('gi', {}),
-      parsed('gi', { episode_id: '   ' }),
-      parsed('gi', { episode_id: 42 }),
-      parsed('gi', { episode_id: 'ep:1' }),
-      parsed('gi', { episode_id: 'ep:1' }),
-    ])
-    expect([...ids]).toEqual(['ep:1'])
-  })
-
-  it('returns an empty set for no artifacts', () => {
-    expect(episodeIdsFromParsedArtifacts([]).size).toBe(0)
-  })
-})
 
 describe('sortResolvedArtifactsNewestFirst', () => {
   it('orders by publish date descending', () => {
@@ -98,23 +72,20 @@ describe('sortResolvedArtifactsNewestFirst', () => {
 })
 
 describe('artifactRelPathsForResolvedRow', () => {
-  it('returns gi, kg, bridge in order, trimmed', () => {
-    const out = artifactRelPathsForResolvedRow(
-      row('a', null, {
-        gi_relative_path: ' m/a.gi.json ',
-        kg_relative_path: 'm/a.kg.json',
-        bridge_relative_path: 'm/a.bridge.json',
-      }),
-    )
-    expect(out).toEqual(['m/a.gi.json', 'm/a.kg.json', 'm/a.bridge.json'])
+  afterEach(() => episodeArtifactPaths.reset())
+
+  it('returns the KG path, trimmed by the row builder; GI and bridge are a build\'s to add', () => {
+    const r = { episode_id: 'a', gi_relative_path: 'm/a.gi.json', kg_relative_path: 'm/a.kg.json', bridge_relative_path: 'm/a.bridge.json' }
+    expect(artifactRelPathsForResolvedRow(r as never)).toEqual(['m/a.kg.json'])
   })
 
-  it('omits null and blank paths', () => {
-    expect(
-      artifactRelPathsForResolvedRow(row('a', null, { kg_relative_path: '  ' })),
-    ).toEqual([])
-    expect(
-      artifactRelPathsForResolvedRow(row('a', null, { bridge_relative_path: 'b.json' })),
-    ).toEqual(['b.json'])
+  it('appends the paths an extension adds for the row', () => {
+    episodeArtifactPaths.register({ id: 'x', paths: (ep) => [String(ep.bridge_relative_path ?? '')] })
+    const r = { episode_id: 'a', kg_relative_path: 'm/a.kg.json', bridge_relative_path: 'm/a.bridge.json' }
+    expect(artifactRelPathsForResolvedRow(r as never)).toEqual(['m/a.kg.json', 'm/a.bridge.json'])
+  })
+
+  it('omits a blank KG path', () => {
+    expect(artifactRelPathsForResolvedRow({ episode_id: 'a', kg_relative_path: '  ' } as never)).toEqual([])
   })
 })

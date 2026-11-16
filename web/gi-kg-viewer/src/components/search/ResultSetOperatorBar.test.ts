@@ -52,12 +52,12 @@ function mountBar(hits: SearchHit[] = []) {
 describe('ResultSetOperatorBar (Search v3 §S4a)', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('renders the Timeline, On-graph and Compare chips and no private operator', () => {
-    // Cluster and Consensus are private (ADR-170): this viewer never offers them.
+  it('renders the Timeline and On-graph chips and no downstream operator', () => {
+    // Cluster, Consensus and Compare are a downstream build's (ADR-170, E04): this viewer never offers them.
     const w = mountBar([makeHit()])
     expect(w.find('[data-testid="operator-chip-timeline"]').exists()).toBe(true)
     expect(w.find('[data-testid="operator-chip-graph"]').exists()).toBe(true)
-    expect(w.find('[data-testid="operator-chip-compare"]').exists()).toBe(true)
+    expect(w.find('[data-testid="operator-chip-compare"]').exists()).toBe(false)
     expect(w.find('[data-testid="operator-chip-cluster"]').exists()).toBe(false)
     expect(w.find('[data-testid="operator-chip-consensus"]').exists()).toBe(false)
     w.unmount()
@@ -171,7 +171,6 @@ describe('ResultSetOperatorBar registered operators', () => {
       'operator-chip-timeline',
       'operator-chip-graph',
       'operator-chip-mid',
-      'operator-chip-compare',
     ])
     expect(w.find('[data-testid="operator-chip-mid"]').text()).toBe('Mid…')
     await w.find('[data-testid="operator-chip-first"]').trigger('click')
@@ -180,5 +179,30 @@ describe('ResultSetOperatorBar registered operators', () => {
     await w.find('[data-testid="operator-chip-first"]').trigger('click')
     expect(w.find('[data-testid="first-panel"]').exists()).toBe(false)
     w.unmount()
+  })
+
+  it('disables a registered chip its operator says is unavailable for the hits, with the reason', async () => {
+    searchOperators.register({
+      id: 'pair',
+      label: 'Pair',
+      title: 'Pair two hits.',
+      available: (hits) => hits.length >= 2,
+      unavailableTitle: 'Pair: needs two hits.',
+      panel: { template: '<div data-testid="pair-panel" />' },
+    })
+    const one = mountBar([makeHit()])
+    const chip = one.get('[data-testid="operator-chip-pair"]')
+    expect(chip.attributes('disabled')).toBeDefined()
+    expect(chip.attributes('title')).toBe('Pair: needs two hits.')
+    await chip.trigger('click')
+    expect(one.find('[data-testid="pair-panel"]').exists()).toBe(false)
+    one.unmount()
+    const two = mountBar([makeHit(), makeHit()])
+    const chip2 = two.get('[data-testid="operator-chip-pair"]')
+    expect(chip2.attributes('disabled')).toBeUndefined()
+    expect(chip2.attributes('title')).toBe('Pair two hits.')
+    await chip2.trigger('click')
+    expect(two.find('[data-testid="pair-panel"]').exists()).toBe(true)
+    two.unmount()
   })
 })

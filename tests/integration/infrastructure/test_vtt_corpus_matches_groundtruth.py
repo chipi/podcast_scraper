@@ -16,13 +16,11 @@ Two independent properties, because they fail differently:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Set
 
 import pytest
 
-from podcast_scraper.providers.ml.diarization.roster import _is_person_voice_label
 from podcast_scraper.transcript_formats import parse_webvtt
 
 pytestmark = [pytest.mark.integration]
@@ -46,48 +44,6 @@ def test_the_corpus_has_vtt_twins_at_all() -> None:
     assert (
         len(_vtt_files()) >= 40
     ), "the v3 VTT twins are missing — regenerate with transcripts_to_vtt.py"
-
-
-@pytest.mark.parametrize("vtt", _vtt_files(), ids=lambda p: p.stem)
-def test_the_named_people_are_exactly_the_groundtruth_speakers(vtt: Path) -> None:
-    """Set equality, both directions.
-
-    ``groundtruth.speakers`` may contain a label that is deliberately NOT a publishable person
-    name — ``p08``'s host is ``A. correspondent`` ("non-NER" in FIXTURES_SPEC.md), an intentional
-    edge case for a voice that must never become a Person node. Those are compared as voices that
-    exist but stay unnamed, which is exactly what the pipeline does with them.
-    """
-    ground = json.loads((_FIXTURES / f"{vtt.stem}.groundtruth.json").read_text(encoding="utf-8"))
-    expected = {s for s in (ground.get("speakers") or []) if _is_person_voice_label(s)}
-    named = {s for s in _spans(vtt) if _is_person_voice_label(s)}
-
-    assert named == expected, (
-        f"{vtt.name} names {sorted(named)} but the ground truth says {sorted(expected)}; "
-        "a missing name loses a speaker, an extra one publishes somebody nobody said (#876)"
-    )
-
-
-@pytest.mark.parametrize(
-    "vtt",
-    [
-        p
-        for p in _vtt_files()
-        if json.loads((_FIXTURES / f"{p.stem}.groundtruth.json").read_text()).get("num_ad_voices")
-    ],
-    ids=lambda p: p.stem,
-)
-def test_an_ad_bearing_episode_carries_a_non_person_voice(vtt: Path) -> None:
-    """The sponsor read must be ITS OWN labelled voice.
-
-    With no span, ``alignment.py`` attributes the cue to ``last_speaker`` — putting ad copy in a
-    real person's mouth in ``.segments.json`` and reporting one voice fewer than
-    ``expected_diarized_voices``, which counts ``num_ad_voices``.
-    """
-    non_people = {s for s in _spans(vtt) if not _is_person_voice_label(s)}
-    assert non_people, (
-        f"{vtt.name} has num_ad_voices set but every span is a person's name, so the sponsor read "
-        "would be folded onto whoever spoke before it"
-    )
 
 
 @pytest.mark.parametrize("vtt", _vtt_files(), ids=lambda p: p.stem)

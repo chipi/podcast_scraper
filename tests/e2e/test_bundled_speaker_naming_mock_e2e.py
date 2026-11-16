@@ -16,7 +16,6 @@ from typing import Any, Dict
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.providers.ml.diarization import pipeline as P, transcript_naming as tn
 
 pytestmark = [pytest.mark.e2e, pytest.mark.critical_path]
 
@@ -72,27 +71,6 @@ def _speakers(call: str, out: Any) -> Any:
 
 
 @pytest.mark.parametrize("call", CALLS)
-@pytest.mark.parametrize("name", sorted(PROVIDERS))
-def test_every_bundled_call_asks_and_returns_the_speakers_field(
-    name: str, call: str, e2e_server: Any, tmp_path: Path
-) -> None:
-    from tests.e2e.fixtures.e2e_http_server import BUNDLED_NAMING_REQUESTS
-
-    provider = _provider(_cfg(e2e_server, name, tmp_path))
-    fn = getattr(provider, call, None)
-    if not callable(fn):
-        # Ollama has no mega or extraction bundle; its pipeline mode falls back to staged.
-        assert name == "ollama" and call != "summarize_bundled", f"{name}.{call} missing"
-        return
-    BUNDLED_NAMING_REQUESTS.clear()
-    out = fn(TRANSCRIPT, params={tn.PARAMS_LABELS: LABELS})
-    assert len(BUNDLED_NAMING_REQUESTS) == 1, f"{name}.{call}: the field never reached the server"
-    speakers = _speakers(call, out)
-    assert speakers["Tobias Wren"]["name"] == "Tobias Wren", speakers
-    assert speakers["SPEAKER_01"]["name"] is None
-
-
-@pytest.mark.parametrize("call", CALLS)
 @pytest.mark.parametrize("name", ["openai", "anthropic", "gemini"])
 def test_without_labels_the_field_is_not_asked(
     name: str, call: str, e2e_server: Any, tmp_path: Path
@@ -106,19 +84,3 @@ def test_without_labels_the_field_is_not_asked(
     except Exception:  # noqa: BLE001 - the mock's ordinary answer may not parse as a bundle
         pass
     assert BUNDLED_NAMING_REQUESTS == []
-
-
-@pytest.mark.parametrize("mode", ["bundled", "mega_bundled", "extraction_bundled"])
-def test_a_bundled_mode_skips_the_staged_call(mode: str, e2e_server: Any, tmp_path: Path) -> None:
-    from tests.e2e.fixtures.e2e_http_server import NAMING_REQUESTS
-
-    cfg = _cfg(e2e_server, "openai", tmp_path, transcript_naming="shadow", llm_pipeline_mode=mode)
-    NAMING_REQUESTS.clear()
-    segs = [
-        (
-            {"start": 0, "end": 30, "text": "Welcome. I'm Tobias Wren. " + "indeed " * 50},
-            "SPEAKER_00",
-        )
-    ]
-    assert P._ask_transcript_naming(cfg, segs, "Ep 1", None) is None
-    assert NAMING_REQUESTS == []

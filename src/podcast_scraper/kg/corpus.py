@@ -35,8 +35,9 @@ EXIT_NO_ARTIFACTS = 3
 EXIT_VALIDATION_FAILED = 1
 
 
-def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
-    """List all .kg.json paths under output_dir (metadata/*.kg.json and rglob)."""
+def scan_kg_artifact_paths(output_dir: Path, *, include_sources: bool = False) -> List[Path]:
+    """List all .kg.json paths under output_dir (metadata/*.kg.json and rglob); other content
+    types' (under ``sources/``) only with *include_sources*."""
     out = Path(output_dir)
     if not out.is_dir():
         return []
@@ -44,7 +45,7 @@ def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
     metadata_dir = out / "metadata"
     if metadata_dir.is_dir():
         paths.extend(metadata_dir.glob("*.kg.json"))
-    for p in corpus_rglob(out, "*.kg.json"):
+    for p in corpus_rglob(out, "*.kg.json", include_sources=include_sources):
         if p not in paths:
             paths.append(p)
     return sorted(set(paths))
@@ -120,6 +121,15 @@ def iter_kg_artifacts(
     """
     for path in paths:
         yield from load_kg_artifacts([path], validate=validate, strict=strict)
+
+
+def kg_item_key(kg: Any) -> str:
+    """The key a KG's evidence is filed under: its ``episode_id`` (KG 2.x, a podcast episode), else
+    its ``item_id`` (KG 3.0, any type), else ``""``. Entity candidates and the identity guards'
+    evidence both use it, so the episodes two people share are found for every type."""
+    if not isinstance(kg, dict):
+        return ""
+    return str(kg.get("episode_id") or kg.get("item_id") or "")
 
 
 def load_kg_artifacts(

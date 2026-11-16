@@ -270,7 +270,7 @@ Grounded insights are key takeaways linked to verbatim quotes (evidence). When t
 - **CLI**: `gi inspect`, `gi show-insight`, `gi explore` (see Grounded Insights Guide).
 - **Browser viewer (v2):** `python -m podcast_scraper.cli serve --output-dir …` with built `web/gi-kg-viewer/dist/` — or `make serve` for dev ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
 
-See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology](../architecture/gi/ontology.md).
+See the [GIL Ontology](../architecture/gi/ontology.md).
 
 ---
 

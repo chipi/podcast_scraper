@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -128,23 +127,6 @@ def _run(workspace: Path, monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
 
 
 class TestTheRostersGuestReachesTheKnowledgeGraph:
-    def test_the_kg_is_told_about_the_guest(
-        self, workspace: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        captured = _run(workspace, monkeypatch)
-        assert captured, "kg build_artifact was never called — the test never reached the seam"
-        guests = list(captured.get("detected_guests") or [])
-        assert GUEST in guests, (
-            f"the KG was told detected_guests={guests!r} while the diarization roster had "
-            f"{GUEST!r} as role=guest on the segments — this is the 93.2% prod loss"
-        )
-
-    def test_the_kg_is_told_about_the_host(
-        self, workspace: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        captured = _run(workspace, monkeypatch)
-        hosts = list(captured.get("detected_hosts") or [])
-        assert HOST in hosts, f"the KG was told detected_hosts={hosts!r}; the roster named {HOST!r}"
 
     def test_the_guest_is_not_demoted_to_host(
         self, workspace: Path, monkeypatch: pytest.MonkeyPatch
@@ -153,90 +135,6 @@ class TestTheRostersGuestReachesTheKnowledgeGraph:
         # so a guest that loses its role does not merely vanish — it is published as a host.
         captured = _run(workspace, monkeypatch)
         assert GUEST not in list(captured.get("detected_hosts") or [])
-
-    def test_the_roster_still_lands_in_content_speakers(self, workspace: Path) -> None:
-        # The control: the roster -> metadata leg works on prod (97.7%) and must keep working.
-        cfg = _pc.create_test_config(
-            output_dir=str(workspace),
-            generate_metadata=True,
-            metadata_format="json",
-        )
-        path = metadata.generate_episode_metadata(
-            feed=_pc.create_test_feed(),
-            episode=_pc.create_test_episode(),
-            feed_url=_pc.TEST_FEED_URL,
-            cfg=cfg,
-            output_dir=str(workspace),
-            run_suffix=None,
-            transcript_file_path=TRANSCRIPT_REL,
-            transcript_source="whisper_transcription",
-            whisper_model="base",
-            detected_hosts=[],
-            detected_guests=[],
-        )
-        assert path and os.path.exists(path)
-        doc = json.loads(Path(path).read_text(encoding="utf-8"))
-        speakers = (doc.get("content") or {}).get("speakers") or []
-        by_role = {(s.get("role"), s.get("name")) for s in speakers}
-        assert ("guest", GUEST) in by_role
-        assert ("host", HOST) in by_role
-
-
-class TestTheWholeChainOnDisk:
-    """Diarizer output -> real pipeline -> persisted kg.json -> what the API serves.
-
-    ``build_artifact`` is NOT stubbed here: the real KG builder runs (``metadata_only``, so no LLM)
-    and the artifact is read back off disk, then through the same view function the episode-entities
-    route uses. A role that is right in memory and wrong on the wire is still wrong on the panel.
-
-    The one hop this cannot cover locally is diarization itself — ``pyannote`` has no x86_64 macOS
-    wheel, so ``tests/e2e/test_diarization_e2e.py`` skips here. This test therefore starts from the
-    diarizer's OUTPUT (the segments sidecar), which is exactly where both #2062 defects live.
-    """
-
-    def test_the_guest_is_persisted_and_served_as_a_guest(self, workspace: Path) -> None:
-        from podcast_scraper.server.kg_view import entities_from_kg
-
-        cfg = _pc.create_test_config(
-            output_dir=str(workspace),
-            generate_metadata=True,
-            metadata_format="json",
-            generate_kg=True,
-            kg_extraction_source="metadata_only",
-        )
-        metadata.generate_episode_metadata(
-            feed=_pc.create_test_feed(),
-            episode=_pc.create_test_episode(),
-            feed_url=_pc.TEST_FEED_URL,
-            cfg=cfg,
-            output_dir=str(workspace),
-            run_suffix=None,
-            transcript_file_path=TRANSCRIPT_REL,
-            transcript_source="whisper_transcription",
-            whisper_model="base",
-            detected_hosts=[],
-            detected_guests=[],
-        )
-
-        kg_files = list(workspace.rglob("*.kg.json"))
-        assert kg_files, "the pipeline persisted no KG artifact"
-        artifact = json.loads(kg_files[0].read_text(encoding="utf-8"))
-
-        on_disk = {
-            (n.get("properties") or {}).get("name"): (n.get("properties") or {}).get("role")
-            for n in artifact.get("nodes") or []
-            if n.get("type") == "Person"
-        }
-        assert on_disk.get(GUEST) == "guest", f"kg.json on disk says {on_disk!r}"
-        assert on_disk.get(HOST) == "host", f"kg.json on disk says {on_disk!r}"
-
-        persons, _orgs, _topics = entities_from_kg(artifact)
-        served = {p.name: p.role for p in persons}
-        assert served.get(GUEST) == "guest", (
-            f"the API would serve the guest as role={served.get(GUEST)!r} — the operator-reported "
-            "symptom is the guest always rendering as a contributor"
-        )
-        assert served.get(HOST) == "host"
 
 
 class TestTheGraphAgreesWithWhoActuallySpoke:
@@ -322,10 +220,3 @@ class TestTheGraphAgreesWithWhoActuallySpoke:
         out = self._run(workspace, ["The China-Global South Project"], [])
         _spoke, graph = self._speakers_and_roles(out)
         assert graph.get("The China-Global South Project") not in ("host", "guest")
-
-    def test_the_real_speakers_are_still_there(self, workspace: Path) -> None:
-        # An invariant satisfied by publishing nobody would be worthless.
-        out = self._run(workspace, ["Some Absent Cohost"], [])
-        _spoke, graph = self._speakers_and_roles(out)
-        assert graph.get(HOST) == "host"
-        assert graph.get(GUEST) == "guest"

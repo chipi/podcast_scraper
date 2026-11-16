@@ -178,17 +178,8 @@ HF_HUB_OFFLINE=1 PYTHONPATH=src .venv/bin/python -m podcast_scraper.cli enrich -
 # then copy the changed files back into tests/fixtures/app-validation-corpus/v3
 ```
 
-**After an ad-cut change** (`gi/ad_regions.py`, `gi/filters.py`), the translated shows' captured
-ad-free files (`tests/fixtures/pipeline-renders/v3`) are re-derived first, with the pipeline's own
-`build_adfree_artifacts` over each capture's English segments:
-
-```sh
-.venv/bin/python scripts/tools/rederive_captured_adfree.py          # report
-.venv/bin/python scripts/tools/rederive_captured_adfree.py --write  # then regenerate as above
-```
-
-Its replay is checked against the code the captures were made with: on 2026-10-16, with main as of
-2026-10-01 18:07 UTC, all 15 captures came out byte-identical.
+The translated shows' captured ad-free files (`tests/fixtures/pipeline-renders/v3`) are re-derived
+where ad detection lives: it is an installed extension's, not public's.
 
 `realign_fixture_gi.py` grounds every insight in the transcript line that says it (ADR-165):
 insights are claims (no questions, greetings, sponsor reads, connective templates or host
@@ -242,7 +233,7 @@ HF_HUB_OFFLINE=1 .venv/bin/python -m podcast_scraper.cli enrich --output-dir \
   tests/fixtures/app-validation-corpus/v3 --only topic_cooccurrence_corpus \
   --corpus-only --force                                                   # the framework's one
 make build-app-validation-index && \
-  make build-validation-topic-clusters CORPUS=tests/fixtures/app-validation-corpus/v3  # themes
+  make build-validation-topic-clusters CORPUS=<public>/tests/fixtures/app-validation-corpus/v3  # themes, the extension's Makefile
 ```
 
 The tool re-authors the four enrichments the builder writes (`temporal_velocity`,
@@ -285,6 +276,26 @@ these before assuming a validation failure is a generator bug):
 **The two-tier search index (`search/lance_index/`) is built at test setup and is NOT
 committed.** A stale one left behind here gets copied into the e2e corpus and silently indexes
 the wrong episode count — that failure presents as a search bug and is not one.
+
+## The public corpus (`public/`), derived from this one
+
+`public/` is what a public-only install keeps of `v3` (E04 step 8; the private extension's
+artifacts left out). It is derived, never edited by hand:
+
+```sh
+.venv/bin/python scripts/tools/build_public_fixture_corpus.py           # after any change to v3
+.venv/bin/python scripts/tools/build_public_fixture_corpus.py --check   # exit 1 when stale
+```
+
+- **What is left out:** GI and bridges, speakers (diagnostics, metadata roster, segment labels
+  and the `Name:` prefix on transcript lines), the ad-free base, KG people seated as host, guest
+  or speaker, and every corpus enricher but `topic_cooccurrence_corpus`. The script's docstring
+  has the full rules.
+- **Segment offsets are remapped** so each range still slices its own text.
+- **The guard:** `tests/integration/test_public_fixture_corpus.py` fails when `public/` is stale
+  or breaks a rule.
+- **Not yet checked against a real public-only run** (deploy gate c). Where that run's output
+  differs, the rules change.
 
 ## Used by — the tier-3 layers that rely on this corpus (for other agents)
 

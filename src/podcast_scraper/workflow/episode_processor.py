@@ -52,7 +52,7 @@ from ..utils import audio_fingerprint, filesystem
 from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
 from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
-from . import run_index
+from . import episode_park, run_index
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +564,9 @@ def download_media_for_transcription(
             pipeline_metrics,
             f"transcript already exists: {decision.path}",
         )
+        return None
+
+    if _skip_parked_episode(episode, cfg, pipeline_metrics):
         return None
 
     if not episode.media_url:
@@ -1306,7 +1309,7 @@ def _write_processing_manifest(
                 "truly_unknown": summary.get("truly_unknown"),
                 "unattributed_talk_share": summary.get("unattributed_talk_share"),
                 "by_voice_type": summary.get("by_voice_type"),
-                # ADR-135/#1220: the labeling OUTPUT — real speakers exposed to GI/KG after
+                # #1220: the labeling OUTPUT — real speakers exposed to GI/KG after
                 # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
                 # answer the clean named-vs-Voice rate without opening the graph.
                 "exposed": summary.get("exposed"),
@@ -1338,7 +1341,7 @@ def _produce_transcript_sidecars(
     *,
     episode: Any = None,
 ) -> None:
-    """Derive the ad-free processing base (#974) and the turns artifacts (RFC-123), in that order.
+    """Derive the ad-free processing base (#974) and the turns artifacts, in that order.
 
     Both are structural views of the transcript we just saved, and both must be built from the
     exact segment list the matching text was rendered from — so they belong at the one site that
@@ -2521,6 +2524,55 @@ def _append_transcription_incident(
         episode_id=episode_id,
         episode_idx=episode_idx,
     )
+    if category == "hard" and stage == "transcription":
+        episode_park.note_failure(
+            path,
+            episode_id,
+            feed_url=cfg.rss_url,
+            exception_type=exception_type,
+            message=message,
+        )
+
+
+def _skip_parked_episode(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    pipeline_metrics: Any,
+) -> bool:
+    """Skip, before download, an episode parked after repeated transcription failures."""
+    path = getattr(cfg, "incident_log_path", None)
+    if not path:
+        return False
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    entry = episode_park.parked_entry(path, episode_id)
+    if entry is None:
+        return False
+    reason = (
+        f"parked {entry['parked_at']} after {len(entry.get('failures') or [])} transcription "
+        "failures; release with `parked-episodes --release`"
+    )
+    logger.warning(
+        "[%s] %s episode_id=%s skipped: %s",
+        episode.idx,
+        episode_park.LOG_MARKER,
+        episode_id,
+        reason,
+    )
+    append_corpus_incident(
+        path,
+        scope="episode",
+        category="policy",
+        message=reason,
+        exception_type="EpisodeParked",
+        stage="transcription",
+        feed_url=cfg.rss_url,
+        episode_id=episode_id,
+        episode_idx=int(episode.idx),
+    )
+    _mark_episode_skipped_existing(episode, cfg, pipeline_metrics, reason)
+    return True
 
 
 def _append_preprocessing_incident(
@@ -4645,7 +4697,7 @@ def transcribe_media_to_text(
                 effective_output_dir,
             )
             # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
-            # RFC-123: and the turns artifact for each variant that exists.
+            # And the turns artifact for each variant that exists.
             _produce_transcript_sidecars(
                 cfg, text, segments, rel_path, effective_output_dir, episode=job.episode
             )
@@ -4689,6 +4741,9 @@ def transcribe_media_to_text(
             naming_elapsed=dz_naming_elapsed,
         )
 
+        episode_park.note_transcribed(
+            getattr(cfg, "incident_log_path", None), _episode_id_and_idx_for_incident(job, cfg)[0]
+        )
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:
         if is_provider_audio_payload_limit_error(exc):
@@ -4861,9 +4916,10 @@ def _episode_existing_transcript_source(
 
     The effect was that ``--reprocess-source`` NEVER FIRED on a corpus: the "#925 forcing
     re-transcription" branch is unreachable and every episode falls through to the ordinary
-    "transcript already exists; skipping" path. ``make redo-diarization`` is built entirely on
-    that flag, so it reported success and re-diarized nothing. Verified 2026-08-16 on a corpus
-    copy whose metadata declared ``transcript_source: whisper_transcription`` while
+    "transcript already exists; skipping" path. ``make redo-diarization`` (the extension's
+    Makefile) is built on that flag, so it reported success and re-diarized nothing. Verified
+    2026-08-16 on a corpus copy whose metadata declared
+    ``transcript_source: whisper_transcription`` while
     ``--reprocess-source whisper_transcription`` was passed: the forcing log line never appeared.
 
     This is the same defect the TRANSCRIPT lookup already fixed (see the D7 note above
@@ -5684,7 +5740,7 @@ def process_transcript_download(
             segments = rostered.get("segments") or segments
 
             # HONOUR `cfg.screenplay`, as the ASR path does. GI quote attribution reads `Name:`
-            # line markers (`gi/speakers.py::build_named_turns`), so a plain-text transcript gives
+            # line markers, so a plain-text transcript gives
             # every quote no SPOKEN_BY edge — the speakers would resolve and the people surfaces
             # would still be empty. Falls back to `plain` whenever the roster named nobody.
             # HONOUR `cfg.screenplay`, as the ASR path does, WHENEVER THE TRANSCRIPT SEPARATED
@@ -5695,7 +5751,7 @@ def process_transcript_download(
             # one for every voice the roster clustered, real name or bare `SPEAKER_NN`. That is
             # deliberate, not an oversight: the ASR + diarize path writes the same screenplay with
             # the same bare labels, and the markers carry TURN BOUNDARIES that GI reads for quote
-            # attribution (`gi/speakers.py::build_named_turns`) even when nobody is named. Storing
+            # attribution even when nobody is named. Storing
             # prose instead would throw that structure away to no benefit.
             #
             # The case that must NOT be reformatted is a transcript with no spans at all: nothing

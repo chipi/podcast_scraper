@@ -27,7 +27,6 @@ updated together to reflect that new prod state.
 
 from __future__ import annotations
 
-import copy
 import json
 import logging
 import shutil
@@ -149,28 +148,3 @@ def test_gap_between_prod_and_head_applies_cleanly(
     assert (
         ledger_before_rerun == ledger_after_rerun
     ), "re-running upgrade after closing the gap mutated the ledger"
-
-
-def test_prod_shape_gi_is_transform_stable_under_current_migrations(
-    tmp_path: Path,
-) -> None:
-    """The fixture's post-prod .gi.json should be a fixed point under
-    ``migrate_gi_document_v3`` (it already ran on prod). If a new migration
-    changes what m0003 produces, this test tells the author "you moved the
-    goalpost — bump the marker / regenerate the fixture, or add m0004".
-    """
-    from podcast_scraper.migrations.gil_kg_identity_migrations import (
-        migrate_gi_document_v3,
-    )
-
-    marker = json.loads(PROD_MARKER.read_text(encoding="utf-8"))
-    if "0003_gi_v3_typed_mentions" not in marker["applied_migrations"]:
-        pytest.skip("m0003 is not in the prod marker — nothing to check here")
-
-    before = json.loads((FIXTURE / "metadata" / "ep1.gi.json").read_text(encoding="utf-8"))
-    after = migrate_gi_document_v3(copy.deepcopy(before))
-    assert before == after, (
-        "prod-shape fixture .gi.json changes under migrate_gi_document_v3. "
-        "Either m0003 changed and the fixture needs updating, or a downstream "
-        "migration is needed. See tests/fixtures/upgrade/corpus_at_last_prod_release/README.md."
-    )

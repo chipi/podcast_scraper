@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { episodeArtifactRelPaths } from '../../utils/episodeArtifactPaths'
 import {
   computed,
   inject,
@@ -70,8 +71,10 @@ async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
 
 /** Optional upper bound (``YYYY-MM-DD``) from Dashboard handoff; cleared after load. */
 const libraryUntilYmd = ref('')
-/** When ``false``, request episodes missing GI from the API. */
-const libraryHasGiFilter = ref<boolean | undefined>(undefined)
+/** When ``false``, request episodes missing KG from the API (the dashboard's missing-KG handoff). */
+const libraryHasKgFilter = ref<boolean | undefined>(undefined)
+/** A build's extra episode-list parameters from the last dashboard handoff. */
+const libraryExtraParams = ref<Record<string, string>>({})
 const { sinceYmd } = storeToRefs(corpusLens)
 
 /** Debounce episode reload when the shared date field changes (keystrokes). */
@@ -359,7 +362,8 @@ async function loadEpisodes(append: boolean): Promise<void> {
       topicClusterOnly: topicClusterOnly.value || undefined,
       since: sinceYmd.value.trim() || undefined,
       until: libraryUntilYmd.value.trim() || undefined,
-      hasGi: libraryHasGiFilter.value,
+      hasKg: libraryHasKgFilter.value,
+      extraParams: libraryExtraParams.value,
       limit: LIBRARY_EPISODES_PAGE_SIZE,
       cursor,
     }
@@ -469,13 +473,7 @@ async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
   const hasExistingGraphContent = artifacts.selectedRelPaths.length > 0
   void ensureDefaultCorpusGraphIfNeeded()
   if (hasExistingGraphContent) {
-    const paths: string[] = []
-    if (row.has_gi && row.gi_relative_path?.trim()) {
-      paths.push(row.gi_relative_path.trim())
-    }
-    if (row.has_kg && row.kg_relative_path?.trim()) {
-      paths.push(row.kg_relative_path.trim())
-    }
+    const paths = episodeArtifactRelPaths(row)
     if (paths.length > 0) {
       try {
         const beforeCount = artifacts.selectedRelPaths.length
@@ -624,7 +622,8 @@ function applyDashboardLibraryHandoff(): void {
     corpusLens.sinceYmd = nav.since ?? ''
   }
   libraryUntilYmd.value = nav.until?.trim() ?? ''
-  libraryHasGiFilter.value = nav.missingGiOnly === true ? false : undefined
+  libraryHasKgFilter.value = nav.missingKgOnly === true ? false : undefined
+  libraryExtraParams.value = { ...(nav.params ?? {}) }
   subject.clearSubject()
   void loadEpisodes(false)
 }

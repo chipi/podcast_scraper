@@ -33,12 +33,6 @@ from podcast_scraper.enrichment.staleness import (
     input_fingerprint,
     load_envelope,
 )
-from podcast_scraper.quality.attribution import (
-    build_report,
-    EpisodeQuality,
-    format_report,
-    summarise_stage,
-)
 from podcast_scraper.rss.window_sizing import plan_window
 from podcast_scraper.workflow.budget_headroom import (
     check_headroom,
@@ -189,92 +183,6 @@ def test_staleness_skips_only_unchanged_inputs_and_always_says_why(tmp_path: Pat
 # --------------------------------------------------------------------------------------------
 # step 5: what actually happened?
 # --------------------------------------------------------------------------------------------
-
-
-def _episode(**kw) -> EpisodeQuality:
-    return EpisodeQuality(**kw)
-
-
-def test_quality_report_separates_zero_from_unknown_across_a_batch() -> None:
-    """The report must not let "not determined" masquerade as "zero" -- that is the whole point.
-
-    Before #1647 every available signal counted a failed stage and an absent stage the same way,
-    so a run where attribution never ran looked exactly like a run where it ran and found
-    nothing. On a 600-episode batch that difference decides whether you re-run.
-    """
-    episodes = [
-        _episode(
-            episode_id="ep-1",
-            feed="singletrack",
-            stage_ledger={"transcription": {"outcome": "ran"}, "gi": {"outcome": "ran"}},
-            insights_total=10,
-            insights_surfaceable=8,
-            voices_total=2,
-            voices_named=2,
-        ),
-        _episode(
-            episode_id="ep-2",
-            feed="singletrack",
-            stage_ledger={
-                "transcription": {"outcome": "ran"},
-                "gi": {"outcome": "degraded", "reason": "speaker_detector_package_missing"},
-            },
-            insights_total=6,
-            insights_surfaceable=0,  # produced insights, none usable -> fully zeroed
-            voices_total=3,
-            voices_named=0,
-        ),
-        _episode(
-            episode_id="ep-3",
-            feed="switchback",
-            stage_ledger={"transcription": {"outcome": "skipped", "reason": "cached"}},
-            insights_total=None,  # NOT determined -- must never be counted as 0
-            insights_surfaceable=None,
-            notes=["gi artifact unreadable"],
-        ),
-    ]
-
-    report = build_report(episodes)
-
-    # ep-3 is unknown, not zero: it must be excluded from the attributed totals.
-    assert report["attribution"]["insights_total"] == 16, report["attribution"]
-    assert report["attribution"]["insights_surfaceable"] == 8, report["attribution"]
-
-    # ep-2 had insights and none survived -- the signal that matters for a repair decision.
-    assert report["attribution"]["episodes_fully_zeroed"] == 1, report["attribution"]
-
-    # ep-3 must be COUNTED as undetermined, not silently dropped -- silence on gaps reads
-    # as "no gaps", which is the failure this report was built to end.
-    assert report["not_measured"]["episodes_without_attribution_data"] == 1, report["not_measured"]
-    assert report["episodes"] == 3
-
-    # The report states in its own body that it does NOT check semantic truth. If that
-    # disclaimer ever vanishes the report starts implying more than it measured (#1660).
-    assert "NOT MEASURED" in report["not_measured"]["semantic_correctness"]
-
-    # Per-feed breakdown so damage can be attributed to a feed rather than to "the corpus".
-    assert set(report["per_feed"]) == {"singletrack", "switchback"}
-    assert report["per_feed"]["singletrack"]["episodes"] == 2
-
-    # Stage outcomes must preserve the degrade as its own category, not fold it into failure.
-    gi_stage = summarise_stage(episodes, "gi")
-    assert gi_stage["outcomes"]["ran"] == 1
-    assert gi_stage["outcomes"]["degraded"] == 1
-
-    text = format_report(report)
-    assert text.strip(), "an empty report is indistinguishable from a clean one"
-
-
-def test_quality_report_is_shape_stable_on_an_empty_batch() -> None:
-    """A batch that processed nothing must still render, not raise.
-
-    An operator runs this after a run that may have done nothing at all; a traceback there is
-    indistinguishable from the tool being broken.
-    """
-    report = build_report([])
-    assert report["attribution"]["insights_total"] == 0
-    assert report["per_feed"] == {}
-    assert isinstance(format_report(report), str)
 
 
 # --------------------------------------------------------------------------------------------

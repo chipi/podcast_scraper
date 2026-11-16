@@ -23,7 +23,7 @@ import IndexTimeseriesChart from './IndexTimeseriesChart.vue'
 import type { TimeseriesSeries } from './timeseriesChart'
 import FeedOverrideEditor from './FeedOverrideEditor.vue'
 import ScheduledJobsSection from './ScheduledJobsSection.vue'
-import { useArtifactsStore } from '../../stores/artifacts'
+import { artifactFileReadable, readableArtifactSuffixes, useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
 
@@ -33,6 +33,10 @@ const indexStats = useIndexStatsStore()
 
 const localFileInputRef = useTemplateRef<HTMLInputElement>('localFileInputRef')
 const artifactListDialogOpen = ref(false)
+/** The listed artifacts this build can draw (a file no reader takes would load nothing). */
+const loadableArtifacts = computed(() => shell.artifactList.filter((a) => artifactFileReadable(a.relative_path)))
+/** The offline picker offers what can be drawn: `.kg.json` and a build's readers' files. */
+const localFileAccept = [...readableArtifactSuffixes(), 'application/json'].join(',')
 const sourcesDialogOpen = ref(false)
 
 type SourcesDialogTab =
@@ -811,7 +815,7 @@ defineExpose({
       type="file"
       class="sr-only"
       multiple
-      accept=".gi.json,.kg.json,application/json"
+      :accept="localFileAccept"
       data-testid="status-bar-local-file-input"
       @change="onLocalFilesChange"
     >
@@ -1725,14 +1729,14 @@ defineExpose({
         </ul>
       </div>
       <div
-        v-if="shell.artifactList.length"
+        v-if="loadableArtifacts.length"
         class="mt-1.5 space-y-1"
       >
         <div class="flex flex-wrap items-center gap-1">
           <button
             type="button"
             class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-            @click="artifacts.selectAllListed(shell.artifactList.map((a) => a.relative_path))"
+            @click="artifacts.selectAllListed(loadableArtifacts.map((a) => a.relative_path))"
           >
             All
           </button>
@@ -1754,7 +1758,7 @@ defineExpose({
         </div>
         <div class="max-h-48 overflow-y-auto rounded border border-border bg-elevated p-1 text-[11px]">
           <label
-            v-for="a in shell.artifactList"
+            v-for="a in loadableArtifacts"
             :key="a.relative_path"
             class="flex cursor-pointer items-start gap-1 py-0.5 hover:bg-overlay"
           >

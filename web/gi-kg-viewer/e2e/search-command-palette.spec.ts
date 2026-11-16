@@ -14,7 +14,7 @@ import {
  *
  * The palette is the shell's global search summon — summonable from any main tab, live-queries
  * ``/api/search`` (debounced 200 ms, top_k=8), and offers per-hit actions (Open in Workspace /
- * Pin to rail / Pin to Compare / Show on graph). Its default (query cleared) surface reads
+ * Pin to rail / Show on graph, plus any a downstream build registers). Its default (query cleared) surface reads
  * USERPREFS-1 ``search.recentQueries`` and ``search.savedQueries``.
  *
  * Unit coverage (CommandPalette.test.ts): render + emit contracts. This Tier-1 spec covers the
@@ -115,26 +115,9 @@ test.describe('Search — command palette (#1233)', () => {
     // Results render with the per-hit actions (RFC-107 §S3).
     await expect(page.getByTestId('command-palette-action-open-workspace').first()).toBeVisible()
     await expect(page.getByTestId('command-palette-action-pin-rail').first()).toBeVisible()
-    // Search v3 §S8 — "Pin to Compare" is the 4th per-hit action.
-    await expect(page.getByTestId('command-palette-action-pin-compare').first()).toBeVisible()
+    // Pin to Compare is a downstream build's action (E04 step 8b): not offered here.
+    await expect(page.getByTestId('command-palette-action-pin-compare')).toHaveCount(0)
     await expect(page.getByTestId('command-palette-action-show-graph').first()).toBeVisible()
-  })
-
-  test('"Pin to Compare" pins the hit subject and closes the palette (§S8)', async ({
-    page,
-  }, testInfo) => {
-    // Tier-1 scope: asserts the palette action fires + closes. The downstream "pins prefill the
-    // Compare picker slots" behaviour is covered at unit level (CompareOperatorPanel.test.ts),
-    // because the Compare chip is gated on ≥ 2 in-hit subjects.
-    await landOnDigestWithCorpus(page, 'palette-pin-compare', testInfo)
-    await openPalette(page)
-    await queryPalette(page)
-    // The first hit that HAS a subject to pin: a hit without one disables its button (correctly),
-    // and which hit ranks first can differ by browser when scores tie (Firefox, 2026-10-12).
-    const pin = page.locator('[data-testid="command-palette-action-pin-compare"]:not([disabled])').first()
-    await expect(pin).toBeVisible()
-    await pin.click()
-    await expect(page.getByTestId('command-palette')).toHaveCount(0)
   })
 
   test('"Open in Workspace" switches main tab to Search and runs the query', async ({
@@ -154,27 +137,22 @@ test.describe('Search — command palette (#1233)', () => {
     ).toBeVisible({ timeout: 30_000 })
   })
 
-  test('"Show on graph" switches main tab to Graph and closes palette', async ({
+  /**
+   * "Show on graph" is enabled only on insight / quote content hits (topics go to the subject
+   * section), and those are GI's: a build without GI returns transcript chunks there, so every
+   * button stays disabled. The enabled case runs in the downstream build's e2e (E04 move).
+   */
+  test('"Show on graph" is offered but disabled on a build without GI', async ({
     page,
   }, testInfo) => {
     await landOnDigestWithCorpus(page, 'palette-show-graph', testInfo)
     await openPalette(page)
-    // Its own query, not QUERY: Show on graph is enabled only on insight / quote CONTENT hits
-    // (topics go to the subject section), and since the 2026-10-13 corpus refresh "incident
-    // response" sits on the edge — insights at ranks 3 and 8 of 8 locally, none in CI's top 8.
-    // "alert fatigue" ranks an insight first, with four insight/quote hits in its top 8.
     await queryPalette(page, 'alert fatigue')
-    // The FIRST ENABLED action, not the first hit's: the button is disabled on hits with no graph
-    // node (transcript chunks), and which hit ranks first moves whenever the fixture grows — the
-    // p10-p14 `_e02`/`_e03` episodes put a transcript chunk on top. Still fails loudly when no
-    // hit in the top 8 is graph-resolvable.
-    const showGraph = page.locator(
-      '[data-testid="command-palette-action-show-graph"]:not([disabled])',
-    )
-    await expect(showGraph.first(), 'no graph-resolvable hit in the palette results').toBeVisible()
-    await showGraph.first().click()
-    await expect(page.getByTestId('command-palette')).toHaveCount(0)
-    await expect(page.getByTestId('graph-tab-panel')).toBeVisible({ timeout: 10_000 })
+    const buttons = page.getByTestId('command-palette-action-show-graph')
+    await expect(buttons.first()).toBeVisible()
+    await expect(
+      page.locator('[data-testid="command-palette-action-show-graph"]:not([disabled])'),
+    ).toHaveCount(0)
   })
 
   test('Escape closes the palette', async ({ page }, testInfo) => {

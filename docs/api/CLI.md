@@ -144,7 +144,7 @@ procedure, modes, and gotchas. The relevant flags:
 - `--pipeline-stage {full,audio_only,download_only,rederive_only,relabel_only,rediarize_only,retranscript_only,translate_only,repunctuate_only}` — the reprocess modes reuse what is on disk and do not re-transcribe the whole episode; see [Corpus Reprocessing](../guides/CORPUS_REPROCESSING.md) for what each re-runs. `enrich_only` is a deprecated alias for `rederive_only`.
 - `--no-transcribe-missing` — never transcribe episodes lacking a transcript.
 
-Canonical entry point: `make migrate-diarization CORPUS_DIR=<corpus> PROFILE=<profile>.yaml`.
+Canonical entry point: `make migrate-diarization CORPUS_DIR=<corpus> PROFILE=<profile>.yaml`, a target of the extension's Makefile (it needs the extension's speaker stages).
 
 <a id="transcript-cleaning-hybrid-ml-preprocessing-issue-419"></a>
 
@@ -524,36 +524,7 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
 
 ## Grounded insights (`gi`) subcommands
 
-Inspect and explore **Grounded Insight Layer** artifacts (`*.gi.json`) after a run with `generate_gi` enabled (see [Grounded Insights Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md), RFC-050). **Shallow v1 scope** (ML vs `stub` vs bullets, topic explore semantics, deterministic `gi query`, Postgres deferral): [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460). **With `generate_kg` too:** [KG shallow v1 record](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
-
-```bash
-# Validate artifacts (symmetric with `kg validate`; use --strict for full JSON Schema)
-python -m podcast_scraper.cli gi validate ./output/metadata --strict
-
-# Export corpus: NDJSON (one artifact per line) or merged bundle (symmetric with `kg export`)
-python -m podcast_scraper.cli gi export --output-dir ./output --format ndjson --out gi.ndjson
-python -m podcast_scraper.cli gi export --output-dir ./output --format merged --out gi-bundle.json
-
-# One episode: stats, optional full text and quotes (--show)
-python -m podcast_scraper.cli gi inspect --episode-path ./output/metadata/ep1.gi.json
-python -m podcast_scraper.cli gi inspect --output-dir ./output --episode-id 'sha256:...'
-python -m podcast_scraper.cli gi inspect --output-dir ./mycorpus --episode-id 'sha256:...' --feed-id 'rss_example.com_abc123'
-
-# One insight by id (with evidence spans)
-python -m podcast_scraper.cli gi show-insight --id 'insight:<id-from-gi.json>' --episode-path ./output/metadata/ep1.gi.json
-
-# Cross-episode: topic / speaker filters, sort, RFC-style JSON
-# When ./output/search/lance_index/ exists, --topic uses semantic ranking first (RFC-061).
-python -m podcast_scraper.cli gi explore --output-dir ./output --topic 'AI regulation' --format json
-python -m podcast_scraper.cli gi explore --output-dir ./output --speaker Host --sort time --strict
-
-# UC4: fixed English question patterns → explore JSON or topic leaderboard (RFC-050)
-python -m podcast_scraper.cli gi query --output-dir ./output --question 'What insights about inflation?'
-python -m podcast_scraper.cli gi query --output-dir ./output --question 'What insights are there about trade?'
-python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say?' --limit 10
-python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say about inflation?'
-python -m podcast_scraper.cli gi query --output-dir ./output --question 'Which topics have the most insights?'
-```
+The `gi` subcommands are added by an installed extension; with it present, `python -m podcast_scraper.cli gi --help` lists them. With `generate_kg` too, see the [KG shallow v1 record](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
 
 ## Semantic corpus search (`search`, `index`)
 
@@ -571,42 +542,11 @@ python -m podcast_scraper.cli index --output-dir ./output --stats
 
 ## Topic clusters (`topic-clusters`)
 
-Corpus-wide clustering of **KG topic** embeddings already stored as `kg_topic` rows in the LanceDB
-index (RFC-075). Writes **`topic_clusters.json`** next to the index (default:
-`<output-dir>/search/topic_clusters.json`). Requires an indexed corpus with `kg_topic` included.
-The JSON **`schema_version`** is **`"2"`** for new writes: **`graph_compound_parent_id`** / **`cil_alias_target_topic_id`**
-separate viewer compound ids (`tc:`) from CIL merge targets (`topic:`). See [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) §3.
-
-```bash
-python -m podcast_scraper.cli topic-clusters --output-dir ./output
-python -m podcast_scraper.cli topic-clusters --output-dir ./output --threshold 0.8
-python -m podcast_scraper.cli topic-clusters --output-dir ./output \
-  --validate-config ./path/to/my_topic_cluster_validation.yaml
-python -m podcast_scraper.cli topic-clusters --output-dir ./output --merge-cil-overrides
-```
-
-**`--merge-cil-overrides`** merges auto **`topic_id_aliases`** into **`cil_lift_overrides.json`**
-(existing alias keys in that file take precedence). Run after indexing when **`kg_topic`** rows exist.
+The `topic-clusters` subcommand is added by an installed extension; with it present, `python -m podcast_scraper.cli topic-clusters --help` lists its flags, and `make topic-clusters` runs it for a corpus.
 
 ## Insight clusters (`insight-clusters`)
 
-Cross-episode clustering of **GI insight** texts from `*.gi.json` artifacts (#599). Uses the same
-average-linkage algorithm as topic clustering (RFC-075). Writes **`insight_clusters.json`** to
-`<output-dir>/search/insight_clusters.json`. Requires a corpus with GI artifacts.
-
-```bash
-python -m podcast_scraper.cli insight-clusters --output-dir ./output
-python -m podcast_scraper.cli insight-clusters --output-dir ./output --threshold 0.8
-python -m podcast_scraper.cli insight-clusters --output-dir ./output --output-file ./custom_path.json
-```
-
-The **`gi explore --expand-clusters`** flag loads `insight_clusters.json` and adds cross-episode
-cluster context (supporting quotes from other episodes) to each matching insight:
-
-```bash
-python -m podcast_scraper.cli gi explore --topic "AI safety" --output-dir ./output --expand-clusters
-python -m podcast_scraper.cli gi explore --topic "index funds" --output-dir ./output --expand-clusters --format json
-```
+The `insight-clusters` subcommand is added by an installed extension; with it present, `python -m podcast_scraper.cli insight-clusters --help` lists its flags.
 
 ## Corpus status (`corpus-status`)
 
@@ -620,18 +560,36 @@ python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent
 python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent --format json
 ```
 
-**PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
+## Parked episodes (`parked-episodes`)
+
+An episode whose transcription fails in **`transcription_park_after_failures`** multi-feed batches
+(default 2; 0 turns parking off) is **parked**: later batches skip it before download until it is
+released by hand. A failure counts only in a batch where some other
+episode transcribed, so an endpoint outage parks nothing; a successful transcription clears the
+count. State is **`parked_episodes.json`** beside `corpus_incidents.jsonl` in the corpus parent.
+
+Each park writes an error log line starting `EPISODE_PARKED`, a GlitchTip event
+("Episode parked after N transcription failures: <episode_id>") and an `EpisodeParked` policy
+incident; each skip of a parked episode writes a warning line and another `EpisodeParked` incident.
 
 ```bash
-make gil-quality-metrics DIR=./output
-make gil-quality-metrics DIR=./output ARGS='--enforce --min-avg-insights 3 --min-avg-quotes 5'
-make compare-gil-runs REF=./output/run_ref CAND=./output/run_ml
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --format json
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --release <episode_id> [...]
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --release-all
+python -m podcast_scraper.cli parked-episodes --output-dir ./corpus_parent --park <episode_id> --reason "hangs the ASR endpoint"
+```
+
+`--release` refuses (exit 1, nothing changed) when any id given is not parked. `--park` parks an
+episode by hand at once (its listing shows `ParkedByHand` and the reason); it needs `--reason`.
+
+**PRD-019 quality metrics** over a run directory's `.kg.json` (the GI metrics run with the GI
+stage, an installed extension):
+
+```bash
 make kg-quality-metrics DIR=./output ARGS='--enforce --json'
 make quality-metrics-ci
 ```
-
-`compare-gil-runs` expects each path to be a **pipeline run root** with `metadata/*.gi.json`
-(see the original GIL-ML-vs-OpenAI outcome benchmark, WIP doc now removed).
 
 ## Knowledge Graph (`kg`) subcommands
 
@@ -656,11 +614,11 @@ python -m podcast_scraper.cli kg entities --output-dir ./output --min-episodes 2
 python -m podcast_scraper.cli kg topics --output-dir ./output --min-support 2 --format json
 ```
 
-Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md), [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md). **Shallow v1 scope** (extraction + ML, no `kg query` IR, Postgres deferral): [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). **GIL companion:** [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md). **Shallow v1 scope** (extraction + ML, no `kg query` IR, Postgres deferral): [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
 
 ## Additional subcommands (catalog only)
 
-Eleven top-level subcommands wired in `cli.py` weren't in the main
+Nine top-level subcommands wired in `cli.py` weren't in the main
 sections above. Run `python -m podcast_scraper.cli <command> --help`
 for the full flag list; below is the one-line intent per command.
 
@@ -668,11 +626,9 @@ for the full flag list; below is the one-line intent per command.
 | --- | --- | --- |
 | `serve` | Run the GI/KG viewer HTTP API (FastAPI, uvicorn). | Requires `[dev]` extra. Feature flags: `--enable-feeds-api`, `--enable-operator-config-api`, `--enable-jobs-api`, `--config-file PATH`. Local: `make serve`. |
 | `enrich` | Run the RFC-088 enrichment-layer pass over a corpus. | Flags include `--corpus-only`, `--re-enable ID`, `--re-enable-reason "…"`, `--config` (enrichment YAML). |
-| `enrich-edges` | KG-edge enrichment (speaker/NER lifts on `.kg.json`). | `--no-speaker`, `--use-ner`, `--retro-audit` + `--retro-marker` / `--retro-summary` for in-place mutation with an audit sidecar (ADR-102). |
 | `upgrade` | Corpus format migrations (RFC-097 chunk 9). | Sub-subcommands: `status` (pending migrations), `list` (all migrations + state), `verify` (post-migration checks), `run` (apply). |
 | `cache` | Manage ML model caches (Whisper, Transformers, spaCy). | `--clean [all\|whisper\|transformers\|spacy]`, `--delete-model NAME`, `--yes` to skip confirm. Distinct from the `--cache-info` / `--clear-model-cache` main-command flags above. |
 | `archive pull` | Cold-storage recovery — download archived episode audio to a local directory. | Single sub-subcommand `pull`. |
-| `cluster-corpus-topics` | Corpus-scope topic clustering (theme discovery). | `--threshold`, `--min-episodes`, `--dry-run`. |
 | `corpus-cost` | Cost projection over an already-run corpus root. | Positional: `corpus_path` (parent of `feeds/`). Reads existing artifacts; no LLM calls. |
 | `index-two-tier` | Build the two-tier LanceDB search index (RFC-090). | `--lance-path`, `--embedding-model`, `--limit-episodes`. |
 | `mcp` | Run the generic MCP server over a corpus. `--transport stdio` (default; local child process, no auth) or `--transport http` (remote Streamable HTTP, bearer-auth). | Requires `.[dev,search]` (or `[search]` + `mcp` in prod). `--corpus <dir>` (required). HTTP: `--host`/`--port` (default `127.0.0.1:8009`); needs `APP_MCP_VERIFY_URL` + `INTERNAL_MCP_TOKEN` env for the verify seam (+ `APP_MCP_ISSUER_URL`/`APP_MCP_RESOURCE_URL` for discovery). |

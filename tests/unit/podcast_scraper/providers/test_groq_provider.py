@@ -188,12 +188,6 @@ class TestFactoryDispatch:
         p = create_summarization_provider(_groq_cfg())
         assert isinstance(p, GroqProvider)
 
-    def test_speaker_factory_returns_groq(self):
-        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-
-        p = create_speaker_detector(_groq_cfg())
-        assert isinstance(p, GroqProvider)
-
 
 class TestDualUseTranscription:
     """Groq is the only LLM sibling that is ALSO a transcription provider (inherits transcribe).

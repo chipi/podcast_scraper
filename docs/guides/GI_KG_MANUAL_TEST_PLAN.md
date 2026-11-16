@@ -13,15 +13,14 @@ something works while you **run** the steps.
 
 | Topic | Where to read |
 | --- | --- |
-| **How GI, KG, and summaries relate** | [Grounded Insights Guide — Summaries, KG, and grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#summaries-kg-and-grounded-insights-how-they-fit-together); [Knowledge Graph Guide — How KG fits with summaries and grounded insights](../guides/KNOWLEDGE_GRAPH_GUIDE.md#how-kg-fits-with-summaries-and-grounded-insights) |
-| **Shallow v1 scope (what ships vs deferred)** | GIL: [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460); KG: [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg); Depth roadmap: [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) |
+| **How GI, KG, and summaries relate** | [Knowledge Graph Guide — How KG fits with summaries and grounded insights](../guides/KNOWLEDGE_GRAPH_GUIDE.md#how-kg-fits-with-summaries-and-grounded-insights) |
+| **Shallow v1 scope (what ships vs deferred)** | KG: [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg); Depth roadmap: [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) |
 | **Product intent** | [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md); [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md); [PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md) (baseline for bullets and consumption) |
-| **Design / use cases** | [RFC-049: GIL core](../rfc/RFC-049-grounded-insight-layer-core.md); [RFC-050: GIL use cases](../rfc/RFC-050-grounded-insight-layer-use-cases.md); [RFC-055: KG core](../rfc/RFC-055-knowledge-graph-layer-core.md); [RFC-056: KG use cases](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) |
+| **Design / use cases** | [RFC-055: KG core](../rfc/RFC-055-knowledge-graph-layer-core.md); [RFC-056: KG use cases](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) |
 | **Enable flags and config tables** | [CONFIGURATION.md — Knowledge Graph (KG)](../api/CONFIGURATION.md#knowledge-graph-kg); [CONFIGURATION.md — Grounded Insights (GIL)](../api/CONFIGURATION.md#grounded-insights-gil); [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers) |
-| **GIL evidence × provider (matrix, API vs local)** | [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix) |
 | **CLI examples** | [CLI — Grounded insights (`gi`) subcommands](../api/CLI.md#grounded-insights-gi-subcommands); [CLI — Knowledge Graph (`kg`) subcommands](../api/CLI.md#knowledge-graph-kg-subcommands) |
-| **Pipeline placement** | [Grounded Insights Guide — Pipeline order](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights) (GIL after metadata); [Knowledge Graph Guide — Enabling KG](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg); [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
-| **Artifacts and shapes** | [Grounded Insights Guide — Output artifact: gi.json](../guides/GROUNDED_INSIGHTS_GUIDE.md#output-artifact-gijson); [Knowledge Graph Guide — Output artifacts](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts) |
+| **Pipeline placement** | [Knowledge Graph Guide — Enabling KG](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg); [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
+| **Artifacts and shapes** | [Knowledge Graph Guide — Output artifacts](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts) |
 | **Ontology and JSON Schema** | [GIL ontology](../architecture/gi/ontology.md); [gi.schema.json](../architecture/gi/gi.schema.json); [KG ontology](../architecture/kg/ontology.md); [kg.schema.json](../architecture/kg/kg.schema.json) |
 | **Provider / API setup** | [Provider configuration quick reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
 | **Automated test context (optional)** | [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md); acceptance index at repo root: `config/acceptance/README.md` |
@@ -62,8 +61,6 @@ make test-acceptance CONFIGS="path/to/operator.yaml"
 
 **Keys:** depends on **`profile:`** (for **`cloud_balanced`**, see **`config/examples/.env.example`**).
 
-**GI evidence:** See [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix).
-
 ### Acceptance configs (full pipeline, CI-style)
 
 Matrix-driven runs: **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** + **`fragments/`**. See **`config/acceptance/README.md`** and **`scripts/acceptance/README.md`**.
@@ -97,11 +94,11 @@ Docs: docs/wip/manual-test-plan-gi-kg.md, docs/api/CONFIGURATION.md#rss-and-mult
 Pick **one RSS URL** you have actually listened to (or can skim). You will judge:
 
 - Do **summary bullets** and **KG topics/entities** match what you remember?
-  → See [PRD-005](../prd/PRD-005-episode-summarization.md) and [how summaries relate to GI/KG](../guides/GROUNDED_INSIGHTS_GUIDE.md#summaries-kg-and-grounded-insights-how-they-fit-together).
+  → See [PRD-005](../prd/PRD-005-episode-summarization.md) .
 - Do **GI insights** read like real takeaways (not stub text)?
-  → See [enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights) and [`gi_insight_source`](../api/CONFIGURATION.md#grounded-insights-gil).
+  → See [`gi_insight_source`](../api/CONFIGURATION.md#grounded-insights-gil).
 - For **grounded** insights, do **quotes** appear in the transcript and support the claim?
-  → See [grounding contract / ontology](../architecture/gi/ontology.md) and [provider-based evidence (QA + NLI)](../guides/GROUNDED_INSIGHTS_GUIDE.md#provider-based-evidence-qa-nli).
+  → See [grounding contract / ontology](../architecture/gi/ontology.md) .
 
 Write down the episode titles or IDs you will use so you can find the right files under
 `metadata/`.
@@ -119,12 +116,12 @@ flags. Mapping (example filenames you maintain locally):
 | **OpenAI + full LLM insight + graph extraction** | Step **C** — `manual_planet_money_openai_gi_kg_provider.yaml` |
 | **No API keys; local ML** | Step **D** — `manual_planet_money_ml_gi_kg_summary_bullets.yaml` |
 
-**Read alongside:** [ML summarization and GIL insight wording](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording); [KG extraction modes](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg) (`stub` / `summary_bullets` / `provider`).
+**Read alongside:** [KG extraction modes](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg) (`stub` / `summary_bullets` / `provider`).
 
 **Gotchas (from guides):**
 
 - **`gi_insight_source: stub`** — placeholder insights; fine for CI-style smoke, not for
-  your “does GI make sense?” pass. Details: [Enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights). Acceptance **`full/`** configs use **`summary_bullets`** for GI; use local operator YAML or pytest E2E for stub or other modes.
+  your “does GI make sense?” pass. Acceptance **`full/`** configs use **`summary_bullets`** for GI; use local operator YAML or pytest E2E for stub or other modes.
 - **`kg_extraction_source: provider`** with **ML-only** summary provider — graph extraction
   is a no-op; pipeline falls back to **summary bullets** when available. Details:
   [KG guide extraction table](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg) and [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md).
@@ -172,10 +169,10 @@ Under your run’s **`output_dir`** (call it **`$OUT`**; e.g.
 `.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets` for step **B**):
 
 - **`metadata/<episode_basename>.metadata.json`** — summary bullets, pipeline provenance;
-  may include [`grounded_insights`](../guides/GROUNDED_INSIGHTS_GUIDE.md#output-artifact-gijson)
+  may include `grounded_insights`
   and [`knowledge_graph`](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts) index fields.
-- **`metadata/<episode_basename>.gi.json`** — insights, quotes, grounding — see
-  [Output artifact: gi.json](../guides/GROUNDED_INSIGHTS_GUIDE.md#output-artifact-gijson).
+- **`metadata/<episode_basename>.gi.json`** — insights, quotes, grounding — see the
+  [GIL ontology](../architecture/gi/ontology.md).
 - **`metadata/<episode_basename>.kg.json`** — entities, topics, edges — see
   [Output artifacts (KG)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts).
 
@@ -196,8 +193,6 @@ OUT=.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets
 ```bash
 python -m podcast_scraper.cli gi validate --strict "$OUT/metadata"
 ```
-
-**Read alongside:** [Schema and Validation (GIL)](../guides/GROUNDED_INSIGHTS_GUIDE.md#schema-and-validation); [RFC-050 explorer / query behavior](../rfc/RFC-050-grounded-insight-layer-use-cases.md).
 
 **Single-episode narrative**
 
@@ -227,24 +222,24 @@ python -m podcast_scraper.cli gi export --output-dir "$OUT" --format ndjson --ou
 python -m podcast_scraper.cli gi export --output-dir "$OUT" --format merged --out gi-bundle.json
 ```
 
-Optional **`gi query`** probe (fixed patterns from [RFC-050 / guide](../guides/GROUNDED_INSIGHTS_GUIDE.md#cli), not open-ended NL):
+Optional **`gi query`** probe (fixed patterns from not open-ended NL):
 
 ```bash
 python -m podcast_scraper.cli gi query --output-dir "$OUT" \
   --question 'What insights about inflation?'
 ```
 
-**CLI details:** [Grounded insights (`gi`) subcommands](../api/CLI.md#grounded-insights-gi-subcommands); longer option list in [Grounded Insights Guide — CLI](../guides/GROUNDED_INSIGHTS_GUIDE.md#cli).
+**CLI details:** [Grounded insights (`gi`) subcommands](../api/CLI.md#grounded-insights-gi-subcommands).
 
 **Manual judgment**
 
 - [ ] Insight texts are **not** stub placeholders.
 - [ ] Mix of **`grounded: true`** and **`grounded: false`** is believable (all false or all
-  true is worth noting). See [Troubleshooting — Ungrounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#troubleshooting).
+  true is worth noting).
 - [ ] For grounded rows: open the transcript (or segments) and confirm **quote text** is
   **verbatim** and **on-topic** for the insight.
 - [ ] If you use **`gi explore --topic`**, remember current pipeline may not emit Topic
-  nodes; substring match on insight text still applies — [Topic nodes and `gi explore --topic`](../guides/GROUNDED_INSIGHTS_GUIDE.md#topic-nodes-about-edges-and-gi-explore-topic).
+  nodes; substring match on insight text still applies.
 
 ---
 
@@ -304,13 +299,9 @@ That gives you a reproducible manual baseline next time GI/KG or providers chang
 
 ## 7. Optional Makefile hooks
 
-- **`make validate-gi-schema [ARTIFACTS_DIR=path]`** — validates `*.gi.json` against
-  [gi.schema.json](../architecture/gi/gi.schema.json) (see Makefile `help`). Example:
-  `ARTIFACTS_DIR=.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets/metadata`
 - **`make validate-kg-schema [ARTIFACTS_DIR=path]`** — validates against
-  [kg.schema.json](../architecture/kg/kg.schema.json).
-- **`make gil-quality-metrics [DIR=path]`** — PRD-017-oriented metrics over `.gi.json`
-  (see Makefile `help`).
+  [kg.schema.json](../architecture/kg/kg.schema.json). Example:
+  `ARTIFACTS_DIR=.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets/metadata`
 - **`make kg-quality-metrics [DIR=path]`** — PRD-019-oriented metrics over `.kg.json`.
 - **`make quality-metrics-ci`** — GIL + KG `--enforce` on `tests/fixtures/gil_kg_ci_enforce`
   (matches the **GIL and KG quality metrics** step in the GitHub Actions `test-unit` job;

@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-916dab1698f88aec",
+      "to": "topic:dive-planning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:ascent-control",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:current-assessment",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:gas-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:incident-prevention",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:systemic-interaction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:team-coordination",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-916dab1698f88aec",
+  "extraction": {
+    "extracted_at": "2025-07-09T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p03_e04.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-916dab1698f88aec",
+      "properties": {
+        "podcast_id": "p03",
+        "publish_date": "2025-07-09T00:00:00",
+        "title": "Plan the Dive, Manage the Risk"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dive-planning",
+      "properties": {
+        "label": "dive planning",
+        "slug": "dive-planning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:ascent-control",
+      "properties": {
+        "label": "ascent control",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:current-assessment",
+      "properties": {
+        "label": "current assessment",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gas-management",
+      "properties": {
+        "label": "gas management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-prevention",
+      "properties": {
+        "label": "incident prevention",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-interaction",
+      "properties": {
+        "label": "systemic interaction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-coordination",
+      "properties": {
+        "label": "team coordination",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

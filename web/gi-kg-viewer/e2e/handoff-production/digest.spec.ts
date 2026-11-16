@@ -8,48 +8,12 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
-import {
-  assertHandoffApplied,
-  captureConsoleErrors,
-} from '../handoff/_handoff-helpers'
+import { SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import { setupProductionShapedMocks } from './_helpers'
 
 test.describe('Handoff matrix § Tier 2 — Digest pill (production-shaped)', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'creator')
-  })
-
-  test('P1.2 — Digest recent-row CIL pill resolves to a real cy topic node', async ({ page }) => {
-    // D1 in the catalog. Recent-row pills target ``cil_digest_topics[]``
-    // entries which ARE present in the episode's GI artifact. Targets
-    // the first recent row's first CIL topic (``topic:public-investment``
-    // for the production-shaped fixture's first row).
-    //
-    // This is distinct from the **topic-band** pills at the top of the
-    // Digest (``topic:science-research``, etc.) which are categorization
-    // buckets, not real cy nodes — those correctly surface as
-    // ``handoffFailed`` per the V2 fix.
-    const errs = captureConsoleErrors(page)
-    await setupProductionShapedMocks(page)
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/production-shaped')
-    await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 15_000 })
-
-    // Recent-row pill — match by the specific label rather than
-    // ``first()`` so topic-band pills don't shadow.
-    const pill = page
-      .getByRole('button', { name: /Open graph for topic: public investment/i })
-      .first()
-    await pill.waitFor({ state: 'visible', timeout: 15_000 })
-    await pill.click()
-
-    await assertHandoffApplied(page, 'g:topic:public-investment', {
-      errors: errs,
-      cameraCenterTolerance: 0.4,
-      waitForReadyMs: 30_000,
-    })
   })
 
   test('P1.2-bucket — headline topic-band pill renders as non-clickable (V2 regression guard)', async ({

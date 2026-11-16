@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -66,12 +68,30 @@ router = APIRouter(tags=["corpus"])
 # real per-episode sidecars for every episode in the corpus — the endpoint returned 200 with a
 # full payload for an enricher this list said was unavailable. A consumer trusting the flags
 # could not discover half the per-episode enrichment that existed.
-#
-# Kept as an explicit tuple (the request path must not import the enrichment registry), but
-# ``tests/unit/podcast_scraper/server/test_enrichments_available_matches_registry.py`` asserts
-# it equals the registry's episode-scope ids, so the next enricher added cannot drift out of
-# it silently — the drift fails CI instead of under-reporting in production.
-_EPISODE_SCOPE_ENRICHER_IDS: tuple[str, ...] = ("insight_density", "insight_sentiment")
+
+
+@functools.lru_cache(maxsize=1)
+def episode_scope_enricher_ids() -> tuple[str, ...]:
+    """Every installed deterministic episode-scope enricher id, platform first.
+
+    Read from the installed enrichers' class-level manifests (the platform's, then each
+    extension's), so the list follows what is installed and the request path never builds the
+    enrichment registry. ``test_enrichments_available_matches_registry.py`` asserts it equals the
+    registry's deterministic episode-scope ids.
+    """
+    from podcast_scraper.enrichment.enrichers import PUBLIC_ENRICHER_CLASSES
+    from podcast_scraper.enrichment.protocol import EnricherScope, EnricherTier
+    from podcast_scraper.extensions import enrichment_contributions
+
+    classes = list(PUBLIC_ENRICHER_CLASSES) + [
+        cls for c in enrichment_contributions() for cls in c.enricher_classes()
+    ]
+    return tuple(
+        cls.manifest.id
+        for cls in classes
+        if cls.manifest.scope is EnricherScope.EPISODE
+        and cls.manifest.tier is EnricherTier.DETERMINISTIC
+    )
 
 
 def _resolve_episode_enrichments_available(
@@ -83,12 +103,12 @@ def _resolve_episode_enrichments_available(
     """
     rel = (metadata_relpath or "").strip()
     if not rel or not rel.endswith(".metadata.json"):
-        return {eid: False for eid in _EPISODE_SCOPE_ENRICHER_IDS}
+        return {eid: False for eid in episode_scope_enricher_ids()}
     meta_path = corpus_root / rel
     stem = meta_path.name[: -len(".metadata.json")]
     enrich_dir = meta_path.parent / "enrichments"
     return {
-        eid: (enrich_dir / f"{stem}.{eid}.json").is_file() for eid in _EPISODE_SCOPE_ENRICHER_IDS
+        eid: (enrich_dir / f"{stem}.{eid}.json").is_file() for eid in episode_scope_enricher_ids()
     }
 
 
@@ -203,6 +223,40 @@ def corpus_resolve_episode_artifacts(
     )
 
 
+def _kg_node_episodes(
+    root: Path, node_id: str, max_episodes: int | None
+) -> tuple[str, list[dict[str, Any]], bool, int | None]:
+    """The episodes whose KG carries *node_id*, from the KG index, when no stage reads bridges.
+
+    Without the cross-layer stage (a build without GI) the bridge answer is always empty, so the
+    graph could never bring in a topic, person or organisation outside its first slice. The KG
+    index holds the same "which episodes mention it" for the KG's own nodes.
+    """
+    from podcast_scraper.server.kg_index import get_kg_index
+
+    canon = re.sub(r"^[gk]:", "", node_id.strip())
+    index = get_kg_index(root)
+    if canon.startswith("topic:"):
+        found = index.topic_episodes(canon)
+    elif canon.startswith("person:"):
+        found = index.person_episodes(canon)
+    else:
+        found = index.org_episodes(canon)
+    total = len(found)
+    kept = found[:max_episodes] if max_episodes else found
+    rows = [
+        {
+            "gi_relative_path": "",
+            "kg_relative_path": e.row.kg_relative_path,
+            "bridge_relative_path": "",
+            "episode_id": e.row.episode_id,
+        }
+        for e in kept
+        if e.row.kg_relative_path
+    ]
+    return canon, rows, len(kept) < total, total
+
+
 @router.post("/corpus/node-episodes", response_model=CorpusNodeEpisodesResponse)
 def corpus_node_episodes(
     request: Request,
@@ -217,12 +271,17 @@ def corpus_node_episodes(
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
     anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
-    canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
-        root_s,
-        anchor_path,
-        body.node_id,
-        max_episodes=body.max_episodes,
-    )
+    if read_hooks.bridge_node_episodes_installed():
+        canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
+            root_s,
+            anchor_path,
+            body.node_id,
+            max_episodes=body.max_episodes,
+        )
+    else:
+        canon, rows, truncated, total_matched = _kg_node_episodes(
+            root, body.node_id, body.max_episodes
+        )
     items = [
         CorpusNodeEpisodeItem(
             gi_relative_path=str(r["gi_relative_path"]),
@@ -330,6 +389,10 @@ def corpus_episodes(
         default=None,
         description="When true, only rows with GI; when false, only rows missing GI.",
     ),
+    has_kg: bool | None = Query(
+        default=None,
+        description="When true, only rows with KG; when false, only rows missing KG.",
+    ),
     topic_cluster_only: bool = Query(
         default=False,
         description="When true, keep only episodes whose bridge topics appear on a corpus "
@@ -374,6 +437,7 @@ def corpus_episodes(
         since=since,
         until=until,
         has_gi=has_gi,
+        has_kg=has_kg,
     )
     cluster_index = (
         load_topic_cluster_index(root) if (topic_cluster_only or with_cil_topics) else None

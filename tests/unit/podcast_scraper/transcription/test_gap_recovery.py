@@ -274,62 +274,6 @@ def test_cut_clip_cuts_the_requested_span(tmp_path: Path) -> None:
     assert info["streams"][0]["channels"] == 1
 
 
-class TestThroughTheDiarizationPipeline:
-    """The splice happens BEFORE alignment, so a recovered segment gets its speaker the same way
-    every other segment does, and ``asr_untranscribed_speech`` reports only what is still missing.
-    """
-
-    def _run(self, monkeypatch: pytest.MonkeyPatch, transcribe_clip: Any) -> Dict[str, Any]:
-        from podcast_scraper.config import Config
-        from podcast_scraper.providers.ml.diarization import pipeline as P
-        from podcast_scraper.providers.ml.diarization.base import (
-            DiarizationResult,
-            DiarizationSegment,
-        )
-
-        monkeypatch.setattr(G, "cut_clip", lambda path, s, e, out: None)
-        diar = DiarizationResult(
-            segments=[
-                DiarizationSegment(0, 30, "SPEAKER_00"),
-                DiarizationSegment(30, 50, "SPEAKER_01"),
-                DiarizationSegment(50, 80, "SPEAKER_00"),
-            ],
-            num_speakers=2,
-        )
-        result = {
-            "text": "Welcome to the show. Back to you.",
-            "segments": [
-                {"start": 0, "end": 30, "text": "Welcome to the show."},
-                {"start": 50, "end": 80, "text": "Back to you."},
-            ],
-        }
-        cfg = Config(speaker_resolution_llm=False)
-        return P.apply_diarization_to_result(
-            result, "ep.mp3", cfg, [], precomputed_diarization=diar, transcribe_clip=transcribe_clip
-        )
-
-    def test_the_recovered_turn_is_attributed_to_the_voice_that_spoke_it(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        clip = {"segments": [{"start": 1.5, "end": 19.0, "text": "Thanks, it is good to be here."}]}
-        out = self._run(monkeypatch, lambda path: clip)
-        recovered = [s for s in out["segments"] if s.get("recovered")]
-        assert len(recovered) == 1
-        assert recovered[0]["text"] == "Thanks, it is good to be here."
-        others = {s.get("speaker") for s in out["segments"] if not s.get("recovered")}
-        assert recovered[0].get("speaker") not in others
-        assert out["asr_untranscribed_speech"] == []
-        assert out["asr_speech_recovery"][0]["status"] == "recovered"
-
-    def test_without_a_transcriber_nothing_is_recovered(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        out = self._run(monkeypatch, None)
-        assert not any(s.get("recovered") for s in out["segments"])
-        assert "asr_speech_recovery" not in out
-        assert [(g["start"], g["end"]) for g in out["asr_untranscribed_speech"]] == [(30.0, 50.0)]
-
-
 class TestAFailedCallStopsTheRest:
     RESULT = TestRecoverUntranscribedSpeech.RESULT
     GAPS = [

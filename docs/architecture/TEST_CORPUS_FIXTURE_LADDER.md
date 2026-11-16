@@ -164,14 +164,14 @@ visibly guts it, and a `SPEAKER_NN` that must **not** become a Person node.
 ### F0. The instrument invented the number
 
 I reported that **5.8%** of the corpus was "unambiguously recoverable" and set out to fix it. The
-diagnostic (`attribution_ceiling.py`) used a **looser regex than the roster actually ships**, so it
+diagnostic used a **looser regex than the roster actually ships**, so it
 counted as recoverable a great deal the pipeline could never have caught.
 
 Honest figures: **0.88%** recoverable (not 5.8%), **6.39%** genuinely nameless (not 1.5%), ceiling
 **92.15%** (not 97%).
 
 **The rule:** a diagnostic must **import the shipped code path**, never re-implement it. A measuring
-script that re-states the rule in its own words is measuring its own words. `attribution_ceiling.py`
+script that re-states the rule in its own words is measuring its own words. The diagnostic
 now imports the exact `_GUEST_INTRODUCED_BY_HOST` regex the roster ships, so the diagnostic
 *cannot* disagree with what we deploy.
 
@@ -551,7 +551,7 @@ test. It is checkable, it is cheap, and it belongs in the corpus audit (tier 4).
   (which cut ONE pre-roll span and **excised nothing at all** when an episode had more than one ad
   block — "5 pattern hits, 0 chars removed") to **per-cluster excision**: cluster the ad-pattern
   hits, cut each block on its own (pre-, mid-, post-roll), keep the content between. It is currently
-  exercised only by hand-built strings in `tests/unit/podcast_scraper/gi/test_ad_regions.py`. v4
+  exercised only by hand-built strings in unit tests. v4
   should add fixtures that make this real:
   - a **multi-ad episode**: pre-roll + at least one mid-roll + post-roll, with real content between
     each — asserts every block is cut and the middle survives (the exact bug: multiple blocks →
@@ -615,8 +615,8 @@ The requirements, kept for the record:
 | **>15 feeds** | viewer `library.spec.ts` feed-filter search | the control renders only above a 15-feed threshold; v3 ships 9 |
 | An episode with **no nearest neighbours** | viewer `library.spec.ts` similar-empty branch | against a real index every episode has peers, so `items: []` is unreachable |
 | Run counters in **three states** — positive, explicit `0`, legacy `null` | viewer `dashboard-pipeline-metrics-mocks.spec.ts` | one committed run cannot be all three at once |
-| **Lifted / compound results** — a segment chunk resolving to an insight with an attributed speaker | `search-fr1` compound badge, **all of** `person-landing.spec.ts` | 50 of 50 results across five queries return `"lifted": null` |
-| Search results carrying **speaker/topic subject metadata**, ≥2 surfaceable by one query | `search-operator-compare.spec.ts` (the whole Compare operator) | no `speaker_name` / `topic_label` on any result; ≤1 `kg_entity`/`kg_topic` per query across four probes |
+| **Lifted / compound results** — a segment chunk resolving to an insight with an attributed speaker | the compound badge and the person spec (both now downstream, E04 step 8b) | 50 of 50 results across five queries return `"lifted": null` |
+| Search results carrying **speaker/topic subject metadata**, ≥2 surfaceable by one query | the Compare operator spec (now downstream, E04 step 8b) | no `speaker_name` / `topic_label` on any result; ≤1 `kg_entity`/`kg_topic` per query across four probes |
 | A **consensus pair with named speakers** | `search-operator-bar` consensus assertions | pairs exist, but `person_a_label` / `person_b_label` / `cosine_similarity` are all `null` |
 | Corpus content that **answers the default digest topic queries** (or a corpus-local `digest_topics` config) | `digest.spec.ts` topic bands, `dashboard.spec.ts` FR6.1 | `DEFAULT_DIGEST_TOPICS` is configured, but every band resolves to `None` — and reports `topics_unavailable_reason: null`, which reads as "nothing configured" |
 | A topic **discussed on more than one show**, and topics with real **adjacency** | `topic-entity-view.spec.ts` FR4.2 cross-show + #1055 related topics | `/api/relational/cross-show` → 0 shows and `/api/relational/related-topics` → 0 topics, for every topic probed (`who-said` and `topic-entities` DO return 9–10 each) |
@@ -668,8 +668,8 @@ That single gap blocks more than it looks like:
 
 | Blocked surface | Why |
 | --- | --- |
-| `search-fr1.spec.ts` compound badge + lifted entity links | the badge and links only render on a compound row |
-| `person-landing.spec.ts` — **the whole file** | its only shipped entry point is clicking the `lifted.speaker` link on a search hit |
+| the compound badge + lifted entity links (now downstream, E04 step 8b) | the badge and links only render on a compound row |
+| `person-landing.spec.ts` — **the whole file** (since E04 step 8b in a downstream build, with the Positions tab) | its only shipped entry point is clicking the `lifted.speaker` link on a search hit |
 
 So a working index did **not** unblock `person-landing`, contrary to the earlier note here. **v4
 must produce lifted/compound results** — segment chunks that resolve to an insight with an

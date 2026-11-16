@@ -3,7 +3,7 @@
  * graph-v3 Q — Lenses popover in the graph bottom bar.
  *
  * Renders one checkbox per RFC-080 lens (`nodeSizeByDegree`, `bridgeRing`,
- * `personCredibility`, `coGuestEdges`, `personCommunities`, `aggregatedEdges`). Toggles write to `useGraphLensesStore` which persists
+ * `coGuestEdges`, `personCommunities`, `aggregatedEdges`, and the lenses a build registers). Toggles write to `useGraphLensesStore` which persists
  * to localStorage; GraphCanvas watchers re-apply the class overlays
  * without a full re-layout so the graph responds live.
  *
@@ -20,7 +20,7 @@
  * contracts. Update both when adding a new lens.
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import { graphLenses as registeredLenses } from '../../../extensions'
+import { graphElementDecorators, graphLenses as registeredLenses } from '../../../extensions'
 import { useGraphLensesStore } from '../../../stores/graphLenses'
 import { useArtifactsStore } from '../../../stores/artifacts'
 import { useShellStore } from '../../../stores/shell'
@@ -34,29 +34,19 @@ const anchorRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLDivElement | null>(null)
 const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
-/* aggregatedEdges lens is data-gated: it renders Episode↔Topic (`ABOUT_AGG`)
-   + Episode↔Person (`SPOKE_IN_AGG`) roll-ups on top of the per-Insight
-   edges. If the current display artifact has zero source Insight→Topic
-   ABOUT edges AND zero Quote→Person SPOKEN_BY edges then the toggle
-   would render nothing at all — hide the row to avoid a dead control
-   (RFC-080 V1). */
+/* The aggregated-edges lens draws what a registered element decorator rolls up (RFC-080 V1);
+   the row shows only when one has something to aggregate in the drawn artifact, so it is never
+   a dead control. */
 const aggregatedEdgesAvailable = computed(() => {
-  const edges = artifacts.displayArtifact?.data?.edges
-  if (!Array.isArray(edges) || edges.length === 0) return false
-  for (const e of edges) {
-    if (!e) continue
-    const raw = e.type
-    const t = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-    if (t === 'about' || t === 'spoken_by') return true
-  }
-  return false
+  const art = artifacts.displayArtifact
+  if (!art) return false
+  return graphElementDecorators.list().some((d) => d.aggregates?.(art) === true)
 })
 
 /* graph-v3 Tier 5C/5D — enricher-based lens rows are hidden when the
    underlying corpus artifact is absent. Availability is probed on mount
    + on corpus-path change (each fetch is cached, so subsequent lens
    toggles reuse the same result without a re-request). */
-const credibilityAvailable = ref(false)
 const coguestAvailable = ref(false)
 
 /** Availability of lenses a build registered (extension point `graphLenses`), by id. */
@@ -77,25 +67,10 @@ async function probeEnricherAvailability(root: string): Promise<void> {
   void probeRegisteredAvailability(root.trim())
   const missingRoot = !root.trim()
   if (missingRoot) {
-    credibilityAvailable.value = false
     coguestAvailable.value = false
     return
   }
-  const [credibility, coguest] = await Promise.all([
-    fetchCachedCorpusEnvelope(root, 'grounding_rate').catch(() => null),
-    fetchCachedCorpusEnvelope(root, 'guest_coappearance').catch(() => null),
-  ])
-  // #1927 — availability must mean "this lens can actually draw something", not "the file
-  // exists". grounding_rate became per-EPISODE: its envelope is still written, but it no longer
-  // carries `persons`, and applyCredibilityBorder returns early without them. Probing for the
-  // file alone left the lens toggling ON and doing nothing, permanently. Requiring the array the
-  // overlay reads makes the chip honest, and leaves the plumbing intact if a per-episode-driven
-  // credibility lens is built later (tracked separately).
-  // ``persons`` lives under the envelope's ``data``, which is what applyCredibilityBorder is
-  // handed — reading it off the envelope itself is always undefined, i.e. correct-looking
-  // for the wrong reason, and would stay false if a per-episode lens ever lands.
-  const credibilityPersons = (credibility?.data as { persons?: unknown } | undefined)?.persons
-  credibilityAvailable.value = Array.isArray(credibilityPersons) && credibilityPersons.length > 0
+  const coguest = await fetchCachedCorpusEnvelope(root, 'guest_coappearance').catch(() => null)
   coguestAvailable.value = coguest != null
 }
 
@@ -122,7 +97,6 @@ type BuiltInLensKey =
   | 'aggregatedEdges'
   | 'nodeSizeByDegree'
   | 'bridgeRing'
-  | 'personCredibility'
   | 'coGuestEdges'
   | 'personCommunities'
 
@@ -139,7 +113,6 @@ interface LensRow {
 const BUILT_IN_ORDER: Record<BuiltInLensKey, number> = {
   nodeSizeByDegree: 10,
   bridgeRing: 20,
-  personCredibility: 40,
   coGuestEdges: 60,
   personCommunities: 70,
   aggregatedEdges: 80,
@@ -170,14 +143,6 @@ const rows = computed<LensRow[]>(() => {
       description: 'Rose ring on Topic/Podcast/Person/Org that bridge communities.',
       testid: 'lens-bridge-ring',
       available: true,
-    },
-    {
-      key: 'personCredibility',
-      order: BUILT_IN_ORDER.personCredibility,
-      label: 'Person credibility',
-      description: 'Border colour reflects Person grounded-insight rate (green ≥ 0.7).',
-      testid: 'lens-person-credibility',
-      available: credibilityAvailable.value,
     },
     {
       key: 'coGuestEdges',
@@ -234,7 +199,6 @@ function setLens(key: string, value: boolean): void {
   else if (key === 'aggregatedEdges') lenses.setAggregatedEdges(value)
   else if (key === 'nodeSizeByDegree') lenses.setNodeSizeByDegree(value)
   else if (key === 'bridgeRing') lenses.setBridgeRing(value)
-  else if (key === 'personCredibility') lenses.setPersonCredibility(value)
   else if (key === 'coGuestEdges') lenses.setCoGuestEdges(value)
   else if (key === 'personCommunities') lenses.setPersonCommunities(value)
 }

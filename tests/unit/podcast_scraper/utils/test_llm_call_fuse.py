@@ -141,14 +141,23 @@ def test_run_fuse_fires_inside_a_pool_worker() -> None:
 
 def test_run_pipeline_installs_the_run_fuse() -> None:
     """orchestration.run_pipeline must install the run fuse in the main thread before any stage, so
-    the production ceiling is actually live (not only in the eval harness)."""
+    the production ceiling is actually live (not only in the eval harness). The install lives in
+    _begin_run, the start every run shares (ADR-177); run_pipeline must call it before any stage."""
     import inspect
 
     from podcast_scraper.workflow import orchestration
 
-    src = inspect.getsource(orchestration.run_pipeline)
-    assert "install_run" in src, "run_pipeline must call llm_call_fuse.install_run"
-    assert "llm_max_calls_per_run" in src
+    begin = inspect.getsource(orchestration._begin_run)
+    assert "install_run" in begin, "_begin_run must call llm_call_fuse.install_run"
+    assert "llm_max_calls_per_run" in begin
+    from podcast_scraper.workflow import text_in
+
+    for fn in (orchestration.run_pipeline, text_in.run_text_source):
+        run = inspect.getsource(fn)
+        assert "_begin_run(" in run, f"{fn.__name__} must start through _begin_run"
+        assert run.index("_begin_run(") < run.index(
+            "stage_hooks.run_started("
+        ), f"{fn.__name__}: the run fuse must be installed before any stage starts"
 
 
 def test_generate_episode_metadata_installs_the_episode_fuse() -> None:

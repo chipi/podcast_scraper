@@ -1,0 +1,332 @@
+[
+  {
+    "end": 15.842,
+    "id": 0,
+    "start": 0.0,
+    "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here."
+  },
+  {
+    "end": 19.091,
+    "id": 1,
+    "start": 15.842,
+    "text": "Thanks, Ethan. Great to be back."
+  },
+  {
+    "end": 28.867,
+    "id": 2,
+    "start": 19.091,
+    "text": "Today's episode is sponsored by Vanta. Vanta automates SOC 2 and ISO compliance. Try vanta.com today."
+  },
+  {
+    "end": 39.708,
+    "id": 3,
+    "start": 28.867,
+    "text": "Before we get into it — I was last on the show talking about on-call rotations. The pattern shows up again here."
+  },
+  {
+    "end": 45.017,
+    "id": 4,
+    "start": 39.708,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "end": 59.753,
+    "id": 5,
+    "start": 45.017,
+    "text": "I used to argue for a single central security team. After the 2024 webhook incident I changed my mind — embedded ownership beats a central gatekeeper every time."
+  },
+  {
+    "end": 62.943,
+    "id": 6,
+    "start": 59.753,
+    "text": "That's a real shift. Worth pulling on."
+  },
+  {
+    "end": 74.695,
+    "id": 7,
+    "start": 62.943,
+    "text": "Real talk: Sentry is the tool I'd pay double for. Not an ad — they're not paying us. I just think it's the best in class for error tracking."
+  },
+  {
+    "end": 83.257,
+    "id": 8,
+    "start": 74.695,
+    "text": "What's the one heuristic you keep coming back to? What's the most underrated piece of security design?"
+  },
+  {
+    "end": 103.906,
+    "id": 9,
+    "start": 83.257,
+    "text": "Let me give you the version I actually believe. Threat modeling is a framing exercise — frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 111.482,
+    "id": 10,
+    "start": 103.906,
+    "text": "What's the one heuristic you keep coming back to? Where do reliability and security design intersect?"
+  },
+  {
+    "end": 123.842,
+    "id": 11,
+    "start": 111.482,
+    "text": "Let me give you the version I actually believe. Authn/authz separation matters more than people think. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 130.652,
+    "id": 12,
+    "start": 123.842,
+    "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+  },
+  {
+    "end": 145.098,
+    "id": 13,
+    "start": 130.652,
+    "text": "It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 147.055,
+    "id": 14,
+    "start": 145.098,
+    "text": "Where does that break down?"
+  },
+  {
+    "end": 158.01,
+    "id": 15,
+    "start": 147.055,
+    "text": "And when teams adopt PagerDuty in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 165.378,
+    "id": 16,
+    "start": 158.01,
+    "text": "Push back on the conventional wisdom for me. Where do reliability and security design intersect?"
+  },
+  {
+    "end": 180.297,
+    "id": 17,
+    "start": 165.378,
+    "text": "Here's how I think about it. Vanta-style compliance work and real security work overlap maybe 60%. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 187.174,
+    "id": 18,
+    "start": 180.297,
+    "text": "That's a useful framing. What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "end": 204.848,
+    "id": 19,
+    "start": 187.174,
+    "text": "It comes down to this: The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 208.802,
+    "id": 20,
+    "start": 204.848,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "end": 220.336,
+    "id": 21,
+    "start": 208.802,
+    "text": "Today's episode is sponsored by Sentry. Sentry catches the errors your tests didn't. Visit sentry.com/podcast for a free trial."
+  },
+  {
+    "end": 222.409,
+    "id": 22,
+    "start": 220.336,
+    "text": "Welcome back to the show."
+  },
+  {
+    "end": 228.795,
+    "id": 23,
+    "start": 222.409,
+    "text": "I want to dig into that. What's the most underrated piece of security design?"
+  },
+  {
+    "end": 245.688,
+    "id": 24,
+    "start": 228.795,
+    "text": "Sure. Threat modeling is a framing exercise — frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Linear. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 251.674,
+    "id": 25,
+    "start": 245.688,
+    "text": "I want to dig into that. What's the most underrated piece of security design?"
+  },
+  {
+    "end": 260.974,
+    "id": 26,
+    "start": 251.674,
+    "text": "Sure. Authn/authz separation matters more than people think. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 269.201,
+    "id": 27,
+    "start": 260.974,
+    "text": "Push back on the conventional wisdom for me. What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "end": 283.737,
+    "id": 28,
+    "start": 269.201,
+    "text": "Sure. Security incidents are reliability incidents. We've seen this play out at teams using PagerDuty. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 284.8,
+    "id": 29,
+    "start": 283.737,
+    "text": "That tracks."
+  },
+  {
+    "end": 294.198,
+    "id": 30,
+    "start": 284.8,
+    "text": "Datadog is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 300.533,
+    "id": 31,
+    "start": 294.198,
+    "text": "Push back on the conventional wisdom for me. How does Notion fit into this picture?"
+  },
+  {
+    "end": 313.798,
+    "id": 32,
+    "start": 300.533,
+    "text": "Honestly, Vanta-style compliance work and real security work overlap maybe 60%. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 319.796,
+    "id": 33,
+    "start": 313.798,
+    "text": "Take me through the decision. What's the version of the question that actually matters?"
+  },
+  {
+    "end": 336.462,
+    "id": 34,
+    "start": 319.796,
+    "text": "Yeah, so — The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "end": 341.647,
+    "id": 35,
+    "start": 336.462,
+    "text": "Let's pivot — risk management is where I want to spend the last stretch."
+  },
+  {
+    "end": 350.976,
+    "id": 36,
+    "start": 341.647,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered."
+  },
+  {
+    "end": 356.1,
+    "id": 37,
+    "start": 350.976,
+    "text": "That's a useful framing. How does Notion fit into this picture?"
+  },
+  {
+    "end": 375.178,
+    "id": 38,
+    "start": 356.1,
+    "text": "It comes down to this: Threat modeling is a framing exercise — frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Datadog. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "end": 381.056,
+    "id": 39,
+    "start": 375.178,
+    "text": "That's a useful framing. What's the most underrated piece of security design?"
+  },
+  {
+    "end": 390.356,
+    "id": 40,
+    "start": 381.056,
+    "text": "Sure. Authn/authz separation matters more than people think. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 395.703,
+    "id": 41,
+    "start": 390.356,
+    "text": "Let's start there. What's the most underrated piece of security design?"
+  },
+  {
+    "end": 408.991,
+    "id": 42,
+    "start": 395.703,
+    "text": "Yeah, so — Security incidents are reliability incidents. We've seen this play out at teams using Linear. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 410.658,
+    "id": 43,
+    "start": 408.991,
+    "text": "Say more about that."
+  },
+  {
+    "end": 420.881,
+    "id": 44,
+    "start": 410.658,
+    "text": "Outside of Sentry-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams."
+  },
+  {
+    "end": 426.866,
+    "id": 45,
+    "start": 420.881,
+    "text": "I want to dig into that. What's the most underrated piece of security design?"
+  },
+  {
+    "end": 439.197,
+    "id": 46,
+    "start": 426.866,
+    "text": "Sure. Vanta-style compliance work and real security work overlap maybe 60%. And the second-order effect is the part most people miss."
+  },
+  {
+    "end": 446.108,
+    "id": 47,
+    "start": 439.197,
+    "text": "That's a useful framing. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "end": 462.288,
+    "id": 48,
+    "start": 446.108,
+    "text": "Honestly, The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Notion. The framing matters because it tells you which trade-offs you're making."
+  },
+  {
+    "end": 466.729,
+    "id": 49,
+    "start": 462.288,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "end": 473.331,
+    "id": 50,
+    "start": 466.729,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "end": 485.868,
+    "id": 51,
+    "start": 473.331,
+    "text": "And finally, a big thank you to our partners at Linear. Linear is the issue tracker built for speed — keyboard-first. Check out linear.com."
+  },
+  {
+    "end": 489.476,
+    "id": 52,
+    "start": 485.868,
+    "text": "Priya Nair, thanks for the conversation."
+  },
+  {
+    "end": 491.018,
+    "id": 53,
+    "start": 489.476,
+    "text": "Thanks, Ethan."
+  },
+  {
+    "end": 496.816,
+    "id": 54,
+    "start": 491.018,
+    "text": "That's it for today's episode of Practical Systems. See you next time."
+  }
+]

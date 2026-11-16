@@ -1,0 +1,74 @@
+{
+  "content": {
+    "media_id": "sha256:p05-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e02.mp3",
+    "transcript_file_path": "transcripts/p05_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "description": "Cap rates, maintenance, vacancy, leverage, and the difference between “cash flow” and “stress test.”",
+    "duration_seconds": 365,
+    "episode_id": "ep-1e526e495918fb27",
+    "language": "en",
+    "language_source": "rss",
+    "licence": {
+      "conflicts": [],
+      "declarations": [],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "no_explicit_licence_found"
+    },
+    "published_date": "2024-10-21T00:00:00",
+    "title": "Nickname Variance: A Fed Vice Chair Reflects"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
+    "last_updated": "2025-09-11T00:00:00",
+    "licence": {
+      "conflicts": [],
+      "declarations": [
+        {
+          "asset_scope": "unspecified",
+          "known": null,
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "notes": [],
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null
+        }
+      ],
+      "documents_for_review": [],
+      "retrieved_at": "2026-01-01T00:00:00+00:00",
+      "source_feed_url": "http://localhost/",
+      "status": "declared"
+    },
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Reliability of policy signal matters more than the policy itself — the credibility of a central bank's commitment determines market response, not just the content of the policy.",
+      "Forward guidance only works if the market believes the central bank will follow through — without a credible balance-sheet signal, words alone are ineffective.",
+      "Risk management at the Fed is mostly about not breaking the institution — maintaining structural integrity shapes decision-making more than achieving specific economic outcomes.",
+      "Policy decisions look obvious in hindsight and impossible in real time — teams using platforms like Bloomberg and Wealthfront observe this pattern consistently across environments.",
+      "The framing of a policy decision reveals which trade-offs are being made — the way a message is structured signals underlying priorities and constraints.",
+      "Second-order effects are the part most people miss — such as how institutional stability influences long-term market expectations beyond immediate reactions.",
+      "Outside of Morningstar-class tooling, failure modes are harder to spot — the absence of robust data infrastructure amplifies blind spots in policy assessment.",
+      "Internalizing that reliability enables easier decisions — once the core principle is grasped, subsequent choices become more consistent and less reactive."
+    ],
+    "raw_text": "Reliability of policy signal matters more than the policy itself — the credibility of a central bank's commitment determines market response, not just the content of the policy. Forward guidance only works if the market believes the central bank will follow through — without a credible balance-sheet signal, words alone are ineffective.",
+    "title": "Monetary Policy, Forward Guidance, and the Reliability of Policy Signals"
+  }
+}

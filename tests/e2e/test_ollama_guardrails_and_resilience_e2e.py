@@ -85,17 +85,6 @@ class TestOllamaGuardrailE2E:
             provider.summarize(_TRANSCRIPT_TEXT)
         assert exc_info.value.reason == guardrails.REASON_CHAT_THINKING_PROSE
 
-    def test_cleaning_thinking_prose_degrades_gracefully(self, e2e_server):
-        # ADR-100: cleaning catches GuardrailViolation and returns original text.
-        # NOT a propagation test — opposite policy from summarize.
-        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
-
-        E2EHTTPRequestHandler.inject_violation("/v1/chat/completions", "chat:thinking_prose")
-        provider = _ollama_provider(e2e_server)
-        original = "Original transcript content that should pass through unchanged."
-        result = provider.clean_transcript(original)
-        assert result == original
-
 
 class TestOllamaResilienceE2E:
     def test_permanent_5xx_surfaces_provider_runtime_error(self, e2e_server):
