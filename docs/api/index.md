@@ -45,6 +45,7 @@ endpoint catalogue; the live, always-current spec is the server's own OpenAPI at
 | [RFC-067: Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md) | `/api/corpus/*` catalog, Library tab, search handoffs |
 | [RFC-068: Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) | `GET /api/corpus/digest`, Digest tab, Library 24h glance (PRD-023); capability flag `corpus_digest_api` on `GET /api/health` |
 | [RFC-094: Search-powered surfaces query layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) | `/api/relational/*` relational-query layer (#882) + `/api/corpus/query-activity` (FR6.2); consumed by the PRD-033 surfaces |
+| [Enrichment Layer API](ENRICHMENT_LAYER_API.md) | HTTP routes, MCP tools and JSONL events through which the enrichment layer (RFC-088) is exposed |
 
 **v2.6.0** ships Corpus Library routes, index rebuild, and related viewer UX; see [Release v2.6.0](../releases/RELEASE_v2.6.0.md).
 

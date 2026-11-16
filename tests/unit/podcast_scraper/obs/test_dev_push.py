@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -22,6 +23,7 @@ _ENV_VARS = (
     "PORT",
     "OTEL_SERVICE_NAME",
     "PODCAST_ENV",
+    "PODCAST_WORKTREE",
 )
 
 
@@ -78,8 +80,14 @@ def test_labels_carry_env_and_service(dev_push, monkeypatch):
     monkeypatch.setenv("PODCAST_ENV", "dev")
     monkeypatch.setenv("OTEL_SERVICE_NAME", "api")
     monkeypatch.setenv("PODCAST_OBS_INSTANCE", "wtB-8001")
+    monkeypatch.setenv("PODCAST_WORKTREE", "feat/x")
     labels = dev_push.obs_labels()
-    assert labels == {"service": "api", "environment": "dev", "instance": "wtB-8001"}
+    assert labels == {
+        "service": "api",
+        "environment": "dev",
+        "instance": "wtB-8001",
+        "worktree": "feat/x",
+    }
 
 
 # --- a POST fires when enabled ------------------------------------------------------
@@ -108,8 +116,9 @@ def test_metrics_push_posts_with_extra_labels(dev_push, monkeypatch):
         dev_push.push_metrics_once()
     assert post.called
     url = post.call_args.args[0]
-    assert "extra_label=environment=dev" in url
-    assert "extra_label=instance=wtD-8003" in url
+    labels = parse_qs(urlsplit(url).query)["extra_label"]
+    assert "environment=dev" in labels
+    assert "instance=wtD-8003" in labels
 
 
 def test_emit_event_triggers_push_when_enabled(dev_push, monkeypatch):
@@ -128,3 +137,49 @@ def test_service_falls_back_to_the_prod_pipeline_name(dev_push, monkeypatch):
     # Same value prod uses (compose OTEL_SERVICE_NAME), so dev and prod join on one name.
     monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
     assert dev_push.obs_labels()["service"] == "podcast-pipeline"
+
+
+# --- the dev telemetry contract: dev signals name their git branch (2026-11-16) -------
+
+
+def test_worktree_explicit_override_wins(dev_push, monkeypatch):
+    monkeypatch.setenv("PODCAST_WORKTREE", "feat/x")
+    assert dev_push.worktree() == "feat/x"
+
+
+def test_worktree_is_the_checkouts_branch(dev_push):
+    done = dev_push.subprocess.CompletedProcess([], 0, stdout="feat/prompt-and-cleaning-seams\n")
+    with patch.object(dev_push.subprocess, "run", return_value=done):
+        assert dev_push.worktree() == "feat/prompt-and-cleaning-seams"
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        pytest.param(("HEAD\n", 0), id="detached-head"),
+        pytest.param(("", 128), id="not-a-git-checkout"),
+    ],
+)
+def test_no_branch_is_no_worktree(dev_push, result):
+    out, code = result
+    done = dev_push.subprocess.CompletedProcess([], code, stdout=out)
+    with patch.object(dev_push.subprocess, "run", return_value=done):
+        assert dev_push.worktree() is None
+
+
+def test_dev_labels_carry_the_branch_and_prod_labels_never_do(dev_push, monkeypatch):
+    monkeypatch.setenv("PODCAST_WORKTREE", "feat/x")
+    assert dev_push.obs_labels()["worktree"] == "feat/x"
+    monkeypatch.setenv("PODCAST_ENV", "prod")
+    assert "worktree" not in dev_push.obs_labels()
+
+
+def test_logs_stream_and_metric_labels_carry_the_branch(dev_push, monkeypatch):
+    monkeypatch.setenv("PODCAST_WORKTREE", "feat/a&b#c")
+    monkeypatch.setenv("PODCAST_LOGS_PUSH_URL", "http://backend:9428/insert/jsonline")
+    monkeypatch.setenv("PODCAST_METRICS_PUSH_URL", "http://backend:8428/api/v1/import/prometheus")
+    assert "worktree" in parse_qs(urlsplit(dev_push._logs_endpoint()).query)["_stream_fields"][0]
+    with patch.object(dev_push, "_post") as post:
+        dev_push.push_metrics_once()
+    labels = parse_qs(urlsplit(post.call_args.args[0]).query)["extra_label"]
+    assert "worktree=feat/a&b#c" in labels, "a branch name survives the query string"

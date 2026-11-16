@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure llms-txt llms-txt-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -716,6 +716,16 @@ check-doc-structure:
 	# Complements ``lint-markdown`` (style/format) — this one is about pointers being true.
 	# Run this when: adding/moving/renaming any doc or directory, or before commit.
 	$(PYTHON) scripts/tools/check_doc_structure.py
+
+llms-txt:
+	# Rewrite llms.txt, the agent-facing index of the docs, from llms.config.json and the docs.
+	$(PYTHON) scripts/llms_txt.py --write
+
+llms-txt-check:
+	# Fail when llms.txt is stale, a link or anchor in it does not resolve, it is over its size
+	# limit, or a per-type docs index (which llms.txt points to) misses a doc in its directory.
+	$(PYTHON) scripts/llms_txt.py --check
+	$(PYTHON) scripts/tools/check_doc_indexes.py
 
 
 profile-drift-check:
@@ -2447,6 +2457,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] llms-txt-check ==="; $(MAKE) llms-txt-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security-fast; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
@@ -2473,6 +2484,7 @@ ci-ui-fast:
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] llms-txt-check ==="; $(MAKE) llms-txt-check; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security-fast; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \

@@ -232,3 +232,22 @@ def test_under_the_auto_instrument_launcher_init_otel_adds_nothing(monkeypatch):
     assert m.init_otel() is True
     assert set_calls == [] and http_calls == []
     assert m.init_otel() is False  # idempotent
+
+
+@pytest.mark.parametrize("env, expected", [("dev", "feat/x"), ("prod", None)])
+def test_only_dev_traces_carry_the_branch(monkeypatch, env, expected):
+    """The dev telemetry contract (2026-11-16): dev traces carry `worktree`, the git branch, beside
+    the env's deployment.environment; prod traces never carry it."""
+    from opentelemetry.sdk.resources import Resource
+
+    from podcast_scraper.obs import dev_push
+
+    m = _fresh(monkeypatch, PODCAST_ENV=env, PODCAST_WORKTREE="feat/x")
+    monkeypatch.setenv("OTEL_RESOURCE_ATTRIBUTES", f"deployment.environment={env}")
+    dev_push.worktree.cache_clear()
+    try:
+        attrs = Resource.create(m._resource_attributes()).attributes
+    finally:
+        dev_push.worktree.cache_clear()
+    assert attrs.get("worktree") == expected
+    assert attrs["deployment.environment"] == env

@@ -30,12 +30,22 @@ Practical guides for using and developing Podcast Scraper.
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
 | [Markdown Linting](MARKDOWN_LINTING_GUIDE.md) | Markdown style and linting practices |
+| [Engineering Process](ENGINEERING_PROCESS.md) | How the lifecycle of features, architectural changes and technical decisions is managed through the PRD / UXS / RFC / ADR chain; read before editing PRDs, UXS, RFCs, ADRs or architecture narrative |
+| [Dev/prod env-detect removal](DEV_PROD_ENV_DETECT_REMOVAL.md) | Why the runtime "is this a test run?" heuristic that silently flipped 24 model defaults between TEST and PROD values was removed (2026-06-23) |
+| [Mounting the private eval research repo](EVAL_RESEARCH_MOUNT.md) | How to check out the private eval research repo alongside the application so one agent or person sees both in one tree |
+| [Splitting a surface into a private repo](SPLITTING_A_SURFACE_INTO_A_PRIVATE_REPO.md) | Rules for moving a whole surface (infra, ops, a corpus, a research area) out of this repo into a private one, taken from the eval research split |
+| [Segfault Mitigation](SEGFAULT_MITIGATION.md) | Diagnosing and mitigating segmentation faults during pipeline execution, particularly at process shutdown |
 
 ## Hosting and production
 
 | Guide | Description |
 | ------- | ------------- |
 | [SRE book infra critique](SRE_BOOK_INFRA_CRITIQUE.md) | Reliability rubric (SRE themes): SLIs/SLOs, error budget, toil, alerting, change risk, incidents — for reviewing runbooks, workflows, and ops design |
+| [Corpus change method](CORPUS_CHANGE_METHOD.md) | How every change to what the corpus serves is planned, judged and shipped |
+| [Corpus integrity repair runbook](CORPUS_INTEGRITY_REPAIR_RUNBOOK.md) | Ordered, gated sequence for repairing a corpus damaged by the defects fixed in epic #1657: which detector finds each, which repair fixes it, and which repairs fix nothing |
+| [Corpus reprocessing runbook](CORPUS_REPROCESSING.md) | How to rebuild an existing corpus's artifacts (diarization, cleaning, GI, KG, enrichment) by re-running the real profile-driven pipeline |
+| [Corpus upgrade framework](CORPUS_UPGRADE.md) | Managed, idempotent migrations for moving a deployed corpus across releases (#862) |
+| [Onboarding a new language](LANGUAGE_ONBOARDING_RUNBOOK.md) | Measurement runbook: the order of work and the measurement traps for onboarding a new language |
 
 ## Testing
 
@@ -47,6 +57,13 @@ Practical guides for using and developing Podcast Scraper.
 | [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) | Integration test guidelines; [FastAPI / CIL / bridge / lift](INTEGRATION_TESTING_GUIDE.md#fastapi-cil-bridge-search-lift) |
 | [E2E Testing Guide](E2E_TESTING_GUIDE.md) | pytest E2E server/ML; [Playwright](E2E_TESTING_GUIDE.md#browser-e2e-playwright) for the viewer |
 | [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) | Test prioritization |
+| [Gemini E2E Testing](GEMINI_E2E_TESTING.md) | How Gemini E2E tests use a fake SDK client that routes calls to the E2E mock server over HTTP |
+| [Testing strategy — ML providers](testing-strategy-ml.md) | Where to mock and where not to for ML providers and backends: mock at our abstraction boundary, never at a library-internal name |
+| [Real-Episode Validation](REAL_EPISODE_VALIDATION.md) | The "test with real episodes before push" pattern: unit tests prove code paths route correctly, not that a feature works against real provider responses and transcripts |
+| [GI/KG Manual Test Plan](GI_KG_MANUAL_TEST_PLAN.md) | Close-the-loop validation: run the real pipeline on 2–3 episodes of a familiar feed, then inspect `*.gi.json` and `*.kg.json` for plausibility, schema health and CLI ergonomics |
+| [Operator post-deploy smoke test](OPERATOR_SMOKE_TEST.md) | Live smoke test of the operator surface after a deploy (unauthed and authed specs under `web/gi-kg-viewer/e2e/live/`) |
+| [Pipeline check runbook](PIPELINE_CHECK.md) | `make pipeline-check` runs the pipeline under variants, records every decision and compares runs; the standard check before merging pipeline routing changes (#2287) |
+| [Validating Corpus Fixes Fast](VALIDATING_CORPUS_FIXES_FAST.md) | Reference guide for validating changes whose correctness is a property of the corpus (speaker attribution, entity resolution, enrichment) rather than of a function |
 
 ## Provider System
 
@@ -73,6 +90,13 @@ Practical guides for using and developing Podcast Scraper.
 | [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on a server |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a single-container service (supervisor / systemd / scheduler-driven) |
 | [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) | LLM-only vs ML-enabled pipeline image tiers |
+| [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md) | Operator and developer reference for transcription, speaker attribution, API audio chunking and commercial/sponsor cleaning (Audio Wave 1 and Wave 2) |
+| [Enrichment Layer Guide](ENRICHMENT_LAYER_GUIDE.md) | Operator/developer reference for the enrichment layer (RFC-088): typed, opt-in enrichers on top of GIL / KG / bridge |
+| [Graph Visualization Guide](GRAPH_VISUALIZATION_GUIDE.md) | Every visual rule and business decision of the gi-kg-viewer graph canvas, with the code path where it lives |
+| [Naming ladder](NAMING_LADDER.md) | The naming rungs, the decision trace, and how to reconstruct any episode's speaker names |
+| [Naming ladder — known issues](NAMING_KNOWN_ISSUES.md) | Known issues and limits of the naming ladder |
+| [Naming gate runbook](NAMING_GATE_RUNBOOK.md) | Labelled speaker sets and how every naming change is judged |
+| [Speaker attribution trace](SPEAKER_ATTRIBUTION_TRACE_GUIDE.md) | How a name becomes a role, and how to debug it |
 
 ## Evaluation and baselines
 
@@ -80,6 +104,7 @@ Practical guides for using and developing Podcast Scraper.
 | ------- | ----------- |
 | [Chip Huyen ML / AI critique](CHIP_HUYEN_ML_AI_CRITIQUE.md) | ML/AI rubric (seven themes); **experiments vs production** lenses and optional short output tables — inspired by *Designing Machine Learning Systems* and *AI Engineering* |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | Dev tooling: `--monitor`, RSS/CPU/stage dashboard or `.monitor.log`, `.pipeline_status.json`; optional `.[monitor]` memray + py-spy (RFC-065, #512) |
+| [Tufte Chart Critique](TUFTE_CHART_CRITIQUE.md) | Rubric for critiquing a data visualization against Tufte's principles and returning specific fixes |
 
 ## AI Coding
 

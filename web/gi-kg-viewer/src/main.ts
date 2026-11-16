@@ -72,10 +72,14 @@ const SENTRY_DSN_VIEWER =
   devSentryDsn
 if (SENTRY_DSN_VIEWER) {
   const w = runtimeEnv
+  const sentryEnvironment = w.__PODCAST_ENV__ || (import.meta.env.DEV ? 'dev' : 'prod')
+  // Dev events name the branch they came from (the dev telemetry contract); prod events never do.
+  const worktreeTag =
+    sentryEnvironment === 'dev' && __VIEWER_WORKTREE__ ? { worktree: __VIEWER_WORKTREE__ } : {}
   Sentry.init({
     app,
     dsn: SENTRY_DSN_VIEWER,
-    environment: w.__PODCAST_ENV__ || (import.meta.env.DEV ? 'dev' : 'prod'),
+    environment: sentryEnvironment,
     release: w.__PODCAST_RELEASE__ || (import.meta.env.VITE_PODCAST_RELEASE as string) || undefined,
     // Keep PII off by default.
     sendDefaultPii: false,
@@ -85,7 +89,7 @@ if (SENTRY_DSN_VIEWER) {
     // Tag every event so the api / pipeline / viewer streams stay
     // separable in the Sentry UI.
     initialScope: {
-      tags: { component: 'viewer' },
+      tags: { component: 'viewer', ...worktreeTag },
     },
   })
 }

@@ -154,6 +154,26 @@ class TestInitSentryInitPath(unittest.TestCase):
         kwargs = self._mock_sentry_sdk.init.call_args.kwargs
         self.assertEqual(kwargs["environment"], "dev")
 
+    def _tags_with_branch(self, env: str) -> dict:
+        from podcast_scraper.obs import dev_push
+
+        os.environ["PODCAST_SENTRY_DSN_API"] = "https://x@sentry.io/1"
+        os.environ["PODCAST_ENV"] = env
+        dev_push.worktree.cache_clear()
+        try:
+            with patch.dict(os.environ, {"PODCAST_WORKTREE": "feat/x"}):
+                self.assertTrue(init_sentry("api"))
+        finally:
+            dev_push.worktree.cache_clear()
+        return {c.args[0]: c.args[1] for c in self._mock_sentry_sdk.set_tag.call_args_list}
+
+    def test_a_dev_event_names_its_branch(self) -> None:
+        """The dev telemetry contract (2026-11-16): dev events carry `worktree`, the git branch."""
+        self.assertEqual(self._tags_with_branch("dev").get("worktree"), "feat/x")
+
+    def test_a_prod_event_never_names_a_branch(self) -> None:
+        self.assertNotIn("worktree", self._tags_with_branch("prod"))
+
 
 @pytest.mark.unit
 class TestInitSentryDevDefault(unittest.TestCase):

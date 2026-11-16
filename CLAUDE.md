@@ -219,7 +219,7 @@ Rules:
   Read the skill description before invoking. This repo's own: `local-gates`
   (`make gates-changed` before a commit or push). The workstation's (`~/.claude/skills/`, indexed in `~/.config/AGENTS.md`)
   include `ship` (every push, then `ci-watch`), `docs-preflight` (every docs commit),
-  `perf-diagnose`, `o11y-review` and `browser-live-check`: check that index before
+  `perf-diagnose`, `o11y-prod` and `browser-live-check`: check that index before
   starting a task, not after.
 - Memory files at `~/.claude/projects/<project-slug>/memory/MEMORY.md`
   persist across sessions. Treat them as the operator's prior-session

@@ -281,6 +281,13 @@ def init_sentry(component: Component) -> bool:
         # Tag every event with the component so the api / pipeline streams can
         # be filtered cleanly in Sentry's UI.
         sentry_sdk.set_tag("component", component)
+        # Dev events name the branch they came from (the dev telemetry contract), so the agent
+        # working on that branch reads its own errors; prod events never carry it.
+        from podcast_scraper.obs.dev_push import dev_worktree
+
+        branch = dev_worktree()
+        if environment == "dev" and branch:
+            sentry_sdk.set_tag("worktree", branch)
         # The OTLP span exporter logs a transient "Failed to export span batch due to timeout" when
         # the endpoint is briefly unreachable at process shutdown (now bounded in otel_init). That
         # is best-effort tracing losing a batch, NOT an application error — keep it out of GlitchTip
