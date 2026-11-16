@@ -26,6 +26,10 @@ on:
       - 'mkdocs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
+      - 'llms.txt'
+      - 'llms.config.json'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     # PRs can still be tested against both branches, but only main deploys
@@ -48,6 +52,10 @@ on:
       - 'mkdocs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
+      - 'llms.txt'
+      - 'llms.config.json'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
   workflow_dispatch:
 
 permissions:
@@ -86,6 +94,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r docs/requirements.txt
           pip install -e .
+
+      - name: llms.txt and the doc indexes are current
+        run: |
+          python scripts/llms_txt.py --check
+          python scripts/tools/check_doc_indexes.py
 
       - name: Build MkDocs site
         run: |
