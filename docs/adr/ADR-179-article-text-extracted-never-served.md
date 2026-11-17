@@ -1,6 +1,6 @@
 # ADR-179: Article text is extracted with trafilatura and a readability fallback, stored for enrichment, never served
 
-- **Status**: Proposed
+- **Status**: Accepted (the operator, 2026-11-17)
 - **Date**: 2026-11-11
 - **Authors**: Marko Dragoljevic
 - **Related**: [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) (news as the second
