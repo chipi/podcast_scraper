@@ -263,6 +263,7 @@ nav:
       - ADR-180 Bylines join within their publisher: adr/ADR-180-bylines-join-within-their-publisher.md
       - ADR-181 A content type's own fields: adr/ADR-181-a-content-types-own-fields.md
       - ADR-182 Extension-owned configuration: adr/ADR-182-extension-owned-configuration.md
+      - ADR-183 The graph API: adr/ADR-183-the-graph-api.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
