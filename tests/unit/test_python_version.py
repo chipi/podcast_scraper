@@ -58,3 +58,17 @@ def test_pyproject_targets_the_same_minor() -> None:
     assert pyproject["project"]["requires-python"] == f">={minor}"
     assert pyproject["tool"]["black"]["target-version"] == [f"py{minor.replace('.', '')}"]
     assert pyproject["tool"]["mypy"]["python_version"] == minor
+
+
+@pytest.mark.parametrize("version", [(3, 11, 9), (3, 10, 0)])
+def test_the_cli_refuses_a_python_below_the_floor(
+    version: tuple[int, int, int], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    from types import SimpleNamespace
+
+    from podcast_scraper import cli
+
+    fake = SimpleNamespace(major=version[0], minor=version[1], micro=version[2])
+    monkeypatch.setattr(cli.sys, "version_info", fake)
+    assert cli._doctor_check_python() is False
+    assert f"Required: Python {_minor()} or higher" in capsys.readouterr().out

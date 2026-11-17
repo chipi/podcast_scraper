@@ -51,6 +51,21 @@ class TestJSONLEmitter(unittest.TestCase):
         emitter = jsonl_emitter.JSONLEmitter(self.metrics, self.jsonl_path)
         self.assertEqual(emitter.jsonl_path, Path(self.jsonl_path))
 
+    def test_emit_run_started_without_a_run_id_names_one_by_utc_time(self):
+        """No run_id: one is made from the current UTC time, naive ISO with a ``Z``."""
+        from datetime import datetime, timedelta, timezone
+
+        before = datetime.now(timezone.utc).replace(tzinfo=None)
+        emitter = jsonl_emitter.JSONLEmitter(self.metrics, self.jsonl_path)
+        with emitter:
+            emitter.emit_run_started(self.cfg)
+        with open(self.jsonl_path, "r", encoding="utf-8") as f:
+            run_id = json.loads(f.readline())["run_id"]
+        self.assertTrue(run_id.endswith("Z") and "+" not in run_id, run_id)
+        stamped = datetime.fromisoformat(run_id[:-1])
+        self.assertIsNone(stamped.tzinfo)
+        self.assertLess(abs(stamped - before), timedelta(minutes=1))
+
     def test_emit_run_started(self):
         """Test emitting run_started event."""
         emitter = jsonl_emitter.JSONLEmitter(self.metrics, self.jsonl_path)

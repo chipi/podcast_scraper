@@ -530,3 +530,18 @@ def test_the_commit_hook_gates_another_repos_staged_files(tmp_path: Path, with_r
     assert run.returncode == (0 if with_record else 1), run.stderr
     if not with_record:
         assert EXT in run.stderr
+
+
+def test_measured_at_falls_back_to_the_gate_file_time_in_utc(tmp_path: Path) -> None:
+    """A gate report without ``measured_at`` is dated by its file's mtime, as naive UTC."""
+    import os
+    from datetime import datetime, timezone
+
+    record = tmp_path / "x.md"
+    record.write_text("", encoding="utf-8")
+    gate = tmp_path / "x.gate.json"
+    gate.write_text("{}", encoding="utf-8")
+    os.utime(gate, (1763380000, 1763380000))
+    got = cg._measured_at(cg.Record(path=record, meta={}))
+    assert got == datetime.fromtimestamp(1763380000, timezone.utc).replace(tzinfo=None)
+    assert got is not None and got.tzinfo is None
