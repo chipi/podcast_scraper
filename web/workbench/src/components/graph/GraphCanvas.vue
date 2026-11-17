@@ -85,10 +85,14 @@ import {
   syncCrossEpisodeExpandNodeClasses,
 } from '../../utils/graphCrossEpisodeExpand'
 import { wouldCrossEpisodeExpandAppendNewArtifacts } from '../../utils/graphCorpusBeyondSelection'
-import { findRawNodeInArtifact, toCytoElements, toGraphElements } from '../../utils/parsing'
+import {
+  findRawNodeInArtifact,
+  nodeTypeCounts,
+  toCytoElements,
+  toGraphElements,
+} from '../../utils/parsing'
 import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import { visualNodeTypeCounts } from '../../utils/visualGroup'
 import GraphBottomBar from './GraphBottomBar.vue'
 import GraphFilterBar from './GraphFilterBar.vue'
 import GraphGestureOverlay from './GraphGestureOverlay.vue'
@@ -3882,7 +3886,7 @@ const typeHistogramCounts = computed(() => {
   const art = gf.viewWithEgo(focusNodeId.value)
   const nodes = art?.data.nodes
   if (!nodes) return {} as Record<string, number>
-  return visualNodeTypeCounts(nodes as RawGraphNode[])
+  return nodeTypeCounts(nodes as RawGraphNode[])
 })
 
 /** Avoid Vue “unhandled error in watcher” / uncaught promise if cytoscape callbacks throw. */

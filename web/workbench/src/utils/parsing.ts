@@ -637,6 +637,19 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
   }
 }
 
+/** Nodes per type, keyed exactly as `defaultFilterState`'s `allowedTypes` (the raw node type), so
+ *  the Types chip's counts line up with its rows. Visual groups (`visualNodeTypeCounts`) key a
+ *  Person as `Entity_person`, which showed "Person (0)" beside drawn person nodes. */
+export function nodeTypeCounts(nodes: RawGraphNode[] | null | undefined): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const n of Array.isArray(nodes) ? nodes : []) {
+    if (!n || typeof n !== 'object') continue
+    const t = n.type || '?'
+    counts[t] = (counts[t] || 0) + 1
+  }
+  return counts
+}
+
 function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
   const clusterIds = new Set(
     nodes

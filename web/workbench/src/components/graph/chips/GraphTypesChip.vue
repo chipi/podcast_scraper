@@ -10,7 +10,7 @@ import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 import { graphNodeFill, graphNodeLegendLabel } from '../../../utils/colors'
 
 const props = defineProps<{
-  /** Per-type histogram counts (computed by GraphCanvas via ``visualNodeTypeCounts``). */
+  /** Nodes per type, keyed like `allowedTypes` (GraphCanvas, via `nodeTypeCounts`). */
   typeHistogramCounts: Record<string, number>
 }>()
 

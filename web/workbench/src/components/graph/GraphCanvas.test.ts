@@ -367,7 +367,8 @@ describe('GraphCanvas rendering', () => {
   it('feeds the filter bar a type histogram and a degree histogram', async () => {
     const w = await mountTracked()
     const fb = w.findComponent(FilterBarStub)
-    expect(fb.props('typeHistogramCounts')).toMatchObject({ Episode: 2, Topic: 2, Entity_person: 1 })
+    // Keyed like the Types chip's rows (the raw node type), not the visual group (Entity_person).
+    expect(fb.props('typeHistogramCounts')).toMatchObject({ Episode: 2, Topic: 2, Person: 1 })
     const deg = fb.props('degreeHistogramCounts') as Record<string, number>
     // ada(1), solo(1), ep2(1) -> bucket "1"; ep1(3), ai(2) -> bucket "2-5"
     expect(deg['1']).toBe(3)

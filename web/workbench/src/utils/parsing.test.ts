@@ -18,6 +18,7 @@ import {
   fullPrimaryNodeLabel,
   canonicalTopicKey,
   nodeLabel,
+  nodeTypeCounts,
   personEpisodeAppearances,
   personRoleFromNode,
   primaryTextFromLooseGiNode,
@@ -1013,5 +1014,28 @@ describe('filterArtifactEgoAroundCompound', () => {
     const ids = (sub.data.nodes ?? []).map((n) => String(n.id)).sort()
     expect(ids).toEqual(['ep:1', 'ep:2', 'k:topic:a', 'k:topic:b', 'tc:g'])
     expect(sub.data.edges?.length).toBe(2)
+  })
+})
+
+describe('nodeTypeCounts', () => {
+  it('counts under the same keys the type filter uses, so Person is not 0', () => {
+    // The Types chip lists defaultFilterState's keys (raw node types) and showed "Person (0)"
+    // while named person nodes were drawn: its counts were keyed by visual group
+    // (Entity_person) instead (public-only review, 2026-11-17).
+    const art = parseArtifact('ep1.kg.json', {
+      nodes: [
+        { id: 'person:a', type: 'Person', properties: { name: 'A' } },
+        { id: 'person:b', type: 'Person', properties: { name: 'B' } },
+        { id: 'org:c', type: 'Organization', properties: { name: 'C' } },
+        { id: 'topic:d', type: 'Topic', properties: { label: 'D' } },
+      ],
+      edges: [],
+    })
+    const keys = Object.keys(defaultFilterState(art)!.allowedTypes).sort()
+    const counts = nodeTypeCounts(art.data.nodes)
+    expect(Object.keys(counts).sort()).toEqual(keys)
+    expect(counts.Person).toBe(2)
+    expect(counts.Organization).toBe(1)
+    expect(counts.Topic).toBe(1)
   })
 })
