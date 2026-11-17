@@ -2763,6 +2763,42 @@ class UserPreferencesResponse(BaseModel):
     )
 
 
+class UserPreferencesPatchResponse(UserPreferencesResponse):
+    """PATCH's answer: the merged state, and how many ``ops`` it applied (0 when none were sent).
+
+    A server that predates ops ignores them and answers without this field, which is how a client
+    tells it should write the whole key instead.
+    """
+
+    ops_applied: int = Field(description="Number of item-level ops applied by this PATCH.")
+
+
+class PreferenceOp(BaseModel):
+    """One item-level edit of a preference key; the server still does not interpret the key.
+
+    - ``push_front``: put ``value`` first in the list at ``key``, dropping any item with the same
+      identity, then keep at most ``max`` items.
+    - ``remove``: drop the items with ``value``'s identity.
+    - ``clear``: set the list to ``[]``.
+    - ``set_field``: set ``field`` of the object at ``key`` to ``value``; ``null`` deletes it.
+    - ``increment``: add ``by`` to the number at ``key`` (absent counts as 0).
+
+    Identity is the whole value, or with ``match`` the named fields of an object item; with
+    ``fold_case`` strings compare trimmed and case-folded.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    op: Literal["push_front", "remove", "clear", "set_field", "increment"]
+    key: str = Field(min_length=1, max_length=128)
+    value: Any = None
+    match: list[str] | None = Field(default=None, max_length=8)
+    fold_case: bool = False
+    max: int | None = Field(default=None, ge=1, le=1000)
+    field: str | None = Field(default=None, min_length=1, max_length=256)
+    by: int = Field(default=1, ge=-1_000_000, le=1_000_000)
+
+
 class UserPreferencesPatch(BaseModel):
     """USERPREFS-1 — shallow-merge patch. Keys with value ``null`` are DELETED.
 
@@ -2771,7 +2807,16 @@ class UserPreferencesPatch(BaseModel):
     """
 
     preferences: dict[str, Any] = Field(
+        default_factory=dict,
         description="Object of key → value. `null` value deletes the stored key.",
+    )
+    #: Item-level edits of list, map and counter keys, applied after ``preferences`` under the same
+    #: row lock. Two devices editing one list each send only their own change, so both survive;
+    #: sending the whole list made the last device's copy win.
+    ops: list[PreferenceOp] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Item-level edits of list, map and counter keys, in order.",
     )
 
 

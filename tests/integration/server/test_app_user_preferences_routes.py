@@ -119,3 +119,27 @@ def test_preferences_patch_stores_arbitrary_json_shapes(tmp_path: Path) -> None:
     r = client.patch("/api/app/preferences", json={"preferences": payload})
     assert r.status_code == 200
     assert r.json()["preferences"] == payload
+
+
+def test_preferences_patch_applies_ops_and_says_how_many(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    client.patch("/api/app/preferences", json={"preferences": {"recents": ["a", "b"]}})
+    r = client.patch(
+        "/api/app/preferences",
+        json={"ops": [{"op": "push_front", "key": "recents", "value": "c", "max": 2}]},
+    )
+    assert r.status_code == 200
+    assert r.json()["ops_applied"] == 1
+    assert r.json()["preferences"]["recents"] == ["c", "a"]
+    plain = client.patch("/api/app/preferences", json={"preferences": {"theme": "dark"}})
+    assert plain.json()["ops_applied"] == 0
+
+
+def test_preferences_patch_refuses_a_malformed_op(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    unknown = client.patch("/api/app/preferences", json={"ops": [{"op": "drop", "key": "r"}]})
+    assert unknown.status_code == 422
+    no_value = client.patch(
+        "/api/app/preferences", json={"ops": [{"op": "push_front", "key": "r"}]}
+    )
+    assert no_value.status_code == 400
