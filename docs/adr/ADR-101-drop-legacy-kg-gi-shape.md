@@ -20,7 +20,7 @@ multi-tenant production with external corpus consumers. **This
 project has neither.** Concretely:
 
 - No external party reads our corpus shape; the only consumers are
-  the viewer (`web/gi-kg-viewer/`) and downstream Python pipelines,
+  the viewer (`web/workbench/`) and downstream Python pipelines,
   both in-repo.
 - All corpora are regenerable from sources: RSS → audio →
   transcripts → KG/GI artifacts. Migration scripts (chunk 6) handle

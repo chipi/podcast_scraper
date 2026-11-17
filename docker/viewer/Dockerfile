@@ -50,10 +50,10 @@ ENV VITE_UMAMI_WEBSITE_ID=${VITE_UMAMI_WEBSITE_ID}
 ARG VITE_E2E_HOOKS
 ENV VITE_E2E_HOOKS=${VITE_E2E_HOOKS}
 
-COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
+COPY web/workbench/package.json web/workbench/package-lock.json ./
 RUN npm ci
 
-COPY web/gi-kg-viewer/ ./
+COPY web/workbench/ ./
 RUN npm run build
 
 FROM nginx:1.30-alpine

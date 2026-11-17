@@ -256,7 +256,7 @@ monitor = [
   "py-spy>=0.4.2",
   "memray>=1.19.3",
 ]
-# Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062). The server-runtime pins
+# Development tools plus Workbench HTTP stack (FastAPI, RFC-062). The server-runtime pins
 # (fastapi/uvicorn/prometheus-fastapi-instrumentator/apscheduler) are mirrored by
 # docker/api/Dockerfile, which installs them directly rather than via ``.[dev]`` (to keep
 # pytest/black/etc out of the production image). KEEP THE TWO IN SYNC — they drifted once (#1019).

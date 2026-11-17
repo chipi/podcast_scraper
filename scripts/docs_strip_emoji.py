@@ -81,7 +81,7 @@ def iter_paths() -> list[Path]:
         p = ROOT / name
         if p.is_file():
             out.append(p)
-    viewer = ROOT / "web" / "gi-kg-viewer"
+    viewer = ROOT / "web" / "workbench"
     if viewer.is_dir():
         for p in viewer.rglob("*.md"):
             if "node_modules" in p.parts:

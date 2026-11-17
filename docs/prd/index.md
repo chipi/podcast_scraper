@@ -64,7 +64,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-022](PRD-022-corpus-library-episode-browser.md) | Corpus Library & Episode Browser | v2.6.0 | RFC-067, 062, 061, 063 | Filesystem-first catalog in viewer: feeds/episodes, summaries, similar episodes, handoff to graph and semantic search ([RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) Phases 1–3) |
 | [PRD-023](PRD-023-corpus-digest-recap.md) | Corpus Digest & Library Glance | v2.6.0 | RFC-068, 067, 061, 062 | Digest tab + 24h Library glance: diverse recent episodes, global topic bands, GI/KG badges, search/graph handoffs ([RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md)) |
 | [PRD-024](PRD-024-graph-exploration-toolkit.md) | GI/KG Graph Exploration Toolkit | v2.6.0 | RFC-069, 062 | Graph tab toolkit: zoom 100%/%, Shift+drag box zoom, minimap v1, degree bucket filter, built-in layouts, edge filters ([RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md)) |
-| [PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (GI/KG Viewer) | v2.6.0 | RFC-071, 062, 063, 061, 067, 068 | **Dashboard** tab: **Pipeline** vs **Content intelligence** Chart.js panels; corpus stats, manifest, **`run.json`** scan, index/digest glance ([RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)) |
+| [PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (Workbench) | v2.6.0 | RFC-071, 062, 063, 061, 067, 068 | **Dashboard** tab: **Pipeline** vs **Content intelligence** Chart.js panels; corpus stats, manifest, **`run.json`** scan, index/digest glance ([RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)) |
 | [PRD-026](PRD-026-topic-entity-view.md) | Topic Entity View | — | RFC-088, 062, 069, 055 | Topic Entity View consuming the `topic_cooccurrence_corpus` (co-occurring topic chips) and `temporal_velocity` (velocity badge) enrichments (RFC-088 chunk 6c, 2026-06-27) |
 
 ## Gap analysis {:#gaps}
@@ -78,7 +78,7 @@ Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers —
 | --- | --- |
 | **Partial PRD** | Finish the **open** RFCs named in that row before promoting the PRD to **Implemented**. |
 | **Implemented PRD + open RFC** | Expected when the RFC is a **future** slice (e.g. PRD-017/019 still reference [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) Postgres projection as future scope). |
-| **Viewer / UI** | [UX specifications](../uxs/index.md) and the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md). |
+| **Viewer / UI** | [UX specifications](../uxs/index.md) and the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md). |
 | **Architecture vs code** | [ADR index — Gap analysis](../adr/index.md#gaps) **Code** column. |
 
 **Open-program themes:** Ops observability product gaps

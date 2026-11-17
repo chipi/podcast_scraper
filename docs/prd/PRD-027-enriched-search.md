@@ -22,7 +22,7 @@
     open Person Profile via Person Landing
 - **Related UX specs**:
   - `docs/uxs/UXS-005-semantic-search.md` -- baseline search panel this extends
-  - `docs/uxs/UXS-001-gi-kg-viewer.md` -- shared design system (tokens, typography,
+  - `docs/uxs/UXS-001-workbench.md` -- shared design system (tokens, typography,
     states)
   - `docs/uxs/UXS-007-topic-entity-view.md` -- topic pill handoff from enriched
     sources to Topic Entity View
@@ -391,5 +391,5 @@ Advanced search when unavailable.
 - `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/rfc/RFC-061-semantic-corpus-search.md`
 - `docs/prd/PRD-021-semantic-corpus-search.md`
-- `docs/uxs/UXS-001-gi-kg-viewer.md`
+- `docs/uxs/UXS-001-workbench.md`
 - `docs/architecture/gi/ontology.md`

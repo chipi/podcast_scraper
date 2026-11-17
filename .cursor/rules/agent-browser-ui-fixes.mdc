@@ -8,7 +8,7 @@ alwaysApply: true
 
 # Viewer UI — browser validation gate (no copy-paste from the user)
 
-**When your work or the bug report touches** `web/gi-kg-viewer/` **or** viewer-facing code under `src/podcast_scraper/server/`, you **must** close the loop in the browser when MCP is available. Do **not** treat `npm run test:unit` / `npm run build` alone as proof for **visual or interaction** regressions.
+**When your work or the bug report touches** `web/workbench/` **or** viewer-facing code under `src/podcast_scraper/server/`, you **must** close the loop in the browser when MCP is available. Do **not** treat `npm run test:unit` / `npm run build` alone as proof for **visual or interaction** regressions.
 
 ## MCP (live Chrome)
 
@@ -35,11 +35,11 @@ Playwright / `make test-ui-e2e` (and unit tests) run **in addition** for regress
   - `cy.nodes('.graph-neighbour').length`
   - `cy.nodes('.graph-focused').length`
   - `cy.nodes(':selected').length`
-- **Pinia:** `subject` store **`graphConnectionsCyId`** and **`graphNavigation.pendingFocusNodeId`** (`web/gi-kg-viewer/src/stores/subject.ts`, `graphNavigation.ts`). If dimming clears while those are still wrong (`null` when an episode should be focused), trace the **focus** and **territory / filtered-artifact** watchers — not only the first paint.
+- **Pinia:** `subject` store **`graphConnectionsCyId`** and **`graphNavigation.pendingFocusNodeId`** (`web/workbench/src/stores/subject.ts`, `graphNavigation.ts`). If dimming clears while those are still wrong (`null` when an episode should be focused), trace the **focus** and **territory / filtered-artifact** watchers — not only the first paint.
 
 **Code lessons (do not re-learn the hard way):**
 
-- **Corpus `metadata_relative_path` and graph Episode row labels/paths can diverge** (encoding, punctuation, normalization). When resolving “which Cytoscape node is this corpus episode?”, prefer a **stable id** (e.g. corpus **`episode_id`**) as a fallback after metadata-path match — see `findEpisodeGraphNodeIdForMetadataPathOrEpisodeId` in `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts`.
+- **Corpus `metadata_relative_path` and graph Episode row labels/paths can diverge** (encoding, punctuation, normalization). When resolving “which Cytoscape node is this corpus episode?”, prefer a **stable id** (e.g. corpus **`episode_id`**) as a fallback after metadata-path match — see `findEpisodeGraphNodeIdForMetadataPathOrEpisodeId` in `web/workbench/src/utils/graphEpisodeMetadata.ts`.
 - **Never clear episode graph selection/dimming** on “metadata lookup missed” alone if **`graphConnectionsCyId`** already points at a valid **Episode** node on the current core — otherwise a late watcher pass wipes a good focus.
 
 **Success heuristic after fix:** After the wait, expect **at least one** selected/focused episode neighbourhood (`graph-dimmed` / neighbour counts **not** all zero with a non-trivial node count) and coherent Pinia ids for the intended episode.

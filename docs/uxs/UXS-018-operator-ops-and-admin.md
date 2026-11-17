@@ -1,9 +1,9 @@
 # UXS-018: Operator Ops and Admin tabs
 
 - **Status**: Active (written 2026-10-05 from the shipped components; the code was the source)
-- **Surface:** `web/gi-kg-viewer` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
+- **Surface:** `web/workbench` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
   panels registered at `adminPanels`, `ReleaseAdminView`, `GraphAnalyticsAdminView`)
-- **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator design system — tokens, type, density)
+- **Inherits:** [UXS-001](UXS-001-workbench.md) (operator design system — tokens, type, density)
 - **Related:** #1128 (viewer roles, user management), ADR-113 (resilience), ADR-142 (not in this repository) (LLM gateway),
   #11 B2 (discovery ranking)
 

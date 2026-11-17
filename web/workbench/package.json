@@ -1,0 +1,51 @@
+{
+  "name": "workbench",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:live": "playwright test --config=playwright.live.config.ts"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@sentry/vue": "^8.55.1",
+    "chart.js": "^4.5.1",
+    "cron-parser": "^5.5.0",
+    "cytoscape": "^3.33.1",
+    "cytoscape-fcose": "^2.2.0",
+    "cytoscape-navigator": "^2.0.2",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.30"
+  },
+  "devDependencies": {
+    "@emnapi/core": "^1.9.2",
+    "@emnapi/runtime": "^1.9.2",
+    "@playwright/test": "1.64.1",
+    "@types/cytoscape": "^3.21.9",
+    "@types/node": "^24.12.0",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.2",
+    "@vue/test-utils": "^2.4.11",
+    "@vue/tsconfig": "^0.9.0",
+    "autoprefixer": "^10.4.27",
+    "happy-dom": "^20.8.9",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1",
+    "vitest": "^4.1.2",
+    "vue-tsc": "^3.2.5"
+  }
+}

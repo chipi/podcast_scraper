@@ -4,9 +4,9 @@
 - **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: viewer
   surface delivered by **#1048** (Person Landing shared shell) + **#1049**
   (Position Tracker panel, 2026-06-23). Implementation lives at
-  `web/gi-kg-viewer/src/components/subject/PositionTrackerPanel.vue`; entry
+  `web/workbench/src/components/subject/PositionTrackerPanel.vue`; entry
   point is the ranked-Topic rows on the Person Profile tab; helper
-  `personTopicPositionArc` in `web/gi-kg-viewer/src/utils/parsing.ts` owns
+  `personTopicPositionArc` in `web/workbench/src/utils/parsing.ts` owns
   the `MENTIONS_PERSON ∩ ABOUT` join + date / position_hint sort + Quote
   attachment via `SUPPORTED_BY`. The three degradation states defined in
   this spec are wired as the `position-tracker-no-topic` /
@@ -14,11 +14,11 @@
   `e2e/E2E_SURFACE_MAP.md` § "Person Landing rail panel" for the full
   testid map.
 - **Authors**: Marko
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
 - **Related RFCs**:
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Related UX specs**:
   - [UXS-004: Graph Exploration](UXS-004-graph-exploration.md) -- "View in graph"
     handoff
@@ -30,24 +30,24 @@
     "Open profile" handoff; **owns the shared Person Landing** that hosts both
     Person Profile and Position Tracker
 - **Implementation paths**:
-  - New: `web/gi-kg-viewer/src/components/person/PositionTracker.vue`
-  - Existing: `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` (rail
+  - New: `web/workbench/src/components/person/PositionTracker.vue`
+  - Existing: `web/workbench/src/components/graph/GraphNodeRailPanel.vue` (rail
     host)
-  - Existing: `web/gi-kg-viewer/src/stores/` (new `person.ts` store or extend
+  - Existing: `web/workbench/src/stores/` (new `person.ts` store or extend
     existing)
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — Person subject in subject rail; navigation axes
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — Person subject in subject rail; navigation axes
 
 ---
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Position Tracker** within Person Landing / the subject rail only.
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies **Position Tracker** within Person Landing / the subject rail only.
 
 The Position Tracker is a person + topic navigable surface that shows how a person's
 stated positions on a topic evolve across episodes. This UXS defines the visual
 contract for the panel layout, timeline cards, Insight and Quote card components,
 topic selector, and graceful degradation states. All
-tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
+tokens reference [UXS-001](UXS-001-workbench.md).
 
 ---
 
@@ -191,7 +191,7 @@ Below the header, a row of action buttons:
 ### Insight cards
 
 Insight cards follow the **shared InsightCard** contract in
-[UXS-001 — InsightCard (shared component)](UXS-001-gi-kg-viewer.md#insightcard-shared-component).
+[UXS-001 — InsightCard (shared component)](UXS-001-workbench.md#insightcard-shared-component).
 This view uses the following InsightCard slots: insight text, `insight_type` badge,
 `position_hint` bar, confidence score, grounding badge. Episode attribution is
 provided by the parent episode card context.
@@ -260,7 +260,7 @@ All degradation states use `muted` text and honest language. No broken layouts.
 ## E2E contract
 
 New visible labels and selectors require updates to the
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 before or with implementation. Key surfaces:
 
 - Right rail panel with `aria-label="Position Tracker"` (use `exact: true`)

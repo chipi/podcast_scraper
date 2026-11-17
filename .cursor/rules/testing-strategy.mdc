@@ -24,21 +24,21 @@ After any code session with new/modified code, MUST review related tests:
 
 If you're unsure which tests are affected, run the full test suite and fix failures.
 
-### GI/KG viewer UI (`web/gi-kg-viewer`) + Playwright
+### Workbench UI (`web/workbench`) + Playwright
 
 pytest does **not** run browser E2E — use **`make test-ui-e2e`** or **`make ci-ui-fast`** for a **full local gate** (lint/type/unit/critical integration + Vitest + Playwright; skips Python **`tests/e2e/`**).
 
 When **viewer UX** changes (labels, routes, layout, theme tokens, accessible names, E2E flows):
 
-1. Update **`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`** if selectors or E2E-visible behavior changed.
+1. Update **`web/workbench/e2e/E2E_SURFACE_MAP.md`** if selectors or E2E-visible behavior changed.
 2. Update **`e2e/*.spec.ts`** / **`helpers.ts`** / **`fixtures.ts`**; run **`make test-ui-e2e`** (or **`make ci-ui-fast`** before commit when the diff is viewer-heavy).
-3. Update **`docs/uxs/VIEWER_IA.md`** when **shell information architecture** changes; update **`docs/uxs/UXS-001-gi-kg-viewer.md`** when the **visual or experience contract** changes.
+3. Update **`docs/uxs/WORKBENCH_IA.md`** when **shell information architecture** changes; update **`docs/uxs/UXS-001-workbench.md`** when the **visual or experience contract** changes.
 
 **FastAPI JSON contracts** (new or changed `/api/*` routes): add or extend tests under
 **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`** (not a root-level
 `tests/integration/test_server_api.py`). See **`docs/guides/TESTING_GUIDE.md`** (Browser E2E table).
 
-See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*) and **`.cursorrules`** (*GI/KG viewer UX*).
+See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*) and **`.cursorrules`** (*Workbench UX*).
 
 ## MANDATORY: Testing Before Commit
 
@@ -298,7 +298,7 @@ pytest -k "test_whisper" -v  # Run tests matching pattern
 ```text
 Changed code?
 ├─ Docs only? → No tests needed
-├─ Viewer UI only (`web/gi-kg-viewer/`, no Python `tests/e2e`)? → make ci-ui-fast
+├─ Viewer UI only (`web/workbench/`, no Python `tests/e2e`)? → make ci-ui-fast
 ├─ Unit tests only? → make ci-fast
 ├─ ML code changed?
 │  ├─ Integration ML? → make ci-fast + make test-integration-slow

@@ -2,37 +2,37 @@
 
 - **Status**: Active
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 
 - **Related PRDs**:
   - [PRD-023: Corpus Digest & Library Glance](../prd/PRD-023-corpus-digest-recap.md)
 - **Related RFCs**:
   - [RFC-068: Corpus Digest API & Viewer](../rfc/RFC-068-corpus-digest-api-viewer.md)
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Implementation paths**:
-  - `web/gi-kg-viewer/src/components/digest/DigestView.vue`
-  - `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`
-  - `web/gi-kg-viewer/src/api/relationalApi.ts` (#885) — `/api/relational/*` client
+  - `web/workbench/src/components/digest/DigestView.vue`
+  - `web/workbench/src/utils/digestRowDisplay.ts`
+  - `web/workbench/src/api/relationalApi.ts` (#885) — `/api/relational/*` client
     (cross-show synthesis powers FR3.2)
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Digest** tab only (rolling window, semantic topic bands, layout and density, and **`corpusLens`** shared with Library).
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Digest** tab only (rolling window, semantic topic bands, layout and density, and **`corpusLens`** shared with Library).
 
 The **Digest** tab is the discovery surface for rolling-window recent episodes and
 semantic topic bands. It is the default selected tab on first load. This UXS defines
 the visual contract for the Digest tab layout, density, and component appearance.
-All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
+All tokens reference [UXS-001](UXS-001-workbench.md).
 
 ---
 
 ## Information architecture
 
-- **Main tabs:** Order and default-on-load are defined in [VIEWER_IA.md — Main tabs](VIEWER_IA.md#main-tabs) (**Digest** is default).
+- **Main tabs:** Order and default-on-load are defined in [WORKBENCH_IA.md — Main tabs](WORKBENCH_IA.md#main-tabs) (**Digest** is default).
 
 - **Digest tab:** A main nav item labeled **Digest** (same control pattern as other
   main views). The panel also shows an in-column **`h2` Digest** with a **`?`**
@@ -223,7 +223,7 @@ Digest for "what's new," Library for catalog browse.
 ## E2E contract
 
 Any new visible labels (e.g. Digest, Search topic) require updates to
-the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 before or with implementation. Dedicated Playwright coverage lives in
 `e2e/digest.spec.ts` (mocked `GET /api/corpus/digest` + health).
 
@@ -284,7 +284,7 @@ Authoritative for **Digest** layout deltas; **Library**-only subsections are inc
 **Status:** Ready for implementation
 **Author:** Design session (Marko + Claude), April 2026
 **Repo:** `chipi/podcast_scraper`
-**Target area:** `web/gi-kg-viewer/src/components/digest/`, `web/gi-kg-viewer/src/components/library/`
+**Target area:** `web/workbench/src/components/digest/`, `web/workbench/src/components/library/`
 **Related docs:** UXS-002, UXS-003, UXS-001
 **Scope:** Visual and layout improvements only. No new API endpoints required
 except where noted. No store architecture changes. Works independently of
@@ -683,7 +683,7 @@ last 24 hours. Subtle, non-intrusive, purely additive.
 
 **Time calculation:**
 Client-side only; **no** new API fields. Parsing and the rolling window are
-implemented in **`web/gi-kg-viewer/src/utils/digestRecency.ts`** (invalid or
+implemented in **`web/workbench/src/utils/digestRecency.ts`** (invalid or
 missing **`publish_date`** → no dot). Digest window copy (API lens) can
 still differ from the dot for date-only rows — document in UXS, do not
 force them to match without **`publish_datetime`**.
@@ -706,10 +706,10 @@ Note 24h threshold as a tunable parameter in UXS-001.
   — 2.5: summary_preview line-clamp-2 on unselected rows
   — 4:   Recency dot
 
-web/gi-kg-viewer/src/utils/digestRowDisplay.ts
+web/workbench/src/utils/digestRowDisplay.ts
   — 2.3: Add `digestTopicHitSimilarityDisplay(score)` (semantic label + raw `title`)
 
-web/gi-kg-viewer/src/utils/digestRecency.ts
+web/workbench/src/utils/digestRecency.ts
   — 4: Rolling-window helpers for `YYYY-MM-DD` (local midnight) + unit tests
 ```
 
@@ -726,7 +726,7 @@ web/gi-kg-viewer/src/utils/digestRecency.ts
 docs/uxs/UXS-003-corpus-library.md
   — 3.1, 3.2, 3.3, 4 per sections above
 
-docs/uxs/UXS-001-gi-kg-viewer.md
+docs/uxs/UXS-001-workbench.md
   — Add to Tunable parameters:
       similarity strong threshold    0.85    Open
       similarity good threshold      0.70    Open

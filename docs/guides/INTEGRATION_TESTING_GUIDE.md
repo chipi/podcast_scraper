@@ -457,7 +457,7 @@ reuse the same pattern (or mock HTTP). See [CONFIGURATION.md — Download resili
 
 ## FastAPI viewer, CIL, `bridge.json`, and semantic search lift {#fastapi-cil-bridge-search-lift}
 
-**Wired HTTP** coverage for the GI/KG viewer stack lives under **`tests/integration/server/`**
+**Wired HTTP** coverage for the Workbench stack lives under **`tests/integration/server/`**
 (not the legacy root-level `test_server_api.py` path). Typical modules:
 
 - **`test_server_api.py`** — health, artifacts (including **`*.bridge.json`**), index stats,

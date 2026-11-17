@@ -56,7 +56,7 @@ py=$(pick '\.py$' | grep -vE '^(web|infra)/' || true)
 src_py=$(printf '%s\n' "$py" | grep -E '^src/' || true)
 md=$(pick '\.md$' | grep -vE '(^|/)node_modules/|/vendor/' || true)
 docs=$(pick '^(docs/|mkdocs\.yml$)')
-viewer=$(pick '^web/gi-kg-viewer/(src|e2e)/.*\.(ts|vue|tsx|js)$')
+viewer=$(pick '^web/workbench/(src|e2e)/.*\.(ts|vue|tsx|js)$')
 workflows=$(pick '^\.github/workflows/.*\.ya?ml$')
 
 if [ -n "$py" ]; then
@@ -107,10 +107,10 @@ if [ -n "$docs" ]; then
   gate docs make --no-print-directory docs
 fi
 if [ -n "$viewer" ]; then
-  rel=$(printf '%s\n' "$viewer" | sed 's#^web/gi-kg-viewer/##')
+  rel=$(printf '%s\n' "$viewer" | sed 's#^web/workbench/##')
   # shellcheck disable=SC2086
-  gate "viewer vitest (related)" bash -c "cd web/gi-kg-viewer && node_modules/.bin/vitest related --run ${rel//$'\n'/ }"
-  gate "viewer vue-tsc" bash -c "cd web/gi-kg-viewer && node_modules/.bin/vue-tsc --noEmit -p tsconfig.app.json"
+  gate "viewer vitest (related)" bash -c "cd web/workbench && node_modules/.bin/vitest related --run ${rel//$'\n'/ }"
+  gate "viewer vue-tsc" bash -c "cd web/workbench && node_modules/.bin/vue-tsc --noEmit -p tsconfig.app.json"
 fi
 if [ -n "$workflows" ] && command -v actionlint >/dev/null; then
   # shellcheck disable=SC2086

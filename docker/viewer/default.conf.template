@@ -1,4 +1,4 @@
-# Nginx front for gi-kg-viewer SPA + reverse proxy to FastAPI (api:8000).
+# Nginx front for the Workbench SPA + reverse proxy to FastAPI (api:8000).
 #
 # Templated: nginx:alpine's entrypoint runs envsubst on every file in
 # /etc/nginx/templates/*.template and writes the result to

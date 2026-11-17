@@ -39,8 +39,8 @@ FIXTURES_VERSION ?= $(shell cat tests/fixtures/FIXTURES_VERSION 2>/dev/null | tr
 # PYTHONUNBUFFERED on fast pytest lines reduces line buffering in IDE/agent terminals.
 PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 
-# GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
-WEB_VIEWER_DIR ?= web/gi-kg-viewer
+# Workbench (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
+WEB_VIEWER_DIR ?= web/workbench
 
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
@@ -761,7 +761,7 @@ validate-kg-schema:
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
 
-# GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
+# Workbench (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
 SERVE_OUTPUT_DIR ?= ./output
 # serve-api bind — DEFAULT 0.0.0.0:8000 so `make serve` "just works" for off-box dev:
@@ -1336,12 +1336,12 @@ enrich-viewer-fixture:
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
-	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
+	@echo "Vitest unit tests + coverage gate (Workbench, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
 # Playwright browser E2E: Chrome locally, Firefox under CI (playwright.config.ts).
 test-ui-e2e:
-	@echo "Playwright E2E (gi-kg-viewer)..."
+	@echo "Playwright E2E (Workbench)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
 
 # API image the e2e run-local-stack scripts expect (#1619). Nothing built this before, so
@@ -1361,7 +1361,7 @@ e2e-api-image:
 # DISPOSABLE COPY of the fixture corpus (the operator plane writes into whatever corpus it is
 # given), so this leaves the tracked fixture untouched.
 test-ui-e2e-live: e2e-api-image
-	@echo "Playwright E2E (gi-kg-viewer) against the fixture-bootstrapped API..."
+	@echo "Playwright E2E (Workbench) against the fixture-bootstrapped API..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox
 	@$(WEB_VIEWER_DIR)/e2e/run-local-stack.sh
 
@@ -2382,7 +2382,7 @@ ci-ui-validation:
 	# Usage: ``make ci-ui-validation CORPUS=/path/to/corpus``
 	#
 	# Per RFC-086 institutional rule: bugs surfaced here must land a
-	# Tier-2 matrix row under web/gi-kg-viewer/e2e/handoff-production/
+	# Tier-2 matrix row under web/workbench/e2e/handoff-production/
 	# that reproduces them before the fix PR merges.
 	@if [ -z "$(CORPUS)" ]; then \
 		echo "ERROR: set CORPUS=/abs/path/to/corpus"; \
@@ -2399,7 +2399,7 @@ ci-ui-validation:
 	fi
 	@echo "=== ci-ui-validation against $(CORPUS) ==="
 	@echo "Requires ``make serve`` (or ``make serve-for-validation``) running in another terminal."
-	cd web/gi-kg-viewer && \
+	cd web/workbench && \
 		CORPUS_PATH=$(CORPUS) \
 		node_modules/.bin/playwright test --config playwright.validation.config.ts
 

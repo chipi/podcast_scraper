@@ -9,7 +9,7 @@
 **Status:** Ready for implementation
 **Author:** Design session (Marko + Claude), April 2026
 **Repo:** `chipi/podcast_scraper`
-**Target area:** `web/gi-kg-viewer/src/`
+**Target area:** `web/workbench/src/`
 **Related docs:** UXS-001, UXS-004, RFC-062, RFC-076
 **Scope:** Load strategy, graphLens store, default node type visibility,
 status line. No Cytoscape stylesheet changes (those are in the Graph
@@ -119,11 +119,11 @@ Graph tab open re-seeds from the new corpus context.
 When loading GI/KG artifacts for the graph, select at most **N episodes**
 from the candidate pool defined by `graphLens`.
 
-**Candidate pool selection (implemented in `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts`):**
+**Candidate pool selection (implemented in `web/workbench/src/utils/graphEpisodeSelection.ts`):**
 
 1. Build one **episode stem** per GI/KG/bridge basename group; use listing `publish_date` (YYYY-MM-DD) per stem.
 2. **Filter** by `graphLens`: dated window = `publish_date >= sinceYmd`; **all time** = all stems.
-3. **Score** each stem: `recency_weight + cluster_bonus` (tunables in [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)). Recency is linear from **0.2** (oldest in the dated pool, or older than the trailing **90**-day window from the newest publish for **all time**) to **1.0** at the newest. **Cluster bonus** (+0.4 default) applies when the stem matches an `episode_id` on a **topic cluster** member (`topic_clusters.json`), if that doc was loaded.
+3. **Score** each stem: `recency_weight + cluster_bonus` (tunables in [UXS-001](../uxs/UXS-001-workbench.md)). Recency is linear from **0.2** (oldest in the dated pool, or older than the trailing **90**-day window from the newest publish for **all time**) to **1.0** at the newest. **Cluster bonus** (+0.4 default) applies when the stem matches an `episode_id` on a **topic cluster** member (`topic_clusters.json`), if that doc was loaded.
 4. Sort by **score descending**, then **publish date descending**, then stem id (stable tie-break).
 5. Take the **top N** stems; load all GI/KG/bridge paths for those stems only.
 
@@ -293,17 +293,17 @@ features are designed to work together.
 
 ```text
 
-web/gi-kg-viewer/src/stores/graphFilters.ts
+web/workbench/src/stores/graphFilters.ts
   — update default node type visibility (Quote, Speaker, Episode OFF)
 
-web/gi-kg-viewer/src/stores/artifacts.ts (or graph loading path)
+web/workbench/src/stores/artifacts.ts (or graph loading path)
   — apply graphLens filter + episode cap before loading GI/KG paths
 
-web/gi-kg-viewer/src/components/graph/GraphCanvas.vue
+web/workbench/src/components/graph/GraphCanvas.vue
   — embed GraphStatusLine in GraphBottomBar (centre zone under canvas)
   — wire graphLens changes to reload trigger
 
-web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
+web/workbench/e2e/E2E_SURFACE_MAP.md
   — add graph-status-line, lens selector, episode count, node count
 
 ```
@@ -312,7 +312,7 @@ web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
 
 ```text
 
-web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue
+web/workbench/src/components/graph/GraphStatusLine.vue
   — status line row (lens selector, counts, since input); embedded in bottom bar under canvas
 
 ```
@@ -325,7 +325,7 @@ docs/uxs/UXS-004-graph-exploration.md
   — Document graphLens, episode cap, status line, default type visibility
   — Add graphLens lens selector to toolbar description
 
-docs/uxs/UXS-001-gi-kg-viewer.md
+docs/uxs/UXS-001-workbench.md
   — Add graph default episode cap to Tunable parameters table
 
 ```
@@ -390,7 +390,7 @@ docs/uxs/UXS-001-gi-kg-viewer.md
 **Status:** Active — see [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md)
 for the locked decisions and rationale.
 **Repo:** `chipi/podcast_scraper`
-**Target area:** `web/gi-kg-viewer/src/services/graphHandoffFsm.ts`,
+**Target area:** `web/workbench/src/services/graphHandoffFsm.ts`,
 `stores/graphHandoff.ts`, every entry-point component (Library / Digest /
 Search / Dashboard / Episode panel / NodeDetail / GraphConnectionsSection /
 SubjectRail / StatusBar / Explore / App-shell tab / GraphCanvas direct
@@ -398,9 +398,9 @@ interactions).
 **Related docs:** [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md)
 (canonical decisions), [VIEWER_ASYNC_STABILITY.md](VIEWER_ASYNC_STABILITY.md)
 (adjacent async patterns),
-`web/gi-kg-viewer/src/services/README.md`
+`web/workbench/src/services/README.md`
 (code-local FSM contract),
-`web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`
+`web/workbench/e2e/HANDOFF_MATRIX.md`
 (coverage contract).
 **Scope:** Operational reference for adding new entry surfaces and debugging
 handoff bugs. The decisions and rationale live in ADR-094; this section is
@@ -435,7 +435,7 @@ click to settled selection.
 
 Reference for each surface's FSM event + envelope shape. Full per-row test
 coverage in
-`web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`.
+`web/workbench/e2e/HANDOFF_MATRIX.md`.
 
 | ID | Surface | FSM event | source | loadSource | camera |
 | --- | --- | --- | --- | --- | --- |
@@ -510,7 +510,7 @@ layout preserves positions of unchanged nodes).
 
 Every async `await` inside orchestrator code (notably
 `loadEpisodeSliceForTerritoryStrip` in
-`web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`)
+`web/workbench/src/components/graph/GraphCanvas.vue`)
 **must** be paired with an `isStale(envelope.generation)` check on the
 next non-empty line. Without it, an in-flight handoff can mutate UI state
 for an envelope that has already been superseded by a newer click —
@@ -518,7 +518,7 @@ producing the exact "old episode wins after rapid clicks" race the FSM is
 designed to prevent.
 
 The 8 documented check points are listed in the
-`web/gi-kg-viewer/src/services/graphHandoffFsm.ts` header.
+`web/workbench/src/services/graphHandoffFsm.ts` header.
 Adding a new `await` to an orchestrator path requires a matching
 `isStale()` check; the contract is currently review-only (no automated
 ESLint rule yet).
@@ -538,12 +538,12 @@ ESLint rule yet).
    (`artifacts.setLoadSource(envelope.loadSource)`). Decision #1: this
    prevents the canonical "second G does nothing" bug class.
 4. **Add a row to**
-   `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`
+   `web/workbench/e2e/HANDOFF_MATRIX.md`
    under the right section (cold-start / hot-state / repeat-click /
    cross-entry / concurrency / failure / lifecycle).
 5. **Write a Playwright contract test** asserting the surface fires the
    right event with the right envelope payload (see existing examples in
-   `web/gi-kg-viewer/e2e/handoff/contracts.spec.ts`). This mechanically
+   `web/workbench/e2e/handoff/contracts.spec.ts`). This mechanically
    enforces the migration so a future refactor can't silently undo it.
 
 ---
@@ -568,7 +568,7 @@ inactive.
 **Don't regress:** if you refactor `GraphCanvas.onActivated`, preserve the
 call to `tryApplyPendingFsmEnvelopeFromTabReturn` on every activation where
 `graphHandoff.pending` is non-null. The Tier-3 P5.2 spec at
-`web/gi-kg-viewer/e2e/validation/handoff-matrix-real-corpus.spec.ts` catches
+`web/workbench/e2e/validation/handoff-matrix-real-corpus.spec.ts` catches
 removal of this hook end-to-end.
 
 **Related fix in click handlers:** the L1 (`LibraryView.openEpisodeInGraph`)
@@ -610,7 +610,7 @@ covers it end-to-end.
 
 ### Matrix assertion layers (L0–L6)
 
-The 41-row `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` drives the 6-point
+The 41-row `web/workbench/e2e/HANDOFF_MATRIX.md` drives the 6-point
 standard contract through six composable assertion layers. Each row asserts as deeply as its fixture allows; the layer profile
 per row is recorded in the matrix doc's "Layers" column.
 
@@ -665,7 +665,7 @@ envelope generation).
 **Status:** Active — implementation tracks [GitHub #608](https://github.com/chipi/podcast_scraper/issues/608).
 **Author:** Design session (Marko + Claude), April 2026
 **Repo:** `chipi/podcast_scraper`
-**Target area:** `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts`,
+**Target area:** `web/workbench/src/utils/cyGraphStylesheet.ts`,
 `cyGraphLabelTier.ts`, `cyCoseLayoutOptions.ts`, `parsing.ts`, `GraphCanvas.vue`,
 `GraphNeighborhoodMiniMap.vue`
 **Related docs:** UXS-001, UXS-004, RFC-062
@@ -1156,17 +1156,17 @@ strong in light mode where the canvas is light. Use:
 
   — All Phase 1 and Phase 2 stylesheet rules
 
-web/gi-kg-viewer/src/utils/parsing.ts
+web/workbench/src/utils/parsing.ts
   — shortLabel generation (Phase 1)
   — recencyWeight computation (Phase 2)
   — confidenceOpacity computation (Phase 2)
 
-web/gi-kg-viewer/src/components/graph/GraphCanvas.vue
+web/workbench/src/components/graph/GraphCanvas.vue
   — Selection dim/focus class application (Phase 1)
   — Post-layout degree heat computation (Phase 2)
   — COSE layout parameter update (Phase 1)
 
-web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
+web/workbench/e2e/E2E_SURFACE_MAP.md
   — Note stylesheet changes (no new selectors needed for E2E;
     these are visual-only changes)
 
@@ -1180,7 +1180,7 @@ web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
   — Update Toolbar section: COSE parameters noted as tunable
   — Note Phase 1 vs Phase 2 separation
 
-docs/uxs/UXS-001-gi-kg-viewer.md
+docs/uxs/UXS-001-workbench.md
   — Add COSE spring parameters to Tunable parameters table (Open)
   — Add degree heat maxDegree to Tunable parameters table (Open)
   — Add recency decay window (90 days) to Tunable parameters table (Open)
@@ -1245,7 +1245,7 @@ docs/uxs/UXS-001-gi-kg-viewer.md
 **Status:** Implemented in viewer (keep doc in sync with code when behaviour changes)
 **Author:** Design session (Marko + Claude), April 2026
 **Repo:** `chipi/podcast_scraper`
-**Target area:** `web/gi-kg-viewer/src/components/graph/`
+**Target area:** `web/workbench/src/components/graph/`
 **Related docs:** UXS-004, RFC-062, [RFC-076](../rfc/RFC-076-progressive-graph-expansion.md) (progressive expand / ring semantics)
 **Scope:** Small, self-contained. No store changes. No API changes.
 
@@ -1441,7 +1441,7 @@ Check `hasNodes` and `localStorage` when the component mounts and when
 - When `hasNodes` is false (filters / ego view with zero nodes)
 
 **Implementation note:** Today the **Graph** tab is the only place `GraphCanvas`
-mounts: [`App.vue`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/App.vue) uses `v-if="mainTab === 'graph'"` on
+mounts: [`App.vue`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/src/App.vue) uses `v-if="mainTab === 'graph'"` on
 `GraphTabPanel`. The overlay therefore does **not** require a separate `mainTab`
 prop unless the shell is refactored (then pass e.g. `isGraphTabActive`).
 
@@ -1451,7 +1451,7 @@ prop unless the shell is refactored (then pass e.g. `isGraphTabActive`).
 
 #### `GraphGestureOverlay.vue`
 
-Location: `web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue`
+Location: `web/workbench/src/components/graph/GraphGestureOverlay.vue`
 
 Props: **`{ hasNodes: boolean }` only** (parent derives from Cytoscape node count).
 
@@ -1498,7 +1498,7 @@ A **Gestures** (or **?** / **Shortcuts**) control in the **graph bottom bar** ri
 
 ```text
 
-web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue
+web/workbench/src/components/graph/GraphGestureOverlay.vue
   — dismissible overlay card + backdrop; localStorage gate
 
 ```
@@ -1511,7 +1511,7 @@ web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue
   — pass hasNodes computed prop
   — shorten or remove toolbar gesture hint text
 
-web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
+web/workbench/e2e/E2E_SURFACE_MAP.md
   — add: graph-gesture-overlay, graph-gesture-overlay-dismiss
 
 ```
@@ -1578,14 +1578,14 @@ episode-scoped slugs from bullets, search hit payloads, and so on).
 
 ### Phase 0 (landed)
 
-- **Code:** `web/gi-kg-viewer/src/utils/cilGraphFocus.ts` — maps a `CilDigestTopicPill` +
+- **Code:** `web/workbench/src/utils/cilGraphFocus.ts` — maps a `CilDigestTopicPill` +
   optional episode id to `graphNavigation.requestFocusNode` (primary `topic:…`, fallback
 
   episode id, optional `pendingFocusCameraIncludeRawIds` for `tc:…` when
   `in_topic_cluster`). Used from **Digest Recent** (`DigestView.vue`) and **Episode subject rail**
   canonical topic pills (`EpisodeDetailPanel.vue`).
 
-- **Tests:** `web/gi-kg-viewer/src/utils/cilGraphFocus.test.ts` (Vitest).
+- **Tests:** `web/workbench/src/utils/cilGraphFocus.test.ts` (Vitest).
 - **Docs:** [Development Guide — Viewer v2](../guides/DEVELOPMENT_GUIDE.md#viewer-v2-rfc-062-489) (bullet **CIL pill to graph focus**).
 
 ### Why this exists
@@ -1716,14 +1716,14 @@ Three **UX triggers** were discussed for *when* to pull in sibling episodes:
 **Issue:** In the **local neighborhood** preview, nodes feel **all on one horizontal
 line** -- too tight 1D; want a **normal COSE** (or equivalent) feel and **more 2D** spread.
 
-**Current code:** `web/gi-kg-viewer/src/components/graph/GraphNeighborhoodMiniMap.vue`
+**Current code:** `web/workbench/src/components/graph/GraphNeighborhoodMiniMap.vue`
 uses **`breadthfirst`** with `directed: true` and `roots` -- that tends to produce
 **tree / strip** layouts (often one row or column).
 
 **Direction:**
 
 - Switch minimap layout to **`cose`** (align with main graph's `layoutOptionsFor('cose')`
-  in `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`) or **`fcose`** if available
+  in `web/workbench/src/components/graph/GraphCanvas.vue`) or **`fcose`** if available
 
   in the bundled cytoscape build -- tune `nodeRepulsion`, `idealEdgeLength`, `gravity`
   for **small** element counts so the preview is 2D without huge spread.
@@ -1740,7 +1740,7 @@ layout/presentation**. They can ship in either order.
 ### 4. UX / E2E
 
 When layout strings or minimap behavior become E2E-visible, update
-`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` and the relevant UXS if the visual contract
+`web/workbench/e2e/E2E_SURFACE_MAP.md` and the relevant UXS if the visual contract
 changes.
 
 ---

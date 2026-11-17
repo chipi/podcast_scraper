@@ -11,17 +11,17 @@
   newest-first), Organizations affiliated (`MENTIONS_PERSON ∩ MENTIONS_ORG`
   chips), plus the pre-existing PRD-033 corpus / stated-positions / attributed-
   quotes blocks. Helpers `personEpisodeAppearances` and
-  `personInsightsByTopic` in `web/gi-kg-viewer/src/utils/parsing.ts` own
+  `personInsightsByTopic` in `web/workbench/src/utils/parsing.ts` own
   the pure joins; testid map lives in `e2e/E2E_SURFACE_MAP.md` § "Person
   Landing rail panel".
 - **Authors**: Marko
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
   - [PRD-029: Person Profile](../prd/PRD-029-person-profile.md) -- full requirements
     and API contract
 - **Related RFCs**:
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) -- the relational-query layer (`positions_of` over the #874 `Person→Insight` edge, + compounds) that assembles this profile; surface plan in [PRD-033](../prd/PRD-033-search-powered-surfaces.md) FR4.1, tracked in [#886](https://github.com/chipi/podcast_scraper/issues/886). Speaker attribution coverage is gated on diarization (#875/#876).
 - **Related UX specs**:
   - [UXS-004: Graph Exploration](UXS-004-graph-exploration.md) -- "View in graph"
@@ -35,7 +35,7 @@
     by this UXS
 - **Implementation paths**:
   - **Shipped (#672)**:
-    `web/gi-kg-viewer/src/components/subject/PersonLandingView.vue` (rail panel
+    `web/workbench/src/components/subject/PersonLandingView.vue` (rail panel
     with **Profile** / **Positions** ARIA tablist),
     `SubjectTimelineChart.vue` (Chart.js monthly mentions bar — same component
     TEV uses), `subjectMentionsTimeline.ts` (SPOKEN_BY edge walk for Person
@@ -50,20 +50,20 @@
   - **Existing graph-rail surface stays separate**:
     `GraphNodeRailPanel` + `NodeDetail` continue to render for graph clicks
     on Person nodes (`subject.kind === 'graph-node'`).
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — Person subject in subject rail; navigation axes
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — Person subject in subject rail; navigation axes
 
 ---
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Person Profile** / Person Landing in the subject rail only.
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies **Person Profile** / Person Landing in the subject rail only.
 
 The Person Profile is a person-anchored navigable surface that shows a person's
 corpus presence at a glance: identity metadata, the list of topics they have
 discussed (with Insight counts), and navigation links to drill deeper via the
 Position Tracker or Topic Entity View. This UXS defines the visual contract for the
 panel layout, section density, and graceful degradation states. All tokens reference
-[UXS-001](UXS-001-gi-kg-viewer.md). Functional requirements are in
+[UXS-001](UXS-001-workbench.md). Functional requirements are in
 [PRD-029](../prd/PRD-029-person-profile.md).
 
 ---
@@ -211,7 +211,7 @@ per view). Both the Person Profile and Position Tracker inherit the same header:
 
 ### Implementation
 
-- New: `web/gi-kg-viewer/src/components/person/PersonLanding.vue`
+- New: `web/workbench/src/components/person/PersonLanding.vue`
 - Hosts: `PersonProfile.vue` (this UXS) and `PositionTracker.vue` (UXS-009)
 - Both child components omit their own person headers and rely on the landing's
   shared header.
@@ -277,7 +277,7 @@ All degradation states use `muted` text and honest language. No broken layouts.
 ## E2E contract
 
 New visible labels and selectors require updates to the
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 before or with implementation. Key surfaces:
 
 - Right rail panel with `aria-label="Person Profile"` (use `exact: true`)

@@ -1,4 +1,4 @@
-"""FastAPI application factory for the GI/KG viewer API."""
+"""FastAPI application factory for the Workbench API."""
 
 from __future__ import annotations
 
@@ -174,9 +174,9 @@ def _open_app_database(app: FastAPI) -> None:
 
 
 def _default_static_dir() -> Path | None:
-    """Built SPA assets under ``web/gi-kg-viewer/dist`` (repo root relative to this file)."""
+    """Built SPA assets under ``web/workbench/dist`` (repo root relative to this file)."""
     repo_root = Path(__file__).resolve().parents[3]
-    dist = repo_root / "web" / "gi-kg-viewer" / "dist"
+    dist = repo_root / "web" / "workbench" / "dist"
     return dist if dist.is_dir() else None
 
 

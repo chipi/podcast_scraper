@@ -67,4 +67,4 @@ Insights, graph navigation by stable topic).
 ## Implementation Notes
 
 - **Code**: `src/podcast_scraper/builders/` (bridge paths, slug builders), server routes under
-  **`server/routes`**, graph utilities in **`web/gi-kg-viewer`**
+  **`server/routes`**, graph utilities in **`web/workbench`**

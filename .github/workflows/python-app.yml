@@ -55,7 +55,7 @@ on:
       - 'docker/viewer/**'
       - 'docker/observability/**'
       - '.dockerignore'
-      - 'web/gi-kg-viewer/**'
+      - 'web/workbench/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - 'config/profiles/**'
@@ -84,7 +84,7 @@ on:
       - 'docker/viewer/**'
       - 'docker/observability/**'
       - '.dockerignore'
-      - 'web/gi-kg-viewer/**'
+      - 'web/workbench/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - 'config/profiles/**'
@@ -178,7 +178,7 @@ jobs:
             - 'docker/pipeline/Dockerfile'
             - '.dockerignore'
             - '.github/workflows/**'
-            - 'web/gi-kg-viewer/**'
+            - 'web/workbench/**'
           python:
             - 'src/podcast_scraper/upgrade/outcomes/**'
             - 'docs/wip/changes/**'
@@ -213,11 +213,11 @@ jobs:
           # (`podcast_scraper.cli serve`) over a disposable copy of the committed corpus, so the
           # server and that corpus are its dependencies (#2285, #2286, #2288).
           viewer:
-            - 'web/gi-kg-viewer/**'
+            - 'web/workbench/**'
             - 'docker/viewer/**'
             - '.github/workflows/python-app.yml'
           viewer-e2e:
-            - 'web/gi-kg-viewer/**'
+            - 'web/workbench/**'
             - 'docker/viewer/**'
             - '.github/workflows/python-app.yml'
             - 'src/podcast_scraper/server/**'
@@ -250,7 +250,7 @@ jobs:
             - 'src/podcast_scraper/providers/**'
             - '.github/workflows/python-app.yml'
 
-  # GI/KG viewer v2 — Playwright E2E
+  # Workbench — Playwright E2E
   #
   # Gates on ``viewer-unit`` (Vitest, ~30 s) — same fail-fast pattern as
   # ``test-unit`` gating the Python heavy jobs: if the viewer source has
@@ -330,15 +330,15 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+        cache-dependency-path: web/workbench/package-lock.json
     - name: Install dependencies
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm ci
     - name: Install Playwright firefox
       uses: ./.github/actions/install-playwright
       with:
-        working-directory: web/gi-kg-viewer
+        working-directory: web/workbench
         browser: firefox
     - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
       uses: actions/cache@v6
@@ -359,14 +359,14 @@ jobs:
         .venv/bin/python scripts/cache/preload_ml_models.py
     - name: Run Playwright E2E (real API + Vite; globalSetup seeds the corpus and builds the index)
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm run test:e2e
     - name: Upload Playwright traces of failed tests
       if: failure()
       uses: actions/upload-artifact@v7
       with:
         name: viewer-e2e-test-results
-        path: web/gi-kg-viewer/test-results/
+        path: web/workbench/test-results/
         retention-days: 7
         if-no-files-found: ignore
 
@@ -430,7 +430,7 @@ jobs:
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
     needs: [lint, build, detect-changes]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     # Python-only gate (path-A): bandit/flake8/codespell only scan Python
-    # sources, so viewer-only PRs (web/gi-kg-viewer/**) can skip this.
+    # sources, so viewer-only PRs (web/workbench/**) can skip this.
     if: needs.detect-changes.outputs.python == 'true'
     steps:
     - uses: actions/checkout@v7
@@ -505,7 +505,7 @@ jobs:
     timeout-minutes: 25
     needs: [lint, build, detect-changes]  # optional verify-stack-profiles + stack compose config steps
     # Python-only gate (path-A): viewer-only PRs run viewer-unit (Vitest)
-    # instead; pytest doesn't apply to web/gi-kg-viewer/**.
+    # instead; pytest doesn't apply to web/workbench/**.
     if: needs.detect-changes.outputs.python == 'true'
     # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
     services:
@@ -686,7 +686,7 @@ jobs:
         export PYTHONPATH
         pytest tests/integration/server/test_corpus_version_compat.py -v --tb=short
 
-  # GI/KG viewer v2 — Vitest unit tests (same parallel segment as security-quality + test-unit)
+  # Workbench — Vitest unit tests (same parallel segment as security-quality + test-unit)
   viewer-unit:
     runs-on: ubuntu-24.04
     # 12 minutes, not 5: the job was sitting ON its old 5-minute budget and being killed by it, and
@@ -704,14 +704,14 @@ jobs:
         # Vite 8 requires ^20.19 || >=22.12; bare "20" on the runner can be older and breaks Vite
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+        cache-dependency-path: web/workbench/package-lock.json
     - name: Install dependencies
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm ci
     - name: Run Vitest unit tests with coverage gate (#914)
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         # test:coverage runs vitest with --coverage; the thresholds in
         # vite.config.ts fail the job if UI coverage regresses (parallel to the
         # Python coverage gate; not merged into coverage-unified).

@@ -2,7 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Marko Dragoljevic
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md): shared tokens, typography,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md): shared tokens, typography,
   layout, states
 - **Related RFCs**:
   - [RFC-134: News as the second content type](../rfc/RFC-134-news-as-the-second-content-type.md),
@@ -16,14 +16,14 @@
   - [UXS-016: Query Workspace](UXS-016-query-workspace.md): the filter chip bar and result rows
     this spec extends
   - [UXS-005: Semantic Search Panel](UXS-005-semantic-search.md): the compact launcher
-- **Shell IA (GI/KG viewer only):**
-  - [VIEWER_IA.md](VIEWER_IA.md): the subject rail gains an `article` subject (below)
+- **Shell IA (Workbench only):**
+  - [WORKBENCH_IA.md](WORKBENCH_IA.md): the subject rail gains an `article` subject (below)
 - **Implementation paths** (proposed; nothing is built yet):
-  - `web/gi-kg-viewer/src/components/search/SearchFilterBar.vue` (the Type chip)
-  - `web/gi-kg-viewer/src/components/search/ResultCard.vue` (the news row)
-  - `web/gi-kg-viewer/src/components/subject/` (the article rail panel)
-  - `web/gi-kg-viewer/src/stores/subject.ts` (the `article` subject kind)
-  - `web/gi-kg-viewer/src/theme/` (the `news` domain token)
+  - `web/workbench/src/components/search/SearchFilterBar.vue` (the Type chip)
+  - `web/workbench/src/components/search/ResultCard.vue` (the news row)
+  - `web/workbench/src/components/subject/` (the article rail panel)
+  - `web/workbench/src/stores/subject.ts` (the `article` subject kind)
+  - `web/workbench/src/theme/` (the `news` domain token)
 
 ## Summary
 
@@ -44,7 +44,7 @@ shown: not on a card, not in a search row, not as a snippet.
   the article's own rail.
 - **Typed at a glance.** A news element is recognisable without reading it: the `news` domain
   token, a "News" label and the publisher's name, on every row and card.
-- **No placeholder UI** ([VIEWER_IA.md](VIEWER_IA.md)): the Type chip appears only when the server
+- **No placeholder UI** ([WORKBENCH_IA.md](WORKBENCH_IA.md)): the Type chip appears only when the server
   says the corpus has news items; a podcast-only corpus looks exactly as it does today.
 
 ## Scope
@@ -172,7 +172,7 @@ row:
 
 ### The article card (subject rail)
 
-A new subject kind, `article`, in [VIEWER_IA.md](VIEWER_IA.md)'s subject table, entered from a news
+A new subject kind, `article`, in [WORKBENCH_IA.md](WORKBENCH_IA.md)'s subject table, entered from a news
 result row. Component: `ArticleRailPanel`. Top to bottom:
 
 1. **Header:** the "News" type label (`news`), the close button (`subject-rail-close`,
@@ -253,7 +253,7 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 - [ ] The teaser, not-serveable, no-summary and no-byline states render as specified.
 - [ ] Every link out has `rel="noopener noreferrer"`, opens in a new tab and names its domain.
 - [ ] `news` and `news-foreground` are defined once in the token layer; no hex in components.
-- [ ] `E2E_SURFACE_MAP.md`, [VIEWER_IA.md](VIEWER_IA.md) (the `article` subject) and UXS-016 (the
+- [ ] `E2E_SURFACE_MAP.md`, [WORKBENCH_IA.md](WORKBENCH_IA.md) (the `article` subject) and UXS-016 (the
       Type chip) are updated with the build.
 
 ## Open questions

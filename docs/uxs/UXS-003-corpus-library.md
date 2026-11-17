@@ -2,38 +2,38 @@
 
 - **Status**: Active
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
   - [PRD-022: Corpus Library & Episode Browser](../prd/PRD-022-corpus-library-episode-browser.md)
 - **Related RFCs**:
   - [RFC-067: Corpus Library API & Viewer](../rfc/RFC-067-corpus-library-api-viewer.md)
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Implementation paths**:
-  - `web/gi-kg-viewer/src/components/library/LibraryView.vue`
-  - `web/gi-kg-viewer/src/components/episode/EpisodeDetailPanel.vue`
-  - `web/gi-kg-viewer/src/stores/subject.ts`
-  - `web/gi-kg-viewer/src/stores/activeSearchContext.ts` (#883) — shared active
+  - `web/workbench/src/components/library/LibraryView.vue`
+  - `web/workbench/src/components/episode/EpisodeDetailPanel.vue`
+  - `web/workbench/src/stores/subject.ts`
+  - `web/workbench/src/stores/activeSearchContext.ts` (#883) — shared active
     search/filter context (RFC-094 OQ-2) powering FR2.1/FR2.2
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Library** tab and **Episode** subject rail only (filters, episode list, layout and density).
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Library** tab and **Episode** subject rail only (filters, episode list, layout and density).
 
 The **Corpus Library** is a catalog view inside the same SPA: it answers "what feeds
 and episodes were processed?" and connects to Graph and Semantic search without a
 separate theme or product chrome. This UXS defines layout, density, and component
 rules for the Library tab and the shared Episode subject rail. All tokens reference
-[UXS-001](UXS-001-gi-kg-viewer.md).
+[UXS-001](UXS-001-workbench.md).
 
 ---
 
 ## Information architecture
 
-- **Entry:** **Library** is a main tab in the order defined in [VIEWER_IA.md — Main tabs](VIEWER_IA.md#main-tabs); use an `aria-label` consistent with other main views.
+- **Entry:** **Library** is a main tab in the order defined in [WORKBENCH_IA.md — Main tabs](WORKBENCH_IA.md#main-tabs); use an `aria-label` consistent with other main views.
 - **Layout (desktop):** Library main column (`canvas` / `surface`) plus the right
   shell rail:
 
@@ -209,7 +209,7 @@ instruction, e.g. set corpus path or confirm metadata exists).
 ## E2E contract
 
 When the Library UI ships or changes, implementers must update the
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 first for any E2E-visible strings, roles, or hooks, then align Playwright specs per
 the E2E Testing Guide.
 

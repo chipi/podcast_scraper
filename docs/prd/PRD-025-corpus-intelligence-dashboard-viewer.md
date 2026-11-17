@@ -1,4 +1,4 @@
-# PRD-025: Corpus Intelligence Dashboard (GI/KG Viewer)
+# PRD-025: Corpus Intelligence Dashboard (Workbench)
 
 - **Status**: Implemented (v2.6.0) — documented retrospectively; behavior shipped in viewer **Dashboard**
   tab and supporting **`/api/corpus/*`** aggregates.
@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - [RFC-071: Corpus intelligence dashboard (viewer)](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) —
     technical design and API consumption
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) — SPA shell, **Dashboard** main tab
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md) — SPA shell, **Dashboard** main tab
   - [RFC-063: Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md) — manifest /
     `run.json` layout feeding **Pipeline** charts
   - [RFC-061: Semantic corpus search (FAISS)](../rfc/RFC-061-semantic-corpus-search.md) — vector index
@@ -23,28 +23,28 @@
   - [PRD-022](../prd/PRD-022-corpus-library-episode-browser.md), [PRD-023](../prd/PRD-023-corpus-digest-recap.md) —
     feeds catalog + digest glance strings
 - **Related UX specs**:
-  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA (status bar corpus flows)
+  - [WORKBENCH_IA: Viewer information architecture](../uxs/WORKBENCH_IA.md) — shell IA (status bar corpus flows)
   - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md) — **Dashboard tab (charts)** layout, tokens,
     accessibility targets
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system
+  - [UXS-001: Workbench](../uxs/UXS-001-workbench.md) — shared design system
 - **Related Documents**:
-  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
     — **Dashboard** row (Playwright contract)
-- **Updated**: 2026-04-19 (**VIEWER_IA** + status bar; remove **`CorpusDataWorkspace`** / left **API · Data** narrative; **Coverage** / **Intelligence** / **Pipeline** sub-tabs)
+- **Updated**: 2026-04-19 (**WORKBENCH_IA** + status bar; remove **`CorpusDataWorkspace`** / left **API · Data** narrative; **Coverage** / **Intelligence** / **Pipeline** sub-tabs)
 
 ## Summary
 
 Operators and developers need a **single in-viewer place** to see whether a corpus is healthy:
 pipeline runs (manifest throughput, latest `run.json` stages, episode outcomes), and **content
 intelligence** (vector index vs catalog, digest one-liner, GI/KG write-time timelines, publish-month
-histograms, graph node types vs indexed doc types). The **Dashboard** main tab in **`web/gi-kg-viewer`**
+histograms, graph node types vs indexed doc types). The **Dashboard** main tab in **`web/workbench`**
 delivers Chart.js-based panels under **Coverage**, **Intelligence**, and **Pipeline** sub-tabs, fed by FastAPI
 **`/api/corpus/*`** routes and client-side merges with the loaded graph and index stores.
 
 ## Background
 
 Before the Dashboard tab, operators relied on **API · Data** left-panel cards (retired); **Health** + corpus
-**List** / **Load into graph** now live on the **status bar** (**VIEWER_IA**), while **Dashboard** focuses on
+**List** / **Load into graph** now live on the **status bar** (**WORKBENCH_IA**), while **Dashboard** focuses on
 **briefing** + **Coverage** / **Intelligence** / **Pipeline** charts, or on ad hoc **`cat`**, or on external
 tools to correlate **run.json**, **corpus_manifest.json**, catalog stats, and index health. The
 Dashboard does not replace frozen profiles or Streamlit run compare; it answers
@@ -61,7 +61,7 @@ Dashboard does not replace frozen profiles or Streamlit run compare; it answers
    catalog vs histogram insight, graph node-type vs index doc-type bars.
 4. **Trust and navigation** — blurbs point operators to **status bar** corpus controls and **Dashboard**
    **Coverage** / **Intelligence** / **Pipeline** for corrective actions (reindex, refresh catalog, inspect runs).
-5. **Testable contract** — Playwright **`dashboard.spec.ts`** and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).
+5. **Testable contract** — Playwright **`dashboard.spec.ts`** and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md).
 
 ## Non-goals
 
@@ -87,7 +87,7 @@ Dashboard does not replace frozen profiles or Streamlit run compare; it answers
   caps); publish-month bars + catalog vs bar-sum insight; node-type and doc-type bars with optional
   **% of vectors**. |
 | **Loading / errors** | Optional loading copy; errors surfaced without breaking the shell. |
-| **Visual contract** | [UXS-006](../uxs/UXS-006-dashboard.md) **Dashboard tab (charts)** (tokens per [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)). |
+| **Visual contract** | [UXS-006](../uxs/UXS-006-dashboard.md) **Dashboard tab (charts)** (tokens per [UXS-001](../uxs/UXS-001-workbench.md)). |
 
 ## Success criteria
 
@@ -101,5 +101,5 @@ Dashboard does not replace frozen profiles or Streamlit run compare; it answers
 ## References
 
 - [RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)
-- [UXS-006](../uxs/UXS-006-dashboard.md); [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-006](../uxs/UXS-006-dashboard.md); [UXS-001](../uxs/UXS-001-workbench.md)
 - [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md)

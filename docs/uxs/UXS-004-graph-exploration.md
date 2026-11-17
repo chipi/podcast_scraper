@@ -2,44 +2,44 @@
 
 - **Status**: Active
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
   - [PRD-024: Graph Exploration Toolkit](../prd/PRD-024-graph-exploration-toolkit.md)
 - **Related specifications** (design docs under `docs/rfc/`):
   - [Graph exploration toolkit](../rfc/RFC-069-graph-exploration-toolkit.md)
-  - [GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [Progressive graph expansion (cross-episode)](../rfc/RFC-076-progressive-graph-expansion.md) (`onetap` rail, `dbltap` expand/collapse, `POST /api/corpus/node-episodes`)
 - **Implementation paths**:
-  - `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`
-  - `web/gi-kg-viewer/src/components/episode/EpisodeDetailPanel.vue` (**Open in graph** hand-off)
-  - `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts` (corpus episode → Cytoscape id; metadata + episode-id fallback)
-  - `web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue` (summary **counts** strip + bottom-bar **lens** row; `docs/architecture/VIEWER_GRAPH_SPEC.md`)
-  - `web/gi-kg-viewer/src/components/graph/GraphBottomBar.vue` (minimap / re-layout / lens centre / zoom+PNG+optional Gestures / collapse)
-  - `web/gi-kg-viewer/src/components/graph/GraphFilterBar.vue` + `chips/{GraphFeedChip,GraphTypesChip,GraphEdgesChip,GraphDegreeChip}.vue` (#658 chip-bar replaces the legacy `GraphFiltersPopover.vue` ⚙ popover with per-dimension chips)
-  - `web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue` (one-time gesture discovery overlay)
-  - `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue`
-  - `web/gi-kg-viewer/src/components/graph/NodeDetail.vue`
-  - `web/gi-kg-viewer/src/components/shared/TranscriptViewerDialog.vue`
-  - `web/gi-kg-viewer/src/components/graph/GraphConnectionsSection.vue`
-  - `web/gi-kg-viewer/src/components/graph/GraphNeighborhoodMiniMap.vue`
-  - `web/gi-kg-viewer/src/components/explore/ExplorePanel.vue`
-  - `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts`
-  - `web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts` (COSE tuning for topic clusters + semantic edge lengths)
-  - `web/gi-kg-viewer/src/utils/parsing.ts` (Cytoscape node data: `shortLabel`, `recencyWeight`, `confidenceOpacity`, canonical `edgeType`)
-  - `web/gi-kg-viewer/src/utils/topicClustersOverlay.ts` (corpus **TopicCluster** compound parents)
-  - `web/gi-kg-viewer/src/stores/graphExplorer.ts` (graph-only time lens + layout prefs; seeded from Digest/Library lens once)
-  - `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts` (graph lens filter + scored episode cap before corpus load)
-  - `web/gi-kg-viewer/src/stores/graphFilters.ts`
-  - `web/gi-kg-viewer/src/stores/graphNavigation.ts`
-  - `web/gi-kg-viewer/src/stores/graphExpansion.ts` (cross-episode expand seed → appended paths)
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
+  - `web/workbench/src/components/graph/GraphCanvas.vue`
+  - `web/workbench/src/components/episode/EpisodeDetailPanel.vue` (**Open in graph** hand-off)
+  - `web/workbench/src/utils/graphEpisodeMetadata.ts` (corpus episode → Cytoscape id; metadata + episode-id fallback)
+  - `web/workbench/src/components/graph/GraphStatusLine.vue` (summary **counts** strip + bottom-bar **lens** row; `docs/architecture/VIEWER_GRAPH_SPEC.md`)
+  - `web/workbench/src/components/graph/GraphBottomBar.vue` (minimap / re-layout / lens centre / zoom+PNG+optional Gestures / collapse)
+  - `web/workbench/src/components/graph/GraphFilterBar.vue` + `chips/{GraphFeedChip,GraphTypesChip,GraphEdgesChip,GraphDegreeChip}.vue` (#658 chip-bar replaces the legacy `GraphFiltersPopover.vue` ⚙ popover with per-dimension chips)
+  - `web/workbench/src/components/graph/GraphGestureOverlay.vue` (one-time gesture discovery overlay)
+  - `web/workbench/src/components/graph/GraphNodeRailPanel.vue`
+  - `web/workbench/src/components/graph/NodeDetail.vue`
+  - `web/workbench/src/components/shared/TranscriptViewerDialog.vue`
+  - `web/workbench/src/components/graph/GraphConnectionsSection.vue`
+  - `web/workbench/src/components/graph/GraphNeighborhoodMiniMap.vue`
+  - `web/workbench/src/components/explore/ExplorePanel.vue`
+  - `web/workbench/src/utils/cyGraphStylesheet.ts`
+  - `web/workbench/src/utils/cyCoseLayoutOptions.ts` (COSE tuning for topic clusters + semantic edge lengths)
+  - `web/workbench/src/utils/parsing.ts` (Cytoscape node data: `shortLabel`, `recencyWeight`, `confidenceOpacity`, canonical `edgeType`)
+  - `web/workbench/src/utils/topicClustersOverlay.ts` (corpus **TopicCluster** compound parents)
+  - `web/workbench/src/stores/graphExplorer.ts` (graph-only time lens + layout prefs; seeded from Digest/Library lens once)
+  - `web/workbench/src/utils/graphEpisodeSelection.ts` (graph lens filter + scored episode cap before corpus load)
+  - `web/workbench/src/stores/graphFilters.ts`
+  - `web/workbench/src/stores/graphNavigation.ts`
+  - `web/workbench/src/stores/graphExpansion.ts` (cross-episode expand seed → appended paths)
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Graph** tab only (toolbar, canvas, overlays, node detail in the subject rail, and graph-specific chrome).
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Graph** tab only (toolbar, canvas, overlays, node detail in the subject rail, and graph-specific chrome).
 
 The Graph tab provides a Cytoscape-powered interactive graph canvas for exploring
 merged GI/KG artifacts.
@@ -47,8 +47,8 @@ merged GI/KG artifacts.
 ### Default graph load (corpus API + local files)
 
 - **Graph lens (`graphLens`):** Independent from Digest/Library **Published on or after** (`corpusLens`). On first **Graph** tab visit per browser session, the graph lens is **seeded** from the shared corpus lens; if Library/Digest is **all time**, the graph defaults to **last 7 days** instead of loading the whole corpus. Changing Digest/Library filters **does not** change the graph lens after seed; changing the graph lens **does not** change Digest/Library.
-- **Episode cap:** The merged graph loads at most **15** episodes (tunable in [UXS-001](UXS-001-gi-kg-viewer.md)) from the current graph lens window. Episodes are **ranked by score** (recency within the window + topic-cluster bonus when `topic_clusters.json` is available; tie-break newer publish), not “newest 15 only”. **`(capped)`** appears in the **counts** strip (`graph-status-line`) when more episodes matched the window than the cap (hidden while RFC-076 cross-episode expansion adds rows).
-- **Stats strip + time lens (full merged graph):** **`data-testid="graph-status-line"`** is **counts only** — muted **`text-[10px]`** row at the **top** of the graph card (**Showing … · N episodes · M nodes · C components**; **`graph-status-component-count`**; **`graph-status-episode-count`** / **`graph-status-node-count`** with optional **`k`** suffix on large node counts). **`data-testid="graph-gesture-overlay-reopen"`** (**Gestures**) sits on the **same strip, right-aligned**, and reopens the gesture overlay **without** clearing `localStorage`. The **graph time lens** (**`data-testid="graph-status-lens-selector"`**, presets **7d / 30d / 90d / All**, **`data-testid="graph-status-since-input"`**, optional **`data-testid="graph-status-reset"`** after RFC-076 **expand**) renders in **`data-testid="graph-bottom-bar-centre"`** as **`data-testid="graph-status-line-controls"`** (same **Digest-style** active ring on presets / custom **Since**). Changing the lens clears RFC-076 expansion and reloads the graph from the API list (or re-filters local file picks). When there is **no** full merged-graph strip (e.g. some offline slices), **Gestures** stays in the **bottom bar** right zone instead. Normative test ids: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (**Graph shell** row).
+- **Episode cap:** The merged graph loads at most **15** episodes (tunable in [UXS-001](UXS-001-workbench.md)) from the current graph lens window. Episodes are **ranked by score** (recency within the window + topic-cluster bonus when `topic_clusters.json` is available; tie-break newer publish), not “newest 15 only”. **`(capped)`** appears in the **counts** strip (`graph-status-line`) when more episodes matched the window than the cap (hidden while RFC-076 cross-episode expansion adds rows).
+- **Stats strip + time lens (full merged graph):** **`data-testid="graph-status-line"`** is **counts only** — muted **`text-[10px]`** row at the **top** of the graph card (**Showing … · N episodes · M nodes · C components**; **`graph-status-component-count`**; **`graph-status-episode-count`** / **`graph-status-node-count`** with optional **`k`** suffix on large node counts). **`data-testid="graph-gesture-overlay-reopen"`** (**Gestures**) sits on the **same strip, right-aligned**, and reopens the gesture overlay **without** clearing `localStorage`. The **graph time lens** (**`data-testid="graph-status-lens-selector"`**, presets **7d / 30d / 90d / All**, **`data-testid="graph-status-since-input"`**, optional **`data-testid="graph-status-reset"`** after RFC-076 **expand**) renders in **`data-testid="graph-bottom-bar-centre"`** as **`data-testid="graph-status-line-controls"`** (same **Digest-style** active ring on presets / custom **Since**). Changing the lens clears RFC-076 expansion and reloads the graph from the API list (or re-filters local file picks). When there is **no** full merged-graph strip (e.g. some offline slices), **Gestures** stays in the **bottom bar** right zone instead. Normative test ids: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) (**Graph shell** row).
 - **Search highlight chip:** When search (or library) highlights are active, **`data-testid="graph-search-highlight-chip"`** appears in a **thin row between** the stats strip and the **Types** toolbar — not in the bottom bar.
 - **Default node types:** **Quote**, **Speaker**, and **Episode** checkboxes start **off** for a cleaner first read; a **reset** affordance (**`data-testid="graph-types-reset"`**) inside the Types chip popover appears when the user deviates from defaults. After #658 each filter dimension is a separate chip (**Feed** / **Types** / **Sources** / **Edges** / **Degree**) — non-default values surface in the chip's own active label (e.g. `Types: 2 of 5 ▾`) instead of a separate ⚙ warning dot.
 
@@ -66,7 +66,7 @@ the **side** of the disc (dynamic `text-margin-x` — a Cytoscape node
 stylesheet property, not a Tailwind class) with a canvas-tinted halo so edge
 splines stay readable; **above** / **below** placement remain available via the shared
 Cytoscape stylesheet builder. COSE and the rail mini-map use slightly looser spacing.
-All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
+All tokens reference [UXS-001](UXS-001-workbench.md).
 
 **Topic cluster context (phase 1):** When **`topic_clusters.json`** is loaded (API corpus
 path), the **graph node detail rail** for a **Topic** that is a cluster member shows a **Topic cluster:**
@@ -136,7 +136,7 @@ Normative numbers and formulas live in the [Viewer graph spec — Graph visual s
 - **Topic degree heat:** After each layout pass, **Topic** nodes get **`degreeHeat`** from graph degree (capped by **`maxDegree`**). **Border width is 0** when heat is **0** so hubs do not add a baseline ring next to expand/search styling; width ramps once heat is positive. High-heat nodes may gain **`graph-topic-heat-high`** (glow).
 - **Search-context emphasis (PRD-033 FR5.1, #887):** while a search context is active (`activeSearchContext`, RFC-094 OQ-2), nodes whose episode is relevant get the **`context-relevant`** class — a **size bump + `primary` ring** — so the canvas reflects *retrieval relevance*, not only degree. Distinct from the yellow **`search-hit`** ring (direct hits) and composes with selection dim. Applied/cleared reactively by `GraphCanvas.applyContextEmphasis`. *(FR5.2 edge-confidence weighting already ships for `ABOUT` edges; always-on node-size-by-density remains the opt-in degree lens.)*
 
-Tuning knobs for COSE semantics, label zoom breakpoints, and **`maxDegree`** are listed as **Open** under [UXS-001 — Tunable parameters](UXS-001-gi-kg-viewer.md#tunable-parameters).
+Tuning knobs for COSE semantics, label zoom breakpoints, and **`maxDegree`** are listed as **Open** under [UXS-001 — Tunable parameters](UXS-001-workbench.md#tunable-parameters).
 
 ---
 
@@ -144,7 +144,7 @@ Tuning knobs for COSE semantics, label zoom breakpoints, and **`maxDegree`** are
 
 A **one-time, dismissible** overlay on the graph canvas teaches gestures and ring colours the first time the user sees a **non-empty** merged graph in this browser profile, unless they already dismissed it (`localStorage` key **`ps_graph_hints_seen`** set to **`1`**). Persistence is **per browser profile** (until storage is cleared), not per browser session. Full visual and interaction spec: [Viewer graph spec — Graph gesture overlay](../architecture/VIEWER_GRAPH_SPEC.md#graph-gesture-overlay).
 
-**Mounting context:** [`App.vue`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/App.vue) mounts [`GraphTabPanel`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/components/graph/GraphTabPanel.vue) only when the **Graph** main tab is active (`v-if="mainTab === 'graph'"`), and [`GraphCanvas`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/components/graph/GraphCanvas.vue) mounts only when artifacts display — the overlay does not need a separate `mainTab` prop unless that shell layout changes.
+**Mounting context:** [`App.vue`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/src/App.vue) mounts [`GraphTabPanel`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/src/components/graph/GraphTabPanel.vue) only when the **Graph** main tab is active (`v-if="mainTab === 'graph'"`), and [`GraphCanvas`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/src/components/graph/GraphCanvas.vue) mounts only when artifacts display — the overlay does not need a separate `mainTab` prop unless that shell layout changes.
 
 **Dismiss:** primary control **Got it** (`data-testid="graph-gesture-overlay-dismiss"`), backdrop click outside the card (`@click.self` on the overlay root; card uses `@click.stop`), and **Escape** via a `window` `keydown` listener (capture) that ignores **Escape** when focus is outside the overlay (e.g. **Since** (`graph-status-since-input`) in the bottom bar lens row, **⚙** filters popover, or **Fit** / zoom in the bottom bar) so graph chrome stays predictable.
 
@@ -156,7 +156,7 @@ A **one-time, dismissible** overlay on the graph canvas teaches gestures and rin
 
 ## Graph chrome (toolbar, bottom bar, filters popover)
 
-Normative layout and test ids: **Graph chrome** (this section) and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (**Graph shell** row).
+Normative layout and test ids: **Graph chrome** (this section) and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) (**Graph shell** row).
 
 - **Filter chip bar (#658, `data-testid="graph-filter-bar"`):** Replaces the legacy `graph-toolbar-types` Types row + ⚙ popover. Per-dimension chips: **Feed** (`graph-chip-feed`), **Types** (`graph-chip-types`, popover hosts the per-type checkboxes + swatches + `graph-types-reset`), **Edges** (`graph-chip-edges`), **Degree** (`graph-chip-degree`); a build's registered chips (`graphFilterBarChips`) sit after Feed. Each chip's label switches from `Type ▾` (default) to `Type: detail ▾` when active. Pointerdown outside / Escape close popovers (shared `useFilterChipPopover` composable).
 - **Bottom bar (`data-testid="graph-bottom-bar"`):** Under the canvas; optional collapse (**`graph-bottom-bar-toggle`** / **`graph-bottom-bar-expand`**, **`ps_graph_bottom_bar_collapsed`**, **Alt+B**). **Left:** **`graph-minimap-toggle`**, **`graph-relayout`**, **`graph-layout-cycle`** (cycles layout algorithm and re-layouts). **Centre (full merged graph):** **`graph-bottom-bar-centre`** — **`graph-status-line-controls`** / **`graph-status-lens-selector`** (lens presets, **Since**, optional **Reset**). **Right:** **`role="toolbar"`** — **Fit**, **−** / **+** / **100%**, optional **Gestures** (only when the stats strip is absent), **PNG** (2× full graph); toolbar **`aria-label`** omits “gestures” when that button is hidden. (Legacy floating zoom / layout strips on the canvas were removed in favour of this bar.)
@@ -207,7 +207,7 @@ and scannable; minimap is a fixed footprint in the lower-left of the graph canva
 
 ## E2E contract
 
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) --
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) --
 graph shell row.
 
 ---

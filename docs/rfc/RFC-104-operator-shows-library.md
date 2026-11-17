@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **PRD:** [PRD-044](../prd/PRD-044-operator-shows-library.md) · **UXS:** [UXS-015](../uxs/UXS-015-operator-shows-library.md)
-**Surface:** `web/gi-kg-viewer` — the `library` main tab · **Backend:** none (reuses existing endpoints)
+**Surface:** `web/workbench` — the `library` main tab · **Backend:** none (reuses existing endpoints)
 
 ---
 
@@ -122,7 +122,7 @@ Matches house tiers (roadmap rubric weak→good→excellent):
   episode-click emits `open-library-episode`), `LibraryModeToggle` (toggle switches + persists).
 - **server-contract integration** — assert `/api/corpus/feeds` + `/api/corpus/episodes?feed_id` return
   the fields the surface binds (already partly covered; add field-presence asserts on the v3 fixture).
-- **operator e2e (mocked, fast PR gate)** — `web/gi-kg-viewer/e2e/shows-library.spec.ts`: Library tab →
+- **operator e2e (mocked, fast PR gate)** — `web/workbench/e2e/shows-library.spec.ts`: Library tab →
   Shows grid → open a show → episode list → click episode → lands on graph. Uses `page.route` mocks
   (the harness pattern of the existing 50+ specs).
 - **served-corpus stack-test** — `tests/stack-test/stack-shows-library.spec.ts`: same flow against the
@@ -136,7 +136,7 @@ DoD: every new component ≥ **good** (mount test asserting real payload); the e
 
 1. **P1 — components + toggle** (ShowsView, ShowDetailView, ShowsBrowse, LibraryModeToggle) + vitest.
 2. **P2 — wire into App.vue library tab** + `focusEpisode` cross-link + surface-map updates
-   (VIEWER_IA, E2E_SURFACE_MAP, uxs/index).
+   (WORKBENCH_IA, E2E_SURFACE_MAP, uxs/index).
 3. **P3 — e2e** (mocked spec + stack-test spec) + server field-presence asserts.
 
 Each phase is independently green (vue-tsc 0 + targeted vitest) and bisectable.
@@ -162,6 +162,6 @@ of a shared `EpisodeListRow` grows into a cross-surface row contract, that gradu
 ## References
 
 - [PRD-044](../prd/PRD-044-operator-shows-library.md) · [UXS-015](../uxs/UXS-015-operator-shows-library.md)
-  · [UXS-003](../uxs/UXS-003-corpus-library.md) (episode-first Library) · [VIEWER_IA](../uxs/VIEWER_IA.md)
-- `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` (graph-navigation automation contract)
+  · [UXS-003](../uxs/UXS-003-corpus-library.md) (episode-first Library) · [WORKBENCH_IA](../uxs/WORKBENCH_IA.md)
+- `web/workbench/e2e/E2E_SURFACE_MAP.md` (graph-navigation automation contract)
 - `corpusLibraryApi.ts`, `PodcastCover.vue`, `App.vue` (`mainTab`, `focusEpisode`)

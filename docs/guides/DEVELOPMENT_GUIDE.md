@@ -11,9 +11,9 @@ For high-level architectural decisions and design principles, see [Architecture]
 ## Polyglot repository (Python + web viewer)
 
 The **Python** toolchain (`Makefile`, `pytest`, `pip install -e …`) is anchored at the **repo
-root**. The **GI/KG viewer** is a **Node** project in **`web/gi-kg-viewer/`** (Vite, Vitest,
+root**. The **Workbench** is a **Node** project in **`web/workbench/`** (Vite, Vitest,
 Playwright). Environment templates differ on purpose (**`config/examples/.env.example`** vs
-**`web/gi-kg-viewer/.env.example`**). For a single onboarding story and command cheat sheet, see
+**`web/workbench/.env.example`**). For a single onboarding story and command cheat sheet, see
 the **[Polyglot repository guide](POLYGLOT_REPO_GUIDE.md)**.
 
 ## Testing
@@ -38,7 +38,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 | E2E | `tests/e2e/` | < 60s | No mocks |
 
 **FastAPI viewer:** unit tests in **`tests/unit/podcast_scraper/server/`**; wired HTTP integration in
-**`tests/integration/server/`**. Playwright UI tests are separate — [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2).
+**`tests/integration/server/`**. Playwright UI tests are separate — [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-workbench).
 
 ### Running Tests
 
@@ -622,7 +622,7 @@ other episodes, and displays their quotes alongside the matched insight.
 **v2 (Vue + FastAPI, RFC-062)** is the supported viewer for graph, dashboard,
 semantic search, and explore.
 
-**Layout and env files (root vs `web/gi-kg-viewer/`):** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
+**Layout and env files (root vs `web/workbench/`):** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
 ### Viewer v2 (RFC-062 / `#489`)
 
@@ -630,19 +630,19 @@ semantic search, and explore.
 — endpoint table, Corpus Library, index rebuild, **`/docs`** and **`/openapi.json`**
 when `serve` is running. Platform routes under `routes/platform/` are **not** mounted yet (stubs only).
 
-- **Location:** `web/gi-kg-viewer/`
+- **Location:** `web/workbench/`
 - **Python extra:** `[dev]` includes FastAPI, uvicorn, and scheduler/metrics deps for `serve`.
   `make init` installs `.[dev,ml,llm]` — no separate HTTP extra.
   See [Dependencies Guide — Canonical optional extras](DEPENDENCIES_GUIDE.md#canonical-optional-extras) for the full list (`dev`, `ml`, `compare`, `llm`, …).
 - **End-user flow:** Build `dist/` once (`npm install && npm run build` in
-  `web/gi-kg-viewer`), then `python -m podcast_scraper.cli serve --output-dir <run>`;
+  `web/workbench`), then `python -m podcast_scraper.cli serve --output-dir <run>`;
   open **<http://127.0.0.1:8000>** and set **Corpus root** to that same directory.
   Full walkthrough:
-  [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+  [web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)
   and
   [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
 - **CIL pill to graph focus:** Digest Recent and the Episode subject rail use
-  `web/gi-kg-viewer/src/utils/cilGraphFocus.ts` so clustered pills pass optional
+  `web/workbench/src/utils/cilGraphFocus.ts` so clustered pills pass optional
   `tc:…` ids into `pendingFocusCameraIncludeRawIds` (same idea as Search hits). Further
   entry surfaces and audit notes: [Viewer graph spec — Graph focus entry points](../architecture/VIEWER_GRAPH_SPEC.md#graph-focus-entry-points).
 
@@ -652,7 +652,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 | ------ | ------- |
 | `make serve` | Runs **`serve-api`** and **`serve-ui`** in parallel (API + Vite dev on 5173). |
 | `make serve-api SERVE_OUTPUT_DIR=…` | FastAPI only (default port **8000**). |
-| `make serve-ui` | Vite dev server only (`web/gi-kg-viewer`, port **5173**, proxies `/api` → 8000). |
+| `make serve-ui` | Vite dev server only (`web/workbench`, port **5173**, proxies `/api` → 8000). |
 | `make test-ui` | Vitest unit tests for TS utility logic (parsing, merge, metrics, formatting). Fast (~150 ms), no browser. |
 | `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install chromium`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
 | `make ci-ui-validation CORPUS=/abs/path` | **Tier-3** real-corpus matrix validation per [ADR-095](../adr/ADR-095-viewer-test-pyramid.md). Required when shipping a real-corpus bug fix — Tier-2 matrix row reproducing must land first. |
@@ -662,19 +662,19 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 
 - **Viewer UX changes (order matters):** If you change **UI** that users or Playwright see
   (copy, labels, layout, routes, theme tokens, accessible names, list/load flows), update **(1)**
-  [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md),
+  [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md),
   **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**, **(3)**
-  [VIEWER_IA.md](../uxs/VIEWER_IA.md) when **shell IA** changes, then [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
+  [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) when **shell IA** changes, then [UXS-001](../uxs/UXS-001-workbench.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
   Checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 
 ### Debugging viewer UI
 
-When something looks wrong in the GI/KG viewer (wrong panel, missing control, failed navigation,
+When something looks wrong in the Workbench (wrong panel, missing control, failed navigation,
 Playwright or MCP clicking the wrong **Search**):
 
 - Use the browser’s **Network** and **Console** (and Vue DevTools if you use them) for requests,
   errors, and component state.
-- Use [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+- Use [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
   as the **automation and accessibility contract**: stable roles and labels, entry paths, and notes
   on ambiguous names. It applies to **Playwright failures**, **manual reproduction**, and
   **agent-driven** Chrome / DevTools MCP sessions, not only to writing new specs.
@@ -685,7 +685,7 @@ Playwright or MCP clicking the wrong **Search**):
 
 **More contributor notes:**
 
-- UI E2E uses **Chrome** locally and **Firefox** under `CI` (see `web/gi-kg-viewer/playwright.config.ts`).
+- UI E2E uses **Chrome** locally and **Firefox** under `CI` (see `web/workbench/playwright.config.ts`).
 - Pytest coverage for the same APIs lives under `tests/unit/podcast_scraper/server/`
   and `tests/integration/server/` (e.g. `test_server_api.py` — wired app + real filesystem;
   see Server Guide for other modules).
@@ -753,7 +753,7 @@ and `data/profiles/README.md`.
 | `make ci-ui-fast` | Same chain as `ci-fast` but `test-fast-no-py-e2e` (skips Python e2e) + `test-ui-e2e` (Playwright, Chrome) for viewer-iteration runs. Includes `build-viewer`. | **Viewer-heavy work.** ~8-12 min. |
 | `make ci` | Everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), `build-viewer`, coverage-enforce, **and** `stack-test-ml-ci` (full Docker stack + ml pipeline + Playwright + always-teardown) | **True full local parity** with the GitHub Actions chain (Python application → Stack test). ~20-30 min. Run before merge for changes that touch pipeline / Docker / route handlers. |
 | `make test-fast` | Critical-path unit + integration + E2E tests only (no lint/format/type) | Quick test-only feedback. |
-| `make build-viewer` | `cd web/gi-kg-viewer && npm install && npm run build` (`vue-tsc -b && vite build`). Catches strict TypeScript regressions invisible to `vitest` / `playwright`. | Standalone — already wired into every `ci*` target above. |
+| `make build-viewer` | `cd web/workbench && npm install && npm run build` (`vue-tsc -b && vite build`). Catches strict TypeScript regressions invisible to `vitest` / `playwright`. | Standalone — already wired into every `ci*` target above. |
 | `make stack-test-ml` | One-shot ml pipeline path: build → up → seed → Playwright (airgapped/whisper-tiny). Stack stays up after. | Local Docker validation, no API keys needed. |
 | `make stack-test-cloud-thin` | Same flow with the `pipeline-llm` image + `cloud_thin` profile. **Local-only** — public CI does not run it (recurring API cost). Requires `.env` with the cloud API keys the profile uses. | Local LLM-path validation before push. |
 

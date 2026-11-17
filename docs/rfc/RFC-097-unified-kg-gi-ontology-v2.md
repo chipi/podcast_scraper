@@ -132,7 +132,7 @@ that never made it into a release.
    silver/judge vendor — #939 lesson).
 7. **Preserve the grounding contract bit-for-bit.** `Insight.grounded
    ⇔ ≥1 SUPPORTED_BY → Quote` invariant is non-negotiable. Viewer
-   dashed-border styling at `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts:407`
+   dashed-border styling at `web/workbench/src/utils/cyGraphStylesheet.ts:407`
    (selector `node[type = "Insight"].insight-ungrounded`) is the visible
    manifestation; `hideUngroundedInsights` is the user-facing filter.
 
@@ -494,7 +494,7 @@ Pre-flight: dry-run all three against the reference v2 corpus
 - **Scorer tests** (`tests/eval/test_{kg,gi,ner}_scorer*.py`): new
   shape, new coverage metrics (ABOUT coverage, MENTIONS_PERSON
   coverage, insight_type accuracy, position_hint sanity).
-- **Viewer tests** (`web/gi-kg-viewer/src/**/__tests__/*.test.ts` +
+- **Viewer tests** (`web/workbench/src/**/__tests__/*.test.ts` +
   Playwright): Position Tracker component, Person Profile component,
   edge-class stylesheet, grounded-Insight dashed border preserved
   bit-for-bit.
@@ -507,7 +507,7 @@ Pre-flight: dry-run all three against the reference v2 corpus
 - Unit tests next to the module under test
 - Integration tests in `tests/integration/{kg,gi,upgrade}/`
 - Eval tests in `tests/eval/`
-- Viewer tests under `web/gi-kg-viewer/src/` (cd into the directory
+- Viewer tests under `web/workbench/src/` (cd into the directory
   before running vitest per project memory)
 - Stack-test under `tests/stack-test/`
 
@@ -520,7 +520,7 @@ Pre-flight: dry-run all three against the reference v2 corpus
 - `make ci-ui-full` before push for chunk 8 (viewer chip/testid
   surfaces touched)
 - `make docs` before push for any chunk that edits *.md
-- `npm run build` locally in `web/gi-kg-viewer/` before push for
+- `npm run build` locally in `web/workbench/` before push for
   chunk 8
 
 ## Rollout & Monitoring
@@ -715,7 +715,7 @@ Together they provide:
 - **Programme epic**: #907 (autoresearch)
 - **Source code touched**: `src/podcast_scraper/{kg,gi}/`,
   `src/podcast_scraper/identity/`, `src/podcast_scraper/search/`,
-  `src/podcast_scraper/evaluation/`, `web/gi-kg-viewer/src/`,
+  `src/podcast_scraper/evaluation/`, `web/workbench/src/`,
   `scripts/migrate_*`, `scripts/backfill_*`, `scripts/compute_*`
 
 ---

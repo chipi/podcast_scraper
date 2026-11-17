@@ -22,9 +22,9 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [GI/KG viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — `make serve` / `serve-api` / `serve-ui`, `make test-ui-e2e` |
+| [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [Workbench](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — `make serve` / `serve-api` / `serve-ui`, `make test-ui-e2e` |
 | [Release Playbook](RELEASE_PLAYBOOK.md) | Standing plan before a public tag: eval/profiles policy (major vs minor), docs gates, release notes pattern, alignment with `vX.Y.Z` tags |
-| [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/`, env files, Makefile targets for the viewer |
+| [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/workbench/`, env files, Makefile targets for the viewer |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI: `/api/*` (artifacts, CIL, search with optional **`lifted`**, explore, Corpus Library, index rebuild), OpenAPI `/docs`, static SPA, tests under `tests/integration/server/` |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
@@ -52,7 +52,7 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [Testing Strategy](../architecture/TESTING_STRATEGY.md) | Pyramid, pytest layers, and **Playwright** as additive browser UI E2E |
-| [Testing Guide](TESTING_GUIDE.md) | Commands, markers, and [Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2) (`make test-ui-e2e`) |
+| [Testing Guide](TESTING_GUIDE.md) | Commands, markers, and [Browser E2E](TESTING_GUIDE.md#browser-e2e-workbench) (`make test-ui-e2e`) |
 | [Unit Testing Guide](UNIT_TESTING_GUIDE.md) | Unit test patterns and mocking |
 | [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) | Integration test guidelines; [FastAPI / CIL / bridge / lift](INTEGRATION_TESTING_GUIDE.md#fastapi-cil-bridge-search-lift) |
 | [E2E Testing Guide](E2E_TESTING_GUIDE.md) | pytest E2E server/ML; [Playwright](E2E_TESTING_GUIDE.md#browser-e2e-playwright) for the viewer |
@@ -61,7 +61,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Testing strategy — ML providers](testing-strategy-ml.md) | Where to mock and where not to for ML providers and backends: mock at our abstraction boundary, never at a library-internal name |
 | [Real-Episode Validation](REAL_EPISODE_VALIDATION.md) | The "test with real episodes before push" pattern: unit tests prove code paths route correctly, not that a feature works against real provider responses and transcripts |
 | [GI/KG Manual Test Plan](GI_KG_MANUAL_TEST_PLAN.md) | Close-the-loop validation: run the real pipeline on 2–3 episodes of a familiar feed, then inspect `*.gi.json` and `*.kg.json` for plausibility, schema health and CLI ergonomics |
-| [Operator post-deploy smoke test](OPERATOR_SMOKE_TEST.md) | Live smoke test of the operator surface after a deploy (unauthed and authed specs under `web/gi-kg-viewer/e2e/live/`) |
+| [Operator post-deploy smoke test](OPERATOR_SMOKE_TEST.md) | Live smoke test of the operator surface after a deploy (unauthed and authed specs under `web/workbench/e2e/live/`) |
 | [Pipeline check runbook](PIPELINE_CHECK.md) | `make pipeline-check` runs the pipeline under variants, records every decision and compares runs; the standard check before merging pipeline routing changes (#2287) |
 | [Validating Corpus Fixes Fast](VALIDATING_CORPUS_FIXES_FAST.md) | Reference guide for validating changes whose correctness is a property of the corpus (speaker attribution, entity resolution, enrichment) rather than of a function |
 

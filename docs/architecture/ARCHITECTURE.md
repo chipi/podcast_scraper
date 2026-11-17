@@ -131,7 +131,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 ## Corpus Topic Clustering Layer {#corpus-topic-clustering-layer}
 
-**Purpose:** Group **semantically similar KG topic nodes** across episodes when LLMs assign different `topic:{slug}` ids for the same real-world subject. This is a **corpus-level, optional** step that sits **beside** per-episode KG extraction and **beside** CIL: it **reads** KG topic labels and embeddings produced for semantic search (RFC-061), writes a small filesystem artifact **`topic_clusters.json`** under `<corpus>/search/`, and can feed **auto-generated** `topic_id_aliases` for CIL. The GI/KG viewer may render clusters as **Cytoscape compound parent nodes** without rewriting raw `*.kg.json`.
+**Purpose:** Group **semantically similar KG topic nodes** across episodes when LLMs assign different `topic:{slug}` ids for the same real-world subject. This is a **corpus-level, optional** step that sits **beside** per-episode KG extraction and **beside** CIL: it **reads** KG topic labels and embeddings produced for semantic search (RFC-061), writes a small filesystem artifact **`topic_clusters.json`** under `<corpus>/search/`, and can feed **auto-generated** `topic_id_aliases` for CIL. The Workbench may render clusters as **Cytoscape compound parent nodes** without rewriting raw `*.kg.json`.
 
 **Boundaries:**
 
@@ -173,7 +173,7 @@ Current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound
 
 **Accuracy gate (data-driven admission):** an enricher may declare an `accuracy_gate` (a precision floor) on its manifest. `enrichment/eval/admission.py` reads the latest `data/eval/enrichment/<id>/gate_metrics.json` and, through `profile_sets._admit`, filters the registry → profiles → UI: a gated enricher stays **dark** until an eval records passing precision, and auto-promotes with no code edit once one does. Profiles list *candidates*; the gate decides membership. This is the firewall that keeps the 0%-precision disagreement detectors from surfacing fabricated signals. The live cross-speaker surface is instead **`perspectives`** (#1146) — a CIL query over the GI (not an enricher, so it sidesteps the gate).
 
-**Surfacing:** envelopes reach the **operator viewer** (`web/gi-kg-viewer/`) via `/api/corpus/enrichments/*` (topic/person node-rail signals, episode density bars, the Dashboard trending + multi-perspective cards, the graph enrichment-edges panel) and the **consumer app** via `/api/app/corpus/enrichment` (entity-card EntitySignals: grounding, co-appears, momentum, similar, discussed-alongside) + `/api/app/episodes/{slug}/enrichment` (density). Operator control (run / status / health / config / re-enable) is `/api/enrichment/*`. Full reference: [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) + [Enrichment Layer API](../api/ENRICHMENT_LAYER_API.md); spec in [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md).
+**Surfacing:** envelopes reach the **operator viewer** (`web/workbench/`) via `/api/corpus/enrichments/*` (topic/person node-rail signals, episode density bars, the Dashboard trending + multi-perspective cards, the graph enrichment-edges panel) and the **consumer app** via `/api/app/corpus/enrichment` (entity-card EntitySignals: grounding, co-appears, momentum, similar, discussed-alongside) + `/api/app/episodes/{slug}/enrichment` (density). Operator control (run / status / health / config / re-enable) is `/api/enrichment/*`. Full reference: [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) + [Enrichment Layer API](../api/ENRICHMENT_LAYER_API.md); spec in [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md).
 
 ## Architectural Decisions (ADRs)
 
@@ -684,7 +684,7 @@ podcasts to interviews, lectures, panels, etc.
 **Status**: **Implemented** (M1–M7)
 
 FastAPI server in `src/podcast_scraper/server/` with
-Vue 3 SPA in `web/gi-kg-viewer/`. CLI: `podcast serve`.
+Vue 3 SPA in `web/workbench/`. CLI: `podcast serve`.
 See [Server Guide](../guides/SERVER_GUIDE.md) for the
 API route table and
 [Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md)

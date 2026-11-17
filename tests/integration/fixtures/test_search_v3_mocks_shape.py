@@ -30,7 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXTURE = (
     REPO_ROOT
     / "web"
-    / "gi-kg-viewer"
+    / "workbench"
     / "e2e"
     / "fixtures"
     / "production-shaped"

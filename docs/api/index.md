@@ -8,7 +8,7 @@
    the data models, the CLI, and the non-interactive service interface. Importable from
    `podcast_scraper`, with stability guarantees.
 2. **HTTP / Viewer API** — the optional **FastAPI** server (`podcast serve`, all routes
-   under `/api/*`) that backs the Vue 3 GI/KG viewer. **Not** part of the importable
+   under `/api/*`) that backs the Vue 3 Workbench. **Not** part of the importable
    package surface; ships with the `[dev]` extra.
 3. **MCP / Agent tools** — the optional generic **MCP server** (`podcast mcp`) exposing
    the platform's read capabilities (search, the relational-query layer, CIL, catalog) as
@@ -32,7 +32,7 @@
 
 ## HTTP / Viewer API (`[dev]` extra) {: #http-viewer-api-server-extra }
 
-The **FastAPI** server and **Vue 3** GI/KG viewer are optional and **not** imported from
+The **FastAPI** server and **Vue 3** Workbench are optional and **not** imported from
 `podcast_scraper` top-level exports. The **[HTTP API Reference](HTTP_API.md)** is the
 endpoint catalogue; the live, always-current spec is the server's own OpenAPI at `/docs`
 (when `uvicorn` is running).
@@ -40,8 +40,8 @@ endpoint catalogue; the live, always-current spec is the server's own OpenAPI at
 | Document | Description |
 | :--- | :--- |
 | [HTTP API Reference](HTTP_API.md) | **Endpoint catalogue + response models** for all `/api/*` routes (the source of truth alongside live OpenAPI) |
-| [Server Guide](../guides/SERVER_GUIDE.md) | Running the server (`make serve`), web/gi-kg-viewer/ route architecture, CORS, static SPA mounting, and **extending** it |
-| [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) | Viewer milestones and architecture |
+| [Server Guide](../guides/SERVER_GUIDE.md) | Running the server (`make serve`), web/workbench/ route architecture, CORS, static SPA mounting, and **extending** it |
+| [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md) | Viewer milestones and architecture |
 | [RFC-067: Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md) | `/api/corpus/*` catalog, Library tab, search handoffs |
 | [RFC-068: Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) | `GET /api/corpus/digest`, Digest tab, Library 24h glance (PRD-023); capability flag `corpus_digest_api` on `GET /api/health` |
 | [RFC-094: Search-powered surfaces query layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) | `/api/relational/*` relational-query layer (#882) + `/api/corpus/query-activity` (FR6.2); consumed by the PRD-033 surfaces |

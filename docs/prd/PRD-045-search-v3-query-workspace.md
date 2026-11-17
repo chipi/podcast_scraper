@@ -5,11 +5,11 @@
 - **Target Release**: v2.8
 - **Parent PRD**: [PRD-031](PRD-031-search.md) (Search product surface), [PRD-033](PRD-033-search-powered-surfaces.md) (Search-powered surfaces)
 - **Depends on**: [PRD-032](PRD-032-hybrid-corpus-search.md) / [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) (hybrid retrieval), [PRD-027](PRD-027-enriched-search.md) (enriched search), [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) (relational query layer + `activeSearchContext` + `PanelRetrievalStore` — **shipped**), [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) (enrichment layer / `QueryEnricher` — **shipped**), the briefing-pack builder (`context_pack.build_briefing_pack` — **shipped**), USERPREFS-1 (`docs/rfc/RFC-107-search-v3-query-workspace.md`, shipped)
-- **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies the enriched answer; shell IA changes in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
+- **Related UX spec**: extends [UXS-005](../uxs/UXS-005-semantic-search.md); introduces [UXS-016](../uxs/UXS-016-query-workspace.md); heroifies the enriched answer; shell IA changes in [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md)
 - **Related RFC**: [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) (technical design)
 - **Related ADRs**: [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) (no per-corpus UI state)
 - **Related epic**: [#1229](https://github.com/chipi/podcast_scraper/issues/1229)
-- **Scope**: operator viewer only (`web/gi-kg-viewer`). Consumer learning-player search is **out of scope** for this PRD.
+- **Scope**: operator viewer only (`web/workbench`). Consumer learning-player search is **out of scope** for this PRD.
 
 ---
 
@@ -83,7 +83,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 - **FR1.1** A new **Search** tab in the shell tab order: Digest · Library · **Search** · Graph · Dashboard. Default first-load unchanged (Digest).
 - **FR1.2** The Search tab hosts a full-width **Query Workspace** (UXS-016): header (query field + intent chip + filter chip bar), enriched-answer hero (when available), result list with tier badges + compound cards, result-set operator bar, sidebar with saved + recent queries.
 - **FR1.3** The LeftPanel Search column is retained as a **compact launcher** on non-Search tabs (query field + last-N recent queries); Enter opens the Workspace on the Search tab with that query already run.
-- **FR1.4** Subject rail persistence rule (VIEWER_IA.md) holds: opening the Search tab does not clear the current subject.
+- **FR1.4** Subject rail persistence rule (WORKBENCH_IA.md) holds: opening the Search tab does not clear the current subject.
 - **FR1.5** The Workspace publishes to `activeSearchContext` (RFC-094 OQ-2, shipped) on every query — Library rows and Graph consume it as they do today.
 
 ### FR2 — Merge Search + Explore into one query surface
@@ -145,7 +145,7 @@ Every rail launcher publishes the pre-filled scope to `activeSearchContext` (RFC
 ### FR9 — Test pyramid (mirrors ADR-095)
 
 - **FR9.1** **Tier 1 — Fast matrix (mocked)**: contract tests for every new surface (Workspace, palette, operator bar, rail launchers, saved queries). Runs under `make ci-ui-fast`.
-- **FR9.2** **Tier 2 — Production-shaped fixture**: extend `web/gi-kg-viewer/e2e/fixtures/production-shaped/` with a search-oriented slice (25 episodes, mixed doc types, at least one compound-lift pair, at least one `topic_consensus` pair, at least one theme cluster of ≥ 5 members). Regenerable via `scripts/build_production_shaped_fixture.py` (extend, don't fork). Runs under `make ci-ui-full`.
+- **FR9.2** **Tier 2 — Production-shaped fixture**: extend `web/workbench/e2e/fixtures/production-shaped/` with a search-oriented slice (25 episodes, mixed doc types, at least one compound-lift pair, at least one `topic_consensus` pair, at least one theme cluster of ≥ 5 members). Regenerable via `scripts/build_production_shaped_fixture.py` (extend, don't fork). Runs under `make ci-ui-full`.
 - **FR9.3** **Tier 3 — Real-backend Playwright** over the search UX ("search-tier3"): mirrors the graph tier-3 pattern (`playwright.validation.config.ts`). Runs under `make ci-ui-validation CORPUS=…` and on scheduled cron. **Institutional rule (ADR-095):** every Tier-3 bug lands a Tier-2 matrix row before its fix PR merges.
 
 ### FR10 — Quality eval harness (search)
@@ -188,7 +188,7 @@ Each slice PR MUST include:
 
 1. Tier-1 mocked spec update (contract) — always.
 2. Tier-2 production-shaped spec update — when the slice touches a rendered surface.
-3. Tier-3 recipe row in `web/gi-kg-viewer/e2e/handoff*/…` — when the slice adds a new rail launcher or shell-wide handoff.
+3. Tier-3 recipe row in `web/workbench/e2e/handoff*/…` — when the slice adds a new rail launcher or shell-wide handoff.
 4. `make eval-search` diff (baseline vs slice) in the PR body — when the slice changes retrieval, filters, or enriched-answer.
 5. `capture-search-perf` metrics.json diff — when the slice touches API or a rendered surface.
 6. **SIGSEGV impact line** — always (yes/no + justification).
@@ -219,7 +219,7 @@ Slices missing any of these get rejected at review, not deferred.
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier test pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state
-- [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab order + LeftPanel role change)
+- [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) — shell IA (tab order + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — extended (compact launcher role)
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (this PRD's primary UX)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current normative operator-facing enrichment config surface (RFC-088 chunk 6)

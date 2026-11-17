@@ -7,7 +7,7 @@
   - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — Search v3 (first consumer; retracts the per-corpus JSON store)
 - **Related Documents**:
   - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — server-backed per-user preferences (shipped)
-  - `web/gi-kg-viewer/src/stores/userPreferences.ts` — client store
+  - `web/workbench/src/stores/userPreferences.ts` — client store
 
 ## Context & Problem
 

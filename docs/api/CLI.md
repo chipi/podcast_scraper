@@ -624,7 +624,7 @@ for the full flag list; below is the one-line intent per command.
 
 | Command | Purpose | Notes |
 | --- | --- | --- |
-| `serve` | Run the GI/KG viewer HTTP API (FastAPI, uvicorn). | Requires `[dev]` extra. Feature flags: `--enable-feeds-api`, `--enable-operator-config-api`, `--enable-jobs-api`, `--config-file PATH`. Local: `make serve`. |
+| `serve` | Run the Workbench HTTP API (FastAPI, uvicorn). | Requires `[dev]` extra. Feature flags: `--enable-feeds-api`, `--enable-operator-config-api`, `--enable-jobs-api`, `--config-file PATH`. Local: `make serve`. |
 | `enrich` | Run the RFC-088 enrichment-layer pass over a corpus. | Flags include `--corpus-only`, `--re-enable ID`, `--re-enable-reason "…"`, `--config` (enrichment YAML). |
 | `upgrade` | Corpus format migrations (RFC-097 chunk 9). | Sub-subcommands: `status` (pending migrations), `list` (all migrations + state), `verify` (post-migration checks), `run` (apply). |
 | `cache` | Manage ML model caches (Whisper, Transformers, spaCy). | `--clean [all\|whisper\|transformers\|spacy]`, `--delete-model NAME`, `--yes` to skip confirm. Distinct from the `--cache-info` / `--clear-model-cache` main-command flags above. |

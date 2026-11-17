@@ -14,7 +14,7 @@
 - **Related Documents**:
   - `docs/architecture/VIEWER_GRAPH_SPEC.md` (operational reference)
   - `docs/architecture/VIEWER_ASYNC_STABILITY.md` (adjacent async patterns)
-  - `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` (test coverage contract)
+  - `web/workbench/e2e/HANDOFF_MATRIX.md` (test coverage contract)
   - Pre-fix audit (originally a WIP handoff-bug analysis, retired after the orchestrator shipped — findings folded into this RFC and ADR-094)
 
 ## Abstract
@@ -134,9 +134,9 @@ points:
    bounds, not synchronisation primitives.
 
 The Pinia store at
-`web/gi-kg-viewer/src/stores/graphHandoff.ts`
+`web/workbench/src/stores/graphHandoff.ts`
 wraps the pure FSM at
-`web/gi-kg-viewer/src/services/graphHandoffFsm.ts`
+`web/workbench/src/services/graphHandoffFsm.ts`
 and exposes reactive bindings + dev-only `window.__GIKG_FSM__` for E2E
 inspection.
 

@@ -2,7 +2,7 @@
 
 - **Status**: Active
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 
 - **Normative layout & charts**: see **## Dashboard implementation specification** below (full product spec merged into this UXS).
@@ -10,21 +10,21 @@
   - [PRD-025: Corpus Intelligence Dashboard](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md)
 - **Related RFCs**:
   - [RFC-071: Corpus Intelligence Dashboard](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Implementation paths**:
-  - `web/gi-kg-viewer/src/components/dashboard/DashboardView.vue`
-  - `web/gi-kg-viewer/src/components/dashboard/BriefingCard.vue`
-  - `web/gi-kg-viewer/src/components/dashboard/IndexStatusCard.vue`
-  - `web/gi-kg-viewer/src/components/dashboard/TopicClustersStatusBlock.vue`
-  - `web/gi-kg-viewer/src/utils/chartRegister.ts`
-  - `web/gi-kg-viewer/src/stores/indexStats.ts`, `web/gi-kg-viewer/src/stores/dashboardNav.ts`
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
+  - `web/workbench/src/components/dashboard/DashboardView.vue`
+  - `web/workbench/src/components/dashboard/BriefingCard.vue`
+  - `web/workbench/src/components/dashboard/IndexStatusCard.vue`
+  - `web/workbench/src/components/dashboard/TopicClustersStatusBlock.vue`
+  - `web/workbench/src/utils/chartRegister.ts`
+  - `web/workbench/src/stores/indexStats.ts`, `web/workbench/src/stores/dashboardNav.ts`
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Dashboard** main tab only (briefing card, Coverage / Intelligence / Pipeline sub-tabs, charts, and layout below).
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Dashboard** main tab only (briefing card, Coverage / Intelligence / Pipeline sub-tabs, charts, and layout below).
 
 The **Dashboard** main tab is **briefing + three tabs only**: **Coverage** (default),
 **Intelligence**, **Pipeline**. Corpus artifact picking (**List**, **All** / **None**,
@@ -55,7 +55,7 @@ The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split o
 
 ## E2E contract
 
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — **Dashboard** tab,
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) — **Dashboard** tab,
 `briefing-card`, **Dashboard tabs** tablist, **Index status** card, **`artifact-list-dialog`**;
 `openCorpusDataWorkspace` only switches to **Dashboard** and waits for the briefing card.
 
@@ -81,7 +81,7 @@ The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split o
 **Status:** Ready for implementation
 **Author:** Design session (Marko + Claude), April 2026
 **Repo:** `chipi/podcast_scraper`
-**Target area:** `web/gi-kg-viewer/src/components/dashboard/`
+**Target area:** `web/workbench/src/components/dashboard/`
 **Related docs:** UXS-006, RFC-071, TUFTE_CHART_CRITIQUE.md, UXS-001
 **Replaces:** Current UXS-006 content (rewrite, not amendment)
 
@@ -945,30 +945,30 @@ a real large corpus during implementation.
 #### New components
 
 ```text
-web/gi-kg-viewer/src/components/dashboard/ArtifactActivityChart.vue
-web/gi-kg-viewer/src/components/dashboard/FeedRunHistoryGrid.vue
-web/gi-kg-viewer/src/components/dashboard/IntelligenceSnapshot.vue
-web/gi-kg-viewer/src/components/dashboard/EmergingConnections.vue
+web/workbench/src/components/dashboard/ArtifactActivityChart.vue
+web/workbench/src/components/dashboard/FeedRunHistoryGrid.vue
+web/workbench/src/components/dashboard/IntelligenceSnapshot.vue
+web/workbench/src/components/dashboard/EmergingConnections.vue
 ```
 
 #### Modified components
 
 ```text
-web/gi-kg-viewer/src/components/dashboard/DashboardView.vue
+web/workbench/src/components/dashboard/DashboardView.vue
   — briefing card always rendered above tabs
 
-web/gi-kg-viewer/src/utils/chartRegister.ts
+web/workbench/src/utils/chartRegister.ts
   — global Chart.js defaults (no legends, no gridlines)
   — endLabelPlugin registered globally
 
-web/gi-kg-viewer/src/utils/artifactMtimeBuckets.ts
+web/workbench/src/utils/artifactMtimeBuckets.ts
   — extend to produce daily new-artifact counts (not just cumulative)
 ```
 
 #### New API modules
 
 ```text
-web/gi-kg-viewer/src/api/corpusPersonsApi.ts
+web/workbench/src/api/corpusPersonsApi.ts
   — fetchTopPersons(limit)
 ```
 
@@ -997,7 +997,7 @@ docs/uxs/UXS-006-dashboard.md
   — Add three-tab structure
   — Add Tufte compliance rules (cross-reference TUFTE_CHART_CRITIQUE.md)
 
-docs/uxs/UXS-001-gi-kg-viewer.md
+docs/uxs/UXS-001-workbench.md
   — Remove "optional" from insight line rule — mandatory
   — Add to tunable parameters:
       GI coverage warning threshold    50%    Open
@@ -1078,7 +1078,7 @@ persons/top endpoint ships. Emerging connections shows its degraded state (no en
 #### Phase 4 — UXS + E2E updates
 
 1. Rewrite `UXS-006-dashboard.md` to match implementation
-2. Update `UXS-001-gi-kg-viewer.md` tunable params + mandatory insight
+2. Update `UXS-001-workbench.md` tunable params + mandatory insight
    line rule
 
 3. Update `SERVER_GUIDE.md` API table

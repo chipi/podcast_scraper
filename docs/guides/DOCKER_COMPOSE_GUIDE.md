@@ -1,6 +1,6 @@
 # Docker Compose Guide
 
-The recommended way to run the platform end-to-end on a single machine. Brings up the API, the GI/KG viewer (browser UI), and an on-demand pipeline runner — all wired together. You drive everything from the browser: add RSS feeds, choose a processing profile, click **Run pipeline job**, watch artifacts appear.
+The recommended way to run the platform end-to-end on a single machine. Brings up the API, the Workbench (browser UI), and an on-demand pipeline runner — all wired together. You drive everything from the browser: add RSS feeds, choose a processing profile, click **Run pipeline job**, watch artifacts appear.
 
 This guide is for **operators and end users**. If you want to develop the Python code or the Vue viewer, see [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) and [Development guide](DEVELOPMENT_GUIDE.md).
 
@@ -96,7 +96,7 @@ curl -fsS http://127.0.0.1:8090/api/health
 
 ### 3. Open the viewer
 
-Navigate to **<http://127.0.0.1:8090>**. You'll see the GI/KG viewer.
+Navigate to **<http://127.0.0.1:8090>**. You'll see the Workbench.
 
 ### 4. Configure feeds and profile
 

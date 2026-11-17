@@ -17,8 +17,8 @@
   - [RFC-068: Corpus Digest](RFC-068-corpus-digest-api-viewer.md) — digest API & viewer (PRD-023)
 - **Related UX specs**:
   - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) — Library tab, Episode subject rail, catalog layout
-  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA (tabs, subject rail, status bar)
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and visual chrome
+  - [WORKBENCH_IA: Viewer information architecture](../uxs/WORKBENCH_IA.md) — shell IA (tabs, subject rail, status bar)
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-workbench.md) — shared tokens and visual chrome
 - **Related Documents**:
   - [ADR-064: Canonical server layer](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) — route mounting pattern
 
@@ -258,13 +258,13 @@ where other routes return embedded errors, follow **`/api/search`** style only i
 ### Shell integration
 
 - Extend `mainTab` union in
-  `App.vue` (`web/gi-kg-viewer/src/App.vue`) with `'library'`.
+  `App.vue` (`web/workbench/src/App.vue`) with `'library'`.
 - Add a **Library** button in the main nav next to Graph / Dashboard with the same styling
-  pattern as existing main-view tabs (VIEWER_IA shell, UXS-003 Library).
+  pattern as existing main-view tabs (WORKBENCH_IA shell, UXS-003 Library).
 
 ### Components
 
-- New directory `web/gi-kg-viewer/src/components/library/`:
+- New directory `web/workbench/src/components/library/`:
   - `LibraryView.vue` — three-region layout (feeds | episodes | detail)
   - Optional subcomponents for list rows and detail card
   - **Cover art:** shared `PodcastCover.vue` for feed rows, episode rows, detail header,
@@ -279,11 +279,11 @@ where other routes return embedded errors, follow **`/api/search`** style only i
   **Viewer:** `LibraryView` sends **`limit=20`** per page (named constant in the component; server query default may differ when the param is omitted).
 - Optional Pinia store `stores/corpusLibrary.ts` or local state inside `LibraryView` for
   MVP; **must** read `corpusPath` and health from
-  `shell` store (`web/gi-kg-viewer/src/stores/shell.ts`).
+  `shell` store (`web/workbench/src/stores/shell.ts`).
 
 ### Handoff to graph
 
-- Use `useArtifactsStore` (`web/gi-kg-viewer/src/stores/artifacts.ts`): load `.gi.json`
+- Use `useArtifactsStore` (`web/workbench/src/stores/artifacts.ts`): load `.gi.json`
   and `.kg.json` via existing `GET /api/artifacts/{path}?path=corpusRoot` flow (or the
   store’s existing helper).
 - After successful load, set `mainTab` to `'graph'`.

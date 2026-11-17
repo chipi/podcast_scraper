@@ -1020,7 +1020,7 @@ Two committed, deterministically-synthesized validation corpora are built
 **from** the RSS + transcript fixtures above (no pipeline, no ML), so server /
 app e2e can run against stable, version-pinned content:
 
-- **`viewer-validation-corpus/<version>/`** — the GI/KG viewer's Tier-3 corpus
+- **`viewer-validation-corpus/<version>/`** — the Workbench's Tier-3 corpus
   (`scripts/build_synthetic_validation_corpus.py`). Schema-shaped feeds /
   episodes / GI / KG / diarized two-artifact transcripts + topic clusters /
   digest for the operator viewer.

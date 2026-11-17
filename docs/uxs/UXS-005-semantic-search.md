@@ -2,13 +2,13 @@
 
 - **Status**: Active (main-column query surface superseded by [UXS-016 Query Workspace](UXS-016-query-workspace.md) once RFC-107 lands; UXS-005 continues to specify the **compact launcher** role of the left column on non-Search tabs — see the "Compact launcher (RFC-107)" section near the end)
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
   - [PRD-021: Semantic Corpus Search](../prd/PRD-021-semantic-corpus-search.md)
 - **Related RFCs**:
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-090: Hybrid Retrieval](../rfc/RFC-090-hybrid-retrieval.md) — **hybrid is now the default** backend; FAISS retained as fallback
   - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational queries the surfaces consume
 
@@ -19,15 +19,15 @@
 > tracked in [#884](https://github.com/chipi/podcast_scraper/issues/884).
 
 - **Implementation paths**:
-  - `web/gi-kg-viewer/src/components/shell/LeftPanel.vue` (hosts the search column)
-  - `web/gi-kg-viewer/src/components/search/SearchPanel.vue`
-  - `web/gi-kg-viewer/src/components/search/ResultCard.vue`
-  - `web/gi-kg-viewer/src/components/search/SearchResultsVizDialog.vue`
-  - `web/gi-kg-viewer/src/components/search/SemanticSearchTip.vue`
-  - `web/gi-kg-viewer/src/stores/search.ts` (exposes `queryType` for FR1.4)
+  - `web/workbench/src/components/shell/LeftPanel.vue` (hosts the search column)
+  - `web/workbench/src/components/search/SearchPanel.vue`
+  - `web/workbench/src/components/search/ResultCard.vue`
+  - `web/workbench/src/components/search/SearchResultsVizDialog.vue`
+  - `web/workbench/src/components/search/SemanticSearchTip.vue`
+  - `web/workbench/src/stores/search.ts` (exposes `queryType` for FR1.4)
   - `src/podcast_scraper/server/routes/search.py` (#884) — surfaces `source_tier`
     per hit + response `query_type` (additive; FAISS + hybrid consistent)
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — left panel Search + Explore, navigation axes, subject rail, status bar
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — left panel Search + Explore, navigation axes, subject rail, status bar
 
 ---
 
@@ -35,7 +35,7 @@
 
 Search is the **default** surface of the **left query column**; **Explore** is an alternate mode
 (slide transition) entered via a quiet footer control (**Explore corpus →**) and exited via
-**← Search** — see **[VIEWER_IA.md](VIEWER_IA.md)**. Mode is **`shell.leftPanelSurface`** (`search` |
+**← Search** — see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. Mode is **`shell.leftPanelSurface`** (`search` |
 `explore`). **`/`** expands the column if needed, switches to **Search**, then focuses **`#search-q`**
 (`LeftPanel` → `focusQuery`). **`LeftPanel.vue`** hosts **`SearchPanel.vue`** + **`ExplorePanel.vue`**
 at **`w-72`** when expanded. Search **results stay visible** when a hit opens in the **subject rail**
@@ -46,13 +46,13 @@ at **`w-72`** when expanded. Search **results stay visible** when a hit opens in
 
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Search and Explore** panel content only (query form, advanced filters, result cards, insights modal).
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Search and Explore** panel content only (query form, advanced filters, result cards, insights modal).
 
 The search panel provides corpus search (hybrid by default, FAISS fallback) in the **left** shell column
 (**Semantic search** card: form + scrollable results; **Explore corpus →** sits in **`LeftPanel`**
 below that card). This UXS defines the visual contract for the search form,
 advanced filters, result cards, and the search result insights modal. All tokens reference
-[UXS-001](UXS-001-gi-kg-viewer.md).
+[UXS-001](UXS-001-workbench.md).
 
 Track shell work in [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606)
 and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, update this **Active** UXS in the same PR — see
@@ -199,7 +199,7 @@ The search surface makes that legible without re-querying:
 
 ## E2E contract
 
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) --
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) --
 search panel surfaces and selectors.
 
 ---

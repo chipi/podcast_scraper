@@ -20,7 +20,7 @@ Method: [CORPUS_CHANGE_METHOD.md](../../guides/CORPUS_CHANGE_METHOD.md) §4. Pla
 - S1 inventory, finding 5: search applies no identity map. Insight hits carry each supporting
   quote's raw `speaker_id` and no name; transcript hits lift a speaker from the bridge.
 - The viewer's search card shows `speaker_name` when present, else a name made from the id's slug
-  (`web/gi-kg-viewer/src/components/search/ResultCard.vue`). The player shows no speaker on search
+  (`web/workbench/src/components/search/ResultCard.vue`). The player shows no speaker on search
   hits. MCP `search_corpus` and `briefing_pack` return the rows as they are.
 - No search module reads `surfaceable`.
 - The operator's decision on D2 item 7 (2026-10-31): search hides every insight the episode view

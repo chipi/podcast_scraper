@@ -1,6 +1,6 @@
 # Server Guide
 
-The FastAPI server layer for the GI/KG viewer and future platform APIs.
+The FastAPI server layer for the Workbench and future platform APIs.
 
 ## Overview
 
@@ -11,18 +11,18 @@ The server exposes corpus artifacts, **semantic search**, **GI explore**,
 **Cross-layer CIL queries** (person/topic arcs over `*.bridge.json` + GI/KG siblings),
 **Corpus Library** catalog APIs, and **vector index** stats / rebuild controls
 through a JSON API consumed by the Vue 3 SPA
-([`web/gi-kg-viewer/`][viewer-readme]).
+([`web/workbench/`][viewer-readme]).
 
 **Corpus lifecycle:** routes read **current** files under the configured corpus root.
 Re-running extraction, the bridge builder, or corpus topic clustering can change canonical ids
 and cluster compounds; responses are not pinned to an older ingest.
 
-**Repo layout:** Python at the root, Node UI in `web/gi-kg-viewer/`. See
+**Repo layout:** Python at the root, Node UI in `web/workbench/`. See
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env files and Makefile targets (`make serve`,
 `make test-ui`, etc.).
 
 The server is described in
-[GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
+[Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
 [`src/podcast_scraper/server/`][server-pkg].
 Route groups are additive: **viewer routes** ship by default (artifacts,
 search, explore, index stats/rebuild, corpus library, corpus digest, CIL, …).
@@ -31,7 +31,7 @@ mount separately via `create_app` flags (see [RFC-077](../rfc/RFC-077-viewer-fee
 and [ADR-064 addendum](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md#addendum-2026-04-rfc-077-operator-surfaces-separate-flags)).
 Future **megasketch** platform routes (#50, #347) remain behind `enable_platform` when implemented.
 
-[viewer-readme]: https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md
+[viewer-readme]: https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md
 [server-pkg]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/
 
 ## Quick start
@@ -47,10 +47,10 @@ This adds `fastapi` and `uvicorn[standard]`.
 ### 2. Build the frontend (once)
 
 ```bash
-cd web/gi-kg-viewer && npm install && npm run build
+cd web/workbench && npm install && npm run build
 ```
 
-The build produces `web/gi-kg-viewer/dist/`.
+The build produces `web/workbench/dist/`.
 When that directory exists, the server mounts it at `/` automatically.
 
 ### 3. Start the server
@@ -122,7 +122,7 @@ future megasketch platform work
 
 ### Static file mounting
 
-When a built SPA exists at `web/gi-kg-viewer/dist/`, `create_app` mounts
+When a built SPA exists at `web/workbench/dist/`, `create_app` mounts
 it at `/` via `StaticFiles(directory=..., html=True)`.
 Pass `--no-static` (or `static_dir=False` in code) to skip mounting and
 run the API standalone.
@@ -251,7 +251,7 @@ instead of a recency view.)
 | `--host` | `127.0.0.1` | Bind address. |
 | `--port` | `8000` | TCP port. |
 | `--reload` | off | Dev only: restart workers when Python files change (uses `uvicorn --factory`). |
-| `--no-static` | off | Do not mount built SPA assets even if `web/gi-kg-viewer/dist/` exists. |
+| `--no-static` | off | Do not mount built SPA assets even if `web/workbench/dist/` exists. |
 
 ### Environment variable
 
@@ -389,7 +389,7 @@ the `[dev]` extra).
 | ------ | ------------ | ----------- |
 | `make serve` | Runs `serve-api` and `serve-ui` in parallel (`make -j2`). | Day-to-day full-stack development. |
 | `make serve-api` | Starts the FastAPI server on port **8000**. | Backend-only work, or when running Vite separately. |
-| `make serve-ui` | Runs `npm run dev` inside `web/gi-kg-viewer/` (Vite on port **5173**). | Frontend-only work, or when running the API separately. |
+| `make serve-ui` | Runs `npm run dev` inside `web/workbench/` (Vite on port **5173**). | Frontend-only work, or when running the API separately. |
 
 Override the corpus directory:
 
@@ -470,13 +470,13 @@ search-focus mapping) is covered by **Vitest** unit tests co-located with source
 make test-ui          # ~150 ms, no browser
 ```
 
-Tests: `web/gi-kg-viewer/src/utils/*.test.ts`. Config: `vite.config.ts` `test` block.
+Tests: `web/workbench/src/utils/*.test.ts`. Config: `vite.config.ts` `test` block.
 
 ### Browser E2E (Playwright)
 
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) chose
 Playwright for browser-level E2E testing.
-Tests live in `web/gi-kg-viewer/e2e/` and run against a Vite dev server
+Tests live in `web/workbench/e2e/` and run against a Vite dev server
 on port **5174** (separate from the dev port 5173).
 
 ```bash
@@ -484,12 +484,12 @@ make test-ui-e2e
 ```
 
 This target installs npm dependencies, installs the Chromium browser, and
-runs `npm run test:e2e` inside `web/gi-kg-viewer/`.
+runs `npm run test:e2e` inside `web/workbench/`.
 
 **CI vs `serve`:** Playwright in CI runs the SPA on **Vite** with **mocked or spec-level `/api/*`**
 handling — fast and deterministic. It is **not** a substitute for smoke-testing **`cli serve`**
 (or **`make serve`**), where FastAPI serves **built `dist/`** and **real** viewer APIs against a
-corpus. See [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2).
+corpus. See [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-workbench).
 
 See the [E2E Testing Guide](E2E_TESTING_GUIDE.md) and
 [Testing Guide](TESTING_GUIDE.md) for more detail.
@@ -535,7 +535,7 @@ separate from this JSONL path.
 
 | Document | Description |
 | -------- | ----------- |
-| [GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) | Viewer design (milestones, success criteria). |
+| [Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md) | Viewer design (milestones, success criteria). |
 | [Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md) | Catalog API and viewer integration. |
 | [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) | Digest API & viewer (`GET /api/corpus/digest`, Digest tab, Library glance). |
 | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical server layer with feature-flagged route groups. |

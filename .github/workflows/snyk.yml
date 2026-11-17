@@ -16,8 +16,8 @@ on:
       - '.dockerignore'
       - '.github/workflows/snyk.yml'
       # The viewer's npm tree. The player's npm, iOS and Android scans moved with the player.
-      - 'web/gi-kg-viewer/package.json'
-      - 'web/gi-kg-viewer/package-lock.json'
+      - 'web/workbench/package.json'
+      - 'web/workbench/package-lock.json'
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
@@ -273,8 +273,8 @@ jobs:
               - '.dockerignore'
               - '.github/workflows/snyk.yml'
             npm:
-              - 'web/gi-kg-viewer/package.json'
-              - 'web/gi-kg-viewer/package-lock.json'
+              - 'web/workbench/package.json'
+              - 'web/workbench/package-lock.json'
               - '.github/workflows/snyk.yml'
 
   snyk-npm:
@@ -288,7 +288,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [gi-kg-viewer]
+        app: [workbench]
     steps:
       - uses: actions/checkout@v7
       - uses: snyk/actions/setup@master

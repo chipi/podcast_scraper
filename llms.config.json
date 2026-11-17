@@ -56,7 +56,7 @@
         {"path": "docs/guides/RSS_GUIDE.md", "name": "rss/"},
         {"path": "docs/guides/LANGUAGE_ONBOARDING_RUNBOOK.md", "name": "translation/, languages", "note": "adding a language; also [the multilingual arc](docs/architecture/MULTILINGUAL_ARC_V2.md)"},
         {"path": "docs/guides/PROTOCOL_EXTENSION_GUIDE.md", "name": "extensions, seams", "note": "what an installed extension can add"},
-        {"path": "docs/architecture/VIEWER_FRONTEND_ARCHITECTURE.md", "name": "web/gi-kg-viewer/", "note": "the viewer's frontend; also [the graph spec](docs/architecture/VIEWER_GRAPH_SPEC.md)"},
+        {"path": "docs/architecture/VIEWER_FRONTEND_ARCHITECTURE.md", "name": "web/workbench/", "note": "the viewer's frontend; also [the graph spec](docs/architecture/VIEWER_GRAPH_SPEC.md)"},
         {"path": "docs/guides/TESTING_GUIDE.md", "name": "tests/", "note": "which tests to run and write; also [unit](docs/guides/UNIT_TESTING_GUIDE.md), [integration](docs/guides/INTEGRATION_TESTING_GUIDE.md), [e2e](docs/guides/E2E_TESTING_GUIDE.md)"}
       ]
     },
@@ -66,7 +66,7 @@
         {"path": "docs/guides/PIPELINE_AND_WORKFLOW.md", "name": "podcast-pipeline", "note": "the pipeline CLI and its jobs; GlitchTip `podcast-pipeline` (dev: `podcast-pipeline-dev`); OTel service `podcast-pipeline`; compose service `pipeline`"},
         {"path": "docs/guides/SERVER_GUIDE.md", "name": "podcast-api", "note": "the API in the operator plane; GlitchTip `podcast-api` (dev: `podcast-api-dev`); OTel service `podcast-api`; compose service `api`"},
         {"path": "docs/architecture/DATABASE.md", "name": "player-api", "note": "the same API in the player plane; GlitchTip `player-api`; OTel service `player-api`"},
-        {"path": "docs/architecture/VIEWER_FRONTEND_ARCHITECTURE.md", "name": "gi-kg-viewer", "note": "the operator viewer (browser); GlitchTip `gi-kg-viewer` (no dev project yet); compose service `viewer`"},
+        {"path": "docs/architecture/VIEWER_FRONTEND_ARCHITECTURE.md", "name": "workbench", "note": "Workbench, the operator viewer (browser); GlitchTip `gi-kg-viewer` (no dev project yet); compose service `viewer`"},
         {"path": "docs/guides/LIVE_PIPELINE_MONITOR.md", "name": "player, player-mcp, player-obs", "note": "the player web app and the MCP servers report to these GlitchTip projects from repos other than this one; the observability control plane's core is src/podcast_obs"}
       ]
     },

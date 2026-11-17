@@ -30,9 +30,9 @@ const STACK_TEST_LIBRARY_TITLE_MARKERS = ['Building Trails', 'E2E Selection']
  *    (``status-bar-sources-dialog``). **Feeds** tab → URL field
  *    ``sources-dialog-feeds-add-url`` + **Add feed**
  *    ``sources-dialog-feeds-add-btn`` calls ``addFeedFromInput()`` in
- *    ``web/gi-kg-viewer/src/components/shell/StatusBar.vue``, which
+ *    ``web/workbench/src/components/shell/StatusBar.vue``, which
  *    appends to the in-memory list then ``await persistFeedsFromCrud()``
- *    → ``putFeeds()`` in ``web/gi-kg-viewer/src/api/feedsApi.ts``.
+ *    → ``putFeeds()`` in ``web/workbench/src/api/feedsApi.ts``.
  *
  * 2. **API** — ``PUT /api/feeds?path=<corpus>`` with body
  *    ``{ feeds: [..] }`` (see
@@ -91,7 +91,7 @@ function stackTestProgress(msg: string): void {
   console.log(`[stack-test] ${new Date().toISOString()} ${msg}`)
 }
 
-/** First-run gesture card can sit above ``.graph-canvas``; mirror ``gi-kg-viewer/e2e/helpers.ts``. */
+/** First-run gesture card can sit above ``.graph-canvas``; mirror ``web/workbench/e2e/helpers.ts``. */
 async function dismissGraphGestureOverlayIfPresent(
   page: import('@playwright/test').Page,
 ): Promise<void> {

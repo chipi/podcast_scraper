@@ -141,7 +141,7 @@ crash_dump_*.log
 .DS_Store
 
 # Coverage (pytest output at repo root only — the unscoped pattern was
-# accidentally catching ``web/gi-kg-viewer/e2e/fixtures/production-shaped/
+# accidentally catching ``web/workbench/e2e/fixtures/production-shaped/
 # corpus/coverage.json`` which is a Tier-2 mock-response fixture).
 .coverage
 .coverage.*
@@ -152,38 +152,38 @@ crash_dump_*.log
 .vscode/
 .vscode/settings.json
 
-# GI/KG viewer (Vite / Node / Playwright, RFC-062) — was web/gi-kg-viewer/.gitignore; rules live here
-web/gi-kg-viewer/node_modules/
+# Workbench (Vite / Node / Playwright, RFC-062) — was web/workbench/.gitignore; rules live here
+web/workbench/node_modules/
 # No trailing slash: Studio's vite.config.ts makes this a symlink, which a `dir/` rule misses.
-web/gi-kg-viewer/node_modules
+web/workbench/node_modules
 # Catch-all: stray ``node_modules/`` at the repo root (or anywhere else) is always a
-# transient artifact. The legitimate Node project lives under ``web/gi-kg-viewer/``; a
+# transient artifact. The legitimate Node project lives under ``web/workbench/``; a
 # root-level ``node_modules/`` typically appears when Vitest is invoked with CWD=repo
-# root (e.g. ``npm exec --prefix web/gi-kg-viewer …``) — see VIEWER_TESTING_LOCAL.md.
-# Always ``cd web/gi-kg-viewer`` before running ``vitest`` / ``playwright`` so caches
+# root (e.g. ``npm exec --prefix web/workbench …``) — see VIEWER_TESTING_LOCAL.md.
+# Always ``cd web/workbench`` before running ``vitest`` / ``playwright`` so caches
 # land in the viewer's own ``node_modules/.vite/``.
 node_modules/
-web/gi-kg-viewer/dist/
-web/gi-kg-viewer/dist-ssr/
-web/gi-kg-viewer/logs/
-web/gi-kg-viewer/**/*.log
-web/gi-kg-viewer/npm-debug.log*
-web/gi-kg-viewer/yarn-debug.log*
-web/gi-kg-viewer/yarn-error.log*
-web/gi-kg-viewer/pnpm-debug.log*
-web/gi-kg-viewer/lerna-debug.log*
-web/gi-kg-viewer/*.local
-web/gi-kg-viewer/.idea/
-web/gi-kg-viewer/*.suo
-web/gi-kg-viewer/*.ntvs*
-web/gi-kg-viewer/*.njsproj
-web/gi-kg-viewer/*.sln
-web/gi-kg-viewer/*.sw?
-web/gi-kg-viewer/test-results/
-web/gi-kg-viewer/playwright-report/
-web/gi-kg-viewer/e2e-results.json
-web/gi-kg-viewer/blob-report/
-web/gi-kg-viewer/playwright/.cache/
+web/workbench/dist/
+web/workbench/dist-ssr/
+web/workbench/logs/
+web/workbench/**/*.log
+web/workbench/npm-debug.log*
+web/workbench/yarn-debug.log*
+web/workbench/yarn-error.log*
+web/workbench/pnpm-debug.log*
+web/workbench/lerna-debug.log*
+web/workbench/*.local
+web/workbench/.idea/
+web/workbench/*.suo
+web/workbench/*.ntvs*
+web/workbench/*.njsproj
+web/workbench/*.sln
+web/workbench/*.sw?
+web/workbench/test-results/
+web/workbench/playwright-report/
+web/workbench/e2e-results.json
+web/workbench/blob-report/
+web/workbench/playwright/.cache/
 
 # Playwright MCP (Cursor / IDE): local snapshots and logs, not repo artifacts
 .playwright-mcp/
@@ -318,7 +318,7 @@ web/learning-player/
 # The viewer's equivalent. Since #1619 gave the viewer suite a real API, its webServer writes
 # per-user state here, and this path was not
 # ignored, so a local run left runtime JSONL staged. It reached main in ef069c1e via `git add -A`.
-web/gi-kg-viewer/e2e/.app-state/
+web/workbench/e2e/.app-state/
 # `make serve-for-app-validation` (the Tier-3 app walk's API) writes its users' state here, at the
 # repo root; a `git add -A` after a local walk swept it into a commit (2026-10-12).
 /.tier3-app-data/
@@ -367,7 +367,7 @@ tests/fixtures/app-validation-corpus/public/.viewer/
 /test-results/
 
 # Viewer coverage summary staged by the coverage tooling before the report is assembled.
-web/gi-kg-viewer/coverage-tmp/
+web/workbench/coverage-tmp/
 
 # Upgrade migration lock (runtime, never committed)
 tests/fixtures/**/upgrade_ledger.json.lock
@@ -378,7 +378,7 @@ scripts/eval/rolling_cache_*.json
 # API creates `.viewer/jobs.jsonl.lock` — so `e2e/run-local-stack.sh` copies the fixture here and
 # mounts the copy, leaving the tracked corpus (force-included at line 82) pristine. Re-seeded on
 # every run; safe to delete.
-web/gi-kg-viewer/.e2e-corpus/
+web/workbench/.e2e-corpus/
 
 # pytest tmpdirs that leak into the repo: the archive e2e tests pass an ABSOLUTE
 # pytest tmp_path as an rclone base_path, and RcloneStorageBackend strips the leading

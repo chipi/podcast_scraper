@@ -577,7 +577,7 @@ per-endpoint overrides layered on top.
 
 It no longer has to be that way: the same fixture-bootstrapped API the consumer suite uses serves
 every endpoint this app calls. `mockSignIn(page, role, { liveApi: true })` opts a spec out of the
-catch-all, and `web/gi-kg-viewer/e2e/run-local-stack.sh` starts the backend.
+catch-all, and `web/workbench/e2e/run-local-stack.sh` starts the backend.
 
 Migration is spec-by-spec because each mock encodes an assumed backend state. Sorting what is left
 into three kinds matters, because only one of them is a fixture problem:

@@ -4,7 +4,7 @@
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-067: Corpus Library API & Viewer](../rfc/RFC-067-corpus-library-api-viewer.md) — technical design (Phases 1–3 + **Phase 4** local artwork): **visual metadata** (RSS-sourced URLs, optional **verified** `*_image_local_relpath`, duration, episode number) in API + viewer
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) — host SPA, `podcast serve`, FastAPI shell
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md) — host SPA, `podcast serve`, FastAPI shell
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md) — vector search consumed from viewer
   - [RFC-063: Multi-Feed Corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md) — `feeds/<id>/` layout and discovery
   - [RFC-068: Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) — Digest tab & Library glance (PRD-023)
@@ -18,12 +18,12 @@
 - **Related UX specs**:
   - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) -- Library tab IA,
     Episode subject rail, filters, graph integration
-  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
+  - [UXS-001: Workbench](../uxs/UXS-001-workbench.md) -- shared design system
 
 ## Summary
 
 **Corpus Library** adds a **podcast-shaped browsing** experience on top of the same local
-corpus the GI/KG viewer already uses: navigate **feeds** and **episodes**, read **titles,
+corpus the Workbench already uses: navigate **feeds** and **episodes**, read **titles,
 dates, and summary bullets** from on-disk metadata, and **hand off** to the **graph** (load
 `.gi.json` / `.kg.json`) and **semantic search** without a separate app, database, or large
 refactor. When metadata includes **RSS-derived fields** (PRD-004), the Library also surfaces
@@ -63,7 +63,7 @@ the graph or search **in two or three steps**.
 
 - **Filesystem-first MVP (Phase 1):** Derive the catalog from existing metadata discovery
   (no new pipeline stage required for the first slice).
-- **Same product shell:** One FastAPI app, one Vue SPA (`web/gi-kg-viewer`), same corpus
+- **Same product shell:** One FastAPI app, one Vue SPA (`web/workbench`), same corpus
    root field as today (RFC-062).
 - **Explicit handoffs:**
   - **To graph:** Load the selected episode’s GI and/or KG artifacts using the same
@@ -95,7 +95,7 @@ the graph or search **in two or three steps**.
 ## Primary Users
 
 - **Developers and analysts** inspecting a local or shared pipeline output directory.
-- **Power users** who already run `podcast serve` and the GI/KG viewer.
+- **Power users** who already run `podcast serve` and the Workbench.
 
 ## User Journeys
 
@@ -181,6 +181,6 @@ the graph or search **in two or three steps**.
 ## Related Documents
 
 - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md)
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
-- [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+- [UXS-001](../uxs/UXS-001-workbench.md)
+- [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
   — update when Library UI ships (automation contract)

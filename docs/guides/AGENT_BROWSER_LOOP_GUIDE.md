@@ -65,7 +65,7 @@ The manual "agent attaches to your live session" workflow requires Chrome DevToo
 Protocol (CDP), which is Chrome-only. Firefox has no equivalent.
 
 This project's Playwright E2E suite (`make test-ui-e2e`) runs **Chrome** headlessly
-locally and **Firefox** under `CI` (see `web/gi-kg-viewer/playwright.config.ts`). That is
+locally and **Firefox** under `CI` (see `web/workbench/playwright.config.ts`). That is
 separate from the agent-browser loop described here.
 
 | Context | Browser | Why |
@@ -86,7 +86,7 @@ and gets structured feedback after **each action** — not just pass/fail at the
 What the agent sees is an **accessibility snapshot**, not a screenshot:
 
 ```text
-- heading "Podcast Intelligence Platform" [level=1]
+- heading "Workbench" [level=1]
 - tab "Digest" [selected]
 - tab "Library"
 - tab "Graph"
@@ -126,21 +126,21 @@ same loop you already have for Python.
 
 | Python workflow | Browser workflow |
 | --------------- | ---------------- |
-| Edit `src/` | Edit `web/gi-kg-viewer/src/` |
+| Edit `src/` | Edit `web/workbench/src/` |
 | `make test` (pytest) | `make test-ui-e2e` (Playwright) |
 | Read failure → fix → re-run | Read failure → fix → re-run |
 | Green → done | Green → done |
 
-The E2E suite for the GI/KG viewer:
+The E2E suite for the Workbench:
 
 | Aspect | Value |
 | ------ | ----- |
 | Run command | `make test-ui-e2e` |
-| Config | `web/gi-kg-viewer/playwright.config.ts` |
+| Config | `web/workbench/playwright.config.ts` |
 | Browser | Chrome (headless); Firefox under `CI` |
 | Port | `127.0.0.1:5174` (dedicated, avoids dev server on 5173) |
-| Specs | `web/gi-kg-viewer/e2e/*.spec.ts` |
-| Surface contract | `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` |
+| Specs | `web/workbench/e2e/*.spec.ts` |
+| Surface contract | `web/workbench/e2e/E2E_SURFACE_MAP.md` |
 
 When a UI feature is done, the agent should:
 
@@ -165,7 +165,7 @@ no copy-paste needed.
 The `list` reporter prints pass/fail per test with assertion errors inline. The agent
 sees this directly from the Shell tool output. For most failures, this is enough.
 
-**2. JSON results — `web/gi-kg-viewer/e2e-results.json`**
+**2. JSON results — `web/workbench/e2e-results.json`**
 
 A structured JSON file with per-test `title`, `status` (`passed`/`failed`/`timedOut`),
 `duration` (ms), and on failure: `error.message`, `error.stack`, and the failing
@@ -189,7 +189,7 @@ Example of what the agent sees for a failure:
 }
 ```
 
-**3. Trace files — `web/gi-kg-viewer/test-results/` (on failure)**
+**3. Trace files — `web/workbench/test-results/` (on failure)**
 
 When a test fails locally, Playwright records a trace zip containing DOM snapshots,
 network requests, console logs, and screenshots at every step. The agent can:
@@ -201,13 +201,13 @@ network requests, console logs, and screenshots at every step. The agent can:
 Traces are only persisted for **failing** tests (locally: `retain-on-failure`; CI:
 `on-first-retry`). Passing tests do not leave trace files.
 
-**4. HTML report — `web/gi-kg-viewer/playwright-report/`**
+**4. HTML report — `web/workbench/playwright-report/`**
 
 A rich HTML report with screenshots, trace links, and error details. The agent cannot
 read HTML directly, but can tell you to open it:
 
 ```bash
-npx playwright show-report web/gi-kg-viewer/playwright-report
+npx playwright show-report web/workbench/playwright-report
 ```
 
 ### How to instruct the agent
@@ -227,7 +227,7 @@ re-runs.
 **With JSON results (richer analysis):**
 
 ```text
-"Run make test-ui-e2e, then read web/gi-kg-viewer/e2e-results.json
+"Run make test-ui-e2e, then read web/workbench/e2e-results.json
  and give me a summary: how many passed, failed, total duration,
  and details on any failures"
 ```
@@ -239,7 +239,7 @@ durations, and error messages.
 
 ```text
 "Run make test-ui-e2e. If anything fails, check the trace files
- in web/gi-kg-viewer/test-results/ — look at the DOM snapshot
+ in web/workbench/test-results/ — look at the DOM snapshot
  and network requests at the point of failure"
 ```
 
@@ -267,7 +267,7 @@ not replace it. Use MCP when:
 
 ### E2E surface map as a debugging aid (not only Playwright)
 
-[`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[`web/workbench/e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 is the **Playwright automation contract**, but it is also the best single reference for **expected
 accessible names, regions, entry paths, and disambiguation** (for example, scoping the semantic
 **Search** submit under the **Semantic search** `section` (or `#search-q`) so it does not collide with
@@ -349,7 +349,7 @@ If you use it and still see `DevToolsActivePort` errors, switch to **`chrome-dev
 
 ```text
 1. You open Chrome (chrome-dev), navigate to http://127.0.0.1:5174
-2. Vite dev server is running (make serve or npm run dev in web/gi-kg-viewer)
+2. Vite dev server is running (make serve or npm run dev in web/workbench)
 3. DevTools MCP is configured with --browserUrl http://127.0.0.1:9222 (see IDE setup);
    agent attaches — now shares your session
 4. You direct: "The episode metadata row is too cramped — add spacing
@@ -370,7 +370,7 @@ If you use it and still see `DevToolsActivePort` errors, switch to **`chrome-dev
 
 ### Obligatory validation when fixing a reported UI bug
 
-When the user says something in the **GI/KG viewer** (or any dev-server UI you can reach) is **broken**
+When the user says something in the **Workbench** (or any dev-server UI you can reach) is **broken**
 — wrong data, broken link, 404 in a new tab, console errors — treat **“I fixed it”** as a claim that
 requires **evidence**. Do **not** hand the proof obligation back to the user unless you are **blocked**
 (see below).
@@ -392,14 +392,14 @@ not assume the key matches `mcp.json` verbatim.
    `list_pages` → `select_page` → `take_snapshot` to see the relevant control, link `url`, and layout.
    Read the tool schema in the MCP descriptor folder before the first call (project policy). For
    **expected** control names, regions, and multi-step entry paths (and known duplicate labels),
-   cross-check [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+   cross-check [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
    — same contract as Playwright and a11y snapshots.
 2. **Reproduce the failure** — For **same-tab** behavior: interact via snapshot `uid`s (`click`, etc.)
    if needed; use `list_network_requests` / `get_network_request` for status codes and response bodies.
    For **“open in new tab”** links: use `new_page` with the **exact** `href` (or `navigate_page` on the
    selected tab) and read the resulting snapshot (e.g. raw JSON error) and network row (e.g. **404** vs
    **400**). This removes guesswork about encoding, proxy path, or server validation.
-3. **Fix** — Change **viewer** (`web/gi-kg-viewer/`) and/or **API** (`src/podcast_scraper/server/`) as
+3. **Fix** — Change **viewer** (`web/workbench/`) and/or **API** (`src/podcast_scraper/server/`) as
    needed. Prefer **automated tests** as the durable proof: Vitest (`make test-ui`) for URL builders /
    pure TS; **FastAPI** `TestClient` tests under `tests/integration/server/` (and unit tests under
    `tests/unit/podcast_scraper/server/`) for HTTP behavior. Add or extend **Playwright** specs when the
@@ -430,16 +430,16 @@ lock the behavior in CI.
 
 Some bugs only appear **after layout or a second store tick** (~1–3s). A quick immediate snapshot is not enough.
 
-**Typical reproduction (GI/KG viewer):** **Digest** → **Open graph and episode details** (an episode row) → in the episode rail, **Open in graph** → **wait ≥2.5s** before concluding pass/fail.
+**Typical reproduction (Workbench):** **Digest** → **Open graph and episode details** (an episode row) → in the episode rail, **Open in graph** → **wait ≥2.5s** before concluding pass/fail.
 
 **What to measure in Chrome (DevTools MCP `evaluate_script`):**
 
 - If exposed: `window.__GIKG_CY_DEV__` as the Cytoscape instance `cy`. Compare counts before and after the wait, for example `cy.nodes('.graph-dimmed').length`, `cy.nodes(':selected').length`, and related `graph-*` classes your change touches.
-- Cross-check Pinia: **`graphConnectionsCyId`** on the **subject** store and **`pendingFocusNodeId`** on **graphNavigation** (`web/gi-kg-viewer/src/stores/subject.ts`, `graphNavigation.ts`). “All bright” with **zero** dimmed nodes often correlates with focus handoff not sticking (`graphConnectionsCyId` cleared or never set).
+- Cross-check Pinia: **`graphConnectionsCyId`** on the **subject** store and **`pendingFocusNodeId`** on **graphNavigation** (`web/workbench/src/stores/subject.ts`, `graphNavigation.ts`). “All bright” with **zero** dimmed nodes often correlates with focus handoff not sticking (`graphConnectionsCyId` cleared or never set).
 
 **Implementation reminders:**
 
-- Corpus **`metadata_relative_path`** strings may **not** match graph Episode row metadata text; use a **stable episode id** as a fallback when mapping corpus → Cytoscape id (see `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts`).
+- Corpus **`metadata_relative_path`** strings may **not** match graph Episode row metadata text; use a **stable episode id** as a fallback when mapping corpus → Cytoscape id (see `web/workbench/src/utils/graphEpisodeMetadata.ts`).
 - Any path that **clears** episode representative state when metadata resolution fails must **not** wipe a **valid** `graphConnectionsCyId` already pointing at an Episode node on the active core graph.
 
 ### Pipeline and environment pitfalls (viewer bugs)
@@ -587,7 +587,7 @@ proper spec.
  Run make test-ui-e2e and fix any failures."
 ```
 
-### UC-2: Live co-development on the GI/KG viewer
+### UC-2: Live co-development on the Workbench
 
 **Scenario A — bug:** The graph loads but search results don't highlight nodes.
 
@@ -745,7 +745,7 @@ Ideas not yet implemented in `.github/workflows/`; pick up when useful.
   uses: actions/upload-artifact@v4
   with:
     name: playwright-report
-    path: web/gi-kg-viewer/playwright-report/
+    path: web/workbench/playwright-report/
     retention-days: 14
 
 - name: Upload Playwright traces on failure
@@ -753,7 +753,7 @@ Ideas not yet implemented in `.github/workflows/`; pick up when useful.
   uses: actions/upload-artifact@v4
   with:
     name: playwright-traces
-    path: web/gi-kg-viewer/test-results/
+    path: web/workbench/test-results/
     retention-days: 14
 ```
 
@@ -894,7 +894,7 @@ chrome-dev   # alias from .zshrc setup above
 # Run existing E2E suite (automated, Chrome)
 make test-ui-e2e
 
-# Start the GI/KG viewer dev server (for manual browsing)
+# Start the Workbench dev server (for manual browsing)
 make serve
 ```
 
@@ -906,11 +906,11 @@ make serve
 | -------- | ------------ |
 | [E2E Testing Guide](E2E_TESTING_GUIDE.md) | Playwright E2E suite details, surface map, spec conventions |
 | [Testing Strategy](../architecture/TESTING_STRATEGY.md) | Where browser E2E fits in the test pyramid |
-| [Development Guide](DEVELOPMENT_GUIDE.md) | GI/KG viewer dev workflow, `make serve` |
+| [Development Guide](DEVELOPMENT_GUIDE.md) | Workbench dev workflow, `make serve` |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI `/api/*` endpoints the agent inspects |
-| [E2E Surface Map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) | Playwright automation contract — surfaces, selectors, specs |
-| [VIEWER_IA.md](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) + [feature UXS](../uxs/index.md) | Shell IA (VIEWER_IA); shared tokens (UXS-001); per-surface specs (Digest, Library, Graph, Search, Dashboard, …) |
-| [Polyglot Repo Guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/` layout |
+| [E2E Surface Map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) | Playwright automation contract — surfaces, selectors, specs |
+| [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) + [UXS-001](../uxs/UXS-001-workbench.md) + [feature UXS](../uxs/index.md) | Shell IA (WORKBENCH_IA); shared tokens (UXS-001); per-surface specs (Digest, Library, Graph, Search, Dashboard, …) |
+| [Polyglot Repo Guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/workbench/` layout |
 | [Agent-Pipeline Feedback Loop](AGENT_PIPELINE_LOOP_GUIDE.md) | Python-side companion: CI, acceptance, `--monitor`, `metrics.json` |
 
 ### External references

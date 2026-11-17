@@ -43,7 +43,7 @@ This boundary will sharpen over time. When reviewing a UXS, flag any bullet that
 *when* or *how often* something happens (rather than *how it looks*) as a candidate to
 move into the RFC.
 
-**GI/KG viewer — IA vs visuals vs behavior:** For **`web/gi-kg-viewer/`**, **[VIEWER_IA.md](VIEWER_IA.md)** is the canonical spec for **shell information architecture** (regions, the three navigation axes, persistence and clearing, first-run behavior, and cross-surface flows). **UXS** (**[UXS-001](UXS-001-gi-kg-viewer.md)** and feature **UXS-002+**) define the **static visual contract** (tokens, typography, density, component styling) for those regions and surfaces. **[RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)** (and feature RFCs) own **behavioral** rules: animation timing, debounce, resize/collapse logic, and keyboard shortcut maps. Do not duplicate full shell IA in UXS-001 — link **VIEWER_IA** instead.
+**Workbench — IA vs visuals vs behavior:** For **`web/workbench/`**, **[WORKBENCH_IA.md](WORKBENCH_IA.md)** is the canonical spec for **shell information architecture** (regions, the three navigation axes, persistence and clearing, first-run behavior, and cross-surface flows). **UXS** (**[UXS-001](UXS-001-workbench.md)** and feature **UXS-002+**) define the **static visual contract** (tokens, typography, density, component styling) for those regions and surfaces. **[RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)** (and feature RFCs) own **behavioral** rules: animation timing, debounce, resize/collapse logic, and keyboard shortcut maps. Do not duplicate full shell IA in UXS-001 — link **WORKBENCH_IA** instead.
 
 ## Status lifecycle
 
@@ -75,8 +75,8 @@ for the E2E surface map and UXS order.
 ## UXS architecture
 
 **Shell information architecture** (regions, axes, persistence, first-run states)
-is centralized in **[VIEWER_IA.md](VIEWER_IA.md)**. UXS-001 holds tokens and
-shared components; VIEWER_IA holds *where* things live in the app chrome.
+is centralized in **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. UXS-001 holds tokens and
+shared components; WORKBENCH_IA holds *where* things live in the app chrome.
 
 The viewer UXS is split into a **shared design system hub** (UXS-001) and
 **per-feature specs** (UXS-002+). Each feature UXS references UXS-001
@@ -88,15 +88,15 @@ Draft UXS documents (UXS-007 through UXS-010) are listed in the site nav under t
 
 ## Conventions
 
-- **Browser E2E + UXS (GI/KG viewer):** Anyone changing **viewer UX** (including AI agents)
+- **Browser E2E + UXS (Workbench):** Anyone changing **viewer UX** (including AI agents)
   should treat **docs + tests** as part of the same change, in order:
-  **(1)** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  **(1)** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
   (Playwright contract: `getByRole` strings, hooks, entry flows),
-  **(2)** `web/gi-kg-viewer/e2e/*.spec.ts` and helpers -- run **`make test-ui-e2e`**,
+  **(2)** `web/workbench/e2e/*.spec.ts` and helpers -- run **`make test-ui-e2e`**,
   **(3)** the relevant feature UXS when **tokens, layout density, or stated experience rules**
   change (not only when tests fail). See
   [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
-  and [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509). Meta / rollout for **VIEWER_IA inside UXS**: [GitHub #623](https://github.com/chipi/podcast_scraper/issues/623).
+  and [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509). Meta / rollout for **WORKBENCH_IA inside UXS**: [GitHub #623](https://github.com/chipi/podcast_scraper/issues/623).
 - **IDs:** `UXS-NNN` with three digits (see table below for the next number).
 - **Files:** `docs/uxs/UXS-NNN-kebab-case-slug.md`
 - **Length:** Keep specs short (about two to four printed pages). Split or move narrative
@@ -109,7 +109,7 @@ Authoritative specs; current implementations should conform
 
 | UXS | Title | Related PRDs / RFCs | Description |
 | --- | ----- | ------------------- | ----------- |
-| [UXS-001](UXS-001-gi-kg-viewer.md) | GI/KG Viewer (Shared Design System) | PRD-003, PRD-017, PRD-019; RFC-062 | Shared tokens, typography, layout, states, accessibility, components; shell regions / navigation → [VIEWER_IA](VIEWER_IA.md) |
+| [UXS-001](UXS-001-workbench.md) | Workbench (Shared Design System) | PRD-003, PRD-017, PRD-019; RFC-062 | Shared tokens, typography, layout, states, accessibility, components; shell regions / navigation → [WORKBENCH_IA](WORKBENCH_IA.md) |
 | [UXS-002](UXS-002-corpus-digest.md) | Corpus Digest | PRD-023; RFC-068 | Digest tab: topic bands, recent episodes, rolling window |
 | [UXS-003](UXS-003-corpus-library.md) | Corpus Library | PRD-022; RFC-067 | Library tab: feed/episode catalog, Episode subject rail, filters |
 | [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069, RFC-076 | Graph chrome, canvas, overlays, node detail; **camera framing** + selection/dimming contract for focus hand-offs and single-tap |

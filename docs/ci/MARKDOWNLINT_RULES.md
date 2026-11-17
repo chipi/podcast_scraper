@@ -26,7 +26,7 @@ Legit disabled. Long-form docs, wide tables, URL-heavy prose. Enabling would rew
 **Two fixes vLLM exposes**    <-- should be ### Two fixes vLLM exposes
 ```
 
-Fixing all 170 mechanically is a `sed`-with-thought exercise: promote each `**Foo**\n` to `### Foo\n` or `#### Foo\n` depending on the enclosing heading depth. Doing that here would touch ~30 files across `docs/guides/`, `docs/architecture/`, `docs/api/`, `web/gi-kg-viewer/e2e/` with no per-doc rendering review. Deferred to a dedicated cleanup PR.
+Fixing all 170 mechanically is a `sed`-with-thought exercise: promote each `**Foo**\n` to `### Foo\n` or `#### Foo\n` depending on the enclosing heading depth. Doing that here would touch ~30 files across `docs/guides/`, `docs/architecture/`, `docs/api/`, `web/workbench/e2e/` with no per-doc rendering review. Deferred to a dedicated cleanup PR.
 
 Top offenders when we tackle it:
 
@@ -69,7 +69,7 @@ EOF
 env -u NODE_OPTIONS npx markdownlint-cli "**/*.md" \
   --ignore node_modules --ignore "**/node_modules/**" --ignore .venv --ignore "**/.venv/**" \
   --ignore .build/site --ignore "docs/wip/**" --ignore "tests/fixtures/**" --ignore "data/eval/runs/**" \
-  --ignore "web/gi-kg-viewer/playwright-report/**" --ignore "web/gi-kg-viewer/test-results/**" \
+  --ignore "web/workbench/playwright-report/**" --ignore "web/workbench/test-results/**" \
   --config "$CFG" 2>&1 | grep -c "<RULE>/"
 rm -f "$CFG"
 ```

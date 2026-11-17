@@ -16,8 +16,8 @@ vision for where the system is heading.
 | [Tech Debt](TECH_DEBT.md) | Recognised technical debt -- current coping strategy, options, and triggers to revisit |
 | [Database architecture](DATABASE.md) | How the platform's part of the database is put together: schemas and roles, how a process reaches its data, how the schema changes, how file stores are imported, and the traps |
 | [Test-corpus fixture ladder](TEST_CORPUS_FIXTURE_LADDER.md) | Every failure the test-corpus fixtures actually hit; the authority on what corpus v4 must add |
-| [Viewer async stability](VIEWER_ASYNC_STABILITY.md) | HTTP timeouts, `StaleGeneration` gates, request dedupe and corpus graph load hardening for `web/gi-kg-viewer/` |
-| [Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md) | Internal architecture of the GI/KG browser viewer SPA (`web/gi-kg-viewer/`): stack, component tree, stores, API layer |
+| [Viewer async stability](VIEWER_ASYNC_STABILITY.md) | HTTP timeouts, `StaleGeneration` gates, request dedupe and corpus graph load hardening for `web/workbench/` |
+| [Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md) | Internal architecture of the GI/KG browser viewer SPA (`web/workbench/`): stack, component tree, stores, API layer |
 | [Viewer graph — implementation specification](VIEWER_GRAPH_SPEC.md) | Single place for Cytoscape load, lens window and episode cap, status line, default node types, stylesheet, gesture overlay and graph-focus entry points |
 
 **HTTP / viewer:** Not a separate architecture doc — the FastAPI surface, `/api/*` (including Corpus Library, Corpus Digest, semantic search, and index management endpoints), and OpenAPI **`/docs`** are specified in the [Server Guide](../guides/SERVER_GUIDE.md) (see also [Architecture — Ways to run](ARCHITECTURE.md#ways-to-run-and-deploy)).

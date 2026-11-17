@@ -1,4 +1,4 @@
-"""HTTP API for the GI/KG viewer.
+"""HTTP API for the Workbench.
 
 Install development dependencies: ``pip install -e '.[dev]'`` (includes FastAPI and uvicorn).
 """

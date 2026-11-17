@@ -9,7 +9,7 @@ Usage:
     python scripts/build_production_shaped_fixture.py \\
         --corpus /abs/path/to/your/real-corpus \\
         --api http://localhost:8000 \\
-        --output web/gi-kg-viewer/e2e/fixtures/production-shaped \\
+        --output web/workbench/e2e/fixtures/production-shaped \\
         [--episodes-per-feed 5] [--max-feeds 5] [--gi-output DIR]
 
 The ``--corpus`` argument is operator-supplied; committed code never

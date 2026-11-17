@@ -159,7 +159,7 @@ You should never need to compact by hand; if an index ever looks bloated (thousa
 After **`kg_topic`** rows exist in the LanceDB index, you can build **`search/topic_clusters.json`**
 with **`topic-clusters`** (see [CLI reference](../api/CLI.md) — section **Topic clusters**).
 Optional **`--merge-cil-overrides`** writes merged **`topic_id_aliases`** into
-**`cil_lift_overrides.json`** (see **Optional corpus overrides** below). The GI/KG viewer loads
+**`cil_lift_overrides.json`** (see **Optional corpus overrides** below). The Workbench loads
 clusters via **`GET /api/corpus/topic-clusters`** when serving the same corpus root.
 
 New CLI runs emit **`schema_version`: `"2"`** with distinct ids: **`graph_compound_parent_id`**
@@ -195,15 +195,15 @@ python -m podcast_scraper.cli search "your question" --output-dir /path/to/run -
 
 Use **`--index-path`** if the index is not under `<output_dir>/search`.
 
-## Web UI (GI / KG Viewer v2)
+## Web UI (Workbench
 
 The Vue viewer can run the **same** corpus search as the CLI via **`GET /api/search`** when
 the FastAPI server is up (`pip install -e ".[dev]"` + `[ml]` for LanceDB/embeddings) and
 the index exists under `<corpus>/search/`. Set **Corpus root** in the sidebar to your
 pipeline output directory. See
-[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+[web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)
 (*Semantic search*) and [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
-(*GI / KG Viewer*).
+(*Workbench*).
 
 Response hits are **JSON objects** with `doc_id`, `score`, `metadata`, `text`, optional
 `supporting_quotes` (insight rows), optional **`lifted`** on **transcript** rows when

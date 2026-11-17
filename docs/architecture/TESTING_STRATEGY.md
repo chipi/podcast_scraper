@@ -84,8 +84,8 @@ The testing strategy follows a three-tier pyramid:
 > store](../guides/INTEGRATION_TESTING_GUIDE.md#search-and-the-vector-store).
 
 **Frontend unit** tests use **Vitest** (`make test-ui`) to validate pure TS logic in
-`web/gi-kg-viewer/src/utils/*.test.ts` — fast (~150 ms), no browser.
-**Browser UI E2E** is an **additive** layer: it uses **Playwright** under `web/gi-kg-viewer/`, not pytest, and is **not** counted in the ~230 pytest E2E tests. See **[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright)** below and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
+`web/workbench/src/utils/*.test.ts` — fast (~150 ms), no browser.
+**Browser UI E2E** is an **additive** layer: it uses **Playwright** under `web/workbench/`, not pytest, and is **not** counted in the ~230 pytest E2E tests. See **[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright)** below and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 
 ### Volume and default bias
 
@@ -148,8 +148,8 @@ The testing strategy follows a three-tier pyramid:
     `tests/` to locate current coverage.
   - `tests/unit/podcast_scraper/kg/test_kg_load.py` —
     **`find_*_by_episode_id`** across **`feeds/`** with **`feed_id`** disambiguation.
-  - `web/gi-kg-viewer/src/stores/shell.hints.test.ts` (Vitest) — **`GET /api/artifacts`** `hints`;
-    `web/gi-kg-viewer/e2e/corpus-hints.spec.ts` (Playwright; requires **`playwright install`**).
+  - `web/workbench/src/stores/shell.hints.test.ts` (Vitest) — **`GET /api/artifacts`** `hints`;
+    `web/workbench/e2e/corpus-hints.spec.ts` (Playwright; requires **`playwright install`**).
 - **Integration tests:** `tests/integration/workflow/test_workflow_integration.py` — multi-feed CLI and
   `service.run` happy path (manifest + `corpus_run_summary.json` on disk); **partial feed failure**
   still writes both artifacts with `overall_ok: false` (CLI + service).
@@ -288,9 +288,9 @@ quality (WER) and speed for transcription evaluation.
 
 ### Browser UI E2E (Playwright) {#browser-ui-e2e-playwright}
 
-The **GI/KG viewer v2** (`web/gi-kg-viewer/`) adds **browser-level** regression tests using
+The **Workbench** (`web/workbench/`) adds **browser-level** regression tests using
 **Playwright** (TypeScript). This is **not** a fourth pytest marker: specs live in
-`web/gi-kg-viewer/e2e/` and run via **`make test-ui-e2e`** (or `npm run test:e2e` in that
+`web/workbench/e2e/` and run via **`make test-ui-e2e`** (or `npm run test:e2e` in that
 directory).
 
 | Aspect | Browser UI E2E (Playwright) | pytest E2E (`tests/e2e/`) |
@@ -304,7 +304,7 @@ directory).
 
 The viewer's **own** (TypeScript) test stack has more layers than this single
 browser tier; the operator run-map — every tier, command, and corpus — lives in
-**[`web/gi-kg-viewer/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/TESTING.md)**.
+**[`web/workbench/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/TESTING.md)**.
 In short:
 
 - **Vitest unit + component** (`src/**/*.test.ts`; `@vue/test-utils` for `.vue`
@@ -316,7 +316,7 @@ In short:
   real corpus or the in-repo **synthetic validation corpus**
   (`tests/fixtures/viewer-validation-corpus/`; see
   [VIEWER_VALIDATION_CORPUS.md](https://github.com/chipi/podcast_scraper/blob/main/tests/fixtures/VIEWER_VALIDATION_CORPUS.md)
-  and [`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/validation/README.md)).
+  and [`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/validation/README.md)).
   Per RFC-086, a bug it surfaces must land a **Tier-2 matrix row** under
   `e2e/handoff-production/` before the fix PR merges.
 
@@ -364,11 +364,11 @@ The same `[dev]`-only assumption applies to the full `pytest tests/unit/` job on
 Use **Playwright** when the risk is **client rendering or interaction**, not when a pure JSON
 contract change is enough.
 
-**References:** [Polyglot repository guide](../guides/POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
-[Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+**References:** [Polyglot repository guide](../guides/POLYGLOT_REPO_GUIDE.md) (root vs `web/workbench/`),
+[Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-workbench),
 [E2E Testing Guide — Playwright](../guides/E2E_TESTING_GUIDE.md#browser-e2e-playwright),
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
-[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
+[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md).
 
 ## Decision Criteria
 
@@ -379,7 +379,7 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Unit Test**: Single function/module in isolation, all dependencies mocked, `[dev]` only
 - **Integration Test**: Multiple components working together, real internal implementations, all ML/AI mocked
 - **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (the only place for real ML/AI)
-- **Browser UI E2E (Playwright)**: Vue viewer behavior in a real browser; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright) and [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2)
+- **Browser UI E2E (Playwright)**: Vue viewer behavior in a real browser; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright) and [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-workbench)
 
 **Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
@@ -688,7 +688,7 @@ the loop at the right layer.”
 | ----- | ---------- | -------------- |
 | **pytest E2E** (`tests/e2e/`, `pytest`, `@pytest.mark.e2e`) | Full workflows from **user-facing Python entry points** (CLI subprocess, `run_pipeline`, service-style runs, E2E HTTP **client** against the **E2E fixture server**). | That the **Python product path** from entry to artifacts behaves end-to-end for the scenarios we care about. **Coverage** for this job uses the **full** `podcast_scraper` package (see `pyproject.toml` `[tool.coverage.run]`); there is **no** subtree `omit` file tuned to make the percentage look higher. |
 | **HTTP integration** (`tests/integration/server/`, FastAPI **TestClient** or similar) | Request/response and route wiring **in the Python process**, often without a separate long-lived server or browser. | Server modules, auth/middleware shapes, and API contracts **efficiently**. It is **not** a substitute for **pytest E2E** when the requirement is “operator/user ran the real CLI or full pipeline and this capability fired.” |
-| **Browser UI E2E (Playwright)** | Real browser against the **Vue** dev server; specs under `web/gi-kg-viewer/e2e/`. | **UI** behavior (a11y strings, graph shell, client-side merge). It does **not** execute the pytest suite and does **not** give a pass on **pytest E2E** obligations for Python-only capabilities. |
+| **Browser UI E2E (Playwright)** | Real browser against the **Vue** dev server; specs under `web/workbench/e2e/`. | **UI** behavior (a11y strings, graph shell, client-side merge). It does **not** execute the pytest suite and does **not** give a pass on **pytest E2E** obligations for Python-only capabilities. |
 
 **Policy (Python focus):** **Playwright is not an excuse** to skip pytest E2E or to shrink pytest E2E
 coverage expectations for Python packages such as `server/`, `search/`, or `gi/`. If a **key
@@ -796,8 +796,8 @@ Each layer uses a different organizational axis:
 - **`tests/unit/`** — Mirrors the `src/` tree 1:1 (find the test for any source file mechanically)
 - **`tests/integration/`** — Organized by **domain subsystem** (providers, workflow, GI/KG, server, search, rss, etc.); cross-cutting tests stay in root. See [Integration Testing Guide — Directory Organization](../guides/INTEGRATION_TESTING_GUIDE.md#directory-organization)
 - **`tests/e2e/`** — Flat by user scenario (CLI commands, service API, provider pipelines)
-- **`web/gi-kg-viewer/src/utils/*.test.ts`** — Vitest unit tests for TS utility logic (`make test-ui`)
-- **`web/gi-kg-viewer/e2e/`** — Playwright specs (`*.spec.ts`); **`web/gi-kg-viewer/playwright.config.ts`** — browser UI E2E (not collected by pytest)
+- **`web/workbench/src/utils/*.test.ts`** — Vitest unit tests for TS utility logic (`make test-ui`)
+- **`web/workbench/e2e/`** — Playwright specs (`*.spec.ts`); **`web/workbench/playwright.config.ts`** — browser UI E2E (not collected by pytest)
 
 ### Test Markers
 
@@ -878,8 +878,8 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   tests using test ML models (~5-8 min)
 - **test-e2e-fast**: Critical path E2E tests (Tier 1)
   using test ML models (~8-12 min)
-- **viewer-unit**: Vitest unit tests for `web/gi-kg-viewer` TS utils (`make test-ui`; ~150 ms)
-- **viewer-e2e**: Playwright tests for `web/gi-kg-viewer` (`make test-ui-e2e`; Chrome locally, Firefox in CI; Vite on 5174)
+- **viewer-unit**: Vitest unit tests for `web/workbench` TS utils (`make test-ui`; ~150 ms)
+- **viewer-e2e**: Playwright tests for `web/workbench` (`make test-ui-e2e`; Chrome locally, Firefox in CI; Vite on 5174)
 - **build**: Package build validation (~2 min)
 - **docs**: Documentation build validation (~3 min)
 
@@ -897,7 +897,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 
 #### 3. Nightly Comprehensive (Deep Analysis)
 
-- **nightly-viewer-unit** / **nightly-viewer-e2e**: GI/KG viewer Vitest (parallel with unit) and
+- **nightly-viewer-unit** / **nightly-viewer-e2e**: Workbench Vitest (parallel with unit) and
   Playwright after pytest E2E — same layout as `python-app.yml`; run on every scheduled/manual
   nightly (no path filters).
 - **nightly-only-tests**: Full validation (Tier 3) using production-quality ML models (Whisper base, BART-large, LED-large).

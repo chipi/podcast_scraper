@@ -1,0 +1,1258 @@
+<script setup lang="ts">
+import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
+import {
+  adminPanels,
+  appBanners,
+  graphActivationHooks,
+  searchOperators,
+  topicGrouping,
+} from './extensions'
+import { track } from './lib/analytics'
+import { useViewerKeyboard } from './composables/useViewerKeyboard'
+import DashboardView from './components/dashboard/DashboardView.vue'
+import DigestView from './components/digest/DigestView.vue'
+import GraphTabPanel from './components/graph/GraphTabPanel.vue'
+import LibraryTab from './components/library/LibraryTab.vue'
+import SearchTab from './components/search/SearchTab.vue'
+import OpsView from './components/ops/OpsView.vue'
+import UsersAdminView from './components/admin/UsersAdminView.vue'
+import ReleaseAdminView from './components/admin/ReleaseAdminView.vue'
+import GraphAnalyticsAdminView from './components/admin/GraphAnalyticsAdminView.vue'
+import ReplayControls from './components/graph/ReplayControls.vue'
+import { useGraphReplayStore, type ReplayEvent } from './stores/graphReplay'
+import { fetchGraphSession } from './api/authApi'
+import LoginView from './components/auth/LoginView.vue'
+import NoAccessView from './components/auth/NoAccessView.vue'
+import CommandPalette from './components/shell/CommandPalette.vue'
+import LeftPanel from './components/shell/LeftPanel.vue'
+import StatusBar from './components/shell/StatusBar.vue'
+import SubjectRail from './components/shell/SubjectRail.vue'
+import UserMenu from './components/shell/UserMenu.vue'
+import { useAuthStore } from './stores/auth'
+import { useGraphAnalyticsStore } from './stores/graphAnalytics'
+import { artifactFileReadable, useArtifactsStore } from './stores/artifacts'
+import { useGraphExpansionStore } from './stores/graphExpansion'
+import { useGraphExplorerStore } from './stores/graphExplorer'
+import { useGraphHandoffStore } from './stores/graphHandoff'
+import { useGraphNavigationStore } from './stores/graphNavigation'
+import { useSearchStore } from './stores/search'
+import { useRecentActivityStore } from './stores/recentActivity'
+import { useSavedQueriesStore } from './stores/savedQueries'
+import { useShellStore } from './stores/shell'
+import { useSubjectStore } from './stores/subject'
+import { useThemeStore } from './stores/theme'
+import { useUserPreferencesStore } from './stores/userPreferences'
+import type { EnvelopeSource } from './services/graphHandoffFsm'
+import {
+  GRAPH_DEFAULT_EPISODE_CAP,
+  selectRelPathsForGraphLoad,
+} from './utils/graphEpisodeSelection'
+import { localYmdDaysAgo } from './utils/localCalendarDate'
+import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
+import { stripLayerPrefixesForCil } from './utils/mergeGiKg'
+import { topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
+import { fetchTopicTimeline } from './api/cilApi'
+import {
+  fetchNodeEpisodes,
+  fetchResolveEpisodeArtifacts,
+  GRAPH_NODE_EPISODES_EXPAND_MAX,
+} from './api/corpusLibraryApi'
+import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
+import { StaleGeneration } from './utils/staleGeneration'
+
+const LS_LEFT_PANEL_OPEN = 'ps_left_panel_open'
+const LS_RIGHT_PANEL_OPEN = 'ps_right_panel_open'
+/** USERPREFS-1 cross-device sync keys — kept parallel to the localStorage keys. */
+const PREF_LEFT_PANEL_OPEN = 'leftPanelOpen'
+const PREF_RIGHT_PANEL_OPEN = 'rightPanelOpen'
+
+function readLeftPanelOpenPreference(): boolean {
+  try {
+    const v = localStorage.getItem(LS_LEFT_PANEL_OPEN)
+    if (v === 'false') {
+      return false
+    }
+  } catch {
+    /* ignore */
+  }
+  return true
+}
+
+function readRightPanelOpenPreference(): boolean {
+  try {
+    const v = localStorage.getItem(LS_RIGHT_PANEL_OPEN)
+    if (v === 'false') {
+      return false
+    }
+  } catch {
+    /* ignore */
+  }
+  return true
+}
+
+const auth = useAuthStore()
+const shell = useShellStore()
+const graphAnalytics = useGraphAnalyticsStore()
+const replay = useGraphReplayStore()
+
+/** Admin → Analytics "Replay ▶": load the session's events into the replay store + jump to the
+ *  graph, which enters replay mode (banner + step/play/scrub, driving the real graph from the log). */
+async function onReplaySession(sessionId: string): Promise<void> {
+  const events = await fetchGraphSession(sessionId).catch(() => [] as Array<Record<string, unknown>>)
+  replay.load(sessionId, events as ReplayEvent[])
+  mainTab.value = 'graph'
+}
+const artifacts = useArtifactsStore()
+const search = useSearchStore()
+const theme = useThemeStore()
+const subject = useSubjectStore()
+const recentActivity = useRecentActivityStore()
+const savedQueries = useSavedQueriesStore()
+const graphExplorer = useGraphExplorerStore()
+const graphExpansion = useGraphExpansionStore()
+const graphHandoff = useGraphHandoffStore()
+const graphNav = useGraphNavigationStore()
+
+const mainTab = ref<'digest' | 'library' | 'search' | 'graph' | 'dashboard' | 'ops' | 'admin'>(
+  'digest',
+)
+const commandPaletteRef = ref<{ open: () => void; close: () => void } | null>(null)
+const graphCanvasRef = ref<{
+  clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
+} | null>(null)
+const isGraphTab = computed(() => mainTab.value === 'graph')
+
+const leftOpen = ref(readLeftPanelOpenPreference())
+const rightOpen = ref(readRightPanelOpenPreference())
+
+/** Collapsible rail seam tabs (minimal chrome). */
+const railEdgeToggleTab = {
+  left:
+    'absolute left-full top-1/2 z-20 flex h-10 w-2.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/25 bg-canvas/90 text-muted backdrop-blur-sm motion-safe:transition-[color,background-color,box-shadow,border-color] hover:border-border/45 hover:bg-overlay hover:text-surface-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
+  right:
+    'absolute right-full top-1/2 z-20 flex h-10 w-2.5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/25 bg-canvas/90 text-muted backdrop-blur-sm motion-safe:transition-[color,background-color,box-shadow,border-color] hover:border-border/45 hover:bg-overlay hover:text-surface-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
+} as const
+
+const userPrefs = useUserPreferencesStore()
+let applyingRemotePanel = false
+
+watch(leftOpen, (open) => {
+  try {
+    localStorage.setItem(LS_LEFT_PANEL_OPEN, open ? 'true' : 'false')
+  } catch {
+    /* ignore */
+  }
+  if (applyingRemotePanel) return
+  void userPrefs.set(PREF_LEFT_PANEL_OPEN, open)
+})
+
+watch(rightOpen, (open) => {
+  try {
+    localStorage.setItem(LS_RIGHT_PANEL_OPEN, open ? 'true' : 'false')
+  } catch {
+    /* ignore */
+  }
+  if (applyingRemotePanel) return
+  void userPrefs.set(PREF_RIGHT_PANEL_OPEN, open)
+})
+
+/* USERPREFS-1 — apply server-hydrated panel state (and cross-tab
+   BroadcastChannel updates flowing through the same reactive path). */
+watch(
+  () => userPrefs.get<boolean>(PREF_LEFT_PANEL_OPEN),
+  (v) => {
+    if (typeof v !== 'boolean' || v === leftOpen.value) return
+    applyingRemotePanel = true
+    try { leftOpen.value = v } finally { applyingRemotePanel = false }
+  },
+  { immediate: true },
+)
+watch(
+  () => userPrefs.get<boolean>(PREF_RIGHT_PANEL_OPEN),
+  (v) => {
+    if (typeof v !== 'boolean' || v === rightOpen.value) return
+    applyingRemotePanel = true
+    try { rightOpen.value = v } finally { applyingRemotePanel = false }
+  },
+  { immediate: true },
+)
+
+useViewerKeyboard({
+  openCommandPalette: () => {
+    commandPaletteRef.value?.open()
+  },
+  clearGraphFocus: () => {
+    // K1 — Escape key. Fires the FSM ``focusCleared`` event (decision #5 / spec).
+    graphHandoff.focusCleared()
+    graphCanvasRef.value?.clearInteractionState()
+  },
+  isGraphTab,
+  setMainTab: (tab) => {
+    if (tab === 'graph') {
+      void activateGraphTab()
+    }
+    else {
+      mainTab.value = tab
+    }
+  },
+})
+
+/**
+ * Switch to Graph without re-running corpus auto-sync when the merged graph is already loaded.
+ * Tab switches alone must not replace the slice (episode "Open in graph" is highlight-only).
+ *
+ * C5 — accepts an envelope ``source`` so the FSM can record the originating surface.
+ * Defaults to ``'tab-switch'`` for legacy callers (plain tab activation, e.g. on
+ * ``onSwitchMainTab``). Specific surfaces (Search / Dashboard / NodeDetail / etc.) pass
+ * their own source for accurate FSM telemetry; the existing ``subject.* + requestFocusNode``
+ * triplet is preserved while C6 makes the FSM authoritative.
+ */
+/**
+ * Command palette → "Open in Workspace" — switch to the Search main tab and
+ * fire the same runSearch that SearchPanel's submit uses (palette pre-sets
+ * ``search.query`` before emitting).
+ */
+async function onPaletteOpenInWorkspace(_q: string): Promise<void> {
+  mainTab.value = 'search'
+  const root = shell.corpusPath?.trim()
+  if (!root) return
+  await search.runSearch(root)
+}
+
+/**
+ * Command palette → "Show on graph" — same handoff shape as SearchPanel's
+ * "Open on graph" (activateGraphTab with the pre-resolved cy id).
+ */
+function onPaletteShowOnGraph(cyId: string): void {
+  void activateGraphTab(cyId, undefined, 'search')
+}
+
+/**
+ * Command palette (#1259-1) — modal opens are forwarded to StatusBar
+ * which owns the shared Sources / Health dialog.
+ */
+const statusBarRef = useTemplateRef<InstanceType<typeof StatusBar>>('statusBarRef')
+function onPaletteOpenConfiguration(): void {
+  void statusBarRef.value?.openConfiguration?.()
+}
+function onPaletteOpenHealth(): void {
+  void statusBarRef.value?.openHealth?.()
+}
+function onPaletteRebuildIndex(): void {
+  // Opens the Configuration dialog at its Index section — the single
+  // rebuild home the status-bar Index button already uses.
+  void statusBarRef.value?.openIndexRebuild?.()
+}
+
+/**
+ * #1259-4 operator kickers — resolve the "last query" (current
+ * ``search.query`` when non-empty, else the head of ``recentQueries``),
+ * seed the search store, switch to the Search tab, and fire the
+ * requested operator. Silent no-op when there's nothing to run.
+ */
+function lastQueryForKickers(): string {
+  const current = search.query.trim()
+  if (current) return current
+  const recent = savedQueries.listRecent(1)
+  return recent[0]?.q?.trim() ?? ''
+}
+
+async function ensureLastQueryLoaded(): Promise<string> {
+  const q = lastQueryForKickers()
+  if (!q) return ''
+  search.query = q
+  mainTab.value = 'search'
+  if (search.results.length === 0 || search.query !== q) {
+    const root = shell.corpusPath.trim()
+    if (root) await search.runSearch(root)
+  }
+  return q
+}
+
+async function onPaletteTimelineOnLast(): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  // Timeline is a client-only aggregation over the visible hit page —
+  // flip the active-operator flag so the histogram panel is visible on
+  // arrival; no round-trip needed.
+  search.activeOperator = 'timeline'
+}
+
+/** A registered result-set operator on the last query: open its panel and run it. */
+async function onPaletteOperatorOnLast(id: string): Promise<void> {
+  const q = await ensureLastQueryLoaded()
+  if (!q) return
+  search.activeOperator = id
+  searchOperators.list().find((op) => op.id === id)?.activate?.()
+}
+
+/* A loaded graph on the graph tab: tell registered hooks (for example to grow the selection). */
+watch(
+  () => ({ loading: artifacts.loading, parsedLen: artifacts.parsedList.length, tab: mainTab.value }) as const,
+  async ({ loading, parsedLen, tab }) => {
+    if (loading || parsedLen === 0 || tab !== 'graph') return
+    for (const h of graphActivationHooks.list()) await h.onGraphShown?.()
+  },
+  { flush: 'post' },
+)
+
+async function activateGraphTab(
+  targetNodeId?: string,
+  focusFallbackId?: string,
+  source: EnvelopeSource = 'tab-switch',
+): Promise<void> {
+  mainTab.value = 'graph'
+  const target = targetNodeId?.trim()
+  const fbTrim = focusFallbackId?.trim()
+  // A topic is handed off only once the graph holds it (see handOffTopic), so it is not requested here.
+  const topicTarget = target?.startsWith('topic:') ? target : null
+  if (target) {
+    // Both CIL corpus ids (`topic:…`) and graph cy ids (`tc:…`, `g:…`, compound
+    // slugs from topic_clusters.json) now open the unified NodeDetail rail — the
+    // topic:/cy-id split below only controls how the graph itself bootstraps + focuses.
+    if (topicTarget) {
+      subject.focusTopic(topicTarget)
+    } else {
+      subject.focusGraphNode(target)
+      graphHandoff.handoffRequested({
+        kind: 'graph-node',
+        cyId: target,
+        source,
+        loadSource: source === 'node-detail' ? 'graph-internal' : 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+      graphNav.requestFocusNode(target, fbTrim || null)
+    }
+  }
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) {
+    if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
+    return
+  }
+  if (artifacts.manualGraphSelection) {
+    if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
+    return
+  }
+
+  graphExplorer.markGraphTabOpenedOnce()
+
+  // A registered hook may build the graph for the target itself (extension point
+  // `graphActivationHooks`); the default corpus sync then does not run.
+  let builtByHook = false
+  if (target && !topicTarget) {
+    for (const h of graphActivationHooks.list()) {
+      if (await h.beforeSync?.(target)) {
+        builtByHook = true
+        break
+      }
+    }
+  }
+  if (!builtByHook) {
+    if (artifacts.parsedList.length === 0) {
+      await syncMergedGraphFromCorpusApi()
+    }
+    for (const h of graphActivationHooks.list()) await h.afterSync?.(target)
+  }
+
+  if (target && !target.startsWith('topic:')) {
+    graphNav.requestFocusNode(target, fbTrim || null)
+  }
+  if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
+}
+
+/**
+ * Hand a topic to the Graph, first loading its newest episodes when it is not on the canvas.
+ *
+ * The default slice is a time window, so an older topic had no node: the handoff then failed with
+ * "no graph node for focus target" and the error strip. Loading happens BEFORE the handoff and the
+ * focus request, so nothing can fail it while the topic's episodes are still arriving.
+ */
+async function handOffTopic(
+  topicId: string,
+  focusFallbackId: string | undefined,
+  source: EnvelopeSource,
+): Promise<void> {
+  await loadTopicEpisodesIfAbsent(topicId)
+  // Another subject was picked meanwhile. Compared without the layer prefix: once the topic's
+  // episodes load, the canvas re-focuses the same topic under its node id (`g:topic:…`).
+  const focused = subject.graphNodeCyId
+  if (focused && stripLayerPrefixesForCil(focused) !== stripLayerPrefixesForCil(topicId)) return
+  graphHandoff.handoffRequested({
+    kind: 'topic',
+    cyId: topicId,
+    source,
+    loadSource: 'subject-external',
+    camera: { kind: 'center-on-target' },
+  })
+  graphNav.requestFocusNode(topicId, focusFallbackId || null)
+}
+
+/** The topic timeline's episode ids, or none when this build does not serve the timeline. */
+async function topicTimelineEpisodeIds(root: string, topicId: string): Promise<string[]> {
+  try {
+    return (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
+  } catch {
+    return []
+  }
+}
+
+async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) return
+  if (findRawNodeInArtifactByIdOrPrefixed(artifacts.displayArtifact, topicId)) return
+  try {
+    // A grouping provider may already know the topic's episodes; the timeline is the fallback.
+    let ids = topicGrouping.list().flatMap((g) => g.episodeIdsForTopic?.(topicId) ?? [])
+    if (ids.length === 0) ids = await topicTimelineEpisodeIds(root, topicId)
+    // A build without GI serves no timeline: then the episodes whose KG names the topic.
+    if (ids.length === 0) {
+      const res = await fetchNodeEpisodes(root, topicId, GRAPH_NODE_EPISODES_EXPAND_MAX)
+      ids = res.episodes.map((e) => e.episode_id).filter((x): x is string => !!x)
+    }
+    if (ids.length === 0) return
+    const paths = topicHandoffArtifactPaths((await fetchResolveEpisodeArtifacts(root, ids)).resolved)
+    if (paths.length === 0) return
+    // Kept as the user's selection, so the corpus-graph sync does not replace it with the default slice.
+    artifacts.markManualGraphSelection()
+    artifacts.setLoadSource('subject-external')
+    await artifacts.appendRelativeArtifacts(paths)
+  } catch {
+    // The handoff then fails visibly (error strip), as it did before this load existed.
+  }
+}
+
+watch(mainTab, (tab) => {
+  track('main_tab_switched', { tab })
+})
+
+/**
+ * #1259-3: recent-subjects ring buffer. Every subject-store transition
+ * that lands on a canonical kind (topic / person / episode) pushes an
+ * entry. Duplicates dedupe on ``kind + id`` inside the store; capping
+ * at 20 also handled there. Non-blocking — swallow write errors so a
+ * failed persistence never blocks the UI transition.
+ */
+watch(
+  () => [subject.kind, subject.graphNodeCyId, subject.episodeMetadataPath] as const,
+  ([kind, graphNodeId, episodeRel]) => {
+    if (kind === 'graph-node' && typeof graphNodeId === 'string') {
+      const id = graphNodeId.trim()
+      if (id.startsWith('topic:')) {
+        void recentActivity.pushSubject({ kind: 'topic', id })
+        return
+      }
+      if (id.startsWith('person:')) {
+        void recentActivity.pushSubject({ kind: 'person', id })
+        return
+      }
+    }
+    if (kind === 'episode' && typeof episodeRel === 'string' && episodeRel.trim()) {
+      void recentActivity.pushSubject({ kind: 'episode', id: episodeRel })
+    }
+  },
+)
+
+function onSwitchMainTab(tab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard'): void {
+  if (tab === 'graph') {
+    // P4.1 race fix: when a handoff is already pending (e.g. Digest pill
+    // mid-await), the orchestrator owns the load. Calling
+    // ``activateGraphTab()`` here would either double-bootstrap or fire a
+    // fresh ``tab-switch`` envelope that supersedes the in-flight one.
+    // Just flip the tab — the pending FSM event drives the rest.
+    if (graphHandoff.pending) {
+      mainTab.value = 'graph'
+      return
+    }
+    void activateGraphTab()
+    return
+  }
+  mainTab.value = tab
+}
+
+function onStatusBarLocalArtifactsLoaded(loaded: boolean): void {
+  if (loaded) {
+    void activateGraphTab()
+  }
+}
+
+function onCloseSubjectRail(): void {
+  subject.clearSubject()
+  graphCanvasRef.value?.clearInteractionState()
+}
+
+onMounted(() => {
+  void auth.ensureLoaded()
+  void shell.fetchHealth()
+  // Flush the owned graph-analytics buffer when the tab is hidden or closed (the keepalive POST
+  // lets the final batch land); the store's timer handles the steady state.
+  const flushAnalytics = (): void => graphAnalytics.flush()
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushAnalytics()
+  })
+  window.addEventListener('pagehide', flushAnalytics)
+})
+
+watch(
+  () => shell.corpusPath,
+  (p, old) => {
+    subject.clearSubject()
+    artifacts.setCorpusPath(p)
+    const prev = old !== undefined ? String(old ?? '').trim() : null
+    const next = String(p ?? '').trim()
+    if (prev !== null && prev !== next) {
+      // FSM full reset on corpus change (decision #5 / spec § corpusReloaded).
+      graphHandoff.corpusReloaded()
+      graphExplorer.resetGraphLensForNewCorpus()
+      artifacts.clearManualGraphSelection()
+    }
+  },
+  { immediate: true },
+)
+
+const corpusGraphSyncGate = new StaleGeneration()
+
+/** The running sync chain (one body, plus any rerun queued while it ran); null when idle. */
+let corpusGraphSyncInFlight: Promise<void> | null = null
+let corpusGraphSyncQueued = false
+
+/**
+ * When the API is healthy and a corpus path is set, list GI/KG via ``GET /api/artifacts``,
+ * apply ``graphLens`` + episode cap, then load the merged graph. Skipped until the user opens
+ * the Graph tab once (per docs/architecture/VIEWER_GRAPH_SPEC.md initial load). Offline / failed health: skip so file-picker loads stay intact.
+ */
+async function runCorpusGraphSyncBody(): Promise<void> {
+  const gen = corpusGraphSyncGate.bump()
+  artifacts.setCorpusPath(shell.corpusPath)
+  const root = shell.corpusPath.trim()
+  if (!root) {
+    artifacts.clearSelection()
+    return
+  }
+  if (!shell.healthStatus) {
+    return
+  }
+  if (artifacts.manualGraphSelection) {
+    return
+  }
+  if (mainTab.value === 'graph') {
+    graphExplorer.markGraphTabOpenedOnce()
+  }
+  if (!graphExplorer.graphTabOpenedThisSession) {
+    return
+  }
+  graphExplorer.seedFromCorpusLensIfNeeded()
+  for (const h of graphActivationHooks.list()) await h.beforeCorpusGraphSync?.()
+  await shell.fetchArtifactList()
+  if (corpusGraphSyncGate.isStale(gen)) {
+    return
+  }
+  const rows = shell.artifactList.filter((a) => artifactFileReadable(a.relative_path)).map((a) => ({
+    relative_path: a.relative_path,
+    kind: a.kind,
+    publish_date: a.publish_date ?? '',
+  }))
+  // Auto-widen the time lens if the default window has no content. The
+  // graph default is "last 7d" (snappy for daily-ingest operators); for
+  // older/static corpora that returns zero episodes → empty canvas +
+  // stuck-timeout. Walk the window outward (7d → 30d → 90d → all) until
+  // we find data, and update ``sinceYmd`` so the UI lens control reflects
+  // what was actually loaded.
+  let selectedRelPaths: string[] = []
+  let wasCapped = false
+  const widenSchedule: ReadonlyArray<{ sinceYmd: string; label: string }> = [
+    { sinceYmd: graphExplorer.sinceYmd, label: 'default' },
+    { sinceYmd: localYmdDaysAgo(30), label: '30d' },
+    { sinceYmd: localYmdDaysAgo(90), label: '90d' },
+    { sinceYmd: '', label: 'all' },
+  ]
+  let appliedStep: (typeof widenSchedule)[number] | null = null
+  for (const step of widenSchedule) {
+    const attempt = selectRelPathsForGraphLoad(rows, step.sinceYmd, GRAPH_DEFAULT_EPISODE_CAP)
+    selectedRelPaths = attempt.selectedRelPaths
+    wasCapped = attempt.wasCapped
+    appliedStep = step
+    if (selectedRelPaths.length > 0) break
+  }
+  // Sync the lens control to the window we actually used.
+  if (appliedStep && appliedStep.sinceYmd !== graphExplorer.sinceYmd) {
+    graphExplorer.setSinceYmd(appliedStep.sinceYmd)
+  }
+  graphExplorer.setLastAutoLoadCapped(wasCapped)
+  if (selectedRelPaths.length === 0) {
+    artifacts.clearSelection()
+    return
+  }
+  artifacts.selectAllListed(selectedRelPaths)
+  await artifacts.loadSelected()
+  track('graph_corpus_synced', {
+    episode_count: selectedRelPaths.length,
+    was_capped: wasCapped,
+    window_widened_to: appliedStep?.label ?? 'default',
+  })
+}
+
+/**
+ * Run the corpus graph sync; a call made while one runs queues ONE rerun. Either way the returned
+ * promise settles only when the whole chain has finished, so a caller that awaits it can trust the
+ * baseline has landed. It used to return at once when a sync was already running — and the Open in
+ * graph callers that await the baseline before appending then appended into a load that replaced
+ * them (a show's four episodes lost to the first-visit lens auto-load).
+ */
+function syncMergedGraphFromCorpusApi(): Promise<void> {
+  if (corpusGraphSyncInFlight) {
+    corpusGraphSyncQueued = true
+    return corpusGraphSyncInFlight
+  }
+  corpusGraphSyncInFlight = (async () => {
+    try {
+      do {
+        corpusGraphSyncQueued = false
+        await runCorpusGraphSyncBody()
+      } while (corpusGraphSyncQueued)
+    } finally {
+      corpusGraphSyncInFlight = null
+    }
+  })()
+  return corpusGraphSyncInFlight
+}
+
+/**
+ * Library/Digest **Open in graph** (before first Graph visit): same default merged load as opening
+ * Graph, then callers merge episode GI/KG. Injected into episode + digest panels.
+ */
+async function ensureCorpusGraphBaselineForHandoff(): Promise<void> {
+  graphExplorer.markGraphTabOpenedOnce()
+  mainTab.value = 'graph'
+  await syncMergedGraphFromCorpusApi()
+}
+
+provide(corpusGraphBaselineLoaderKey, ensureCorpusGraphBaselineForHandoff)
+
+async function onCorpusGraphLensReload(): Promise<void> {
+  graphExpansion.resetExpansionState()
+  graphExpansion.invalidateCorpusBeyondHints()
+  artifacts.clearManualGraphSelection()
+  await syncMergedGraphFromCorpusApi()
+}
+
+/**
+ * Graph status bar “Reset”: collapse cross-episode expansion bookkeeping, restore the same time slice as
+ * first corpus auto-sync (15-episode cap), clear graph/subject focus, reload from API, then fit in
+ * ``finishLayoutPass`` (no pending viewport preserve).
+ */
+async function onGraphCorpusFullReset(): Promise<void> {
+  if (!shell.corpusPath.trim() || !shell.healthStatus) {
+    return
+  }
+  graphCanvasRef.value?.clearInteractionState({ skipRedraw: true })
+  graphExpansion.resetExpansionState()
+  graphExpansion.invalidateCorpusBeyondHints()
+  artifacts.clearManualGraphSelection()
+  graphExplorer.resetSinceYmdToInitialCorpusSeed()
+  await syncMergedGraphFromCorpusApi()
+}
+
+watch(
+  () => [shell.corpusPath, shell.healthStatus] as const,
+  () => {
+    void syncMergedGraphFromCorpusApi()
+  },
+  { immediate: true },
+)
+
+/**
+ * §S4-shell pivot — the compact launcher is retired. All "focus search"
+ * handoffs now switch the main tab to Search + run the query (or set the
+ * filter and let the workspace show it). No panel-focus hop.
+ */
+async function focusSearchWorkspace(runIfPossible: boolean = true): Promise<void> {
+  mainTab.value = 'search'
+  if (!runIfPossible) return
+  const root = shell.corpusPath?.trim()
+  if (!root) return
+  await search.runSearch(root)
+}
+
+/** Left rail row (Saved / Recent): run the query in the workspace. */
+function onLeftPanelApplyQuery(q: string): void {
+  const term = q.trim()
+  if (!term) return
+  search.query = term
+  void focusSearchWorkspace(true)
+}
+
+function onLibraryFocusSearch(payload: {
+  feed: string
+  query: string
+  since?: string
+  feedDisplayTitle?: string
+}): void {
+  search.applyLibrarySearchHandoff(payload.feed, payload.query, {
+    since: payload.since,
+    feedDisplayTitle: payload.feedDisplayTitle,
+  })
+  // §S6 — a show-scoped launcher clears any lingering episode scope so
+  // the user gets show-wide results instead of a stuck episode filter.
+  search.filters.episodeId = ''
+  void focusSearchWorkspace(true)
+}
+
+/**
+ * Search v3 §S6 — episode-scoped rail launcher from EpisodeDetailPanel.
+ * Sets the exact ``episode_id`` filter (server-side), pre-fills the
+ * query, and switches to the Search main tab. activeSearchContext
+ * publish is automatic (runSearch owns it).
+ */
+function onOpenSearchInEpisode(payload: { episodeId: string; query?: string }): void {
+  const ep = payload.episodeId?.trim()
+  if (!ep) return
+  search.filters.episodeId = ep
+  // §S6 — an episode-scoped launcher clears show / speaker / topic scope
+  // so the user's mental model of "this episode only" matches the wire.
+  search.filters.feed = ''
+  search.filters.topic = ''
+  search.filters.speaker = ''
+  const q = payload.query?.trim()
+  if (q) search.query = q
+  void focusSearchWorkspace(Boolean(q))
+}
+
+/** Graph Topic node detail: prefill the workspace query + run. */
+function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
+  const q = payload.query.trim()
+  if (!q) return
+  search.applyLibrarySearchHandoff('', q)
+  void focusSearchWorkspace(true)
+}
+
+/**
+ * Graph Topic node detail: set the Search topic-contains filter + switch to
+ * Search workspace. Search v3 §S4-shell pivot — the previous "focus the
+ * launcher" hop is gone; the workspace shows filter state directly.
+ */
+function onGraphNodeTopicOpenSearchFilter(payload: { topic: string }): void {
+  const t = payload.topic.trim()
+  if (!t) return
+  search.filters.topic = t
+  search.filters.speaker = ''
+  void focusSearchWorkspace(false)
+}
+
+/**
+ * Graph Person / Entity(person) detail: set the Search speaker-contains
+ * filter + switch to Search workspace. Server-side (``/api/search?speaker=``).
+ */
+function onGraphNodeSpeakerOpenSearchFilter(payload: { speaker: string }): void {
+  const s = payload.speaker.trim()
+  if (!s) return
+  search.filters.topic = ''
+  search.filters.speaker = s
+  void focusSearchWorkspace(false)
+}
+
+/** Graph node detail: switch to the Search workspace with the filters as they are. */
+function onGraphNodeOpenSearch(): void {
+  void focusSearchWorkspace(false)
+}
+
+/** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
+function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }): void {
+  track('episode_focused', { source: 'digest' })
+  subject.focusEpisode(payload.metadata_relative_path)
+}
+
+/**
+ * Search hit row-click (Search v3 §S4-shell followup): open the episode in
+ * the subject rail (right panel). Retired: the standalone **L** button —
+ * the whole row body is the affordance now.
+ */
+function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
+  track('episode_focused', { source: 'search' })
+  subject.focusEpisode(payload.metadata_relative_path)
+}
+
+/**
+ * Search v3 §S4a — "On graph" result-set operator. The workspace hands off
+ * the de-duped id set for the current hit page; we mark each as a
+ * ``search-hit`` highlight (yellow ring), ask the canvas to camera-fit
+ * after the next layout, then switch to the Graph main tab.
+ *
+ * 2026-07-22 fix: the default graph lens is a "last 7d" slice — search
+ * hits on older episodes silently dropped because their episode nodes
+ * weren't loaded. Walk the current search results, resolve each hit's
+ * ``metadata.source_metadata_relative_path`` to its gi/kg/bridge
+ * siblings via ``shell.artifactList``, and append them to
+ * ``artifacts.selectedRelPaths`` so every requested id has a chance to
+ * resolve on the canvas.
+ */
+async function onSearchFocusSet(ids: string[]): Promise<void> {
+  const clean = ids.map((s) => s.trim()).filter(Boolean)
+  if (!clean.length) return
+  graphNav.setRequestFitAfterLoad()
+  // Ensure the corpus artifact list is loaded before we scan for
+  // episode-sibling paths. When the user's first Graph visit is via the
+  // Search "On graph" handoff, ``shell.artifactList`` is still empty
+  // (usually populated during ``syncMergedGraphFromCorpusApi``) and the
+  // append loop below would silently no-op.
+  if (shell.artifactList.length === 0) {
+    try {
+      await shell.fetchArtifactList()
+    } catch {
+      /* fall through — proceed with whatever we have */
+    }
+  }
+  // Union of already-selected + episode-metadata-sibling paths derived
+  // from the current search hit page. ``appendRelativeArtifacts`` no-ops
+  // when nothing new needs to load; when new episodes DO come in it
+  // triggers a fresh graph parse + redraw. We ``await`` so the highlight
+  // set below applies against the post-append cy — the ``watch`` on
+  // ``libraryHighlightSourceIds`` fires exactly once per assignment and
+  // has already fired for the pre-append cy if we set it earlier.
+  try {
+    const rootedMetaPaths = new Set<string>()
+    for (const hit of search.results) {
+      const rel = hit?.metadata?.source_metadata_relative_path
+      if (typeof rel === 'string' && rel.trim()) {
+        rootedMetaPaths.add(rel.trim().replace(/\\/g, '/'))
+      }
+    }
+    if (rootedMetaPaths.size > 0) {
+      const wantedDirs = new Set<string>()
+      for (const p of rootedMetaPaths) {
+        const idx = p.lastIndexOf('/')
+        wantedDirs.add(idx >= 0 ? p.slice(0, idx) : '')
+      }
+      const wantedBaseNames = new Set<string>()
+      for (const p of rootedMetaPaths) {
+        const base = p.slice(p.lastIndexOf('/') + 1)
+        const stem = base.replace(/\.metadata\.json$/i, '')
+        if (stem) wantedBaseNames.add(stem)
+      }
+      const extras: string[] = []
+      for (const art of shell.artifactList) {
+        const rel = String(art.relative_path || '').replace(/\\/g, '/')
+        if (!rel) continue
+        const dir = rel.slice(0, rel.lastIndexOf('/'))
+        if (!wantedDirs.has(dir)) continue
+        const base = rel.slice(rel.lastIndexOf('/') + 1)
+        const stemMatch = base.match(/^(.+)\.(gi|kg|bridge)\.json$/i)
+        if (!stemMatch) continue
+        if (!wantedBaseNames.has(stemMatch[1])) continue
+        if (!artifactFileReadable(rel)) continue
+        extras.push(rel)
+      }
+      if (extras.length > 0) {
+        await artifacts.appendRelativeArtifacts(extras)
+      }
+    }
+  } catch {
+    /* never block the tab switch on a bookkeeping failure */
+  }
+  // Assign highlights AFTER the append so the watch's re-application
+  // targets the freshly-loaded episode nodes.
+  graphNav.setLibraryEpisodeHighlights(clean)
+  void activateGraphTab(undefined, undefined, 'search')
+}
+
+watch(
+  () =>
+    [
+      subject.kind,
+      subject.episodeMetadataPath,
+      subject.graphNodeCyId,
+      subject.topicId,
+      subject.personId,
+    ] as const,
+  () => {
+    const ep = subject.episodeMetadataPath?.trim()
+    const gn = subject.graphNodeCyId?.trim()
+    const tp = subject.topicId?.trim()
+    const pn = subject.personId?.trim()
+    if (subject.kind === 'episode' && ep) {
+      rightOpen.value = true
+    }
+    if (subject.kind === 'graph-node' && gn) {
+      rightOpen.value = true
+    }
+    /** #672 — TEV / Person Landing sit in the same rail; auto-open so a
+     * focusTopic / focusPerson from Digest / Search / Explore is actually
+     * visible even when the rail was collapsed via the localStorage
+     * preference. */
+    if (subject.kind === 'topic' && tp) {
+      rightOpen.value = true
+    }
+    if (subject.kind === 'person' && pn) {
+      rightOpen.value = true
+    }
+  },
+)
+
+</script>
+
+<template>
+  <!-- Auth gate (#1128): ONLY when auth is enabled on the backend. Login when anonymous, no-access
+       when a signed-in listener; the shell renders for creator/admin — or for everyone when auth is
+       not configured (open, pre-auth behaviour). A blank canvas covers the brief pre-load. -->
+  <LoginView v-if="auth.loaded && auth.enabled && !auth.isAuthenticated" />
+  <NoAccessView v-else-if="auth.loaded && auth.enabled && !auth.canUseViewer" />
+  <div
+    v-else-if="auth.loaded"
+    class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-canvas text-canvas-foreground h-dvh max-h-dvh"
+  >
+    <header class="shrink-0 border-b border-border bg-surface px-4 py-2 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-lg font-semibold tracking-tight text-surface-foreground">
+          Workbench
+          <span class="ml-1 text-xs font-normal text-muted">v2</span>
+        </h1>
+        <div class="flex items-center gap-3">
+          <nav
+            class="flex gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
+            aria-label="Main views"
+          >
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'digest'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-digest"
+              @click="mainTab = 'digest'"
+            >
+              Digest
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'library'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-library"
+              @click="mainTab = 'library'"
+            >
+              Library
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'search'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-search"
+              @click="mainTab = 'search'"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'graph'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-graph"
+              @click="activateGraphTab()"
+            >
+              Graph
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'dashboard'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              v-if="!auth.enabled || auth.isAdmin"
+              data-testid="main-tab-dashboard"
+              @click="mainTab = 'dashboard'"
+            >
+              Dashboard
+            </button>
+            <button
+              v-if="!auth.enabled || auth.isAdmin"
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'ops'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-ops"
+              @click="mainTab = 'ops'"
+            >
+              Ops
+            </button>
+            <button
+              v-if="auth.isAdmin"
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'admin'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              data-testid="main-tab-admin"
+              @click="mainTab = 'admin'"
+            >
+              Admin
+            </button>
+          </nav>
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted hover:bg-overlay hover:text-surface-foreground"
+            :title="`Theme: ${theme.choice} (click to cycle)`"
+            @click="theme.cycle()"
+          >
+            <svg
+              v-if="theme.choice === 'light'"
+              class="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <svg
+              v-else-if="theme.choice === 'dark'"
+              class="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg
+              v-else
+              class="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 3a9 9 0 0 1 0 18" fill="currentColor" />
+            </svg>
+            <span class="hidden sm:inline">{{ theme.choice }}</span>
+          </button>
+          <span class="hidden text-[10px] text-muted sm:inline">
+            <kbd class="rounded border border-border bg-surface px-1 font-mono text-surface-foreground">/</kbd>
+            search
+            ·
+            <kbd class="rounded border border-border bg-surface px-1 font-mono text-surface-foreground">Esc</kbd>
+            clear
+          </span>
+          <UserMenu v-if="auth.enabled" />
+        </div>
+      </div>
+    </header>
+
+    <component
+      :is="banner.component"
+      v-for="banner in appBanners.list()"
+      :key="banner.id"
+    />
+
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div class="flex min-h-0 flex-1">
+      <!-- LEFT SIDEBAR (collapsible) — Saved + Recent queries (Search v3
+           §S4-shell pivot). Always visible; the compact launcher retired.
+           Search itself only lives on the Search main tab. -->
+      <div
+        class="relative z-10 flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
+        :class="leftOpen ? 'w-72' : 'w-8'"
+      >
+        <button
+          type="button"
+          :class="railEdgeToggleTab.left"
+          :title="leftOpen ? 'Collapse left panel' : 'Expand left panel'"
+          :aria-expanded="leftOpen"
+          data-testid="left-panel-collapse-toggle"
+          @click="leftOpen = !leftOpen"
+        >
+          <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': !leftOpen }" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M8 2L4 6l4 4z" />
+          </svg>
+        </button>
+        <div
+          v-if="!leftOpen"
+          class="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-2"
+          data-testid="left-panel-collapsed-strip"
+        >
+          <button
+            type="button"
+            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
+            style="writing-mode: vertical-lr"
+            title="Open the Saved / Recent queries panel"
+            @click="leftOpen = true"
+          >
+            Saved queries
+          </button>
+        </div>
+        <div v-show="leftOpen" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <LeftPanel @apply-query="onLeftPanelApplyQuery" />
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER -->
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+        <!-- Graph / Dashboard — flex column so tab roots (h-full / flex-1) receive height -->
+        <div class="relative flex min-h-0 flex-1 flex-col">
+          <keep-alive>
+            <DigestView
+              v-if="mainTab === 'digest'"
+              class="h-full"
+              @switch-main-tab="onSwitchMainTab($event)"
+              @focus-search="onLibraryFocusSearch"
+              @open-library-episode="onDigestOpenEpisodeInRail"
+            />
+          </keep-alive>
+          <keep-alive>
+            <LibraryTab
+              v-if="mainTab === 'library'"
+              class="h-full"
+              @switch-main-tab="onSwitchMainTab($event)"
+              @focus-search="onLibraryFocusSearch"
+            />
+          </keep-alive>
+          <keep-alive>
+            <SearchTab
+              v-if="mainTab === 'search'"
+              class="h-full"
+              @go-graph="activateGraphTab(undefined, undefined, 'search')"
+              @open-library-episode="onSearchOpenLibraryEpisode"
+              @focus-set="onSearchFocusSet"
+            />
+          </keep-alive>
+          <div
+            v-if="mainTab === 'dashboard' && (!auth.enabled || auth.isAdmin)"
+            class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
+          >
+            <DashboardView
+              @go-graph="(id, fb) => activateGraphTab(id, fb, 'dashboard')"
+              @open-library="mainTab = 'library'"
+              @open-digest="mainTab = 'digest'"
+            />
+          </div>
+          <div
+            v-if="mainTab === 'ops' && (!auth.enabled || auth.isAdmin)"
+            class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
+          >
+            <OpsView />
+          </div>
+          <div
+            v-if="mainTab === 'admin' && auth.isAdmin"
+            class="h-full min-h-0 max-w-full flex-1 space-y-8 overflow-x-hidden overflow-y-auto p-3"
+          >
+            <UsersAdminView />
+            <component :is="p.component" v-for="p in adminPanels.list()" :key="p.id" />
+            <ReleaseAdminView />
+            <GraphAnalyticsAdminView @replay="onReplaySession" />
+          </div>
+          <keep-alive>
+            <GraphTabPanel
+              v-if="mainTab === 'graph'"
+              ref="graphCanvasRef"
+              @request-corpus-graph-sync="onCorpusGraphLensReload"
+              @request-graph-full-reset="onGraphCorpusFullReset"
+            />
+          </keep-alive>
+          <ReplayControls v-if="mainTab === 'graph' && replay.active" />
+        </div>
+      </div>
+
+      <!-- RIGHT SIDEBAR (collapsible) — subject rail only -->
+      <div
+        class="relative z-10 flex min-h-0 shrink-0 flex-col border-l border-border bg-canvas transition-all"
+        :class="rightOpen ? 'w-96' : 'w-8'"
+      >
+        <button
+          type="button"
+          :class="railEdgeToggleTab.right"
+          :title="rightOpen ? 'Collapse right panel' : 'Expand right panel'"
+          :aria-expanded="rightOpen"
+          data-testid="right-rail-edge-toggle"
+          @click="rightOpen = !rightOpen"
+        >
+          <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': !rightOpen }" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M4 2l4 4-4 4z" />
+          </svg>
+        </button>
+        <div
+          v-if="!rightOpen"
+          class="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-2"
+        >
+          <button
+            type="button"
+            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
+            style="writing-mode: vertical-lr"
+            title="Open details panel (episode, graph selection, connections)"
+            data-testid="rail-collapsed-subject"
+            @click="rightOpen = true"
+          >
+            Details
+          </button>
+        </div>
+        <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <SubjectRail
+            :main-tab="mainTab"
+            @close-subject="onCloseSubjectRail"
+            @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
+            @view-in-graph="(id: string) => activateGraphTab(id, undefined, 'subject-rail')"
+            @focus-search-handoff="onLibraryFocusSearch"
+            @open-search-in-episode="onOpenSearchInEpisode"
+            @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
+            @open-search-topic-filter="onGraphNodeTopicOpenSearchFilter"
+            @open-search-speaker-filter="onGraphNodeSpeakerOpenSearchFilter"
+            @open-search="onGraphNodeOpenSearch"
+            @open-library-episode="onSearchOpenLibraryEpisode"
+            @switch-main-tab="onSwitchMainTab($event)"
+          />
+        </div>
+      </div>
+      </div>
+      <StatusBar
+        ref="statusBarRef"
+        @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
+        @go-graph="activateGraphTab(undefined, undefined, 'status-bar')"
+      />
+      <CommandPalette
+        ref="commandPaletteRef"
+        @open-in-workspace="onPaletteOpenInWorkspace"
+        @show-on-graph="onPaletteShowOnGraph"
+        @go-tab="onSwitchMainTab"
+        @open-configuration="onPaletteOpenConfiguration"
+        @open-health="onPaletteOpenHealth"
+        @rebuild-index="onPaletteRebuildIndex"
+        @timeline-on-last="onPaletteTimelineOnLast"
+        @operator-on-last="onPaletteOperatorOnLast"
+      />
+    </div>
+  </div>
+  <div v-else class="h-dvh bg-canvas" />
+</template>

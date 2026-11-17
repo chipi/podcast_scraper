@@ -90,7 +90,7 @@ This works for local dev but has no path to deployment:
   `faiss-cpu`, and `sentence-transformers` (CPU torch). Full Whisper/spaCy/llama-cpp remains on
   the **pipeline** image. See `docker/api/Dockerfile` and `docs/guides/DOCKER_SERVICE_GUIDE.md`.
 - The Vue viewer builds successfully with `npm run build` (produces `dist/`)
-- The FastAPI server already mounts `StaticFiles` from `web/gi-kg-viewer/dist` when
+- The FastAPI server already mounts `StaticFiles` from `web/workbench/dist` when
   available, but in this topology Nginx handles static serving and the API runs
   with `--no-static`
 - A future phase will add a database; the volume-based design accommodates that migration
@@ -134,9 +134,9 @@ Multi-stage build: Node stage builds the Vue app, Nginx stage serves it.
 FROM node:22-alpine AS builder
 
 WORKDIR /build
-COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
+COPY web/workbench/package.json web/workbench/package-lock.json ./
 RUN npm ci
-COPY web/gi-kg-viewer/ ./
+COPY web/workbench/ ./
 RUN npm run build
 
 # ── Serve stage ──────────────────────────────────────────────

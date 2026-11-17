@@ -14,27 +14,27 @@ For **where Playwright fits** in the overall strategy (pyramid, CI jobs, pytest 
 
 ## Browser E2E (Playwright) {#browser-e2e-playwright}
 
-The GI/KG **Vue** viewer (`web/gi-kg-viewer`) uses **Playwright** (TypeScript; **Chrome** locally, **Firefox** in CI), not
+The GI/KG **Vue** viewer (`web/workbench`) uses **Playwright** (TypeScript; **Chrome** locally, **Firefox** in CI), not
 pytest. This section summarizes the **browser** stack only; everything below *Overview* in this
 file remains **pytest** E2E.
 
 | Topic | Detail |
 | ----- | ------ |
 | **Run from repo root** | `make test-ui-e2e` (`npm install`, `playwright install chromium`, `npm run test:e2e`) |
-| **Run in package** | `cd web/gi-kg-viewer && npm run test:e2e` |
-| **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
-| **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
-| **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
+| **Run in package** | `cd web/workbench && npm run test:e2e` |
+| **Config** | `web/workbench/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
+| **Specs** | `web/workbench/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
+| **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
 | **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
-| **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
+| **vs Vitest** | `web/workbench/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
 **Full viewer test tier map** (Vitest unit + `@vue/test-utils` component, the
 **#914 coverage gate**, the mocked Playwright e2e above, and the **Tier-3
 real-corpus validation walk** `make ci-ui-validation` against a live `make serve`
-stack): see **[`web/gi-kg-viewer/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/TESTING.md)**
-and the local **[`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/validation/README.md)**.
+stack): see **[`web/workbench/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/TESTING.md)**
+and the local **[`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/validation/README.md)**.
 
 ### Where browser-E2E data comes from {#browser-e2e-data}
 
@@ -57,7 +57,7 @@ per-spec, and nothing needs to be generated:
 The surface map is the shared **contract for accessible names, regions, and user entry paths**. When
 a Playwright assertion fails, when you reproduce a bug manually, or when an agent drives the app
 via **Chrome DevTools MCP** or Playwright MCP (a11y snapshots), use
-[E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 to see what label or region should appear, which spec owns the surface, and how to disambiguate
 controls that share a visible name. It does not replace UXS for visual design. For the full
 agent-browser workflow (symmetry between reproduction and fix validation), see
@@ -65,14 +65,14 @@ agent-browser workflow (symmetry between reproduction and fix validation), see
 
 ### When you change viewer UX (required workflow)
 
-Applies to **humans and AI agents** editing `web/gi-kg-viewer/` (Vue UI: copy, layout, routes,
+Applies to **humans and AI agents** editing `web/workbench/` (Vue UI: copy, layout, routes,
 theme tokens, accessible names, or flows that Playwright exercises). Do **not** ship UI-only PRs
 without walking this list in order:
 
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update if anything **E2E-visible** or **selector-related** changed
    (including `getByRole` strings, `#search-q`, `.graph-canvas`, file-picker vs list flows).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, and/or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/`** — Update **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** when **shell information architecture** changes (regions, navigation axes, persistence, clearing, first-run). Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
+3. **`docs/uxs/`** — Update **[WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md)** when **shell information architecture** changes (regions, navigation axes, persistence, clearing, first-run). Update **[UXS-001](../uxs/UXS-001-workbench.md)** when **shared** tokens, typography,
    or shell-wide **visual** rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
    Graph, Search, Dashboard, …) when a **surface-specific** visual contract changes, even if tests still pass.
    After merge, **Active** UXS should describe the **shipped** viewer for that release (see
@@ -80,16 +80,16 @@ without walking this list in order:
 
 Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browser viewer*),
 [TESTING_GUIDE.md](TESTING_GUIDE.md) (*Browser E2E*), [UX specifications index](../uxs/index.md),
-`.cursorrules` (*GI/KG viewer UX*), and `.ai-coding-guidelines.md` (*GI/KG browser viewer*).
+`.cursorrules` (*Workbench UX*), and `.ai-coding-guidelines.md` (*GI/KG browser viewer*).
 
-**Further reading:** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
-[Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+**Further reading:** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) (root vs `web/workbench/`),
+[Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-workbench),
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
-[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
+[web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md).
 
 ### Handoff FSM invariants + test isolation (#1209)
 
-Four patterns codified in `web/gi-kg-viewer/e2e/helpers.ts` after PR #1207
+Four patterns codified in `web/workbench/e2e/helpers.ts` after PR #1207
 Tier-3 walks surfaced them as recurring bites. Use them; avoid the
 patterns they replace.
 

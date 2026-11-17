@@ -3,21 +3,21 @@
 - **Status**: Completed (v2.6.0)
 - **Authors**: (TBD)
 - **Stakeholders**: Viewer maintainers, UX reviewer for [UXS-004](../uxs/UXS-004-graph-exploration.md)
-    (shared tokens: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md))
+    (shared tokens: [UXS-001](../uxs/UXS-001-workbench.md))
 - **Related PRDs**:
   - [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md)
 - **Related RFCs**:
   - [RFC-062](RFC-062-gi-kg-viewer-v2.md) (viewer stack, Cytoscape, merge)
 - **Related UX specs**:
   - [UXS-004: Graph Exploration](../uxs/UXS-004-graph-exploration.md)
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared shell tokens
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-workbench.md) — shared shell tokens
 - **Related Documents**:
-  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
   - [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover) — shipped chrome layout (**Types** + **⚙** popover + **`GraphBottomBar`**); §1 of this RFC updated **2026-04** to match.
 
 ## Abstract
 
-This RFC specifies a **single implementation pass** that adds graph-native exploration tooling to `web/gi-kg-viewer`: explicit zoom controls + zoom readout, **minimap (required in v1)**, node-type and degree summaries (histogram-style; **degree buckets act as a filter** when clicked), edge-type filtering, **built-in** Cytoscape layouts only (cose, breadthfirst, circle, grid—no fcose), and **Shift+drag** box zoom. It **extends** the current graph stack ([RFC-062](RFC-062-gi-kg-viewer-v2.md)) without changing artifact formats or server APIs.
+This RFC specifies a **single implementation pass** that adds graph-native exploration tooling to `web/workbench`: explicit zoom controls + zoom readout, **minimap (required in v1)**, node-type and degree summaries (histogram-style; **degree buckets act as a filter** when clicked), edge-type filtering, **built-in** Cytoscape layouts only (cose, breadthfirst, circle, grid—no fcose), and **Shift+drag** box zoom. It **extends** the current graph stack ([RFC-062](RFC-062-gi-kg-viewer-v2.md)) without changing artifact formats or server APIs.
 
 ## Problem Statement
 
@@ -70,7 +70,7 @@ Original RFC placed **Fit** / zoom / **Export PNG** on the top row and considere
 - Wire **Zoom ±** to `cy.zoom(cy.zoom() * factor)` with clamp `[minZoom, maxZoom]` (Cytoscape defaults or explicit constants).
 - **Zoom reset**: **`cy.zoom(1)`** only — label **100%** or **Reset zoom** in UI; do not duplicate **Fit**.
 - **Zoom %**: display `Math.round(cy.zoom() * 100)` updated on `zoom` / `pan` events (throttled with `requestAnimationFrame`).
-- **Box zoom** (**decided**): **Shift+drag** on **background** to draw a rectangle (overlay), then `cy.fit` on nodes/edges intersecting the rect; document in toolbar hint and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md). Avoid extra npm packages unless the overlay approach is unworkable.
+- **Box zoom** (**decided**): **Shift+drag** on **background** to draw a rectangle (overlay), then `cy.fit` on nodes/edges intersecting the rect; document in toolbar hint and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md). Avoid extra npm packages unless the overlay approach is unworkable.
 
 ### 3. Minimap (v1 required)
 
@@ -114,7 +114,7 @@ Original RFC placed **Fit** / zoom / **Export PNG** on the top row and considere
 
 - **Unit**: pure functions for degree buckets and edge-type set extraction (if extracted).
 - **E2E**: extend `e2e/*.spec.ts` or add `graph-tools.spec.ts`: mock health + minimal artifact list + GI JSON; assert **Zoom +** changes zoom label, **layout cycle** (or layout control) + **Fit** still work; box zoom optional if stable in CI.
-- Update [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) for every new **accessible name** or role.
+- Update [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) for every new **accessible name** or role.
 
 ### 10. Documentation
 

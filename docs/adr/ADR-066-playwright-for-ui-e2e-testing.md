@@ -23,7 +23,7 @@ We adopt **Playwright** as the browser E2E test framework:
 2. **Browser**: **Chrome** locally (Desktop Chrome in `playwright.config.ts`), the same engine as the
    live and validation configs and the player suite; **Firefox** under `CI` until the workflows
    install Chromium for this suite (they install only Firefox today). Other engines optional.
-3. **Test location**: `web/gi-kg-viewer/e2e/*.spec.ts` alongside the frontend source.
+3. **Test location**: `web/workbench/e2e/*.spec.ts` alongside the frontend source.
 4. **Test fixtures**: Deterministic data via `e2e/fixtures.ts`, helpers, and route mocks
    in specs (see repository).
 5. **Server management**: Playwright `webServer` starts **Vite** on **127.0.0.1:5174**
@@ -70,9 +70,9 @@ We adopt **Playwright** as the browser E2E test framework:
 
 ## Implementation Notes
 
-- **Test dir**: `web/gi-kg-viewer/e2e/`
-- **Config**: `web/gi-kg-viewer/playwright.config.ts`
-- **Makefile**: `make test-ui-e2e` (headless). Interactive: `cd web/gi-kg-viewer && npx playwright test --ui`
+- **Test dir**: `web/workbench/e2e/`
+- **Config**: `web/workbench/playwright.config.ts`
+- **Makefile**: `make test-ui-e2e` (headless). Interactive: `cd web/workbench && npx playwright test --ui`
 - **CI**: Workflow job **`viewer-e2e`**. Screenshots/traces as Playwright HTML report / artifacts on failure.
 - **Pattern**: Each spec file maps to a component group (graph, search, dashboard,
   offline)
@@ -82,7 +82,7 @@ We adopt **Playwright** as the browser E2E test framework:
 This ADR covers **browser E2E** only. Pure TypeScript utility logic (parsing, merge,
 metrics, formatting) is tested by **Vitest** (`make test-ui`, `npm run test:unit`),
 which runs without a browser in ~150 ms. See
-[Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2)
+[Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-workbench)
 for the full viewer test matrix.
 
 ## References

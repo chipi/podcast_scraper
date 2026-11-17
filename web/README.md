@@ -1,10 +1,10 @@
 # `web/` — the operator viewer
 
-[`gi-kg-viewer/`](gi-kg-viewer) is a Vue 3 + TypeScript + Vite app over the FastAPI backend and the
+[`workbench/`](workbench) is a Vue 3 + TypeScript + Vite app over the FastAPI backend and the
 corpus: it is how an operator inspects the corpus, the graph and the pipeline. The consumer player
 that used to sit beside it lives in its own repository now (ADR-170).
 
-| | [`gi-kg-viewer/`](gi-kg-viewer) |
+| | [`workbench/`](workbench) |
 | --- | --- |
 | Audience | **Operators** — inspect the corpus, graph, pipeline |
 | API surface | `/api/corpus/*`, `/api/search`, `/api/artifacts`, `/api/index/*` |
@@ -14,11 +14,11 @@ that used to sit beside it lives in its own repository now (ADR-170).
 | Backend during e2e | A **real API** over the committed corpus ([#1619](https://github.com/chipi/podcast_scraper/issues/1619)) |
 | Run units | `make test-ui` |
 | Run browser | `make test-ui-e2e` |
-| Design docs | VIEWER_IA, UXS-001…006, RFC-062 |
+| Design docs | WORKBENCH_IA, UXS-001…006, RFC-062 |
 
 ## The contract doc — read before changing selectors
 
-[`gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`](gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) is the automation
+[`workbench/e2e/E2E_SURFACE_MAP.md`](workbench/e2e/E2E_SURFACE_MAP.md) is the automation
 contract: surfaces, routes, owning specs and the `data-testid`s / roles / labels tests depend on. It
 is also the reference for driving the viewer through accessibility-tree tools (Playwright MCP,
 Chrome DevTools MCP).
@@ -39,5 +39,5 @@ the repo root before concluding anything — the trees are one level up and easy
 ## Related
 
 - [`../docs/guides/E2E_TESTING_GUIDE.md`](../docs/guides/E2E_TESTING_GUIDE.md) — how every test tier fits together
-- [`gi-kg-viewer/TESTING.md`](gi-kg-viewer/TESTING.md) — the viewer's full test tier map
+- [`workbench/TESTING.md`](workbench/TESTING.md) — the viewer's full test tier map
 - [`../docs/guides/POLYGLOT_REPO_GUIDE.md`](../docs/guides/POLYGLOT_REPO_GUIDE.md) — Python + TypeScript conventions

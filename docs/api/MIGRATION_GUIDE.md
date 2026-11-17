@@ -129,7 +129,7 @@ v2.6.0 adds **viewer and HTTP** capabilities; the core library API is unchanged.
 ### Additive: Corpus Digest and health discovery (RFC-068)
 
 - **`GET /api/corpus/digest`** — rolling-window digest of recent episodes (feed-diverse) plus optional semantic topic bands when a vector index exists. See [Server Guide](../guides/SERVER_GUIDE.md) and [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md).
-- **`GET /api/health`** — response may include **`corpus_digest_api`** (`bool`). **`false`** disables Digest / glance in the viewer. If the field is **omitted** but **`corpus_library_api`** is true, the GI/KG viewer **infers** digest is available (legacy health JSON); if the running process is too old to mount **`GET /api/corpus/digest`**, the digest request fails — upgrade/restart the API from a current `[dev]` install.
+- **`GET /api/health`** — response may include **`corpus_digest_api`** (`bool`). **`false`** disables Digest / glance in the viewer. If the field is **omitted** but **`corpus_library_api`** is true, the Workbench **infers** digest is available (legacy health JSON); if the running process is too old to mount **`GET /api/corpus/digest`**, the digest request fails — upgrade/restart the API from a current `[dev]` install.
 
 ---
 

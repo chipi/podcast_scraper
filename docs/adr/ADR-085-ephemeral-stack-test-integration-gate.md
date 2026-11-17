@@ -57,7 +57,7 @@ flows.
 
 - **Workflow**: `.github/workflows/stack-test.yml`
 - **Compose**: `compose/docker-compose.stack-test.yml`
-- **Tests**: `tests/stack-test/`, `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` (automation contract)
+- **Tests**: `tests/stack-test/`, `web/workbench/e2e/E2E_SURFACE_MAP.md` (automation contract)
 
 ## References
 

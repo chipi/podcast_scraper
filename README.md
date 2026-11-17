@@ -45,22 +45,22 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Run Tracking** — Per-episode stage timings, run summaries, episode index files, and `metrics.json` fields for download retries (`http_urllib3_retry_events`, `episode_download_retries`) (Issue #379)
 
 - **Live pipeline monitor** — Optional **`--monitor`**: separate process + **`rich`** dashboard (or **`.monitor.log`** if stderr is not a TTY) and **`.pipeline_status.json`**. Optional **`pip install -e ".[monitor]"`**: **`--memray`** for heap profiling; with monitor + TTY, **`f`** runs **py-spy** to **`debug/flamegraph_*.svg`** ([RFC-065](docs/rfc/RFC-065-live-pipeline-monitor.md), [guide](docs/guides/LIVE_PIPELINE_MONITOR.md), #512)
-- **GI / KG Viewer (v2)** — Optional browser UI: graph visualization, dashboard, semantic search, explore, **Corpus Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), and **Corpus Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)) — all against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below). Cross-surface navigation is owned by a single **graph handoff FSM** ([ADR-094](docs/adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](docs/rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)) with envelope contract, generation-token concurrency, stuck detection, and visible error UX.
+- **Workbench** — Optional browser UI: graph visualization, dashboard, semantic search, explore, **Corpus Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), and **Corpus Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)) — all against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below). Cross-surface navigation is owned by a single **graph handoff FSM** ([ADR-094](docs/adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](docs/rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)) with envelope contract, generation-token concurrency, stuck detection, and visible error UX.
 - **Operator design records** — version-aware **corpus snapshot backup + restore** ([RFC-084](docs/rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md), [ADR-092](docs/adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)); the deployment, backup and restore tooling itself is not in this repository. Shipped here: a **ledgered corpus-upgrade framework** ([#862](https://github.com/chipi/podcast_scraper/issues/862), [CORPUS_UPGRADE](docs/guides/CORPUS_UPGRADE.md), `make upgrade-check` / `upgrade-corpus`) that carries deployed corpora across release boundaries and is auto-run on prod restore ([#1176](https://github.com/chipi/podcast_scraper/issues/1176)), and one **stack contract** covering dev / prod with one health surface and one `stack-test` discipline.
 - **Three-tier viewer test pyramid** — Tier-1 mocks, Tier-2 production-shaped fixtures, Tier-3 real corpus via `make ci-ui-validation CORPUS=…` ([ADR-095](docs/adr/ADR-095-viewer-test-pyramid.md), [RFC-086](docs/rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)). Real-bug-first matrix rule keeps coverage honest.
 
 ## Repository layout (Python + web)
 
 The **Python** package (CLI, pipeline, FastAPI) lives at the **repo root** (`pyproject.toml`,
-`Makefile`, `tests/`). The **GI/KG viewer** is a **Node** app under **`web/gi-kg-viewer/`**
+`Makefile`, `tests/`). The **Workbench** is a **Node** app under **`web/workbench/`**
 (`package.json`, Vite, Vitest, Playwright). They share one repository but use **separate**
-install steps and **different** `.env.example` files (root vs `web/gi-kg-viewer/`) by design.
+install steps and **different** `.env.example` files (root vs `web/workbench/`) by design.
 
 **Onboarding in one place:** [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md).
 
 ---
 
-## GI / KG Viewer (optional)
+## Workbench (optional)
 
 Browse **Grounded Insight** and **Knowledge Graph** artifacts, use **semantic search** and **explore** on your corpus, and view a **dashboard**—all against the same **`--output-dir`** you use for the pipeline.
 
@@ -68,7 +68,7 @@ Browse **Grounded Insight** and **Knowledge Graph** artifacts, use **semantic se
 
 | Goal | Install | Notes |
 | ---- | ------- | ----- |
-| **API + built UI in one process** | `pip install -e ".[dev]"` and, once, `cd web/gi-kg-viewer && npm install && npm run build` | `make init` installs `[dev,ml,llm]`; FastAPI ships with `[dev]`. |
+| **API + built UI in one process** | `pip install -e ".[dev]"` and, once, `cd web/workbench && npm install && npm run build` | `make init` installs `[dev,ml,llm]`; FastAPI ships with `[dev]`. |
 | **Graph only, no Python API** | Just open the UI (e.g. Vite dev) and use **Choose .gi.json / .kg.json files** | Works when `/api/health` fails; no list/search/index from the server. |
 | **Semantic search / index stats** | `[dev]` + `[ml]` (LanceDB, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
 
@@ -78,7 +78,7 @@ From the repository root, with your virtualenv active:
 
 ```bash
 pip install -e ".[dev]"
-cd web/gi-kg-viewer && npm install && npm run build && cd ../..
+cd web/workbench && npm install && npm run build && cd ../..
 python -m podcast_scraper.cli serve --output-dir /path/to/your/run
 ```
 
@@ -86,7 +86,7 @@ Then open **<http://127.0.0.1:8000>** (default port). In the sidebar, set **Corp
 
 **FastAPI / HTTP API:** Full **`/api/*`** reference, architecture, and tests — [Server Guide](docs/guides/SERVER_GUIDE.md). With the server running, interactive OpenAPI (Swagger) is at **`/docs`** and **`/openapi.json`**.
 
-**Development (API + hot-reload UI):** `make serve SERVE_OUTPUT_DIR=/path/to/your/run` runs the FastAPI app and the Vite dev server together (UI proxied to the API). See [web/gi-kg-viewer/README.md](web/gi-kg-viewer/README.md) and the Server Guide above.
+**Development (API + hot-reload UI):** `make serve SERVE_OUTPUT_DIR=/path/to/your/run` runs the FastAPI app and the Vite dev server together (UI proxied to the API). See [web/workbench/README.md](web/workbench/README.md) and the Server Guide above.
 
 **Testing the viewer:** `make test-ui` (Vitest unit tests, ~1s) and `make test-ui-e2e` (Playwright browser E2E, Firefox).
 
@@ -143,7 +143,7 @@ Choose the installation method based on your use case:
 | **OpenAI only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral SDKs | ~50MB |
 | **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, LanceDB, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
 | **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
-| **GI/KG viewer API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
+| **Workbench API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
 | **Monitor profiling extras** (optional) | `pip install -e ".[monitor]"` | `py-spy` + `memray` integrated with `--monitor` / `--memray` (RFC-065); **not** required for `--monitor` alone | small |
 
 **Quick decision guide:**
