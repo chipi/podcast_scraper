@@ -791,10 +791,13 @@ serve-api:
 	@# sign-in work out of the box (also required to exercise personalization). serve-api is local-only
 	@# (prod runs via compose/stack with a real provider), so the mock default is safe here. Override
 	@# any of these env vars to disable or point elsewhere; NEVER use the mock provider outside dev.
+	@# APP_ALLOWED_DOMAINS: the sign-in allowlist defaults to empty, so without it every mock user
+	@# (<hint>@e2e.local, dev@localhost) got 403. Both domains are dev-only; no real account has them.
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && export KMP_DUPLICATE_LIB_OK=$${KMP_DUPLICATE_LIB_OK:-TRUE} && \
 		export APP_OAUTH_PROVIDER=$${APP_OAUTH_PROVIDER:-mock} && \
 		export APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} && \
 		export APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} && \
+		export APP_ALLOWED_DOMAINS=$${APP_ALLOWED_DOMAINS:-e2e.local,localhost} && \
 		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
 		if [ -f .env.obs.dev ]; then set -a; . ./.env.obs.dev; set +a; echo "[obs] streaming to homelab as environment=dev instance=$(notdir $(CURDIR))-$${PODCAST_OBS_PORT:-8000}"; fi && \
 		export PODCAST_OBS_PORT=$${PODCAST_OBS_PORT:-8000} && \
