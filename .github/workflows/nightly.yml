@@ -454,7 +454,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg
@@ -541,7 +540,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg
@@ -995,7 +993,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg

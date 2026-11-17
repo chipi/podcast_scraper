@@ -907,7 +907,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run all integration tests with coverage (full suite, with network guard)
@@ -1051,7 +1050,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run fast integration tests with coverage (critical path only, with network guard)
@@ -1168,7 +1166,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run fast E2E tests with coverage (critical path only, with network guard)
@@ -1303,7 +1300,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run all E2E tests with coverage (full suite, with network guard)
