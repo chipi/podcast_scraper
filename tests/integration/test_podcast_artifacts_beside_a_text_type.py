@@ -141,11 +141,24 @@ def _leaves(value: Any, at: str = "") -> Iterator[Tuple[str, Any]]:
         yield at, value
 
 
+_STAGE_DURATION = re.compile(r"^/stages/[^/]+/duration_s$")
+
+
+def _is_stage_timing(rel: str, key: str) -> bool:
+    """A processing manifest's stage duration is a measured time, rounded to the millisecond: two
+    runs alone can agree on it by chance, so the measured noise misses it and the run beside the
+    text type is flagged for it (main, 7cc0b4907: ``/stages/kg/duration_s``). Only that field of
+    that file: content ``duration_s`` fields elsewhere (metadata) are still compared."""
+    return rel.endswith(".manifest.json") and bool(_STAGE_DURATION.match(key))
+
+
 def _differences(a: Dict[str, Any], b: Dict[str, Any]) -> Set[str]:
     diffs: Set[str] = set()
     for rel in a.keys() & b.keys():
         left, right = dict(_leaves(a[rel])), dict(_leaves(b[rel]))
         for key in left.keys() | right.keys():
+            if _is_stage_timing(rel, key):
+                continue
             if left.get(key, object()) != right.get(key, object()):
                 diffs.add(f"{rel}:{key}")
     return diffs
