@@ -122,7 +122,7 @@ For development, scripted CLI runs, or when you'd rather not run the whole stack
 
 ### Requirements
 
-- **Python 3.10+** — Check with `python3 --version`
+- **Python 3.12+** — Check with `python3 --version`
 - **ffmpeg** (only needed for local Whisper transcription):
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
@@ -179,8 +179,8 @@ git checkout <latest-release-tag>   # e.g. v2.6.0
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Verify Python version (must be 3.10+)
-python --version  # Should show Python 3.10.x or higher
+# Verify Python version (must be 3.12+)
+python --version  # Should show Python 3.12.x or higher
 
 # CRITICAL: Upgrade pip and setuptools before installing
 pip install --upgrade pip setuptools wheel
@@ -320,8 +320,8 @@ cd podcast_scraper
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Verify Python version (must be 3.10+)
-python --version  # Should show Python 3.10.x or higher
+# Verify Python version (must be 3.12+)
+python --version  # Should show Python 3.12.x or higher
 
 # CRITICAL: Upgrade pip and setuptools before installing
 # This is required for editable installs with pyproject.toml
@@ -333,7 +333,7 @@ pip install -e ".[ml]"
 
 **Important Notes:**
 
-- **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify with `python --version` after activating the venv.
+- **Python 3.12+ is REQUIRED** — The project uses features that require Python 3.12 or higher. Always verify with `python --version` after activating the venv.
 - **Installation is required** — You must run `pip install -e .` (or `pip install -e ".[ml]"` for ML) before running CLI commands. Without it, you'll get `ModuleNotFoundError: No module named 'podcast_scraper'`.
 - **LLM API users** — If you're using LLM-based providers (OpenAI, Gemini, Anthropic, etc.), install with `pip install -e ".[llm]"`. LLM provider SDKs are **not** in core — the `[llm]` extra is required.
 - **Local ML users** — If you want to use local Whisper, spaCy, or Transformers, install with `pip install -e ".[ml]"` to get ML dependencies.
@@ -546,10 +546,10 @@ pip install -e ".[ml]"
 
 ```bash
 # Find available Python versions
-python3.11 --version  # or python3.12, etc.
+python3.12 --version
 
 # Create venv with specific version
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 ```
 

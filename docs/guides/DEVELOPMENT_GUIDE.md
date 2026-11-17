@@ -1610,7 +1610,7 @@ So exit code 0 means "the run finished", not "every episode succeeded". Use the 
 | `pricing-assumptions` | Display pricing model assumptions |
 
 - **Startup validation:** Before the main pipeline
-  runs, the CLI checks Python version (3.10+) and
+  runs, the CLI checks Python version (3.12+) and
   that `ffmpeg` is on PATH. These checks are
   **skipped** for utility subcommands (`doctor`,
   `cache`, `serve`, `search`, `index`, `gi`, `kg`,
