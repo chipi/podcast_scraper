@@ -10,4 +10,105 @@
 #     sources: []                # KG Source ids (podcast:..., source:...): PUBLISHED_BY, never from NER
 #
 # Entries are added with their sources: news by ingestion, podcasts by R3b's KG half.
-publishers: []
+# News publishers: RFC-134 §12's first set (2026-11-11); domains answered HTTPS 2026-11-18.
+# Hacker News has no entry: it links to other publishers' pages, found by their domain.
+# sources stay empty until ingestion names each news source's Source id; the podcast
+# Source ids (BBC, Meduza and others) come from R3b's KG half.
+publishers:
+- id: org:ars-technica
+  name: Ars Technica
+  domains:
+  - arstechnica.com
+  sources: []
+- id: org:the-verge
+  name: The Verge
+  domains:
+  - theverge.com
+  sources: []
+- id: org:mit-technology-review
+  name: MIT Technology Review
+  domains:
+  - technologyreview.com
+  sources: []
+- id: org:import-ai
+  name: Import AI
+  domains:
+  - importai.substack.com
+  - jack-clark.net
+  sources: []
+- id: org:simon-willison
+  name: Simon Willison
+  domains:
+  - simonwillison.net
+  sources: []
+- id: org:bank-for-international-settlements
+  name: Bank for International Settlements
+  domains:
+  - bis.org
+  sources: []
+- id: org:federal-reserve
+  name: Federal Reserve
+  domains:
+  - federalreserve.gov
+  sources: []
+- id: org:bbc
+  name: BBC
+  domains:
+  - bbc.co.uk
+  - bbc.com
+  sources: []
+- id: org:al-jazeera
+  name: Al Jazeera
+  domains:
+  - aljazeera.com
+  sources: []
+- id: org:meduza
+  name: Meduza
+  domains:
+  - meduza.io
+  sources: []
+- id: org:the-diplomat
+  name: The Diplomat
+  domains:
+  - thediplomat.com
+  sources: []
+- id: org:south-china-morning-post
+  name: South China Morning Post
+  domains:
+  - scmp.com
+  sources: []
+- id: org:rest-of-world
+  name: Rest of World
+  domains:
+  - restofworld.org
+  sources: []
+- id: org:techcabal
+  name: TechCabal
+  domains:
+  - techcabal.com
+  sources: []
+- id: org:stat
+  name: STAT
+  domains:
+  - statnews.com
+  sources: []
+- id: org:quanta-magazine
+  name: Quanta Magazine
+  domains:
+  - quantamagazine.org
+  sources: []
+- id: org:nature
+  name: Nature
+  domains:
+  - nature.com
+  sources: []
+- id: org:the-conversation
+  name: The Conversation
+  domains:
+  - theconversation.com
+  sources: []
+- id: org:the-guardian
+  name: The Guardian
+  domains:
+  - theguardian.com
+  sources: []
