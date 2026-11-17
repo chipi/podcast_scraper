@@ -135,6 +135,13 @@ the lists stayed pre-job until reload; the rails' episode list read the KG index
 Reproduced by a route test, then the operator routes (digest, library, coverage, node-episodes) read
 the current catalog and index (`perf_cache.fresh()`); the Player's routes keep the stale answer.
 
+Open design question (the operator, 2026-11-17): **what should be in public, and move it there.** The
+fixture corpus carries 55 GI artifacts, yet a public-only Workbench shows no insight or quote:
+Search offers KG entities, KG topics, summary bullets and transcript chunks only, and every insight,
+quote, position and perspective surface is drawn by the private viewer (UXS "Where it renders"
+sections). CRFC-004 calls rendering the platform types platform work. Decide per surface before
+moving anything.
+
 ## 4. Then news
 
 UXS-019 (draft, on branch `docs/uxs-019-news`, not merged) is written in
