@@ -98,27 +98,27 @@ resize/collapse logic, keyboard shortcuts) belong in the related RFC. See the
 
 ## Data the viewer receives
 
-Built by the read side from the item's metadata (RFC-134 §5 and §10). The names marked
-**decided** are fixed in [ontology v3](../architecture/corpus/ontology-v3.md) (ids, times and
-rights, agreed with ingestion 2026-11-11) or by the publisher registry (ADR-180 rule 6); the rest
-wait on ingestion's item contract, which the operator approves. The viewer renders only these
-fields and never asks for more:
+Built by the read side from the item's metadata (RFC-134 §5 and §10), as the
+[news item contract](../architecture/corpus/news-item-1.0.md) names it (accepted by the operator,
+2026-11-18; ids, times and rights from [ontology v3](../architecture/corpus/ontology-v3.md); the
+publisher from the registry, ADR-180 rule 6). The viewer renders only these fields and never asks
+for more:
 
-| Field | Status | Shown as |
-| --- | --- | --- |
-| `content_type` (`news_article`) | decided | the "News" type label and the `news` token |
-| `item_id` (`item:news_article:{20 hex}`) | decided | the row's and the rail's key |
-| `title` | decided | the row and card title |
-| `url` (the normalised canonical URL) | decided | the "Open article" link out |
-| publisher `{id, name, domain}` | decided | the publisher name, with its domain on the card. Not an item field: the item's `source_id` is looked up in the publisher registry (`PUBLISHED_BY`); the domain is the one the URL's host matches |
-| `published_at` | decided | relative on rows ("3 h ago"), absolute on the card |
-| `language` | decided | a language badge when it is not English, as on podcast items |
-| `paywalled` (`true`, `false`, `null`) | decided | a "Paywalled" note beside the link out when `true` |
-| `serveable` (`metadata`, `summary`, `none`; absent reads as `metadata`) | decided | below, under States |
-| `summary` | undecided (where it lives) | the summary paragraph, only when `serveable` is `summary` |
-| byline | undecided (its shape) | "By …", names as written; a person link only when the byline has joined a person |
-| `editorial_type` (reporting, opinion, analysis, paid, or null) | values decided, place undecided | a badge for opinion, analysis and paid; nothing for reporting or null |
-| `text_status` (`teaser`) | undecided | "Summary from the feed" note (the article text was not available) |
+| Field | Shown as |
+| --- | --- |
+| `content_type` (`news_article`) | the "News" type label and the `news` token |
+| `item_id` (`item:news_article:{20 hex}`) | the row's and the rail's key |
+| `title` | the row and card title |
+| `url` (the normalised canonical URL) | the "Open article" link out |
+| publisher `{id, name, domain}` | the publisher name, with its domain on the card. From the registry: the item's `publisher_id`, else its source's publisher, else the one whose domain the URL's host matches; none of them, no publisher |
+| `published_at` | relative on rows ("3 h ago"), absolute on the card |
+| `language` | a language badge when it is not English, as on podcast items |
+| `paywalled` (`true`, `false`, `null`) | a "Paywalled" note beside the link out when `true` |
+| `serveable` (`metadata`, `summary`, `none`; absent reads as `metadata`) | below, under States |
+| `summary` | the summary paragraph, only when `serveable` is `summary` |
+| `news_article.byline` (a list of names, order kept) | "By …", names as written; a person link only when the byline has joined a person |
+| `news_article.editorial_type` (reporting, opinion, analysis, paid, or null) | a badge for opinion, analysis and paid; nothing for reporting or null |
+| `news_article.text_status` (`full`, `teaser`, `video`) | for `teaser` and `video`, a "Summary from the feed" note (the article text was not available); nothing for `full` |
 
 Requests: a repeated query parameter `content_types` (`podcast_episode`, `news_article`); the
 default is `podcast_episode`, so a request without it is answered exactly as today.
@@ -225,7 +225,7 @@ The card never has a transcript, a body, a "Read more" or a quote section.
 - **Loading:** the existing rail and row skeletons.
 - **No summary yet** (the item is ingested, enrichment has not run): title, metadata and link out;
   the summary line reads "No summary yet" in `muted`.
-- **Teaser** (`text_status: teaser`): the feed's summary, with "Summary from the feed" in `muted`.
+- **Teaser or video** (`text_status: teaser` or `video`): the feed's summary, with "Summary from the feed" in `muted`.
 - **Metadata only** (`serveable: metadata`, or absent): title, publisher, time and link out, no
   summary; a `muted` line "This publisher's items show their title and link only."
 - **Not shown** (`serveable: none`): the item never appears, in search results, the rail or any
@@ -298,3 +298,4 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 | 2026-11-17 | Initial draft: News 1.0 scope (Type chip, news result row, article card), later items listed |
 | 2026-11-17 | Vocabulary: item, content type, source, transport, person, text (the operator); two content types (Podcasts, News), each with its own transports; today's names given once in brackets |
 | 2026-11-18 | Data table matched to ontology v3 (ingestion's correction): `url`, not `canonical_url`; `serveable` is `metadata` / `summary` / `none`, not a boolean; the publisher comes from the source through the registry; each field marked decided or undecided |
+| 2026-11-18 | The item contract accepted (the operator): every field named as `news-item-1.0.md` has it; `text_status` adds `video`; the publisher order (item, source, domain) |

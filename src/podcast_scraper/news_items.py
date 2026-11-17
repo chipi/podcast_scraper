@@ -34,11 +34,11 @@ F_TITLE = "title"
 F_PUBLISHED_AT = "published_at"
 F_PAYWALLED = "paywalled"
 F_SERVEABLE = "serveable"
-# Proposed, top level (waiting for the operator).
+# Accepted with the contract (the operator, 2026-11-18), top level.
 F_LANGUAGE = "language"
 F_PUBLISHER_ID = "publisher_id"
 F_SUMMARY = "summary"
-# Proposed, the type's own fields under ``news_article`` (ADR-181).
+# Accepted with the contract, the type's own fields under ``news_article`` (ADR-181).
 F_BYLINE = "byline"
 F_EDITORIAL_TYPE = "editorial_type"
 F_TEXT_STATUS = "text_status"
