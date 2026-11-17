@@ -63,14 +63,14 @@ def main() -> int:
         return 0
 
     # Minimal template
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    month_year = datetime.utcnow().strftime("%B %Y")
+    month_year = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%B %Y")
     template = f"""# Release v{version}
 
 **Release Date:** {month_year}
 **Type:** Minor Release
-**Last Updated:** {datetime.utcnow().strftime("%Y-%m-%d")}
+**Last Updated:** {datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")}
 
 ## Summary
 

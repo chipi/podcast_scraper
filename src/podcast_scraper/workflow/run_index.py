@@ -10,7 +10,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -783,7 +783,7 @@ def create_run_index(
     """
     from .. import models  # noqa: F401
 
-    created_at = datetime.utcnow().isoformat() + "Z"
+    created_at = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
 
     # Build status map from episode_statuses if available
     status_map = _build_status_map(episode_statuses)

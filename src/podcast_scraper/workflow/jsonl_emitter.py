@@ -8,7 +8,7 @@ real-time monitoring and analysis.
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -86,7 +86,7 @@ class JSONLEmitter:
             run_id: Optional run ID (defaults to timestamp)
         """
         if run_id is None:
-            run_id = datetime.utcnow().isoformat() + "Z"
+            run_id = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
 
         # Create config fingerprint (non-sensitive fields only)
         config_fingerprint = {
@@ -110,7 +110,7 @@ class JSONLEmitter:
 
         event = {
             "event_type": "run_started",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             "run_id": run_id,
             "config": config_fingerprint,
         }
@@ -139,7 +139,7 @@ class JSONLEmitter:
         # Convert EpisodeMetrics to dict
         event = {
             "event_type": "episode_finished",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             "episode_id": episode_metrics.episode_id,
             "episode_number": episode_metrics.episode_number,
             "audio_sec": episode_metrics.audio_sec,
@@ -167,7 +167,7 @@ class JSONLEmitter:
         # Extract key run-level metrics (not all fields, just important ones)
         event = {
             "event_type": "run_finished",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             "run_duration_seconds": metrics_dict.get("run_duration_seconds"),
             "episodes_scraped_total": metrics_dict.get("episodes_scraped_total"),
             "episodes_skipped_total": metrics_dict.get("episodes_skipped_total"),

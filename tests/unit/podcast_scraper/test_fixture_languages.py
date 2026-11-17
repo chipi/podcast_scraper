@@ -139,7 +139,7 @@ class TestTheCommittedCorporaStillNeedRegenerating:
 
         WRITTEN SURGICALLY, NOT BY REGENERATING, and that is the finding worth keeping: re-running
         `build_synthetic_validation_corpus.py` is not a safe way to apply a field to this corpus.
-        Its `base_date` is `datetime.utcnow()`, so every run shifts all 40 publish dates and the
+        Its `base_date` is the current UTC time, so every run shifts all 40 publish dates and the
         graph nodes derived from them — 131 of 332 files differ on a no-op rerun, almost none of it
         about language — and it would DELETE 18 git-tracked `.app/users/*` files (profiles,
         preferences, graph events) that the viewer e2e reads and the generator does not produce.

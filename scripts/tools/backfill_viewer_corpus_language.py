@@ -3,7 +3,7 @@
 WHY NOT REGENERATE. `build_synthetic_validation_corpus.py` already writes these fields — the
 corpus simply predates that change. But re-running it is not a safe way to apply them:
 
-* `base_date = datetime.utcnow()` (line 812), so every run shifts all 40 publish dates and the
+* `base_date` is the current UTC time, so every run shifts all 40 publish dates and the
   derived graph nodes with them — 131 of 332 files differ on a no-op rerun, almost none of it
   about language;
 * it would DELETE 18 git-TRACKED `.app/users/*` files (profiles, preferences, graph events) that

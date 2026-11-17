@@ -41,7 +41,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -2040,9 +2040,9 @@ def run_config(
 
     # Create timestamped run directory (not based on config name since feeds may differ)
     # output_dir is runs_dir (session_dir / "runs"); use resolved path so run dir is absolute
-    run_timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[
-        :-3
-    ]  # Include milliseconds for uniqueness
+    run_timestamp = (
+        datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y%m%d_%H%M%S_%f")[:-3]
+    )  # Include milliseconds for uniqueness
     run_dir_name = f"run_{run_timestamp}"
     run_output_dir = (output_dir / run_dir_name).resolve()
     run_output_dir.mkdir(parents=True, exist_ok=True)
@@ -2064,7 +2064,7 @@ def run_config(
 
     # Run the service
     start_time = time.time()
-    start_timestamp = datetime.utcnow().isoformat() + "Z"
+    start_timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
 
     # Build command
     python_cmd = sys.executable
@@ -2104,7 +2104,7 @@ def run_config(
         }
 
     end_time = time.time()
-    end_timestamp = datetime.utcnow().isoformat() + "Z"
+    end_timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
     duration_seconds = end_time - start_time
 
     # Detect dry-run mode EARLY (before collecting outputs)
@@ -2302,7 +2302,7 @@ def save_baseline(baseline_id: str, runs_data: List[Dict[str, Any]], output_dir:
     # Save baseline metadata
     baseline_metadata = {
         "baseline_id": baseline_id,
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "runs": runs_data,
         "total_runs": len(runs_data),
         "successful_runs": sum(1 for r in runs_data if r.get("exit_code", 1) == 0),
@@ -2500,7 +2500,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
     # Output + session dirs first (``--from-fast-stems`` materializes under session_dir).
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    session_id = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y%m%d_%H%M%S")
     session_dir = output_dir / "sessions" / f"session_{session_id}"
     session_dir.mkdir(parents=True, exist_ok=True)
     runs_dir = session_dir / "runs"

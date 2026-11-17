@@ -30,7 +30,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -167,7 +167,7 @@ def _measured_at(rec: Record) -> Optional[datetime]:
     raw = json.loads(gate.read_text(encoding="utf-8")).get("measured_at")
     if raw:
         return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).replace(tzinfo=None)
-    return datetime.utcfromtimestamp(gate.stat().st_mtime)
+    return datetime.fromtimestamp(gate.stat().st_mtime, timezone.utc).replace(tzinfo=None)
 
 
 def _revision_problems(rec: Record) -> List[str]:

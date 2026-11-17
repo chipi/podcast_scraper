@@ -12,7 +12,7 @@ import os
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
     Any,
@@ -1768,7 +1768,7 @@ def _finalize_run_index(
             else None
         )
         run_index = create_run_index(
-            run_id=cfg.run_id or datetime.utcnow().isoformat() + "Z",
+            run_id=cfg.run_id or datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             feed_url=cfg.rss_url,
             episodes=episodes,
             effective_output_dir=effective_output_dir,
