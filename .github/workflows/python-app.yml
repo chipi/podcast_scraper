@@ -52,7 +52,7 @@ on:
       - 'Makefile'
       - 'docker/pipeline/Dockerfile'
       - 'docker/api/**'
-      - 'docker/viewer/**'
+      - 'docker/workbench/**'
       - 'docker/observability/**'
       - '.dockerignore'
       - 'web/workbench/**'
@@ -81,7 +81,7 @@ on:
       - 'Makefile'
       - 'docker/pipeline/Dockerfile'
       - 'docker/api/**'
-      - 'docker/viewer/**'
+      - 'docker/workbench/**'
       - 'docker/observability/**'
       - '.dockerignore'
       - 'web/workbench/**'
@@ -214,11 +214,11 @@ jobs:
           # server and that corpus are its dependencies (#2285, #2286, #2288).
           viewer:
             - 'web/workbench/**'
-            - 'docker/viewer/**'
+            - 'docker/workbench/**'
             - '.github/workflows/python-app.yml'
           viewer-e2e:
             - 'web/workbench/**'
-            - 'docker/viewer/**'
+            - 'docker/workbench/**'
             - '.github/workflows/python-app.yml'
             - 'src/podcast_scraper/server/**'
             # The viewer e2e builds and queries the two-tier search index.
@@ -233,7 +233,7 @@ jobs:
           stack-compose:
             - 'compose/**'
             - 'docker/api/**'
-            - 'docker/viewer/**'
+            - 'docker/workbench/**'
             - 'docker/pipeline/Dockerfile'
             - 'compose/docker-compose.jobs-docker.yml'
             - '.github/workflows/python-app.yml'

@@ -217,16 +217,16 @@ help:
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
 	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
 	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
-	@echo "  make stack-build        Docker stack (production base, no mock-feeds): build viewer + api + pipeline images"
+	@echo "  make stack-build        Docker stack (production base, no mock-feeds): build workbench + api + pipeline images"
 	@echo "  make stack-build-llm    Docker stack: also build pipeline-llm (INSTALL_EXTRAS=llm)"
-	@echo "  make stack-up           Docker stack: start viewer + api (VIEWER_PORT=8080); pipeline jobs spawn via API factory"
+	@echo "  make stack-up           Docker stack: start workbench + api (VIEWER_PORT=8080); pipeline jobs spawn via API factory"
 	@echo "  make stack-down         Docker stack: stop stack (REMOVE_VOLUMES=1 runs compose down -v)"
-	@echo "  make stack-logs         Docker stack: follow viewer + api logs"
+	@echo "  make stack-logs         Docker stack: follow workbench + api logs"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
 	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
-	@echo "  make stack-test-build       Stack-test: build api + viewer + pipeline (airgapped/ml) images"
+	@echo "  make stack-test-build       Stack-test: build api + workbench + pipeline (airgapped/ml) images"
 	@echo "  make stack-test-build-cloud Stack-test: also build pipeline-llm ([llm] extras for cloud-thin runs — local only)"
-	@echo "  make stack-test-up          Stack-test: bring up api + viewer + mock-feeds (sources .env if present)"
+	@echo "  make stack-test-up          Stack-test: bring up api + workbench + mock-feeds (sources .env if present)"
 	@echo "  make stack-test-seed        Stack-test: seed corpus_data volume with feeds.spec.yaml + viewer_operator.yaml (STACK_TEST_OPERATOR_VARIANT=ml|cloud-thin)"
 	@echo "  make stack-test-playwright  Stack-test: run Playwright (smoke + full UI flow; STACK_TEST_OPERATOR_PROFILE=cloud_thin for llm runs)"
 	@echo "  make stack-test-ml          Stack-test (one-shot): ml pipeline — build → up → seed → Playwright (airgapped_thin)"
@@ -867,7 +867,7 @@ stack-down:
 	@if [ -n "$(REMOVE_VOLUMES)" ]; then $(STACK_COMPOSE) down -v; else $(STACK_COMPOSE) down; fi
 
 stack-logs:
-	@$(STACK_COMPOSE) logs -f viewer api
+	@$(STACK_COMPOSE) logs -f workbench api
 
 stack-test-build:
 	@# ``--profile pipeline`` is required: the ``pipeline`` service has

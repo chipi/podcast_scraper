@@ -167,15 +167,15 @@ jobs:
           # 200 viewer lines started after the failing request, so whether nginx answered the
           # browser with a 499 / 502 / reset could not be seen.
           mkdir -p tests/stack-test/test-results/compose-logs
-          for svc in api viewer; do
+          for svc in api workbench; do
             docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --timestamps "${svc}" \
               > "tests/stack-test/test-results/compose-logs/${svc}.log" 2>&1 || true
           done
           echo "::group::api container logs"
           docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=400 api || true
           echo "::endgroup::"
-          echo "::group::viewer container logs"
-          docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=200 viewer || true
+          echo "::group::workbench container logs"
+          docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=200 workbench || true
           echo "::endgroup::"
           # Pipeline runs as a one-shot ``docker compose run --rm pipeline …``
           # container spawned by the API job factory; ``--rm`` removes it the
@@ -293,10 +293,14 @@ jobs:
             context: "."
             dockerfile: docker/api/Dockerfile
             cache_scope: publish-api
-          - image: viewer
-            repo: podcast-scraper-stack-viewer
+          # The Workbench (formerly the viewer). Published under BOTH names, the same digest, until
+          # the deployment has switched to -workbench and a prod deploy has run on it (chipi/infra
+          # #84, step 3); then also_repo goes.
+          - image: workbench
+            repo: podcast-scraper-stack-workbench
+            also_repo: podcast-scraper-stack-viewer
             context: "."
-            dockerfile: docker/viewer/Dockerfile
+            dockerfile: docker/workbench/Dockerfile
             cache_scope: publish-viewer
           - image: pipeline-llm
             repo: podcast-scraper-stack-pipeline-llm
@@ -367,6 +371,7 @@ jobs:
           CONTEXT: ${{ matrix.context }}
           DOCKERFILE: ${{ matrix.dockerfile }}
           MATRIX_IMAGE: ${{ matrix.image }}
+          ALSO_IMAGE: ${{ matrix.also_repo && format('{0}/{1}/{2}', env.REGISTRY, env.OWNER, matrix.also_repo) || '' }}
         run: |
           set -euo pipefail
 
@@ -378,7 +383,7 @@ jobs:
             api)
               BUILD_ARGS+=(--build-arg "GIT_SHA=${GITHUB_SHA}" --build-arg "BUILD_TIME=${BUILD_TIME}")
               ;;
-            viewer)
+            workbench)
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_SRC=${OPERATOR_UMAMI_SRC}")
               BUILD_ARGS+=(--build-arg "VITE_UMAMI_WEBSITE_ID=${OPERATOR_UMAMI_WEBSITE_ID}")
               BUILD_ARGS+=(--build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}")
@@ -421,10 +426,14 @@ jobs:
               -c "import podcast_obs.aggregate, podcast_obs.config, podcast_obs.result, podcast_obs.sources"
           fi
 
+          # One push, so an image published under a second name has the same digest under both.
+          TAGS=(--tag "${IMAGE}:main" --tag "${IMAGE}:sha-${SHORT_SHA}")
+          if [ -n "${ALSO_IMAGE}" ]; then
+            TAGS+=(--tag "${ALSO_IMAGE}:main" --tag "${ALSO_IMAGE}:sha-${SHORT_SHA}")
+          fi
           docker buildx build \
             --platform linux/amd64 \
-            --tag "${IMAGE}:main" \
-            --tag "${IMAGE}:sha-${SHORT_SHA}" \
+            "${TAGS[@]}" \
             --push \
             --cache-from "type=gha,scope=${CACHE_SCOPE}" \
             --cache-to "type=gha,scope=${CACHE_SCOPE},mode=max" \
@@ -473,7 +482,7 @@ jobs:
           # Assert each pushed :sha-<short> manifest exists and lists
           # linux/amd64. amd64-only by design (see the publish job header);
           # if a CAX/arm64 target is ever added, extend this to arm64 too.
-          IMAGES="podcast-scraper-stack-api podcast-scraper-stack-viewer podcast-scraper-stack-pipeline-llm podcast-obs"
+          IMAGES="podcast-scraper-stack-api podcast-scraper-stack-workbench podcast-scraper-stack-viewer podcast-scraper-stack-pipeline-llm podcast-obs"
           for NAME in $IMAGES; do
             IMAGE="${REGISTRY}/${OWNER}/${NAME}"
             echo "==> Inspecting ${IMAGE}:sha-${SHORT_SHA}"
@@ -493,11 +502,11 @@ jobs:
           {
             echo "## GHCR publish complete (amd64)"
             echo ""
-            echo "Pushed four images with tags \`:main\` + \`:sha-${SHORT}\`,"
+            echo "Pushed four images (the Workbench under two names) with tags \`:main\` + \`:sha-${SHORT}\`,"
             echo "each linux/amd64 — the arch the prod VPS (Hetzner cx43) pulls."
             echo ""
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-api:main\`"
-            echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-viewer:main\`"
+            echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-workbench:main\` (also \`podcast-scraper-stack-viewer:main\`, the same digest, until the deployment switches)"
             echo "* \`ghcr.io/${OWNER}/podcast-scraper-stack-pipeline-llm:main\`"
             echo "* \`ghcr.io/${OWNER}/podcast-obs:main\`  (observability MCP, #803)"
             echo ""

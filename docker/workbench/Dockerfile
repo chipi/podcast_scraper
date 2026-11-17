@@ -1,5 +1,5 @@
 # GitHub #659: production viewer — Vue (Vite) static build + Nginx reverse proxy to API.
-# Build from repository root: docker build -f docker/viewer/Dockerfile .
+# Build from repository root: docker build -f docker/workbench/Dockerfile .
 
 # syntax=docker/dockerfile:1
 
@@ -22,7 +22,7 @@ ARG VITE_SENTRY_DSN_VIEWER
 ENV VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}
 # VITE_PODCAST_ENV deliberately removed: env tag is now injected at
 # request time by nginx ``sub_filter`` reading the container's
-# ``PODCAST_ENV`` env var (see docker/viewer/default.conf.template).
+# ``PODCAST_ENV`` env var (see docker/workbench/default.conf.template).
 # This lets ONE viewer image serve every environment with the right
 # Sentry env tag — no double-publish, no per-env image tags.
 ARG VITE_PODCAST_RELEASE
@@ -67,7 +67,7 @@ COPY --from=build /viewer/dist/ /usr/share/nginx/html/
 # envsubst on it at container start — needed for the PODCAST_ENV
 # runtime injection in the ``sub_filter`` directive. Output lands at
 # /etc/nginx/conf.d/default.conf.
-COPY docker/viewer/default.conf.template /etc/nginx/templates/default.conf.template
+COPY docker/workbench/default.conf.template /etc/nginx/templates/default.conf.template
 
 # Defaults so envsubst on the template doesn't leave literal
 # ``${PODCAST_ENV}`` placeholders if the operator forgot to set the

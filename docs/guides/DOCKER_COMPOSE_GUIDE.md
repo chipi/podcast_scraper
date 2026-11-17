@@ -62,7 +62,7 @@ the underlying targets are documented below.
 make stack-test-build
 ```
 
-This builds three images: `podcast-scraper-stack-api`, `podcast-scraper-stack-viewer`, and `podcast-scraper-stack-pipeline` (the airgapped/ml variant). First build takes 5–15 minutes — Whisper, spaCy, and the summarization transformers are downloaded and cached into the pipeline image so runtime stays offline.
+This builds three images: `podcast-scraper-stack-api`, `podcast-scraper-stack-workbench`, and `podcast-scraper-stack-pipeline` (the airgapped/ml variant). First build takes 5–15 minutes — Whisper, spaCy, and the summarization transformers are downloaded and cached into the pipeline image so runtime stays offline.
 
 If you plan to use cloud providers (OpenAI Whisper API, Gemini, …) also build:
 
@@ -80,7 +80,7 @@ make stack-test-up
 
 Three long-running services start:
 
-- **`viewer`** (Nginx serving the Vue SPA) — exposed on `http://127.0.0.1:8090`.
+- **`workbench`** (Nginx serving the Vue SPA) — exposed on `http://127.0.0.1:8090`.
 - **`api`** (FastAPI on port 8000, proxied via Nginx at `/api/*`).
 - **`mock-feeds`** (an Nginx sidecar that serves a few bundled RSS fixtures plus their audio + transcripts — handy for trying the platform without configuring real feeds).
 
@@ -152,7 +152,7 @@ A typical airgapped run on a laptop: ~60–90 s for one short episode (Whisper t
 | Corpus artifacts (transcripts, gi/kg JSON, run logs) | named volume `compose_corpus_data` mounted at `/app/output` | preserved unless you pass `STACK_TEST_DOWN_VOLUMES=1` |
 | User accounts (Postgres, ADR-169) | named volume `compose_postgres_data` | preserved unless you pass `STACK_TEST_DOWN_VOLUMES=1` |
 | Operator config (`viewer_operator.yaml`) + feeds (`feeds.spec.yaml`) | corpus root in `corpus_data` | preserved (same volume) |
-| Vue SPA build | baked into the `viewer` image | lost on image rebuild |
+| Vue SPA build | baked into the `workbench` image | lost on image rebuild |
 | Pipeline job logs | `<corpus>/.viewer/jobs/<id>.log` in `corpus_data` | preserved |
 | HuggingFace model cache (sentence-transformers, spaCy, Whisper) | baked into the `api` and `pipeline` images at build time | lost on image rebuild |
 
@@ -243,7 +243,7 @@ make stack-test-down STACK_TEST_DOWN_VOLUMES=1   # also drop the corpus_data vol
 
 ### Services
 
-- **`viewer`** — Nginx serving the prebuilt Vue SPA. Proxies `/api/*` to the API container. Internal port 80; exposed on `STACK_TEST_VIEWER_PORT` (default 8090).
+- **`workbench`** — Nginx serving the prebuilt Vue SPA. Proxies `/api/*` to the API container. Internal port 80; exposed on `STACK_TEST_VIEWER_PORT` (default 8090).
 - **`api`** — FastAPI (uvicorn). Reads/writes the corpus volume directly (operator-config, feeds.spec, jobs registry). Talks to the host Docker daemon via the bind-mounted socket to spawn pipeline jobs. Internal port 8000.
 - **`postgres`** — Postgres 18 holding app state (user accounts; ADR-169), on the `postgres_data` volume, reachable only on the compose network. The default password is for local and stack-test use; set `POSTGRES_PASSWORD` for anything else.
 - **`db-migrate`** — one-shot `db upgrade --plane player` that `api` waits for (`service_completed_successfully`). **Dev and stack-test only**: the API never migrates at start, and production runs `db upgrade` as its own dedicated step with the migrating role.
@@ -351,7 +351,7 @@ make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 The `compose/docker-compose.stack.yml` + `compose/docker-compose.stack-test.yml` setup ships everything you need for a single-corpus, single-host deployment. To take it production-ish:
 
 1. **Drop the `mock-feeds` service.** Remove `compose/docker-compose.stack-test.yml` from your `-f` chain (or write a thin overlay that omits it). Real RSS URLs go in `feeds.spec.yaml` directly via the UI.
-2. **Add restart policies.** Merge a production overlay — adds `restart: unless-stopped` for `api` and `viewer`.
+2. **Add restart policies.** Merge a production overlay — adds `restart: unless-stopped` for `api` and `workbench`.
 3. **Externalise the corpus volume.** Change `corpus_data` to an external named volume so it survives `docker compose down -v`. Or bind-mount a host path.
 4. **Front the viewer with HTTPS.** Put a reverse proxy (Caddy, Traefik, Nginx) in front of `viewer:80` — the SPA itself doesn't terminate TLS.
 5. **Lock down the API.** The current setup assumes the viewer host is trusted. Add network policies or an authenticating proxy if `:8090` is reachable from anywhere outside the host.
@@ -363,7 +363,7 @@ For full RFC-079 / GitHub #659 architecture details, see [RFC-079 — Full-stack
 
 - [README — Quick start with Docker Compose](https://github.com/chipi/podcast_scraper/blob/main/README.md#quickest-start-docker-compose) — the 4-step landing version of this guide.
 - [`compose/`](https://github.com/chipi/podcast_scraper/tree/main/compose) — compose files: `docker-compose.stack.yml` (base), `docker-compose.stack-test.yml` (overlay used for the bundled mock-feeds + Docker job mode), `docker-compose.jobs-docker.yml` (production overlay enabling Docker job mode without mock-feeds), `docker-compose.prod.yml` (restart policies).
-- [`docker/`](https://github.com/chipi/podcast_scraper/tree/main/docker) — image Dockerfiles for `api`, `viewer`, `pipeline`, and the `mock-feeds` Nginx sidecar.
+- [`docker/`](https://github.com/chipi/podcast_scraper/tree/main/docker) — image Dockerfiles for `api`, `workbench`, `pipeline`, and the `mock-feeds` Nginx sidecar.
 - [Stack-test README](https://github.com/chipi/podcast_scraper/blob/main/tests/stack-test/README.md) — how the Playwright suite drives the same compose stack.
 - [Docker variants guide](DOCKER_VARIANTS_GUIDE.md) — pipeline image tier comparison (ml vs llm).
 - [Server guide](SERVER_GUIDE.md) — `/api/*` reference, FastAPI architecture.

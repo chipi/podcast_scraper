@@ -19,7 +19,7 @@ here is built yet.
 | `package.json` `"name": "gi-kg-viewer"` | `"workbench"` | and `package-lock.json` |
 | Page title and header "Podcast Intelligence Platform" | "Workbench" | `index.html:14`, `App.vue:905`, `LoginView.vue:32` |
 | "GI/KG viewer" in docs (167 mentions in 87 files) | "Workbench" | prose only; history docs (RFCs, ADRs, releases) keep their words |
-| `podcast-scraper-stack-viewer` image, `viewer` compose service | to decide | the deployment names it too (see below) |
+| `podcast-scraper-stack-viewer` image, `viewer` compose service, `docker/viewer/` | `podcast-scraper-stack-workbench`, `workbench`, `docker/workbench/` | decided 2026-11-17; the image is published under both names until the deployment switches (chipi/infra #84) |
 
 ### Where the path is load-bearing
 
@@ -29,7 +29,7 @@ here is built yet.
   (`web/workbench/dist`) and the `--no-spa` help in `server/cli_handlers.py:118`.
 - **CI:** path filters and working directories in `python-app.yml` (5 places in the filters, more
   in the viewer jobs) and `nightly.yml` (cache paths, working directories, artifact paths).
-- **The viewer image:** `docker/viewer/Dockerfile:53,56` and `.dockerignore:58-59`.
+- **The viewer image:** `docker/workbench/Dockerfile:53,56` and `.dockerignore:58-59`.
 - **Make and scripts:** `Makefile:43` (`WEB_VIEWER_DIR`), `scripts/tools/gates_changed.sh`,
   `scripts/tools/check_doc_structure.py`, `scripts/docs_strip_emoji.py`,
   `scripts/build_production_shaped_fixture.py`.
@@ -58,7 +58,7 @@ writes the new one, and removes the old one.
 - **Code identifiers** such as `focusEpisode` or `corpusPath`: renamed only where a general term
   replaces a podcast one in the same change, not in bulk.
 
-## 2. The vocabulary (to decide with the operator)
+## 2. The vocabulary
 
 The visible copy is written into the components (no copy file today). Rough counts of the words a
 user reads: "Episode(s)" about 67, "Feed" 16, "Corpus" 13, "Speaker" 10, "Podcast" 8, "Transcript"
@@ -66,7 +66,7 @@ user reads: "Episode(s)" about 67, "Feed" 16, "Corpus" 13, "Speaker" 10, "Podcas
 
 | Today | Proposed general term | Where the specific word stays |
 | --- | --- | --- |
-| Corpus ("Corpus path", "corpus") | **to decide**: Library, Collection or Archive | |
+| Corpus ("Corpus path", "corpus") | **kept** (recommended 2026-11-17 after the operator asked; not objected to): not podcast-specific, and the platform's word for the store | |
 | Episode | **Item** | "Episode" as a podcast item's type label; "Article" for news |
 | Show, Feed | **Source** | "Show" or "Publication" as the type label |
 | Speaker | **Person** | "Speaker" and "Author" as roles |
@@ -111,10 +111,13 @@ clicks on topic and person nodes, phone width and the light theme.
 UXS-019 (draft, on branch `docs/uxs-019-news`, not merged) is written in
 today's words. It is revised to the vocabulary above before it is built.
 
-## Open questions for the operator
+## Decided (2026-11-17)
 
-1. The general word for "corpus".
-2. Whether the viewer image and compose service (`podcast-scraper-stack-viewer`, `viewer`) are
-   renamed with the folder, or later with the deployment.
-3. Whether UXS-001 and WORKBENCH_IA are renamed (file names) or keep their names with new titles.
-   Studio's tests read `UXS-001-workbench.md` by path.
+1. **"Corpus" stays** (recommended after the operator asked; not objected to).
+2. **The image, the compose service and `docker/viewer/` are renamed now**, in the news release:
+   infra's main reads either layout at deploy time (chipi/infra #84, step 1), public publishes the
+   image under both names until a prod deploy has run on `-workbench` (step 3 then drops the old
+   name). The DR drill's `tests/stack-test/stack-viewer.spec.ts` keeps its file name: infra runs it
+   by name.
+3. **UXS-001 and the IA doc are renamed** (`UXS-001-workbench.md`, `WORKBENCH_IA.md`). The private
+   viewer builds against a pinned public commit and switches its paths when it repins.

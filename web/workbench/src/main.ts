@@ -32,7 +32,7 @@ const app = createApp(App)
 // Sentry init for the viewer — gated on a DSN, so the default behaviour (no DSN) stays a true
 // no-op for dev / CI / any image whose container sets none. The deployed viewer takes its DSN at
 // container start: nginx injects ``window.__PODCAST_SENTRY_DSN_VIEWER__`` from the container's
-// ``PODCAST_SENTRY_DSN_VIEWER`` (see docker/viewer/default.conf.template), so one image serves
+// ``PODCAST_SENTRY_DSN_VIEWER`` (see docker/workbench/default.conf.template), so one image serves
 // every deployment and no DSN is baked by CI. ``VITE_SENTRY_DSN_VIEWER`` (a build-arg) still
 // works for a local build that runs without that nginx.
 //
@@ -42,7 +42,7 @@ const app = createApp(App)
 // out, prepending a ``<script>`` that sets ``window.__PODCAST_ENV__``,
 // ``window.__PODCAST_RELEASE__``, and optionally
 // ``window.__PODCAST_DEFAULT_CORPUS_PATH__``. See
-// docker/viewer/default.conf.template.
+// docker/workbench/default.conf.template.
 //
 // See RFC-081 (not in this repository) §Layer 2 + issue #681. Pairs with the Python-side init
 // in ``src/podcast_scraper/utils/sentry_init.py`` so api / pipeline /

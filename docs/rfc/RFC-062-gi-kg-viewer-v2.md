@@ -938,7 +938,7 @@ grows into the full platform vision described in the
 | --------- | --------------- | ----------- |
 | Docker Compose | `postgres` + `api` + `worker` + `caddy` services | Megasketch Part B |
 | Worker process | Same image, different `command` — consumes job queue | Uses `service.run()` internally |
-| Static build | Vite output baked into Docker image | `npm run build` in `docker/viewer/Dockerfile` |
+| Static build | Vite output baked into Docker image | `npm run build` in `docker/workbench/Dockerfile` |
 
 ### Growth Path (No Architectural Rewrites)
 

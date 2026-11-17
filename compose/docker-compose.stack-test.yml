@@ -81,10 +81,10 @@ services:
     # operator-config mode (``viewer_operator.yaml`` per corpus root,
     # no static ``--config-file``).
 
-  viewer:
+  workbench:
     build:
       context: ..
-      dockerfile: docker/viewer/Dockerfile
+      dockerfile: docker/workbench/Dockerfile
       args:
         # Empty string = "all time" — stack-test fixtures use static
         # 2025 publish dates. The viewer's default 7-day lens would
