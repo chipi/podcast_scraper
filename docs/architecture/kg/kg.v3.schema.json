@@ -138,6 +138,9 @@
         "id": { "type": "string", "pattern": "^person:.+" },
         "type": { "const": "Person" },
         "properties": {
+          "properties": {
+            "respelled_from": { "type": "string", "minLength": 1 }
+          },
           "allOf": [{ "$ref": "#/$defs/named_properties" }],
           "unevaluatedProperties": false
         },

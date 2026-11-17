@@ -42,7 +42,7 @@ Id values never change (T-8): podcasts keep `podcast:` and `episode:`; new types
 | --- | --- | --- |
 | `Source` | `podcast:{slug}` (podcast), `source:{slug}` (others) | `title` (required); `source_kind` (`podcast`, `news`, …); `transport`; `url` |
 | `ContentItem` | `episode:{id}` (podcast), `item:{content_type}:{id}` (others) | `title` (required); `content_type` (required); the item times; `url`; `duration_ms` and `audio_url` for timed items |
-| `Person` | `person:{slug}` | as v2; `role` is an open string |
+| `Person` | `person:{slug}` | as v2; `role` is an open string; plus `respelled_from` when migration 0041 respelled the name for display (the episode's own spelling, the identity ledger's evidence) |
 | `Organization` | `org:{slug}` | as v2, plus `identifiers` (`[{scheme, value}]`: `domain`, `cik`, `ticker`, `lei`, `wikidata`); `role` open |
 | `Object`, `Topic` | as v2 | as v2 |
 
