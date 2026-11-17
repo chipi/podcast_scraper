@@ -83,6 +83,7 @@ nav:
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
       - Corpus Ontology (v2, unified): architecture/corpus/ontology.md
       - Corpus Ontology v3 (proposed): architecture/corpus/ontology-v3.md
+      - The news item (News 1.0, proposed): architecture/corpus/news-item-1.0.md
       - GI Ontology: architecture/gi/ontology.md
       - KG Ontology:
           - architecture/kg/README.md
