@@ -35,19 +35,12 @@
         without network downloads).
       </li>
       <li>
-        Use filters to narrow doc types, feed, date, speaker, or grounded insights — same
+        Use filters to narrow doc types, feed, date, speaker, or any other filter chip — same
         metadata the indexer stores.
       </li>
       <li>
-        Result cards use <strong>G</strong> to focus a graph node when the hit maps to your loaded
-        <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
-          .gi.json
-        </code>
-        /
-        <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
-          .kg.json
-        </code>
-        . <strong>L</strong> opens the episode in the <strong>subject panel</strong> (right
+        Result cards use <strong>G</strong> to focus a graph node when the hit maps to a node in
+        the loaded graph. <strong>L</strong> opens the episode in the <strong>subject panel</strong> (right
         rail) when the vector index stores
         <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
           source_metadata_relative_path

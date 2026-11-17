@@ -822,7 +822,7 @@ defineExpose({
     <button
       type="button"
       class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-      title="Choose GI/KG JSON files (offline)"
+      title="Choose graph JSON files (offline)"
       aria-label="Choose corpus files"
       @click="triggerLocalFilePick"
     >
@@ -832,7 +832,7 @@ defineExpose({
       v-if="shell.healthStatus && shell.corpusPath.trim()"
       type="button"
       class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-      title="List GI/KG artifacts from the API for this corpus path"
+      title="List the graph artifacts from the API for this corpus path"
       data-testid="status-bar-list-artifacts"
       @click="void onListArtifactsClick()"
     >

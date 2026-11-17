@@ -160,14 +160,14 @@ describe('DigestView — topic bands', () => {
     expect(artifacts.appendRelativeArtifacts).toHaveBeenCalledWith(['feeds/f1/hit-b.kg.json'])
   })
 
-  it('a hit with no GI/KG on disk says so instead of opening an empty graph', async () => {
+  it('a hit with no graph data says so instead of opening an empty graph', async () => {
     const d = digestOf({
       topics: [band('x', 0.9, { hits: [{ ...band('x', 0.9).hits[0], has_gi: false, has_kg: false }] })],
     })
     const { w } = await mountDigest(d)
     await w.get('section[aria-label="Topic Band x"] [role="button"]').trigger('keydown', { key: 'Enter' })
     await flushPromises()
-    expect(w.text()).toContain('No GI/KG artifacts on disk for this episode.')
+    expect(w.text()).toContain('No graph data for this episode.')
   })
 
   it('a band has no "Across shows" of its own: that is GI, a downstream band section', async () => {

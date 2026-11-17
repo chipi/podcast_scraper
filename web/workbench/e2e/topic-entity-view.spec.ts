@@ -6,7 +6,7 @@
  * ``subject.kind === 'topic'``. Entry point (per E2E_SURFACE_MAP §224):
  *
  *   * Digest topic-band title click → ``openTopicBandInGraph`` opens the
- *     graph for the band's top GI/KG hit and calls
+ *     graph for the band's top hit and calls
  *     ``subject.focusTopic(graph_topic_id)`` so TEV renders.
  *
  * Smoke contract (per E2E_SURFACE_MAP):

@@ -169,7 +169,7 @@ the older topic-band label behaviour above, this section governs.
   search handoff uses `primary`).
 
 - **Topic band:** **Search topic** uses `primary`; opens the Search panel with the
-  topic query prefilled per RFC-068. **Topic title** opens **Graph** for the top GI/KG hit.
+  topic query prefilled per RFC-068. **Topic title** opens **Graph** for the top hit.
 
   Each **hit row** opens the **Episode subject rail** for that episode, then **Graph** for that hit
   with digest topic focus when the node exists.

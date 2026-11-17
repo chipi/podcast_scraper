@@ -472,7 +472,7 @@ async function openTopicHitInGraph(
   graphActionError.value = null
   const cleaned = episodeArtifactRelPaths(h)
   if (cleaned.length === 0) {
-    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
+    graphActionError.value = 'No graph data for this episode.'
     return
   }
   // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
               <strong class="font-medium text-surface-foreground/90">topic title</strong>
               to open the
               <strong class="font-medium text-surface-foreground/90">Graph</strong>
-              for the top GI/KG hit. Click a
+              for the top hit. Click a
               <strong class="font-medium text-surface-foreground/90">hit row</strong>
               to load the
               <strong class="font-medium text-surface-foreground/90">Episode</strong>
@@ -624,7 +624,7 @@ onBeforeUnmount(() => {
               <strong class="font-medium text-surface-foreground/90">topic pills</strong>
               open the graph on
               <span class="font-mono text-[9px]">topic:…</span>
-              when GI/KG list that node (see
+              when the graph lists that node (see
               <strong class="font-medium text-surface-foreground/90">Library</strong>
               for the same catalog without list pills).
             </p>

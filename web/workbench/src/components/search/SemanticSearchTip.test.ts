@@ -45,16 +45,15 @@ describe('SemanticSearchTip', () => {
     expect(w.text()).toContain('subject panel')
   })
 
-  it('renders the artifact-type and metadata path code snippets', () => {
+  it('renders the metadata path code snippet, and names no artifact file types', () => {
     const w = mountTip()
     const codeText = w.findAll('code').map((c) => c.text().trim())
-    expect(codeText).toContain('.gi.json')
-    expect(codeText).toContain('.kg.json')
     expect(codeText).toContain('source_metadata_relative_path')
+    expect(w.text()).not.toMatch(/\.(gi|kg)\.json/)
   })
 
   it('mentions the filterable metadata facets', () => {
     const w = mountTip()
-    expect(w.text()).toContain('doc types, feed, date, speaker, or grounded insights')
+    expect(w.text()).toContain('doc types, feed, date, speaker, or any other filter chip')
   })
 })
