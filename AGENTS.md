@@ -1035,6 +1035,7 @@ make type          # mypy
 make ci-fast       # Fast tests before commit (~6-10 min)
 make ci-ui-fast    # Like ci-fast, Playwright instead of Python tests/e2e
 make ci            # Full CI suite (~10-15 min)
+make ci-local      # optional: main's full unit/integration/e2e jobs locally, CI's flags (TESTING_GUIDE#ci-local)
 make docs          # Build docs (before committing doc changes)
 make lint-markdown # Check markdown
 make fix-md        # Auto-fix markdown

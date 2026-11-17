@@ -107,6 +107,53 @@ make test-e2e
 make test
 ```
 
+### Main's full suites, locally: `make ci-local` {#ci-local}
+
+`make ci-fast` is the standard check before a push: it matches what a pull request runs. A pull
+request runs the critical-path subsets of integration and e2e (`test-integration-fast`,
+`test-e2e-fast`); the full suites run in GitHub CI only on a push to `main` or a release branch
+(the `if:` on the `test-integration` and `test-e2e` jobs in `.github/workflows/python-app.yml`).
+That split is by design: fast feedback on the branch, more work on main, which sometimes fails
+there. `make ci-local` is the optional, heavier check that runs those three pytest jobs locally,
+with CI's commands and flags: to reproduce a failure of main's CI, or before a release PR.
+
+```bash
+make ci-local                       # unit, integration, e2e
+make ci-local SUITES=integration    # one of unit | integration | e2e | all
+```
+
+- **Environment:** this checkout's `.venv` as set up in [CONTRIBUTING](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
+  (`make init`) plus the `search` extra, which is the `.[dev,ml,llm,search]` CI's integration and e2e
+  jobs install. No private packages and no pandas: a shared venv that has either passes tests
+  CI fails (the core release's `to_pandas()` import, #2485). The script warns when pandas is
+  importable.
+- **Test database:** this checkout's `postgres:18` from `scripts/tools/test_db.sh`, started when
+  `PODCAST_TEST_DATABASE_URL` is unset and removed at the end. The e2e suite runs without it,
+  as CI's `test-e2e` job does.
+- **Flags:** `-m integration` / `-m "e2e and not nightly"`, `--reruns 2 --reruns-delay 1`,
+  `--disable-socket --allow-hosts=127.0.0.1,localhost`, `--cov-fail-under=42` (integration) and
+  `37.5` (e2e), and the "at least 50 passed" check CI runs after pytest. The unit suite also runs
+  the import check and the KG quality metrics step of CI's `test-unit` job.
+- **Workers:** 6 by default (`CI_LOCAL_WORKERS=N`): the machine is shared.
+- **Another commit:** `CI_LOCAL_TREE=<worktree>` tests that tree with this checkout's `.venv`
+  (the tree's `src/` first on `PYTHONPATH`), for example a detached worktree at an older commit.
+- **Result:** one `PASS <suite>` / `FAIL <suite>` line per suite, then `CI-LOCAL: PASS` or
+  `CI-LOCAL: FAIL` as the last line, with the exit code to match. Logs:
+  `reports/ci-local/<suite>.log`.
+
+What it does not reproduce: CI's unit job installs `.[dev]` only, while `.venv` has the ML extras,
+so a unit test that needs an ML extra passes here and fails or skips there (`make venv-dev-init &&
+make test-unit-dev-venv` covers that); CI's Python is 3.11.8; the private-image integration stack is
+not part of it. Tools on the machine change what skips: with `rclone` on PATH (`mise install`) the
+two archive offload tests under `tests/integration/archive/` run here and skip in CI, and without
+`shellcheck` the shellcheck test in `test_infra_config_validates.py` skips here and runs in CI.
+The e2e suite gets `HF_TOKEN` (CI's one e2e secret) from the environment or the checkout's
+gitignored `.env`, and nothing else from `.env`. No test under `tests/e2e/` reads it today; it is
+passed for parity with CI.
+
+A full run takes about 12 minutes on a shared machine; run it through a detached job (the
+`long-job` skill) and watch it.
+
 ### Browser E2E (GI / KG Viewer v2) {#browser-e2e-gi-kg-viewer-v2}
 
 Playwright drives a **real browser** against the Vue SPA. This stack is **orthogonal to pytest**:
