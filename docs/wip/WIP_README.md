@@ -36,6 +36,7 @@ handovers, run logs, one-off measurements and screenshots of shipped UI do not s
 | --- | --- |
 | [WORKBENCH-DB-ERA-SWEEP-2026-11-17.md](WORKBENCH-DB-ERA-SWEEP-2026-11-17.md) | The Workbench's part of the database-era sweep: 33 rows of designs that work around file-corpus limits, with what to build now and which epic removes each limit |
 | [WORKBENCH-2026-11-17.md](WORKBENCH-2026-11-17.md) | The public viewer becomes Workbench: the rename, the general vocabulary, the core fixes from the public-only review, then news (operator's open questions at the end) |
+| [NEWS-1.0-PUBLIC-2026-11-18.md](NEWS-1.0-PUBLIC-2026-11-18.md) | Public's half of News 1.0: the operator's acceptance (19 sources in the Workbench, sources in config, every view, end to end), who does what, what Studio needs from public's routes, the steps and their status |
 | [INGESTION-ARC-2026-11-03.md](INGESTION-ARC-2026-11-03.md) | The draft list for `feat/ingestion-arc` (work that changes nothing about deployment): tiers A, B, L, M and C, and how the corpus change method applies to each |
 | [C1-CODE-DIGEST-2026-11-04.md](C1-CODE-DIGEST-2026-11-04.md) | Arc item C1: why a migration's code digest covers 610 of 778 modules, the options measured, and the recommendation (operator's call) |
 | [NONENGLISH-REFERENCE-SHOWS-2026-10-09.md](NONENGLISH-REFERENCE-SHOWS-2026-10-09.md) | The non-English arc: readiness per language, the gate decisions, #2352 and #2353 |
