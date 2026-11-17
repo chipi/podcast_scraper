@@ -20,10 +20,10 @@ from podcast_scraper.server.routes import ops  # noqa: E402
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
-def _client() -> TestClient:
+def _client(base_url: str = "http://127.0.0.1:8000") -> TestClient:
     app = FastAPI()
     app.include_router(ops.router, prefix="/api")
-    return TestClient(app)
+    return TestClient(app, base_url=base_url)
 
 
 def _clear_obs_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,6 +77,23 @@ def test_ops_summary_defaults_target_to_local_server(monkeypatch: pytest.MonkeyP
     assert resp.status_code == 200
     assert captured["api_base"] == "http://127.0.0.1:8000"  # defaulted to this server
     assert captured["timeout"] == 4.0  # responsive web timeout override
+
+
+def test_ops_summary_probes_the_port_this_server_listens_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A server started on another port (``make serve-api SERVE_PORT=8731``) probed 8000 and
+    reported health, version and runs as "Connection refused" (public-only review, 2026-11-17)."""
+    _clear_obs_env(monkeypatch)
+    captured: dict = {}
+
+    def fake_summary(target):
+        captured["api_base"] = target.api_base
+        return {"data": {"target": "", "live": [], "unconfigured": [], "failed": [], "sources": {}}}
+
+    monkeypatch.setattr("podcast_obs.aggregate.summary", fake_summary)
+    assert _client("http://127.0.0.1:8731").get("/api/ops/summary").status_code == 200
+    assert captured["api_base"] == "http://127.0.0.1:8731"
 
 
 def test_ops_summary_real_fanout_degrades(monkeypatch: pytest.MonkeyPatch) -> None:
