@@ -2,10 +2,11 @@
 import { computed } from 'vue'
 import type { CilDigestTopicPill } from '../../api/digestApi'
 import { topicGrouping } from '../../extensions'
-import { cilClusteredTopicPillChrome } from '../../utils/colors'
 import { renderPillLabel, type CilPillTruncation } from '../../utils/topicPillLabel'
 
-export type CilClusterMemberAppearance = 'quote' | 'kg'
+/** Only ``kg`` now: the amber ``quote`` look went with the private viewer's callers, which all pass
+ *  ``kg``. The prop stays so those callers keep compiling. */
+export type CilClusterMemberAppearance = 'kg'
 
 /**
  * Pre-#656 foundation: make truncation + max-width configurable so the
@@ -25,9 +26,7 @@ const props = withDefaults(
     /** Tailwind max-width class applied to each pill; ``auto`` shrink-wraps. */
     maxWidthClass?: string
     dataTestid?: string
-    /**
-     * Cluster-member pill chrome: ``quote`` (amber, legacy) or ``kg`` (Digest Recent parity with graph TopicCluster).
-     */
+    /** Cluster-member pill chrome: ``kg`` (Digest Recent parity with graph TopicCluster). */
     clusterMemberAppearance?: CilClusterMemberAppearance
   }>(),
   {
@@ -36,7 +35,7 @@ const props = withDefaults(
     // Legacy default preserves today's 11rem cap; new sites pass ``auto`` for short labels.
     maxWidthClass: 'max-w-[11rem]',
     dataTestid: undefined,
-    clusterMemberAppearance: 'quote',
+    clusterMemberAppearance: 'kg',
   },
 )
 
@@ -89,9 +88,7 @@ function buttonShapeClasses(): string {
       :class="[
         buttonShapeClasses(),
         p.in_topic_cluster
-          ? clusterMemberAppearance === 'kg'
-            ? 'border-2 border-kg bg-kg/30 font-semibold text-surface-foreground shadow-sm hover:bg-kg/40'
-            : 'border-2 border-transparent font-semibold text-surface-foreground shadow-sm'
+          ? 'border-2 border-kg bg-kg/30 font-semibold text-surface-foreground shadow-sm hover:bg-kg/40'
           : 'border border-border bg-canvas font-normal text-muted hover:bg-overlay',
       ]"
       :data-theme-member="themeMemberIds.has(p.topic_id) ? '' : undefined"
@@ -101,9 +98,7 @@ function buttonShapeClasses(): string {
               backgroundColor: 'color-mix(in srgb, var(--ps-theme) 22%, transparent)',
               color: 'var(--color-surface-foreground, inherit)',
             }
-          : p.in_topic_cluster && clusterMemberAppearance === 'quote'
-            ? cilClusteredTopicPillChrome
-            : undefined
+          : undefined
       "
       :title="p.label.trim() || undefined"
       :aria-label="`Open graph for topic: ${p.label}`"

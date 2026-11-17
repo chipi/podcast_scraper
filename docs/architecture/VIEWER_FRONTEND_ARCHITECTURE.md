@@ -62,11 +62,10 @@ App.vue
 
 | Component | Used by |
 | --------- | ------- |
-| `HelpTip` | App, DigestView, LibraryView, ExplorePanel, SearchPanel, EpisodeDetailPanel, NodeDetail, TopicTimelineDialog |
-| `PodcastCover` | DigestView, LibraryView, EpisodeDetailPanel, TopicTimelineDialog |
+| `HelpTip` | App, DigestView, LibraryView, ExplorePanel, SearchPanel, EpisodeDetailPanel, NodeDetail |
+| `PodcastCover` | DigestView, LibraryView, EpisodeDetailPanel |
 | `CollapsibleSection` | LibraryView |
 | `TranscriptViewerDialog` | NodeDetail |
-| `TopicTimelineDialog` | NodeDetail |
 
 ### Dialogs
 

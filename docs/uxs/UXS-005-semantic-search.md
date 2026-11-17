@@ -23,7 +23,6 @@
   - `web/workbench/src/components/search/SearchPanel.vue`
   - `web/workbench/src/components/search/ResultCard.vue`
   - `web/workbench/src/components/search/SearchResultsVizDialog.vue`
-  - `web/workbench/src/components/search/SemanticSearchTip.vue`
   - `web/workbench/src/stores/search.ts` (exposes `queryType` for FR1.4)
   - `src/podcast_scraper/server/routes/search.py` (#884) — surfaces `source_tier`
     per hit + response `query_type` (additive; FAISS + hybrid consistent)

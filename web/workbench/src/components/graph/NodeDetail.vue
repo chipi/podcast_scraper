@@ -458,8 +458,8 @@ const personEntityExploreButtonLabel = computed((): string =>
 
 const personEntityExploreHandoffAriaLabel = computed((): string =>
   personEntityExploreUsesSpeakerFilter.value
-    ? "Open Explore with Speaker contains filled from this name; topic filter cleared"
-    : "Open Explore with Topic contains filled from this organization name; speaker filter cleared"
+    ? "Fill Search's Speaker contains with this name; topic filter cleared"
+    : "Fill Search's Topic contains with this organization name; speaker filter cleared"
 )
 
 const nodeTypeAvatarStyle = computed((): Record<string, string> => {
@@ -902,13 +902,13 @@ const graphConnectionsCenterInView = computed((): boolean => {
               <span>{{ entityKind }}</span>
             </template>
           </p>
-          <!-- Actions first: Search / Explore shortcuts + help lead the topic
+          <!-- Actions first: Search shortcuts + help lead the topic
            Details tab, above every other section (incl. Member topics). -->
           <div
             v-if="isTopicNode && topicGatewayQuery"
             class="mb-3 flex items-center gap-2"
             role="group"
-            aria-label="Topic shortcuts to Search and Explore"
+            aria-label="Topic shortcuts to Search"
           >
             <button
               type="button"
@@ -940,7 +940,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
             <HelpTip
               class="shrink-0 self-center"
               :pref-width="280"
-              button-aria-label="About topic Search and Explore shortcuts"
+              button-aria-label="About topic Search shortcuts"
             >
               <p class="font-sans text-[10px] leading-snug text-muted">
                 <strong class="font-medium text-surface-foreground">Prefill semantic search</strong>
@@ -979,7 +979,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
               v-if="personEntityGatewayQuery"
               class="mb-3 flex items-center gap-2"
               role="group"
-              aria-label="Person and entity shortcuts to Search and Explore"
+              aria-label="Person and entity shortcuts to Search"
             >
               <button
                 type="button"
@@ -1003,27 +1003,27 @@ const graphConnectionsCenterInView = computed((): boolean => {
               <HelpTip
                 class="shrink-0 self-center"
                 :pref-width="300"
-                button-aria-label="About Person, Entity, and Explore shortcuts"
+                button-aria-label="About Person and Entity shortcuts to Search"
               >
                 <p class="font-sans text-[10px] leading-snug text-muted">
                   <strong class="font-medium text-surface-foreground"
                     >Prefill semantic search</strong
                   >
                   uses this primary name as the query against the vector index. For
-                  <strong class="font-medium text-surface-foreground/90">people</strong> (GI
-                  <span class="font-mono">Person</span> / legacy
-                  <span class="font-mono">Speaker</span>, or KG
+                  <strong class="font-medium text-surface-foreground/90">people</strong>
+                  (<span class="font-mono">Person</span> / legacy
+                  <span class="font-mono">Speaker</span>, or an
                   <span class="font-mono">Entity</span> marked as a person),
                   <strong class="font-medium text-surface-foreground">Speaker filter</strong> fills
                   <strong class="font-medium text-surface-foreground/90">Speaker contains</strong>
                   and clears the topic filter. For
-                  <strong class="font-medium text-surface-foreground/90">organizations</strong> (KG
+                  <strong class="font-medium text-surface-foreground/90">organizations</strong> (an
                   <span class="font-mono">Entity</span> with organization-style kind), the second
                   button
                   <strong class="font-medium text-surface-foreground">Topic filter</strong> fills
                   <strong class="font-medium text-surface-foreground/90">Topic contains</strong>
-                  (same control as the topic graph row) and clears the speaker filter. You still run
-                  <strong class="font-medium text-surface-foreground/90">Explore</strong>.
+                  (same control as the topic graph row) and clears the speaker filter. Then run
+                  <strong class="font-medium text-surface-foreground/90">Search</strong>.
                 </p>
               </HelpTip>
             </div>

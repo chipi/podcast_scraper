@@ -109,12 +109,11 @@ describe('CilTopicPillsRow', () => {
     expect(w.get('button').classes()).not.toContain('max-w-[11rem]')
   })
 
-  it('applies legacy quote chrome (inline style) for clustered pills by default', () => {
+  it('applies kg chrome (no inline style) for clustered pills by default', () => {
     const w = mountRow({ pills: [pill({ in_topic_cluster: true })] })
     const btn = w.get('button')
-    // Legacy quote appearance sets the inline gradient chrome style.
-    expect(btn.attributes('style')).toBeTruthy()
-    expect(btn.classes().join(' ')).toContain('border-transparent')
+    expect(btn.classes().join(' ')).toContain('border-kg')
+    expect(btn.attributes('style') ?? '').not.toContain('background')
   })
 
   it('applies kg chrome classes (no inline style) for clustered pills when appearance=kg', () => {

@@ -269,7 +269,6 @@ function healthApiProbeUrl(
     | 'health'
     | 'artifacts'
     | 'search'
-    | 'explore'
     | 'index'
     | 'library'
     | 'digest'
@@ -290,13 +289,6 @@ function healthApiProbeUrl(
       }
       const sp = new URLSearchParams({ path: root, q: '_', top_k: '5' })
       return viewerApiAbsoluteUrl(`/api/search?${sp.toString()}`)
-    }
-    case 'explore': {
-      if (!root) {
-        return viewerApiAbsoluteUrl('/api/explore')
-      }
-      const ep = new URLSearchParams({ path: root, limit: '20' })
-      return viewerApiAbsoluteUrl(`/api/explore?${ep.toString()}`)
     }
     case 'index':
       return viewerApiAbsoluteUrl(`/api/index/stats${cq}`)
