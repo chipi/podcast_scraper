@@ -335,15 +335,18 @@ async function validateCorpusDataLoadedAfterJob(
   stackTestProgress(
     'post-job: Digest tab — align window to **All time** (ignore persisted lens), then recent rows + rail',
   )
-  await page.getByTestId('main-tab-digest').click()
-  await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 60_000 })
-  // #670 — Digest date filter moved into a chip popover. Open the chip
-  // first, then click the "All time" preset inside the popover dialog.
-  await page.getByTestId('digest-chip-date').click()
-  await page
-    .getByTestId('digest-popover-date')
-    .getByRole('button', { name: 'All time' })
-    .click()
+  const openDigestAllTime = async (): Promise<void> => {
+    await page.getByTestId('main-tab-digest').click()
+    await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 60_000 })
+    // #670 — Digest date filter moved into a chip popover. Open the chip
+    // first, then click the "All time" preset inside the popover dialog.
+    await page.getByTestId('digest-chip-date').click()
+    await page
+      .getByTestId('digest-popover-date')
+      .getByRole('button', { name: 'All time' })
+      .click()
+  }
+  await openDigestAllTime()
   // Record what the API serves BEFORE waiting on the page. When the rows never render, this line
   // tells a backend digest with 0 rows apart from a page that did not show the rows it got
   // (CI 2026-10-06 failed here once with a fast 200 digest and no way to tell which).
@@ -351,7 +354,16 @@ async function validateCorpusDataLoadedAfterJob(
     `post-job: digest API recent rows before UI wait=${await fetchDigestRecentRowCount(request, CORPUS)}`,
   )
   const digestRows = page.locator('[data-digest-recent-row]')
-  await expect(digestRows.first()).toBeVisible({ timeout: 120_000 })
+  // The corpus caches serve the previous value while one builder rebuilds, so the first digest
+  // after the job can be the pre-job one and the page does not refetch it on its own; reload
+  // until the rebuilt digest shows. The viewer refetching a stale digest itself is chipi/podcast_scraper#2486.
+  await expect(async () => {
+    if (!(await digestRows.first().isVisible())) {
+      await page.reload()
+      await openDigestAllTime()
+    }
+    await expect(digestRows.first()).toBeVisible({ timeout: 15_000 })
+  }).toPass({ timeout: 120_000 })
   const digestApiRows = await fetchDigestRecentRowCount(request, CORPUS)
   expect(digestApiRows, 'digest API should list at least one recent row after job').toBeGreaterThan(
     0,
