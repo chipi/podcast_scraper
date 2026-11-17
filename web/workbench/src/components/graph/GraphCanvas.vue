@@ -3785,6 +3785,10 @@ function redraw(): void {
       void openGraphEpisodeOrNodeRail(id, rawNode)
       /** Match ``tryApplyPendingFocus`` / digest episode handoff: centre the tapped node in view. */
       animateCameraToFocusedNode(core, id)
+      // The tapped node is already on the canvas: nothing loads or redraws, so no later layout
+      // pass is guaranteed to finish this handoff. Without this it sat in ``applying`` until the
+      // 15 s stuck-timeout and showed "Could not open episode in graph" (2026-11-17).
+      if (graphHandoff.pending?.cyId === id) graphHandoff.recordApplied(id)
     }
   })
 

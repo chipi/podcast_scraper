@@ -34,7 +34,7 @@ function dismiss(): void {
     class="flex items-center gap-2 px-3 py-2 text-sm border border-warning/40 bg-warning/10 text-warning-foreground"
   >
     <span class="flex-1 font-medium">
-      Could not open episode in graph: {{ reason }}
+      Could not open this in the graph: {{ reason }}
     </span>
     <button
       type="button"

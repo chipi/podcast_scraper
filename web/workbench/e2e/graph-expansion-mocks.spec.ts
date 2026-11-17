@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Page, type Request, type Route } from '@playwright/test'
 import { GRAPH_NODE_EPISODES_EXPAND_MAX } from '../src/api/corpusLibraryApi'
 import { KG_SAMPLE_FIXTURE } from './fixtures'
-import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
+import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn, waitForFsmReady } from './helpers'
 
 /**
  * #1619 — stays fixture-driven, deliberately. Assessed 2026-08-14 against the live backend.
@@ -680,6 +680,10 @@ test.describe('Graph expansion (mocked API)', () => {
     await gotoGraphWithMockCorpus(page)
     await clickCyNodeOnce(page, 'topic:ci-policy')
     await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
+    // The tap selects a node already on the canvas: the handoff must finish at once, not sit in
+    // `applying` until the 15 s stuck-timeout shows "Could not open ... in graph" (2026-11-17).
+    await waitForFsmReady(page, { timeoutMs: 5_000 })
+    await expect(page.getByText(/Could not open/)).toHaveCount(0)
   })
 
   test('Shift double-activation on topic toggles ego focus (second shift restores canvas)', async ({

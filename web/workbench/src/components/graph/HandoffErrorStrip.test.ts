@@ -43,7 +43,7 @@ describe('HandoffErrorStrip', () => {
 
     const strip = w.get(STRIP)
     expect(strip.isVisible()).toBe(true)
-    expect(strip.text()).toContain('Could not open episode in graph: node not found')
+    expect(strip.text()).toContain('Could not open this in the graph: node not found')
     // Accessibility wiring.
     expect(strip.attributes('role')).toBe('alert')
     expect(strip.attributes('aria-live')).toBe('polite')
@@ -55,7 +55,7 @@ describe('HandoffErrorStrip', () => {
     handoff.lastResult = { status: 'failed' }
     await w.vm.$nextTick()
 
-    expect(w.get(STRIP).text()).toContain('Could not open episode in graph: unknown error')
+    expect(w.get(STRIP).text()).toContain('Could not open this in the graph: unknown error')
   })
 
   it('dismiss button clears the store result and hides the strip', async () => {
