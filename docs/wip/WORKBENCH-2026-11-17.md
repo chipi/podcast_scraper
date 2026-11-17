@@ -102,11 +102,12 @@ failing test first.
    are drawn; Dashboard > Intelligence has a "TOPICS" heading with nothing under it; the command
    palette prints the raw token `no_index`. **Fixed:** the Types chip counts by the key it lists;
    the Topics section shows only with content (and the empty chart cell takes no space); the
-   palette maps error codes to words. **Open:** the near-empty topic and person rails (what a
-   KG-only rail should show is a design question).
+   palette maps error codes to words. **Done:** the topic, person and organisation rails list the 10
+   newest episodes they appear in, from the KG (`NodeEpisodesSection`, e092b9a6f).
 8. **Grounded-insight leftovers in about 15 components** (copy such as "insights", "Show on graph",
-   "GI Person"; `api/cilApi.ts` and `api/relationalApi.ts` calling routes that do not exist on
-   public). Decide per item: remove, or keep as an extension point the private viewer fills.
+   "GI Person"; `api/cilApi.ts` calling Common's routes, which public does not serve;
+   `api/relationalApi.ts` calls public's own, `routes/relational.py`). Decide per item: remove, or
+   keep as an extension point the private viewer fills.
    **Done (2026-11-17), checked item by item against the private viewer**, which runs this
    viewer's whole shell (`@viewer/main`). Under CRFC-004 rendering platform types (insights,
    quotes) is not private, so those stay and hide without data. Removed: `TopicConversationArc`
@@ -125,8 +126,14 @@ failing test first.
     changes GI's show id to KG's, and the page then goes blank, so this ships in the news release
     before R3b, on the read Common provides (show id beside the title, or R3b's old-to-new id map).
 
-Not checked yet: search with a built index, the Digest after a successful job (#2486), canvas
-clicks on topic and person nodes, phone width and the light theme.
+Not checked yet: search with a built index, canvas clicks on topic and person nodes, phone width
+and the light theme.
+
+Open, #2486 (read in code, not reproduced): after a job the Workbench refetches the Digest and
+Library (`shell.corpusRevision`), but the catalog cache serves the previous catalog while it
+rebuilds (`catalog_cache.py`, `stale_ok=True`), so the refetch can get pre-job rows and nothing
+fetches again. The rails' episode list joins the same cache, so a just-added episode is missing
+from them until the rebuild ends.
 
 ## 4. Then news
 
