@@ -37,7 +37,20 @@ const jobs = ref<PipelineJobRow[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const reconcileToast = ref<string | null>(null)
-const runToast = ref<string | null>(null)
+/** The job the last Run started. Its notice reads the job's current status from the list, so a
+ *  job that fails right after it was queued does not stay "running" beside an empty list. */
+const submittedJob = ref<{ id: string; label: string; status: string } | null>(null)
+const runToastStatus = computed<string | null>(() => {
+  const sub = submittedJob.value
+  if (!sub) {
+    return null
+  }
+  return jobs.value.find((j) => j.job_id === sub.id)?.status ?? sub.status
+})
+const runToast = computed<string | null>(() => {
+  const sub = submittedJob.value
+  return sub ? `${sub.label} ${shortId(sub.id)} (${runToastStatus.value})` : null
+})
 // Per-feed incremental add (P1.4): scope a run to one feed (URL/slug) + a small episode cap.
 const feedScope = ref('')
 const feedMaxEpisodes = ref<number | null>(null)
@@ -188,10 +201,10 @@ async function onRun(): Promise<void> {
   }
   loading.value = true
   error.value = null
-  runToast.value = null
+  submittedJob.value = null
   try {
     const acc = await submitPipelineJob(root.value)
-    runToast.value = `Queued job ${shortId(acc.job_id)} (${acc.status})`
+    submittedJob.value = { id: acc.job_id, label: 'Queued job', status: acc.status }
     await refresh()
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -207,7 +220,7 @@ async function onRunFeed(): Promise<void> {
   }
   loading.value = true
   error.value = null
-  runToast.value = null
+  submittedJob.value = null
   try {
     // Cautious per-feed incremental add: skip-existing on (guid-keyed), optional small episode cap.
     const acc = await submitPipelineJob(root.value, {
@@ -216,7 +229,7 @@ async function onRunFeed(): Promise<void> {
       maxEpisodes: feedMaxEpisodes.value ?? undefined,
       episodeOrder: 'newest',
     })
-    runToast.value = `Queued feed job ${shortId(acc.job_id)} (${acc.status})`
+    submittedJob.value = { id: acc.job_id, label: 'Queued feed job', status: acc.status }
     await refresh()
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -491,7 +504,9 @@ onUnmounted(() => {
     </p>
     <p
       v-if="runToast"
-      class="mb-2 text-[10px] text-success"
+      class="mb-2 text-[10px]"
+      :class="statusClass(runToastStatus ?? '')"
+      data-testid="pipeline-jobs-run-toast"
     >
       {{ runToast }}
     </p>

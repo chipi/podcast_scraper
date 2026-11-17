@@ -567,7 +567,7 @@ function openLibraryFailures(): void {
           data-testid="pipeline-episode-outcomes"
         >
           <h3 class="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            Outcomes
+            Episode outcomes, latest run
           </h3>
           <p>
             <span class="text-success">●</span> {{ (latestOutcomes.ok ?? 0).toLocaleString() }} succeeded
