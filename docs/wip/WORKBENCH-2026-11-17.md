@@ -81,14 +81,22 @@ Found on a public-only install against `tests/fixtures/app-validation-corpus/v3`
 failing test first.
 
 1. **Configuration > Index "Full rebuild" swallows its failure:** it says running, then "No index
-   built yet", with no error shown.
+   built yet", with no error shown. **Fixed:** the rebuild thread ignored `index_corpus`'s
+   `stats.errors`; it now records them as the last error.
 2. **Dashboard > Pipeline contradicts itself:** a job that failed in 0.2 s shows "running" beside
-   "No queued or running jobs", and the outcomes count 0 failed.
+   "No queued or running jobs", and the outcomes count 0 failed. **Fixed:** the run notice reads its
+   job's current status; the outcomes block counts the latest run's episodes (correct for a job that
+   wrote no run), and its heading now says so.
 3. **Ops probes `127.0.0.1:8000`** (health, version, runs) when the API runs on another port.
-4. **Dashboard > Coverage:** `GET /api/corpus/documents/manifest` returns 404.
+   **Fixed:** the default target is the port the request arrived on.
+4. **Dashboard > Coverage:** `GET /api/corpus/documents/manifest` returns 404. **Not a bug:** a
+   corpus without `corpus_manifest.json` (single-feed runs, the fixture) answers 404, and the Cost
+   card says "not available for this corpus"; the console line is the browser logging the 404.
 5. **`make serve-api` signs no one in by default:** every dev user gets 403 until
-   `APP_SIGNUP_MODE=open`.
+   `APP_SIGNUP_MODE=open`. **Fixed:** `APP_ALLOWED_DOMAINS` defaults to the mock users' domains.
 6. **The corpus path starts empty** although the server was started with `--output-dir`.
+   **Fixed:** a server serving the built app injects the path as nginx does (not in a public mode);
+   `make serve` passes it to the Vite dev server.
 7. **Empty or odd without grounded insights:** the topic rail's Details tab is three buttons; the
    person rail is a name and two buttons; the graph's type chip says "Person (0)" while person nodes
    are drawn; Dashboard > Intelligence has a "TOPICS" heading with nothing under it; the command
