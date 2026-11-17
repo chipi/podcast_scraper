@@ -768,6 +768,16 @@ export function buildGiKgCyStylesheet(options?: {
     })
   }
 
+  // A label that overlaps a higher-priority one (cyGraphLabelCollision) is not drawn. After the
+  // tier rules, which set text-opacity 1; the node itself stays.
+  style.push({
+    selector: 'node.graph-label-collides',
+    style: {
+      'text-opacity': 0,
+      'text-background-opacity': 0,
+    },
+  })
+
   // Rules a build registered (extension point `graphStylesheet`): `base` right after the generic
   // node rule, so selection and state rules still win; `end` after everything.
   for (const entry of graphStylesheet.list()) {

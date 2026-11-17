@@ -67,7 +67,10 @@ import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import {
   syncGraphLabelTierClasses,
   syncGraphNodeVisibilityTierClasses,
+  GRAPH_LABEL_ZOOM_NONE_MAX,
+  GRAPH_LABEL_ZOOM_SHORT_MAX,
 } from '../../utils/cyGraphLabelTier'
+import { syncGraphLabelCollisions } from '../../utils/cyGraphLabelCollision'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
   computeRadialPositions,
@@ -411,6 +414,40 @@ let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
 let lastZoomLevel = 1
 let navInstance: { destroy: () => void } | null = null
 let zoomPanListenerAttached = false
+/** Pending label-collision pass (one per frame); see ``scheduleLabelCollisions``. */
+let labelCollisionFrame: number | null = null
+/** Label tier (zoom band) at the last collision pass: overlap only changes when it does. */
+let labelCollisionTierZoomBand: number | null = null
+
+/** Re-cull overlapping labels on the next frame (cyGraphLabelCollision). Label sizes are in graph
+ *  units, so overlap changes with layout, drag, label tier and selection, not with pan or zoom. */
+function scheduleLabelCollisions(): void {
+  if (labelCollisionFrame != null) return
+  labelCollisionFrame = requestAnimationFrame(() => {
+    labelCollisionFrame = null
+    const c = cy
+    if (!c) return
+    try {
+      syncGraphLabelCollisions(c, selectedNodeId.value)
+    } catch {
+      /* a failed pass leaves every label drawn, as before */
+    }
+  })
+}
+
+/** 0 = labels off, 1 = short labels, 2 = full labels (cyGraphLabelTier's thresholds). */
+function labelZoomBand(z: number): number {
+  if (z < GRAPH_LABEL_ZOOM_NONE_MAX) return 0
+  return z <= GRAPH_LABEL_ZOOM_SHORT_MAX ? 1 : 2
+}
+
+/** Schedule a collision pass when the zoom crossed into another label tier. */
+function labelCollisionsOnZoom(z: number): void {
+  const band = labelZoomBand(z)
+  if (band === labelCollisionTierZoomBand) return
+  labelCollisionTierZoomBand = band
+  scheduleLabelCollisions()
+}
 let reducedMotionMql: MediaQueryList | null = null
 let reducedMotionMqlHandler: (() => void) | null = null
 
@@ -1574,6 +1611,7 @@ function attachZoomRecenter(core: Core): void {
       updateZoomPercentDisplay(c)
       syncGraphLabelTierClasses(c)
       syncGraphNodeVisibilityTierClasses(c)
+      labelCollisionsOnZoom(z)
       return
     }
 
@@ -1606,6 +1644,7 @@ function attachZoomRecenter(core: Core): void {
     updateZoomPercentDisplay(c)
     syncGraphLabelTierClasses(c)
     syncGraphNodeVisibilityTierClasses(c)
+    labelCollisionsOnZoom(c.zoom())
     if (!zoomedOut) return
     if (selectedNodeId.value) {
       return
@@ -1716,6 +1755,8 @@ function finishLayoutPass(core: Core): void {
   updateZoomPercentDisplay(cy)
   syncGraphLabelTierClasses(cy)
   syncGraphNodeVisibilityTierClasses(cy)
+  labelCollisionTierZoomBand = labelZoomBand(cy.zoom())
+  scheduleLabelCollisions()
   attachZoomRecenter(core)
   applySearchHighlights(core)
   /** ``tryApplyPendingFocus`` first so Library/Digest **Open in graph** camera wins; episode strip skips
@@ -3693,7 +3734,10 @@ function redraw(): void {
       } catch {
         /* ignore */
       }
+      // The selected node and its neighbours win the label collisions.
+      scheduleLabelCollisions()
     })
+    core.on('dragfree', 'node', () => scheduleLabelCollisions())
     // Analytics — a tap on a node is a user gesture (unlike 'select', which also fires on
     // programmatic focus), so it's the honest "user clicked a node" signal.
     core.on('tap', 'node', (e) => {
@@ -3714,6 +3758,7 @@ function redraw(): void {
       } catch {
         /* ignore */
       }
+      scheduleLabelCollisions()
     })
 
     /* graph-v3 D — reveal neighbourhood on hover without needing a click.
@@ -4462,6 +4507,7 @@ onMounted(() => {
         c.style().fromJson(buildCyStyle() as never).update()
         syncGraphLabelTierClasses(c)
         syncGraphNodeVisibilityTierClasses(c)
+        scheduleLabelCollisions()
       } catch {
         /* ignore */
       }
@@ -4516,6 +4562,10 @@ onActivated(() => {
 })
 
 onUnmounted(() => {
+  if (labelCollisionFrame != null) {
+    cancelAnimationFrame(labelCollisionFrame)
+    labelCollisionFrame = null
+  }
   if (reducedMotionMql && reducedMotionMqlHandler) {
     try {
       reducedMotionMql.removeEventListener('change', reducedMotionMqlHandler)
