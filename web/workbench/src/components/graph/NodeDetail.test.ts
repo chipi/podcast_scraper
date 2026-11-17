@@ -17,7 +17,7 @@ vi.mock('../../api/userPreferencesApi', () => ({
 
 import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import { useShellStore } from '../../stores/shell'
-import {  } from '../../stores/subject'
+import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import NodeDetail from './NodeDetail.vue'
 
@@ -98,6 +98,17 @@ describe('NodeDetail', () => {
     expect(w.find('aside').exists()).toBe(true)
     expect(w.find('[data-testid="person-landing-view"]').exists()).toBe(true)
     expect(w.find('.node-detail-primary-title').text()).toBe('Robert Armstrong')
+  })
+
+  it('titles an out-of-slice person with the name the palette showed, accents and all', () => {
+    // The slug drops accents: "Marta Solis" for Marta Solís (public-only walk, 2026-11-17).
+    useSubjectStore().focusPerson('person:marta-solis', { uiTitle: 'Marta Solís' })
+    const w = mountDetail({
+      viewArtifact: artifactOf([]),
+      nodeId: 'person:marta-solis',
+      embedInRail: true,
+    })
+    expect(w.find('.node-detail-primary-title').text()).toBe('Marta Solís')
   })
 
   it('renders the topic view for an out-of-slice topic id even when the node is absent', () => {

@@ -121,8 +121,8 @@ function recentSubjectKindBadge(entry: RecentSubjectEntry): string {
 }
 
 function onRecentSubjectClick(entry: RecentSubjectEntry): void {
-  if (entry.kind === 'topic') subject.focusTopic(entry.id)
-  else if (entry.kind === 'person') subject.focusPerson(entry.id)
+  if (entry.kind === 'topic') subject.focusTopic(entry.id, { uiTitle: entry.label })
+  else if (entry.kind === 'person') subject.focusPerson(entry.id, { uiTitle: entry.label })
   else subject.focusEpisode(entry.id)
   closePalette()
 }
@@ -251,8 +251,8 @@ function onSubjectHitClick(hit: SearchHit): void {
   const md = hit.metadata ?? {}
   const src = typeof md.source_id === 'string' ? md.source_id.trim() : ''
   if (!src) return
-  if (md.doc_type === 'kg_topic') subject.focusTopic(src)
-  else if (md.doc_type === 'kg_entity') subject.focusPerson(src)
+  if (md.doc_type === 'kg_topic') subject.focusTopic(src, { uiTitle: subjectLabelFor(hit) })
+  else if (md.doc_type === 'kg_entity') subject.focusPerson(src, { uiTitle: subjectLabelFor(hit) })
   closePalette()
 }
 
@@ -382,10 +382,10 @@ function pinToRail(hit: SearchHit): void {
   const md = hit.metadata ?? {}
   const docType = md.doc_type as string | undefined
   if (docType === 'kg_topic' && typeof md.source_id === 'string') {
-    subject.focusTopic(md.source_id)
+    subject.focusTopic(md.source_id, { uiTitle: subjectLabelFor(hit) })
   } else if (docType === 'kg_entity' && typeof md.source_id === 'string') {
     // Person / entity — focusPerson accepts the person: id.
-    subject.focusPerson(md.source_id)
+    subject.focusPerson(md.source_id, { uiTitle: subjectLabelFor(hit) })
   } else {
     // Fall back to episode focus via metadata_relative_path.
     const rel = episodeFallbackForSearchHit(hit)

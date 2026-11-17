@@ -6,6 +6,7 @@ import { useGraphHandoffStore } from "../../stores/graphHandoff"
 import { useGraphNavigationStore } from "../../stores/graphNavigation"
 import { useGraphAnalyticsStore } from "../../stores/graphAnalytics"
 import { useShellStore } from "../../stores/shell"
+import { useSubjectStore } from "../../stores/subject"
 import { graphNodeTypeChrome } from "../../utils/colors"
 import { truncate } from "../../utils/formatting"
 import { nodeDetailExtensions, type NodeDetailContext } from "../../extensions"
@@ -57,6 +58,7 @@ const props = defineProps<{
 }>()
 
 const shell = useShellStore()
+const subject = useSubjectStore()
 const graphNav = useGraphNavigationStore()
 const graphAnalytics = useGraphAnalyticsStore()
 const graphFilters = useGraphFilterStore()
@@ -221,9 +223,11 @@ const displayName = computed(() => {
   }
   const n = node.value
   if (!n) {
-    // Out-of-slice node (e.g. a co-speaker from the full relational graph):
-    // derive a readable name from the id slug so the header isn't blank while
-    // the person / topic view loads from server endpoints.
+    // Out-of-slice node (e.g. a co-speaker from the full relational graph): the name the
+    // caller showed (a palette hit), else one derived from the id slug, which loses accents.
+    if (subject.graphNodeUiLabel && subject.graphNodeCyId === props.nodeId) {
+      return subject.graphNodeUiLabel
+    }
     const bare = stripLayerPrefixesForCil(props.nodeId ?? "")
     const slug = bare.replace(/^[a-z]+:/, "").trim()
     if (slug) {

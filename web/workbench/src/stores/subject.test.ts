@@ -51,6 +51,18 @@ describe('useSubjectStore', () => {
     expect(s.feedUiLabel).toBe('Odd Lots')
   })
 
+  it('focusPerson keeps the name the caller showed, through Back, and drops it on the next node', () => {
+    const s = useSubjectStore()
+    s.focusPerson('person:marta-solis', { uiTitle: 'Marta Solís' })
+    expect(s.graphNodeCyId).toBe('person:marta-solis')
+    expect(s.graphNodeUiLabel).toBe('Marta Solís')
+    s.focusTopic('topic:risk')
+    expect(s.graphNodeUiLabel).toBeNull()
+    s.back()
+    expect(s.graphNodeCyId).toBe('person:marta-solis')
+    expect(s.graphNodeUiLabel).toBe('Marta Solís')
+  })
+
   it('show → episode pushes Back history; back() restores the show', () => {
     const s = useSubjectStore()
     s.focusShow('feed:abc', { uiTitle: 'Odd Lots' })

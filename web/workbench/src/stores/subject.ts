@@ -20,6 +20,7 @@ interface SubjectSnapshot {
   positionTrackerTopicId: string | null
   feedId: string | null
   feedUiLabel: string | null
+  graphNodeUiLabel: string | null
 }
 
 /**
@@ -69,6 +70,12 @@ export const useSubjectStore = defineStore('subject', () => {
    */
   const feedId = ref<string | null>(null)
   const feedUiLabel = ref<string | null>(null)
+  /**
+   * The focused graph node's name as the caller showed it (a palette hit), for the rail's title
+   * while the node is not in the loaded graph: the id's slug loses accents ("Marta Solis" for
+   * Marta Solís, public-only walk, 2026-11-17).
+   */
+  const graphNodeUiLabel = ref<string | null>(null)
 
   // Back history for the subject rail. Node→node navigations (topic → entity →
   // person → co-speaker) push the prior subject so the rail can offer a Back
@@ -89,6 +96,7 @@ export const useSubjectStore = defineStore('subject', () => {
       positionTrackerTopicId: positionTrackerTopicId.value,
       feedId: feedId.value,
       feedUiLabel: feedUiLabel.value,
+      graphNodeUiLabel: graphNodeUiLabel.value,
     }
   }
 
@@ -111,6 +119,7 @@ export const useSubjectStore = defineStore('subject', () => {
     positionTrackerTopicId.value = s.positionTrackerTopicId
     feedId.value = s.feedId
     feedUiLabel.value = s.feedUiLabel
+    graphNodeUiLabel.value = s.graphNodeUiLabel ?? null
   }
 
   /** Pop the previous subject off the history and restore it (rail Back). */
@@ -130,6 +139,7 @@ export const useSubjectStore = defineStore('subject', () => {
     positionTrackerTopicId.value = null
     feedId.value = null
     feedUiLabel.value = null
+    graphNodeUiLabel.value = null
   }
 
   function focusEpisode(
@@ -204,7 +214,10 @@ export const useSubjectStore = defineStore('subject', () => {
     episodeId.value = t ? t : null
   }
 
-  function focusGraphNode(cyNodeId: string, opts?: { syncGraph?: boolean }): void {
+  function focusGraphNode(
+    cyNodeId: string,
+    opts?: { syncGraph?: boolean; uiTitle?: string | null },
+  ): void {
     const t = cyNodeId.trim()
     if (!t) {
       clearFields()
@@ -220,6 +233,8 @@ export const useSubjectStore = defineStore('subject', () => {
     clearFields()
     kind.value = 'graph-node'
     graphNodeCyId.value = t
+    const lab = opts?.uiTitle?.trim()
+    graphNodeUiLabel.value = lab ? truncateUiLabel(lab) : null
     // #6 two-way sync: when the navigation comes from the detail rail (not a graph click, which
     // already has the node selected), ask the graph to select + centre this node so it reflects
     // where the details went. In-slice nodes apply immediately; a node the graph is loading via a
@@ -236,13 +251,13 @@ export const useSubjectStore = defineStore('subject', () => {
    * Details tab). The id may be a corpus id (``topic:…`` / ``entity:…``) or a graph
    * cy id (``g:…`` / ``tc:…``) — NodeDetail's lookups resolve either form.
    */
-  function focusTopic(id: string): void {
-    focusGraphNode(id, { syncGraph: true })
+  function focusTopic(id: string, opts?: { uiTitle?: string | null }): void {
+    focusGraphNode(id, { syncGraph: true, uiTitle: opts?.uiTitle })
   }
 
   /** Alias of {@link focusTopic} for non-Person Entity subjects. Same node view. */
-  function focusEntity(id: string): void {
-    focusGraphNode(id, { syncGraph: true })
+  function focusEntity(id: string, opts?: { uiTitle?: string | null }): void {
+    focusGraphNode(id, { syncGraph: true, uiTitle: opts?.uiTitle })
   }
 
   /**
@@ -250,8 +265,8 @@ export const useSubjectStore = defineStore('subject', () => {
    * {@link focusGraphNode} → ``NodeDetail`` rail (with PersonLandingView folded
    * into its Details tab); the standalone Person rail is retired.
    */
-  function focusPerson(id: string): void {
-    focusGraphNode(id, { syncGraph: true })
+  function focusPerson(id: string, opts?: { uiTitle?: string | null }): void {
+    focusGraphNode(id, { syncGraph: true, uiTitle: opts?.uiTitle })
   }
 
   /**
@@ -351,6 +366,7 @@ export const useSubjectStore = defineStore('subject', () => {
     positionTrackerTopicId,
     feedId,
     feedUiLabel,
+    graphNodeUiLabel,
     focusEpisode,
     focusShow,
     focusGraphNode,
