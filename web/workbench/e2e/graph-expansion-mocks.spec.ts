@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { expect, test, type Page, type Route } from '@playwright/test'
+import { expect, test, type Page, type Request, type Route } from '@playwright/test'
 import { GRAPH_NODE_EPISODES_EXPAND_MAX } from '../src/api/corpusLibraryApi'
 import { KG_SAMPLE_FIXTURE } from './fixtures'
 import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from './helpers'
@@ -22,6 +22,28 @@ import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, st
  * If revisited: the live endpoints work, so a corpus-driven variant is possible. It would want a
  * fixture corpus containing a known-degree topic, rather than an ad-hoc edit at test time.
  */
+
+/**
+ * The graph's expand ``POST`` carries the expand cap. The topic, person and organisation rail asks the
+ * same endpoint for its few newest episodes (``NodeEpisodesSection``), which these tests neither
+ * count nor expand from.
+ */
+function isExpandPost(req: Request): boolean {
+  if (!req.url().includes('/api/corpus/node-episodes') || req.method() !== 'POST') return false
+  const body = req.postDataJSON() as { max_episodes?: number } | null
+  return body?.max_episodes === GRAPH_NODE_EPISODES_EXPAND_MAX
+}
+
+/** Answers the rail's request with no episodes, so a handler only sees expand requests. */
+async function answeredRailRequest(route: Route): Promise<boolean> {
+  if (isExpandPost(route.request())) return false
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ path: '/mock/corpus', node_id: '', episodes: [], truncated: false, total_matched: 0 }),
+  })
+  return true
+}
 
 /** Every expand ``POST`` must send the viewer max-episodes cap (``GraphCanvas`` passes this to ``fetchNodeEpisodes``). */
 function assertNodeEpisodesExpandPostHasMaxEpisodes(route: Route): void {
@@ -415,6 +437,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
@@ -448,6 +471,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
@@ -500,6 +524,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
@@ -532,7 +557,7 @@ test.describe('Graph expansion (mocked API)', () => {
     await gotoGraphWithMockCorpus(page)
 
     const postPromise = page.waitForRequest(
-      (r) => r.url().includes('/api/corpus/node-episodes') && r.method() === 'POST',
+      (r) => isExpandPost(r),
     )
     const secondKgPromise = page.waitForRequest((r) => r.url().includes('gxexp_second.kg.json'))
     await dblclickCyNode(page, 'topic:ci-policy')
@@ -554,6 +579,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 502,
@@ -573,7 +599,7 @@ test.describe('Graph expansion (mocked API)', () => {
   test('expand then collapse: only one POST to node-episodes', async ({ page }) => {
     const nodeEpisodesPostCount = { n: 0 }
     page.on('request', (req) => {
-      if (req.url().includes('/api/corpus/node-episodes') && req.method() === 'POST') {
+      if (isExpandPost(req)) {
         nodeEpisodesPostCount.n += 1
       }
     })
@@ -584,6 +610,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
@@ -619,7 +646,7 @@ test.describe('Graph expansion (mocked API)', () => {
     nodeEpisodesPostCount.n = 0
 
     const firstPost = page.waitForRequest(
-      (r) => r.url().includes('/api/corpus/node-episodes') && r.method() === 'POST',
+      (r) => isExpandPost(r),
     )
     await dblclickCyNode(page, 'topic:ci-policy')
     await firstPost
@@ -635,6 +662,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
@@ -675,6 +703,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       postCount += 1
       await route.fulfill({
         status: 200,
@@ -708,6 +737,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       postCount += 1
       await route.fulfill({
         status: 200,
@@ -736,6 +766,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       const body = route.request().postDataJSON() as { node_id?: string }
       if (body.node_id) {
@@ -767,6 +798,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
@@ -830,6 +862,7 @@ test.describe('Graph expansion (mocked API)', () => {
         await route.fulfill({ status: 405, body: 'method not allowed' })
         return
       }
+      if (await answeredRailRequest(route)) return
       assertNodeEpisodesExpandPostHasMaxEpisodes(route)
       await route.fulfill({
         status: 200,
