@@ -72,7 +72,14 @@ async function load(id: string): Promise<void> {
   try {
     const feeds = await fetchCorpusFeeds(root)
     if (gate.isStale(seq)) return
-    const f = (feeds.feeds ?? []).find((x) => matchKey(x.display_title ?? '') === want) ?? null
+    // KG's show id is the feed's ``source_id``; GI's is a slug of the title until GI 4.0 R3b moves
+    // it to KG's, so match the id first and the title only for a title-based id.
+    const bareId = id.replace(/^(?:g:|k:|kg:)+/, '')
+    const list = feeds.feeds ?? []
+    const f =
+      list.find((x) => x.source_id && x.source_id === bareId) ??
+      list.find((x) => matchKey(x.display_title ?? '') === want) ??
+      null
     feed.value = f
     emit('cover', f ? { imageUrl: f.image_url ?? null, imageLocalRelpath: f.image_local_relpath ?? null } : null)
     if (f?.feed_id) {

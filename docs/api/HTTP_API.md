@@ -161,8 +161,8 @@ Pydantic response schemas are defined in
 - `IndexStatsEnvelope` / `IndexStatsBody` / `IndexRebuildAccepted`
 - `CorpusSearchApiResponse` / `SearchHitModel` (optional **`lifted`** on transcript rows when lift applies; optional **`supporting_quotes`** on insight rows — quote speaker fields follow GI segment/diarization rules, issue **#541**)
 - `CorpusResolveEpisodesRequest` / `CorpusResolveEpisodesResponse` / `CorpusResolvedEpisodeArtifact`
-- `CorpusFeedsResponse` / `CorpusFeedItem`
-- `CorpusEpisodesResponse` / `CorpusEpisodeListItem`
+- `CorpusFeedsResponse` / `CorpusFeedItem` (**`source_id`**: KG's show id, `podcast:` + the slug of `feed_id`, GI 4.0 R3b)
+- `CorpusEpisodesResponse` / `CorpusEpisodeListItem` (**`source_id`**, as on feed rows)
 - `CorpusEpisodeDetailResponse`
 - `CorpusSimilarEpisodesResponse` / `CorpusSimilarEpisodeItem`
 - `CorpusDigestResponse` / `CorpusDigestRow` / `CorpusDigestTopicBand` / `CorpusDigestTopicHit`
@@ -171,7 +171,7 @@ Pydantic response schemas are defined in
   when no episode names that topic; **`rows_in_window`** — the episodes in the window, of which
   `rows` is a per-show sample)
 - `CorpusStatsResponse` / `CorpusRunsSummaryResponse` / `CorpusRunSummaryItem`
-- `RelatedNodeModel` / `RelationalListResponse` / `RelationalGroupedResponse` (relational-query layer, RFC-094 / #882)
+- `RelatedNodeModel` / `RelationalListResponse` / `RelationalGroupedResponse` (relational-query layer, RFC-094 / #882; cross-show adds **`sources`**: each group key's `source_id` and `source_title`)
 - `QueryActivityResponse` / `QueryActivityBucket` (search-activity, PRD-033 FR6.2)
 
 [schemas-py]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/schemas.py

@@ -124,7 +124,9 @@ failing test first.
 10. **The show node page finds its feed by title** (`PodcastNodeView.vue:36-48`; the database-era
     sweep's R16, [WORKBENCH-DB-ERA-SWEEP-2026-11-17.md](WORKBENCH-DB-ERA-SWEEP-2026-11-17.md)). R3b
     changes GI's show id to KG's, and the page then goes blank, so this ships in the news release
-    before R3b, on the read Common provides (show id beside the title, or R3b's old-to-new id map).
+    before R3b. **Done (2026-11-17):** feed and episode rows carry `source_id` (KG's id, `podcast:` +
+    the slug of the feed id), and the page matches the node id against it first, the title only for
+    a title-based id until R3b.
 
 Not checked yet: search with a built index, canvas clicks on topic and person nodes, phone width
 and the light theme.

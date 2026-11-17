@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache, read_hooks
+from podcast_scraper.kg.pipeline import _podcast_node_id
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.server.catalog_cache import current_catalog, current_catalog_last_run
 from podcast_scraper.server.cil_digest_topics import (
@@ -349,6 +350,7 @@ def corpus_feeds(
     feeds = [
         CorpusFeedItem(
             feed_id=str(f["feed_id"]),
+            source_id=_podcast_node_id(str(f["feed_id"])),
             display_title=f["display_title"],
             episode_count=int(f["episode_count"]),
             language=f.get("language"),
@@ -473,6 +475,7 @@ def corpus_episodes(
         CorpusEpisodeListItem(
             metadata_relative_path=r.metadata_relative_path,
             feed_id=r.feed_id,
+            source_id=_podcast_node_id(r.feed_id),
             feed_display_title=resolve_feed_display_title(r, titles_by_feed),
             feed_rss_url=resolve_feed_rss_url(r, rss_by_feed),
             feed_description=resolve_feed_description(r, desc_by_feed),

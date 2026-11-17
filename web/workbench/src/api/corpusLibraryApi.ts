@@ -13,6 +13,8 @@ function raiseCorpusHttpError(res: Response, bodyText: string): never {
 
 export type CorpusFeedItem = {
   feed_id: string
+  /** KG's id for the show: ``podcast:`` + the slug of ``feed_id`` (GI 4.0 R3b); omitted by older servers. */
+  source_id?: string | null
   display_title: string | null
   episode_count: number
   image_url?: string | null
@@ -32,6 +34,8 @@ export type CorpusFeedsResponse = {
 export type CorpusEpisodeListItem = {
   metadata_relative_path: string
   feed_id: string
+  /** KG's id for the row's show (GI 4.0 R3b); omitted by older servers. */
+  source_id?: string | null
   /** Feed title from episode metadata when present (omitted on older APIs). */
   feed_display_title?: string | null
   feed_rss_url?: string | null

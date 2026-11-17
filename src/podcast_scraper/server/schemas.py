@@ -407,6 +407,16 @@ class AppInsight(BaseModel):
         default=None, description="claim/recommendation/observation/... when set."
     )
     confidence: float | None = Field(default=None, description="Extractor confidence when set.")
+    grounding_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "The best NLI entailment score among the insight's supporting quotes, 0 to 1; absent "
+            "when the insight is not grounded (GI 4.0). Filled by the build that grounds insights; "
+            "``confidence`` keeps its own meaning."
+        ),
+    )
     position_hint: str | None = Field(default=None, description="Temporal position hint when set.")
     # Route-and-tag (#1191): surfaces sort by salience desc and may cap at
     # gi_surface_default_limit. Optional so pre-3.1 artifacts (no fields) still project.
@@ -4057,6 +4067,13 @@ class RelationalListResponse(BaseModel):
     error: str | None = None
 
 
+class RelationalShowSource(BaseModel):
+    """A cross-show group's show: KG's source id and the show's title (GI 4.0 R3b)."""
+
+    source_id: str | None = None
+    source_title: str | None = None
+
+
 class RelationalGroupedResponse(BaseModel):
     """Response for the grouped relational endpoints (who-said / cross-show).
 
@@ -4066,6 +4083,14 @@ class RelationalGroupedResponse(BaseModel):
 
     subject: str = Field(description="The queried topic id.")
     groups: dict[str, list[RelatedNodeModel]] = Field(default_factory=dict)
+    sources: dict[str, RelationalShowSource] | None = Field(
+        default=None,
+        description=(
+            "cross-show only: each group key's show, as KG's source id (``podcast:`` + the slug "
+            "of the feed id, the id the Podcast node gets at GI 4.0 R3b) and its title. "
+            "``source_id`` is null when no episode of the show carries a feed id."
+        ),
+    )
     error: str | None = None
 
 
@@ -4126,6 +4151,13 @@ class CorpusFeedItem(BaseModel):
     """One feed row for GET /api/corpus/feeds."""
 
     feed_id: str = Field(description="Normalized feed id; empty string if missing in metadata.")
+    source_id: str | None = Field(
+        default=None,
+        description=(
+            "KG's id for this show: ``podcast:`` + the slug of ``feed_id`` (GI 4.0 R3b). Null when "
+            "the feed id is empty."
+        ),
+    )
     display_title: str | None = Field(
         default=None,
         description="Feed title from metadata when present.",
@@ -4374,6 +4406,13 @@ class CorpusEpisodeListItem(BaseModel):
 
     metadata_relative_path: str
     feed_id: str
+    source_id: str | None = Field(
+        default=None,
+        description=(
+            "KG's id for the row's show: ``podcast:`` + the slug of ``feed_id`` (GI 4.0 R3b). "
+            "Focus the show node by this, not by a slug of the title."
+        ),
+    )
     feed_display_title: str | None = Field(
         default=None,
         description="Feed title from episode metadata when present.",

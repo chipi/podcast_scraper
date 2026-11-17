@@ -49,7 +49,7 @@ def _fixture_graph() -> _FakeGraph:
         "topic:ai": ("topic", {"label": "AI"}),
         "insight:1": ("insight", {"text": "Alice on AI"}),
         "insight:2": ("insight", {"text": "Bob on AI"}),
-        "episode:e1": ("episode", {}),
+        "episode:e1": ("episode", {"feed_id": "show-one-feed"}),
         "episode:e2": ("episode", {}),
         "podcast:show1": ("podcast", {"name": "Show One"}),
         "podcast:show2": ("podcast", {"name": "Show Two"}),
@@ -394,3 +394,13 @@ def test_topic_entities_ranks_across_typed_family(typed_client: TestClient) -> N
         f"typed+legacy) must rank first; got {ids}"
     )
     assert set(ids[1:]) == {"org:acme", "person:bob"}
+
+
+def test_cross_show_carries_each_show_source_id_and_title(client: TestClient) -> None:
+    """GI 4.0 R3b: a group key is GI's title-based show id; consumers match on KG's source id."""
+    body = client.get("/api/relational/cross-show", params={"topic": "topic:ai"}).json()
+    assert body["sources"]["podcast:show1"] == {
+        "source_id": "podcast:show-one-feed",
+        "source_title": "Show One",
+    }
+    assert set(body["sources"]) == set(body["groups"])

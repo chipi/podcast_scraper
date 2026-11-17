@@ -1191,3 +1191,26 @@ def test_a_digest_band_links_its_topic_only_when_episodes_name_it(
     assert _linkable_topic_id(root, root, "topic:only-the-bridge-knows") == (
         "topic:only-the-bridge-knows"
     )
+
+
+def test_episode_and_feed_rows_carry_the_kg_source_id(tmp_path: Path) -> None:
+    """GI 4.0 R3b: KG's show id is ``podcast:`` + the slug of the feed id (``podcast_id=feed_id``
+    at write time). Rows carry it as ``source_id`` so a client focuses the show node by id, never by
+    a slug of the title (which is GI's id until R3b)."""
+    import shutil
+
+    from podcast_scraper.kg.pipeline import _podcast_node_id
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    client = TestClient(create_app(root, static_dir=False))
+    rows = client.get("/api/corpus/episodes", params={"path": str(root), "limit": 50}).json()[
+        "items"
+    ]
+    assert rows
+    for r in rows:
+        assert r["source_id"] == _podcast_node_id(r["feed_id"])
+    feeds = client.get("/api/corpus/feeds", params={"path": str(root)}).json()["feeds"]
+    assert feeds
+    for f in feeds:
+        assert f["source_id"] == _podcast_node_id(f["feed_id"])

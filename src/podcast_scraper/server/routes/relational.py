@@ -25,6 +25,7 @@ from podcast_scraper.server.schemas import (
     RelatedNodeModel,
     RelationalGroupedResponse,
     RelationalListResponse,
+    RelationalShowSource,
 )
 
 router = APIRouter(tags=["relational"])
@@ -234,7 +235,12 @@ def cross_show(
     if graph is None:
         return RelationalGroupedResponse(subject=topic, error="no_corpus_path")
     groups = rq.cross_show_synthesis(graph, topic, per_show=per_show)
-    return RelationalGroupedResponse(subject=topic, groups=_group(groups))
+    sources = rq.show_sources(graph, groups.keys())
+    return RelationalGroupedResponse(
+        subject=topic,
+        groups=_group(groups),
+        sources={key: RelationalShowSource(**src) for key, src in sources.items()},
+    )
 
 
 @router.get("/relational/topics", response_model=RelationalListResponse)
