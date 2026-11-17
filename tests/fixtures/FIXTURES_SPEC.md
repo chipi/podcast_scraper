@@ -533,7 +533,7 @@ cannot disagree with production about what a tag means.
 **BOTH COMMITTED CORPORA CARRY LANGUAGE (2026-10-01).** The app corpus was regenerated; the
 viewer corpus was written SURGICALLY (`scripts/tools/backfill_viewer_corpus_language.py`), not
 regenerated, because `build_synthetic_validation_corpus.py` is non-deterministic — its
-`base_date` is `datetime.utcnow()`, so a no-op rerun changes 131 of 332 files and deletes 18
+`base_date` is the current UTC time (`datetime.now(timezone.utc)`), so a no-op rerun changes 131 of 332 files and deletes 18
 git-tracked `.app/users/*` files the viewer e2e reads. `test_fixture_languages.py` asserts every
 viewer-corpus episode carries `feed.language`; making that generator deterministic is the part
 of issue #2185 still open.
