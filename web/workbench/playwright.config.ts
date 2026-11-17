@@ -16,6 +16,10 @@ const pythonBin = existsSync(venvPython) ? venvPython : 'python3'
 // The API's port. e2e/run-local-stack.sh sets it to whatever host port the container got, so a
 // stack run reuses the container instead of starting the native server below.
 const API_PORT = process.env.E2E_API_PORT || '8012'
+// The UI's port. The private viewer's suite also reuses a server on 5174, so a run here that
+// shares the machine with it sets E2E_UI_PORT (and E2E_API_PORT) to ports of its own; otherwise
+// each run tests whichever app took the port first.
+const UI_PORT = process.env.E2E_UI_PORT || '5174'
 
 /**
  * Browser E2E against Vite dev server (no Python API required for offline tests).
@@ -69,7 +73,7 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   use: {
     /* Dedicated port so local `npm run dev` on 5173 does not collide with E2E. */
-    baseURL: 'http://127.0.0.1:5174',
+    baseURL: `http://127.0.0.1:${UI_PORT}`,
     trace: 'retain-on-failure',
     ...devices['Desktop Firefox'],
   },
@@ -139,9 +143,9 @@ export default defineConfig({
     // ("2026-04-18", "2024-06-05", …) and would fall outside the production 7-day
     // graph lens once the wall clock advances. All-time lens keeps fixtures stable.
     command:
-      'VITE_DEFAULT_GRAPH_LENS_DAYS=0 npm exec vite -- --port 5174 --strictPort --host 127.0.0.1',
+      `VITE_DEFAULT_GRAPH_LENS_DAYS=0 npm exec vite -- --port ${UI_PORT} --strictPort --host 127.0.0.1`,
     cwd: __dirname,
-    url: 'http://127.0.0.1:5174',
+    url: `http://127.0.0.1:${UI_PORT}`,
     env: {
       ...process.env,
       VITE_DEFAULT_GRAPH_LENS_DAYS: '0',
@@ -151,7 +155,7 @@ export default defineConfig({
       // Proxy /api at the server above rather than vite.config.ts's 8000 default.
       VITE_API_TARGET: `http://127.0.0.1:${API_PORT}`,
     },
-      /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */
+      /** Reuse a dev server on UI_PORT when present so local runs do not fail if `CI=true`. */
       reuseExistingServer: true,
       timeout: process.env.CI ? 180_000 : 120_000,
     },
