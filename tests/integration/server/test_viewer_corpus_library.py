@@ -1158,3 +1158,36 @@ def test_node_episodes_keeps_the_bridge_answer_when_a_stage_reads_bridges(
     ).json()
     # The bridge answer is kept as given (the display fields come from the catalog, None here).
     assert [{k: e[k] for k in row} for e in body["episodes"]] == [row]
+
+
+def test_a_digest_band_links_its_topic_only_when_episodes_name_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A band's topic id is made from its label ("Technology" -> topic:technology). When no episode
+    names that topic, the heading opened a Topic rail with nothing in it (public-only walk,
+    2026-11-17). The band now links a topic only where the rail's own source (node-episodes) has an
+    episode for it."""
+    import shutil
+
+    from podcast_scraper import read_hooks
+    from podcast_scraper.server.routes.corpus_digest import _linkable_topic_id
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: False)
+    topic = _shared_topic(root)
+
+    assert _linkable_topic_id(root, root, topic) == topic
+    assert _linkable_topic_id(root, root, "topic:no-episode-names-this") == ""
+    assert _linkable_topic_id(root, root, "") == ""
+
+    # A build with the bridge stage answers from it, and a topic it knows stays linked.
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: True)
+    monkeypatch.setattr(
+        read_hooks,
+        "bridge_node_episodes",
+        lambda r, a, node_id, max_episodes=None: (node_id, [{"kg_relative_path": "x"}], False, 1),
+    )
+    assert _linkable_topic_id(root, root, "topic:only-the-bridge-knows") == (
+        "topic:only-the-bridge-knows"
+    )

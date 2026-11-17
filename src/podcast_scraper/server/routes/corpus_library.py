@@ -257,6 +257,20 @@ def _kg_node_episodes(
     return canon, rows, len(kept) < total, total
 
 
+def node_episodes(
+    root: Path, anchor: Path | str | None, node_id: str, max_episodes: int | None
+) -> tuple[str, list[dict[str, Any]], bool, int | None]:
+    """The episodes that name *node_id*: the bridge stage's answer when one is installed, else the
+    KG index's. The one source for node-episodes and for anything that links to a node's rail."""
+    root_s = str(root.resolve())
+    anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
+    if read_hooks.bridge_node_episodes_installed():
+        return read_hooks.bridge_node_episodes(
+            root_s, anchor_path, node_id, max_episodes=max_episodes
+        )
+    return _kg_node_episodes(root, node_id, max_episodes)
+
+
 @router.post("/corpus/node-episodes", response_model=CorpusNodeEpisodesResponse)
 def corpus_node_episodes(
     request: Request,
@@ -270,18 +284,9 @@ def corpus_node_episodes(
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
-    anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
-    if read_hooks.bridge_node_episodes_installed():
-        canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
-            root_s,
-            anchor_path,
-            body.node_id,
-            max_episodes=body.max_episodes,
-        )
-    else:
-        canon, rows, truncated, total_matched = _kg_node_episodes(
-            root, body.node_id, body.max_episodes
-        )
+    canon, rows, truncated, total_matched = node_episodes(
+        root, anchor, body.node_id, body.max_episodes
+    )
     # The display fields come from the catalog, joined here on the KG path, so the rails never
     # read or join artifact files in the browser.
     by_kg = {row.kg_relative_path: row for row in cached_catalog(root) if row.kg_relative_path}

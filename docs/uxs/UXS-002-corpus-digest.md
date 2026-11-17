@@ -151,7 +151,8 @@ the older topic-band label behaviour above, this section governs.
   muted empty state shows when no cross-show coverage exists. *(Not drawn by the public Workbench; see Where it renders.)*
 - **FR3.3 — interactive names → Detail.** A mapped band label is a button
   (**`digest-band-topic-link`**) that opens the **Topic Entity View** rail
-  (`focusTopic(graph_topic_id)`); editorial-only bands (no KG mapping) stay static
+  (`focusTopic(graph_topic_id)`); editorial-only bands (no KG mapping: no episode names the
+  topic, so the server sends an empty `graph_topic_id`, 2026-11-17) stay static
   text. Each topic-band **hit row** now also exposes its feed/show name as a button
   (**`digest-topic-hit-feed-link`**) that scopes the **Library** to that feed
   (`HAS_EPISODE`), mirroring the Recent **`digest-feed-name-link`**. *Speaker* names

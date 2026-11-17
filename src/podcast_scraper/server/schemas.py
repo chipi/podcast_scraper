@@ -4745,8 +4745,8 @@ class CorpusDigestTopicBand(BaseModel):
     query: str
     graph_topic_id: str = Field(
         description=(
-            "Suggested GI/KG topic node id (topic:{slug}) from the band label; "
-            "may be absent in a given episode graph."
+            "GI/KG topic node id (topic:{slug}) from the band label, or empty when no episode "
+            "names that topic (node-episodes has none), so the band does not link an empty rail."
         ),
     )
     hits: list[CorpusDigestTopicHit] = Field(default_factory=list)
