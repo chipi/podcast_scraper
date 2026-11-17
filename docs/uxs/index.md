@@ -118,6 +118,7 @@ Authoritative specs; current implementations should conform
 | [UXS-015](UXS-015-operator-shows-library.md) | Operator Shows Library (shows-first browse) | PRD-044; RFC-104 | Shows-first browse in the operator Library tab: shows grid → show detail → cross-linked episode list (covers + descriptions). Reuses `PodcastCover` + `focusEpisode`; no backend change. Inherits UXS-001; episode row from UXS-003. |
 | [UXS-017](UXS-017-share-cards.md) | Shareable cards | — | The one server-rendered card (`server/og/card.py`) for every shared kind and the highlight quote card; OG unfurls and the app's Share card use the same image. |
 | [UXS-018](UXS-018-operator-ops-and-admin.md) | Operator Ops and Admin tabs | #1128; ADR-113, ADR-142 (not in this repository) | Ops (source cards, LLM gateway, resilience + reset, token/cost usage) and Admin (users, extension-registered panels, graph analytics + replay). Admin-only, server-enforced. Inherits UXS-001. |
+| [UXS-019](UXS-019-news-in-the-public-viewer.md) | News in the public viewer (draft) | RFC-134; ADR-179, ADR-180 | News 1.0: the search Type chip, the news result row and the article card in the subject rail; title, summary and a link out, never the article's text. Later items listed. Inherits UXS-001. |
 
 ## Templates
 

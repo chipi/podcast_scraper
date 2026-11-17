@@ -152,6 +152,7 @@ nav:
       - UXS-016 Query Workspace: uxs/UXS-016-query-workspace.md
       - UXS-017 Shareable Cards: uxs/UXS-017-share-cards.md
       - UXS-018 Operator Ops and Admin: uxs/UXS-018-operator-ops-and-admin.md
+      - UXS-019 News in the public viewer: uxs/UXS-019-news-in-the-public-viewer.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
