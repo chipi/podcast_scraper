@@ -267,7 +267,7 @@ def corpus_digest(
 
     # Catalog rows are a full metadata scan that only changes on INGEST: the shared
     # last-run cache (corpus-mtime token), the same rows build_catalog_rows returns.
-    catalog = catalog_cache.cached_catalog_last_run(root)
+    catalog = catalog_cache.current_catalog_last_run(root)
     in_window = filter_rows_in_window(catalog, start, end)
     picked = diversify_digest_rows(
         in_window,

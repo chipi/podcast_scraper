@@ -233,3 +233,41 @@ def test_digest_row_includes_feed_rss_and_description(tmp_path: Path) -> None:
     row = r.json()["rows"][0]
     assert row["feed_rss_url"] == "https://feeds.example/pod.xml"
     assert row["feed_description"] == "Digest feed desc"
+
+
+def test_digest_after_a_job_lists_what_the_job_added(tmp_path: Path) -> None:
+    """#2486: the catalog cache serves the previous catalog while it rebuilds (stale_ok, for the
+    Player's cold reads), so the Workbench's refetch after a job got the pre-job rows and never
+    asked again. The operator's routes read the current catalog."""
+    import os
+
+    from podcast_scraper import perf_cache
+
+    perf_cache.clear()
+    today = datetime.now(timezone.utc).date().isoformat()
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+
+    def add(ep: str, mtime: float) -> None:
+        p = meta / f"{ep}.metadata.json"
+        p.write_text(
+            json.dumps(
+                _episode_doc(episode_id=ep, episode_title=ep, published=f"{today}T12:00:00Z")
+            ),
+            encoding="utf-8",
+        )
+        for q in (p, meta, tmp_path):
+            os.utime(q, (mtime, mtime))
+
+    add("before", 1_700_000_000)
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    params = {"path": str(tmp_path), "window": "all"}
+    assert [
+        r["episode_title"] for r in client.get("/api/corpus/digest", params=params).json()["rows"]
+    ] == ["before"]
+
+    add("after", 1_700_000_100)  # the job's write moves the corpus mtime on
+    titles = sorted(
+        r["episode_title"] for r in client.get("/api/corpus/digest", params=params).json()["rows"]
+    )
+    assert titles == ["after", "before"]

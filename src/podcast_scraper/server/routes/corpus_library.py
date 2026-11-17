@@ -11,9 +11,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from podcast_scraper import read_hooks
+from podcast_scraper import perf_cache, read_hooks
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
-from podcast_scraper.server.catalog_cache import cached_catalog, cached_catalog_last_run
+from podcast_scraper.server.catalog_cache import current_catalog, current_catalog_last_run
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
@@ -193,7 +193,7 @@ def corpus_resolve_episode_artifacts(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
-    rows = cached_catalog_last_run(root)
+    rows = current_catalog_last_run(root)
     by_eid = index_rows_by_episode_id(rows)
     resolved: list[CorpusResolvedEpisodeArtifact] = []
     missing: list[str] = []
@@ -235,7 +235,9 @@ def _kg_node_episodes(
     from podcast_scraper.server.kg_index import get_kg_index
 
     canon = re.sub(r"^[gk]:", "", node_id.strip())
-    index = get_kg_index(root)
+    # The current index, not the previous one while it rebuilds (#2486, as current_catalog).
+    with perf_cache.fresh():
+        index = get_kg_index(root)
     if canon.startswith("topic:"):
         found = index.topic_episodes(canon)
     elif canon.startswith("person:"):
@@ -289,7 +291,7 @@ def corpus_node_episodes(
     )
     # The display fields come from the catalog, joined here on the KG path, so the rails never
     # read or join artifact files in the browser.
-    by_kg = {row.kg_relative_path: row for row in cached_catalog(root) if row.kg_relative_path}
+    by_kg = {row.kg_relative_path: row for row in current_catalog(root) if row.kg_relative_path}
     items = []
     for r in rows:
         row = by_kg.get(str(r["kg_relative_path"]))
@@ -342,7 +344,7 @@ def corpus_feeds(
     # Cumulative catalog scan (~150 ms of Python) only changes on INGEST — served from the shared
     # corpus-mtime cache so it doesn't contend (GIL) with a concurrent search, and so every catalog
     # route (episodes / feeds / stats / coverage) shares ONE warm scan rather than caching its own.
-    rows = cached_catalog(root)
+    rows = current_catalog(root)
     feeds_raw = aggregate_feeds(rows)
     feeds = [
         CorpusFeedItem(
@@ -440,7 +442,7 @@ def corpus_episodes(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = cached_catalog(root)
+    rows = current_catalog(root)
     titles_by_feed = feed_display_title_by_feed_id(rows)
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
@@ -542,7 +544,7 @@ def corpus_episode_detail(
     rel_posix = os.path.relpath(target, root_s).replace("\\", "/")
     if rel_posix.startswith(".."):
         raise HTTPException(status_code=400, detail="Invalid path.")
-    rows = cached_catalog_last_run(root)
+    rows = current_catalog_last_run(root)
     r = next((row for row in rows if row.metadata_relative_path == rel_posix), None)
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
@@ -710,7 +712,7 @@ def corpus_episodes_similar(
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
 
-    catalog_rows = cached_catalog_last_run(root)
+    catalog_rows = current_catalog_last_run(root)
     by_scope = index_rows_by_feed_episode(catalog_rows)
     outcome = run_similar_episodes(
         root,

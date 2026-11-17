@@ -129,11 +129,11 @@ failing test first.
 Not checked yet: search with a built index, canvas clicks on topic and person nodes, phone width
 and the light theme.
 
-Open, #2486 (read in code, not reproduced): after a job the Workbench refetches the Digest and
-Library (`shell.corpusRevision`), but the catalog cache serves the previous catalog while it
-rebuilds (`catalog_cache.py`, `stale_ok=True`), so the refetch can get pre-job rows and nothing
-fetches again. The rails' episode list joins the same cache, so a just-added episode is missing
-from them until the rebuild ends.
+Issue #2486, fixed: after a job the Workbench refetched the Digest and Library (`shell.corpusRevision`),
+but the catalog cache served the previous catalog while it rebuilt (`stale_ok`, for the Player), so
+the lists stayed pre-job until reload; the rails' episode list read the KG index the same way.
+Reproduced by a route test, then the operator routes (digest, library, coverage, node-episodes) read
+the current catalog and index (`perf_cache.fresh()`); the Player's routes keep the stale answer.
 
 ## 4. Then news
 

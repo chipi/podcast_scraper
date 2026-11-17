@@ -102,3 +102,20 @@ def _sharing_rows(
     so an equal row can stand in for the other; a row whose metadata file differs keeps its own."""
     by_path = {r.metadata_relative_path: r for r in other}
     return [same if (same := by_path.get(r.metadata_relative_path)) == r else r for r in rows]
+
+
+def current_catalog(root: Path) -> list[CatalogEpisodeRow]:
+    """:func:`cached_catalog` for the CURRENT corpus, never the previous one while it rebuilds.
+
+    The stale answer spares the Player's cold reads after an ingest; the operator's routes need what
+    the job just wrote: the Workbench refetches once after a job and showed the pre-job lists until
+    reload (#2486). Waits for the rebuild instead (single-flight, so one build serves every waiter).
+    """
+    with perf_cache.fresh():
+        return cached_catalog(root)
+
+
+def current_catalog_last_run(root: Path) -> list[CatalogEpisodeRow]:
+    """:func:`cached_catalog_last_run` for the CURRENT corpus (see :func:`current_catalog`)."""
+    with perf_cache.fresh():
+        return cached_catalog_last_run(root)
