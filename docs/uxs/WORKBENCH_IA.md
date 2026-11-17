@@ -21,6 +21,8 @@ capabilities that are not implemented. First-run copy and disabled states
 describe only what exists today; speculative “attention” chrome (e.g. pulsing
 borders) is out of scope until a dedicated implementation ships.
 
+**Where it renders (2026-11-17).** The Workbench draws the shell, the five main tabs, the status bar, the left column (Search only) and the subject rail frame. Parts that are slots only a registered extension fills: the Position Tracker tab and other extra node tabs (`nodeDetailExtensions` tabs, `NodeDetail.vue:611`), topic view sections (`topicViewSections`, `TopicEntityView.vue:146`), person profile sections (`personProfileSections`, `PersonLandingView.vue:127-197`), digest, dashboard, search, graph and admin sections (see each feature UXS for the point). Removed from public: **Explore** (`stores/shell.ts:38-48,136-137`) and the topic Timeline, perspectives and arc (the private viewer's). Where the body below still says Explore, it is history. Public adds **NodeEpisodesSection** to the Details tab of Topic, Person and Organization nodes. The Topic and Person tab lists below also differ from the code: the tabs are Details, Enrichment, Neighbourhood plus extension tabs (`NodeDetail.vue:808,847,865`). Without extensions, the slots above are absent.
+
 UXS files reference this document for shell structure. RFC-062 references
 it for the navigation model that behavioral rules are built on top of.
 
@@ -65,7 +67,7 @@ Four independent areas. Each has one job:
 
 | Area | Job |
 | --- | --- |
-| Left panel | Query the corpus (**Search** default; **Explore** as a deliberate mode) |
+| Left panel | Query the corpus (**Search**; ~~**Explore** as a deliberate mode~~ retired) |
 | Main area | Browse four perspectives on the corpus (tabs) |
 | Right rail | Understand the current subject (entity detail) |
 | Status bar | Operational context (corpus path + server health) |
@@ -124,8 +126,8 @@ the same **Enter** → **Explore** behavior inside the **Advanced explore** dial
 **Quick question** runs **Run quick question**; **Shift+Enter** there inserts a newline (IME
 composition does not trigger submit).
 
-**Purpose:** Search stays the default mental model (like a map app’s search field). Explore is a
-deliberate “browse corpus” mode, not a second always-visible stack.
+**Purpose:** Search stays the default mental model (like a map app’s search field). ~~Explore is a
+deliberate “browse corpus” mode, not a second always-visible stack.~~ *(Explore is retired; the Explore keyboard, collapse and hand-off sentences in this section and the Collapse list are history.)*
 
 **Visual spec:** UXS-005 (Search), UXS-001 (tokens)
 
@@ -166,7 +168,7 @@ nothing is selected.
 | **Episode** | `episode` | Library row click, Library row **G** button (#674), Digest row, Search **L** button | `EpisodeDetailPanel` |
 | **Show** | `show` | Library **Shows**-mode grid card click (`focusShow`); episode-in-show → episode subject with ‹ Back (UXS-015 / RFC-104) | `ShowRailPanel` |
 | **Topic / Entity** | `topic` | Digest topic-band title (#674); programmatic `focusTopic` / `focusEntity` | `TopicEntityView` (UXS-007) |
-| **Person** | `person` | Search supporting-quote speaker name (#674), Explore **Top speakers** rollup (#674) | `PersonLandingView` (UXS-010) |
+| **Person** | `person` | Search supporting-quote speaker name (#674), ~~Explore **Top speakers** rollup (#674)~~ (retired) | `PersonLandingView` (UXS-010) |
 | **Graph node** | `graph-node` | Any graph node click (Topic / Insight / Quote / Person / Entity / Episode in graph) | `GraphNodeRailPanel` (uses `NodeDetail`) |
 | *(empty)* | `null` | Nothing selected, corpus not loaded | Empty state |
 
@@ -194,8 +196,8 @@ working.
 
 Tabs are polymorphic by node type:
 
-- **Topic / Entity** → `Details | Neighbourhood`
-- **Person** → `Details | Position Tracker | Neighbourhood`
+- **Topic / Entity** → `Details | Neighbourhood` (code: Details, Enrichment, Neighbourhood)
+- **Person** → `Details | Position Tracker | Neighbourhood` (the Position Tracker tab is the private viewer's, an extension tab)
 
 **Details** (first tab) carries the full type-specific detail — the content
 previously split into `TopicEntityView` / `PersonLandingView` folds in here:
@@ -204,7 +206,7 @@ previously split into `TopicEntityView` / `PersonLandingView` folds in here:
   a **compact mentions timeline** (topic-level; each episode is a collapsible
   row — collapsed shows the episode's own title, our generated `summary_title`,
   and date; expanding reveals the `summary_text` paragraph, never the KEY POINTS
-  bullets) · Across shows · Related topics · Key voices · Entities involved ·
+  bullets) · ~~Across shows · Related topics · Key voices · Entities involved~~ (not drawn by the public Workbench; slots only) ·
   inline enrichment (co-occurs-above-chance).
 - **Person** — name · role · aliases · description · ranked topics · insights
   voiced · episodes appeared · connections (co-speakers / topics) · enrichment

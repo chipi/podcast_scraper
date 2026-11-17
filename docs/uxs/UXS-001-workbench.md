@@ -29,6 +29,15 @@
 
 ---
 
+**Where it renders (2026-11-17).** The Workbench draws the tokens, the shell, the status bar and the shared components below. These parts are slots that only a registered extension fills:
+
+- Configuration dialog tabs after the viewer's own: `configTabs` (`StatusBar.vue:53`).
+- App banners: `appBanners` (`App.vue:1075`).
+- Palette commands and hit actions: `paletteCommands` (`utils/paletteCommands.ts:249`), `paletteHitActions` (`CommandPalette.vue:683`).
+- Graph chrome and canvas: `graphPanels` (`GraphTabPanel.vue:37,58`), `graphBottomBarChips` (`GraphBottomBar.vue:205`), `graphFilterBarChips` (`GraphFilterBar.vue:46`), `graphLenses` (`GraphLensesChip.vue:57`), `graphStylesheet` (`cyGraphStylesheet.ts:773`), `graphCanvasPlugins` (`GraphCanvas.vue:1089`).
+
+Removed from public: the **Explore** slide-in mode of the left column. `stores/shell.ts:38-48,136-137` keeps one left-column surface and ignores `explore_api`, so the Explore sentences below are history. The **InsightCard** below is specified and has no component in `web/workbench/src` (see its own status line); whether the private viewer builds it: not checked. Without extensions, the slots above are absent.
+
 ## Summary
 
 This is the **shared design system** for the Workbench SPA (`web/workbench/`).
@@ -88,7 +97,7 @@ that subsection instead of duplicating card rules.
 - Feature-specific layout and density (see feature UXS files)
 - Full **shell information architecture** (regions, the three navigation axes, subject persistence and clearing rules, first-run policy, cross-surface pseudocode) — specified only in **[WORKBENCH_IA.md](WORKBENCH_IA.md)**; UXS-001 does not replace it
 
-**Historical note:** The pre–shell-restructure left-panel **Corpus | API·Data** tabs are obsolete. Current chrome follows **WORKBENCH_IA** (status bar corpus path + left Search/Explore); see [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606).
+**Historical note:** The pre–shell-restructure left-panel **Corpus | API·Data** tabs are obsolete. Current chrome follows **WORKBENCH_IA** (status bar corpus path + left Search; ~~Explore~~ retired 2026-11-17); see [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606).
 
 **Boundary note:** This UXS covers the **static visual contract** (tokens, layout,
 component appearance, accessibility targets). Behavioral rules (animation timing,
@@ -267,7 +276,7 @@ still derive from the tokens above.
   practical.
 - **Max content width:** **960px** for primary column content; graph area may be
   full viewport width.
-- **Left query column** (**Semantic search** default; **Explore** as a slide-in mode from
+- **Left query column** (**Semantic search**; ~~**Explore** as a slide-in mode~~ retired 2026-11-17, from
   **`LeftPanel.vue`**): collapsible **`w-72`** rail in `App.vue` when expanded.
 - **Right subject column** (Episode detail, graph node detail, future topic/person): fixed
   width **`w-96`** (**24rem** / **384px** at **16px** root) when expanded. To tune further,

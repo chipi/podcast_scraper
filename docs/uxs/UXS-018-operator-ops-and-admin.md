@@ -11,6 +11,8 @@ These are the operator's control surfaces. Until this spec they had unit tests b
 browser coverage. This document describes what shipped; where shipped behaviour looks wrong it says
 so under **Open questions** rather than specifying a fix.
 
+**Where it renders (2026-11-17).** The Workbench draws the Ops tab (`App.vue:1163-1166`) and, on the Admin tab, Users, Released app version and Analytics (`App.vue:1172-1175`). One slot only a registered extension fills: `adminPanels`, between Users and Released app version (`App.vue:1173`). The discovery ranking panel is one; this build registers none. Configuration dialog tabs from `configTabs` (`StatusBar.vue:53`) are the other admin-side slot. Without extensions both are absent.
+
 ## Access
 
 | Role (server-assigned) | Ops tab | Admin tab |

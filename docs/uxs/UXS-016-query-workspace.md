@@ -19,6 +19,18 @@
 
 ---
 
+**Where it renders (2026-11-17).** The Workbench draws the Search tab, the query field, the filter chips (Since, Top-k, Doc types, Topic, Speaker, More), the intent chip, the **Timeline** and **On graph** operators (`ResultSetOperatorBar.vue`), result cards with the tier badge, and the Saved and Recent sections in the left column (`LeftPanel.vue:62-107`).
+
+Slots that only a registered extension fills:
+
+- Extra operators such as **Compare**: `searchOperators` (`ResultSetOperatorBar.vue:41-51`). The viewer's own are Timeline (order 10) and graph (20). No `build_briefing_pack` use is in `web/workbench/src`.
+- Extra chips such as Min confidence and Grounded only: `searchFilterChips` (`SearchFilterBar.vue:69`).
+- The `+ insight` badge, the Lifted GI insight region and supporting quotes: `resultCardBadges`, `resultCardSections` (`ResultCard.vue:236,282`).
+- The evidence toggle and lift line (`results-header`), and `header` / `above-results` sections: `searchPanelSections` (`SearchPanel.vue:350,576,599`).
+- Extra doc types: `searchDocTypes`.
+
+Removed from public: the **Explore** mode (`stores/shell.ts:38-48`); its filters are the chips above. Not found in `web/workbench/src`: the ids `rail-search-in-*`, `episode-inline-search-*`, `workspace-*`, `search-op-*` (the built operators use `operator-chip-*`). The private viewer draws `rail-search-in-*` and `workspace-*` (Studio main `afbff8e`); `search-op-*` and `episode-inline-search-*` are in neither repo, so those parts of this spec differ from the code. Without extensions, the slots above are absent.
+
 ## Summary
 
 The **Query Workspace** is the operator viewer's Search main tab (5th tab: Digest · Library · **Search** · Graph · Dashboard). Full-width main-area surface. Hosts the merged Search + Explore query UI, result-set operators (on-graph / timeline / compare), and the saved-queries sidebar (via LeftPanel). Also the target of the shell-wide Cmd-K palette's "Open in Workspace" action and every rail's "Search inside this X" launcher.

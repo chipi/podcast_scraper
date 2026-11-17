@@ -22,6 +22,16 @@
 
 ---
 
+**Where it renders (2026-11-17).** The Workbench draws the briefing card, the Coverage, Intelligence and Pipeline tabs, the digest snapshot, the topic grid and topic briefing cards. These parts are slots that only a registered extension fills:
+
+- Cards on the Intelligence and Coverage tabs: `dashboardCards` regions `overview`, `topics`, `people`, `coverage` (`DashboardView.vue:42-58`). **Top voices** (`intelligence-top-voices`) and the topic perspectives card are cards of this kind; the People section shows only registered cards (`DashboardView.vue:453`).
+- Briefing figures and attention items: `briefingCoverage` (`BriefingCard.vue:133,195`), including the GI coverage warning.
+- The GI column of the feed coverage table: `feedCoverageColumns` (`FeedCoverageTable.vue:17`).
+- Sections at the bottom of each topic briefing card: `topicBriefingSections` (`TopicBriefingCards.vue:22`). The **Cross-show** row (`topic-briefing-card-cross-show`) is one; the id is not in `web/workbench/src`.
+- Series of the artifact activity chart: `artifactActivitySeries` (`ArtifactActivityChart.vue:22`).
+
+Without extensions these parts are absent. Several of them already say "a downstream build's" in the body below.
+
 ## Summary
 
 For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Dashboard** main tab only (briefing card, Coverage / Intelligence / Pipeline sub-tabs, charts, and layout below).

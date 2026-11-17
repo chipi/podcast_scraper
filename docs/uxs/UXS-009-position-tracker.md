@@ -1,6 +1,7 @@
 # UXS-009: Position Tracker
 
 - **Status**: Draft
+- **Where it renders (2026-11-17)**: the private viewer's. The position tracker content is drawn by a registered `positions` section of `personProfileSections` (`PersonLandingView.vue:184-190`; `extensions/index.ts:272-278`). The public Workbench keeps only that slot: `PersonLandingView` with `view="positions"` renders its own chrome and the registered sections. No component in `web/workbench/src` mounts that view (`NodeDetail.vue:1069` mounts only `view="profile"`), `PositionTrackerPanel.vue` and `personTopicPositionArc` do not exist in `web/workbench/src`, and `position-tracker-no-topic`, `-empty` and `-arc` are not in it. Without an extension, the Positions view and its tab are absent. Which extension tab mounts the view: not checked. Everything below specifies the private viewer's surface.
 - **v2 closure (RFC-097, 2026-06-20; chunk-8 scope-cut 2026-06-21)**: viewer
   surface delivered by **#1048** (Person Landing shared shell) + **#1049**
   (Position Tracker panel, 2026-06-23). Implementation lives at

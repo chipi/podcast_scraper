@@ -38,14 +38,20 @@
     `NodeDetail.vue` continue to render for `subject.kind === 'graph-node'`.
     Graph **clicks** route through `focusGraphNode` → rich graph-aware detail;
     `focusTopic` / `focusEntity` from non-graph surfaces (Digest, Search,
-    Explore) go through this UXS's higher-level overview panel.
-  - **Graph-node timeline surface is separate from TEV**:
+    ~~Explore~~, retired) go through this UXS's higher-level overview panel.
+  - ~~**Graph-node timeline surface is separate from TEV**:
     `web/workbench/src/components/graph/NodeDetail.vue` renders the topic/cluster
     CIL timeline inline inside graph-node **Details** (`node-detail-inline-timeline`),
-    complementary to this rail timeline overview.
+    complementary to this rail timeline overview.~~ Removed from public; the private viewer draws it (Studio's `topic-timeline-tab.spec.ts`).
 - **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — subject rail as single context layer; navigation axes; status bar
 
 ---
+
+**Where it renders (2026-11-17).** The Workbench draws the Topic header (name, aliases, description; `TopicEntityView.vue:100-140`), the action buttons (`TopicEntityView.vue:156-167`) and, in the node detail panel, a **Mentions by month** chart in the Enrichment tab (`node-detail-signals-timeline`, `NodeDetail.vue:1135`). It also draws **NodeEpisodesSection** (`node-episodes`, `NodeEpisodesSection.vue`) in the Details tab of Topic, Person and Organization nodes (`NodeDetail.vue:1079`): the 10 newest episodes from `POST /api/corpus/node-episodes`, each with title, show and date, headed "(10 newest of N)" when there are more, and nothing at all when the node is in no episode.
+
+The rest of the **Section layout** below is not drawn by `TopicEntityView.vue`: the trend badge and episode count badge, the Timeline section, Insights, Persons, Related topics and the relational sections (`tev-cross-show`, `tev-voices`, `tev-entities`). None of those ids is in `web/workbench/src`. The only slot the view provides is `topicViewSections`, region `after-description` (`TopicEntityView.vue:146`); node detail sections go through `nodeDetailExtensions`. Which entries the private viewer registers: not checked. Without extensions these parts are absent.
+
+Removed from public: `TopicConversationArc` and the topic perspectives tab (`NodeTopicPerspectives`), both now in the private viewer; the topic timeline dialog (`TopicTimelineDialog`; removed 2026-11-17), the Timeline rail tab (`node-detail-inline-timeline`) and `SemanticSearchTip` (the Timeline rail tab is the private viewer's; the dialog and the tip are in neither repo). Explore is retired.
 
 ## Summary
 
@@ -88,6 +94,8 @@ KG identity coloring in UXS-001.
 ---
 
 ## Section layout
+
+*As of 2026-11-17 the public Workbench draws only the header's name, aliases and description from this list, plus NodeEpisodesSection. See Where it renders.*
 
 The panel is a single scrollable column on `surface` background. Sections stack
 vertically with `border` dividers between them:
@@ -161,6 +169,8 @@ vertically with `border` dividers between them:
 - Hidden entirely when `topic_cooccurrence` enricher has not run.
 
 ### Relational sections (PRD-033 FR4.2)
+
+*Not drawn by the public Workbench; the private viewer draws them (Studio `TopicGi`, `tev-cross-show`).*
 
 Shipped in #886 over the RFC-094 relational layer (`web/workbench/src/api/relationalApi.ts`).
 Both fetch async on subject change, render skeleton-first (`Loading…`), and are

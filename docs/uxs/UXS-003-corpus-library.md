@@ -19,6 +19,13 @@
 
 ---
 
+**Where it renders (2026-11-17).** The Workbench draws the Library list, filters and the episode rail (`EpisodeDetailPanel.vue`). These parts are not drawn by it:
+
+- **Related insights** region (`episode-related-insights`, FR4.3): not drawn by the Workbench (the id is not in `web/workbench/src`), though its route `/api/relational/episode-insights` is public's own; the private viewer draws it (Studio `EpisodeRelatedInsights`).
+- **Appears in (bridge)** line: no such text in `web/workbench/src` (searched `Appears in`).
+
+The Workbench provides the places a build can draw them in: `episodeDetailSections` regions `summary-head`, `end` and `enrichment` (`EpisodeDetailPanel.vue:792,958,985`). Which entries the private viewer registers there: not checked. Without extensions these parts are absent.
+
 ## Summary
 
 For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Library** tab and **Episode** subject rail only (filters, episode list, layout and density).
@@ -94,7 +101,7 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
 3. **Episode subject rail** (right shell column) -- `role="region"`
   `aria-label="Episode"` (use `exact: true` in automation so it does not match
   "Episodes"). Shown when the user selects a Library episode or opens one from
-  Digest. **Search** and **Explore** stay in the **left** query column only. Same content:
+  Digest. **Search** (and ~~**Explore**~~, retired) stay in the **left** query column only. Same content:
    `surface` card styling, episode title (heading scale); meta block: feed on the
    first line (full width, wrap), then publish date, E#, duration on the line below
    (left, `muted`, list-scale meta); optional summary title and summary prose; when
@@ -140,6 +147,7 @@ active**; the behaviours below appear only once a search has run and a row's
   relational layer (`GET /api/relational/episode-insights` — the topic/entity siblings
   of the episode's own insights). Async, skeleton-first, StaleGeneration-gated, hidden
   when empty. (FR4.3's transcript-highlighting half is a separate deferred feature.)
+  *(Not drawn by the public Workbench; see Where it renders.)*
 - Double-tapping an Episode node opens the Episode subject rail when a corpus metadata path
   resolves (node properties, loaded artifact path, or catalog episode_id lookup).
 - With the Episode subject rail already open from Library or Digest, switching the main tab

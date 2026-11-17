@@ -19,6 +19,13 @@
 
 ---
 
+**Where it renders (2026-11-17).** The Workbench draws the topic bands, their hit rows, the Recent episode rows and the lens (`DigestView.vue`). These parts are not drawn by it:
+
+- **Across shows** band (`digest-cross-show-toggle`, `-band`, `-row`, FR3.2): not drawn by the Workbench (the test ids are not in `web/workbench/src`), though its route `/api/relational/cross-show` is public's own; the private viewer draws it (Studio `DigestCrossShow.vue`).
+- **Recent-row CIL topic pills** (`digest-recent-cil-pills`): not drawn by the Workbench; the private viewer draws them (Studio's `digest-gi.spec.ts`). The id is not in `web/workbench/src`; `CilTopicPillsRow.vue` exists with no caller in this build.
+
+The Workbench provides the places a build can draw them in: `digestSections` region `band` (end of each topic band, `DigestView.vue:846`) and `row` (under each Recent row, `DigestView.vue:1021`), plus `topicBadges` (`DigestView.vue:742`) and `topicGrouping`. Which entries the private viewer registers there: not checked. Without extensions these parts are absent.
+
 ## Summary
 
 For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies the **Digest** tab only (rolling window, semantic topic bands, layout and density, and **`corpusLens`** shared with Library).
@@ -121,7 +128,7 @@ All tokens reference [UXS-001](UXS-001-workbench.md).
    cluster membership matches **TopicCluster** chrome on the graph; non-cluster pills stay
    neutral border),
    those chips open **Graph** with **`topic_id`** focus
-   (`digest-recent-cil-pills`). There are **no** summary-bullet pill chips on Recent rows.
+   (`digest-recent-cil-pills`). There are **no** summary-bullet pill chips on Recent rows. *(Not drawn by the public Workbench; see Where it renders.)*
    Accessible name matches Library rows: episode title, feed.
 
 ---
@@ -141,7 +148,7 @@ the older topic-band label behaviour above, this section governs.
   `GET /api/relational/cross-show?topic=<graph_topic_id>` and renders one row per
   distinct show (**`digest-cross-show-row`** inside **`digest-cross-show-band`**):
   resolved show label + the top insight for that show — the corpus differentiator. A
-  muted empty state shows when no cross-show coverage exists.
+  muted empty state shows when no cross-show coverage exists. *(Not drawn by the public Workbench; see Where it renders.)*
 - **FR3.3 — interactive names → Detail.** A mapped band label is a button
   (**`digest-band-topic-link`**) that opens the **Topic Entity View** rail
   (`focusTopic(graph_topic_id)`); editorial-only bands (no KG mapping) stay static

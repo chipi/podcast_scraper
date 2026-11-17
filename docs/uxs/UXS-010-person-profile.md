@@ -44,8 +44,8 @@
     description / edge counts / timeline; Positions tab lists SPOKEN_BY
     quotes with episode context (capped at `PERSON_LANDING_POSITIONS_CAP = 50`).
   - **Entry points (#674 item 4)**: Search supporting-quote speaker name
-    (`search-result-speaker-link`) and Explore Top speakers rollup
-    (`explore-top-speaker-link`) call `focusPerson(speaker_id)` and
+    (`search-result-speaker-link`) and ~~Explore Top speakers rollup
+    (`explore-top-speaker-link`)~~ (retired) call `focusPerson(speaker_id)` and
     auto-load the corpus graph baseline so the panel has data to render.
   - **Existing graph-rail surface stays separate**:
     `GraphNodeRailPanel` + `NodeDetail` continue to render for graph clicks
@@ -53,6 +53,10 @@
 - **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — Person subject in subject rail; navigation axes
 
 ---
+
+**Where it renders (2026-11-17).** The Workbench draws the person's name, role, aliases and description and the footer buttons (`PersonLandingView.vue:101-216`), folded into the Details tab of Person nodes (`NodeDetail.vue:1069`). It also draws **NodeEpisodesSection** (`node-episodes`) in Details for Person, Speaker, Entity and Organization nodes (`NodeDetail.vue:1079`): the 10 newest episodes from `POST /api/corpus/node-episodes`, with title, show and date, headed "(10 newest of N)" when there are more, and nothing when the node is in no episode.
+
+Slots that only a registered extension fills: `personProfileSections` regions `header`, `profile-head`, `profile`, `positions`, `full` (`PersonLandingView.vue:127-197`). The **Positions** view is the private viewer's (see [UXS-009](UXS-009-position-tracker.md)). The Profile sections below (Topics discussed, Insights voiced, Episodes appeared in from `SPOKE_IN`, Organizations affiliated, Stated positions `person-landing-stated`) and the tab bar are not drawn by `PersonLandingView.vue`: it has no tablist, and the helpers `personEpisodeAppearances` and `personInsightsByTopic` and the id `person-landing-stated` are not in `web/workbench/src`. Which entries the private viewer registers: not checked. Without extensions these parts are absent. The Explore entry points (`explore-top-speaker-link`) are retired; `search-result-speaker-link` is not in `web/workbench/src`.
 
 ## Summary
 

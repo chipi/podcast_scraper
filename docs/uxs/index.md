@@ -86,6 +86,8 @@ for tokens, typography, and shared conventions. This keeps individual specs shor
 Draft UXS documents (UXS-007 through UXS-010) are listed in the site nav under their
 **Draft** status; their tokens and rules may change before implementation begins.
 
+**Where a surface renders.** Each UXS says which parts the public Workbench draws itself and which it does not. The convention is **(a)** drawn by the Workbench, **(b)** a slot the Workbench provides that only a registered extension fills (the extension point is named; `web/workbench/src/extensions/index.ts`), and **(c)** removed from public, and either drawn by the private viewer (Studio) or retired. Without a downstream build's extensions, the (b) and (c) parts are absent. A "Where it renders" paragraph near the top of a spec lists its (b) and (c) items.
+
 ## Conventions
 
 - **Browser E2E + UXS (Workbench):** Anyone changing **viewer UX** (including AI agents)

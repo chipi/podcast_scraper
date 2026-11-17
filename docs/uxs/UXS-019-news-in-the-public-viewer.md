@@ -25,6 +25,8 @@
   - `web/workbench/src/stores/subject.ts` (the `article` subject kind)
   - `web/workbench/src/theme/` (the `news` domain token)
 
+**Where it renders (2026-11-17).** Nothing in this spec is drawn by the public Workbench today. In `web/workbench/src` there is no `article` subject kind (`stores/subject.ts:8`), no `news` token (`theme/tokens.css`, `theme/theme.ts`), no Type chip (the chip is **Doc types**, `search-chip-doctypes`) and no news row. The places a build could fill: `searchDocTypes` (an option on the Doc types chip and the row icon), `resultCardBadges` and `resultCardSections`. Whether a news build uses them: not checked. The spec stays a draft for the public Workbench.
+
 ## Summary
 
 News articles are the platform's second content type (RFC-134). In News 1.0 the public viewer

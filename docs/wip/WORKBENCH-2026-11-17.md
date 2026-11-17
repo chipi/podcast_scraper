@@ -115,8 +115,11 @@ failing test first.
    wording made neutral. `relationalApi` stays (public's routes); `cilApi` stays until CRFC-004's
    C2 replaces its public uses, then moves (the operator, 2026-11-17). The private viewer builds
    and passes its tests against the branch.
-9. **The UX docs** (`docs/uxs/`) still describe insights, quotes, the position tracker and Explore as
-   this viewer's; none mentions the private viewer.
+9. **Done (2026-11-17): the UX docs** (`docs/uxs/`) each say where they render: drawn by the Workbench, a slot only an extension fills (named), or removed (the private viewer's, checked in its checkout, or retired). They described insights, quotes, the position tracker and Explore as
+   this viewer's, and none mentioned the private viewer. Checked in Studio's checkout (main `afbff8e`):
+   the search insight and quote parts (UXS-005) are drawn by Studio (`SearchResultCardGi`,
+   `SearchEvidenceToggle`), as are UXS-016's `rail-search-in-*` and `workspace-*`. Left open:
+   UXS-016's `search-op-*` ids are in neither repo (public uses `operator-chip-*`).
 10. **The show node page finds its feed by title** (`PodcastNodeView.vue:36-48`; the database-era
     sweep's R16, [WORKBENCH-DB-ERA-SWEEP-2026-11-17.md](WORKBENCH-DB-ERA-SWEEP-2026-11-17.md)). R3b
     changes GI's show id to KG's, and the page then goes blank, so this ships in the news release

@@ -26,15 +26,31 @@
   - `web/workbench/src/stores/search.ts` (exposes `queryType` for FR1.4)
   - `src/podcast_scraper/server/routes/search.py` (#884) — surfaces `source_tier`
     per hit + response `query_type` (additive; FAISS + hybrid consistent)
-- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — left panel Search + Explore, navigation axes, subject rail, status bar
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — left panel Search (~~+ Explore~~ retired), navigation axes, subject rail, status bar
+
+---
+
+## Where it renders
+
+**Where it renders (2026-11-17).** The Workbench draws the search form, the filter chips (Since, Top-k, Doc types, Topic, Speaker, Episode, More), the result cards with the **tier badge** (`search-result-tier`, `ResultCard.vue:230`), the **Intent** chip (`search-query-type`, `SearchPanel.vue:592`), the result-set operator bar and the Search result insights dialog.
+
+Slots that only a registered extension fills:
+
+- Result card badges and sections: `resultCardBadges`, `resultCardSections` (`ResultCard.vue:236,282`). The compound badge, the Lifted GI insight region, supporting quotes and the entity links (FR1.5) belong here. Their test ids (`search-result-compound`, `search-result-lifted-*`, `search-result-entity-link`, `supporting-quote-speaker-unavailable`, `search-lifted-quote-speaker-unavailable`) are not in `web/workbench/src`.
+- Search panel sections: `searchPanelSections` regions `header`, `above-results`, `results-header` (`SearchPanel.vue:350,576,599`). The evidence toggle (`search-evidence-toggle`) and the lift coverage line belong here; the id is not in `web/workbench/src`.
+- Extra doc types and filter chips: `searchDocTypes` (`SearchDocTypesChip.vue:20`), `searchFilterChips` (`SearchFilterBar.vue:69`). Insights and Quotes doc types, Min confidence and Grounded only come this way.
+- Extra result-set operators: `searchOperators` (`ResultSetOperatorBar.vue:41-51`). The viewer's own are Timeline and On graph.
+- Request and result hooks: `searchRequestParams`, `searchResultFilters`, `searchListeners` (`stores/search.ts:13`).
+
+Removed from public: the **Explore** mode and `ExplorePanel.vue` (`stores/shell.ts:38-48,136-137`); the Placement text below is history. The Dashboard **Topic clusters** status block described in the Summary: no fetch of `GET /api/corpus/topic-clusters` is in `web/workbench/src`; which extension supplies it: not checked. Without extensions, the slots above are absent.
 
 ---
 
 ## Placement
 
-Search is the **default** surface of the **left query column**; **Explore** is an alternate mode
+Search is the **default** surface of the **left query column**; ~~**Explore** is an alternate mode
 (slide transition) entered via a quiet footer control (**Explore corpus →**) and exited via
-**← Search** — see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. Mode is **`shell.leftPanelSurface`** (`search` |
+**← Search**~~ (retired) — see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. Mode is **`shell.leftPanelSurface`** (`search` |
 `explore`). **`/`** expands the column if needed, switches to **Search**, then focuses **`#search-q`**
 (`LeftPanel` → `focusQuery`). **`LeftPanel.vue`** hosts **`SearchPanel.vue`** + **`ExplorePanel.vue`**
 at **`w-72`** when expanded. Search **results stay visible** when a hit opens in the **subject rail**
