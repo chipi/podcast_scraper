@@ -102,6 +102,26 @@ describe('CommandPalette (Cmd-K shell overlay)', () => {
     w.unmount()
   })
 
+  it('shows a search error code as words, as the Search panel does', async () => {
+    const shell = useShellStore()
+    shell.corpusPath = '/tmp/corpus'
+    // A corpus with no vector index: the palette printed the raw `no_index` (review, 2026-11-17).
+    searchCorpusMock.mockResolvedValue({ results: [], error: 'no_index', detail: null })
+    const w = mountPalette()
+    ;(w.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+    const input = document.querySelector<HTMLInputElement>('[data-testid="command-palette-input"]')!
+    input.value = 'demo'
+    input.dispatchEvent(new Event('input'))
+    await vi.advanceTimersByTimeAsync(210)
+    await flushPromises()
+
+    const err = document.querySelector('[data-testid="command-palette-error"]')
+    expect(err?.textContent).toContain('No vector index for this corpus yet')
+    expect(err?.textContent).not.toMatch(/\bno_index\b/)
+    w.unmount()
+  })
+
   it('runs a debounced live search and renders the 3 action buttons per hit', async () => {
     const shell = useShellStore()
     shell.corpusPath = '/tmp/corpus'

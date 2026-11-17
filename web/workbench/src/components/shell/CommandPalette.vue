@@ -25,7 +25,7 @@ import { paletteHitActions, searchListeners, type PaletteHitAction } from '../..
 import { searchCorpus, type SearchHit } from '../../api/searchApi'
 import { fetchCorpusEpisodes, type CorpusEpisodeListItem } from '../../api/corpusLibraryApi'
 import { useShellStore } from '../../stores/shell'
-import { useSearchStore } from '../../stores/search'
+import { mapSearchError, useSearchStore } from '../../stores/search'
 import { useSubjectStore } from '../../stores/subject'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
 import { useSavedQueriesStore } from '../../stores/savedQueries'
@@ -311,7 +311,7 @@ function schedule(): void {
         fetchCorpusEpisodes(root, { q, limit: 5 }).catch(() => null),
       ])
       if (body.error) {
-        error.value = body.error
+        error.value = mapSearchError(body.error, body.detail)
         results.value = []
       } else {
         error.value = null
