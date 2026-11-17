@@ -80,7 +80,8 @@ defineExpose({ reload: load })
       <li v-for="f in feeds" :key="f.feed_id">
         <!--
           Editorial cover-forward card (operator feedback 2026-07-09): no border frame —
-          a full-bleed square cover with the title over a bottom gradient, meta + a roomier
+          a full-bleed square cover, then the title (not over the art: most cover art carries the
+          show name, and the two collided, 2026-11-17), meta and a roomier
           summary below. rounded-xl + ring/shadow on hover; the fixed aspect-square keeps every
           card identical height regardless of art or summary length.
         -->
@@ -95,24 +96,21 @@ defineExpose({ reload: load })
           @keydown.enter.prevent="emit('select', f)"
           @keydown.space.prevent="emit('select', f)"
         >
-          <div class="relative">
-            <PodcastCover
-              frameless
-              :corpus-path="shell.corpusPath"
-              :feed-image-local-relpath="f.image_local_relpath"
-              :feed-image-url="f.image_url"
-              :alt="`Cover for ${showLabel(f)}`"
-              size-class="aspect-square w-full"
-            />
-            <div
-              class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-2 pt-10"
-            >
-              <p class="line-clamp-2 text-sm font-semibold leading-snug text-white drop-shadow-sm">
-                {{ showLabel(f) }}
-              </p>
-            </div>
-          </div>
+          <PodcastCover
+            frameless
+            :corpus-path="shell.corpusPath"
+            :feed-image-local-relpath="f.image_local_relpath"
+            :feed-image-url="f.image_url"
+            :alt="`Cover for ${showLabel(f)}`"
+            size-class="aspect-square w-full"
+          />
           <div class="flex flex-col gap-1 px-2.5 pb-2.5 pt-2">
+            <p
+              class="line-clamp-2 text-sm font-semibold leading-snug text-surface-foreground group-hover:text-primary"
+              data-testid="shows-grid-title"
+            >
+              {{ showLabel(f) }}
+            </p>
             <p class="flex items-center gap-1.5 text-[11px] font-medium text-muted">
               <span>{{ f.episode_count }} {{ f.episode_count === 1 ? 'episode' : 'episodes' }}</span>
               <LanguageBadge v-if="showLanguage" :lang="f.language" />
