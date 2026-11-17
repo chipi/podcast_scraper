@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import json
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -45,9 +46,11 @@ _PATH_KIND = {
 class SpaStaticFiles(StaticFiles):
     """Static files + SPA fallback + OG injection for entity documents."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, inject_corpus_path: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._index_cache: str | None = None
+        # Only for the operator's own server: a public surface must not publish its corpus path.
+        self._inject_corpus_path = inject_corpus_path
 
     def _index_html(self) -> str | None:
         if self._index_cache is None:
@@ -62,6 +65,12 @@ class SpaStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope: Any) -> Response:
         """Serve *path*, falling back to the SPA index so client-side routes resolve."""
+        req_path = scope.get("path", "/")
+        if req_path in ("/", "/index.html"):
+            # The shell itself goes through _document_for too, so it carries the corpus path.
+            index = self._index_html()
+            if index is not None:
+                return HTMLResponse(await self._document_for(index, req_path, scope))
         try:
             response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
@@ -71,7 +80,6 @@ class SpaStaticFiles(StaticFiles):
         if response is not None and response.status_code != 404:
             return response
 
-        req_path = scope.get("path", "/")
         # API / internal / OG paths hard-404 (never the SPA shell); a missing asset (has a file
         # extension) also stays a 404 — only extension-less document routes fall back.
         if req_path.startswith(_NON_SPA_PREFIXES) or "." in req_path.rsplit("/", 1)[-1]:
@@ -82,6 +90,28 @@ class SpaStaticFiles(StaticFiles):
         return HTMLResponse(await self._document_for(index, req_path, scope))
 
     async def _document_for(self, index: str, req_path: str, scope: Any) -> str:
+        """index.html with the server's corpus path, plus OG tags for a shareable entity path."""
+        document = await self._og_document(index, req_path, scope)
+        return self._with_default_corpus(document, scope) if self._inject_corpus_path else document
+
+    @classmethod
+    def _with_default_corpus(cls, document: str, scope: Any) -> str:
+        """What nginx injects for the deployed SPA (docker/workbench/default.conf.template): seed
+        the saved corpus path when none is saved, and set ``__PODCAST_DEFAULT_CORPUS_PATH__``.
+        Without it a server started with ``--output-dir`` opened on an empty corpus path."""
+        root = cls._corpus_root(scope)
+        if root is None or "</head>" not in document:
+            return document
+        # JSON with "<" escaped: a path cannot end the script element.
+        value = json.dumps(str(root.resolve())).replace("<", "\\u003c")
+        script = (
+            '<script>(function(){try{var k="ps_corpus_path";'
+            f"if(localStorage.getItem(k)==null)localStorage.setItem(k,{value});"
+            f"}}catch(e){{}}}})();window.__PODCAST_DEFAULT_CORPUS_PATH__={value};</script>"
+        )
+        return document.replace("</head>", f"{script}</head>", 1)
+
+    async def _og_document(self, index: str, req_path: str, scope: Any) -> str:
         """index.html, with OG tags injected for a shareable entity path (else the shell as-is)."""
         target = self._entity_target(req_path)
         if target is None:

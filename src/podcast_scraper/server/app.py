@@ -948,8 +948,17 @@ def create_app(
         # SpaStaticFiles (not bare StaticFiles): serves real files as before, falls back to
         # index.html for client-routed documents (the history-mode fallback the bare mount lacked),
         # and injects per-entity OG tags for shareable entity paths so a shared link unfurls as the
-        # card (#2036). Real-asset 404s are preserved.
-        app.mount("/", SpaStaticFiles(directory=str(resolved_static), html=True), name="viewer")
+        # card (#2036). Real-asset 404s are preserved. On the operator's own server (neither public
+        # mode) the shell also carries the --output-dir corpus path, as nginx injects it deployed.
+        app.mount(
+            "/",
+            SpaStaticFiles(
+                directory=str(resolved_static),
+                html=True,
+                inject_corpus_path=not (app_only or operator_public),
+            ),
+            name="viewer",
+        )
 
     return app
 

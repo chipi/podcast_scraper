@@ -805,7 +805,8 @@ serve-api:
 			$(PYTHON) -m $(PACKAGE).cli serve --host "$(SERVE_HOST)" --port "$(SERVE_PORT)" --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
-	@cd $(WEB_VIEWER_DIR) && npm run dev
+	@# The corpus path the API serves (make serve), unless the shell already set one.
+	@cd $(WEB_VIEWER_DIR) && VITE_DEFAULT_CORPUS_PATH="$${VITE_DEFAULT_CORPUS_PATH:-$(abspath $(SERVE_OUTPUT_DIR))}" npm run dev
 
 # --- Local MCP servers (#56) — stdio, auth-free (local trust), for an MCP client to SPAWN. ---
 # These are what `.mcp.json` invokes, so Claude Code/Desktop just connects with zero config against
