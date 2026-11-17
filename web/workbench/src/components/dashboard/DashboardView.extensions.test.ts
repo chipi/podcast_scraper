@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 import { dashboardCards } from '../../extensions'
+import { fetchCorpusDigest } from '../../api/digestApi'
 import { useShellStore } from '../../stores/shell'
 import DashboardView from './DashboardView.vue'
 
@@ -41,11 +42,26 @@ describe('DashboardView extension cards', () => {
   beforeEach(() => setActivePinia(createPinia()))
   afterEach(() => dashboardCards.reset())
 
-  it('renders only its own topic card, and no People section, when nothing is registered', async () => {
+  it('shows no Topics section, and no People section, when nothing is registered and no topic band has hits', async () => {
+    // A "TOPICS" heading with nothing under it on a public-only install (review, 2026-11-17):
+    // the briefing renders nothing without band hits, so the section must not render either.
+    const w = await mountIntelligence()
+    expect(w.findAll('[data-testid^="card-"]')).toHaveLength(0)
+    expect(w.find('#dash-intel-topics').exists()).toBe(false)
+    expect(w.find('#dash-intel-people').exists()).toBe(false)
+  })
+
+  it('shows its own topic card once a topic band has hits', async () => {
+    const shell = useShellStore()
+    shell.corpusPath = '/c'
+    shell.healthStatus = 'ok'
+    vi.mocked(fetchCorpusDigest).mockResolvedValueOnce({
+      topics: [{ topic_id: 't1', label: 'AI', hits: [{ score: 0.9, episode_title: 'E' }] }],
+    } as never)
     const w = await mountIntelligence()
     const ids = w.findAll('[data-testid^="card-"]').map((n) => n.attributes('data-testid'))
     expect(ids).toEqual(['card-briefing'])
-    expect(w.find('#dash-intel-people').exists()).toBe(false)
+    expect(w.find('#dash-intel-topics').text()).toBe('Topics')
   })
 
   it('places registered cards by order and region, with their span, and forwards go-graph', async () => {

@@ -46,6 +46,13 @@ const topicCards = computed<DashboardCard[]>(() =>
     ...dashboardCards.list().filter((c) => c.region === 'topics'),
   ].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
 )
+/** The briefing renders nothing until a topic band has hits (TopicBriefingCards), so without a
+ *  registered topic card the section would be a heading over nothing. */
+const topicSectionShown = computed(
+  () =>
+    topicCards.value.some((c) => c.id !== 'topic-briefing') ||
+    (digestIntel.value?.topics ?? []).some((b) => (b.hits?.length ?? 0) > 0),
+)
 const overviewCards = computed(() => dashboardCards.list().filter((c) => c.region === 'overview'))
 const peopleCards = computed(() => dashboardCards.list().filter((c) => c.region === 'people'))
 const coverageCards = computed(() => dashboardCards.list().filter((c) => c.region === 'coverage'))
@@ -401,7 +408,10 @@ function openLibraryFailures(): void {
       <!-- Topic intelligence — the topic-related widgets grouped together (#1), laid out on a
            standard 4-col grid with per-widget spans (#2): wide/tall cards span 2 cols, compact
            cards 1. Each widget is a self-contained card; the grid cell sizes it. -->
-      <section aria-labelledby="dash-intel-topics">
+      <section
+        v-if="topicSectionShown"
+        aria-labelledby="dash-intel-topics"
+      >
         <h3
           id="dash-intel-topics"
           class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted"
@@ -433,7 +443,8 @@ function openLibraryFailures(): void {
           Pipeline &amp; activity
         </h3>
         <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="xl:col-span-2"><QueryActivityChart /></div>
+          <!-- empty:hidden: the chart renders nothing without searches; drop its empty cell. -->
+          <div class="empty:hidden xl:col-span-2"><QueryActivityChart /></div>
           <div class="xl:col-span-1"><PipelineCleanupMetrics :run="latestRun" /></div>
           <div class="xl:col-span-1"><PipelineAdExcisionMetrics :run="latestRun" /></div>
         </div>

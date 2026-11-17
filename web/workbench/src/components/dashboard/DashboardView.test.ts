@@ -90,7 +90,8 @@ const DIGEST = {
   window_end_utc: '',
   compact: false,
   rows: [],
-  topics: [],
+  // One band with a hit: without one the briefing renders nothing and the Topics section is not shown.
+  topics: [{ topic_id: 't1', label: 'AI', hits: [{ score: 0.9, episode_title: 'E' }] }],
   topics_unavailable_reason: null,
 } as never
 
