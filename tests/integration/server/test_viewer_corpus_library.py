@@ -1104,6 +1104,37 @@ def test_node_episodes_answers_from_the_kg_without_a_bridge_stage(
     assert capped["total_matched"] == len(want)
 
 
+def test_node_episodes_carry_what_a_rail_shows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each episode comes with its title, show, date and metadata path from the catalog, so the
+    topic and person rails list episodes without joining files in the browser (the database-era
+    sweep: the server owns the join)."""
+    import shutil
+
+    from podcast_scraper import read_hooks
+    from podcast_scraper.server.catalog_cache import cached_catalog
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: False)
+    topic = _shared_topic(root)
+    by_kg = {r.kg_relative_path: r for r in cached_catalog(root) if r.kg_relative_path}
+
+    client = TestClient(create_app(root, static_dir=False))
+    body = client.post(
+        "/api/corpus/node-episodes", json={"path": str(root), "node_id": topic}
+    ).json()
+    assert body["episodes"]
+    for e in body["episodes"]:
+        row = by_kg[e["kg_relative_path"]]
+        assert e["episode_title"] == row.episode_title
+        assert e["feed_id"] == row.feed_id
+        assert e["feed_title"] == row.feed_title
+        assert e["publish_date"] == row.publish_date
+        assert e["metadata_relative_path"] == row.metadata_relative_path
+
+
 def test_node_episodes_keeps_the_bridge_answer_when_a_stage_reads_bridges(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1125,4 +1156,5 @@ def test_node_episodes_keeps_the_bridge_answer_when_a_stage_reads_bridges(
     body = client.post(
         "/api/corpus/node-episodes", json={"path": str(tmp_path), "node_id": "topic:x"}
     ).json()
-    assert body["episodes"] == [row]
+    # The bridge answer is kept as given (the display fields come from the catalog, None here).
+    assert [{k: e[k] for k in row} for e in body["episodes"]] == [row]

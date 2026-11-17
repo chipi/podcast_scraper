@@ -421,6 +421,12 @@ export type CorpusNodeEpisodeItem = {
   kg_relative_path: string
   bridge_relative_path: string
   episode_id?: string | null
+  /** From the catalog row (the server joins it), for listing the episode in a rail. */
+  episode_title?: string | null
+  feed_id?: string | null
+  feed_title?: string | null
+  publish_date?: string | null
+  metadata_relative_path?: string | null
 }
 
 export type CorpusNodeEpisodesResponse = {

@@ -28,6 +28,7 @@ import GraphConnectionsSection from "./GraphConnectionsSection.vue"
 import NodeEnrichmentSection from "./NodeEnrichmentSection.vue"
 import TopicEntityView from "../subject/TopicEntityView.vue"
 import PersonLandingView from "../subject/PersonLandingView.vue"
+import NodeEpisodesSection from "./NodeEpisodesSection.vue"
 import PodcastNodeView from "../subject/PodcastNodeView.vue"
 import SubjectTimelineChart from "../subject/SubjectTimelineChart.vue"
 import { buildSubjectMentionsTimeline } from "../../utils/subjectMentionsTimeline"
@@ -1071,6 +1072,13 @@ const graphConnectionsCenterInView = computed((): boolean => {
             view="profile"
             :subject-id-override="nodeId ?? ''"
             class="mb-1"
+          />
+
+          <!-- The episodes a topic, person or organisation appears in, from the KG: what a
+           corpus without grounded insights knows about them. -->
+          <NodeEpisodesSection
+            v-if="(isTopicNode || isPersonEntityRailNode) && nodeId"
+            :node-id="nodeId"
           />
 
           <!-- FB14 — Podcast/Show node: basics + episode list, from the corpus feed. -->

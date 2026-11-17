@@ -4899,6 +4899,12 @@ class CorpusNodeEpisodeItem(BaseModel):
     kg_relative_path: str
     bridge_relative_path: str
     episode_id: str | None = None
+    # From the catalog row, so a rail lists the episode without reading its files.
+    episode_title: str | None = None
+    feed_id: str | None = None
+    feed_title: str | None = None
+    publish_date: str | None = None
+    metadata_relative_path: str | None = None
 
 
 class CorpusNodeEpisodesResponse(BaseModel):

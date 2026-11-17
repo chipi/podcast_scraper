@@ -282,15 +282,25 @@ def corpus_node_episodes(
         canon, rows, truncated, total_matched = _kg_node_episodes(
             root, body.node_id, body.max_episodes
         )
-    items = [
-        CorpusNodeEpisodeItem(
-            gi_relative_path=str(r["gi_relative_path"]),
-            kg_relative_path=str(r["kg_relative_path"]),
-            bridge_relative_path=str(r["bridge_relative_path"]),
-            episode_id=r.get("episode_id") if isinstance(r.get("episode_id"), str) else None,
+    # The display fields come from the catalog, joined here on the KG path, so the rails never
+    # read or join artifact files in the browser.
+    by_kg = {row.kg_relative_path: row for row in cached_catalog(root) if row.kg_relative_path}
+    items = []
+    for r in rows:
+        row = by_kg.get(str(r["kg_relative_path"]))
+        items.append(
+            CorpusNodeEpisodeItem(
+                gi_relative_path=str(r["gi_relative_path"]),
+                kg_relative_path=str(r["kg_relative_path"]),
+                bridge_relative_path=str(r["bridge_relative_path"]),
+                episode_id=r.get("episode_id") if isinstance(r.get("episode_id"), str) else None,
+                episode_title=row.episode_title if row else None,
+                feed_id=row.feed_id if row else None,
+                feed_title=row.feed_title if row else None,
+                publish_date=row.publish_date if row else None,
+                metadata_relative_path=row.metadata_relative_path if row else None,
+            )
         )
-        for r in rows
-    ]
     return CorpusNodeEpisodesResponse(
         path=root_s,
         node_id=canon,
