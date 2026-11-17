@@ -73,6 +73,23 @@ def test_pipeline_job_spawns_the_pipeline_cli(corpus: Path) -> None:
     assert "enrich" not in argv  # a pipeline job is not the enrich subcommand
 
 
+def test_a_job_on_a_fresh_corpus_has_the_starter_job_configuration(corpus: Path) -> None:
+    """The pipeline reads viewer_operator.yaml; the Job Configuration tab writes a starter one when
+    it is missing, and starting a job did not. A job on a fresh corpus failed at once with "Config
+    file not found" in its log and only "(failed)" on screen (public-only walk, 2026-11-17)."""
+    assert not (corpus / "viewer_operator.yaml").exists()
+    captured: list[list[str]] = []
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = _capturing_factory(captured)
+    client = TestClient(app)
+
+    assert client.post("/api/jobs", params={"path": str(corpus)}).status_code == 202
+    client.get("/api/jobs", params={"path": str(corpus)})
+
+    cfg = corpus / "viewer_operator.yaml"
+    assert cfg.is_file() and cfg.read_text(encoding="utf-8").strip()
+
+
 def test_enrichment_job_spawns_the_enrichment_cli_not_pipeline(corpus: Path) -> None:
     # A submit with nothing to resolve an enricher from is a 400 (no profile, no enrichers block).
     (corpus / "viewer_operator.yaml").write_text("profile: airgapped_thin\n", encoding="utf-8")
