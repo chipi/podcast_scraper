@@ -38,8 +38,8 @@ one shared Postgres.
    - **Preset routes** (the app's routes, and the relational routes) keep their own shapes. They call
      the engine's functions where they walk the graph and a plain indexed query where they do not.
    - No app route exposes traversal parameters.
-2. **The engine reads every corpus table that holds graph data.** Items and sources, entities and
-   KG edges (`kg_edges`), insights, evidence and their edges (`insight_support`, `insight_mentions`),
+2. **The engine reads every corpus table that holds graph data.** Items and sources, the KG tables
+   (`item_entities`, `person_roles`, `topic_relations`, `kg_edges`), insights, evidence and their edges (`insight_support`, `insight_mentions`),
    `insight_attribution`, and groupings (`clusters`, `cluster_members`, `cluster_links`).
    - A build that writes no insights or groupings has empty tables, so its slice holds none: by
      data, not by code.
@@ -113,7 +113,9 @@ one shared Postgres.
    - `nodes`: a bare canonical id, the type (ontology v3), a joined label (never derived from the
      id), `properties`, `item_id` for an item-owned node, `groups` (the ids of the groups it is in),
      `held: true` for a stub, and `item_count` when asked;
-   - `edges`: type, class, `from`, `to`, `weight` (the one field every aggregation reads), `item_id`
+   - `edges`: the induced edges among the returned nodes (every stored edge with both ends returned,
+     whether or not the walk crossed it), by weight, then item recency, then id, cut at
+     `edge_budget`; each with type, class, `from`, `to`, `weight` (the one field every aggregation reads), `item_id`
      for an item-scoped edge (decision 10's table), `properties`;
    - `items`: every item the slice draws from, with `item_id`, `content_type`, `published_at`,
      `source_id` and the source's title;
@@ -136,8 +138,11 @@ one shared Postgres.
    A client that shows several slices merges them by id and never unions slices from different
    revisions. A slice is never paged: budgets, `truncated` and `exclude_items` take its place.
 9. **The walk is bounded level by level.**
-   - One statement per step, over the step's edge tables as one `UNION ALL`, through indexes
-     `(from_id, type)` and `(to_id, type)`. Each frontier node is joined `LATERAL` with at most 200
+   - One statement per step, over the step's edge tables (any of `item_entities`, `person_roles`,
+     `topic_relations`, `kg_edges`, `insight_support`, `insight_mentions`, `insight_attribution`,
+     `cluster_members`) as one `UNION ALL`, through indexes `(from_id, type)` and `(to_id, type)`.
+     A union path runs one statement per level: each frontier node carries its branch, so the next
+     level continues it along its own branch only. Each frontier node is joined `LATERAL` with at most 200
      edges per edge type, in the query's order, and the frontier is cut to the remaining budget after
      each step. The worst case per statement is the budget times that cap. One recursive statement is
      not used: it cannot cap a level's frontier, so a hub would build its whole reach first.
@@ -147,20 +152,34 @@ one shared Postgres.
    - A timeout is 503 with `retry: narrower` and no `Retry-After`, never a partial slice.
    - Beyond a static bound the request is refused (422); beyond a data bound the slice is cut, and
      `truncated` says where.
+   - **Budgets fill in two modes.** Item slices: items in the request's order, then round-robin
+     across them, each item's KG nodes first (capped like any fan-out), then insights by rank;
+     admitting an insight admits and counts the nodes it reaches. Path walks: the frontier is cut
+     after each step. Edges: decision 8's order; a node may be left with no edge when
+     `edge_budget` cuts, and `truncated` says so.
    - The graph API reads from a read-only replica where one exists. A replica can cancel a snapshot
      on a conflict (SQLSTATE 40001); the engine retries once on the primary, so the worst case is
      two deadlines.
    - **The statement count is a fixed function of the request**, and a test asserts it per preset.
-     With `s` the steps (for a union path, its longest branch, one statement per level):
+     Counted: the statements that read rows. Not counted: the transaction's `SET` lines. The
+     revision read is folded into the first statement. With `s` the steps (a union path's longest
+     branch) and the fixed tail = 4 (nodes' rows, items' rows, the groups' catalogue, the induced
+     edges):
 
      | Request | Statements |
      | --- | --- |
-     | the query | 1 seed resolution + `s` + 3 (nodes' rows, items' rows, groups' catalogue), +1 when `keep` drops intermediates (aggregated edges), +1 with `counts` |
-     | `slice.items` | 1 + 2 (the items' own edges; their insights' edges) + 3, +1 with `counts` |
-     | `slice.recent` | 1 window search (one statement for all widenings) + 2 + 3; with `expand_groups`, +1 to choose the added items and +2 for their edges |
-     | `slice.neighbourhood` | 1 + the named path's longest branch + 3, +1 for aggregated edges |
-     | `slice.group` | 1 (the group and its members) + 1 (the items carrying them) + 2 + 3 |
-     | `groups.summary` | 2 (the groups; their links) |
+     | the query | 1 (revision and seeds) + `s` + 4, +1 when `keep` drops intermediates (aggregated edges), +1 with `counts` |
+     | `slice.items` | 1 + 2 + 4, +1 with `counts` |
+     | `slice.recent` | 1 (revision and the window search, every widening in one statement) + 2 + 4; with `expand_groups`, +1 to choose the added items and +2 for their edges |
+     | `slice.neighbourhood` | 1 + the named path's longest branch + 4, +1 for aggregated edges |
+     | `slice.group` | 1 (revision, the group and its members) + 1 (the items carrying them) + 2 + 4 |
+     | `groups.summary` | 2 (revision and the groups; their links) |
+
+     An item slice's 2 steps are the items' own edges, then their insights' edges. The second
+     fetches every candidate insight's edges (within the fan-out cap), and the engine admits
+     insights by rank afterwards (the budget modes above); admitting one at a time would not be two
+     statements. `slice.recent`'s window search returns a bounded candidate list, newest first and
+     at most the budget's worth of items, which the extension score re-ranks in the engine.
 
 10. **Edges, their storage, their class, and which carry `item_id`:**
 
@@ -169,16 +188,16 @@ one shared Postgres.
     | `HAS_ITEM` | Source → ContentItem | structural | `content_items` | yes |
     | `HAS_INSIGHT` | ContentItem → Insight | structural | `insights` | yes |
     | `PUBLISHED_BY` | Source → Organization | structural | `sources` | no |
-    | `CONTRIBUTES_TO` | Person → Source | structural | `kg_edges` | no |
-    | `PARTICIPATES_IN` | Person → ContentItem | attribution | `kg_edges` | yes |
-    | `MENTIONS` | Topic, Person, Organization, Object → ContentItem | discovery | `kg_edges` | yes |
-    | `RELATED_TO` | Topic ↔ Topic | discovery | `kg_edges` (reserved) | no |
+    | `CONTRIBUTES_TO` | Person → Source | structural | `person_roles` | no |
+    | `PARTICIPATES_IN` | Person → ContentItem | attribution | `person_roles` | yes |
+    | `MENTIONS` | Topic, Person, Organization, Object → ContentItem | discovery | `item_entities` | yes |
+    | `RELATED_TO` | Topic ↔ Topic | discovery | `topic_relations` (reserved) | no |
     | `ABOUT` | Insight → Topic | descriptive | `insight_mentions` | yes |
     | `MENTIONS_PERSON`, `MENTIONS_ORG`, `MENTIONS_OBJECT` | Insight → Person, Organization, Object | descriptive | `insight_mentions` | yes |
     | `SUPPORTED_BY` | Insight → evidence (Quote) | evidentiary | `insight_support` | yes |
     | `ATTRIBUTED_TO` | evidence → Person | attribution | the evidence's speaker; `SPOKEN_BY` is its audio form | yes |
     | `STATED_BY` | Insight → Person | attribution | `insight_attribution` (derived, decision 3) | yes |
-    | `IN_GROUP` | Topic or group → group | structural | `cluster_members` | no |
+    | `IN_GROUP` | Topic or group → group | structural | `cluster_members` (topic → group); the group's parent link (group → group) | no |
 
     - **The vocabulary** is ontology v3 plus three names this ADR adds to the ontology docs:
       `MENTIONS_OBJECT` (written and read today, missing from the docs' edge tables), `STATED_BY`
@@ -200,8 +219,9 @@ one shared Postgres.
 13. **What public removes, after the cut-over:**
     - `GET /api/artifacts` and `GET /api/artifacts/{path}` for graph files, and the viewer's merge
       behind them (`stores/artifacts.ts`);
-    - `POST /api/corpus/node-episodes`, a wrapper over `node.items` until then (the digest's use of
-      its function moves to `node.items` first);
+    - `POST /api/corpus/node-episodes`, a wrapper over `node.items` until then (the digest's
+      `_linkable_topic_id`, `routes/corpus_digest.py`, calls its function and moves to `node.items`
+      first);
     - `POST /api/corpus/resolve-episode-artifacts`, which maps item ids to file paths;
     - `get_corpus_graph` with its derived `STATES`, and the viewer's prefix stripping, sibling caps
       and per-file merge;
