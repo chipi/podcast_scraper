@@ -1,0 +1,155 @@
+"""News items as surfaces show them (News 1.0, RFC-134 §10; the item contract
+``docs/architecture/corpus/news-item-1.0.md``).
+
+Every field name a surface reads from a news item's metadata is named here and nowhere else, so a
+change to the contract is a change to this module. A served news item never carries the body or
+anything cut from it (ADR-179): this module never opens ``transcripts/``, the segments file or the
+raw page, and :func:`served_item` builds its output only from the metadata fields below.
+
+``serveable`` decides what is shown (ontology v3, "Rights, per item"): ``metadata`` (also when
+absent) shows the title, link, publisher and times; ``summary`` adds the platform's summary;
+``none`` shows nothing, so such an item is left out of every surface.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Iterator, List, Mapping, Optional
+from urllib.parse import urlsplit
+
+from podcast_scraper.publishers import load_registry, Registry
+from podcast_scraper.search.corpus_scope import discover_metadata_files
+
+NEWS_ARTICLE = "news_article"
+
+# --- the contract's field names (news-item-1.0.md) ------------------------------------------
+# Decided (ontology v3).
+F_CONTENT_TYPE = "content_type"
+F_ITEM_ID = "item_id"
+F_URL = "url"
+F_SOURCE_ID = "source_id"
+F_TITLE = "title"
+F_PUBLISHED_AT = "published_at"
+F_PAYWALLED = "paywalled"
+F_SERVEABLE = "serveable"
+# Proposed, top level (waiting for the operator).
+F_LANGUAGE = "language"
+F_PUBLISHER_ID = "publisher_id"
+F_SUMMARY = "summary"
+# Proposed, the type's own fields under ``news_article`` (ADR-181).
+F_BYLINE = "byline"
+F_EDITORIAL_TYPE = "editorial_type"
+F_TEXT_STATUS = "text_status"
+
+SERVEABLE_METADATA = "metadata"
+SERVEABLE_SUMMARY = "summary"
+SERVEABLE_NONE = "none"
+_SERVEABLE = (SERVEABLE_METADATA, SERVEABLE_SUMMARY, SERVEABLE_NONE)
+EDITORIAL_TYPES = ("reporting", "opinion", "analysis", "paid")
+
+
+def serveable(doc: Mapping[str, Any]) -> str:
+    """What a surface may show; absent or unknown reads as ``metadata``, the narrowest value that
+    still shows the item."""
+    value = doc.get(F_SERVEABLE)
+    return value if value in _SERVEABLE else SERVEABLE_METADATA
+
+
+def is_news(doc: Any) -> bool:
+    return isinstance(doc, Mapping) and doc.get(F_CONTENT_TYPE) == NEWS_ARTICLE
+
+
+def _own(doc: Mapping[str, Any]) -> Mapping[str, Any]:
+    own = doc.get(NEWS_ARTICLE)
+    return own if isinstance(own, Mapping) else {}
+
+
+def _str(value: Any) -> Optional[str]:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _publisher(doc: Mapping[str, Any], registry: Registry) -> Optional[Dict[str, str]]:
+    """The item's own ``publisher_id``, else its source's publisher, else the publisher whose
+    domain the URL's host matches; none of them, no publisher."""
+    host = urlsplit(str(doc.get(F_URL) or "")).hostname or ""
+    pid = _str(doc.get(F_PUBLISHER_ID))
+    pub = registry.by_id(pid) if pid else None
+    if pub is None:
+        sid = _str(doc.get(F_SOURCE_ID))
+        pub = registry.for_source(sid) if sid else None
+    if pub is None and host:
+        pub = registry.for_domain(host)
+    return pub.served(host) if pub else None
+
+
+def served_item(
+    doc: Mapping[str, Any], registry: Registry, *, metadata_relative_path: str = ""
+) -> Optional[Dict[str, Any]]:
+    """A news item as a surface shows it, or ``None`` when it is not a news item or its
+    ``serveable`` is ``none``. Built from metadata fields only; never the body."""
+    if not is_news(doc):
+        return None
+    shows = serveable(doc)
+    if shows == SERVEABLE_NONE:
+        return None
+    own = _own(doc)
+    byline = own.get(F_BYLINE)
+    editorial = own.get(F_EDITORIAL_TYPE)
+    paywalled = doc.get(F_PAYWALLED)
+    return {
+        "content_type": NEWS_ARTICLE,
+        "item_id": _str(doc.get(F_ITEM_ID)) or "",
+        "title": _str(doc.get(F_TITLE)) or "",
+        "url": _str(doc.get(F_URL)),
+        "source_id": _str(doc.get(F_SOURCE_ID)),
+        "publisher": _publisher(doc, registry),
+        "published_at": _str(doc.get(F_PUBLISHED_AT)),
+        "language": _str(doc.get(F_LANGUAGE)),
+        "byline": (
+            [n for n in byline if isinstance(n, str) and n.strip()]
+            if isinstance(byline, list)
+            else []
+        ),
+        "editorial_type": editorial if editorial in EDITORIAL_TYPES else None,
+        "paywalled": paywalled if isinstance(paywalled, bool) else None,
+        "text_status": _str(own.get(F_TEXT_STATUS)),
+        "serveable": shows,
+        "summary": _str(doc.get(F_SUMMARY)) if shows == SERVEABLE_SUMMARY else None,
+        "metadata_relative_path": metadata_relative_path,
+    }
+
+
+@dataclass(frozen=True)
+class NewsItemFile:
+    path: Path
+    relative_path: str
+    doc: Mapping[str, Any]
+
+
+def iter_news_metadata(corpus_root: Path) -> Iterator[NewsItemFile]:
+    """Every news item's metadata under ``sources/``, newest run per item (the shared membership
+    rule, opted in with ``include_sources``)."""
+    root = Path(corpus_root)
+    for path in discover_metadata_files(root, include_sources=True):
+        if path.suffix.lower() != ".json":
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if is_news(doc):
+            yield NewsItemFile(path, path.relative_to(root).as_posix(), doc)
+
+
+def served_items(corpus_root: Path, registry: Optional[Registry] = None) -> List[Dict[str, Any]]:
+    """Every news item a surface may show, newest first."""
+    reg = registry if registry is not None else load_registry()
+    out = [
+        item
+        for f in iter_news_metadata(corpus_root)
+        if (item := served_item(f.doc, reg, metadata_relative_path=f.relative_path)) is not None
+    ]
+    out.sort(key=lambda i: i["published_at"] or "", reverse=True)
+    return out
