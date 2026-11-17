@@ -101,6 +101,20 @@ def test_a_kg_without_a_podcast_node_takes_its_source_from_the_feed() -> None:
     assert item["properties"]["source_id"] == "podcast:show"
 
 
+def test_the_fallback_source_id_is_the_one_the_kg_writer_gives() -> None:
+    """A sha256 feed id: the writer slugifies it (``podcast:sha256b816…``); the view must agree."""
+    from podcast_scraper.kg.pipeline import _podcast_node_id
+
+    raw = "sha256:b816a0c4e2f1"
+    v2 = _v21()
+    v2["nodes"] = [n for n in v2["nodes"] if n["type"] != "Podcast"]
+    episode = next(n for n in v2["nodes"] if n["type"] == "Episode")
+    episode["properties"]["podcast_id"] = raw
+    item = next(n for n in kg_as_v3(v2)["nodes"] if n["type"] == "ContentItem")
+    assert item["properties"]["source_id"] == _podcast_node_id(raw)
+    assert item["properties"]["source_id"] != f"podcast:{raw}"
+
+
 def test_the_item_id_comes_from_the_episode_node_or_is_absent() -> None:
     v2 = _v21()
     del v2["episode_id"]

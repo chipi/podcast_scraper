@@ -29,7 +29,7 @@ Unchanged:
 
 - `Person`, `Organization`, `Object` and `Topic`;
 - `MENTIONS`, with `RELATED_TO` reserved;
-- `ABOUT`, `MENTIONS_PERSON`, `MENTIONS_ORG`;
+- `ABOUT`, `MENTIONS_PERSON`, `MENTIONS_ORG`, `MENTIONS_OBJECT`;
 - `HAS_INSIGHT`, `SUPPORTED_BY`;
 - the grounding contract and the two-tier edge contract.
 
@@ -64,8 +64,10 @@ source with `role: author` is written only once the identity joining (ADR-180) h
 byline within that publisher.
 
 GI 4.0's edges (`HAS_INSIGHT`, `SUPPORTED_BY`, `ABOUT`, `MENTIONS_PERSON`, `MENTIONS_ORG`,
-`ATTRIBUTED_TO` with `SPOKEN_BY` as its audio form) keep v2's classes and point at `ContentItem`
-where v2 pointed at `Episode`.
+`MENTIONS_OBJECT`, `ATTRIBUTED_TO` with `SPOKEN_BY` as its audio form) keep v2's classes and point
+at `ContentItem` where v2 pointed at `Episode`. Prod's GI 3.x files already carry `Object` nodes and
+`MENTIONS_OBJECT` edges; public's 3.1 `gi.schema.json` does not list them and is not changed, since
+the GI schema moves with the private extension (ADR-178).
 
 ## Roles
 
@@ -148,6 +150,12 @@ them.
 
 - **Node type names** (2026-11-12): `ContentItem`, after TERMINOLOGY's "Content item". The KG 3.0
   schema and ingestion's KG 3.0 writer both use it.
+- **GI 4.0's own fields** beyond the evidence contract (2026-11-17): defined by the private
+  extension.
+- **The podcast `Source` id** (2026-11-17): GI's converges on KG's (`kg/pipeline.py`
+  `_podcast_node_id`) when the podcast corpus moves to v3 (R3b). The migration's receipts carry the
+  old-to-new id map. This closes the convergence v2 parked ("Known limitations": KG derives
+  `podcast:` from the feed id, GI from the title).
 
 ## Reading v2 artifacts as v3
 
@@ -158,6 +166,7 @@ paths:
 | --- | --- |
 | root `episode_id` | `item_id`, with `content_type: podcast_episode` |
 | `Podcast`, `Episode` | `Source` (`source_kind: podcast`), `ContentItem` |
+| no `Podcast` node | the item's `source_id` from the episode's `podcast_id`, formed as KG's writer forms a `Podcast` node id (`kg/pipeline.py` `_podcast_node_id`: `podcast:{slug}`) |
 | `publish_date` | `published_at` |
 | `HAS_EPISODE`, `HOSTS`, `GUESTS_ON` | `HAS_ITEM`, `CONTRIBUTES_TO` with that role |
 | GI `SPOKE_IN` | `PARTICIPATES_IN` with `role: speaker` |
@@ -200,6 +209,5 @@ corpus to v3. Until then, podcasts keep writing KG 2.x and GI 3.x.
 
 ## Open
 
-- **The podcast id convergence parked in v2** ("Known limitations": KG derives `podcast:` from the
-  feed id, GI from the title) is not solved here. R3b is the moment to converge it.
-- **GI 4.0's own fields** beyond the evidence contract are the private extension's design.
+Nothing open on 2026-11-17: the podcast id convergence and GI 4.0's own fields are decided (see
+Decided).
