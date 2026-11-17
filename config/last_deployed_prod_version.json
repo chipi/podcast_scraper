@@ -46,7 +46,7 @@
     "0045_episode_voices_corrected"
   ],
   "code_version": "2.7.0.dev0",
-  "deployed_at": "2026-11-05",
+  "deployed_at": "2026-11-17",
   "note": "This marker tracks what is currently running on prod. Auto-updated by the prod deploy workflow (in the infrastructure repository). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
-  "sha": "5c2e81c"
+  "sha": "d4033b3"
 }
