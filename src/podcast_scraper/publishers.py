@@ -34,6 +34,8 @@ class PublisherRegistryError(ValueError):
 
 @dataclass(frozen=True)
 class Publisher:
+    """One publisher: an organisation, its domains, external ids and the sources it publishes."""
+
     id: str
     name: str
     domains: Tuple[str, ...] = ()
@@ -54,9 +56,12 @@ def _host(value: str) -> str:
 
 @dataclass(frozen=True)
 class Registry:
+    """The loaded registry; lookups by id, by source id and by domain."""
+
     publishers: Tuple[Publisher, ...] = ()
 
     def by_id(self, publisher_id: str) -> Optional[Publisher]:
+        """The publisher with ``publisher_id``, or ``None``."""
         return next((p for p in self.publishers if p.id == publisher_id), None)
 
     def for_source(self, source_id: str) -> Optional[Publisher]:

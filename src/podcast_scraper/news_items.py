@@ -58,6 +58,7 @@ def serveable(doc: Mapping[str, Any]) -> str:
 
 
 def is_news(doc: Any) -> bool:
+    """Whether ``doc`` is a news item's metadata (``content_type: news_article``)."""
     return isinstance(doc, Mapping) and doc.get(F_CONTENT_TYPE) == NEWS_ARTICLE
 
 
@@ -123,6 +124,8 @@ def served_item(
 
 @dataclass(frozen=True)
 class NewsItemFile:
+    """One news item's metadata file: its path, its corpus-relative path and its document."""
+
     path: Path
     relative_path: str
     doc: Mapping[str, Any]
