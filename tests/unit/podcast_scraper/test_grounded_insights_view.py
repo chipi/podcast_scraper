@@ -38,7 +38,7 @@ _NEW_SHOW = "podcast:p05"
 
 def _gi_3_1() -> Dict[str, Any]:
     """The fixture plus the Podcast node and HAS_EPISODE edge the edge pass adds in 3.1."""
-    gi = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    gi: Dict[str, Any] = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     ep = next(n for n in gi["nodes"] if n["type"] == "Episode")
     gi["nodes"].append({"id": _OLD_SHOW, "type": "Podcast", "properties": {"title": "Risk"}})
     gi["edges"].append({"type": "HAS_EPISODE", "from": _OLD_SHOW, "to": ep["id"]})

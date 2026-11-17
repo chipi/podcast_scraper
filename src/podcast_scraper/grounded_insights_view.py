@@ -12,7 +12,7 @@ already holds is changed. A 3.1 file comes back unchanged.
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, Mapping, TypeVar, cast
+from typing import Any, cast, Dict, Mapping, TypeVar
 
 _T = TypeVar("_T")
 
