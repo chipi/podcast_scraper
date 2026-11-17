@@ -112,7 +112,7 @@ def test_the_fallback_source_id_is_the_one_the_kg_writer_gives() -> None:
     episode["properties"]["podcast_id"] = raw
     item = next(n for n in kg_as_v3(v2)["nodes"] if n["type"] == "ContentItem")
     assert item["properties"]["source_id"] == _podcast_node_id(raw)
-    assert item["properties"]["source_id"] != f"podcast:{raw}"
+    assert item["properties"]["source_id"] == "podcast:sha256b816a0c4e2f1"
 
 
 def test_the_item_id_comes_from_the_episode_node_or_is_absent() -> None:
