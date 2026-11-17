@@ -107,9 +107,14 @@ failing test first.
 8. **Grounded-insight leftovers in about 15 components** (copy such as "insights", "Show on graph",
    "GI Person"; `api/cilApi.ts` and `api/relationalApi.ts` calling routes that do not exist on
    public). Decide per item: remove, or keep as an extension point the private viewer fills.
-   **In progress:** the private viewer runs this viewer's whole shell (`@viewer/main`), so a
-   component it never imports can still be on its screen; the candidate list is with the database
-   session, which checks each against the private viewer before anything is removed.
+   **Done (2026-11-17), checked item by item against the private viewer**, which runs this
+   viewer's whole shell (`@viewer/main`). Under CRFC-004 rendering platform types (insights,
+   quotes) is not private, so those stay and hide without data. Removed: `TopicConversationArc`
+   and `NodeTopicPerspectives` (now the private viewer's), `TopicTimelineDialog`,
+   `SemanticSearchTip`, the dead `explore` probe URL, the pills' `quote` appearance; file-era
+   wording made neutral. `relationalApi` stays (public's routes); `cilApi` stays until CRFC-004's
+   C2 replaces its public uses, then moves (the operator, 2026-11-17). The private viewer builds
+   and passes its tests against the branch.
 9. **The UX docs** (`docs/uxs/`) still describe insights, quotes, the position tracker and Explore as
    this viewer's; none mentions the private viewer.
 10. **The show node page finds its feed by title** (`PodcastNodeView.vue:36-48`; the database-era
