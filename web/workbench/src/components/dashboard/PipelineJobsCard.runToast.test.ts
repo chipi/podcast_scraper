@@ -7,13 +7,15 @@ import PipelineJobsCard from './PipelineJobsCard.vue'
 import { useShellStore } from '../../stores/shell'
 import { listPipelineJobs, submitPipelineJob } from '../../api/jobsApi'
 
-vi.mock('../../api/jobsApi', () => ({
+// The real module's pure helpers, with every network call mocked: a failed job makes the card's
+// explore panel fetch its log tail, which an incomplete mock left as an unhandled rejection.
+vi.mock('../../api/jobsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/jobsApi')>()),
   listPipelineJobs: vi.fn(),
   submitPipelineJob: vi.fn(),
   reconcilePipelineJobs: vi.fn(),
   cancelPipelineJob: vi.fn(),
-  isLivePipelineJobStatus: (s: string | null | undefined) =>
-    ['queued', 'running'].includes(String(s ?? '').toLowerCase()),
+  fetchPipelineJobLogTail: vi.fn(async () => ({ text: '', truncated: false })),
 }))
 
 describe('PipelineJobsCard — the run notice follows the job', () => {
