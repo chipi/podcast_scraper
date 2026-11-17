@@ -126,7 +126,8 @@ make ci-local SUITES=integration    # one of unit | integration | e2e | all
   (`make init`) plus the `search` extra, which is the `.[dev,ml,llm,search]` CI's integration and e2e
   jobs install. No private packages and no pandas: a shared venv that has either passes tests
   CI fails (the core release's `to_pandas()` import, #2485). The script warns when pandas is
-  importable.
+  importable, and refuses to run when `.venv`'s Python minor is not the tested tree's
+  `.python-version`, which CI's `setup-python` reads.
 - **Test database:** this checkout's `postgres:18` from `scripts/tools/test_db.sh`, started when
   `PODCAST_TEST_DATABASE_URL` is unset and removed at the end. The e2e suite runs without it,
   as CI's `test-e2e` job does.
@@ -143,7 +144,7 @@ make ci-local SUITES=integration    # one of unit | integration | e2e | all
 
 What it does not reproduce: CI's unit job installs `.[dev]` only, while `.venv` has the ML extras,
 so a unit test that needs an ML extra passes here and fails or skips there (`make venv-dev-init &&
-make test-unit-dev-venv` covers that); CI's Python is 3.11.8; the private-image integration stack is
+make test-unit-dev-venv` covers that); the private-image integration stack is
 not part of it. Tools on the machine change what skips: with `rclone` on PATH (`mise install`) the
 two archive offload tests under `tests/integration/archive/` run here and skip in CI, and without
 `shellcheck` the shellcheck test in `test_infra_config_validates.py` skips here and runs in CI.

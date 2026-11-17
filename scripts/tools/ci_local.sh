@@ -39,9 +39,17 @@ case "$suite_arg" in
   *) echo "usage: $0 [unit|integration|e2e|all]"; exit 2 ;;
 esac
 
+# CI's setup-python reads .python-version (python-version-file); the venv must be on its minor.
+want=$(sed -nE 's/^([0-9]+\.[0-9]+).*/\1/p' "$TREE/.python-version" 2>/dev/null | head -1)
 if [ ! -x "$PY" ]; then
-  echo "Missing $PY. Set up the venv first (CONTRIBUTING.md): python3.11 -m venv .venv && make init" \
+  echo "Missing $PY. Set up the venv first (CONTRIBUTING.md): python${want:-3} -m venv .venv && make init" \
     "&& .venv/bin/pip install -e '.[dev,ml,llm,search]'"
+  echo "CI-LOCAL: FAIL"
+  exit 1
+fi
+have=$("$PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+if [ -n "$want" ] && [ "$have" != "$want" ]; then
+  echo "$PY is Python $have; .python-version (what CI runs) says $want. Rebuild .venv on $want."
   echo "CI-LOCAL: FAIL"
   exit 1
 fi
