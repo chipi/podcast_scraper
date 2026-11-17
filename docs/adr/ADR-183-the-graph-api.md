@@ -144,7 +144,7 @@ one shared Postgres.
      A union path runs one statement per level: each frontier node carries its branch, so the next
      level continues it along its own branch only. Each frontier node is joined `LATERAL` with at most 200
      edges per edge type, in the query's order, and the frontier is cut to the remaining budget after
-     each step. The worst case per statement is the budget times that cap. One recursive statement is
+     each step. The worst case per step statement is the budget times that cap. One recursive statement is
      not used: it cannot cap a level's frontier, so a hub would build its whole reach first.
    - Each request runs in one read-only, repeatable-read transaction on one connection (one
      snapshot across the step statements; ADR-173's `SET LOCAL` keeps no session state), with a 5 s
@@ -179,7 +179,13 @@ one shared Postgres.
      fetches every candidate insight's edges (within the fan-out cap), and the engine admits
      insights by rank afterwards (the budget modes above); admitting one at a time would not be two
      statements. `slice.recent`'s window search returns a bounded candidate list, newest first and
-     at most the budget's worth of items, which the extension score re-ranks in the engine.
+     at most `budget` items, which the extension score re-ranks in the engine.
+
+     The induced-edges statement probes from the bounded side: item-scoped edges from the returned
+     items, and the edges that are not item-scoped (`RELATED_TO`, `CONTRIBUTES_TO`,
+     `PUBLISHED_BY`, `IN_GROUP`) from the returned entities, so a hub's whole degree never enters
+     the plan. Its cost is the returned items' edges plus those entities' non-item-scoped edges, and
+     it is measured before the cut-over with the rest.
 
 10. **Edges, their storage, their class, and which carry `item_id`:**
 
