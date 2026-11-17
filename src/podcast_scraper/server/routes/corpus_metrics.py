@@ -188,14 +188,18 @@ def corpus_manifest_document(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
 ) -> JSONResponse:
-    """Return ``corpus_manifest.json`` at corpus root if present."""
+    """Return ``corpus_manifest.json`` at corpus root, or ``null`` when the corpus has none.
+
+    A corpus without a manifest (single-feed runs) is a normal state, so it is not a 404: the
+    Dashboard asks on every visit, and the browser logged each 404 as a console error.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
     fp = safe_fixed_file_under_root(Path(root_safe), "corpus_manifest.json")
     # codeql[py/path-injection] -- fp from normpath+startswith in safe_fixed_file.
     if not fp or not os.path.isfile(fp):
-        raise HTTPException(status_code=404, detail="corpus_manifest.json not found.")
+        return JSONResponse(content=None)
     try:
         # codeql[py/path-injection] -- fp sanitized above.
         with open(fp, encoding="utf-8") as fh:

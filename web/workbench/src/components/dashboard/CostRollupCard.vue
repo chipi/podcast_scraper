@@ -28,14 +28,16 @@ async function load(): Promise<void> {
   }
   try {
     const doc = await fetchCorpusManifest(root)
-    if (doc.cost_rollup) {
+    if (!doc) {
+      state.value = 'error' // the corpus has no manifest (the server answers null)
+    } else if (doc.cost_rollup) {
       rollup.value = doc.cost_rollup
       state.value = 'ok'
     } else {
       state.value = 'missing'
     }
   } catch {
-    state.value = 'error' // manifest absent (404) or unreadable
+    state.value = 'error' // manifest unreadable
   }
 }
 

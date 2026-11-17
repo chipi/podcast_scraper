@@ -58,7 +58,7 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | `GET /api/corpus/persons/top` | GI/KG-derived person index | empty list | no |
 | `GET /api/corpus/stats` | catalog | zeroed histograms | no |
 | `GET /api/corpus/coverage` | GI/KG presence walk | empty coverage | no |
-| `GET /api/corpus/documents/manifest` | `corpus_manifest.json` | 404 | yes |
+| `GET /api/corpus/documents/manifest` | `corpus_manifest.json` | `null` (200) | no |
 | `GET /api/corpus/documents/run-summary` | `corpus_run_summary.json` | 404 | yes |
 | `GET /api/corpus/runs/summary` | run summary + incidents | partial empty | no |
 | `GET /api/search` | `search/lance_index/` (two-tier hybrid) | 200 with `error` field (`no_index` when absent) | no (structured error) |

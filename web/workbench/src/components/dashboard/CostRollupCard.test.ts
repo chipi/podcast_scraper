@@ -57,8 +57,14 @@ describe('CostRollupCard (P2.8)', () => {
     expect(w.find('[data-testid="cost-total"]').exists()).toBe(false)
   })
 
-  it('degrades when the manifest is unavailable (404)', async () => {
-    mockFetch.mockRejectedValue(new Error('HTTP 404'))
+  it('says the manifest is not available when the corpus has none (the server answers null)', async () => {
+    mockFetch.mockResolvedValue(null)
+    const w = await mountCard()
+    expect(w.text()).toContain('not available')
+  })
+
+  it('degrades when the manifest cannot be read', async () => {
+    mockFetch.mockRejectedValue(new Error('HTTP 500'))
     const w = await mountCard()
     expect(w.text()).toContain('not available')
   })

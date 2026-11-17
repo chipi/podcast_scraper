@@ -89,9 +89,9 @@ failing test first.
    wrote no run), and its heading now says so.
 3. **Ops probes `127.0.0.1:8000`** (health, version, runs) when the API runs on another port.
    **Fixed:** the default target is the port the request arrived on.
-4. **Dashboard > Coverage:** `GET /api/corpus/documents/manifest` returns 404. **Not a bug:** a
-   corpus without `corpus_manifest.json` (single-feed runs, the fixture) answers 404, and the Cost
-   card says "not available for this corpus"; the console line is the browser logging the 404.
+4. **Dashboard > Coverage:** `GET /api/corpus/documents/manifest` returned 404 for a corpus without
+   `corpus_manifest.json` (single-feed runs, the fixture), a console error on every visit. **Fixed:**
+   it answers `null`, and the Cost card says "not available for this corpus" as before.
 5. **`make serve-api` signs no one in by default:** every dev user gets 403 until
    `APP_SIGNUP_MODE=open`. **Fixed:** `APP_ALLOWED_DOMAINS` defaults to the mock users' domains.
 6. **The corpus path starts empty** although the server was started with `--output-dir`.

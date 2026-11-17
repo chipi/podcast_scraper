@@ -103,12 +103,12 @@ export async function fetchCorpusRunsSummary(
 
 export async function fetchCorpusManifest(
   corpusPath: string,
-): Promise<CorpusManifestDocument> {
+): Promise<CorpusManifestDocument | null> {
   const q = new URLSearchParams({ path: corpusPath.trim() })
   const qs = q.toString()
   return dedupeInFlight(`GET|/api/corpus/documents/manifest?${qs}`, async () => {
     const res = await fetchWithTimeout(`/api/corpus/documents/manifest?${qs}`)
-    return readJson<CorpusManifestDocument>(res)
+    return readJson<CorpusManifestDocument | null>(res)
   })
 }
 
