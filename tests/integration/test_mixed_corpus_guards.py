@@ -109,7 +109,7 @@ def corpora(
 
     from podcast_scraper.kg.schema import validate_artifact
 
-    text_kgs = sorted((mixed / "sources").rglob("*.kg.json"))
+    text_kgs = sorted((mixed / "sources" / "test_text_item").rglob("*.kg.json"))
     assert len(text_kgs) == 2, text_kgs
     art = json.loads(text_kgs[0].read_text(encoding="utf-8"))
     art["nodes"].extend([_GUEST, _AUTHOR, _TOPIC])

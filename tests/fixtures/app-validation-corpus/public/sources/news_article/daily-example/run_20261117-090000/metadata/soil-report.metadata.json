@@ -1,0 +1,30 @@
+{
+  "body_sha256": "9cb5275937de601799a4a754fe14c6a7fded942143a1de7f861dfc18ed1a85d2",
+  "content_type": "news_article",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "item_id": "item:news_article:a3b40942a6f962423eb2",
+  "language": "en",
+  "licence": null,
+  "mineable": true,
+  "news_article": {
+    "byline": [
+      "Ana Example",
+      "Cy Example"
+    ],
+    "byline_raw": "Ana Example and Cy Example",
+    "editorial_type": "reporting",
+    "text_status": "teaser",
+    "transport_ids": {
+      "rss": "soil-report"
+    }
+  },
+  "paywalled": true,
+  "published_at": "2026-11-16T12:00:00Z",
+  "publisher_id": "org:daily-example",
+  "serveable": "metadata",
+  "source_id": "source:2401ce1281ab358bf1ed",
+  "summary": "Erosion slowed on three of five test plots.",
+  "title": "Soil report finds erosion slowing",
+  "url": "6f5ab0dc6a7c03409dbf"
+}

@@ -28,6 +28,8 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 pytestmark = [pytest.mark.unit]
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -53,7 +55,7 @@ REQUIRED = BUILDER_AUTHORED | FRAMEWORK_ONLY
 
 
 def _episode_count() -> int:
-    return len([p for p in CORPUS.rglob("*.metadata.json") if "enrichments" not in p.parts])
+    return len([p for p in corpus_rglob(CORPUS, "*.metadata.json") if "enrichments" not in p.parts])
 
 
 class TestCorpusLevelEnrichment:

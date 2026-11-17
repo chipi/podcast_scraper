@@ -1,0 +1,66 @@
+{
+  "content_type": "news_article",
+  "edges": [
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "item:news_article:789191770b8e00c511de",
+      "type": "HAS_ITEM"
+    },
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "org:daily-example",
+      "type": "PUBLISHED_BY"
+    },
+    {
+      "from": "topic:risk-management",
+      "to": "item:news_article:789191770b8e00c511de",
+      "type": "MENTIONS"
+    }
+  ],
+  "extraction": {
+    "document_ref": "transcripts/withheld.txt",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "model_version": "metadata_only",
+    "variant": "raw"
+  },
+  "item_id": "item:news_article:789191770b8e00c511de",
+  "nodes": [
+    {
+      "id": "source:2401ce1281ab358bf1ed",
+      "properties": {
+        "source_kind": "news",
+        "title": "Daily Example",
+        "transport": "rss",
+        "url": "https://www.dailyexample.test/feed.xml"
+      },
+      "type": "Source"
+    },
+    {
+      "id": "item:news_article:789191770b8e00c511de",
+      "properties": {
+        "content_type": "news_article",
+        "published_at": "2026-11-17T08:00:00Z",
+        "source_id": "source:2401ce1281ab358bf1ed",
+        "title": "WITHHELD-ITEM-TITLE",
+        "url": "2043d8230c86beddfb95"
+      },
+      "type": "ContentItem"
+    },
+    {
+      "id": "org:daily-example",
+      "properties": {
+        "name": "Daily Example"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "Risk Management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "3.0"
+}

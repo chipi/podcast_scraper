@@ -1,0 +1,27 @@
+{
+  "content_type": "news_article",
+  "item_id": "item:news_article:789191770b8e00c511de",
+  "url": "2043d8230c86beddfb95",
+  "source_id": "source:2401ce1281ab358bf1ed",
+  "title": "WITHHELD-ITEM-TITLE",
+  "published_at": "2026-11-17T08:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "language": "en",
+  "licence": null,
+  "paywalled": false,
+  "serveable": "none",
+  "mineable": true,
+  "summary": "Never shown.",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "body_sha256": "2047887ac35e46fa7a364c2cb81c4bae06a09c956d7df4989e50c7b6aff277f8",
+  "news_article": {
+    "transport_ids": {
+      "rss": "withheld"
+    },
+    "byline": [],
+    "byline_raw": null,
+    "editorial_type": null,
+    "text_status": "full"
+  },
+  "publisher_id": "org:daily-example"
+}

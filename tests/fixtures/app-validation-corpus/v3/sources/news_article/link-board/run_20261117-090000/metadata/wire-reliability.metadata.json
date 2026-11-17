@@ -1,0 +1,29 @@
+{
+  "content_type": "news_article",
+  "item_id": "item:news_article:67c9d625ac414e97d0b9",
+  "url": "9daff705c69561dcd905",
+  "source_id": "source:c8fd96a1590e066f75e9",
+  "title": "Reliability at scale, a field report",
+  "published_at": "2026-11-17T06:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "language": "en",
+  "licence": null,
+  "paywalled": null,
+  "serveable": "summary",
+  "mineable": true,
+  "summary": "Operators describe how they keep systems reliable as they grow.",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "body_sha256": "57b18b1e7270cdf46bcf49fb1ac42857f3a14da295fd16dd8ab338895ce2335d",
+  "news_article": {
+    "transport_ids": {
+      "api": "wire-reliability"
+    },
+    "byline": [
+      "Bo Example"
+    ],
+    "byline_raw": "Bo Example",
+    "editorial_type": null,
+    "text_status": "full"
+  },
+  "publisher_id": "org:other-wire"
+}

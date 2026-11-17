@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.app import create_app
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
@@ -1045,7 +1046,7 @@ _V3 = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus"
 def _kg_files_naming(root: Path, node_id: str) -> set[str]:
     """Every KG artifact under *root* whose nodes include *node_id*, as corpus-relative paths."""
     out = set()
-    for p in root.rglob("*.kg.json"):
+    for p in corpus_rglob(root, "*.kg.json"):
         nodes = json.loads(p.read_text(encoding="utf-8")).get("nodes") or []
         if any(isinstance(n, dict) and n.get("id") == node_id for n in nodes):
             out.add(p.relative_to(root).as_posix())
@@ -1055,7 +1056,7 @@ def _kg_files_naming(root: Path, node_id: str) -> set[str]:
 def _shared_topic(root: Path) -> str:
     """A topic two or more episodes' KG name, so the answer is more than one episode."""
     counts: dict[str, int] = {}
-    for p in sorted(root.rglob("*.kg.json")):
+    for p in sorted(corpus_rglob(root, "*.kg.json")):
         ids = {
             str(n["id"])
             for n in json.loads(p.read_text(encoding="utf-8")).get("nodes") or []

@@ -1,0 +1,96 @@
+{
+  "content_type": "news_article",
+  "edges": [
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "item:news_article:a3b40942a6f962423eb2",
+      "type": "HAS_ITEM"
+    },
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "org:daily-example",
+      "type": "PUBLISHED_BY"
+    },
+    {
+      "from": "topic:soil-erosion",
+      "to": "item:news_article:a3b40942a6f962423eb2",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "person:ana-example",
+      "properties": {
+        "role": "author"
+      },
+      "to": "item:news_article:a3b40942a6f962423eb2",
+      "type": "PARTICIPATES_IN"
+    },
+    {
+      "from": "person:cy-example",
+      "properties": {
+        "role": "author"
+      },
+      "to": "item:news_article:a3b40942a6f962423eb2",
+      "type": "PARTICIPATES_IN"
+    }
+  ],
+  "extraction": {
+    "document_ref": "transcripts/soil-report.txt",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "model_version": "metadata_only",
+    "variant": "raw"
+  },
+  "item_id": "item:news_article:a3b40942a6f962423eb2",
+  "nodes": [
+    {
+      "id": "source:2401ce1281ab358bf1ed",
+      "properties": {
+        "source_kind": "news",
+        "title": "Daily Example",
+        "transport": "rss",
+        "url": "https://www.dailyexample.test/feed.xml"
+      },
+      "type": "Source"
+    },
+    {
+      "id": "item:news_article:a3b40942a6f962423eb2",
+      "properties": {
+        "content_type": "news_article",
+        "published_at": "2026-11-16T12:00:00Z",
+        "source_id": "source:2401ce1281ab358bf1ed",
+        "title": "Soil report finds erosion slowing",
+        "url": "6f5ab0dc6a7c03409dbf"
+      },
+      "type": "ContentItem"
+    },
+    {
+      "id": "org:daily-example",
+      "properties": {
+        "name": "Daily Example"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "Soil Erosion",
+        "slug": "soil-erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:ana-example",
+      "properties": {
+        "name": "Ana Example"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:cy-example",
+      "properties": {
+        "name": "Cy Example"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "3.0"
+}

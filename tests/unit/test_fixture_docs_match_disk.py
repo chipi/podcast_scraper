@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 pytestmark = [pytest.mark.unit]
 
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -170,7 +172,7 @@ def test_generator_defines_the_documented_number_of_episodes() -> None:
 
 def test_built_corpus_matches_what_its_readme_claims() -> None:
     corpus = _FIXTURES / "app-validation-corpus" / "v3"
-    built = len(list(corpus.rglob("*.metadata.json")))
+    built = len(list(corpus_rglob(corpus, "*.metadata.json")))
     readme = (corpus.parent / "README.md").read_text(encoding="utf-8")
     m = re.search(r"\*\*Why (\d+) and not (\d+):\*\*", readme)
     assert m, "app-validation-corpus/README.md no longer states its episode count"

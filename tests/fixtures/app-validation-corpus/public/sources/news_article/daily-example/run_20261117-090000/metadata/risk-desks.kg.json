@@ -1,0 +1,106 @@
+{
+  "content_type": "news_article",
+  "edges": [
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "type": "HAS_ITEM"
+    },
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "org:daily-example",
+      "type": "PUBLISHED_BY"
+    },
+    {
+      "from": "topic:risk-management",
+      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "topic:trading-desks",
+      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "person:ana-example",
+      "properties": {
+        "role": "author"
+      },
+      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "type": "PARTICIPATES_IN"
+    },
+    {
+      "from": "person:skanda-amarnath",
+      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "type": "MENTIONS"
+    }
+  ],
+  "extraction": {
+    "document_ref": "transcripts/risk-desks.txt",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "model_version": "metadata_only",
+    "variant": "raw"
+  },
+  "item_id": "item:news_article:c14ace7b3ac1b7c989b9",
+  "nodes": [
+    {
+      "id": "source:2401ce1281ab358bf1ed",
+      "properties": {
+        "source_kind": "news",
+        "title": "Daily Example",
+        "transport": "rss",
+        "url": "https://www.dailyexample.test/feed.xml"
+      },
+      "type": "Source"
+    },
+    {
+      "id": "item:news_article:c14ace7b3ac1b7c989b9",
+      "properties": {
+        "content_type": "news_article",
+        "published_at": "2026-11-17T07:30:00Z",
+        "source_id": "source:2401ce1281ab358bf1ed",
+        "title": "Risk desks learn to sit still",
+        "url": "a8d6e89ce92ef7521ed5"
+      },
+      "type": "ContentItem"
+    },
+    {
+      "id": "org:daily-example",
+      "properties": {
+        "name": "Daily Example"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "Risk Management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trading-desks",
+      "properties": {
+        "label": "Trading Desks",
+        "slug": "trading-desks"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:ana-example",
+      "properties": {
+        "name": "Ana Example"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "3.0"
+}

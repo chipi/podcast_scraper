@@ -124,6 +124,8 @@ v3/
     metadata.json                 # committed index metadata
     lance_index/                  # NOT committed — built at test setup (offline MiniLM)
   .viewer/enrichment_{health,status}.json
+  sources/news_article/<source>/run_*/metadata/<stem>.{metadata,kg}.json   # news items (below)
+  sources/news_article/<source>/run_*/transcripts/<stem>.txt               # the body, never served
 ```
 
 ### Diarization diagnostics (`*.speakers.diagnostics.json`)
@@ -276,6 +278,28 @@ these before assuming a validation failure is a generator bug):
 **The two-tier search index (`search/lance_index/`) is built at test setup and is NOT
 committed.** A stale one left behind here gets copied into the e2e corpus and silently indexes
 the wrong episode count — that failure presents as a search bug and is not one.
+
+## News items (`sources/news_article/`)
+
+Six invented news items over two invented sources, written by
+[`build_news_items.py`](build_news_items.py) (run it from the repo root; it rewrites
+`v3/sources/news_article/` and `publishers.fixture.yaml`). Each follows the accepted item contract
+([`news-item-1.0.md`](../../../docs/architecture/corpus/news-item-1.0.md)); each KG file is KG 3.0,
+validated strictly when built. The names and domains are invented (RFC-134 §12).
+
+| Source | Item | What it covers |
+| --- | --- | --- |
+| Daily Example (one publisher, RSS) | `risk-desks` | `serveable: summary`, analysis, a byline, the podcast topic `risk-management`, mentions the podcast guest Skanda Amarnath |
+| | `soil-report` | `serveable: metadata` (no summary shown), paywalled, `text_status: teaser`, two bylines |
+| | `withheld` | `serveable: none`: it must appear on no surface |
+| | `mercados` | Spanish, opinion |
+| Link Board (an aggregator, JSON API) | `wire-reliability` | links to Other Wire's domain: the publisher comes from `publisher_id` (and its domain) |
+| | `trail-video` | links to an unknown domain: no publisher; `text_status: video` |
+
+Every body holds `NEWS-BODY-MARKER-<n>`, which no served response may contain (RFC-134 §10).
+Podcast reads leave `sources/` out (RFC-134 §5), so the podcast counts in this README (55 episodes)
+do not include these items. The e2e server is given `publishers.fixture.yaml` as its publisher
+registry.
 
 ## The public corpus (`public/`), derived from this one
 

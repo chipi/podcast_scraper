@@ -1,0 +1,29 @@
+{
+  "content_type": "news_article",
+  "item_id": "item:news_article:a1365cef12671dfcb350",
+  "url": "b626e4b9538458cb6235",
+  "source_id": "source:2401ce1281ab358bf1ed",
+  "title": "Los mercados y la gesti\u00f3n del riesgo",
+  "published_at": "2026-11-15T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "language": "es",
+  "licence": null,
+  "paywalled": false,
+  "serveable": "summary",
+  "mineable": true,
+  "summary": "Una columna sobre la gesti\u00f3n del riesgo en los mercados.",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "body_sha256": "8bb15c51c72135512438b7b686601c19857f861f471138c85d272d0e1d35df35",
+  "news_article": {
+    "transport_ids": {
+      "rss": "mercados"
+    },
+    "byline": [
+      "Dora Ejemplo"
+    ],
+    "byline_raw": "Dora Ejemplo",
+    "editorial_type": "opinion",
+    "text_status": "full"
+  },
+  "publisher_id": "org:daily-example"
+}

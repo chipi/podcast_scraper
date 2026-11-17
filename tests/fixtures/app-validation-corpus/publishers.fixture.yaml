@@ -1,0 +1,12 @@
+# The app validation corpus's publishers (invented); written by build_news_items.py.
+publishers:
+- id: org:daily-example
+  name: Daily Example
+  domains:
+  - dailyexample.test
+  sources:
+  - source:2401ce1281ab358bf1ed
+- id: org:other-wire
+  name: Other Wire
+  domains:
+  - otherwire.test

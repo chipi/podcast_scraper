@@ -1,0 +1,81 @@
+{
+  "content_type": "news_article",
+  "edges": [
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "item:news_article:a1365cef12671dfcb350",
+      "type": "HAS_ITEM"
+    },
+    {
+      "from": "source:2401ce1281ab358bf1ed",
+      "to": "org:daily-example",
+      "type": "PUBLISHED_BY"
+    },
+    {
+      "from": "topic:risk-management",
+      "to": "item:news_article:a1365cef12671dfcb350",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "person:dora-ejemplo",
+      "properties": {
+        "role": "author"
+      },
+      "to": "item:news_article:a1365cef12671dfcb350",
+      "type": "PARTICIPATES_IN"
+    }
+  ],
+  "extraction": {
+    "document_ref": "transcripts/mercados.txt",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "model_version": "metadata_only",
+    "variant": "raw"
+  },
+  "item_id": "item:news_article:a1365cef12671dfcb350",
+  "nodes": [
+    {
+      "id": "source:2401ce1281ab358bf1ed",
+      "properties": {
+        "source_kind": "news",
+        "title": "Daily Example",
+        "transport": "rss",
+        "url": "https://www.dailyexample.test/feed.xml"
+      },
+      "type": "Source"
+    },
+    {
+      "id": "item:news_article:a1365cef12671dfcb350",
+      "properties": {
+        "content_type": "news_article",
+        "published_at": "2026-11-15T09:00:00Z",
+        "source_id": "source:2401ce1281ab358bf1ed",
+        "title": "Los mercados y la gestión del riesgo",
+        "url": "b626e4b9538458cb6235"
+      },
+      "type": "ContentItem"
+    },
+    {
+      "id": "org:daily-example",
+      "properties": {
+        "name": "Daily Example"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "Risk Management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:dora-ejemplo",
+      "properties": {
+        "name": "Dora Ejemplo"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "3.0"
+}
