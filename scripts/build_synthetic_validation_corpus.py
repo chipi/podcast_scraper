@@ -39,7 +39,7 @@ import re
 import sys
 import unicodedata
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -962,7 +962,11 @@ def main() -> int:
     # All episodes within the default 7-day graph lens so every episode
     # shows in the default Library / Graph view (no manual lens widening
     # needed for Tier-3 validation). Spread across last 7 days.
-    base_date = datetime.utcnow().replace(hour=12, minute=0, second=0, microsecond=0)
+    base_date = (
+        datetime.now(timezone.utc)
+        .replace(tzinfo=None)
+        .replace(hour=12, minute=0, second=0, microsecond=0)
+    )
 
     for fi, rss_path in enumerate(rss_files):
         feed_meta = parse_rss_feed_metadata(rss_path)

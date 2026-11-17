@@ -16,7 +16,7 @@ import subprocess
 import sys
 import threading
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -459,8 +459,8 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
 
     # Create manifest
     manifest = RunManifest(
-        run_id=run_id or datetime.utcnow().isoformat() + "Z",
-        created_at=datetime.utcnow().isoformat() + "Z",
+        run_id=run_id or datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         created_by=created_by,
         git_commit_sha=git_commit_sha,
         git_branch=git_branch,

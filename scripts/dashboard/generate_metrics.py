@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -824,7 +824,7 @@ def generate_metrics(
             workflow_run_url = ""
 
     metrics = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "commit": commit,
         "branch": branch,
         "workflow_run": workflow_run_url,

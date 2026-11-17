@@ -303,10 +303,10 @@ jobs:
     # This job is gated on viewer files changing, so it was skipped on every run of the PR that
     # did the migration — the first run that actually executed failed 81 specs across 20 files,
     # all ECONNREFUSED.
-    - name: Set up Python 3.11 (for the real API the viewer e2e boots)
+    - name: Set up Python (for the real API the viewer e2e boots)
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install podcast_scraper (for the serve command)
@@ -376,10 +376,10 @@ jobs:
     timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Set up Node.js
@@ -434,10 +434,10 @@ jobs:
     if: needs.detect-changes.outputs.python == 'true'
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install dependencies
@@ -525,10 +525,10 @@ jobs:
       PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install dev dependencies (no ML; includes FastAPI via [dev])
@@ -670,10 +670,10 @@ jobs:
     if: needs.detect-changes.outputs.python == 'true'
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install dev dependencies
@@ -774,11 +774,11 @@ jobs:
         restore-keys: |
           ml-models-${{ runner.os }}-weights1-
           ml-models-${{ runner.os }}-
-    - name: Set up Python 3.11 (only if cache miss - needed for model download)
+    - name: Set up Python (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install ffmpeg (pyannote 4.x / torchcodec needs FFmpeg shared libs to import)
@@ -877,10 +877,10 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
         df -h
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Download ML models from preload job
@@ -1021,10 +1021,10 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
         df -h
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Download ML models from preload job
@@ -1138,10 +1138,10 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
         df -h
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Download ML models from preload job
@@ -1263,10 +1263,10 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
         df -h
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Download ML models from preload job
@@ -1411,10 +1411,10 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
         df -h
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Download ML models from preload job
@@ -1461,10 +1461,10 @@ jobs:
       (needs.coverage-unified.result == 'success' || needs.coverage-unified.result == 'skipped')
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: |
           docs/requirements.txt
@@ -1521,10 +1521,10 @@ jobs:
       with:
         # Full history required for wily (code quality trends) on main/release
         fetch-depth: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') && 0 || 1 }}
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install coverage tooling and project (for combine + report parity with local)
@@ -1840,10 +1840,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.11
+    - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.11.8"
+        python-version-file: .python-version
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Install build tools

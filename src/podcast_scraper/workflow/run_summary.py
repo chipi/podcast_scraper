@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -36,8 +36,8 @@ def create_run_summary(
     """
     summary: Dict[str, Any] = {
         "schema_version": "1.0.0",
-        "run_id": run_id or datetime.utcnow().isoformat() + "Z",
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "run_id": run_id or datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
+        "created_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         # Issue #429 Phase 2: top-level run.json links to other outputs
         "index_file": "index.json",
         "run_manifest_file": "run_manifest.json",

@@ -64,7 +64,7 @@ uv pip install -e .
 # Or: uv tool install podcast_scraper  (when published as a tool)
 ```
 
-**Requirements:** Python 3.10+, ffmpeg for audio processing. Run `podcast-scraper doctor` to verify your environment.
+**Requirements:** Python 3.12+, ffmpeg for audio processing. Run `podcast-scraper doctor` to verify your environment.
 
 ### Basic Usage
 
