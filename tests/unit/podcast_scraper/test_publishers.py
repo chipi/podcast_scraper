@@ -1,0 +1,78 @@
+"""The publisher registry (ADR-180 rule 6)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+import yaml
+
+from podcast_scraper.publishers import DEFAULT_PATH, load_registry, PublisherRegistryError
+
+pytestmark = pytest.mark.unit
+
+_BBC = {
+    "id": "org:bbc",
+    "name": "BBC",
+    "domains": ["bbc.co.uk", "www.bbc.com"],
+    "external_ids": {"wikidata": "Q9531"},
+    "sources": {"podcast_episode": ["global-news-podcast"], "news_article": ["bbc-world"]},
+}
+
+
+def _write(tmp_path: Path, publishers: list) -> Path:
+    path = tmp_path / "publishers.yaml"
+    path.write_text(yaml.safe_dump({"publishers": publishers}), encoding="utf-8")
+    return path
+
+
+def test_the_shipped_registry_loads() -> None:
+    load_registry(DEFAULT_PATH)
+
+
+def test_a_missing_file_is_an_empty_registry(tmp_path: Path) -> None:
+    assert load_registry(tmp_path / "none.yaml").publishers == ()
+
+
+def test_one_organisation_across_podcasts_and_news(tmp_path: Path) -> None:
+    reg = load_registry(_write(tmp_path, [_BBC]))
+    pod = reg.for_source("podcast_episode", "global-news-podcast")
+    news = reg.for_source("news_article", "bbc-world")
+    assert pod is news and pod is not None and pod.id == "org:bbc"
+    assert reg.for_source("news_article", "global-news-podcast") is None
+
+
+def test_a_domain_and_its_subdomains_find_the_publisher(tmp_path: Path) -> None:
+    reg = load_registry(_write(tmp_path, [_BBC]))
+    assert reg.for_domain("news.bbc.co.uk") is reg.by_id("org:bbc")
+    assert reg.for_domain("WWW.BBC.COM") is reg.by_id("org:bbc")
+    assert reg.for_domain("notbbc.co.uk") is None
+
+
+def test_the_served_shape_names_the_matched_domain(tmp_path: Path) -> None:
+    bbc = load_registry(_write(tmp_path, [_BBC])).by_id("org:bbc")
+    assert bbc is not None
+    assert bbc.served("www.bbc.com") == {"id": "org:bbc", "name": "BBC", "domain": "bbc.com"}
+    assert bbc.served() == {"id": "org:bbc", "name": "BBC", "domain": "bbc.co.uk"}
+
+
+@pytest.mark.parametrize(
+    "second",
+    [
+        {"id": "org:bbc", "name": "BBC again"},
+        {"id": "org:other", "name": "Other", "domains": ["bbc.co.uk"]},
+        {"id": "org:other", "name": "Other", "sources": {"news_article": ["bbc-world"]}},
+    ],
+)
+def test_a_key_claimed_twice_is_refused(tmp_path: Path, second: dict) -> None:
+    with pytest.raises(PublisherRegistryError, match="claimed by both"):
+        load_registry(_write(tmp_path, [_BBC, second]))
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{"id": "publisher:bbc", "name": "BBC"}, {"id": "org:", "name": "BBC"}, {"id": "org:bbc"}],
+)
+def test_an_entry_without_an_org_id_or_a_name_is_refused(tmp_path: Path, bad: dict) -> None:
+    with pytest.raises(PublisherRegistryError):
+        load_registry(_write(tmp_path, [bad]))
