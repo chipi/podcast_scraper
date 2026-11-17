@@ -369,6 +369,7 @@ def corpus_digest(
         window_end_utc=_iso_z(end),
         compact=compact,
         rows=row_models,
+        rows_in_window=len(in_window),
         topics=topics,
         topics_unavailable_reason=topics_reason,
     )

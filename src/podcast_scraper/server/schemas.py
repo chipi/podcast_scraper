@@ -4761,6 +4761,10 @@ class CorpusDigestResponse(BaseModel):
     window_end_utc: str
     compact: bool
     rows: list[CorpusDigestRow] = Field(default_factory=list)
+    rows_in_window: int = Field(
+        default=0,
+        description="Episodes in the window; ``rows`` is a per-show sample of them, capped.",
+    )
     topics: list[CorpusDigestTopicBand] = Field(default_factory=list)
     topics_unavailable_reason: str | None = None
 

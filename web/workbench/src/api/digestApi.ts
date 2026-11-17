@@ -87,6 +87,8 @@ export type CorpusDigestResponse = {
   window_end_utc: string
   compact: boolean
   rows: CorpusDigestRow[]
+  /** Episodes in the window; `rows` is a per-show sample of them. Absent from older servers. */
+  rows_in_window?: number
   topics: CorpusDigestTopicBand[]
   topics_unavailable_reason: string | null
 }

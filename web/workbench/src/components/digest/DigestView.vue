@@ -66,6 +66,13 @@ function scheduleLoadDigestFromCorpusLens(): void {
 }
 
 const digest = ref<CorpusDigestResponse | null>(null)
+
+/** "36 of 55" when Recent is a per-show sample of the window, else the count alone. */
+const recentCountLabel = computed(() => {
+  const shown = digest.value?.rows.length ?? 0
+  const total = digest.value?.rows_in_window ?? 0
+  return total > shown ? `${shown} of ${total}` : String(shown)
+})
 const error = ref<string | null>(null)
 const loading = ref(false)
 const graphActionError = ref<string | null>(null)
@@ -653,7 +660,8 @@ onBeforeUnmount(() => {
         <time :datetime="digest.window_end_utc">{{
           formatUtcDateTimeForDisplay(digest.window_end_utc)
         }}</time>
-        · {{ digest.rows.length }} {{ digest.rows.length === 1 ? 'episode' : 'episodes' }}
+        · {{ recentCountLabel }}
+        {{ digest.rows.length === 1 && recentCountLabel === '1' ? 'episode' : 'episodes' }}
       </p>
     </div>
 
@@ -881,7 +889,9 @@ onBeforeUnmount(() => {
               class="flex flex-wrap items-baseline gap-x-1 text-sm font-semibold text-surface-foreground"
             >
               <span>Recent</span>
-              <span class="font-normal tabular-nums text-muted">({{ digest.rows.length }})</span>
+              <span class="font-normal tabular-nums text-muted" data-testid="digest-recent-count"
+                >({{ recentCountLabel }})</span
+              >
             </h2>
             <HelpTip
               class="shrink-0"

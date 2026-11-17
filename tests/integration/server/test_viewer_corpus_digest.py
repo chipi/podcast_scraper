@@ -82,6 +82,9 @@ def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
     assert feed_a <= 2
     assert feed_b <= 2
     assert len(rows) == 4
+    # The page says "4 of 6": the rows are a per-show sample of the window, and printing only the
+    # sample's size read as the window's total (36 of 55, public-only walk, 2026-11-17).
+    assert body["rows_in_window"] == 6
     for row in rows:
         assert len(row["summary_bullets_preview"]) <= 4
         assert len(row["summary_bullet_graph_topic_ids"]) == len(row["summary_bullets_preview"])

@@ -220,6 +220,17 @@ describe('DigestView — Recent', () => {
     const { w } = await mountDigest(digestOf({ rows: [], topics: [] }))
     expect(w.text()).toContain('No episodes in this window.')
   })
+
+  it('Recent says how many of the window it shows when it is a per-show sample', async () => {
+    const { w } = await mountDigest(digestOf({ rows_in_window: 55 }))
+    expect(w.get('[data-testid="digest-recent-count"]').text()).toBe('(3 of 55)')
+    expect(w.text()).toContain('3 of 55 episodes')
+  })
+
+  it('Recent shows the count alone when it lists the whole window', async () => {
+    const { w } = await mountDigest(digestOf({ rows_in_window: 3 }))
+    expect(w.get('[data-testid="digest-recent-count"]').text()).toBe('(3)')
+  })
 })
 
 describe('DigestView — states', () => {

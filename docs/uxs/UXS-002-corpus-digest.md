@@ -112,7 +112,9 @@ All tokens reference [UXS-001](UXS-001-workbench.md).
 3. **Recent (diverse)** -- bordered panel (same list chrome pattern as Library **Episodes**):
    `h2` **Recent** (`#digest-recent-heading`, **`text-sm font-semibold`**) with a muted
 
-   tabular **`(N)`** count next to the title (same **N** as the rolling-window toolbar line)
+   tabular **`(N)`** count next to the title (same **N** as the rolling-window toolbar line); when
+   the list is a per-show sample it reads **`(N of M)`**, M the episodes in the window
+   (`rows_in_window`, `digest-recent-count`, 2026-11-17)
 
    - `?` tooltip explaining diversification vs topic bands; `role="region"`
    `aria-label` **`Recent episodes, N items`** (or **`1 item`**);
