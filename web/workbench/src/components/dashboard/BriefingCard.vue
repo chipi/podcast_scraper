@@ -7,6 +7,7 @@ import { formatDashboardRunDurationSeconds } from '../../utils/formatDuration'
 import { formatRelativeRunAge } from '../../utils/dashboardTime'
 import { briefingCoverage } from '../../extensions'
 import { useDashboardNavStore, type DashboardLibraryHandoff } from '../../stores/dashboardNav'
+import { useShellStore } from '../../stores/shell'
 
 const props = defineProps<{
   runs: CorpusRunSummaryItem[]
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const dashNav = useDashboardNavStore()
+const shell = useShellStore()
 
 const KG_WARN = 0.5
 const INDEX_WARN = 0.6
@@ -197,6 +199,15 @@ const actionItems = computed(() => {
         out.push({ text: a.text, primary: a.primary, onPrimary: () => openLibrary(a.handoff) })
       }
     }
+  }
+  // The status bar's corpus warning (artifacts older than this server reads): the briefing said
+  // "Everything looks good" right above it.
+  if (shell.corpusVersionWarning) {
+    out.push({
+      text: 'Corpus artifacts were written by an older pipeline; re-run it to refresh them',
+      primary: 'Open Pipeline',
+      onPrimary: () => emit('select-tab', 'pipeline'),
+    })
   }
   if (!props.indexEnv?.available) {
     out.push({

@@ -8,6 +8,7 @@ import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
 import type { IndexStatsEnvelope } from '../../api/indexStatsApi'
 import { briefingCoverage } from '../../extensions'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
+import { useShellStore } from '../../stores/shell'
 import BriefingCard from './BriefingCard.vue'
 
 const NOW = Date.parse('2026-06-15T12:00:00Z')
@@ -250,6 +251,18 @@ describe('BriefingCard', () => {
       const w = mountCard()
       expect(w.get('[data-testid="briefing-all-clear"]').text()).toContain('Everything looks good')
       expect(w.findAll('[data-testid="briefing-action-item"]')).toHaveLength(0)
+    })
+
+    it('lists the corpus version warning the status bar shows, and opens Pipeline', async () => {
+      // "Everything looks good" sat above the footer's "Corpus has no produced_by stamp ..."
+      // (public-only walk, 2026-11-17).
+      useShellStore().corpusVersionWarning = 'Corpus has no produced_by stamp; re-run the pipeline.'
+      const w = mountCard()
+      expect(w.find('[data-testid="briefing-all-clear"]').exists()).toBe(false)
+      const item = w.get('[data-testid="briefing-action-item"]')
+      expect(item.text()).toContain('older pipeline')
+      await item.get('button').trigger('click')
+      expect(w.emitted('select-tab')).toEqual([['pipeline']])
     })
 
     it('lists failed episodes and hands off to the library from the run date', async () => {
