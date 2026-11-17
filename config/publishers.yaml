@@ -1,13 +1,13 @@
 # Publisher registry (ADR-180 rule 6): publishers are organisations across media.
-# Loaded by podcast_scraper.publishers.load_registry, which refuses a duplicate id, domain or source.
+# Loaded by podcast_scraper.publishers.load_registry, which refuses an id, domain, source or
+# external id claimed by two publishers.
 #
-#   - id: org:example            # the KG organisation id; one org across podcasts and news; never re-keyed
+#   - id: org:example            # a KG Organization id; NER's org with the same slug is the same org
 #     name: Example News
-#     domains: [example.com]     # matched against a news item's canonical URL host (and its subdomains)
+#     domains: [example.com]     # matches a news item's canonical URL host and its subdomains;
+#                                # the longest match wins; no match is no publisher
 #     external_ids: {}           # e.g. {wikidata: Q...}; kept side by side, never merged into one key
-#     sources:                   # where PUBLISHED_BY comes from; never inferred from NER
-#       podcast_episode: []      # podcast feed ids
-#       news_article: []         # news source ids
+#     sources: []                # KG Source ids (podcast:..., source:...): PUBLISHED_BY, never from NER
 #
 # Entries are added with their sources: news by ingestion, podcasts by R3b's KG half.
 publishers: []
