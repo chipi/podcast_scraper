@@ -100,10 +100,16 @@ failing test first.
 7. **Empty or odd without grounded insights:** the topic rail's Details tab is three buttons; the
    person rail is a name and two buttons; the graph's type chip says "Person (0)" while person nodes
    are drawn; Dashboard > Intelligence has a "TOPICS" heading with nothing under it; the command
-   palette prints the raw token `no_index`.
+   palette prints the raw token `no_index`. **Fixed:** the Types chip counts by the key it lists;
+   the Topics section shows only with content (and the empty chart cell takes no space); the
+   palette maps error codes to words. **Open:** the near-empty topic and person rails (what a
+   KG-only rail should show is a design question).
 8. **Grounded-insight leftovers in about 15 components** (copy such as "insights", "Show on graph",
    "GI Person"; `api/cilApi.ts` and `api/relationalApi.ts` calling routes that do not exist on
    public). Decide per item: remove, or keep as an extension point the private viewer fills.
+   **In progress:** the private viewer runs this viewer's whole shell (`@viewer/main`), so a
+   component it never imports can still be on its screen; the candidate list is with the database
+   session, which checks each against the private viewer before anything is removed.
 9. **The UX docs** (`docs/uxs/`) still describe insights, quotes, the position tracker and Explore as
    this viewer's; none mentions the private viewer.
 10. **The show node page finds its feed by title** (`PodcastNodeView.vue:36-48`; the database-era
