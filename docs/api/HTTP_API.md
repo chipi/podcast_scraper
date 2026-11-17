@@ -13,18 +13,18 @@ Local **dev** server: no auth.
 `tests/integration/server/test_login_first_matrix.py`, which fails if any other route is
 reachable anonymously — treat that test as the source of truth over this page:
 
-- `/api/app/discover`, `/api/app/corpus/trending-topics`, `/api/app/artwork`
-- `/api/app/comms/unsubscribe`
+Of those, this build serves:
+
 - `/api/app/auth/{login,callback,logout,dev-users,status}`
-- `/api/app/auth/email/{request,verify}` — the magic-link front door (#2272); they create the session
-- `/api/app/mcp/oauth/{register,token}` + `/.well-known/oauth-authorization-server`
+- `/api/app/auth/email/{request,verify,code}` — the magic-link front door (#2272) and the store
+  reviewer's code sign-in; they create the session
 - `/api/app/profile/{user_id}/avatar` — deliberately open (#2109): an `<img src>` cannot send a
   bearer header, and the id is an opaque token that is never displayed
-- `/api/app/persons/{id}/photo`, `/api/app/organizations/{id}/logo` — same reason as the avatar
-- `/api/app/app-exits` — native app-exit reasons (#2279); a signed-out app is evicted just the
-  same. Write-only telemetry, no account or device id
 - `/api/health`
-- `/api/app/version` — the same body as `/api/version`, public fields only without an admin session
+
+The test's list also names routes a downstream build mounts (the consumer app's discover, artwork,
+unsubscribe, person photo, organisation logo, app-exit and version routes, and an MCP OAuth
+server); a public-only server does not serve them.
 
 ### The admin surface and cross-site writes
 
@@ -71,16 +71,8 @@ either would have been built for anonymous reads and met a wall of 401s.
 | GET | `/api/index/stats` | index | LanceDB index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
 | POST | `/api/index/rebuild` | index | Queue background `index_corpus` (202); mutex per corpus. Poll `GET /api/index/stats`. | `path`, `rebuild`, `embedding_model`, `vector_index_path`, `vector_index_types` (comma-separated) |
 | GET | `/api/search` | search | Corpus search — **hybrid** (two-tier BM25 + dense via RRF over LanceDB, with compound results) when a `search/lance_index` exists (RFC-090), with sentence embeddings; reports `no_index` when no usable index is present (FAISS retired in #995, ADR-099). **Transcript** hits may include optional **`lifted`**: overlapping **Quote** → **Insight** plus **speaker** / **topic** display names from **`bridge.json`** when present ([Semantic Search Guide — lift](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification)). **Insight** hits may include **`supporting_quotes`** (from indexer enrichment): quote **`speaker_id`** / **`speaker_name`** mirror **`.gi.json`** — often **`null`** / absent when segments lack diarization labels (GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); canonical rules: [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)). Successful responses include optional **`lift_stats`**: **`transcript_hits_returned`** and **`lift_applied`** for the returned page (after `top_k`). Each hit carries **`source_tier`** (`insight` / `segment` / `aux`, derived from `doc_type` — PRD-033 FR1.1); the response carries **`query_type`** (detected intent: `entity_lookup` / `raw_evidence` / `temporal_tracking` / `cross_show_synthesis` / `semantic`, from the RFC-090 rules router — FR1.4). Each call also appends a privacy-light event (timestamp + `query_type`, no raw text) to `search/query_log.jsonl` for the Dashboard activity chart. | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model`, `dedupe_kg_surfaces` (default `true`: merge same-text `kg_entity` / `kg_topic` rows) |
-| GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. Insight rows may include **`supporting_quotes`** with **`speaker_id`** / **`speaker_name`** mirroring **`.gi.json`** (often absent without diarization — GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)). | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
 | GET | `/api/relational/*` | relational | **Relational-query layer** (RFC-094 / [#882](https://github.com/chipi/podcast_scraper/issues/882)) — read-only traversals over the typed cross-layer `CorpusGraph` (#874) that ground the PRD-033 Detail/Digest/Dashboard surfaces. All return a `RelatedNode` projection (`{id, type, text, show_id, episode_id}`); never raise (empty results on a missing id). **Flat lists:** **`/positions`** (`person` → insights they STATED, FR4.1), **`/insights-about`** (`entity` → insights that MENTION it), **`/entities-in`** (`insight` → entities it mentions), **`/topic-entities`** (`topic` → mentioned entities, ranked by frequency, FR4.2), **`/episodes`** (`podcast` → its episodes, HAS_EPISODE), **`/related-insights`** (`insight` → topic/entity siblings), **`/episode-insights`** (`episode` → siblings of its insights, FR4.3). **Grouped** (`{key: [RelatedNode]}`): **`/who-said`** (`topic` → insights per person, FR4.2), **`/cross-show`** (`topic` → top insight per distinct show — the corpus differentiator, FR3.2). `positions` / `insights-about` / `related-insights` re-rank results by an entity-scoped **hybrid** query over structural order (best-effort; degrades to structural order without an index). | `path`; one of `person` / `entity` / `insight` / `topic` / `podcast` / `episode` (per route); `k` (cap); `cross-show` also `per_show` |
 | GET | `/api/corpus/query-activity` | dashboard | Daily **search-volume** counts (zero-filled, oldest→newest) from the append-only `search/query_log.jsonl` that `/api/search` writes (timestamp + intent only, no raw query text). Powers the Dashboard search-activity chart (PRD-033 FR6.2; honest scope — volume over time, not query-by-topic). | `path`, `days` (1–365, default 30) |
-| GET | `/api/persons/{person_id}/positions` | cil | Position arc — chronological insights for a **person** and **topic** across episodes. Scans `**/*.bridge.json` with sibling GI/KG. Each insight carries `sentiment: {compound, label}` (joined from the `insight_sentiment` enricher by `insight_id`; absent when the sidecar is missing — best-effort, never errors). | `topic` (required), `path`, `insight_types` (comma-separated; omit → `claim` only; `all` / `*` → no filter) |
-| GET | `/api/persons/{person_id}/brief` | cil | Person profile — insights grouped by topic plus quotes for that person. | `path` |
-| GET | `/api/persons/{person_id}/topics` | cil | Distinct topic ids for that person (from brief keys). | `path` |
-| GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode. Each episode may include `episode_title`, `feed_title`, `episode_number`, and artwork fields (`episode_image_url`, `episode_image_local_relpath`, `feed_image_url`, `feed_image_local_relpath`) from sibling `*.metadata.json`. Each insight carries `sentiment: {compound, label}` (from `insight_sentiment`, best-effort). | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
-| GET | `/api/topics/{topic_id}/conversation-arc` | cil | Topic conversation arc — the aggregate-first "shape" of a topic's conversation over time: ISO-week buckets of insight `volume` × VADER sentiment mix (`{week, volume, negative, neutral, positive, avg_compound}`, oldest first). Rolls the topic timeline up by week to drive the weekly-bar surfaces; empty `weeks` when the topic has no dated insights. | `path`, `insight_types` (comma-separated; omit → all types; `all` / `*` → all) |
-| POST | `/api/topics/timeline` | cil | **Merged** topic timeline — same Pattern C rules as GET, but **one** corpus scan for **multiple** `topic_ids` in the JSON body (cluster scope). Response includes `topic_ids` (deduped, canonical order) and `episodes` (merged per `episode_id`, insight nodes deduped). | JSON body: `topic_ids` (required), `path` (optional if default output dir), `insight_types` (optional; same semantics as GET) |
-| GET | `/api/topics/{topic_id}/persons` | cil | Distinct `person:` ids that discuss the topic via grounded quotes. | `path` |
 | POST | `/api/corpus/resolve-episode-artifacts` | corpus | Map logical **`episode_id`** values (from metadata) to corpus-relative **`gi_relative_path`** / **`kg_relative_path`** / **`bridge_relative_path`** from one catalog scan. Rows without GI on disk are listed in **`missing_episode_ids`**. The Workbench’s topic-cluster **sibling auto-load** builds candidate ids from **`topic_clusters.json`** → **`clusters[].members[].episode_ids`** (union per touched cluster). | JSON body: `episode_ids` (required), `path` (optional if server default set) |
 | POST | `/api/corpus/node-episodes` | corpus | **Progressive graph expansion** (cross-episode): for a canonical **`node_id`** (`person:`, `org:`, or `topic:`), scan **`*.bridge.json`** bundles (no full triple-read), then resolve sibling **`*.gi.json`** / **`*.kg.json`** by stem. Returns **`episodes`** (metadata-relative paths when present, optional **`episode_id`**, GI/KG flags) and **`truncated`** when the cap is hit. The Workbench uses this on eligible nodes (**double-tap** expand). | JSON body: `node_id` (required), `path` (optional if server default set), `limit` (optional cap) |
 | GET | `/api/corpus/feeds` | corpus | Aggregate feeds from episode metadata under the corpus root. | `path` (optional if server default set) |
@@ -88,7 +80,6 @@ either would have been built for anonymous reads and met a wall of 401s.
 | GET | `/api/corpus/episodes/detail` | corpus | Episode row + summary bullets + GI/KG/bridge paths + **`cil_digest_topics`** (same shape as list / digest). | `path`, `metadata_relpath` (required) |
 | GET | `/api/corpus/episodes/similar` | corpus | LanceDB semantic peers for an episode; **200** with `error` when index missing. | `path`, `metadata_relpath` (required), `top_k` (1–25) |
 | GET | `/api/corpus/digest` | corpus | Feed-diverse **recent episodes** (metadata + GI/KG flags), optional **`cil_digest_topics`** per row (bridge + topic-cluster order; omitted when `compact=true`), and optional **semantic topic** bands. `compact=true` forces 24h, smaller cap, no topic bands and no CIL pill enrichment. | `path`, `window` (`24h` / `7d` / `1mo` / `since`), `since` (required if `window=since`; `1mo` = previous **calendar month**, UTC), `compact`, `include_topics`, `max_rows` |
-| GET | `/api/corpus/topic-clusters` | corpus | **Topic clustering** artifact: returns `search/topic_clusters.json` when present (**404** with `available: false` when missing). | `path` (optional if server default set) |
 | POST | `/api/corpus/topic-clusters/rebuild` | operator | **Operator-gated**: admin session or operator key whenever auth is configured (a creator is refused). (Re)build `search/topic_clusters.json` off the current index without a full reindex; reuses the per-corpus rebuild gate. **202** accepted / **409** a rebuild is already running / **503** LanceDB unavailable. Poll `GET /api/corpus/topic-clusters`. | `path`, `threshold` (default 0.75) |
 | DELETE | `/api/corpus/runs/{run_id}` | operator | **Operator-gated** rollback (fails **closed** without a credential). Move a whole run's episodes to `<corpus>/.trash/<ts>/` (recoverable), re-aggregate `corpus_manifest.json` cost, then full `index_corpus(rebuild=True)` via the shared gate (topic-clusters recompute after). **202** with a summary + `/api/index/stats` poll pointer / **400** invalid run_id or missing `confirm` / **404** unknown run_id / **409** a rebuild is already running. | `path`, `confirm` (must equal `run_id`), `dry_run` |
 | DELETE | `/api/corpus/episodes/{episode_id}` | operator | **Operator-gated** finer-grained rollback (for `--append` runs that share one `run_append_<hash>` dir): move just that episode's files (transcript/metadata/media/sidecars, all subdirs) to `.trash/`, re-aggregate, reindex. Same status codes as the run rollback. **Note:** `GET /api/corpus/episodes` (the consumer Library list) stays open — only the DELETE is operator-gated. | `path`, `confirm` (must equal `episode_id`), `dry_run` |
@@ -98,21 +89,6 @@ either would have been built for anonymous reads and met a wall of 401s.
 | GET | `/api/corpus/documents/run-summary` | corpus | Return `corpus_run_summary.json` at corpus root (**404** if missing). | `path` |
 | GET | `/api/corpus/runs/summary` | corpus | Discover `run.json` under the tree (capped), compact metrics per file for Dashboard. | `path` |
 | GET | `/api/corpus/coverage` | corpus | GI/KG sibling-file presence per episode; aggregates by publish month and feed (Dashboard). | `path` |
-| GET | `/api/corpus/persons/top` | corpus | Top speakers by grounded insight count (scans `*.gi.json` under catalog). | `path`, `limit` |
-| GET | `/api/app/artwork` | app | **Consumer platform**: serve locally-stored podcast art (downloaded at ingest; never re-fetched from origin). `size=thumb` (≤320px, every list/card), `medium` (≤1024px, the player, lock screen and offline copy) or `large` (the original, which no consumer screen requests); the writer makes the downscales, a read-only API falls back to the original when one is missing (`m0026` backfills `medium`); content-addressed → `Cache-Control: immutable`. **400** off the corpus-art store, **404** missing. [#1078](https://github.com/chipi/podcast_scraper/issues/1078). | `ref` (required), `size` |
-| GET | `/api/app/episodes` | app | **Consumer platform**: catalog list across the corpus, newest-first, via a pluggable `ContentSource` (`LocalCorpusSource` MVP; `DiscoverySource` extends it for [#1069](https://github.com/chipi/podcast_scraper/issues/1069)). `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, artwork_url, feed_artwork_url, status, summary_preview, summary_text, description, summary_bullets[], topics[], has_*}], page, page_size, total, has_more}`. `description` is the publisher's own episode description from the feed — what an episode card shows; `summary_*` are ours. `artwork_url` prefers the EPISODE's own image; `feed_artwork_url` is always the SHOW's, for surfaces that group episodes by feed and need a cover per show. `summary_preview` is a short clean lede (the summary title / first sentence — **not** the bullets joined); the full bullets are in `summary_bullets[]` (card expand-on-demand). [#1078](https://github.com/chipi/podcast_scraper/issues/1078). | `page`, `page_size`, `status`, `feed_id` |
-| GET | `/api/app/podcasts/{feed_id}/episodes` | app | **Consumer platform**: same shape as `/api/app/episodes`, scoped to one feed. [#1078](https://github.com/chipi/podcast_scraper/issues/1078). | `page`, `page_size`, `status` |
-| GET | `/api/app/episodes/batch` | app | **Consumer platform**: several episode details in one request (`slugs` repeated, ≤100) — `{items[], missing[]}`, for the lists of saved slugs. Added for 1.0.3; `/episodes/{slug}` is unchanged. | `slugs` |
-| GET | `/api/app/episodes/{slug}` | app | **Consumer platform**: episode detail — slug, title, podcast title, publish date, duration, summary, the publisher's `description`, and artifact-availability flags (`has_transcript/summary/gi/kg/bridge`). [#1068](https://github.com/chipi/podcast_scraper/issues/1068). **404** for unknown slug. | — |
-| GET | `/api/app/episodes/{slug}/insights` | app | **Consumer platform**: grounded GIL insights with supporting quotes for one episode (the GIL core design projection: `{id, text, grounded, insight_type?, confidence?, position_hint?, quotes[]}`). Empty list (200) when the episode has no GI. [#1068](https://github.com/chipi/podcast_scraper/issues/1068). | — |
-| GET | `/api/app/episodes/{slug}/entities` | app | **Consumer platform**: KG `{persons[], orgs[], topics[]}` for one episode (typed v2 or legacy `Entity`+`kind`). Empty when no KG. [#1068](https://github.com/chipi/podcast_scraper/issues/1068). | — |
-| GET | `/api/app/episodes/{slug}/related` | app | **Consumer platform**: "more like this" semantic peer episodes via the vector index (reuses `run_similar_episodes`), projected to the catalog card shape. **200 + empty** when the index is unavailable. [#1084](https://github.com/chipi/podcast_scraper/issues/1084). | `top_k` |
-| GET | `/api/app/episodes/{slug}/segments` | app | **Consumer platform** (read-only, **auth**): transcript **`segments.json`** contract `{version, episode_slug, segments[{id, start, end, text, speaker?}]}` for one episode addressed by stable **slug** ([#1067](https://github.com/chipi/podcast_scraper/issues/1067)). Reads `*.segments.json` (ad-free base preferred). **404** for unknown slug or missing transcript/segments. Serves the single shared corpus at `output_dir`; no `path` override. | — |
-| GET | `/api/app/episodes/{slug}/audio-source` | app | **Consumer platform**: resolve the **origin enclosure URL** the client plays directly — *bridge, never rehost* ([#1070](https://github.com/chipi/podcast_scraper/issues/1070)). Returns `{episode_slug, url, mime?, duration_seconds?, media_id?, strategy:"direct", resolved_url?, verified?, content_length?}` from `content.media_url`. **404** when no origin URL. With **`validate=true`** a HEAD follows redirects and reports `resolved_url`/`verified`/`content_length` (adds a network call); the no-store proxy stays deferred. | `validate` |
-| GET | `/api/app/episodes/{slug}/search` | app | **Consumer platform**: episode-scoped grounded search — hybrid retrieval (RFC-090) over-fetched by feed and narrowed to this episode; extractive, **no request-time LLM** (D6). [#1068](https://github.com/chipi/podcast_scraper/issues/1068). Same hit shape as `/api/search`. | `q` (required), `top_k` |
-| GET | `/api/app/search` | app | **Consumer platform**: library-wide grounded search — whole shared corpus for now (scoped to the user's library once auth lands), extractive, **no request-time LLM**. Hit `metadata` enriched with `episode_slug`/`episode_title`/`podcast_title` for jump-to-moment, plus `episode_artwork` (thumb, remote-image fallback) so results render like library cards (Home, [#1090](https://github.com/chipi/podcast_scraper/issues/1090)). [#1068](https://github.com/chipi/podcast_scraper/issues/1068). | `q` (required), `top_k`, `grounded_only` |
-| GET | `/api/app/podcasts` | app | **Consumer platform**: distinct shows in the corpus for Home "Your shows" + the show page header (`aggregate_feeds`): `{items[{feed_id, title, artwork_url, image_url, description, episode_count}]}`. [#1090](https://github.com/chipi/podcast_scraper/issues/1090). | — |
-| GET | `/api/app/playback` | app | **Consumer platform** (auth): all saved playback positions, newest-updated first, for Home "Continue listening". [#1090](https://github.com/chipi/podcast_scraper/issues/1090). | — |
 | GET | `/api/app/auth/login` | app | **Consumer platform auth** (#1063): begin the single-provider OAuth code flow — **307** redirect to the provider with a signed CSRF state cookie. **503** when auth is unconfigured (no `APP_SESSION_SECRET` / OAuth creds). | — |
 | GET | `/api/app/auth/callback` | app | **Consumer platform auth**: complete OAuth — verify state, exchange code, upsert the user (plain per-user files), set an HMAC-signed session cookie, **307** to `/`. **400** invalid state; **403** account not on the sign-in allowlist ([#1064](https://github.com/chipi/podcast_scraper/issues/1064)); **502** exchange failure. | `code`, `state` |
 | POST | `/api/app/auth/logout` | app | **Consumer platform auth**: clear the session cookie (**204**). | — |
@@ -121,14 +97,57 @@ either would have been built for anonymous reads and met a wall of 401s.
 | GET, PUT | `/api/app/queue` | app | **Consumer platform** (auth): the user's play queue — ordered episode slugs `{items[]}` ([#1065](https://github.com/chipi/podcast_scraper/issues/1065)). | — |
 | GET, POST, DELETE | `/api/app/library` (+ `/{feed_id}`) | app | **Consumer platform** (auth): subscribed podcasts — list / subscribe (idempotent on `feed_id`) / unsubscribe ([#1065](https://github.com/chipi/podcast_scraper/issues/1065)). | — |
 | GET, PUT, DELETE | `/api/app/favorites` (+ `/{kind}/{ref}`) | app | **Consumer platform** (auth): saved items grouped by kind — `{episodes[], entities[{kind, ref, label, sublabel?, color?}]}` (`AppFavoritesResponse`). `PUT` saves `{kind: episode\|show\|topic\|person\|storyline\|theme, ref, …}` (idempotent on `kind`+`ref`); `DELETE /{kind}/{ref}` removes (`ref` URL-encoded). `GET` pages only when `limit` is sent (1.0.3): one filtered, sorted page plus `total` and per-kind `counts`; without it the response is unchanged. | `kind`, `q`, `color`, `sort`, `offset`, `limit` |
-| GET | `/api/app/favorites/refs` | app | **Consumer platform** (auth): `{items[{kind, ref, color?}]}` — which items are saved, without hydrating them. Added for 1.0.3. | — |
 | GET, PUT | `/api/app/interests` | app | **Consumer platform** (auth): the user's interest token list `{items[]}` (`InterestsResponse`) — a **mixed token set** (`tc:` clusters / `topic:` / `person:`); `PUT` replaces it (`InterestsUpdate`). Drives flag-gated personalized discovery (`rank_discover`). [#1098](https://github.com/chipi/podcast_scraper/issues/1098). | — |
 | POST, DELETE | `/api/app/interests/{token}` | app | **Consumer platform** (auth): follow / unfollow a single interest token (cluster `tc:` / topic `topic:` / person `person:`) — the entity-card `Follow` toggle. Idempotent; `DELETE` is a no-op when absent. Returns `{items[]}`. [#1097](https://github.com/chipi/podcast_scraper/issues/1097). | — |
-| GET | `/api/app/themes` | app | **Consumer platform**: top **themes** (`tc:` — topics that are semantically alike) by corpus prevalence, for the picker — `{items[{id, label, size}]}` (`AppInterestClustersResponse`). [#1098](https://github.com/chipi/podcast_scraper/issues/1098). | `limit` (`1`–`50`, default 12) |
-| GET | `/api/app/storylines` | app | **Consumer platform**: top **storylines** (`thc:` — topics *discussed together*) for the Home rail + picker — `{items[{id, label, size, anchor_topic_id}]}` (`AppStorylinesResponse`). Complementary to `/api/app/themes`; floored at 4 members, so it is a strict subset of what `/api/corpus/storylines` reports. Empty (never 404) when the artifact is absent. | `limit` (`1`–`50`, default 12) |
-| POST | `/api/app/listen/{slug}` | app | **Consumer platform** (auth): append one "episode opened" event to the user's append-only listen log (`listen_events.jsonl`) for analytics — **204**, best-effort, never blocks playback. | — |
-| GET | `/api/app/me/stats` | app | **Consumer platform** (auth): the signed-in user's own listening summary — `{episodes, shows, listening_seconds, active_days, day_streak, daily[{date, count}]}` (`UserStatsResponse`); `daily` is a 14-day opens sparkline. Computed from per-user playback + listen log (no DB, no LLM). | — |
-| GET | `/api/app/episodes/{slug}/stats` | app | **Consumer platform** (**auth**): anonymous cross-user reach — `{slug, listeners, opens, insights, daily[{date, count}]}` (`EpisodeStatsResponse`). Aggregate counts only (never identities), from scanning every user's listen log; zeroed when no `APP_DATA_DIR`. | — |
+| GET | `/api/app/admin/access-policy` | app-admin | Who may sign in — the persisted policy when there is one, else the startup env policy. | — |
+| PUT | `/api/app/admin/access-policy` | app-admin | Replace the sign-in access policy. Takes effect on the NEXT sign-in — no redeploy. | — |
+| GET | `/api/app/admin/release` | app-admin | One app's released version, served to its native update prompt (admin only). | `app` |
+| PUT | `/api/app/admin/release` | app-admin | Set an app's released version at RUNTIME — no deploy, no restart (operator 2026-10-07). | — |
+| GET | `/api/app/admin/users` | app-admin | List every platform user (admin-only). | — |
+| POST | `/api/app/admin/users` | app-admin | Pre-provision a user with a role. 409 if that identity already exists, 422 on a bad role. | — |
+| PATCH | `/api/app/admin/users/{user_id}` | app-admin | Change a user's role and/or active state (admin-only, self-lockout-guarded). | — |
+| DELETE | `/api/app/admin/users/{user_id}` | app-admin | Hard-delete a user (admin-only). An admin cannot delete their own account. | — |
+| GET | `/api/app/auth/dev-users` | app | Predefined dev identities for the sign-in picker — only when the MOCK provider is active. | — |
+| POST | `/api/app/auth/email/code` | app | Sign in the store-review address with its code (see ``app_review_signin``). | — |
+| POST | `/api/app/auth/email/request` | app | Send a sign-in link to ``email``. ALWAYS answers 202, whatever the address is. | — |
+| GET | `/api/app/auth/email/verify` | app | Consume a sign-in link: create or sign in the account, then redirect. | `token`, `platform`, `return_to` |
+| GET | `/api/app/auth/status` | app | Whether platform auth is *configured*, plus the signed-in user (if any) — never 401s. | — |
+| GET | `/api/app/graph-events/session/{session_id}` | app | One session's ordered event timeline (admin only) — the step-by-step view + replay source. | — |
+| GET | `/api/app/graph-events/sessions` | app | List analytics sessions (admin only), most-recent first — one row per session to inspect. | — |
+| GET | `/api/app/graph-events/summary` | app | Aggregate graph analytics across all users (admin only) — usage / size / breakage. | — |
+| GET | `/api/app/preferences` | app | Return the current user's preferences payload ({} when unset). | — |
+| PUT | `/api/app/preferences` | app | Replace the ENTIRE preferences payload with the request body. | — |
+| PATCH | `/api/app/preferences` | app | Shallow-merge the request body into the stored payload, then apply its item-level ``ops``. | — |
+| POST | `/api/app/profile/avatar` | app | Store the signed-in user's uploaded avatar (overrides the OAuth one). 415/413/400 on a bad | — |
+| POST | `/api/app/profile/name` | app | Set the signed-in user's display name. 400 when nothing usable remains after trimming, when | — |
+| GET | `/api/corpus/entity-signals` | corpus_enrichments | Corpus enrichers pre-filtered to ONE graph node's entity (``?path=``-scoped viewer plane). | `kind`, `id`, `path` |
+| GET | `/api/enrichment/config` | enrichment-config | Resolved enrichment config view: profile block + operator override + merged. | `path` |
+| PUT | `/api/enrichment/config` | enrichment-config | Validate + persist the operator-side ``enrichment:`` block. | `path` |
+| GET | `/api/enrichment/config/admission` | enrichment-config | Per-enricher accuracy-gate admission status (the UI leg of the cascade). | — |
+| GET | `/api/enrichment/config/schema` | enrichment-config | Full JSON Schema for the ``enrichment:`` block (data-driven UI). | — |
+| GET | `/api/enrichment/events` | enrichment | Return a slice of the JSONL event stream (most recent first). | `path`, `enricher_id`, `event_type`, `limit` |
+| GET | `/api/enrichment/health` | enrichment | Per-enricher health: failure/circuit state PLUS whether the enricher is switched on. | `path`, `enricher_id` |
+| POST | `/api/enrichment/health/{enricher_id}/re-enable` | enrichment | Operator manual recovery — same effect as ``podcast enrich --re-enable``. | `path` |
+| GET | `/api/enrichment/metrics` | enrichment | Per-enricher metrics: the last run's summary, and a rollup over ``window``. | `path`, `enricher_id`, `window` |
+| GET | `/api/enrichment/provider-types` | enrichment-config | Catalogue of registered provider types grouped by protocol. | — |
+| GET | `/api/enrichment/run-summary` | enrichment | GET /api/enrichment/run-summary — last completed run summary. | `path` |
+| GET | `/api/enrichment/stats` | enrichment | Corpus enrichment freshness — the enrichment mirror of ``GET /api/index/stats``. | `path` |
+| GET | `/api/enrichment/status` | enrichment | Return the current live status (``{}`` when the file is absent / corrupt). | `path` |
+| POST | `/api/jobs/enrichment` | enrichment | Enqueue a ``corpus_enrichment`` job (202 + optional queue position). | `path` |
+| POST | `/api/jobs/resume` | jobs | Release the hold the stop endpoint set — a brake that cannot be released is a defect. | `path` |
+| GET | `/api/jobs/running` | jobs | What is executing right now (#1785) — the view that used to need ``docker ps`` over SSH. | `path` |
+| POST | `/api/jobs/stop` | jobs | The emergency brake (#1785): hold the queue, SIGTERM running work, verify, report. | `path`, `verify_seconds` |
+| GET | `/api/ops/cache-stats` | ops | Per-namespace hit/miss/size + build-time-saved for the central in-process perf caches | — |
+| GET | `/api/ops/corpus/integrity` | ops | GI integrity for every corpus-member episode — counts, defect lists, verdict. | — |
+| GET | `/api/ops/corpus/preprocessing` | ops | Preprocessing damage assessment; the repair worklist is returned AS JSON, never written. | — |
+| GET | `/api/ops/corpus/usage` | ops | Corpus disk footprint by top-level directory (bytes actually on disk under the root). | — |
+| GET | `/api/ops/gateway/auth` | ops | Does the credential THIS CONTAINER actually holds authenticate against the gateway? | — |
+| GET | `/api/ops/llm-gateway` | ops | Per-key spend / budget / burn for the prod LiteLLM gateway. | — |
+| GET | `/api/ops/secrets/status` | ops | Presence/size/hash-prefix of every staged secret — VALUES NEVER CROSS THIS BOUNDARY. | — |
+| GET | `/internal/outbox/pending` | internal | Pending envelopes for a channel — current-consent-filtered, non-expired, oldest-first. | `channel`, `limit` |
+| POST | `/internal/outbox/{envelope_id}/status` | internal | Record a terminal status (idempotent per id); suppresses the channel on bounce/complaint. | — |
+| GET | `/og/page/{route}/{ident}` | og | The og/twitter tags for one shareable document, for a link-preview bot. | — |
+| GET | `/og/{kind}/{ident}.png` | og | Render ``(kind, ident)`` to a PNG card. 404 when the entity can't be resolved. | — |
 
 Design and response field semantics: [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 
@@ -141,8 +160,6 @@ Pydantic response schemas are defined in
 - `ArtifactListResponse` / `ArtifactItem`
 - `IndexStatsEnvelope` / `IndexStatsBody` / `IndexRebuildAccepted`
 - `CorpusSearchApiResponse` / `SearchHitModel` (optional **`lifted`** on transcript rows when lift applies; optional **`supporting_quotes`** on insight rows — quote speaker fields follow GI segment/diarization rules, issue **#541**)
-- `ExploreApiResponse` (insight **`supporting_quotes`** speaker fields follow GI segment/diarization rules, issue **#541**)
-- `CilArcEpisodeBlock` / `CilPositionArcResponse` / `CilPersonProfileInsightRow` / `CilPersonProfileQuoteRow` / `CilPersonProfileResponse` / `CilTopicTimelineResponse` / `CilTopicTimelineMergeRequest` / `CilTopicTimelineMergedResponse` / `CilIdListResponse`
 - `CorpusResolveEpisodesRequest` / `CorpusResolveEpisodesResponse` / `CorpusResolvedEpisodeArtifact`
 - `CorpusFeedsResponse` / `CorpusFeedItem`
 - `CorpusEpisodesResponse` / `CorpusEpisodeListItem`
@@ -150,7 +167,9 @@ Pydantic response schemas are defined in
 - `CorpusSimilarEpisodesResponse` / `CorpusSimilarEpisodeItem`
 - `CorpusDigestResponse` / `CorpusDigestRow` / `CorpusDigestTopicBand` / `CorpusDigestTopicHit`
   (digest rows: **`summary_bullet_graph_topic_ids`** parallel to **`summary_bullets_preview`**;
-  topic bands: **`graph_topic_id`** — `topic:{slug}` from the band label for Graph focus)
+  topic bands: **`graph_topic_id`** — `topic:{slug}` from the band label for Graph focus, empty
+  when no episode names that topic; **`rows_in_window`** — the episodes in the window, of which
+  `rows` is a per-show sample)
 - `CorpusStatsResponse` / `CorpusRunsSummaryResponse` / `CorpusRunSummaryItem`
 - `RelatedNodeModel` / `RelationalListResponse` / `RelationalGroupedResponse` (relational-query layer, RFC-094 / #882)
 - `QueryActivityResponse` / `QueryActivityBucket` (search-activity, PRD-033 FR6.2)
@@ -171,8 +190,6 @@ resolve against [`server/schemas.py`][schemas-py].
 | GET | `/api/corpus/episode/enrichments/{enricher_id}` | envelope | open | path: `enricher_id`; query: `metadata_relpath`, `path` | Per-episode enricher output; identify the episode by its `.metadata.json` relative path. |
 | GET | `/api/corpus/feed-signals` | `CorpusFeedSignalsResponse` | open | `path`, `feed_id`, `top_k`, `max_episodes` | Feed-level signals for one show (topic distribution, cadence). |
 | GET | `/api/corpus/media` | binary stream | open | `path`, `relpath` | Locally-persisted audio bytes (RFC-096). |
-| GET | `/api/corpus/storylines` | envelope | open | `path` | **Storylines** — topics discussed together (co-occurrence lift). Operator overlay over the `topic_theme_clusters` artifact; unlike `/api/app/storylines` it is unfloored by default. Distinct from `/api/corpus/topic-clusters`, which serves the *semantic* clusters the consumer calls **themes**. |
-| GET | `/api/corpus/trending` | `AppCorpusTrendingResponse` | open | `limit_per_kind` | Corpus-scope trending entities (momentum) — operator counterpart to `/api/app/trending`. |
 | GET | `/api/index/timeseries` | `IndexTimeseriesResponse` | open | `path` | Historical index-rebuild + staleness stats over time. |
 | GET | `/api/jobs/subprocess-log` | plain text | open | `job_id`, `path` | Full stdout+stderr of a pipeline job's subprocess. |
 | GET | `/api/jobs/subprocess-log-tail` | `PipelineJobLogTailResponse` | open | `job_id`, `path`, `max_bytes` | Tail-slice + optional live polling of a running job's subprocess log. |
@@ -182,8 +199,6 @@ resolve against [`server/schemas.py`][schemas-py].
 | GET | `/api/ops/summary` | ops summary JSON | open | — | Ops dashboard summary — costs, model spend, provider health. |
 | POST | `/api/ops/resilience/reset` | 200 OK | open | `scope` (query) | Force-reset a resilience breaker before its cooldown (ADR-113). |
 | GET | `/api/resilience` | resilience-state JSON | open | — | Current resilience-layer state per provider (open breakers, blown fuses). |
-| GET | `/api/topics/perspective-leaders` | `CilTopicPerspectiveLeadersResponse` | open | `path`, `limit` | Corpus-wide "who talks most about X" leaderboard across topics. |
-| GET | `/api/topics/{topic_id}/perspectives` | topic-perspectives JSON | open | path: `topic_id`; query: `path`, `scope` | CIL topic-perspectives (operator equivalent of `/api/app/topics/…/perspectives`). |
 | POST | `/api/search/compare` | `SearchCompareResponse` | open | JSON body: `SearchCompareRequest` | Two-subject briefing pack (Search v3 compare operator). |
 | GET | `/api/usage` | usage rollup JSON | open | `window`, `provider` | Provider usage rollup — token / spend counters over the current window. |
 

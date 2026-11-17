@@ -3,8 +3,8 @@
 This repository is **Python-first**: the package, CLI, tests, and `Makefile` live at the **repo
 root**. On top of that, **a Node/Vue project** lives under `web/`:
 
-- **Workbench** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** inspection
-  tool for knowledge-graph + grounded-insight artifacts. Under
+- **Workbench** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** browser UI
+  for a pipeline output corpus (Digest, Library, Search, Graph, Dashboard, Ops). Under
   [`web/workbench/`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/).
 
 Treat it as two toolchains (Python + Node) that share one git tree, not one unified `npm`
@@ -30,7 +30,7 @@ workspace (by design).
 | File | Purpose |
 | ---- | ------- |
 | **`config/examples/.env.example`** | Copy to **repo root** `.env` for **Python**: API keys, `CACHE_DIR`, logging, optional `PODCAST_SCRAPER_*`, etc. ([CONFIGURATION.md](../api/CONFIGURATION.md); [twelve-factor config](../api/CONFIGURATION.md#twelve-factor-app-alignment-config)). |
-| **`web/workbench/.env.example`** | Copy to **`web/workbench/.env`** for **Vite** only: `VITE_DEFAULT_CORPUS_PATH` (pre-fills the shell corpus path for Graph tab auto-load — **API corpus path** only; offline file-picker loads skip `topic_clusters.json` fetch and sibling merge), `VITE_CLUSTER_SIBLING_EPISODE_CAP` (Graph tab topic-cluster sibling auto-load), `VITE_DEFAULT_GRAPH_LENS_DAYS` (Graph time-lens lower bound on first auto-load: positive integer = "last N days" — production default `7`; `0` or empty = "all time", used by the stack-test viewer build so static fixture publish dates aren't filtered out). Vite loads `.env*` next to the app by default. |
+| **`web/workbench/.env.example`** | Copy to **`web/workbench/.env`** for **Vite** only: `VITE_DEFAULT_CORPUS_PATH` (pre-fills the status-bar corpus path for Graph tab auto-load — **API corpus path** only; offline file-picker loads skip the `topic_clusters.json` fetch and sibling merge), `VITE_DEFAULT_GRAPH_LENS_DAYS` (Graph time-lens lower bound on first auto-load: positive integer = "last N days" — production default `7`; `0` or empty = "all time", used by the stack-test viewer build so static fixture publish dates aren't filtered out). Vite loads `.env*` next to the app by default. |
 
 Root `.gitignore` already ignores `.env`, `.env.local`, and similar patterns so secrets are not
 committed from either location.
@@ -61,10 +61,10 @@ The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://gi
 | `make serve-ui` | Vite only in `web/workbench` (proxies `/api` → **8000**). |
 | `make serve-e2e-mock` | **E2E fixture HTTP server** (RSS + mock API paths) on **`127.0.0.1`**; default port **18765** (**`E2E_MOCK_PORT`**). Use **`--feeds-spec`** with fixture URLs on that host/port (primary p01–p05 + long-form p07–p09; skips p06 edge cases) ([E2E Testing Guide](E2E_TESTING_GUIDE.md#manual-cli-runs-against-the-fixture-server)). |
 | `make test-ui` | Vitest unit tests for TS utils under `web/workbench` (no browser). |
-| `make test-ui-e2e` | Playwright E2E (Chrome; Firefox in CI); installs npm deps and browsers as needed. |
-| `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets against **indexed transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification). |
+| `make test-ui-e2e` | Playwright E2E (Firefox); installs npm deps and the browser as needed. |
+| `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets (needs GIL artifacts, which an installed extension writes) against **indexed transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification). |
 
-**CI** runs the same `web/workbench` paths; see `.github/workflows/python-app.yml`.
+**CI** runs the same `web/workbench` paths: Vitest in the `viewer-unit` job of `.github/workflows/python-app.yml`, Playwright in its `viewer-e2e` job (on main, and on pull requests that change the Workbench or what it runs against) and in `nightly-viewer-e2e` of `.github/workflows/nightly.yml`.
 
 ---
 
@@ -123,7 +123,7 @@ the registry** if the literal name isn't in `node_modules`. Reach for
 - **First pipeline run (profile + operator YAML + feeds):** [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list),
   [Installation Guide](INSTALLATION_GUIDE.md), [CLI.md — Quick Start](../api/CLI.md#quick-start)
 - **Contributor setup:** [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
-- **Daily dev patterns:** [Development Guide](DEVELOPMENT_GUIDE.md) — [GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
+- **Daily dev patterns:** [Development Guide](DEVELOPMENT_GUIDE.md) — [Workbench (browser viewer)](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
 - **FastAPI routes and `serve`:** [Server Guide](SERVER_GUIDE.md) — `/api/*` overview; OpenAPI UI at **`/docs`** when the API is up
 - **Vitest + Playwright:** [Testing Guide](TESTING_GUIDE.md#browser-e2e-workbench)
 - **One-page commands:** [Quick Reference](QUICK_REFERENCE.md)

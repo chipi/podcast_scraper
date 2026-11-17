@@ -18,7 +18,7 @@ gets SIGKILLed).
 | --- | --- | --- | --- |
 | **1 — Unit** | logic: stores / utils / services (`src/**/*.test.ts`, no DOM) | Vitest | `npm run test:unit` |
 | **2 — Component** | `.vue` mount tests (`@vue/test-utils` + happy-dom) | Vitest | `npm run test:unit` (same run) |
-| **3 — E2E (mocked)** | real browser, **mocked API** (`page.route`) + offline GI/KG fixtures; own Vite dev server on **5174** | Playwright (`playwright.config.ts`) | `npm run test:e2e` |
+| **3 — E2E** | real browser against a **real API** on the e2e fixture corpus and the test database; some specs mock routes with `page.route`; own Vite dev server on **5174** (`E2E_UI_PORT` overrides) | Playwright (`playwright.config.ts`) | `npm run test:e2e` |
 | **3/4 — Real-corpus walk** | real browser against a **live `make serve` stack** (UI 5173 + API 8000) + a real on-disk corpus; one scenario per matrix surface + screenshots + console-error assertions | Playwright (`playwright.validation.config.ts`) | `make ci-ui-validation CORPUS=<path>` (from repo root) |
 
 Tiers 1 + 2 share one Vitest run (the file's `// @vitest-environment` decides

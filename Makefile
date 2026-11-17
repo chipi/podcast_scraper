@@ -1343,7 +1343,7 @@ test-ui:
 	@echo "Vitest unit tests + coverage gate (Workbench, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
-# Playwright browser E2E: Chrome locally, Firefox under CI (playwright.config.ts).
+# Playwright browser E2E: Firefox (playwright.config.ts), against a real API and the test database.
 test-ui-e2e:
 	@echo "Playwright E2E (Workbench)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e

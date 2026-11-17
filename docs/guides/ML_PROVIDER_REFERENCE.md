@@ -11,7 +11,7 @@ For general configuration, see the [Provider Configuration Quick Reference](PROV
 The `MLProvider` is a unified implementation that handles three core capabilities using local machine learning models:
 
 1. **Transcription**: Using **Whisper** (OpenAI's open-source model).
-2. **Speaker Detection**: Using **spaCy** (Named Entity Recognition).
+2. **Speaker Detection**: using **spaCy** (Named Entity Recognition), added by an installed extension: the speaker and host detection methods belong to the speaker stage, which `providers/extensible.py` attaches to a provider when the extension registers them. Without it a public install detects no speakers.
 3. **Summarization**: Using **Hugging Face Transformers** (BART, LED, PEGASUS).
 
 ### Overall ML Pipeline
@@ -72,7 +72,7 @@ flowchart LR
 1. **Audio Loading**: Loads MP3/WAV files.
 2. **Whisper Invocation**: Transcribes using the configured model (e.g., `base.en`, `small.en`).
 3. **Segment Generation**: Captures start/end timestamps for every sentence or phrase.
-4. **Screenplay Formatting**: Rotates through detected speakers based on silence gaps and time intervals to produce a "script-style" transcript.
+4. **Screenplay Formatting**: rotates through `screenplay_num_speakers` speakers on silence gaps (`screenplay_gap_s`) to produce a "script-style" transcript (`format_screenplay_from_segments`). Speaker names come from an installed speaker stage; without one the labels are numbered.
 
 ### 2.2 Whisper Device Detection
 
@@ -85,6 +85,9 @@ Whisper performance varies wildly based on hardware. The system prefers:
 ---
 
 ## Speaker Detection Pipeline
+
+> **Extension-provided.** This section describes the speaker stage an installed extension adds
+> (`providers/extensible.py`). A public-only install runs no speaker detection.
 
 The system uses Named Entity Recognition (NER) to identify potential hosts and guests from episode metadata.
 
@@ -253,38 +256,18 @@ The following issues are architectural limits of BART/LED, not bugs:
 
 ---
 
-## Hybrid ML Provider (summary_provider: hybrid_ml)
+## Hybrid MAP-REDUCE (retired)
 
-**Status**: Implemented (RFC-042).
+`summary_provider: hybrid_ml` (RFC-042) is retired: [ADR-154](../adr/ADR-154-hybrid-map-reduce-retirement.md)
+found that the BART MAP preprocessing hurt a capable REDUCE model. The provider, its `hybrid_*`
+config keys and the `llama-cpp-python` dependency are gone; `summary_provider` no longer accepts
+`hybrid_ml`. For local summarization use `transformers` (BART/LED, above) or `summllama`.
 
-The **Hybrid ML** provider performs MAP-REDUCE summarization with a local MAP phase (e.g. LongT5-base) and a configurable REDUCE phase. Use `summary_provider: hybrid_ml` in config.
+## SummLlama (summary_provider: summllama)
 
-### Layered transcript cleaning (Issue #419)
-
-Before MAP, transcripts are cleaned twice in concept: (1) the **workflow** runs `cleaning_processor` from `transcript_cleaning_strategy` (same classes as OpenAI/Gemini/… providers: `PatternBasedCleaner`, `LLMBasedCleaner`, or `HybridCleaner`). (2) **`HybridMLProvider.summarize`** applies a **registered preprocessing profile** (default `cleaning_v4`). When strategy is **`pattern`**, the workflow passes `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` (default `cleaning_hybrid_after_pattern`) so sponsor/outro work is not duplicated while v4-only steps (header strip, junk filter, anonymization, artifact scrub) still run before chunking. For **`llm`** / **`hybrid`** strategies, internal preprocessing stays **`cleaning_v4`**. CLI: `--transcript-cleaning-strategy`, `--hybrid-internal-preprocessing-after-pattern`. See [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
-
-### Flow
-
-1. **MAP phase**: Transcript is chunked and each chunk is summarized using the MAP model (e.g. `longt5-base`), producing structured notes.
-2. **REDUCE phase**: Notes are combined into a final summary using one of three backends:
-   * **transformers** — FLAN-T5 or similar (default: `google/flan-t5-base`). Runs locally via PyTorch.
-   * **ollama** — Local LLMs (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`, `qwen2.5:32b`). Requires Ollama running; the reduce instruction is sent as an inline prompt (no template file).
-   * **llama_cpp** — GGUF models via `llama-cpp-python`. `hybrid_reduce_model` is the path to a `.gguf` file.
-
-### Configuration
-
-| Config key | Default | Description |
-| --- | --- | --- |
-| `hybrid_map_model` | `longt5-base` | HuggingFace model for MAP (chunk summarization). |
-| `hybrid_reduce_model` | `google/flan-t5-base` | Model for REDUCE: HuggingFace ID (transformers), Ollama tag (ollama), or path to GGUF (llama_cpp). |
-| `hybrid_reduce_backend` | `transformers` | One of: `transformers`, `ollama`, `llama_cpp`. |
-| `hybrid_map_device` | (auto) | Device for MAP (e.g. `mps`, `cuda`, `cpu`). |
-| `hybrid_reduce_device` | (auto) | Device for REDUCE when using `transformers` (e.g. `mps`, `cuda`, `cpu`). |
-| `hybrid_reduce_n_ctx` | (optional) | Context size for `llama_cpp` (default 4096). |
-| `transcript_cleaning_strategy` | `hybrid` | Same as API summarization providers; selects workflow `cleaning_processor`. |
-| `hybrid_internal_preprocessing_after_pattern` | `cleaning_hybrid_after_pattern` | Internal MAP preprocessing profile when strategy is `pattern` (see layered cleaning above). |
-
-Transcription and speaker detection are not provided by `HybridMLProvider`; use `whisper` and `spacy` (or other providers) for those. See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for using Ollama as the REDUCE backend and acceptance test configs.
+Single-pass summarization with a causal LM (`DISLab/SummLlama3.2-3B` by default, `summllama_model`)
+running in process: no daemon, no MAP/REDUCE (`providers/ml/summllama_provider.py`, #571). For a local
+model served over HTTP instead, use `ollama` or `vllm` ([Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md)).
 
 ---
 
@@ -292,8 +275,8 @@ Transcription and speaker detection are not provided by `HybridMLProvider`; use 
 
 The current BART/LED implementation serves as the **Classic Summarizer Baseline**. Implemented and available:
 
-* **Hybrid MAP-REDUCE (RFC-042)**: REDUCE phase can use instruction-following models via **transformers** (FLAN-T5), **ollama** (e.g. Llama, Mistral, Qwen), or **llama_cpp** (GGUF) for better abstraction.
-* **Grounded Insights (GI)**: Implemented — evidence-based insight extraction with embedding, extractive QA, and NLI models.
+* **SummLlama** (`summllama`): single-pass local causal-LM summarization (above). Hybrid MAP-REDUCE (RFC-042) was retired by ADR-154.
+* **Grounded Insights (GI)**: provided by an installed extension; this repository ships the model loaders it uses (embedding, `extractive_qa`, `nli_loader` under `providers/ml/`).
 * **Knowledge Graph (KG)**: Implemented — entity and relationship extraction from transcripts via LLM-based pipelines.
 
 Planned or in progress:
@@ -357,5 +340,5 @@ Config keys: `embedding_model`, `extractive_qa_model`, `extractive_qa_device`, `
 | Phase | Strategy | Model Class | Context Handling |
 | :--- | :--- | :--- | :--- |
 | **Current (Stable)** | Classic Map-Reduce | Encoder-Decoder (BART/LED) | Fixed chunking (600 tokens) |
-| **Current (Available)** | Hybrid Map-Reduce | LongT5 MAP + FLAN/Ollama/llama_cpp REDUCE | MAP chunking; REDUCE via transformers, ollama, or llama_cpp |
+| **Current (Available)** | Single-pass causal LM | SummLlama 3.2-3B (`summllama`), or an LLM provider | Whole transcript in one pass |
 | **Future** | Intelligent Synthesis | Mixture-of-Experts (MoE) | Semantic chunking |

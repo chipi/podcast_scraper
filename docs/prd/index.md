@@ -69,8 +69,8 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding PRDs):** **29** PRD documents -- **2** open (Partial/Draft) above,
-**20** implemented, **7** Draft (not indexed until promoted).
+**Counts (reconcile when adding PRDs):** **35** PRD documents (recounted 2026-11-17) -- **14** open above
+(3 Partial, 10 Draft, 1 with no status line), **21** implemented.
 Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers — not **`Completed`**
 (that label is for RFCs and ADRs).
 

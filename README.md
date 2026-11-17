@@ -6,10 +6,18 @@
 [![Snyk Security](https://snyk.io/test/github/chipi/podcast_scraper/badge.svg)](https://snyk.io/test/github/chipi/podcast_scraper)
 
 Download, transcribe, and summarize podcast episodes. Fetches transcripts from RSS feeds
-(Podcasting 2.0), generates them when missing, detects speakers, creates summaries,
-and optionally extracts structured insights (GIL) and knowledge graphs (KG).
-Use local models (Whisper, transformers) or cloud APIs (OpenAI, Gemini, Anthropic,
-Mistral, DeepSeek, Grok, Ollama) — your choice.
+(Podcasting 2.0), generates them when missing, creates summaries, optionally extracts
+knowledge graphs (KG), indexes the corpus for hybrid search, and lets you browse it all in
+the Workbench, a browser UI for the operator.
+Use local models (Whisper, transformers, or a local Ollama or vLLM server) or cloud APIs
+(OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Groq, Qwen, Deepgram, or any model behind a
+LiteLLM gateway) — your choice.
+
+This repository is the open platform: pipeline, corpus, search, the Workbench and the
+extension seams. Speaker detection and diarization, grounded insights (GIL), the identity
+ledger, ad cleaning and the advanced KG passes are not built in: an installed extension
+provides them, and without one each of those steps does nothing (the `gi` command, for
+example, does not exist until an extension adds it).
 
 **Learning project:** This is a personal project where I'm exploring AI-assisted coding
 and hands-on work with edge and cloud AI/ML technologies.
@@ -25,28 +33,26 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Episode selection** — Order (`newest` / `oldest`), optional publish-date window (`--since` / `--until`), offset, and `max_episodes` for large back-catalogs ([CONFIGURATION.md](docs/api/CONFIGURATION.md#episode-selection-github-521), GitHub #521)
 - **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, **`--feeds-spec`** for structured `feeds.spec.yaml` / JSON, or repeatable `--rss` / legacy `--rss-file`; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search`, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
 - **Transcription** — Local Whisper, DGX tailnet Whisper, OpenAI, Gemini, Mistral, **Deepgram Nova-3**, Groq, or Moss, with an optional fallback chain; automatic **API audio chunking** for oversized files ([Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md))
-- **Speaker screenplay** — Gap-based or **neural diarization** (`local` pyannote, `tailnet_dgx`, Gemini, Deepgram or Moss; on by default for local and DGX Whisper, opt-in for the other providers; `--no-diarize` to disable); maps to detected host/guest names
 - **Translation** — Non-English episodes are translated to English by a translation stage (`gemma_translate`, when `translate_api_base` and `translate_model` are set); English is the canonical transcript and the source is kept as `<base>.<lang>.*` ([Multilingual Arc](docs/architecture/MULTILINGUAL_ARC.md))
-- **Commercial cleaning** — Confidence-scored sponsor/ad detection (patterns + position; optional diarization signals when speaker timeline exists)
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
-- **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
-- **Summarization** — Episode summaries via local transformers (BART/LED), hybrid MAP-REDUCE (`hybrid_ml`), or any of 7 LLM providers
-- **GIL Extraction** — Structured insights and verbatim quotes with evidence grounding (`gi.json` per episode, [PRD-017](docs/prd/PRD-017-grounded-insight-layer.md))
-- **KG Extraction** — Topic-entity knowledge graphs from transcripts (`kg.json` per episode, [RFC-055](docs/rfc/RFC-055-knowledge-graph-layer-core.md))
+- **Summarization** — Episode summaries via local models (`transformers` BART/LED, `summllama`) or an LLM provider (`openai`, `gemini`, `anthropic`, `mistral`, `grok`, `deepseek`, `groq`, `qwen`, `ollama`, `vllm`, `litellm`; `summary_provider` in [CONFIGURATION.md](docs/api/CONFIGURATION.md))
+- **KG Extraction** — Topic-entity knowledge graphs from transcripts (`kg.json` per episode, [RFC-055](docs/rfc/RFC-055-knowledge-graph-layer-core.md)); `kg validate | inspect | export | entities | topics` CLI
 - **Metadata Generation** — JSON/YAML metadata per episode
-- **Resumable** — Skip existing files, handle interruptions gracefully
+- **Resumable** — Skip existing files (`--skip-existing`), resume a run (`--append`), handle interruptions gracefully
 - **Provider System** — Swap between local and cloud providers via config
 - **MPS Exclusive Mode** — Serialize GPU work on Apple Silicon to prevent memory contention and improve reliability (enabled by default)
 - **Reproducibility** — Deterministic runs with seed control, pinned model revisions, and comprehensive run manifests (Issue #379)
 - **Operational Hardening** — Configurable HTTP retries (media vs RSS), application-level episode retries on transient errors, timeout enforcement, `--fail-fast` / `--max-failures`, structured JSON logging, and `failure_summary` in `run.json` when episodes fail ([CONFIGURATION.md — Download resilience](docs/api/CONFIGURATION.md#download-resilience), Issue #379)
 - **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
-- **Hybrid corpus search** — Two-tier (transcript segments + GIL insights) **BM25 + dense vector via RRF** over LanceDB, with **compound results**; the single search path when a two-tier index exists (FAISS retired in #995, ADR-099) ([RFC-090](docs/rfc/RFC-090-hybrid-retrieval.md)). Enabled by `vector_search`; `search` / `index` CLIs, and semantic `gi explore --topic` ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
+- **Hybrid corpus search** — **BM25 + dense vector via RRF** over LanceDB across four document types: transcript chunks, summary bullets, KG entities and KG topics; the single search path when a two-tier index exists (FAISS retired in #995, ADR-099) ([RFC-090](docs/rfc/RFC-090-hybrid-retrieval.md)). Enabled by `vector_search`; `search` / `index` CLIs ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
+- **Enrichment** — A framework for typed, opt-in enrichers that write structured envelopes under `enrichments/` (`enrich` CLI, [Enrichment Layer Guide](docs/guides/ENRICHMENT_LAYER_GUIDE.md)). This repository registers one enricher, `topic_cooccurrence_corpus`; installed extensions add more.
 - **Run Tracking** — Per-episode stage timings, run summaries, episode index files, and `metrics.json` fields for download retries (`http_urllib3_retry_events`, `episode_download_retries`) (Issue #379)
-
 - **Live pipeline monitor** — Optional **`--monitor`**: separate process + **`rich`** dashboard (or **`.monitor.log`** if stderr is not a TTY) and **`.pipeline_status.json`**. Optional **`pip install -e ".[monitor]"`**: **`--memray`** for heap profiling; with monitor + TTY, **`f`** runs **py-spy** to **`debug/flamegraph_*.svg`** ([RFC-065](docs/rfc/RFC-065-live-pipeline-monitor.md), [guide](docs/guides/LIVE_PIPELINE_MONITOR.md), #512)
-- **Workbench** — Optional browser UI: graph visualization, dashboard, semantic search, explore, **Corpus Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), and **Corpus Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)) — all against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below). Cross-surface navigation is owned by a single **graph handoff FSM** ([ADR-094](docs/adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](docs/rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)) with envelope contract, generation-token concurrency, stuck detection, and visible error UX.
-- **Operator design records** — version-aware **corpus snapshot backup + restore** ([RFC-084](docs/rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md), [ADR-092](docs/adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)); the deployment, backup and restore tooling itself is not in this repository. Shipped here: a **ledgered corpus-upgrade framework** ([#862](https://github.com/chipi/podcast_scraper/issues/862), [CORPUS_UPGRADE](docs/guides/CORPUS_UPGRADE.md), `make upgrade-check` / `upgrade-corpus`) that carries deployed corpora across release boundaries and is auto-run on prod restore ([#1176](https://github.com/chipi/podcast_scraper/issues/1176)), and one **stack contract** covering dev / prod with one health surface and one `stack-test` discipline.
+- **Workbench** — Browser UI for the operator, against a pipeline output folder: **Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)), **Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), **Search**, **Graph**, **Dashboard**, **Ops** and **Admin** tabs ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below). Desktop only (minimum width 1024 px, [UXS-001](docs/uxs/UXS-001-workbench.md)). Cross-surface navigation is owned by a single **graph handoff FSM** ([ADR-094](docs/adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](docs/rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)) with envelope contract, generation-token concurrency, stuck detection, and visible error UX.
+- **Database** — App state lives in Postgres through SQLAlchemy and Alembic ([ADR-169](docs/adr/ADR-169-the-database-is-the-source-of-truth.md)); `db status | upgrade | import` manage the schema. `make serve` starts a local dev database for you.
+- **Corpus upgrades** — A **ledgered corpus-upgrade framework** ([#862](https://github.com/chipi/podcast_scraper/issues/862), [CORPUS_UPGRADE](docs/guides/CORPUS_UPGRADE.md), `make upgrade-check` / `upgrade-corpus`) carries existing corpora across release boundaries. Version-aware corpus snapshot backup and restore is a design record here ([RFC-084](docs/rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md), [ADR-092](docs/adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)); the deployment, backup and restore tooling is not in this repository.
+- **Docker Compose stack** — One compose contract for dev and test (`compose/`): `workbench` (UI), `api`, an on-demand `pipeline` runner and bundled mock RSS feeds, driven by `make stack-test-*` ([Docker Compose guide](docs/guides/DOCKER_COMPOSE_GUIDE.md)).
 - **Three-tier viewer test pyramid** — Tier-1 mocks, Tier-2 production-shaped fixtures, Tier-3 real corpus via `make ci-ui-validation CORPUS=…` ([ADR-095](docs/adr/ADR-095-viewer-test-pyramid.md), [RFC-086](docs/rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)). Real-bug-first matrix rule keeps coverage honest.
 
 ## Repository layout (Python + web)
@@ -60,17 +66,17 @@ install steps and **different** `.env.example` files (root vs `web/workbench/`) 
 
 ---
 
-## Workbench (optional)
+## Workbench
 
-Browse **Grounded Insight** and **Knowledge Graph** artifacts, use **semantic search** and **explore** on your corpus, and view a **dashboard**—all against the same **`--output-dir`** you use for the pipeline.
+Browse your corpus in the browser: **Digest**, **Library**, **Search**, **Graph** (the per-episode `kg.json` artifacts), a **Dashboard** and an **Ops** view, all against the same **`--output-dir`** you use for the pipeline.
 
 ### What you need
 
 | Goal | Install | Notes |
 | ---- | ------- | ----- |
 | **API + built UI in one process** | `pip install -e ".[dev]"` and, once, `cd web/workbench && npm install && npm run build` | `make init` installs `[dev,ml,llm]`; FastAPI ships with `[dev]`. |
-| **Graph only, no Python API** | Just open the UI (e.g. Vite dev) and use **Choose .gi.json / .kg.json files** | Works when `/api/health` fails; no list/search/index from the server. |
-| **Semantic search / index stats** | `[dev]` + `[ml]` (LanceDB, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
+| **Graph only, no Python API** | Just open the UI (e.g. Vite dev), type the corpus path and use **Files** to choose graph JSON files | Works when `/api/health` fails; no list/search/index from the server. |
+| **Search / index stats** | `[dev]` + `[search]` (LanceDB, embeddings; `[ml]` also carries the embedding stack but not LanceDB) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
 
 ### Run the server (typical)
 
@@ -82,37 +88,37 @@ cd web/workbench && npm install && npm run build && cd ../..
 python -m podcast_scraper.cli serve --output-dir /path/to/your/run
 ```
 
-Then open **<http://127.0.0.1:8000>** (default port). In the sidebar, set **Corpus root folder** to that **same** directory, click **List files**, select `.gi.json` / `.kg.json`, and **Load selected into graph**.
+Then open **<http://127.0.0.1:8000>** (default port). In the status bar, enter the **same** directory as the corpus path and click **List** to list the graph artifacts the server finds there. (**Files** instead opens a file picker and loads graph JSON offline, without the server.)
 
 **FastAPI / HTTP API:** Full **`/api/*`** reference, architecture, and tests — [Server Guide](docs/guides/SERVER_GUIDE.md). With the server running, interactive OpenAPI (Swagger) is at **`/docs`** and **`/openapi.json`**.
 
 **Development (API + hot-reload UI):** `make serve SERVE_OUTPUT_DIR=/path/to/your/run` runs the FastAPI app and the Vite dev server together (UI proxied to the API). See [web/workbench/README.md](web/workbench/README.md) and the Server Guide above.
 
-**Testing the viewer:** `make test-ui` (Vitest unit tests, ~1s) and `make test-ui-e2e` (Playwright browser E2E, Firefox).
+**Testing the Workbench:** `make test-ui` (Vitest unit tests) and `make test-ui-e2e` (Playwright browser E2E).
 
 ---
 
 ## Quickest start: Docker Compose
 
-The fastest way to try the platform end-to-end — no Python venv, no Node install, no provider keys required. You get the viewer, the API, and an on-demand pipeline runner all wired together; you drive the platform from your browser.
+The fastest way to try the platform end-to-end — no Python venv, no Node install, no provider keys required. You get the Workbench, the API, and an on-demand pipeline runner all wired together; you drive the platform from your browser.
 
 ```bash
-make stack-test-build      # build api + viewer + pipeline images (~5–15 min first time)
-make stack-test-up         # bring up viewer (8090) + api + bundled mock RSS fixtures
+make stack-test-build      # build api + workbench + pipeline images (~5–15 min first time)
+make stack-test-up         # bring up the Workbench (8090) + api + bundled mock RSS fixtures
 ```
 
-Then open **<http://127.0.0.1:8090>**, open **Configuration → Feeds**, add an RSS URL (or use the bundled fixture `http://mock-feeds/p01_fast_with_transcript.xml`), pick a profile under **Job Profile** (`airgapped_thin` runs locally with Whisper + transformers, no cloud calls), click **Save**, then **Dashboard → Pipeline → Run pipeline job**. Artifacts populate the **Library**, **Digest**, **Search**, and **Graph** tabs as the job runs.
+Then open **<http://127.0.0.1:8090>**, click **Configuration** in the status bar, add an RSS URL under **Feeds** (or use the bundled fixture `http://mock-feeds/p01_fast_with_transcript.xml`), pick a profile under **Job Configuration → Profile** (`airgapped_thin` runs locally with Whisper + transformers, no cloud calls), click **Save**, then open **Dashboard → Pipeline** and press **Run**. Artifacts populate the **Library**, **Digest**, **Search**, and **Graph** tabs as the job runs.
 
 To use cloud providers (OpenAI Whisper API + Gemini for everything else — faster + better quality), put `OPENAI_API_KEY` and `GEMINI_API_KEY` in a repo-root `.env` file, then:
 
 ```bash
 make stack-test-build-cloud   # adds the cloud-thin pipeline-llm image
-# in the UI, choose the "cloud_thin" profile under Job Profile and Save
+# in the UI, choose the "cloud_thin" profile under Job Configuration → Profile and Save
 ```
 
 Tear down (preserves the corpus): `make stack-test-down`. Tear down + drop everything: `make stack-test-down STACK_TEST_DOWN_VOLUMES=1`.
 
-**Full guide** with architecture, troubleshooting, and production hints: [Docker Compose guide](docs/guides/DOCKER_COMPOSE_GUIDE.md).
+**Full guide** with architecture and troubleshooting: [Docker Compose guide](docs/guides/DOCKER_COMPOSE_GUIDE.md).
 
 ---
 
@@ -140,9 +146,10 @@ Choose the installation method based on your use case:
 
 | Use Case | Installation Command | What You Get | Disk Space |
 | -------- | --------------------- | ----------- | --------- |
-| **OpenAI only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral SDKs | ~50MB |
-| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, LanceDB, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
-| **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
+| **Cloud APIs only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral, Deepgram SDKs | ~50MB |
+| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, sentence-transformers, etc. (no LanceDB: that is in `[search]`) | ~1-3GB |
+| **Both** (recommended) | `pip install -e ".[ml,llm,search]"` | Local ML + all LLM API SDKs + the LanceDB vector index | ~1-3GB |
+| **Search index only** | `pip install -e ".[search]"` | torch, sentence-transformers, LanceDB: builds the `search/` index for an otherwise cloud-only pipeline | ~1.5GB |
 | **Workbench API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
 | **Monitor profiling extras** (optional) | `pip install -e ".[monitor]"` | `py-spy` + `memray` integrated with `--monitor` / `--memray` (RFC-065); **not** required for `--monitor` alone | small |
 
@@ -150,14 +157,14 @@ Choose the installation method based on your use case:
 
 - Using LLM APIs (OpenAI, Gemini, etc.)? → `pip install -e ".[llm]"`
 - Want to run models locally (Whisper, spaCy, Transformers)? → `pip install -e ".[ml]"`
-- Want both? → `pip install -e ".[ml,llm]"` (recommended)
+- Want both? → `pip install -e ".[ml,llm,search]"` (recommended)
 - Contributing / developing? → `pip install -e ".[dev,ml,llm]"`
 
-**Note:** LLM provider SDKs (`openai`, `google-genai`, `anthropic`, `mistralai`, `httpx`) are **not** in core — they require the `[llm]` extra. Core (`pip install -e .`) gives you the pipeline framework only.
+**Note:** LLM provider SDKs (`openai`, `google-genai`, `anthropic`, `mistralai`, `deepgram-sdk`, `httpx`) are **not** in core — they require the `[llm]` extra. Core (`pip install -e .`) gives you the pipeline framework only.
 
 ### `vector_search` and embedding cache
 
-Corpus indexing (`vector_search`, LanceDB index) calls the embedder with **`allow_download=False`**, so sentence-transformers weights must **already** be on disk in the Hugging Face hub cache. Before offline or sandbox runs, run **`make preload-ml-models`** and **omit `SKIP_GIL=1`** so evidence embeddings (including the model named by **`vector_embedding_model`**) are pre-cached; GIL’s **`gi_embedding_model`** is checked separately when GIL uses transformers. If you set **`HF_HUB_CACHE`**, use the same value when preloading and when running the pipeline. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md).
+Corpus indexing (`vector_search`, LanceDB index) calls the embedder with **`allow_download=False`**, so sentence-transformers weights must **already** be on disk in the Hugging Face hub cache. Before offline or sandbox runs, run **`make preload-ml-models`** and **omit `SKIP_GIL=1`** (the flag also gates the embedding models indexing needs) so the model named by **`vector_embedding_model`** is pre-cached. If you set **`HF_HUB_CACHE`**, use the same value when preloading and when running the pipeline. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md).
 
 ### Install
 
@@ -258,7 +265,7 @@ See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-3-uv-fast-inst
 
 #### Method 4: Docker (Containerized)
 
-For most users the **[Quickest start: Docker Compose](#quickest-start-docker-compose)** path above is the recommended way to run the platform — it brings up the viewer + API + on-demand pipeline jobs as a single stack.
+For most users the **[Quickest start: Docker Compose](#quickest-start-docker-compose)** path above is the recommended way to run the platform — it brings up the Workbench + API + on-demand pipeline jobs as a single stack.
 
 The single-container `docker run` style below is appropriate when you want the pipeline as a long-running service triggered by an external scheduler (cron, systemd, supervisord), not via the operator UI.
 
@@ -286,23 +293,6 @@ docker run -v ./config.yaml:/app/config.yaml \
            -v ./output:/app/output \
            podcast-scraper:ml
 ```
-
-> **Both pyannote diarization models are gated on Hugging Face**: the default
-> `community-1` (v4) and the `speaker-diarization-3.1` fallback (with `segmentation-3.0`)
-> answer 401 without a token (checked 2026-11-03). The image build passes no token, so the
-> preload skips them and the ML image does not include them. To diarize in a container,
-> accept the terms on Hugging Face with the token's account, then pass the token and a
-> persistent cache so the one-time download survives restarts:
->
-> ```bash
-> docker run -v ./config.yaml:/app/config.yaml \
->            -v ./output:/app/output \
->            -v ~/.cache/huggingface:/root/.cache/huggingface \
->            -e HF_TOKEN=hf_... \
->            podcast-scraper:ml
-> ```
->
-> Without a token the pipeline falls back to gap-based screenplay formatting (or run with `--no-diarize`).
 
 See [Docker Compose guide](docs/guides/DOCKER_COMPOSE_GUIDE.md) for the recommended end-to-end stack flow, [Docker Service guide](docs/guides/DOCKER_SERVICE_GUIDE.md) for the single-container deployment style, and [Docker Variants guide](docs/guides/DOCKER_VARIANTS_GUIDE.md) for image-tier (`ml` vs `llm`) trade-offs.
 
@@ -342,7 +332,7 @@ pip install -e ".[ml]"
 
 ### Configure Environment Variables (Required for LLM Providers)
 
-If you plan to use LLM-based providers (OpenAI, etc.) for transcription, speaker detection, or summarization, you **must** set up a `.env` file with your API key:
+If you plan to use LLM-based providers (OpenAI, etc.) for transcription or summarization, you **must** set up a `.env` file with your API key:
 
 ```bash
 # Copy the template
@@ -355,10 +345,9 @@ cp config/examples/.env.example .env
 
 **Important variables:**
 
-- `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription, speaker detection, or summarization)
-- `GEMINI_API_KEY` - **Required** if using Gemini providers (transcription, speaker detection, or summarization)
+- `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription or summarization)
+- `GEMINI_API_KEY` - **Required** if using Gemini providers (transcription or summarization)
 - `DEEPGRAM_API_KEY` - **Required** if using Deepgram transcription (`--transcription-provider deepgram`)
-- `HF_TOKEN` - **Required** for neural speaker diarization (pyannote gated models) when `diarize` is on (default for local Whisper)
 - `LOG_LEVEL` - Controls logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `OUTPUT_DIR` - Custom output directory (default: `./output/`)
 - `CACHE_DIR` - ML model cache location (only needed for local ML providers)
@@ -392,27 +381,27 @@ python -m podcast_scraper.cli --help
 After install, most people want **packaged defaults** (profile), **their own knobs** (operator YAML), and **where the RSS URLs live** (feeds file or spec). The CLI wires all three together; you do **not** need to merge YAML by hand.
 
 ```bash
-# From the repo root, venv active, API keys in .env or the environment.
+# From the repo root, venv active, `[ml]` installed (airgapped_thin runs locally, no API keys).
 # my_operator.yaml is your own small file, e.g.:
 #   output_dir: output
 #   max_episodes: 3
 python -m podcast_scraper.cli \
-  --profile cloud_balanced \
+  --profile airgapped_thin \
   --config my_operator.yaml \
   --feeds-spec config/examples/feeds.spec.example.yaml
 ```
 
 | Flag | Role |
 | ---- | ---- |
-| **`--profile NAME`** | Named preset under `config/profiles/<NAME>.yaml` (e.g. `cloud_balanced`, `local`, `cloud_quality`). Merged first as defaults. |
+| **`--profile NAME`** | Named preset under `config/profiles/<NAME>.yaml` (e.g. `airgapped_thin`: local models only; `local`: Whisper + Ollama; `cloud_balanced`: needs `DEEPGRAM_API_KEY` and a LiteLLM gateway at `LITELLM_API_BASE`). Merged first as defaults. |
 | **`--config PATH`** | Operator YAML: `output_dir`, `max_episodes`, `workers`, booleans, etc. Explicit keys **override** the profile. |
 | **Feeds** (choose one) | **`--feeds-spec PATH`** — structured file whose root has a **`feeds`** array (URLs as strings or `{ url: … }` objects); same shape as corpus **`feeds.spec.yaml`**. **`--rss-file PATH`** — legacy **one RSS URL per line**. **Positional URL** or repeatable **`--rss URL`** — single-feed or multi-feed without a file. |
 
 **Do not combine** `--feeds-spec` with `--rss-file` or with explicit RSS URL arguments in the same invocation (the CLI rejects that mix).
 
-**Alternative:** `--config config/profiles/cloud_balanced.yaml` alone is valid when the feed URL(s) live **inside** that YAML (`rss` / `rss_urls` / `feeds`) or you pass a URL on the command line. Use **`--profile` + `--config`** when your operator file is small (paths, limits, flags) and the profile stays the packaged preset.
+**Alternative:** `--config config/profiles/airgapped_thin.yaml` alone is valid when the feed URL(s) live **inside** that YAML (`rss` / `rss_urls` / `feeds`) or you pass a URL on the command line. Use **`--profile` + `--config`** when your operator file is small (paths, limits, flags) and the profile stays the packaged preset.
 
-In-repo references: `config/examples/feeds.spec.example.yaml`, `config/examples/config.example.yaml` (every operator option, commented), `config/profiles/cloud_balanced.yaml`. Deeper detail: [CONFIGURATION.md](docs/api/CONFIGURATION.md) (RSS / multi-feed), [RSS_GUIDE.md](docs/guides/RSS_GUIDE.md).
+In-repo references: `config/examples/feeds.spec.example.yaml`, `config/examples/config.example.yaml` (every operator option, commented), `config/profiles/airgapped_thin.yaml`. Deeper detail: [CONFIGURATION.md](docs/api/CONFIGURATION.md) (RSS / multi-feed), [RSS_GUIDE.md](docs/guides/RSS_GUIDE.md).
 
 #### Basic Usage with Example Config (Recommended for First-Time Users)
 
@@ -431,7 +420,7 @@ python -m podcast_scraper.cli --config config/examples/config.example.yaml
 
 **Available example config:**
 
-- `config/examples/config.example.yaml` — Example configuration with local ML providers (Whisper, spaCy, Transformers)
+- `config/examples/config.example.yaml` — Example configuration with local ML providers (Whisper, Transformers). It also sets speaker and GI keys: the config accepts them, but without an installed extension they do nothing.
 
 **To customize:** Copy the example config and edit the `rss` field with your podcast feed URL:
 
@@ -474,10 +463,9 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --no-transcribe-missing
 
-# Full processing with OpenAI providers: transcripts + speaker detection + summaries + metadata
+# Full processing with OpenAI providers: transcripts + summaries + metadata
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --transcription-provider openai \
-  --speaker-detector-provider openai \
   --summary-provider openai \
   --generate-metadata \
   --generate-summaries
@@ -485,7 +473,6 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
 # Full processing with Gemini providers:
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --transcription-provider gemini \
-  --speaker-detector-provider gemini \
   --summary-provider gemini \
   --generate-metadata \
   --generate-summaries
@@ -500,7 +487,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Download transcripts (automatically generates missing ones with local Whisper)
 python -m podcast_scraper.cli https://example.com/feed.xml
 
-# Full processing with local ML: transcripts + speaker detection + summaries + metadata
+# Full processing with local ML: transcripts + summaries + metadata
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
@@ -513,7 +500,7 @@ See the [Basic Usage with Example Config](#basic-usage-with-example-config-recom
 **Output:** Files are organized in `output/` with subdirectories:
 
 - `transcripts/` — Transcript files (RSS may serve `.vtt`/`.srt`; the pipeline normalizes those to `.txt` plus `*.segments.json` for GI quote audio timing when cues parse cleanly; plain `.txt`/`.html` feeds have no segment timing unless you add a sidecar). When `save_adfree_transcript` is enabled (default) the pipeline also writes the **ad-free processing base** — `*.adfree.txt` + `*.adfree.segments.json` + `*.adfree.admap.json` — which GI, search, and enrichment prefer for exact char offsets (#974); the raw `.txt` is the untouched canonical source.
-- `metadata/` — JSON/YAML metadata, plus `gi.json` (GIL) and `kg.json` (KG) when enabled
+- `metadata/` — JSON/YAML metadata, plus `kg.json` (KG) when `generate_kg` is enabled
 - `search/` — LanceDB search index under `search/lance_index/` (when `vector_search` is enabled)
 - `run.json`, `index.json`, `metrics.json` — Run tracking artifacts
 
@@ -540,7 +527,7 @@ pip install --upgrade pip setuptools wheel
 pip install -e ".[ml]"
 ```
 
-**Problem:** Python version is < 3.10
+**Problem:** Python version is < 3.12
 
 **Solution:** Create venv with a newer Python:
 
@@ -562,20 +549,14 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | Resource | Description |
 | -------- | ----------- |
 | [Roadmap](docs/ROADMAP.md) | Project roadmap with prioritized PRDs and RFCs |
-| [Eval Research Mount](docs/guides/EVAL_RESEARCH_MOUNT.md) | Mounting the private eval/research repo at `eval-data/` so one agent sees both trees |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | System design and module responsibilities |
-| [Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md) | Transcription, diarization, chunking, commercial cleaning (Wave 1+2) |
+| [Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md) | Transcription, chunking, preprocessing (diarization and commercial cleaning are extension-provided) |
 | [Testing Strategy](docs/architecture/TESTING_STRATEGY.md) | Testing approach and test pyramid |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
-| [Server Guide](docs/guides/SERVER_GUIDE.md) | FastAPI viewer API, endpoints, development |
+| [Server Guide](docs/guides/SERVER_GUIDE.md) | FastAPI Workbench API, endpoints, development |
 | [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) | LanceDB indexing, search CLI, configuration |
-| AI Provider Comparison (moved to the private eval repo) | Compare all providers: cost, quality, speed, privacy |
 | [Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
-| Experiment Guide (moved to the private eval repo) | Eval datasets, baselines, experiments (`data/eval/`) |
-| Performance Profiles (moved to the private eval repo) | Per-release stage timing snapshots (`data/profiles/`) |
-| Production Runbook | Always-on VPS operator playbook (RFC-082, not in this repository) |
-| VPS Multi-App Onboarding | Hosting additional compose stacks on the same VPS (RFC-087, not in this repository) |
 | [Viewer Graph Spec](docs/architecture/VIEWER_GRAPH_SPEC.md) | Graph handoff orchestrator + canvas contract (ADR-094) |
 | [AGENTS.md](AGENTS.md) | Canonical contributor + AI-assistant guide (single source of truth) |
 | [Guides](docs/guides/) | Development, testing, and usage guides |

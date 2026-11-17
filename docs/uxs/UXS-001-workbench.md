@@ -481,11 +481,11 @@ DevTools; do not hard-code alternatives in component files.
 | Digest similarity strong floor          | **0.85**                                   | Open   | Strong vs good; constant DIGEST_SIMILARITY_STRONG_MIN    |
 | Digest similarity good floor            | **0.70**                                   | Open   | Good vs weak; constant DIGEST_SIMILARITY_GOOD_MIN        |
 | Recency dot rolling window              | **24h** from local **YYYY-MM-DD** midnight | Open   | Digest + Library episode rows; date-only API             |
-| Library feed search threshold           | **15** feeds                               | Open   | Constant in LibraryView.vue; default 15 feeds trigger    |
-| Graph default episode cap (initial)     | **15** episodes                            | Open   | GRAPH cap in graphEpisodeSelection.ts; graph-only lens   |
+| Library feed search threshold           | **15** feeds                               | Open   | CORPUS_FEED_FILTER_SEARCH_THRESHOLD (feed panel)         |
+| Graph default episode cap (initial)     | **22** episodes                            | Open   | GRAPH_DEFAULT_EPISODE_CAP (graphEpisodeSelection.ts)     |
 | Graph episode load recency score floor  | **0.2**                                    | Open   | ``GRAPH_SCORE_RECENCY_MIN``; linear mix with max **1.0** |
-| Graph episode load all-time decay days  | **90**                                     | Open   | ALL_TIME_DECAY_DAYS; trailing window from newest publish |
-| Graph episode load GI density max weight| **0.4**                                    | Open   | GI_DENSITY_MAX; future per-episode coverage API cap      |
+| Graph episode load all-time decay days  | **90**                                     | Open   | GRAPH_SCORE_ALL_TIME_DECAY_DAYS; trailing window         |
+| Graph episode load GI density max weight| **0.4**                                    | Open   | GRAPH_SCORE_GI_DENSITY_MAX; defined, not applied yet     |
 | Graph recency seed default              | **7d**                                     | Open   | Initial graph window; VIEWER_GRAPH_SPEC (init load)      |
 | Dashboard GI coverage warn threshold    | **50%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
 | Dashboard index coverage warn threshold | **60%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
@@ -572,7 +572,7 @@ search overlay.
 | 2026-06-20 | **Job Configuration = one page, two sub-tabs** (Profile \| Configuration): single rail item; Profile sub-tab shows **what each profile brings** (parsed settings + full YAML) via new **`GET /api/operator-config/profiles`**; shared Save; terminology unified to **"profile"** (dropdown relabeled from "Preset") |
 | 2026-06-20 | **Index section** added to the Configuration rail (index facts + doc-type counts + reindex reasons + rebuild controls); standalone "Vector index" popup retired so **Manage in Configuration** / ⚡ bolt / Briefing **Open index controls** all open Configuration → Index |
 | 2026-04-20 | Tunables: graph initial-load **episode scoring** (recency floor/max, topic-cluster bonus, 90d all-time decay, future GI density cap) in `graphEpisodeSelection.ts` + table rows |
-| 2026-04-19 | Tunable: **Graph default episode cap** (15) for corpus graph initial load (`VIEWER_GRAPH_SPEC` initial load) |
+| 2026-04-19 | Tunable: **Graph default episode cap** (15 then; 22 now, `GRAPH_DEFAULT_EPISODE_CAP`) for corpus graph initial load (`VIEWER_GRAPH_SPEC` initial load) |
 | 2026-04-19 | Open tunables for digest similarity tiers, recency dot window, Library feed-search threshold (#610) |
 | 2026-04-03 | Initial draft |
 | 2026-04-03 | Added theme support, key states, boundary note, visual refs section |

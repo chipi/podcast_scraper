@@ -3,15 +3,22 @@
 > **Single place** for Cytoscape load, lens window + episode cap, status line,
 > default node types, stylesheet, gesture overlay, and graph-focus entry points.
 > **User-visible** behaviour and test IDs: [UXS-004](../uxs/UXS-004-graph-exploration.md).
+>
+> **Where it renders (2026-11-17).** This is the spec of the public Workbench graph
+> (`web/workbench/`, desktop only). The nodes a public install draws come from KG
+> artifacts. Grounded-insight (GI) rendering is drawn by a downstream build; the UXS docs'
+> "Where it renders" sections in `docs/uxs/` say which parts. `web/workbench/src/extensions/index.ts`
+> registers nothing in this build, so the extension-fed behaviour below (`graphTypeTraits`,
+> `episodeScoreBonuses`) is empty here. The Explore surface is retired; its search lives in Search.
 
 ## Graph initial load
 
-**Status:** Ready for implementation
-**Author:** Design session (Marko + Claude), April 2026
+**Status:** Implemented. Written as a design in April 2026; sections 3, 4, 5, 6 and 9 below describe
+the shipped behaviour, and where the original design differed the section says so.
 **Repo:** `chipi/podcast_scraper`
 **Target area:** `web/workbench/src/`
 **Related docs:** UXS-001, UXS-004, RFC-062, RFC-076
-**Scope:** Load strategy, graphLens store, default node type visibility,
+**Scope:** Load strategy, graph time lens, default node type visibility,
 status line. No Cytoscape stylesheet changes (those are in the Graph
 Styling spec).
 
@@ -19,9 +26,9 @@ Styling spec).
 
 ### Initial load — 1. Problem
 
-The graph currently has no defined default load strategy. In online mode
+Before this work the graph had no defined default load strategy. In online mode
 with a corpus path set, loading all GI/KG artifacts produces a hairball
-for any non-trivial corpus. There is no time lens on the Graph tab, no
+for any non-trivial corpus. There was no time lens on the Graph tab, no
 episode cap, and no visual indication of what is loaded or how to expand.
 
 Simultaneously, the shared `corpusLens` (Digest + Library) is the only
@@ -38,15 +45,14 @@ Three connected decisions:
 1. **graphLens** — Graph owns its own time lens, seeded from `corpusLens`
    at first open but diverging independently thereafter.
 
-2. **Episode cap** — Graph loads at most N episodes (default 15) from
+2. **Episode cap** — Graph loads at most N episodes (default 22) from
    the `graphLens` window. RFC-076 progressive expand is the mechanism
 
    for loading more.
 
-3. **Default node type visibility** — High-noise, low-signal node types
-   (Quote, Speaker, Episode) are hidden by default. The canvas opens on
-
-   the intelligence layer.
+3. **Default node type visibility** — High-noise, low-signal node types can
+   be hidden by default. A build declares which (see section 6); this build
+   declares none.
 
 These three together produce a first graph load that is readable,
 fast, and coherent with the rest of the viewer.
@@ -57,58 +63,55 @@ fast, and coherent with the rest of the viewer.
 
 #### Concept
 
-`graphLens` is a time filter owned exclusively by the Graph tab. It is
-**not** `corpusLens` and does not share state with Digest or Library.
+The graph time lens is owned exclusively by the Graph tab. It is
+**not** `corpusLens` and does not share state with Digest or Library. It lives
+in the `graphExplorer` store (`web/workbench/src/stores/graphExplorer.ts`) as
+`sinceYmd`, a local `YYYY-MM-DD` lower bound, where the empty string means all
+time.
 
 #### Initialisation
 
-On first Graph tab open per session:
+On first Graph tab open per session, `seedFromCorpusLensIfNeeded()` sets
+`sinceYmd`:
 
-```text
+- If `corpusLens` has a date set (the user set Library to "30d"), Graph
+  seeds from that date.
+- Otherwise it uses `seedDefaultSinceYmd()`: **last 7 days**. The build-time
+  variable `VITE_DEFAULT_GRAPH_LENS_DAYS` overrides it: a positive integer N is
+  the last N days, `0` or empty is all time. The stack-test compose overlay builds
+  with `0` because its fixtures carry static 2025 dates.
 
-If `corpusLens` has a date set (e.g. user set Library to "30d"), Graph
-seeds from that. If `corpusLens` is unset (all time), Graph defaults to
-`7d` — it does not inherit "all time" from Library.
-
-After initial seed, `graphLens` is independent. Changing `corpusLens`
-in Digest/Library does not update `graphLens`. Changing `graphLens` in
-Graph does not affect Digest/Library.
-
-```
+After the seed, the lens is independent. Changing `corpusLens` in
+Digest/Library does not update it; changing it in Graph does not affect
+Digest/Library.
 
 #### Values
 
-Same set as `corpusLens`:
-
-| Value | Meaning |
-| --- | --- |
-| `7d` | Last 7 calendar days (default) |
-| `30d` | Last 30 days |
-| `90d` | Last 90 days |
-| `all` | All time (user must opt in explicitly) |
-| `since:YYYY-MM-DD` | Since a specific date |
+| Control | Action on the store | `sinceYmd` |
+| --- | --- | --- |
+| `7d` / `30d` / `90d` | `setPresetDays(7 \| 30 \| 90)` | that many days ago |
+| `All` | `setAllTime()` | `''` |
+| Since date input | `setSinceYmd(value)` | the typed date |
 
 #### Store
 
-Add to `graphExplorer.ts` (or a new `graphLensStore.ts` if preferred —
-follow existing store granularity pattern):
-
 ```typescript
+// useGraphExplorerStore (stores/graphExplorer.ts)
+sinceYmd: Ref<string>              // '' = all time
+seeded: Ref<boolean>               // true once initialised
+graphTabOpenedThisSession: Ref<boolean>
+lastAutoLoadWasCapped: Ref<boolean>
 
-interface GraphLensState {
-  lens: '7d' | '30d' | '90d' | 'all' | string  // string = 'since:YYYY-MM-DD'
-  seeded: boolean  // true once initialised from corpusLens
-}
-
-// Actions
-function seedFromCorpusLens(corpusLensValue: string | null): void
-function setLens(value: string): void
-function reset(): void  // called on corpus path change
-
+seedFromCorpusLensIfNeeded(): void
+setSinceYmd(next: string): void
+setPresetDays(days: 7 | 30 | 90): void
+setAllTime(): void
+resetSinceYmdToInitialCorpusSeed(): void   // the Graph "Reset" button
+resetGraphLensForNewCorpus(): void         // called on corpus path change (App.vue)
 ```
 
-On corpus path change: call `reset()` — clear the seeded flag so next
-Graph tab open re-seeds from the new corpus context.
+On corpus path change `resetGraphLensForNewCorpus()` clears the seeded flag
+so the next Graph tab open re-seeds from the new corpus context.
 
 ---
 
@@ -123,7 +126,7 @@ from the candidate pool defined by `graphLens`.
 
 1. Build one **episode stem** per GI/KG/bridge basename group; use listing `publish_date` (YYYY-MM-DD) per stem.
 2. **Filter** by `graphLens`: dated window = `publish_date >= sinceYmd`; **all time** = all stems.
-3. **Score** each stem: `recency_weight + cluster_bonus` (tunables in [UXS-001](../uxs/UXS-001-workbench.md)). Recency is linear from **0.2** (oldest in the dated pool, or older than the trailing **90**-day window from the newest publish for **all time**) to **1.0** at the newest. **Cluster bonus** (+0.4 default) applies when the stem matches an `episode_id` on a **topic cluster** member (`topic_clusters.json`), if that doc was loaded.
+3. **Score** each stem: `recency_weight + registered bonuses`. Recency is linear from **0.2** (oldest in the dated pool, or older than the trailing **90**-day window from the newest publish for **all time**) to **1.0** at the newest. Bonuses come from entries registered on the `episodeScoreBonuses` extension point (`web/workbench/src/extensions/index.ts`); this build registers none, so the score is the recency term.
 4. Sort by **score descending**, then **publish date descending**, then stem id (stable tie-break).
 5. Take the **top N** stems; load all GI/KG/bridge paths for those stems only.
 
@@ -131,32 +134,28 @@ The cap controls load time and canvas density, not node count directly.
 
 #### Default cap value
 
-**N = 15**
-
-Add to UXS-001 tunable parameters table:
-
-| Parameter | Current value | Status | Notes |
-| --- | --- | --- | --- |
-| Graph default episode cap | 15 | Open | Tunable; increase for denser corpora |
+**N = 22** (`GRAPH_DEFAULT_EPISODE_CAP` in `graphEpisodeSelection.ts`). It was 15 in the
+original design; the constant's comment in that file records why it is tuned for a retina
+laptop's first paint and why it must not rise toward the full corpus without interaction
+mitigations.
 
 #### Artifact load implementation
 
-In the artifact loading flow (`artifactsStore` or wherever GI/KG paths
-are listed and loaded):
+In the artifact loading flow (`stores/artifacts.ts`, which passes `GRAPH_DEFAULT_EPISODE_CAP`):
 
-1. `GET /api/artifacts` returns all available GI/KG paths (with `publish_date` per row).
-2. `GET /api/corpus/topic-clusters` (when present) supplies cluster membership for the scoring bonus.
-3. Run the **score + cap** selection above, then load only the chosen paths into the merged graph.
+1. `GET /api/artifacts` returns all available artifact paths (with `publish_date` per row).
+2. `selectRelPathsForGraphLoad` runs the **score + cap** selection above, and only the chosen paths are loaded into the merged graph. A local-file load uses `selectParsedArtifactsForGraphLoad` with the same scoring.
 
-**Future:** per-episode GI Insight counts from a coverage-style API can add a third term to the score (see UXS-001 **GI density max weight**).
+`GRAPH_SCORE_GI_DENSITY_MAX` exists as a documented tunable for a future per-episode GI density term; it is not applied.
 
 ---
 
 ### 5. Graph Status Line
 
-A muted status line sits **above the graph canvas** (below the toolbar
-chrome, above the Cytoscape surface). Always visible when graph is
-loaded. Updates reactively.
+The status line has two parts, both from `GraphStatusLine.vue`. The **summary** row
+(`variant="summary"`) sits above the canvas and shows counts. The **controls** row (lens
+selector, Since input and Reset) sits in the **bottom bar** centre zone (`GraphBottomBar`).
+Both update reactively.
 
 #### Content
 
@@ -164,7 +163,7 @@ loaded. Updates reactively.
 
 Examples:
 
-Showing all time · 15 episodes (capped) · 934 nodes   [All ▾]
+Showing all time · 22 episodes (capped) · 934 nodes · 3 components
 
 ```
 
@@ -174,37 +173,43 @@ Showing all time · 15 episodes (capped) · 934 nodes   [All ▾]
 #### Styling
 
 - `text-[10px]`, `muted` token — unobtrusive, same density as toolbar
-- Left-aligned text, right-aligned lens selector
-- Background: `bg-canvas` in the canvas column (embedded in **`GraphBottomBar`** centre zone under the main graph canvas)
-- Height: ~24px, same compact scale as toolbar rows
+- The summary row is left-aligned text; the lens controls are centred in the bottom bar
+- Same compact scale as toolbar rows
 
 #### Lens selector
 
 Compact inline control — same visual style as the Digest Window
-presets but smaller. Options: **7d · 30d · 90d · All · Since…**
+presets but smaller. Options: **7d · 30d · 90d · All** and a **Since** date input.
 
 Active option uses `primary` ring or underline (same pattern as
 Digest preset active state). Selecting a new value:
 
-1. Updates `graphLens`
+1. Updates the graph lens (`sinceYmd`)
 2. Re-runs artifact load with new window
 3. Clears current graph (replaces, does not append)
 4. RFC-076 expansion state is reset
 
-"Since…" opens a small date input (same pattern as `corpusLens` date
-field — reuse that component).
+A **Reset** button (`graph-status-reset`, shown when the graph differs from its initial slice)
+clears cross-episode expansions, restores the default time slice and fits the graph.
 
 #### data-testid values
 
 ```text
 
-data-testid="graph-status-since-input"
+data-testid="graph-status-line"               (summary row)
+data-testid="graph-status-lens-label"
 data-testid="graph-status-episode-count"
+data-testid="graph-status-capped"             (only when the auto-load was capped)
 data-testid="graph-status-node-count"
+data-testid="graph-status-component-count"
+data-testid="graph-status-line-controls"      (controls row)
+data-testid="graph-status-lens-selector"
+data-testid="graph-status-since-input"
+data-testid="graph-status-reset"
 
 ```
 
-`graph-status-episode-count` and `graph-status-node-count` wrap **numeric text only** (node count may use the `k` suffix from formatting).
+`graph-status-episode-count`, `graph-status-node-count` and `graph-status-component-count` wrap **numeric text only** (node count may use the `k` suffix from formatting).
 
 ---
 
@@ -212,43 +217,32 @@ data-testid="graph-status-node-count"
 
 #### Problem
 
-The graph toolbar has a Types section with per-type checkboxes. Currently
-all types are on by default. Quote, Speaker, and Episode nodes create
-visual noise without adding to the first-read intelligence value — their
-information is available in the subject rail when you need it.
+The Types chip has per-type checkboxes. When every type is on, evidence-layer
+and plumbing nodes (Quote, Speaker, Episode in the original design) create
+visual noise without adding to the first-read value.
 
-#### Default state
+#### Mechanism
 
-| Node type | Default | Rationale |
-| --- | --- | --- |
-| Insight | On | Primary intelligence carrier |
-| Topic | On | Conceptual anchor |
-| Person | On | Attribution — high value |
-| TopicCluster | On | Meta-level grouping |
-| Entity | On | Organisation/concept — useful context |
-| Quote | Off | Evidence layer — available in subject rail |
-| Speaker | Off | Pre-canonical person — superseded by Person |
-| Episode | Off | Structural container — available in status bar |
+`defaultFilterState` (`utils/parsing.ts`) starts each node type on unless
+`typeHiddenByDefault(type)` is true, which reads `defaultHidden` from the
+entries registered on the `graphTypeTraits` extension point. A build that
+wants Quote, Speaker and Episode off by default declares them there.
 
-#### Default node-type implementation
-
-In `graphFilters.ts` store, set initial checked state per the table
-above. Existing per-type checkbox UI in the toolbar is unchanged —
-users can turn any type on/off freely. This only changes the defaults.
+**This build registers no `graphTypeTraits`, so every node type present in the
+loaded KG artifacts starts on.** The Types chip lets the user turn any type on
+or off freely.
 
 #### Visual indicator
 
-When any non-default type visibility is chosen (vs graph defaults), a
-**filters active — reset** chip (**muted**) appears next to the **Types**
-heading in the top toolbar. Clicking it resets all types to defaults.
-
-`data-testid="graph-types-reset"`
+When type visibility differs from the defaults, a **reset** control
+(`data-testid="graph-types-reset"`, in `GraphTypesChip.vue`) appears; clicking it
+calls `resetGraphTypeVisibilityDefaults()` and returns Types to the defaults.
 
 ---
 
 ### 7. Interaction with RFC-076 Progressive Expand
 
-The episode cap and `graphLens` define the **starting graph**. RFC-076
+The episode cap and the graph lens define the **starting graph**. RFC-076
 expand is the mechanism for growing it.
 
 When the user double-clicks an eligible node:
@@ -256,7 +250,7 @@ When the user double-clicks an eligible node:
 - `POST /api/corpus/node-episodes` returns additional episode paths for
   that identity
 
-- Those paths are appended to the merged graph regardless of `graphLens`
+- Those paths are appended to the merged graph regardless of the lens
   window — expand deliberately goes beyond the current lens
 
 - The status line updates: episode count and node count increase
@@ -264,7 +258,7 @@ When the user double-clicks an eligible node:
 - The status line does NOT show "(capped)" for expanded content — the
   cap only applies to the initial auto-load
 
-When `graphLens` is changed (user selects new window from lens selector):
+When the lens is changed (user selects a new window from the lens selector):
 
 - All RFC-076 expanded content is cleared
 - Fresh load from new window with cap applied
@@ -277,7 +271,7 @@ Any other **full graph reload** from the artifacts store (Digest/Library handoff
 ### 8. Interaction with Gesture Overlay
 
 The gesture overlay (separate spec) teaches the dbl-click expand gesture.
-The status line complements it with persistent context — "15 episodes
+The status line complements it with persistent context — "22 episodes
 loaded" tells the user the graph is a slice, not the whole corpus, and
 that there's more to explore via expand.
 
@@ -287,101 +281,79 @@ features are designed to work together.
 
 ---
 
-### 9. Files to Touch
-
-#### Initial load — modified files
+### 9. Where it lives
 
 ```text
 
-web/workbench/src/stores/graphFilters.ts
-  — update default node type visibility (Quote, Speaker, Episode OFF)
+web/workbench/src/stores/graphExplorer.ts
+  — graph time lens (sinceYmd, seeded), seedDefaultSinceYmd
 
-web/workbench/src/stores/artifacts.ts (or graph loading path)
-  — apply graphLens filter + episode cap before loading GI/KG paths
+web/workbench/src/utils/graphEpisodeSelection.ts
+  — score + cap selection, GRAPH_DEFAULT_EPISODE_CAP
 
-web/workbench/src/components/graph/GraphCanvas.vue
-  — embed GraphStatusLine in GraphBottomBar (centre zone under canvas)
-  — wire graphLens changes to reload trigger
+web/workbench/src/stores/artifacts.ts
+  — applies the selection before loading artifact paths
 
-web/workbench/e2e/E2E_SURFACE_MAP.md
-  — add graph-status-line, lens selector, episode count, node count
-
-```
-
-#### Initial load — new component
-
-```text
+web/workbench/src/utils/parsing.ts
+  — defaultFilterState / typeHiddenByDefault (node type defaults)
 
 web/workbench/src/components/graph/GraphStatusLine.vue
-  — status line row (lens selector, counts, since input); embedded in bottom bar under canvas
+  — summary row and lens controls row
+
+web/workbench/src/components/graph/GraphBottomBar.vue
+  — hosts the lens controls (centre zone); GraphCanvas.vue hosts the summary row
+
+web/workbench/src/components/graph/chips/GraphTypesChip.vue
+  — Types chip and the reset control
+
+web/workbench/e2e/E2E_SURFACE_MAP.md
+  — selectors for the surfaces above
 
 ```
 
-#### Initial load — UXS amendment (after implementation)
-
-```text
-
-docs/uxs/UXS-004-graph-exploration.md
-  — Document graphLens, episode cap, status line, default type visibility
-  — Add graphLens lens selector to toolbar description
-
-docs/uxs/UXS-001-workbench.md
-  — Add graph default episode cap to Tunable parameters table
-
-```
+User-visible behaviour and test IDs are documented in
+[UXS-004](../uxs/UXS-004-graph-exploration.md); the cap and recency tunables in
+[UXS-001](../uxs/UXS-001-workbench.md).
 
 ---
 
 ### 10. Checkpoints
 
-**Checkpoint 1 — graphLens store**
+**Checkpoint 1 — graph lens**
 
-- `graphLens` exists in store, seeds from `corpusLens` on first Graph tab
-  open, resets on corpus path change
+- `sinceYmd` seeds from `corpusLens` on first Graph tab open, resets on corpus
+  path change
 
-- Changing `corpusLens` in Digest/Library does not affect `graphLens`
+- Changing `corpusLens` in Digest/Library does not affect the graph lens
   after seed
 
 **Checkpoint 2 — Episode cap**
 
-- Graph loads at most 15 episodes from `graphLens` window (scored selection, not pure recency)
+- Graph loads at most 22 episodes from the lens window (scored selection, not pure recency)
 - "(capped)" indicator appears when pool was truncated
-- "all time" lens still caps at 15 **highest-scoring** episodes across the corpus (not the entire corpus)
+- "all time" lens still caps at 22 **highest-scoring** episodes across the corpus (not the entire corpus)
 
 **Checkpoint 3 — Status line**
 
 - Status line shows correct episode count, node count, active lens
-- Lens selector changes `graphLens` and triggers reload
+- Lens selector changes the lens and triggers reload
 - Counts update after RFC-076 expand
 
 **Checkpoint 4 — Default type visibility**
 
-- Fresh graph load: Quote, Speaker, Episode nodes hidden
-- Types toolbar checkboxes reflect defaults correctly
-- "filters active" chip appears when user deviates from defaults
-- Reset chip restores defaults
+- With no `graphTypeTraits` registered, every type present starts on
+- With `defaultHidden` declared, those types start off and the reset control restores them
 
 ---
 
 ### 11. Open Questions (Not Blocking)
 
-1. **Publish date on artifact listing** — If `GET /api/artifacts` does
-   not include publish date, the lens filter requires loading metadata
+1. **Cap value** — 22 is a tuned default (see the comment on
+   `GRAPH_DEFAULT_EPISODE_CAP`). Revisit with a real corpus when canvas
+   interaction cost changes.
 
-   first. Check API response shape; if missing, add it as a follow-up
-   API improvement (not blocking — can filter post-parse for now).
-
-2. **Re-seed behaviour** — If user changes `corpusLens` in Digest to
-   "30d" and then opens Graph (which has never been opened this session),
-
-   should Graph seed to "30d"? Current spec says yes. If user has already
-   opened Graph this session, no re-seed. This is the correct behaviour
-   but worth validating during implementation.
-
-3. **Cap value** — 15 is the starting point. After implementation, check
-   canvas density with a real corpus. May want to increase to 20 or
-
-   decrease to 10 depending on average node count per episode.
+2. **GI density term** — `GRAPH_SCORE_GI_DENSITY_MAX` is declared but unused
+   until a per-episode GI count is available from the API.
 
 ---
 
@@ -393,8 +365,8 @@ for the locked decisions and rationale.
 **Target area:** `web/workbench/src/services/graphHandoffFsm.ts`,
 `stores/graphHandoff.ts`, every entry-point component (Library / Digest /
 Search / Dashboard / Episode panel / NodeDetail / GraphConnectionsSection /
-SubjectRail / StatusBar / Explore / App-shell tab / GraphCanvas direct
-interactions).
+SubjectRail / StatusBar / App-shell tab / GraphCanvas direct
+interactions). The Explore surface this lists in the original audit is retired.
 **Related docs:** [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md)
 (canonical decisions), [VIEWER_ASYNC_STABILITY.md](VIEWER_ASYNC_STABILITY.md)
 (adjacent async patterns),
@@ -440,13 +412,13 @@ coverage in
 | ID | Surface | FSM event | source | loadSource | camera |
 | --- | --- | --- | --- | --- | --- |
 | L1 | Library row "Open in graph" | `handoffRequested` | `library` | `subject-external` | `center-on-target` |
-| D1 | Digest recent topic pill | `handoffRequested` | `digest` | `digest-external` | `center-on-target` |
+| D1 | Digest recent topic pill (drawn by a downstream build, not the public `DigestView`) | `handoffRequested` | `digest` | `digest-external` | `center-on-target` |
 | D2 | Digest topic-band hit row | `handoffRequested` | `digest` | `digest-external` | `center` (topicFocus / eid) |
 | D3 | Digest topic-band title | `handoffRequested` | `digest` | `digest-external` | `fit` (multi-episode) |
 | S1 | Search "Show on graph" | `handoffRequested` (dispatched directly from `SearchPanel.onFocusHit`) | `search` | `subject-external` | `center-on-target` |
 | E1 | Episode panel "Open in graph" | `handoffRequested` | `episode-panel` | `subject-external` | `center-on-target` |
 | O3 | NodeDetail Load + neighbour go-graph | `expansionRequested` (dispatched directly from `NodeDetail.focusTopicClusterMember` / `focusNeighborOnGraph`) | `node-detail` | `graph-internal` | `center-on-target` |
-| O1/O2/O4–O6 | Dashboard / Explore / SubjectRail / StatusBar @go-graph | `handoffRequested` (via `activateGraphTab(source: …)`) | (per surface) | `subject-external` | `center-on-target` |
+| O1/O2/O4–O6 | Dashboard / SubjectRail / StatusBar @go-graph (Explore retired) | `handoffRequested` (via `activateGraphTab(source: …)`) | (per surface) | `subject-external` | `center-on-target` |
 | G1/G2 | Canvas single-tap (incl. onetap rail) | `canvasTapped` | `canvas-tap` | `graph-internal` | `center` (cyId) |
 | G3 | Canvas double-tap expand | `expansionRequested` | `double-tap-expand` | `graph-internal` | `preserve` |
 | G6 | Mini-map / GraphConnections neighbour | `canvasTapped` (with `suppressCamera: true`) | `minimap` | `graph-internal` | `preserve` |
@@ -498,7 +470,11 @@ ready                                 (stuck timer disarmed; lastResult = 'appli
 
 For canvas direct interactions (G1/G2/G3/G6), the FSM jumps `idle/ready →
 applying → ready` without going through `loading_*` (no artifacts to
-fetch, no layout to run for a tap).
+fetch, no layout to run for a tap). Because no later layout pass finishes
+that handoff, the single-tap path in `GraphCanvas.vue` (`onetap`) calls
+`graphHandoff.recordApplied(id)` itself right after it centres the camera;
+without that the handoff sat in `applying` until the 15 s stuck-timeout and
+raised the error strip.
 
 For canvas double-tap expand (G3), the FSM walks `loading_fetch →
 loading_merge → redrawing_incremental → applying → ready` (incremental
@@ -557,7 +533,7 @@ is non-null with FSM in any in-flight state (`loading_fetch` / `loading_bootstra
 `applied` (when the target resolves in cy) or leave it for the stuck-timer
 to surface as `failed`.
 
-**Why this exists:** without the helper, an L1 / E1 / D1 click followed by an
+**Why this exists:** without the helper, an L1 / E1 click followed by an
 immediate tab-switch leaves the FSM in `loading_fetch` with no path to
 terminal — the user returns to the Graph tab to find an empty canvas + a
 15-second-delayed "stuck-timeout" error strip. The natural redraw-driven
@@ -571,15 +547,14 @@ call to `tryApplyPendingFsmEnvelopeFromTabReturn` on every activation where
 `web/workbench/e2e/validation/handoff-matrix-real-corpus.spec.ts` catches
 removal of this hook end-to-end.
 
-**Related fix in click handlers:** the L1 (`LibraryView.openEpisodeInGraph`)
-and D1 (`DigestView.openDigestRecentTopicPillInGraph`) handlers also call
-`artifacts.loadSelected({ preserveExpansion: true })` after
+**Related fix in click handlers:** the L1 handler (`LibraryView.openEpisodeInGraph`)
+also calls `artifacts.loadSelected({ preserveExpansion: true })` after
 `appendRelativeArtifacts` to force a redraw when the target's artifacts are
 already in the store (so the append is a no-op). Without this, two
 in-rapid-succession handoffs targeting the same episode stuck-timeout.
-Tier-2 `e2e/handoff-production/cross-entry.spec.ts::P2.5` pins this
-regression deterministically; Tier-3 `handoff-matrix-real-corpus.spec.ts::P2.5/P2.6`
-covers it end-to-end.
+The cross-entry sequences are exercised by Tier-2
+`e2e/handoff-production/cross-entry.spec.ts` and Tier-3
+`e2e/validation/handoff-matrix-real-corpus.spec.ts`.
 
 ---
 
@@ -587,13 +562,16 @@ covers it end-to-end.
 
 - **Inspect the FSM in dev**: `window.__GIKG_FSM__` exposes
   `{ state, pending, generation, lastResult }` (read-only). Useful in DevTools
-  console while reproducing a stuck handoff.
+  console while reproducing a stuck handoff. The hooks (`__GIKG_FSM__`,
+  `__GIKG_HANDOFF_STORE__`, `__GIKG_SUBJECT__`) exist in dev builds and in
+  builds made with `VITE_E2E_HOOKS=true` (the stack-test overlay sets it);
+  a normal production build strips them.
 - **Inspect Cytoscape directly**: `window.__GIKG_CY_DEV__` (existing
   pattern, predates the FSM). Combine with `__GIKG_FSM__` to see whether
   the FSM thinks the handoff completed but cy.core doesn't have the
   expected node — that's a self-healing reconciliation case.
 - **Read error-strip messages**: failed handoffs render
-  `data-testid="handoff-error-strip"` with reason. Stuck-timeout failures
+  `data-testid="handoff-error-strip"`, which reads "Could not open this in the graph: <reason>". Stuck-timeout failures
   carry `reason: "stuck-timeout after 15000ms"`; HTTP failures carry the
   `Error.message` of the originating fetch.
 - **Self-healing warnings**: invariant violations log
@@ -680,6 +658,10 @@ independently of the Initial Load spec.
 
 ### 1. Objective
 
+> **Status of the values below.** They record the April 2026 design. `cyGraphStylesheet.ts`
+> is the source of truth where they differ; graph-v3 retuned the node sizes (3.1) and the
+> edge strokes (3.2), and 3.1 and 3.2 below carry the current values.
+
 Transform the graph from a data dump into an **intelligence communication
 surface**. The visual system should do cognitive work for the user:
 
@@ -716,33 +698,17 @@ Phase 1 is complete and coherent without Phase 2. Phase 2 is additive.
 
 Nodes render at different base sizes by type. Size = cognitive importance.
 
-| Node type | Diameter | Tier |
-| --- | --- | --- |
-| Insight | 44px | 1 |
-| Topic | 40px | 1 |
-| TopicCluster | 48px (compound, **logical** tier — see note below) | 2 |
-| Person | 34px | 2 |
-| Entity | 26px | 3 |
-| Quote | 22px | 3 |
-| Speaker | 18px | 4 |
-| Episode | 18px | 4 |
+| Node type | Diameter (main profile) |
+| --- | --- |
+| Topic | 40px |
+| Episode | 22px high, 1.35 times wider (a card) |
+| Entity_person, Entity_organization, Entity_object, Podcast | 12px (degree-heat scaling still applies) |
+| Any other type | 18px (`NODE_DIAMETER_MAIN_PX` default) |
 
-Implementation in `cyGraphStylesheet.ts`:
-
-```typescript
-
-// Example — adapt to existing stylesheet structure
-{
-  selector: 'node[type = "Insight"]',
-  style: { width: 44, height: 44 }
-},
-{
-  selector: 'node[type = "Topic"]',
-  style: { width: 40, height: 40 }
-},
-// ... etc
-
-```
+The compact profile scales these by 14/18 with a 12px floor. Sizes live in
+`NODE_DIAMETER_MAIN_PX` and `NODE_ASPECT_W` in `cyGraphStylesheet.ts`; the original design
+(Insight 44, Topic 40, TopicCluster 48, Person 34, Entity 26, Quote 22, Speaker and Episode 18)
+is recorded in the comment above that table.
 
 **TopicCluster sizing (implementation):** The compound uses **padding** (WIP §3.6)
 and Cytoscape’s **auto compound** geometry so member topics lay out correctly.
@@ -757,18 +723,20 @@ box.
 Each edge type gets a distinct visual treatment so relationship type
 is readable without hovering.
 
-| Edge type | Width | Style | Colour | Arrow |
+| Edge type | Width (main) | Style | Colour | Arrow |
 | --- | --- | --- | --- | --- |
-| `HAS_INSIGHT` | 2px | solid | `primary` token | target arrowhead |
-| `ABOUT` | 2px | solid | `gi` token | none (undirected) |
-| `SUPPORTED_BY` | 1px | dashed | `muted` token | target arrowhead |
-| `RELATED_TO` | 1px | solid | `kg` token | none |
-| `MENTIONS` | 1px | dotted | `muted` token | none |
-| `SPOKE_IN` | 2px | solid | `primary` token | target arrowhead |
-| `HAS_MEMBER` | 1.5px | solid | `kg` at 60% opacity | none |
+| `RELATED_TO` | 0.85px | solid | `kg` token | none |
+| `MENTIONS` | 0.85px | dotted | `muted` token | none |
+| `HAS_MEMBER` | 2px, 60% line opacity | solid | `kg` token | none |
+| `HAS_EPISODE` | 2.75px | solid | `primary` token | target arrowhead |
+| other / `(unknown)` | 1.5px | solid | `muted` token | target arrowhead |
 
-**Opacity:** All edges at 60% opacity base. Selected neighbourhood
-edges at 90%. Unrelated edges (when something is selected) at 20%.
+This stylesheet declares no rule for the GI edge types of the original design (`HAS_INSIGHT`,
+`ABOUT`, `SUPPORTED_BY`, `SPOKE_IN`); they take the generic `edge` rule above.
+
+**Opacity:** the default edge opacity is low and depends on the theme (`graphEdgeOpacity`),
+neighbourhood edges of the selection are at 90% (`graph-edge-neighbour`), and unrelated
+edges while something is selected are at 20% (`graph-edge-dimmed`).
 
 **Curve style:** `bezier` for all edges. Prevents straight lines
 overlapping node borders at dense cluster areas.
@@ -776,36 +744,9 @@ overlapping node borders at dense cluster areas.
 **Label:** No edge labels by default. Edge type is communicated by
 visual style alone. Labels add too much canvas noise.
 
-Cytoscape edge data uses **`edgeType`** (see `toCytoElements` in `parsing.ts`), not `type`. Example selectors:
-
-```typescript
-
-{
-  selector: 'edge[edgeType = "ABOUT"]',
-  style: {
-    width: 2,
-    'line-color': 'var(--ps-gi)',
-    'line-style': 'solid',
-    'target-arrow-shape': 'none',
-    opacity: 0.6,
-    'curve-style': 'bezier'
-  }
-},
-{
-  selector: 'edge[edgeType = "SUPPORTED_BY"]',
-  style: {
-    width: 1,
-    'line-color': 'var(--ps-muted)',
-    'line-style': 'dashed',
-    'target-arrow-shape': 'triangle',
-    'target-arrow-color': 'var(--ps-muted)',
-    opacity: 0.6,
-    'curve-style': 'bezier'
-  }
-},
-// ... per known edgeType; explicit `edge[edgeType = "(unknown)"]` plus generic `edge` base
-
-```
+Cytoscape edge data uses **`edgeType`** (see `toCytoElements` in `parsing.ts`), not `type`. The
+rules are `edge[edgeType = "…"]` selectors, with an explicit `edge[edgeType = "(unknown)"]`
+fallback and the invisible `_tc_cohesion` layout edge.
 
 ---
 
@@ -907,6 +848,12 @@ not above the disc.
 | < 0.5 | None |
 | 0.5 – 1.0 | Tier 1 + 2 only, shortLabel |
 | > 1.0 | All visible nodes, full label |
+
+**Label collision:** a label is drawn only when it does not overlap a label already kept.
+`cyGraphLabelCollision.ts` keeps labels greedily by priority (the selected node, its neighbours,
+then the most connected); every other overlapping label gets the `graph-label-collides` class,
+which the stylesheet uses to hide its text while the node stays. Overlap is recomputed when the
+label tier switches, when nodes move and when the selection moves the priorities.
 
 ---
 
@@ -1341,7 +1288,7 @@ Five rows, one per gesture. Layout per row:
 
 ```
 
-- Single click → `MousePointer`
+- Single click → `MousePointer` (the shipped overlay draws inline `<svg>` glyphs, not an icon package; these names describe the shapes)
 - Shift + double-click → `Expand` or `Network`
 - Shift + drag → `Scan` or `BoxSelect`
 - Double-click → `PlusCircle`
@@ -1541,7 +1488,7 @@ Add to `e2e/E2E_SURFACE_MAP.md`:
 
 Playwright spec: `e2e/graph-gesture-overlay.spec.ts`
 
-**Vitest:** The viewer package does not ship `@vue/test-utils`; keep this overlay locked with Playwright for v1 rather than adding an SFC unit harness.
+**Vitest:** The package ships `@vue/test-utils` (the Workbench has component mount tests); the overlay itself is locked by the Playwright spec above.
 
 Test cases:
 
@@ -1582,8 +1529,9 @@ episode-scoped slugs from bullets, search hit payloads, and so on).
   optional episode id to `graphNavigation.requestFocusNode` (primary `topic:…`, fallback
 
   episode id, optional `pendingFocusCameraIncludeRawIds` for `tc:…` when
-  `in_topic_cluster`). Used from **Digest Recent** (`DigestView.vue`) and **Episode subject rail**
-  canonical topic pills (`EpisodeDetailPanel.vue`).
+  `in_topic_cluster`). No component in this repository imports it today: the CIL pills it maps
+  (Digest Recent, Episode rail) are not drawn by the public Workbench (UXS-002, UXS-003 "Where it
+  renders"), so it serves a downstream build and is covered here by its Vitest only.
 
 - **Tests:** `web/workbench/src/utils/cilGraphFocus.test.ts` (Vitest).
 - **Docs:** [Development Guide — Viewer v2](../guides/DEVELOPMENT_GUIDE.md#viewer-v2-rfc-062-489) (bullet **CIL pill to graph focus**).
@@ -1610,7 +1558,7 @@ vertex.
 ### Suggested engineering outcomes (remaining)
 
 1. ~~**Single helper** for CIL pills~~ — done for Digest + Episode subject rail (`cilGraphFocus.ts`).
-2. **Extend or reuse** the same contract for other surfaces (topic band rows, explore,
+2. **Extend or reuse** the same contract for other surfaces (topic band rows,
    any future chips) and optionally dedupe SearchPanel’s `topic_cluster` camera logic
 
    with one shared primitive.
@@ -1637,7 +1585,9 @@ Tracked as [#596](https://github.com/chipi/podcast_scraper/issues/596) (body tem
 
 ## Cluster sibling episode load
 
-**Status:** Design locked for implementation phase (2026-04-15 iteration).
+**Status:** Design (2026-04-15 iteration); not implemented in this build. There is no sibling cap,
+no `VITE_CLUSTER_SIBLING_EPISODE_CAP` and no sibling-merge hook in `web/workbench/src`; what the
+graph does today is the episode cap and RFC-076 expand described above.
 
 ### Clarification: what the earlier “options” meant
 
@@ -1682,7 +1632,7 @@ Three **UX triggers** were discussed for *when* to pull in sibling episodes:
 
 ## Graph layout — topic cluster {#graph-layout-topic-cluster}
 
-**Status:** Cluster compaction tuned (section 1); minimap layout still pending (section 2).
+**Status:** Cluster compaction tuned (section 1); minimap layout done (section 2).
 
 ### 1. Cluster compound: tighter footprint on main canvas
 
@@ -1697,8 +1647,8 @@ Three **UX triggers** were discussed for *when* to pull in sibling episodes:
 - **Intra-cluster ideal edge length** cut from 58 to 36 (main) / 32 to 20 (compact) --
   connected members pull closer together.
 
-- **Gravity** raised from 0.15 to 0.18 (main) / 0.28 to 0.32 (compact) -- slightly
-  stronger pull toward center reduces overall sprawl.
+- **Gravity** raised from 0.15 to 0.18 (main) / 0.28 to 0.32 (compact); the main value was
+  later lowered to 0.12 (graph-v3) so communities drift apart, the compact value stays 0.32.
 
 - **Nesting factor** raised from 1.38 to 1.52 -- cross-boundary edges stretch more
   relative to intra-cluster edges, keeping external nodes further from the compound
@@ -1713,29 +1663,18 @@ Three **UX triggers** were discussed for *when* to pull in sibling episodes:
 
 ### 2. Neighborhood minimap: 2D layout, not a single line
 
-**Issue:** In the **local neighborhood** preview, nodes feel **all on one horizontal
-line** -- too tight 1D; want a **normal COSE** (or equivalent) feel and **more 2D** spread.
+**Issue (resolved):** The local-neighborhood preview used `breadthfirst`, which laid
+nodes out as a single row or column.
 
-**Current code:** `web/workbench/src/components/graph/GraphNeighborhoodMiniMap.vue`
-uses **`breadthfirst`** with `directed: true` and `roots` -- that tends to produce
-**tree / strip** layouts (often one row or column).
-
-**Direction:**
-
-- Switch minimap layout to **`cose`** (align with main graph's `layoutOptionsFor('cose')`
-  in `web/workbench/src/components/graph/GraphCanvas.vue`) or **`fcose`** if available
-
-  in the bundled cytoscape build -- tune `nodeRepulsion`, `idealEdgeLength`, `gravity`
-  for **small** element counts so the preview is 2D without huge spread.
-
-- Keep `fit` after layout; preserve selection/highlight behavior.
-- Re-check TopicCluster neighborhood path (`topicClusterNeighborhood` prop) vs generic
-  ego slice so both look reasonable.
+**Now:** `GraphNeighborhoodMiniMap.vue` runs the compact COSE option set
+(`giKgCoseLayoutOptionsCompact()` from `cyCoseLayoutOptions.ts`) and keeps `fit` after
+layout. The main canvas's force-directed layout is `fcose` (#967); the cycle order is in
+`GRAPH_LAYOUT_CYCLE_ORDER` in `graphExplorer.ts`.
 
 ### 3. Relationship to sibling-episode auto-load
 
 Independent: episode merge behavior is data volume; this doc is **pure
-layout/presentation**. They can ship in either order.
+layout/presentation**.
 
 ### 4. UX / E2E
 

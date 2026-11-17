@@ -65,8 +65,8 @@ metadata generation runs), `transcription` (when the Whisper concurrent path run
 `audio_preprocessing`, `summarization` (parallel summarization path only), `vector_indexing`,
 `done`.
 
-**Caveat:** **GI** and **KG** work largely inside the concurrent metadata thread; the status file
-does not yet advance through distinct **`gi_generation`** / **`kg_extraction`** stages (see RFC
+**Caveat:** Knowledge-graph (and any extension stage) work runs largely inside the concurrent metadata thread; the status file
+does not advance through distinct per-stage names for it (see RFC
 Status / Implementation Plan).
 
 ---
@@ -118,7 +118,7 @@ Pulls **`py-spy`** and **`memray`** (RFC-065 Phase 3). They are **not** required
 ## Tests
 
 - **`tests/unit/podcast_scraper/monitor/`** — **`test_status`**, **`test_sampler`**, **`test_memray_util`**,
-  **`test_py_spy_listener`** (mocked exec and stdin paths).
+  **`test_py_spy_listener`** (mocked exec and stdin paths), **`test_runner_dashboard`**.
 
 ---
 
@@ -126,6 +126,6 @@ Pulls **`py-spy`** and **`memray`** (RFC-065 Phase 3). They are **not** required
 
 | Guide | Relationship |
 | ----- | ------------ |
-| Performance Profile Guide (moved to the private eval repo) | **Frozen** release YAML under `data/profiles/` (RFC-064) — complementary, not the same as live monitor. |
+| Performance Profile Guide (moved to the private eval repo) | Frozen release profiles; complementary, not the same as the live monitor. |
 | `PERFORMANCE.md` (moved to the private eval repo) | Runtime tuning (preprocessing cache, transcription, etc.). |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | End-to-end flow and module roles. |

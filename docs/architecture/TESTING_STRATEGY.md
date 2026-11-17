@@ -17,19 +17,25 @@ podcast scraper codebase. It establishes the test
 pyramid approach, decision criteria for choosing test
 types, and high-level testing patterns.
 
-The system supports **9 providers** (1 local ML + 1 hybrid ML + 7 LLM: OpenAI,
-Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama)
-with per-provider unit, integration, and E2E tests.
-All LLM providers use versioned Jinja2 prompt
-templates managed by `PromptStore` (RFC-017).
+The system supports local ML providers (Whisper, spaCy, Transformers, hybrid MAP-REDUCE) and
+LLM/API providers (the packages under `src/podcast_scraper/providers/`: OpenAI, Gemini, Anthropic,
+Mistral, DeepSeek, Grok, Groq, Ollama, Deepgram, LiteLLM, Qwen, vLLM, Moss, tailnet DGX), with
+per-provider unit, integration, and E2E tests. The tables below cover the original nine
+providers; later ones follow the same file pattern (for example `test_groq_provider_e2e.py`,
+`test_deepgram_provider_e2e.py`). All LLM providers use versioned Jinja2 prompt templates managed
+by `PromptStore` (RFC-017).
 
-**GIL**: The Grounded Insight Layer (GIL, PRD-017) has testing for insight/quote extraction,
-grounding contract validation, and `gi.json` schema compliance. See **GIL Testing (Implemented)** below.
+**GIL**: The Grounded Insight Layer (GIL, PRD-017) extraction, loading and exploration modules ship
+in an installed extension, not in this repository (`src/podcast_scraper/builtin_stage_hooks.py`
+registers no built-in stages; see [ADR-170](../adr/ADR-170-private-repo-split-platform-common-apps.md)).
+This repository tests the seams the extension plugs into and the KG-side artifact checks. See
+**GIL Testing** below.
 
 **CIL / bridge / search lift (the cross-layer identity design, #527–528):** Unit tests cover **`bridge.json`**
 building, **`cil_queries`**, **transcript chunk lift**, and **GIL–index offset**
-verification helpers; FastAPI integration tests cover **CIL routes** and extended
-**search** responses. The **strict offset gate** is a **Makefile** target
+verification helpers; FastAPI integration tests cover the corpus routes and extended
+**search** responses (the CIL query routes themselves are served by an installed extension, which
+reports them through the `cil_queries_api` flag on `/api/health`). The **strict offset gate** is a **Makefile** target
 (`make verify-gil-offsets-strict`) run against a **concrete indexed corpus**, not part of
 default `make ci-fast` — see [Testing Guide — GIL, KG, CIL, and semantic search](../guides/TESTING_GUIDE.md#gil-kg-cil-and-semantic-search-validation).
 
@@ -68,7 +74,7 @@ The testing strategy follows a three-tier pyramid:
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Mocked |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (the only place) |
 | **Frontend unit** | TypeScript utility logic (parsing, merge, metrics) | Node (Vitest) | N/A | Vitest + inline fixtures | N/A |
-| **Browser UI E2E** | Vue viewer in a real browser | Browser (Playwright) | Vite dev server (local) | Playwright + fixture JSON | N/A (no Python ML in UI tests) |
+| **Browser UI E2E** | Vue Workbench in a real browser | Browser (Playwright, Firefox) | Real API (native or container) behind a Vite dev server | Playwright + a seeded corpus | N/A (no Python ML in UI tests) |
 
 > **"ML/AI Models: Mocked" does not cover the vector store.** The table above predates LanceDB
 > search and reads as if every `[search]` dependency were an ML model. It is not: `lancedb` and
@@ -83,19 +89,22 @@ The testing strategy follows a three-tier pyramid:
 > CI dependency matrix: [Integration Testing Guide — Search and the vector
 > store](../guides/INTEGRATION_TESTING_GUIDE.md#search-and-the-vector-store).
 
-**Frontend unit** tests use **Vitest** (`make test-ui`) to validate pure TS logic in
-`web/workbench/src/utils/*.test.ts` — fast (~150 ms), no browser.
-**Browser UI E2E** is an **additive** layer: it uses **Playwright** under `web/workbench/`, not pytest, and is **not** counted in the ~230 pytest E2E tests. See **[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright)** below and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
+**Frontend unit** tests use **Vitest** (`make test-ui`) to validate TS logic in
+`web/workbench/src/**/*.test.ts` (utils, stores, and `.vue` component mounts) under a coverage gate;
+no browser.
+**Browser UI E2E** is an **additive** layer: it uses **Playwright** under `web/workbench/`, not pytest, and is **not** counted in the pytest E2E tests. See **[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright)** below and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 
 ### Volume and default bias
 
-**Goal:** Most tests are **unit** tests (~80%); **integration** (~14%) and **E2E** (~6%) are complementary layers—not copies of the same scenarios.
+**Goal:** Most tests are **unit** tests (~70-80%); **integration** and **E2E** are complementary layers—not copies of the same scenarios.
 
-**Current distribution (~3,770 tests total):** ~3,000 unit | ~530 integration | ~230 E2E.
+**Current distribution** (static count of `def test_` in the tree, 2026-11-17; parametrized cases
+are not expanded, so collected counts are higher): ~8,300 unit | ~2,200 integration | ~320 E2E
+(about 77% / 20% / 3%). Re-count with `grep -rE "^\s*(async )?def test_" tests/<layer>`.
 
 | Layer | Expectation |
 | ----- | ----------- |
-| **Unit** | **Default for new work.** Cover branches, errors, config, parsing, and provider behavior with mocks. This layer should have the **highest test count** (~80%) and run on every PR (fast). |
+| **Unit** | **Default for new work.** Cover branches, errors, config, parsing, and provider behavior with mocks. This layer should have the **highest test count** and run on every PR (fast). |
 | **Integration** | **Cross-boundary validation.** Integration tests validate cross-module boundaries and provider interactions (factories, stages, HTTP client against a local server). Avoid re-testing every unit case again here. |
 | **E2E** | **Non-redundant with integration.** E2E tests are kept non-redundant with integration tests—each covers a distinct full workflow (CLI / `run_pipeline` / critical paths) that proves the stack end-to-end. Do **not** add E2E for every new flag or branch—use unit tests for those. |
 
@@ -214,7 +223,7 @@ The testing strategy follows a three-tier pyramid:
   - **Real ML models**: Use real Whisper, spaCy,
     and Transformers models (NO mocks)
   - **Real data files**: RSS feeds, transcripts,
-    audio files from `tests/fixtures/e2e_server/`
+    audio files from `tests/e2e/fixtures/` (`e2e_http_server.py`, `openai_mock.py`, `gemini_mock_client.py`)
   - **No external network**: All HTTP calls go to
     local server (network guard prevents external
     calls)
@@ -222,17 +231,17 @@ The testing strategy follows a three-tier pyramid:
     implementations throughout (no Whisper mocks,
     no ML model mocks)
 - **Provider E2E tests**: Dedicated E2E test files
-  exist for each of the 9 providers:
+  exist for each provider, among them:
   `test_ml_models_e2e.py`,
-  `test_hybrid_ml_provider_e2e.py` (includes Tier 1 MAP+REDUCE smoke and
-  **layered cleaning** / `pattern` + `cleaning_hybrid_after_pattern`, Issue #419),
+  `test_map_reduce_strategies_e2e.py` (MAP-REDUCE reduce strategies),
   `test_openai_provider_e2e.py`,
   `test_gemini_provider_e2e.py`,
   `test_anthropic_provider_e2e.py`,
   `test_mistral_provider_e2e.py`,
   `test_deepseek_provider_e2e.py`,
   `test_grok_provider_e2e.py`,
-  `test_ollama_provider_e2e.py`. LLM providers use
+  `test_ollama_provider_e2e.py`, `test_groq_provider_e2e.py`,
+  `test_deepgram_provider_e2e.py`, `test_tailnet_dgx_e2e.py`. LLM providers use
   mock API endpoints served by the E2E HTTP server.
 - **Coverage**: Complete user workflows,
   production-like scenarios
@@ -245,51 +254,18 @@ The testing strategy follows a three-tier pyramid:
   with real implementations. NO mocks allowed — tests
   the system as users would use it.
 
-### Pipeline Validation (manual, `make pipeline-validate`)
+### Pipeline and provider validation sweeps
 
-Full pipeline validation across all providers — runs summary → GI → KG →
-bridge for each provider on the held-out dataset and checks pass/fail at
-each stage. **Not CI-automated** (API costs + Ollama latency). Run manually
-from the laptop when confidence is needed (pre-release, after provider code
-changes, after dependency upgrades).
-
-```bash
-make pipeline-validate                              # all providers (cloud + local)
-make pipeline-validate PROVIDER=gemini MODEL=gemini-2.5-flash-lite  # single
-make pipeline-validate PV_ARGS="--all-cloud"        # 6 cloud providers
-make pipeline-validate PV_ARGS="--all-local"        # Core 5 Ollama (ADR-077)
-make pipeline-validate PV_ARGS="--local-fast"       # skip 35B model
-```
-
-**Pass/fail criteria per stage:**
-
-| Stage | Criteria |
-| ----- | -------- |
-| Summary | ≥5 episodes, ≥500 chars avg |
-| GI | ≥8 insights/ep, ≥50% grounding, ≥3 topics/ep |
-| KG | ≥5 topics/ep (≤50 chars), ≥2 entities/ep |
-| Bridge | ≥90% topic merge rate |
-
-**Providers covered:** 6 cloud APIs (OpenAI, Gemini, Anthropic, DeepSeek,
-Mistral, Grok) + Core 5 Ollama (qwen3.5:9b, llama3.1:8b, mistral:7b,
-gemma2:9b, qwen3.5:35b). See ADR-077 for model selection rationale.
-
-**When to run:**
-
-- Before releasing a new version
-- After touching provider code, GI/KG pipeline, bridge, or config wiring
-- After upgrading dependencies (sentence-transformers, google-genai, etc.)
-- When adding a new provider
-
-Results saved to `data/eval/runs/_pipeline_validation/`.
-
-Similarly, **`make transcription-sweep`** compares local Whisper models on
-quality (WER) and speed for transcription evaluation.
+Cost-bearing validation (every provider across summary, KG and bridge on a held-out dataset,
+transcription sweeps) is not a Makefile target of this repository and does not run in CI. The
+research data and harness live in the private eval repository, mounted per
+[EVAL_RESEARCH_MOUNT.md](../guides/EVAL_RESEARCH_MOUNT.md). What stays here is the admission
+gate in `src/podcast_scraper/enrichment/eval/` (runtime, not research) and the E2E tests.
 
 ### Browser UI E2E (Playwright) {#browser-ui-e2e-playwright}
 
 The **Workbench** (`web/workbench/`) adds **browser-level** regression tests using
-**Playwright** (TypeScript). This is **not** a fourth pytest marker: specs live in
+**Playwright** (TypeScript, Firefox project). This is **not** a fourth pytest marker: specs live in
 `web/workbench/e2e/` and run via **`make test-ui-e2e`** (or `npm run test:e2e` in that
 directory).
 
@@ -298,11 +274,11 @@ directory).
 | **Runner** | `@playwright/test` | pytest |
 | **Entry point** | Browser → Vue SPA | CLI, `run_pipeline()`, `service.run()` |
 | **Typical proof** | Layout, Cytoscape graph shell, search UI, a11y/keyboard, offline fixtures | Full pipeline, providers, disk artifacts |
-| **Local server** | Playwright `webServer` starts **Vite** on **127.0.0.1:5174** | `e2e_server` fixture (RSS/audio/transcripts + LLM mocks) |
+| **Local server** | Playwright `webServer` starts a real API (or reuses one already serving, such as the container from `e2e/run-local-stack.sh`) and **Vite** on **127.0.0.1:5174** | `e2e_server` fixture (RSS/audio/transcripts + LLM mocks) |
 | **In `make test`?** | No | Yes |
-| **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`); required for docs publish path on main | `test-e2e`, `test-e2e-fast`, etc. |
+| **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`, with a Postgres service); runs when the Workbench or what it runs against changes, always on main | `test-e2e`, `test-e2e-fast`, etc. |
 
-The viewer's **own** (TypeScript) test stack has more layers than this single
+The Workbench's **own** (TypeScript) test stack has more layers than this single
 browser tier; the operator run-map — every tier, command, and corpus — lives in
 **[`web/workbench/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/TESTING.md)**.
 In short:
@@ -311,6 +287,10 @@ In short:
   mounts) under a v8 **coverage gate** (#914 — thresholds in `vite.config.ts`,
   enforced by the CI `viewer-unit` job), a UI-coverage track parallel to the
   Python coverage gate.
+- **Graph label collision** is covered by unit tests for the `cyGraphLabelCollision` helper
+  (`src/utils/cyGraphLabelCollision.test.ts`; labels that would overlap get the `graph-label-collides` class and are hidden).
+  The graph handoff state
+  machine (ADR-094) has its matrix rows under `e2e/handoff/` and `e2e/handoff-production/`.
 - **Tier-3 real-corpus validation walk** (`make ci-ui-validation CORPUS=…` via
   `playwright.validation.config.ts`) — drives a live `make serve` stack against a
   real corpus or the in-repo **synthetic validation corpus**
@@ -320,7 +300,7 @@ In short:
   Per RFC-086, a bug it surfaces must land a **Tier-2 matrix row** under
   `e2e/handoff-production/` before the fix PR merges.
 
-**Python API for the viewer** (`GET /api/search`, `/api/explore`, `/api/corpus/*`,
+**Python API for the Workbench** (`GET /api/search`, `/api/corpus/*`,
 `POST /api/index/rebuild`, etc.) is validated at two pytest layers:
 
 - **Unit:** `tests/unit/podcast_scraper/server/` -- pure logic tests (`test_corpus_catalog.py`,
@@ -368,7 +348,7 @@ contract change is enough.
 [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-workbench),
 [E2E Testing Guide — Playwright](../guides/E2E_TESTING_GUIDE.md#browser-e2e-playwright),
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
-[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md).
+[Workbench README](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md).
 
 ## Decision Criteria
 
@@ -379,7 +359,7 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Unit Test**: Single function/module in isolation, all dependencies mocked, `[dev]` only
 - **Integration Test**: Multiple components working together, real internal implementations, all ML/AI mocked
 - **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (the only place for real ML/AI)
-- **Browser UI E2E (Playwright)**: Vue viewer behavior in a real browser; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright) and [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-workbench)
+- **Browser UI E2E (Playwright)**: Vue Workbench behavior in a real browser; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright) and [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-workbench)
 
 **Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
@@ -487,7 +467,7 @@ The decision questions above provide a quick way to determine test type. For cri
 
 - **RFC-013/RFC-029**: Protocol-based provider
   architecture for transcription, speaker detection,
-  and summarization with 9 unified providers.
+  and summarization with unified providers (the table lists the original nine).
 - **Provider Coverage**: Each provider has a
   consistent test structure:
 
@@ -565,7 +545,7 @@ for the wiring template.
   - Jinja2 variable rendering
   - Missing template error handling
   - Template version selection
-  - All 9 providers have prompt directories
+  - The LLM providers have prompt directories
     (`prompts/<provider>/ner/`, `summarization/`)
   - Template validation (syntax, required variables)
 
@@ -604,7 +584,7 @@ for the wiring template.
 
 ### 2. Integration Tests
 
-#### CLI Integration (`cli.py` + `workflow.py`)
+#### CLI Integration (`cli.py` + `workflow/`)
 
 - **RFC-001**: Success, dry-run, concurrency edge cases, error handling
 - **RFC-007**: CLI happy path, invalid args, config file precedence
@@ -615,7 +595,7 @@ for the wiring template.
   - Error handling and exit codes
   - Dependency injection hooks (`apply_log_level_fn`, `run_pipeline_fn`)
 
-#### Workflow Orchestration (`workflow.py`)
+#### Workflow Orchestration (`workflow/`)
 
 - **RFC-001**: End-to-end coordination, concurrency, cleanup
 - **Test Cases**:
@@ -688,7 +668,7 @@ the loop at the right layer.”
 | ----- | ---------- | -------------- |
 | **pytest E2E** (`tests/e2e/`, `pytest`, `@pytest.mark.e2e`) | Full workflows from **user-facing Python entry points** (CLI subprocess, `run_pipeline`, service-style runs, E2E HTTP **client** against the **E2E fixture server**). | That the **Python product path** from entry to artifacts behaves end-to-end for the scenarios we care about. **Coverage** for this job uses the **full** `podcast_scraper` package (see `pyproject.toml` `[tool.coverage.run]`); there is **no** subtree `omit` file tuned to make the percentage look higher. |
 | **HTTP integration** (`tests/integration/server/`, FastAPI **TestClient** or similar) | Request/response and route wiring **in the Python process**, often without a separate long-lived server or browser. | Server modules, auth/middleware shapes, and API contracts **efficiently**. It is **not** a substitute for **pytest E2E** when the requirement is “operator/user ran the real CLI or full pipeline and this capability fired.” |
-| **Browser UI E2E (Playwright)** | Real browser against the **Vue** dev server; specs under `web/workbench/e2e/`. | **UI** behavior (a11y strings, graph shell, client-side merge). It does **not** execute the pytest suite and does **not** give a pass on **pytest E2E** obligations for Python-only capabilities. |
+| **Browser UI E2E (Playwright)** | Real browser against the **Vue** dev server and a real API; specs under `web/workbench/e2e/`. | **UI** behavior (a11y strings, graph shell, client-side merge). It does **not** execute the pytest suite and does **not** give a pass on **pytest E2E** obligations for Python-only capabilities. |
 
 **Policy (Python focus):** **Playwright is not an excuse** to skip pytest E2E or to shrink pytest E2E
 coverage expectations for Python packages such as `server/`, `search/`, or `gi/`. If a **key
@@ -704,9 +684,9 @@ See also [Testing Guide — coverage thresholds](../guides/TESTING_GUIDE.md#cove
 
 E2E tests are organized into two tiers to balance fast CI feedback with
 comprehensive validation. (The previous "Tier 2: Data Quality" tier was
-retired — its concerns moved to ``data/eval/`` with versioned silver
-references, byte-for-byte reproducible materialized inputs, and pairwise
-LLM judging. See ``data/eval/README.md``.)
+retired — its concerns moved to the private eval repository, with versioned
+silver references, byte-for-byte reproducible materialized inputs, and pairwise
+LLM judging; see [EVAL_RESEARCH_MOUNT.md](../guides/EVAL_RESEARCH_MOUNT.md).)
 
 | Tier | Purpose | Episodes | Models | When | Makefile Target |
 | ---- | ------- | -------- | ------ | ---- | --------------- |
@@ -746,6 +726,17 @@ LLM judging. See ``data/eval/README.md``.)
 - **Fixtures**: pytest fixtures for test setup and teardown
 - **Markers**: pytest markers for test categorization
 
+### Test database (Postgres)
+
+App state (user accounts, ADR-169) lives in Postgres, so suites that touch it read
+`PODCAST_TEST_DATABASE_URL` and fail with a "start the test database" message when it is unset.
+`make test-db-up` starts one loopback-only `postgres:18` container per checkout
+(`scripts/tools/test_db.sh`) and prints the URL to export; `make test-db-down` removes only that
+container. `tests/_database.py` gives each pytest process (each xdist worker) its own database,
+upgrades every plane to head and empties the kernel tables after every test. CI jobs `test-unit`,
+`test-integration` and `test-integration-fast` run a Postgres service container
+(`.github/workflows/python-app.yml`). Python is 3.12 (`requires-python = ">=3.12"`).
+
 ### Mocking Strategy
 
 - **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients).
@@ -759,10 +750,10 @@ LLM judging. See ``data/eval/README.md``.)
   (Whisper, spaCy, Transformers) are REAL -- no mocks allowed. This is the only layer where
   `@pytest.mark.ml_models` is valid.
 
-**Provider Testing Strategy (9 providers):**
+**Provider Testing Strategy (original nine providers; later ones follow the same pattern):**
 
 - **Unit Tests (Standalone Provider)**: Each of the
-  9 providers tested directly with all dependencies
+  providers tested directly with all dependencies
   mocked (API clients, ML models). Dedicated test
   files: `test_<provider>_provider.py`,
   `_factory.py`, `_lifecycle.py`.
@@ -796,7 +787,7 @@ Each layer uses a different organizational axis:
 - **`tests/unit/`** — Mirrors the `src/` tree 1:1 (find the test for any source file mechanically)
 - **`tests/integration/`** — Organized by **domain subsystem** (providers, workflow, GI/KG, server, search, rss, etc.); cross-cutting tests stay in root. See [Integration Testing Guide — Directory Organization](../guides/INTEGRATION_TESTING_GUIDE.md#directory-organization)
 - **`tests/e2e/`** — Flat by user scenario (CLI commands, service API, provider pipelines)
-- **`web/workbench/src/utils/*.test.ts`** — Vitest unit tests for TS utility logic (`make test-ui`)
+- **`web/workbench/src/**/*.test.ts`** — Vitest unit and component tests (`make test-ui`)
 - **`web/workbench/e2e/`** — Playwright specs (`*.spec.ts`); **`web/workbench/playwright.config.ts`** — browser UI E2E (not collected by pytest)
 
 ### Test Markers
@@ -817,13 +808,15 @@ Each layer uses a different organizational axis:
   from nightly to avoid costs)
 - `@pytest.mark.openai` - Tests using OpenAI API
   specifically (subset of llm)
-- `@pytest.mark.gil` - GIL extraction tests
-- `@pytest.mark.grounding` - Grounding contract
-  validation tests
+- `@pytest.mark.app` - Consumer-app / server-route integration tests (auto-applied to
+  `tests/integration/server/test_app_*.py`; part of the fast PR suite)
 
-**Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in
-parallel with `-n auto`. All tests use network isolation via
-`--disable-socket --allow-hosts=127.0.0.1,localhost`.
+The full marker list is `[tool.pytest.ini_options].markers` in `pyproject.toml`.
+
+**Execution Pattern**: Unit, integration and E2E runs are parallel with `-n <workers>` (worker count
+from `scripts/tools/calculate_test_workers.py`). Unit tests run with
+`--disable-socket --allow-hosts=127.0.0.1,localhost`; integration and E2E runs restrict hosts with
+`--allow-hosts=127.0.0.1,localhost` (pytest-rerunfailures with xdist needs localhost sockets).
 
 **For detailed test infrastructure information, see [Testing Guide](../guides/TESTING_GUIDE.md).**
 
@@ -845,7 +838,8 @@ dedicated scripts and a "golden" dataset.
 ### Golden Datasets
 
 Evaluation is performed against human-verified ground
-truth data stored in `data/eval/`. This dataset is
+truth data kept in the private eval repository (see
+[EVAL_RESEARCH_MOUNT.md](../guides/EVAL_RESEARCH_MOUNT.md)), not in this one. That dataset is
 versioned and frozen to provide a stable baseline for
 comparison.
 
@@ -878,8 +872,8 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   tests using test ML models (~5-8 min)
 - **test-e2e-fast**: Critical path E2E tests (Tier 1)
   using test ML models (~8-12 min)
-- **viewer-unit**: Vitest unit tests for `web/workbench` TS utils (`make test-ui`; ~150 ms)
-- **viewer-e2e**: Playwright tests for `web/workbench` (`make test-ui-e2e`; Chrome locally, Firefox in CI; Vite on 5174)
+- **viewer-unit**: Vitest unit and component tests for `web/workbench` (`make test-ui`)
+- **viewer-e2e**: Playwright tests for `web/workbench` (`make test-ui-e2e`; Firefox; Vite on 5174; Postgres service)
 - **build**: Package build validation (~2 min)
 - **docs**: Documentation build validation (~3 min)
 
@@ -977,7 +971,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [ ] Alias resolution
 - [ ] Error messages
 
-### `workflow.py`
+### `workflow/` (`orchestration.py`, `stages/`)
 
 - [ ] Pipeline orchestration
 - [ ] Concurrent downloads
@@ -985,7 +979,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [ ] Cleanup operations
 - [ ] Dry-run mode
 
-### `rss_parser.py`
+### `rss/` (`parser.py`)
 
 - [ ] RSS parsing (various formats)
 - [ ] Namespace handling
@@ -1065,7 +1059,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] ServiceResult equality and string repr
 - [x] Integration with public API
 
-### `providers/` (All 9 Providers)
+### `providers/` (the original nine; later providers follow the same pattern)
 
 - [x] MLProvider: unit, lifecycle, integration, E2E
 - [x] HybridMLProvider: unit, lifecycle, integration, E2E
@@ -1104,7 +1098,7 @@ The GIL extraction, loading and exploration modules, the `gi` CLI verbs and thei
 installed extension. This repository tests the seams the extension plugs into and the shared
 artifact checks:
 
-- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E subprocess smoke `test_gi_kg_cli_subprocess_e2e.py` (`kg validate`, `kg inspect`); acceptance via **`make test-acceptance`** (operator YAML paths you choose) and/or **`make test-acceptance-fixtures-fast`** (materialized **`MAIN_ACCEPTANCE_CONFIG.yaml`** matrix rows).
+- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py` (`tests/integration/gi/`), `tests/integration/workflow/test_metadata_integration.py`; E2E subprocess smoke `test_gi_kg_cli_subprocess_e2e.py` (`kg validate`, `kg inspect`); acceptance via **`make test-acceptance`** (operator YAML paths you choose) and/or **`make test-acceptance-fixtures-fast`** (materialized **`MAIN_ACCEPTANCE_CONFIG.yaml`** matrix rows).
 
 ### `search/` (Corpus Search — RFC-090 Hybrid over LanceDB)
 
@@ -1112,10 +1106,10 @@ artifact checks:
   (unit: `test_chunker.py`)
 - [x] `search/two_tier_indexer.py` — native two-tier
   (segment + insight + aux) LanceDB build + insight↔segment
-  linking (integration: `test_migration.py`; e2e:
+  linking (integration: `test_two_tier_indexer.py`; e2e:
   `test_upgrade_cli_e2e.py`)
 - [x] `search/backends/lancedb_backend.py` — LanceDB
-  BM25 + vector backend (integration: `test_migration.py`)
+  BM25 + vector backend (integration: `test_lancedb_backend.py`)
 - [x] `search/retrieval.py` — `RetrievalLayer` (signals →
   RRF → compound dedup) (unit: `test_backend.py`)
 - [x] `search/hybrid_search.py` — live hybrid bridge
@@ -1174,31 +1168,32 @@ artifact checks:
 
 ## Test Pyramid Status
 
-> **Note**: Test distribution numbers should be verified periodically by running test collection
-> and counting tests by layer. Historical progress tracking was documented in
+> **Note**: Test distribution numbers are a static `def test_` count and should be re-counted
+> periodically. Historical progress tracking was documented in
 > the historical `TEST_PYRAMID_ANALYSIS.md` and `TEST_PYRAMID_PLAN.md` (both removed after) (now consolidated here).
 
 ### Current State vs. Ideal Distribution
 
-The test pyramid has reached a healthy shape that matches the ideal targets.
+Unit sits inside the target band, integration at the top of it, and pytest E2E below it (Playwright
+specs are counted separately).
 
-**Current Distribution (~3,770 tests, verified Apr 2026):**
+**Current Distribution (static `def test_` count, 2026-11-17; parametrized cases not expanded):**
 
-- **Unit Tests**: ~3,000 (~80%) Target 70-80%
-- **Integration Tests**: ~530 (~14%) Target 15-20%
-- **E2E Tests**: ~230 (~6%) Target 5-10%
+- **Unit Tests**: ~8,300 (~77%) Target 70-80%
+- **Integration Tests**: ~2,200 (~20%) Target 15-20%
+- **E2E Tests**: ~320 (~3%) Target 5-10%
 
 **Visual Representation:**
 
 ```text
         ╱╲
-       ╱  ╲      E2E: ~6% (~230 tests)
+       ╱  ╲      E2E: ~3% (~320 tests)
       ╱    ╲
-     ╱      ╲    Integration: ~14% (~530 tests)
+     ╱      ╲    Integration: ~20% (~2,200 tests)
     ╱        ╲
-   ╱          ╲  Unit: ~80% (~3,000 tests)
+   ╱          ╲  Unit: ~77% (~8,300 tests)
   ╱____________╲
-              Total: ~3,770 tests
+              Total: ~10,800 tests
 
 Ideal Pyramid:
         ╱╲
@@ -1210,19 +1205,19 @@ Ideal Pyramid:
   ╱____________╲
 ```
 
-The pyramid is now well-balanced. Historical issues (misclassified tests, missing unit coverage) have been addressed through the improvement phases below. Remaining maintenance items:
+Historical issues (misclassified tests, missing unit coverage) were addressed through the improvement phases below. Remaining maintenance items:
 
-1. **Unit layer (~80%)**: Healthy. All core modules have unit tests. Continue adding unit tests as default for new work.
-2. **Integration layer (~14%)**: Validates cross-module boundaries and provider interactions across all 9 providers.
-3. **E2E layer (~6%)**: Covers complete user workflows (CLI, Library API, Service API) without duplicating integration-level scenarios.
+1. **Unit layer (~77%)**: Healthy. All core modules have unit tests. Continue adding unit tests as default for new work.
+2. **Integration layer (~20%)**: Validates cross-module boundaries and provider interactions across the providers.
+3. **E2E layer (~3%)**: Covers complete user workflows (CLI, Library API, Service API) without duplicating integration-level scenarios.
 
 ### Goals and Targets
 
-**Target Distribution (achieved as of Apr 2026):**
+**Target Distribution:**
 
-- **Unit Tests**: 70-80% (~3,000 tests)
-- **Integration Tests**: 15-20% (~530 tests)
-- **E2E Tests**: 5-10% (~230 tests)
+- **Unit Tests**: 70-80%
+- **Integration Tests**: 15-20%
+- **E2E Tests**: 5-10%
 
 **Success Metrics:**
 
@@ -1242,7 +1237,7 @@ All four phases have been executed. The pyramid now matches the target distribut
 
 **Phase 2: Add Missing Unit Tests** Done
 
-- Added unit tests for all core modules (`workflow.py`, `episode_processor.py`, `summarizer.py`, `speaker_detection.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`, `cli.py`, `service.py`).
+- Added unit tests for all core modules (`workflow/`, `episode_processor.py`, `summarizer.py`, speaker detection, `preprocessing/`, `progress.py`, `metrics.py`, `filesystem.py`, `cli.py`, `service.py`).
 
 **Phase 3: Optimize Integration Layer** Done
 
@@ -1252,7 +1247,7 @@ All four phases have been executed. The pyramid now matches the target distribut
 **Phase 4: Reduce E2E to True E2E** Done
 
 - E2E layer now contains only true end-to-end user workflow tests.
-- **Final Result**: Unit: ~80%, Integration: ~14%, E2E: ~6%
+- Distribution at the end of the phases: see the current counts above.
 
 ### Unit Test Coverage by Module
 
@@ -1261,14 +1256,14 @@ All previously-identified coverage gaps have been addressed. Key modules and the
 **Core Modules (covered):**
 
 - `summarizer.py`: Text cleaning, chunking, validation functions
-- `workflow.py`: Pipeline orchestration helpers
+- `workflow/`: Pipeline orchestration helpers
 - `episode_processor.py`: Episode processing logic
 
 **Supporting Modules (covered):**
 
-- `speaker_detection.py`: Detection and scoring logic
+- Speaker detection: detection and scoring logic
 - `cli.py` and `service.py`: Argument parsing and service logic
-- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions
+- `preprocessing/`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions
 
 ## Future Testing Enhancements
 
@@ -1350,7 +1345,7 @@ is the KG-side artifact gate and the seams:
 - **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)**
   — pytest E2E server, real ML models, API mocking; Playwright viewer stack
 - **[ADR-066: Playwright for UI E2E](../adr/ADR-066-playwright-for-ui-e2e-testing.md)**
-  — browser automation choice for viewer v2
+  — browser automation choice for the Workbench
 - Test structure reorganization:
   `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`

@@ -2,13 +2,13 @@
 
 The recommended way to run the platform end-to-end on a single machine. Brings up the API, the Workbench (browser UI), and an on-demand pipeline runner — all wired together. You drive everything from the browser: add RSS feeds, choose a processing profile, click **Run pipeline job**, watch artifacts appear.
 
-This guide is for **operators and end users**. If you want to develop the Python code or the Vue viewer, see [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) and [Development guide](DEVELOPMENT_GUIDE.md).
+This guide is for **operators and end users**. If you want to develop the Python code or the Vue Workbench, see [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) and [Development guide](DEVELOPMENT_GUIDE.md).
 
 ## Why Docker Compose
 
-You get the whole platform with one `docker compose up`. No Python/venv setup on the host, no Node/npm setup, no managing supervisord — Docker handles the lifecycle. The same images and compose files run on your laptop, **CI** (`stack-test.yml` on `main`, see [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)), or a **small VPS** behind Tailscale (Hosting and infrastructure, [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md)). **Always-on prod and DR drill** hosts merge **`docker-compose.vps-prod.yml`** on top of **`stack.yml`** + **`prod.yml`**; see Stack contract for the surface audit table.
+You get the whole platform with one `docker compose up`. No Python/venv setup on the host, no Node/npm setup, no managing supervisord — Docker handles the lifecycle. The same images and compose files run on your laptop, **CI** (`stack-test.yml` on `main`, see [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)), or a **small VPS** ([RFC-079](../rfc/RFC-079-full-stack-docker-compose.md)). This repository ships the base stack, the stack-test overlay and the Docker job-mode overlay (see [Reference](#reference)); a deployment's own always-on overlays live outside it.
 
-Pipeline jobs run as **one-shot containers** spawned by the API on demand. There is **no long-running pipeline service** — when you click **Run** in the UI, the API calls `docker compose run --rm pipeline ...` (or `pipeline-llm` for cloud profiles), the container processes your feeds, writes artifacts to a shared named volume, and exits. The viewer then reads those artifacts directly.
+Pipeline jobs run as **one-shot containers** spawned by the API on demand. There is **no long-running pipeline service** — when you click **Run** in the UI, the API calls `docker compose run --rm pipeline ...` (or `pipeline-llm` for cloud profiles), the container processes your feeds, writes artifacts to a shared named volume, and exits. The Workbench then reads those artifacts through the API.
 
 ## Prerequisites
 
@@ -78,11 +78,12 @@ This adds `podcast-scraper-stack-pipeline-llm` (~500 MB, no local ML).
 make stack-test-up
 ```
 
-Three long-running services start:
+These long-running services start:
 
 - **`workbench`** (Nginx serving the Vue SPA) — exposed on `http://127.0.0.1:8090`.
 - **`api`** (FastAPI on port 8000, proxied via Nginx at `/api/*`).
 - **`mock-feeds`** (an Nginx sidecar that serves a few bundled RSS fixtures plus their audio + transcripts — handy for trying the platform without configuring real feeds).
+- **`postgres`** (app state, user accounts), with a one-shot **`db-migrate`** that upgrades its schema before `api` starts.
 
 The pipeline / pipeline-llm services are **not** started here — they spawn per-job.
 
@@ -94,13 +95,13 @@ Check the API is up:
 curl -fsS http://127.0.0.1:8090/api/health
 ```
 
-### 3. Open the viewer
+### 3. Open the Workbench
 
 Navigate to **<http://127.0.0.1:8090>**. You'll see the Workbench.
 
 ### 4. Configure feeds and profile
 
-In the **Configuration** dialog (footer or status-bar entry):
+In the **Configuration** dialog (status-bar entry):
 
 - **Feeds tab** — add one or more RSS URLs. For your first run you can use the bundled fixtures:
   - `http://mock-feeds/p01_fast_with_transcript.xml` — 1 episode, fast (transcript already in feed)
@@ -108,9 +109,9 @@ In the **Configuration** dialog (footer or status-bar entry):
 
   In production, add your own RSS feed URLs (any podcast that exposes RSS — most do).
 
-- **Job Profile tab** — pick a packaged profile and click **Save**:
+- **Job Configuration tab, Profile sub-tab** — pick a packaged profile and click **Save**:
   - `airgapped_thin` — local Whisper + transformers, no cloud calls. Default. Good for evaluating the platform.
-  - `cloud_thin` — OpenAI Whisper + Gemini (NER, summary, GIL, KG). Faster and better quality on real episodes; needs `OPENAI_API_KEY` + `GEMINI_API_KEY` in `.env`.
+  - `cloud_thin` — OpenAI Whisper + Gemini (NER, summary, KG). Faster and better quality on real episodes; needs `OPENAI_API_KEY` + `GEMINI_API_KEY` in `.env`.
   - `cloud_balanced`, `cloud_quality` — richer cloud configurations with vector search for semantic queries.
   - `local`, `dev`, `airgapped` — full local stacks for advanced setups.
 
@@ -120,15 +121,15 @@ In the **Configuration** dialog (footer or status-bar entry):
 
 ### 5. Run a pipeline job
 
-Click **Dashboard → Pipeline → Run pipeline job**. The API:
+Open **Dashboard → Pipeline → Jobs** and click **Run**. The API:
 
 1. Validates `viewer_operator.yaml` declares which container variant to use (`pipeline_install_extras: ml` for ml/airgapped, `llm` for cloud-thin — see [Operator config](#operator-config) below for how this is set automatically when you save a profile via the UI).
 2. Spawns a one-shot pipeline container via `docker compose run --rm pipeline{,-llm}` with `--config <viewer_operator.yaml> --feeds-spec <feeds.spec.yaml> --profile <name>`.
-3. The pipeline container processes each feed: download → transcribe → summarize → extract GI / KG → write artifacts under `<corpus>/feeds/<stable>/run_<id>/`.
+3. The pipeline container processes each feed: download → transcribe → summarize → extract the knowledge graph → write artifacts under `<corpus>/feeds/<stable>/run_<id>/`.
 4. The container exits when done; the API's `/api/jobs` endpoint reflects the status (`running` → `succeeded` or `failed`).
-5. The viewer auto-loads new artifacts: Library shows the produced episodes, Digest summarizes them, Graph/Search expose the entities and topics.
+5. The Workbench auto-loads new artifacts: Library shows the produced episodes, Digest summarizes them, Graph/Search expose the entities and topics. Grounded insights (`.gi.json`) are not produced by this repository's pipeline; they come from an installed extension (see [ADR-170](../adr/ADR-170-private-repo-split-platform-common-apps.md)).
 
-Watch the job log via the **Pipeline Jobs** card in the dashboard, or tail it from the host:
+Watch the job log via the **Jobs** card in the dashboard, or tail it from the host:
 
 ```bash
 docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs -f api
@@ -141,9 +142,9 @@ A typical airgapped run on a laptop: ~60–90 s for one short episode (Whisper t
 ### 6. Browse results
 
 - **Library** — feed/episode list with status badges and per-episode rails.
-- **Digest** — time-windowed summary of the latest episodes; honours the **All time** lens for static-date fixtures.
+- **Digest** — time-windowed summary of the latest episodes. The stack-test overlay builds the Workbench with an all-time default lens so static-date fixtures show up.
 - **Search** — semantic LanceDB search (only when the active profile sets `vector_search: true` — `airgapped_thin` does, `cloud_thin` does not).
-- **Graph** — Cytoscape graph of topics, entities, episodes, and bridges.
+- **Graph** — Cytoscape graph drawn from the KG artifacts: topics, entities, episodes, and their edges.
 
 ## Persistence
 
@@ -155,6 +156,7 @@ A typical airgapped run on a laptop: ~60–90 s for one short episode (Whisper t
 | Vue SPA build | baked into the `workbench` image | lost on image rebuild |
 | Pipeline job logs | `<corpus>/.viewer/jobs/<id>.log` in `corpus_data` | preserved |
 | HuggingFace model cache (sentence-transformers, spaCy, Whisper) | baked into the `api` and `pipeline` images at build time | lost on image rebuild |
+| HuggingFace cache of `pipeline-llm` (enricher models) | named volume `compose_hf_cache`, filled from the image on first mount | preserved unless you pass `STACK_TEST_DOWN_VOLUMES=1` |
 
 To start completely fresh (drop all data and rebuild):
 
@@ -165,7 +167,7 @@ make stack-test-build
 
 ## Operator config
 
-The viewer drives a thin operator-config layer. When you **Save** a profile via the UI, the API writes `<corpus>/viewer_operator.yaml` containing:
+The Workbench drives a thin operator-config layer. When you **Save** a profile via the UI, the API writes `<corpus>/viewer_operator.yaml` containing:
 
 - `profile: <name>` — the packaged profile to merge from.
 - A handful of operator-tunable fields (`max_episodes`, `workers`, `transcribe_missing`, …).
@@ -177,7 +179,7 @@ For local stack-test runs, `make stack-test-seed` lays down a starter `viewer_op
 make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 ```
 
-…then choose `cloud_thin` in the **Job Profile** dropdown when saving.
+…then choose `cloud_thin` in the **Profile** picker when saving.
 
 ## Inspect artifacts on disk
 
@@ -196,7 +198,7 @@ After pulling new code:
 
 ```bash
 make stack-test-down
-make stack-test-build      # rebuilds api, viewer, pipeline (cached layers reused where unchanged)
+make stack-test-build      # rebuilds api, workbench, pipeline (cached layers reused where unchanged)
 make stack-test-up
 ```
 
@@ -213,7 +215,7 @@ make stack-test-down STACK_TEST_DOWN_VOLUMES=1   # also drop the corpus_data vol
 
 ```text
 ┌──────────────┐    HTTP    ┌──────────────┐
-│  Browser     │───────────▶│  viewer      │  Nginx
+│  Browser     │───────────▶│  workbench   │  Nginx
 │  (you)       │            │  (8090:80)   │  serves SPA + proxies /api/*
 └──────────────┘            └──────┬───────┘
                                    │ /api/*
@@ -253,7 +255,8 @@ make stack-test-down STACK_TEST_DOWN_VOLUMES=1   # also drop the corpus_data vol
 ### Volumes
 
 - **`postgres_data`** — the database cluster (user accounts). Dropped by `STACK_TEST_DOWN_VOLUMES=1`.
-- **`corpus_data`** — read-write on `api`, `pipeline`, and `pipeline-llm`. Holds operator config, feeds spec, run artifacts, transcripts, search index. The viewer reads it indirectly through the API.
+- **`hf_cache`** — HuggingFace cache for the `pipeline-llm` ML enrichers; regenerable.
+- **`corpus_data`** — read-write on `api`, `pipeline`, and `pipeline-llm`. Holds operator config, feeds spec, run artifacts, transcripts, search index. The Workbench reads it indirectly through the API.
 
 ### Network
 
@@ -351,10 +354,10 @@ make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 The `compose/docker-compose.stack.yml` + `compose/docker-compose.stack-test.yml` setup ships everything you need for a single-corpus, single-host deployment. To take it production-ish:
 
 1. **Drop the `mock-feeds` service.** Remove `compose/docker-compose.stack-test.yml` from your `-f` chain (or write a thin overlay that omits it). Real RSS URLs go in `feeds.spec.yaml` directly via the UI.
-2. **Add restart policies.** Merge a production overlay — adds `restart: unless-stopped` for `api` and `workbench`.
+2. **Add restart policies.** Write an overlay that adds `restart: unless-stopped` for `api` and `workbench` (none ships in `compose/`).
 3. **Externalise the corpus volume.** Change `corpus_data` to an external named volume so it survives `docker compose down -v`. Or bind-mount a host path.
-4. **Front the viewer with HTTPS.** Put a reverse proxy (Caddy, Traefik, Nginx) in front of `viewer:80` — the SPA itself doesn't terminate TLS.
-5. **Lock down the API.** The current setup assumes the viewer host is trusted. Add network policies or an authenticating proxy if `:8090` is reachable from anywhere outside the host.
+4. **Front the Workbench with HTTPS.** Put a reverse proxy (Caddy, Traefik, Nginx) in front of `workbench:80` — the SPA itself doesn't terminate TLS.
+5. **Lock down the API.** The current setup assumes the Workbench host is trusted. Add network policies or an authenticating proxy if `:8090` is reachable from anywhere outside the host.
 6. **Provider keys.** Use Docker secrets or environment-variable injection from your orchestrator instead of a checked-in `.env`. The compose file reads `${OPENAI_API_KEY:-}` etc. at `up` time.
 
 For full RFC-079 / GitHub #659 architecture details, see [RFC-079 — Full-stack Docker Compose](../rfc/RFC-079-full-stack-docker-compose.md).
@@ -362,7 +365,7 @@ For full RFC-079 / GitHub #659 architecture details, see [RFC-079 — Full-stack
 ## Reference
 
 - [README — Quick start with Docker Compose](https://github.com/chipi/podcast_scraper/blob/main/README.md#quickest-start-docker-compose) — the 4-step landing version of this guide.
-- [`compose/`](https://github.com/chipi/podcast_scraper/tree/main/compose) — compose files: `docker-compose.stack.yml` (base), `docker-compose.stack-test.yml` (overlay used for the bundled mock-feeds + Docker job mode), `docker-compose.jobs-docker.yml` (production overlay enabling Docker job mode without mock-feeds), `docker-compose.prod.yml` (restart policies).
+- [`compose/`](https://github.com/chipi/podcast_scraper/tree/main/compose) — compose files: `docker-compose.stack.yml` (base), `docker-compose.stack-test.yml` (overlay used for the bundled mock-feeds + Docker job mode), `docker-compose.jobs-docker.yml` (overlay enabling Docker job mode without mock-feeds; mounts the repo at `/podcast_repo` and needs `PODCAST_DOCKER_PROJECT_DIR`).
 - [`docker/`](https://github.com/chipi/podcast_scraper/tree/main/docker) — image Dockerfiles for `api`, `workbench`, `pipeline`, and the `mock-feeds` Nginx sidecar.
 - [Stack-test README](https://github.com/chipi/podcast_scraper/blob/main/tests/stack-test/README.md) — how the Playwright suite drives the same compose stack.
 - [Docker variants guide](DOCKER_VARIANTS_GUIDE.md) — pipeline image tier comparison (ml vs llm).

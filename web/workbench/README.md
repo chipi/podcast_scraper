@@ -1,6 +1,6 @@
 # Workbench
 
-Vue 3 + Vite + TypeScript + Tailwind + Pinia SPA for [RFC-062](https://github.com/chipi/podcast_scraper/blob/main/docs/rfc/RFC-062-gi-kg-viewer-v2.md). Replaced the legacy `web/gi-kg-viz/` prototype (now removed).
+Vue 3 + Vite + TypeScript + Tailwind + Pinia SPA ([RFC-062](https://github.com/chipi/podcast_scraper/blob/main/docs/rfc/RFC-062-gi-kg-viewer-v2.md)): the operator's browser UI for a pipeline output folder. Tabs: **Digest**, **Library**, **Search**, **Graph**, **Dashboard**, **Ops**, **Admin**. Desktop only (minimum width 1024 px, [UXS-001](../../docs/uxs/UXS-001-workbench.md)).
 
 **Repo context:** This folder is the **Node** side of a **Python + web** monorepo. For how that
 fits with the root `Makefile`, `.env` files, and CI, see
@@ -8,22 +8,22 @@ fits with the root `Makefile`, `.env` files, and CI, see
 
 ## End users: run API + UI together
 
-Use this when you want **list files**, **semantic search**, **explore**, and **dashboard** (everything that talks to `/api/*`).
+Use this when you want **list**, **search**, **dashboard** and the rest of what talks to `/api/*`.
 
-1. **Python:** `pip install -e ".[dev]"` from the repo root (add `[ml]` too if you need LanceDB / embeddings on the server, same as `podcast search`).
+1. **Python:** `pip install -e ".[dev]"` from the repo root (add `[search]` too if you need LanceDB / embeddings on the server, same as `podcast search`).
 2. **UI build (once per clone / after UI changes):**  
    `cd web/workbench && npm install && npm run build`  
    This creates `dist/`. When `dist/` exists, `serve` mounts it at `/` so you only run one backend process.
 3. **Start the server** (repo root, venv on):  
    `python -m podcast_scraper.cli serve --output-dir /path/to/your/run`  
    Default URL: **<http://127.0.0.1:8000>**
-4. In the app, set **Corpus root folder** to that **same** `--output-dir`, then **List files** → select artifacts → **Load selected into graph**.
+4. In the status bar, enter the **same** `--output-dir` as the corpus path, then click **List**. The **Corpus artifacts** dialog lists the graph artifacts the server found: select them (**All** / **None**) and click **Load into graph**.
 
-**Graph-only, no API:** If you skip the server (or health check fails), use **Choose .gi.json / .kg.json files** under the API panel. You still get the graph (and can use the Dashboard for the loaded graph), but not server-backed list/search/index stats.
+**Graph-only, no API:** If you skip the server (or the health check fails), click **Files** in the status bar to choose graph JSON files from disk. You still get the graph (and can use the Dashboard for the loaded graph), but not server-backed list, search or index stats.
 
-**Offline vs API corpus path:** File-picker loads do **not** fetch `search/topic_clusters.json` or run the **topic-cluster sibling auto-load** (catalog resolve). **Cluster timeline** (`POST /api/topics/timeline`) and related CIL calls also require a healthy API and a **Corpus path** pointing at your pipeline output. For the full topic-cluster overlay + sibling merge + merged timelines, use **`make serve`** / **`make serve-api`** with the same `--output-dir` you paste into **Corpus path**.
+**Offline vs API corpus path:** File-picker loads do **not** fetch `search/topic_clusters.json` or run the **topic-cluster sibling auto-load** (catalog resolve), and they need no server. Anything that reads the corpus (list, Library, Digest, Search, index stats) requires a healthy API and a corpus path pointing at your pipeline output.
 
-**Full-stack dev (hot reload):** `make serve SERVE_OUTPUT_DIR=/path/to/output` — API on port **8000**, Vite on **5173** with `/api` proxied. Open **5173** while developing the UI.
+**Full-stack dev (hot reload):** `make serve SERVE_OUTPUT_DIR=/path/to/output` — API on port **8000**, Vite on **5173** with `/api` proxied. Open **5173** while developing the UI. The `serve` target also starts a local dev database (`scripts/tools/dev_db.py`) and enables the feeds, operator-config and jobs APIs.
 
 ---
 
@@ -62,25 +62,25 @@ make serve SERVE_OUTPUT_DIR=/path/to/output
 
 ## Which path is “corpus root”?
 
-Use the **pipeline output directory** — the folder that contains `metadata/*.gi.json` and `metadata/*.kg.json` (same idea as `podcast … --output-dir ./my-run`). Paste that **folder** into the UI, click **List files**, then tick the artifacts you want and **Load selected into graph**. You do not paste paths to individual JSON files into the corpus field.
+Use the **pipeline output directory** — the folder that contains `metadata/` (the same idea as `podcast … --output-dir ./my-run`). Enter that **folder** in the status bar's corpus path field, then **List** the artifacts and load the ones you want. You do not enter paths to individual JSON files there; **Files** is the picker for those.
 
 ### Multi-feed corpora (unified `search/`)
 
 When you scraped **several feeds into one corpus** (CLI multiple `--rss` / `feeds:` in YAML), the corpus
 root is the **parent directory that contains `feeds/`** — not `feeds/<stable_id>/`. Per-feed transcripts
-and metadata live under `feeds/<stable_id>/…`; **semantic search** and **Dashboard → vector index** use the
-single unified index at **`<corpus_parent>/search/`** (GitHub #505). The viewer’s **Corpus root** field
-should still point at that parent so list/search/explore see the whole corpus.
+and metadata live under `feeds/<stable_id>/…`; **search** and **Dashboard → vector index** use the
+single unified index at **`<corpus_parent>/search/`** (GitHub #505). The **corpus path** field
+should still point at that parent so list and search see the whole corpus.
 
 ## Optional env
 
-Copy `.env.example` to `.env` and set `VITE_DEFAULT_CORPUS_PATH` to pre-fill that folder in the UI. Optional **`VITE_CLUSTER_SIBLING_EPISODE_CAP`** caps how many extra sibling episodes the Graph tab loads when **`topic_clusters.json`** lists **`members[].episode_ids`** (API mode only). The status line uses a short form: `+N new · M in cluster · cap C` (see [Polyglot guide](../../docs/guides/POLYGLOT_REPO_GUIDE.md)).
+Copy `.env.example` to `.env` and set `VITE_DEFAULT_CORPUS_PATH` to pre-fill the corpus path in the UI. `VITE_DEFAULT_GRAPH_LENS_DAYS` sets the Graph time-lens lower bound on first auto-load (a positive integer is "last N days"; `0` or empty is "all time"; see the [Polyglot guide](../../docs/guides/POLYGLOT_REPO_GUIDE.md)).
 
 ## Testing
 
 See **[TESTING.md](./TESTING.md)** for the full test tier map — Vitest unit +
-`@vue/test-utils` component tests, the `#914` coverage gate, the mocked
-Playwright e2e (`npm run test:e2e`), and the Tier-3 real-corpus validation walk
+`@vue/test-utils` component tests, the `#914` coverage gate, the Playwright e2e
+(`npm run test:e2e`), and the Tier-3 real-corpus validation walk
 (`make ci-ui-validation`) — plus the corpora and how to run each.
 
 ## Production build
@@ -91,38 +91,25 @@ npm run build
 
 Static files go to `dist/`. When `dist/` exists, `podcast serve` mounts it at `/` so a single process can serve API + UI.
 
-## Graph (M2)
+## Graph
 
-After loading one or more `.gi.json` / `.kg.json` files, the **Cytoscape** graph supports type filters, hide-ungrounded-insights (GI), legend click-to-solo, **Shift+double-click** 1-hop neighborhood focus, **double-click** for the node detail panel (single-click selects), and a node detail panel. Styling matches v1 hex palette for now; UXS-001 token parity is tracked on GitHub #489.
+After loading one or more graph artifacts, the **Cytoscape** graph supports type, edge, degree and feed filters, **Shift+double-click** 1-hop neighborhood focus, **double-click** for the node detail panel (single-click selects), and a node detail panel. Styling follows the UXS-001 tokens.
 
-**Topic cluster overlay:** When the server can read **`search/topic_clusters.json`** under the corpus root, the app calls **`GET /api/corpus/topic-clusters`** after artifact load and may add **TopicCluster** compound parents for grouped **Topic** nodes. Build the file with `python -m podcast_scraper.cli topic-clusters --output-dir /path/to/corpus` (requires a **`kg_topic`** vector index).
+## Dashboard
 
-## Dashboard (M3)
+Use the **Dashboard** tab for corpus **Coverage**, **Intelligence** and **Pipeline** views: artifact metrics, **Chart.js** charts, **vector index** stats from `GET /api/index/stats` (LanceDB under `<corpus>/search/lance_index/`), and, under **Pipeline**, the job history and the **Run** button for pipeline jobs (needs the jobs API, which `make serve` enables). If `/api/health` fails, click **Files** to load graphs offline (index stats stay disabled without the server).
 
-Use the **Dashboard** tab for artifact metrics (v1-style key/value rows), a **Chart.js** bar chart of node counts by visual type, and **vector index** stats from `GET /api/index/stats` (LanceDB under `<corpus>/search/lance_index/`). If `/api/health` fails, use **Choose .gi.json / .kg.json files** under API to load graphs offline (index stats stay disabled without the server).
+## Library (RFC-067)
 
-## Corpus Library (RFC-067)
+The **Library** tab lists **shows** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads the sibling graph artifacts via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with the **Feed** filter and a query built from the summary **title** + **bullets**, else the **episode title**, length-capped). After episode detail loads, **Similar episodes** calls `GET /api/corpus/episodes/similar` (LanceDB + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running — restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[dev]"`.
 
-The **Library** tab lists **feeds** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads sibling `.gi.json` / `.kg.json` via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with **Feed** filter and the same field order as **Similar episodes**: summary **title** + **bullets**, else **episode title** — each segment and the total string are length-capped so long recap text in metadata does not flood the query box — then run **Search** against the vector index). After episode detail loads, **Similar episodes** auto-calls `GET /api/corpus/episodes/similar` (LanceDB + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. Requires a healthy API and corpus path set in the left panel. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running—restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[dev]"`.
+## Digest (RFC-068)
 
-## Corpus Digest (RFC-068)
+The **Digest** tab calls **`GET /api/corpus/digest`** (rolling **24h** / **7d** / **since** windows, UTC) for a **feed-diverse** list of recent episodes plus optional **topic** bands when a vector index exists. **Open in graph** / **Prefill semantic search** for an episode are used from the **Library** episode panel after opening a row from Digest. **`corpus_digest_api`** on **`GET /api/health`** gates the **Digest** tab; older APIs show an upgrade notice there.
 
-The **Digest** tab calls **`GET /api/corpus/digest`** (rolling **24h** / **7d** / **since** windows, UTC) for a **feed-diverse** list of recent episodes plus optional **topic** bands when a vector index exists. **Open in graph** / **Prefill semantic search** for an episode are used from the **Library** episode panel after opening a row from Digest. The **Library** tab does **not** embed a second digest strip — **Digest** is the discovery surface. **`corpus_digest_api`** on **`GET /api/health`** gates the **Digest** tab; older APIs show an upgrade notice there.
+## Search
 
-## Semantic search (M4)
-
-**List artifacts** (`GET /api/artifacts`) may return **`hints`** when the path you entered is under `feeds/` but the unified LanceDB index lives at the corpus parent; the Corpus panel shows those hints above the file list.
-
-The sidebar **Semantic search** panel calls `GET /api/search` (same pipeline as `podcast search`): natural-language query, optional doc-type / feed / date / speaker / grounded filters, and `top_k`. Results include **Show on graph** when the hit maps to a graph node (`source_id` for insights, quotes, KG topics/entities). That switches to the **Graph** tab, selects the node, opens the detail panel, and centers the view. Requires a built vector index under `<corpus>/search/` and the embedding model available to the server process.
-
-## Explore & query (M5)
-
-**Explore & query** calls `GET /api/explore`:
-
-- **Topic / speaker explore** — same behavior as `gi explore` (filters, sort, limit, grounded-only, optional strict validation). Leave topic and speaker empty to scan all insights up to the limit.
-- **Natural language** — UC4 pattern questions (`gi query`), e.g. “What insights about …?”, “What did … say?”, “Which topics have the most insights?”. Unmatched questions return `no_pattern_match` with hints.
-
-Insight rows include **Show on graph** (uses `insight_id` as the node id). Semantic topic narrowing when an index exists is handled inside the server explore pipeline (not duplicated in the UI).
+The **Search** tab calls `GET /api/search` (same pipeline as `podcast search`): a natural-language query with filters (document type, feed, date, speaker) and `top_k`. A public install indexes four document types: transcript chunks, summary bullets, KG entities and KG topics. Results include **Show on graph** when the hit maps to a graph node (`source_id` for KG topics and entities). That switches to the **Graph** tab, selects the node, opens the detail panel, and centers the view. Requires a built vector index under `<corpus>/search/` and the embedding model available to the server process. **List artifacts** (`GET /api/artifacts`) may return **`hints`** when the path you entered is under `feeds/` but the unified LanceDB index lives at the corpus parent; the **Corpus artifacts** dialog shows those hints above the file list.
 
 ## Theming
 
@@ -166,18 +153,16 @@ The `--prefix` flag only resolves the binary; it does **not** change CWD.
 A root-level `node_modules/` is always a transient artifact (gitignored
 since [#770]) and should be deleted on sight.
 
-## Browser E2E (M7)
+## Browser E2E
 
-- **Runner:** Playwright, **browser:** Chrome locally, Firefox under `CI` (see `playwright.config.ts`). Install once: `cd web/workbench && npx playwright install chromium` (CI uses `playwright install --with-deps firefox`).
-- **Commands:** `npm run test:e2e` (starts Vite on **port 5174** so it does not clash with `npm run dev` on 5173). From repo root: `make test-ui-e2e` (runs `npm install`, browser install, then tests).
-- **Fixtures:** `e2e/fixtures/ci_sample.kg.json` is a small KG graph (one episode, topic and person); offline tests abort `/api/health` so the file-picker path is deterministic even if something listens on `:8000`.
-- **Scenarios:** offline graph + toolbar, Dashboard tab, theme tokens (dark/light), `/` shortcut with mocked health, `Esc` on graph, PNG export download, mocked API list/load/search → **Show on graph**, **Corpus path hint** when `GET /api/artifacts` returns `hints` (`e2e/corpus-hints.spec.ts`), **Library** tab with corpus mocks + index/similar (`e2e/library.spec.ts`).
+- **Runner:** Playwright, **browser:** Firefox (see `playwright.config.ts`). Install once: `cd web/workbench && npm install && npx playwright install firefox`.
+- **Commands:** `npm run test:e2e` (starts Vite on **port 5174** so it does not clash with `npm run dev` on 5173, plus an API on a fixture corpus). From repo root: `make test-ui-e2e` (runs `npm install`, browser install, then tests).
+- **Fixtures:** `e2e/fixtures/ci_sample.kg.json` is a small KG graph (one episode, topic and person) for the offline file-picker path; `tests/fixtures/app-validation-corpus/v3` is the corpus the API boots against.
 - **Surface map:** [e2e/E2E_SURFACE_MAP.md](e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, and stable Playwright selectors. **UX change order:** map → Playwright specs/helpers → [UXS-001](../../docs/uxs/UXS-001-workbench.md) if the visual contract changes. Checklist: [E2E Testing Guide](../../docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow) ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)).
 
-## Polish (M6)
+## Polish
 
-- **Typography:** Inter (UI) and JetBrains Mono (code) load from Google Fonts in `index.html`; stacks match UXS-001.
+- **Typography:** Inter (UI) and JetBrains Mono (code) are bundled through `@fontsource` packages; stacks match UXS-001.
 - **Tokens:** `overlay` / `disabled` (and hover `bg-overlay`) align with UXS-001 hover and disabled guidance.
-- **Keyboard:** **`/`** focuses the semantic search query (ignored when focus is in an input/textarea/select). **`Esc`** on the **Graph** tab clears graph selection, closes the node detail panel, exits 1-hop neighborhood view, and clears pending “show on graph” focus — skipped while focus is in an editable field so typing is unaffected.
+- **Keyboard:** **`Cmd/Ctrl+K`** or **`/`** (outside an editable field) opens the command palette; **`1`**–**`5`** switch between Digest, Library, Search, Graph and Dashboard (outside an editable field). **`Esc`** on the **Graph** tab clears the graph focus and interaction state — skipped while focus is in an editable field so typing is unaffected.
 - **Graph export:** **Export PNG** (label **PNG** in the graph bottom bar; `aria-label` **Export PNG**) saves the **full** graph at 2× scale with the current theme’s canvas color as background. (Vector SVG export is not in core Cytoscape 3.x; PNG is the supported path.)
-- **Layout:** Sidebar stacks on small viewports; graph min-heights taper down below the `sm` breakpoint for shorter screens.

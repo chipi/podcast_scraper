@@ -21,13 +21,13 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 | Extra | Purpose |
 | --- | --- |
-| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization), transformers, sentence-transformers, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. **LanceDB is NOT here** — it is search-only; an ML pipeline that also indexes composes `.[ml,search]` (#1019). |
+| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, transformers, sentence-transformers, accelerate, etc. **LanceDB is NOT here**: it is search-only; an ML pipeline that also indexes composes `.[ml,search]` (#1019). The diarization stack (pyannote.audio, torchaudio, torchcodec) left with the diarization stage, whose extension depends on it; `llama-cpp-python` left with hybrid MAP-REDUCE (ADR-154). |
 | **`search`** | Corpus vector + FTS search (RFC-090): **LanceDB** two-tier store + sentence-transformers / torch / transformers (embeddings). The cloud-deployment set — independently installable without `[ml]`; `[ml]` and `[search]` share the torch/transformers base because both genuinely import it, not as a subset. |
-| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn + prometheus-fastapi-instrumentator + apscheduler** (Workbench API, RFC-062), text eval helpers (ROUGE, BLEU, WER), MCP SDK + httpx (TestClient), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. The server pins are mirrored in `docker/api/Dockerfile` (installed there without full `[dev]` to keep test tooling out of prod) — **keep the two in sync**. Embedding cosine in `evaluation/scorer.py` needs sentence-transformers (`[ml]` or `[search]`). |
-| **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
+| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn + prometheus-fastapi-instrumentator + apscheduler** (Workbench API, RFC-062), an embedded Postgres for tests (`embedded-postgres`), text metrics (`rouge-score`, `jiwer`), MCP SDK + httpx (TestClient). The server pins are mirrored in `docker/api/Dockerfile` (installed there without full `[dev]` to keep test tooling out of prod): **keep the two in sync**. |
+| **`llm`** | API client SDKs: OpenAI, Gemini (`google-genai`), Anthropic, Mistral, Deepgram, and **httpx** (Ollama health checks). Without `[llm]` no cloud provider SDK is installed. |
 | **`monitor`** | Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil). |
 
-**Not defined as extras:** there is no **`[llama]`** (GGUF is under **`[ml]`**), no **`[ollama]`** (use **`[llm]`** for httpx), no **`[gemini]`**, and no **`[docs]`** group — MkDocs builds install `docs/requirements.txt` and, where needed, `pip install -e ".[ml]"` for ML-aware docstrings.
+**Not defined as extras:** there is no **`[llama]`** (GGUF inference was removed with hybrid MAP-REDUCE, ADR-154), no **`[ollama]`** (use **`[llm]`** for httpx), no **`[gemini]`**, and no **`[docs]`** group — MkDocs builds install `docs/requirements.txt` and, where needed, `pip install -e ".[ml]"` for ML-aware docstrings.
 
 ## Core Dependencies (Always Required)
 
@@ -129,26 +129,14 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 - **Lazy loading**: Imported conditionally in `providers/ml/whisper_utils.py` to avoid hard dependency
 
-### `pyannote.audio` (>=3.1) and `torchaudio`
+### `pyannote.audio` and `torchaudio` (not in this repository's extras)
 
-- **Purpose**: Neural speaker diarization after local Whisper transcription (PRD-020).
-  Replaces gap-based speaker rotation with voice-embedding attribution when `diarize=true`.
-
-- **Why chosen**: Production-grade diarization with HuggingFace model distribution; additive
-  second pass after Whisper preserves existing transcription code paths.
-
-- **Key features utilized**: `pyannote/speaker-diarization-community-1` pipeline (v4; 3.1 fallback), waveform loading via
-  `torchaudio` (avoids slow file-path loading in pyannote), segment-level alignment to Whisper
-  segments.
-
-- **Install**: Bundled in **`[ml]`** (pipeline/Docker) and pinned in **`[dev]`** (CI/dev venv
-  parity). Lazy-imported by the diarization stage — no import-time dependency when
-  `diarize=false`.
-
-- **Runtime requirements**: HuggingFace token (`HF_TOKEN` / `hf_token`) and accepted model terms.
-
-- **Alternatives considered**: WhisperX full replacement (higher blast radius), cloud diarization
-  APIs (cost/offline), gap-based rotation (default fallback when diarization unavailable)
+- **Purpose**: neural speaker diarization after local Whisper transcription (PRD-020).
+- **Where it lives**: the diarization stage is an installed extension's, and the package that
+  installs that stage depends on pyannote.audio, torchaudio and torchcodec (the note in
+  `pyproject.toml`'s `[ml]`). This repository's extras do not install them.
+- **Runtime requirements**: a HuggingFace token (`HF_TOKEN` / `hf_token`) and accepted model terms,
+  read by that stage.
 
 ### `spacy` (>=3.7.0) and English pipeline models (`en-core-web-sm`, `en-core-web-trf`)
 
@@ -261,19 +249,10 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
 
 - **Why chosen**: Transitive dependency for certain model formats. Pinned to avoid version conflicts.
 
-### `llama-cpp-python`
+### `llama-cpp-python` (removed)
 
-- **Version**: Declared under `[ml]` in `pyproject.toml` as `>=0.2.0,<0.4.0` (same line as other ML deps).
-
-- **Purpose**: In-process **GGUF** inference (llama.cpp bindings) for **hybrid_ml** Tier 2 REDUCE when
-  `hybrid_reduce_backend` selects llama.cpp (see RFC-042).
-
-- **Why under `[ml]`**: Same install surface as local **torch** / **transformers** — offline model weights on disk,
-  not HTTP API clients (those live under `[llm]`, e.g. Ollama health checks via **httpx**).
-
-- **Fallback**: If you use **Ollama** for REDUCE instead, you do not need **llama-cpp-python**; install **`[llm]`**
-  for Ollama and keep **`[ml]`** only if you also need Whisper, GIL evidence models, etc. (LanceDB
-  corpus search lives under **`[search]`**, not `[ml]` — #1019.)
+- In-process GGUF inference for the hybrid MAP-REDUCE REDUCE phase. Removed with that provider
+  (ADR-154); no extra installs it now.
 
 ### `openai` (>=1.0.0)
 

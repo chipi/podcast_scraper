@@ -1,9 +1,11 @@
 # Corpus upgrade framework (#862)
 
-Managed, idempotent migrations for moving a **deployed corpus** across releases. The
-registered steps bring a 2.6 corpus up to the 2.7 two-tier **LanceDB** search index
-(RFC-090 / #858, ADR-099). Use this when upgrading an on-disk corpus to a newer code
-version — not for fresh corpora (those are produced at the current version by the
+Managed, idempotent migrations for moving a **deployed corpus** across releases. The steps
+this repository registers (see [Registered migrations](#registered-migrations)) cover the
+two-tier **LanceDB** search index (RFC-090 / #858, ADR-099), KG schema versions, the shared
+artwork store, the feed-language backfill and transcript passage times. An installed extension
+adds its own steps to the same sequence. Use this when upgrading an on-disk corpus to a newer
+code version — not for fresh corpora (those are produced at the current version by the
 pipeline).
 
 **Are you here because you're changing a schema or artifact shape?** Jump to
@@ -17,8 +19,10 @@ prompt before touching code.
 ```bash
 export CORPUS_DIR=/path/to/corpus            # parent of feeds/
 make upgrade-status   CORPUS_DIR=$CORPUS_DIR  # what's pending? (exit 2 if pending)
+make upgrade-check    CORPUS_DIR=$CORPUS_DIR  # same, as JSON (for boot scripts / CI)
 make upgrade-dry-run  CORPUS_DIR=$CORPUS_DIR  # preview the plan, write nothing
 make upgrade-corpus   CORPUS_DIR=$CORPUS_DIR  # apply (non-interactive, --yes)
+                                              # add SNAPSHOT_DIR=/persistent/path on a deployed corpus
 make upgrade-verify   CORPUS_DIR=$CORPUS_DIR  # verify applied migrations
 ```
 
@@ -27,7 +31,7 @@ Or drive the CLI directly (interactive confirmation, JSON, version ceiling):
 ```bash
 python -m podcast_scraper.cli upgrade status  --corpus-dir $CORPUS_DIR [--json]
 python -m podcast_scraper.cli upgrade list    --corpus-dir $CORPUS_DIR
-python -m podcast_scraper.cli upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0]
+python -m podcast_scraper.cli upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0] [--snapshot-dir PATH]
 python -m podcast_scraper.cli upgrade verify  --corpus-dir $CORPUS_DIR
 ```
 
@@ -140,24 +144,25 @@ X.Y this was checked" — future migrations can rely on that history.
      boundary) describing the on-disk change from the caller's perspective.
    - Any RFC / ADR you're implementing — link the migration id
      (`m0004_<name>`) back from the RFC.
-8. **Resync the ad cut when a migration re-renders transcript text.** The ad cut
-   (`build_adfree_artifacts`) is computed from the LABELLED
-   screenplay: `Name:` markers, same-speaker turns merging, and the opening host-read
-   cross-promo detector all read the labels. A migration that renames voices and re-renders the
-   raw transcript while carrying the stored ad map leaves 0030's check failing where the new
-   labels change the cut (2026-10-27: 0035 on 2 episodes, where naming the second voice as the
-   host let today's cut find two host-read sponsor blocks). The pipeline already rebuilds the cut
-   after a relabel (`episode_processor.py`, `_produce_transcript_sidecars`); a migration must do
-   the same for the episodes it writes, or end with 0030's resync for them, and its clone
-   measurement runs the full `upgrade verify` to show it did.
+8. **Resync the ad cut when a migration re-renders transcript text.** The ad cut (the
+   `<base>.adfree.*` files) is owned by an installed extension's ad-cleaning stage, and it is
+   computed from the LABELLED screenplay: `Name:` markers, same-speaker turns merging and the
+   host-read cross-promo detector all read the labels. A migration that renames voices and
+   re-renders the raw transcript while carrying the stored ad map can leave the extension's ad-cut
+   check failing where the new labels change the cut. The pipeline rebuilds the cut after a
+   relabel (`_produce_transcript_sidecars` in `workflow/episode_processor.py` calls the
+   `adfree_base` hook); a migration that writes such episodes must do the same, or end with the
+   extension's resync step for them, and its clone measurement runs the full `upgrade verify` to
+   show it did. A public-only install has no ad cut, so this step applies only where an extension
+   is installed.
 9. **Consider a read-check.** If the migration is high-stakes (renames a
    load-bearing field), extend `src/podcast_scraper/corpus_version.py`'s
    `assess_corpus_version_compat` with a warning when the corpus predates
    the change — so operators who skip the framework path still get told.
 
-The operator restore path (not in this repository) already runs
+The operator restore path (not in this repository) runs
 `podcast upgrade run --yes` post-extract (#1176), so the new step lands
-automatically on every prod restore once merged. A corpus restored or copied by
+automatically on every restore once merged. A corpus restored or copied by
 hand needs `make upgrade-corpus CORPUS_DIR=<path>` run by hand — not enforced.
 
 ## Prod-state fixture maintenance (after every prod deploy)
@@ -171,7 +176,7 @@ prod → HEAD** — the gap that matters for the next deploy. Older-than-prod
 state is not tested; that gap is history.
 
 **Steps 1–3 below are automated** by the `Bump prod-state marker + pinned fixture`
-step of the deployment's deploy step, which opens a PR
+step of the deployment's deploy workflow (not in this repository), which opens a PR
 titled `chore(prod-marker): bump to sha-<short> after prod deploy` on every
 green deploy. Step 4 is the human-in-the-loop step; the unit test in
 `test_pinned_fixture_shape.py` fails the PR if you skip it.
@@ -190,12 +195,14 @@ green deploy. Step 4 is the human-in-the-loop step; the unit test in
    context). Fix by hand-editing the fixture in the same PR the workflow
    opened; `test_pinned_fixture_shape.py` tells you exactly which file drifted.
 
-The workflow uses `secrets.PROD_MARKER_PR_TOKEN` when present, otherwise falls
-back to `GITHUB_TOKEN` (which can open PRs but not push to protected `main`).
 This bump is one commit per prod deploy. It does not need to happen between
 deploys. See the fixture's own `README.md` for the detailed contract.
 
 ## Registered migrations
+
+The ids this repository registers (`upgrade/registry.py`, files under
+`upgrade/migrations/`), in apply order. Gaps in the numbering belong to an installed
+extension's migrations (`Extension.corpus_migrations`, ADR-174) or are retired (`0032`).
 
 - `0001_faiss_to_lance` — **historical, now a recorded no-op.** It once migrated an
   existing FAISS index into the two-tier LanceDB layout; FAISS was retired in #995
@@ -205,16 +212,28 @@ deploys. See the fixture's own `README.md` for the detailed contract.
   corpus artifacts when none exists. No-op when an index is already present. With 0001
   reduced to a no-op, this step is what actually (re)builds the index for a pre-2.7
   corpus.
-- `0003_gi_v3_typed_mentions` — apply the RFC-097 v3 GI schema to every `*.gi.json`
-  under the corpus root: bump `schema_version` `2.0` → `3.0`, rewrite legacy
-  `MENTIONS` edges (Insight → Person/Org) as typed `MENTIONS_PERSON` /
-  `MENTIONS_ORG`, and normalise the legacy `insight_type` vocab
-  (`fact` / `opinion`) to v3 (`claim` / `observation`). Idempotent — a file already
-  at 3.0 with typed edges passes through unchanged. Wraps the
-  `migrate_gi_document_v3` transform so a fresh operator can rely on
-  `make upgrade-corpus` catching it. KG-side `MENTIONS` edges (Topic → Episode
-  discovery) stay untouched by design (see
-  the installed GIL extension's read-time shims).
+- `0004_insight_type_reindex` — rebuild an index whose schema predates the
+  `insight_type` column (`LANCE_SCHEMA_VERSION` 3), natively from corpus artifacts.
+- `0006_kg_v2_typed_entities` — bring `.kg.json` envelopes to RFC-097 v2.0: typed
+  `Person` / `Organization` nodes and normalised entity ids. Idempotent; a v2.0 artifact is
+  skipped without a write. Wraps `migrate_kg_document_v2`
+  (`podcast_scraper/migrations/kg_document_migrations.py`).
+- `0008_object_entity_kind` — stamp `.kg.json` envelopes as schema 2.1 (the `Object` entity
+  kind). It cannot reclassify nodes that were misclassified at extraction time.
+- `0011_shared_artwork_store` — one artwork store per corpus at the corpus root, instead
+  of a copy under each run directory.
+- `0013_artwork_thumbnails` — every stored cover gets its list thumbnail on disk
+  (derived, content-addressed, regenerable).
+- `0021_backfill_feed_language` — fetch each show's declared RSS `<language>` and write it
+  onto the show and its episodes (#2173). The one migration that touches the network.
+- `0026_artwork_medium` — every stored cover gets its player-sized (up to 1024 px) copy.
+- `0027_missing_covers_stored` — store covers the corpus only pointed at by URL, and record
+  the store path on those episodes (backed up and receipted).
+- `0028_transcript_chunk_times` — give transcript passages already in the search index the
+  time they were said, in place, without re-embedding.
+
+The GI v3 typed-mentions migration (`0003`) and the speaker, naming and ad-cut repairs are not
+registered here: they ship with the installed extension that owns those artifacts.
 
 **Not a migration:** the cross-episode entity canonical map (#852) is computed *live*
 at graph-build (`search/corpus_graph.py` → `build_entity_id_map`), not persisted —
@@ -243,13 +262,10 @@ migration surfaces exist and are easy to conflate:
 
 ## Loose migration scripts
 
-Historical one-shot scripts under `scripts/migrate*` predate this framework.
-Each carries a status line in its docstring — "historical one-shot; superseded
-by mNNNN" or "pending frameworking, see #NNNN". None run automatically; each is
-manual, idempotent, and safe to re-execute. When adding a new step, prefer a
-framework migration (`upgrade/migrations/mNNNN_<name>.py`) so an operator can
-rely on `make upgrade-corpus` and the ledger; loose scripts should be reserved
-for genuinely one-shot data-shape corrections that never repeat.
+When adding a new step, prefer a framework migration
+(`upgrade/migrations/mNNNN_<name>.py`) so an operator can rely on
+`make upgrade-corpus` and the ledger; a loose script is only for a genuinely one-shot
+data-shape correction that never repeats.
 
 ## See also
 

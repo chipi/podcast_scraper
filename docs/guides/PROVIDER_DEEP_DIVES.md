@@ -1,523 +1,200 @@
 # Provider Deep Dives
 
-> **v2 authoritative data**: the v2 matrix is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision.
->
-> **Per-provider reference cards, magic quadrant analysis, and visual comparisons.**
+Per-provider reference cards for the providers this repository ships: what each one does in the
+pipeline, how it is selected, which credential it reads, and its built-in default models.
 
-This page is the detailed reference for each provider's capabilities, pricing, models,
-and strategic positioning.
+This page deliberately carries **no prices, speed figures or quality scores**. Prices change,
+and quality and cost measurements (benchmarks, model comparisons, evaluation data) live in the
+private eval repository (see the README), not here. For current prices use the vendor's pricing
+page; for what a run actually cost use the run's own cost metrics.
+
+---
+
+## How providers are selected
+
+Each pipeline capability is chosen independently in config (`config.py`):
+
+| Capability | Config key | Values |
+| ---------- | ---------- | ------ |
+| Transcription | `transcription_provider` | `whisper` (default), `openai`, `gemini`, `mistral`, `deepgram`, `groq`, `tailnet_dgx_whisper`, `moss` |
+| Transcription fallback | `transcription_fallback_provider` | `whisper`, `openai`, `gemini`, `mistral`, `deepgram` |
+| Summarization | `summary_provider` | `transformers` (default), `summllama`, `openai`, `gemini`, `grok`, `mistral`, `deepseek`, `anthropic`, `ollama`, `vllm`, `litellm`, `qwen`, `groq` |
+| Speaker detection | `speaker_detector_provider` | `spacy` (default), `openai`, `gemini`, `mistral`, `grok`, `deepseek`, `anthropic`, `ollama`, `vllm`, `litellm`, `qwen`, `groq` |
+
+A provider class keeps the generic calls this repository uses (summary, translation, the basic
+knowledge-graph pass, cleaning). The methods that speaker detection, host detection and grounded
+insights add to a provider are supplied by an installed extension
+(`src/podcast_scraper/providers/extensible.py`, ADR-176); a public-only install does not detect
+speakers (see the [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md)).
+
+The code under `src/podcast_scraper/providers/` has one package per provider: `ml` (local),
+`openai`, `anthropic`, `mistral`, `gemini`, `grok`, `deepseek`, `groq`, `ollama`, `qwen`, `vllm`,
+`litellm`, `deepgram`, `moss` and `tailnet_dgx`. `deepseek`, `groq`, `qwen`, `vllm` and `litellm`
+are siblings of `openai`: they share the OpenAI-compatible transport
+(`OpenAICompatibleProvider`) and change only identity, auth and defaults.
 
 ---
 
-## Provider Reference Cards
+## Capability matrix
 
-### 1. Local ML (Default)
+What each provider's code implements (`providers/*/`, `get_capabilities()` where declared).
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  LOCAL ML PROVIDERS                                             │
-│  ═══════════════════                                            │
-│                                                                 │
-│   Cost:     $0 (just electricity)                            │
-│   Speed:    Moderate (GPU dependent)                          │
-│   Quality:  Good                                              │
-│   Privacy:  ████████████████████ 100% (complete)              │
-│                                                                 │
-│  Components:                                                    │
-│  ├──  Transcription: OpenAI Whisper (local)                  │
-│  ├──  Speaker Det:   spaCy NER models                         │
-│  └──  Summarization: Hugging Face BART/LED                    │
-│                                                                 │
-│  Best For: Privacy, offline use, zero ongoing cost              │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Provider | Transcription | Summarization | Credential |
+| -------- | :-----------: | :-----------: | ---------- |
+| Local ML (`whisper`, `transformers`, `summllama`) | yes (Whisper) | yes | none |
+| OpenAI | yes | yes | `OPENAI_API_KEY` |
+| Anthropic | no | yes | `ANTHROPIC_API_KEY` |
+| Mistral | yes | yes | `MISTRAL_API_KEY` |
+| Gemini | yes | yes | `GEMINI_API_KEY` |
+| Grok | no | yes | `GROK_API_KEY` |
+| DeepSeek | n/a (config: summary and speaker models only) | yes | `DEEPSEEK_API_KEY` |
+| Groq | yes (Whisper models) | yes | `GROQ_API_KEY` |
+| Ollama | no | yes | none (local server) |
+| Qwen | n/a (OpenAI-compatible endpoint you provide) | yes | `QWEN_API_KEY`, optional |
+| vLLM | n/a (OpenAI-compatible endpoint you provide) | yes | `VLLM_API_KEY`, optional |
+| LiteLLM gateway | n/a (gateway aliases) | yes | `LITELLM_API_KEY` |
+| Deepgram | yes (native speaker labels) | no | `DEEPGRAM_API_KEY` |
+| Moss | yes (transcript and speaker labels in one pass) | no | none (self-hosted service) |
+| Self-hosted GPU Whisper (`tailnet_dgx_whisper`) | yes | no | none (private network) |
 
-> For detailed ML model comparisons, see
-> [ML Model Comparison Guide](ML_MODEL_COMPARISON_GUIDE.md).
-
-**Hardware Requirements:**
-
-| Component | Minimum | Recommended |
-| --------- | ------- | ----------- |
-| RAM | 8 GB | 16 GB+ |
-| GPU VRAM | None (CPU) | 8 GB+ |
-| Storage | 5 GB | 20 GB |
+"n/a" means the provider's config namespace has no transcription model field, or the provider
+is not selectable for that capability.
 
 ---
+
+## Provider reference cards
+
+### 1. Local ML (default)
+
+- **Transcription:** local Whisper (`transcription_provider: whisper`, `whisper_model`, default
+  `base.en`).
+- **Summarization:** `summary_provider: transformers` (Hugging Face seq2seq models, BART/LED
+  families, MAP/REDUCE) or `summary_provider: summllama` (single-pass SummLlama3.2-3B, no
+  MAP/REDUCE).
+- **Speaker detection:** `speaker_detector_provider: spacy` (spaCy NER), run by the speaker stage
+  an installed extension provides.
+- **Privacy:** nothing leaves the machine.
+- **Install:** `pip install -e ".[ml]"`. Hardware depends on the model size you pick; GPU is
+  optional (CPU, CUDA and MPS are supported).
+
+For model comparisons see the [ML Model Comparison Guide](ML_MODEL_COMPARISON_GUIDE.md).
 
 ### 2. OpenAI
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  OPENAI                                        Industry Leader  │
-│  ══════                                                         │
-│                                                                 │
-│   Cost:     $$$ (Premium pricing)                             │
-│   Speed:    Fast (100 tok/s)                                  │
-│   Quality:  ████████████████████ Best                         │
-│   Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│   Tracking: Built-in token/audio usage metrics for cost eval  │
-│   Limit:    25 MB audio file size limit for Whisper API       │
-│                                                                 │
-│  Models:                                                        │
-│  ├── GPT-4o       $5.00/$15.00  │ Best quality                 │
-│  ├── GPT-4o-mini  $0.15/$0.60   │  Production recommended     │
-│  └── Whisper      $0.006/min    │ Transcription                │
-│                                                                 │
-│  Best For: Quality-critical production, reliable workflows      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Measured performance:** See
-`Smoke v1 report — Cloud LLMs`
-(58.8% ROUGE-L, 92.7% embed — silver reference bias applies).
-
----
+- **Capabilities:** transcription (`openai_transcription_model`, default `whisper-1`),
+  summarization (`openai_summary_model`, default `gpt-4o`).
+- **Credential:** `OPENAI_API_KEY`; `openai_api_base` points the same class at another
+  OpenAI-compatible endpoint.
+- **Audio size:** the cloud transcription upload limit applies; oversized files are split by
+  `AudioChunker` (see the [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md)).
+- **Install:** `pip install -e ".[llm]"`.
 
 ### 3. Anthropic (Claude)
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ANTHROPIC CLAUDE                              Safety Focused   │
-│  ═══════════════                                                │
-│                                                                 │
-│   Cost:     $$ (Competitive)                                  │
-│   Speed:    Fast (100 tok/s)                                  │
-│   Quality:  ███████████████████░ Excellent                    │
-│   Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│    Summarization only (no transcription or speaker detection) │
-│                                                                 │
-│  Models:                                                        │
-│  ├── Claude Haiku 4.5   $1/$5   │  Eval/acceptance alias      │
-│  ├── claude-haiku-4-5            │ Anthropic alias (current)    │
-│  └── claude-3-5-sonnet-20241022 │ Deprecated (404)             │
-│                                                                 │
-│  Best For: Quality text, nuanced content, safety alignment      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Measured performance:** See
-`Smoke v1 report — Cloud LLMs`
-(29.4% ROUGE-L, 81.8% embed, 4.8s/ep).
-
----
+- **Capabilities:** summarization and text work only. Anthropic has no audio API, so it cannot
+  transcribe (`get_capabilities()` returns `supports_transcription=False`).
+- **Credential:** `ANTHROPIC_API_KEY`.
+- **Models:** `anthropic_summary_model` defaults to `claude-3-5-sonnet-20241022`;
+  `anthropic_cleaning_model` defaults to `claude-haiku-4-5`. Profiles under `config/profiles/`
+  pin the models they use; check the models available to your account.
+- **Context:** `anthropic_max_context_tokens`, default 200000.
 
 ### 4. Mistral
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  MISTRAL                                       European Leader  │
-│  ═══════                                                        │
-│                                                                 │
-│   Cost:     $-$$ (Competitive)                                │
-│   Speed:    Fast                                              │
-│   Quality:  ██████████████████░░ Very Good                    │
-│   Privacy:  ████████████████░░░░ High (EU servers)            │
-│    Summarization only (no transcription or speaker detection) │
-│                                                                 │
-│  Models:                                                        │
-│  ├── Large 3      $2/$6      │  Production                   │
-│  └── Small 3.1    $0.10/$0.30│  Dev/test (cheapest!)         │
-│                                                                 │
-│  Best For: EU compliance, summarization with data residency     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Measured performance:** See
-`Smoke v1 report — Cloud LLMs`
-(32.5% ROUGE-L, 84.8% embed, 2.8s/ep — fastest cloud provider).
-
----
+- **Capabilities:** transcription (`mistral_transcription_model`, default `voxtral-mini-latest`,
+  plain text output) and summarization (`mistral_summary_model`, default
+  `mistral-large-latest`).
+- **Credential:** `MISTRAL_API_KEY`.
+- **Context:** `mistral_max_context_tokens`, default 256000.
+- **Diarization:** cannot diarize; `diarize: true` with `transcription_provider: mistral` is a
+  config error.
 
 ### 5. DeepSeek
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  DEEPSEEK                                      Ultra Low Cost   │
-│  ════════                                                       │
-│                                                                 │
-│   Cost:     $ (95% cheaper than OpenAI!)                      │
-│   Speed:    Fast (150 tok/s)                                  │
-│   Quality:  ██████████████░░░░░░ Good                         │
-│   Privacy:  ████████░░░░░░░░░░░░ China servers                │
-│    Summarization only (no transcription or speaker detection) │
-│                                                                 │
-│  Models:                                                        │
-│  ├── DeepSeek Chat      $0.28/$0.42 (cache miss)               │
-│  ├── DeepSeek Chat      $0.028/$0.42 (cache hit!)            │
-│  └── DeepSeek Reasoner  Complex reasoning tasks                │
-│                                                                 │
-│   $0.016/100 episodes vs $0.55 OpenAI = 97% SAVINGS          │
-│                                                                 │
-│  Best For: Budget optimization, bulk processing, startups       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Measured performance:** See
-`Smoke v1 report — Cloud LLMs`
-(26.3% ROUGE-L, 85.0% embed, 14.2s/ep).
-
----
+- **Capabilities:** summarization through DeepSeek's OpenAI-compatible API
+  (`deepseek_summary_model`, default `deepseek-chat`; `deepseek_cleaning_model`, default
+  `deepseek-chat`).
+- **Credential:** `DEEPSEEK_API_KEY`. Default endpoint `api.deepseek.com`; `deepseek_api_base`
+  can point the class at a LiteLLM gateway instead.
 
 ### 6. Google Gemini
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  GOOGLE GEMINI                                 Massive Context  │
-│  ═════════════                                                  │
-│                                                                 │
-│   Cost:     $ (Generous free tier!)                           │
-│   Speed:    Fast                                              │
-│   Quality:  ██████████████████░░ Very Good                    │
-│   Privacy:  ████████████░░░░░░░░ Standard (Google)            │
-│  Transcription + summarization (no speaker detection)        │
-│                                                                 │
-│  Models:                                                        │
-│  ├── Gemini 2.0 Flash  $0.10/$0.40  │  Dev/test              │
-│  ├── Gemini 1.5 Pro    $1.25/$5.00  │  Production            │
-│  └── Gemini 1.5 Flash  $0.075/$0.30 │ Budget                   │
-│                                                                 │
-│   2 MILLION TOKEN CONTEXT - Process entire seasons!          │
-│                                                                 │
-│  FREE TIER: 15 RPM, 1M TPM, 1500 RPD                           │
-│                                                                 │
-│  Best For: Long content, free development, multimodal           │
-└─────────────────────────────────────────────────────────────────┘
-```
+- **Capabilities:** transcription (`gemini_transcription_model`, default `gemini-2.5-flash-lite`,
+  plain text output) and summarization (`gemini_summary_model`, default `gemini-2.5-flash-lite`).
+- **Credential:** `GEMINI_API_KEY`.
+- **Context:** `gemini_max_context_tokens`, default 2000000.
+- **Diarization:** `gemini` is selectable as `diarization_provider`, but cannot diarize as the
+  transcription provider.
+- **Install:** `pip install -e ".[llm]"` (`google-genai`).
 
-**Measured performance:** See
-`Smoke v1 report — Cloud LLMs`
-(33.3% ROUGE-L, 87.3% embed, 2.7s/ep — best non-OpenAI cloud).
+### 7. Grok (xAI)
 
----
+- **Capabilities:** summarization only; no audio API.
+- **Credential:** `GROK_API_KEY`.
+- **Models:** `grok_summary_model` and `grok_speaker_model` default to `grok-4.3`.
+- **Context:** `grok_max_context_tokens`, default 128000.
 
-### 7. Grok
+### 8. Groq
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  GROK                                          Real-Time Info   │
-│  ════                                                           │
-│                                                                 │
-│   Cost:     $ (Affordable)                                    │
-│   Feature:  ████████████████████ Real-time X/Twitter access  │
-│   Quality:  ██████████████░░░░░░ Good (xAI models)           │
-│   Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│    Summarization only (no transcription or speaker detection) │
-│                                                                 │
-│  Models (xAI's Grok):                                           │
-│  ├── grok-3-mini                │  Eval/acceptance (use this) │
-│  └── grok-2                     │ 400 model not found           │
-│                                                                 │
-│   Access real-time information via X/Twitter integration!   │
-│                                                                 │
-│  FREE TIER: grok-beta available                                │
-│                                                                 │
-│  Best For: Real-time information, current events, X/Twitter     │
-└─────────────────────────────────────────────────────────────────┘
-```
+- **Capabilities:** low-latency hosted open models for summarization
+  (`groq_summary_model`, default `llama-3.3-70b-versatile`) and Whisper transcription
+  (`groq_transcription_model`, default `whisper-large-v3-turbo`).
+- **Credential:** `GROQ_API_KEY` (required; Groq is cloud-only). Default endpoint
+  `api.groq.com/openai/v1`; `groq_api_base` can route the same class through a LiteLLM gateway.
 
-**Measured performance:** See
-`Smoke v1 report — Cloud LLMs`
-(29.5% ROUGE-L, 85.4% embed, 13.2s/ep).
+### 9. Ollama (local LLMs)
 
----
+- **Capabilities:** summarization (`ollama_summary_model`, default `llama3.1:8b`) against a local
+  or reachable Ollama server (default port 11434). No audio API, so transcription stays with
+  Whisper or a cloud provider.
+- **Credential:** none.
+- **Privacy:** requests stay on the machine (or the host you point `ollama_api_base` at).
 
-### 8. Ollama (Local LLMs)
+Setup, model choice and troubleshooting: [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md).
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  OLLAMA                                        Self-Hosted      │
-│  ══════                                                         │
-│                                                                 │
-│   Cost:     $0 per request (hardware only)                    │
-│   Speed:    Slow-Medium (hardware dependent, ~30 tok/s)        │
-│   Quality:  ██████████████░░░░░░ Good (model dependent)       │
-│   Privacy:  ████████████████████ 100% Complete                │
-│  Full-stack: transcription, speaker detection, summarization │
-│                                                                 │
-│  Recommended Models (by Use Case):                             │
-│  ├── qwen2.5:7b        8 GB+ RAM  │  Best JSON, GIL          │
-│  ├── llama3.1:8b       8 GB+ RAM  │  General purpose          │
-│  ├── mistral:7b        8 GB+ RAM  │  Fastest inference        │
-│  ├── gemma2:9b         12 GB+ RAM │  Balanced quality/speed   │
-│  └── phi3:mini         4 GB+ RAM  │  Dev/test, lightweight   │
-│                                                                 │
-│  Setup Requirements:                                           │
-│  ├── Install Ollama:   brew install ollama (macOS)            │
-│  ├── Start server:     ollama serve (keep running)            │
-│  └── Pull models:      ollama pull qwen2.5:7b (recommended)    │
-│                                                                 │
-│  Hardware Recommendations:                                      │
-│  ├── 4 GB+ RAM:        phi3:mini (dev/test only)              │
-│  ├── 8 GB+ RAM:        qwen2.5:7b, llama3.1:8b, mistral:7b    │
-│  └── 12 GB+ RAM:       gemma2:9b (balanced quality/speed)     │
-│                                                                 │
-│   Zero API costs, unlimited usage, complete data privacy      │
-│                                                                 │
-│  Best For: Privacy-critical, offline/air-gapped, unlimited    │
-│            processing, enterprises, cost optimization           │
-│                                                                 │
-│   See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md)      │
-└─────────────────────────────────────────────────────────────────┘
-```
+### 10. vLLM, Qwen and the LiteLLM gateway
 
-**Measured performance:** See
-`Smoke v1 report — Local Ollama`
-(top: Mistral Small 3.2 / Qwen 2.5:32b at 38.4% ROUGE-L).
+Three OpenAI-compatible providers for models you serve or route yourself:
+
+- **`vllm`:** open models on a vLLM server. The model fields name the real Hugging Face model id;
+  the served model is verified against `GET /v1/models`. A bearer is optional (`VLLM_API_KEY`).
+- **`qwen`:** a Qwen3 endpoint (cloud host or local vLLM). No vendor default endpoint: the
+  profile always sets `qwen_api_base`. Bearer optional (`QWEN_API_KEY`).
+- **`litellm`:** a LiteLLM gateway. The model fields name gateway aliases, not vendor ids; the
+  gateway decides the route. Credential `LITELLM_API_KEY`.
+
+Model fields default to empty for all three: set the `*_summary_model` (and any other model you
+use) explicitly.
+
+### 11. Deepgram
+
+- **Capabilities:** transcription only (`deepgram_model`, default `nova-3`), with utterance-level
+  speaker labels in the API response. Selectable as `diarization_provider` too.
+- **Credential:** `DEEPGRAM_API_KEY`. SDK ships in the `[llm]` extra (`deepgram-sdk`).
+
+### 12. Moss and self-hosted GPU Whisper
+
+- **`moss`:** a self-hosted joint model that returns transcript and speaker labels in one pass
+  (segment-level timestamps only, no word-level output). Config: `moss_port`, `moss_model`,
+  `moss_request_timeout_sec`.
+- **`tailnet_dgx_whisper`:** faster-whisper on a GPU host on a private network, with a fallback
+  chain behind it (`transcription_fallback_provider`). ADR-096 and RFC-089 are not in this
+  repository.
 
 ---
 
-## Magic Quadrant
+## Choosing, by situation
 
-A Gartner-style analysis plotting all providers across two strategic dimensions:
+| If you need... | Reach for |
+| -------------- | --------- |
+| Nothing leaves your machine | Local ML, Ollama, or a self-hosted vLLM |
+| Transcription without a GPU | A cloud transcription provider (`openai`, `groq`, `deepgram`, `gemini`, `mistral`) |
+| Speaker labels from the transcription call itself | `deepgram` or `moss` |
+| A very long context in one call | Gemini (2000000 tokens by default) |
+| One endpoint in front of several vendors | `litellm` |
+| EU-hosted summarization | Mistral (check the vendor's current data-residency terms) |
 
-- **X-Axis: Completeness of Vision** — full-stack capabilities, context window, free
-  tiers, innovation
-- **Y-Axis: Ability to Execute** — quality, speed, reliability, cost-effectiveness
-
-```text
-                           ABILITY TO EXECUTE
-                                  ▲
-                                  │
-High │    CHALLENGERS     │      LEADERS
-     │                    │
-     │    ┌───────────┐   │   ┌─────────────┐
-     │    │ Anthropic │   │   │   OpenAI    │ ← Quality benchmark
-     │    │  Claude   │   │   │   GPT-4o    │
-     │    └───────────┘   │   └─────────────┘
-             │         ▲          │          ▲
-             │         │          │   ┌──────┴──────┐
-             │    High quality    │   │   Gemini    │ ← 2M context + free tier
-             │    but text-only   │   │             │
-             │                    │   └─────────────┘
-             │   ┌─────────┐      │          ▲
-             │   │  Grok   │──────┼──────────┤
-             │   │  Real │      │   ┌──────┴──────┐
-             │   └─────────┘      │   │   Mistral   │ ← EU summarization
-             │       ▲            │   │           │
-             │   Speed champion   │   └─────────────┘
-             │                    │
-      ───────┼────────────────────┼──────────────────────────────►
-             │                    │              COMPLETENESS OF VISION
-             │                    │
-             │    NICHE PLAYERS   │     VISIONARIES
-             │                    │
-             │   ┌───────────┐    │   ┌─────────────┐
-             │   │  Ollama   │    │   │  Local ML   │ ← Zero cost + full stack
-             │   │         │    │   │   (Default) │
-             │   └───────────┘    │   └─────────────┘
-             │       ▲            │          ▲
-             │   Offline/private  │   Hardware required
-             │   but needs HW     │   but complete control
-             │                    │
-             │   ┌───────────┐    │
-             │   │ DeepSeek  │────┼───► Extreme value
-             │   │   97%   │    │      but China-based
-             │   └───────────┘    │
-        Low  │                    │
-             │                    │
-             └────────────────────┴────────────────────────────────
-                    Limited                              Comprehensive
-```
-
-### Quadrant Analysis
-
-| Quadrant | Providers | Characteristics | Best For |
-| -------- | --------- | --------------- | -------- |
-| **Leaders** | OpenAI, Gemini, Mistral | High quality, proven reliability, broad capabilities | Production workloads, quality-critical apps |
-| **Challengers** | Anthropic, Grok | Excellent execution but limited scope | Text-only processing, real-time information |
-| **Visionaries** | Local ML, DeepSeek | Innovative value proposition, some trade-offs | Cost optimization, privacy, experimentation |
-| **Niche Players** | Ollama | Specialized use case, strong in specific domain | Offline, enterprise security, self-hosted |
-
-### Provider Scores (0-10)
-
-| Provider | Vision Score | Execution Score | Quadrant | Key Strength |
-| -------- | :----------: | :-------------: | -------- | ------------ |
-| **OpenAI** | 9 | 10 | Leader | Quality benchmark |
-| **Gemini** | 10 | 8 | Leader | 2M context + free tier |
-| **Mistral** | 8 | 7 | Leader | EU compliance + summarization |
-| **Anthropic** | 5 | 9 | Challenger | Safety + quality |
-| **Grok** | 5 | 8 | Challenger | Real-time info |
-| **Local ML** | 8 | 5 | Visionary | Zero cost + privacy |
-| **DeepSeek** | 4 | 7 | Visionary | 97% cost savings |
-| **Ollama** | 4 | 6 | Niche | Offline + self-hosted |
-
-### Movement Predictions (2026)
-
-```text
-                                    ▲ Ability to Execute
-                                    │
-                                    │     ┌──────────────┐
-                                    │     │   OpenAI     │ ← Maintains lead
-                                    │     │   ●──────●   │
-                                    │     └──────────────┘
-                                    │
-                                    │     ┌──────────────┐
-                                    │     │   Gemini     │ ← Rising challenger
-                                    │     │      ●═══▶   │
-                                    │     └──────────────┘
-                                    │
-                                    │     ┌──────────────┐
-                                    │     │   Grok       │ ← Adding capabilities?
-                                    │     │   ●═══▶      │
-                                    │     └──────────────┘
-                                    │
-                                    │     ┌──────────────┐
-                                    │     │  DeepSeek    │ ← Quality improving
-                                    │     │      ●       │
-                                    │     │      ║       │
-                                    │     │      ▼       │
-                                    │     └──────────────┘
-                    ────────────────┼──────────────────────────────►
-                                    │                    Completeness of Vision
-
-    Legend:  ● Current position    ═══▶ Predicted movement
-```
-
-### Strategic Recommendations by Quadrant
-
-**LEADERS (OpenAI, Gemini, Mistral)**
-
-> *"Safe bets for production. Choose based on specific needs."*
-
-| Provider | Choose When... |
-| -------- | -------------- |
-| OpenAI | Quality is paramount, budget available |
-| Gemini | Need huge context (2M), want free tier |
-| Mistral | EU data residency required (summarization only) |
-
-**CHALLENGERS (Anthropic, Grok)**
-
-> *"Excellent at what they do, but not full-stack."*
-
-| Provider | Choose When... |
-| -------- | -------------- |
-| Anthropic | Text quality matters, safety-first |
-| Grok | Real-time information access needed |
-
-**VISIONARIES (Local ML, DeepSeek)**
-
-> *"Trade-offs for significant advantages."*
-
-| Provider | Choose When... |
-| -------- | -------------- |
-| Local ML | Zero cost + privacy + offline |
-| DeepSeek | Extreme budget constraints (97% savings) |
-
-**NICHE PLAYERS (Ollama)**
-
-> *"Perfect for specific use cases."*
-
-| Provider | Choose When... |
-| -------- | -------------- |
-| Ollama | Enterprise security, air-gapped, unlimited processing |
-
----
-
-## Visual Comparisons
-
-### Cost Comparison (Text Processing per 100 Episodes)
-
-```text
-Cost Scale (logarithmic feel - lower is better)
-═══════════════════════════════════════════════════════════════════════════
-
-Local ML     $0.00 │
-Ollama       $0.00 │
-DeepSeek     $0.02 │▏
-Grok         $0.03 │▎
-Mistral      $0.11 │█
-Anthropic    $0.40 │███
-OpenAI       $0.55 │████
-                   └────────────────────────────────────────────────────────
-                   $0                                                   $0.60
-
- DeepSeek is 97% cheaper than OpenAI for text processing!
-```
-
-### Speed Comparison (Relative Performance)
-
-```text
-Inference Speed (tokens/second)
-═══════════════════════════════════════════════════════════════════════════
-
-Grok         100  │██████████                                           1x
-DeepSeek     150  │███████████████                                      1.5x
-OpenAI       100  │██████████                                           1x
-Anthropic    100  │██████████                                           1x
-Gemini       100  │██████████                                           1x
-Mistral      100  │██████████                                           1x
-Local GPU     50  │█████                                               0.5x
-Ollama        30  │███                                                 0.3x
-              0   └────────────────────────────────────────────────────────
-                  0                     100                            150
-
- Grok provides real-time information access via X/Twitter integration!
-```
-
-### Quality Ranking (Subjective)
-
-```text
-Quality Score (1-10)
-═══════════════════════════════════════════════════════════════════════════
-
-OpenAI GPT-4o      │██████████████████████████████████████████████████│ 10
-Claude Sonnet     │█████████████████████████████████████████████     │  9
-Gemini Pro        │████████████████████████████████████████          │  8
-Mistral Large     │███████████████████████████████████               │  7
-Ollama 70B        │███████████████████████████████████               │  7
-DeepSeek          │██████████████████████████████                    │  6
-Grok              │██████████████████████████████                    │  6
-Local BART        │█████████████████████████                         │  5
-                  └────────────────────────────────────────────────────────
-                  0                    5                              10
-
- OpenAI remains the quality leader, but alternatives close the gap!
-```
-
-### Privacy Level
-
-```text
-Privacy Scale (Higher = More Private)
-═══════════════════════════════════════════════════════════════════════════
-
-Local ML     │████████████████████████████████████████████████│ Complete
-Ollama       │████████████████████████████████████████████████│ Complete
-Mistral        │███████████████████████████████████████         │ EU Servers
-OpenAI           │██████████████████████████████                  │ US Servers
-Anthropic        │██████████████████████████████                  │ US Servers
-Google           │██████████████████████████████                  │ Google Cloud
-Grok             │██████████████████████████████                  │ US Servers
-DeepSeek           │████████████████████                            │ China Servers
-                      └────────────────────────────────────────────────────
-
- For maximum privacy, use Local ML or Ollama - data never leaves your device!
-```
-
----
-
-## Capability Matrix
-
-```text
-                    ┌─────────────────────────────────────────────────┐
-                    │           CAPABILITY SUPPORT MATRIX              │
-                    ├─────────────────────────────────────────────────┤
-                    │  Provider      │ Status   │  Trans │  Speaker │  Summary │
-                    ├────────────────┼──────────┼──────────┼────────────┼────────────┤
-                    │  Local ML      │ Impl  │       │         │         │
-                    │  Hybrid ML     │ Impl  │       │         │         │
-                    │  OpenAI        │ Impl  │       │         │         │
-                    │  Gemini        │ Impl  │       │         │         │
-                    │  Ollama        │ Impl  │       │         │         │
-                    ├────────────────┼──────────┼──────────┼────────────┼────────────┤
-                    │  Anthropic     │ Impl  │       │         │         │
-                    │  Mistral       │ Impl  │       │         │         │
-                    │  DeepSeek      │ Impl  │       │         │         │
-                    │  Grok          │ Impl  │       │         │         │
-                    └─────────────────────────────────────────────────────────────────┘
-
-    Implemented (9): Local ML, Hybrid ML, OpenAI, Gemini, Ollama, Anthropic, Mistral, DeepSeek, Grok
-```
+Measured quality, cost and speed comparisons are not part of this repository.
 
 ---
 
@@ -528,3 +205,5 @@ DeepSeek           │███████████████████�
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md)
 - [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md)
 - [ML Provider Reference](ML_PROVIDER_REFERENCE.md)
+- [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md) — transcription providers, diarization and
+  chunking
