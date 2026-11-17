@@ -96,6 +96,61 @@ def test_ops_summary_probes_the_port_this_server_listens_on(
     assert captured["api_base"] == "http://127.0.0.1:8731"
 
 
+def test_ops_summary_probes_this_server_as_the_caller(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``/api/jobs`` is behind the operator gate (an admin session or the operator key). Without an
+    operator key the self-probe went anonymous and Ops showed ``runs`` as failed with a 403 to the
+    admin looking at it (public-only walk, 2026-11-17). Probing itself, it now goes as the caller.
+    """
+    _clear_obs_env(monkeypatch)
+    captured: dict = {}
+
+    def fake_summary(target):
+        captured["cookie"] = target.cookie
+        return {"data": {"target": "", "live": [], "unconfigured": [], "failed": [], "sources": {}}}
+
+    monkeypatch.setattr("podcast_obs.aggregate.summary", fake_summary)
+    client = _client()
+    client.cookies.set("app_session", "s3ss10n")
+    assert client.get("/api/ops/summary").status_code == 200
+    assert captured["cookie"] == "app_session=s3ss10n"
+
+
+def test_ops_summary_never_sends_the_caller_session_to_a_configured_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A configured ``api_base`` may be another deploy: the caller's session stays on this one."""
+    _clear_obs_env(monkeypatch)
+    monkeypatch.setenv("PODCAST_OBS_API_BASE", "https://elsewhere.example")
+    captured: dict = {}
+
+    def fake_summary(target):
+        captured["cookie"] = target.cookie
+        captured["api_base"] = target.api_base
+        return {"data": {"target": "", "live": [], "unconfigured": [], "failed": [], "sources": {}}}
+
+    monkeypatch.setattr("podcast_obs.aggregate.summary", fake_summary)
+    client = _client()
+    client.cookies.set("app_session", "s3ss10n")
+    assert client.get("/api/ops/summary").status_code == 200
+    assert captured["api_base"] == "https://elsewhere.example"
+    assert captured["cookie"] is None
+
+
+def test_operator_probes_send_the_caller_session_and_the_operator_key() -> None:
+    """The probes send the session cookie the route hands them, beside the operator key."""
+    from podcast_obs.config import TargetConfig
+    from podcast_obs.sources import prod_api
+
+    assert prod_api._auth(TargetConfig(name="t")) == {}
+    assert prod_api._auth(TargetConfig(name="t", cookie="app_session=x")) == {
+        "Cookie": "app_session=x"
+    }
+    assert prod_api._auth(TargetConfig(name="t", operator_key="k", cookie="a=b")) == {
+        "X-Operator-Key": "k",
+        "Cookie": "a=b",
+    }
+
+
 def test_ops_summary_real_fanout_degrades(monkeypatch: pytest.MonkeyPatch) -> None:
     # No mock of summary: the real route -> podcast_obs fan-out runs. api_base defaults to the
     # local server (nothing listening) -> prod_api probes fail; external sources unconfigured.

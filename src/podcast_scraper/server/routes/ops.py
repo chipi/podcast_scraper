@@ -48,6 +48,9 @@ def ops_summary(request: Request) -> dict:
     overrides: dict = {"timeout": _WEB_TIMEOUT}
     if not target.api_base:
         overrides["api_base"] = _local_api_base(request)
+        # Probing itself, it goes as the caller: an admin session passes the operator gate on
+        # /api/jobs where an anonymous probe got 403 on a server without an operator key.
+        overrides["cookie"] = request.headers.get("cookie")
     target = replace(target, **overrides)
     data: dict = obs_summary(target)["data"]
     return data

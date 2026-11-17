@@ -22,8 +22,14 @@ def _auth(target: TargetConfig) -> dict[str, str]:
     is one more thing to forget when a route later moves under the operator gate — which is
     exactly how ``runs`` came to 403 in the first place.
     """
+    headers: dict[str, str] = {}
     key = getattr(target, "operator_key", None)
-    return {"X-Operator-Key": key} if key else {}
+    if key:
+        headers["X-Operator-Key"] = key
+    cookie = getattr(target, "cookie", None)
+    if cookie:
+        headers["Cookie"] = cookie
+    return headers
 
 
 _NOT_CONFIGURED = "api_base not set (PODCAST_OBS_API_BASE or targets.<name>.api_base)"
