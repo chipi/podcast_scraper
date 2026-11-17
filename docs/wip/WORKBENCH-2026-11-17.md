@@ -1,6 +1,6 @@
 # Workbench: the public viewer's rename, core fixes, then news (2026-11-17)
 
-The public viewer (`web/gi-kg-viewer`, shown as "Podcast Intelligence Platform") becomes
+The public viewer (`web/workbench`, shown as "Podcast Intelligence Platform") becomes
 **Workbench**: the operator's tool for a general intelligence platform. The grounded-insight UI
 left it for the private viewer (ADR-170), and news is about to make it more than a podcast tool.
 The words it uses move from podcast- and corpus-specific terms to general ones; news is where the
@@ -15,7 +15,7 @@ here is built yet.
 
 | Today | Workbench | Notes |
 | --- | --- | --- |
-| `web/gi-kg-viewer/` | `web/workbench/` | `git mv`, history kept |
+| `web/workbench/` | `web/workbench/` | `git mv`, history kept |
 | `package.json` `"name": "gi-kg-viewer"` | `"workbench"` | and `package-lock.json` |
 | Page title and header "Podcast Intelligence Platform" | "Workbench" | `index.html:14`, `App.vue:905`, `LoginView.vue:32` |
 | "GI/KG viewer" in docs (167 mentions in 87 files) | "Workbench" | prose only; history docs (RFCs, ADRs, releases) keep their words |
@@ -26,17 +26,17 @@ here is built yet.
 `gi-kg-viewer` appears 820 times in 135 tracked files. The ones that break something if missed:
 
 - **The server mounts the built app:** `src/podcast_scraper/server/app.py:179`
-  (`web/gi-kg-viewer/dist`) and the `--no-spa` help in `server/cli_handlers.py:118`.
+  (`web/workbench/dist`) and the `--no-spa` help in `server/cli_handlers.py:118`.
 - **CI:** path filters and working directories in `python-app.yml` (5 places in the filters, more
   in the viewer jobs) and `nightly.yml` (cache paths, working directories, artifact paths).
 - **The viewer image:** `docker/viewer/Dockerfile:53,56` and `.dockerignore:58-59`.
 - **Make and scripts:** `Makefile:43` (`WEB_VIEWER_DIR`), `scripts/tools/gates_changed.sh`,
   `scripts/tools/check_doc_structure.py`, `scripts/docs_strip_emoji.py`,
   `scripts/build_production_shaped_fixture.py`.
-- **Ignores:** about 30 `web/gi-kg-viewer/...` rules in `.gitignore`.
+- **Ignores:** about 30 `web/workbench/...` rules in `.gitignore`.
 - **The private viewer (Studio) carries its own copy** under `apps/studio/web` with the same
   package name, and its `platform-root.mjs` finds the platform by walking up from either layout.
-  Its tests read `UXS-001-gi-kg-viewer.md` by path. Studio's owner changes its side; the public PR
+  Its tests read `UXS-001-workbench.md` by path. Studio's owner changes its side; the public PR
   says what moved.
 - **The deployment** (operator tooling, not in this repository) builds and runs the viewer image.
   Whether the image and service are renamed is the operator's call; renaming them is a deploy
@@ -98,6 +98,10 @@ failing test first.
    public). Decide per item: remove, or keep as an extension point the private viewer fills.
 9. **The UX docs** (`docs/uxs/`) still describe insights, quotes, the position tracker and Explore as
    this viewer's; none mentions the private viewer.
+10. **The show node page finds its feed by title** (`PodcastNodeView.vue:36-48`; the database-era
+    sweep's R16, [WORKBENCH-DB-ERA-SWEEP-2026-11-17.md](WORKBENCH-DB-ERA-SWEEP-2026-11-17.md)). R3b
+    changes GI's show id to KG's, and the page then goes blank, so this ships in the news release
+    before R3b, on the read Common provides (show id beside the title, or R3b's old-to-new id map).
 
 Not checked yet: search with a built index, the Digest after a successful job (#2486), canvas
 clicks on topic and person nodes, phone width and the light theme.
@@ -112,5 +116,5 @@ today's words. It is revised to the vocabulary above before it is built.
 1. The general word for "corpus".
 2. Whether the viewer image and compose service (`podcast-scraper-stack-viewer`, `viewer`) are
    renamed with the folder, or later with the deployment.
-3. Whether UXS-001 and VIEWER_IA are renamed (file names) or keep their names with new titles.
-   Studio's tests read `UXS-001-gi-kg-viewer.md` by path.
+3. Whether UXS-001 and WORKBENCH_IA are renamed (file names) or keep their names with new titles.
+   Studio's tests read `UXS-001-workbench.md` by path.
