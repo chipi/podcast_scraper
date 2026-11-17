@@ -1,10 +1,10 @@
 # The news item (News 1.0): the corpus contract
 
-**Status:** Proposed (ingestion, 2026-11-18), for the operator's approval. The writer (E05,
+**Status:** Accepted (the operator, 2026-11-18: "Proposal sounds good"). The writer (E05,
 owner ingestion) writes exactly this shape; the read side (public) and the importer (E06) read it.
 
-What is already decided is cited, not restated as new. Everything under "Proposed" waits for the
-operator.
+What was already decided is cited, not restated as new. The names under "Proposed" were proposed by
+ingestion and accepted with this contract.
 
 ## Layout (decided)
 
@@ -32,9 +32,9 @@ operator.
 | `licence`, `paywalled`, `serveable`, `mineable` | as ontology-v3 "Rights, per item" (`serveable`: `metadata` / `summary` / `none`) | ontology-v3, ADR-181 |
 
 The body hash and the fetch time are recorded per item (E05 "Decided", 2026-11-11); their names
-are proposed below.
+are in the next section.
 
-## Proposed (for the operator)
+## Proposed by ingestion, accepted (2026-11-18)
 
 Shared by every type, so top level (RFC-134 §5: title, times, publisher, rights at the top level):
 
@@ -54,7 +54,7 @@ News's own, under `news_article` (ADR-181):
 | `byline` | list of names after split, order kept, organisations removed | E05 "Bylines"; a name joins a person only via ADR-180 |
 | `byline_raw` | the byline string as given, before parsing | the golden set evaluates the parser against it |
 | `editorial_type` | `reporting` / `opinion` / `analysis` / `paid` / `null` | RFC-134 §2 |
-| `text_status` | `full` / `teaser` / `video` | RFC-134 names `teaser`; E05 marks teasers and video items; `full` for the rest |
+| `text_status` | `full` / `teaser` / `video` | RFC-134 names `teaser`; E05 marks teasers and video items; `full` for the rest. A `teaser` or `video` body is never chunked or enriched as if whole (E05 "Extraction"); `serveable` decides what is shown, independently |
 | `live_blog` | `true` when the source flags the page as a live blog, else absent | E05 "Ids" |
 
 ## Not covered
