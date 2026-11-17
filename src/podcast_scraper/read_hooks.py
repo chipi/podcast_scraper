@@ -233,7 +233,12 @@ def graph_artifacts(
     fn = _owner("graph_artifacts")
     if fn is None:
         return ()
-    out: Iterable[Tuple[str, Dict[str, Any]]] = fn(corpus_dir, validate=validate)
+    from .grounded_insights_view import gi_read_view
+
+    out: Iterable[Tuple[str, Dict[str, Any]]] = (
+        (source, gi_read_view(data) if source == "gi" else data)
+        for source, data in fn(corpus_dir, validate=validate)
+    )
     return out
 
 

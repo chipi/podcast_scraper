@@ -12,6 +12,7 @@ import type {
 import { graphElementDecorators, graphNodeFilters, graphTypeTraits } from '../extensions'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
+import { giReadView } from './giReadView'
 import { visualGroupForNode } from './visualGroup'
 
 export { visualGroupForNode, visualNodeTypeCounts } from './visualGroup'
@@ -38,6 +39,7 @@ export function parseArtifact(
   data: ArtifactData,
   sourceCorpusRelPath?: string | null,
 ): ParsedArtifact {
+  if (!filename.toLowerCase().endsWith('.kg.json')) data = giReadView(data)
   const nodes = Array.isArray(data.nodes) ? data.nodes.slice() : []
   const edges = Array.isArray(data.edges) ? data.edges.slice() : []
   const episodeId =

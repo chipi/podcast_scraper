@@ -21,6 +21,7 @@ from podcast_scraper.graph_id_utils import (  # noqa: F401 — re-exported for i
     is_scoped_placeholder_person_id,
     is_unresolved_speaker_placeholder,
 )
+from podcast_scraper.grounded_insights_view import gi_read_view
 
 
 def _read_json(path: Path | None) -> dict[str, Any]:
@@ -41,7 +42,7 @@ def load_kg(bundle: EpisodeArtifactBundle) -> dict[str, Any]:
 
 def load_gi(bundle: EpisodeArtifactBundle) -> dict[str, Any]:
     """Load the episode GI (or ``{}`` when missing)."""
-    return _read_json(bundle.gi_path)
+    return gi_read_view(_read_json(bundle.gi_path))
 
 
 def load_bridge(bundle: EpisodeArtifactBundle) -> dict[str, Any]:

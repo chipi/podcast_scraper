@@ -24,6 +24,7 @@ from typing import (
 )
 
 from podcast_scraper import perf_cache, read_hooks
+from podcast_scraper.grounded_insights_view import gi_read_view
 from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
     _hit_passes_cli_filters,
@@ -392,7 +393,7 @@ def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
     rows: List[_InsightScope] = []
     for episode_id, path in paths.items():
         try:
-            artifact = json.loads(Path(path).read_text(encoding="utf-8"))
+            artifact = gi_read_view(json.loads(Path(path).read_text(encoding="utf-8")))
         except (OSError, ValueError):
             continue
         if isinstance(artifact, dict):
@@ -410,7 +411,7 @@ def _visible_in_episode(path: Optional[Path]) -> frozenset:
     if path is None:
         return frozenset()
     try:
-        artifact = json.loads(Path(path).read_text(encoding="utf-8"))
+        artifact = gi_read_view(json.loads(Path(path).read_text(encoding="utf-8")))
     except (OSError, ValueError):
         return frozenset()
     if not isinstance(artifact, dict):
