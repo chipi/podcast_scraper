@@ -35,6 +35,25 @@ operator ask for news, and an **article card** in the subject rail. A news item 
 its title, summary and basic metadata with a link out to the publisher. The article's text is never
 shown: not on a card, not in a search row, not as a snippet.
 
+## Vocabulary
+
+The Workbench moves from podcast words to the platform's own (the operator, 2026-11-17). An
+**item** has a **content type**; a **source** lists its items over a **transport**. The platform
+starts with two content types, each with its own transports (ADR-177, RFC-134):
+
+| General term | Meaning | Podcasts (`podcast_episode`) | News (`news_article`) | Today's name in the code and older specs |
+| --- | --- | --- | --- | --- |
+| **Item** | One unit of content | an episode | an article | episode (`CorpusEpisodeListItem`, the episode row and rail) |
+| **Content type** | What an item is; shown as **Podcasts** or **News** | `podcast_episode` | `news_article` | `content_type` |
+| **Source** | Where items come from, with its own title | a show (its feed) | a publisher's feed or API source | show, feed (`feed_id`; KG's `source_id`) |
+| **Transport** | How a source lists its new items | RSS enclosures (`rss_enclosure`) | RSS/Atom feeds; a JSON GET API (Hacker News, the Guardian) | — (`content_types.py`) |
+| **Person** | A named human | a host, guest or speaker | a byline author, joined within its publisher (ADR-180) | speaker |
+| **Text** | The item's text | the transcript | the article text: extracted, never served (ADR-179) | transcript |
+
+One item reached over two transports is one item (RFC-134: the URL identity). This spec uses the
+general terms; where it points at a part of today's Workbench, it gives today's name once in
+brackets. Renaming those parts in the code and the older specs is separate work.
+
 ## Principles
 
 - **Link out, always.** Every news element carries a visible link to the article on its publisher's
@@ -91,7 +110,7 @@ fields and never asks for more:
 | `publisher` (`{id, name, domain}`) | the publisher name, with its domain on the card |
 | byline as given | "By …", names as written; a person link only when the byline has joined a person |
 | published time | relative on rows ("3 h ago"), absolute on the card |
-| `language` | a language badge when it is not English, as on episodes |
+| `language` | a language badge when it is not English, as on podcast items |
 | `editorial_type` (reporting, opinion, analysis, paid, or null) | a badge for opinion, analysis and paid; nothing for reporting or null |
 | `paywalled` | a "Paywalled" note beside the link out |
 | `serveable` | when false, the item shows title, publisher and link only (no summary) |
@@ -122,7 +141,7 @@ Every surface, text and intent token is UXS-001's. One domain token is added.
 
 ## Typography
 
-UXS-001's. The news row title uses the episode row title's size and weight; the publisher and time
+UXS-001's. The news row title uses the podcast item row's title size and weight; the source and time
 line uses `muted` at the metadata size.
 
 ## Layout and spacing
@@ -142,8 +161,8 @@ A chip in the Query Workspace filter chip bar (UXS-016 §Header), placed after *
 
 ### The news result row
 
-A sibling of the episode-backed result row (UXS-016 §Results), never a variant of the transcript
-row:
+A sibling of the podcast item row (today's episode-backed result row, UXS-016 §Results), never a
+variant of the text (transcript) row:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
@@ -154,7 +173,7 @@ row:
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Accent:** a 3px left border in `news` (the episode row has none), the "NEWS" label in
+- **Accent:** a 3px left border in `news` (the podcast item row has none), the "NEWS" label in
   `news` text.
 - **Line 1:** the publisher name, then "By …" when there is a byline, then the published time, in
   `muted`; badges right-aligned: editorial type (opinion, analysis, paid), language (when not
@@ -162,9 +181,9 @@ row:
 - **Line 2:** the title, clickable: opens the article subject in the rail.
 - **Lines 3 to 5:** the summary, clamped to three lines with the existing clamp. For a teaser, the
   feed summary with the "Summary from the feed" note in `muted`.
-- **Actions:** **Open article ↗** (an external link, `link` token) and the rail opener. The episode
-  row's **G**, **L** and **E** controls do not appear: an article has no transcript, no Library
-  episode and no graph node in News 1.0.
+- **Actions:** **Open article ↗** (an external link, `link` token) and the rail opener. The podcast
+  item row's **G**, **L** and **E** controls do not appear: an article serves no text (ADR-179), has no Library
+  row and no graph node in News 1.0.
 - **No relevance text.** Whatever chunk matched, the row shows the summary. No highlighted match,
   no "matched in" excerpt.
 - `data-testid="search-result-news"`, with `search-result-news-title`,
@@ -188,8 +207,9 @@ result row. Component: `ArticleRailPanel`. Top to bottom:
 6. **Badges:** editorial type, language, "Paywalled", "Summary from the feed" (teaser).
 7. **Summary:** the full summary paragraph.
 8. **Open article ↗:** a full-width secondary button, the card's main action.
-9. **Topics and entities:** chips from the article's KG (`topic` and `kg` tokens, as on the episode
-   rail), each opening its topic or entity in the rail. Loaded the way the episode card loads its
+9. **Topics and entities:** chips from the article's KG (`topic` and `kg` tokens, as on the podcast item
+   rail), each opening its topic or entity in the rail. Loaded the way the podcast item card
+   (today's episode card) loads its
    KG: an item detail read keyed by `item_id` returns `has_kg` and `kg_relative_path` (proposed;
    route name to come), then the artifacts route serves the KG file. Without a KG, the section is
    left out.
@@ -239,7 +259,7 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 | --- | --- | --- | --- |
 | `news` token values | `#9fb7d0` / `#3d5a7a` | Open | Pick against the shipped palette in both themes |
 | Token names `news`, `news-foreground` | | Frozen once built | Used by tests and later types' labels |
-| Summary clamp on the row | 3 lines | Open | Same clamp as the episode summary row |
+| Summary clamp on the row | 3 lines | Open | Same clamp as the podcast item summary row |
 | Type chip default | Podcasts | Frozen | RFC-134: podcast surfaces see news only when asked |
 
 ## Acceptance criteria (for issues / review)
@@ -269,3 +289,4 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 | Date | Change |
 | --- | --- |
 | 2026-11-17 | Initial draft: News 1.0 scope (Type chip, news result row, article card), later items listed |
+| 2026-11-17 | Vocabulary: item, content type, source, transport, person, text (the operator); two content types (Podcasts, News), each with its own transports; today's names given once in brackets |
