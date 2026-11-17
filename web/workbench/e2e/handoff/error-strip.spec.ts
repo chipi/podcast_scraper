@@ -55,7 +55,7 @@ test.describe('HandoffErrorStrip § T4', () => {
     // The strip becomes visible when lastResult.status === 'failed'.
     const strip = page.getByTestId('handoff-error-strip')
     await expect(strip).toBeVisible({ timeout: 5000 })
-    await expect(strip).toContainText(/could not open episode in graph/i)
+    await expect(strip).toContainText(/could not open this in the graph/i)
     await expect(strip).toContainText(/episode not found \(test-injected\)/i)
 
     // Dismiss: click the dismiss button; the strip clears lastResult and
