@@ -12,7 +12,7 @@ from podcast_scraper import content_types as ct
 from podcast_scraper.extensions import Extension, use_extensions
 from podcast_scraper.server.app import create_app
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 REPORT = ct.ContentType(
     name="test_report",

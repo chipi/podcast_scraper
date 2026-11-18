@@ -25,7 +25,7 @@ from podcast_scraper import config, content_types as ct
 from podcast_scraper.extensions import Extension, use_extensions
 from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config, RssFeedEntry
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 TEXT = ct.ContentType(
     name="test_text_item",
