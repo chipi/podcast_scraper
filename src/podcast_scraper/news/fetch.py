@@ -80,6 +80,11 @@ LANGUAGE_PAGE = "page"
 LANGUAGE_FEED = "rss"
 LANGUAGE_DETECTED = "detected"
 LANGUAGE_NONE = "none"
+#: From this many words an article's text overrules a declared language it contradicts (an
+#: episode's transcript needs 200). Measured on all8 (257 items, 45 under 200 words): any
+#: threshold from 20 to 75 changes exactly one item, a 75-word English post under a German
+#: server's lang=de, rightly; 100 and above change none.
+NEWS_LANGUAGE_MIN_WORDS = 50
 
 
 def resolve_language(
@@ -107,7 +112,7 @@ def resolve_language(
     if declared is None:
         return (detected, LANGUAGE_DETECTED) if detected else (None, LANGUAGE_NONE)
     if source != LANGUAGE_OVERRIDE and detected and detected != declared:
-        if transcript_language_contradiction(text, declared):
+        if transcript_language_contradiction(text, declared, min_words=NEWS_LANGUAGE_MIN_WORDS):
             return detected, LANGUAGE_DETECTED
     return declared, source
 

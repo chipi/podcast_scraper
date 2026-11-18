@@ -113,7 +113,9 @@ TRANSCRIPT_LANGUAGE_MIN_WORDS = 200
 DECLARED_LANGUAGE_MIN_SHARE = 0.02
 
 
-def transcript_language_contradiction(text: str, declared: Optional[str]) -> Optional[str]:
+def transcript_language_contradiction(
+    text: str, declared: Optional[str], min_words: Optional[int] = None
+) -> Optional[str]:
     """``None`` when the transcript reads as *declared*, else why it does not.
 
     THE FAILURE THIS CATCHES IS SILENT. The pipeline sends the declared language to ASR, and
@@ -129,8 +131,8 @@ def transcript_language_contradiction(text: str, declared: Optional[str]) -> Opt
     * the declared language's own function words are under :data:`DECLARED_LANGUAGE_MIN_SHARE`
       — which also covers a language with no word list, read under a tag that has one.
 
-    It does not judge what it cannot: a declared language with no word list, or a transcript
-    under :data:`TRANSCRIPT_LANGUAGE_MIN_WORDS`, passes.
+    It does not judge what it cannot: a declared language with no word list, or a text under
+    ``min_words`` (default :data:`TRANSCRIPT_LANGUAGE_MIN_WORDS`), passes.
     """
     from .text_language import detect_language, FUNCTION_WORDS, words
 
@@ -138,7 +140,7 @@ def transcript_language_contradiction(text: str, declared: Optional[str]) -> Opt
     if lang not in FUNCTION_WORDS:
         return None
     ws = words(text)
-    if len(ws) < TRANSCRIPT_LANGUAGE_MIN_WORDS:
+    if len(ws) < (TRANSCRIPT_LANGUAGE_MIN_WORDS if min_words is None else min_words):
         return None
     detected = detect_language(ws)
     share = sum(w in FUNCTION_WORDS[lang] for w in ws) / len(ws)

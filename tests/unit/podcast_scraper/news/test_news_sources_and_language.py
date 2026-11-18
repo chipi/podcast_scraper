@@ -35,8 +35,12 @@ ES = (
         (EN, None, "en", "en", ("en", "page")),
         (EN, None, None, "en-GB", ("en", "rss")),
         (ES, None, "es", "en", ("es", "page")),
-        # The text contradicts the declaration (the check reads 200 words or more).
+        # The text contradicts the declaration (for news the check reads 50 words or more;
+        # an episode's transcript needs 200). A Mastodon post in English under a German
+        # server's lang=de (all8, 75 words) is the case this threshold is for.
         (" ".join([ES] * 8), None, "en", "en", ("es", "detected")),
+        (" ".join([ES] * 2), None, "en", "en", ("es", "detected")),
+        (" ".join([EN] * 2), None, "de", None, ("en", "detected")),
         (ES, None, "en", "en", ("en", "page")),  # too short to contradict anything
         (ES, "es", None, None, ("es", "override")),
         (EN, "es", "en", "en", ("es", "override")),  # the operator's override is not second-guessed
