@@ -153,6 +153,8 @@ export const useShellStore = defineStore('shell', () => {
    */
   const contentTypes = ref<string[]>(['podcast_episode'])
   const hasNews = computed(() => contentTypes.value.includes('news_article'))
+  /** The Library's mode (UXS-019): its episode list, or News; the Digest's news band sets News. */
+  const libraryMode = ref<'podcasts' | 'news'>('podcasts')
   /** True only when GET/PUT /api/feeds is advertised (strict). */
   const feedsApiAvailable = ref(false)
   /** True only when GET/PUT /api/operator-config is advertised (strict). */
@@ -394,6 +396,7 @@ export const useShellStore = defineStore('shell', () => {
     artifactKinds,
     contentTypes,
     hasNews,
+    libraryMode,
     feedsApiAvailable,
     operatorConfigApiAvailable,
     jobsApiAvailable,

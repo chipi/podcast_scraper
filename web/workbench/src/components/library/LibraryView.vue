@@ -13,6 +13,7 @@ import {
 import { storeToRefs } from 'pinia'
 import { fetchCorpusEpisodes, fetchCorpusFeeds, type CorpusEpisodeListItem, type CorpusFeedItem } from '../../api/corpusLibraryApi'
 import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import LibraryNewsList from './LibraryNewsList.vue'
 import LibraryFilterBar from './LibraryFilterBar.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
@@ -646,6 +647,16 @@ onBeforeUnmount(() => {
   }
   teardownEpisodesInfiniteObserver()
 })
+
+/** UXS-019: Podcasts (the episode list below) or News (``LibraryNewsList``), when news exists. */
+const LIBRARY_MODES = [
+  { key: 'podcasts', label: 'Podcasts' },
+  { key: 'news', label: 'News' },
+] as const
+const libraryMode = computed({
+  get: () => shell.libraryMode,
+  set: (v: 'podcasts' | 'news') => (shell.libraryMode = v),
+})
 </script>
 
 <template>
@@ -673,6 +684,29 @@ onBeforeUnmount(() => {
       <p v-if="!shell.hasCorpusPath" class="text-sm text-muted">
         Set <strong>Corpus path</strong> in the status bar below (same as List files).
       </p>
+      <template v-else>
+      <div
+        v-if="shell.hasNews"
+        class="flex items-center gap-1 px-2"
+        role="tablist"
+        aria-label="Library content type"
+        data-testid="library-mode"
+      >
+        <button
+          v-for="m in LIBRARY_MODES"
+          :key="m.key"
+          type="button"
+          role="tab"
+          :aria-selected="libraryMode === m.key"
+          class="rounded border px-2 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :class="libraryMode === m.key ? 'border-border font-medium text-surface-foreground' : 'border-transparent text-muted hover:bg-overlay'"
+          :data-testid="`library-mode-${m.key}`"
+          @click="libraryMode = m.key"
+        >
+          {{ m.label }}
+        </button>
+      </div>
+      <LibraryNewsList v-if="shell.hasNews && libraryMode === 'news'" />
       <div v-else class="flex min-h-0 flex-1 flex-col gap-2">
         <LibraryFilterBar
           :feed-filter-id="feedFilterId"
@@ -926,6 +960,7 @@ onBeforeUnmount(() => {
         </div>
         </div>
       </div>
+      </template>
     </template>
   </div>
 </template>
