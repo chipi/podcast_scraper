@@ -75,14 +75,14 @@ brackets. Renaming those parts in the code and the older specs is separate work.
 - The **Type** chip in the Query Workspace filter chip bar.
 - The **news result row** in the Workspace results and in the compact launcher's results.
 - The **article subject** in the right rail: the article card.
+- Every other view (the operator's acceptance, 2026-11-18: "adjust views also, digest and all
+  others"), each specified under [Every other view](#every-other-view): an **"In the news"**
+  section on the node rail (topics, people, organisations), a **News** mode in the Library with
+  publisher pages, a **news band** in the Digest, **news counts** on the Dashboard, and
+  **article and publisher nodes in the graph**.
 
-**Later (not in News 1.0, RFC-134 §10; each needs the operator's go to pull in):**
+**Later:**
 
-- A **News** browse mode in the Library tab, and sources shown as publishers.
-- **Article and publisher nodes in the graph** (`HAS_ITEM`, `PUBLISHED_BY`, author edges).
-- An **"In the news"** section on the topic and person rails.
-- A **news band** in the Digest.
-- News counts per source on the Dashboard (items, teasers, paywalled).
 - Quoted evidence snippets: News 2.0, with grounded insights for news.
 
 **Non-goals:**
@@ -219,6 +219,53 @@ result row. Component: `ArticleRailPanel`. Top to bottom:
 
 The card never has a transcript, a body, a "Read more" or a quote section.
 
+## Every other view
+
+Pulled into News 1.0 by the operator's acceptance (2026-11-18). Each view shows news only when
+`GET /api/health` lists `news_article`; without news, every view is exactly as it was. Every news
+entry is a served item (`NewsItem`): a `serveable: none` item appears nowhere and no view shows
+body text.
+
+### The node rail: "In the news"
+
+On a topic, person or organisation rail (`NodeDetail`), below the podcast items section, a section
+**In the news** lists the news items whose KG names the node (`POST /api/corpus/node-episodes`
+with `content_types` including `news_article`, field `news_items`), newest first, five shown with
+"Show all (N)". Each entry: the title (opens the article card), the publisher and the relative time
+in `muted`, a 3px `news` left border. An author is marked "By" where the node is a person who wrote
+the item. `data-testid="node-news-section"`, entries `node-news-item`. With no news items the
+section is left out.
+
+### The Library: News mode
+
+A segmented control at the top of the Library: **Podcasts** (default) | **News**. News mode lists
+the news items newest first (`GET /api/corpus/news/items`, paged 50), each as the news result row
+without a score. A publisher filter (a select of the publishers present) narrows it to one
+publisher (`publisher_id`); choosing a publisher's name in a row does the same. This is the
+publisher page: the publisher's name and domain head the list. `data-testid="library-mode-news"`,
+`library-news-list`, `library-news-publisher`.
+
+### The Digest: a news band
+
+The Digest's window (its date range) gains a **News** band after the podcast bands: the news items
+published in the window, newest first, at most ten, each a compact news row (title, publisher,
+time; the summary on hover is not shown). "See all in Library" opens the Library in News mode.
+`data-testid="digest-news-band"`. With no news in the window the band is left out. The topic bands
+stay podcast-only in News 1.0.
+
+### The Dashboard: news counts
+
+The corpus briefing card gains one line when the corpus holds news: "News: N items from P
+publishers (T teasers, W paywalled)", from the items route. `data-testid="dashboard-news-counts"`.
+
+### The graph: articles and publishers
+
+The graph loads a node's news items when it expands a node (the node rail's list), as article nodes
+(`news` token, a square shape) joined by their `MENTIONS` and author edges, with their publisher as
+an organisation node joined by `PUBLISHED_BY` through the source. News nodes are never loaded into
+the first graph slice: a podcast graph opens exactly as before. Opening an article node opens the
+article card.
+
 ## Key states
 
 - **Loading:** the existing rail and row skeletons.
@@ -297,5 +344,6 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 | 2026-11-17 | Initial draft: News 1.0 scope (Type chip, news result row, article card), later items listed |
 | 2026-11-17 | Vocabulary: item, content type, source, transport, person, text (the operator); two content types (Podcasts, News), each with its own transports; today's names given once in brackets |
 | 2026-11-18 | Data table matched to ontology v3 (ingestion's correction): `url`, not `canonical_url`; `serveable` is `metadata` / `summary` / `none`, not a boolean; the publisher comes from the source through the registry; each field marked decided or undecided |
+| 2026-11-18 | Every other view pulled in (the operator's acceptance): node rail "In the news", Library News mode and publisher pages, Digest news band, Dashboard counts, graph article and publisher nodes |
 | 2026-11-18 | Built: the Type chip re-runs the current query (the other chips do not); the card's topics and people come from `GET /api/corpus/news/item` |
 | 2026-11-18 | The item contract accepted (the operator): every field named as `news-item-1.0.md` has it; `text_status` adds `video`; the publisher order (item, source, domain) |
