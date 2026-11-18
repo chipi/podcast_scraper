@@ -127,6 +127,12 @@ def _values(root: Path) -> Dict[str, List[str]]:
         "episode_id": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, "risk-desks"],
         "run_id": sorted({p.split("/")[3] for p in files}),
         "envelope_id": ["x"],
+        # The Player's per-user write routes (board progress, MCP tokens, notes, notifications):
+        # plain ids no news value reaches; none exists in the fixture.
+        "board": ["x"],
+        "token_id": ["x"],
+        "note_id": ["x"],
+        "notif_id": ["x"],
         # Auth, outbox and per-user routes: no corpus text behind them, called so the coverage
         # check holds; any value answers with a status.
         "code": ["x"],
