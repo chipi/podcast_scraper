@@ -252,3 +252,26 @@ def test_the_url_is_canonical_and_unknown_values_are_not_written() -> None:
     assert doc["news_article"]["live_blog"] is True
     assert doc["news_article"]["byline"] == ["Ana Example"]  # the publisher is not an author
     assert doc["serveable"] == "metadata" and doc["mineable"] is True
+
+
+@pytest.mark.parametrize("status", [extract.TEXT_TEASER, extract.TEXT_VIDEO])
+def test_a_teaser_or_video_item_gets_a_kg_but_no_summary(status: str) -> None:
+    """Contract (news-item-1.0 ``text_status``): a teaser or video body is never enriched as if
+    whole. A summary of one to three sentences repeats them or is filled in by the model; the
+    entities and topics in them are still worth a KG (operator, 2026-11-18)."""
+    item = _item("https://n.test/a", text_status=status)
+    assert not ct.runs_for_item(item, ct.SUMMARY)
+    assert ct.runs_for_item(item, ct.KG)
+    assert ct.runs_for_item(item, ct.TRANSLATION)
+
+
+def test_a_full_item_gets_its_summary_and_kg() -> None:
+    item = _item("https://n.test/a", text_status=extract.TEXT_FULL)
+    assert ct.runs_for_item(item, ct.SUMMARY) and ct.runs_for_item(item, ct.KG)
+
+
+def test_a_restored_teaser_still_gets_no_summary() -> None:
+    """``rederive_only`` re-runs the stages on a restored item: its stored text_status holds."""
+    teaser = _item("https://n.test/a", text_status=extract.TEXT_TEASER)
+    restored = document.restore_item(document.shape({}, teaser, registry=_REG), "A short teaser.")
+    assert not ct.runs_for_item(_item("https://n.test/a", **restored.metadata), ct.SUMMARY)

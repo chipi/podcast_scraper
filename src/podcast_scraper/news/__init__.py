@@ -12,6 +12,7 @@ from typing import Tuple
 
 from ..content_types import (
     ContentType,
+    ItemContext,
     KG,
     SourceItem,
     StageProfile,
@@ -21,7 +22,16 @@ from ..content_types import (
     url_identity,
 )
 from ..news_items import NEWS_ARTICLE
-from . import document, fetch, graph, guardian, hn, rss
+from . import document, extract, fetch, graph, guardian, hn, rss
+
+
+def _skips_stage(item: ItemContext, stage: str) -> bool:
+    """A teaser or video body is never enriched as if whole (contract ``text_status``): it gets
+    its KG, not a summary of its one to three sentences."""
+    return stage == SUMMARY and item.fields.get("text_status") in (
+        extract.TEXT_TEASER,
+        extract.TEXT_VIDEO,
+    )
 
 
 def _identity(item: SourceItem) -> str:
@@ -42,6 +52,7 @@ NEWS = ContentType(
     shape_metadata=document.shape,
     kg_extend=graph.extend,
     restore_item=document.restore_item,
+    skips_stage=_skips_stage,
 )
 
 TYPES: Tuple[ContentType, ...] = (NEWS,)

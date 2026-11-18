@@ -140,6 +140,9 @@ class ContentType:
     #: stored body: what ``rederive_only`` re-runs the stages on, so no source is fetched
     #: (``None``: the item's title and URL only).
     restore_item: Optional[Callable[[Dict[str, Any], str], "SourceItem"]] = None
+    #: ``(item, stage) -> True`` when the type's own rule skips a stage its profile runs, for
+    #: this item (``None``: the profile decides). News skips the summary of a teaser or video.
+    skips_stage: Optional[Callable[["ItemContext", str], bool]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:
@@ -261,10 +264,14 @@ ENRICHMENT_STAGES: FrozenSet[str] = frozenset({TRANSLATION, SUMMARY, GI, KG})
 
 def runs_for_item(item: "ItemContext", stage: str) -> bool:
     """True when ``item`` runs ``stage``: its type's profile runs it, and, for an enrichment stage,
-    its source lets it be mined (``mineable`` is not ``False``; ontology v3 "Rights, per item")."""
-    if not item.content_type.stage_profile.runs(stage):
+    its source lets it be mined (``mineable`` is not ``False``; ontology v3 "Rights, per item"),
+    and its type's own rule (``skips_stage``) does not skip it."""
+    ctype = item.content_type
+    if not ctype.stage_profile.runs(stage):
         return False
-    return not (stage in ENRICHMENT_STAGES and item.fields.get("mineable") is False)
+    if stage in ENRICHMENT_STAGES and item.fields.get("mineable") is False:
+        return False
+    return not (ctype.skips_stage is not None and ctype.skips_stage(item, stage))
 
 
 def stage_runs(stage: str) -> bool:
