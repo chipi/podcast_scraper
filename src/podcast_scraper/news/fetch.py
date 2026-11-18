@@ -208,6 +208,9 @@ def complete(
     }
     if spec.live_blog_url_pattern and re.search(spec.live_blog_url_pattern, url):
         fields["live_blog"] = True
+    title = str(item.metadata.get("title") or "")
+    if spec.roundup_title_pattern and re.search(spec.roundup_title_pattern, title):
+        fields["roundup"] = True
     return SourceItem(
         item_id=item.item_id, metadata=fields, text=text, url=url, raw=raw, raw_suffix=raw_suffix
     )

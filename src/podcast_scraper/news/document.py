@@ -72,6 +72,7 @@ _RESTORED_OWN = (
     F_EDITORIAL_TYPE,
     F_TEXT_STATUS,
     "live_blog",
+    "roundup",
     "language_source",
 )
 
@@ -178,5 +179,7 @@ def shape(
     }
     if f.get("live_blog") is True:
         own["live_blog"] = True
+    if f.get("roundup") is True:
+        own["roundup"] = True
     out[NEWS_ARTICLE] = own
     return out

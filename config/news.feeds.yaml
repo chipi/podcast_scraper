@@ -26,7 +26,7 @@ feeds:
     news: {serveable: summary, mineable: true, max_items: 20}
   - url: https://www.technologyreview.com/feed/
     content_type: news_article
-    news: {serveable: summary, mineable: true, max_items: 20}
+    news: {serveable: summary, mineable: true, max_items: 20, roundup_title_pattern: "^The Download:"}
   # Import AI: the newsletter on Substack (jack-clark.net carries the same issues).
   - url: https://importai.substack.com/feed
     content_type: news_article
@@ -78,7 +78,7 @@ feeds:
     news: {serveable: summary, mineable: true, max_items: 15}
   - url: https://techcabal.com/feed/
     content_type: news_article
-    news: {serveable: summary, mineable: true, max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15, roundup_title_pattern: "TechCabal Daily"}
 
   # ---- Health, biotech and science (4) -------------------------------------
   - url: https://www.statnews.com/feed/

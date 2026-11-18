@@ -254,6 +254,15 @@ def test_the_url_is_canonical_and_unknown_values_are_not_written() -> None:
     assert doc["serveable"] == "metadata" and doc["mineable"] is True
 
 
+def test_a_roundup_is_written_under_news_article_and_kept_by_a_rederive() -> None:
+    plain = document.shape({}, _item("https://n.test/a"), registry=_REG)
+    assert "roundup" not in plain["news_article"]
+    doc = document.shape({}, _item("https://n.test/a", roundup=True), registry=_REG)
+    assert doc["news_article"]["roundup"] is True
+    restored = document.restore_item(doc, "Today: three stories.")
+    assert restored.metadata.get("roundup") is True
+
+
 @pytest.mark.parametrize("status", [extract.TEXT_TEASER, extract.TEXT_VIDEO])
 def test_a_teaser_or_video_item_gets_a_kg_but_no_summary(status: str) -> None:
     """Contract (news-item-1.0 ``text_status``): a teaser or video body is never enriched as if

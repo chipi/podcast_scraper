@@ -124,6 +124,31 @@ def test_the_source_writes_its_rights_text_status_and_live_blogs(page: List[str]
     assert m["live_blog"] is True
 
 
+@pytest.mark.parametrize(
+    ("title", "roundup"),
+    [
+        ("The Download: AI agents, and the grid", True),
+        ("How the grid will cope with AI agents", None),
+    ],
+)
+def test_a_roundup_is_marked_by_its_title(page: List[str], title: str, roundup: Any) -> None:
+    """A newsletter issue covering several stories (operator, 2026-11-18): its source's
+    ``roundup_title_pattern`` matched against the title, per item, since the same source also
+    publishes ordinary articles."""
+    page.append(_html("en", EN))
+    src = _Source()
+    src.news = NewsSourceSpec(roundup_title_pattern="^The Download:")
+    item = ct.SourceItem(item_id="g", url="https://news.test/a", metadata={"title": title})
+    got = fetch.fetch_body(item, src)
+    assert got is not None
+    assert got.metadata.get("roundup") is roundup
+
+
+def test_a_roundup_pattern_must_be_a_regular_expression() -> None:
+    with pytest.raises(ValueError, match="not a regular expression"):
+        NewsSourceSpec(roundup_title_pattern="(unclosed")
+
+
 _FEED = """<?xml version="1.0"?><rss version="2.0"><channel><title>F</title>
 <item><title>A</title><link>https://news.test/articles/d1</link>
 <pubDate>Tue, 17 Nov 2026 09:00:00 +0000</pubDate></item>

@@ -100,6 +100,10 @@ class NewsSourceSpec(BaseModel):
     editorial_type: Optional[Literal["reporting", "opinion", "analysis", "paid"]] = None
     #: An item whose URL matches this (regex, searched) is a live blog (E05 "Ids").
     live_blog_url_pattern: Optional[str] = None
+    #: An item whose title matches this (regex, searched) is a roundup: a newsletter issue
+    #: covering several stories (operator, 2026-11-18). Per item: the same source also
+    #: publishes ordinary articles.
+    roundup_title_pattern: Optional[str] = None
     #: Where each item's text comes from: ``page`` (the article page, with the feed's own text
     #: or the page's standfirst when the page has less), ``feed`` (the feed's own text), or
     #: ``standfirst`` (the page's summary line: a source whose article pages are paywalled).
@@ -112,7 +116,11 @@ class NewsSourceSpec(BaseModel):
     translate: bool = False
 
     @field_validator(
-        "include_url_pattern", "exclude_url_pattern", "live_blog_url_pattern", mode="after"
+        "include_url_pattern",
+        "exclude_url_pattern",
+        "live_blog_url_pattern",
+        "roundup_title_pattern",
+        mode="after",
     )
     @classmethod
     def _compiles(cls, v: Optional[str]) -> Optional[str]:
