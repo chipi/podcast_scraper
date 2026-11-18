@@ -39,7 +39,7 @@ def test_a_public_server_offers_podcasts_and_news(tmp_path: Path) -> None:
         {"name": "podcast_episode", "default_transport": "rss_enclosure", "source_kind": "podcast"},
         {"name": "news_article", "default_transport": "rss", "source_kind": "news"},
     ]
-    assert body["transports"] == ["rss", "rss_enclosure"]
+    assert body["transports"] == ["guardian", "hn", "rss", "rss_enclosure"]
 
 
 def test_a_type_an_extension_registers_is_offered_with_its_transport(tmp_path: Path) -> None:
@@ -52,4 +52,4 @@ def test_a_type_an_extension_registers_is_offered_with_its_transport(tmp_path: P
         "default_transport": "report_api",
         "source_kind": "report",
     }
-    assert body["transports"] == ["report_api", "rss", "rss_enclosure"]
+    assert body["transports"] == ["guardian", "hn", "report_api", "rss", "rss_enclosure"]

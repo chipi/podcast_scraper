@@ -4547,15 +4547,20 @@ def generate_episode_metadata(  # noqa: C901
     # gated) in that language; the run's own config describes the show.
     from .. import content_types
 
-    _profile = content_types.current_item().content_type.stage_profile
+    _current = content_types.current_item()
+    _profile = _current.content_type.stage_profile
     episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
+    # A text item carries its own language (one news feed carries articles in several); a
+    # podcast's is its feed's.
+    _item_language = _current.fields.get("language") if _current.item_id else None
+    _feed_language = _item_language or getattr(feed, "language", None)
     # ADR-177 decision 7: an item whose profile has no translation skips it and its completeness
     # gate (a gate waiting on a translation that never runs would block the item for good).
     _blocked: Optional[str] = None
     if _profile.runs(content_types.TRANSLATION):
         run_translation_stage(
             episode_cfg,
-            feed_language=getattr(feed, "language", None),
+            feed_language=_feed_language,
             transcript_relpath=transcript_file_path,
             effective_output_dir=output_dir,
             episode_id=episode_id,
@@ -4582,7 +4587,7 @@ def generate_episode_metadata(  # noqa: C901
             episode_cfg,
             transcript_relpath=transcript_file_path,
             effective_output_dir=output_dir,
-            feed_language=getattr(feed, "language", None),
+            feed_language=_feed_language,
         )
     if _blocked:
         logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)

@@ -221,7 +221,7 @@ def test_the_body_is_paragraphs_between_blank_lines_with_its_page_beside_it(
         paras = paragraphs(body)
         assert paras[0] == item["title"]
         assert paras[1].startswith(f"{fixtures.BODY_MARKER}-{item['n']} ")
-        assert paras[2:] == (item["paragraphs"] or ["Subscribe to read the rest."])
+        assert paras[2:] == item["paragraphs"]  # a paywall's "Subscribe…" line is not the article
         page = (fixtures.OUT / "pages" / f"{item['stem']}.html").read_text(encoding="utf-8")
         assert Path(stem + ".raw.html").read_text(encoding="utf-8") == page
         assert "All rights reserved" not in body  # the footer is not the article
@@ -235,3 +235,15 @@ def test_a_second_run_lists_nothing_new(
     _run(tmp_path)
     assert net.requests[first:] == [fixtures.FEED_URL]  # the feed only: no page fetched again
     assert len(_docs(corpus)) == len(fixtures.ITEMS)
+
+
+def test_each_items_language_says_where_it_came_from(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """The page's <html lang> decides over the feed's <language> (one English feed carries the
+    Spanish article), and the item records where its language came from."""
+    corpus = _run(tmp_path)
+    for item in fixtures.ITEMS:
+        _, doc = _docs(corpus)[item["stem"]]
+        assert doc["language"] == item["lang"]
+        assert doc["news_article"]["language_source"] == "page"

@@ -429,7 +429,7 @@ def _open_http_request(
         sess = session if session is not None else _get_thread_request_client()
         logger.debug(
             "Opening HTTP connection to %s (timeout=%s, stream=%s) via client %s",
-            normalized_url,
+            redact_for_log(normalized_url),
             timeout,
             stream,
             hex(id(sess)),
@@ -449,7 +449,7 @@ def _open_http_request(
             br.record_success(normalized_url)
         logger.debug(
             "HTTP request to %s succeeded with status %s and Content-Length=%s",
-            normalized_url,
+            redact_for_log(normalized_url),
             resp.status_code,
             resp.headers.get("Content-Length"),
         )
@@ -495,7 +495,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Respons
         client = _get_thread_request_client()
         logger.debug(
             "Checking file size via HEAD request to %s (timeout=%s) via client %s",
-            normalized_url,
+            redact_for_log(normalized_url),
             timeout,
             hex(id(client)),
         )
@@ -508,7 +508,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Respons
         content_length = resp.headers.get("Content-Length")
         logger.debug(
             "HEAD request to %s succeeded with status %s and Content-Length=%s",
-            normalized_url,
+            redact_for_log(normalized_url),
             resp.status_code,
             content_length,
         )
@@ -525,11 +525,17 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Respons
 
 
 def fetch_url(
-    url: str, user_agent: str, timeout: int, *, stream: bool = False
+    url: str,
+    user_agent: str,
+    timeout: int,
+    *,
+    stream: bool = False,
+    extra_headers: Optional[Dict[str, str]] = None,
 ) -> Optional[httpx.Response]:
-    """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches)."""
+    """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches).
+    ``extra_headers`` carries what must not sit in a URL, which is logged (an API key)."""
 
-    return _open_http_request(url, user_agent, timeout, stream=stream)
+    return _open_http_request(url, user_agent, timeout, stream=stream, extra_headers=extra_headers)
 
 
 def fetch_rss_feed_url(

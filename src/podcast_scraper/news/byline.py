@@ -10,6 +10,8 @@ from typing import Collection, List, Optional
 _BY = re.compile(r"^\s*by\s+", re.IGNORECASE)
 _SPLIT = re.compile(r"\s*(?:,|;|\||&|\band\b)\s*", re.IGNORECASE)
 _EMAIL = re.compile(r"\S+@\S+")
+#: A desk credit, not a person ("Al Jazeera Staff", "Rest of World Staff", "Reuters staff").
+_DESK = re.compile(r"\b(staff|contributors|newsroom|editors|desk)\b", re.IGNORECASE)
 
 
 def parse(raw: Optional[str], *, organisations: Collection[str] = ()) -> List[str]:
@@ -23,7 +25,7 @@ def parse(raw: Optional[str], *, organisations: Collection[str] = ()) -> List[st
     for part in _SPLIT.split(_BY.sub("", raw.strip())):
         name = " ".join(_EMAIL.sub("", part).split())
         key = name.casefold()
-        if not name or key in orgs or key in seen:
+        if not name or key in orgs or key in seen or _DESK.search(name):
             continue
         seen.add(key)
         names.append(name)

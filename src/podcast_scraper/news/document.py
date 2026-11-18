@@ -97,10 +97,15 @@ def shape(
     editorial = f.get("editorial_type")
     own: Dict[str, Any] = {
         "transport_ids": dict(f.get("transport_ids") or {}),
-        F_BYLINE: byline.parse(raw, organisations=[pub.name] if pub else []),
+        F_BYLINE: byline.parse(
+            raw,
+            # A personal site's publisher is its author (``personal`` on the source).
+            organisations=[pub.name] if pub and not f.get("personal_publisher") else [],
+        ),
         "byline_raw": raw,
         F_EDITORIAL_TYPE: editorial if editorial in EDITORIAL_TYPES else None,
         F_TEXT_STATUS: f.get("text_status"),
+        "language_source": f.get("language_source"),
     }
     if f.get("live_blog") is True:
         own["live_blog"] = True

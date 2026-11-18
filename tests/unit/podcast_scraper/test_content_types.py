@@ -34,7 +34,7 @@ def test_podcast_then_news_are_the_built_in_types() -> None:
     with use_extensions([]):
         types, transports = ct.registry()
     assert list(types) == [ct.PODCAST_EPISODE, "news_article"]
-    assert list(transports) == [ct.RSS_ENCLOSURE, "rss"]
+    assert list(transports) == [ct.RSS_ENCLOSURE, "rss", "hn", "guardian"]
     assert ct.PODCAST.stage_profile.runs("diarization")  # the full pipeline runs every stage
 
 

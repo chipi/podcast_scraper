@@ -16,11 +16,12 @@ from ..content_types import (
     SourceItem,
     StageProfile,
     SUMMARY,
+    TRANSLATION,
     Transport,
     url_identity,
 )
 from ..news_items import NEWS_ARTICLE
-from . import document, fetch, rss
+from . import document, fetch, guardian, hn, rss
 
 
 def _identity(item: SourceItem) -> str:
@@ -32,7 +33,7 @@ def _identity(item: SourceItem) -> str:
 NEWS = ContentType(
     name=NEWS_ARTICLE,
     id_scheme="item",
-    stage_profile=StageProfile(name=NEWS_ARTICLE, stages=frozenset({SUMMARY, KG})),
+    stage_profile=StageProfile(name=NEWS_ARTICLE, stages=frozenset({TRANSLATION, SUMMARY, KG})),
     default_transport=rss.NAME,
     card_kind="article",
     identity=_identity,
@@ -42,4 +43,4 @@ NEWS = ContentType(
 )
 
 TYPES: Tuple[ContentType, ...] = (NEWS,)
-TRANSPORTS: Tuple[Transport, ...] = (rss.TRANSPORT,)
+TRANSPORTS: Tuple[Transport, ...] = (rss.TRANSPORT, hn.TRANSPORT, guardian.TRANSPORT)
