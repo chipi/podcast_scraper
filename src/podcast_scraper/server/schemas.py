@@ -5274,5 +5274,20 @@ class NewsItemDetailResponse(BaseModel):
     kg_nodes: List[NewsKgNode] = Field(default_factory=list)
 
 
+class AppClusterCardWithNews(AppClusterCard):
+    """A theme or storyline card with its news articles (asked for with ``news=1``; the news
+    release's piece F). Without the ask, the card is :class:`AppClusterCard`, byte for byte."""
+
+    articles: list[NewsItem] = Field(
+        default_factory=list,
+        description=(
+            "The news items of every member topic (members' news_item_ids), de-duplicated, newest "
+            "first; never a serveable-none item and never body text."
+        ),
+    )
+    article_count: int = Field(default=0, description="len(articles); episode_count is unchanged.")
+
+
 SearchHitModel.model_rebuild()
+AppClusterCardWithNews.model_rebuild()
 CorpusNodeEpisodesResponse.model_rebuild()

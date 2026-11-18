@@ -47,6 +47,7 @@ from podcast_scraper.server.kg_index import (
 )
 from podcast_scraper.server.schemas import (
     AppClusterCard,
+    AppClusterCardWithNews,
     AppClusterMember,
     AppClusterPair,
     AppEntity,
@@ -62,6 +63,7 @@ from podcast_scraper.server.schemas import (
     AppTopicCard,
     AppTopicPerspective,
     AppTopicPerspectivesResponse,
+    NewsItem,
 )
 from podcast_scraper.server.slugs import slug_for_row
 
@@ -864,12 +866,50 @@ def _label_key(text: str) -> str:
     return re.sub(r"[\W_]+", " ", text.split(":", 1)[-1].casefold()).strip()
 
 
+#: Where each grouping keeps its members' ``news_item_ids`` (piece A): themes in the search
+#: directory's topic clusters, storylines in the theme-clusters enrichment (under ``data``).
+_THEMES_FILE = "search/topic_clusters.json"
+_STORYLINES_FILE = "enrichments/topic_theme_clusters.json"
+
+
+def _cluster_news_item_ids(root: Path, relpath: str, cluster_id: str) -> list[str]:
+    """Every member's ``news_item_ids`` in the cluster whose id is *cluster_id*, de-duplicated."""
+    from podcast_scraper.server.corpus_access import cached_json_artifact
+
+    doc = cached_json_artifact(root, relpath) or {}
+    data = doc.get("data")
+    holder: dict = data if isinstance(data, dict) else doc
+    ids: dict[str, None] = {}
+    for cluster in holder.get("clusters") or []:
+        if not isinstance(cluster, dict) or cluster.get("graph_compound_parent_id") != cluster_id:
+            continue
+        for member in cluster.get("members") or []:
+            if isinstance(member, dict):
+                for item_id in member.get("news_item_ids") or []:
+                    if isinstance(item_id, str) and item_id:
+                        ids[item_id] = None
+    return list(ids)
+
+
+def _with_news(root: Path, card: AppClusterCard, relpath: str) -> AppClusterCardWithNews:
+    """*card* plus its articles: the cluster's news items as served (rights and registry applied;
+    a serveable-none item dropped; no body text), newest first."""
+    from podcast_scraper.server.routes.corpus_news import cached_served_items
+
+    wanted = set(_cluster_news_item_ids(root, relpath, card.id))
+    articles = [NewsItem(**i) for i in cached_served_items(root) if i["item_id"] in wanted]
+    return AppClusterCardWithNews(
+        **card.model_dump(), articles=articles, article_count=len(articles)
+    )
+
+
 def build_theme_card(
     root: Path,
     theme_id: str,
     *,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
+    news: bool = False,
 ) -> AppClusterCard | None:
     """A THEME (`tc:`) — topics that MEAN the same thing. See :func:`_build_cluster_card`."""
     built = _build_cluster_card(
@@ -886,7 +926,7 @@ def build_theme_card(
     if built is None:
         return None
     label, members, about, people, pair = built
-    return AppClusterCard(
+    card = AppClusterCard(
         id=theme_id,
         label=label,
         member_topics=members,
@@ -895,6 +935,7 @@ def build_theme_card(
         related_people=people,
         strongest_pair=pair,
     )
+    return _with_news(root, card, _THEMES_FILE) if news else card
 
 
 def build_storyline_card(
@@ -903,6 +944,7 @@ def build_storyline_card(
     *,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
+    news: bool = False,
 ) -> AppClusterCard | None:
     """A STORYLINE (`thc:`) — topics that keep coming up TOGETHER.
 
@@ -939,7 +981,7 @@ def build_storyline_card(
         return None
     label, members, about, people, pair = built
     life = storyline_lifecycle(root).get(resolved_id) or {}
-    return AppClusterCard(
+    card = AppClusterCard(
         id=resolved_id,
         label=label,
         member_topics=members,
@@ -951,6 +993,7 @@ def build_storyline_card(
         state=life.get("state"),
         last_active_at=life.get("last_active_at"),
     )
+    return _with_news(root, card, _STORYLINES_FILE) if news else card
 
 
 def build_topic_card(
