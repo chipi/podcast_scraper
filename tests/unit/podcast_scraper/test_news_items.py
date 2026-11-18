@@ -163,3 +163,18 @@ def test_the_fixture_items_list_their_kg_nodes_and_author() -> None:
     assert risk["publisher"]["id"] == "org:daily-example"
     assert items["Reliability at scale, a field report"]["publisher"]["domain"] == "otherwire.test"
     assert items["Trail building, in pictures"]["publisher"] is None
+
+
+def test_one_item_over_two_sources_is_served_once(tmp_path: Path) -> None:
+    """Contract: one article reached by two sources (or two runs) is one item."""
+    root = tmp_path / "corpus"
+    for source, run in (
+        ("bbc-business", "run_1"),
+        ("bbc-world", "run_2"),
+        ("bbc-business", "run_3"),
+    ):
+        meta = root / f"sources/news_article/{source}/{run}/metadata"
+        meta.mkdir(parents=True)
+        (meta / "a.metadata.json").write_text(json.dumps(_doc()), encoding="utf-8")
+    items = served_items(root, _registry(tmp_path))
+    assert [i["item_id"] for i in items] == ["item:news_article:0123456789abcdef0123"]

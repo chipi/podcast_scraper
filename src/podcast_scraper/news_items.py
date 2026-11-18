@@ -147,13 +147,19 @@ def iter_news_metadata(corpus_root: Path) -> Iterator[NewsItemFile]:
 
 
 def served_items(corpus_root: Path, registry: Optional[Registry] = None) -> List[Dict[str, Any]]:
-    """Every news item a surface may show, newest first."""
+    """Every news item a surface may show, newest first, once per ``item_id``: one article reached
+    by two sources or two runs is one item (the contract). The newest run's copy is kept."""
     reg = registry if registry is not None else load_registry()
-    out = [
-        item
-        for f in iter_news_metadata(corpus_root)
-        if (item := served_item(f.doc, reg, metadata_relative_path=f.relative_path)) is not None
-    ]
+    by_id: Dict[str, Dict[str, Any]] = {}
+    for f in iter_news_metadata(corpus_root):
+        item = served_item(f.doc, reg, metadata_relative_path=f.relative_path)
+        if item is None:
+            continue
+        kept = by_id.get(item["item_id"])
+        # Run directories are named run_<timestamp>..., so the larger path is the newer run.
+        if kept is None or item["metadata_relative_path"] > kept["metadata_relative_path"]:
+            by_id[item["item_id"]] = item
+    out = list(by_id.values())
     out.sort(key=lambda i: i["published_at"] or "", reverse=True)
     return out
 
