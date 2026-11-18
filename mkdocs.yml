@@ -16,6 +16,7 @@ nav:
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
       - Corpus reprocessing runbook: guides/CORPUS_REPROCESSING.md
+      - News API keys: guides/NEWS_API_KEYS.md
       - Operator surface post-deploy smoke test: guides/OPERATOR_SMOKE_TEST.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md

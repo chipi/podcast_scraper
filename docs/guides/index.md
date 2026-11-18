@@ -44,6 +44,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Corpus change method](CORPUS_CHANGE_METHOD.md) | How every change to what the corpus serves is planned, judged and shipped |
 | [Corpus integrity repair runbook](CORPUS_INTEGRITY_REPAIR_RUNBOOK.md) | Ordered, gated sequence for repairing a corpus damaged by the defects fixed in epic #1657: which detector finds each, which repair fixes it, and which repairs fix nothing |
 | [Corpus reprocessing runbook](CORPUS_REPROCESSING.md) | How to rebuild an existing corpus's artifacts by re-running the real profile-driven pipeline (stages an installed extension provides, such as diarization, cleaning and GI, apply only with that extension) |
+| [News API keys](NEWS_API_KEYS.md) | How a news source that uses a keyed API (the Guardian, later others) gets its key: `api_key_env` per source, a gitignored `.env` locally, a `PROD_<NAME>_API_KEY` GitHub secret in production |
 | [Corpus upgrade framework](CORPUS_UPGRADE.md) | Managed, idempotent migrations for moving a deployed corpus across releases (#862) |
 | [Onboarding a new language](LANGUAGE_ONBOARDING_RUNBOOK.md) | Measurement runbook: the order of work and the measurement traps for onboarding a new language |
 
