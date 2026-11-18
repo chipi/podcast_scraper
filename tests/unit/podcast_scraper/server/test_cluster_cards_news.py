@@ -108,3 +108,23 @@ def test_a_file_without_news_item_ids_gives_no_articles(corpus: Path) -> None:
     )
     card = rv.build_theme_card(corpus, other, news=True)
     assert card is not None and card.articles == [] and card.article_count == 0
+
+
+def test_a_theme_lists_the_articles_of_its_news_only_topics(corpus: Path) -> None:
+    """Themes schema 3: news-only topics that joined by meaning sit in ``news_members`` with their
+    own ``news_item_ids``; the card takes the union with the podcast members' items."""
+    path = corpus / "search" / "topic_clusters.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    other = next(c for c in _clusters(doc) if c["graph_compound_parent_id"] != _THEME)
+    other["news_members"] = [
+        {
+            "topic_id": "topic:only-in-the-news",
+            "label": "Only in the news",
+            "news_item_ids": [_SUMMARY_NEW, _NONE],
+            "similarity": 0.9,
+        }
+    ]
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    card = rv.build_theme_card(corpus, other["graph_compound_parent_id"], news=True)
+    assert isinstance(card, AppClusterCardWithNews)
+    assert [a.item_id for a in card.articles] == [_SUMMARY_NEW]

@@ -85,7 +85,9 @@ def _cluster_item_ids(root: Path, cluster_id: str) -> List[str]:
     for cluster in holder.get("clusters") or []:
         if not isinstance(cluster, dict) or cluster.get("graph_compound_parent_id") != cluster_id:
             continue
-        for member in cluster.get("members") or []:
+        # Podcast topics (members) and news-only topics that joined by meaning (news_members,
+        # themes schema 3) both carry news_item_ids.
+        for member in [*(cluster.get("members") or []), *(cluster.get("news_members") or [])]:
             if isinstance(member, dict):
                 for item_id in member.get("news_item_ids") or []:
                     if isinstance(item_id, str) and item_id:

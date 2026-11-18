@@ -237,7 +237,7 @@ the item. `data-testid="node-news-section"`, entries `node-news-item`. With no n
 section is left out.
 
 On a theme (`tc:`) or storyline (`thc:`) rail the same section lists the grouping's articles: the
-union of its members' `news_item_ids` in Common's grouping files (`search/topic_clusters.json`,
+union of the `news_item_ids` of its members and its news-only members (`news_members`, themes only) in Common's grouping files (`search/topic_clusters.json`,
 `enrichments/topic_theme_clusters.json`), served items only, newest first. The episode list and
 its count are unchanged; articles are counted on their own (the operator, 2026-11-18: counts stay
 separate). The Player's and Studio's theme and storyline cards carry the same list when asked
