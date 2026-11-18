@@ -1,6 +1,7 @@
 # RFC-134: News as the second content type
 
-- **Status**: Draft, revised 2026-11-11 after the ingestion and advisor reviews
+- **Status**: Draft, revised 2026-11-11 after the ingestion and advisor reviews; §11 amended
+  2026-11-18 (news joins themes and storylines)
 - **Releases**:
   - **The core release** builds the seams in §1 and the schema half of ontology v3 in §6, and
     proves them with a test-only second type.
@@ -86,7 +87,7 @@ So there is no way yet to add a type without editing the podcast path.
 - **Event clusters, GDELT, divergence, publisher grading:** later (structured intelligence).
 - **Other content types** (social posts, advisories, reports): after the corpus database.
 - **Migrating the podcast corpus to v3:** R3b, its own release (ADR-178).
-- **News on the listener app by default:** at most a flagged proof (§11).
+- **News on the listener app by default:** behind a flag, off at first (§11).
 - **An audio-in entry point for a non-podcast type** (earnings calls, for example): a later seam
   (§13).
 
@@ -341,6 +342,12 @@ The core release builds this section (R3a).
 - **Cross-type search queries both and merges,** as the non-English table's results are merged.
   Results carry `content_type`; the default is podcast items only.
 - **No new store:** the database search (E09) later takes all types together.
+- **News topic rows** (amended 2026-11-18, for §11): a `news_aux` table in the same index, the
+  `aux` schema unchanged, one `kg_topic` row per (news item, KG Topic), embedded with the text the
+  podcast topic rows use (`indexer.kg_topic_embed_text`). `episode_id` holds the item id, `show_id`
+  the news source id, `source_id` the topic id. Podcast search never reads it; the theme builder
+  does. It covers every item whose `mineable` is not false, served or not; surfaces drop a
+  `serveable: none` item when they read.
 - **API and MCP tools are generic over content types.** A tool that lists, searches or explains
   items takes a type filter and does not assume an episode. A later product can then query any type
   the way Close Listening queries episodes.
@@ -361,15 +368,36 @@ The core release builds this section (R3a).
 - **The public viewer** gets a basic news card and the type in search. **The private viewer** gets
   its own card.
 
-### 11. The listener app (optional, behind a flag)
+### 11. Themes, storylines and the listener app
 
-- **A small read-time proof, off by default:**
-  - "in the news" on a storyline or theme page, by a cross-type search against its text;
-  - a short strip on the home page for the themes a listener follows;
-  - a news item kept on a board.
-- **No new enrichment:** news does not enter the storyline or theme builders in this release.
-- **The first slice to cut if the release is late,** in which case it moves to the release before
-  the corpus database.
+**Amended 2026-11-18.** The operator widened the release: news joins themes and storylines end to
+end, with a continuous measurement of how news connects to the podcasts. The plan, with pieces A
+to K and their owners, is Common's `docs/wip/platform-plan/epics/E05-news.md`. The first text of
+this section (a read-time proof only, no new enrichment) is replaced by the following.
+
+- **The operator's decisions (2026-11-18):**
+  - an article attaches to storylines that podcasts form; news forms a storyline on its own only
+    after research sets an article's weight;
+  - an article finds a storyline through the same topic id (stronger) or a shared theme;
+  - news alone starts only a candidate storyline, promoted when a podcast joins it;
+  - news slows a storyline going quiet but does not wake a quiet one;
+  - news topics join themes by meaning;
+  - counts stay separate: episodes and articles are counted on their own;
+  - the Player shows nothing at first, behind a flag.
+- **The grouping files** (Common writes them) gain `news_item_ids` per member, beside
+  `episode_ids`, in `search/topic_clusters.json` (themes) and
+  `enrichments/topic_theme_clusters.json` (storylines); `episode_ids` stays podcast-only. A theme
+  member may name a `serveable: none` item; a storyline attaches shown items only.
+- **Cards and rails** (public): the theme and storyline cards carry `articles` and
+  `article_count` only when asked (`news=1` on the Player's routes; `news=True` on the card
+  builders), so a card without the ask is unchanged. Articles are the union over members,
+  de-duplicated, newest first, served items only, never body text. The Workbench's theme and
+  storyline rails list the same articles.
+- **Measured on the first real news corpus** (255 articles, the database session, 2026-11-18):
+  277 of 2,213 news topics share a podcast topic id, 256 more match one at cosine 0.85; 41 to 61
+  articles attach to a storyline through one shared topic, 1 through two.
+- **The listener app** keeps the earlier proof (a strip on the home page, a news item kept on a
+  board) as later slices behind the same flag.
 
 ### 12. The prod sources (first set, 2026-11-11)
 
