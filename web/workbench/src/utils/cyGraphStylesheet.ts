@@ -84,6 +84,9 @@ const VISUAL_TYPES = [
   // two — without an entry it rendered at default size and shape, which read as "unknown node".
   'Entity_object',
   'Podcast',
+  // UXS-019: news items and their sources, loaded when a node is expanded.
+  'Article',
+  'NewsSource',
 ] as const
 
 /** Tier 1–2 (WIP §3.5): show truncated labels in the medium-zoom band. */
@@ -117,10 +120,12 @@ const LABEL_SHORT_TIER_TYPES = [
 const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Topic: 40,
   Episode: 22,
+  Article: 20,
   Entity_person: 12,
   Entity_organization: 12,
   Entity_object: 12,
   Podcast: 12,
+  NewsSource: 12,
 }
 
 /** graph-v3 H+I — width multiplier for rectangular shapes so they read as
@@ -444,6 +449,8 @@ export function buildGiKgCyStylesheet(options?: {
     Episode: 'round-rectangle',
     Entity_organization: 'round-rectangle',
     Entity_object: 'diamond',
+    Article: 'rectangle',
+    NewsSource: 'hexagon',
   }
 
   const sizeByDegree = Boolean(options?.enableNodeSizeByDegree)

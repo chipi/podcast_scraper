@@ -221,6 +221,13 @@ async function openGraphEpisodeOrNodeRail(
   rawNode: RawGraphNode | null,
 ): Promise<void> {
   const token = graphEpisodeOpenGate.bump()
+  // UXS-019: an article node opens the article card, never the episode rail.
+  if (rawNode?.properties?.content_type === 'news_article') {
+    const itemId = String(rawNode.properties.item_id ?? cyId).replace(/^(?:g:|k:|kg:)+/, '')
+    const title = typeof rawNode.properties.title === 'string' ? rawNode.properties.title : null
+    subject.focusArticle(itemId, { uiTitle: title })
+    return
+  }
   if (!graphCyIdRepresentsEpisodeNode(cyId, rawNode)) {
     subject.focusGraphNode(cyId)
     return
@@ -285,10 +292,21 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
   graphExpansion.setBusy(id)
   graphExpansion.clearTruncationLine()
   try {
-    const res = await fetchNodeEpisodes(root, id, GRAPH_NODE_EPISODES_EXPAND_MAX)
+    // UXS-019: with news in the corpus, an expand also brings the news items whose KG names the
+    // node, as article nodes (their KG beside their metadata). Never in the first slice.
+    const res = await fetchNodeEpisodes(
+      root,
+      id,
+      GRAPH_NODE_EPISODES_EXPAND_MAX,
+      shell.hasNews ? ['podcast_episode', 'news_article'] : undefined,
+    )
     const flat: string[] = []
     for (const ep of res.episodes) {
       flat.push(...episodeArtifactRelPaths(ep))
+    }
+    for (const item of res.news_items ?? []) {
+      const meta = (item.metadata_relative_path ?? '').trim()
+      if (meta.endsWith('.metadata.json')) flat.push(meta.replace(/\.metadata\.json$/, '.kg.json'))
     }
     if (flat.length === 0) {
       graphExpansion.setTruncationLine('No other episodes in the corpus reference this node.')

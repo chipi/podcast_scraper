@@ -69,6 +69,18 @@ export const graphNodeTypeStyles = Object.freeze({
     border: "#3f5199",
     labelColor: "#ffffff",
   },
+  /** UXS-019: a news article, in the ``news`` token (steel blue). */
+  Article: {
+    background: "#9fb7d0",
+    border: "#3d5a7a",
+    labelColor: "#111418",
+  },
+  /** UXS-019: a news source (a feed or an API query), the ``news`` token, darker. */
+  NewsSource: {
+    background: "#3d5a7a",
+    border: "#26394d",
+    labelColor: "#ffffff",
+  },
 } as const)
 
 export const graphNodeTypesOrdered = Object.freeze([
@@ -78,6 +90,8 @@ export const graphNodeTypesOrdered = Object.freeze([
   "Entity_person",
   "Entity_organization",
   "Podcast",
+  "Article",
+  "NewsSource",
 ] as const)
 
 export type GraphVisualType = (typeof graphNodeTypesOrdered)[number] | "?" | "Entity"
@@ -88,6 +102,7 @@ export function graphNodeLegendLabel(key: string): string {
   if (key === "Entity_person") return "Entity (person)"
   if (key === "Entity_organization") return "Entity (organization)"
   if (key === "TopicCluster") return "Topic cluster"
+  if (key === "NewsSource") return "News source"
   return key
 }
 

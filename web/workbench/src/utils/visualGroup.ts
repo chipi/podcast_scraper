@@ -7,6 +7,10 @@ export function visualGroupForNode(n: RawGraphNode | null | undefined): string {
   if (!n || typeof n !== "object") return "?"
   const t = typeof n.type === "string" ? n.type : "?"
   if (t === "TopicCluster") return "TopicCluster"
+  // UXS-019: a news item (read through the KG view as an Episode) and its source (a Podcast)
+  // keep their content type and source kind, so they are drawn as news, not as podcasts.
+  if (t === "Episode" && n.properties?.content_type === "news_article") return "Article"
+  if (t === "Podcast" && n.properties?.source_kind === "news") return "NewsSource"
   // RFC-097 v3.0: Person + Organization are first-class typed nodes; both
   // map to their existing visual groups so legend / metrics / stylesheet
   // surfaces treat them uniformly with legacy v1.x Entity(kind=...) shapes.
