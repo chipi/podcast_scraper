@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
 from podcast_scraper.content_types import url_identity  # noqa: E402
-from podcast_scraper.utils.canonical_url import canonical_url  # noqa: E402
 from podcast_scraper.kg.schema import validate_artifact  # noqa: E402
+from podcast_scraper.utils.canonical_url import canonical_url  # noqa: E402
 
 CORPUS = Path(__file__).resolve().parent / "v3"
 OUT = CORPUS / "sources" / "news_article"
