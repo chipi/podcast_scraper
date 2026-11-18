@@ -110,8 +110,9 @@ feeds:
     content_type: news_article
     transport: hn
     news: {serveable: summary, mineable: true, max_items: 20}
-  # The Guardian Content API: needs GUARDIAN_API_KEY (lists nothing without it).
-  - url: https://content.guardianapis.com/search
-    content_type: news_article
-    transport: guardian
-    news: {serveable: summary, mineable: true, max_items: 20, live_blog_url_pattern: "/live/"}
+  # The Guardian Content API: needs GUARDIAN_API_KEY (lists nothing without it). Off until the
+  # operator has a key (the operator, 2026-11-18); the transport is built and tested.
+  # - url: https://content.guardianapis.com/search
+  #   content_type: news_article
+  #   transport: guardian
+  #   news: {serveable: summary, mineable: true, max_items: 20, live_blog_url_pattern: "/live/"}
