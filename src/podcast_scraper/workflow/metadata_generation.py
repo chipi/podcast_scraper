@@ -3160,8 +3160,9 @@ def _generate_episode_summary(  # noqa: C901
             if parse_result.success and parse_result.schema and parse_result.repair_attempted:
                 logger.warning(
                     "[%s] Summary shipped from a REPAIRED payload (#1878) — status=%s. The "
-                    "provider's JSON needed closing tokens appended; if this recurs, the "
-                    "backend is ending generations early.",
+                    "provider's reply was not valid JSON as returned: the parser closed a "
+                    "truncated document, escaped a quote inside a string, or read the bullets "
+                    "from prose.",
                     episode_idx,
                     parse_result.schema.status,
                 )
