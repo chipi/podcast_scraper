@@ -34,14 +34,15 @@ ADR-179, ADR-180 (rule 6 amended 2026-11-18), ADR-181, ontology v3, and ingestio
 | --- | --- | --- |
 | 1 | Publisher registry and loader (`config/publishers.yaml`, `podcast_scraper.publishers`), the 19 publishers | done (547d73898, 4b3edf957) |
 | 2 | News reader: served item from metadata only, rights, publisher order (`podcast_scraper.news_items`) | done (00ecb4be6) |
-| 3 | Invented news fixture in the contract's shape, beside the podcast validation corpus | next |
-| 4 | Health `content_types`; the item read; the publisher-as-organisation read | |
-| 5 | Search: news tables in the index, `content_types` on the search route, summary and metadata only | |
-| 6 | Node items across types (Studio's need 1) | |
-| 7 | Views: Library, Digest, Dashboard, the subject rail, the graph over KG 3.0 news nodes | |
-| 8 | Workbench: Type chip, news row, article card; source config with `content_type` and `transport` | |
-| 9 | Never-served guard: every route and MCP tool over a fixture whose body holds a marker | |
-| 10 | e2e: Workbench Playwright on the fixture; then one run over ingestion's real output | |
+| 3 | Invented news fixture in the contract's shape, beside the podcast validation corpus | done (57d69816d, ids fixed 2435aa1f9) |
+| 4 | Health `content_types`; the item read; the publisher-as-organisation read | done (68a57268d) |
+| 5 | Search: news table in the index, `content_types` on the search route, summary and metadata only | done (1ecf17ccd) |
+| 6 | Node items across types (Studio's need 1) | next |
+| 7 | Views: Library, Digest, Dashboard, the subject rail, the graph over KG 3.0 news nodes | not started; UXS-019 needs a section per view first |
+| 8 | Workbench: Type chip, news row, article card | done (bfe12aefb); source config with `content_type` and `transport`: not started |
+| 9 | Never-served guard: every route and MCP tool over a fixture whose body holds a marker | partial: the news routes, search and the Workbench e2e assert it; not yet every route and MCP tool |
+| 10 | e2e: Workbench Playwright on the fixture; then one run over ingestion's real output | fixture: done (ac5392a05, 262 passed); real output: waits for ingestion's writer |
+| R3b | GI 4.0 and KG 3.0 read views at every public load point | done (f2c19647d, 3b64360d6) |
 
 ## Not covered yet
 
