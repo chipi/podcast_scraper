@@ -158,6 +158,20 @@ export const useShellStore = defineStore('shell', () => {
   /** The Library's News mode publisher filter (UXS-019's publisher page); '' = all. Set it with
    *  ``libraryMode = 'news'`` to open a publisher's page from elsewhere. */
   const libraryNewsPublisherId = ref('')
+  /**
+   * A main-tab switch asked for by a component that cannot emit to App (a rail section): App
+   * applies it and clears it. One of the tabs App's ``switch-main-tab`` takes.
+   */
+  const pendingMainTab = ref<'digest' | 'library' | 'search' | 'graph' | 'dashboard' | null>(null)
+  function requestMainTab(tab: 'digest' | 'library' | 'search' | 'graph' | 'dashboard'): void {
+    pendingMainTab.value = tab
+  }
+  /** Open the Library in News mode, on one publisher's page when ``publisherId`` is given. */
+  function openLibraryNews(publisherId = ''): void {
+    libraryMode.value = 'news'
+    libraryNewsPublisherId.value = publisherId
+    requestMainTab('library')
+  }
   /** True only when GET/PUT /api/feeds is advertised (strict). */
   const feedsApiAvailable = ref(false)
   /** True only when GET/PUT /api/operator-config is advertised (strict). */
@@ -401,6 +415,9 @@ export const useShellStore = defineStore('shell', () => {
     hasNews,
     libraryMode,
     libraryNewsPublisherId,
+    pendingMainTab,
+    requestMainTab,
+    openLibraryNews,
     feedsApiAvailable,
     operatorConfigApiAvailable,
     jobsApiAvailable,

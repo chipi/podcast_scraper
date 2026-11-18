@@ -48,6 +48,29 @@ test.describe('News in every other view (UXS-019, live)', () => {
     await expect(page.locator('body')).not.toContainText('NEWS-BODY-MARKER')
   })
 
+  test("an article's publisher opens its page in the Library", async ({ page }) => {
+    await open(page)
+    await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
+    await page.getByTestId('search-chip-type').click()
+    await page.getByTestId('search-type-option-news').click()
+    await page.locator('#search-q').fill('risk desks behavioural')
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
+      .getByRole('button', { name: 'Search', exact: true })
+      .click()
+    await page
+      .getByTestId('search-result-news')
+      .filter({ hasText: 'Risk desks learn to sit still' })
+      .getByTestId('search-result-news-title')
+      .click()
+    await page.getByTestId('article-publisher-open').click()
+    await expect(page.getByTestId('library-news-publisher-head')).toContainText('dailyexample.test', {
+      timeout: 15_000,
+    })
+    await expect(page.getByTestId('library-news-list')).not.toContainText('Reliability at scale')
+  })
+
   test('the Library has a News mode with publisher pages', async ({ page }) => {
     await open(page)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()

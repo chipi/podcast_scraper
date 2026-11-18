@@ -71,4 +71,16 @@ describe('ArticleRailPanel (UXS-019)', () => {
     expect(w.find('[data-testid="article-metadata-only"]').exists()).toBe(true)
     expect(w.find('[data-testid="article-open"]').exists()).toBe(true)
   })
+
+  it("opens the publisher's page in the Library from the publisher's name", async () => {
+    vi.mocked(fetchNewsItem).mockResolvedValue(detail())
+    useSubjectStore().focusArticle('item:news_article:abc')
+    const w = mount(ArticleRailPanel)
+    await flushPromises()
+    await w.get('[data-testid="article-publisher-open"]').trigger('click')
+    const shell = useShellStore()
+    expect(shell.libraryMode).toBe('news')
+    expect(shell.libraryNewsPublisherId).toBe('org:daily-example')
+    expect(shell.pendingMainTab).toBe('library')
+  })
 })

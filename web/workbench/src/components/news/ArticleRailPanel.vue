@@ -77,7 +77,13 @@ function openNode(n: NewsKgNode): void {
         {{ item.title }}
       </h3>
       <p v-if="item.publisher" class="mt-1 text-[11px] text-surface-foreground" data-testid="article-publisher">
-        {{ item.publisher.name }}
+        <button
+          type="button"
+          class="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          data-testid="article-publisher-open"
+          :title="`All of ${item.publisher.name}'s articles`"
+          @click="shell.openLibraryNews(item.publisher.id)"
+        >{{ item.publisher.name }}</button>
         <span v-if="item.publisher.domain" class="text-muted">· {{ item.publisher.domain }}</span>
       </p>
       <p v-if="authors.length" class="mt-0.5 text-[11px] text-muted" data-testid="article-byline">

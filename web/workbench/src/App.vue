@@ -469,6 +469,16 @@ function onSwitchMainTab(tab: 'digest' | 'library' | 'search' | 'graph' | 'dashb
   mainTab.value = tab
 }
 
+// A tab switch a rail section asked for (shell.requestMainTab): applied here, then cleared.
+watch(
+  () => shell.pendingMainTab,
+  (tab) => {
+    if (!tab) return
+    shell.pendingMainTab = null
+    onSwitchMainTab(tab)
+  },
+)
+
 function onStatusBarLocalArtifactsLoaded(loaded: boolean): void {
   if (loaded) {
     void activateGraphTab()

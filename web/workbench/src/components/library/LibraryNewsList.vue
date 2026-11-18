@@ -46,11 +46,11 @@ async function load(offset = 0): Promise<void> {
     if (gate.isStale(seq)) return
     items.value = offset ? [...items.value, ...page.items] : page.items
     total.value = page.total
-    if (!publisherId.value && !offset) {
-      const seen = new Map<string, { id: string; name: string; domain: string }>()
-      for (const it of page.items) if (it.publisher) seen.set(it.publisher.id, it.publisher)
-      publishers.value = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
-    }
+    // Every publisher seen so far, from any page: opened straight onto one publisher (another
+    // surface set it), the list still holds it, for the select and the page's heading.
+    const seen = new Map(publishers.value.map((p) => [p.id, p]))
+    for (const it of page.items) if (it.publisher) seen.set(it.publisher.id, it.publisher)
+    publishers.value = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
   } catch (e) {
     if (gate.isStale(seq)) return
     error.value = e instanceof Error ? e.message : String(e)
