@@ -18,6 +18,7 @@ run finishes.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -116,13 +117,18 @@ def _jobs_for_items(
     *,
     source_id: str,
     transport: str,
+    entry: Any = None,
 ) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
-    for item in items:
-        if item.text is None:
-            # Fetching and extracting a page is the news type's work (News 1.0), not the seam's.
-            logger.warning("text-in: item %s has no text (url=%s); skipped", item.item_id, item.url)
+    for listed in items:
+        item: Optional[content_types.SourceItem] = listed
+        if listed.text is None and ctype.fetch_body is not None:
+            item = ctype.fetch_body(listed, entry)
+        if item is None or item.text is None:
+            logger.warning(
+                "text-in: item %s has no text (url=%s); skipped", listed.item_id, listed.url
+            )
             continue
         idx = len(episodes)
         minted = content_types.item_id(ctype, item)
@@ -144,6 +150,9 @@ def _jobs_for_items(
         body = Path(effective_output_dir) / rel
         body.parent.mkdir(parents=True, exist_ok=True)
         body.write_text(item.text, encoding="utf-8")
+        if item.raw is not None:
+            raw = os.path.splitext(str(body))[0] + ".raw" + item.raw_suffix
+            Path(raw).write_text(item.raw, encoding="utf-8")
         episodes.append(episode)
         jobs.append(
             ProcessingJob(
@@ -160,6 +169,11 @@ def _jobs_for_items(
                     source_id=source_id,
                     transport=transport,
                     times=_item_times(item),
+                    fields={
+                        **item.metadata,
+                        "url": item.url,
+                        "body_sha256": hashlib.sha256(item.text.encode("utf-8")).hexdigest(),
+                    },
                 ),
             )
         )
@@ -196,6 +210,7 @@ def run_text_source(
             run_suffix,
             source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
             transport=transport.name,
+            entry=entry,
         )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",

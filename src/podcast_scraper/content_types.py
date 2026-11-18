@@ -125,6 +125,14 @@ class ContentType:
     #: What kind of source its items come from, from :data:`SOURCE_KINDS` (T-1 keeps it apart
     #: from the item noun, ``name``). KG 3.0 records it on the ``Source`` node.
     source_kind: str = ""
+    #: The type's own step for an item its transport listed as a URL only (ADR-177 decision 2):
+    #: ``(item, source) -> item with its text``, or ``None`` to skip it (``None``: such items are
+    #: skipped). News fetches and extracts the page here.
+    fetch_body: Optional[Callable[["SourceItem", Any], Optional["SourceItem"]]] = None
+    #: The item's metadata document as the type's contract has it, from the document the shared
+    #: metadata stage built and the item's context (``None``: that document with ``content_type``
+    #: first).
+    shape_metadata: Optional[Callable[[Dict[str, Any], "ItemContext"], Dict[str, Any]]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:
@@ -144,6 +152,10 @@ class SourceItem:
     metadata: Mapping[str, Any] = field(default_factory=dict)
     text: Optional[str] = None
     url: Optional[str] = None
+    #: What was fetched to get ``text`` (a page's HTML, an API's JSON record), kept beside the body
+    #: as its raw cache (RFC-134 §5), with ``raw_suffix`` as its file suffix.
+    raw: Optional[str] = None
+    raw_suffix: str = ".html"
 
 
 #: ``(source, cursor) -> (items, next_cursor)``: the new items after ``cursor``.
@@ -198,6 +210,9 @@ class ItemContext:
     transport: Optional[str] = None
     #: The item's times by ontology v3 name (``published_at``, ...), ISO 8601; absent when unknown.
     times: Mapping[str, str] = field(default_factory=dict)
+    #: The item's own fields as its transport and its type's fetch gave them, and the body's hash
+    #: (``body_sha256``); the type's ``shape_metadata`` reads them.
+    fields: Mapping[str, Any] = field(default_factory=dict)
 
 
 PODCAST_ITEM = ItemContext(content_type=PODCAST)
@@ -269,12 +284,23 @@ def _from_extensions() -> Tuple[List[ContentType], List[Transport]]:
     return types, transports
 
 
+def _public_builtins() -> Tuple[List[ContentType], List[Transport]]:
+    """Public's built-in types after podcast: news (ADR-177 decision 5). Imported here, not at
+    module load, because the news package imports this module."""
+    from . import news
+
+    return list(news.TYPES), list(news.TRANSPORTS)
+
+
 def registry() -> Tuple[Dict[str, ContentType], Dict[str, Transport]]:
     """Every registered type and transport, built-in first; refuses duplicates and a type whose
     default transport nothing registered."""
     ext_types, ext_transports = _from_extensions()
-    types: Dict[str, ContentType] = _merge(BUILTIN_TYPES, ext_types, "content type")
-    transports: Dict[str, Transport] = _merge(BUILTIN_TRANSPORTS, ext_transports, "transport")
+    pub_types, pub_transports = _public_builtins()
+    types: Dict[str, ContentType] = _merge([*BUILTIN_TYPES, *pub_types], ext_types, "content type")
+    transports: Dict[str, Transport] = _merge(
+        [*BUILTIN_TRANSPORTS, *pub_transports], ext_transports, "transport"
+    )
     for t in types.values():
         if t.default_transport not in transports:
             raise RegistryError(

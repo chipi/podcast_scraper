@@ -13,10 +13,13 @@ ingestion and accepted with this contract.
 - `metadata/<stem>.metadata.json`: the item's metadata (this contract).
 - `transcripts/<stem>.txt`: the body, where a transcript sits, one file per item; `document_ref`
   is that path with `variant: raw`, evidence `text_origin: authored` (ontology-v3 "Ids, times and
-  documents"). Its paragraph segments, with no times, sit beside it as `<stem>.segments.json`
-  (RFC-134 §5 "The extracted text"). Never served (ADR-179).
+  documents"). Paragraphs are separated by a blank line, and no segments file is written: an
+  untimed document's segments are the text between blank lines (ontology-v3 "Segments"). Never
+  served (ADR-179). (Corrected 2026-11-18: this line first said a `<stem>.segments.json` sat
+  beside the body, which contradicted ontology-v3.)
 - `<stem>.kg.json`: KG 3.0. No GI in News 1.0 (E05 decisions).
-- The fetched page: a raw cache beside the body, never read by a served route (E05 "Search").
+- The fetched page: a raw cache beside the body, `transcripts/<stem>.raw.html` (an API's record:
+  `<stem>.raw.json`), never read by a served route (E05 "Search").
 
 ## Top-level fields (decided)
 

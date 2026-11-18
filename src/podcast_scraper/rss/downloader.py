@@ -585,6 +585,25 @@ def fetch_rss_feed_url(
     return resp
 
 
+def http_get_any_status(url: str, user_agent: str, timeout: int) -> Tuple[int, bytes]:
+    """HTTP GET that returns the status and body whatever the status, ``(0, b"")`` when refused or
+    unreachable. robots.txt needs it: a 4xx allows everything, a 5xx disallows (RFC 9309)."""
+    normalized_url = normalize_url(url)
+    if _is_ssrf_target(normalized_url):
+        return 0, b""
+    try:
+        sess = _get_thread_request_client()
+        with http_policy.gated_http_request(normalized_url):
+            request = sess.build_request(
+                "GET", normalized_url, headers={"User-Agent": user_agent}, timeout=timeout
+            )
+            resp = sess.send(request)
+        return resp.status_code, resp.content
+    except httpx.HTTPError as exc:
+        logger.warning("Failed to fetch %s: %s", redact_for_log(url), format_exception_for_log(exc))
+        return 0, b""
+
+
 def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
     """Fetch a URL and return its content and Content-Type header."""
     resp = fetch_url(url, user_agent, timeout, stream=True)

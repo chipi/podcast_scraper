@@ -360,6 +360,21 @@ def _non_podcast_item_type() -> Optional[str]:
     return None if name == content_types.PODCAST_EPISODE else name
 
 
+def _item_document(doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """A non-podcast item's document: its type's contract shape when the type has one, else
+    ``doc`` with ``content_type`` first; ``None`` for a podcast, whose document stays byte-identical
+    (ADR-177 decision 6: an absent content_type reads as podcast_episode)."""
+    from .. import content_types
+
+    item = content_types.current_item()
+    ctype = item.content_type
+    if ctype.name == content_types.PODCAST_EPISODE:
+        return None
+    if ctype.shape_metadata is not None:
+        return ctype.shape_metadata(doc, item)
+    return {"content_type": ctype.name, **doc}
+
+
 def generate_feed_id(feed_url: str) -> str:
     """Generate stable unique identifier for feed.
 
@@ -3422,15 +3437,9 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         json_start = time.time()
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
-        item_type = _non_podcast_item_type()
-        if item_type is not None:
-            # Only a non-podcast item records its type; a podcast document stays byte-identical
-            # (ADR-177 decision 6: an absent content_type reads as podcast_episode).
-            content_str = json.dumps(
-                {"content_type": item_type, **json.loads(content_str)},
-                indent=2,
-                ensure_ascii=False,
-            )
+        item_doc = _item_document(json.loads(content_str))
+        if item_doc is not None:
+            content_str = json.dumps(item_doc, indent=2, ensure_ascii=False)
         json_elapsed = time.time() - json_start
 
         # Time actual file write
@@ -3455,9 +3464,10 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
-        item_type = _non_podcast_item_type()
-        if item_type is not None:
-            content_dict = {"content_type": item_type, **content_dict}
+        if _non_podcast_item_type() is not None:
+            item_doc = _item_document(json.loads(json.dumps(content_dict, default=str)))
+            if item_doc is not None:
+                content_dict = item_doc
         yaml_serialize_elapsed = time.time() - yaml_start
 
         # Time actual file write
