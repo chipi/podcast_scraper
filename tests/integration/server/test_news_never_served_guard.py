@@ -7,16 +7,18 @@ the body text and the marker itself), plus once with ``content_types=news_articl
 takes it; the read-only POST routes are called with news-shaped bodies. No response may contain the
 marker, nor the withheld item's title.
 
-A GET route whose required parameter has no entry in :data:`_VALUES` fails the test, so a new
-route cannot escape the guard. Not called: the routes that change state (admin, auth, preferences,
-profile, graph events, deletes, the outbox, feed edits); they answer with what was sent or a
-status, not with corpus text. Public has no MCP server; the MCP tools live with the private
-extension and need their own guard there.
+A route whose required parameter has no entry in :data:`_VALUES` fails the test, so a new route
+cannot escape the guard. With Common and the Player installed, their routes are in the app and in
+the guard too. The routes that change state are called by a second test, with an operator key,
+which also checks no news file is gone; only the two whole-corpus rebuilds are left out
+(:data:`_NOT_CALLED`). Public has no MCP server; Common's MCP tools have their own guard there
+(``tests/integration/test_mcp_never_serves_news_text.py``).
 """
 
 from __future__ import annotations
 
 import itertools
+import json
 import shutil
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Tuple
@@ -91,6 +93,38 @@ def _values(root: Path) -> Dict[str, List[str]]:
         "ident": [_TOPIC, _PERSON, "tc:risk-management", "thc:managing-risk", _ITEM],
         "route": ["topic", "person", "theme", "storyline", "episode"],
         "enricher_id": ["topic_theme_clusters", "news_connection", "temporal_velocity"],
+        # The installed extensions' routes (Common's and the Player's app plane; values from the
+        # database session's run of this guard with both installed, 2026-11-18).
+        "topic_id": [
+            _TOPIC,
+            "topic:trading-desks",
+            "topic:reliability",
+            "topic:soil-erosion",
+            "topic:trail-building",
+        ],
+        "person_id": [
+            "person:ana-example",
+            "person:bo-example",
+            "person:cy-example",
+            "person:dora-ejemplo",
+            _PERSON,
+        ],
+        "org_id": ["org:daily-example"],
+        "theme_id": ["tc:risk-management", "tc:reliability", "tc:soil-erosion"],
+        "storyline_id": _storyline_ids(root),
+        "subject_id": [_TOPIC, "tc:risk-management", "thc:managing-risk"],
+        "subject": [_TOPIC, "tc:risk-management", "thc:managing-risk"],
+        "slug": [_ITEM, _WITHHELD_ITEM, _podcast_slug(root)],
+        "ref": [_ITEM, _WITHHELD_ITEM],
+        "index": ["0"],
+        "rail": ["trending", "for-you"],
+        "collection_id": ["x"],
+        "highlight_id": ["x"],
+        # The corpus deletes, given news ids only: a podcast id would delete from the corpus copy
+        # the read guard shares.
+        "episode_id": [_ITEM, _WITHHELD_ITEM, "risk-desks"],
+        "run_id": sorted({p.split("/")[3] for p in files}),
+        "envelope_id": ["x"],
         # Auth, outbox and per-user routes: no corpus text behind them, called so the coverage
         # check holds; any value answers with a status.
         "code": ["x"],
@@ -99,7 +133,24 @@ def _values(root: Path) -> Dict[str, List[str]]:
         "channel": ["email"],
         "session_id": ["x"],
         "user_id": ["x"],
+        "client_id": ["x"],
+        "redirect_uri": ["http://localhost/cb"],
+        "code_challenge": ["x"],
     }
+
+
+def _storyline_ids(root: Path) -> List[str]:
+    doc = json.loads(
+        (root / "enrichments" / "topic_theme_clusters.json").read_text(encoding="utf-8")
+    )
+    return sorted({str(c["graph_compound_parent_id"]) for c in doc["data"]["clusters"]})
+
+
+def _podcast_slug(root: Path) -> str:
+    from podcast_scraper.server.catalog_cache import current_catalog
+    from podcast_scraper.server.slugs import slug_for_row
+
+    return slug_for_row(current_catalog(root)[0])
 
 
 def _get_calls(client: TestClient, values: Dict[str, List[str]]) -> Iterator[Tuple[str, Dict]]:
@@ -125,6 +176,9 @@ def _get_calls(client: TestClient, values: Dict[str, List[str]]) -> Iterator[Tup
             yield url, query
             if any(p["name"] == "content_types" for p in params):
                 yield url, {**query, "content_types": "news_article"}
+            # Theme and storyline cards carry their articles only when asked (piece F).
+            if any(p["name"] == "news" for p in params):
+                yield url, {**query, "news": "1"}
 
 
 def _served(text: str, sent: Any) -> bool:
@@ -169,3 +223,51 @@ def test_no_read_route_serves_a_news_body(client: TestClient, corpus: Path) -> N
             leaks.append(f"POST {url} {body} -> {res.status_code}")
     assert "/api/corpus/text-file" in seen and "/api/search" in seen
     assert not leaks, "news body or withheld item served:\n" + "\n".join(leaks)
+
+
+#: State-changing routes the guard leaves out: each starts a background rebuild over the whole
+#: corpus and answers with a job status.
+_NOT_CALLED = {"/api/index/rebuild", "/api/corpus/topic-clusters/rebuild"}
+
+
+def test_no_state_changing_route_serves_news_or_deletes_it(
+    corpus: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every POST, PUT, PATCH and DELETE route except the two rebuilds (:data:`_NOT_CALLED`),
+    called with an operator key and news-shaped values: no response carries a body marker or the
+    withheld title, and no news file is gone afterwards (the corpus deletes find podcast episodes
+    and runs only)."""
+    monkeypatch.setenv("PODCAST_PUBLISHERS_FILE", str(_FIXTURE / "publishers.fixture.yaml"))
+    app = create_app(corpus, static_dir=False)
+    app.state.operator_api_key = "guard-key"
+    client = TestClient(app)
+    client.headers["X-Operator-Key"] = "guard-key"
+    values = _values(corpus)
+    before = _news_files(corpus)
+    leaks: List[str] = []
+    called = 0
+    for template, ops in app.openapi()["paths"].items():
+        if template in _NOT_CALLED:
+            continue
+        for method in ("post", "put", "patch", "delete"):
+            op = ops.get(method)
+            if op is None:
+                continue
+            required = [p for p in op.get("parameters", []) if p.get("required")]
+            missing = [p["name"] for p in required if p["name"] not in values]
+            assert not missing, f"{method.upper()} {template}: no guard values for {missing}"
+            names = [p["name"] for p in required]
+            for combo in itertools.product(*(values[n] for n in names)):
+                url, query = template, {"path": str(corpus)}
+                for p, value in zip(required, combo):
+                    if p["in"] == "path":
+                        url = url.replace("{" + p["name"] + "}", value)
+                    else:
+                        query[p["name"]] = value
+                res = client.request(method.upper(), url, params=query, json={})
+                called += 1
+                if _served(res.text, list(query.values())):
+                    leaks.append(f"{method.upper()} {url} -> {res.status_code}")
+    assert called > 0
+    assert not leaks, "news body or withheld item served:\n" + "\n".join(leaks)
+    assert _news_files(corpus) == before
