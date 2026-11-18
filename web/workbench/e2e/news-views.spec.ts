@@ -54,6 +54,8 @@ test.describe('News in every other view (UXS-019, live)', () => {
     await page.getByTestId('library-mode-news').click()
     const list = page.getByTestId('library-news-list')
     await expect(list.getByTestId('search-result-news').first()).toBeVisible({ timeout: 15_000 })
+    // News mode never opens a podcast episode in the rail beside a publisher page.
+    await expect(page.getByRole('region', { name: 'Episode', exact: true })).toHaveCount(0)
     await expect(list).not.toContainText('WITHHELD-ITEM-TITLE')
     await page.getByTestId('library-news-publisher').selectOption({ label: 'Other Wire' })
     await expect(page.getByTestId('library-news-publisher-head')).toContainText('otherwire.test')
@@ -61,8 +63,11 @@ test.describe('News in every other view (UXS-019, live)', () => {
     await expect(list.getByTestId('search-result-news-title')).toHaveText(
       'Reliability at scale, a field report',
     )
+    await expect(page.getByRole('region', { name: 'Episode', exact: true })).toHaveCount(0)
     await page.getByTestId('library-mode-podcasts').click()
     await expect(page.getByTestId('library-news-list')).toHaveCount(0)
+    // Back to Podcasts with nothing open: the first episode opens, as on a load.
+    await expect(page.getByRole('region', { name: 'Episode', exact: true })).toBeVisible()
   })
 
   test('the Digest has a news band that opens the Library in News mode', async ({ page }) => {

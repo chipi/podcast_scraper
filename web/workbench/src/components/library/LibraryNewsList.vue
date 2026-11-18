@@ -18,7 +18,11 @@ const shell = useShellStore()
 const subject = useSubjectStore()
 const items = ref<NewsItem[]>([])
 const total = ref(0)
-const publisherId = ref('')
+/** The publisher filter lives in the shell store, so another surface can open a publisher page. */
+const publisherId = computed({
+  get: () => shell.libraryNewsPublisherId,
+  set: (v: string) => (shell.libraryNewsPublisherId = v),
+})
 /** Every publisher seen in the unfiltered list, for the select. */
 const publishers = ref<{ id: string; name: string; domain: string }[]>([])
 const loading = ref(false)

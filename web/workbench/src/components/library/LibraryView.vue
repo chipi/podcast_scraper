@@ -405,16 +405,7 @@ async function loadEpisodes(append: boolean): Promise<void> {
           subject.clearSubject()
         }
       }
-      if (
-        !append &&
-        episodes.value.length > 0 &&
-        subject.episodeMetadataPath == null &&
-        subject.kind == null
-      ) {
-        void nextTick(() => {
-          selectEpisode(displayedEpisodes.value[0]!)
-        })
-      }
+      autoSelectFirstEpisode(append)
     }
   }
 }
@@ -562,6 +553,44 @@ watch(
     })()
   },
   { immediate: true },
+)
+
+/** The episode the Library opened by itself (not one the operator chose), so News mode can close
+ *  it: a podcast episode must not sit beside a news list or publisher page (UXS-019). */
+const autoSelectedPath = ref<string | null>(null)
+
+/** Open the first episode in the rail when nothing is open, but only while the Library shows
+ *  podcasts. */
+function autoSelectFirstEpisode(append = false): void {
+  if (
+    !append &&
+    shell.libraryMode === 'podcasts' &&
+    episodes.value.length > 0 &&
+    subject.episodeMetadataPath == null &&
+    subject.kind == null
+  ) {
+    void nextTick(() => {
+      const first = displayedEpisodes.value[0]
+      if (!first) return
+      selectEpisode(first)
+      autoSelectedPath.value = first.metadata_relative_path ?? null
+    })
+  }
+}
+
+watch(
+  () => shell.libraryMode,
+  (mode) => {
+    if (mode === 'news') {
+      // Close the episode the Library opened by itself; one the operator opened stays.
+      const path = subject.episodeMetadataPath
+      if (path && path === autoSelectedPath.value) subject.clearSubject()
+      autoSelectedPath.value = null
+    } else {
+      // Back to Podcasts with nothing open: the first episode, as on a load.
+      autoSelectFirstEpisode()
+    }
+  },
 )
 
 watch(feedFilterId, () => {

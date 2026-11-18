@@ -64,4 +64,16 @@ describe('LibraryNewsList (UXS-019 Library News mode)', () => {
     expect(w.findAll('[data-testid="search-result-news"]')).toHaveLength(2)
     expect(w.find('[data-testid="library-news-more"]').exists()).toBe(false)
   })
+
+  it('opens on the publisher another surface set in the shell store', async () => {
+    useShellStore().libraryNewsPublisherId = 'org:other-wire'
+    vi.mocked(fetchNewsItems).mockResolvedValue({ path: '/c', items: [news(2, OW)], total: 1 })
+    mount(LibraryNewsList)
+    await flushPromises()
+    expect(fetchNewsItems).toHaveBeenCalledWith('/c', {
+      publisherId: 'org:other-wire',
+      limit: 50,
+      offset: 0,
+    })
+  })
 })
