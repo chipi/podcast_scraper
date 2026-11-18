@@ -35,7 +35,7 @@ from .. import config, content_types, stage_hooks
 from ..kg.v3 import ITEM_TIMES
 from ..models import Episode, RssFeed
 from ..utils import filesystem
-from ..utils.corpus_walk import SOURCES_DIR
+from ..utils.corpus_walk import corpus_rglob, SOURCES_DIR
 from .types import FeedMetadata, HostDetectionResult, ProcessingJob
 
 logger = logging.getLogger(__name__)
@@ -118,7 +118,9 @@ def written_item_ids(source_dir: str, ctype: content_types.ContentType) -> Set[s
     root = filesystem.corpus_root_of_workspace(workspace)
     base = root / SOURCES_DIR / ctype.name if root is not None else workspace
     ids: Set[str] = set()
-    for path in base.glob("**/metadata/*.metadata.json"):
+    for path in corpus_rglob(base, "*.metadata.json"):
+        if path.parent.name != "metadata":
+            continue
         try:
             doc = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):

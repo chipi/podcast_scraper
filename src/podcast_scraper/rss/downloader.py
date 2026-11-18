@@ -535,7 +535,11 @@ def fetch_url(
     """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches).
     ``extra_headers`` carries what must not sit in a URL, which is logged (an API key)."""
 
-    return _open_http_request(url, user_agent, timeout, stream=stream, extra_headers=extra_headers)
+    if extra_headers:
+        return _open_http_request(
+            url, user_agent, timeout, stream=stream, extra_headers=extra_headers
+        )
+    return _open_http_request(url, user_agent, timeout, stream=stream)
 
 
 def fetch_rss_feed_url(
