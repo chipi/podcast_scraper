@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 _FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus"
 _RISK = "Risk desks learn to sit still"
