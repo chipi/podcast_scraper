@@ -8,6 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
+from podcast_scraper.kg.read_view import kg_read_view
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
@@ -142,7 +143,7 @@ def load_kg_artifacts(
     out: List[Tuple[Path, Dict[str, Any]]] = []
     for path in paths:
         try:
-            data = read_artifact(path, validate=validate, strict=strict)
+            data = kg_read_view(read_artifact(path, validate=validate, strict=strict))
             out.append((path, data))
         except Exception as e:
             if strict:

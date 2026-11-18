@@ -13,6 +13,7 @@ from typing import Any, cast, Dict, List, Mapping, Optional, Sequence, Set, Tupl
 from filelock import FileLock, Timeout
 
 from podcast_scraper import config, stage_hooks
+from podcast_scraper.kg.read_view import kg_read_view
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.chunker import chunk_transcript
 from podcast_scraper.search.corpus_scope import (
@@ -247,7 +248,9 @@ def _kg_vector_rows_from_path(
     """Parse ``kg.json`` and return vector rows for Topic and Entity nodes only."""
     rows: List[Tuple[str, str, Dict[str, Any]]] = []
     try:
-        kg_artifact = cast(Dict[str, Any], json.loads(kg_disk.read_text(encoding="utf-8")))
+        kg_artifact = cast(
+            Dict[str, Any], kg_read_view(json.loads(kg_disk.read_text(encoding="utf-8")))
+        )
     except Exception as exc:
         logger.warning("Skip kg.json %s: %s", kg_disk, exc)
         return rows

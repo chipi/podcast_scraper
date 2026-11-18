@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from podcast_scraper import perf_cache
 from podcast_scraper.grounded_insights_view import gi_read_view
+from podcast_scraper.kg.read_view import kg_read_view
 from podcast_scraper.utils.path_validation import (
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
@@ -59,6 +60,8 @@ def load_json_artifact(root: Path, relpath: str) -> dict | None:
     except (OSError, ValueError) as exc:
         logger.warning("Unreadable artifact %s: %s", path, exc)
         return None
+    if isinstance(loaded, dict) and relpath.endswith(".kg.json"):
+        loaded = kg_read_view(loaded)
     if isinstance(loaded, dict) and relpath.endswith(".gi.json"):
         loaded = gi_read_view(loaded)
     return loaded if isinstance(loaded, dict) else None
@@ -95,6 +98,8 @@ def cached_json_artifact(root: Path, relpath: str) -> dict | None:
         except (OSError, ValueError) as exc:
             logger.warning("Unreadable artifact %s: %s", target, exc)
             return None
+        if isinstance(loaded, dict) and relpath.endswith(".kg.json"):
+            loaded = kg_read_view(loaded)
         if isinstance(loaded, dict) and relpath.endswith(".gi.json"):
             loaded = gi_read_view(loaded)
         return loaded if isinstance(loaded, dict) else None

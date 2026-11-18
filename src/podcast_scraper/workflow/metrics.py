@@ -956,7 +956,7 @@ class Metrics:
             # same kg_entity_nodes_total counter (semantic equivalents).
             elif t in ("Entity", "Person", "Organization", "Object"):
                 self.kg_entity_nodes_total += 1
-            elif t == "Episode":
+            elif t in ("Episode", "ContentItem"):
                 self.kg_episode_nodes_total += 1
 
     def record_gi_success_counts(

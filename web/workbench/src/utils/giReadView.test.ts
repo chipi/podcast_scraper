@@ -114,12 +114,12 @@ describe('giReadView: a GI 4.0 file reads like its GI 3.1 form', () => {
     }
   })
 
-  it('parseArtifact gives the 3.1 answer for a 4.0 file, and leaves KG files alone', () => {
+  it('parseArtifact gives the 3.1 answer for a 4.0 file, and reads a KG file through the KG view', () => {
     const a = parseArtifact('ep-1.gi.json', v4())
     const b = parseArtifact('ep-1.gi.json', v3())
     expect(a.episodeId).toBe(b.episodeId)
     expect(a.nodeTypes).toEqual(b.nodeTypes)
     const kg = { item_id: 'x', nodes: [{ id: 'n', type: 'Source' }], edges: [] } as unknown as ArtifactData
-    expect(parseArtifact('ep-1.kg.json', kg).nodeTypes).toEqual({ Source: 1 })
+    expect(parseArtifact('ep-1.kg.json', kg).nodeTypes).toEqual({ Podcast: 1 })
   })
 })

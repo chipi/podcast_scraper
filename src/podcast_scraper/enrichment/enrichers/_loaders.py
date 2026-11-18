@@ -22,6 +22,7 @@ from podcast_scraper.graph_id_utils import (  # noqa: F401 — re-exported for i
     is_unresolved_speaker_placeholder,
 )
 from podcast_scraper.grounded_insights_view import gi_read_view
+from podcast_scraper.kg.read_view import kg_read_view
 
 
 def _read_json(path: Path | None) -> dict[str, Any]:
@@ -37,7 +38,7 @@ def _read_json(path: Path | None) -> dict[str, Any]:
 
 def load_kg(bundle: EpisodeArtifactBundle) -> dict[str, Any]:
     """Load the episode KG (or ``{}`` when missing)."""
-    return _read_json(bundle.kg_path)
+    return kg_read_view(_read_json(bundle.kg_path))
 
 
 def load_gi(bundle: EpisodeArtifactBundle) -> dict[str, Any]:

@@ -9,6 +9,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import List, Optional
 
+from podcast_scraper.kg.read_view import kg_read_view
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 from .contracts import (
@@ -79,6 +80,7 @@ def run_kg_validate(args: Namespace, logger: logging.Logger) -> int:
         try:
             data = read_artifact(path)
             validate_artifact(data, strict=strict)
+            data = kg_read_view(data)
             if not quiet:
                 print(f"OK {path}")
         except Exception as e:
@@ -127,6 +129,7 @@ def run_kg_inspect(args: Namespace, logger: logging.Logger) -> int:
     try:
         data = read_artifact(artifact_path)
         validate_artifact(data, strict=getattr(args, "strict", False))
+        data = kg_read_view(data)
     except (FileNotFoundError, ValueError) as e:
         logger.error("%s", format_exception_for_log(e))
         return 1

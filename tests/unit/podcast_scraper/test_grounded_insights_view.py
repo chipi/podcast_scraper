@@ -177,8 +177,11 @@ def test_server_loader_views_gi_files_only(
     loaded = load_json_artifact(tmp_path, "metadata/p05_e04.gi.json")
     assert loaded is not None and loaded["episode_id"] == v3["episode_id"]
     kg = tmp_path / "metadata" / "p05_e04.kg.json"
-    kg.write_text(json.dumps({"item_id": "x", "nodes": [], "edges": []}), encoding="utf-8")
-    assert "episode_id" not in (load_json_artifact(tmp_path, "metadata/p05_e04.kg.json") or {})
+    quote = {"id": "q", "type": "Quote", "properties": {"item_id": "x"}}
+    kg.write_text(json.dumps({"nodes": [quote], "edges": []}), encoding="utf-8")
+    # A KG file gets the KG view, never the GI one: a quote's GI field stays as written.
+    got = load_json_artifact(tmp_path, "metadata/p05_e04.kg.json") or {}
+    assert got["nodes"][0]["properties"] == {"item_id": "x"}
 
 
 def test_graph_feed_views_the_gi_layer(monkeypatch: pytest.MonkeyPatch, v4: Dict[str, Any]) -> None:
