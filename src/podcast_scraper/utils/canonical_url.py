@@ -7,7 +7,8 @@ tested:
 - **scheme:** lower case; ``http`` becomes ``https``;
 - **host:** lower case; the default port dropped; an ``amp.`` host prefix dropped;
 - **path:** a trailing slash dropped (an empty path is ``/``); an AMP suffix (``/amp``) dropped;
-- **query:** tracking parameters dropped (``utm_*`` and the click ids below) and AMP switches
+- **query:** tracking parameters dropped (``utm_*``, the click ids and feed tags below) and AMP
+  switches
   (``amp``, ``outputType=amp``); the rest sorted, so their order does not matter;
 - **fragment:** dropped.
 
@@ -32,6 +33,19 @@ TRACKING_PARAMS = frozenset(
         "mc_eid",
         "_ga",
         "ref_src",
+        # News feeds' own tracking (the operator, 2026-11-18; seen on the first real news corpus):
+        # the BBC's analytics tags and Al Jazeera's feed tag. The BBC family is listed name by
+        # name, not as an ``at_`` prefix, so a content parameter that happens to start ``at_``
+        # is never dropped.
+        "at_medium",
+        "at_campaign",
+        "at_link_id",
+        "at_link_origin",
+        "at_link_type",
+        "at_ptr_name",
+        "at_format",
+        "at_bbc_team",
+        "traffic_source",
     }
 )
 _AMP_SWITCHES = {("amp", ""), ("amp", "1"), ("amp", "true"), ("outputtype", "amp")}
