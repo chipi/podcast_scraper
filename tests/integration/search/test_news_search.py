@@ -157,3 +157,24 @@ def test_a_news_only_corpus_gets_a_searchable_index(tmp_path: Path) -> None:
     assert lance_index_dir(root).is_dir()
     hits = search_news(lance_index_dir(root), "risk management behaviour", _MODEL, top_k=3)
     assert hits, "a news-only corpus must be searchable"
+
+
+@requires("sentence_transformers")
+def test_news_topic_rows_share_the_podcast_aux_shape(corpus: Path) -> None:
+    """Piece B (news joins themes): one kg_topic row per (item, Topic) in news_aux, the aux schema
+    unchanged, outside the backend's tiers so podcast search never reads it."""
+    import lancedb
+
+    from podcast_scraper.search.backends.lancedb_backend import _aux_schema, LanceDBBackend
+    from podcast_scraper.search.indexer import _kg_embed_text_topic, kg_topic_embed_text
+    from podcast_scraper.search.news_index import AUX_TABLE, news_topic_rows
+
+    table = lancedb.connect(str(lance_index_dir(corpus))).open_table(AUX_TABLE)
+    rows = table.to_arrow().to_pylist()
+    assert {r["id"] for r in rows} == {r["id"] for r in news_topic_rows(corpus)}
+    assert table.schema == _aux_schema(len(rows[0]["embedding"]))
+    risk = next(r for r in rows if r["source_id"] == "topic:risk-management")
+    assert risk["doc_type"] == "kg_topic" and risk["episode_id"].startswith("item:news_article:")
+    assert risk["show_id"].startswith("source:") and risk["text"] == "Risk Management"
+    assert AUX_TABLE not in LanceDBBackend.TABLES.values()
+    assert _kg_embed_text_topic is kg_topic_embed_text

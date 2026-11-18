@@ -18,6 +18,7 @@ item (the news item contract).
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -27,6 +28,8 @@ from podcast_scraper.news_items import F_TEXT_STATUS, iter_news_metadata, servea
 logger = logging.getLogger(__name__)
 
 TABLE = "news"
+#: KG topic rows for news items (theme and storyline building), the ``aux`` schema.
+AUX_TABLE = "news_aux"
 _RRF_K = 60
 #: Each signal's candidate pool, before collapsing to one hit per item.
 _POOL = 50
@@ -96,6 +99,79 @@ def build_news_table(
         table.create_fts_index("text", replace=True)
     except Exception as exc:  # noqa: BLE001 - keyword leg degrades to vector-only
         logger.warning("news FTS index not built: %s", exc)
+    return len(rows)
+
+
+def news_topic_rows(corpus_root: Path) -> List[Dict[str, Any]]:
+    """One ``kg_topic`` row per (news item, KG Topic), the podcast rows' shape in the ``aux``
+    schema: ``episode_id`` holds the item id, ``show_id`` the news source id, ``source_id`` the
+    topic id.
+    Every item whose ``mineable`` is not false, served or not (theme building is analysis; a
+    surface drops a ``serveable: none`` item when it reads). One item written twice counts once."""
+    from podcast_scraper.search.indexer import kg_topic_embed_text
+
+    latest: Dict[str, Any] = {}
+    for f in iter_news_metadata(corpus_root):
+        if f.doc.get("mineable") is False:
+            continue
+        item_id = str(f.doc.get("item_id") or "")
+        if item_id and (item_id not in latest or f.relative_path > latest[item_id].relative_path):
+            latest[item_id] = f
+    rows: List[Dict[str, Any]] = []
+    for item_id, f in sorted(latest.items()):
+        kg_path = f.path.with_name(f.path.name.replace(".metadata.json", ".kg.json"))
+        if not kg_path.is_file():
+            continue
+        try:
+            art = json.loads(kg_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        published = str(f.doc.get("published_at") or "")[:10]
+        for node in art.get("nodes") or []:
+            if not isinstance(node, dict) or node.get("type") != "Topic":
+                continue
+            raw_props = node.get("properties")
+            props: Dict[str, Any] = raw_props if isinstance(raw_props, dict) else {}
+            text = kg_topic_embed_text(props)
+            topic_id = str(node.get("id") or "")
+            if not text or not topic_id:
+                continue
+            rows.append(
+                {
+                    "id": f"kg_topic:{item_id}:{topic_id}",
+                    "text": text,
+                    "show_id": str(f.doc.get("source_id") or ""),
+                    "episode_id": item_id,
+                    "doc_type": "kg_topic",
+                    "source_tier": "aux",
+                    "publish_date": published,
+                    "source_id": topic_id,
+                }
+            )
+    return rows
+
+
+def build_news_aux_table(
+    lance_dir: Path, corpus_root: Path, model_id: str, *, allow_download: bool
+) -> int:
+    """Rebuild the ``news_aux`` table (``aux`` schema) from the corpus; returns the row count."""
+    import lancedb
+
+    from podcast_scraper.search.backends.lancedb_backend import _aux_schema
+    from podcast_scraper.search.two_tier_indexer import _embed
+
+    db = lancedb.connect(str(lance_dir))
+    rows = news_topic_rows(corpus_root)
+    if AUX_TABLE in db.table_names():
+        db.drop_table(AUX_TABLE)
+    if not rows:
+        return 0
+    for row in rows:
+        row["embedding"] = _embed(row["text"], model_id, allow_download=allow_download)
+    dim = len(rows[0]["embedding"])
+    schema = _aux_schema(dim)
+    ordered = [{name: row[name] for name in schema.names} for row in rows]
+    db.create_table(AUX_TABLE, data=ordered, schema=schema)
     return len(rows)
 
 

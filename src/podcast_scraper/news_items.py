@@ -134,7 +134,7 @@ class NewsItemFile:
 def iter_news_metadata(corpus_root: Path) -> Iterator[NewsItemFile]:
     """Every news item's metadata under ``sources/``, newest run per item (the shared membership
     rule, opted in with ``include_sources``)."""
-    root = Path(corpus_root)
+    root = Path(corpus_root).resolve()
     for path in discover_metadata_files(root, include_sources=True):
         if path.suffix.lower() != ".json":
             continue

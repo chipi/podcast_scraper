@@ -198,8 +198,10 @@ def _filter_rows_by_doc_types(
     return out
 
 
-def _kg_embed_text_topic(props: Dict[str, Any]) -> Optional[str]:
-    """Concatenate Topic label and optional description for embedding."""
+def kg_topic_embed_text(props: Dict[str, Any]) -> Optional[str]:
+    """A KG Topic's text as the index embeds it: its label, then its description if any, joined by
+    a space. Public: news topic rows (``news_aux``) and Common's theme builder embed the same text
+    as the podcast ``kg_topic`` rows."""
     parts: List[str] = []
     label = props.get("label")
     if isinstance(label, str) and label.strip():
@@ -208,6 +210,10 @@ def _kg_embed_text_topic(props: Dict[str, Any]) -> Optional[str]:
     if isinstance(desc, str) and desc.strip():
         parts.append(desc.strip())
     return " ".join(parts) if parts else None
+
+
+#: The old private name, kept for its callers.
+_kg_embed_text_topic = kg_topic_embed_text
 
 
 def _kg_entity_kind_for_meta(props: Dict[str, Any]) -> Optional[str]:

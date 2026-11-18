@@ -178,3 +178,9 @@ def test_one_item_over_two_sources_is_served_once(tmp_path: Path) -> None:
         (meta / "a.metadata.json").write_text(json.dumps(_doc()), encoding="utf-8")
     items = served_items(root, _registry(tmp_path))
     assert [i["item_id"] for i in items] == ["item:news_article:0123456789abcdef0123"]
+
+
+def test_a_relative_corpus_root_is_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _corpus(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    assert len(served_items(Path("corpus"), _registry(tmp_path))) == 2

@@ -919,16 +919,24 @@ def _build_news_rows(
     """News rows (RFC-134 §9): their own table, rebuilt whole, outside the podcast tiers. A
     news-only corpus (no podcast index) gets the index directory and its model metadata here, so
     its news is searchable; a corpus with neither still creates no index at all."""
-    from podcast_scraper.search.news_index import build_news_table, news_rows
+    from podcast_scraper.search.news_index import (
+        build_news_aux_table,
+        build_news_table,
+        news_rows,
+        news_topic_rows,
+    )
 
     if backend is None:
-        if not news_rows(corpus):
+        if not news_rows(corpus) and not news_topic_rows(corpus):
             return
         Path(lance_path).mkdir(parents=True, exist_ok=True)
         LanceDBBackend(str(lance_path)).write_index_meta(model_id)
     n_news = build_news_table(Path(lance_path), corpus, model_id, allow_download=allow_download)
-    if n_news:
-        logger.info("news: %d paragraph rows indexed", n_news)
+    n_topics = build_news_aux_table(
+        Path(lance_path), corpus, model_id, allow_download=allow_download
+    )
+    if n_news or n_topics:
+        logger.info("news: %d paragraph rows, %d topic rows indexed", n_news, n_topics)
 
 
 def _finalize_index_build(
