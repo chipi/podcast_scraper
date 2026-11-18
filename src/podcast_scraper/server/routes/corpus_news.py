@@ -48,6 +48,24 @@ def cached_served_items(root: Path) -> List[Dict[str, Any]]:
     return items
 
 
+def _node_index(root: Path) -> Dict[str, List[str]]:
+    """KG node id -> the shown news items naming it (topics, people, organisations, objects)."""
+    index: Dict[str, List[str]] = {}
+    for item in cached_served_items(root):
+        for node in item_kg(root, item["metadata_relative_path"])["kg_nodes"]:
+            index.setdefault(str(node["id"]), []).append(item["item_id"])
+    return index
+
+
+def news_items_naming(root: Path, node_id: str) -> List[Dict[str, Any]]:
+    """The shown news items whose KG names ``node_id``, newest first (cached per corpus)."""
+    index: Dict[str, List[str]] = perf_cache.get_or_compute(
+        _NS + "_nodes", str(root), perf_cache.corpus_mtime(root), lambda: _node_index(root)
+    )
+    wanted = set(index.get(node_id, ()))
+    return [i for i in cached_served_items(root) if i["item_id"] in wanted]
+
+
 def corpus_has_news(root: Path) -> bool:
     """Whether the corpus holds a news item some surface may show."""
     return bool(cached_served_items(root))

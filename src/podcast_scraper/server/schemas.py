@@ -4992,6 +4992,14 @@ class CorpusNodeEpisodesRequest(BaseModel):
         ge=1,
         description="Optional cap after stable sort by gi_relative_path; omit for all matches.",
     )
+    content_types: list[str] | None = Field(
+        default=None,
+        description=(
+            "Content types to list (RFC-134 §10): ``podcast_episode`` (the default, in "
+            "``episodes``) and ``news_article`` (in ``news_items``: the news items whose KG names "
+            "the node). Without it the answer is exactly the podcast one."
+        ),
+    )
 
 
 class CorpusNodeEpisodeItem(BaseModel):
@@ -5015,6 +5023,10 @@ class CorpusNodeEpisodesResponse(BaseModel):
     path: str
     node_id: str
     episodes: list[CorpusNodeEpisodeItem] = Field(default_factory=list)
+    news_items: list["NewsItem"] = Field(
+        default_factory=list,
+        description="News items whose KG names the node, newest first, when news_article is asked.",
+    )
     truncated: bool = False
     total_matched: int | None = Field(
         default=None,
@@ -5233,3 +5245,4 @@ class NewsItemDetailResponse(BaseModel):
 
 
 SearchHitModel.model_rebuild()
+CorpusNodeEpisodesResponse.model_rebuild()

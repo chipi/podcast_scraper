@@ -80,3 +80,30 @@ def test_no_news_response_carries_the_body(client: TestClient) -> None:
         client.get("/api/corpus/news/item", params={"item_id": i["item_id"]}).text for i in items
     ]
     assert all("NEWS-BODY-MARKER" not in t for t in texts)
+
+
+def test_node_episodes_lists_news_only_when_asked(client: TestClient) -> None:
+    body = {"node_id": "k:topic:risk-management"}
+    plain = client.post("/api/corpus/node-episodes", json=body).json()
+    assert plain["episodes"] and plain["news_items"] == []
+    both = client.post(
+        "/api/corpus/node-episodes",
+        json={**body, "content_types": ["podcast_episode", "news_article"]},
+    ).json()
+    assert both["episodes"] == plain["episodes"]
+    titles = [i["title"] for i in both["news_items"]]
+    assert "Risk desks learn to sit still" in titles
+    assert "WITHHELD-ITEM-TITLE" not in titles
+    assert all(i["content_type"] == "news_article" for i in both["news_items"])
+
+
+def test_node_episodes_lists_a_persons_articles(client: TestClient) -> None:
+    got = client.post(
+        "/api/corpus/node-episodes",
+        json={"node_id": "person:skanda-amarnath", "content_types": ["news_article"]},
+    ).json()
+    assert sorted(i["title"] for i in got["news_items"]) == [
+        "Reliability at scale, a field report",
+        "Risk desks learn to sit still",
+    ]
+    assert "NEWS-BODY-MARKER" not in json.dumps(got)

@@ -56,6 +56,7 @@ from podcast_scraper.server.schemas import (
     CorpusResolveEpisodesResponse,
     CorpusSimilarEpisodeItem,
     CorpusSimilarEpisodesResponse,
+    NewsItem,
 )
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
@@ -309,10 +310,16 @@ def corpus_node_episodes(
                 metadata_relative_path=row.metadata_relative_path if row else None,
             )
         )
+    news: list[NewsItem] = []
+    if "news_article" in (body.content_types or []):
+        from podcast_scraper.server.routes.corpus_news import news_items_naming
+
+        news = [NewsItem(**i) for i in news_items_naming(root, canon)]
     return CorpusNodeEpisodesResponse(
         path=root_s,
         node_id=canon,
         episodes=items,
+        news_items=news,
         truncated=truncated,
         total_matched=total_matched,
     )
