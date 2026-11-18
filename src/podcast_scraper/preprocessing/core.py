@@ -697,10 +697,14 @@ def sanitize_summary(text: str) -> str:
     for pattern in POST_SUMMARY_SANITIZATION_PATTERNS:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
 
-    # Clean up multiple spaces and periods
-    cleaned = re.sub(r"\s+", " ", cleaned)  # Multiple spaces -> single space
-    cleaned = re.sub(r"\.\s*\.+", ".", cleaned)  # Multiple periods -> single period
-    cleaned = re.sub(r"\s+\.", ".", cleaned)  # Space before period -> period
+    # Line breaks are kept: a reply with one bullet per line parses into bullets only while
+    # they are there. Spaces inside a line collapse; three or more breaks become a paragraph.
+    cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = re.sub(r"[^\S\n]+", " ", cleaned)
+    cleaned = re.sub(r" ?\n ?", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = re.sub(r"\.[^\S\n]*\.+", ".", cleaned)  # Multiple periods -> single period
+    cleaned = re.sub(r"[^\S\n]+\.", ".", cleaned)  # Space before period -> period
     cleaned = cleaned.strip()
 
     return cleaned
