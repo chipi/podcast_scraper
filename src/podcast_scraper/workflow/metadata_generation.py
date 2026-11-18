@@ -4550,7 +4550,6 @@ def generate_episode_metadata(  # noqa: C901
     from .. import content_types
 
     _current = content_types.current_item()
-    _profile = _current.content_type.stage_profile
     episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
     # A text item carries its own language (one news feed carries articles in several); a
     # podcast's is its feed's.
@@ -4559,7 +4558,7 @@ def generate_episode_metadata(  # noqa: C901
     # ADR-177 decision 7: an item whose profile has no translation skips it and its completeness
     # gate (a gate waiting on a translation that never runs would block the item for good).
     _blocked: Optional[str] = None
-    if _profile.runs(content_types.TRANSLATION):
+    if content_types.runs_for_item(_current, content_types.TRANSLATION):
         run_translation_stage(
             episode_cfg,
             feed_language=_feed_language,
@@ -4607,7 +4606,7 @@ def generate_episode_metadata(  # noqa: C901
     )
 
     # Generate summary if enabled and transcript is available
-    if _blocked or not _profile.runs(content_types.SUMMARY):
+    if _blocked or not content_types.runs_for_item(_current, content_types.SUMMARY):
         # Skipped, not failed. `metadata.json` is still written below, so the episode EXISTS —
         # the player serves its source text through the resolver's tail, S2.8's
         # `translation_status` reports it, and the backlog is queryable. Raising here instead
@@ -4759,7 +4758,11 @@ def generate_episode_metadata(  # noqa: C901
     # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
     # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts
     # contradicting each other, with the wrong one being the durable corpus fact.
-    if getattr(cfg, "generate_kg", False) and not _blocked and _profile.runs(content_types.KG):
+    if (
+        getattr(cfg, "generate_kg", False)
+        and not _blocked
+        and content_types.runs_for_item(_current, content_types.KG)
+    ):
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)

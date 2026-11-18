@@ -359,6 +359,44 @@ def test_rederive_reruns_the_stored_items_without_fetching_anything(
         assert raw.exists()  # and its raw page
 
 
+def test_a_source_that_may_not_be_mined_gets_no_kg(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """``mineable: false`` on the source: the items are written (title, link, metadata), but no
+    enrichment stage runs on them, so no kg.json; the same source minable gets its KG."""
+    from podcast_scraper import cli
+
+    def run(corpus: Path, mineable: bool) -> List[Path]:
+        spec = tmp_path / f"spec-{mineable}.yaml"
+        spec.write_text(
+            f"feeds:\n  - url: {fixtures.FEED_URL}\n    content_type: {NEWS}\n"
+            f"    news: {{mineable: {str(mineable).lower()}}}\n",
+            "utf-8",
+        )
+        argv = [
+            "--feeds-spec",
+            str(spec),
+            "--output-dir",
+            str(corpus),
+            "--no-transcript-cache",
+            "--generate-kg",
+            "--kg-extraction-source",
+            "metadata_only",
+        ]
+        fetch.reset_robots_cache()
+        assert cli.main(argv, run_pipeline_fn=lambda cfg: (0, "")) == 0
+        return sorted(corpus.rglob("*.metadata.json"))
+
+    closed = run(tmp_path / "closed", False)
+    assert len(closed) == len(fixtures.ITEMS)
+    assert not list((tmp_path / "closed").rglob("*.kg.json"))
+    for meta in closed:
+        assert json.loads(meta.read_text(encoding="utf-8"))["mineable"] is False
+
+    run(tmp_path / "open", True)
+    assert list((tmp_path / "open").rglob("*.kg.json"))
+
+
 def _risk_desks_again() -> str:
     item = fixtures.ITEMS[0]
     return (

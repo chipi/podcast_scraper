@@ -255,9 +255,21 @@ def source_id(ctype: ContentType, source_url: str) -> str:
     return f"source:{url_identity(source_url)}"
 
 
+#: The stages that derive from an item's text: an item its source marks not minable runs none.
+ENRICHMENT_STAGES: FrozenSet[str] = frozenset({TRANSLATION, SUMMARY, GI, KG})
+
+
+def runs_for_item(item: "ItemContext", stage: str) -> bool:
+    """True when ``item`` runs ``stage``: its type's profile runs it, and, for an enrichment stage,
+    its source lets it be mined (``mineable`` is not ``False``; ontology v3 "Rights, per item")."""
+    if not item.content_type.stage_profile.runs(stage):
+        return False
+    return not (stage in ENRICHMENT_STAGES and item.fields.get("mineable") is False)
+
+
 def stage_runs(stage: str) -> bool:
-    """True when the current item's stage profile runs ``stage`` (always, for a podcast)."""
-    return current_item().content_type.stage_profile.runs(stage)
+    """True when the current item runs ``stage`` (always, for a podcast)."""
+    return runs_for_item(current_item(), stage)
 
 
 @contextmanager
