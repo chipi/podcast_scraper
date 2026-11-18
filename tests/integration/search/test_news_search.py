@@ -146,3 +146,14 @@ def test_an_index_without_the_news_table_answers_with_no_news(
         .json()
     )
     assert body["results"] == [] and body.get("error") is None
+
+
+@requires("sentence_transformers")
+def test_a_news_only_corpus_gets_a_searchable_index(tmp_path: Path) -> None:
+    """With no podcast episodes there is no podcast index; the news table is built anyway."""
+    root = tmp_path / "news-only"
+    shutil.copytree(_FIXTURE / "v3" / "sources", root / "sources")
+    tti.build_two_tier_index(root, lance_index_dir(root), model_id=_MODEL)
+    assert lance_index_dir(root).is_dir()
+    hits = search_news(lance_index_dir(root), "risk management behaviour", _MODEL, top_k=3)
+    assert hits, "a news-only corpus must be searchable"
