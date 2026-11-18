@@ -348,6 +348,8 @@ def _kg_v3_for_item(
         source_url=source_url,
         times=item.times,
     )
+    if ctype.kg_extend is not None:
+        payload = ctype.kg_extend(payload, item)
     validate_artifact(payload, strict=True)
     return payload
 

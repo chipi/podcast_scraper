@@ -133,6 +133,9 @@ class ContentType:
     #: metadata stage built and the item's context (``None``: that document with ``content_type``
     #: first).
     shape_metadata: Optional[Callable[[Dict[str, Any], "ItemContext"], Dict[str, Any]]] = None
+    #: The type's own nodes and edges added to an item's KG 3.0 artifact before it is validated
+    #: (``None``: the artifact as extraction built it). News adds its publisher and bylines.
+    kg_extend: Optional[Callable[[Dict[str, Any], "ItemContext"], Dict[str, Any]]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:

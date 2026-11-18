@@ -21,7 +21,7 @@ from ..content_types import (
     url_identity,
 )
 from ..news_items import NEWS_ARTICLE
-from . import document, fetch, guardian, hn, rss
+from . import document, fetch, graph, guardian, hn, rss
 
 
 def _identity(item: SourceItem) -> str:
@@ -40,6 +40,7 @@ NEWS = ContentType(
     source_kind="news",
     fetch_body=fetch.fetch_body,
     shape_metadata=document.shape,
+    kg_extend=graph.extend,
 )
 
 TYPES: Tuple[ContentType, ...] = (NEWS,)

@@ -136,7 +136,7 @@ def registry(monkeypatch: pytest.MonkeyPatch) -> Registry:
     return reg
 
 
-def _run(tmp_path: Path) -> Path:
+def _run(tmp_path: Path, *extra: str) -> Path:
     from podcast_scraper import cli
 
     corpus = tmp_path / "corpus"
@@ -147,8 +147,43 @@ def _run(tmp_path: Path) -> Path:
         raise AssertionError("the podcast pipeline must not run for a news source")
 
     argv = ["--feeds-spec", str(spec), "--output-dir", str(corpus), "--no-transcript-cache"]
-    assert cli.main(argv, run_pipeline_fn=podcast) == 0
+    assert cli.main([*argv, *extra], run_pipeline_fn=podcast) == 0
     return corpus
+
+
+def test_each_items_kg_holds_its_publisher_and_its_authors(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """KG 3.0 per item (the contract): the item and its source, the publisher PUBLISHED_BY from
+    the source, and each byline name a person with the role author on the item."""
+    from podcast_scraper.graph_id_utils import person_node_id
+    from podcast_scraper.kg.schema import validate_artifact
+
+    corpus = _run(tmp_path, "--generate-kg", "--kg-extraction-source", "metadata_only")
+    for item in fixtures.ITEMS:
+        meta_path, doc = _docs(corpus)[item["stem"]]
+        kg_path = meta_path.with_name(meta_path.name.replace(".metadata.json", ".kg.json"))
+        if item["lang"] != "en":
+            # As a non-English episode: no analysis until it is translated, and this run has
+            # no translator (RFC-124 §5.3's completeness gate).
+            assert not kg_path.exists()
+            continue
+        art = json.loads(kg_path.read_text(encoding="utf-8"))
+        validate_artifact(art, strict=True)
+        assert art["item_id"] == doc["item_id"]
+        types = {n["id"]: n["type"] for n in art["nodes"]}
+        assert types[doc["item_id"]] == "ContentItem" and types[doc["source_id"]] == "Source"
+        assert types["org:daily-example"] == "Organization"
+        assert {"type": "PUBLISHED_BY", "from": doc["source_id"], "to": "org:daily-example"} in art[
+            "edges"
+        ]
+        authors = {
+            e["from"]
+            for e in art["edges"]
+            if e["type"] == "PARTICIPATES_IN"
+            and (e.get("properties") or {}).get("role") == "author"
+        }
+        assert authors == {person_node_id(n) for n in doc["news_article"]["byline"]}
 
 
 def _docs(corpus: Path) -> Dict[str, Tuple[Path, Dict[str, Any]]]:
