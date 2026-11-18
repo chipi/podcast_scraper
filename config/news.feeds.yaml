@@ -5,8 +5,12 @@
 # config/publishers.yaml.
 #
 # Not on in prod. Each source still needs its gates (RFC-134 §12): its terms of use read, its cap
-# confirmed, a month measured. Until a source's terms are read, its rights stay the narrowest:
-# serveable metadata (title, link, basic metadata, never the text), licence unknown.
+# confirmed, a month measured.
+#
+# Rights, for exploring on the operator's own server (the operator, 2026-11-18, relayed by
+# public): every source serveable summary and mineable, so the platform shows what it can, except
+# two kept restricted to prove the rights handling: SCMP serveable metadata (paywalled, teasers
+# anyway) and the Federal Reserve serveable none (it must appear nowhere). Licence unknown for all.
 #
 # news: settings (rss/feeds_spec.py NewsSourceSpec): max_items per run (newest first), URL
 # include/exclude patterns, a forced text_status, rights, live-blog pattern.
@@ -16,84 +20,88 @@ feeds:
   # ---- AI and technology (5) -----------------------------------------------
   - url: https://feeds.arstechnica.com/arstechnica/index
     content_type: news_article
-    news: {max_items: 20}
+    news: {serveable: summary, mineable: true, max_items: 20}
   - url: https://www.theverge.com/rss/index.xml
     content_type: news_article
-    news: {max_items: 20}
+    news: {serveable: summary, mineable: true, max_items: 20}
   - url: https://www.technologyreview.com/feed/
     content_type: news_article
-    news: {max_items: 20}
+    news: {serveable: summary, mineable: true, max_items: 20}
   # Import AI: the newsletter on Substack (jack-clark.net carries the same issues).
   - url: https://importai.substack.com/feed
     content_type: news_article
-    news: {max_items: 10}
+    news: {serveable: summary, mineable: true, max_items: 10}
   # A personal weblog: its publisher, Simon Willison, is its author.
   - url: https://simonwillison.net/atom/entries/
     content_type: news_article
-    news: {max_items: 15, personal: true}
+    news: {serveable: summary, mineable: true, max_items: 15, personal: true}
 
   # ---- Central banks and economics (3) -------------------------------------
   - url: https://www.bis.org/doclist/cbspeeches.rss
     content_type: news_article
-    news: {max_items: 10}
+    news: {serveable: summary, mineable: true, max_items: 10}
   # Fed press releases are complete even when short (500-800 characters): never teasers.
   - url: https://www.federalreserve.gov/feeds/press_all.xml
     content_type: news_article
-    news: {max_items: 10, text_status: full}
+    news: {serveable: none, mineable: true, max_items: 10, text_status: full}
   - url: https://feeds.bbci.co.uk/news/business/rss.xml
     content_type: news_article
-    news: {max_items: 15, live_blog_url_pattern: "/news/live/"}
+    news: {serveable: summary, mineable: true, max_items: 15, live_blog_url_pattern: "/news/live/"}
 
   # ---- World and geopolitics (5) -------------------------------------------
   - url: https://feeds.bbci.co.uk/news/world/rss.xml
     content_type: news_article
-    news: {max_items: 15, live_blog_url_pattern: "/news/live/"}
+    news: {serveable: summary, mineable: true, max_items: 15, live_blog_url_pattern: "/news/live/"}
   # Al Jazeera mixes video, gallery and programme pages into the feed; they are filtered.
   - url: https://www.aljazeera.com/xml/rss/all.xml
     content_type: news_article
     news:
+      serveable: summary
+      mineable: true
       max_items: 15
       exclude_url_pattern: "/(video|gallery|program)/"
       live_blog_url_pattern: "/liveblog/"
   - url: https://meduza.io/rss/en/all
     content_type: news_article
-    news: {max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15}
   - url: https://thediplomat.com/feed/
     content_type: news_article
-    news: {max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15}
   # SCMP (China): the page gives a teaser only.
   - url: https://www.scmp.com/rss/4/feed
     content_type: news_article
-    news: {max_items: 10, text_status: teaser}
+    news: {serveable: metadata, mineable: true, max_items: 10, text_status: teaser}
 
   # ---- Technology in the Global South (2) ----------------------------------
   - url: https://restofworld.org/feed/latest
     content_type: news_article
-    news: {max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15}
   - url: https://techcabal.com/feed/
     content_type: news_article
-    news: {max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15}
 
   # ---- Health, biotech and science (4) -------------------------------------
   - url: https://www.statnews.com/feed/
     content_type: news_article
-    news: {max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15}
   - url: https://api.quantamagazine.org/feed/
     content_type: news_article
-    news: {max_items: 10}
+    news: {serveable: summary, mineable: true, max_items: 10}
   # Nature's feed mixes research papers (s41586-...) into the news (d41586-...); news only. Its
   # news pages are often paywalled (the page text is a subscription offer) and the feed gives
   # only a date line, so each item's text is the page's standfirst: a teaser.
   - url: https://www.nature.com/nature.rss
     content_type: news_article
     news:
+      serveable: summary
+      mineable: true
       max_items: 15
       include_url_pattern: "/articles/d41586-"
       text_from: standfirst
       text_status: teaser
   - url: https://theconversation.com/global/articles.atom
     content_type: news_article
-    news: {max_items: 15}
+    news: {serveable: summary, mineable: true, max_items: 15}
 
   # ---- APIs (2) ------------------------------------------------------------
   # Hacker News: front-page stories that link to an article; the article page is fetched, so one
@@ -101,9 +109,9 @@ feeds:
   - url: https://hn.algolia.com/api/v1/search_by_date?tags=front_page&hitsPerPage=50
     content_type: news_article
     transport: hn
-    news: {max_items: 20}
+    news: {serveable: summary, mineable: true, max_items: 20}
   # The Guardian Content API: needs GUARDIAN_API_KEY (lists nothing without it).
   - url: https://content.guardianapis.com/search
     content_type: news_article
     transport: guardian
-    news: {max_items: 20, live_blog_url_pattern: "/live/"}
+    news: {serveable: summary, mineable: true, max_items: 20, live_blog_url_pattern: "/live/"}
