@@ -171,3 +171,27 @@ def test_the_fixture_groupings_carry_the_shared_topics_articles(
         "item:news_article:a8d6e89ce92ef7521ed5",
         "item:news_article:b626e4b9538458cb6235",
     ]
+
+
+def test_the_text_file_route_refuses_every_news_file(client: TestClient, tmp_path: Path) -> None:
+    """RFC-134 §10: the corpus text-file route refuses a news body, and every other file of a news
+    item (its metadata names a withheld item's title and summary; nothing here serves them). Found
+    2026-11-18: the route served a body whole."""
+    root = tmp_path / "corpus"
+    files = sorted(p for p in (root / "sources" / "news_article").rglob("*") if p.is_file())
+    assert any(p.suffix == ".txt" for p in files) and any(p.suffix == ".json" for p in files)
+    for p in files:
+        res = client.get(
+            "/api/corpus/text-file", params={"relpath": p.relative_to(root).as_posix()}
+        )
+        assert res.status_code == 404, p.name
+        assert "NEWS-BODY-MARKER" not in res.text and "WITHHELD-ITEM-TITLE" not in res.text
+
+
+def test_a_symlink_to_a_news_body_is_refused(client: TestClient, tmp_path: Path) -> None:
+    root = tmp_path / "corpus"
+    body = next((root / "sources" / "news_article").rglob("risk-desks.txt"))
+    link = root / "notes.txt"
+    link.symlink_to(body)
+    res = client.get("/api/corpus/text-file", params={"relpath": "notes.txt"})
+    assert res.status_code == 404 and "NEWS-BODY-MARKER" not in res.text
