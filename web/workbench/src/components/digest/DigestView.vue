@@ -871,6 +871,13 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
+      <!-- UXS-019: the news band, after the podcast (topic) bands and before Recent. In flow and
+           shrink-0: placed after Recent's flex-1 scroll panel it was drawn over its rows. -->
+      <DigestNewsBand
+        :since-ymd="sinceYmd"
+        @switch-main-tab="(t) => emit('switch-main-tab', t)"
+      />
+
       <!-- Match Library: collapsible/filters above, then `flex min-h-0 flex-1 flex-col gap-2` + Episodes panel. -->
       <div class="flex min-h-0 flex-1 flex-col gap-2">
       <!-- Same panel chrome + list structure as Library **Episodes** (`LibraryView.vue`). -->
@@ -1042,10 +1049,6 @@ onBeforeUnmount(() => {
       </div>
       </div>
       </div>
-      <DigestNewsBand
-        :since-ymd="sinceYmd"
-        @switch-main-tab="(t) => emit('switch-main-tab', t)"
-      />
       <p v-if="graphActionError" class="text-xs text-danger">
         {{ graphActionError }}
       </p>

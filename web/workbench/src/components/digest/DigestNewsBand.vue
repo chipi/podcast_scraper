@@ -65,7 +65,7 @@ function seeAll(): void {
 <template>
   <section
     v-if="items.length"
-    class="rounded-sm border border-border bg-surface"
+    class="shrink-0 rounded-sm border border-border bg-surface"
     aria-labelledby="digest-news-heading"
     data-testid="digest-news-band"
   >
