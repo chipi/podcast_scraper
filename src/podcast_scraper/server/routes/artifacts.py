@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
+from podcast_scraper.news_items import is_news_item_file
 from podcast_scraper.search.corpus_scope import episode_artifact_kinds, member_episode_artifacts
 from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_artifact_listing
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
@@ -132,7 +133,7 @@ def get_artifact(
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
     target = _safe_artifact_target(base, artifact_path)
-    if not target.is_file():
+    if not target.is_file() or is_news_item_file(target, base):
         raise HTTPException(status_code=404, detail="Artifact not found.")
     if _kind_for_suffix(target.name) is None:
         raise HTTPException(

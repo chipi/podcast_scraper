@@ -15,9 +15,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from podcast_scraper.news_items import NEWS_ARTICLE
+from podcast_scraper.news_items import is_news_item_file
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.utils.corpus_walk import SOURCES_DIR
 from podcast_scraper.utils.path_validation import (
     normpath_if_under_root,
     resolves_under_root,
@@ -35,24 +34,6 @@ _ALLOWED_SUFFIXES = (".txt", ".md", ".vtt", ".srt", ".json")
 #: docs/wip/VOICE-IDENTITY-DESIGN-2026-10-12.md) and the roster's raw candidate lists. Nothing in
 #: the viewer or the player reads it from here.
 _NEVER_SERVED_SUFFIXES = (".speakers.diagnostics.json",)
-
-#: Never served: any file of a news item (RFC-134 §10). The body is never shown, and a withheld
-#: item's metadata names what may not be shown; the news routes serve what may be.
-_NEVER_SERVED_DIRS = ((SOURCES_DIR, NEWS_ARTICLE),)
-
-
-def _never_served_dir(file_path: str, root: str) -> bool:
-    """Whether *file_path* lies in a never-served directory, by its path and by where it really is
-    (a symlink elsewhere in the corpus must not reach a news file)."""
-    rels = (
-        os.path.relpath(file_path, root),
-        os.path.relpath(os.path.realpath(file_path), os.path.realpath(root)),
-    )
-    for rel in rels:
-        parts = Path(rel).parts
-        if any(parts[: len(d)] == d for d in _NEVER_SERVED_DIRS):
-            return True
-    return False
 
 
 def _suffix_allowed(name: str) -> bool:
@@ -226,7 +207,7 @@ def corpus_text_file(
     # resolves outside the corpus root.
     if not resolves_under_root(verified_path, root_s):
         raise HTTPException(status_code=400, detail="Invalid path.")
-    if _never_served_dir(verified_path, root_s):
+    if is_news_item_file(verified_path, root_s):
         raise HTTPException(status_code=404, detail="File not found.")
 
     # codeql[py/path-injection] -- verified_path from normpath_if_under_root(safe_file, root_s).

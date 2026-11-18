@@ -14,6 +14,7 @@ absent) shows the title, link, publisher and times; ``summary`` adds the platfor
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional
@@ -21,8 +22,22 @@ from urllib.parse import urlsplit
 
 from podcast_scraper.publishers import load_registry, Registry
 from podcast_scraper.search.corpus_scope import discover_metadata_files
+from podcast_scraper.utils.corpus_walk import SOURCES_DIR
 
 NEWS_ARTICLE = "news_article"
+
+
+def is_news_item_file(file_path: os.PathLike[str] | str, root: os.PathLike[str] | str) -> bool:
+    """Whether *file_path* is one of a news item's files (``sources/news_article/…``), by its path
+    and by where it really is, so a symlink elsewhere in the corpus does not hide one. File routes
+    refuse these (RFC-134 §10): the body is never served, and a withheld item's metadata and KG name
+    what no surface shows; the news routes serve what may be shown."""
+    rels = (
+        os.path.relpath(file_path, root),
+        os.path.relpath(os.path.realpath(file_path), os.path.realpath(root)),
+    )
+    return any(Path(rel).parts[:2] == (SOURCES_DIR, NEWS_ARTICLE) for rel in rels)
+
 
 # --- the contract's field names (news-item-1.0.md) ------------------------------------------
 # Decided (ontology v3).

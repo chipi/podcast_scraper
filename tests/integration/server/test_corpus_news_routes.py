@@ -195,3 +195,18 @@ def test_a_symlink_to_a_news_body_is_refused(client: TestClient, tmp_path: Path)
     link.symlink_to(body)
     res = client.get("/api/corpus/text-file", params={"relpath": "notes.txt"})
     assert res.status_code == 404 and "NEWS-BODY-MARKER" not in res.text
+
+
+def test_the_artifact_route_refuses_a_news_items_kg(client: TestClient, tmp_path: Path) -> None:
+    """A withheld item's KG names its title; the artifact route served it (found 2026-11-18 by
+    the every-route guard). No news item's KG is served here; the news item route serves the
+    nodes of a shown one."""
+    root = tmp_path / "corpus"
+    kgs = sorted((root / "sources" / "news_article").rglob("*.kg.json"))
+    assert kgs
+    for p in kgs:
+        res = client.get(
+            "/api/artifacts/" + p.relative_to(root).as_posix(), params={"path": str(root)}
+        )
+        assert res.status_code == 404, p.name
+        assert "WITHHELD-ITEM-TITLE" not in res.text
