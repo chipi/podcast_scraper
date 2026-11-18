@@ -1,4 +1,4 @@
-"""KG 3.0 as stored (R3b, the KG half; ``docs/wip/changes/r3b_kg_3_0.md``).
+"""KG 3.0 as stored (R3b, the KG half; ``docs/wip/changes/0051_kg_3_0.md``).
 
 :func:`to_v3_file` writes a KG 2.x artifact as a KG 3.0 file: the :func:`kg_as_v3` view without what
 only a view carries (``adapted_from``) and without the root ``episode_id`` KG 3.0 does not allow.

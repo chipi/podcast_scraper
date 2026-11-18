@@ -58,7 +58,7 @@ def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -
         payload: Dict with schema_version, episode_id, extraction, nodes, edges.
         validate: If True, run validation before writing.
     """
-    # KG 3.0 from R3b on (docs/wip/changes/r3b_kg_3_0.md): every KG file is written as KG 3.0. A
+    # KG 3.0 from R3b on (docs/wip/changes/0051_kg_3_0.md): every KG file is written as KG 3.0. A
     # writer may still build in 2.x names; the file is converted, given PUBLISHED_BY when the
     # publisher registry lists its source, and validated strictly against kg.v3.schema.json. A file
     # that does not validate is not written (never warn and write).
