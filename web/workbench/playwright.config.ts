@@ -123,6 +123,11 @@ export default defineConfig({
         PODCAST_DATABASE_URL:
           process.env.PODCAST_DATABASE_URL || process.env.PODCAST_TEST_DATABASE_URL || '',
         PODCAST_DEV_OBS_ENV: '0',
+        // The fixture's invented news publishers (UXS-019; the shipped registry names real ones).
+        PODCAST_PUBLISHERS_FILE: path.join(
+          repoRoot,
+          'tests/fixtures/app-validation-corpus/publishers.fixture.yaml',
+        ),
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
         APP_SIGNUP_MODE: 'open',
