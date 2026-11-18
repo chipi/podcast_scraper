@@ -301,6 +301,25 @@ Podcast reads leave `sources/` out (RFC-134 §5), so the podcast counts in this 
 do not include these items. The e2e server is given `publishers.fixture.yaml` as its publisher
 registry.
 
+**News in themes and storylines** (2026-11-18, the news release's piece J). The grouping files
+carry the news fields Common's builders write (Common `news-themes` 0a5ab13, run by the database
+session over a copy of this corpus with `publishers.fixture.yaml` and the `news_aux` topic rows):
+
+- `search/topic_clusters.json`, schema 3: `news_item_ids` on every member (`[]` where none),
+  `news_members` on every theme (all `[]` here), and the top-level `news_topic_count` /
+  `news_topics_in_themes`. `tc:risk-management`'s member `topic:risk-management` names
+  `risk-desks`, `mercados` and the `withheld` item (a theme may name a `serveable: none` item; no
+  surface shows it); `tc:reliability` names `wire-reliability` and `tc:soil-erosion` names
+  `soil-report`.
+- `enrichments/topic_theme_clusters.json`, schema 2: `news_item_ids` per member, `news_count` /
+  `news_scores` per storyline (`thc:managing-risk`: `risk-desks` and `mercados`, 1.5 each), and
+  `data.news`.
+
+Only those fields were taken from the rebuilt files: the rebuild also regrouped the themes (71 for
+82) and adds the storyline registry, which this corpus does not carry. Everything outside the news
+fields is byte-for-byte what it was (checked by parsing both and comparing with the news fields
+removed).
+
 ## The public corpus (`public/`), derived from this one
 
 `public/` is what a public-only install keeps of `v3` (E04 step 8; the private extension's

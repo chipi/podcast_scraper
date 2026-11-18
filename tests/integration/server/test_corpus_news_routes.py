@@ -153,3 +153,21 @@ def test_node_episodes_lists_a_groupings_articles(
     )
     assert res.status_code == 200
     assert [i["item_id"] for i in res.json()["news_items"]] == [risk]
+
+
+@pytest.mark.parametrize("cluster_id", ["tc:risk-management", "thc:managing-risk"])
+def test_the_fixture_groupings_carry_the_shared_topics_articles(
+    client: TestClient, cluster_id: str
+) -> None:
+    """The checked-in grouping files (Common's builders over this corpus, news fields only; piece
+    J): the theme and the storyline on topic:risk-management list its two shown articles, newest
+    first. The theme file also names the withheld item, which never shows."""
+    res = client.post(
+        "/api/corpus/node-episodes",
+        json={"node_id": cluster_id, "content_types": ["news_article"]},
+    )
+    assert res.status_code == 200
+    assert [i["item_id"] for i in res.json()["news_items"]] == [
+        "item:news_article:a8d6e89ce92ef7521ed5",
+        "item:news_article:b626e4b9538458cb6235",
+    ]
