@@ -29,12 +29,13 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
 from .. import config, content_types, stage_hooks
 from ..kg.v3 import ITEM_TIMES
 from ..models import Episode, RssFeed
 from ..utils import filesystem
+from ..utils.corpus_walk import SOURCES_DIR
 from .types import FeedMetadata, HostDetectionResult, ProcessingJob
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,26 @@ def _write_cursor(source_dir: str, transport: str, cursor: Optional[str]) -> Non
     os.replace(tmp, path)
 
 
+def written_item_ids(source_dir: str, ctype: content_types.ContentType) -> Set[str]:
+    """The ids of every item of ``ctype`` the corpus holds, read from its metadata files under
+    ``sources/<type>/`` (all sources, all runs). ``source_dir`` is this source's workspace; when
+    it is not inside a corpus, only that workspace is read."""
+    workspace = Path(source_dir)
+    root = filesystem.corpus_root_of_workspace(workspace)
+    base = root / SOURCES_DIR / ctype.name if root is not None else workspace
+    ids: Set[str] = set()
+    for path in base.glob("**/metadata/*.metadata.json"):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        episode = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
+        found = doc.get("item_id") or episode.get("guid")
+        if isinstance(found, str) and found:
+            ids.add(found)
+    return ids
+
+
 def _jobs_for_items(
     items: List[content_types.SourceItem],
     ctype: content_types.ContentType,
@@ -118,10 +139,23 @@ def _jobs_for_items(
     source_id: str,
     transport: str,
     entry: Any = None,
+    written: Optional[Set[str]] = None,
 ) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
+    """``written``: the item ids the corpus already holds for this type. One article is one item,
+    so an item already written, by this source or another (two feeds carrying one article), or
+    listed twice in this batch, is skipped before its body is fetched: the first source to write
+    it keeps it. The set grows with what this batch writes."""
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
+    seen: Set[str] = written if written is not None else set()
     for listed in items:
+        try:
+            listed_id: Optional[str] = content_types.item_id(ctype, listed)
+        except ValueError:
+            listed_id = None
+        if listed_id is not None and listed_id in seen:
+            logger.info("text-in: %s is already written; skipped (url=%s)", listed_id, listed.url)
+            continue
         item: Optional[content_types.SourceItem] = listed
         if listed.text is None and ctype.fetch_body is not None:
             item = ctype.fetch_body(listed, entry)
@@ -132,6 +166,10 @@ def _jobs_for_items(
             continue
         idx = len(episodes)
         minted = content_types.item_id(ctype, item)
+        if minted in seen:
+            logger.info("text-in: %s is already written; skipped (url=%s)", minted, item.url)
+            continue
+        seen.add(minted)
         title = str(item.metadata.get("title") or item.item_id)
         title_safe = filesystem.sanitize_filename(title)
         episode = Episode(
@@ -211,6 +249,7 @@ def run_text_source(
             source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
             transport=transport.name,
             entry=entry,
+            written=written_item_ids(source_dir, ctype),
         )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",

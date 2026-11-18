@@ -272,6 +272,58 @@ def test_a_second_run_lists_nothing_new(
     assert len(_docs(corpus)) == len(fixtures.ITEMS)
 
 
+def test_an_article_two_feeds_carry_or_one_feed_lists_twice_is_written_once(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """One article is one item (the contract): a second feed carrying it (BBC World and Business
+    share articles), or one feed listing it twice under two guids, writes no second copy. The
+    first source to write it keeps it."""
+    feed = (fixtures.OUT / "feed.xml").read_text(encoding="utf-8")
+    twice = feed.replace(
+        '<guid isPermaLink="false">risk-desks</guid>',
+        '<guid isPermaLink="false">risk-desks#0</guid>',
+    ).replace("  </channel>", _risk_desks_again() + "\n  </channel>")
+    second = tmp_path / "second.xml"
+    second.write_text(twice, encoding="utf-8")
+    other_feed = "https://www.dailyexample.test/world/feed.xml"
+    net.routes[other_feed] = second
+
+    from podcast_scraper import cli
+
+    corpus = tmp_path / "corpus"
+    spec = tmp_path / "two.feeds.spec.yaml"
+    spec.write_text(
+        f"feeds:\n  - url: {fixtures.FEED_URL}\n    content_type: {NEWS}\n"
+        f"  - url: {other_feed}\n    content_type: {NEWS}\n",
+        "utf-8",
+    )
+    argv = ["--feeds-spec", str(spec), "--output-dir", str(corpus), "--no-transcript-cache"]
+    assert cli.main(argv, run_pipeline_fn=lambda cfg: (0, "")) == 0
+
+    ids = [
+        json.loads(p.read_text(encoding="utf-8"))["item_id"]
+        for p in corpus.rglob("*.metadata.json")
+    ]
+    assert len(ids) == len(set(ids)) == len(fixtures.ITEMS)
+    first_source = ct.source_id(ct.content_type(NEWS), fixtures.FEED_URL)
+    assert {
+        json.loads(p.read_text(encoding="utf-8"))["source_id"]
+        for p in corpus.rglob("*.metadata.json")
+    } == {first_source}
+
+
+def _risk_desks_again() -> str:
+    item = fixtures.ITEMS[0]
+    return (
+        "    <item>\n"
+        f"      <title>{item['title']}</title>\n"
+        f"      <link>{item['url']}</link>\n"
+        '      <guid isPermaLink="false">risk-desks#3</guid>\n'
+        "      <pubDate>Tue, 17 Nov 2026 07:30:00 +0000</pubDate>\n"
+        "    </item>"
+    )
+
+
 def test_each_items_language_says_where_it_came_from(
     tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
 ) -> None:
