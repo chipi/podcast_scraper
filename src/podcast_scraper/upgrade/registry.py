@@ -25,6 +25,7 @@ from .migrations.m0021_backfill_feed_language import BackfillFeedLanguageMigrati
 from .migrations.m0026_artwork_medium import ArtworkMediumMigration
 from .migrations.m0027_missing_covers_stored import MissingCoversStoredMigration
 from .migrations.m0028_transcript_chunk_times import TranscriptChunkTimesMigration
+from .migrations.m0051_kg_3_0 import KgThreeMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -103,6 +104,9 @@ _MIGRATIONS: List[Migration] = [
     # name (frozen, reviewed list; found by 0044's review).
     # 0032_naming_voices_rederived (0031 until 2026-10-18) never ran and was retired on 2026-10-27;
     # the id stays unused.
+    # 0051 rewrites every served podcast KG file from KG 2.x to KG 3.0 (R3b, the KG half), after
+    # an installed extension's 0050 has done the same for GI.
+    KgThreeMigration(),
 ]
 
 
