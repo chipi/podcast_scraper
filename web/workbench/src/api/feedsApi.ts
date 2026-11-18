@@ -4,10 +4,19 @@ import { readApiErrorMessage } from './readApiErrorMessage'
 /** One feed: URL string or object with `url` plus optional per-feed overrides. */
 export type FeedApiEntry = string | Record<string, unknown>
 
+export interface FeedContentTypeOption {
+  name: string
+  default_transport: string
+  source_kind?: string
+}
+
 export interface FeedsList {
   path: string
   file_relpath: string
   feeds: FeedApiEntry[]
+  /** Registered content types and transports a feed entry may name (absent on older servers). */
+  content_types?: FeedContentTypeOption[]
+  transports?: string[]
 }
 
 export async function getFeeds(corpusPath: string): Promise<FeedsList> {

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { configTabs } from '../../extensions'
-import { getFeeds, putFeeds, type FeedApiEntry } from '../../api/feedsApi'
+import {
+  getFeeds,
+  putFeeds,
+  type FeedApiEntry,
+  type FeedContentTypeOption,
+} from '../../api/feedsApi'
 import { fetchCorpusFeeds } from '../../api/corpusLibraryApi'
 import { fetchCorpusCoverage, type CoverageByMonthItem } from '../../api/corpusCoverageApi'
 import {
@@ -65,6 +70,9 @@ const feedsPanelTab = ref<FeedsPanelTab>('list')
 const operatorYamlBody = ref('')
 const operatorProfileSelected = ref('')
 const availableProfiles = ref<string[]>([])
+/** Registered content types and transports, for the feed editor (GET /api/feeds; UXS-019). */
+const feedContentTypes = ref<FeedContentTypeOption[]>([])
+const feedTransports = ref<string[]>([])
 /** Packaged profile bodies (name → content) for the Profile sub-tab "what it brings". */
 const profileContents = ref<PackagedProfile[]>([])
 /** Sub-tab inside the Job Configuration page: profile picker vs YAML overrides. */
@@ -413,6 +421,8 @@ async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
       const f = await getFeeds(p)
       feedsCrudList.value = [...f.feeds]
       feedsSpecRelPath.value = f.file_relpath
+      feedContentTypes.value = f.content_types ?? []
+      feedTransports.value = f.transports ?? []
       syncFeedsEditorFromCrud()
       feedsNewUrl.value = ''
       cancelFeedEdit()
@@ -1036,6 +1046,8 @@ defineExpose({
               :global-max-episodes="globalMaxEpisodes"
               :available-profiles="availableProfiles"
               :global-profile="operatorProfileSelected || null"
+              :content-type-options="feedContentTypes"
+              :transports="feedTransports"
               :busy="sourcesBusy"
               @save="onFeedDetailSave"
               @back="feedsDetailIndex = null"

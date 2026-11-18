@@ -29,10 +29,41 @@ const props = withDefaults(
     availableProfiles?: string[]
     /** The corpus-wide profile, shown as what "Inherit" actually means. */
     globalProfile?: string | null
+    /** Registered content types (GET /api/feeds ``content_types``; UXS-019): what a source is. */
+    contentTypeOptions?: { name: string; default_transport: string; source_kind?: string }[]
+    /** Registered transports (GET /api/feeds ``transports``): how a source lists its items. */
+    transports?: string[]
     busy?: boolean
   }>(),
-  { globalMaxEpisodes: null, availableProfiles: () => [], globalProfile: null, busy: false },
+  {
+    globalMaxEpisodes: null,
+    availableProfiles: () => [],
+    globalProfile: null,
+    contentTypeOptions: () => [],
+    transports: () => [],
+    busy: false,
+  },
 )
+
+/** A podcast is the default type and is written as no ``content_type`` at all. */
+const PODCAST = 'podcast_episode'
+const TYPE_LABELS: Record<string, string> = { podcast_episode: 'Podcast', news_article: 'News' }
+function typeLabel(name: string): string {
+  return TYPE_LABELS[name] ?? name
+}
+const contentType = ref('')
+const transport = ref('')
+/** Shown when the server registers more than one type, or the entry already names one. */
+const showSourceKind = computed(
+  () =>
+    props.contentTypeOptions.filter((t) => t.name !== PODCAST).length > 0 ||
+    !!contentType.value ||
+    !!transport.value,
+)
+const defaultTransport = computed(() => {
+  const name = contentType.value || PODCAST
+  return props.contentTypeOptions.find((t) => t.name === name)?.default_transport ?? ''
+})
 
 const emit = defineEmits<{ save: [FeedApiEntry]; back: [] }>()
 
@@ -74,6 +105,8 @@ watch(
     url.value = s.url
     maxEpisodesStr.value = s.must.max_episodes != null ? String(s.must.max_episodes) : ''
     profile.value = s.must.profile ?? ''
+    contentType.value = s.must.content_type && s.must.content_type !== PODCAST ? s.must.content_type : ''
+    transport.value = s.must.transport ?? ''
     episodeOrder.value = s.must.episode_order ?? ''
     offsetStr.value = s.must.episode_offset != null ? String(s.must.episode_offset) : ''
     since.value = s.must.episode_since ?? ''
@@ -158,6 +191,8 @@ function onSave(): void {
   }
 
   const must: FeedMustFields = {}
+  if (contentType.value) must.content_type = contentType.value
+  if (transport.value) must.transport = transport.value
   if (maxEp != null) must.max_episodes = maxEp
   if (profile.value) must.profile = profile.value
   if (episodeOrder.value) must.episode_order = episodeOrder.value
@@ -218,6 +253,39 @@ function onSave(): void {
             : 'overrides viewer_operator default'
         }}</span>
       </label>
+
+      <template v-if="showSourceKind">
+        <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+          <span>Content type</span>
+          <select
+            v-model="contentType"
+            class="rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
+            data-testid="feed-override-content-type"
+          >
+            <option value="">Podcast (default)</option>
+            <option
+              v-for="t in contentTypeOptions.filter((o) => o.name !== PODCAST)"
+              :key="t.name"
+              :value="t.name"
+            >
+              {{ typeLabel(t.name) }}
+            </option>
+          </select>
+          <span class="text-[9px] text-muted">What this source's items are.</span>
+        </label>
+        <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+          <span>Transport</span>
+          <select
+            v-model="transport"
+            class="rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
+            data-testid="feed-override-transport"
+          >
+            <option value="">Default{{ defaultTransport ? ` (${defaultTransport})` : '' }}</option>
+            <option v-for="t in transports" :key="t" :value="t">{{ t }}</option>
+          </select>
+          <span class="text-[9px] text-muted">How the source lists its items.</span>
+        </label>
+      </template>
 
       <label class="flex flex-col gap-0.5 text-[10px] text-muted">
         <span>Profile</span>

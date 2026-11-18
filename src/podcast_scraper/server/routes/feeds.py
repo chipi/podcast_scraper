@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, Dict, List, Union
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import ValidationError
@@ -69,6 +69,25 @@ def _document_feeds_to_api_list(doc: FeedsSpecDocument) -> List[Union[str, dict[
     return out
 
 
+def _registered() -> Dict[str, Any]:
+    """The registered content types and transports, for the feed editor's selects."""
+    from podcast_scraper.content_types import registry
+    from podcast_scraper.server.schemas import FeedContentTypeOption
+
+    types, transports = registry()
+    return {
+        "content_types": [
+            FeedContentTypeOption(
+                name=t.name,
+                default_transport=t.default_transport,
+                source_kind=getattr(t, "source_kind", "") or "",
+            )
+            for t in types.values()
+        ],
+        "transports": sorted(transports),
+    }
+
+
 @router.get("/feeds", response_model=FeedsListResponse)
 def get_feeds(
     request: Request,
@@ -98,6 +117,7 @@ def get_feeds(
         path=root_s,
         file_relpath=FEEDS_SPEC_BASENAME,
         feeds=feeds,
+        **_registered(),
     )
 
 
@@ -131,4 +151,5 @@ def put_feeds(
         path=root_s,
         file_relpath=FEEDS_SPEC_BASENAME,
         feeds=_document_feeds_to_api_list(doc),
+        **_registered(),
     )

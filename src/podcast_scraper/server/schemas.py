@@ -3467,8 +3467,28 @@ class VersionResponse(BaseModel):
     )
 
 
+class FeedContentTypeOption(BaseModel):
+    """A registered content type a feed entry may name (ADR-177), with its default transport."""
+
+    name: str
+    default_transport: str
+    source_kind: str = ""
+
+
 class FeedsListResponse(BaseModel):
     """Response for GET/PUT /api/feeds (structured ``{ feeds: [...] }`` on disk)."""
+
+    content_types: list[FeedContentTypeOption] = Field(
+        default_factory=list,
+        description=(
+            "Content types this server registers (podcast built in; others from installed "
+            "extensions), for a feed entry's content_type. Absent on older servers: podcast only."
+        ),
+    )
+    transports: list[str] = Field(
+        default_factory=list,
+        description="Transports this server registers, for a feed entry's transport.",
+    )
 
     path: str = Field(description="Resolved absolute corpus root path.")
     file_relpath: str = Field(description="Feeds spec file relative to corpus root (POSIX).")

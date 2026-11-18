@@ -16,6 +16,10 @@ export type FeedUrlKey = 'url' | 'rss'
 export type EpisodeOrder = 'newest' | 'oldest'
 
 export interface FeedMustFields {
+  /** What the source's items are (ADR-177; UXS-019): absent = a podcast. A registered type only. */
+  content_type?: string
+  /** How the source lists its items: absent = the type's default transport. */
+  transport?: string
   /** Run this feed on a named profile instead of the corpus-wide one (#1872 cascade:
    *  corpus operator YAML < THIS < a per-request override). Empty = inherit. */
   profile?: string
@@ -28,6 +32,8 @@ export interface FeedMustFields {
 
 /** The five "must" override fields surfaced as structured inputs (#694). */
 export const FEED_MUST_FIELD_KEYS = [
+  'content_type',
+  'transport',
   'profile',
   'max_episodes',
   'episode_order',
@@ -86,6 +92,10 @@ export function splitFeedEntry(entry: FeedApiEntry): SplitFeedEntry {
   const urlKey: FeedUrlKey = o.url !== undefined ? 'url' : o.rss !== undefined ? 'rss' : 'url'
   const url = String(o.url ?? o.rss ?? '').trim()
   const must: FeedMustFields = {}
+  if (typeof o.content_type === 'string' && o.content_type.trim()) {
+    must.content_type = o.content_type.trim()
+  }
+  if (typeof o.transport === 'string' && o.transport.trim()) must.transport = o.transport.trim()
   if (typeof o.profile === 'string' && o.profile.trim()) must.profile = o.profile.trim()
   if (typeof o.max_episodes === 'number') must.max_episodes = o.max_episodes
   if (o.episode_order === 'newest' || o.episode_order === 'oldest') {
@@ -118,6 +128,8 @@ export function buildFeedEntry(
     obj[k] = v
   }
   // Must-fields win over any same-named extra; omit empties (= inherit).
+  if (must.content_type) obj.content_type = must.content_type
+  if (must.transport) obj.transport = must.transport
   if (must.profile) obj.profile = must.profile
   if (must.max_episodes != null) obj.max_episodes = must.max_episodes
   if (must.episode_order) obj.episode_order = must.episode_order
