@@ -3727,10 +3727,16 @@ class IndexRebuildAccepted(BaseModel):
 
 
 class SearchHitModel(BaseModel):
-    """One semantic search hit (enriched metadata + optional quote stack)."""
+    """One semantic search hit (enriched metadata + optional quote stack).
+
+    A news hit (``content_type: news_article``, RFC-134 §9) is one per item: ``doc_id`` is the
+    item id, ``source_tier`` is ``news``, ``text`` is empty (the matched chunk is never served,
+    ADR-179) and ``news_item`` carries what a surface may show."""
 
     doc_id: str
     score: float
+    content_type: str = "podcast_episode"
+    news_item: Optional["NewsItem"] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     text: str = ""
     source_tier: str = Field(
@@ -5224,3 +5230,6 @@ class NewsItemDetailResponse(BaseModel):
     item: NewsItem
     kg_relative_path: Optional[str] = None
     kg_nodes: List[NewsKgNode] = Field(default_factory=list)
+
+
+SearchHitModel.model_rebuild()

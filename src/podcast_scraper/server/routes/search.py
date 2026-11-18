@@ -57,6 +57,60 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
     return fallback
 
 
+def _news_hits(
+    root: Path, q: str, top_k: int, since: str | None, embedding_model: str | None
+) -> list[SearchHitModel]:
+    """News hits for ``q`` (RFC-134 §9): one per item, built from the item's metadata now, so an
+    item whose ``serveable`` became ``none`` is dropped and no chunk text is ever returned."""
+    from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
+    from podcast_scraper.search.hybrid_search import lance_index_dir
+    from podcast_scraper.search.news_index import search_news
+    from podcast_scraper.server.routes.corpus_news import cached_served_items
+    from podcast_scraper.server.schemas import NewsItem
+
+    lance_dir = lance_index_dir(root)
+    if not lance_dir.is_dir():
+        return []
+    meta = LanceDBBackend(str(lance_dir)).read_index_meta() or {}
+    model_id = (embedding_model or "").strip() or str(meta.get("embedding_model") or "")
+    if not model_id:
+        return []
+    shown = {i["item_id"]: i for i in cached_served_items(root)}
+    out: list[SearchHitModel] = []
+    for item_id, score in search_news(lance_dir, q, model_id, top_k=top_k, since=since):
+        item = shown.get(item_id)
+        if item is None:
+            continue
+        out.append(
+            SearchHitModel(
+                doc_id=item_id,
+                score=score,
+                content_type="news_article",
+                news_item=NewsItem(**item),
+                metadata={"doc_type": "news_article", "item_id": item_id},
+                text="",
+                source_tier="news",
+            )
+        )
+    return out
+
+
+async def _news_only_response(
+    root: Path,
+    q: str,
+    top_k: int,
+    since: str | None,
+    embedding_model: str | None,
+    want_news: bool,
+) -> CorpusSearchApiResponse:
+    """A search that asked for no podcast type: news hits only (or none)."""
+    if not want_news:
+        return CorpusSearchApiResponse(query=q, results=[], query_type="semantic")
+    async with _LANCE_GATE:
+        hits = await run_in_threadpool(_news_hits, root, q, top_k, since, embedding_model)
+    return CorpusSearchApiResponse(query=q, results=hits, query_type="semantic")
+
+
 @router.get("/search", response_model=CorpusSearchApiResponse)
 async def search_corpus(
     request: Request,
@@ -92,6 +146,15 @@ async def search_corpus(
         ),
     ),
     grounded_only: bool = Query(default=False),
+    content_types: list[str] | None = Query(
+        default=None,
+        description=(
+            "Content types to search (repeat the param): ``podcast_episode`` (the default) and "
+            "``news_article`` (RFC-134 §9). Without it the answer is exactly the podcast search. "
+            "``since`` applies to news too; ``episode_id`` and ``grounded_only`` leave news out; "
+            "the other filters apply to podcast hits only."
+        ),
+    ),
     top_k: int = Query(default=10, ge=1, le=100),
     embedding_model: str | None = Query(
         default=None,
@@ -146,6 +209,12 @@ async def search_corpus(
                     flat.append(p)
         doc_types = flat or None
 
+    wanted = {t.strip() for item in (content_types or []) for t in item.split(",") if t.strip()}
+    wanted = wanted or {"podcast_episode"}
+    want_news = "news_article" in wanted and not episode_id and not grounded_only
+    if "podcast_episode" not in wanted:
+        return await _news_only_response(root, q, top_k, since, embedding_model, want_news)
+
     # Run the native hybrid search off the event loop (keeps the loop free for
     # the page-load burst) but serialized via _LANCE_GATE (single-flight; #1205).
     async with _LANCE_GATE:
@@ -185,6 +254,10 @@ async def search_corpus(
         )
         for r in outcome["results"]
     ]
+    if want_news:
+        async with _LANCE_GATE:
+            news_hits = await run_in_threadpool(_news_hits, root, q, top_k, since, embedding_model)
+        hits = sorted([*hits, *news_hits], key=lambda h: -h.score)[: max(top_k, len(hits))]
     stats_raw = outcome["lift_stats"]
     lift_stats: CorpusSearchLiftStatsModel | None = None
     if isinstance(stats_raw, dict):
