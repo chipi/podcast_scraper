@@ -14,14 +14,14 @@ from podcast_scraper.server.app import create_app
 
 pytestmark = [pytest.mark.integration]
 
-NEWS = ct.ContentType(
-    name="news_article",
+REPORT = ct.ContentType(
+    name="test_report",
     id_scheme="item",
     stage_profile=ct.StageProfile(name="text", stages=frozenset({"summary", "kg"})),
-    default_transport="rss_atom",
-    source_kind="news",
+    default_transport="report_api",
+    source_kind="report",
 )
-RSS_ATOM = ct.Transport(name="rss_atom", list_items=lambda source, cursor: ([], cursor))
+REPORT_API = ct.Transport(name="report_api", list_items=lambda source, cursor: ([], cursor))
 
 
 def _feeds(tmp_path: Path) -> dict:
@@ -31,23 +31,25 @@ def _feeds(tmp_path: Path) -> dict:
     return body
 
 
-def test_a_public_server_offers_podcasts_over_rss_enclosures(tmp_path: Path) -> None:
+def test_a_public_server_offers_podcasts_and_news(tmp_path: Path) -> None:
+    """Public's built-in types: podcast over RSS enclosures, news over RSS (ADR-177 decision 5)."""
     with use_extensions([]):
         body = _feeds(tmp_path)
     assert body["content_types"] == [
-        {"name": "podcast_episode", "default_transport": "rss_enclosure", "source_kind": "podcast"}
+        {"name": "podcast_episode", "default_transport": "rss_enclosure", "source_kind": "podcast"},
+        {"name": "news_article", "default_transport": "rss", "source_kind": "news"},
     ]
-    assert body["transports"] == ["rss_enclosure"]
+    assert body["transports"] == ["rss", "rss_enclosure"]
 
 
 def test_a_type_an_extension_registers_is_offered_with_its_transport(tmp_path: Path) -> None:
-    ext = Extension(name="news", content_types=lambda: [NEWS], transports=lambda: [RSS_ATOM])
+    ext = Extension(name="reports", content_types=lambda: [REPORT], transports=lambda: [REPORT_API])
     with use_extensions([ext]):
         body = _feeds(tmp_path)
     names = {t["name"]: t for t in body["content_types"]}
-    assert names["news_article"] == {
-        "name": "news_article",
-        "default_transport": "rss_atom",
-        "source_kind": "news",
+    assert names["test_report"] == {
+        "name": "test_report",
+        "default_transport": "report_api",
+        "source_kind": "report",
     }
-    assert body["transports"] == ["rss_atom", "rss_enclosure"]
+    assert body["transports"] == ["report_api", "rss", "rss_enclosure"]
