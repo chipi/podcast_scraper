@@ -23,7 +23,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from podcast_scraper.news_items import F_TEXT_STATUS, iter_news_metadata, serveable
+from podcast_scraper.news_items import iter_news_metadata, serveable
 
 logger = logging.getLogger(__name__)
 
@@ -47,29 +47,31 @@ def _body_paragraphs(meta_path: Path) -> List[str]:
 
 
 def indexable(doc: Dict[str, Any]) -> bool:
-    """Whether an item's body is chunked into the index."""
-    raw = doc.get("news_article")
-    own: Dict[str, Any] = raw if isinstance(raw, dict) else {}
-    return (
-        serveable(doc) != "none"
-        and doc.get("mineable") is not False
-        and own.get(F_TEXT_STATUS) == "full"
-    )
+    """Whether an item goes into the index: one a surface may show and the source lets us mine.
+    Its title always does; its body too, whatever its ``text_status`` (a teaser's or a video's text
+    is still the item's own). Rows are for retrieval only: a hit never carries their text."""
+    return serveable(doc) != "none" and doc.get("mineable") is not False
 
 
 def news_rows(corpus_root: Path) -> List[Dict[str, Any]]:
-    """One row per paragraph of every indexable news item (no embeddings yet)."""
+    """For every indexable news item, a row holding its title, then one row per body paragraph
+    (no embeddings yet). The title row is what finds an item whose body never repeats its title,
+    and the only row of an item stored without a body."""
     rows: List[Dict[str, Any]] = []
     for f in iter_news_metadata(corpus_root):
         if not indexable(dict(f.doc)):
             continue
         item_id = str(f.doc.get("item_id") or "")
-        for n, para in enumerate(_body_paragraphs(f.path)):
+        title = str(f.doc.get("title") or "").strip()
+        texts = ([("title", title)] if title else []) + [
+            (f"p{n}", para) for n, para in enumerate(_body_paragraphs(f.path))
+        ]
+        for suffix, text in texts:
             rows.append(
                 {
-                    "id": f"{item_id}#p{n}",
+                    "id": f"{item_id}#{suffix}",
                     "item_id": item_id,
-                    "text": para,
+                    "text": text,
                     "language": str(f.doc.get("language") or ""),
                     "published_at": str(f.doc.get("published_at") or ""),
                     "metadata_relative_path": f.relative_path,

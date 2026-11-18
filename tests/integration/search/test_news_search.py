@@ -22,7 +22,9 @@ from tests.integration.conftest import requires  # noqa: E402
 
 _FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus"
 _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-_INDEXED = {"risk-desks", "mercados", "wire-reliability"}
+#: Every item a surface may show, whatever its text_status (soil-report is a teaser, trail-video a
+#: video); never the withheld one.
+_INDEXED = {"risk-desks", "mercados", "wire-reliability", "soil-report", "trail-video"}
 
 
 @pytest.fixture(scope="module")
@@ -43,9 +45,12 @@ def _stem(row: dict) -> str:
     return Path(row["metadata_relative_path"]).name[: -len(".metadata.json")]
 
 
-def test_only_full_text_shown_items_are_chunked() -> None:
-    stems = {_stem(r) for r in news_rows(_FIXTURE / "v3")}
-    assert stems == _INDEXED
+def test_every_shown_item_is_indexed_with_a_title_row() -> None:
+    rows = news_rows(_FIXTURE / "v3")
+    assert {_stem(r) for r in rows} == _INDEXED
+    titles = {_stem(r): r["text"] for r in rows if r["id"].endswith("#title")}
+    assert set(titles) == _INDEXED
+    assert titles["risk-desks"] == "Risk desks learn to sit still"
 
 
 @requires("sentence_transformers")
