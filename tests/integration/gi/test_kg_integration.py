@@ -38,8 +38,9 @@ class TestKGArtifactIntegration:
         assert path.exists()
         read_back = read_artifact(path)
         validate_artifact(read_back, strict=False)
-        assert read_back["episode_id"] == episode_id
-        assert any(n.get("type") == "Episode" for n in read_back["nodes"])
+        # R3b: written as KG 3.0, the root names its item and the episode is a ContentItem.
+        assert read_back["item_id"] == episode_id
+        assert any(n.get("type") == "ContentItem" for n in read_back["nodes"])
         # A Person from detected_hosts, NOT a Topic. This asserted a Topic when the test could
         # conjure one with a ``topic_label`` kwarg; ADR-156 / #2164 removed that, so with no
         # extraction provider there are correctly zero Topic nodes. The round-trip is what is under
