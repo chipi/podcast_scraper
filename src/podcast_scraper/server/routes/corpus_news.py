@@ -20,6 +20,7 @@ from podcast_scraper.server.schemas import (
     NewsItemDetailResponse,
     NewsItemsResponse,
     NewsKgNode,
+    NewsSummaryResponse,
 )
 
 router = APIRouter(tags=["corpus"])
@@ -113,4 +114,21 @@ def corpus_news_item(
         item=NewsItem(**item),
         kg_relative_path=kg["kg_relative_path"],
         kg_nodes=[NewsKgNode(**n) for n in kg["kg_nodes"]],
+    )
+
+
+@router.get("/corpus/news/summary", response_model=NewsSummaryResponse)
+def corpus_news_summary(
+    request: Request,
+    path: Optional[str] = Query(default=None, description="Corpus root."),
+) -> NewsSummaryResponse:
+    """Counts over every shown news item: items, publishers, teasers (and videos), paywalled."""
+    root = _root(request, path)
+    items = cached_served_items(root)
+    return NewsSummaryResponse(
+        path=str(root),
+        items=len(items),
+        publishers=len({(i.get("publisher") or {}).get("id") for i in items} - {None}),
+        teasers=sum(1 for i in items if i.get("text_status") in ("teaser", "video")),
+        paywalled=sum(1 for i in items if i.get("paywalled") is True),
     )

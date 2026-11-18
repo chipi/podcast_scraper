@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DigestNewsBand from './DigestNewsBand.vue'
 import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { digestSections, topicBadges, topicGrouping } from '../../extensions'
 import { storeToRefs } from 'pinia'
@@ -1041,6 +1042,10 @@ onBeforeUnmount(() => {
       </div>
       </div>
       </div>
+      <DigestNewsBand
+        :since-ymd="sinceYmd"
+        @switch-main-tab="(t) => emit('switch-main-tab', t)"
+      />
       <p v-if="graphActionError" class="text-xs text-danger">
         {{ graphActionError }}
       </p>

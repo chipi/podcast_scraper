@@ -5225,6 +5225,16 @@ class NewsItemsResponse(BaseModel):
     total: int = 0
 
 
+class NewsSummaryResponse(BaseModel):
+    """Response for GET /api/corpus/news/summary: counts over every shown news item."""
+
+    path: str
+    items: int = 0
+    publishers: int = 0
+    teasers: int = 0
+    paywalled: int = 0
+
+
 class NewsKgNode(BaseModel):
     """A topic, person, organisation or object the item's KG names; ``role`` is ``author`` for a
     byline person."""

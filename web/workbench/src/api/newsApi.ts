@@ -51,3 +51,17 @@ export async function fetchNewsItems(
   if (opts.offset != null) qs.set('offset', String(opts.offset))
   return getJson<NewsItemsPage>(`/api/corpus/news/items?${qs.toString()}`)
 }
+
+/** Counts over every shown news item (``GET /api/corpus/news/summary``). */
+export interface NewsSummary {
+  path: string
+  items: number
+  publishers: number
+  teasers: number
+  paywalled: number
+}
+
+export async function fetchNewsSummary(corpusPath: string): Promise<NewsSummary> {
+  const qs = new URLSearchParams({ path: corpusPath })
+  return getJson<NewsSummary>(`/api/corpus/news/summary?${qs.toString()}`)
+}

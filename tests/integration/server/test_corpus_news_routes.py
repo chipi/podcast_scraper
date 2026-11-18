@@ -114,3 +114,10 @@ def test_since_keeps_items_published_on_or_after_the_day(client: TestClient) -> 
     assert body["items"] and all(i["published_at"][:10] >= "2026-11-17" for i in body["items"])
     everything = client.get("/api/corpus/news/items").json()["total"]
     assert body["total"] < everything
+
+
+def test_summary_counts_the_shown_items(client: TestClient) -> None:
+    body = client.get("/api/corpus/news/summary").json()
+    # Six fixture items, the withheld one never counted; Daily Example and Other Wire publish them.
+    assert body["items"] == 5 and body["publishers"] == 2
+    assert body["teasers"] == 2 and body["paywalled"] == 1

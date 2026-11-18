@@ -11,6 +11,7 @@ import { useShellStore } from '../../stores/shell'
 import { lastYmdOfMonth } from '../../utils/dashboardTime'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import ArtifactActivityChart from './ArtifactActivityChart.vue'
+import DashboardNewsCounts from './DashboardNewsCounts.vue'
 import BriefingCard from './BriefingCard.vue'
 import CoverageByMonthChart from './CoverageByMonthChart.vue'
 import FeedCoverageTable from './FeedCoverageTable.vue'
@@ -299,6 +300,7 @@ function openLibraryFailures(): void {
       @open-index-controls="indexStats.requestOpenIndexDialog()"
       @open-library="emit('open-library')"
     />
+    <DashboardNewsCounts />
 
     <nav
       class="flex flex-wrap gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
