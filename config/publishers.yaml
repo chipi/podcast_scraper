@@ -12,103 +12,124 @@
 # Entries are added with their sources: news by ingestion, podcasts by R3b's KG half.
 # News publishers: RFC-134 §12's first set (2026-11-11); domains answered HTTPS 2026-11-18.
 # Hacker News has no entry: it links to other publishers' pages, found by their domain.
-# sources stay empty until ingestion names each news source's Source id; the podcast
-# Source ids (BBC, Meduza and others) come from R3b's KG half.
+# News Source ids from ingestion's config/news.feeds.yaml (2026-11-18): source:{url_identity(feed
+# url)}. Hacker News has no publisher. Podcast Source ids (BBC, Meduza and others) come from
+# R3b's KG half.
 publishers:
 - id: org:ars-technica
   name: Ars Technica
   domains:
   - arstechnica.com
-  sources: []
+  sources:
+  - source:7170fc473d11956d2f13
 - id: org:the-verge
   name: The Verge
   domains:
   - theverge.com
-  sources: []
+  sources:
+  - source:8c3d9d5d77bb3a8307bb
 - id: org:mit-technology-review
   name: MIT Technology Review
   domains:
   - technologyreview.com
-  sources: []
+  sources:
+  - source:795a5369f7cef7f208f8
 - id: org:import-ai
   name: Import AI
   domains:
   - importai.substack.com
   - jack-clark.net
-  sources: []
+  sources:
+  - source:0f90c142536df2544caf
 - id: org:simon-willison
   name: Simon Willison
   domains:
   - simonwillison.net
-  sources: []
+  sources:
+  - source:7aae8f2de4f5bbb6df8d
 - id: org:bank-for-international-settlements
   name: Bank for International Settlements
   domains:
   - bis.org
-  sources: []
+  sources:
+  - source:140216a5b6554dde3d4e
 - id: org:federal-reserve
   name: Federal Reserve
   domains:
   - federalreserve.gov
-  sources: []
+  sources:
+  - source:97656cefc7b0673b2ad5
 - id: org:bbc
   name: BBC
   domains:
   - bbc.co.uk
   - bbc.com
-  sources: []
+  sources:
+  - source:94537534d0ee5d247dde
+  - source:1796df62c4a287ccaef6
 - id: org:al-jazeera
   name: Al Jazeera
   domains:
   - aljazeera.com
-  sources: []
+  sources:
+  - source:fa080031bb9f0725b354
 - id: org:meduza
   name: Meduza
   domains:
   - meduza.io
-  sources: []
+  sources:
+  - source:91cba085b21b72ec6d05
 - id: org:the-diplomat
   name: The Diplomat
   domains:
   - thediplomat.com
-  sources: []
+  sources:
+  - source:5d6759a8aa07a056bc96
 - id: org:south-china-morning-post
   name: South China Morning Post
   domains:
   - scmp.com
-  sources: []
+  sources:
+  - source:086cf7ee8196a5b52f17
 - id: org:rest-of-world
   name: Rest of World
   domains:
   - restofworld.org
-  sources: []
+  sources:
+  - source:14333881097406c7c46f
 - id: org:techcabal
   name: TechCabal
   domains:
   - techcabal.com
-  sources: []
+  sources:
+  - source:2360e62852151e6e3104
 - id: org:stat
   name: STAT
   domains:
   - statnews.com
-  sources: []
+  sources:
+  - source:16bca3c1a6d06a99f1f7
 - id: org:quanta-magazine
   name: Quanta Magazine
   domains:
   - quantamagazine.org
-  sources: []
+  sources:
+  - source:2c152edcbf5a6dc45984
 - id: org:nature
   name: Nature
   domains:
   - nature.com
-  sources: []
+  sources:
+  - source:d592eddffea98806b157
 - id: org:the-conversation
   name: The Conversation
   domains:
   - theconversation.com
-  sources: []
+  sources:
+  - source:416290f643d7574e2fa0
 - id: org:the-guardian
   name: The Guardian
   domains:
   - theguardian.com
-  sources: []
+  sources:
+  - source:6e5787f5d9019b5f05f5
