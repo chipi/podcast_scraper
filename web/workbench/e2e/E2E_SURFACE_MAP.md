@@ -696,6 +696,7 @@ the fixture-bootstrapped API; "mocked" = `page.route`, with the reason recorded 
 | `search-operator-bar-edges.spec.ts` | `operator-chip-graph` "On graph (no ids)". | mocked |
 | `show-rail.spec.ts` | UXS-015 `show-rail-topic` / `show-rail-person` → rail with `subject-rail-back` to `show-rail-panel`; `show-rail-open-graph` (first Graph visit, and show A then show B); `show-rail-load-more`; `shows-grid-empty`. | live + mocked |
 | `shell-chrome-persistence.spec.ts` | `left-panel-collapse-toggle` / `right-rail-edge-toggle` collapse survives reload; Shift+Enter in `#search-q`; `graph-bottom-bar` toggle, **Alt+B**, persistence; gesture overlay **Escape**. | live + offline fixture |
+| `news-search.spec.ts` | UXS-019 news in search: `search-chip-type` (absent without news; `Type: News ▾` / `Type: Podcasts and news ▾`, re-runs the query); `search-result-news` rows (`-meta`, `-title`, `-summary`, `-open`) interleaved with podcast rows; `search-result-news-title` opens `article-detail-rail` (`article-title`, `article-publisher`, `article-kg-chip`); a teaser is never searchable; the withheld item and every `NEWS-BODY-MARKER` absent from the page. | live |
 
 Also extended: `shows-library.spec.ts` (Library mode persists across reload),
 the Quote transcript spec (now a downstream build's: `transcript-viewer-open-raw` opens the quote's transcript),
