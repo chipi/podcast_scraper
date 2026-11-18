@@ -88,15 +88,18 @@ test.describe('News in search (UXS-019, live)', () => {
     await expect(page.locator('body')).not.toContainText('NEWS-BODY-MARKER')
   })
 
-  test('a teaser is never chunked, so news search cannot find it', async ({ page }) => {
+  test('a teaser is found by its title, never by a chunk of its body', async ({ page }) => {
+    // The soil report is a teaser: news-item-1.0 forbids chunking its body as if whole, so the
+    // index holds its title only (tests/integration/search/test_news_search.py pins which items
+    // have body rows). Its title still finds it.
     await openSearch(page)
     await chooseType(page, 'news')
-    await submit(page, 'soil erosion report')
+    await submit(page, 'Soil report finds erosion slowing')
     const row = page
       .getByTestId('search-result-news')
       .filter({ hasText: 'Soil report finds erosion slowing' })
-    // The soil report is a teaser, so it is never chunked into the index: search cannot find it.
-    await expect(page.getByTestId('search-result-news').first()).toBeVisible({ timeout: 30_000 })
-    await expect(row).toHaveCount(0)
+    await expect(row).toBeVisible({ timeout: 30_000 })
+    await expect(row.getByTestId('search-result-news-summary')).toHaveCount(0)
+    await expect(page.locator('body')).not.toContainText('NEWS-BODY-MARKER')
   })
 })
