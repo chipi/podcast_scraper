@@ -114,6 +114,9 @@ class NewsSourceSpec(BaseModel):
     #: Translate this source's articles not in English. Off by choice in News 1.0: such an
     #: article is written as it is, and no translation, summary or KG runs over it.
     translate: bool = False
+    #: The environment variable that holds this source's API key, for a keyed API transport
+    #: (the Guardian; others later). Unset: the transport's own default variable.
+    api_key_env: Optional[str] = None
 
     @field_validator(
         "include_url_pattern",
@@ -129,6 +132,13 @@ class NewsSourceSpec(BaseModel):
                 re.compile(v)
             except re.error as exc:
                 raise ValueError(f"not a regular expression: {v!r} ({exc})") from exc
+        return v
+
+    @field_validator("api_key_env", mode="after")
+    @classmethod
+    def _env_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not re.fullmatch(r"[A-Z][A-Z0-9_]*", v):
+            raise ValueError(f"not an environment variable name: {v!r} ([A-Z][A-Z0-9_]*)")
         return v
 
 

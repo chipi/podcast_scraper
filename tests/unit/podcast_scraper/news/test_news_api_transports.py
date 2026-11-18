@@ -114,6 +114,41 @@ def test_without_a_key_the_guardian_lists_nothing(
     assert guardian.KEY_ENV in caplog.text
 
 
+class _KeyedSource(_Source):
+    news = NewsSourceSpec(max_items=2, api_key_env="OTHER_NEWS_API_KEY")
+
+
+def test_a_sources_api_key_env_names_the_variable_its_key_is_read_from(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``api_key_env`` on the source (the operator, 2026-11-18: ready for other keyed APIs): the
+    key is read from that variable, not the transport's default."""
+    monkeypatch.delenv(guardian.KEY_ENV, raising=False)
+    monkeypatch.setenv("OTHER_NEWS_API_KEY", "FAKEOTHERKEY")
+    seen: List[str] = []
+    _serve(monkeypatch, RESULTS, seen)
+    items, _cursor = guardian.list_items(_KeyedSource("https://guardian.test/search"), None)
+    assert [i.metadata["title"] for i in items] == ["A"]
+    assert "api-key=FAKEOTHERKEY" in seen[0]
+
+
+def test_an_unset_named_key_variable_lists_nothing_and_says_which(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv(guardian.KEY_ENV, "FAKEKEYFAKEKEY")  # the default is not a fallback here
+    monkeypatch.delenv("OTHER_NEWS_API_KEY", raising=False)
+    monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: pytest.fail("fetched anyway"))
+    with caplog.at_level(logging.WARNING):
+        assert guardian.list_items(_KeyedSource("https://guardian.test/search"), "c") == ([], "c")
+    assert "OTHER_NEWS_API_KEY is not set" in caplog.text
+
+
+@pytest.mark.parametrize("name", ["guardian_api_key", "1KEY", "KEY-NAME", ""])
+def test_api_key_env_must_be_an_environment_variable_name(name: str) -> None:
+    with pytest.raises(ValueError, match="environment variable name"):
+        NewsSourceSpec(api_key_env=name)
+
+
 def test_the_guardians_items_carry_their_text_and_record(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -2,9 +2,10 @@
 
 The API gives each article's body, byline and language, so its items arrive with their text and
 no page is fetched; the JSON record is kept as the raw cache (``.raw.json``). The key is read from
-``GUARDIAN_API_KEY`` and never written to a log (the shared downloader redacts ``api-key`` in
-every URL it logs). Without a key the source lists nothing, and says why. The cursor is the
-newest ``webPublicationDate`` listed.
+the variable the source's ``api_key_env`` names, else ``GUARDIAN_API_KEY``, and never written to a
+log (the shared downloader redacts ``api-key`` in every URL it logs). Without a key the source
+lists nothing, and says which variable is unset. The cursor is the newest ``webPublicationDate``
+listed.
 """
 
 from __future__ import annotations
@@ -72,9 +73,10 @@ def _item(result: Dict[str, Any], source: Any) -> Optional[SourceItem]:
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
     """The newest articles published after ``cursor``, at most the source's ``max_items``."""
-    key = os.environ.get(KEY_ENV, "").strip()
+    key_env = source_spec(source).api_key_env or KEY_ENV
+    key = os.environ.get(key_env, "").strip()
     if not key:
-        logger.warning("news guardian: %s is not set; the source lists nothing", KEY_ENV)
+        logger.warning("news guardian: %s is not set; the source lists nothing", key_env)
         return [], cursor
     spec = source_spec(source)
     include = re.compile(spec.include_url_pattern) if spec.include_url_pattern else None
