@@ -15,6 +15,8 @@ export interface NewsItem {
   url?: string | null
   source_id?: string | null
   publisher?: { id: string; name: string; domain: string } | null
+  /** The URL's host without www.: the origin to name when there is no publisher. */
+  site?: string | null
   published_at?: string | null
   language?: string | null
   byline: string[]

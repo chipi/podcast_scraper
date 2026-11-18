@@ -62,6 +62,15 @@ describe('ArticleRailPanel (UXS-019)', () => {
     expect(subject.graphNodeCyId).toBe('person:ana-example')
   })
 
+  it('names the site when there is no publisher', async () => {
+    vi.mocked(fetchNewsItem).mockResolvedValue(detail({ publisher: null, site: 'nicolasbouliane.com' }))
+    useSubjectStore().focusArticle('item:news_article:abc')
+    const w = mount(ArticleRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="article-publisher"]').exists()).toBe(false)
+    expect(w.get('[data-testid="article-site"]').text()).toBe('nicolasbouliane.com')
+  })
+
   it('shows title and link only for a metadata-only item', async () => {
     vi.mocked(fetchNewsItem).mockResolvedValue(detail({ serveable: 'metadata', summary: null }))
     useSubjectStore().focusArticle('item:news_article:abc')

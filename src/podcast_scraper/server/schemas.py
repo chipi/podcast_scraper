@@ -5226,6 +5226,13 @@ class NewsItem(BaseModel):
     url: Optional[str] = None
     source_id: Optional[str] = None
     publisher: Optional[NewsPublisher] = None
+    site: Optional[str] = Field(
+        default=None,
+        description=(
+            "The article URL's host without www.: the origin to show when publisher is null "
+            "(a link to a site the publisher registry does not hold)."
+        ),
+    )
     published_at: Optional[str] = None
     language: Optional[str] = None
     byline: List[str] = Field(default_factory=list)

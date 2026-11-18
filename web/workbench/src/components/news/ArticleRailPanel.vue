@@ -86,6 +86,9 @@ function openNode(n: NewsKgNode): void {
         >{{ item.publisher.name }}</button>
         <span v-if="item.publisher.domain" class="text-muted">· {{ item.publisher.domain }}</span>
       </p>
+      <p v-else-if="item.site" class="mt-1 text-[11px] text-surface-foreground" data-testid="article-site">
+        {{ item.site }}
+      </p>
       <p v-if="authors.length" class="mt-0.5 text-[11px] text-muted" data-testid="article-byline">
         By
         <template v-for="(a, i) in authors" :key="a.name">

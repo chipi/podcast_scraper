@@ -23,7 +23,7 @@ const EDITORIAL_BADGES: Record<string, string> = {
 const when = computed(() => formatRelativeShort(props.item.published_at, Date.now()))
 const byline = computed(() => (props.item.byline?.length ? `By ${props.item.byline.join(', ')}` : ''))
 const meta = computed(() =>
-  [props.item.publisher?.name, byline.value, when.value].filter((s) => !!s).join(' · '),
+  [props.item.publisher?.name ?? props.item.site, byline.value, when.value].filter((s) => !!s).join(' · '),
 )
 const editorial = computed(() => EDITORIAL_BADGES[props.item.editorial_type ?? ''] ?? '')
 const showLanguage = computed(() => {

@@ -115,6 +115,14 @@ def _publisher(doc: Mapping[str, Any], registry: Registry) -> Optional[Dict[str,
     return pub.served(host) if pub else None
 
 
+def _site(doc: Mapping[str, Any]) -> Optional[str]:
+    """The article URL's host without a leading ``www.``: what a surface names as the item's origin
+    when no publisher is known (an aggregator's link to an unregistered site)."""
+    host = (urlsplit(str(doc.get(F_URL) or "")).hostname or "").lower()
+    host = host[4:] if host.startswith("www.") else host
+    return host or None
+
+
 def served_item(
     doc: Mapping[str, Any], registry: Registry, *, metadata_relative_path: str = ""
 ) -> Optional[Dict[str, Any]]:
@@ -136,6 +144,7 @@ def served_item(
         "url": _str(doc.get(F_URL)),
         "source_id": _str(doc.get(F_SOURCE_ID)),
         "publisher": _publisher(doc, registry),
+        "site": _site(doc),
         "published_at": _str(doc.get(F_PUBLISHED_AT)),
         "language": _str(doc.get(F_LANGUAGE)),
         "byline": (

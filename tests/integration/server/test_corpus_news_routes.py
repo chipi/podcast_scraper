@@ -228,3 +228,14 @@ def test_the_graph_expand_loads_the_articles_it_is_given(client: TestClient) -> 
         got = client.get("/api/artifacts/" + rel, params={"path": res["path"]})
         assert got.status_code == 200, rel
         assert any(n.get("type") == "ContentItem" for n in got.json()["nodes"])
+
+
+def test_an_item_without_a_publisher_names_its_site(client: TestClient) -> None:
+    """An aggregator's link to an unregistered site has no publisher; the item names the URL's
+    host (without www.) as its origin, so a surface never falls back to a source id."""
+    items = {i["title"]: i for i in client.get("/api/corpus/news/items").json()["items"]}
+    unknown = [i for i in items.values() if i["publisher"] is None]
+    assert unknown, "the fixture's trail-video item links to an unknown domain"
+    for i in unknown:
+        assert i["site"] and not i["site"].startswith("www.") and i["site"] in i["url"]
+    assert all(i["site"] for i in items.values())

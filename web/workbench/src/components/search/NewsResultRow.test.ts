@@ -37,6 +37,17 @@ describe('NewsResultRow (UXS-019)', () => {
     expect(w.get('[data-testid="search-result-news-editorial"]').text()).toBe('Analysis')
   })
 
+  it('names the site when there is no publisher, never a source id', () => {
+    const w = mount(NewsResultRow, {
+      props: {
+        item: item({ publisher: null, site: 'nicolasbouliane.com', source_id: 'source:a8c3140f4b866cb9bc76' }),
+      },
+    })
+    const meta = w.get('[data-testid="search-result-news-meta"]').text()
+    expect(meta).toContain('nicolasbouliane.com')
+    expect(meta).not.toContain('source:')
+  })
+
   it('shows no summary when its rights are metadata only', () => {
     const w = mount(NewsResultRow, { props: { item: item({ serveable: 'metadata' }) } })
     expect(w.find('[data-testid="search-result-news-summary"]').exists()).toBe(false)

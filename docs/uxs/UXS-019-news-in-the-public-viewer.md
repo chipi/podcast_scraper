@@ -111,6 +111,7 @@ for more:
 | `title` | the row and card title |
 | `url` (the normalised canonical URL) | the "Open article" link out |
 | publisher `{id, name, domain}` | the publisher name, with its domain on the card. From the registry: the item's `publisher_id`, else its source's publisher, else the one whose domain the URL's host matches; none of them, no publisher |
+| site | the URL's host without `www.`, shown where the publisher name would be when there is no publisher (a link to an unregistered site, such as an aggregator's); never the source id |
 | `published_at` | relative on rows ("3 h ago"), absolute on the card |
 | `language` | a language badge when it is not English, as on podcast items |
 | `paywalled` (`true`, `false`, `null`) | a "Paywalled" note beside the link out when `true` |

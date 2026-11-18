@@ -47,7 +47,7 @@ watch(
 )
 
 function meta(item: NewsItem): string {
-  return [item.publisher?.name, formatRelativeShort(item.published_at, Date.now())]
+  return [item.publisher?.name ?? item.site, formatRelativeShort(item.published_at, Date.now())]
     .filter((s) => !!s)
     .join(' · ')
 }
