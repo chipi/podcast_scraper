@@ -141,6 +141,8 @@ const nodeType = computed(() => {
 const isQuoteNode = computed(() => nodeType.value.trim().toLowerCase() === "quote")
 
 const isTopicNode = computed(() => nodeType.value.trim().toLowerCase() === "topic")
+/** A theme (`tc:`) or storyline (`thc:`) compound: its rail lists the members' articles (UXS-019). */
+const isGroupingNode = computed(() => /^(?:tc|thc):/.test(stripLayerPrefixesForCil(props.nodeId ?? "")))
 
 /** This node as extensions see it (extension point `nodeDetailExtensions`). */
 const extensionContext = computed<NodeDetailContext>(() => ({
@@ -1087,7 +1089,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           />
           <!-- UXS-019: the news items whose KG names this node (only when the corpus holds news). -->
           <NodeNewsSection
-            v-if="(isTopicNode || isPersonEntityRailNode) && nodeId"
+            v-if="(isTopicNode || isPersonEntityRailNode || isGroupingNode) && nodeId"
             :node-id="nodeId"
           />
 

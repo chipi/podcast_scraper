@@ -67,6 +67,39 @@ def news_items_naming(root: Path, node_id: str) -> List[Dict[str, Any]]:
     return [i for i in cached_served_items(root) if i["item_id"] in wanted]
 
 
+#: Where each grouping keeps its members' ``news_item_ids`` (Common's piece A): themes (``tc:``)
+#: in the search directory's topic clusters, storylines (``thc:``) in the theme-clusters
+#: enrichment, under ``data``.
+_THEMES_FILE = "search/topic_clusters.json"
+_STORYLINES_FILE = "enrichments/topic_theme_clusters.json"
+
+
+def _cluster_item_ids(root: Path, cluster_id: str) -> List[str]:
+    from podcast_scraper.server.corpus_access import cached_json_artifact
+
+    relpath = _STORYLINES_FILE if cluster_id.startswith("thc:") else _THEMES_FILE
+    doc = cached_json_artifact(root, relpath) or {}
+    data = doc.get("data")
+    holder: Dict[str, Any] = data if isinstance(data, dict) else doc
+    ids: Dict[str, None] = {}
+    for cluster in holder.get("clusters") or []:
+        if not isinstance(cluster, dict) or cluster.get("graph_compound_parent_id") != cluster_id:
+            continue
+        for member in cluster.get("members") or []:
+            if isinstance(member, dict):
+                for item_id in member.get("news_item_ids") or []:
+                    if isinstance(item_id, str) and item_id:
+                        ids[item_id] = None
+    return list(ids)
+
+
+def news_items_in_cluster(root: Path, cluster_id: str) -> List[Dict[str, Any]]:
+    """The shown news items of a theme (``tc:``) or storyline (``thc:``): the union of its
+    members' ``news_item_ids``, newest first. A ``serveable: none`` item is never among them."""
+    wanted = set(_cluster_item_ids(root, cluster_id))
+    return [i for i in cached_served_items(root) if i["item_id"] in wanted]
+
+
 def corpus_has_news(root: Path) -> bool:
     """Whether the corpus holds a news item some surface may show."""
     return bool(cached_served_items(root))

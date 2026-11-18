@@ -312,9 +312,17 @@ def corpus_node_episodes(
         )
     news: list[NewsItem] = []
     if "news_article" in (body.content_types or []):
-        from podcast_scraper.server.routes.corpus_news import news_items_naming
+        from podcast_scraper.server.routes.corpus_news import (
+            news_items_in_cluster,
+            news_items_naming,
+        )
 
-        news = [NewsItem(**i) for i in news_items_naming(root, canon)]
+        # A theme or storyline lists its members' articles (Common's grouping files); any other
+        # node, the items whose KG names it.
+        bare = re.sub(r"^(?:g:|k:|kg:)+", "", body.node_id.strip())
+        cluster = next((p for p in ("tc:", "thc:") if bare.startswith(p)), None)
+        found = news_items_in_cluster(root, bare) if cluster else news_items_naming(root, canon)
+        news = [NewsItem(**i) for i in found]
     return CorpusNodeEpisodesResponse(
         path=root_s,
         node_id=canon,
