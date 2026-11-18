@@ -1,5 +1,5 @@
 """m0051: every served KG file rewritten from KG 2.x to KG 3.0 (R3b's KG half, record
-r3b_kg_3_0.md). Paths: a served file rewritten and valid; a superseded run untouched; a KG 3.0 file
+0051_kg_3_0.md). Paths: a served file rewritten and valid; a superseded run untouched; a KG 3.0 file
 left as it is; a file that would not validate refused; PUBLISHED_BY from the registry; and the
 standing checks (dry run, verify, second apply, undo byte-identical, an older migration's undo
 refused on a rewritten file, registration).
