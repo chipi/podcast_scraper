@@ -111,7 +111,10 @@ def test_without_a_key_the_guardian_lists_nothing(
     monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: pytest.fail("fetched anyway"))
     with caplog.at_level(logging.WARNING):
         assert guardian.list_items(_Source("https://guardian.test/search"), "c") == ([], "c")
-    assert guardian.KEY_ENV in caplog.text
+    # The variable is named in the config and the guide, never in the log: CodeQL reads a key's
+    # variable name as a secret (2026-11-18, the operator chose no name in the log).
+    assert "API key variable is not set" in caplog.text and "guardian.test/search" in caplog.text
+    assert guardian.KEY_ENV not in caplog.text
 
 
 class _KeyedSource(_Source):
@@ -140,7 +143,8 @@ def test_an_unset_named_key_variable_lists_nothing_and_says_which(
     monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: pytest.fail("fetched anyway"))
     with caplog.at_level(logging.WARNING):
         assert guardian.list_items(_KeyedSource("https://guardian.test/search"), "c") == ([], "c")
-    assert "OTHER_NEWS_API_KEY is not set" in caplog.text
+    assert "API key variable is not set" in caplog.text
+    assert "OTHER_NEWS_API_KEY" not in caplog.text
 
 
 @pytest.mark.parametrize("name", ["guardian_api_key", "1KEY", "KEY-NAME", ""])

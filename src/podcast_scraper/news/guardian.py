@@ -4,8 +4,8 @@ The API gives each article's body, byline and language, so its items arrive with
 no page is fetched; the JSON record is kept as the raw cache (``.raw.json``). The key is read from
 the variable the source's ``api_key_env`` names, else ``GUARDIAN_API_KEY``, and never written to a
 log (the shared downloader redacts ``api-key`` in every URL it logs). Without a key the source
-lists nothing, and says which variable is unset. The cursor is the newest ``webPublicationDate``
-listed.
+lists nothing, and says so (naming the source, not the variable). The cursor is the newest
+``webPublicationDate`` listed.
 """
 
 from __future__ import annotations
@@ -76,7 +76,11 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     key_env = source_spec(source).api_key_env or KEY_ENV
     key = os.environ.get(key_env, "").strip()
     if not key:
-        logger.warning("news guardian: %s is not set; the source lists nothing", key_env)
+        # The variable is not named here: the config and docs/guides/NEWS_API_KEYS.md name it.
+        logger.warning(
+            "news guardian: %s: the API key variable is not set; the source lists nothing",
+            getattr(source, "url", ""),
+        )
         return [], cursor
     spec = source_spec(source)
     include = re.compile(spec.include_url_pattern) if spec.include_url_pattern else None
