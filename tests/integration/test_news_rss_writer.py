@@ -23,7 +23,7 @@ from podcast_scraper.news import document, fetch
 from podcast_scraper.publishers import Publisher, Registry
 from podcast_scraper.rss import downloader
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 _SPEC = importlib.util.spec_from_file_location(
     "build_news_fixtures",
