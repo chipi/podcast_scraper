@@ -259,14 +259,37 @@ def test_a_teaser_or_video_item_gets_a_kg_but_no_summary(status: str) -> None:
     """Contract (news-item-1.0 ``text_status``): a teaser or video body is never enriched as if
     whole. A summary of one to three sentences repeats them or is filled in by the model; the
     entities and topics in them are still worth a KG (operator, 2026-11-18)."""
-    item = _item("https://n.test/a", text_status=status)
+    item = _item("https://n.test/a", text_status=status, language="en")
     assert not ct.runs_for_item(item, ct.SUMMARY)
     assert ct.runs_for_item(item, ct.KG)
     assert ct.runs_for_item(item, ct.TRANSLATION)
 
 
 def test_a_full_item_gets_its_summary_and_kg() -> None:
-    item = _item("https://n.test/a", text_status=extract.TEXT_FULL)
+    item = _item("https://n.test/a", text_status=extract.TEXT_FULL, language="en")
+    assert ct.runs_for_item(item, ct.SUMMARY) and ct.runs_for_item(item, ct.KG)
+
+
+@pytest.mark.parametrize("language", ["fr", "de", "fr-CA", None])
+def test_an_item_not_in_english_is_written_but_not_translated_or_enriched(
+    language: Optional[str],
+) -> None:
+    """News 1.0 does not translate (operator, 2026-11-18). An article in another language, or in
+    one nobody could tell, is written as it is; no stage runs English prompts over it."""
+    item = _item("https://n.test/a", text_status=extract.TEXT_FULL, language=language)
+    for stage in (ct.TRANSLATION, ct.SUMMARY, ct.KG):
+        assert not ct.runs_for_item(item, stage)
+        assert ct.stage_skip_reason(item, stage) == "translation_off"
+
+
+def test_the_sources_translate_switch_hands_the_item_to_translation() -> None:
+    item = _item("https://n.test/a", text_status=extract.TEXT_FULL, language="fr", translate=True)
+    assert all(ct.runs_for_item(item, s) for s in (ct.TRANSLATION, ct.SUMMARY, ct.KG))
+
+
+@pytest.mark.parametrize("language", ["en", "en-GB", "EN"])
+def test_an_english_item_is_enriched(language: str) -> None:
+    item = _item("https://n.test/a", text_status=extract.TEXT_FULL, language=language)
     assert ct.runs_for_item(item, ct.SUMMARY) and ct.runs_for_item(item, ct.KG)
 
 

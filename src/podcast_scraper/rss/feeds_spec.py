@@ -107,6 +107,9 @@ class NewsSourceSpec(BaseModel):
     #: The publisher is one person (a personal site): a byline naming the publisher is that
     #: person, kept, not the organisation writing as itself.
     personal: bool = False
+    #: Translate this source's articles not in English. Off by choice in News 1.0: such an
+    #: article is written as it is, and no translation, summary or KG runs over it.
+    translate: bool = False
 
     @field_validator(
         "include_url_pattern", "exclude_url_pattern", "live_blog_url_pattern", mode="after"

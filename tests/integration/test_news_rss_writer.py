@@ -210,7 +210,9 @@ def test_each_item_is_written_as_the_contract_has_it(
     for item in fixtures.ITEMS:
         meta_path, doc = docs[item["stem"]]
         assert meta_path.relative_to(corpus).parts[:2] == ("sources", NEWS)
-        assert list(doc) == CONTRACT_FIELDS, item["stem"]
+        # An item not in English is not translated in News 1.0, so it is not served (D-44).
+        marker = [] if item["lang"] == "en" else ["unusable", "unusable_reason"]
+        assert list(doc) == CONTRACT_FIELDS + marker, item["stem"]
         assert doc["content_type"] == NEWS
         assert doc["item_id"] == ct.item_id(ctype, ct.SourceItem(item_id="x", url=item["url"]))
         assert doc["item_id"] == f"item:{NEWS}:{ct.url_identity(item['url'])}"
@@ -395,6 +397,59 @@ def test_a_source_that_may_not_be_mined_gets_no_kg(
 
     run(tmp_path / "open", True)
     assert list((tmp_path / "open").rglob("*.kg.json"))
+
+
+def test_translation_is_off_by_default_and_the_switch_hands_the_item_its_language(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """News 1.0 does not translate (operator, 2026-11-18). Off (the default): an article not in
+    English is written, its translation, summary and KG are recorded as skipped
+    (``translation_off``), and it is not served (D-44), so no English prompt runs over its text.
+    The source's ``translate`` switch on: the translation stage gets the item, in its own
+    language (here no translator is deployed, which the stage records)."""
+    from podcast_scraper import cli
+    from podcast_scraper.languages import episode_is_unusable
+
+    def run(corpus: Path, switch: Optional[bool]) -> Dict[str, Dict[str, Any]]:
+        spec = tmp_path / f"spec-{switch}.yaml"
+        news = "" if switch is None else f"    news: {{translate: {str(switch).lower()}}}\n"
+        spec.write_text(
+            f"feeds:\n  - url: {fixtures.FEED_URL}\n    content_type: {NEWS}\n{news}", "utf-8"
+        )
+        argv = ["--feeds-spec", str(spec), "--output-dir", str(corpus), "--no-transcript-cache"]
+        argv += ["--generate-kg", "--kg-extraction-source", "metadata_only"]
+        fetch.reset_robots_cache()
+        assert cli.main(argv, run_pipeline_fn=lambda cfg: (0, "")) == 0
+        out = {}
+        for meta in sorted(corpus.rglob("*.metadata.json")):
+            doc = json.loads(meta.read_text(encoding="utf-8"))
+            stem = meta.name[: -len(".metadata.json")]
+            manifest = meta.parent.parent / "transcripts" / f"{stem}.manifest.json"
+            out[doc["language"]] = {
+                "doc": doc,
+                "kg": meta.with_name(f"{stem}.kg.json").exists(),
+                "stages": json.loads(manifest.read_text(encoding="utf-8")).get("stages", {}),
+            }
+        return out
+
+    langs = {item["lang"] for item in fixtures.ITEMS}
+    assert "en" in langs and len(langs) > 1, "the fixtures carry a non-English article"
+    other = next(lang for lang in langs if lang != "en")
+
+    off = run(tmp_path / "off", None)
+    assert off["en"]["kg"] and not episode_is_unusable(off["en"]["doc"])
+    assert not off[other]["kg"]
+    for stage in ("translation", "summary", "kg"):
+        block = off[other]["stages"][stage]
+        assert block["ran"] is False
+        assert block["metrics"]["skipped_reason"] == "translation_off"
+    assert episode_is_unusable(off[other]["doc"])
+
+    on = run(tmp_path / "on", True)
+    translation = on[other]["stages"]["translation"]["metrics"]
+    assert translation["source_language"] == other
+    assert translation["reason"] == "translator_not_configured"
+    assert on["en"]["kg"]
 
 
 def _risk_desks_again() -> str:

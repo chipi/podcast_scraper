@@ -199,6 +199,7 @@ def complete(
         "editorial_type": spec.editorial_type,
         "byline_raw": byline_raw,
         "personal_publisher": spec.personal,
+        "translate": spec.translate,
     }
     if spec.live_blog_url_pattern and re.search(spec.live_blog_url_pattern, url):
         fields["live_blog"] = True

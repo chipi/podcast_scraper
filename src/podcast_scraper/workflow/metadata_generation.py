@@ -35,7 +35,7 @@ from pydantic import (
 )
 
 from .. import config, config_constants, models
-from ..languages import resolve_episode_language, SOURCE_DETECTED
+from ..languages import primary_language, resolve_episode_language, SOURCE_DETECTED
 from ..rss.licence import episode_licence, LicenceRecord
 from .translation_stage import analysis_blocked_reason, run_translation_stage
 
@@ -4350,6 +4350,54 @@ def _record_analysis_skipped(
     _mark_episode_unusable(output_dir, transcript_relpath, reason)
 
 
+def _record_type_skips(
+    cfg: config.Config,
+    output_dir: str,
+    transcript_relpath: Optional[str],
+    item: Any,
+    episode_id: Optional[str],
+) -> Optional[str]:
+    """Record each stage the item's type skips for it (``stage_skip_reason``) as ``ran: false``
+    with that reason, so a skip reads as a skip, not as a stage that never existed (D-39).
+    Returns why the item must not be served, or ``None``."""
+    from .. import content_types
+
+    if not transcript_relpath or not item.item_id:
+        return None
+    from . import processing_manifest as pm
+
+    for stage in (content_types.TRANSLATION, content_types.SUMMARY, content_types.KG):
+        reason = content_types.stage_skip_reason(item, stage)
+        if reason is None or not item.content_type.stage_profile.runs(stage):
+            continue
+        try:
+            pm.update_stage(
+                output_dir,
+                transcript_relpath,
+                stage,
+                pm.stage_block(
+                    ran=False,
+                    method_version=pm.METHOD_VERSIONS.get(stage),
+                    cost_usd=0.0,
+                    metrics={"skipped_reason": reason},
+                ),
+                episode_id=episode_id,
+                feed_id=getattr(cfg, "rss_url", None),
+                run_id=_resolved_run_id(cfg),
+            )
+        except Exception:  # noqa: BLE001 — the manifest never fails the item
+            logger.debug("could not record %s as skipped", stage, exc_info=True)
+
+    # D-44, as for an untranslated episode: an item not in English that is not translated has its
+    # source-language body at the canonical path, so no surface serves it. Returned, not marked
+    # here: the marker goes on the metadata file, which is written after the stages.
+    reason = content_types.stage_skip_reason(item, content_types.TRANSLATION)
+    language = primary_language(item.fields.get("language"))
+    if reason is not None and language != "en":
+        return f"item language is {language or 'unknown'!r} and it is not translated ({reason})"
+    return None
+
+
 def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], reason: str) -> None:
     """Flag this episode as unservable, so no surface shows it (D-44 point 2).
 
@@ -4593,6 +4641,11 @@ def generate_episode_metadata(  # noqa: C901
     if _blocked:
         logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
         _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
+    _not_served: Optional[str] = None
+    if not _blocked:
+        _not_served = _record_type_skips(
+            cfg, output_dir, transcript_file_path, _current, episode_id
+        )
 
     # S2.11: publish this episode's translation so EVERY `gi.json` written below carries
     # provenance, without ten call sites each having to remember. Called unconditionally — with
@@ -4979,6 +5032,8 @@ def generate_episode_metadata(  # noqa: C901
     try:
         _serialize_metadata(metadata_doc, metadata_path, cfg, pipeline_metrics=pipeline_metrics)
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
+        if _not_served:
+            _mark_episode_unusable(output_dir, transcript_file_path, _not_served)
 
         # RFC-109 / ADR-132: append the summary/GI/KG stage blocks to the per-episode manifest that
         # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.

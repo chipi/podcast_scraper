@@ -48,6 +48,7 @@ Shared by every type, so top level (RFC-134 §5: title, times, publisher, rights
 | `summary` | the summary the platform wrote, absent until enrichment | `serveable: summary` shows "the summary the platform wrote" (ontology-v3); every type can have one |
 | `fetched_at` | ISO-8601, when the body was fetched | E05's fetch time; any fetched type has it |
 | `body_sha256` | hex SHA-256 of `transcripts/<stem>.txt` | E05's body hash; versions start from it later |
+| `unusable`, `unusable_reason` | `true` and why, when the item must not be served; else absent. Written last, after `news_article` | D-44, as an episode carries it under `episode`: an item not in English that is not translated keeps its source-language body at the canonical path (added 2026-11-18) |
 
 News's own, under `news_article` (ADR-181):
 
@@ -63,6 +64,12 @@ News's own, under `news_article` (ADR-181):
 
 An item whose language is not enabled in `config/languages.yaml` is not written, as an episode in
 that language is not ingested (added 2026-11-18).
+
+Translation is off in News 1.0, by choice (operator, 2026-11-18). A source turns it on with
+`translate: true` in its `news:` block. While it is off, an item not in English (or in a language
+nobody could tell) is written with its `language`, its translation, summary and KG are recorded in
+its processing manifest as not run (`skipped_reason: translation_off`), and it carries `unusable`.
+A teaser or video item gets its KG and no summary (`skipped_reason: not_whole_text`).
 
 ## Not covered
 

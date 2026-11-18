@@ -140,9 +140,11 @@ class ContentType:
     #: stored body: what ``rederive_only`` re-runs the stages on, so no source is fetched
     #: (``None``: the item's title and URL only).
     restore_item: Optional[Callable[[Dict[str, Any], str], "SourceItem"]] = None
-    #: ``(item, stage) -> True`` when the type's own rule skips a stage its profile runs, for
-    #: this item (``None``: the profile decides). News skips the summary of a teaser or video.
-    skips_stage: Optional[Callable[["ItemContext", str], bool]] = None
+    #: ``(item, stage) -> reason`` when the type's own rule skips a stage its profile runs, for
+    #: this item, else ``None`` (``None`` hook: the profile decides). The reason is recorded in
+    #: the item's processing manifest. News skips the summary of a teaser or video, and every
+    #: enrichment stage of an article not in English while its source's translation is off.
+    stage_skip_reason: Optional[Callable[["ItemContext", str], Optional[str]]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:
@@ -265,13 +267,19 @@ ENRICHMENT_STAGES: FrozenSet[str] = frozenset({TRANSLATION, SUMMARY, GI, KG})
 def runs_for_item(item: "ItemContext", stage: str) -> bool:
     """True when ``item`` runs ``stage``: its type's profile runs it, and, for an enrichment stage,
     its source lets it be mined (``mineable`` is not ``False``; ontology v3 "Rights, per item"),
-    and its type's own rule (``skips_stage``) does not skip it."""
+    and its type's own rule does not skip it (:func:`stage_skip_reason`)."""
     ctype = item.content_type
     if not ctype.stage_profile.runs(stage):
         return False
     if stage in ENRICHMENT_STAGES and item.fields.get("mineable") is False:
         return False
-    return not (ctype.skips_stage is not None and ctype.skips_stage(item, stage))
+    return stage_skip_reason(item, stage) is None
+
+
+def stage_skip_reason(item: "ItemContext", stage: str) -> Optional[str]:
+    """Why the item's type skips ``stage`` for this item (``stage_skip_reason``), or ``None``."""
+    hook = item.content_type.stage_skip_reason
+    return hook(item, stage) if hook is not None else None
 
 
 def stage_runs(stage: str) -> bool:
