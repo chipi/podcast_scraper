@@ -68,8 +68,8 @@ ranking.
 
 ## 4. Prediction
 
-Dated: 2026-11-18, on `gate-0049d_published_names_corrected` (snapshot 2026-11-16 with 0046-0049;
-one episode re-counted on `gate-0049e` with the GI half), restated after step 5 with every row.
+Dated: 2026-11-18, on `gate-0049f_published_names_corrected` (snapshot 2026-11-16 with 0046-0049,
+0049 at its final 640 entries), restated after step 5 with every row.
 
 **Population.** Reached: 3,376 served KG files. Not reached: the unserved KG files (older runs; they
 stay 2.1, byte-identical); every GI, segments, metadata and transcript file (0 changed outside the
@@ -83,12 +83,12 @@ on the copy are copied unchanged.
 **Nodes.** 3,376 `Episode` to `ContentItem` (`title`, `content_type`, `source_id` = the `Podcast`
 node id, `published_at` from `publish_date` on 3,376, `feed_id` kept on 3,376, `podcast_id` dropped
 on 3,376 where it equals `feed_id` on 3,376). 3,376 `Podcast` to `Source` (`source_kind: podcast`),
-ids unchanged (T-8). `Person` 19,048 (roles: `mentioned` 12,535, `host` 3,506, `guest` 3,007;
-`respelled_from` kept on 722), `Organization` 20,456 (`mentioned`), `Object` 8,284 (`mentioned`),
+ids unchanged (T-8). `Person` 19,038 (roles: `mentioned` 12,544, `host` 3,486, `guest` 3,008;
+`respelled_from` kept on 723), `Organization` 20,456 (`mentioned`), `Object` 8,284 (`mentioned`),
 `Topic` 33,512: counts, ids, labels and descriptions unchanged (longest 586 characters).
 
 **Edges.** 3,376 `HAS_EPISODE` to `HAS_ITEM`; 3,262 `HOSTS` and 2,337 `GUESTS_ON` (all to the
-`Podcast` node) to `CONTRIBUTES_TO` with role `host`/`guest`; 81,086 `MENTIONS` unchanged; every
+`Podcast` node) to `CONTRIBUTES_TO` with role `host`/`guest`; 81,088 `MENTIONS` unchanged; every
 edge written with `from`/`to`.
 
 **The registry.** `config/publishers.yaml` ships empty, so `PUBLISHED_BY` 0 on the copy; 0
