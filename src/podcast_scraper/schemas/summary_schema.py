@@ -223,6 +223,16 @@ def parse_summary_output(
         except json.JSONDecodeError:
             pass  # Repair failed
 
+    # Strategy 2b: a quoted term inside a string value (see _repair_inner_quotes).
+    quoted = _repair_inner_quotes(unfenced)
+    if quoted is not None:
+        try:
+            schema = _validate_and_create_schema(json.loads(quoted), text, episode_title)
+        except json.JSONDecodeError:
+            schema = None
+        if schema:
+            return ParseResult(schema=schema, success=True, repair_attempted=True)
+
     if _looks_like_structured_summary_json_contract(
         unfenced
     ) and _structured_summary_json_parse_failed(unfenced):
@@ -358,6 +368,72 @@ def _close_unterminated_json(text: str) -> Optional[str]:
         return None  # already balanced — the failure is something else
     suffix = ('"' if in_string else "") + "".join(reversed(stack))
     return text + suffix
+
+
+_VALUE_OPENERS = "“„«"
+_STRING_ENDERS = ",]}:"
+
+
+def _repair_inner_quotes(text: str) -> Optional[str]:
+    """The JSON with the quotes of a quoted term inside a string value escaped; ``None`` when
+    nothing needed it.
+
+    A bullet that opens with a quoted term broke the string around it: ``["AGI-pilled" describes
+    ...`` (news, 2026-11-18) and ``[“Are We Cooking?” rebrand ...`` (prod podcast, 2026-11-08),
+    both summaries lost after the re-roll. A ``"`` inside a string closes it only when the next
+    non-space character can follow a string (``,`` ``]`` ``}`` ``:``); any other is escaped. A
+    value that opens with a typographic quote gets the ``"`` it lacks. A string left with an odd
+    number of escaped quotes, not opening with one, had its term's opening quote taken as the
+    delimiter: it is put back. Content is never dropped, only quotes escaped or added.
+    """
+    out: List[str] = []
+    in_string = False
+    escaped = False
+    repaired = False
+    start = 0
+    inner = 0
+    last = ""
+    n = len(text)
+    for i, ch in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+                out.append(ch)
+            elif ch == "\\":
+                escaped = True
+                out.append(ch)
+            elif ch == '"':
+                j = i + 1
+                while j < n and text[j].isspace():
+                    j += 1
+                if j >= n or text[j] in _STRING_ENDERS:
+                    if inner % 2 == 1 and not "".join(out[start : start + 2]) == '\\"':
+                        out.insert(start, '\\"')
+                    in_string = False
+                    last = '"'
+                    out.append(ch)
+                else:
+                    out.append('\\"')
+                    inner += 1
+                    repaired = True
+            else:
+                out.append(ch)
+            continue
+        if ch == '"':
+            in_string, inner = True, 0
+            out.append(ch)
+            start = len(out)
+        elif ch in _VALUE_OPENERS and last in "[,:":
+            in_string, inner = True, 0
+            out.append('"')
+            start = len(out)
+            out.append(ch)
+            repaired = True
+        else:
+            out.append(ch)
+            if not ch.isspace():
+                last = ch
+    return "".join(out) if repaired and not in_string else None
 
 
 def _closer_had_to_close_a_string(text: str) -> bool:
