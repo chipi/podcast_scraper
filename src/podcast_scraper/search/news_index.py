@@ -11,9 +11,10 @@ and vector), never served: :func:`search_news` returns item ids and scores, and 
 each hit from the item's metadata (:func:`podcast_scraper.news_items.served_item`), so the
 never-served rule (RFC-134 §10, ADR-179) holds at the response layer.
 
-Indexed: news items whose ``serveable`` is not ``none``, ``mineable`` is not ``false`` and
-``text_status`` is ``full``. A teaser or a video's text is never chunked as if it were the whole
-item (the news item contract).
+Indexed: every item a surface may show (``serveable`` not ``none``, not marked ``unusable``) whose
+``mineable`` is not ``false``: its title as one row, and its body paragraphs when ``text_status`` is
+``full``. A teaser or a video's text is never chunked as if it were the whole item (the news item
+contract), so such an item is found by its title only.
 """
 
 from __future__ import annotations
@@ -23,7 +24,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from podcast_scraper.news_items import iter_news_metadata, serveable
+from podcast_scraper.languages import UNUSABLE_FIELD
+from podcast_scraper.news_items import F_TEXT_STATUS, is_shown, iter_news_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -48,23 +50,32 @@ def _body_paragraphs(meta_path: Path) -> List[str]:
 
 def indexable(doc: Dict[str, Any]) -> bool:
     """Whether an item goes into the index: one a surface may show and the source lets us mine.
-    Its title always does; its body too, whatever its ``text_status`` (a teaser's or a video's text
-    is still the item's own). Rows are for retrieval only: a hit never carries their text."""
-    return serveable(doc) != "none" and doc.get("mineable") is not False
+    Rows are for retrieval only: a hit never carries their text."""
+    return is_shown(doc) and doc.get("mineable") is not False
+
+
+def _whole_text(doc: Dict[str, Any]) -> bool:
+    """Whether the stored body is the whole article. A ``teaser`` or ``video`` body is never chunked
+    as if whole (news-item-1.0, ``text_status``)."""
+    raw = doc.get("news_article")
+    own: Dict[str, Any] = raw if isinstance(raw, dict) else {}
+    return own.get(F_TEXT_STATUS) == "full"
 
 
 def news_rows(corpus_root: Path) -> List[Dict[str, Any]]:
-    """For every indexable news item, a row holding its title, then one row per body paragraph
-    (no embeddings yet). The title row is what finds an item whose body never repeats its title,
-    and the only row of an item stored without a body."""
+    """For every indexable news item, a row holding its title, then, for a whole text only, one
+    row per body paragraph (no embeddings yet). The title row finds an item whose body never
+    repeats its title, and is the only row of a teaser or a video item."""
     rows: List[Dict[str, Any]] = []
     for f in iter_news_metadata(corpus_root):
-        if not indexable(dict(f.doc)):
+        doc = dict(f.doc)
+        if not indexable(doc):
             continue
-        item_id = str(f.doc.get("item_id") or "")
-        title = str(f.doc.get("title") or "").strip()
+        item_id = str(doc.get("item_id") or "")
+        title = str(doc.get("title") or "").strip()
+        paras = _body_paragraphs(f.path) if _whole_text(doc) else []
         texts = ([("title", title)] if title else []) + [
-            (f"p{n}", para) for n, para in enumerate(_body_paragraphs(f.path))
+            (f"p{n}", para) for n, para in enumerate(paras)
         ]
         for suffix, text in texts:
             rows.append(
@@ -114,7 +125,7 @@ def news_topic_rows(corpus_root: Path) -> List[Dict[str, Any]]:
 
     latest: Dict[str, Any] = {}
     for f in iter_news_metadata(corpus_root):
-        if f.doc.get("mineable") is False:
+        if f.doc.get("mineable") is False or f.doc.get(UNUSABLE_FIELD) is True:
             continue
         item_id = str(f.doc.get("item_id") or "")
         if item_id and (item_id not in latest or f.relative_path > latest[item_id].relative_path):

@@ -86,6 +86,13 @@ def test_a_none_item_is_not_shown(tmp_path: Path) -> None:
     assert served_item(_doc(serveable="none"), _registry(tmp_path)) is None
 
 
+def test_an_item_its_writer_marked_unusable_is_not_shown(tmp_path: Path) -> None:
+    """news-item-1.0: ``unusable`` at the top level (D-44: not in English, not translated)."""
+    doc = _doc(unusable=True, unusable_reason="translation_off")
+    assert served_item(doc, _registry(tmp_path)) is None
+    assert served_item(_doc(unusable=False), _registry(tmp_path)) is not None
+
+
 def test_a_podcast_document_is_not_a_news_item(tmp_path: Path) -> None:
     assert served_item({"title": "An episode"}, _registry(tmp_path)) is None
 

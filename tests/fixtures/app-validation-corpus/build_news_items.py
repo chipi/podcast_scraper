@@ -139,6 +139,25 @@ ITEMS: List[Dict[str, Any]] = [
         "topics": ["topic:trail-building"],
         "mentions": [],
     },
+    {
+        # Not in English and not translated (News 1.0 leaves translation off): the writer marks it
+        # unusable (D-44), so no surface may show it, as for the withheld item.
+        "source": "daily-example",
+        "stem": "untranslated",
+        "url": "https://www.dailyexample.test/de/2026/11/unuebersetzt",
+        "title": "UNUSABLE-ITEM-TITLE",
+        "published_at": "2026-11-17T09:00:00Z",
+        "language": "de",
+        "serveable": "summary",
+        "summary": None,
+        "byline": [],
+        "editorial_type": None,
+        "text_status": "full",
+        "paywalled": False,
+        "topics": ["topic:risk-management"],
+        "mentions": [],
+        "unusable": "translation_off",
+    },
 ]
 
 
@@ -189,6 +208,10 @@ def _metadata(item: Dict[str, Any], body: str) -> Dict[str, Any]:
         doc["publisher_id"] = src["publisher"]
     elif "otherwire.test" in item["url"]:
         doc["publisher_id"] = "org:other-wire"
+    if item.get("unusable"):
+        # Top-level and last, as the writer puts them on an item (news-item-1.0).
+        doc["unusable"] = True
+        doc["unusable_reason"] = item["unusable"]
     return doc
 
 

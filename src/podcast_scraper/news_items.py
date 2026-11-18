@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional
 from urllib.parse import urlsplit
 
+from podcast_scraper.languages import UNUSABLE_FIELD
 from podcast_scraper.publishers import load_registry, Registry
 from podcast_scraper.search.corpus_scope import discover_metadata_files
 from podcast_scraper.utils.corpus_walk import SOURCES_DIR
@@ -77,6 +78,13 @@ def is_news(doc: Any) -> bool:
     return isinstance(doc, Mapping) and doc.get(F_CONTENT_TYPE) == NEWS_ARTICLE
 
 
+def is_shown(doc: Any) -> bool:
+    """Whether a surface may show the item: a news item whose ``serveable`` is not ``none`` and
+    that its writer did not mark ``unusable`` (top-level on an item, news-item-1.0; D-44: an
+    item not in English that is not translated)."""
+    return is_news(doc) and serveable(doc) != SERVEABLE_NONE and doc.get(UNUSABLE_FIELD) is not True
+
+
 def is_shown_news_kg(kg_path: os.PathLike[str] | str) -> bool:
     """Whether *kg_path* is the KG of a news item some surface may show (its metadata beside it
     says so, ``serveable`` not ``none``). The graph loads such a KG to draw article nodes; it holds
@@ -89,7 +97,7 @@ def is_shown_news_kg(kg_path: os.PathLike[str] | str) -> bool:
         doc = json.loads(meta.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return False
-    return is_news(doc) and serveable(doc) != SERVEABLE_NONE
+    return is_shown(doc)
 
 
 def _own(doc: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -126,13 +134,11 @@ def _site(doc: Mapping[str, Any]) -> Optional[str]:
 def served_item(
     doc: Mapping[str, Any], registry: Registry, *, metadata_relative_path: str = ""
 ) -> Optional[Dict[str, Any]]:
-    """A news item as a surface shows it, or ``None`` when it is not a news item or its
-    ``serveable`` is ``none``. Built from metadata fields only; never the body."""
-    if not is_news(doc):
+    """A news item as a surface shows it, or ``None`` when no surface may show it
+    (:func:`is_shown`). Built from metadata fields only; never the body."""
+    if not is_shown(doc):
         return None
     shows = serveable(doc)
-    if shows == SERVEABLE_NONE:
-        return None
     own = _own(doc)
     byline = own.get(F_BYLINE)
     editorial = own.get(F_EDITORIAL_TYPE)

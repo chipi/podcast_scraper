@@ -51,6 +51,9 @@ def test_every_shown_item_is_indexed_with_a_title_row() -> None:
     titles = {_stem(r): r["text"] for r in rows if r["id"].endswith("#title")}
     assert set(titles) == _INDEXED
     assert titles["risk-desks"] == "Risk desks learn to sit still"
+    # news-item-1.0: a teaser or a video body is never chunked as if whole; its title row only.
+    bodies = {_stem(r) for r in rows if not r["id"].endswith("#title")}
+    assert bodies == {"risk-desks", "mercados", "wire-reliability"}
 
 
 @requires("sentence_transformers")

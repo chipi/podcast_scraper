@@ -1,0 +1,29 @@
+{
+  "content_type": "news_article",
+  "item_id": "item:news_article:772f365b10f0cb5aeae2",
+  "url": "https://www.dailyexample.test/de/2026/11/unuebersetzt",
+  "source_id": "source:125361805bbcfcb84b90",
+  "title": "UNUSABLE-ITEM-TITLE",
+  "published_at": "2026-11-17T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "language": "de",
+  "licence": null,
+  "paywalled": false,
+  "serveable": "summary",
+  "mineable": true,
+  "summary": null,
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "body_sha256": "5a9ed856034fd4f17f88fb64adbd6955468061e50df363fca4ae49806a864a3d",
+  "news_article": {
+    "transport_ids": {
+      "rss": "untranslated"
+    },
+    "byline": [],
+    "byline_raw": null,
+    "editorial_type": null,
+    "text_status": "full"
+  },
+  "publisher_id": "org:daily-example",
+  "unusable": true,
+  "unusable_reason": "translation_off"
+}

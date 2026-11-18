@@ -203,12 +203,12 @@ def test_the_artifact_route_serves_shown_news_kgs_only(client: TestClient, tmp_p
     its article node, so those still load; the withheld item's does not."""
     root = tmp_path / "corpus"
     kgs = sorted((root / "sources" / "news_article").rglob("*.kg.json"))
-    assert len(kgs) == 6
+    assert len(kgs) == 7
     for p in kgs:
         res = client.get(
             "/api/artifacts/" + p.relative_to(root).as_posix(), params={"path": str(root)}
         )
-        withheld = p.name == "withheld.kg.json"
+        withheld = p.name in ("withheld.kg.json", "untranslated.kg.json")
         assert res.status_code == (404 if withheld else 200), p.name
         assert "WITHHELD-ITEM-TITLE" not in res.text and "NEWS-BODY-MARKER" not in res.text
 

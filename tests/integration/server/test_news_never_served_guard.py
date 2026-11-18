@@ -40,11 +40,13 @@ _FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-co
 _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 _MARKER = "NEWS-BODY-MARKER"
 _WITHHELD = "WITHHELD-ITEM-TITLE"
+_UNUSABLE = "UNUSABLE-ITEM-TITLE"
 _TOPIC = "topic:risk-management"
 _PERSON = "person:skanda-amarnath"
 _SOURCE = "source:125361805bbcfcb84b90"
 _ITEM = "item:news_article:a8d6e89ce92ef7521ed5"
 _WITHHELD_ITEM = "item:news_article:2043d8230c86beddfb95"
+_UNUSABLE_ITEM = "item:news_article:772f365b10f0cb5aeae2"
 
 
 @pytest.fixture(scope="module")
@@ -73,19 +75,19 @@ def _values(root: Path) -> Dict[str, List[str]]:
     files = _news_files(root)
     metas = [f for f in files if f.endswith(".metadata.json")]
     queries = ["Risk desks learn to sit still", f"{_MARKER}-1", "first paragraph of the article"]
-    nodes = [_TOPIC, _PERSON, _SOURCE, _ITEM, _WITHHELD_ITEM, "org:daily-example"]
+    nodes = [_TOPIC, _PERSON, _SOURCE, _ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, "org:daily-example"]
     return {
         "path": [str(root)],
         "relpath": files,
         "artifact_path": files,
         "metadata_relpath": metas,
-        "item_id": [_ITEM, _WITHHELD_ITEM],
+        "item_id": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM],
         "q": queries,
         "topic": [_TOPIC],
         "person": [_PERSON],
         "entity": [_PERSON, "org:daily-example"],
         "insight": ["insight:bf9b3bf4a21ee6f8"],
-        "episode": [_ITEM, _WITHHELD_ITEM, "ep-db8f44d2e07a22bd"],
+        "episode": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, "ep-db8f44d2e07a22bd"],
         "podcast": [_SOURCE, "p01"],
         "feed_id": [_SOURCE, "p01"],
         "kind": ["topic", "person", "organization", "theme", "storyline", "episode"],
@@ -114,15 +116,15 @@ def _values(root: Path) -> Dict[str, List[str]]:
         "storyline_id": _storyline_ids(root),
         "subject_id": [_TOPIC, "tc:risk-management", "thc:managing-risk"],
         "subject": [_TOPIC, "tc:risk-management", "thc:managing-risk"],
-        "slug": [_ITEM, _WITHHELD_ITEM, _podcast_slug(root)],
-        "ref": [_ITEM, _WITHHELD_ITEM],
+        "slug": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, _podcast_slug(root)],
+        "ref": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM],
         "index": ["0"],
         "rail": ["trending", "for-you"],
         "collection_id": ["x"],
         "highlight_id": ["x"],
         # The corpus deletes, given news ids only: a podcast id would delete from the corpus copy
         # the read guard shares.
-        "episode_id": [_ITEM, _WITHHELD_ITEM, "risk-desks"],
+        "episode_id": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, "risk-desks"],
         "run_id": sorted({p.split("/")[3] for p in files}),
         "envelope_id": ["x"],
         # Auth, outbox and per-user routes: no corpus text behind them, called so the coverage
@@ -187,7 +189,7 @@ def _served(text: str, sent: Any) -> bool:
     for value in sent:
         if isinstance(value, str) and value:
             text = text.replace(value, "")
-    return _MARKER in text or _WITHHELD in text
+    return _MARKER in text or _WITHHELD in text or _UNUSABLE in text
 
 
 @requires("sentence_transformers")
