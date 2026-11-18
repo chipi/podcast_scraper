@@ -159,3 +159,32 @@ Section 4 is restated with these rows before step 6.
 - Row 3: `variant` `adfree` on 3,376; every episode's metadata `episode.language` is `en` (0
   non-English); `transcript_ref` resolves to a file under the run folder for 3,255, not for 121 (the
   data as it is; R3b copies the reference unchanged; E06's importer meets the same 121).
+
+## 6. Build
+
+This branch: 0051 (`upgrade/migrations/m0051_kg_3_0.py`, registered in `upgrade/registry.py`), and
+the KG writer writes KG 3.0 (`kg/io.write_artifact` converts with `kg/v3_file.to_v3_file` and
+validates strictly). Common's side (Common `feat/news-release`, pushed): its KG readers through
+`kg_read_view`, its KG editors through the edit view (2.x names in, 3.0 out), its concept-Topics as
+valid KG 3.0 Topics (`topic:concept-<slug>`), and four test fixtures that held invalid KG. Common's
+full suite against this branch: 8,803 passed.
+
+## 7. Measure
+
+On a copy of `gate-0049f_published_names_corrected` with 0050 applied (the GI half,
+`r3b_gi_4_0.md` section 7, holds the shared rows: undo, second apply, gold, served surfaces, derived
+surfaces), 2026-11-18.
+
+| Check | Result |
+| --- | --- |
+| Change gate 0051 (report `r3b_kg_3_0.gate.json`, plan sha256 `52c1d9ca…`) | class full; 3,376 `.kg.json` written; **gating moves: none** |
+| 0051's counters against section 4 | files 3,376; `CONTRIBUTES_TO` 5,599 (the 3,262 `HOSTS` and 2,337 `GUESTS_ON`, all to the `Podcast` node); `PUBLISHED_BY` 0 (the registry lists no podcast); refused 0: **each equal to the prediction** |
+| `upgrade verify`, every applied migration | 48 ok; failing 0041 and 0049 before and after alike; **verify regressions: none** |
+| Undo (0051, then 0050) and second apply | restored 3,376, refused 0; the copy byte-identical to before both (156,354 files); a second apply writes 0 files |
+| Strict validation after respell and promote | 3,376 of 3,376 valid KG 3.0 |
+| Served surfaces and derived surfaces | as in the GI half: every difference explained; index rows (684,131) and bridges identical |
+
+**Builder's verdict: GO.** The deciding number: verify regressions 0, with every counter equal to
+its prediction.
+
+Not covered at this step: step 8's fresh reviewer; the operator's review (step 9).
