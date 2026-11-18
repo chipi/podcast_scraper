@@ -1,4 +1,4 @@
-tree: 04b749a426143d11e48b5048ba983d4657bec96b clean=0
+tree: dfea8397ac2d094fefdf2566b0eee4b113c13789 clean=0
 make ci-fast, interpreter /work/closelistening/ingestion/.venv (public's news extras, no Common installed: public's CI shape), 2026-11-18
 stages reached (ci-fast runs under set -e, so each stage before the last exited 0):
 stage: format-check
@@ -17,14 +17,14 @@ stage: quality-metrics-ci
 stage: profile-drift-check
 stage: test-fast (pytest)
 All done! ✨ 🍰 ✨
-Success: no issues found in 1755 source files
+Success: no issues found in 1756 source files
 --------------- RESULT: PASSED (minimum: 100.0%, actual: 100.0%) ---------------
-===== 1 failed, 10685 passed, 85 skipped, 20 warnings in 104.86s (0:01:44) =====
+===== 1 failed, 10685 passed, 85 skipped, 20 warnings in 102.06s (0:01:42) =====
 E         Left contains 2 more items, first extra item: '0051_kg_3_0: step 8: not done (still _TODO_)'
 FAILED tests/unit/podcast_scraper/quality/test_change_gate.py::test_every_registered_migration_under_the_regime_is_allowed_to_land
 ci-fast stopped after test-fast (set -e); its last two stages, run by hand on the same tree:
-tree: 04b749a426143d11e48b5048ba983d4657bec96b clean=0
+tree: dfea8397ac2d094fefdf2566b0eee4b113c13789 clean=0
 MAKE_DOCS_EXIT=0
 Successfully built podcast_scraper-2.7.0.dev0.tar.gz and podcast_scraper-2.7.0.dev0-py3-none-any.whl
 MAKE_BUILD_EXIT=0
-The one failure is the landing check refusing step 8, which this review fills; nothing else failed.
+The one failure is the landing check refusing step 8 (on this tree it read the placeholder quoted in section 8; on 7f21d4fdc, a record-only commit, it refuses the NO-GO verdict); nothing else failed. It passes only once section 8 holds a GO.
