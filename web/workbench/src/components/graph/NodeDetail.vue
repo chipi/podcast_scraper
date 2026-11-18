@@ -30,6 +30,7 @@ import NodeEnrichmentSection from "./NodeEnrichmentSection.vue"
 import TopicEntityView from "../subject/TopicEntityView.vue"
 import PersonLandingView from "../subject/PersonLandingView.vue"
 import NodeEpisodesSection from "./NodeEpisodesSection.vue"
+import NodeNewsSection from "./NodeNewsSection.vue"
 import PodcastNodeView from "../subject/PodcastNodeView.vue"
 import SubjectTimelineChart from "../subject/SubjectTimelineChart.vue"
 import { buildSubjectMentionsTimeline } from "../../utils/subjectMentionsTimeline"
@@ -1081,6 +1082,11 @@ const graphConnectionsCenterInView = computed((): boolean => {
           <!-- The episodes a topic, person or organisation appears in, from the KG: what a
            corpus without grounded insights knows about them. -->
           <NodeEpisodesSection
+            v-if="(isTopicNode || isPersonEntityRailNode) && nodeId"
+            :node-id="nodeId"
+          />
+          <!-- UXS-019: the news items whose KG names this node (only when the corpus holds news). -->
+          <NodeNewsSection
             v-if="(isTopicNode || isPersonEntityRailNode) && nodeId"
             :node-id="nodeId"
           />

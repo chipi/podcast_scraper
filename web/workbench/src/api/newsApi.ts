@@ -42,10 +42,11 @@ export async function fetchNewsItem(corpusPath: string, itemId: string): Promise
 
 export async function fetchNewsItems(
   corpusPath: string,
-  opts: { publisherId?: string; limit?: number; offset?: number } = {},
+  opts: { publisherId?: string; since?: string; limit?: number; offset?: number } = {},
 ): Promise<NewsItemsPage> {
   const qs = new URLSearchParams({ path: corpusPath })
   if (opts.publisherId) qs.set('publisher_id', opts.publisherId)
+  if (opts.since?.trim()) qs.set('since', opts.since.trim())
   if (opts.limit != null) qs.set('limit', String(opts.limit))
   if (opts.offset != null) qs.set('offset', String(opts.offset))
   return getJson<NewsItemsPage>(`/api/corpus/news/items?${qs.toString()}`)

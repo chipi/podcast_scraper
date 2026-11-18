@@ -1,4 +1,5 @@
 import type { CilDigestTopicPill } from './digestApi'
+import type { NewsItem } from './searchApi'
 import { dedupeInFlight } from './inFlightDedupe'
 import { fetchWithTimeout } from './httpClient'
 
@@ -437,6 +438,8 @@ export type CorpusNodeEpisodesResponse = {
   path: string
   node_id: string
   episodes: CorpusNodeEpisodeItem[]
+  /** News items whose KG names the node (asked with ``contentTypes`` incl. ``news_article``). */
+  news_items?: NewsItem[]
   truncated: boolean
   total_matched: number | null
 }
@@ -448,6 +451,7 @@ export async function fetchNodeEpisodes(
   corpusPath: string,
   nodeId: string,
   maxEpisodes?: number | null,
+  contentTypes?: string[],
 ): Promise<CorpusNodeEpisodesResponse> {
   const root = corpusPath.trim()
   if (!root) {
@@ -461,8 +465,14 @@ export async function fetchNodeEpisodes(
   if (maxEpisodes != null && maxEpisodes > 0) {
     body.max_episodes = maxEpisodes
   }
+  if (contentTypes?.length) {
+    body.content_types = contentTypes
+  }
   const capKey = maxEpisodes != null && maxEpisodes > 0 ? String(maxEpisodes) : 'all'
-  return dedupeInFlight(`POST|/api/corpus/node-episodes|${root}|${id}|${capKey}`, async () => {
+  const typesKey = contentTypes?.length ? contentTypes.join(',') : 'podcast'
+  return dedupeInFlight(
+    `POST|/api/corpus/node-episodes|${root}|${id}|${capKey}|${typesKey}`,
+    async () => {
     const res = await fetchWithTimeout('/api/corpus/node-episodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -473,5 +483,6 @@ export async function fetchNodeEpisodes(
       raiseCorpusHttpError(res, t)
     }
     return (await res.json()) as CorpusNodeEpisodesResponse
-  })
+    },
+  )
 }

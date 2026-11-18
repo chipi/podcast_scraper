@@ -107,3 +107,10 @@ def test_node_episodes_lists_a_persons_articles(client: TestClient) -> None:
         "Risk desks learn to sit still",
     ]
     assert "NEWS-BODY-MARKER" not in json.dumps(got)
+
+
+def test_since_keeps_items_published_on_or_after_the_day(client: TestClient) -> None:
+    body = client.get("/api/corpus/news/items", params={"since": "2026-11-17"}).json()
+    assert body["items"] and all(i["published_at"][:10] >= "2026-11-17" for i in body["items"])
+    everything = client.get("/api/corpus/news/items").json()["total"]
+    assert body["total"] < everything

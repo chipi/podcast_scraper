@@ -78,12 +78,18 @@ def corpus_news_items(
     publisher_id: Optional[str] = Query(
         default=None, description="Only this publisher's items (a registry org: id)."
     ),
+    since: Optional[str] = Query(
+        default=None, description="Only items published on or after this day (YYYY-MM-DD)."
+    ),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> NewsItemsResponse:
     """The news items a surface may show, newest first."""
     root = _root(request, path)
     items = cached_served_items(root)
+    if since and since.strip():
+        day = since.strip()[:10]
+        items = [i for i in items if (i.get("published_at") or "")[:10] >= day]
     if publisher_id:
         items = [i for i in items if (i.get("publisher") or {}).get("id") == publisher_id]
     page = items[offset : offset + limit]
