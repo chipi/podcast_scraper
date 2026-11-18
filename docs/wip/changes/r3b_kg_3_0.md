@@ -2,7 +2,7 @@
 id: r3b_kg_3_0
 class: full
 status: open
-issue: chipi/closelistening-common#6
+issue: none (the R3b epic, GI 4.0 and KG 3.0; tracked in the private plan)
 touches:
   - src/podcast_scraper/upgrade/migrations/m0051_kg_3_0.py
   - src/podcast_scraper/upgrade/registry.py
