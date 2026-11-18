@@ -145,6 +145,10 @@ class ContentType:
     #: the item's processing manifest. News skips the summary of a teaser or video, and every
     #: enrichment stage of an article not in English while its source's translation is off.
     stage_skip_reason: Optional[Callable[["ItemContext", str], Optional[str]]] = None
+    #: ``(written metadata document, listed item) -> the document updated``, or ``None`` when
+    #: nothing changes: what an item already written takes from a later listing of it by another
+    #: source (``None`` hook: nothing). News adds the listing's transport id.
+    also_listed: Optional[Callable[[Dict[str, Any], "SourceItem"], Optional[Dict[str, Any]]]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:

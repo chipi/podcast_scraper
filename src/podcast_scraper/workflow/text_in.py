@@ -166,14 +166,14 @@ def stored_items(
     return items
 
 
-def written_item_ids(source_dir: str, ctype: content_types.ContentType) -> Set[str]:
-    """The ids of every item of ``ctype`` the corpus holds, read from its metadata files under
+def written_items(source_dir: str, ctype: content_types.ContentType) -> Dict[str, List[Path]]:
+    """Every item of ``ctype`` the corpus holds, by id, with its metadata files, read under
     ``sources/<type>/`` (all sources, all runs). ``source_dir`` is this source's workspace; when
     it is not inside a corpus, only that workspace is read."""
     workspace = Path(source_dir)
     root = filesystem.corpus_root_of_workspace(workspace)
     base = root / SOURCES_DIR / ctype.name if root is not None else workspace
-    ids: Set[str] = set()
+    ids: Dict[str, List[Path]] = {}
     for path in corpus_rglob(base, "*.metadata.json"):
         if path.parent.name != "metadata":
             continue
@@ -184,8 +184,36 @@ def written_item_ids(source_dir: str, ctype: content_types.ContentType) -> Set[s
         episode = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
         found = doc.get("item_id") or episode.get("guid")
         if isinstance(found, str) and found:
-            ids.add(found)
+            ids.setdefault(found, []).append(path)
     return ids
+
+
+def _note_also_listed(
+    ctype: content_types.ContentType, paths: List[Path], listed: content_types.SourceItem
+) -> None:
+    """Give each written file of an item what a later listing of it adds (``also_listed``),
+    rewritten atomically with its key order kept. Best-effort: a file that cannot be read or
+    written is left as it was."""
+    if ctype.also_listed is None:
+        return
+    for path in paths:
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        updated = ctype.also_listed(doc, listed) if isinstance(doc, dict) else None
+        if updated is None:
+            continue
+        tmp = path.with_name(path.name + ".also-listed.tmp")
+        try:
+            tmp.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, path)
+        except OSError:
+            logger.warning("text-in: could not record a second listing on %s", path)
+            continue
+        logger.info(
+            "text-in: %s is also listed (url=%s); recorded on %s", ctype.name, listed.url, path
+        )
 
 
 def _jobs_for_items(
@@ -197,15 +225,17 @@ def _jobs_for_items(
     source_id: str,
     transport: str,
     entry: Any = None,
-    written: Optional[Set[str]] = None,
+    written: Optional[Dict[str, List[Path]]] = None,
 ) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
-    """``written``: the item ids the corpus already holds for this type. One article is one item,
-    so an item already written, by this source or another (two feeds carrying one article), or
-    listed twice in this batch, is skipped before its body is fetched: the first source to write
-    it keeps it. The set grows with what this batch writes."""
+    """``written``: the items the corpus already holds for this type, with their metadata files.
+    One article is one item, so an item already written, by this source or another (two feeds
+    carrying one article), or listed twice in this batch, is skipped before its body is fetched:
+    the first source to write it keeps it, and takes what the later listing adds (its type's
+    ``also_listed``: news, the listing's transport id). The set grows with this batch."""
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
-    seen: Set[str] = written if written is not None else set()
+    on_disk: Dict[str, List[Path]] = written or {}
+    seen: Set[str] = set(on_disk)
     for listed in items:
         try:
             listed_id: Optional[str] = content_types.item_id(ctype, listed)
@@ -213,6 +243,7 @@ def _jobs_for_items(
             listed_id = None
         if listed_id is not None and listed_id in seen:
             logger.info("text-in: %s is already written; skipped (url=%s)", listed_id, listed.url)
+            _note_also_listed(ctype, on_disk.get(listed_id, []), listed)
             continue
         item: Optional[content_types.SourceItem] = listed
         if listed.text is None and ctype.fetch_body is not None:
@@ -226,6 +257,7 @@ def _jobs_for_items(
         minted = content_types.item_id(ctype, item)
         if minted in seen:
             logger.info("text-in: %s is already written; skipped (url=%s)", minted, item.url)
+            _note_also_listed(ctype, on_disk.get(minted, []), listed)
             continue
         seen.add(minted)
         title = str(item.metadata.get("title") or item.item_id)
@@ -313,7 +345,7 @@ def run_text_source(
             source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
             transport=transport.name,
             entry=entry,
-            written=None if rederive else written_item_ids(source_dir, ctype),
+            written=None if rederive else written_items(source_dir, ctype),
         )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",

@@ -76,6 +76,24 @@ _RESTORED_OWN = (
 )
 
 
+def also_listed(doc: Dict[str, Any], listed: SourceItem) -> Optional[Dict[str, Any]]:
+    """The written item with the listing's transport ids it lacks (contract: one article over two
+    transports is one item, and ``transport_ids`` keeps both); ``None`` when it has them all. A
+    transport already present keeps its first id."""
+    own = doc.get(NEWS_ARTICLE)
+    if not isinstance(own, dict):
+        return None
+    raw_have = own.get("transport_ids")
+    have: Dict[str, Any] = raw_have if isinstance(raw_have, dict) else {}
+    raw = listed.metadata.get("transport_ids")
+    new = {
+        k: v for k, v in (raw.items() if isinstance(raw, Mapping) else ()) if v and k not in have
+    }
+    if not new:
+        return None
+    return {**doc, NEWS_ARTICLE: {**own, "transport_ids": {**have, **new}}}
+
+
 def restore_item(doc: Dict[str, Any], body: str) -> SourceItem:
     """A stored news item as its transport listed it, with its stored body and every field the
     writer recorded, so ``rederive_only`` re-runs summary and KG on it without fetching anything.

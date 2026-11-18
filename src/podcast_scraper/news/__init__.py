@@ -66,6 +66,7 @@ NEWS = ContentType(
     kg_extend=graph.extend,
     restore_item=document.restore_item,
     stage_skip_reason=_stage_skip_reason,
+    also_listed=document.also_listed,
 )
 
 TYPES: Tuple[ContentType, ...] = (NEWS,)

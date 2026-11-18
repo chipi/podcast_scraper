@@ -314,6 +314,58 @@ def test_an_article_two_feeds_carry_or_one_feed_lists_twice_is_written_once(
     } == {first_source}
 
 
+def test_an_article_a_second_transport_lists_gains_that_transports_id(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """Contract ``transport_ids``: one article over two transports is one item, and its map keeps
+    both. The RSS source writes it first; Hacker News lists it later: no second copy, and the
+    first item's metadata gains ``hn`` (nothing else in it changes). Run again, nothing changes."""
+    item = fixtures.ITEMS[0]
+    hn_url = "https://hn.algolia.com/api/v1/search_by_date?tags=front_page&hitsPerPage=5"
+    hits = tmp_path / "hn.json"
+    hits.write_text(
+        json.dumps(
+            {
+                "hits": [
+                    {"objectID": "4242", "title": item["title"], "url": item["url"]},
+                ]
+            }
+        ),
+        "utf-8",
+    )
+    net.routes[hn_url] = hits
+
+    from podcast_scraper import cli
+
+    corpus = tmp_path / "corpus"
+    spec = tmp_path / "rss-then-hn.feeds.spec.yaml"
+    spec.write_text(
+        f"feeds:\n  - url: {fixtures.FEED_URL}\n    content_type: {NEWS}\n"
+        f"  - url: {hn_url}\n    content_type: {NEWS}\n    transport: hn\n",
+        "utf-8",
+    )
+    argv = ["--feeds-spec", str(spec), "--output-dir", str(corpus), "--no-transcript-cache"]
+
+    def written() -> Dict[str, Tuple[Path, Dict[str, Any]]]:
+        out = {}
+        for p in corpus.rglob("*.metadata.json"):
+            doc = json.loads(p.read_text(encoding="utf-8"))
+            out[doc["item_id"]] = (p, doc)
+        return out
+
+    assert cli.main(argv, run_pipeline_fn=lambda cfg: (0, "")) == 0
+    docs = written()
+    assert len(docs) == len(fixtures.ITEMS)
+    path, doc = next(v for v in docs.values() if v[1]["url"] == item["url"])
+    assert doc["news_article"]["transport_ids"] == {"rss": item["stem"], "hn": "4242"}
+    assert list(doc) == list(json.loads(path.read_text(encoding="utf-8")))
+
+    before = {k: v[0].read_bytes() for k, v in docs.items()}
+    fetch.reset_robots_cache()
+    assert cli.main(argv, run_pipeline_fn=lambda cfg: (0, "")) == 0
+    assert {k: v[0].read_bytes() for k, v in written().items()} == before
+
+
 def test_rederive_reruns_the_stored_items_without_fetching_anything(
     tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
 ) -> None:

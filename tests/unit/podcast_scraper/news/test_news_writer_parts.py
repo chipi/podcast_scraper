@@ -293,6 +293,20 @@ def test_an_english_item_is_enriched(language: str) -> None:
     assert ct.runs_for_item(item, ct.SUMMARY) and ct.runs_for_item(item, ct.KG)
 
 
+def test_a_later_listing_adds_only_the_transports_the_item_lacks() -> None:
+    doc = document.shape({}, _item("https://n.test/a", transport_ids={"rss": "g1"}), registry=_REG)
+    rss_again = ct.SourceItem(item_id="g2", metadata={"transport_ids": {"rss": "g2"}})
+    assert document.also_listed(doc, rss_again) is None  # a transport keeps its first id
+    hn = ct.SourceItem(item_id="9", metadata={"transport_ids": {"hn": "9"}})
+    updated = document.also_listed(doc, hn)
+    assert updated is not None
+    assert updated["news_article"]["transport_ids"] == {"rss": "g1", "hn": "9"}
+    assert list(updated) == list(doc)
+    assert {k: v for k, v in updated.items() if k != "news_article"} == {
+        k: v for k, v in doc.items() if k != "news_article"
+    }
+
+
 def test_a_restored_teaser_still_gets_no_summary() -> None:
     """``rederive_only`` re-runs the stages on a restored item: its stored text_status holds."""
     teaser = _item("https://n.test/a", text_status=extract.TEXT_TEASER)
