@@ -9,10 +9,11 @@ import { useSavedQueriesStore } from '../../stores/savedQueries'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
-import type { SearchHit } from '../../api/searchApi'
+import type { NewsItem, SearchHit } from '../../api/searchApi'
 import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 import ResultCard from './ResultCard.vue'
+import NewsResultRow from './NewsResultRow.vue'
 import TranscriptClusterCard from './TranscriptClusterCard.vue'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
 import {
@@ -287,6 +288,11 @@ function onOpenLibraryHit(hit: SearchHit): void {
   const rel = sourceMetadataRelativePathFromSearchHit(hit)
   if (!rel) return
   emit('open-library-episode', { metadata_relative_path: rel })
+}
+
+/** A news row's title or rail button: the article card in the rail (UXS-019). */
+function onOpenNewsItem(item: NewsItem): void {
+  subject.focusArticle(item.item_id, { uiTitle: item.title })
 }
 
 async function onSubmit(): Promise<void> {
@@ -622,6 +628,11 @@ const advancedFeedCombinedTitle = computed(() =>
             :library-opens-enabled="libraryOpensEnabled"
             @open-library="onOpenLibraryHit"
             @open-transcript-at="(payload) => void openTranscriptAtChunk(payload)"
+          />
+          <NewsResultRow
+            v-else-if="row.content_type === 'news_article' && row.news_item"
+            :item="row.news_item"
+            @open="onOpenNewsItem"
           />
           <ResultCard
             v-else

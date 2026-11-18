@@ -33,6 +33,8 @@
   --ps-gi-foreground: #111418;
   --ps-kg: #c4a8ff;
   --ps-kg-foreground: #111418;
+  --ps-news: #9fb7d0;
+  --ps-news-foreground: #111418;
   /* Knowledge-domain hues used across ShowRailPanel, GraphCanvas,
      NodeDetail, admin surfaces, and the search-result icon.
      - grounded → aliases to GI green (same concept: grounded claim).
@@ -104,6 +106,8 @@
   --ps-gi-foreground: #ffffff;
   --ps-kg: #5c4d8a;
   --ps-kg-foreground: #ffffff;
+  --ps-news: #3d5a7a;
+  --ps-news-foreground: #ffffff;
   --ps-grounded: var(--ps-gi);
   --ps-topic: #1f7a7f;
   --ps-person: #9c5822;
@@ -155,6 +159,8 @@
     --ps-gi-foreground: #ffffff;
     --ps-kg: #5c4d8a;
     --ps-kg-foreground: #ffffff;
+    --ps-news: #3d5a7a;
+    --ps-news-foreground: #ffffff;
     --ps-grounded: var(--ps-gi);
     --ps-topic: #1f7a7f;
     --ps-person: #9c5822;

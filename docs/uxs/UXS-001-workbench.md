@@ -183,6 +183,8 @@ themes and distinguish GIL from KG content at a glance.
 | `gi-foreground` | `#111418` | `#FFFFFF` | Text on gi surfaces |
 | `kg` | `#c4a8ff` | `#5c4d8a` | KG affordances |
 | `kg-foreground` | `#111418` | `#FFFFFF` | Text on kg surfaces |
+| `news` | `#9fb7d0` | `#3d5a7a` | The news type label, row accent and article card accent ([UXS-019](UXS-019-news-in-the-public-viewer.md)) |
+| `news-foreground` | `#111418` | `#FFFFFF` | Text on news surfaces |
 | `grounded` | `var(--gi)` | `var(--gi)` | Grounded claims — same concept as GI |
 | `topic` | `#7cd0d4` | `#1f7a7f` | Topic chips (teal — distinct from KG purple) |
 | `person` | `#ffb37a` | `#9c5822` | Person chips (peach) |

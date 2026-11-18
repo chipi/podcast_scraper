@@ -7,9 +7,11 @@
  */
 import { computed } from 'vue'
 import { useSearchStore } from '../../stores/search'
+import { useShellStore } from '../../stores/shell'
 import DateChip from '../shared/DateChip.vue'
 import SearchTopKChip from './chips/SearchTopKChip.vue'
 import SearchDocTypesChip from './chips/SearchDocTypesChip.vue'
+import SearchTypeChip from './chips/SearchTypeChip.vue'
 import SearchMoreChip from './chips/SearchMoreChip.vue'
 import SearchTopicChip from './chips/SearchTopicChip.vue'
 import SearchSpeakerChip from './chips/SearchSpeakerChip.vue'
@@ -28,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const search = useSearchStore()
+const shell = useShellStore()
 
 const sinceModel = computed({
   get: () => search.filters.since ?? '',
@@ -58,6 +61,9 @@ const sinceModel = computed({
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchDocTypesChip />
+    </div>
+    <div v-if="shell.hasNews" :class="enabled ? '' : 'pointer-events-none opacity-50'">
+      <SearchTypeChip />
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchTopicChip />

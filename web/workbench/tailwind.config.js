@@ -37,6 +37,8 @@ export default {
         'gi-foreground': 'var(--ps-gi-foreground)',
         kg: 'var(--ps-kg)',
         'kg-foreground': 'var(--ps-kg-foreground)',
+        news: 'var(--ps-news)',
+        'news-foreground': 'var(--ps-news-foreground)',
         // Knowledge-domain tokens used across ShowRailPanel,
         // NodeDetail, GraphCanvas, admin surfaces, search-result
         // icons. Backed by --ps-grounded /

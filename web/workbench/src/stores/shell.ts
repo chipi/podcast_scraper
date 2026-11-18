@@ -147,6 +147,12 @@ export const useShellStore = defineStore('shell', () => {
    * server does not say. A downstream build reads it for its own kinds (GI).
    */
   const artifactKinds = ref<string[] | null>(null)
+  /**
+   * Content types the served corpus holds (``content_types`` from health): ``podcast_episode``,
+   * plus ``news_article`` when it holds a shown news item (UXS-019's Type chip shows only then).
+   */
+  const contentTypes = ref<string[]>(['podcast_episode'])
+  const hasNews = computed(() => contentTypes.value.includes('news_article'))
   /** True only when GET/PUT /api/feeds is advertised (strict). */
   const feedsApiAvailable = ref(false)
   /** True only when GET/PUT /api/operator-config is advertised (strict). */
@@ -226,6 +232,7 @@ export const useShellStore = defineStore('shell', () => {
         cil_queries_api?: boolean
         corpus_persons_api?: boolean
         artifact_kinds?: string[] | null
+        content_types?: string[] | null
         feeds_api?: boolean
         operator_config_api?: boolean
         jobs_api?: boolean
@@ -262,6 +269,9 @@ export const useShellStore = defineStore('shell', () => {
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
       corpusPersonsApiAvailable.value = healthAdvertisesRoute(body.corpus_persons_api)
+      contentTypes.value = Array.isArray(body.content_types)
+        ? body.content_types.filter((k: unknown): k is string => typeof k === 'string')
+        : ['podcast_episode']
       artifactKinds.value = Array.isArray(body.artifact_kinds)
         ? body.artifact_kinds.filter((k: unknown): k is string => typeof k === 'string')
         : null
@@ -289,6 +299,7 @@ export const useShellStore = defineStore('shell', () => {
       corpusPersonsApiAvailable.value = false
       // Unknown, not an empty list.
       artifactKinds.value = null
+      contentTypes.value = ['podcast_episode']
       feedsApiAvailable.value = false
       operatorConfigApiAvailable.value = false
       jobsApiAvailable.value = false
@@ -381,6 +392,8 @@ export const useShellStore = defineStore('shell', () => {
     cilQueriesApiAvailable,
     corpusPersonsApiAvailable,
     artifactKinds,
+    contentTypes,
+    hasNews,
     feedsApiAvailable,
     operatorConfigApiAvailable,
     jobsApiAvailable,

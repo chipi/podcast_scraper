@@ -7,9 +7,33 @@ export interface TopicClusterHitMeta {
   cil_alias_target_topic_id?: string
 }
 
+/** A news item as a surface shows it (``NewsItem`` on the server; UXS-019). Metadata only. */
+export interface NewsItem {
+  content_type: 'news_article'
+  item_id: string
+  title: string
+  url?: string | null
+  source_id?: string | null
+  publisher?: { id: string; name: string; domain: string } | null
+  published_at?: string | null
+  language?: string | null
+  byline: string[]
+  editorial_type?: 'reporting' | 'opinion' | 'analysis' | 'paid' | null
+  paywalled?: boolean | null
+  text_status?: string | null
+  /** What a surface may show: ``metadata`` (no summary) or ``summary``. */
+  serveable: 'metadata' | 'summary'
+  summary?: string | null
+  metadata_relative_path?: string
+}
+
 export interface SearchHit {
   doc_id: string
   score: number
+  /** ``podcast_episode`` (absent on older servers) or ``news_article`` (RFC-134 §9). */
+  content_type?: string
+  /** Set on a news hit: what its row shows. A news hit's ``text`` is always empty. */
+  news_item?: NewsItem | null
   metadata: Record<string, unknown>
   text: string
   /**
@@ -59,6 +83,8 @@ export interface SearchRequestOptions {
   embeddingModel?: string
   /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
   dedupeKgSurfaces?: boolean
+  /** Content types to search (``content_types``); omitted, podcasts only. */
+  contentTypes?: string[]
   /** More query parameters, sent as given (extension points: `searchRequestParams`). */
   extraParams?: Record<string, string>
 }
@@ -81,6 +107,9 @@ export async function searchCorpus(
   }
   for (const t of options.types ?? []) {
     if (t.trim()) params.append('type', t.trim())
+  }
+  for (const t of options.contentTypes ?? []) {
+    if (t.trim()) params.append('content_types', t.trim())
   }
   if (options.dedupeKgSurfaces === false) {
     params.set('dedupe_kg_surfaces', 'false')

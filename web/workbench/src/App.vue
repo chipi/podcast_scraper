@@ -862,6 +862,7 @@ watch(
       subject.graphNodeCyId,
       subject.topicId,
       subject.personId,
+      subject.articleItemId,
     ] as const,
   () => {
     const ep = subject.episodeMetadataPath?.trim()
@@ -882,6 +883,10 @@ watch(
       rightOpen.value = true
     }
     if (subject.kind === 'person' && pn) {
+      rightOpen.value = true
+    }
+    // UXS-019: a news row opens its article card, so the rail must be visible.
+    if (subject.kind === 'article' && subject.articleItemId?.trim()) {
       rightOpen.value = true
     }
   },

@@ -5,7 +5,14 @@ import { useGraphNavigationStore } from './graphNavigation'
 
 import { e2eHooksEnabled } from '../utils/e2eHooks'
 
-export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | 'show' | null
+export type SubjectKind =
+  | 'episode'
+  | 'topic'
+  | 'person'
+  | 'graph-node'
+  | 'show'
+  | 'article'
+  | null
 
 /** Full subject state captured for the rail's Back history. */
 interface SubjectSnapshot {
@@ -21,6 +28,8 @@ interface SubjectSnapshot {
   feedId: string | null
   feedUiLabel: string | null
   graphNodeUiLabel: string | null
+  articleItemId: string | null
+  articleUiLabel: string | null
 }
 
 /**
@@ -70,6 +79,9 @@ export const useSubjectStore = defineStore('subject', () => {
    */
   const feedId = ref<string | null>(null)
   const feedUiLabel = ref<string | null>(null)
+  /** A news item's id (``item:news_article:…``) when the subject is an article (UXS-019). */
+  const articleItemId = ref<string | null>(null)
+  const articleUiLabel = ref<string | null>(null)
   /**
    * The focused graph node's name as the caller showed it (a palette hit), for the rail's title
    * while the node is not in the loaded graph: the id's slug loses accents ("Marta Solis" for
@@ -96,6 +108,8 @@ export const useSubjectStore = defineStore('subject', () => {
       positionTrackerTopicId: positionTrackerTopicId.value,
       feedId: feedId.value,
       feedUiLabel: feedUiLabel.value,
+      articleItemId: articleItemId.value,
+      articleUiLabel: articleUiLabel.value,
       graphNodeUiLabel: graphNodeUiLabel.value,
     }
   }
@@ -119,6 +133,8 @@ export const useSubjectStore = defineStore('subject', () => {
     positionTrackerTopicId.value = s.positionTrackerTopicId
     feedId.value = s.feedId
     feedUiLabel.value = s.feedUiLabel
+    articleItemId.value = s.articleItemId
+    articleUiLabel.value = s.articleUiLabel
     graphNodeUiLabel.value = s.graphNodeUiLabel ?? null
   }
 
@@ -139,6 +155,8 @@ export const useSubjectStore = defineStore('subject', () => {
     positionTrackerTopicId.value = null
     feedId.value = null
     feedUiLabel.value = null
+    articleItemId.value = null
+    articleUiLabel.value = null
     graphNodeUiLabel.value = null
   }
 
@@ -207,6 +225,25 @@ export const useSubjectStore = defineStore('subject', () => {
     feedId.value = t
     const lab = opts?.uiTitle?.trim()
     feedUiLabel.value = lab ? truncateUiLabel(lab) : null
+  }
+
+  /** Focus a news article (UXS-019's article card): ``id`` is its ``item_id``. */
+  function focusArticle(id: string, opts?: { uiTitle?: string | null }): void {
+    const t = id.trim()
+    if (!t) {
+      clearFields()
+      kind.value = null
+      return
+    }
+    const same = kind.value === 'article' && articleItemId.value === t
+    if (!same) {
+      pushHistory()
+      clearFields()
+    }
+    kind.value = 'article'
+    articleItemId.value = t
+    const lab = opts?.uiTitle?.trim()
+    articleUiLabel.value = lab ? truncateUiLabel(lab) : null
   }
 
   function setEpisodeId(v: string | null): void {
@@ -366,6 +403,9 @@ export const useSubjectStore = defineStore('subject', () => {
     positionTrackerTopicId,
     feedId,
     feedUiLabel,
+    articleItemId,
+    articleUiLabel,
+    focusArticle,
     graphNodeUiLabel,
     focusEpisode,
     focusShow,

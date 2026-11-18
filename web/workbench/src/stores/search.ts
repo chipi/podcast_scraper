@@ -84,6 +84,12 @@ export const useSearchStore = defineStore('search', () => {
      * not client-side (drops non-matching hits before top-k slice).
      */
     episodeId: '',
+    /**
+     * Content types to search (UXS-019's Type chip): podcasts by default; ``news_article`` alone
+     * or both when the operator asks. Sent only when it differs from the default, so a podcast
+     * search's request is unchanged.
+     */
+    contentTypes: ['podcast_episode'] as string[],
   })
 
   /**
@@ -216,6 +222,10 @@ export const useSearchStore = defineStore('search', () => {
       topK: topK ?? filters.topK,
       embeddingModel: filters.embeddingModel.trim() || undefined,
       dedupeKgSurfaces: filters.dedupeKgSurfaces,
+      contentTypes:
+        filters.contentTypes.length === 1 && filters.contentTypes[0] === 'podcast_episode'
+          ? undefined
+          : filters.contentTypes,
       extraParams,
     }
   }

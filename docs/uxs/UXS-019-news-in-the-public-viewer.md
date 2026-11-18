@@ -18,14 +18,14 @@
   - [UXS-005: Semantic Search Panel](UXS-005-semantic-search.md): the compact launcher
 - **Shell IA (Workbench only):**
   - [WORKBENCH_IA.md](WORKBENCH_IA.md): the subject rail gains an `article` subject (below)
-- **Implementation paths** (proposed; nothing is built yet):
-  - `web/workbench/src/components/search/SearchFilterBar.vue` (the Type chip)
-  - `web/workbench/src/components/search/ResultCard.vue` (the news row)
-  - `web/workbench/src/components/subject/` (the article rail panel)
-  - `web/workbench/src/stores/subject.ts` (the `article` subject kind)
-  - `web/workbench/src/theme/` (the `news` domain token)
+- **Implementation paths** (built on `feat/news-release`, 2026-11-18):
+  - `web/workbench/src/components/search/chips/SearchTypeChip.vue` (the Type chip)
+  - `web/workbench/src/components/search/NewsResultRow.vue` (the news row)
+  - `web/workbench/src/components/news/ArticleRailPanel.vue` (the article card)
+  - `web/workbench/src/api/newsApi.ts`; server: `GET /api/corpus/news/items`,
+    `GET /api/corpus/news/item`, `content_types` on `GET /api/search` and `GET /api/health`
 
-**Where it renders (2026-11-17).** Nothing in this spec is drawn by the public Workbench today. In `web/workbench/src` there is no `article` subject kind (`stores/subject.ts:8`), no `news` token (`theme/tokens.css`, `theme/theme.ts`), no Type chip (the chip is **Doc types**, `search-chip-doctypes`) and no news row. The places a build could fill: `searchDocTypes` (an option on the Doc types chip and the row icon), `resultCardBadges` and `resultCardSections`. Whether a news build uses them: not checked. The spec stays a draft for the public Workbench.
+**Where it renders (2026-11-18).** The Type chip shows in the Query Workspace chip bar when the corpus holds news; news hits render as `NewsResultRow`, interleaved with podcast rows in the server's order; the `article` subject kind opens `ArticleRailPanel`; the `news` token is in `theme/tokens.css` and UXS-001. Not yet: the compact launcher's chip row, and every other view (Library, Digest, Dashboard, the graph), which News 1.0's acceptance adds.
 
 ## Summary
 
@@ -158,9 +158,10 @@ A chip in the Query Workspace filter chip bar (UXS-016 §Header), placed after *
   `Type: News ▾` / `Type: Podcasts and news ▾` otherwise.
 - Its popover is a single-choice list: **Podcasts** (default), **News**, **Podcasts and news**.
 - The chip is shown only when `GET /api/health` lists `news_article` in `content_types` (the types
-  the served corpus holds, beside `artifact_kinds`; proposed). Without news, the chip bar is
-  unchanged.
-- The chip's value is sent as `content_types`. Changing it re-runs the query, as the other chips do.
+  the served corpus holds, beside `artifact_kinds`). Without news, the chip bar is unchanged.
+- The chip's value is sent as `content_types`, and only when it is not the default. Choosing a
+  type re-runs the current query, since it replaces the whole result set (the other chips take
+  effect on the next search).
 - The same chip appears in the compact launcher's filter row when the launcher shows chips.
 
 ### The news result row
@@ -212,11 +213,9 @@ result row. Component: `ArticleRailPanel`. Top to bottom:
 7. **Summary:** the full summary paragraph.
 8. **Open article ↗:** a full-width secondary button, the card's main action.
 9. **Topics and entities:** chips from the article's KG (`topic` and `kg` tokens, as on the podcast item
-   rail), each opening its topic or entity in the rail. Loaded the way the podcast item card
-   (today's episode card) loads its
-   KG: an item detail read keyed by `item_id` returns `has_kg` and `kg_relative_path` (proposed;
-   route name to come), then the artifacts route serves the KG file. Without a KG, the section is
-   left out.
+   rail), each opening its topic or entity in the rail. `GET /api/corpus/news/item?item_id=…`
+   returns them with the item (`kg_nodes`: id, type, label, and `role: author` for a byline
+   person), so the card reads no KG file. Without a KG, the section is left out.
 
 The card never has a transcript, a body, a "Read more" or a quote section.
 
@@ -298,4 +297,5 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 | 2026-11-17 | Initial draft: News 1.0 scope (Type chip, news result row, article card), later items listed |
 | 2026-11-17 | Vocabulary: item, content type, source, transport, person, text (the operator); two content types (Podcasts, News), each with its own transports; today's names given once in brackets |
 | 2026-11-18 | Data table matched to ontology v3 (ingestion's correction): `url`, not `canonical_url`; `serveable` is `metadata` / `summary` / `none`, not a boolean; the publisher comes from the source through the registry; each field marked decided or undecided |
+| 2026-11-18 | Built: the Type chip re-runs the current query (the other chips do not); the card's topics and people come from `GET /api/corpus/news/item` |
 | 2026-11-18 | The item contract accepted (the operator): every field named as `news-item-1.0.md` has it; `text_status` adds `video`; the publisher order (item, source, domain) |
