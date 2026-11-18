@@ -1,6 +1,6 @@
 {
   "schema_version": "3.0",
-  "item_id": "item:news_article:a1365cef12671dfcb350",
+  "item_id": "item:news_article:b626e4b9538458cb6235",
   "content_type": "news_article",
   "extraction": {
     "model_version": "metadata_only",
@@ -10,7 +10,7 @@
   },
   "nodes": [
     {
-      "id": "source:2401ce1281ab358bf1ed",
+      "id": "source:125361805bbcfcb84b90",
       "type": "Source",
       "properties": {
         "title": "Daily Example",
@@ -20,13 +20,13 @@
       }
     },
     {
-      "id": "item:news_article:a1365cef12671dfcb350",
+      "id": "item:news_article:b626e4b9538458cb6235",
       "type": "ContentItem",
       "properties": {
         "title": "Los mercados y la gesti\u00f3n del riesgo",
         "content_type": "news_article",
-        "source_id": "source:2401ce1281ab358bf1ed",
-        "url": "b626e4b9538458cb6235",
+        "source_id": "source:125361805bbcfcb84b90",
+        "url": "https://www.dailyexample.test/es/2026/11/mercados",
         "published_at": "2026-11-15T09:00:00Z"
       }
     },
@@ -56,23 +56,23 @@
   "edges": [
     {
       "type": "HAS_ITEM",
-      "from": "source:2401ce1281ab358bf1ed",
-      "to": "item:news_article:a1365cef12671dfcb350"
+      "from": "source:125361805bbcfcb84b90",
+      "to": "item:news_article:b626e4b9538458cb6235"
     },
     {
       "type": "PUBLISHED_BY",
-      "from": "source:2401ce1281ab358bf1ed",
+      "from": "source:125361805bbcfcb84b90",
       "to": "org:daily-example"
     },
     {
       "type": "MENTIONS",
       "from": "topic:risk-management",
-      "to": "item:news_article:a1365cef12671dfcb350"
+      "to": "item:news_article:b626e4b9538458cb6235"
     },
     {
       "type": "PARTICIPATES_IN",
       "from": "person:dora-ejemplo",
-      "to": "item:news_article:a1365cef12671dfcb350",
+      "to": "item:news_article:b626e4b9538458cb6235",
       "properties": {
         "role": "author"
       }

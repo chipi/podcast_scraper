@@ -2,13 +2,13 @@
   "content_type": "news_article",
   "edges": [
     {
-      "from": "source:c8fd96a1590e066f75e9",
-      "to": "item:news_article:8144a719d1c08d7e2c2d",
+      "from": "source:8c47148ce1eea59a43d1",
+      "to": "item:news_article:10f6e9ad61532e120b60",
       "type": "HAS_ITEM"
     },
     {
       "from": "topic:trail-building",
-      "to": "item:news_article:8144a719d1c08d7e2c2d",
+      "to": "item:news_article:10f6e9ad61532e120b60",
       "type": "MENTIONS"
     }
   ],
@@ -18,10 +18,10 @@
     "model_version": "metadata_only",
     "variant": "raw"
   },
-  "item_id": "item:news_article:8144a719d1c08d7e2c2d",
+  "item_id": "item:news_article:10f6e9ad61532e120b60",
   "nodes": [
     {
-      "id": "source:c8fd96a1590e066f75e9",
+      "id": "source:8c47148ce1eea59a43d1",
       "properties": {
         "source_kind": "news",
         "title": "Link Board",
@@ -31,13 +31,13 @@
       "type": "Source"
     },
     {
-      "id": "item:news_article:8144a719d1c08d7e2c2d",
+      "id": "item:news_article:10f6e9ad61532e120b60",
       "properties": {
         "content_type": "news_article",
         "published_at": "2026-11-14T18:00:00Z",
-        "source_id": "source:c8fd96a1590e066f75e9",
+        "source_id": "source:8c47148ce1eea59a43d1",
         "title": "Trail building, in pictures",
-        "url": "10f6e9ad61532e120b60"
+        "url": "https://nowhere.test/videos/trail-building"
       },
       "type": "ContentItem"
     },

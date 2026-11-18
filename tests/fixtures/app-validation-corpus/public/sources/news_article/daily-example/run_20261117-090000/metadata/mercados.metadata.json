@@ -3,7 +3,7 @@
   "content_type": "news_article",
   "fetched_at": "2026-11-17T09:00:00Z",
   "ingested_at": "2026-11-17T09:00:00Z",
-  "item_id": "item:news_article:a1365cef12671dfcb350",
+  "item_id": "item:news_article:b626e4b9538458cb6235",
   "language": "es",
   "licence": null,
   "mineable": true,
@@ -22,8 +22,8 @@
   "published_at": "2026-11-15T09:00:00Z",
   "publisher_id": "org:daily-example",
   "serveable": "summary",
-  "source_id": "source:2401ce1281ab358bf1ed",
+  "source_id": "source:125361805bbcfcb84b90",
   "summary": "Una columna sobre la gestión del riesgo en los mercados.",
   "title": "Los mercados y la gestión del riesgo",
-  "url": "b626e4b9538458cb6235"
+  "url": "https://www.dailyexample.test/es/2026/11/mercados"
 }

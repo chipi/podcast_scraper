@@ -1,6 +1,6 @@
 {
   "schema_version": "3.0",
-  "item_id": "item:news_article:a3b40942a6f962423eb2",
+  "item_id": "item:news_article:6f5ab0dc6a7c03409dbf",
   "content_type": "news_article",
   "extraction": {
     "model_version": "metadata_only",
@@ -10,7 +10,7 @@
   },
   "nodes": [
     {
-      "id": "source:2401ce1281ab358bf1ed",
+      "id": "source:125361805bbcfcb84b90",
       "type": "Source",
       "properties": {
         "title": "Daily Example",
@@ -20,13 +20,13 @@
       }
     },
     {
-      "id": "item:news_article:a3b40942a6f962423eb2",
+      "id": "item:news_article:6f5ab0dc6a7c03409dbf",
       "type": "ContentItem",
       "properties": {
         "title": "Soil report finds erosion slowing",
         "content_type": "news_article",
-        "source_id": "source:2401ce1281ab358bf1ed",
-        "url": "6f5ab0dc6a7c03409dbf",
+        "source_id": "source:125361805bbcfcb84b90",
+        "url": "https://www.dailyexample.test/2026/11/soil-report",
         "published_at": "2026-11-16T12:00:00Z"
       }
     },
@@ -63,23 +63,23 @@
   "edges": [
     {
       "type": "HAS_ITEM",
-      "from": "source:2401ce1281ab358bf1ed",
-      "to": "item:news_article:a3b40942a6f962423eb2"
+      "from": "source:125361805bbcfcb84b90",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf"
     },
     {
       "type": "PUBLISHED_BY",
-      "from": "source:2401ce1281ab358bf1ed",
+      "from": "source:125361805bbcfcb84b90",
       "to": "org:daily-example"
     },
     {
       "type": "MENTIONS",
       "from": "topic:soil-erosion",
-      "to": "item:news_article:a3b40942a6f962423eb2"
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf"
     },
     {
       "type": "PARTICIPATES_IN",
       "from": "person:ana-example",
-      "to": "item:news_article:a3b40942a6f962423eb2",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf",
       "properties": {
         "role": "author"
       }
@@ -87,7 +87,7 @@
     {
       "type": "PARTICIPATES_IN",
       "from": "person:cy-example",
-      "to": "item:news_article:a3b40942a6f962423eb2",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf",
       "properties": {
         "role": "author"
       }

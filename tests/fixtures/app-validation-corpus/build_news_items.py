@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "src"))
 
 from podcast_scraper.content_types import url_identity  # noqa: E402
+from podcast_scraper.utils.canonical_url import canonical_url  # noqa: E402
 from podcast_scraper.kg.schema import validate_artifact  # noqa: E402
 
 CORPUS = Path(__file__).resolve().parent / "v3"
@@ -141,16 +142,14 @@ ITEMS: List[Dict[str, Any]] = [
 ]
 
 
-def _id20(url: str) -> str:
-    return hashlib.sha256(url_identity(url).encode("utf-8")).hexdigest()[:20]
-
-
 def source_id(name: str) -> str:
-    return f"source:{_id20(SOURCES[name]['url'])}"
+    """``source:{url_identity}``, as ``content_types.source_id`` mints it."""
+    return f"source:{url_identity(SOURCES[name]['url'])}"
 
 
 def item_id(item: Dict[str, Any]) -> str:
-    return f"item:news_article:{_id20(item['url'])}"
+    """``item:news_article:{url_identity}``, as the news type mints it from the canonical URL."""
+    return f"item:news_article:{url_identity(item['url'])}"
 
 
 def _body(item: Dict[str, Any], n: int) -> str:
@@ -165,7 +164,7 @@ def _metadata(item: Dict[str, Any], body: str) -> Dict[str, Any]:
     doc: Dict[str, Any] = {
         "content_type": "news_article",
         "item_id": item_id(item),
-        "url": url_identity(item["url"]),
+        "url": canonical_url(item["url"]),
         "source_id": source_id(item["source"]),
         "title": item["title"],
         "published_at": item["published_at"],

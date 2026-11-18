@@ -2,23 +2,23 @@
   "content_type": "news_article",
   "edges": [
     {
-      "from": "source:2401ce1281ab358bf1ed",
-      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "from": "source:125361805bbcfcb84b90",
+      "to": "item:news_article:a8d6e89ce92ef7521ed5",
       "type": "HAS_ITEM"
     },
     {
-      "from": "source:2401ce1281ab358bf1ed",
+      "from": "source:125361805bbcfcb84b90",
       "to": "org:daily-example",
       "type": "PUBLISHED_BY"
     },
     {
       "from": "topic:risk-management",
-      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "to": "item:news_article:a8d6e89ce92ef7521ed5",
       "type": "MENTIONS"
     },
     {
       "from": "topic:trading-desks",
-      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "to": "item:news_article:a8d6e89ce92ef7521ed5",
       "type": "MENTIONS"
     },
     {
@@ -26,12 +26,12 @@
       "properties": {
         "role": "author"
       },
-      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "to": "item:news_article:a8d6e89ce92ef7521ed5",
       "type": "PARTICIPATES_IN"
     },
     {
       "from": "person:skanda-amarnath",
-      "to": "item:news_article:c14ace7b3ac1b7c989b9",
+      "to": "item:news_article:a8d6e89ce92ef7521ed5",
       "type": "MENTIONS"
     }
   ],
@@ -41,10 +41,10 @@
     "model_version": "metadata_only",
     "variant": "raw"
   },
-  "item_id": "item:news_article:c14ace7b3ac1b7c989b9",
+  "item_id": "item:news_article:a8d6e89ce92ef7521ed5",
   "nodes": [
     {
-      "id": "source:2401ce1281ab358bf1ed",
+      "id": "source:125361805bbcfcb84b90",
       "properties": {
         "source_kind": "news",
         "title": "Daily Example",
@@ -54,13 +54,13 @@
       "type": "Source"
     },
     {
-      "id": "item:news_article:c14ace7b3ac1b7c989b9",
+      "id": "item:news_article:a8d6e89ce92ef7521ed5",
       "properties": {
         "content_type": "news_article",
         "published_at": "2026-11-17T07:30:00Z",
-        "source_id": "source:2401ce1281ab358bf1ed",
+        "source_id": "source:125361805bbcfcb84b90",
         "title": "Risk desks learn to sit still",
-        "url": "a8d6e89ce92ef7521ed5"
+        "url": "https://www.dailyexample.test/2026/11/risk-desks-learn-to-sit-still"
       },
       "type": "ContentItem"
     },

@@ -3,7 +3,7 @@
   "content_type": "news_article",
   "fetched_at": "2026-11-17T09:00:00Z",
   "ingested_at": "2026-11-17T09:00:00Z",
-  "item_id": "item:news_article:c14ace7b3ac1b7c989b9",
+  "item_id": "item:news_article:a8d6e89ce92ef7521ed5",
   "language": "en",
   "licence": null,
   "mineable": true,
@@ -22,8 +22,8 @@
   "published_at": "2026-11-17T07:30:00Z",
   "publisher_id": "org:daily-example",
   "serveable": "summary",
-  "source_id": "source:2401ce1281ab358bf1ed",
+  "source_id": "source:125361805bbcfcb84b90",
   "summary": "Trading desks say the hard part of risk management is behavioural, not maths.",
   "title": "Risk desks learn to sit still",
-  "url": "a8d6e89ce92ef7521ed5"
+  "url": "https://www.dailyexample.test/2026/11/risk-desks-learn-to-sit-still"
 }

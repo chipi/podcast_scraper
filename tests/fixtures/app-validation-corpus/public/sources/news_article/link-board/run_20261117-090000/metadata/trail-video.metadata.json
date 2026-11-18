@@ -3,7 +3,7 @@
   "content_type": "news_article",
   "fetched_at": "2026-11-17T09:00:00Z",
   "ingested_at": "2026-11-17T09:00:00Z",
-  "item_id": "item:news_article:8144a719d1c08d7e2c2d",
+  "item_id": "item:news_article:10f6e9ad61532e120b60",
   "language": "en",
   "licence": null,
   "mineable": true,
@@ -19,8 +19,8 @@
   "paywalled": null,
   "published_at": "2026-11-14T18:00:00Z",
   "serveable": "metadata",
-  "source_id": "source:c8fd96a1590e066f75e9",
+  "source_id": "source:8c47148ce1eea59a43d1",
   "summary": "A video about trail building.",
   "title": "Trail building, in pictures",
-  "url": "10f6e9ad61532e120b60"
+  "url": "https://nowhere.test/videos/trail-building"
 }

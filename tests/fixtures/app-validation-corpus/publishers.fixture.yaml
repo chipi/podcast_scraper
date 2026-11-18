@@ -5,7 +5,7 @@ publishers:
   domains:
   - dailyexample.test
   sources:
-  - source:2401ce1281ab358bf1ed
+  - source:125361805bbcfcb84b90
 - id: org:other-wire
   name: Other Wire
   domains:

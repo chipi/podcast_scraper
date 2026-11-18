@@ -1,6 +1,6 @@
 {
   "schema_version": "3.0",
-  "item_id": "item:news_article:67c9d625ac414e97d0b9",
+  "item_id": "item:news_article:9daff705c69561dcd905",
   "content_type": "news_article",
   "extraction": {
     "model_version": "metadata_only",
@@ -10,7 +10,7 @@
   },
   "nodes": [
     {
-      "id": "source:c8fd96a1590e066f75e9",
+      "id": "source:8c47148ce1eea59a43d1",
       "type": "Source",
       "properties": {
         "title": "Link Board",
@@ -20,13 +20,13 @@
       }
     },
     {
-      "id": "item:news_article:67c9d625ac414e97d0b9",
+      "id": "item:news_article:9daff705c69561dcd905",
       "type": "ContentItem",
       "properties": {
         "title": "Reliability at scale, a field report",
         "content_type": "news_article",
-        "source_id": "source:c8fd96a1590e066f75e9",
-        "url": "9daff705c69561dcd905",
+        "source_id": "source:8c47148ce1eea59a43d1",
+        "url": "https://m.otherwire.test/reliability-at-scale",
         "published_at": "2026-11-17T06:00:00Z"
       }
     },
@@ -56,18 +56,18 @@
   "edges": [
     {
       "type": "HAS_ITEM",
-      "from": "source:c8fd96a1590e066f75e9",
-      "to": "item:news_article:67c9d625ac414e97d0b9"
+      "from": "source:8c47148ce1eea59a43d1",
+      "to": "item:news_article:9daff705c69561dcd905"
     },
     {
       "type": "MENTIONS",
       "from": "topic:reliability",
-      "to": "item:news_article:67c9d625ac414e97d0b9"
+      "to": "item:news_article:9daff705c69561dcd905"
     },
     {
       "type": "PARTICIPATES_IN",
       "from": "person:bo-example",
-      "to": "item:news_article:67c9d625ac414e97d0b9",
+      "to": "item:news_article:9daff705c69561dcd905",
       "properties": {
         "role": "author"
       }
@@ -75,7 +75,7 @@
     {
       "type": "MENTIONS",
       "from": "person:skanda-amarnath",
-      "to": "item:news_article:67c9d625ac414e97d0b9"
+      "to": "item:news_article:9daff705c69561dcd905"
     }
   ]
 }

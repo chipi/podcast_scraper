@@ -2,13 +2,13 @@
   "content_type": "news_article",
   "edges": [
     {
-      "from": "source:c8fd96a1590e066f75e9",
-      "to": "item:news_article:67c9d625ac414e97d0b9",
+      "from": "source:8c47148ce1eea59a43d1",
+      "to": "item:news_article:9daff705c69561dcd905",
       "type": "HAS_ITEM"
     },
     {
       "from": "topic:reliability",
-      "to": "item:news_article:67c9d625ac414e97d0b9",
+      "to": "item:news_article:9daff705c69561dcd905",
       "type": "MENTIONS"
     },
     {
@@ -16,12 +16,12 @@
       "properties": {
         "role": "author"
       },
-      "to": "item:news_article:67c9d625ac414e97d0b9",
+      "to": "item:news_article:9daff705c69561dcd905",
       "type": "PARTICIPATES_IN"
     },
     {
       "from": "person:skanda-amarnath",
-      "to": "item:news_article:67c9d625ac414e97d0b9",
+      "to": "item:news_article:9daff705c69561dcd905",
       "type": "MENTIONS"
     }
   ],
@@ -31,10 +31,10 @@
     "model_version": "metadata_only",
     "variant": "raw"
   },
-  "item_id": "item:news_article:67c9d625ac414e97d0b9",
+  "item_id": "item:news_article:9daff705c69561dcd905",
   "nodes": [
     {
-      "id": "source:c8fd96a1590e066f75e9",
+      "id": "source:8c47148ce1eea59a43d1",
       "properties": {
         "source_kind": "news",
         "title": "Link Board",
@@ -44,13 +44,13 @@
       "type": "Source"
     },
     {
-      "id": "item:news_article:67c9d625ac414e97d0b9",
+      "id": "item:news_article:9daff705c69561dcd905",
       "properties": {
         "content_type": "news_article",
         "published_at": "2026-11-17T06:00:00Z",
-        "source_id": "source:c8fd96a1590e066f75e9",
+        "source_id": "source:8c47148ce1eea59a43d1",
         "title": "Reliability at scale, a field report",
-        "url": "9daff705c69561dcd905"
+        "url": "https://m.otherwire.test/reliability-at-scale"
       },
       "type": "ContentItem"
     },

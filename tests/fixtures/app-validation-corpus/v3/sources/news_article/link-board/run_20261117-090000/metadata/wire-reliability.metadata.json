@@ -1,8 +1,8 @@
 {
   "content_type": "news_article",
-  "item_id": "item:news_article:67c9d625ac414e97d0b9",
-  "url": "9daff705c69561dcd905",
-  "source_id": "source:c8fd96a1590e066f75e9",
+  "item_id": "item:news_article:9daff705c69561dcd905",
+  "url": "https://m.otherwire.test/reliability-at-scale",
+  "source_id": "source:8c47148ce1eea59a43d1",
   "title": "Reliability at scale, a field report",
   "published_at": "2026-11-17T06:00:00Z",
   "ingested_at": "2026-11-17T09:00:00Z",

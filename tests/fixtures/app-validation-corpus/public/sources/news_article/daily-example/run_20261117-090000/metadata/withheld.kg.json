@@ -2,18 +2,18 @@
   "content_type": "news_article",
   "edges": [
     {
-      "from": "source:2401ce1281ab358bf1ed",
-      "to": "item:news_article:789191770b8e00c511de",
+      "from": "source:125361805bbcfcb84b90",
+      "to": "item:news_article:2043d8230c86beddfb95",
       "type": "HAS_ITEM"
     },
     {
-      "from": "source:2401ce1281ab358bf1ed",
+      "from": "source:125361805bbcfcb84b90",
       "to": "org:daily-example",
       "type": "PUBLISHED_BY"
     },
     {
       "from": "topic:risk-management",
-      "to": "item:news_article:789191770b8e00c511de",
+      "to": "item:news_article:2043d8230c86beddfb95",
       "type": "MENTIONS"
     }
   ],
@@ -23,10 +23,10 @@
     "model_version": "metadata_only",
     "variant": "raw"
   },
-  "item_id": "item:news_article:789191770b8e00c511de",
+  "item_id": "item:news_article:2043d8230c86beddfb95",
   "nodes": [
     {
-      "id": "source:2401ce1281ab358bf1ed",
+      "id": "source:125361805bbcfcb84b90",
       "properties": {
         "source_kind": "news",
         "title": "Daily Example",
@@ -36,13 +36,13 @@
       "type": "Source"
     },
     {
-      "id": "item:news_article:789191770b8e00c511de",
+      "id": "item:news_article:2043d8230c86beddfb95",
       "properties": {
         "content_type": "news_article",
         "published_at": "2026-11-17T08:00:00Z",
-        "source_id": "source:2401ce1281ab358bf1ed",
+        "source_id": "source:125361805bbcfcb84b90",
         "title": "WITHHELD-ITEM-TITLE",
-        "url": "2043d8230c86beddfb95"
+        "url": "https://www.dailyexample.test/2026/11/withheld"
       },
       "type": "ContentItem"
     },
