@@ -5239,6 +5239,13 @@ class NewsItem(BaseModel):
     editorial_type: Optional[Literal["reporting", "opinion", "analysis", "paid"]] = None
     paywalled: Optional[bool] = None
     text_status: Optional[str] = None
+    roundup: bool = Field(
+        default=False,
+        description=(
+            "True when the item is a roundup: a newsletter issue covering several stories (its "
+            "source's roundup_title_pattern matched its title at ingest)."
+        ),
+    )
     serveable: Literal["metadata", "summary"]
     summary: Optional[str] = None
     metadata_relative_path: str = ""

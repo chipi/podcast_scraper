@@ -191,3 +191,15 @@ def test_a_relative_corpus_root_is_read(tmp_path: Path, monkeypatch: pytest.Monk
     _corpus(tmp_path)
     monkeypatch.chdir(tmp_path)
     assert len(served_items(Path("corpus"), _registry(tmp_path))) == 2
+
+
+def test_roundup_is_served_as_a_boolean(tmp_path: Path) -> None:
+    """A newsletter issue covering several stories carries ``news_article.roundup: true`` (set at
+    ingest from the source's roundup_title_pattern); every served item says true or false."""
+    reg = _registry(tmp_path)
+    issue = _doc()
+    issue["news_article"] = {**issue["news_article"], "roundup": True}
+    served = served_item(issue, reg)
+    assert served is not None and served["roundup"] is True
+    plain = served_item(_doc(), reg)
+    assert plain is not None and plain["roundup"] is False

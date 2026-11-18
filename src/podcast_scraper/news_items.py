@@ -161,6 +161,9 @@ def served_item(
         "editorial_type": editorial if editorial in EDITORIAL_TYPES else None,
         "paywalled": paywalled if isinstance(paywalled, bool) else None,
         "text_status": _str(own.get(F_TEXT_STATUS)),
+        # A newsletter issue covering several stories (the source's roundup_title_pattern matched
+        # its title at ingest); storyline attach asks more of it.
+        "roundup": own.get("roundup") is True,
         "serveable": shows,
         "summary": _str(doc.get(F_SUMMARY)) if shows == SERVEABLE_SUMMARY else None,
         "metadata_relative_path": metadata_relative_path,
