@@ -87,3 +87,10 @@ def test_a_key_claimed_twice_is_refused(tmp_path: Path, second: dict) -> None:
 def test_an_entry_outside_the_rules_is_refused(tmp_path: Path, bad: dict) -> None:
     with pytest.raises(PublisherRegistryError):
         load_registry(_write(tmp_path, [bad]))
+
+
+def test_the_env_names_another_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PODCAST_PUBLISHERS_FILE", str(_write(tmp_path, [_BBC])))
+    assert [p.id for p in load_registry().publishers] == ["org:bbc"]
+    monkeypatch.delenv("PODCAST_PUBLISHERS_FILE")
+    assert load_registry().publishers == load_registry(DEFAULT_PATH).publishers

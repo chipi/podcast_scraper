@@ -141,3 +141,25 @@ def test_the_corpus_read_lists_shown_news_newest_first_and_no_body(tmp_path: Pat
 def test_the_walk_reads_no_podcast_episode(tmp_path: Path) -> None:
     root = _corpus(tmp_path)
     assert all("feeds/" not in f.relative_path for f in iter_news_metadata(root))
+
+
+_FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus"
+
+
+def test_the_fixture_items_list_their_kg_nodes_and_author() -> None:
+    from podcast_scraper.news_items import item_kg
+
+    registry = load_registry(_FIXTURE / "publishers.fixture.yaml")
+    items = {i["title"]: i for i in served_items(_FIXTURE / "v3", registry)}
+    assert "WITHHELD-ITEM-TITLE" not in items and len(items) == 5
+    risk = items["Risk desks learn to sit still"]
+    kg = item_kg(_FIXTURE / "v3", risk["metadata_relative_path"])
+    assert kg["kg_relative_path"].endswith("risk-desks.kg.json")
+    by_id = {n["id"]: n for n in kg["kg_nodes"]}
+    assert by_id["topic:risk-management"]["label"] == "Risk Management"
+    assert by_id["person:ana-example"]["role"] == "author"
+    assert "role" not in by_id["person:skanda-amarnath"]
+    assert by_id["org:daily-example"]["type"] == "Organization"
+    assert risk["publisher"]["id"] == "org:daily-example"
+    assert items["Reliability at scale, a field report"]["publisher"]["domain"] == "otherwire.test"
+    assert items["Trail building, in pictures"]["publisher"] is None

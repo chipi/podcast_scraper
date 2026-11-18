@@ -193,8 +193,23 @@ async def health(
             "jobs_api": bool(getattr(st, "jobs_api_enabled", False)),
             **_stage_route_flags(st),
             "artifact_kinds": [kind for kind, _suffix in episode_artifact_kinds()],
+            "content_types": _content_types(corpus_dir),
         }
     )
+
+
+def _content_types(corpus_dir: Any) -> list[str]:
+    """``podcast_episode``, plus ``news_article`` when the corpus holds a shown news item."""
+    types = ["podcast_episode"]
+    if corpus_dir is not None:
+        from podcast_scraper.server.routes.corpus_news import corpus_has_news
+
+        try:
+            if corpus_has_news(Path(corpus_dir)):
+                types.append("news_article")
+        except OSError:
+            pass
+    return types
 
 
 #: Health flags a stage router serves (``RouterMount.advertises``), reported from what is mounted.

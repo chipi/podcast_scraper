@@ -14,6 +14,7 @@ rule 6). Nothing else joins them: never a fuzzy or partial name.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
@@ -121,8 +122,19 @@ def validate(publishers: List[Publisher]) -> None:
             seen[key] = p.id
 
 
-def load_registry(path: Path = DEFAULT_PATH) -> Registry:
-    """The registry at ``path``; a missing file is an empty registry."""
+#: Names another registry file (a test corpus's invented publishers); unset, the shipped one.
+ENV_PATH = "PODCAST_PUBLISHERS_FILE"
+
+
+def registry_path() -> Path:
+    """The registry file in use: ``$PODCAST_PUBLISHERS_FILE`` when set, else the shipped one."""
+    override = os.environ.get(ENV_PATH, "").strip()
+    return Path(override) if override else DEFAULT_PATH
+
+
+def load_registry(path: Optional[Path] = None) -> Registry:
+    """The registry at ``path`` (default :func:`registry_path`); a missing file is empty."""
+    path = path if path is not None else registry_path()
     if not path.is_file():
         return Registry()
     doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}

@@ -156,3 +156,43 @@ def served_items(corpus_root: Path, registry: Optional[Registry] = None) -> List
     ]
     out.sort(key=lambda i: i["published_at"] or "", reverse=True)
     return out
+
+
+#: KG node types a news item's card lists (its own Source and ContentItem are the item itself).
+_KG_LISTED = ("Topic", "Person", "Organization", "Object")
+
+
+def item_kg(corpus_root: Path, metadata_relative_path: str) -> Dict[str, Any]:
+    """The item's KG beside its metadata: its relative path, and the topics, people, organisations
+    and objects it names (``{id, type, label, role}``; ``role`` only for an author). Empty when the
+    item has no KG file."""
+    meta = Path(corpus_root) / metadata_relative_path
+    kg_path = meta.with_name(meta.name.replace(".metadata.json", ".kg.json"))
+    if not kg_path.is_file():
+        return {"kg_relative_path": None, "kg_nodes": []}
+    try:
+        art = json.loads(kg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"kg_relative_path": None, "kg_nodes": []}
+    authors = {
+        e.get("from")
+        for e in art.get("edges") or []
+        if isinstance(e, dict)
+        and e.get("type") == "PARTICIPATES_IN"
+        and (e.get("properties") or {}).get("role") == "author"
+    }
+    nodes = []
+    for n in art.get("nodes") or []:
+        if not isinstance(n, dict) or n.get("type") not in _KG_LISTED:
+            continue
+        raw_props = n.get("properties")
+        props: Dict[str, Any] = raw_props if isinstance(raw_props, dict) else {}
+        label = props.get("label") or props.get("name") or n.get("id")
+        node = {"id": n.get("id"), "type": n.get("type"), "label": label}
+        if n.get("id") in authors:
+            node["role"] = "author"
+        nodes.append(node)
+    return {
+        "kg_relative_path": kg_path.relative_to(Path(corpus_root)).as_posix(),
+        "kg_nodes": nodes,
+    }

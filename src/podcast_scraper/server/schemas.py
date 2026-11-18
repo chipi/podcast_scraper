@@ -3385,6 +3385,14 @@ class HealthResponse(BaseModel):
         default=True,
         description="True when GET /api/corpus/persons/top (dashboard top voices) is mounted.",
     )
+    content_types: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Content types the served corpus holds items of: ``podcast_episode``, plus "
+            "``news_article`` when it holds a news item some surface may show (RFC-134 §10). "
+            "Absent on older servers: podcasts only."
+        ),
+    )
     artifact_kinds: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -5159,3 +5167,60 @@ class CilIdListResponse(BaseModel):
     path: str
     anchor_id: str
     ids: list[str] = Field(default_factory=list)
+
+
+class NewsPublisher(BaseModel):
+    """A news item's publisher as the registry names it (ADR-180 rule 6)."""
+
+    id: str
+    name: str
+    domain: str = ""
+
+
+class NewsItem(BaseModel):
+    """A news item as a surface shows it (news-item-1.0.md; RFC-134 §10). Metadata only: no field
+    carries the article body (ADR-179). ``summary`` is set only when ``serveable`` is ``summary``;
+    an item whose ``serveable`` is ``none`` is never returned."""
+
+    content_type: Literal["news_article"] = "news_article"
+    item_id: str
+    title: str
+    url: Optional[str] = None
+    source_id: Optional[str] = None
+    publisher: Optional[NewsPublisher] = None
+    published_at: Optional[str] = None
+    language: Optional[str] = None
+    byline: List[str] = Field(default_factory=list)
+    editorial_type: Optional[Literal["reporting", "opinion", "analysis", "paid"]] = None
+    paywalled: Optional[bool] = None
+    text_status: Optional[str] = None
+    serveable: Literal["metadata", "summary"]
+    summary: Optional[str] = None
+    metadata_relative_path: str = ""
+
+
+class NewsItemsResponse(BaseModel):
+    """Response for GET /api/corpus/news/items."""
+
+    path: str
+    items: List[NewsItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class NewsKgNode(BaseModel):
+    """A topic, person, organisation or object the item's KG names; ``role`` is ``author`` for a
+    byline person."""
+
+    id: str
+    type: str
+    label: str
+    role: Optional[str] = None
+
+
+class NewsItemDetailResponse(BaseModel):
+    """Response for GET /api/corpus/news/item: the item, its KG file and the nodes it names."""
+
+    path: str
+    item: NewsItem
+    kg_relative_path: Optional[str] = None
+    kg_nodes: List[NewsKgNode] = Field(default_factory=list)
