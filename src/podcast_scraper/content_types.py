@@ -136,6 +136,10 @@ class ContentType:
     #: The type's own nodes and edges added to an item's KG 3.0 artifact before it is validated
     #: (``None``: the artifact as extraction built it). News adds its publisher and bylines.
     kg_extend: Optional[Callable[[Dict[str, Any], "ItemContext"], Dict[str, Any]]] = None
+    #: A stored item as its transport would list it again, from its metadata document and its
+    #: stored body: what ``rederive_only`` re-runs the stages on, so no source is fetched
+    #: (``None``: the item's title and URL only).
+    restore_item: Optional[Callable[[Dict[str, Any], str], "SourceItem"]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:

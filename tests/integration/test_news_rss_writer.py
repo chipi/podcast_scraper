@@ -312,6 +312,53 @@ def test_an_article_two_feeds_carry_or_one_feed_lists_twice_is_written_once(
     } == {first_source}
 
 
+def test_rederive_reruns_the_stored_items_without_fetching_anything(
+    tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
+) -> None:
+    """``--pipeline-stage rederive_only`` re-runs a news source's stored items under the run's
+    profile: no feed or page is fetched, each item is written again in a new run with the same
+    id, body, byline and rights, and the source's cursor is left as it was."""
+    corpus = _run(tmp_path)
+    first = {stem: doc for stem, (_p, doc) in _docs(corpus).items()}
+    cursors = {p: p.read_text(encoding="utf-8") for p in corpus.rglob("source_cursor.json")}
+    fetched = len(net.requests)
+
+    _run(tmp_path, "--pipeline-stage", "rederive_only")
+
+    assert net.requests[fetched:] == []  # nothing fetched
+    assert {p: p.read_text(encoding="utf-8") for p in corpus.rglob("source_cursor.json")} == cursors
+    metas = sorted(corpus.rglob("*.metadata.json"))
+    assert len(metas) == 2 * len(fixtures.ITEMS)  # one new run beside the first
+    newest: Dict[str, Tuple[str, Path, Dict[str, Any]]] = {}
+    for p in metas:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+        run = p.parent.parent.name
+        stem = doc["news_article"]["transport_ids"]["rss"]
+        if stem not in newest or newest[stem][0] < run:
+            newest[stem] = (run, p, doc)
+    for stem, (_run_dir, path, doc) in newest.items():
+        before = first[stem]
+        for key in (
+            "item_id",
+            "url",
+            "source_id",
+            "title",
+            "published_at",
+            "language",
+            "serveable",
+            "mineable",
+            "publisher_id",
+            "body_sha256",
+            "fetched_at",
+        ):
+            assert doc[key] == before[key], (stem, key)
+        for key in ("transport_ids", "byline", "byline_raw", "text_status", "language_source"):
+            assert doc["news_article"][key] == before["news_article"][key], (stem, key)
+        assert _body_path(path).read_text(encoding="utf-8")  # the body is written again
+        raw = Path(str(_body_path(path))[: -len(".txt")] + ".raw.html")
+        assert raw.exists()  # and its raw page
+
+
 def _risk_desks_again() -> str:
     item = fixtures.ITEMS[0]
     return (

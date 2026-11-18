@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Mapping, Optional
 from urllib.parse import urlsplit
 
-from ..content_types import ItemContext
+from ..content_types import ItemContext, SourceItem
+from ..kg.v3 import ITEM_TIMES
 from ..news_items import (
     EDITORIAL_TYPES,
     F_BYLINE,
@@ -51,6 +52,50 @@ def _summary_text(doc: Mapping[str, Any]) -> Optional[str]:
     bullets = [b for b in summary.get("bullets") or [] if isinstance(b, str) and b.strip()]
     text = " ".join(bullets[:2]) if bullets else str(summary.get("raw_text") or "")
     return text.strip() or None
+
+
+#: The contract's top-level fields a restored item carries back (``ingested_at`` is the new run's).
+_RESTORED_TOP = (
+    F_TITLE,
+    F_LANGUAGE,
+    "licence",
+    F_PAYWALLED,
+    F_SERVEABLE,
+    "mineable",
+    "fetched_at",
+)
+#: The fields under ``news_article`` a restored item carries back.
+_RESTORED_OWN = (
+    "transport_ids",
+    F_BYLINE,
+    "byline_raw",
+    F_EDITORIAL_TYPE,
+    F_TEXT_STATUS,
+    "live_blog",
+    "language_source",
+)
+
+
+def restore_item(doc: Dict[str, Any], body: str) -> SourceItem:
+    """A stored news item as its transport listed it, with its stored body and every field the
+    writer recorded, so ``rederive_only`` re-runs summary and KG on it without fetching anything.
+    Its id is minted again from its URL, as at first."""
+    raw_own = doc.get(NEWS_ARTICLE)
+    own: Mapping[str, Any] = raw_own if isinstance(raw_own, Mapping) else {}
+    fields: Dict[str, Any] = {k: doc[k] for k in _RESTORED_TOP if k in doc}
+    fields.update({k: own[k] for k in _RESTORED_OWN if k in own})
+    for name in ITEM_TIMES:
+        if doc.get(name):
+            fields[name] = doc[name]
+    raw_ids = own.get("transport_ids")
+    transport_ids: Mapping[str, Any] = raw_ids if isinstance(raw_ids, Mapping) else {}
+    native = next(iter(transport_ids.values()), None) if transport_ids else None
+    return SourceItem(
+        item_id=str(native or doc.get(F_ITEM_ID) or ""),
+        metadata=fields,
+        text=body,
+        url=str(doc.get(F_URL) or ""),
+    )
 
 
 def publisher(registry: Registry, source_id: Optional[str], url: str) -> Optional[Publisher]:
@@ -95,12 +140,18 @@ def shape(
     out["body_sha256"] = f.get("body_sha256")
     raw = f.get("byline_raw")
     editorial = f.get("editorial_type")
+    stored_byline = f.get("byline")
     own: Dict[str, Any] = {
         "transport_ids": dict(f.get("transport_ids") or {}),
-        F_BYLINE: byline.parse(
-            raw,
-            # A personal site's publisher is its author (``personal`` on the source).
-            organisations=[pub.name] if pub and not f.get("personal_publisher") else [],
+        # A restored item (rederive) keeps the byline it was written with.
+        F_BYLINE: (
+            list(stored_byline)
+            if isinstance(stored_byline, list)
+            else byline.parse(
+                raw,
+                # A personal site's publisher is its author (``personal`` on the source).
+                organisations=[pub.name] if pub and not f.get("personal_publisher") else [],
+            )
         ),
         "byline_raw": raw,
         F_EDITORIAL_TYPE: editorial if editorial in EDITORIAL_TYPES else None,

@@ -18,6 +18,7 @@ run finishes.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import logging
@@ -42,6 +43,8 @@ logger = logging.getLogger(__name__)
 
 TEXT_BODY: Literal["text_body"] = "text_body"
 CURSOR_FILE = "source_cursor.json"
+#: The pipeline stage that re-runs a source's stored items instead of listing new ones.
+REDERIVE_ONLY = "rederive_only"
 
 
 def _item_element(item: content_types.SourceItem, title: str, minted_id: str) -> ET.Element:
@@ -108,6 +111,59 @@ def _write_cursor(source_dir: str, transport: str, cursor: Optional[str]) -> Non
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps({"transport": transport, "cursor": cursor}), encoding="utf-8")
     os.replace(tmp, path)
+
+
+def _item_doc_id(doc: Dict[str, Any]) -> Optional[str]:
+    raw_episode = doc.get("episode")
+    episode: Dict[str, Any] = raw_episode if isinstance(raw_episode, dict) else {}
+    found = doc.get("item_id") or episode.get("guid")
+    return found if isinstance(found, str) and found else None
+
+
+def stored_items(
+    source_dir: str, ctype: content_types.ContentType
+) -> List[content_types.SourceItem]:
+    """This source's items as they are stored: the newest run of each (by run directory name), its
+    body from ``transcripts/``, listed again by the type's ``restore_item``. What ``rederive_only``
+    re-runs the stages on, so nothing is fetched."""
+    newest: Dict[str, Tuple[str, Path, Dict[str, Any]]] = {}
+    for path in corpus_rglob(Path(source_dir), "*.metadata.json"):
+        if path.parent.name != "metadata":
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        iid = _item_doc_id(doc)
+        run = path.parent.parent.name
+        if iid is None or (iid in newest and newest[iid][0] >= run):
+            continue
+        newest[iid] = (run, path, doc)
+    items: List[content_types.SourceItem] = []
+    for _iid, (_run, path, doc) in sorted(newest.items()):
+        stem = path.name[: -len(".metadata.json")]
+        body = path.parent.parent / filesystem.TRANSCRIPTS_SUBDIR / f"{stem}.txt"
+        try:
+            text = body.read_text(encoding="utf-8")
+        except OSError:
+            logger.warning("text-in: rederive: %s has no stored body; skipped", path)
+            continue
+        if ctype.restore_item is not None:
+            item = ctype.restore_item(doc, text)
+        else:
+            item = content_types.SourceItem(
+                item_id=_item_doc_id(doc) or stem,
+                metadata={"title": doc.get("title")},
+                text=text,
+                url=doc.get("url"),
+            )
+        raws = sorted(body.parent.glob(f"{stem}.raw.*"))
+        if raws and item.raw is None:
+            item = dataclasses.replace(
+                item, raw=raws[0].read_text(encoding="utf-8"), raw_suffix=raws[0].suffix
+            )
+        items.append(item)
+    return items
 
 
 def written_item_ids(source_dir: str, ctype: content_types.ContentType) -> Set[str]:
@@ -241,8 +297,14 @@ def run_text_source(
         jsonl_emitter = orch._setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
         run_manifest = orch._create_run_manifest(cfg, effective_output_dir)
 
-        cursor = _read_cursor(source_dir, transport.name)
-        items, next_cursor = transport.list_items(entry, cursor)
+        rederive = str(getattr(cfg, "pipeline_stage", "") or "") == REDERIVE_ONLY
+        if rederive:
+            # The stored items again, under this run's profile: nothing fetched, the cursor kept,
+            # and every item rewritten (a new run supersedes the old one, newest run per item).
+            items, next_cursor = stored_items(source_dir, ctype), None
+        else:
+            cursor = _read_cursor(source_dir, transport.name)
+            items, next_cursor = transport.list_items(entry, cursor)
         episodes, jobs = _jobs_for_items(
             items,
             ctype,
@@ -251,7 +313,7 @@ def run_text_source(
             source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
             transport=transport.name,
             entry=entry,
-            written=written_item_ids(source_dir, ctype),
+            written=None if rederive else written_item_ids(source_dir, ctype),
         )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",

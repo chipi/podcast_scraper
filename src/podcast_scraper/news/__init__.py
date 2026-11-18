@@ -41,6 +41,7 @@ NEWS = ContentType(
     fetch_body=fetch.fetch_body,
     shape_metadata=document.shape,
     kg_extend=graph.extend,
+    restore_item=document.restore_item,
 )
 
 TYPES: Tuple[ContentType, ...] = (NEWS,)
