@@ -8,8 +8,6 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput, mainViewsNav, mockSignIn } 
 import {
   assertFsmEventEnvelope,
   captureConsoleErrors,
-  readFsmEventLog,
-  readFsmState,
 } from '../handoff/_handoff-helpers'
 import { setupProductionShapedMocks } from './_helpers'
 

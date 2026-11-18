@@ -135,6 +135,18 @@ describe('PipelineJobLogDialog', () => {
     expect(w.get('[data-testid="pipeline-job-log-search-count"]').text()).toBe('3/3')
   })
 
+  it('Enter steps to the next match and Shift+Enter to the previous, one step each', async () => {
+    // Found by eslint (vue/use-v-on-exact): without .exact, Shift+Enter fired the Enter handler too,
+    // stepping forward and back at once.
+    const { w } = await openTerminalJob('line line line')
+    const input = w.get('[data-testid="pipeline-job-log-search"]')
+    await input.setValue('line')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(w.get('[data-testid="pipeline-job-log-search-count"]').text()).toBe('2/3')
+    await input.trigger('keydown', { key: 'Enter', shiftKey: true })
+    expect(w.get('[data-testid="pipeline-job-log-search-count"]').text()).toBe('1/3')
+  })
+
   it('shows 0/0 when the query has no matches', async () => {
     const { w } = await openTerminalJob('nothing to see')
     await w.get('[data-testid="pipeline-job-log-search"]').setValue('zzz')

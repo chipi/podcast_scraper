@@ -111,6 +111,8 @@ if [ -n "$viewer" ]; then
   # shellcheck disable=SC2086
   gate "viewer vitest (related)" bash -c "cd web/workbench && node_modules/.bin/vitest related --run ${rel//$'\n'/ }"
   gate "viewer vue-tsc" bash -c "cd web/workbench && node_modules/.bin/vue-tsc --noEmit -p tsconfig.app.json"
+  # shellcheck disable=SC2086
+  gate "viewer eslint" bash -c "cd web/workbench && node_modules/.bin/eslint ${rel//$'\n'/ }"
 fi
 if [ -n "$workflows" ] && command -v actionlint >/dev/null; then
   # shellcheck disable=SC2086

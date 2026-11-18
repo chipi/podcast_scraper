@@ -709,6 +709,10 @@ jobs:
       run: |
         cd web/workbench
         npm ci
+    - name: Lint (eslint)
+      run: |
+        cd web/workbench
+        npm run lint
     - name: Run Vitest unit tests with coverage gate (#914)
       run: |
         cd web/workbench

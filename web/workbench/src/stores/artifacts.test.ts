@@ -13,7 +13,6 @@ vi.mock('../api/artifactsApi', () => ({
   fetchArtifactJson: vi.fn(),
 }))
 
-const emptyArtifact: ArtifactData = { nodes: [], edges: [] }
 
 /** Build a File whose .text() yields the given JSON, with an optional mtime. */
 function jsonFile(

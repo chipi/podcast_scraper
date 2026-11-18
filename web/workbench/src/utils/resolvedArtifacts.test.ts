@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ParsedArtifact } from '../types/artifact'
 import {
   artifactRelPathsForResolvedRow,
   sortResolvedArtifactsNewestFirst,

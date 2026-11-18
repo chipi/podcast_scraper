@@ -18,7 +18,6 @@ vi.mock('../../api/corpusLibraryApi', () => ({
 import CommandPalette from './CommandPalette.vue'
 import type { SearchHit } from '../../api/searchApi'
 import { useShellStore } from '../../stores/shell'
-import { useSearchStore } from '../../stores/search'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
 
 /**

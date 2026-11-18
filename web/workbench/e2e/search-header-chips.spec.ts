@@ -33,8 +33,6 @@ async function submit(page: Page): Promise<URL> {
   return new URL((await req).url())
 }
 
-const results = (page: Page) => page.getByTestId('search-workspace').locator('article')
-
 /** Type into a chip's popover input and close it with Enter (the chips' own close gesture). */
 async function setChipText(page: Page, chip: string, value: string): Promise<void> {
   await page.getByTestId(`search-chip-${chip}`).click()

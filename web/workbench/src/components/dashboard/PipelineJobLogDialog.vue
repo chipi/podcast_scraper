@@ -331,7 +331,7 @@ defineExpose({ loadTail, onRefresh })
           placeholder="Find in log…"
           class="min-w-0 flex-1 rounded border border-border bg-canvas px-2 py-0.5 text-[11px] text-surface-foreground placeholder:text-muted"
           data-testid="pipeline-job-log-search"
-          @keydown.enter.prevent="stepMatch(1)"
+          @keydown.enter.exact.prevent="stepMatch(1)"
           @keydown.shift.enter.prevent="stepMatch(-1)"
         >
         <span

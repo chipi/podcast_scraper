@@ -393,7 +393,7 @@ test.describe('Real-corpus validation', () => {
     expect(errs.errors).toEqual([])
   })
 
-  test('V6 — search is served by the LanceDB two-tier hybrid', async ({ page }, testInfo) => {
+  test('V6 — search is served by the LanceDB two-tier hybrid', async ({ page }, _testInfo) => {
     // Tier-3 proof that the live search path is the LanceDB two-tier hybrid
     // (BM25 + dense, fused via RRF) rather than a degraded single-signal
     // path. The shapes are distinguishable by response fields, so a

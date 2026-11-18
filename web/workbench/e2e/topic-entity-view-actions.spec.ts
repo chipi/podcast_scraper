@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   liveCorpusRoot,
   liveKgTopic,
-  mainViewsNav,
   mockSignIn,
   SHELL_HEADING_RE,
   statusBarCorpusPathInput,

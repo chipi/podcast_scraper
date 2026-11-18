@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import IndexTimeseriesChart from './IndexTimeseriesChart.vue'
 import type { TimeseriesSeries } from './timeseriesChart'
@@ -148,7 +148,7 @@ describe('IndexTimeseriesChart', () => {
   })
 
   it('resets date range when labels change', async () => {
-    let w = mountChart(['2024-01', '2024-02'])
+    const w = mountChart(['2024-01', '2024-02'])
     await w.vm.$nextTick()
     let fromInput = w.find('[data-testid="index-date-from"]') as any
     // Change the range
@@ -232,7 +232,7 @@ describe('IndexTimeseriesChart', () => {
   // ── Reactivity ───────────────────────────────────────────────────────────
 
   it('updates when labels prop changes', async () => {
-    let w = mountChart(['2024-01'])
+    const w = mountChart(['2024-01'])
     await w.vm.$nextTick()
     expect(w.vm.filteredLabels.length).toBe(1)
 

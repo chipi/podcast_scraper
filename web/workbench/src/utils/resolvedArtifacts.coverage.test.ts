@@ -1,24 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { CorpusResolvedEpisodeArtifact } from '../api/corpusLibraryApi'
-import type { ParsedArtifact } from '../types/artifact'
 import {
   artifactRelPathsForResolvedRow,
   sortResolvedArtifactsNewestFirst,
 } from './resolvedArtifacts'
 import { episodeArtifactPaths } from '../extensions'
-
-function parsed(kind: 'gi' | 'kg', data: unknown): ParsedArtifact {
-  return {
-    name: 'x',
-    kind,
-    episodeId: null,
-    nodes: 0,
-    edges: 0,
-    nodeTypes: {},
-    data,
-  } as ParsedArtifact
-}
 
 function row(
   episode_id: string,

@@ -47,7 +47,7 @@ export async function fetchWithTimeout(
   } catch (e) {
     if (isAbortOrTimeout(e)) {
       const suffix = detail ? ` (${detail})` : ''
-      throw new Error(`Request timed out after ${timeoutMs}ms${suffix}`)
+      throw new Error(`Request timed out after ${timeoutMs}ms${suffix}`, { cause: e })
     }
     throw e
   }

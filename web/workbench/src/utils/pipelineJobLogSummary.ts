@@ -82,7 +82,7 @@ function extractAfterMarker(tail: string, marker: string): unknown | null {
     return null
   }
   const rest = tail.slice(idx + marker.length)
-  const j = rest.search(/[\[{]/)
+  const j = rest.search(/[[{]/)
   if (j < 0) {
     return null
   }

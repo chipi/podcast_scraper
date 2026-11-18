@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import SearchResultsVizDialog from './SearchResultsVizDialog.vue'
 import type { SearchHit } from '../../api/searchApi'
@@ -64,7 +64,6 @@ describe('SearchResultsVizDialog', () => {
 
   it('closes dialog when close button clicked', async () => {
     const w = mountDialog()
-    const closeBtn = w.find('button')
     // Manually trigger the expose methods via component instance
     if (w.vm.close) {
       w.vm.close()
@@ -315,7 +314,6 @@ describe('SearchResultsVizDialog', () => {
   it('updates when hits prop changes', async () => {
     const w = mountDialog([{ doc_type: 'chunk', id: '1', score: 0.5 }] as never)
     await w.vm.$nextTick()
-    const initialLength = w.vm.docTypes.length
 
     // Change props
     await w.setProps({

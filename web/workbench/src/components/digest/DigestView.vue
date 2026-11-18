@@ -812,8 +812,8 @@ onBeforeUnmount(() => {
                         >{{ h.episode_title || '(episode)' }}</span>
                       </div>
                       <template
-                        v-for="sim in [topicHitSimilarityUi(h)]"
-                        :key="'digest-topic-sim-' + band.topic_id + '-' + hi"
+                        v-for="(sim, si) in [topicHitSimilarityUi(h)]"
+                        :key="'digest-topic-sim-' + band.topic_id + '-' + hi + '-' + si"
                       >
                         <span
                           v-if="sim"

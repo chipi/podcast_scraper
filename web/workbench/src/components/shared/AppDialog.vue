@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-
-let appDialogIdSeq = 0
+import { onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 
 /**
  * Canonical modal dialog for the viewer (#695). Wraps the native ``<dialog>``
@@ -45,7 +43,7 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:open': [boolean] }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
-const titleId = `app-dialog-title-${(appDialogIdSeq += 1)}`
+const titleId = `app-dialog-title-${useId()}`
 
 function syncOpen(next: boolean): void {
   const el = dialogRef.value

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { defineComponent, h } from 'vue'
 import AppDialog from './AppDialog.vue'
 
 // happy-dom implements <dialog> but not the modal show/close side effects we
@@ -33,6 +34,26 @@ function mountDialog(open = true) {
 }
 
 describe('AppDialog', () => {
+  it('gives each dialog its own title id', () => {
+    // Found by eslint (no-useless-assignment): the counter lived in <script setup>, so it restarted
+    // per instance and every dialog's aria-labelledby named the same id.
+    // Two dialogs in one app, as in the Workbench (useId is unique within an app).
+    const w = mount(
+      defineComponent({
+        render: () => [
+          h(AppDialog, { open: true, title: 'First', testid: 'dialog-a' }),
+          h(AppDialog, { open: true, title: 'Second', testid: 'dialog-b' }),
+        ],
+      }),
+      { attachTo: document.body },
+    )
+    const idA = w.get('[data-testid="dialog-a"]').attributes('aria-labelledby')
+    const idB = w.get('[data-testid="dialog-b"]').attributes('aria-labelledby')
+    expect(idA).toBeTruthy()
+    expect(idA).not.toBe(idB)
+    expect(w.get(`[id="${idA}"]`).text()).toContain('First')
+  })
+
   it('renders title, subtitle, body and footer when open', () => {
     const w = mountDialog(true)
     expect(w.get('[data-testid="my-dialog"]').attributes('open')).toBeDefined()

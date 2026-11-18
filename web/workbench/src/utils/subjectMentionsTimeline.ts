@@ -132,10 +132,7 @@ export function buildSubjectMentionsTimeline(
     if (!SUBJECT_INCIDENT_EDGE_TYPES.has(ty)) continue
     const from = String(e.from ?? '').trim()
     const to = String(e.to ?? '').trim()
-    let otherId: string | null = null
-    if (from === sid) otherId = to
-    else if (to === sid) otherId = from
-    else continue
+    const otherId = from === sid ? to : to === sid ? from : ''
     if (!otherId) continue
     const item = findRawNodeInArtifact(art, otherId)
     if (!item) continue

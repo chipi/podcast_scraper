@@ -66,9 +66,6 @@ async function useStores() {
    without a top-level dynamic import (vitest hoists mocks; static imports
    would run before setActivePinia). */
 type UseArtifactsStoreCtor = Awaited<ReturnType<typeof useStores>>['artifacts']
-const useArtifactsStoreCtor = null as unknown as (
-  ...args: unknown[]
-) => UseArtifactsStoreCtor
 
 describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
   beforeEach(() => {
@@ -77,7 +74,7 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
   })
 
   function seedDisplayArtifactWithEdges(
-    artifacts: ReturnType<typeof useArtifactsStoreCtor>,
+    artifacts: UseArtifactsStoreCtor,
     edgeTypes: string[],
   ): void {
     /* ``displayArtifact`` is a getter (computed) on the store, backed by

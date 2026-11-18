@@ -8,7 +8,6 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
-  assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
 } from '../handoff/_handoff-helpers'

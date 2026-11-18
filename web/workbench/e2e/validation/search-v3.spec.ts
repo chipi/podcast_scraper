@@ -54,28 +54,6 @@ async function corpusHasSearchIndex(page: Page): Promise<boolean> {
   return Boolean(body?.available)
 }
 
-async function landOnSearch(page: Page): Promise<void> {
-  await fillCorpusPath(page)
-  await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
-  await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
-  await page.locator('#search-q').waitFor({ state: 'visible', timeout: 15_000 })
-}
-
-async function submitSearch(page: Page, q: string): Promise<void> {
-  await page.locator('#search-q').fill(q)
-  await page.locator('#search-q').press('Enter')
-  // Wait for at least one hit article OR an explicit no-results state.
-  const workspace = page.getByTestId('search-workspace')
-  await expect(async () => {
-    const hits = await workspace.locator('article').count()
-    if (hits > 0) return
-    // No hits — the workspace still renders; assert the empty-state path.
-    const noResults = workspace.getByText(/No results|Search returned/i)
-    if (await noResults.isVisible()) return
-    throw new Error('search hits not visible yet')
-  }).toPass({ timeout: 30_000 })
-}
-
 test.describe('Search v3 real-corpus validation', () => {
   test.setTimeout(180_000)
 
