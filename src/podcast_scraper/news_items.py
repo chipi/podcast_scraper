@@ -77,6 +77,21 @@ def is_news(doc: Any) -> bool:
     return isinstance(doc, Mapping) and doc.get(F_CONTENT_TYPE) == NEWS_ARTICLE
 
 
+def is_shown_news_kg(kg_path: os.PathLike[str] | str) -> bool:
+    """Whether *kg_path* is the KG of a news item some surface may show (its metadata beside it
+    says so, ``serveable`` not ``none``). The graph loads such a KG to draw article nodes; it holds
+    the item's nodes, never its body. A withheld item's KG names what no surface shows."""
+    real = Path(os.path.realpath(kg_path))
+    if not real.name.endswith(".kg.json"):
+        return False
+    meta = real.with_name(real.name[: -len(".kg.json")] + ".metadata.json")
+    try:
+        doc = json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return is_news(doc) and serveable(doc) != SERVEABLE_NONE
+
+
 def _own(doc: Mapping[str, Any]) -> Mapping[str, Any]:
     own = doc.get(NEWS_ARTICLE)
     return own if isinstance(own, Mapping) else {}

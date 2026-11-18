@@ -197,16 +197,34 @@ def test_a_symlink_to_a_news_body_is_refused(client: TestClient, tmp_path: Path)
     assert res.status_code == 404 and "NEWS-BODY-MARKER" not in res.text
 
 
-def test_the_artifact_route_refuses_a_news_items_kg(client: TestClient, tmp_path: Path) -> None:
+def test_the_artifact_route_serves_shown_news_kgs_only(client: TestClient, tmp_path: Path) -> None:
     """A withheld item's KG names its title; the artifact route served it (found 2026-11-18 by
-    the every-route guard). No news item's KG is served here; the news item route serves the
-    nodes of a shown one."""
+    the every-route guard). The graph's expand loads a shown item's KG through this route to draw
+    its article node, so those still load; the withheld item's does not."""
     root = tmp_path / "corpus"
     kgs = sorted((root / "sources" / "news_article").rglob("*.kg.json"))
-    assert kgs
+    assert len(kgs) == 6
     for p in kgs:
         res = client.get(
             "/api/artifacts/" + p.relative_to(root).as_posix(), params={"path": str(root)}
         )
-        assert res.status_code == 404, p.name
-        assert "WITHHELD-ITEM-TITLE" not in res.text
+        withheld = p.name == "withheld.kg.json"
+        assert res.status_code == (404 if withheld else 200), p.name
+        assert "WITHHELD-ITEM-TITLE" not in res.text and "NEWS-BODY-MARKER" not in res.text
+
+
+def test_the_graph_expand_loads_the_articles_it_is_given(client: TestClient) -> None:
+    """The Workbench graph's expand (GraphCanvas): node-episodes with news, then each item's KG
+    beside its metadata through /api/artifacts. Every KG it asks for loads."""
+    res = client.post(
+        "/api/corpus/node-episodes",
+        json={"node_id": "k:topic:risk-management", "content_types": ["news_article"]},
+    ).json()
+    paths = [
+        i["metadata_relative_path"].replace(".metadata.json", ".kg.json") for i in res["news_items"]
+    ]
+    assert paths
+    for rel in paths:
+        got = client.get("/api/artifacts/" + rel, params={"path": res["path"]})
+        assert got.status_code == 200, rel
+        assert any(n.get("type") == "ContentItem" for n in got.json()["nodes"])
