@@ -103,23 +103,53 @@ From the real runs, before enrichment:
   checked against the articles.
 - KG precision was not measured against a gold set: the entity problems above are the ones seen
   and grepped for, not a rate over every entity.
-- Translation was not exercised: the one French item waits for a translator on both profiles.
+- Translation was not exercised, and cannot be for news yet: it is off by choice in News 1.0
+  (gap 8), and turning the switch on reaches the translation stage but news text has no path
+  through it (the stage translates a podcast's speaker screenplay).
+- The all8 corpus on disk predates gaps 2, 8, 9 and 10: its figures above are as written then.
 - GI is out of News 1.0 and not assessed.
 - The ML KG gap was not measured on podcasts.
 
-## Gaps this found, not fixed yet
+## Gaps this found, and what closed them
 
-In the writer, to fix with a failing test each:
+Each fixed with a failing test first (public commits on `feat/news-release`, 2026-11-18):
 
-1. The byline parser splits a name from its affiliation ("Alexander Korolev, Associate Professor
-   in Politics and International Relations, UNSW" becomes four people).
-2. Teasers and video items are enriched as if whole (E05: they must not be).
-3. `mineable: false` is not enforced: nothing stops enrichment of a source marked not minable.
-4. A duplicate's second transport id is not merged into the item it duplicates.
-5. The airgapped summary is stored as one run-together bullet list (the writer takes the raw text
-   when the summary has no bullets).
-6. The prod pipeline image may lack the `news` extra (not checked).
-7. 3 Hacker News pages and 2 of 257 KG files (beyond the French one) failed without a diagnosis.
+1. The byline parser split a name from its affiliation ("Alexander Korolev, Associate Professor
+   in Politics and International Relations, UNSW" became four people). Fixed in bc4b2288b.
+2. Teasers and video items were enriched as if whole (E05: they must not be). Operator: KG, no
+   summary. Fixed in 1a6e5a058 (`skipped_reason: not_whole_text`).
+3. `mineable: false` was not enforced. Fixed in 9fe67077a.
+4. A duplicate's second transport id was not merged into the item it duplicates. Fixed in
+   19b067505 (the written item's metadata gains it). In all8 the only duplicates were 3 BBC
+   articles in two RSS feeds, where nothing is added.
+5. The airgapped summary was stored as one run-together bullet list. Corrected cause (first
+   written here as "the writer takes the raw text"): `sanitize_summary` turned the reply's line
+   breaks into spaces before parsing, so SummLlama's one-bullet-per-line reply became one bullet
+   (78 of 78 items). Fixed in 2ca276cb0; podcast summaries from SummLlama had the same fault.
+6. The prod pipeline image lacked the `news` extra. Fixed in 2619ff1a6 (not built locally).
+7. Corrected: 2 Hacker News pages (not 3) were not written, and both are right: GitHub answers
+   404 for `github.com/microsoft/onnxruntime` even to a browser, and `hy.tencent.ai` answers 567
+   (bot protection) with no article text. The 2 items without a KG are the 2 non-English items
+   (8, below). Of the 5 without a summary, 4 are Nature teasers (no summary by design since 2)
+   and 1 is The Verge, below (9).
+
+Found while closing those:
+
+- **8.** Translation never ran for a news item: the stage needs a podcast's segments and speaker
+  screenplay, so both non-English items were skipped, and their unusable marker was lost, so
+  they were served untranslated. Operator: translation off for News 1.0, with a per-source
+  switch (`translate: true`). Fixed in 27c60d2d1: off, such an item is written, its stages are
+  recorded as `translation_off`, and it is marked unusable (top-level fields, contract
+  news-item-1.0); public's reader honours the marker in its own commit.
+- **9.** The Verge item lost its summary to invalid JSON: the first bullet opened with a quoted term
+  (`["AGI-pilled" describes …`), and the re-roll at temperature 0 repeated it. Not the first
+  time: prod VictoriaLogs shows the same shape on a podcast episode on 2026-11-08 (`[“Are We
+  Cooking?” rebrand …`), saved without a summary, unnoticed. Fixed in 2cab5b549 (the parser
+  escapes the term's quotes); the DGX rederive of the Verge source then wrote that item's
+  summary. The repaired-summary warning's wrong text is fixed in 0e8258df0.
+- **10.** A 75-word English Mastodon post was stored as German (its server's `lang=de`): the text
+  could overrule a declaration only from 200 words. News uses 50 since 40bb2bb6c (measured on
+  all8: any threshold from 20 to 75 changes exactly that item, rightly).
 
 On the providers, for later (the operator, 2026-11-18: no relabel now): issues #2498 (ML KG
 empty) and #2499 (ML summary framing), a news prompt profile, entity typing (persons that are
