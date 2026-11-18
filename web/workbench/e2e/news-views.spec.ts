@@ -13,6 +13,9 @@ import {
  * the Digest's news band and the Dashboard's news counts. No page may show an article body.
  */
 
+/** A podcast topic one shown article and one withheld article also carry (the fixture README). */
+const TOPIC = 'topic:risk-management'
+
 async function open(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
@@ -102,6 +105,55 @@ test.describe('News in every other view (UXS-019, live)', () => {
     await expect(band).not.toContainText('WITHHELD-ITEM-TITLE')
     await band.getByTestId('digest-news-see-all').click()
     await expect(page.getByTestId('library-news-list')).toBeVisible()
+  })
+
+  test("the graph's expand brings the topic's articles as nodes", async ({ page }) => {
+    // UXS-019 "The graph": an expand also loads the KG of each shown article that names the node,
+    // through /api/artifacts, and draws it. The withheld item's KG is never served.
+    await open(page)
+    await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 30_000 })
+    await page.evaluate((id) => {
+      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
+        .__GIKG_SUBJECT__
+      if (!subj?.focusTopic) throw new Error('__GIKG_SUBJECT__.focusTopic not exposed (DEV-only)')
+      subj.focusTopic(id)
+    }, TOPIC)
+    await page.getByTestId('node-detail-topic-view-in-graph').click({ timeout: 15_000 })
+    await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
+    const cyTopicId = await page.waitForFunction(
+      (id) => {
+        const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+        const hit = cy?.nodes().filter((n) => n.id().replace(/^[gk]:/, '') === id)
+        return hit && hit.nonempty() ? hit.first().id() : null
+      },
+      TOPIC,
+      { timeout: 20_000 },
+    )
+    const articleKgs: { url: string; status: number }[] = []
+    page.on('response', (r) => {
+      const u = decodeURIComponent(r.url())
+      if (u.includes('/api/artifacts/') && u.includes('sources/news_article') && u.includes('.kg.json')) {
+        articleKgs.push({ url: u, status: r.status() })
+      }
+    })
+    await page.evaluate((id) => {
+      const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+      const n = cy!.$id(id)
+      n.emit('tap')
+      n.emit('dbltap')
+    }, String(await cyTopicId.jsonValue()))
+    await page.waitForFunction(
+      () => {
+        const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+        return (cy?.nodes().filter((n) => n.id().includes('item:news_article:')).length ?? 0) > 0
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    expect(articleKgs.length).toBeGreaterThan(0)
+    expect(articleKgs.every((r) => r.status === 200)).toBe(true)
+    expect(articleKgs.some((r) => r.url.includes('withheld'))).toBe(false)
+    await expect(page.locator('body')).not.toContainText('WITHHELD-ITEM-TITLE')
   })
 })
 
