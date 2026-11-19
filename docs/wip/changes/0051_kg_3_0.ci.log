@@ -1,6 +1,6 @@
-tree: dfea8397ac2d094fefdf2566b0eee4b113c13789 clean=0
-make ci-fast, interpreter /work/closelistening/ingestion/.venv (public's news extras, no Common installed: public's CI shape), 2026-11-18
-stages reached (ci-fast runs under set -e, so each stage before the last exited 0):
+tree: 104b61e2087edd8b0342454e3a5b92db7e2770da clean=0
+make ci-fast on the landing tree (0051's outcome committed), interpreter /work/closelistening/ingestion/.venv (public's news extras, no Common installed: public's CI shape), 2026-11-19
+=== ci-fast START 2026-11-19 10:00:59
 stage: format-check
 stage: lint
 stage: lint-markdown
@@ -16,15 +16,14 @@ stage: check-test-policy
 stage: quality-metrics-ci
 stage: profile-drift-check
 stage: test-fast (pytest)
+stage: docs
+stage: build
+=== ci-fast DONE 2026-11-19 10:12:59
 All done! ✨ 🍰 ✨
 Success: no issues found in 1756 source files
 --------------- RESULT: PASSED (minimum: 100.0%, actual: 100.0%) ---------------
-===== 1 failed, 10685 passed, 85 skipped, 20 warnings in 102.06s (0:01:42) =====
-E         Left contains 2 more items, first extra item: '0051_kg_3_0: step 8: not done (still _TODO_)'
-FAILED tests/unit/podcast_scraper/quality/test_change_gate.py::test_every_registered_migration_under_the_regime_is_allowed_to_land
-ci-fast stopped after test-fast (set -e); its last two stages, run by hand on the same tree:
-tree: dfea8397ac2d094fefdf2566b0eee4b113c13789 clean=0
-MAKE_DOCS_EXIT=0
-Successfully built podcast_scraper-2.7.0.dev0.tar.gz and podcast_scraper-2.7.0.dev0-py3-none-any.whl
-MAKE_BUILD_EXIT=0
-The one failure is the landing check refusing step 8 (on this tree it read the placeholder quoted in section 8; on 7f21d4fdc, a record-only commit, it refuses the NO-GO verdict); nothing else failed. It passes only once section 8 holds a GO.
+========== 10695 passed, 85 skipped, 20 warnings in 86.15s (0:01:26) ===========
+========== 1143 passed, 46 skipped, 236 warnings in 74.12s (0:01:14) ===========
+================= 104 passed, 13 warnings in 163.39s (0:02:43) =================
+================= 33 passed, 10 warnings in 326.07s (0:05:26) ==================
+MAKE_EXIT=0
