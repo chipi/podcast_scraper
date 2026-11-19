@@ -14,6 +14,8 @@ exclude =
     # Gitignored OUTPUT directory — generated artifacts and local eval harnesses, never shipped
     # code. flake8 walked it because exclusion is by path, not by gitignore.
     .test_outputs,
+    # npm packages (the Workbench's): some ship Python files, none of them ours.
+    node_modules,
 per-file-ignores =
     __init__.py:F401
     tests/integration/*:E501
