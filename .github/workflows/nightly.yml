@@ -139,16 +139,17 @@ jobs:
     # exactly where they were.
     - name: Pack ML models (a tar keeps the Hugging Face cache's symlinks)
       run: |
-        # upload-artifact follows symlinks: zipping ~/.cache stored every Hugging Face file twice
-        # (models--*/blobs and the snapshots/ links to it) plus a stray hub-level blobs/ store,
-        # 9.89 GB uncompressed for ~3.3 GB on disk (measured 2026-11-19 from the zip's index).
-        # A tar keeps the links; hub/blobs is left out (the verify step in each test job fails if
-        # a required model is missing). Weights do not compress, so the tar is not compressed.
+        # upload-artifact follows symlinks: zipping ~/.cache stored each Hugging Face model file
+        # three times (hub/blobs, where the bytes live, and the models--*/blobs and snapshots/
+        # links resolved into copies), 9.89 GB uncompressed for ~3.3 GB on disk (measured
+        # 2026-11-19 from the zip's index). A tar keeps the links, so each file goes up once.
+        # hub/blobs must stay: leaving it out broke every model (0b2eb6d58's verify step).
+        # Weights do not compress, so the tar is not compressed.
         cd /home/runner/.cache
         dirs=""
         for d in whisper huggingface; do [ -d "$d" ] && dirs="$dirs $d"; done
         # shellcheck disable=SC2086
-        tar -cf /home/runner/ml-models.tar --exclude=huggingface/hub/blobs $dirs
+        tar -cf /home/runner/ml-models.tar $dirs
         ls -l /home/runner/ml-models.tar
     - name: Upload ML models artifact (for dependent test jobs in same run)
       uses: actions/upload-artifact@v7
