@@ -57,6 +57,10 @@ from .transcript_resolution import resolve_text_path, TranscriptPurpose
 
 logger = logging.getLogger(__name__)
 
+#: Why an item's enrichment stage did not run when its source may not be mined (ontology v3
+#: "Rights, per item"), as its processing manifest records it.
+SKIP_NOT_MINEABLE = "not_mineable"
+
 # Detection for a model that copies the few-shot *style examples* carried in the summarization
 # prompts (all eight of them ship the same three sentences) instead of summarizing the transcript.
 #
@@ -4358,17 +4362,23 @@ def _record_type_skips(
     item: Any,
     episode_id: Optional[str],
 ) -> Optional[str]:
-    """Record each stage the item's type skips for it (``stage_skip_reason``) as ``ran: false``
-    with that reason, so a skip reads as a skip, not as a stage that never existed (D-39).
-    Returns why the item must not be served, or ``None``."""
+    """Record each stage skipped for this item as ``ran: false`` with why, so a skip reads as a
+    skip, not as a stage that never existed (D-39): ``not_mineable`` when its source may not be
+    mined (``runs_for_item``), else the type's own rule (``stage_skip_reason``). Returns why the
+    item must not be served, or ``None``."""
     from .. import content_types
 
     if not transcript_relpath or not item.item_id:
         return None
     from . import processing_manifest as pm
 
+    not_mineable = item.fields.get("mineable") is False
     for stage in (content_types.TRANSLATION, content_types.SUMMARY, content_types.KG):
-        reason = content_types.stage_skip_reason(item, stage)
+        reason = (
+            SKIP_NOT_MINEABLE
+            if not_mineable and stage in content_types.ENRICHMENT_STAGES
+            else content_types.stage_skip_reason(item, stage)
+        )
         if reason is None or not item.content_type.stage_profile.runs(stage):
             continue
         try:

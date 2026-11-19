@@ -446,6 +446,13 @@ def test_a_source_that_may_not_be_mined_gets_no_kg(
     assert not list((tmp_path / "closed").rglob("*.kg.json"))
     for meta in closed:
         assert json.loads(meta.read_text(encoding="utf-8"))["mineable"] is False
+        # A skip reads as a skip (D-39), with why: the source's rights, not a missing stage.
+        stem = meta.name[: -len(".metadata.json")]
+        manifest = meta.parent.parent / "transcripts" / f"{stem}.manifest.json"
+        stages = json.loads(manifest.read_text(encoding="utf-8")).get("stages", {})
+        for stage in ("summary", "kg"):
+            assert stages[stage]["ran"] is False
+            assert stages[stage]["metrics"]["skipped_reason"] == "not_mineable"
 
     run(tmp_path / "open", True)
     assert list((tmp_path / "open").rglob("*.kg.json"))

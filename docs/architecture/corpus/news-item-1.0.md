@@ -71,7 +71,9 @@ Translation is off in News 1.0, by choice (operator, 2026-11-18). A source turns
 `translate: true` in its `news:` block. While it is off, an item not in English (or in a language
 nobody could tell) is written with its `language`, its translation, summary and KG are recorded in
 its processing manifest as not run (`skipped_reason: translation_off`), and it carries `unusable`.
-A teaser or video item gets its KG and no summary (`skipped_reason: not_whole_text`).
+A teaser or video item gets its KG and no summary (`skipped_reason: not_whole_text`). An item whose
+source may not be mined (`mineable: false`) runs no enrichment stage, and each is recorded as not
+run (`skipped_reason: not_mineable`).
 
 ## Not covered
 
