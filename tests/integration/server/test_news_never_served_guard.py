@@ -71,16 +71,20 @@ def _news_files(root: Path) -> List[str]:
     )
 
 
-def _values(root: Path) -> Dict[str, List[str]]:
+def _values(root: Path) -> Dict[str, List[Any]]:
     files = _news_files(root)
     metas = [f for f in files if f.endswith(".metadata.json")]
     queries = ["Risk desks learn to sit still", f"{_MARKER}-1", "first paragraph of the article"]
     nodes = [_TOPIC, _PERSON, _SOURCE, _ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, "org:daily-example"]
     return {
         "path": [str(root)],
-        "relpath": files,
+        # News files (each must be refused) and one podcast file of each kind (so the route is
+        # shown to read the corpus at all).
+        "relpath": files + [_POD_TRANSCRIPT, _POD_ARTWORK],
         "artifact_path": files,
-        "metadata_relpath": metas,
+        "metadata_relpath": metas + [_POD_META],
+        "episode_ids": [[_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, "ep-db8f44d2e07a22bd"]],
+        "email": ["guard@example.test"],
         "item_id": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM],
         "q": queries,
         "topic": [_TOPIC],
@@ -94,7 +98,12 @@ def _values(root: Path) -> Dict[str, List[str]]:
         "id": nodes,
         "ident": [_TOPIC, _PERSON, "tc:risk-management", "thc:managing-risk", _ITEM],
         "route": ["topic", "person", "theme", "storyline", "episode"],
-        "enricher_id": ["topic_theme_clusters", "news_connection", "temporal_velocity"],
+        "enricher_id": [
+            "topic_theme_clusters",
+            "news_connection",
+            "temporal_velocity",
+            "insight_density",
+        ],
         # The installed extensions' routes (Common's and the Player's app plane; values from the
         # database session's run of this guard with both installed, 2026-11-18).
         "topic_id": [
@@ -161,7 +170,7 @@ def _podcast_slug(root: Path) -> str:
     return slug_for_row(current_catalog(root)[0])
 
 
-def _get_calls(client: TestClient, values: Dict[str, List[str]]) -> Iterator[Tuple[str, Dict]]:
+def _get_calls(client: TestClient, values: Dict[str, List[str]]) -> Iterator[Tuple[str, str, Dict]]:
     schema = client.app.openapi()  # type: ignore[attr-defined]
     for template, ops in schema["paths"].items():
         op = ops.get("get")
@@ -181,12 +190,61 @@ def _get_calls(client: TestClient, values: Dict[str, List[str]]) -> Iterator[Tup
                     url = url.replace("{" + p["name"] + "}", args[p["name"]])
                 else:
                     query[p["name"]] = args[p["name"]]
-            yield url, query
+            yield template, url, query
             if any(p["name"] == "content_types" for p in params):
-                yield url, {**query, "content_types": "news_article"}
+                yield template, url, {**query, "content_types": "news_article"}
             # Theme and storyline cards carry their articles only when asked (piece F).
             if any(p["name"] == "news" for p in params):
-                yield url, {**query, "news": "1"}
+                yield template, url, {**query, "news": "1"}
+
+
+#: Routes that read the corpus: each must answer 200 for at least one guard value.
+_CORPUS_ROUTES = ("/api/corpus/", "/api/search", "/api/artifacts")
+#: Corpus routes that cannot answer 200 on this fixture, and why (still called, still checked).
+_NO_FIXTURE_DATA = {
+    "/api/corpus/media": "the fixture holds no audio (its README: media is not in the tree)",
+    "/api/corpus/documents/run-summary": "returns corpus_run_summary.json, which the fixture lacks",
+}
+_POD_META = "feeds/p01/run_20260101-000000/metadata/p01_e01.metadata.json"
+_POD_TRANSCRIPT = "feeds/p01/run_20260101-000000/transcripts/p01_e01.txt"
+_POD_ARTWORK = ".podcast_scraper/corpus-art/p01.webp"
+
+
+def _schema_value(spec: Dict[str, Any], name: str, values: Dict[str, List[str]], doc: Dict) -> Any:
+    """A value for one body field: a guard value by name (news-shaped where one exists), else the
+    simplest value of the field's type."""
+    if "$ref" in spec:
+        spec = doc["components"]["schemas"][spec["$ref"].split("/")[-1]]
+    for option in spec.get("anyOf") or []:
+        if option.get("type") != "null":
+            spec = option
+            break
+    if name in values:
+        return values[name][0]
+    if "enum" in spec:
+        return spec["enum"][0]
+    kind = spec.get("type")
+    if kind == "object" or "properties" in spec:
+        return _fill(spec, values, doc)
+    return {"integer": 1, "number": 1, "boolean": False, "array": []}.get(str(kind), "x")
+
+
+def _fill(schema: Dict[str, Any], values: Dict[str, List[str]], doc: Dict) -> Dict[str, Any]:
+    props = schema.get("properties", {})
+    return {
+        k: _schema_value(props[k], k, values, doc) for k in schema.get("required", []) if k in props
+    }
+
+
+def _body(doc: Dict, op: Dict, values: Dict[str, List[str]]) -> Any:
+    """A request body that satisfies the route's schema, so its handler runs."""
+    content = (op.get("requestBody") or {}).get("content", {}).get("application/json")
+    if not content:
+        return None
+    schema = content["schema"]
+    if "$ref" in schema:
+        schema = doc["components"]["schemas"][schema["$ref"].split("/")[-1]]
+    return _fill(schema, values, doc)
 
 
 def _served(text: str, sent: Any) -> bool:
@@ -203,11 +261,20 @@ def test_no_read_route_serves_a_news_body(client: TestClient, corpus: Path) -> N
     values = _values(corpus)
     seen: List[str] = []
     leaks: List[str] = []
-    for url, query in _get_calls(client, values):
+    answered: Dict[str, bool] = {}
+    for template, url, query in _get_calls(client, values):
         res = client.get(url, params=query)
         seen.append(url)
+        answered[template] = answered.get(template, False) or res.status_code == 200
         if _served(res.text, query.values()):
             leaks.append(f"GET {url} {query} -> {res.status_code}")
+    # A corpus route that never answered 200 never read the corpus, so it proves nothing.
+    silent = [
+        t
+        for t, ok in answered.items()
+        if not ok and t.startswith(_CORPUS_ROUTES) and t not in _NO_FIXTURE_DATA
+    ]
+    assert not silent, f"corpus routes that never answered 200: {silent}"
     posts: List[Tuple[str, Dict[str, Any]]] = [
         ("/api/corpus/node-episodes", {"node_id": n, "content_types": ["news_article"]})
         for n in values["id"] + ["tc:risk-management", "thc:managing-risk"]
@@ -227,7 +294,9 @@ def test_no_read_route_serves_a_news_body(client: TestClient, corpus: Path) -> N
         res = client.post(url, json=body)
         seen.append(url)
         assert res.status_code == 200, f"POST {url} {res.status_code}: {res.text[:200]}"
-        if _served(res.text, [values["q"][1]]):
+        # Only search/compare repeats what it was sent (its query, the marker itself).
+        sent = [values["q"][1]] if url.endswith("/compare") else []
+        if _served(res.text, sent):
             leaks.append(f"POST {url} {body} -> {res.status_code}")
     assert "/api/corpus/text-file" in seen and "/api/search" in seen
     assert not leaks, "news body or withheld item served:\n" + "\n".join(leaks)
@@ -253,6 +322,7 @@ def test_no_state_changing_route_serves_news_or_deletes_it(
     values = _values(corpus)
     before = _news_files(corpus)
     leaks: List[str] = []
+    refused: List[str] = []
     called = 0
     for template, ops in app.openapi()["paths"].items():
         if template in _NOT_CALLED:
@@ -272,10 +342,16 @@ def test_no_state_changing_route_serves_news_or_deletes_it(
                         url = url.replace("{" + p["name"] + "}", value)
                     else:
                         query[p["name"]] = value
-                res = client.request(method.upper(), url, params=query, json={})
+                body = _body(app.openapi(), op, values)
+                res = client.request(method.upper(), url, params=query, json=body)
+                if res.status_code == 422:
+                    refused.append(f"{method.upper()} {url}: {res.text[:160]}")
                 called += 1
                 if _served(res.text, list(query.values())):
                     leaks.append(f"{method.upper()} {url} -> {res.status_code}")
     assert called > 0
+    assert (
+        not refused
+    ), "write routes refused the guard's body (their handler never ran):\n" + "\n".join(refused)
     assert not leaks, "news body or withheld item served:\n" + "\n".join(leaks)
     assert _news_files(corpus) == before

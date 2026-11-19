@@ -21,11 +21,11 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from podcast_scraper.languages import UNUSABLE_FIELD
-from podcast_scraper.news_items import F_TEXT_STATUS, is_shown, iter_news_metadata
+from podcast_scraper.news_items import current_copies, F_TEXT_STATUS, is_shown
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,8 @@ TABLE = "news"
 #: KG topic rows for news items (theme and storyline building), the ``aux`` schema.
 AUX_TABLE = "news_aux"
 _RRF_K = 60
+#: ``since`` as the search route takes it: a day, compared as text against ``published_at``.
+_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 #: Each signal's candidate pool, before collapsing to one hit per item.
 _POOL = 50
 
@@ -67,7 +69,7 @@ def news_rows(corpus_root: Path) -> List[Dict[str, Any]]:
     row per body paragraph (no embeddings yet). The title row finds an item whose body never
     repeats its title, and is the only row of a teaser or a video item."""
     rows: List[Dict[str, Any]] = []
-    for f in iter_news_metadata(corpus_root):
+    for f in current_copies(corpus_root).values():
         doc = dict(f.doc)
         if not indexable(doc):
             continue
@@ -101,13 +103,14 @@ def build_news_table(
 
     db = lancedb.connect(str(lance_dir))
     rows = news_rows(corpus_root)
-    if TABLE in db.table_names():
-        db.drop_table(TABLE)
     if not rows:
+        if TABLE in db.table_names():
+            db.drop_table(TABLE)
         return 0
+    # Embed everything before touching the table: a failure here keeps the old table serving.
     for row in rows:
         row["embedding"] = _embed(row["text"], model_id, allow_download=allow_download)
-    table = db.create_table(TABLE, data=rows)
+    table = db.create_table(TABLE, data=rows, mode="overwrite")
     try:
         table.create_fts_index("text", replace=True)
     except Exception as exc:  # noqa: BLE001 - keyword leg degrades to vector-only
@@ -119,17 +122,17 @@ def news_topic_rows(corpus_root: Path) -> List[Dict[str, Any]]:
     """One ``kg_topic`` row per (news item, KG Topic), the podcast rows' shape in the ``aux``
     schema: ``episode_id`` holds the item id, ``show_id`` the news source id, ``source_id`` the
     topic id.
-    Every item whose ``mineable`` is not false, served or not (theme building is analysis; a
-    surface drops a ``serveable: none`` item when it reads). One item written twice counts once."""
+    Every item a surface may show (its current copy, :func:`current_copies`) whose ``mineable``
+    is not false. A withheld or unusable item's topics are left out at the source: the theme
+    builder copies a news-only topic's label into the theme file whatever its items' rights, so a
+    later reader of that file could otherwise show it (the database session, 2026-11-19)."""
     from podcast_scraper.search.indexer import kg_topic_embed_text
 
-    latest: Dict[str, Any] = {}
-    for f in iter_news_metadata(corpus_root):
-        if f.doc.get("mineable") is False or f.doc.get(UNUSABLE_FIELD) is True:
-            continue
-        item_id = str(f.doc.get("item_id") or "")
-        if item_id and (item_id not in latest or f.relative_path > latest[item_id].relative_path):
-            latest[item_id] = f
+    latest = {
+        item_id: f
+        for item_id, f in current_copies(corpus_root).items()
+        if f.doc.get("mineable") is not False and is_shown(f.doc)
+    }
     rows: List[Dict[str, Any]] = []
     for item_id, f in sorted(latest.items()):
         kg_path = f.path.with_name(f.path.name.replace(".metadata.json", ".kg.json"))
@@ -175,16 +178,17 @@ def build_news_aux_table(
 
     db = lancedb.connect(str(lance_dir))
     rows = news_topic_rows(corpus_root)
-    if AUX_TABLE in db.table_names():
-        db.drop_table(AUX_TABLE)
     if not rows:
+        if AUX_TABLE in db.table_names():
+            db.drop_table(AUX_TABLE)
         return 0
+    # Embed everything before touching the table: a failure here keeps the old table serving.
     for row in rows:
         row["embedding"] = _embed(row["text"], model_id, allow_download=allow_download)
     dim = len(rows[0]["embedding"])
     schema = _aux_schema(dim)
     ordered = [{name: row[name] for name in schema.names} for row in rows]
-    db.create_table(AUX_TABLE, data=ordered, schema=schema)
+    db.create_table(AUX_TABLE, data=ordered, schema=schema, mode="overwrite")
     return len(rows)
 
 
@@ -211,7 +215,9 @@ def search_news(
     if TABLE not in db.table_names():
         return []
     table = db.open_table(TABLE)
-    where = f"published_at >= '{since.replace(chr(39), '')}'" if since else None
+    if since and not _DAY.fullmatch(since):
+        raise ValueError(f"since must be a day, YYYY-MM-DD: {since!r}")
+    where = f"published_at >= '{since}'" if since else None
     legs: List[List[str]] = []
     vector = _embed(query, model_id, allow_download=False)
     vq = table.search(vector, vector_column_name="embedding").limit(_POOL)
@@ -224,7 +230,7 @@ def search_news(
             kq = kq.where(where, prefilter=True)
         legs.append(_ranked(kq.to_list()))
     except Exception as exc:  # noqa: BLE001 - no FTS index: vector only
-        logger.debug("news keyword leg skipped: %s", exc)
+        logger.warning("news keyword search failed, vector results only: %s", exc)
     scores: Dict[str, float] = {}
     for leg in legs:
         seen: set = set()

@@ -22,7 +22,7 @@ _FIXTURE = Path("tests/fixtures/app-validation-corpus")
 _THEME = "tc:alerting-actionability"
 _STORYLINE = "thc:managing-risk"
 _SUMMARY_NEW = "item:news_article:a8d6e89ce92ef7521ed5"  # serveable summary, 2026-11-17
-_METADATA_OLD = "item:news_article:10f6e9ad61532e120b60"  # serveable metadata, 2026-11-14
+_METADATA_OLD = "item:news_article:6f5ab0dc6a7c03409dbf"  # soil-report: metadata, 2026-11-16
 _NONE = "item:news_article:2043d8230c86beddfb95"  # serveable none
 
 

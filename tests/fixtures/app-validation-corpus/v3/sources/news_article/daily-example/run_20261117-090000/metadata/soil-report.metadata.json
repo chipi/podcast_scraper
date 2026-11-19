@@ -11,7 +11,6 @@
   "paywalled": true,
   "serveable": "metadata",
   "mineable": true,
-  "summary": "Erosion slowed on three of five test plots.",
   "fetched_at": "2026-11-17T09:00:00Z",
   "body_sha256": "9cb5275937de601799a4a754fe14c6a7fded942143a1de7f861dfc18ed1a85d2",
   "news_article": {
@@ -24,7 +23,8 @@
     ],
     "byline_raw": "Ana Example and Cy Example",
     "editorial_type": "reporting",
-    "text_status": "teaser"
+    "text_status": "teaser",
+    "item_class": "news_summary"
   },
   "publisher_id": "org:daily-example"
 }

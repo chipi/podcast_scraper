@@ -22,9 +22,9 @@ from tests.integration.conftest import requires  # noqa: E402
 
 _FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus"
 _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-#: Every item a surface may show, whatever its text_status (soil-report is a teaser, trail-video a
-#: video); never the withheld one.
-_INDEXED = {"risk-desks", "mercados", "wire-reliability", "soil-report", "trail-video"}
+#: Every item a surface may show: soil-report is a teaser classed a news summary; trail-video, a
+#: video page, is hidden (2026-11-19); never the withheld or the unusable one.
+_INDEXED = {"risk-desks", "mercados", "wire-reliability", "soil-report"}
 
 
 @pytest.fixture(scope="module")
@@ -186,3 +186,73 @@ def test_news_topic_rows_share_the_podcast_aux_shape(corpus: Path) -> None:
     assert risk["show_id"].startswith("source:") and risk["text"] == "Risk Management"
     assert AUX_TABLE not in LanceDBBackend.TABLES.values()
     assert _kg_embed_text_topic is kg_topic_embed_text
+
+
+def _fake_embed(text: str, model_id: str, *, allow_download: bool) -> list:
+    return [float(len(text) % 7), 1.0, 0.5, 0.25]
+
+
+def test_a_failed_rebuild_keeps_the_old_news_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every row is embedded before the table is replaced, so an embedding failure partway leaves
+    the previous table serving (review 2026-11-19: it was dropped first, leaving search empty)."""
+    import lancedb
+
+    from podcast_scraper.search import two_tier_indexer
+    from podcast_scraper.search.news_index import build_news_table
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_FIXTURE / "v3", root, ignore=shutil.ignore_patterns("lance_index"))
+    lance = tmp_path / "lance"
+    lance.mkdir()
+    monkeypatch.setattr(two_tier_indexer, "_embed", _fake_embed)
+    built = build_news_table(lance, root, "fake", allow_download=False)
+    assert built > 0
+
+    calls = {"n": 0}
+
+    def flaky(text: str, model_id: str, *, allow_download: bool) -> list:
+        calls["n"] += 1
+        if calls["n"] > 2:
+            raise RuntimeError("model unavailable")
+        return _fake_embed(text, model_id, allow_download=allow_download)
+
+    monkeypatch.setattr(two_tier_indexer, "_embed", flaky)
+    with pytest.raises(RuntimeError):
+        build_news_table(lance, root, "fake", allow_download=False)
+    assert lancedb.connect(str(lance)).open_table(TABLE).count_rows() == built
+
+
+def test_a_missing_keyword_index_is_a_warning_and_a_bad_since_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import lancedb
+
+    from podcast_scraper.search import two_tier_indexer
+
+    monkeypatch.setattr(two_tier_indexer, "_embed", _fake_embed)
+    rows = news_rows(_FIXTURE / "v3")
+    for row in rows:
+        row["embedding"] = _fake_embed(row["text"], "fake", allow_download=False)
+    lance = tmp_path / "lance"
+    lancedb.connect(str(lance)).create_table(TABLE, data=rows)  # no keyword (FTS) index
+    with caplog.at_level("WARNING", logger="podcast_scraper.search.news_index"):
+        assert search_news(lance, "risk desks", "fake")
+    assert "keyword search failed" in caplog.text
+    with pytest.raises(ValueError):
+        search_news(lance, "risk desks", "fake", since="2026-11-01' OR '1'='1")
+
+
+@requires("sentence_transformers")
+def test_the_search_route_refuses_a_since_that_is_not_a_day(client: TestClient) -> None:
+    res = client.get(
+        "/api/search",
+        params={"q": "risk desks", "content_types": "news_article", "since": "2026-11-01' OR 1=1"},
+    )
+    assert res.status_code == 422 and "YYYY-MM-DD" in res.text
+    ok = client.get(
+        "/api/search",
+        params={"q": "risk desks", "content_types": "news_article", "since": "2026-11-01"},
+    )
+    assert ok.status_code == 200

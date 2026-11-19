@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
 from podcast_scraper.news_items import item_kg, served_items
-from podcast_scraper.publishers import load_registry
+from podcast_scraper.publishers import load_registry, registry_path
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     NewsItem,
@@ -37,34 +37,61 @@ def _root(request: Request, path: Optional[str]) -> Path:
     raise HTTPException(status_code=400, detail="path is required without a default corpus.")
 
 
+def _news_token(root: Path) -> float:
+    """What the news caches are valid for: the corpus token (an ingest moves it), the newest
+    ``metadata/`` folder of any news run (the writer replaces a metadata file by renaming a new one
+    into place, which moves its folder's time, so one item's rights changing shows here), and the
+    publisher registry file. Stats one folder per run, not one file per item."""
+    stamps = [perf_cache.corpus_mtime(root)]
+    for meta in (root / "sources" / "news_article").glob("*/*/metadata"):
+        try:
+            stamps.append(meta.stat().st_mtime)
+        except OSError:
+            continue
+    try:
+        stamps.append(registry_path().stat().st_mtime)
+    except OSError:
+        pass
+    return max(stamps)
+
+
 def cached_served_items(root: Path) -> List[Dict[str, Any]]:
-    """:func:`served_items` for ``root``, cached until the corpus changes (an ingest moves the
-    corpus token)."""
+    """:func:`served_items` for ``root``, cached until a news item or the registry changes
+    (:func:`_news_token`)."""
     items: List[Dict[str, Any]] = perf_cache.get_or_compute(
         _NS,
         str(root),
-        perf_cache.corpus_mtime(root),
+        _news_token(root),
         lambda: served_items(root, load_registry()),
     )
     return items
 
 
-def _node_index(root: Path) -> Dict[str, List[str]]:
-    """KG node id -> the shown news items naming it (topics, people, organisations, objects)."""
-    index: Dict[str, List[str]] = {}
+def _node_index(root: Path) -> Dict[str, Dict[str, Optional[str]]]:
+    """KG node id -> {item_id: the node's role in it} for the shown news items naming it (topics,
+    people, organisations, objects); the role is ``author`` for a byline author, else ``None``."""
+    index: Dict[str, Dict[str, Optional[str]]] = {}
     for item in cached_served_items(root):
         for node in item_kg(root, item["metadata_relative_path"])["kg_nodes"]:
-            index.setdefault(str(node["id"]), []).append(item["item_id"])
+            roles = index.setdefault(str(node["id"]), {})
+            role = node.get("role")
+            roles[item["item_id"]] = roles.get(item["item_id"]) or (role if role else None)
     return index
 
 
 def news_items_naming(root: Path, node_id: str) -> List[Dict[str, Any]]:
-    """The shown news items whose KG names ``node_id``, newest first (cached per corpus)."""
-    index: Dict[str, List[str]] = perf_cache.get_or_compute(
-        _NS + "_nodes", str(root), perf_cache.corpus_mtime(root), lambda: _node_index(root)
+    """The shown news items whose KG names ``node_id``, newest first (cached per corpus), each
+    with ``node_role``: the node's role in that item (``author`` when it wrote it, else ``None``).
+    """
+    index: Dict[str, Dict[str, Optional[str]]] = perf_cache.get_or_compute(
+        _NS + "_nodes", str(root), _news_token(root), lambda: _node_index(root)
     )
-    wanted = set(index.get(node_id, ()))
-    return [i for i in cached_served_items(root) if i["item_id"] in wanted]
+    roles = index.get(node_id, {})
+    return [
+        {**i, "node_role": roles[i["item_id"]]}
+        for i in cached_served_items(root)
+        if i["item_id"] in roles
+    ]
 
 
 #: Where each grouping keeps its members' ``news_item_ids`` (Common's piece A): themes (``tc:``)

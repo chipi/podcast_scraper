@@ -13,15 +13,13 @@
     "editorial_type": null,
     "text_status": "full",
     "transport_ids": {
-      "rss": "untranslated"
+      "api": "untranslated"
     }
   },
   "paywalled": false,
   "published_at": "2026-11-17T09:00:00Z",
-  "publisher_id": "org:daily-example",
   "serveable": "summary",
-  "source_id": "source:125361805bbcfcb84b90",
-  "summary": null,
+  "source_id": "source:8c47148ce1eea59a43d1",
   "title": "UNUSABLE-ITEM-TITLE",
   "unusable": true,
   "unusable_reason": "translation_off",

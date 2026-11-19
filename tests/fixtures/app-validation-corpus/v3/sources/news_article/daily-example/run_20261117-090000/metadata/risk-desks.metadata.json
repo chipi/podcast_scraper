@@ -11,7 +11,6 @@
   "paywalled": false,
   "serveable": "summary",
   "mineable": true,
-  "summary": "Trading desks say the hard part of risk management is behavioural, not maths.",
   "fetched_at": "2026-11-17T09:00:00Z",
   "body_sha256": "66d7c26281c22727be74b45403bb4a43e5c0bb0e9b978fea6a95c98ffce429e0",
   "news_article": {
@@ -25,5 +24,6 @@
     "editorial_type": "analysis",
     "text_status": "full"
   },
+  "summary": "Trading desks say the hard part of risk management is behavioural, not maths.",
   "publisher_id": "org:daily-example"
 }

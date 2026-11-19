@@ -11,7 +11,6 @@
   "paywalled": false,
   "serveable": "none",
   "mineable": true,
-  "summary": "Never shown.",
   "fetched_at": "2026-11-17T09:00:00Z",
   "body_sha256": "2047887ac35e46fa7a364c2cb81c4bae06a09c956d7df4989e50c7b6aff277f8",
   "news_article": {
@@ -23,5 +22,6 @@
     "editorial_type": null,
     "text_status": "full"
   },
+  "summary": "Never shown.",
   "publisher_id": "org:daily-example"
 }

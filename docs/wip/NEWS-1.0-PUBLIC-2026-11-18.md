@@ -51,11 +51,24 @@ members 95998971c); K RFC-134 §11 (d6e8cca0d). Later the same day: `site` for a
 publisher (973421883), an unusable item shown nowhere (49acd4a08), `roundup` (7eb6c2730), keyed API
 sources (`api_key_env`, ingestion 543ed07f9; guide 5c255c178).
 
+Review fixes (2026-11-19, a self-review of the session's work by three reviewers plus the docs):
+the copy that decides an item is its newest by `fetched_at` (a withholding copy withdraws older
+ones); `news_aux` holds shown items only; index builds replace a table only after embedding; `since`
+is validated; the news caches see a rewritten item; the never-served guard runs every corpus route
+for real and sends real bodies; a fixture that keeps the item contract; spec gaps in the news row.
+Teasers and video (the operator, after judging real teasers): a video item is hidden; a teaser is
+shown only when the writer classed it `news_summary` (`podcast_scraper.news_classify`, rules);
+chipi/podcast_scraper#2502 builds an eval set and tunes the classifier.
+
 ## Not covered yet
 
-- Items written before ingestion's writer fixes carry no `unusable` or `roundup` marker: a corpus
-  written earlier (all8 included) serves its untranslated items until rewritten. No prod corpus
-  holds news yet.
+- Items written before ingestion's writer fixes carry no `unusable`, `roundup` or `item_class`
+  marker: a corpus written earlier (all8 included) serves its untranslated items until rewritten,
+  and hides all its teasers. No prod corpus holds news yet.
+- ingestion's writer does not call `news_classify` yet (asked 2026-11-19); until it does, every
+  teaser stays hidden.
+- The classifier is measured only on the 12 labels it was written from (12 of 12, which is not an
+  accuracy figure); #2502 measures it properly.
 - `nightly.yml`'s ml-models tar change (0b2eb6d58, 4b00455fa) has not run yet; `python-app.yml`'s
   has (4b00455fa, VERDICT GREEN).
 - The Guardian source is off until `PROD_GUARDIAN_API_KEY` is set (the operator's choice).

@@ -340,7 +340,8 @@ The core release builds this section (R3a).
   only: the search response for a news hit carries the summary and metadata, never the chunk text.
   The never-served rule (§10) is enforced at the response layer.
 - **What is indexed** (as built, 2026-11-18): every item a surface may show (`serveable` not
-  `none`, not marked `unusable`) whose `mineable` is not false. Each gets a row holding its title;
+  `none`, not marked `unusable`, not a video page, and a teaser only when classed `news_summary`;
+  2026-11-19) whose `mineable` is not false. Each gets a row holding its title;
   a `full` text also gets one row per body paragraph. A `teaser` or `video` body is never chunked as
   if whole (the item contract), so such an item is found by its title. Measured on the first real
   news corpus: every shown item (247 of 247) found by its own title in the top 5.
@@ -351,8 +352,9 @@ The core release builds this section (R3a).
   `aux` schema unchanged, one `kg_topic` row per (news item, KG Topic), embedded with the text the
   podcast topic rows use (`indexer.kg_topic_embed_text`). `episode_id` holds the item id, `show_id`
   the news source id, `source_id` the topic id. Podcast search never reads it; the theme builder
-  does. It covers every item whose `mineable` is not false, served or not; surfaces drop a
-  `serveable: none` item when they read.
+  does. It covers every item a surface may show whose `mineable` is not false (amended
+  2026-11-19): a withheld or unusable item's topic text never reaches the theme file, so no later
+  reader can show it.
 - **API and MCP tools are generic over content types.** A tool that lists, searches or explains
   items takes a type filter and does not assume an episode. A later product can then query any type
   the way Close Listening queries episodes.

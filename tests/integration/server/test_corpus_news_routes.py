@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -39,7 +40,7 @@ def test_health_lists_podcasts_only_without_news(tmp_path: Path) -> None:
 def test_items_are_newest_first_and_never_the_withheld_one(client: TestClient) -> None:
     body = client.get("/api/corpus/news/items").json()
     titles = [i["title"] for i in body["items"]]
-    assert body["total"] == 5 and "WITHHELD-ITEM-TITLE" not in titles
+    assert body["total"] == 4 and "WITHHELD-ITEM-TITLE" not in titles  # video hidden
     dates = [i["published_at"] for i in body["items"]]
     assert dates == sorted(dates, reverse=True)
     risk = next(i for i in body["items"] if i["title"] == _RISK)
@@ -118,9 +119,10 @@ def test_since_keeps_items_published_on_or_after_the_day(client: TestClient) -> 
 
 def test_summary_counts_the_shown_items(client: TestClient) -> None:
     body = client.get("/api/corpus/news/summary").json()
-    # Six fixture items, the withheld one never counted; Daily Example and Other Wire publish them.
-    assert body["items"] == 5 and body["publishers"] == 2
-    assert body["teasers"] == 2 and body["paywalled"] == 1
+    # Seven fixture items: the withheld, the unusable and the video item are never counted;
+    # Daily Example and Other Wire publish the four shown. The one teaser is classed a news summary.
+    assert body["items"] == 4 and body["publishers"] == 2
+    assert body["teasers"] == 1 and body["paywalled"] == 1
 
 
 def _name_news(path: Path, cluster_id: str, item_ids: list) -> None:
@@ -208,7 +210,7 @@ def test_the_artifact_route_serves_shown_news_kgs_only(client: TestClient, tmp_p
         res = client.get(
             "/api/artifacts/" + p.relative_to(root).as_posix(), params={"path": str(root)}
         )
-        withheld = p.name in ("withheld.kg.json", "untranslated.kg.json")
+        withheld = p.name in ("withheld.kg.json", "untranslated.kg.json", "trail-video.kg.json")
         assert res.status_code == (404 if withheld else 200), p.name
         assert "WITHHELD-ITEM-TITLE" not in res.text and "NEWS-BODY-MARKER" not in res.text
 
@@ -230,12 +232,79 @@ def test_the_graph_expand_loads_the_articles_it_is_given(client: TestClient) -> 
         assert any(n.get("type") == "ContentItem" for n in got.json()["nodes"])
 
 
-def test_an_item_without_a_publisher_names_its_site(client: TestClient) -> None:
+def test_an_item_without_a_publisher_names_its_site(client: TestClient, tmp_path: Path) -> None:
     """An aggregator's link to an unregistered site has no publisher; the item names the URL's
-    host (without www.) as its origin, so a surface never falls back to a source id."""
+    host (without www.) as its origin, so a surface never falls back to a source id. The fixture's
+    only such item is a video page, hidden since 2026-11-19, so this copy makes it full text."""
+    from podcast_scraper import perf_cache
+
+    meta = next((tmp_path / "corpus").rglob("trail-video.metadata.json"))
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    doc["news_article"]["text_status"] = "full"
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    perf_cache.clear()
     items = {i["title"]: i for i in client.get("/api/corpus/news/items").json()["items"]}
     unknown = [i for i in items.values() if i["publisher"] is None]
     assert unknown, "the fixture's trail-video item links to an unknown domain"
     for i in unknown:
         assert i["site"] and not i["site"].startswith("www.") and i["site"] in i["url"]
     assert all(i["site"] for i in items.values())
+
+
+def test_an_older_runs_kg_is_refused_once_a_newer_run_withholds_the_item(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """The artifact route asks whether the item is served now, not whether this copy was: an
+    older run's KG of an item a newer run withholds is refused (review 2026-11-19)."""
+    root = tmp_path / "corpus"
+    meta = next((root / "sources" / "news_article").rglob("risk-desks.metadata.json"))
+    kg_rel = meta.with_name("risk-desks.kg.json").relative_to(root).as_posix()
+    assert client.get("/api/artifacts/" + kg_rel, params={"path": str(root)}).status_code == 200
+    newer = meta.parents[2] / "run_20261119-090000" / "metadata"
+    newer.mkdir(parents=True)
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    doc.update(serveable="none", fetched_at="2026-11-19T09:00:00Z")
+    (newer / meta.name).write_text(json.dumps(doc), encoding="utf-8")
+    from podcast_scraper import perf_cache
+
+    perf_cache.clear()
+    titles = [i["title"] for i in client.get("/api/corpus/news/items").json()["items"]]
+    assert "Risk desks learn to sit still" not in titles
+    assert client.get("/api/artifacts/" + kg_rel, params={"path": str(root)}).status_code == 404
+
+
+def test_a_rights_change_on_one_item_shows_without_a_restart(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """The writer replaces a metadata file by renaming a new one into place; the news caches see
+    it without an ingest or a restart (review 2026-11-19: they keyed only on the corpus summary)."""
+    root = tmp_path / "corpus"
+    meta = next((root / "sources" / "news_article").rglob("risk-desks.metadata.json"))
+
+    def titles() -> list:
+        return [i["title"] for i in client.get("/api/corpus/news/items").json()["items"]]
+
+    assert "Risk desks learn to sit still" in titles()
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    doc["serveable"] = "none"
+    tmp = meta.with_name(meta.name + ".tmp")
+    tmp.write_text(json.dumps(doc), encoding="utf-8")
+    old = meta.parent.stat().st_mtime
+    os.replace(tmp, meta)
+    os.utime(meta.parent, (old + 5, old + 5))  # the rename's own time can equal the read's
+    assert "Risk desks learn to sit still" not in titles()
+
+
+def test_a_persons_items_say_where_the_person_is_the_author(client: TestClient) -> None:
+    """node-episodes carries node_role, so the rail can mark "By" (UXS-019; review 2026-11-19)."""
+    res = client.post(
+        "/api/corpus/node-episodes",
+        json={"node_id": "k:person:ana-example", "content_types": ["news_article"]},
+    ).json()
+    roles = {i["title"]: i["node_role"] for i in res["news_items"]}
+    assert roles["Risk desks learn to sit still"] == "author"
+    topic = client.post(
+        "/api/corpus/node-episodes",
+        json={"node_id": "k:topic:risk-management", "content_types": ["news_article"]},
+    ).json()
+    assert all(i["node_role"] is None for i in topic["news_items"])

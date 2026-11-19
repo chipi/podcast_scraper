@@ -32,6 +32,7 @@ BODY_MARKER = "NEWS-BODY-MARKER"
 INGESTED_AT = "2026-11-17T09:00:00Z"
 
 SOURCES = {
+    # Daily Example translates (translate: true in its news block); Link Board does not.
     "daily-example": {
         "url": "https://www.dailyexample.test/feed.xml",
         "title": "Daily Example",
@@ -62,12 +63,14 @@ ITEMS: List[Dict[str, Any]] = [
     {
         "source": "daily-example",
         "stem": "soil-report",
+        # A teaser the writer classed a news summary (news_classify), so it is shown.
+        "item_class": "news_summary",
         "url": "https://www.dailyexample.test/2026/11/soil-report",
         "title": "Soil report finds erosion slowing",
         "published_at": "2026-11-16T12:00:00Z",
         "language": "en",
         "serveable": "metadata",
-        "summary": "Erosion slowed on three of five test plots.",
+        "summary": None,
         "byline": ["Ana Example", "Cy Example"],
         "editorial_type": "reporting",
         "text_status": "teaser",
@@ -99,7 +102,7 @@ ITEMS: List[Dict[str, Any]] = [
         "published_at": "2026-11-15T09:00:00Z",
         "language": "es",
         "serveable": "summary",
-        "summary": "Una columna sobre la gestión del riesgo en los mercados.",
+        "summary": "A column on how markets manage risk, translated from Spanish.",
         "byline": ["Dora Ejemplo"],
         "editorial_type": "opinion",
         "text_status": "full",
@@ -110,6 +113,8 @@ ITEMS: List[Dict[str, Any]] = [
     {
         "source": "link-board",
         "stem": "wire-reliability",
+        # Stands in for a newsletter issue: marked a roundup at ingest (news_article.roundup).
+        "roundup": True,
         "url": "https://m.otherwire.test/reliability-at-scale",
         "title": "Reliability at scale, a field report",
         "published_at": "2026-11-17T06:00:00Z",
@@ -131,7 +136,7 @@ ITEMS: List[Dict[str, Any]] = [
         "published_at": "2026-11-14T18:00:00Z",
         "language": "en",
         "serveable": "metadata",
-        "summary": "A video about trail building.",
+        "summary": None,
         "byline": [],
         "editorial_type": None,
         "text_status": "video",
@@ -140,9 +145,9 @@ ITEMS: List[Dict[str, Any]] = [
         "mentions": [],
     },
     {
-        # Not in English and not translated (News 1.0 leaves translation off): the writer marks it
-        # unusable (D-44), so no surface may show it, as for the withheld item.
-        "source": "daily-example",
+        # Not in English from Link Board, which does not translate (News 1.0's default): the
+        # writer marks it unusable (D-44), so no surface may show it, as for the withheld item.
+        "source": "link-board",
         "stem": "untranslated",
         "url": "https://www.dailyexample.test/de/2026/11/unuebersetzt",
         "title": "UNUSABLE-ITEM-TITLE",
@@ -193,7 +198,6 @@ def _metadata(item: Dict[str, Any], body: str) -> Dict[str, Any]:
         "paywalled": item["paywalled"],
         "serveable": item["serveable"],
         "mineable": True,
-        "summary": item["summary"],
         "fetched_at": INGESTED_AT,
         "body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
         "news_article": {
@@ -204,6 +208,12 @@ def _metadata(item: Dict[str, Any], body: str) -> Dict[str, Any]:
             "text_status": item["text_status"],
         },
     }
+    if item["summary"] is not None:
+        doc["summary"] = item["summary"]
+    if item.get("item_class"):
+        doc["news_article"]["item_class"] = item["item_class"]
+    if item.get("roundup"):
+        doc["news_article"]["roundup"] = True
     if "publisher" in src:
         doc["publisher_id"] = src["publisher"]
     elif "otherwire.test" in item["url"]:

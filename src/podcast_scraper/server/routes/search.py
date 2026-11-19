@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import anyio
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 
 from podcast_scraper.search.capability import structured_corpus_search
@@ -77,7 +77,11 @@ def _news_hits(
         return []
     shown = {i["item_id"]: i for i in cached_served_items(root)}
     out: list[SearchHitModel] = []
-    for item_id, score in search_news(lance_dir, q, model_id, top_k=top_k, since=since):
+    try:
+        found = search_news(lance_dir, q, model_id, top_k=top_k, since=since)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    for item_id, score in found:
         item = shown.get(item_id)
         if item is None:
             continue

@@ -158,7 +158,8 @@ def test_the_fixture_items_list_their_kg_nodes_and_author() -> None:
 
     registry = load_registry(_FIXTURE / "publishers.fixture.yaml")
     items = {i["title"]: i for i in served_items(_FIXTURE / "v3", registry)}
-    assert "WITHHELD-ITEM-TITLE" not in items and len(items) == 5
+    # trail-video is a video page: hidden (the operator, 2026-11-19).
+    assert "WITHHELD-ITEM-TITLE" not in items and len(items) == 4
     risk = items["Risk desks learn to sit still"]
     kg = item_kg(_FIXTURE / "v3", risk["metadata_relative_path"])
     assert kg["kg_relative_path"].endswith("risk-desks.kg.json")
@@ -169,7 +170,8 @@ def test_the_fixture_items_list_their_kg_nodes_and_author() -> None:
     assert by_id["org:daily-example"]["type"] == "Organization"
     assert risk["publisher"]["id"] == "org:daily-example"
     assert items["Reliability at scale, a field report"]["publisher"]["domain"] == "otherwire.test"
-    assert items["Trail building, in pictures"]["publisher"] is None
+    assert items["Reliability at scale, a field report"]["roundup"] is True
+    assert "Trail building, in pictures" not in items  # a video page
 
 
 def test_one_item_over_two_sources_is_served_once(tmp_path: Path) -> None:
@@ -203,3 +205,116 @@ def test_roundup_is_served_as_a_boolean(tmp_path: Path) -> None:
     assert served is not None and served["roundup"] is True
     plain = served_item(_doc(), reg)
     assert plain is not None and plain["roundup"] is False
+
+
+def _copies(tmp_path: Path, copies: list) -> Path:
+    """Write one item's copies: (source, run, fetched_at, overrides) each."""
+    root = tmp_path / "corpus"
+    for source, run, fetched_at, over in copies:
+        meta = root / f"sources/news_article/{source}/{run}/metadata"
+        meta.mkdir(parents=True, exist_ok=True)
+        doc = _doc(fetched_at=fetched_at, **over)
+        (meta / "a.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    return root
+
+
+def test_a_newer_copy_that_withholds_the_item_withdraws_it(tmp_path: Path) -> None:
+    """The current copy decides: a later run marking the item none (or unusable) withdraws the
+    older shown copy too (found by review 2026-11-19: the older copy was still served)."""
+    for over in ({"serveable": "none"}, {"unusable": True}):
+        root = _copies(
+            tmp_path / str(len(over)) / next(iter(over)),
+            [
+                ("daily-example", "run_20261117-080000", "2026-11-17T08:00:00Z", {}),
+                ("daily-example", "run_20261118-080000", "2026-11-18T08:00:00Z", over),
+            ],
+        )
+        assert served_items(root, _registry(tmp_path)) == []
+
+
+def test_a_newer_copy_that_shows_the_item_restores_it(tmp_path: Path) -> None:
+    root = _copies(
+        tmp_path,
+        [
+            ("daily-example", "run_20261117-080000", "2026-11-17T08:00:00Z", {"serveable": "none"}),
+            ("daily-example", "run_20261118-080000", "2026-11-18T08:00:00Z", {}),
+        ],
+    )
+    assert len(served_items(root, _registry(tmp_path))) == 1
+
+
+def test_across_sources_the_newer_fetch_decides_and_a_tie_withholds(tmp_path: Path) -> None:
+    """Across sources the run path says nothing about time; fetched_at does. On a tie, the copy
+    that may not be shown wins."""
+    newer_shown = _copies(
+        tmp_path / "a",
+        [
+            ("zz-source", "run_20261117-080000", "2026-11-17T08:00:00Z", {"serveable": "none"}),
+            ("aa-source", "run_20261117-090000", "2026-11-18T08:00:00Z", {}),
+        ],
+    )
+    assert len(served_items(newer_shown, _registry(tmp_path))) == 1
+    tie = _copies(
+        tmp_path / "b",
+        [
+            ("aa-source", "run_20261117-080000", "2026-11-17T08:00:00Z", {"serveable": "none"}),
+            ("zz-source", "run_20261117-080000", "2026-11-17T08:00:00Z", {}),
+        ],
+    )
+    assert served_items(tie, _registry(tmp_path)) == []
+
+
+def test_news_topic_rows_leave_out_withheld_and_unusable_items() -> None:
+    """news_aux holds shown items' topics only: the theme builder copies a news-only topic's label
+    into the theme file whatever its items' rights (review 2026-11-19, the database session)."""
+    from podcast_scraper.search.news_index import news_topic_rows
+
+    ids = {
+        r["episode_id"] for r in news_topic_rows(Path("tests/fixtures/app-validation-corpus/v3"))
+    }
+    assert "item:news_article:2043d8230c86beddfb95" not in ids  # withheld (serveable none)
+    assert "item:news_article:772f365b10f0cb5aeae2" not in ids  # unusable (not translated)
+    assert "item:news_article:a8d6e89ce92ef7521ed5" in ids  # risk-desks, shown
+
+
+def test_the_fixture_items_keep_the_contract() -> None:
+    """The app validation corpus's news items obey news-item-1.0 (review 2026-11-19 found the
+    teaser and video items carrying summaries and a Spanish item served with translation off)."""
+    root = Path("tests/fixtures/app-validation-corpus/v3/sources/news_article")
+    translates = {"daily-example"}  # build_news_items.py: Daily Example has translate: true
+    docs = {
+        p.name: (p, json.loads(p.read_text(encoding="utf-8")))
+        for p in root.rglob("*.metadata.json")
+    }
+    assert len(docs) == 7
+    for name, (path, doc) in docs.items():
+        own = doc["news_article"]
+        assert "summary" not in doc or doc["summary"] is not None, name
+        if own["text_status"] in ("teaser", "video"):
+            assert "summary" not in doc, f"{name}: a {own['text_status']} item has no summary"
+        if doc["language"] != "en" and path.parts[-4] not in translates:
+            assert doc.get("unusable") is True, f"{name}: untranslated and not marked unusable"
+    assert any(d["news_article"].get("roundup") is True for _p, d in docs.values())
+
+
+@pytest.mark.parametrize(
+    "text_status, item_class, shown",
+    [
+        ("full", None, True),
+        ("teaser", "news_summary", True),
+        ("teaser", None, False),  # written before the classifier: hidden until rewritten
+        ("teaser", "small_teaser", False),
+        ("teaser", "day_brief", False),
+        ("teaser", "not_article", False),
+        ("video", None, False),
+        ("video", "news_summary", False),
+    ],
+)
+def test_a_teaser_shows_only_as_a_news_summary_and_a_video_never(
+    tmp_path: Path, text_status: str, item_class: Any, shown: bool
+) -> None:
+    """The operator, 2026-11-19: teasers hidden unless the writer classed them a news summary
+    (news_classify); video pages hidden for now."""
+    own = {"text_status": text_status, **({"item_class": item_class} if item_class else {})}
+    doc = _doc(news_article=own)
+    assert (served_item(doc, _registry(tmp_path)) is not None) is shown

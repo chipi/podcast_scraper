@@ -5239,6 +5239,13 @@ class NewsItem(BaseModel):
     editorial_type: Optional[Literal["reporting", "opinion", "analysis", "paid"]] = None
     paywalled: Optional[bool] = None
     text_status: Optional[str] = None
+    node_role: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only in a node's list (node-episodes): the node's role in this item, 'author' when "
+            "the node is a person who wrote it (UXS-019's 'By' marker); else null."
+        ),
+    )
     roundup: bool = Field(
         default=False,
         description=(

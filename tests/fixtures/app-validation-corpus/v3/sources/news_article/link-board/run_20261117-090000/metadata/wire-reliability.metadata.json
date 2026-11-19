@@ -11,7 +11,6 @@
   "paywalled": null,
   "serveable": "summary",
   "mineable": true,
-  "summary": "Operators describe how they keep systems reliable as they grow.",
   "fetched_at": "2026-11-17T09:00:00Z",
   "body_sha256": "57b18b1e7270cdf46bcf49fb1ac42857f3a14da295fd16dd8ab338895ce2335d",
   "news_article": {
@@ -23,7 +22,9 @@
     ],
     "byline_raw": "Bo Example",
     "editorial_type": null,
-    "text_status": "full"
+    "text_status": "full",
+    "roundup": true
   },
+  "summary": "Operators describe how they keep systems reliable as they grow.",
   "publisher_id": "org:other-wire"
 }

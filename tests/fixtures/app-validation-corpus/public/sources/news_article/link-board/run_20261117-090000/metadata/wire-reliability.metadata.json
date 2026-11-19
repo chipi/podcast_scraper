@@ -13,6 +13,7 @@
     ],
     "byline_raw": "Bo Example",
     "editorial_type": null,
+    "roundup": true,
     "text_status": "full",
     "transport_ids": {
       "api": "wire-reliability"

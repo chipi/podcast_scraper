@@ -14,6 +14,7 @@
     ],
     "byline_raw": "Ana Example and Cy Example",
     "editorial_type": "reporting",
+    "item_class": "news_summary",
     "text_status": "teaser",
     "transport_ids": {
       "rss": "soil-report"
@@ -24,7 +25,6 @@
   "publisher_id": "org:daily-example",
   "serveable": "metadata",
   "source_id": "source:125361805bbcfcb84b90",
-  "summary": "Erosion slowed on three of five test plots.",
   "title": "Soil report finds erosion slowing",
   "url": "https://www.dailyexample.test/2026/11/soil-report"
 }

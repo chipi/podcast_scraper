@@ -2,14 +2,9 @@
   "content_type": "news_article",
   "edges": [
     {
-      "from": "source:125361805bbcfcb84b90",
+      "from": "source:8c47148ce1eea59a43d1",
       "to": "item:news_article:772f365b10f0cb5aeae2",
       "type": "HAS_ITEM"
-    },
-    {
-      "from": "source:125361805bbcfcb84b90",
-      "to": "org:daily-example",
-      "type": "PUBLISHED_BY"
     },
     {
       "from": "topic:risk-management",
@@ -26,12 +21,12 @@
   "item_id": "item:news_article:772f365b10f0cb5aeae2",
   "nodes": [
     {
-      "id": "source:125361805bbcfcb84b90",
+      "id": "source:8c47148ce1eea59a43d1",
       "properties": {
         "source_kind": "news",
-        "title": "Daily Example",
-        "transport": "rss",
-        "url": "https://www.dailyexample.test/feed.xml"
+        "title": "Link Board",
+        "transport": "json_api",
+        "url": "https://linkboard.test/api/front"
       },
       "type": "Source"
     },
@@ -40,18 +35,11 @@
       "properties": {
         "content_type": "news_article",
         "published_at": "2026-11-17T09:00:00Z",
-        "source_id": "source:125361805bbcfcb84b90",
+        "source_id": "source:8c47148ce1eea59a43d1",
         "title": "UNUSABLE-ITEM-TITLE",
         "url": "https://www.dailyexample.test/de/2026/11/unuebersetzt"
       },
       "type": "ContentItem"
-    },
-    {
-      "id": "org:daily-example",
-      "properties": {
-        "name": "Daily Example"
-      },
-      "type": "Organization"
     },
     {
       "id": "topic:risk-management",

@@ -21,6 +21,7 @@ from typing import Any, Dict, Iterator, List, Mapping, Optional
 from urllib.parse import urlsplit
 
 from podcast_scraper.languages import UNUSABLE_FIELD
+from podcast_scraper.news_classify import is_kept
 from podcast_scraper.publishers import load_registry, Registry
 from podcast_scraper.search.corpus_scope import discover_metadata_files
 from podcast_scraper.utils.corpus_walk import SOURCES_DIR
@@ -58,6 +59,7 @@ F_SUMMARY = "summary"
 F_BYLINE = "byline"
 F_EDITORIAL_TYPE = "editorial_type"
 F_TEXT_STATUS = "text_status"
+F_FETCHED_AT = "fetched_at"
 
 SERVEABLE_METADATA = "metadata"
 SERVEABLE_SUMMARY = "summary"
@@ -78,26 +80,48 @@ def is_news(doc: Any) -> bool:
     return isinstance(doc, Mapping) and doc.get(F_CONTENT_TYPE) == NEWS_ARTICLE
 
 
+#: The class the writer gives a non-full item (:mod:`podcast_scraper.news_classify`).
+F_ITEM_CLASS = "item_class"
+
+
+def _text_kept(doc: Mapping[str, Any]) -> bool:
+    """Whether the item's text makes it worth showing (the operator, 2026-11-19): a full article;
+    a teaser only when the writer classed it a news summary (one without a class, written before
+    the classifier, stays hidden); a video page never, for now (it stays written)."""
+    own = _own(doc)
+    status = own.get(F_TEXT_STATUS)
+    if status == "video":
+        return False
+    if status == "teaser":
+        return is_kept(_str(own.get(F_ITEM_CLASS)))
+    return True
+
+
 def is_shown(doc: Any) -> bool:
-    """Whether a surface may show the item: a news item whose ``serveable`` is not ``none`` and
-    that its writer did not mark ``unusable`` (top-level on an item, news-item-1.0; D-44: an
-    item not in English that is not translated)."""
-    return is_news(doc) and serveable(doc) != SERVEABLE_NONE and doc.get(UNUSABLE_FIELD) is not True
+    """Whether a surface may show the item: a news item whose ``serveable`` is not ``none``, that
+    its writer did not mark ``unusable`` (top-level on an item, news-item-1.0; D-44: an item not in
+    English that is not translated), and whose text is worth showing (:func:`_text_kept`)."""
+    return (
+        is_news(doc)
+        and serveable(doc) != SERVEABLE_NONE
+        and doc.get(UNUSABLE_FIELD) is not True
+        and _text_kept(doc)
+    )
 
 
-def is_shown_news_kg(kg_path: os.PathLike[str] | str) -> bool:
-    """Whether *kg_path* is the KG of a news item some surface may show (its metadata beside it
-    says so, ``serveable`` not ``none``). The graph loads such a KG to draw article nodes; it holds
-    the item's nodes, never its body. A withheld item's KG names what no surface shows."""
+def news_kg_item_id(kg_path: os.PathLike[str] | str) -> Optional[str]:
+    """The ``item_id`` of the news item whose KG *kg_path* is (from the metadata beside it), or
+    ``None`` when it is not one. Whether to serve it is the item's current state, not this copy's
+    (:func:`current_copies`): an older run's KG of an item withheld since must not be served."""
     real = Path(os.path.realpath(kg_path))
     if not real.name.endswith(".kg.json"):
-        return False
+        return None
     meta = real.with_name(real.name[: -len(".kg.json")] + ".metadata.json")
     try:
         doc = json.loads(meta.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return False
-    return is_shown(doc)
+        return None
+    return _str(doc.get(F_ITEM_ID)) if is_news(doc) else None
 
 
 def _own(doc: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -194,20 +218,31 @@ def iter_news_metadata(corpus_root: Path) -> Iterator[NewsItemFile]:
             yield NewsItemFile(path, path.relative_to(root).as_posix(), doc)
 
 
-def served_items(corpus_root: Path, registry: Optional[Registry] = None) -> List[Dict[str, Any]]:
-    """Every news item a surface may show, newest first, once per ``item_id``: one article reached
-    by two sources or two runs is one item (the contract). The newest run's copy is kept."""
-    reg = registry if registry is not None else load_registry()
-    by_id: Dict[str, Dict[str, Any]] = {}
+def current_copies(corpus_root: Path) -> Dict[str, NewsItemFile]:
+    """The copy that decides each item, by ``item_id``: one article reached by two sources or two
+    runs is one item (the contract). The newest copy by ``fetched_at`` decides, then the run path
+    (run directories sort by time); on a tie a copy that may not be shown wins. So a newer run that
+    withholds an item withdraws every older copy, and one that restores it brings it back."""
+    best: Dict[str, Any] = {}
     for f in iter_news_metadata(corpus_root):
-        item = served_item(f.doc, reg, metadata_relative_path=f.relative_path)
-        if item is None:
+        item_id = _str(f.doc.get(F_ITEM_ID))
+        if not item_id:
             continue
-        kept = by_id.get(item["item_id"])
-        # Run directories are named run_<timestamp>..., so the larger path is the newer run.
-        if kept is None or item["metadata_relative_path"] > kept["metadata_relative_path"]:
-            by_id[item["item_id"]] = item
-    out = list(by_id.values())
+        key = (_str(f.doc.get(F_FETCHED_AT)) or "", not is_shown(f.doc), f.relative_path)
+        if item_id not in best or key > best[item_id][0]:
+            best[item_id] = (key, f)
+    return {item_id: f for item_id, (_key, f) in best.items()}
+
+
+def served_items(corpus_root: Path, registry: Optional[Registry] = None) -> List[Dict[str, Any]]:
+    """Every news item a surface may show, newest first, once per ``item_id``, as its current copy
+    (:func:`current_copies`) says; an item whose current copy may not be shown is left out."""
+    reg = registry if registry is not None else load_registry()
+    out: List[Dict[str, Any]] = []
+    for f in current_copies(corpus_root).values():
+        item = served_item(f.doc, reg, metadata_relative_path=f.relative_path)
+        if item is not None:
+            out.append(item)
     out.sort(key=lambda i: i["published_at"] or "", reverse=True)
     return out
 

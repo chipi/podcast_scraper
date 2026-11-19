@@ -120,7 +120,7 @@ for more:
 | `summary` | the summary paragraph, only when `serveable` is `summary` |
 | `news_article.byline` (a list of names, order kept) | "By …", names as written; a person link only when the byline has joined a person |
 | `news_article.editorial_type` (reporting, opinion, analysis, paid, or null) | a badge for opinion, analysis and paid; nothing for reporting or null |
-| `news_article.text_status` (`full`, `teaser`, `video`) | for `teaser` and `video`, a "Summary from the feed" note (the article text was not available); nothing for `full` |
+| `news_article.text_status` (`full`, `teaser`, `video`) and `news_article.item_class` | not shown as such: a `video` item is not shown at all, and a `teaser` only when the writer classed it `news_summary` (`podcast_scraper.news_classify`); a shown teaser has no summary (the operator, 2026-11-19) |
 
 Requests: a repeated query parameter `content_types` (`podcast_episode`, `news_article`); the
 default is `podcast_episode`, so a request without it is answered exactly as today.
@@ -186,8 +186,8 @@ variant of the text (transcript) row:
   `muted`; badges right-aligned: editorial type (opinion, analysis, paid), language (when not
   English), "Paywalled".
 - **Line 2:** the title, clickable: opens the article subject in the rail.
-- **Lines 3 to 5:** the summary, clamped to three lines with the existing clamp. For a teaser, the
-  feed summary with the "Summary from the feed" note in `muted`.
+- **Lines 3 to 5:** the summary, clamped to three lines with the existing clamp. A shown teaser has
+  no summary (the writer summarises full text only): title, metadata and link only.
 - **Actions:** **Open article ↗** (an external link, `link` token) and the rail opener. The podcast
   item row's **G**, **L** and **E** controls do not appear: an article serves no text (ADR-179), has no Library
   row and no graph node in News 1.0.
@@ -211,7 +211,7 @@ result row. Component: `ArticleRailPanel`. Top to bottom:
    (ADR-180); otherwise plain text. An organisation in the byline is not shown here, because it is
    the publisher (ADR-180, rule 5).
 5. **Times:** published, absolute, with the time zone; "Fetched …" in `muted`.
-6. **Badges:** editorial type, language, "Paywalled", "Summary from the feed" (teaser).
+6. **Badges:** editorial type, language, "Paywalled".
 7. **Summary:** the full summary paragraph.
 8. **Open article ↗:** a full-width secondary button, the card's main action.
 9. **Topics and entities:** chips from the article's KG (`topic` and `kg` tokens, as on the podcast item
@@ -280,7 +280,10 @@ article card.
 - **Loading:** the existing rail and row skeletons.
 - **No summary yet** (the item is ingested, enrichment has not run): title, metadata and link out;
   the summary line reads "No summary yet" in `muted`.
-- **Teaser or video** (`text_status: teaser` or `video`): the feed's summary, with "Summary from the feed" in `muted`.
+- **Teaser or video** (`text_status: teaser` or `video`): a video item is never shown; a teaser
+  is shown only when classed a news summary, with title, metadata and link and no summary line ("No
+  summary yet" is for full text, which the writer will summarise). The operator, 2026-11-19, after
+  judging real teasers; chipi/podcast_scraper#2502 tunes the classifier.
 - **Metadata only** (`serveable: metadata`, or absent): title, publisher, time and link out, no
   summary; a `muted` line "This publisher's items show their title and link only."
 - **Not shown** (`serveable: none`): the item never appears, in search results, the rail or any
@@ -334,7 +337,7 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
       unique marker fails if the marker appears anywhere in the rendered DOM.
 - [ ] No news row shows G, L or E, or any matched-text excerpt.
 - [ ] The teaser, metadata-only, no-summary and no-byline states render as specified, and a
-  `serveable: none` item appears nowhere.
+  `serveable: none` item, an unusable item, a video item and an unclassified teaser appear nowhere.
 - [ ] Every link out has `rel="noopener noreferrer"`, opens in a new tab and names its domain.
 - [ ] `news` and `news-foreground` are defined once in the token layer; no hex in components.
 - [ ] `E2E_SURFACE_MAP.md`, [WORKBENCH_IA.md](WORKBENCH_IA.md) (the `article` subject) and UXS-016 (the

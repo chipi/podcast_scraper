@@ -10,13 +10,13 @@
   },
   "nodes": [
     {
-      "id": "source:125361805bbcfcb84b90",
+      "id": "source:8c47148ce1eea59a43d1",
       "type": "Source",
       "properties": {
-        "title": "Daily Example",
+        "title": "Link Board",
         "source_kind": "news",
-        "transport": "rss",
-        "url": "https://www.dailyexample.test/feed.xml"
+        "transport": "json_api",
+        "url": "https://linkboard.test/api/front"
       }
     },
     {
@@ -25,16 +25,9 @@
       "properties": {
         "title": "UNUSABLE-ITEM-TITLE",
         "content_type": "news_article",
-        "source_id": "source:125361805bbcfcb84b90",
+        "source_id": "source:8c47148ce1eea59a43d1",
         "url": "https://www.dailyexample.test/de/2026/11/unuebersetzt",
         "published_at": "2026-11-17T09:00:00Z"
-      }
-    },
-    {
-      "id": "org:daily-example",
-      "type": "Organization",
-      "properties": {
-        "name": "Daily Example"
       }
     },
     {
@@ -49,13 +42,8 @@
   "edges": [
     {
       "type": "HAS_ITEM",
-      "from": "source:125361805bbcfcb84b90",
+      "from": "source:8c47148ce1eea59a43d1",
       "to": "item:news_article:772f365b10f0cb5aeae2"
-    },
-    {
-      "type": "PUBLISHED_BY",
-      "from": "source:125361805bbcfcb84b90",
-      "to": "org:daily-example"
     },
     {
       "type": "MENTIONS",
