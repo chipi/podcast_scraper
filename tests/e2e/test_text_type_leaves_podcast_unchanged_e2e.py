@@ -1,9 +1,11 @@
 """Gate b of the core release: podcast output is unchanged with a second content type installed.
 
 ADR-177 adds content types, a text-in entry point, stage profiles and a KG 3.0 writer for new
-types; ADR-178 keeps podcasts on KG 2.x until R3b. Installing another type must therefore change
-nothing a podcast run writes. This runs the same podcast feed twice through ``run_pipeline`` (the
-real HTTP client against the local test server, metadata and KG on, no model), once with no
+types; ADR-178 kept podcasts on KG 2.x until R3b, which moved every KG file to KG 3.0, so a
+podcast's KG now names its item's type: always the podcast's, never the one installed beside it.
+Installing another type must therefore change nothing a podcast run writes. This runs the same
+podcast feed twice through ``run_pipeline`` (the real HTTP client against the local test server,
+metadata and KG on, no model), once with no
 extension and once with the test-only text type and its transport registered, and compares every
 file the two runs wrote. Only what differs between ANY two runs is normalised away: the output
 directory, the run's id and suffix, and wall-clock times and durations.
@@ -144,5 +146,9 @@ def test_a_podcast_run_is_unchanged_with_the_text_type_installed(e2e_server, tmp
     with_type = _run(feed, tmp_path / "with_type", [TEXT_TYPE])
     assert _differences(plain, with_type) == []
     for key, body in with_type.items():
-        if key.endswith((".metadata.json", ".kg.json")):
-            assert b"content_type" not in body, key  # podcasts write no type until R3b
+        if key.endswith(".kg.json"):
+            # R3b: KG 3.0 names the item's type; a podcast's is never the installed text type.
+            assert json.loads(body)["content_type"] == "podcast_episode", key
+            assert b"test_text_item" not in body, key
+        elif key.endswith(".metadata.json"):
+            assert b"content_type" not in body, key  # podcast metadata names no type
