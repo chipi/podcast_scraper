@@ -58,6 +58,7 @@ function open(item: NewsItem): void {
 
 function seeAll(): void {
   shell.libraryMode = 'news'
+  shell.libraryNewsPublisherId = ''
   emit('switch-main-tab', 'library')
 }
 </script>

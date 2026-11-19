@@ -38,6 +38,24 @@ describe('NodeNewsSection (UXS-019 "In the news")', () => {
     expect(fetchNodeEpisodes).not.toHaveBeenCalled()
   })
 
+  it('marks "By" on the items the node (a person) wrote, only those', async () => {
+    // UXS-019 "The node rail" (review 2026-11-19: the marker was missing).
+    useShellStore().contentTypes = ['podcast_episode', 'news_article']
+    vi.mocked(fetchNodeEpisodes).mockResolvedValue({
+      path: '/c',
+      node_id: 'person:ana-example',
+      episodes: [],
+      news_items: [{ ...news(1), node_role: 'author' }, { ...news(2), node_role: null }],
+      truncated: false,
+      total_matched: null,
+    })
+    const w = mount(NodeNewsSection, { props: { nodeId: 'k:person:ana-example' } })
+    await flushPromises()
+    const rows = w.findAll('[data-testid="node-news-item"]')
+    expect(rows[0].find('[data-testid="node-news-by"]').exists()).toBe(true)
+    expect(rows[1].find('[data-testid="node-news-by"]').exists()).toBe(false)
+  })
+
   it('lists five, shows all on request, and opens the article card', async () => {
     useShellStore().contentTypes = ['podcast_episode', 'news_article']
     vi.mocked(fetchNodeEpisodes).mockResolvedValue({

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { track } from '../lib/analytics'
 import {
   searchCorpus,
@@ -10,6 +10,7 @@ import {
 import { useGraphNavigationStore } from './graphNavigation'
 import { useActiveSearchContextStore } from './activeSearchContext'
 import { useSavedQueriesStore } from './savedQueries'
+import { useShellStore } from './shell'
 import { searchListeners, searchRequestParams, searchResultFilters } from '../extensions'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
@@ -91,6 +92,17 @@ export const useSearchStore = defineStore('search', () => {
      */
     contentTypes: ['podcast_episode'] as string[],
   })
+
+  // The Type chip shows only while the corpus holds news. When a corpus without news is opened,
+  // its value goes back to podcasts: the user could no longer see or change it (review
+  // 2026-11-19: a News choice kept sending content_types=news_article to a podcast-only corpus).
+  const shell = useShellStore()
+  watch(
+    () => shell.hasNews,
+    (hasNews) => {
+      if (!hasNews) filters.contentTypes = ['podcast_episode']
+    },
+  )
 
   /**
    * The page after every registered client-side filter (`searchResultFilters`). Keeps
@@ -223,7 +235,8 @@ export const useSearchStore = defineStore('search', () => {
       embeddingModel: filters.embeddingModel.trim() || undefined,
       dedupeKgSurfaces: filters.dedupeKgSurfaces,
       contentTypes:
-        filters.contentTypes.length === 1 && filters.contentTypes[0] === 'podcast_episode'
+        !shell.hasNews ||
+        (filters.contentTypes.length === 1 && filters.contentTypes[0] === 'podcast_episode')
           ? undefined
           : filters.contentTypes,
       extraParams,

@@ -37,6 +37,8 @@ describe('SearchTypeChip (UXS-019)', () => {
   })
 
   it('sends content_types only when news is asked', () => {
+    // The chip shows only on a corpus that holds news; on one without, no news filter is sent.
+    useShellStore().contentTypes = ['podcast_episode', 'news_article']
     const search = useSearchStore()
     expect(search.requestOptions('/c').contentTypes).toBeUndefined()
     search.filters.contentTypes = ['news_article']

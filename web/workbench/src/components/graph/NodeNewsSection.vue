@@ -75,7 +75,13 @@ function open(item: NewsItem): void {
         >
           {{ item.title }}
         </button>
-        <p class="text-[10px] text-muted">{{ meta(item) }}</p>
+        <p class="text-[10px] text-muted">
+          <span
+            v-if="item.node_role === 'author'"
+            class="font-semibold text-surface-foreground"
+            data-testid="node-news-by"
+          >By · </span>{{ meta(item) }}
+        </p>
       </li>
     </ul>
     <button

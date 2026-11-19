@@ -17,6 +17,8 @@ export interface NewsItem {
   publisher?: { id: string; name: string; domain: string } | null
   /** The URL's host without www.: the origin to name when there is no publisher. */
   site?: string | null
+  /** In a node's list only: the node's role in this item ("author" when it wrote it). */
+  node_role?: string | null
   published_at?: string | null
   language?: string | null
   byline: string[]

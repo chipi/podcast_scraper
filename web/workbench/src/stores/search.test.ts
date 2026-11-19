@@ -68,3 +68,22 @@ describe('useSearchStore', () => {
     })
   })
 })
+
+describe('search store: the Type chip on a corpus without news (review 2026-11-19)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('sends no news filter, and resets the choice, when the corpus holds no news', async () => {
+    const { useShellStore } = await import('./shell')
+    const shell = useShellStore()
+    shell.contentTypes = ['podcast_episode', 'news_article']
+    const search = useSearchStore()
+    search.filters.contentTypes = ['news_article']
+    expect(search.requestOptions('/c').contentTypes).toEqual(['news_article'])
+    shell.contentTypes = ['podcast_episode']
+    await Promise.resolve()
+    expect(search.requestOptions('/c').contentTypes).toBeUndefined()
+    expect(search.filters.contentTypes).toEqual(['podcast_episode'])
+  })
+})

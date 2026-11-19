@@ -153,6 +153,15 @@ test.describe('News in every other view (UXS-019, live)', () => {
     expect(articleKgs.length).toBeGreaterThan(0)
     expect(articleKgs.every((r) => r.status === 200)).toBe(true)
     expect(articleKgs.some((r) => r.url.includes('withheld'))).toBe(false)
+    // The canvas draws no DOM text, so the page check below cannot see a node: ask Cytoscape.
+    // Neither the withheld nor the unusable item may be a node (review 2026-11-19).
+    const nodeIds = await page.evaluate(() => {
+      const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+      return cy ? cy.nodes().map((n) => n.id()) : []
+    })
+    expect(nodeIds.some((id) => id.includes('item:news_article:a8d6e89ce92ef7521ed5'))).toBe(true)
+    expect(nodeIds.some((id) => id.includes('item:news_article:2043d8230c86beddfb95'))).toBe(false)
+    expect(nodeIds.some((id) => id.includes('item:news_article:772f365b10f0cb5aeae2'))).toBe(false)
     await expect(page.locator('body')).not.toContainText('WITHHELD-ITEM-TITLE')
   })
 })
@@ -167,7 +176,7 @@ test.describe('News counts on the Dashboard (UXS-019, live, admin)', () => {
     await open(page)
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await expect(page.getByTestId('dashboard-news-counts')).toHaveText(
-      'News: 5 items from 2 publishers (2 teasers, 1 paywalled)',
+      'News: 4 items from 2 publishers (1 teaser, 1 paywalled)',
       { timeout: 15_000 },
     )
   })

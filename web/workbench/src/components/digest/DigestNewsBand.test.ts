@@ -54,6 +54,20 @@ describe('DigestNewsBand (UXS-019)', () => {
     expect(w.emitted('switch-main-tab')).toEqual([['library']])
   })
 
+  it('See all opens News mode on every publisher, not the last one opened', async () => {
+    // Review 2026-11-19: See all left libraryNewsPublisherId as it was, so after opening a
+    // publisher's page from an article, See all opened that publisher's page again.
+    const shell = useShellStore()
+    shell.contentTypes = ['podcast_episode', 'news_article']
+    shell.libraryNewsPublisherId = 'org:daily-example'
+    vi.mocked(fetchNewsItems).mockResolvedValue({ path: '/c', items: [news(1)], total: 1 })
+    const w = mount(DigestNewsBand, { props: { sinceYmd: '' } })
+    await flushPromises()
+    await w.get('[data-testid="digest-news-see-all"]').trigger('click')
+    expect(shell.libraryMode).toBe('news')
+    expect(shell.libraryNewsPublisherId).toBe('')
+  })
+
   it('renders nothing when the window holds no news', async () => {
     useShellStore().contentTypes = ['podcast_episode', 'news_article']
     vi.mocked(fetchNewsItems).mockResolvedValue({ path: '/c', items: [], total: 0 })

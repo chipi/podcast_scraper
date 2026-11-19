@@ -88,10 +88,11 @@ test.describe('News in search (UXS-019, live)', () => {
     await expect(page.locator('body')).not.toContainText('NEWS-BODY-MARKER')
   })
 
-  test('a teaser is found by its title, never by a chunk of its body', async ({ page }) => {
+  test('a teaser is found by its title, with no summary and no body', async ({ page }) => {
     // The soil report is a teaser: news-item-1.0 forbids chunking its body as if whole, so the
-    // index holds its title only (tests/integration/search/test_news_search.py pins which items
-    // have body rows). Its title still finds it.
+    // index holds its title only. That half is not provable in the browser, because the vector
+    // leg returns the nearest items for any query; tests/integration/search/test_news_search.py
+    // pins it on the index's rows. This test shows the title finds it.
     await openSearch(page)
     await chooseType(page, 'news')
     await submit(page, 'Soil report finds erosion slowing')

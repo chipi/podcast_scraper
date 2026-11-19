@@ -48,7 +48,14 @@ const showLanguage = computed(() => {
   const lang = primaryLanguage(item.value?.language)
   return !!lang && lang !== 'en'
 })
-const fromFeed = computed(() => ['teaser', 'video'].includes(item.value?.text_status ?? ''))
+const partialText = computed(() => ['teaser', 'video'].includes(item.value?.text_status ?? ''))
+/** The link out's accessible name says where it goes and that it leaves the app (UXS-019). */
+const openLabel = computed(() => {
+  const domain = item.value?.publisher?.domain || item.value?.site || ''
+  return domain
+    ? `Open article on ${domain}, opens in a new tab`
+    : 'Open article, opens in a new tab'
+})
 const authors = computed(() => {
   const byLabel = new Map<string, NewsKgNode>()
   for (const n of detail.value?.kg_nodes ?? []) {
@@ -117,8 +124,9 @@ function openNode(n: NewsKgNode): void {
         >
           {{ item.summary }}
         </p>
-        <p v-else class="mt-2 text-[11px] text-muted" data-testid="article-no-summary">No summary yet</p>
-        <p v-if="item.summary && fromFeed" class="mt-0.5 text-[10px] text-muted">Summary from the feed</p>
+        <p v-else-if="!partialText" class="mt-2 text-[11px] text-muted" data-testid="article-no-summary">
+          No summary yet
+        </p>
       </template>
       <p v-else class="mt-2 text-[11px] text-muted" data-testid="article-metadata-only">
         This publisher's items show their title and link only.
@@ -128,6 +136,7 @@ function openNode(n: NewsKgNode): void {
         :href="item.url"
         target="_blank"
         rel="noopener noreferrer"
+        :aria-label="openLabel"
         class="mt-3 block w-full rounded border border-border px-2 py-1.5 text-center text-[12px] font-medium text-link hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         data-testid="article-open"
       >Open article ↗</a>
