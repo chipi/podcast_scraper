@@ -7,6 +7,7 @@ kept as the item's raw cache (RFC-134 §5).
 
 from __future__ import annotations
 
+import html as html_lib
 import logging
 import re
 import threading
@@ -21,7 +22,6 @@ from ..news_classify import classify
 from ..news_items import F_ITEM_CLASS
 from ..rss import downloader
 from ..rss.feeds_spec import NewsSourceSpec
-from ..rss.parser import _strip_html
 from . import extract
 
 logger = logging.getLogger(__name__)
@@ -158,6 +158,20 @@ def fetch_body(item: SourceItem, source: Any) -> Optional[SourceItem]:
     )
 
 
+#: The inline formatting a feed may wrap a title in (all8, Nature: "<b>The climate is in </b>
+#: <b>crisis</b>"). Only these are removed: a title may name other tags as words (all8, Hacker
+#: News: "Hide your slop PR descriptions behind <details><summary>").
+_TITLE_FORMATTING = re.compile(
+    r"</?(?:b|i|em|strong|span|a|br|sup|sub|u|small)(?:\s[^<>]*)?/?>", re.I
+)
+
+
+def plain_title(raw: str) -> str:
+    """A title as plain text: a feed's inline formatting removed, entities decoded, spacing
+    (non-breaking spaces included) single."""
+    return " ".join(html_lib.unescape(_TITLE_FORMATTING.sub("", raw)).split())
+
+
 def complete(
     item: SourceItem,
     source: Any,
@@ -211,9 +225,7 @@ def complete(
     }
     if spec.live_blog_url_pattern and re.search(spec.live_blog_url_pattern, url):
         fields["live_blog"] = True
-    # A feed may put markup in a title (all8, Nature: "<b>The climate is in </b><b>crisis</b>"):
-    # the item's title is plain text, as an episode's is.
-    title = _strip_html(str(item.metadata.get("title") or "")).strip()
+    title = plain_title(str(item.metadata.get("title") or ""))
     if "title" in fields:
         fields["title"] = title or None
     if spec.roundup_title_pattern and re.search(spec.roundup_title_pattern, title):

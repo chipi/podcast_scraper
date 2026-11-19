@@ -177,6 +177,16 @@ def test_a_title_with_markup_is_written_as_plain_text(page: List[str]) -> None:
     assert got.metadata["title"] == "The climate is in crisis — here's four things"
 
 
+def test_a_title_about_markup_keeps_its_words(page: List[str]) -> None:
+    """all8 (Hacker News): "Hide your slop PR descriptions behind <details><summary>" names the
+    tags; only a feed's inline formatting is removed."""
+    page.append(_html("en", EN))
+    raw = "Hide your slop PR descriptions behind <details><summary>"
+    item = ct.SourceItem(item_id="d", url="https://news.test/d", metadata={"title": raw})
+    got = fetch.fetch_body(item, _Source())
+    assert got is not None and got.metadata["title"] == raw
+
+
 def test_a_roundup_pattern_must_be_a_regular_expression() -> None:
     with pytest.raises(ValueError, match="not a regular expression"):
         NewsSourceSpec(roundup_title_pattern="(unclosed")
