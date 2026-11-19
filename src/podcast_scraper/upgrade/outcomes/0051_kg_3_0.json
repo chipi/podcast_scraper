@@ -52,7 +52,7 @@
  ],
  "code_digest": "ec6f3d57c6ce40cbcad0973fb6debd47f8103d2919784231faa2bb20f8429bba",
  "code_dirty": false,
- "code_sha": "3e9a0e951ecaaec7c2e9716265eb03b52806b0f7",
+ "code_sha": "a9a96db00bf3aa9a54f595540c8450ad4bd18cd0",
  "computed_class": "full",
  "conditions": [],
  "episode_deltas": {},
@@ -29043,8 +29043,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651/metadata/0003 - BN Daybreak_ Mashaba_ Zille weig_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651.kg.json": "f82fabe4b9cd6ce403c249f11cac2d62d47318c3f81dc84d9c850b84b382a523",
-    "feeds/rss_iono.fm_68146a00/run_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651/metadata/0003 - BN Daybreak_ Mashaba_ Zille weig_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651.metadata.json": "59a33e1db8ff1c2079cfcd1b0b23edc92a56e0106c61f26b251d06c456758c71"
+    "feeds/rss_iono.fm_68146a00/run_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651/metadata/0003 - BN Daybreak_ Mashaba_ Zille weig_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651.kg.json": "e2ad893261469645b4fa0e7e5d10e6912c1cee3f2af4f44f30a298fccfdd4e74",
+    "feeds/rss_iono.fm_68146a00/run_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651/metadata/0003 - BN Daybreak_ Mashaba_ Zille weig_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651.metadata.json": "6a8ea7525a3d41d1f40b44f3144803d1625cb02fb1008f8dc0262af6e9c658f6"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651/metadata/0003 - BN Daybreak_ Mashaba_ Zille weig_0547fd9b-c596-4a19-a59d-2a40e25b5591_20261111-015651.metadata.json"
   },
@@ -29316,8 +29316,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234/metadata/0004 - BN Daybreak_ Joburg_s make-or-br_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234.kg.json": "8b769b994166e6619eb42482f022ee647ca4320ff9cc2e002bcbbb4e3c78f1df",
-    "feeds/rss_iono.fm_68146a00/run_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234/metadata/0004 - BN Daybreak_ Joburg_s make-or-br_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234.metadata.json": "868b33c62694142a25a8c603082b2db3322280a93a7e1729fd095d6baef8afec"
+    "feeds/rss_iono.fm_68146a00/run_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234/metadata/0004 - BN Daybreak_ Joburg_s make-or-br_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234.kg.json": "63574bbbb03be795e1c30359643d3c57a9a14715afa1e9fc3a64c4dc2062244b",
+    "feeds/rss_iono.fm_68146a00/run_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234/metadata/0004 - BN Daybreak_ Joburg_s make-or-br_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234.metadata.json": "42cebabc2ac7909af1b21cf2081f4ca3c4ad94e6abb09fe3367d62b4ed842152"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234/metadata/0004 - BN Daybreak_ Joburg_s make-or-br_242f1901-26b3-4058-b3a3-5181ae09fd0f_20261030-023234.metadata.json"
   },
@@ -29381,8 +29381,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224/metadata/0005 - BN Daybreak_ Mulder on a DA-ANC _296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224.kg.json": "0def94fe8f170936763eb53d0fc95c34359f0dadf7c708a6fdd101b802f0925b",
-    "feeds/rss_iono.fm_68146a00/run_296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224/metadata/0005 - BN Daybreak_ Mulder on a DA-ANC _296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224.metadata.json": "e52d55964f8f8f113fc0578f9f7da858ff5d595577a2d2f52bcd2fd8f2b98487"
+    "feeds/rss_iono.fm_68146a00/run_296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224/metadata/0005 - BN Daybreak_ Mulder on a DA-ANC _296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224.kg.json": "ea1efdb3ac106a997e29cf139e6d240e8a62083d60d5391c51195e68eeccf5c2",
+    "feeds/rss_iono.fm_68146a00/run_296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224/metadata/0005 - BN Daybreak_ Mulder on a DA-ANC _296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224.metadata.json": "39aa27cfbfd7b0af718a55b1bbac2a01c90cbba3b0ed53b895e666d51bdd3a26"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224/metadata/0005 - BN Daybreak_ Mulder on a DA-ANC _296a01c5-ecc6-4963-aa55-634259d8460c_20261112-022224.metadata.json"
   },
@@ -29498,8 +29498,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428/metadata/0006 - BN Daybreak _ GHL reflects on LG_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428.kg.json": "f29108617ab8e3740eeef90bfab87d563d4158b32abac5fcc7fc27b2ca63e9aa",
-    "feeds/rss_iono.fm_68146a00/run_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428/metadata/0006 - BN Daybreak _ GHL reflects on LG_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428.metadata.json": "82facbab1b0d2afb47da60ab6f9d0b0b057ce70b32dce6ee3ca747c744f6a81f"
+    "feeds/rss_iono.fm_68146a00/run_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428/metadata/0006 - BN Daybreak _ GHL reflects on LG_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428.kg.json": "7db47839f81059dd210a656ed58f42334f3a2a944a2e8963b4504c748c06e26f",
+    "feeds/rss_iono.fm_68146a00/run_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428/metadata/0006 - BN Daybreak _ GHL reflects on LG_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428.metadata.json": "84c63a622f8d46c9df1aadca2f9d10355620604e4e2341ae9683a8aa3705dcbb"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428/metadata/0006 - BN Daybreak _ GHL reflects on LG_30e3d1d1-cde8-404e-accc-47dc6d18dd2f_20261113-015428.metadata.json"
   },
@@ -29524,8 +29524,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631/metadata/0002 - BN Daybreak_ Summers on a stretc_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631.kg.json": "93e547cf466b84c051769c1020cf774c19cbe11f8e79df399f1b578a09bb1ebd",
-    "feeds/rss_iono.fm_68146a00/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631/metadata/0002 - BN Daybreak_ Summers on a stretc_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631.metadata.json": "eba33f685e056c5599393f56c1abbc2b4fb99ce23de7eb03b703a271058ff58a"
+    "feeds/rss_iono.fm_68146a00/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631/metadata/0002 - BN Daybreak_ Summers on a stretc_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631.kg.json": "76798719cd0a8b91b08bce954e480f534c6b293683511b6f2c0ebaf7b0f41e8d",
+    "feeds/rss_iono.fm_68146a00/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631/metadata/0002 - BN Daybreak_ Summers on a stretc_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631.metadata.json": "ff8d84a5c582e5983289ead99a26c3b53f0934526d110a0807d8cc3121d049d1"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631/metadata/0002 - BN Daybreak_ Summers on a stretc_349d0b7e-cdbd-420a-80a3-99b1eb787118_20261027-183631.metadata.json"
   },
@@ -29628,8 +29628,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053/metadata/0003 - BN Daybreak_ Madlanga_s Maumela _4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053.kg.json": "30fb986a5319af9735529ddb1ec01774994832199ff40cab82c0ecfa17bc119b",
-    "feeds/rss_iono.fm_68146a00/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053/metadata/0003 - BN Daybreak_ Madlanga_s Maumela _4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053.metadata.json": "e16be8d7c38eccb12422bcee9ec2544a25dbb15d7d579439f6c23965f4563986"
+    "feeds/rss_iono.fm_68146a00/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053/metadata/0003 - BN Daybreak_ Madlanga_s Maumela _4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053.kg.json": "cb85d4f69a0e9fffedf1b98866287d9591f1fe08231d144dc771b9cfb6f7e7f9",
+    "feeds/rss_iono.fm_68146a00/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053/metadata/0003 - BN Daybreak_ Madlanga_s Maumela _4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053.metadata.json": "37e88aa8788179f450acb3c2f8900059f5c1726de2316aff061753c94c14cdcd"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053/metadata/0003 - BN Daybreak_ Madlanga_s Maumela _4614cf73-2783-4717-b68f-8be9c812fc8b_20261010-011053.metadata.json"
   },
@@ -29706,8 +29706,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833/metadata/0001 - BN Daybreak_ Dirco_s embassy neg_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833.kg.json": "70fa29b194e73e93a37b48a11c46ccae9f310a973d52769edfa42aa90143e490",
-    "feeds/rss_iono.fm_68146a00/run_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833/metadata/0001 - BN Daybreak_ Dirco_s embassy neg_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833.metadata.json": "ba899adc561501a02604c7d0a865a0a3048ecc4e3049a7734e1734c1d3187876"
+    "feeds/rss_iono.fm_68146a00/run_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833/metadata/0001 - BN Daybreak_ Dirco_s embassy neg_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833.kg.json": "284eb8a36487a72cf579c47b1516b03d9835dca4384e7b8047ba13d4a9db73ac",
+    "feeds/rss_iono.fm_68146a00/run_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833/metadata/0001 - BN Daybreak_ Dirco_s embassy neg_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833.metadata.json": "62719973743747e556bf827f20436b42040ab956f45072bf09fb3e16699b42c5"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833/metadata/0001 - BN Daybreak_ Dirco_s embassy neg_4d62d1ab-3185-4a2d-84d6-b2324f44663f_20261006-041833.metadata.json"
   },
@@ -29901,8 +29901,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544/metadata/0003 - BN Daybreak_ Mulder on GNU_s lif_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544.kg.json": "e3717166ff49b778d018730c97b6750b1eb64a49aa1ee4e9c77b38d5436777f4",
-    "feeds/rss_iono.fm_68146a00/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544/metadata/0003 - BN Daybreak_ Mulder on GNU_s lif_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544.metadata.json": "543fd6fbec9d6388a8006615b7b62a1306acfa1d1a1031fb1c8e2bdd95524bbb"
+    "feeds/rss_iono.fm_68146a00/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544/metadata/0003 - BN Daybreak_ Mulder on GNU_s lif_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544.kg.json": "8e1180da6e1c2d9cbe07ab3588e7465ff824f8dbb23387ff7626d6bb8640d55e",
+    "feeds/rss_iono.fm_68146a00/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544/metadata/0003 - BN Daybreak_ Mulder on GNU_s lif_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544.metadata.json": "cdbf643b55748138c598c6d0cd73d5f75eccba63250e9df8628dce14e25cd460"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544/metadata/0003 - BN Daybreak_ Mulder on GNU_s lif_5f99bf0d-c9cd-456a-9937-dc51534697c3_20261015-023544.metadata.json"
   },
@@ -30044,8 +30044,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016/metadata/0008 - BN Daybreak_ DA to win NMB outri_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016.kg.json": "d80586dd31c7dff32e90c968b6784982e7ed1f066032642c3176d8ae4200db43",
-    "feeds/rss_iono.fm_68146a00/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016/metadata/0008 - BN Daybreak_ DA to win NMB outri_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016.metadata.json": "323e2a063990d378d2f52ebc5870dafaefffc8eb3cd4cc3f20245aae9d454be6"
+    "feeds/rss_iono.fm_68146a00/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016/metadata/0008 - BN Daybreak_ DA to win NMB outri_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016.kg.json": "93fc43d59026ed94973f07dc81d5909494b951b9086e8e379f03eff328fb06a2",
+    "feeds/rss_iono.fm_68146a00/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016/metadata/0008 - BN Daybreak_ DA to win NMB outri_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016.metadata.json": "c74ac2ffd228d1260c8f71078c6502c3d47d8860c3513a57b4c219c547c43daa"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016/metadata/0008 - BN Daybreak_ DA to win NMB outri_80c3ddb5-6df4-4116-a927-93773bcf405b_20261018-042016.metadata.json"
   },
@@ -30174,8 +30174,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.kg.json": "39f860247863d9f48a2bd6c06d35e54ae3e3e6047dbd8737e3498230f13ea2ae",
-    "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.metadata.json": "95c566df0577bd513dde8f3ae1a5ae51d091b902f2159fae811f0b5e68594d55"
+    "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.kg.json": "7ab29bca25633a1ec0ba425d072fc8eca0a66c2ab1a837769ba03cc81af7eb1e",
+    "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.metadata.json": "a983d31ae59710f641dc6e1b4087286b4e37660ff507b527339146ef11cdb96a"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753/metadata/0005 - BN Daybreak_ DiData Campus confe_ab055399-4902-4ce3-baa5-d16c1e740e1c_20261008-190753.metadata.json"
   },
@@ -30213,8 +30213,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0001 - BN Daybreak_ Roodt_s mini budget_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.kg.json": "0af8add16c97e5463d96e76e97c2f29c87755410183a8d86b864e91a540469ce",
-    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0001 - BN Daybreak_ Roodt_s mini budget_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.metadata.json": "919519e7db20a2b836c12bb0fad0491fce3041f9b41608a561bbc88bb6c95ff1"
+    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0001 - BN Daybreak_ Roodt_s mini budget_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.kg.json": "d7db0abe340217f30e8359e8257fdf98d8e97f81a268d63b2eff70b438d96a79",
+    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0001 - BN Daybreak_ Roodt_s mini budget_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.metadata.json": "2a419619b884093b958fef2da97f336aec07f7da65a51791644c561abe009099"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0001 - BN Daybreak_ Roodt_s mini budget_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.metadata.json"
   },
@@ -30278,8 +30278,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0006 - BN Daybreak_ Cape Independence_s_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.kg.json": "02d3d44f9fbb1e77c6eefa349561772890a778f845e2b4914bc58026b5ed266a",
-    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0006 - BN Daybreak_ Cape Independence_s_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.metadata.json": "faef1c67a73f6d387630b81759a7990182483c2e32d9ab3cdb39be0290ab9c59"
+    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0006 - BN Daybreak_ Cape Independence_s_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.kg.json": "86e895493e61ba945a94397dfd6c8362a2e43eb9a86bc75a9dc9d63b1b3fbbec",
+    "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0006 - BN Daybreak_ Cape Independence_s_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.metadata.json": "078d19ad1e04e7734dc2ae1377d2e0d985d18c2046b2eff5ab39d6345d418bff"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752/metadata/0006 - BN Daybreak_ Cape Independence_s_af3cfb54-b539-4fb4-ac8c-d968abd7c484_20261022-043752.metadata.json"
   },
@@ -30317,8 +30317,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320/metadata/0003 - BN Daybreak_ Mining in SA not im_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320.kg.json": "72bd3e65a0b9d12106ecdd8c46b9d2c8b812261a30a041f92ac22eed0bd66cd6",
-    "feeds/rss_iono.fm_68146a00/run_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320/metadata/0003 - BN Daybreak_ Mining in SA not im_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320.metadata.json": "3abd567b9a5af3fafc5b39106890563139a9bd5c7a50e0f344ff73bb33fab547"
+    "feeds/rss_iono.fm_68146a00/run_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320/metadata/0003 - BN Daybreak_ Mining in SA not im_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320.kg.json": "dda25c763484706b34369aa241432ea7ed32276c55b562ac5a109cc7597bcca0",
+    "feeds/rss_iono.fm_68146a00/run_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320/metadata/0003 - BN Daybreak_ Mining in SA not im_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320.metadata.json": "13bf3612baa3aaa7f29fc62d7a241484953235024b1a101e11d17425897ae387"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320/metadata/0003 - BN Daybreak_ Mining in SA not im_b506974a-d0cd-43c8-adb5-f833a886a46c_20261021-013320.metadata.json"
   },
@@ -30434,8 +30434,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902/metadata/0005 - BN Daybreak _ Election eve with _c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902.kg.json": "d3a1e09b1bd6a33a27fa133ab6c14dd0e5fb510fe83a4421fdb58532f7fb049b",
-    "feeds/rss_iono.fm_68146a00/run_c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902/metadata/0005 - BN Daybreak _ Election eve with _c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902.metadata.json": "316edbad46484f23c7d371de4dd1e9a06db80083878129a74dbe1200e438033d"
+    "feeds/rss_iono.fm_68146a00/run_c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902/metadata/0005 - BN Daybreak _ Election eve with _c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902.kg.json": "43e66057e48ecee29ed66db94d4c907be7d6bac472c860c434d10e329f700e9d",
+    "feeds/rss_iono.fm_68146a00/run_c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902/metadata/0005 - BN Daybreak _ Election eve with _c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902.metadata.json": "190b54874c5b8e5df6db91d1461187337b4a3a10c664eefcb7032b278160b902"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902/metadata/0005 - BN Daybreak _ Election eve with _c70f8b22-dcd1-42ec-ae70-07cf7e614482_20261104-012902.metadata.json"
   },
@@ -30473,8 +30473,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149/metadata/0003 - BN Daybreak_ DA edges ANC in Eku_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.kg.json": "367735c1fc54d23f8dd7bef4ed3acf9f31a343072916bfa622805700bb6a0867",
-    "feeds/rss_iono.fm_68146a00/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149/metadata/0003 - BN Daybreak_ DA edges ANC in Eku_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.metadata.json": "eb9d2e8026ad8d042dbc85d7f1fb9f5d90baba94ecb4916bc56fb680d38645d0"
+    "feeds/rss_iono.fm_68146a00/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149/metadata/0003 - BN Daybreak_ DA edges ANC in Eku_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.kg.json": "be3bca6b0b31cf6ec4952973f7426b71079ee736f86a1787939889ac1f66535d",
+    "feeds/rss_iono.fm_68146a00/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149/metadata/0003 - BN Daybreak_ DA edges ANC in Eku_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.metadata.json": "b81c1f74c1f4cacb0e5bc53e256bd72eead18a116b5c0294d4f75084eb9ce5d4"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149/metadata/0003 - BN Daybreak_ DA edges ANC in Eku_c878b837-3fb4-47e5-95f0-da12cadf34ac_20261014-013149.metadata.json"
   },
@@ -30577,8 +30577,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0005 - BN Daybreak _ Polls closed_ WSM__e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.kg.json": "b3eea753b64aeaaed5604acf3389e6f0ecfba8dd6705c5727a896bc4b8e97521",
-    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0005 - BN Daybreak _ Polls closed_ WSM__e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.metadata.json": "bd39076e85df693682911435272d06b71940fc4ea6d77d795e15794ea06fc0f2"
+    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0005 - BN Daybreak _ Polls closed_ WSM__e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.kg.json": "39827090f09faf30f848e5442f6d8e707eec9667192d50810149260cbde0d0af",
+    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0005 - BN Daybreak _ Polls closed_ WSM__e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.metadata.json": "649c78f8f5bb08678f5644bfdca43ccf621ffdfcdc4d97aa21c0ddf982655a7d"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0005 - BN Daybreak _ Polls closed_ WSM__e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.metadata.json"
   },
@@ -30616,8 +30616,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0008 - BN Daybreak_ Election day_ Brink_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.kg.json": "947cd8c85a6dac5ca1555c94490a244b929432b9a8ad060d95cf5bbe59eaee4f",
-    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0008 - BN Daybreak_ Election day_ Brink_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.metadata.json": "34ea37fd891ef84e9ad9c24f7624bd5b04e0cfe5becb20cb379dd8fbc9f3a88f"
+    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0008 - BN Daybreak_ Election day_ Brink_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.kg.json": "37b806a3d8c0c4831158d7e09a1f0c2e34e578942c0e1c55c3011a5e17fd5eef",
+    "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0008 - BN Daybreak_ Election day_ Brink_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.metadata.json": "9e1e1c4075ef175a2c9507494ff8b38a8230e5c0707d6548d10d84d9a6e76a57"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811/metadata/0008 - BN Daybreak_ Election day_ Brink_e8ad2629-625e-4980-8203-f6e57c22210e_20261106-043811.metadata.json"
   },
@@ -30642,8 +30642,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0002 - BN Daybreak_ Macpherson on the t_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.kg.json": "c6b7753564e56f8fa7711bab124fcc0e07e5d3b9f3674ce5aa5e7b936de7350c",
-    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0002 - BN Daybreak_ Macpherson on the t_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.metadata.json": "4b2cff774bce827f3ce55655a5897198198d051efd6e0d6ad0d0ec11cfdc7398"
+    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0002 - BN Daybreak_ Macpherson on the t_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.kg.json": "d17ec92a02603cbbb1178452f5cc22aa6c0700d0117903023d1eb1ec9febf159",
+    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0002 - BN Daybreak_ Macpherson on the t_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.metadata.json": "4efe5414bb7431ab7d4e32e3cc917083bd847cf4dc2347d5b2c44f35616b6fab"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0002 - BN Daybreak_ Macpherson on the t_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.metadata.json"
   },
@@ -30733,8 +30733,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0010 - BN Daybreak_ Swimming SA crisis__ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.kg.json": "8e7606f62741bb339b6b38ee14d74fc27bc8a6dce16667d6eac4603ef65befd3",
-    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0010 - BN Daybreak_ Swimming SA crisis__ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.metadata.json": "5b0985e9709ac35cbd841b055c866b65236ad121e6dade6f43f9d2f0914dd15b"
+    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0010 - BN Daybreak_ Swimming SA crisis__ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.kg.json": "2a034415f447b00d7f7588e5ac6327a53f52655eeb29e06ecf710432369e6f78",
+    "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0010 - BN Daybreak_ Swimming SA crisis__ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.metadata.json": "7ed56f9734f22bf7220be6bb3b6f0da802474f0d5370fc005957fdf51b82054c"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350/metadata/0010 - BN Daybreak_ Swimming SA crisis__ed9ab40e-3a90-4ec1-ba73-9fa6a6e83808_20261003-025350.metadata.json"
   },
@@ -30772,8 +30772,8 @@
     "refused_invalid": 0
    },
    "inputs": {
-    "feeds/rss_iono.fm_68146a00/run_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529/metadata/0003 - BN Daybreak_ Els on Matlala_s st_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529.kg.json": "a7376a62193b07c9eb2fbbd49f74998f5b20a31d8cc47bc671affaeda50422f0",
-    "feeds/rss_iono.fm_68146a00/run_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529/metadata/0003 - BN Daybreak_ Els on Matlala_s st_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529.metadata.json": "77127028d38838cbc2a23f0e2bce39dabf048d534f6b4b553412bca3aad2afb7"
+    "feeds/rss_iono.fm_68146a00/run_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529/metadata/0003 - BN Daybreak_ Els on Matlala_s st_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529.kg.json": "04719a095d3f7e7bfc3e87b050ec4cc0e277fa89f6e02aeeae56a85f06748508",
+    "feeds/rss_iono.fm_68146a00/run_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529/metadata/0003 - BN Daybreak_ Els on Matlala_s st_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529.metadata.json": "eb743e49299d95d25a743bcf2685a05edcdd943d903bbbe9868f1fe5cb4b128b"
    },
    "meta": "feeds/rss_iono.fm_68146a00/run_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529/metadata/0003 - BN Daybreak_ Els on Matlala_s st_f7889da0-2979-4cfe-9a96-402c5ba71aef_20261029-034529.metadata.json"
   },
@@ -43947,7 +43947,7 @@
    "meta": "feeds/rss_www.omnycontent.com_c9fdce2d/run_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631/metadata/0001 - AI Agents Are Already Changing t_fb659a6a-1f74-42ba-bbbf-4a0c4df08264_20261027-013631.metadata.json"
   }
  ],
- "plan_sha256": "291b0890d131725e4dbbf405e98e6ac5139678e6f7668389339f48c046aa2f67",
+ "plan_sha256": "e6742570c8f5b71e2847e79751b5d912d643fa5bbe8cb0ad2405747f70354d4b",
  "scoreboard_after": {
   "A1_episodes_no_adfree": 2,
   "A1_episodes_with_hits": 324,
