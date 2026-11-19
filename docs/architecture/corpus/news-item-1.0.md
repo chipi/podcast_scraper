@@ -61,7 +61,7 @@ News's own, under `news_article` (ADR-181):
 | `text_status` | `full` / `teaser` / `video` | RFC-134 names `teaser`; E05 marks teasers and video items; `full` for the rest. A `teaser` or `video` body is never chunked or enriched as if whole (E05 "Extraction"); `serveable` decides what is shown, independently |
 | `live_blog` | `true` when the source flags the page as a live blog, else absent | E05 "Ids" |
 | `roundup` | `true` when the source's `roundup_title_pattern` matched the title (a newsletter issue covering several stories), else absent | operator, 2026-11-18: a roundup attaches to a storyline only on two shared topics |
-| `language_source` | where `language` came from: `override` (the source's `language:`), `page` (`<html lang>`, or the API's), `rss` (the feed's `<language>`), `detected` (the text, when it contradicts the declared language or nothing declared one) | added 2026-11-18, as episodes record theirs (`languages.SOURCE_*`) |
+| `language_source` | where `language` came from: `override` (the source's `language:`), `page` (`<html lang>`, or the API's), `rss` (the feed's `<language>`), `detected` (the text, when nothing declared one, or when a text of 50 words or more contradicts the page's or the feed's; an override is never overruled. An episode's transcript needs 200: `NEWS_LANGUAGE_MIN_WORDS`) | added 2026-11-18, as episodes record theirs (`languages.SOURCE_*`) |
 
 An item whose language is not enabled in `config/languages.yaml` is not written, as an episode in
 that language is not ingested (added 2026-11-18).
