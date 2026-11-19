@@ -37,18 +37,26 @@ ADR-179, ADR-180 (rule 6 amended 2026-11-18), ADR-181, ontology v3, and ingestio
 | 3 | Invented news fixture in the contract's shape, beside the podcast validation corpus | done (57d69816d, ids fixed 2435aa1f9) |
 | 4 | Health `content_types`; the item read; the publisher-as-organisation read | done (68a57268d) |
 | 5 | Search: news table in the index, `content_types` on the search route, summary and metadata only | done (1ecf17ccd) |
-| 6 | Node items across types (Studio's need 1) | next |
-| 7 | Views: Library, Digest, Dashboard, the subject rail, the graph over KG 3.0 news nodes | not started; UXS-019 needs a section per view first |
-| 8 | Workbench: Type chip, news row, article card | done (bfe12aefb); source config with `content_type` and `transport`: not started |
-| 9 | Never-served guard: every route and MCP tool over a fixture whose body holds a marker | partial: the news routes, search and the Workbench e2e assert it; not yet every route and MCP tool |
-| 10 | e2e: Workbench Playwright on the fixture; then one run over ingestion's real output | fixture: done (ac5392a05, 262 passed); real output: waits for ingestion's writer |
+| 6 | Node items across types (Studio's need 1) | done (f6a5d3dc0) |
+| 7 | Views: Library, Digest, Dashboard, the subject rail, the graph over KG 3.0 news nodes | done (96497f907, efe21786f, 417aa7c1b, 8f4e4d247; fixes 8ebad1afb, ab7f0d32b, c37e2b408); UXS-019 "Every other view" |
+| 8 | Workbench: Type chip, news row, article card; source config with `content_type` and `transport` | done (bfe12aefb, 5f12adab4) |
+| 9 | Never-served guard: every route and MCP tool over a fixture whose body holds a marker | done: every public read and state-changing route (8c0be4450, f13507ada; run with Common and the Player installed by the database session, 2 passed); two leaks fixed on the way (text-file 147c3a1aa, artifacts 8c0be4450, 59e372031); the MCP tools: Common 1f7f12c, 4557f20c6 |
+| 10 | e2e: Workbench Playwright on the fixture; then one run over ingestion's real output | done: fixture (news-views, news-search, the graph expand 3a662b449); real output (all8, 257 items): rights checked through the routes, Fed served nowhere, SCMP without summary, every shown item found by its title (ef1fe7803, 49acd4a08) |
 | R3b | GI 4.0 and KG 3.0 read views at every public load point | done (f2c19647d, 3b64360d6) |
+
+News in themes and storylines (E05, 2026-11-18): B `news_aux` topic rows (5ff83e03f); F cards carry
+articles when asked (5c7588512); H the theme and storyline rails (2c105027d); I storyline prompts
+with news (d1ea2988d, wording 253d831c0); J the fixture's grouping files (b50e6079e, news-only
+members 95998971c); K RFC-134 §11 (d6e8cca0d). Later the same day: `site` for an item with no
+publisher (973421883), an unusable item shown nowhere (49acd4a08), `roundup` (7eb6c2730), keyed API
+sources (`api_key_env`, ingestion 543ed07f9; guide 5c255c178).
 
 ## Not covered yet
 
-- The real sources' items: they need ingestion's writer, which has no date yet.
-- The contract's proposed names (summary, byline, transport ids, editorial type, text status,
-  body hash and fetch time): read from one module, changed there when the operator decides.
-- How each view shows news beyond search and the card (Digest, Dashboard, Library, graph):
-  UXS-019 scopes only search and the card; the operator's acceptance widens it to every view, so
-  UXS-019 gets a section per view before each is built.
+- Items written before ingestion's writer fixes carry no `unusable` or `roundup` marker: a corpus
+  written earlier (all8 included) serves its untranslated items until rewritten. No prod corpus
+  holds news yet.
+- `nightly.yml`'s ml-models tar change (0b2eb6d58, 4b00455fa) has not run yet; `python-app.yml`'s
+  has (4b00455fa, VERDICT GREEN).
+- The Guardian source is off until `PROD_GUARDIAN_API_KEY` is set (the operator's choice).
+- The Snyk PR check on this repo stays red until the Snyk org setting is changed (the operator's).

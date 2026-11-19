@@ -339,6 +339,11 @@ The core release builds this section (R3a).
   keyword (full-text) and vector search as podcast transcripts. The text is used for retrieval
   only: the search response for a news hit carries the summary and metadata, never the chunk text.
   The never-served rule (§10) is enforced at the response layer.
+- **What is indexed** (as built, 2026-11-18): every item a surface may show (`serveable` not
+  `none`, not marked `unusable`) whose `mineable` is not false. Each gets a row holding its title;
+  a `full` text also gets one row per body paragraph. A `teaser` or `video` body is never chunked as
+  if whole (the item contract), so such an item is found by its title. Measured on the first real
+  news corpus: every shown item (247 of 247) found by its own title in the top 5.
 - **Cross-type search queries both and merges,** as the non-English table's results are merged.
   Results carry `content_type`; the default is podcast items only.
 - **No new store:** the database search (E09) later takes all types together.
@@ -362,9 +367,14 @@ The core release builds this section (R3a).
   - no route or MCP response holds more than a stated number of contiguous characters of a news
     item's body (set with the first snippets in News 2.0; in News 1.0, none);
   - a search hit on a news chunk returns the item's summary and metadata, not the chunk's text;
-  - the corpus text-file route refuses a news body and its raw page.
+  - the corpus text-file route refuses a news body and its raw page; as built it refuses every
+    file of a news item, and the artifact route serves only the KG of an item that may be shown
+    (the graph draws article nodes from it), never a withheld or unusable item's.
   - A test runs every route and MCP tool over a news fixture whose body holds a unique marker
-    string, and fails if any response contains it.
+    string, and fails if any response contains it. As built: public's
+    `tests/integration/server/test_news_never_served_guard.py` (every read and state-changing
+    route, with the installed extensions' routes too, and a route it cannot fill fails it) and
+    Common's MCP guard; both also check the withheld and the unusable item's titles.
 - **The public viewer** gets a basic news card and the type in search. **The private viewer** gets
   its own card.
 
