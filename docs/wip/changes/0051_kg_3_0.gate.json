@@ -51,12 +51,12 @@
     "0050_gi_4_0"
   ],
   "apply_message": "3376 file(s); files_written=3376, contributes_to=5599, published_by=0, refused_invalid=0",
-  "clone": "/work/closelistening/snapshots/final-0051-w50",
+  "clone": "/work/closelistening/snapshots/final3-0051-w50",
   "code": {
     "dirty": false,
-    "sha": "8d422414db3d5d61c63a272b0c230cf338d1c381"
+    "sha": "6e1b4887eba5664369f086ca525b7c2adb443cd7"
   },
-  "code_digest": "608fece7873d2c4e0489e9bf4e19ac44a5e335cc9571bc3f255060f2d387643f",
+  "code_digest": "ec6f3d57c6ce40cbcad0973fb6debd47f8103d2919784231faa2bb20f8429bba",
   "computed_class": "full",
   "episode_deltas": {},
   "files_changed": 3376,
@@ -75,7 +75,7 @@
     "A1_marker_hits"
   ],
   "gating_moves": {},
-  "measured_at": "2026-11-19T09:00:01",
+  "measured_at": "2026-11-19T12:57:40",
   "migration": "0051_kg_3_0",
   "plan": [
     {
