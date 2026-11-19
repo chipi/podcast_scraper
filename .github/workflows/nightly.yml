@@ -137,15 +137,26 @@ jobs:
     # The paths share `~/.cache` as their common ancestor, so the archive contains `whisper/` and
     # `huggingface/` at its root and the consumers' `path: /home/runner/.cache` restores them
     # exactly where they were.
+    - name: Pack ML models (a tar keeps the Hugging Face cache's symlinks)
+      run: |
+        # upload-artifact follows symlinks: zipping ~/.cache stored every Hugging Face file twice
+        # (models--*/blobs and the snapshots/ links to it) plus a stray hub-level blobs/ store,
+        # 9.89 GB uncompressed for ~3.3 GB on disk (measured 2026-11-19 from the zip's index).
+        # A tar keeps the links; hub/blobs is left out (the verify step in each test job fails if
+        # a required model is missing). Weights do not compress, so the tar is not compressed.
+        cd /home/runner/.cache
+        dirs=""
+        for d in whisper huggingface; do [ -d "$d" ] && dirs="$dirs $d"; done
+        # shellcheck disable=SC2086
+        tar -cf /home/runner/ml-models.tar --exclude=huggingface/hub/blobs $dirs
+        ls -l /home/runner/ml-models.tar
     - name: Upload ML models artifact (for dependent test jobs in same run)
       uses: actions/upload-artifact@v7
       with:
         name: ml-models
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
+        path: /home/runner/ml-models.tar
         retention-days: 1
-        include-hidden-files: true
+        compression-level: 0
 
   # ===========================================================================
   # Code quality checks
@@ -448,7 +459,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
 
     - name: Install dependencies
       run: |
@@ -534,7 +550,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
 
     - name: Install dependencies
       run: |
@@ -987,7 +1008,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
 
     - name: Install dependencies
       run: |
