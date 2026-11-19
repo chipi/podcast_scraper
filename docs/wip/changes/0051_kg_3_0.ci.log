@@ -1,6 +1,6 @@
-tree: 5f2b21e2edec47a2bddaf6e3b5fc0c2add9b8c59 clean=0
-make ci-fast on the landing tree (0051's final outcome committed), interpreter /work/closelistening/ingestion/.venv (public's news extras, no Common installed: public's CI shape), 2026-11-19
-=== ci-fast START 2026-11-19 13:58:38
+tree: 649a7336866a3c5074cc337e39c36561bae89824 clean=0
+make ci-fast on the landing tree (0051's outcome from the final chain committed), interpreter /work/closelistening/ingestion/.venv (public's news extras, no Common installed: public's CI shape), 2026-11-19; TMPDIR /work/t
+=== ci-fast START 2026-11-19 18:10:33
 stage: format-check
 stage: lint
 stage: lint-markdown
@@ -18,12 +18,12 @@ stage: profile-drift-check
 stage: test-fast (pytest)
 stage: docs
 stage: build
-=== ci-fast DONE 2026-11-19 14:15:38
+=== ci-fast DONE 2026-11-19 18:22:44
 All done! ✨ 🍰 ✨
 Success: no issues found in 1758 source files
 --------------- RESULT: PASSED (minimum: 100.0%, actual: 100.0%) ---------------
-========== 10727 passed, 86 skipped, 20 warnings in 141.35s (0:02:21) ==========
-========== 1149 passed, 46 skipped, 230 warnings in 112.16s (0:01:52) ==========
-================= 104 passed, 13 warnings in 215.86s (0:03:35) =================
-================= 33 passed, 10 warnings in 425.40s (0:07:05) ==================
+========== 10727 passed, 86 skipped, 20 warnings in 90.43s (0:01:30) ===========
+========== 1149 passed, 46 skipped, 230 warnings in 80.53s (0:01:20) ===========
+================= 104 passed, 13 warnings in 172.56s (0:02:52) =================
+================= 33 passed, 10 warnings in 322.72s (0:05:22) ==================
 MAKE_EXIT=0
