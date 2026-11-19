@@ -164,6 +164,42 @@ def test_ops_that_cannot_apply_are_refused() -> None:
         app_user_preferences.apply_ops({}, [_op(op="set_field", key="m", value=1)])
     with pytest.raises(ValueError):
         app_user_preferences.apply_ops({}, [_op(op="remove", key="r", value="a", match=["id"])])
+    # A value without a matched field would have matched every item without it.
+    with pytest.raises(ValueError):
+        app_user_preferences.apply_ops(
+            {}, [_op(op="remove", key="r", value={"kind": "show"}, match=["kind", "id"])]
+        )
+
+
+def test_an_item_missing_a_matched_field_is_never_dropped() -> None:
+    kept = [{"kind": "show"}, {"kind": "show", "id": None}, {"id": "1"}]
+    out = app_user_preferences.apply_ops(
+        {"v": [*kept, {"kind": "show", "id": "1"}]},
+        [_op(op="remove", key="v", value={"kind": "show", "id": "1"}, match=["kind", "id"])],
+    )
+    assert out["v"] == kept
+    # A field present as null is not a field missing.
+    out = app_user_preferences.apply_ops(
+        {"v": kept},
+        [_op(op="remove", key="v", value={"kind": "show", "id": None}, match=["kind", "id"])],
+    )
+    assert out["v"] == [{"kind": "show"}, {"id": "1"}]
+
+
+def test_values_compare_with_their_json_type() -> None:
+    out = app_user_preferences.apply_ops(
+        {"r": [1, True, 1.5], "s": [{"id": 1}, {"id": True}]},
+        [
+            _op(op="remove", key="r", value=True),
+            _op(op="push_front", key="s", value={"id": 1, "new": True}, match=["id"]),
+        ],
+    )
+    assert out == {"r": [1, 1.5], "s": [{"id": 1, "new": True}, {"id": True}]}
+
+
+def test_remove_from_an_absent_key_leaves_it_absent() -> None:
+    out = app_user_preferences.apply_ops({"other": 1}, [_op(op="remove", key="r", value="a")])
+    assert out == {"other": 1}
 
 
 def test_two_devices_adding_to_one_list_at_once_keep_both(tmp_path: Path) -> None:

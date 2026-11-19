@@ -2788,13 +2788,15 @@ class PreferenceOp(BaseModel):
 
     - ``push_front``: put ``value`` first in the list at ``key``, dropping any item with the same
       identity, then keep at most ``max`` items.
-    - ``remove``: drop the items with ``value``'s identity.
+    - ``remove``: drop the items with ``value``'s identity; an absent key stays absent.
     - ``clear``: set the list to ``[]``.
     - ``set_field``: set ``field`` of the object at ``key`` to ``value``; ``null`` deletes it.
     - ``increment``: add ``by`` to the number at ``key`` (absent counts as 0).
 
     Identity is the whole value, or with ``match`` the named fields of an object item; with
-    ``fold_case`` strings compare trimmed and case-folded.
+    ``fold_case`` strings compare trimmed and case-folded. Values compare with their JSON type
+    (``true`` is not ``1``). With ``match``, ``value`` must carry every named field, and a stored
+    item missing one matches nothing.
     """
 
     model_config = ConfigDict(extra="forbid")

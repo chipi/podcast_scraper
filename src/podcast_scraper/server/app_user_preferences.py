@@ -64,16 +64,19 @@ def replace_preferences(data_dir: Path, user_id: str, payload: dict[str, Any]) -
 
 def _identity(item: Any, match: list[str] | None, fold_case: bool) -> Any:
     def norm(v: Any) -> Any:
-        return v.strip().casefold() if fold_case and isinstance(v, str) else v
+        # Typed: JSON's true is not 1, and Python's == says it is.
+        return (type(v).__name__, v.strip().casefold() if fold_case and isinstance(v, str) else v)
 
     if not match:
         return norm(item)
-    if not isinstance(item, dict):
+    if not isinstance(item, dict) or any(f not in item for f in match):
         return _NO_IDENTITY
-    return tuple(norm(item.get(f)) for f in match)
+    return tuple(norm(item[f]) for f in match)
 
 
-#: An item without the matched fields: equal to nothing, so it is never dropped by mistake.
+#: An item without every matched field: equal to nothing, so it is never dropped by mistake. Two
+#: items both lacking a field were equal before, and a value lacking it dropped them all (review,
+#: 2026-11-19).
 _NO_IDENTITY = object()
 
 
@@ -93,7 +96,9 @@ def apply_ops(payload: dict[str, Any], ops: list[Any]) -> dict[str, Any]:
             items = list(current) if isinstance(current, list) else []
             ident = _identity(op.value, op.match, op.fold_case)
             if ident is _NO_IDENTITY:
-                raise ValueError(f"{kind} with match needs an object value")
+                raise ValueError(f"{kind} with match needs an object value with every match field")
+            if kind == "remove" and key not in out:
+                continue
             items = [x for x in items if _identity(x, op.match, op.fold_case) != ident]
             if kind == "push_front":
                 items.insert(0, op.value)
