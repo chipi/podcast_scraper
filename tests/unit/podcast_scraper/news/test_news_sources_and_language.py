@@ -144,6 +144,39 @@ def test_a_roundup_is_marked_by_its_title(page: List[str], title: str, roundup: 
     assert got.metadata.get("roundup") is roundup
 
 
+SHORT = (
+    "The council voted on Tuesday to close the bridge for repairs, a move residents had opposed "
+    "for months, officials said."
+)
+
+
+def test_a_non_full_item_is_classified_and_a_full_one_is_not(page: List[str]) -> None:
+    """The operator, 2026-11-19: every teaser or video item carries ``item_class``
+    (``news_classify``); only a ``news_summary`` is shown, and a full article is not classified."""
+    page.append(f'<html lang="en"><body><article><h1>T</h1><p>{SHORT}</p></article></body></html>')
+    item = ct.SourceItem(item_id="t", url="https://news.test/t", metadata={"title": "Bridge shut"})
+    teaser = fetch.fetch_body(item, _Source())
+    assert teaser is not None and teaser.metadata["text_status"] == "teaser"
+    assert teaser.metadata["item_class"] == "small_teaser"
+    page.clear()
+    page.append(_html("en", EN))
+    item = ct.SourceItem(item_id="f", url="https://news.test/f", metadata={"title": "Full"})
+    full = fetch.fetch_body(item, _Source())
+    assert full is not None and full.metadata["text_status"] == "full"
+    assert "item_class" not in full.metadata
+
+
+def test_a_title_with_markup_is_written_as_plain_text(page: List[str]) -> None:
+    """all8 (Nature): "<b>The climate is in </b><b>crisis</b><b> — here's four things we can
+    do</b>" reached the item as written."""
+    page.append(_html("en", EN))
+    raw = "<b>The climate is in </b><b>crisis</b><b> &mdash; here&#39;s four things</b>"
+    item = ct.SourceItem(item_id="h", url="https://news.test/h", metadata={"title": raw})
+    got = fetch.fetch_body(item, _Source())
+    assert got is not None
+    assert got.metadata["title"] == "The climate is in crisis — here's four things"
+
+
 def test_a_roundup_pattern_must_be_a_regular_expression() -> None:
     with pytest.raises(ValueError, match="not a regular expression"):
         NewsSourceSpec(roundup_title_pattern="(unclosed")

@@ -17,8 +17,11 @@ from urllib.robotparser import RobotFileParser
 
 from .. import config
 from ..content_types import SourceItem
+from ..news_classify import classify
+from ..news_items import F_ITEM_CLASS
 from ..rss import downloader
 from ..rss.feeds_spec import NewsSourceSpec
+from ..rss.parser import _strip_html
 from . import extract
 
 logger = logging.getLogger(__name__)
@@ -208,9 +211,16 @@ def complete(
     }
     if spec.live_blog_url_pattern and re.search(spec.live_blog_url_pattern, url):
         fields["live_blog"] = True
-    title = str(item.metadata.get("title") or "")
+    # A feed may put markup in a title (all8, Nature: "<b>The climate is in </b><b>crisis</b>"):
+    # the item's title is plain text, as an episode's is.
+    title = _strip_html(str(item.metadata.get("title") or "")).strip()
+    if "title" in fields:
+        fields["title"] = title or None
     if spec.roundup_title_pattern and re.search(spec.roundup_title_pattern, title):
         fields["roundup"] = True
+    # What a non-full item is (the operator, 2026-11-19): only a news_summary is shown.
+    if fields["text_status"] != extract.TEXT_FULL:
+        fields[F_ITEM_CLASS] = classify(title, text, url)
     return SourceItem(
         item_id=item.item_id, metadata=fields, text=text, url=url, raw=raw, raw_suffix=raw_suffix
     )

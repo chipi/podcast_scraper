@@ -19,6 +19,7 @@ from ..news_items import (
     F_BYLINE,
     F_CONTENT_TYPE,
     F_EDITORIAL_TYPE,
+    F_ITEM_CLASS,
     F_ITEM_ID,
     F_LANGUAGE,
     F_PAYWALLED,
@@ -73,6 +74,7 @@ _RESTORED_OWN = (
     F_TEXT_STATUS,
     "live_blog",
     "roundup",
+    F_ITEM_CLASS,
     "language_source",
 )
 
@@ -181,5 +183,7 @@ def shape(
         own["live_blog"] = True
     if f.get("roundup") is True:
         own["roundup"] = True
+    if f.get(F_ITEM_CLASS):
+        own[F_ITEM_CLASS] = f[F_ITEM_CLASS]
     out[NEWS_ARTICLE] = own
     return out

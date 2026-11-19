@@ -29,7 +29,7 @@ ingestion and accepted with this contract.
 | `item_id` | `item:news_article:{first 20 hex of SHA-256 of the normalised canonical URL}` | ontology-v3 |
 | `url` | the canonical URL | ontology-v3 |
 | `source_id` | `source:{first 20 hex of SHA-256 of the source's normalised URL}` | ontology-v3 |
-| `title` | as published | ontology-v3 `ContentItem` |
+| `title` | as published, as plain text (markup a feed puts in a title is removed, entities decoded) | ontology-v3 `ContentItem` |
 | `published_at` (and `filed_at` etc. when the transport has them) | ISO-8601 | ontology-v3 "Item times" |
 | `ingested_at` | set by the run | ontology-v3 |
 | `licence`, `paywalled`, `serveable`, `mineable` | as ontology-v3 "Rights, per item" (`serveable`: `metadata` / `summary` / `none`) | ontology-v3, ADR-181 |

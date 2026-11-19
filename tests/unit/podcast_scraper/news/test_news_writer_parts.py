@@ -263,6 +263,19 @@ def test_a_roundup_is_written_under_news_article_and_kept_by_a_rederive() -> Non
     assert restored.metadata.get("roundup") is True
 
 
+def test_an_item_class_is_written_under_news_article_and_kept_by_a_rederive() -> None:
+    plain = document.shape({}, _item("https://n.test/a"), registry=_REG)
+    assert "item_class" not in plain["news_article"]
+    doc = document.shape(
+        {},
+        _item("https://n.test/a", text_status="teaser", item_class="small_teaser"),
+        registry=_REG,
+    )
+    assert doc["news_article"]["item_class"] == "small_teaser"
+    restored = document.restore_item(doc, "A one-line standfirst.")
+    assert restored.metadata.get("item_class") == "small_teaser"
+
+
 @pytest.mark.parametrize("status", [extract.TEXT_TEASER, extract.TEXT_VIDEO])
 def test_a_teaser_or_video_item_gets_a_kg_but_no_summary(status: str) -> None:
     """Contract (news-item-1.0 ``text_status``): a teaser or video body is never enriched as if
