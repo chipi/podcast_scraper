@@ -65,6 +65,18 @@ def test_the_user_prompt_lists_articles_and_leaves_out_missing_fields() -> None:
     assert out.startswith(render_prompt("shared/summarization/storyline_user_v1", **_material()))
 
 
+def test_the_user_prompt_ends_by_asking_for_the_news_by_name() -> None:
+    """The model reads the end of the prompt last: without the reminder there, it folded the news
+    into a podcast sentence unnamed in 1 of 21 prod-model runs, and the trim then dropped it (21 of
+    21 named it with the reminder; real-news validation, 2026-11-20)."""
+    out = render_prompt(
+        "shared/summarization/storyline_news_user_v1", **_material(articles=_ARTICLES)
+    )
+    tail = out[out.rindex("</article>") :]
+    assert "at most three sentences and 80 words" in tail
+    assert "naming the publisher" in tail and "The news adds that" in tail
+
+
 def test_the_document_lists_articles() -> None:
     out = render_prompt(
         "shared/summarization/storyline_news_document_v1", **_material(articles=_ARTICLES)
