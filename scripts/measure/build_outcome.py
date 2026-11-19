@@ -3,6 +3,12 @@
 its change record, for the migration outcome hook (``upgrade/outcome_hook.py``).
 
     python scripts/measure/build_outcome.py --migration 0031_named_voices_shown
+    python scripts/measure/build_outcome.py --migration <id> --root <an extension's checkout>
+
+The record and gate report are read from ``--root``'s records dir (this checkout by default). The
+outcome is written where the hook reads it, ``outcome_hook.outcome_path``: beside the package that
+holds the migration, so a migration an installed extension adds gets its outcome in that package
+(ADR-174); the extension must be installed (or on the path) for its migration to be found.
 
 Refuses unless the gate report was measured on clean code and the record's last ``Verdict:`` line
 in step 8 is GO / GO WITH CONDITIONS. Prints the outcome's sha256: the record's verdict line must
@@ -18,19 +24,22 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from podcast_scraper.quality.change_gate import load_config, parse_record  # noqa: E402
+from podcast_scraper.upgrade.outcome_hook import outcome_path  # noqa: E402
 
 VERDICT = re.compile(r"^Verdict:\s*(GO WITH CONDITIONS|GO|NO-GO)\b", re.MULTILINE)
 INLINE = re.compile(r"\bConditions?:\s*(.+?)(?:\s+Open, unchanged:|$)")
 
 
-def build(migration: str) -> dict:
-    cfg = load_config(REPO)
-    rec_dir = REPO / cfg["records_dir"]
+def build(migration: str, root: Optional[Path] = None) -> dict:
+    root = root or REPO
+    cfg = load_config(root)
+    rec_dir = root / cfg["records_dir"]
     gate = json.loads((rec_dir / f"{migration}.gate.json").read_text(encoding="utf-8"))
     rec = parse_record(rec_dir / f"{migration}.md")
     if rec is None:
@@ -71,12 +80,20 @@ def build(migration: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--migration", required=True)
+    ap.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help="the checkout holding the record and gate report (default: this one)",
+    )
     args = ap.parse_args()
-    out = REPO / "src/podcast_scraper/upgrade/outcomes" / f"{args.migration}.json"
+    raw = (json.dumps(build(args.migration, args.root), indent=1, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
+    out = outcome_path(args.migration)
     out.parent.mkdir(parents=True, exist_ok=True)
-    raw = (json.dumps(build(args.migration), indent=1, sort_keys=True) + "\n").encode("utf-8")
     out.write_bytes(raw)
-    print(f"wrote {out.relative_to(REPO)}; outcome sha256 {hashlib.sha256(raw).hexdigest()}")
+    print(f"wrote {out}; outcome sha256 {hashlib.sha256(raw).hexdigest()}")
     return 0
 
 
