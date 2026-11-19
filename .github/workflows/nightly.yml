@@ -79,7 +79,7 @@ jobs:
         df -h
 
     - name: Cache ML models (production + test models for nightly)
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       id: cache-models
       with:
         path: |
@@ -888,7 +888,7 @@ jobs:
 
       - name: Upload artifacts on failure
         if: steps.tier3.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tier3-validation-failures
           path: |
