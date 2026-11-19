@@ -2,7 +2,9 @@
 
 **Download and process podcast transcripts with ease.**
 
-Podcast Scraper is a Python tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription when episodes lack published transcripts.
+Podcast Scraper is a Python tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper (or a cloud transcription provider) when episodes lack published transcripts. On top of the transcripts it writes summaries and metadata, can extract knowledge graphs, builds a hybrid search index, and serves a browser UI, the Workbench, over the corpus.
+
+This repository is the open platform. Speaker detection and diarization, grounded insights, the identity ledger, ad cleaning and the advanced knowledge-graph passes are provided by an installed extension, not built in; without one those steps do nothing.
 
 > **Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](LEGAL.md) for details.
 
@@ -11,10 +13,11 @@ Podcast Scraper is a Python tool that downloads transcripts for every episode in
 ## Key Features
 
 - **Transcript Downloads** — Automatic detection and download of podcast transcripts from RSS feeds.
-- **Whisper Fallback** — Generate transcripts using OpenAI Whisper when none exist.
-- **Speaker Detection** — Automatic speaker name detection using Named Entity Recognition (NER).
-- **Screenplay Formatting** — Format Whisper transcripts as dialogue with speaker labels.
-- **Episode Summarization** — Generate concise summaries using local transformer models (BART + LED).
+- **Transcription Fallback** — Generate transcripts with local Whisper or a cloud provider (OpenAI, Gemini, Mistral, Deepgram, Groq) when none exist.
+- **Episode Summarization** — Generate concise summaries using local transformer models (BART + LED) or an LLM provider.
+- **Knowledge Graph Extraction** — Per-episode topic and entity graphs (`kg.json`, `kg` CLI).
+- **Hybrid Search** — BM25 + dense vector search over transcript chunks, summary bullets, KG entities and KG topics (`index` and `search` CLIs).
+- **Workbench** — Browser UI (Digest, Library, Search, Graph, Dashboard, Ops) over a pipeline output folder, served by `serve`.
 - **Metadata Generation** — Create database-friendly JSON/YAML metadata documents per episode.
 - **Multi-threaded Downloads** — Concurrent processing with configurable worker pools.
 - **Resumable Operations** — Skip existing files, reuse media, and handle interruptions gracefully.
@@ -34,8 +37,9 @@ Podcast Scraper is a Python tool that downloads transcripts for every episode in
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
-# Install the package in editable mode
-pip install -e .
+# Install the package in editable mode (see the README for the [ml], [llm],
+# [search] and [dev] extras; the core install has no ML or LLM SDKs)
+pip install -e ".[ml]"
 
 # For Whisper transcription, ensure ffmpeg is installed
 # macOS: brew install ffmpeg
@@ -50,21 +54,18 @@ pip install -e .
 **Option 2: pipx (isolated environment)**
 
 ```bash
-# Install from PyPI (when published) or from a local path
-pipx install podcast_scraper
-# Or from local clone:
-pipx install /path/to/podcast_scraper
+# From a local clone:
+pipx install -e "/path/to/podcast_scraper[ml]"
 ```
 
 **Option 3: uv**
 
 ```bash
-# With uv, install from source or PyPI
-uv pip install -e .
-# Or: uv tool install podcast_scraper  (when published as a tool)
+# With uv, from a local clone
+uv pip install -e ".[ml]"
 ```
 
-**Requirements:** Python 3.12+, ffmpeg for audio processing. Run `podcast-scraper doctor` to verify your environment.
+**Requirements:** Python 3.12+, ffmpeg for audio processing. Run `python -m podcast_scraper.cli doctor` to verify your environment.
 
 ### Basic Usage
 
@@ -78,7 +79,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 # --episode-order oldest --max-episodes 50
 # --since 2024-01-01 --until 2024-12-31
 
-# Use Whisper when transcripts are missing (now default in v2.4.0)
+# Whisper is the default when transcripts are missing
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --whisper-model base.en
 
@@ -100,9 +101,6 @@ max_episodes: 50
 # episode_until: "2024-12-31"
 transcribe_missing: true
 whisper_model: base.en
-screenplay: true
-num_speakers: 2
-auto_speakers: true
 generate_metadata: true
 generate_summaries: true
 workers: 4

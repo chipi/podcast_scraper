@@ -42,9 +42,11 @@ After install, the usual pattern is **preset defaults** (`--profile`), **your op
 ```bash
 python -m podcast_scraper.cli \
   --profile cloud_balanced \
-  --config config/manual/operator_defaults.yaml \
-  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+  --config path/to/operator.yaml \
+  --feeds-spec config/examples/feeds.spec.example.yaml
 ```
+
+`path/to/operator.yaml` is your own operator file (start from `config/examples/config.example.yaml`).
 
 Merge order for `Config`: packaged **`config/profiles/<profile>.yaml`** first, then operator YAML
 and CLI flags override. The **`--profile`** flag is injected into the payload even when
@@ -95,9 +97,9 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may b
 
 ### Provider Selection (v2.4.0+)
 
-- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`, `deepgram`, or `tailnet_dgx_whisper` via config YAML)
-- `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
-- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `hybrid_ml`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
+- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`, `deepgram`, `groq`, `tailnet_dgx_whisper`)
+- `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`). Speaker detection and naming are a pipeline stage that an installed extension provides; public registers no stage for it (`builtin_stage_hooks.py`), so without one no speakers are recorded.
+- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`; more values, such as `summllama`, `vllm`, `litellm`, `qwen` and `groq`, are accepted in config YAML)
 
 ### Transcription Options
 
@@ -121,20 +123,25 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may b
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names
 
+The `--diarize` and `--diarization-*` flags (and `--hf-token`) are accepted and validated by public, but the diarization stage is provided by an installed extension (public registers no built-in stages: `src/podcast_scraper/builtin_stage_hooks.py`). Without one, the pipeline transcribes and does not diarize.
+
 ### Audio Preprocessing Options (RFC-040)
 
-- `--enable-preprocessing` - Enable audio preprocessing before transcription (experimental)
+- `--enable-preprocessing` - Enable audio preprocessing before transcription. The `Config` default (`preprocessing_enabled`) is already `true`; set `preprocessing_enabled: false` in the config file to turn it off.
 - `--preprocessing-cache-dir DIR` - Custom cache directory for preprocessed audio (default: `.cache/preprocessing`)
 - `--preprocessing-sample-rate RATE` - Target sample rate in Hz before MP3 encode (default: 16000; use rates FFmpeg accepts for `-ar`, e.g. 8000, 16000, 22050, 44100, 48000)
-- `--preprocessing-silence-threshold THRESHOLD` - Silence detection threshold (default: `-50dB`)
-- `--preprocessing-silence-duration DURATION` - Minimum silence duration to remove in seconds (default: `2.0`)
+- `--preprocessing-silence-removal` - Drop interior silence (off by default: it shortens the audio the transcriber sees, so transcript timestamps drift from the original audio; see [Configuration — Audio Preprocessing](CONFIGURATION.md#audio-preprocessing-configuration-rfc-040))
+- `--preprocessing-silence-threshold THRESHOLD` - Silence detection threshold (default: `-50dB`; used only with `--preprocessing-silence-removal`)
+- `--preprocessing-silence-duration DURATION` - Minimum silence duration to remove in seconds (default: `2.0`; used only with `--preprocessing-silence-removal`)
 - `--preprocessing-target-loudness LOUDNESS` - Target loudness in LUFS for normalization (default: `-16`)
+- `--preprocessing-mp3-bitrate-kbps KBPS` - MP3 encode bitrate, 24-128 (default: automatic)
 
 **Note**: Preprocessing requires `ffmpeg` to be installed. If `ffmpeg` is not available, preprocessing is automatically disabled with a warning.
 
 ### Reprocessing an existing corpus
 
-To rebuild a corpus's artifacts (diarization, cleaning, GI, KG, enrichment) from
+To rebuild a corpus's artifacts (cleaning, KG, enrichment, and, with an installed extension,
+diarization and GI) from
 existing episodes, use the **profile-driven pipeline** — never a bespoke script. See
 the **[Corpus reprocessing runbook](../guides/CORPUS_REPROCESSING.md)** for the full
 procedure, modes, and gotchas. The relevant flags:
@@ -150,8 +157,7 @@ Canonical entry point: `make migrate-diarization CORPUS_DIR=<corpus> PROFILE=<pr
 
 ### Transcript cleaning and hybrid ML preprocessing (Issue #419)
 
-- `--transcript-cleaning-strategy {pattern,llm,hybrid}` - How transcripts are cleaned before summarization (`pattern` = regex/rules; `llm` = LLM-only; `hybrid` = pattern then conditional LLM when using LLM-oriented cleaners). Applies to **LLM summarization providers** and **`hybrid_ml`** (same `cleaning_processor` wiring as API providers).
-- `--hybrid-internal-preprocessing-after-pattern PROFILE_ID` - When `--summary-provider hybrid_ml` and `--transcript-cleaning-strategy pattern`, selects the **registered preprocessing profile** applied inside `HybridMLProvider.summarize` after workflow pattern cleaning (default in config: `cleaning_hybrid_after_pattern`). Omit to use the Config default; YAML/config file field: `hybrid_internal_preprocessing_after_pattern`.
+- `--transcript-cleaning-strategy {pattern,llm,hybrid}` - How transcripts are cleaned before summarization (`pattern` = regex/rules; `llm` = LLM-only; `hybrid` = pattern then conditional LLM when using LLM-oriented cleaners; default `hybrid`). Applies to **LLM summarization providers**. The LLM cleaners are an installed extension's; without one, every strategy cleans with patterns (see [Configuration — Transcript Cleaning](CONFIGURATION.md#transcript-cleaning-configuration-issue-418)).
 
 See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419), [CONFIGURATION.md](CONFIGURATION.md#transcript-cleaning-configuration-issue-418), [CONFIGURATION.md — LLM cleaning length guard](CONFIGURATION.md#llm-cleaning-length-guard-issue-564), and [Preprocessing Profiles Guide](../guides/PREPROCESSING_PROFILES_GUIDE.md).
 
@@ -161,8 +167,8 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 - `--openai-api-base URL` - Custom OpenAI API base URL (for E2E testing or custom endpoints)
 - `--openai-transcription-model MODEL` - OpenAI model for transcription (default: `whisper-1`)
 - `--openai-speaker-model MODEL` - OpenAI model for speaker detection (default: `gpt-4o-mini`)
-- `--openai-summary-model MODEL` - OpenAI model for summarization (default: `gpt-4o-mini`)
-- `--openai-insight-model MODEL` - OpenAI model for GIL `generate_insights` when `gi_insight_source=provider` (default: same as summary model)
+- `--openai-summary-model MODEL` - OpenAI model for summarization (default: `gpt-4o`)
+- `--openai-insight-model MODEL` - OpenAI model for grounded-insight generation (default: same as summary model). The GI stage is provided by an installed extension.
 - `--openai-temperature TEMP` - Temperature for OpenAI generation (0.0-2.0, default: 0.3)
 - `--openai-max-tokens N` - Maximum tokens for OpenAI responses (default: model-specific)
 - `--openai-cleaning-model MODEL` - OpenAI model for transcript cleaning (default: `gpt-4o-mini`, cheaper than summary model)
@@ -172,35 +178,35 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 
 - `--gemini-api-key KEY` - Gemini API key (can also use `GEMINI_API_KEY` env var)
 - `--gemini-api-base URL` - Custom Gemini API base URL (for E2E testing or custom endpoints)
-- `--gemini-transcription-model MODEL` - Gemini model for transcription (default: environment-based, `gemini-1.5-flash` for test, `gemini-1.5-pro` for prod)
-- `--gemini-speaker-model MODEL` - Gemini model for speaker detection (default: environment-based)
-- `--gemini-summary-model MODEL` - Gemini model for summarization (default: environment-based)
+- `--gemini-transcription-model MODEL` - Gemini model for transcription (default: `gemini-2.5-flash-lite`)
+- `--gemini-speaker-model MODEL` - Gemini model for speaker detection (default: `gemini-2.5-flash-lite`)
+- `--gemini-summary-model MODEL` - Gemini model for summarization (default: `gemini-2.5-flash-lite`)
 - `--gemini-temperature TEMP` - Temperature for Gemini generation (0.0-2.0, default: 0.3)
 - `--gemini-max-tokens N` - Max tokens for Gemini generation (default: model default)
-- `--gemini-cleaning-model MODEL` - Gemini model for transcript cleaning (default: `gemini-1.5-flash`, cheaper than summary model)
-- `--gemini-cleaning-temperature TEMP` - Temperature for Gemini cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
+- `--gemini-cleaning-model MODEL` - Gemini model for transcript cleaning (default: `gemini-2.5-flash-lite`)
+- `--gemini-cleaning-temperature TEMP` - Temperature for Gemini cleaning (0.0-2.0, default: 0.4, lower = more deterministic)
 
 ### Anthropic Provider Options
 
 - `--anthropic-api-key KEY` - Anthropic API key (can also use `ANTHROPIC_API_KEY` env var)
 - `--anthropic-api-base URL` - Custom Anthropic API base URL (for E2E testing or custom endpoints)
-- `--anthropic-speaker-model MODEL` - Anthropic model for speaker detection (default: environment-based)
-- `--anthropic-summary-model MODEL` - Anthropic model for summarization (default: environment-based)
+- `--anthropic-speaker-model MODEL` - Anthropic model for speaker detection (default: `claude-3-5-sonnet-20241022`)
+- `--anthropic-summary-model MODEL` - Anthropic model for summarization (default: `claude-3-5-sonnet-20241022`)
 - `--anthropic-temperature TEMP` - Temperature for Anthropic generation (0.0-1.0, default: 0.3)
 - `--anthropic-max-tokens N` - Max tokens for Anthropic generation (default: model default)
 - `--anthropic-cleaning-model MODEL` - Anthropic model for transcript cleaning (default: `claude-haiku-4-5`, cheaper than summary model)
-- `--anthropic-cleaning-temperature TEMP` - Temperature for Anthropic cleaning (0.0-1.0, default: 0.2, lower = more deterministic)
+- `--anthropic-cleaning-temperature TEMP` - Temperature for Anthropic cleaning (0.0-1.0, default: 0.4, lower = more deterministic)
 
 ### Mistral Provider Options
 
 - `--mistral-api-key KEY` - Mistral API key (can also use `MISTRAL_API_KEY` env var)
 - `--mistral-api-base URL` - Custom Mistral API base URL (for E2E testing or custom endpoints)
 - `--mistral-transcription-model MODEL` - Mistral model for transcription (default: `voxtral-mini-latest`)
-- `--mistral-speaker-model MODEL` - Mistral model for speaker detection (default: environment-based)
-- `--mistral-summary-model MODEL` - Mistral model for summarization (default: environment-based)
+- `--mistral-speaker-model MODEL` - Mistral model for speaker detection (default: `mistral-large-latest`)
+- `--mistral-summary-model MODEL` - Mistral model for summarization (default: `mistral-large-latest`)
 - `--mistral-temperature TEMP` - Temperature for Mistral generation (0.0-1.0, default: 0.3)
 - `--mistral-max-tokens N` - Max tokens for Mistral generation (default: model default)
-- `--mistral-cleaning-model MODEL` - Mistral model for transcript cleaning (default: `mistral-small-latest`, cheaper than summary model)
+- `--mistral-cleaning-model MODEL` - Mistral model for transcript cleaning (default: `mistral-small`, cheaper than summary model)
 - `--mistral-cleaning-temperature TEMP` - Temperature for Mistral cleaning (0.0-1.0, default: 0.2, lower = more deterministic)
 
 ### DeepSeek Provider Options
@@ -218,22 +224,22 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 
 - `--grok-api-key KEY` - Grok API key (can also use `GROK_API_KEY` env var)
 - `--grok-api-base URL` - Custom Grok API base URL (for E2E testing or custom endpoints)
-- `--grok-speaker-model MODEL` - Grok model for speaker detection (default: `grok-2`)
-- `--grok-summary-model MODEL` - Grok model for summarization (default: `grok-2`)
+- `--grok-speaker-model MODEL` - Grok model for speaker detection (default: `grok-4.3`)
+- `--grok-summary-model MODEL` - Grok model for summarization (default: `grok-4.3`)
 - `--grok-temperature TEMP` - Temperature for Grok generation (0.0-2.0, default: 0.3)
 - `--grok-max-tokens N` - Max tokens for Grok generation (default: model default)
-- `--grok-cleaning-model MODEL` - Grok model for transcript cleaning (default: `grok-3-mini`, cheaper than summary model)
+- `--grok-cleaning-model MODEL` - Grok model for transcript cleaning (default: `grok-4.3`)
 - `--grok-cleaning-temperature TEMP` - Temperature for Grok cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
 
 ### Ollama Provider Options
 
 - `--ollama-api-base URL` - Custom Ollama API base URL (for E2E testing or custom endpoints, default: `http://localhost:11434/v1`)
-- `--ollama-speaker-model MODEL` - Ollama model for speaker detection (default: environment-based)
-- `--ollama-summary-model MODEL` - Ollama model for summarization (default: environment-based)
+- `--ollama-speaker-model MODEL` - Ollama model for speaker detection (default: `llama3.1:8b`)
+- `--ollama-summary-model MODEL` - Ollama model for summarization (default: `llama3.1:8b`)
 - `--ollama-temperature TEMP` - Temperature for Ollama generation (0.0-2.0, default: 0.3)
 - `--ollama-max-tokens N` - Max tokens for Ollama generation (default: model default)
 - `--ollama-timeout SECONDS` - Timeout in seconds for Ollama API calls (default: 120, local inference can be slow)
-- `--ollama-cleaning-model MODEL` - Ollama model for transcript cleaning (default: `llama3.2:latest`, smaller/faster than summary model)
+- `--ollama-cleaning-model MODEL` - Ollama model for transcript cleaning (default: `llama3.1:8b`)
 - `--ollama-cleaning-temperature TEMP` - Temperature for Ollama cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
 
 ### Metadata & Summarization
@@ -243,17 +249,14 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 - `--generate-summaries` - Generate episode summaries
 - `--summary-model MODEL` - Summary model to use (MAP-phase, `transformers` provider)
 - `--summary-reduce-model MODEL` - Summary reduce model to use (REDUCE-phase, `transformers` provider)
-- `--hybrid-map-model MODEL` - Hybrid MAP model when `--summary-provider hybrid_ml` (e.g. `longt5-base`)
-- `--hybrid-reduce-model MODEL` - Hybrid REDUCE model (HF id, Ollama tag, or GGUF path for `llama_cpp`)
-- `--hybrid-reduce-backend {transformers,ollama,llama_cpp}` - Hybrid REDUCE backend
-- `--hybrid-map-device` / `--hybrid-reduce-device` - Devices for hybrid MAP/REDUCE (`cuda`, `mps`, `cpu`, `auto`)
 - `--save-cleaned-transcript` / `--no-save-cleaned-transcript` - Persist `.cleaned` transcript alongside source (default: save)
-- `--save-adfree-transcript` / `--no-save-adfree-transcript` - Produce the ad-free processing base `*.adfree.txt` + `*.adfree.segments.json` (exact char offsets) + `*.adfree.admap.json` (#974); GI/search/enrichment/viewer prefer it for stable offsets, raw `.txt` stays canonical (default: save)
+- `--save-adfree-transcript` / `--no-save-adfree-transcript` - Produce the ad-free processing base `*.adfree.txt` + `*.adfree.segments.json` (exact char offsets) + `*.adfree.admap.json` (#974); search/enrichment/viewer prefer it for stable offsets, raw `.txt` stays canonical (default: save). The files are written only when ads were excised, and ad cleaning is a stage an installed extension provides; without one nothing is excised and no `.adfree.*` files appear.
 
 ### Cache Management (v2.4.0+)
 
 - `cache --status` - View cache status for all ML models
 - `cache --clean [TYPE]` - Clean ML caches (types: `whisper`, `transformers`, `spacy`, `all`)
+- `--cache-info` / `--prune-cache` / `--cache-dir DIR` - Main-command flags for the Hugging Face model cache: show it and exit, remove all cached transformer models, or point at another cache directory.
 
 ### Control Options
 
@@ -359,7 +362,9 @@ Feed URLs can live in the operator file (**`rss`**, **`feeds`**, **`rss_urls`**)
 
 ## Diagnostic Commands (Issue #379, #429)
 
-**Subcommands:** The first argument can be `doctor`, `cache`, or `pricing-assumptions` (e.g. `podcast-scraper doctor`). Startup checks (Python 3.12+, ffmpeg) run only for the main pipeline; they are skipped for these subcommands so you can run doctor even when ffmpeg is missing.
+**Subcommands:** The first argument can be `doctor`, `cache`, or `pricing-assumptions` (e.g. `python -m podcast_scraper.cli doctor`); the other subcommands are listed in [Additional subcommands](#additional-subcommands-catalog-only). Startup checks (Python 3.12+, ffmpeg) run only for the main pipeline; they are skipped for these subcommands so you can run doctor even when ffmpeg is missing.
+
+**Extension subcommands:** A word that no public subcommand claims is looked up among the subcommands of installed extensions ([ADR-168](../adr/ADR-168-installed-extensions.md)). Without a provider, for example `gi`, `mcp` or `identity-ledger`, the CLI exits 2 with `no command named '<word>'; an installed extension may provide it`.
 
 ### `pricing-assumptions` Command
 
@@ -405,27 +410,38 @@ python -m podcast_scraper.cli doctor
 
 - Python version (must be 3.12+)
 - `ffmpeg` availability (required for Whisper transcription)
-- Write permissions (output directory)
-- ML model cache status (Whisper, Transformers, spaCy)
-- Network connectivity (optional, with `--verbose`)
+- Write permissions
+- Model cache directory is writable
+- ML dependencies (PyTorch, Transformers, Whisper, spaCy) import and report their versions
+- `--check-models` (optional, slow): load the default Whisper and summarizer models once
+- `--check-network` (optional): network connectivity
 
-**Example output:**
+**Example output** (abridged; the real output uses check-mark glyphs instead of `[ok]`):
 
 ```text
+============================================================
+podcast_scraper Doctor - Diagnostic Checks
+============================================================
+
 [ok] Checking Python version...
-  [ok] Python 3.12.16 (required: 3.12+)
+  [ok] Python 3.12.16
 
 [ok] Checking ffmpeg...
-  [ok] ffmpeg version 6.0
+  [ok] ffmpeg found: /usr/bin/ffmpeg
 
 [ok] Checking write permissions...
-  [ok] Output directory is writable
+  [ok] Write permissions OK
 
-[ok] Checking ML model caches...
-  [ok] Whisper: 2 models cached (245 MB)
-  [ok] Transformers: 3 models cached (1.2 GB)
-  [ok] spaCy: 1 model cached (45 MB)
+[ok] Checking model cache directory...
+  [ok] Model cache directory writable: ~/.cache/whisper
 
+[ok] Checking ML dependencies...
+  [ok] PyTorch: 2.15.0+cu132
+  [ok] Transformers: 5.13.1
+  [ok] Whisper: 20250625
+  [ok] spaCy: 3.8.18
+
+============================================================
 [ok] All checks passed!
 ```
 
@@ -451,15 +467,15 @@ The CLI uses standard exit codes for automation and scripting:
 
 ```bash
 # Success: pipeline completed, 5 episodes processed, 2 failed
-podcast_scraper --rss https://example.com/feed.xml
+python -m podcast_scraper.cli --rss https://example.com/feed.xml
 echo $?  # 0
 
 # Failure: invalid RSS URL
-podcast_scraper --rss invalid-url
+python -m podcast_scraper.cli --rss invalid-url
 echo $?  # 1
 
 # Failure: missing ffmpeg
-podcast_scraper --rss https://example.com/feed.xml
+python -m podcast_scraper.cli --rss https://example.com/feed.xml
 echo $?  # 1 (dependency check failed)
 ```
 
@@ -528,13 +544,16 @@ The `gi` subcommands are added by an installed extension; with it present, `pyth
 
 ## Semantic corpus search (`search`, `index`)
 
-Meaning-based retrieval over indexed GIL, summaries, and transcripts (RFC-061). See
+Meaning-based retrieval over the indexed KG topics and entities, summary bullets and transcript
+chunks (RFC-090; insight and quote rows exist only where an installed extension writes them). See
 [Semantic Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md). Enable indexing with
-`vector_search: true` in config or run `index` manually.
+`vector_search: true` in config or run `index` manually. `search` takes `--type
+{insight,quote,summary,transcript,kg_topic,kg_entity}`, `--feed`, `--since`, `--speaker`,
+`--grounded-only`, `--top-k`, `--format {json,pretty}`, `--index-path` and `--embedding-model`.
 
 ```bash
 python -m podcast_scraper.cli search "supply chain disruptions" --output-dir ./output
-python -m podcast_scraper.cli search "quantum computing" --output-dir ./output --type insight --format json
+python -m podcast_scraper.cli search "quantum computing" --output-dir ./output --type kg_topic --format json
 python -m podcast_scraper.cli index --output-dir ./output
 python -m podcast_scraper.cli index --output-dir ./output --rebuild
 python -m podcast_scraper.cli index --output-dir ./output --stats
@@ -594,7 +613,7 @@ make quality-metrics-ci
 ## Knowledge Graph (`kg`) subcommands
 
 Inspect and export **Knowledge Graph** artifacts (`*.kg.json`) after a run with `generate_kg`
-enabled. Symmetric to the `gi` subcommand for GIL.
+enabled. The matching `gi` subcommands for grounded insights come from an installed extension.
 
 ```bash
 # Validate all kg.json under a directory (strict schema)
@@ -618,21 +637,24 @@ Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md). **Shallow 
 
 ## Additional subcommands (catalog only)
 
-Nine top-level subcommands wired in `cli.py` weren't in the main
+These top-level subcommands wired in `cli.py` weren't in the main
 sections above. Run `python -m podcast_scraper.cli <command> --help`
 for the full flag list; below is the one-line intent per command.
 
 | Command | Purpose | Notes |
 | --- | --- | --- |
-| `serve` | Run the GI/KG viewer HTTP API (FastAPI, uvicorn). | Requires `[dev]` extra. Feature flags: `--enable-feeds-api`, `--enable-operator-config-api`, `--enable-jobs-api`, `--config-file PATH`. Local: `make serve`. |
-| `enrich` | Run the RFC-088 enrichment-layer pass over a corpus. | Flags include `--corpus-only`, `--re-enable ID`, `--re-enable-reason "…"`, `--config` (enrichment YAML). |
-| `upgrade` | Corpus format migrations (RFC-097 chunk 9). | Sub-subcommands: `status` (pending migrations), `list` (all migrations + state), `verify` (post-migration checks), `run` (apply). |
-| `cache` | Manage ML model caches (Whisper, Transformers, spaCy). | `--clean [all\|whisper\|transformers\|spacy]`, `--delete-model NAME`, `--yes` to skip confirm. Distinct from the `--cache-info` / `--clear-model-cache` main-command flags above. |
-| `archive pull` | Cold-storage recovery — download archived episode audio to a local directory. | Single sub-subcommand `pull`. |
-| `corpus-cost` | Cost projection over an already-run corpus root. | Positional: `corpus_path` (parent of `feeds/`). Reads existing artifacts; no LLM calls. |
-| `index-two-tier` | Build the two-tier LanceDB search index (RFC-090). | `--lance-path`, `--embedding-model`, `--limit-episodes`. |
-| `mcp` | Run the generic MCP server over a corpus. `--transport stdio` (default; local child process, no auth) or `--transport http` (remote Streamable HTTP, bearer-auth). | Requires `.[dev,search]` (or `[search]` + `mcp` in prod). `--corpus <dir>` (required). HTTP: `--host`/`--port` (default `127.0.0.1:8009`); needs `APP_MCP_VERIFY_URL` + `INTERNAL_MCP_TOKEN` env for the verify seam (+ `APP_MCP_ISSUER_URL`/`APP_MCP_RESOURCE_URL` for discovery). |
-| `verify-gil-chunk-offsets` | Compare GIL Quote char ranges to indexed transcript chunk metadata per episode (offset-alignment gate before search lift). | `--index-path`, `--min-overlap-rate`, `--strict`, `--max-samples`. |
+| `serve` | Run the Workbench HTTP API (FastAPI, uvicorn). | Requires `[dev]` extra. Flags: `--host`, `--port`, `--reload`, `--workers N`, `--no-static`, `--enable-feeds-api`, `--enable-operator-config-api`, `--enable-jobs-api`, `--config-file PATH`. Local: `make serve`. See the [Server Guide](../guides/SERVER_GUIDE.md). |
+| `enrich` | Run the RFC-088 enrichment-layer pass over a corpus. | Flags include `--only`, `--skip`, `--corpus-only`, `--force`, `--re-enable ID`, `--re-enable-reason "…"`, `--config` (enrichment YAML). |
+| `upgrade` | Corpus format migrations (RFC-097 chunk 9). | Sub-subcommands: `status` (pending migrations), `list` (all migrations + state), `verify` (post-migration checks), `run` (apply), `rerun` (re-apply an applied migration for named episodes only). |
+| `db` | App-state database schema (Postgres, [ADR-169](../adr/ADR-169-the-database-is-the-source-of-truth.md)). | Sub-subcommands: `upgrade` (bring a plane's schema to head), `status` (current vs head revision), `import` (import file stores into the database and verify). `--plane {player,operator}`. |
+| `cache` | Manage ML model caches (Whisper, Transformers, spaCy). | `--status`, `--clean [all\|whisper\|transformers\|spacy]`, `--delete-model NAME`, `--yes` to skip confirm. Distinct from the `--cache-info` / `--prune-cache` main-command flags above. |
+| `archive` | Cold-storage audio archive. | Sub-subcommands: `pull` (download archived episode audio to a local directory), `backfill` (fetch missing audio from publishers into the archive), `sweep` (reclaim local audio the archive holds). |
+| `corpus-cost` | Cost projection over an already-run corpus root. | Positional: `corpus_path` (parent of `feeds/`). Reads existing artifacts; no LLM calls. `--update-manifest`, `--json`. |
+| `refresh-feed-metadata` | Re-fetch feeds' RSS and refresh the derivable feed fields (description, image, category) in existing metadata files; fills missing licence records. | `--corpus-dir` (required), `--feed-id`. Does not re-transcribe or re-enrich. |
+| `index-two-tier` | Build the two-tier LanceDB search index (RFC-090). | `--output-dir`, `--lance-path`, `--embedding-model`, `--limit-episodes`, `--allow-download`, `--upsert-batch-size`. |
+| `verify-gil-chunk-offsets` | Compare grounded-insight Quote char ranges to indexed transcript chunk metadata per episode (offset-alignment gate before search lift). | `--index-path`, `--min-overlap-rate`, `--strict`, `--max-samples`. Meaningful only for a corpus whose GI artifacts an installed extension wrote. |
+
+`mcp` and the grounded-insight, identity-ledger and clustering subcommands (`gi`, `identity-ledger`, `topic-clusters`, `insight-clusters`) are not in this table: public does not provide them (see above).
 
 ## See Also
 

@@ -6,7 +6,7 @@
   - [RFC-068: Corpus Digest API & Viewer](../rfc/RFC-068-corpus-digest-api-viewer.md) — includes **optional visual metadata** on digest rows and topic hits (same catalog source as RFC-067)
   - [RFC-067: Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md)
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Related PRDs**:
   - [PRD-022: Corpus Library](PRD-022-corpus-library-episode-browser.md)
   - [PRD-021: Semantic Corpus Search](PRD-021-semantic-corpus-search.md)
@@ -15,7 +15,7 @@
 - **Related UX specs**:
   - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md) -- Digest tab layout,
     topic bands, recent episodes, health discovery
-  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
+  - [UXS-001: Workbench](../uxs/UXS-001-workbench.md) -- shared design system
 
 ## Summary
 
@@ -192,9 +192,9 @@ APIs, ranking, topic configuration, and performance budgets.
 - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
 - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md), [PRD-019: Knowledge
   Graph Layer](PRD-019-knowledge-graph-layer.md)
-- [RFC-062: GI/KG Viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+- [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md)
-- [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-001: Workbench](../uxs/UXS-001-workbench.md)
 
 ## Constraints & Assumptions
 
@@ -226,7 +226,7 @@ APIs, ranking, topic configuration, and performance budgets.
 
 - [RFC-068: Corpus Digest — API & Viewer](../rfc/RFC-068-corpus-digest-api-viewer.md)
 - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md)
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-001](../uxs/UXS-001-workbench.md)
 
 ## Release Checklist
 

@@ -25,8 +25,8 @@ v2.5.0 expanded **who** summarizes and detects speakers (providers). v2.6.0 expa
 **Stack and entrypoints**
 
 - **FastAPI** — `podcast serve` (optional `[dev]` extra), CORS and static SPA, OpenAPI at `/docs`.
-- **Vue 3 + Vite + Cytoscape** — SPA under `web/gi-kg-viewer`, shell **`corpusPath`**, shared design rules in UXS-001 and feature UXSs (Digest, Library, Graph, Search, Dashboard, …).
-- **Playwright** — UI E2E in `web/gi-kg-viewer/e2e/`; contract summarized in `e2e/E2E_SURFACE_MAP.md`.
+- **Vue 3 + Vite + Cytoscape** — SPA under `web/workbench`, shell **`corpusPath`**, shared design rules in UXS-001 and feature UXSs (Digest, Library, Graph, Search, Dashboard, …).
+- **Playwright** — UI E2E in `web/workbench/e2e/`; contract summarized in `e2e/E2E_SURFACE_MAP.md`.
 
 **Tabs and flows (high level)**
 
@@ -155,7 +155,7 @@ reproduce stuck states ("clicked the G button, nothing happened, no feedback") a
 no single owner of the artifact-⇔-Cytoscape invariant.
 
 v2.6 replaces this with a **single Pinia-backed FSM** at
-`web/gi-kg-viewer/src/services/graphHandoffFsm.ts` and `stores/graphHandoff.ts`:
+`web/workbench/src/services/graphHandoffFsm.ts` and `stores/graphHandoff.ts`:
 
 - **8 states** (`idle → loading_fetch → loading_bootstrap → loading_merge → redrawing_incremental | redrawing_full → applying → ready`)
 - **One `GraphHandoffEnvelope`** carrying source / kind / load-source / camera-strategy / generation token
@@ -165,7 +165,7 @@ v2.6 replaces this with a **single Pinia-backed FSM** at
 - **Dev hook** `window.__GIKG_FSM__` for state inspection
 - **Telemetry**: `graph_handoff_started/applied/failed/superseded/stuck`
 
-See [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md), and the in-tree contract in `web/gi-kg-viewer/src/services/README.md`.
+See [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md), and the in-tree contract in `web/workbench/src/services/README.md`.
 
 ### Viewer test pyramid (RFC-086, ADR-095)
 
@@ -181,7 +181,7 @@ data":
 not a regression pile.
 
 See [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) and [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md). Viewer perf tails (#767/#768/#769) ship alongside as
-browser-observable demos under `web/gi-kg-viewer/e2e/perf/`.
+browser-observable demos under `web/workbench/e2e/perf/`.
 
 ---
 

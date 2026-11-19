@@ -1,13 +1,13 @@
 # Viewer async stability
 
 > HTTP timeouts, `StaleGeneration` gates, request dedupe, and corpus graph load
-> hardening for `web/gi-kg-viewer/`. Component tree and stores:
+> hardening for `web/workbench/`. Component tree and stores:
 > [Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md).
 
 ## HTTP client stability
 
 Inventory of client-side fetch stability (timeout + generation / single-flight) for the
-`web/gi-kg-viewer` app. Use this when adding new API calls or watchers.
+`web/workbench` app. Use this when adding new API calls or watchers.
 
 > **See also:** [Viewer Frontend Architecture](../architecture/VIEWER_FRONTEND_ARCHITECTURE.md)
 > for the stable component tree, store map, and API layer overview. This WIP doc
@@ -37,15 +37,15 @@ the idiom stays consistent.
 
 | Item | Detail |
 | ---- | ------ |
-| Module | `web/gi-kg-viewer/src/utils/staleGeneration.ts` |
+| Module | `web/workbench/src/utils/staleGeneration.ts` |
 | Class | `StaleGeneration` — `bump()`, `invalidate()`, `isCurrent(seq)`, `isStale(seq)` |
-| Tests | `web/gi-kg-viewer/src/utils/staleGeneration.test.ts` |
+| Tests | `web/workbench/src/utils/staleGeneration.test.ts` |
 
 ## Shared timeout
 
 | Item | Detail |
 | ---- | ------ |
-| Module | `web/gi-kg-viewer/src/api/httpClient.ts` |
+| Module | `web/workbench/src/api/httpClient.ts` |
 | Default | `DEFAULT_VIEWER_FETCH_TIMEOUT_MS` (120s); `fetchWithTimeout` maps abort to a clear `Error` |
 
 API modules under `src/api/*.ts`, shell `/api/health` and `/api/artifacts`, transcript
@@ -63,7 +63,7 @@ state (or an error clears flags when that run is still current).
 
 **What this is:** Some GET helpers share **one in-flight HTTP request** per logical key (e.g. corpus path) so that **at the same moment** two callers do not open duplicate TCP/API work. It does **not** replace **StaleGeneration**: UI state is still owned by each surface’s gates. Dedupe is only an optimization for **bandwidth, server load, and client connection churn**.
 
-**Implementation:** `web/gi-kg-viewer/src/api/inFlightDedupe.ts` exports **`dedupeInFlight(key, run)`**. Keys are **`GET|<url-with-query>`** so identical URLs share one in-flight promise.
+**Implementation:** `web/workbench/src/api/inFlightDedupe.ts` exports **`dedupeInFlight(key, run)`**. Keys are **`GET|<url-with-query>`** so identical URLs share one in-flight promise.
 
 **What is deduped (concurrent identical URL):**
 
@@ -173,13 +173,13 @@ behavior.
 
 **A1. Single-flight / generation token for `loadSelected`**
 
-- In `web/gi-kg-viewer/src/stores/artifacts.ts`, add an internal monotonic **generation** (or `AbortController` per load).
+- In `web/workbench/src/stores/artifacts.ts`, add an internal monotonic **generation** (or `AbortController` per load).
 - At start of `loadSelected`, bump generation; after each `await`, if generation changed, **abort** (stop fetching, optionally discard partial `out`).
 - Ensure **`loading`** is cleared only by the **winning** run’s `finally`, or use a ref counting / “last started wins” pattern so a completed stale run cannot clear `loading` while a newer run is active.
 
 **A2. Serialize corpus auto-sync with manual load**
 
-- In `web/gi-kg-viewer/src/App.vue`, `syncMergedGraphFromCorpusApi` already uses `corpusGraphSyncGen`; extend the same idea so **manual** `onLoadIntoGraphClick` either:
+- In `web/workbench/src/App.vue`, `syncMergedGraphFromCorpusApi` already uses `corpusGraphSyncGen`; extend the same idea so **manual** `onLoadIntoGraphClick` either:
   - bumps the same generation before calling `loadSelected`, or
   - shares one **`loadArtifactsFromCorpus(reason: 'sync' | 'manual')`** helper that owns the mutex.
 
@@ -239,8 +239,8 @@ behavior.
 ## References
 
 - [HTTP client stability](#http-client-stability) (this document) — timeouts, `StaleGeneration`, dedupe inventory
-- `web/gi-kg-viewer/src/stores/artifacts.ts` — `loadSelected`, `loading`
-- `web/gi-kg-viewer/src/App.vue` — `syncMergedGraphFromCorpusApi`, `onLoadIntoGraphClick`
-- `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue` — `watch`, `redraw`
+- `web/workbench/src/stores/artifacts.ts` — `loadSelected`, `loading`
+- `web/workbench/src/App.vue` — `syncMergedGraphFromCorpusApi`, `onLoadIntoGraphClick`
+- `web/workbench/src/components/graph/GraphCanvas.vue` — `watch`, `redraw`
 - `docs/guides/DEVELOPMENT_GUIDE.md` — viewer / serve workflow
 - `e2e/E2E_SURFACE_MAP.md` — update if load UI or testids change

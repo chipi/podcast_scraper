@@ -26,16 +26,16 @@
   - [RFC-068](RFC-068-corpus-digest-api-viewer.md) — **`GET /api/corpus/digest?compact=true`** glance line
 - **Related UX specs**:
   - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md) — **Dashboard tab (charts)**
-  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and visual chrome
+  - [WORKBENCH_IA: Viewer information architecture](../uxs/WORKBENCH_IA.md) — shell IA
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-workbench.md) — shared tokens and visual chrome
 - **Related Documents**:
-  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
   - [Server guide](../guides/SERVER_GUIDE.md) (HTTP overview)
-- **Updated**: 2026-04-19 (Align with shipped Dashboard: **Coverage** / **Intelligence** / **Pipeline**; **VIEWER_IA** + status bar artifacts; remove stale **`CorpusDataWorkspace`** narrative)
+- **Updated**: 2026-04-19 (Align with shipped Dashboard: **Coverage** / **Intelligence** / **Pipeline**; **WORKBENCH_IA** + status bar artifacts; remove stale **`CorpusDataWorkspace`** narrative)
 
 ## Abstract
 
-The **Dashboard** view in **`web/gi-kg-viewer`** aggregates **pipeline execution** signals (corpus
+The **Dashboard** view in **`web/workbench`** aggregates **pipeline execution** signals (corpus
 manifest, discovered **`run.json`** files, stage timings, episode outcomes) and **content
 intelligence** signals (FAISS index stats, optional digest snapshot, GI/KG artifact mtimes, catalog
 publish-month histogram vs list counts, loaded-graph node types vs vector **doc_type** counts). The
@@ -54,7 +54,7 @@ and **corpus_metrics** behavior was hard to navigate for contributors.
 
 ## Delivered architecture
 
-### Frontend (`web/gi-kg-viewer/`)
+### Frontend (`web/workbench/`)
 
 | Piece | Role |
 | ----- | ---- |
@@ -106,7 +106,7 @@ Mounted under the app **`/api`** prefix:
 
 ## Testing
 
-- **E2E**: **`web/gi-kg-viewer/e2e/dashboard.spec.ts`** (and related mocks) — see [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) **Dashboard** row.
+- **E2E**: **`web/workbench/e2e/dashboard.spec.ts`** (and related mocks) — see [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) **Dashboard** row.
 - **Server**: extend **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`** when
   changing **`corpus_metrics`** response shapes (existing tests may already cover stats).
 
@@ -114,7 +114,7 @@ Mounted under the app **`/api`** prefix:
 
 **RFC-062** remains the **umbrella** viewer + server seed RFC. **RFC-071** is a **focused slice** for the
 **Dashboard** product surface so PRD/RFC indexes and cross-links stay precise. Prefer editing **RFC-071**
-for Dashboard-only API or chart-behavior notes; edit **RFC-062** / **VIEWER_IA** when shell navigation,
+for Dashboard-only API or chart-behavior notes; edit **RFC-062** / **WORKBENCH_IA** when shell navigation,
 **status bar** corpus flows, or shared stores change across tabs.
 
 ## References
@@ -122,4 +122,4 @@ for Dashboard-only API or chart-behavior notes; edit **RFC-062** / **VIEWER_IA**
 - [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md)
 - [RFC-062](RFC-062-gi-kg-viewer-v2.md)
 - [RFC-063](RFC-063-multi-feed-corpus-append-resume.md)
-- [UXS-006](../uxs/UXS-006-dashboard.md); [VIEWER_IA](../uxs/VIEWER_IA.md); [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-006](../uxs/UXS-006-dashboard.md); [WORKBENCH_IA](../uxs/WORKBENCH_IA.md); [UXS-001](../uxs/UXS-001-workbench.md)

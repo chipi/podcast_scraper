@@ -6,7 +6,7 @@
   - [RFC-008](../rfc/RFC-008-config-model.md) — configuration model (**complete**)
   - [RFC-009](../rfc/RFC-009-progress-integration.md) — progress reporting (**complete**)
 - **Related UX specs**:
-  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
+  - [UXS-001: Workbench](../uxs/UXS-001-workbench.md) -- shared design system
     (tokens, theming, tunable parameters)
 
 ## Summary
@@ -84,7 +84,7 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 
 ## Viewer v2 — Theme & Appearance (planned)
 
-The GI/KG viewer v2 (RFC-062) extends this PRD with a **token-based theming system**
+The Workbench (RFC-062) extends this PRD with a **token-based theming system**
 that separates visual decisions from component code. This is specified in UXS-001 and
 implemented via CSS custom properties + optional preset files.
 
@@ -101,7 +101,7 @@ implemented via CSS custom properties + optional preset files.
   (frozen). Token *values* (exact hex, font family, spacing unit) are open for tuning
   during early development.
 
-See [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) § Tunable parameters for the full
+See [UXS-001](../uxs/UXS-001-workbench.md) § Tunable parameters for the full
 frozen/open matrix, and RFC-062 decision #6 for the implementation approach.
 
 ## Open Questions

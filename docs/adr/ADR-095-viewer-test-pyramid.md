@@ -11,7 +11,7 @@
     UI E2E)
 - **Related Documents**:
   - [VIEWER_GRAPH_SPEC.md §"Matrix assertion layers"](../architecture/VIEWER_GRAPH_SPEC.md)
-  - `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` (Tier 1 coverage contract)
+  - `web/workbench/e2e/HANDOFF_MATRIX.md` (Tier 1 coverage contract)
 
 ## Context & Problem Statement
 
@@ -124,17 +124,17 @@ PR merges. Bugs become structurally non-regressable.
 
 ## Implementation Notes
 
-- **Fixture**: `web/gi-kg-viewer/e2e/fixtures/production-shaped/` (checked
+- **Fixture**: `web/workbench/e2e/fixtures/production-shaped/` (checked
   in, <5 MB total).
 - **Build script**: `scripts/build_production_shaped_fixture.py`
   (deterministic; regenerable from a real corpus snapshot).
-- **Tier 2 specs**: `web/gi-kg-viewer/e2e/handoff-production/*.spec.ts`
+- **Tier 2 specs**: `web/workbench/e2e/handoff-production/*.spec.ts`
   mirror Tier 1's 8 spec files row-for-row.
 - **Tier 2 mock helper**: `setupProductionShapedMocks(page)` in
-  `web/gi-kg-viewer/e2e/handoff-production/_helpers.ts`.
-- **Tier 3 spec**: `web/gi-kg-viewer/e2e/validation/real-corpus.spec.ts`
+  `web/workbench/e2e/handoff-production/_helpers.ts`.
+- **Tier 3 spec**: `web/workbench/e2e/validation/real-corpus.spec.ts`
   (already exists; promoted from session artefact to permanent gate).
-- **Tier 3 config**: `web/gi-kg-viewer/playwright.validation.config.ts`
+- **Tier 3 config**: `web/workbench/playwright.validation.config.ts`
   (already exists).
 - **Make targets**:
   - `make ci-ui-fast` — unchanged (Tier 1 only)
@@ -150,5 +150,5 @@ PR merges. Bugs become structurally non-regressable.
 - [RFC-086: Three-tier viewer test pyramid + production-shaped fixtures](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)
 - [ADR-094: Graph handoff orchestrator FSM](ADR-094-graph-handoff-orchestrator-fsm.md)
 - [ADR-066: Playwright for UI E2E testing](ADR-066-playwright-for-ui-e2e-testing.md)
-- `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` — Tier 1 contract
+- `web/workbench/e2e/HANDOFF_MATRIX.md` — Tier 1 contract
 - [VIEWER_GRAPH_SPEC.md](../architecture/VIEWER_GRAPH_SPEC.md) — operational reference

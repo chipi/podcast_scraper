@@ -1,0 +1,131 @@
+import { fetchWithTimeout } from './httpClient'
+
+/** Query-time join from ``search/topic_clusters.json`` (``kg_topic`` hits only). */
+export interface TopicClusterHitMeta {
+  graph_compound_parent_id: string
+  canonical_label: string
+  cil_alias_target_topic_id?: string
+}
+
+/** A news item as a surface shows it (``NewsItem`` on the server; UXS-019). Metadata only. */
+export interface NewsItem {
+  content_type: 'news_article'
+  item_id: string
+  title: string
+  url?: string | null
+  source_id?: string | null
+  publisher?: { id: string; name: string; domain: string } | null
+  /** The URL's host without www.: the origin to name when there is no publisher. */
+  site?: string | null
+  /** In a node's list only: the node's role in this item ("author" when it wrote it). */
+  node_role?: string | null
+  published_at?: string | null
+  language?: string | null
+  byline: string[]
+  editorial_type?: 'reporting' | 'opinion' | 'analysis' | 'paid' | null
+  paywalled?: boolean | null
+  text_status?: string | null
+  /** What a surface may show: ``metadata`` (no summary) or ``summary``. */
+  serveable: 'metadata' | 'summary'
+  summary?: string | null
+  metadata_relative_path?: string
+}
+
+export interface SearchHit {
+  doc_id: string
+  score: number
+  /** ``podcast_episode`` (absent on older servers) or ``news_article`` (RFC-134 §9). */
+  content_type?: string
+  /** Set on a news hit: what its row shows. A news hit's ``text`` is always empty. */
+  news_item?: NewsItem | null
+  metadata: Record<string, unknown>
+  text: string
+  /**
+   * Retrieval tier (PRD-033 FR1.1): 'insight' (synthesized), 'segment' (raw
+   * transcript), or 'aux' (kg_entity/kg_topic/quote/summary). Server-derived from
+   * metadata.doc_type; defaults to 'aux' against pre-#884 servers.
+   */
+  source_tier?: string
+  supporting_quotes?: Record<string, unknown>[] | null
+  /** Chunk-to-Insight lift when the server enriches transcript rows. */
+  lifted?: Record<string, unknown> | null
+}
+
+/** Counters for the current search response page (after top-k slice). */
+export interface CorpusSearchLiftStats {
+  transcript_hits_returned: number
+  lift_applied: number
+}
+
+export interface SearchResponse {
+  query: string
+  results: SearchHit[]
+  error?: string | null
+  detail?: string | null
+  /**
+   * Detected query intent (PRD-033 FR1.4): entity_lookup / raw_evidence /
+   * temporal_tracking / cross_show_synthesis / semantic. Null on error or pre-#884
+   * servers.
+   */
+  query_type?: string | null
+  lift_stats?: CorpusSearchLiftStats | null
+}
+
+export interface SearchRequestOptions {
+  path: string
+  types?: string[]
+  feed?: string
+  since?: string
+  speaker?: string
+  /** Topic substring (Search v3 SearchTopicChip). Server-side after the follow-up
+   * to S1: matches kg_topic id/text and insight ABOUT-edge topic labels. */
+  topic?: string
+  /** Exact episode_id scope (Search v3 §S6). Enables the rail launcher
+   *  "Search within this episode" on EpisodeDetailPanel. */
+  episodeId?: string
+  topK?: number
+  embeddingModel?: string
+  /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
+  dedupeKgSurfaces?: boolean
+  /** Content types to search (``content_types``); omitted, podcasts only. */
+  contentTypes?: string[]
+  /** More query parameters, sent as given (extension points: `searchRequestParams`). */
+  extraParams?: Record<string, string>
+}
+
+export async function searchCorpus(
+  q: string,
+  options: SearchRequestOptions,
+): Promise<SearchResponse> {
+  const root = options.path.trim()
+  const params = new URLSearchParams({ path: root, q: q.trim() })
+  const tk = options.topK ?? 10
+  params.set('top_k', String(Math.min(100, Math.max(1, tk))))
+  if (options.feed?.trim()) params.set('feed', options.feed.trim())
+  if (options.since?.trim()) params.set('since', options.since.trim())
+  if (options.speaker?.trim()) params.set('speaker', options.speaker.trim())
+  if (options.topic?.trim()) params.set('topic', options.topic.trim())
+  if (options.episodeId?.trim()) params.set('episode_id', options.episodeId.trim())
+  if (options.embeddingModel?.trim()) {
+    params.set('embedding_model', options.embeddingModel.trim())
+  }
+  for (const t of options.types ?? []) {
+    if (t.trim()) params.append('type', t.trim())
+  }
+  for (const t of options.contentTypes ?? []) {
+    if (t.trim()) params.append('content_types', t.trim())
+  }
+  if (options.dedupeKgSurfaces === false) {
+    params.set('dedupe_kg_surfaces', 'false')
+  }
+  for (const [k, v] of Object.entries(options.extraParams ?? {})) {
+    params.set(k, v)
+  }
+  const res = await fetchWithTimeout(`/api/search?${params.toString()}`)
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as SearchResponse
+}
+

@@ -95,6 +95,7 @@ dependencies = [
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
 #               build its LanceDB index without dragging in spaCy/Whisper/Pegasus from [ml].
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
+#   news      — the news writer: feedparser, trafilatura, readability-lxml (E05); in [dev] too
 #   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
 #   observability — standalone prod control plane (#803, ``podcast_obs``). LIGHT by design.
 # Standalone prod observability control plane (#803). Intentionally LIGHT so it runs as a small
@@ -256,7 +257,14 @@ monitor = [
   "py-spy>=0.4.2",
   "memray>=1.19.3",
 ]
-# Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062). The server-runtime pins
+# The news writer (E05, News 1.0): RSS/Atom listing, then the page's main text (trafilatura,
+# readability as the fallback). Approved in E05, 2026-11-11.
+news = [
+  "feedparser>=6.0.12,<7.0.0",
+  "trafilatura>=2.0.0,<3.0.0",
+  "readability-lxml>=0.8.4,<1.0.0",
+]
+# Development tools plus Workbench HTTP stack (FastAPI, RFC-062). The server-runtime pins
 # (fastapi/uvicorn/prometheus-fastapi-instrumentator/apscheduler) are mirrored by
 # docker/api/Dockerfile, which installs them directly rather than via ``.[dev]`` (to keep
 # pytest/black/etc out of the production image). KEEP THE TWO IN SYNC — they drifted once (#1019).
@@ -266,6 +274,8 @@ dev = [
   # via simulated absence. Runtime stays a no-op unless each service's secrets are set.
   "podcast-scraper[sentry]",
   "podcast-scraper[langfuse]",
+  # The news writer's tests run in every dev/CI venv.
+  "podcast-scraper[news]",
   # Cap <0.137 lifted (#1029 → Dependabot #1375): prometheus-fastapi-instrumentator 8.0.1
   # added handling for FastAPI's internal ``_IncludedRouter`` route type (the 0.137
   # regression that returned /api/health 500 when metrics are enabled). Instrumentator
@@ -411,6 +421,7 @@ exclude = '''
     | __pycache__
     | eval-data
     | apps
+    | node_modules
   )/
 )
 '''
@@ -422,7 +433,7 @@ known_first_party = ["podcast_scraper"]
 combine_as_imports = true
 force_alphabetical_sort_within_sections = true
 # Match Black/flake8: secondary venv lives in-repo for CI-parity unit tests (.venv-dev).
-skip_glob = [".venv/**", ".venv-dev/**", "eval-data/**", "apps/**"]
+skip_glob = [".venv/**", ".venv-dev/**", "eval-data/**", "apps/**", "**/node_modules/**"]
 
 [tool.mypy]
 python_version = "3.12"

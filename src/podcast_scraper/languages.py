@@ -154,14 +154,17 @@ def mark_metadata_unusable(meta_path: Any, reason: str) -> bool:
             doc = _json.load(fh)
         if not isinstance(doc, dict):
             return False
-        episode_block = doc.setdefault("episode", {})
-        if not isinstance(episode_block, dict):
+        # An item document (a content type's contract: top-level ``content_type``, no
+        # ``episode`` block) carries the marker at its top level, its key order kept.
+        item_doc = "content_type" in doc and "episode" not in doc
+        block = doc if item_doc else doc.setdefault("episode", {})
+        if not isinstance(block, dict):
             return False
-        episode_block[UNUSABLE_FIELD] = True
-        episode_block[UNUSABLE_REASON_FIELD] = reason
+        block[UNUSABLE_FIELD] = True
+        block[UNUSABLE_REASON_FIELD] = reason
         tmp = f"{meta_path}.unusable.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            _json.dump(doc, fh, indent=2, sort_keys=True, ensure_ascii=False)
+            _json.dump(doc, fh, indent=2, sort_keys=not item_doc, ensure_ascii=False)
             fh.write("\n")
         _os.replace(tmp, meta_path)
         return True
@@ -191,11 +194,11 @@ def episode_is_unusable(doc: Any) -> Optional[str]:
     if not isinstance(doc, dict):
         return None
     episode = doc.get("episode")
-    if not isinstance(episode, dict):
+    # An item document carries the marker at its top level (:func:`mark_metadata_unusable`).
+    block = episode if isinstance(episode, dict) else doc if "content_type" in doc else None
+    if block is None or not block.get(UNUSABLE_FIELD):
         return None
-    if not episode.get(UNUSABLE_FIELD):
-        return None
-    reason = episode.get(UNUSABLE_REASON_FIELD)
+    reason = block.get(UNUSABLE_REASON_FIELD)
     return str(reason).strip() if isinstance(reason, str) and reason.strip() else "unspecified"
 
 

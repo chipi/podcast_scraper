@@ -1,6 +1,6 @@
 # RFC-062: GI/KG Viewer v2 — Semantic Search UI & Web Application Architecture
 
-- **Status**: Completed (v2.6.0) — Vue 3 SPA **`web/gi-kg-viewer/`**, FastAPI
+- **Status**: Completed (v2.6.0) — Vue 3 SPA **`web/workbench/`**, FastAPI
   **`src/podcast_scraper/server/`**, **`podcast serve`** / **`make serve`**, Playwright E2E.
   The **shell** (nav, **status bar** corpus path, **Dashboard**, graph host, **left** query column
   for semantic search + explore, **right** subject column, health matrix) lives here; **Library**, **Digest**, extended **corpus** and **index rebuild**
@@ -36,15 +36,15 @@
   - [RFC-051: Database projection GIL/KG](RFC-051-database-projection-gil-kg.md) — future structured
     query backend
 - **Related UX specs**:
-  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — **canonical** shell IA (regions, axes, persistence, clearing, first-run)
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system (tokens, typography, **visual** chrome, accessibility)
+  - [WORKBENCH_IA: Viewer information architecture](../uxs/WORKBENCH_IA.md) — **canonical** shell IA (regions, axes, persistence, clearing, first-run)
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-workbench.md) — shared design system (tokens, typography, **visual** chrome, accessibility)
   - [UXS-002 Corpus Digest](../uxs/UXS-002-corpus-digest.md), [UXS-003 Corpus Library](../uxs/UXS-003-corpus-library.md),
     [UXS-004 Graph Exploration](../uxs/UXS-004-graph-exploration.md), [UXS-005 Semantic Search](../uxs/UXS-005-semantic-search.md),
     [UXS-006 Dashboard](../uxs/UXS-006-dashboard.md) — per-surface visual contracts (see [UXS index](../uxs/index.md))
 - **Related Documents**:
-  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) —
+  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) —
     Playwright contract (selectors, surfaces); **update when UI or E2E changes** (repo path:
-    `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`)
+    `web/workbench/e2e/E2E_SURFACE_MAP.md`)
   - [Platform architecture blueprint](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
   - [GitHub #489](https://github.com/chipi/podcast_scraper/issues/489) — Viewer v2 implementation
   - [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509) — E2E / surface map hygiene
@@ -59,15 +59,15 @@
 
 ## Abstract
 
-This RFC defines the **v2 GI/KG viewer**: a **Vue 3 + Vite** single-page app (**`web/gi-kg-viewer/`**)
+This RFC defines the **v2 GI/KG viewer**: a **Vue 3 + Vite** single-page app (**`web/workbench/`**)
 backed by the canonical FastAPI layer (**`src/podcast_scraper/server/`**). It replaces the removed
 vanilla-JS prototype (**`web/gi-kg-viz/`**, #445) with one **“Podcast Intelligence Platform”** shell:
 main navigation (**Digest**, **Library**, **Graph**, **Dashboard**), a **left** query column (**Semantic search** default; **Explore** as a slide-in mode from the same column), a **right** subject column (episode / graph-node / future topic-person), semantic search (**RFC-061**), a **Cytoscape.js** graph host, and a **Dashboard** with
 **Coverage** / **Intelligence** / **Pipeline** sub-tabs (see **UXS-006**). **Pinia**, **TypeScript**, and **Tailwind**
 (UXS-001 tokens) carry state and styling; **`podcast serve`** serves the built SPA plus **`/api/*`**.
 
-**Shipped layout (#606, 2026-04):** **Shell IA** is normative in **[VIEWER_IA](../uxs/VIEWER_IA.md)**. Corpus path and offline **Files** live on the **status bar**; **List** opens **`artifact-list-dialog`** (load / graph handoffs). **Dashboard** ships as **briefing** plus **Coverage** / **Intelligence** / **Pipeline** (index rebuild and coverage charts on **Coverage** — see **UXS-006**), not a legacy left **API · Data** workspace component. The **Delivered scope** table below reflects this; see
-[#606](https://github.com/chipi/podcast_scraper/issues/606), **VIEWER_IA**, and **Active** UXSs.
+**Shipped layout (#606, 2026-04):** **Shell IA** is normative in **[WORKBENCH_IA](../uxs/WORKBENCH_IA.md)**. Corpus path and offline **Files** live on the **status bar**; **List** opens **`artifact-list-dialog`** (load / graph handoffs). **Dashboard** ships as **briefing** plus **Coverage** / **Intelligence** / **Pipeline** (index rebuild and coverage charts on **Coverage** — see **UXS-006**), not a legacy left **API · Data** workspace component. The **Delivered scope** table below reflects this; see
+[#606](https://github.com/chipi/podcast_scraper/issues/606), **WORKBENCH_IA**, and **Active** UXSs.
 
 The same release expanded the **server** beyond the original search + artifacts + explore + index
 stats sketch: **corpus metrics**, **library**, **digest**, **binary/covers**, **`POST /api/index/rebuild`**
@@ -90,21 +90,21 @@ This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI 
 
 | Surface | What shipped (summary) | Normative detail |
 | ------- | ---------------------- | ---------------- |
-| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **left** query column (**Semantic search** / **Explore** mode), **status bar** (corpus path, health, offline files), **right** subject column (episode / graph-node / …) | [VIEWER_IA](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
+| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **left** query column (**Semantic search** / **Explore** mode), **status bar** (corpus path, health, offline files), **right** subject column (episode / graph-node / …) | [WORKBENCH_IA](../uxs/WORKBENCH_IA.md) + [UXS-001](../uxs/UXS-001-workbench.md) |
 | **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** subject rail, **Search topic** handoff | [UXS-002](../uxs/UXS-002-corpus-digest.md) + [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
 | **Library** | Feed list + cursor-paginated episodes, filters, **Episode** subject rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [UXS-003](../uxs/UXS-003-corpus-library.md) + [RFC-067](RFC-067-corpus-library-api-viewer.md) |
 | **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** subject rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | [UXS-004](../uxs/UXS-004-graph-exploration.md) + this RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
 | **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | [UXS-005](../uxs/UXS-005-semantic-search.md) + [RFC-061](RFC-061-semantic-corpus-search.md) |
-| **Dashboard** | **Briefing** card; **Coverage** / **Intelligence** / **Pipeline** sub-tabs; Chart.js surfaces per **UXS-006**; corpus **List** / **Load into graph** via **status bar** (not a legacy **`CorpusDataWorkspace`** on the tab body) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) + [VIEWER_IA](../uxs/VIEWER_IA.md) (status bar) |
+| **Dashboard** | **Briefing** card; **Coverage** / **Intelligence** / **Pipeline** sub-tabs; Chart.js surfaces per **UXS-006**; corpus **List** / **Load into graph** via **status bar** (not a legacy **`CorpusDataWorkspace`** on the tab body) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) + [WORKBENCH_IA](../uxs/WORKBENCH_IA.md) (status bar) |
 | **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest**, …; optional **RFC-077** **`/api/feeds`**, **`/api/operator-config`**, **`/api/jobs`** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md), [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) |
-| **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Chrome locally, Firefox in CI; dedicated Vite port) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
+| **E2E** | Playwright under **`web/workbench/e2e/`** (Chrome locally, Firefox in CI; dedicated Vite port) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
 
 The table documents **shipped** viewer chrome including the **#606** shell IA update.
 
 ## Shell restructure (#606, shipped)
 
 **Information architecture:** query column left (**Semantic search** default; **Explore** mode), main view tabs,
-**subject** column right, **status bar** for corpus path / health / offline files / **List** (artifacts dialog). **Normative** shell IA: **[VIEWER_IA](../uxs/VIEWER_IA.md)**. **Normative** layout and tokens
+**subject** column right, **status bar** for corpus path / health / offline files / **List** (artifacts dialog). **Normative** shell IA: **[WORKBENCH_IA](../uxs/WORKBENCH_IA.md)**. **Normative** layout and tokens
 stay in **Active** UXSs (see
 [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)). Track history in
 [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606).
@@ -127,9 +127,9 @@ stay in **Active** UXSs (see
 ### Focus and keyboard (shell-specific)
 
 Global shortcuts (**slash** for search focus, **Escape** on Graph, per-row **G** / **L** on semantic
-search hits) are documented in [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and implemented in
+search hits) are documented in [UXS-001](../uxs/UXS-001-workbench.md) and implemented in
 `useViewerKeyboard.ts`. Extend the
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 when automation-visible strings change.
 
 ## Problem Statement
@@ -285,7 +285,7 @@ through a graphical interface.
 ### 2. Frontend Architecture
 
 ```text
-web/gi-kg-viewer/
+web/workbench/
 ├── package.json
 ├── vite.config.ts
 ├── tailwind.config.js
@@ -402,7 +402,7 @@ src/podcast_scraper/server/
 - **`enable_feeds_api` / `enable_operator_config_api` / `enable_jobs_api`**: when true, mount **RFC-077** routers (`feeds`, `operator_config`, `jobs`). Env aliases: `PODCAST_SERVE_ENABLE_*` (reload factory).
 - **`enable_platform`**: reserved; **`routes/platform/`** exists for future **#50 / #347** work but does
   not mount routers yet.
-- **`static_dir`**: when **`web/gi-kg-viewer/dist`** exists (or path passed), mounts **`StaticFiles`**
+- **`static_dir`**: when **`web/workbench/dist`** exists (or path passed), mounts **`StaticFiles`**
   at **`/`** with **`html=True`** for SPA fallback.
 - **CORS**: allows local Vite ports **5173** / **5174** for dev.
 
@@ -566,7 +566,7 @@ make serve-api
 
 # Terminal 2: Vite dev server
 make serve-ui
-# Runs: cd web/gi-kg-viewer && npm run dev
+# Runs: cd web/workbench && npm run dev
 # Vite proxies /api/* to localhost:8000
 
 # Or combined:
@@ -587,9 +587,9 @@ podcast serve --output-dir ./output --platform
 **Production build:**
 
 ```bash
-cd web/gi-kg-viewer && npm run build
+cd web/workbench && npm run build
 # Production build to dist/
-# Output: web/gi-kg-viewer/dist/
+# Output: web/workbench/dist/
 # FastAPI serves dist/ as static files
 ```
 
@@ -600,14 +600,14 @@ cd web/gi-kg-viewer && npm run build
 | `make serve` | Start backend + frontend dev servers |
 | `make serve-api` | Start FastAPI backend only |
 | `make serve-ui` | Start Vite dev server only |
-| `cd web/gi-kg-viewer && npm run build` | Production build of frontend |
+| `cd web/workbench && npm run build` | Production build of frontend |
 | `make test-ui` | Vitest unit tests for TS utils |
-| `make test-ui-e2e` | Playwright browser E2E (Chrome locally, Firefox in CI; see **`web/gi-kg-viewer/e2e/`**) |
+| `make test-ui-e2e` | Playwright browser E2E (Chrome locally, Firefox in CI; see **`web/workbench/e2e/`**) |
 
 ## Key Decisions
 
 1. **Full rebuild vs incremental port**
-   - **Decision**: Full rebuild in `web/gi-kg-viewer/` (new directory)
+   - **Decision**: Full rebuild in `web/workbench/` (new directory)
    - **Rationale**: The v1 architecture (vanilla JS, globals, multi-page, dual engines)
      is fundamentally incompatible with the reactive component model, typed stores,
      and search integration needed for v2. Porting would require rewriting every file
@@ -768,7 +768,7 @@ Playwright provides the browser automation layer for end-to-end regression testi
 **Test structure:**
 
 ```text
-web/gi-kg-viewer/
+web/workbench/
 ├── e2e/
 │   ├── playwright.config.ts          # Playwright config (headless Chromium)
 │   ├── fixtures/
@@ -810,12 +810,12 @@ web/gi-kg-viewer/
 
 **Playwright configuration:**
 
-See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
+See `web/workbench/playwright.config.ts` for the current configuration
 (Chrome locally, Firefox in CI; Vite on port 5174, `testDir: ./e2e`).
 
 ### Test Organization
 
-- `web/gi-kg-viewer/e2e/` — browser E2E tests (Playwright)
+- `web/workbench/e2e/` — browser E2E tests (Playwright)
 - `tests/unit/podcast_scraper/server/` — backend unit tests (pytest; `importorskip("fastapi")` when `[dev]` not installed)
 - `tests/integration/server/` — backend API integration (pytest): `test_server_api.py`, Corpus Library, index rebuild, index stats, etc.
 
@@ -832,7 +832,7 @@ See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
 **Rollout Plan:**
 
 - **M1 — Scaffold + Server Shell** (done): Vite + Vue + Tailwind + Pinia project
-  in `web/gi-kg-viewer/`. Token-based theming layer in `src/theme/` — `tokens.css`
+  in `web/workbench/`. Token-based theming layer in `src/theme/` — `tokens.css`
   (UXS-001 semantic tokens as CSS custom properties), `theme.ts` runtime helper,
   default preset, Tailwind config wired to tokens. FastAPI server skeleton in
   `src/podcast_scraper/server/` with `/api/health` and `/api/artifacts` endpoints.
@@ -900,7 +900,7 @@ complete. These are tracked as part of the implementation issue.
 | `docs/architecture/TESTING_STRATEGY.md` | Update | Add the UI testing layers (Playwright E2E, visual regression). Document Makefile targets (`make test-ui-e2e`). Document test fixture strategy for viewer E2E. | Updated |
 | `docs/guides/DEVELOPMENT_GUIDE.md` | Update | Add `make serve`, `make serve-api`, `make serve-ui`, `make test-ui`, `make test-ui-e2e` to the developer commands section. Document the Vite dev proxy setup. | Updated |
 | `README.md` | Update | Add `podcast serve` command to the CLI reference. Mention the viewer and link to `SERVER_GUIDE.md`. | Updated |
-| `web/gi-kg-viewer/README.md` (new) | Create | Frontend-specific README: how to install, dev, build, test, lint. Component architecture overview. How to add new views/stores. | Created |
+| `web/workbench/README.md` (new) | Create | Frontend-specific README: how to install, dev, build, test, lint. Component architecture overview. How to add new views/stores. | Created |
 | `docs/guides/TESTING_GUIDE.md` | Update | Add Playwright E2E section: setup, running, writing new tests, CI integration, fixture management. | Updated |
 
 ## Platform Evolution Path
@@ -919,8 +919,8 @@ grows into the full platform vision described in the
 | Server module | `src/podcast_scraper/server/` with app factory, feature flags, viewer routes | Python package |
 | CLI command | `podcast serve --output-dir` | CLI layer |
 | Viewer routes | `/api/health`, `/api/artifacts`, `/api/search`, `/api/explore`, `/api/index/stats` | Server routes |
-| Frontend SPA | Vue 3 + Cytoscape.js viewer with search, dashboard, explore views | `web/gi-kg-viewer/` |
-| E2E tests | Playwright test suite for viewer regression testing | `web/gi-kg-viewer/e2e/` |
+| Frontend SPA | Vue 3 + Cytoscape.js viewer with search, dashboard, explore views | `web/workbench/` |
+| E2E tests | Playwright test suite for viewer regression testing | `web/workbench/e2e/` |
 
 ### What Platform Work Adds (v2.7 — #50, #347)
 
@@ -938,7 +938,7 @@ grows into the full platform vision described in the
 | --------- | --------------- | ----------- |
 | Docker Compose | `postgres` + `api` + `worker` + `caddy` services | Megasketch Part B |
 | Worker process | Same image, different `command` — consumes job queue | Uses `service.run()` internally |
-| Static build | Vite output baked into Docker image | `npm run build` in `docker/viewer/Dockerfile` |
+| Static build | Vite output baked into Docker image | `npm run build` in `docker/workbench/Dockerfile` |
 
 ### Growth Path (No Architectural Rewrites)
 
@@ -947,14 +947,14 @@ v2.6 (this RFC)
 ├── src/podcast_scraper/server/
 │   ├── app.py (enable_viewer=True)
 │   └── routes/ (health, artifacts, search, explore, index_stats)
-├── web/gi-kg-viewer/ (Vue 3 SPA)
+├── web/workbench/ (Vue 3 SPA)
 └── podcast serve --output-dir
 
 v2.7 (#50, #347)
 ├── src/podcast_scraper/server/
 │   ├── app.py (enable_viewer=True, enable_platform=True)
 │   └── routes/ (+ feeds, episodes, jobs, status)
-├── web/gi-kg-viewer/ (+ FeedsView, EpisodesView, JobsView, SettingsView)
+├── web/workbench/ (+ FeedsView, EpisodesView, JobsView, SettingsView)
 └── podcast serve --output-dir --platform
 
 v2.7+ (#46, megasketch)
@@ -1016,14 +1016,14 @@ RFC-051 (DB Projection)        → structured query backend (platform reads)
    activate when backend + index are available
 6. **Developer experience**: Vite HMR, TypeScript, ESLint, Vitest — standard modern
    tooling instead of CDN script tags and browser refresh
-7. **Regression safety**: Playwright E2E (**`web/gi-kg-viewer/e2e/`**) and the **E2E surface map**
+7. **Regression safety**: Playwright E2E (**`web/workbench/e2e/`**) and the **E2E surface map**
    catch visual and functional regressions; keep map and specs aligned when changing UI.
 8. **One server, one CLI**: `podcast serve` is the single entry point for all server
    functionality — viewer today, platform tomorrow. No fragmented scripts.
 
 ## Migration Path
 
-1. **Phase 1 — Build v2** : New `web/gi-kg-viewer/` directory and
+1. **Phase 1 — Build v2** : New `web/workbench/` directory and
    `src/podcast_scraper/server/` module.
 2. **Phase 2 — Validate parity** : v1 capabilities work in v2. Playwright
    E2E tests green.
@@ -1044,7 +1044,7 @@ RFC-051 (DB Projection)        → structured query backend (platform reads)
    platform CRUD/jobs will live under **`routes/platform/`** when **`enable_platform`**
    mounts them; no duplicate stub **`feeds.py`** beside corpus routes.
 3. **Frontend directory rename**: When platform views are added (v2.7), should
-   `web/gi-kg-viewer/` be renamed to `web/app/` to reflect the broader scope?
+   `web/workbench/` be renamed to `web/app/` to reflect the broader scope?
    Recommendation: defer — rename is trivial and can happen when platform views
    actually land. Viewer naming is accurate for v2.6.
 
@@ -1069,14 +1069,14 @@ RFC-051 (DB Projection)        → structured query backend (platform reads)
   
   [RFC-055](RFC-055-knowledge-graph-layer-core.md), [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md),
   [RFC-051](RFC-051-database-projection-gil-kg.md)
-- **UXS**: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) (hub); [UXS index](../uxs/index.md) (feature specs)
-- **E2E**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`)
+- **UXS**: [UXS-001](../uxs/UXS-001-workbench.md) (hub); [UXS index](../uxs/index.md) (feature specs)
+- **E2E**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) (`web/workbench/e2e/E2E_SURFACE_MAP.md`)
 - **ADRs**: [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md),
   [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)
 - **Platform vision**: [PLATFORM_ARCHITECTURE_BLUEPRINT.md](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
 - **Platform issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50),
   [#347](https://github.com/chipi/podcast_scraper/issues/347),
   [#46](https://github.com/chipi/podcast_scraper/issues/46)
-- **Source**: `src/podcast_scraper/server/` (FastAPI), `web/gi-kg-viewer/` (Vue SPA),
+- **Source**: `src/podcast_scraper/server/` (FastAPI), `web/workbench/` (Vue SPA),
   `podcast_scraper/gi/explore.py`, `podcast_scraper/service.py`
 - **Removed**: `web/gi-kg-viz/` (v1), `scripts/gi_kg_viz_server.py` (replaced by **`podcast serve`**)

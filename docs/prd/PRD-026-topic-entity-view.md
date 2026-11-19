@@ -1,6 +1,6 @@
 # PRD-026: Topic Entity View
 
-- **Status**: Implemented (RFC-088 chunk 6c, 2026-06-27) — Topic Entity View now consumes `topic_cooccurrence_corpus` (co-occurring topics as clickable chips) + `temporal_velocity` (velocity badge with rising/falling colour signal) from the enrichment layer. Click a chip to pivot subject focus. See [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) and the chunk-8 follow-up that cached envelope fetches via `useEnrichmentEnvelopeCache`. **Scope: this is the OPERATOR viewer's Topic Entity View** (`web/gi-kg-viewer/`); the consumer-app equivalent (topic entity cards + EntitySignals) is a separate surface.
+- **Status**: Implemented (RFC-088 chunk 6c, 2026-06-27) — Topic Entity View now consumes `topic_cooccurrence_corpus` (co-occurring topics as clickable chips) + `temporal_velocity` (velocity badge with rising/falling colour signal) from the enrichment layer. Click a chip to pivot subject focus. See [Enrichment Layer Guide](../guides/ENRICHMENT_LAYER_GUIDE.md) and the chunk-8 follow-up that cached envelope fetches via `useEnrichmentEnvelopeCache`. **Scope: this is the OPERATOR viewer's Topic Entity View** (`web/workbench/`); the consumer-app equivalent (topic entity cards + EntitySignals) is a separate surface.
 - **v2 enablement (RFC-097, 2026-06-20)**: Topic-centric querying foundation (stable `topic:` IDs via CIL) + cross-episode topic aggregation (bridge connects episodes) shipped via RFC-097 v2. UI/UX surface (PRD-026 scope) + contradiction detection across persons (analysis layer, v3) remain open. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Marko
 - **Target Release**: TBD
@@ -23,7 +23,7 @@
 - **Related UX specs**:
   - `docs/uxs/UXS-007-topic-entity-view.md` -- visual contract for Topic Entity View
     panel layout, sections, degradation states
-  - `docs/uxs/UXS-001-gi-kg-viewer.md` -- shared design system (tokens, typography,
+  - `docs/uxs/UXS-001-workbench.md` -- shared design system (tokens, typography,
     states)
 - **Related Architecture**:
   - `docs/architecture/gi/ontology.md`
@@ -33,7 +33,7 @@
 
 ## Summary
 
-A **Topic Entity View** is a first-class navigable page in the GI/KG viewer where
+A **Topic Entity View** is a first-class navigable page in the Workbench where
 `topic:{slug}` is the subject -- not an episode, not a graph node detail panel. The user
 navigates *to a topic* and sees the entire corpus through that lens: which episodes discuss
 it, how frequently over time, what the most insightful things said about it are, and who
@@ -51,7 +51,7 @@ artifacts produced by the cross-layer identity design.
 
 ## Background
 
-The GI/KG viewer currently shows per-episode graph views, a corpus library, a digest,
+The Workbench currently shows per-episode graph views, a corpus library, a digest,
 and a search panel. Topics appear as nodes in the graph and as filter values in search.
 But there is no way to navigate *to* a topic and see the full corpus picture for that
 concept.
@@ -318,6 +318,6 @@ Content Intelligence section.
 
 - `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/rfc/RFC-062-gi-kg-viewer-v2.md`
-- `docs/uxs/UXS-001-gi-kg-viewer.md`
+- `docs/uxs/UXS-001-workbench.md`
 - `docs/architecture/kg/ontology.md`
 - `docs/architecture/gi/ontology.md`

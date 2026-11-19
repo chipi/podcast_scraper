@@ -9,12 +9,28 @@ own a slice of the how, and this document is where the arc's **shape**, its **sl
   [MULTILINGUAL_ARC_V2](MULTILINGUAL_ARC_V2.md), with its slices and the reason it was deferred.
   Nothing was dropped.
 - **Opened**: 2026-09-28
-- **Status**: v1 translation stage shipped; this page keeps the design record, and the file layout is the shipped one noted in §1
-- **Branch**: `feat/multilingual-ingest`
+- **Status**: v1 shipped and merged to main (2026-10-06, PR #2260). This page is the design record; the file layout is the shipped one noted in §1
+- **Branch**: merged (was `feat/multilingual-ingest`)
 - **Documents**: [PRD-047](../prd/PRD-047-multilingual-ingest.md) · [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md)
 - **Review state**: six adversarial reviews have run over these documents. §5.4 records every claim
   they found false — including errors introduced by an earlier *correction* pass — because the way
   those claims were wrong repeats and is worth recognising.
+
+> **What this repository ships of the arc.** The arc spans stages that no longer live in this
+> repository (ADR-170, ADR-176). Shipped here: language resolution and `config/languages.yaml`,
+> the corpus language audit, the translation stage and its artifacts (`translation/`,
+> `workflow/translation_stage.py`, the `gemma_translate` provider under
+> `providers/vllm/translate_provider.py`), the `<base>.<lang>.*` layout, language-aware retrieval
+> (`search/query_language.py`, the `segments_nonen` tier), language withdrawal
+> (`language_withdrawal.py`) and the unsupported-language guard (`languages_guard.py`).
+> **Not in this repository:** speaker detection, diarization and naming
+> (`apply_diarization_to_result`, `diarize_and_align`, `resolve_names_on_result`,
+> `workflow/naming_stage.py`), ad detection and the ad-free transcript builders, and grounded
+> insights (GI). An installed extension provides them through `Extension.pipeline_hooks`
+> (`builtin_stage_hooks.py`), so sections below that describe those stages, and the listener-app
+> surfaces named in §5.3, describe a downstream build. Counts, commit ids, issue numbers and
+> file:line citations are as of the dates given; they are a record, not a live index. Branch and
+> status lines above are updated; the dated running notes in §9 are not.
 
 ---
 
@@ -214,8 +230,8 @@ measured by. Neither depends on anything in this arc.
 
 ### Phase 0 — English as a declared language
 
-**STATUS: every slice below is DONE**, shipped on `feat/multilingual-ingest`; the linked issues stay
-open until that branch merges. The `Size` column is the original estimate, kept because it is what
+**STATUS: every slice below is DONE**, shipped (merged 2026-10-06); the linked issues were open
+until that branch merged. The `Size` column is the original estimate, kept because it is what
 the sequencing was argued from — it is not a status. Phases −1, 1, 2 and 3 are likewise complete.
 Two things are still open in the arc, both MEASUREMENTS rather than code, and both needing a GPU host
 with headroom — so one quiet window covers both:

@@ -125,6 +125,30 @@ class ContentType:
     #: What kind of source its items come from, from :data:`SOURCE_KINDS` (T-1 keeps it apart
     #: from the item noun, ``name``). KG 3.0 records it on the ``Source`` node.
     source_kind: str = ""
+    #: The type's own step for an item its transport listed as a URL only (ADR-177 decision 2):
+    #: ``(item, source) -> item with its text``, or ``None`` to skip it (``None``: such items are
+    #: skipped). News fetches and extracts the page here.
+    fetch_body: Optional[Callable[["SourceItem", Any], Optional["SourceItem"]]] = None
+    #: The item's metadata document as the type's contract has it, from the document the shared
+    #: metadata stage built and the item's context (``None``: that document with ``content_type``
+    #: first).
+    shape_metadata: Optional[Callable[[Dict[str, Any], "ItemContext"], Dict[str, Any]]] = None
+    #: The type's own nodes and edges added to an item's KG 3.0 artifact before it is validated
+    #: (``None``: the artifact as extraction built it). News adds its publisher and bylines.
+    kg_extend: Optional[Callable[[Dict[str, Any], "ItemContext"], Dict[str, Any]]] = None
+    #: A stored item as its transport would list it again, from its metadata document and its
+    #: stored body: what ``rederive_only`` re-runs the stages on, so no source is fetched
+    #: (``None``: the item's title and URL only).
+    restore_item: Optional[Callable[[Dict[str, Any], str], "SourceItem"]] = None
+    #: ``(item, stage) -> reason`` when the type's own rule skips a stage its profile runs, for
+    #: this item, else ``None`` (``None`` hook: the profile decides). The reason is recorded in
+    #: the item's processing manifest. News skips the summary of a teaser or video, and every
+    #: enrichment stage of an article not in English while its source's translation is off.
+    stage_skip_reason: Optional[Callable[["ItemContext", str], Optional[str]]] = None
+    #: ``(written metadata document, listed item) -> the document updated``, or ``None`` when
+    #: nothing changes: what an item already written takes from a later listing of it by another
+    #: source (``None`` hook: nothing). News adds the listing's transport id.
+    also_listed: Optional[Callable[[Dict[str, Any], "SourceItem"], Optional[Dict[str, Any]]]] = None
 
     def __post_init__(self) -> None:
         if self.source_kind not in SOURCE_KINDS:
@@ -144,6 +168,10 @@ class SourceItem:
     metadata: Mapping[str, Any] = field(default_factory=dict)
     text: Optional[str] = None
     url: Optional[str] = None
+    #: What was fetched to get ``text`` (a page's HTML, an API's JSON record), kept beside the body
+    #: as its raw cache (RFC-134 §5), with ``raw_suffix`` as its file suffix.
+    raw: Optional[str] = None
+    raw_suffix: str = ".html"
 
 
 #: ``(source, cursor) -> (items, next_cursor)``: the new items after ``cursor``.
@@ -198,6 +226,9 @@ class ItemContext:
     transport: Optional[str] = None
     #: The item's times by ontology v3 name (``published_at``, ...), ISO 8601; absent when unknown.
     times: Mapping[str, str] = field(default_factory=dict)
+    #: The item's own fields as its transport and its type's fetch gave them, and the body's hash
+    #: (``body_sha256``); the type's ``shape_metadata`` reads them.
+    fields: Mapping[str, Any] = field(default_factory=dict)
 
 
 PODCAST_ITEM = ItemContext(content_type=PODCAST)
@@ -233,9 +264,31 @@ def source_id(ctype: ContentType, source_url: str) -> str:
     return f"source:{url_identity(source_url)}"
 
 
+#: The stages that derive from an item's text: an item its source marks not minable runs none.
+ENRICHMENT_STAGES: FrozenSet[str] = frozenset({TRANSLATION, SUMMARY, GI, KG})
+
+
+def runs_for_item(item: "ItemContext", stage: str) -> bool:
+    """True when ``item`` runs ``stage``: its type's profile runs it, and, for an enrichment stage,
+    its source lets it be mined (``mineable`` is not ``False``; ontology v3 "Rights, per item"),
+    and its type's own rule does not skip it (:func:`stage_skip_reason`)."""
+    ctype = item.content_type
+    if not ctype.stage_profile.runs(stage):
+        return False
+    if stage in ENRICHMENT_STAGES and item.fields.get("mineable") is False:
+        return False
+    return stage_skip_reason(item, stage) is None
+
+
+def stage_skip_reason(item: "ItemContext", stage: str) -> Optional[str]:
+    """Why the item's type skips ``stage`` for this item (``stage_skip_reason``), or ``None``."""
+    hook = item.content_type.stage_skip_reason
+    return hook(item, stage) if hook is not None else None
+
+
 def stage_runs(stage: str) -> bool:
-    """True when the current item's stage profile runs ``stage`` (always, for a podcast)."""
-    return current_item().content_type.stage_profile.runs(stage)
+    """True when the current item runs ``stage`` (always, for a podcast)."""
+    return runs_for_item(current_item(), stage)
 
 
 @contextmanager
@@ -269,12 +322,23 @@ def _from_extensions() -> Tuple[List[ContentType], List[Transport]]:
     return types, transports
 
 
+def _public_builtins() -> Tuple[List[ContentType], List[Transport]]:
+    """Public's built-in types after podcast: news (ADR-177 decision 5). Imported here, not at
+    module load, because the news package imports this module."""
+    from . import news
+
+    return list(news.TYPES), list(news.TRANSPORTS)
+
+
 def registry() -> Tuple[Dict[str, ContentType], Dict[str, Transport]]:
     """Every registered type and transport, built-in first; refuses duplicates and a type whose
     default transport nothing registered."""
     ext_types, ext_transports = _from_extensions()
-    types: Dict[str, ContentType] = _merge(BUILTIN_TYPES, ext_types, "content type")
-    transports: Dict[str, Transport] = _merge(BUILTIN_TRANSPORTS, ext_transports, "transport")
+    pub_types, pub_transports = _public_builtins()
+    types: Dict[str, ContentType] = _merge([*BUILTIN_TYPES, *pub_types], ext_types, "content type")
+    transports: Dict[str, Transport] = _merge(
+        [*BUILTIN_TRANSPORTS, *pub_transports], ext_transports, "transport"
+    )
     for t in types.values():
         if t.default_transport not in transports:
             raise RegistryError(

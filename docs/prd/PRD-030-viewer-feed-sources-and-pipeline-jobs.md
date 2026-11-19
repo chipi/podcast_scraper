@@ -4,13 +4,13 @@
 - **Tracking**: [GitHub #626](https://github.com/chipi/podcast_scraper/issues/626)
 - **Related RFC**: [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) (Draft)
 - **Related UX specs**:
-  - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — status bar operational chrome; no placeholder UI
-  - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) — status bar tokens, dialogs/tabs, `data-testid`
+  - [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) — status bar operational chrome; no placeholder UI
+  - [UXS-001](../uxs/UXS-001-workbench.md) — status bar tokens, dialogs/tabs, `data-testid`
   - [UXS-006](../uxs/UXS-006-dashboard.md) — Dashboard → Pipeline (jobs, hygiene, end-of-day clarity)
 
 ## Summary
 
-Operators using **`podcast serve`** and the GI/KG viewer need a **single operational place** in the shell (next to corpus path) to:
+Operators using **`podcast serve`** and the Workbench need a **single operational place** in the shell (next to corpus path) to:
 
 1. **Curate feeds** in the canonical structured corpus file **`feeds.spec.yaml`** (root `{ feeds: [...] }`), with CLI **`--feeds-spec`** parity and the same path the viewer Feeds tab reads and writes (RFC-077 / #626). Legacy **`--rss-file`** line lists remain supported for migration but are not the canonical multi-feed source.
 2. **View and edit non-secret pipeline options** in the **same operator YAML file the CLI would use** (`--config-file` / `viewer_operator.yaml`), with a **round trip to the UI**: optional packaged **`profile:`** preset ([GitHub #593](https://github.com/chipi/podcast_scraper/issues/593)) plus **thin overrides** — structured where possible, raw YAML for overrides — **without putting API keys or tokens in that file** (secrets **only via environment**). **Feed URLs** are edited in the canonical **feeds list** (G1), not duplicated in operator YAML (see RFC-077).
@@ -33,7 +33,7 @@ Feed URLs and YAML config today are edited out-of-band. That invites **path drif
 - **G2 (Config)**: Operator can view/edit/save **non-secret** pipeline options (optional **`profile:`** + overrides) in the resolved operator config file when `operator_config_api` is enabled; changes persist to the **same file** the CLI would load per precedence rules. **`GET /api/operator-config`** exposes packaged preset names for the profile picker and may **create** a minimal **`profile: cloud_balanced`** file when it is missing or whitespace-only and that preset is packaged; **`PUT`** rejects top-level feed-list keys (use Feeds API / **`feeds.spec.yaml`**) and secret keys.
 - **G3 (Hygiene / jobs)**: When job APIs exist, the product makes it possible to see **terminal vs stuck vs stale** work, **cancel** or **mark** jobs where safe, and **reconcile** so operators are not left guessing “what is still running” at end of day.
 - **G4**: **`GET /api/health`** stays small; heavy job state lives on job endpoints / Dashboard — not health polling.
-- **G5**: **IA**: Feeds + **config** (status bar label **Operator YAML** / Corpus sources tab) entry points live in **operational** chrome (status bar and/or adjacent dialogs), not the left query column ([VIEWER_IA](../uxs/VIEWER_IA.md)).
+- **G5**: **IA**: Feeds + **config** (status bar label **Operator YAML** / Corpus sources tab) entry points live in **operational** chrome (status bar and/or adjacent dialogs), not the left query column ([WORKBENCH_IA](../uxs/WORKBENCH_IA.md)).
 
 ## Non-Goals
 
@@ -91,7 +91,7 @@ Feed URLs and YAML config today are edited out-of-band. That invites **path drif
 
 ### FR5: Documentation
 
-- **FR5.1**: [VIEWER_IA](../uxs/VIEWER_IA.md), [UXS-001](../uxs/UXS-001-gi-kg-viewer.md), [SERVER_GUIDE](../guides/SERVER_GUIDE.md) updated with feeds + config + (Phase 2) job hygiene.
+- **FR5.1**: [WORKBENCH_IA](../uxs/WORKBENCH_IA.md), [UXS-001](../uxs/UXS-001-workbench.md), [SERVER_GUIDE](../guides/SERVER_GUIDE.md) updated with feeds + config + (Phase 2) job hygiene.
 - **FR5.2**: [UXS-006](../uxs/UXS-006-dashboard.md) for Pipeline job table, stale/cancel affordances, filters.
 
 ## Success Metrics

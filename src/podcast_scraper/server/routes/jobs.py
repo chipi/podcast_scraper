@@ -48,6 +48,7 @@ from podcast_scraper.server.queue_sweeper import (
     resume_drain,
 )
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
+from podcast_scraper.server.routes.operator_config import _ensure_default_viewer_operator_yaml
 from podcast_scraper.server.schemas import (
     PipelineJobAccepted,
     PipelineJobLogTailResponse,
@@ -335,6 +336,9 @@ async def submit_pipeline_job(
     as a single-feed corpus-layout run plus the incremental knobs (P1.4) — cautious per-feed add.
     """
     corpus, operator_yaml = _corpus_and_operator(request, path)
+    # The pipeline reads this file: seed the same starter the Job Configuration tab writes, so a
+    # job on a fresh corpus does not fail at once with "Config file not found".
+    _ensure_default_viewer_operator_yaml(operator_yaml)
     feed_url: str | None = None
     if feed is not None and feed.strip():
         feed_url = _resolve_feed_url(corpus, feed)

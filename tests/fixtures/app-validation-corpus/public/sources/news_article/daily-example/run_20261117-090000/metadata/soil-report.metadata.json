@@ -1,0 +1,30 @@
+{
+  "body_sha256": "9cb5275937de601799a4a754fe14c6a7fded942143a1de7f861dfc18ed1a85d2",
+  "content_type": "news_article",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "item_id": "item:news_article:6f5ab0dc6a7c03409dbf",
+  "language": "en",
+  "licence": null,
+  "mineable": true,
+  "news_article": {
+    "byline": [
+      "Ana Example",
+      "Cy Example"
+    ],
+    "byline_raw": "Ana Example and Cy Example",
+    "editorial_type": "reporting",
+    "item_class": "news_summary",
+    "text_status": "teaser",
+    "transport_ids": {
+      "rss": "soil-report"
+    }
+  },
+  "paywalled": true,
+  "published_at": "2026-11-16T12:00:00Z",
+  "publisher_id": "org:daily-example",
+  "serveable": "metadata",
+  "source_id": "source:125361805bbcfcb84b90",
+  "title": "Soil report finds erosion slowing",
+  "url": "https://www.dailyexample.test/2026/11/soil-report"
+}

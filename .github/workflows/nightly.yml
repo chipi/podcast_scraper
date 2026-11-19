@@ -25,7 +25,7 @@
 # - nightly-docs: Documentation build
 # - nightly-build: Package build
 # - nightly-test-unit: Unit tests
-# - nightly-viewer-unit: Vitest for web/gi-kg-viewer (same segment as security-quality + test-unit)
+# - nightly-viewer-unit: Vitest for web/workbench (same segment as security-quality + test-unit)
 # - nightly-test-integration: Integration tests
 # - nightly-test-e2e: E2E tests (multi_episode mode - same as regular CI)
 # - nightly-viewer-e2e: Playwright + Firefox (Tier-1 + Tier-2, after nightly-test-e2e)
@@ -79,7 +79,7 @@ jobs:
         df -h
 
     - name: Cache ML models (production + test models for nightly)
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       id: cache-models
       with:
         path: |
@@ -137,15 +137,27 @@ jobs:
     # The paths share `~/.cache` as their common ancestor, so the archive contains `whisper/` and
     # `huggingface/` at its root and the consumers' `path: /home/runner/.cache` restores them
     # exactly where they were.
+    - name: Pack ML models (a tar keeps the Hugging Face cache's symlinks)
+      run: |
+        # upload-artifact follows symlinks: zipping ~/.cache stored each Hugging Face model file
+        # three times (hub/blobs, where the bytes live, and the models--*/blobs and snapshots/
+        # links resolved into copies), 9.89 GB uncompressed for ~3.3 GB on disk (measured
+        # 2026-11-19 from the zip's index). A tar keeps the links, so each file goes up once.
+        # hub/blobs must stay: leaving it out broke every model (0b2eb6d58's verify step).
+        # Weights do not compress, so the tar is not compressed.
+        cd /home/runner/.cache
+        dirs=""
+        for d in whisper huggingface; do [ -d "$d" ] && dirs="$dirs $d"; done
+        # shellcheck disable=SC2086
+        tar -cf /home/runner/ml-models.tar $dirs
+        ls -l /home/runner/ml-models.tar
     - name: Upload ML models artifact (for dependent test jobs in same run)
       uses: actions/upload-artifact@v7
       with:
         name: ml-models
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
+        path: /home/runner/ml-models.tar
         retention-days: 1
-        include-hidden-files: true
+        compression-level: 0
 
   # ===========================================================================
   # Code quality checks
@@ -379,7 +391,7 @@ jobs:
         path: reports/
         retention-days: 30
 
-  # GI/KG viewer v2 — Vitest (same parallel segment as nightly-security-quality + nightly-test-unit)
+  # Workbench — Vitest (same parallel segment as nightly-security-quality + nightly-test-unit)
   nightly-viewer-unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -390,14 +402,14 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+        cache-dependency-path: web/workbench/package-lock.json
     - name: Install dependencies
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm ci
     - name: Run Vitest unit tests
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm run test:coverage
 
   # ===========================================================================
@@ -448,13 +460,17 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg
@@ -535,13 +551,17 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg
@@ -581,7 +601,7 @@ jobs:
         path: reports/
         retention-days: 30
 
-  # GI/KG viewer v2 — Playwright after pytest E2E (matches python-app viewer-e2e placement)
+  # Workbench — Playwright after pytest E2E (matches python-app viewer-e2e placement)
   nightly-viewer-e2e:
     runs-on: ubuntu-24.04
     # Was 20 when this job was `npm ci` + Vite. It now mirrors python-app's `viewer-e2e`:
@@ -649,15 +669,15 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+        cache-dependency-path: web/workbench/package-lock.json
     - name: Install dependencies
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm ci
     - name: Install Playwright firefox
       uses: ./.github/actions/install-playwright
       with:
-        working-directory: web/gi-kg-viewer
+        working-directory: web/workbench
         browser: firefox
     - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
       uses: actions/cache@v6
@@ -678,14 +698,14 @@ jobs:
         .venv/bin/python scripts/cache/preload_ml_models.py
     - name: Run Playwright E2E (real API + Vite; globalSetup seeds the corpus and builds the index)
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm run test:e2e
     - name: Upload Playwright traces of failed tests
       if: failure()
       uses: actions/upload-artifact@v7
       with:
         name: viewer-e2e-test-results
-        path: web/gi-kg-viewer/test-results/
+        path: web/workbench/test-results/
         retention-days: 7
         if-no-files-found: ignore
 
@@ -744,7 +764,7 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: web/gi-kg-viewer/package-lock.json
+          cache-dependency-path: web/workbench/package-lock.json
 
       - name: Install Python venv + project
         run: |
@@ -767,13 +787,13 @@ jobs:
         uses: ./.github/actions/install-ffmpeg
 
       - name: Install viewer deps
-        working-directory: web/gi-kg-viewer
+        working-directory: web/workbench
         run: npm ci
 
       - name: Install Playwright browsers (chromium)
         uses: ./.github/actions/install-playwright
         with:
-          working-directory: web/gi-kg-viewer
+          working-directory: web/workbench
           browser: chromium
 
       - name: Regenerate synthetic validation corpus
@@ -848,7 +868,7 @@ jobs:
 
       - name: Run Tier-3 validation walk
         id: tier3
-        working-directory: web/gi-kg-viewer
+        working-directory: web/workbench
         run: |
           # CORPUS_PATH must include the FIXTURES_VERSION subdir — the raw
           # feeds/<feed>/metadata artifacts live under it, and pointing the
@@ -868,12 +888,12 @@ jobs:
 
       - name: Upload artifacts on failure
         if: steps.tier3.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tier3-validation-failures
           path: |
-            web/gi-kg-viewer/validation-results/
-            web/gi-kg-viewer/tier3-output.log
+            web/workbench/validation-results/
+            web/workbench/tier3-output.log
             tier3-serve.log
           retention-days: 30
 
@@ -926,7 +946,7 @@ jobs:
                 '## Next steps',
                 '',
                 'Per RFC-086 institutional rule, the fix PR must add a',
-                'Tier-2 matrix row under `web/gi-kg-viewer/e2e/handoff-production/`',
+                'Tier-2 matrix row under `web/workbench/e2e/handoff-production/`',
                 'reproducing the regression before merge.',
                 '',
                 '## Logs',
@@ -989,13 +1009,17 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg

@@ -566,29 +566,29 @@ aggregates a dense corpus). Measured via existing
 ## Files to touch
 
 ```
-web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts
+web/workbench/src/utils/cyGraphStylesheet.ts
   — V1: edge.graph-edge-about-agg selector + mapData
   — V2: insight-ungrounded + confidence-tier selectors
   — V5: node width/height → mapData(degreeHeat)
 
-web/gi-kg-viewer/src/utils/parsing.ts (or a new util)
+web/workbench/src/utils/parsing.ts (or a new util)
   — V1: aggregateEpisodeTopicEdges() / aggregateEpisodePersonEdges()
   — V2: assignConfidenceTiers() + grounding class
   — V3: wire publishDate into Episode node.data
 
-web/gi-kg-viewer/src/components/graph/GraphCanvas.vue
+web/workbench/src/components/graph/GraphCanvas.vue
   — V3: timelineLayout()
   — V4: radialLayout() + enter/exit + state snapshot
 
-web/gi-kg-viewer/src/components/graph/GraphBottomBar.vue
+web/workbench/src/components/graph/GraphBottomBar.vue
   — V3: Timeline entry in layout cycle
   — V4: Radial toggle + aria-live region
   — All: lens feature-flag menu
 
-web/gi-kg-viewer/src/stores/graphLenses.ts (new)
+web/workbench/src/stores/graphLenses.ts (new)
   — Per-lens flags, persisted
 
-web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
+web/workbench/e2e/E2E_SURFACE_MAP.md
   — graph-radial-mode-active, graph-timeline-layout-active,
     graph-lens-menu-*
 ```

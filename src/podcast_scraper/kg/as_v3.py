@@ -8,7 +8,8 @@ artifact comes back as it is, and a KG 2.x one in v3's structure:
 - the root ``episode_id`` is also the ``item_id``, with ``content_type: podcast_episode``;
 - ``Podcast`` reads as ``Source`` (``source_kind: podcast``) and ``Episode`` as ``ContentItem``,
   ``podcast_id`` as ``feed_id`` and ``publish_date`` as ``published_at``; a KG without a
-  ``Podcast`` node gets its source id from the episode's ``podcast_id`` (``podcast:{id}``);
+  ``Podcast`` node gets its source id from the episode's ``podcast_id``, as KG's writer forms it
+  (``kg.pipeline._podcast_node_id``: ``podcast:{slug}``);
 - ``HAS_EPISODE`` reads as ``HAS_ITEM``, ``HOSTS`` and ``GUESTS_ON`` as ``CONTRIBUTES_TO`` with
   that role; every edge's ends are ``from`` and ``to`` (older KGs wrote ``source`` and
   ``target``);
@@ -32,6 +33,7 @@ import re
 from typing import Any, Dict, Mapping, Optional
 
 from podcast_scraper.content_types import PODCAST_EPISODE
+from podcast_scraper.kg.pipeline import _podcast_node_id
 
 _ROLE_BY_V2_EDGE = {"HOSTS": "host", "GUESTS_ON": "guest"}
 _LANG_SUFFIX = re.compile(r"\.([a-z]{2,3})\.txt$")
@@ -74,7 +76,8 @@ def kg_as_v3(kg: Mapping[str, Any], *, language: Optional[str] = None) -> Dict[s
         out["item_id"] = item_id
     out["content_type"] = PODCAST_EPISODE
     feed_id = str(((episode or {}).get("properties") or {}).get("podcast_id") or "")
-    source_id = str(podcast["id"]) if podcast else (f"podcast:{feed_id}" if feed_id else "")
+    # Without a Podcast node, the id KG's own writer would have given that node.
+    source_id = str(podcast["id"]) if podcast else (_podcast_node_id(feed_id) or "")
 
     for node in nodes:
         if not isinstance(node, dict):

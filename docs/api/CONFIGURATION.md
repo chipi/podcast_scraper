@@ -8,6 +8,8 @@ All runtime options flow through the `Config` model.
 
 **Settings an installed extension declares** ([ADR-182](../adr/ADR-182-extension-owned-configuration.md)) use the same flat keys in YAML, profiles and `Config(...)`, but they are the extension's: it validates and documents them, and code reads them as `cfg.extension("<name>").<key>`. This page documents public's fields only. A key that neither public nor an installed extension declares is refused at load time.
 
+**Keys for stages public does not provide.** Public registers no built-in pipeline stages (`src/podcast_scraper/builtin_stage_hooks.py`): speakers and diarization, grounded insights (GI), the identity ledger, the advanced KG passes, ad cleaning and audio sync are provided by an installed extension. Some of their keys are still fields of public's `Config` (for example `generate_gi`, `gi_require_grounding`, `diarize`, `diarization_*`, `save_adfree_transcript`), so they validate and appear in profiles, but they take effect only when an extension that provides the stage is installed. Without one, `generate_gi: true` writes no `*.gi.json` and `diarize: true` diarizes nothing. The tables below mark these keys.
+
 **Canonical vs examples:** This **CONFIGURATION.md** document (plus [CLI.md](CLI.md) for command-line flag names) is the **authoritative** reference for fields, defaults, validation, environment-variable mapping, and operational patterns such as download resilience. Files under `config/examples/` are **non-canonical** illustrations for local copy-paste; if anything disagrees with this document, **this document wins**.
 
 **YAML preset (`profile:`):** At load time, an optional root key **`profile: <name>`** merges packaged defaults from `config/profiles/<name>.yaml` before applying other keys in the same file ([GitHub #593](https://github.com/chipi/podcast_scraper/issues/593)); resolution tries **cwd** `config/profiles/` first, then **repo** `config/profiles/` (same order as `Config._resolve_profile`). The viewer **`/api/operator-config`** **`available_profiles`** field lists preset **names** from the **union** of those directories (see [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) and [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md)). Use **`profile:`** plus thin overrides in operator YAML; keep feed URLs in corpus **`feeds.spec.yaml`** (Feeds API / CLI **`--feeds-spec`**), not in operator YAML (**PUT** rejects root feed keys).
@@ -334,8 +336,8 @@ OpenAI providers support configurable model selection for dev/test vs production
 | `openai_api_key` | `--openai-api-key` | `None` (from env var) | OpenAI API key (or set `OPENAI_API_KEY` env var) |
 | `openai_transcription_model` | `--openai-transcription-model` | `whisper-1` | OpenAI model for transcription |
 | `openai_speaker_model` | `--openai-speaker-model` | `gpt-4o-mini` | OpenAI model for speaker detection |
-| `openai_summary_model` | `--openai-summary-model` | `gpt-4o-mini` | OpenAI model for summarization |
-| `openai_insight_model` | `--openai-insight-model` | `None` (uses `openai_summary_model`) | OpenAI model for GIL `generate_insights` when `gi_insight_source` is `provider` |
+| `openai_summary_model` | `--openai-summary-model` | `gpt-4o` | OpenAI model for summarization |
+| `openai_insight_model` | `--openai-insight-model` | `None` (uses `openai_summary_model`) | OpenAI model for grounded-insight generation (the GI stage is an installed extension's) |
 | `openai_temperature` | `--openai-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `openai_max_tokens` | `--openai-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -344,6 +346,8 @@ OpenAI providers support configurable model selection for dev/test vs production
 **Summary bullets (all API `summary_provider` values):** Default user templates expect JSON bullet output. Global `summary_prompt_params` supplies `bullet_min` (soft minimum), `max_words_per_bullet`, and optional `bullet_max` (hard cap). Config points at logical names under `prompts/<provider>/summarization/`; if that file is missing, the loader uses `prompts/shared/summarization/` with the **same filename** (see [RFC-017 — Shared summarization templates vs per-provider overrides](../rfc/RFC-017-prompt-management.md) and `src/podcast_scraper/prompts/shared/README.md` in the repository). Parsed JSON with a **title** (or episode title fallback) and **bullets** is stored as **`schema_status: valid`** even when `key_quotes` / `named_entities` are omitted (bullet-only contract).
 
 **Note on Transcription Limits**: The OpenAI Whisper API has a **25 MB file size limit**. The system proactively checks file sizes via HTTP HEAD requests before downloading or attempting transcription with the OpenAI provider. Episodes exceeding this limit will be skipped to avoid API errors and unnecessary bandwidth usage.
+
+`Config()` with no overrides uses the production model in every row of the model tables. The cheaper `TEST_DEFAULT_*` constants in `config_constants.py` are not applied automatically: select them by setting the field.
 
 **Recommended Models by Environment**:
 
@@ -391,8 +395,8 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `anthropic_speaker_model` | `--anthropic-speaker-model` | `claude-haiku-4-5` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for speaker detection |
-| `anthropic_summary_model` | `--anthropic-summary-model` | `claude-haiku-4-5` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for summarization |
+| `anthropic_speaker_model` | `--anthropic-speaker-model` | `claude-3-5-sonnet-20241022` (`claude-haiku-4-5` is the `TEST_DEFAULT_*` constant) | Anthropic model for speaker detection |
+| `anthropic_summary_model` | `--anthropic-summary-model` | `claude-3-5-sonnet-20241022` (`claude-haiku-4-5` is the `TEST_DEFAULT_*` constant) | Anthropic model for summarization |
 | `anthropic_temperature` | `--anthropic-temperature` | `0.3` | Temperature for generation (0.0-1.0) |
 | `anthropic_max_tokens` | `--anthropic-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -415,13 +419,14 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 | Key | CLI | Default | Effect |
 | --- | --- | --- | --- |
-| `save_adfree_transcript` | `--save-adfree-transcript` / `--no-save-adfree-transcript` | `true` | **#974** — produce the **ad-free processing base** next to the raw `.txt`: `*.adfree.txt` (ads excised), `*.adfree.segments.json` (segments carrying exact `char_start`/`char_end`), and `*.adfree.admap.json` (excised ranges, for a future subtitle player). GI, KG, search-chunking, enrich-edges, and the viewer reader **prefer** this base so quote `char_start` lives in one saved coordinate space (fixes #545 offset drift). The raw `.txt` is left untouched as the canonical source. Disable only to save disk if not using GI/KG/search. |
+| `save_adfree_transcript` | `--save-adfree-transcript` / `--no-save-adfree-transcript` | `true` | **#974** — produce the **ad-free processing base** next to the raw `.txt`: `*.adfree.txt` (ads excised), `*.adfree.segments.json` (segments carrying exact `char_start`/`char_end`), and `*.adfree.admap.json` (excised ranges, for a future subtitle player). GI, KG, search-chunking, enrich-edges, and the viewer reader **prefer** this base so quote `char_start` lives in one saved coordinate space (fixes #545 offset drift). The raw `.txt` is left untouched as the canonical source. Disable only to save disk if not using GI/KG/search. Ad cleaning is an installed extension's stage: the `*.adfree.*` files are written only when ads were excised, so without that extension none appear. |
 | `save_cleaned_transcript` | `--save-cleaned-transcript` / `--no-save-cleaned-transcript` | `true` | Save the **summarization-cleaned** transcript (`*.cleaned.txt`): timestamps/filler/sponsor reads removed. Separate concern from the ad-free base — it is the summarizer's input, not the GI offset base. |
 
 ### Speaker diarization
 
 Neural speaker diarization runs as an **additive second pass** after local Whisper transcription
 (`whisper` or `tailnet_dgx_whisper`). Requires **`pip install -e ".[ml]"`** and a HuggingFace token.
+The diarization stage is provided by an installed extension: these fields are public `Config` fields and are validated here, but without that extension nothing is diarized.
 
 | Field | CLI flag | Default | Description |
 | ----- | -------- | ------- | ----------- |
@@ -437,9 +442,9 @@ Neural speaker diarization runs as an **additive second pass** after local Whisp
 When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
 narrative: [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
-**GI quote audio timing (issue #543):** For **grounded insights** with non-zero quote **`timestamp_*_ms`**, prefer **`transcription_provider: whisper`** or **`openai`** (segment-capable paths). **`gemini`** and **`mistral`** return transcript text in our integration but **do not** currently populate timed **segments** for GI audio seek. Episode metadata records an expectation flag under **`processing.config_snapshot.ml_providers.transcription.gi_segment_timing_expected`**. Full matrix: [Development Guide — Transcript hash cache](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json).
+**GI quote audio timing (issue #543; GI is an installed extension's stage):** For **grounded insights** with non-zero quote **`timestamp_*_ms`**, prefer **`transcription_provider: whisper`** or **`openai`** (segment-capable paths). **`gemini`** and **`mistral`** return transcript text in our integration but **do not** currently populate timed **segments** for GI audio seek. Episode metadata records an expectation flag under **`processing.config_snapshot.ml_providers.transcription.gi_segment_timing_expected`**. Full matrix: [Development Guide — Transcript hash cache](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json).
 
-**GI quote `speaker_id` (issue #541):** **`speaker_id`** on **Quote** nodes is set only when timed segments align with the GI transcript **and** segment rows include **`speaker`** or **`speaker_id`** (typical Whisper/OpenAI chunks often omit these). Same segment gate as **`timestamp_*_ms`**. When non-null, values are normally **`person:{slug}`**; legacy **`speaker:{slug}`** may appear until migration ([GI ontology — Person / Quote](../architecture/gi/ontology.md)). Canonical rules: [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
+**GI quote `speaker_id` (issue #541; GI is an installed extension's stage):** **`speaker_id`** on **Quote** nodes is set only when timed segments align with the GI transcript **and** segment rows include **`speaker`** or **`speaker_id`** (typical Whisper/OpenAI chunks often omit these). Same segment gate as **`timestamp_*_ms`**. When non-null, values are normally **`person:{slug}`**; legacy **`speaker:{slug}`** may appear until migration ([GI ontology — Person / Quote](../architecture/gi/ontology.md)). Canonical rules: [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
 
 #### Gemini Model Configuration
 
@@ -447,9 +452,9 @@ Gemini providers support configurable model selection for dev/test vs production
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `gemini_transcription_model` | `--gemini-transcription-model` | `gemini-1.5-flash` (test) / `gemini-1.5-pro` (prod) | Gemini model for transcription |
-| `gemini_speaker_model` | `--gemini-speaker-model` | `gemini-1.5-flash` (test) / `gemini-1.5-pro` (prod) | Gemini model for speaker detection |
-| `gemini_summary_model` | `--gemini-summary-model` | `gemini-1.5-flash` (test) / `gemini-1.5-pro` (prod) | Gemini model for summarization |
+| `gemini_transcription_model` | `--gemini-transcription-model` | `gemini-2.5-flash-lite` | Gemini model for transcription |
+| `gemini_speaker_model` | `--gemini-speaker-model` | `gemini-2.5-flash-lite` | Gemini model for speaker detection |
+| `gemini_summary_model` | `--gemini-summary-model` | `gemini-2.5-flash-lite` | Gemini model for summarization |
 | `gemini_temperature` | `--gemini-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `gemini_max_tokens` | `--gemini-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -459,9 +464,9 @@ Gemini providers support configurable model selection for dev/test vs production
 
 | Purpose | Test/Dev | Production | Notes |
 | --------- | ---------- | ------------ | ------- |
-| Transcription | `gemini-1.5-flash` | `gemini-1.5-pro` | Flash is fast/cheap; Pro is higher quality |
-| Speaker Detection | `gemini-1.5-flash` | `gemini-1.5-pro` | Flash is fast/cheap; Pro is more accurate |
-| Summarization | `gemini-1.5-flash` | `gemini-1.5-pro` | Flash is fast/cheap; Pro produces better summaries |
+| Transcription | `gemini-2.5-flash-lite` | `gemini-2.5-flash-lite` | The shipped default for dev and prod alike; set a larger model for quality |
+| Speaker Detection | `gemini-2.5-flash-lite` | `gemini-2.5-flash-lite` | Same |
+| Summarization | `gemini-2.5-flash-lite` | `gemini-2.5-flash-lite` | Same |
 
 **Example** (OpenAI config file):
 
@@ -492,9 +497,9 @@ podcast-scraper --rss https://example.com/feed.xml \
 transcription_provider: gemini
 speaker_detector_provider: gemini
 summary_provider: gemini
-gemini_transcription_model: gemini-1.5-pro      # Production: higher quality
-gemini_speaker_model: gemini-1.5-pro           # Production: more accurate
-gemini_summary_model: gemini-1.5-pro           # Production: better summaries
+gemini_transcription_model: gemini-2.5-flash-lite   # Default; set a larger model for higher quality
+gemini_speaker_model: gemini-2.5-flash-lite
+gemini_summary_model: gemini-2.5-flash-lite
 gemini_temperature: 0.3                        # Lower = more deterministic
 gemini_max_tokens: null                        # Use model default
 ```
@@ -506,8 +511,8 @@ transcription_provider: mistral
 speaker_detector_provider: mistral
 summary_provider: mistral
 mistral_transcription_model: voxtral-mini-latest      # Default: voxtral-mini-latest
-mistral_speaker_model: mistral-large-latest           # Default: environment-based
-mistral_summary_model: mistral-large-latest           # Default: environment-based
+mistral_speaker_model: mistral-large-latest           # Default
+mistral_summary_model: mistral-large-latest           # Default
 mistral_temperature: 0.3                              # Lower = more deterministic
 mistral_max_tokens: null                              # Use model default
 ```
@@ -530,9 +535,9 @@ podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider gemini \
   --speaker-detector-provider gemini \
   --summary-provider gemini \
-  --gemini-transcription-model gemini-1.5-pro \
-  --gemini-speaker-model gemini-1.5-pro \
-  --gemini-summary-model gemini-1.5-pro \
+  --gemini-transcription-model gemini-2.5-flash-lite \
+  --gemini-speaker-model gemini-2.5-flash-lite \
+  --gemini-summary-model gemini-2.5-flash-lite \
   --gemini-temperature 0.3
 ```
 
@@ -543,8 +548,8 @@ Mistral providers support configurable model selection for dev/test vs productio
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
 | `mistral_transcription_model` | `--mistral-transcription-model` | `voxtral-mini-latest` | Mistral Voxtral model for transcription |
-| `mistral_speaker_model` | `--mistral-speaker-model` | `mistral-small-latest` (test) / `mistral-large-latest` (prod) | Mistral model for speaker detection |
-| `mistral_summary_model` | `--mistral-summary-model` | `mistral-small-latest` (test) / `mistral-large-latest` (prod) | Mistral model for summarization |
+| `mistral_speaker_model` | `--mistral-speaker-model` | `mistral-large-latest` (`mistral-small-latest` is the `TEST_DEFAULT_*` constant) | Mistral model for speaker detection |
+| `mistral_summary_model` | `--mistral-summary-model` | `mistral-large-latest` (`mistral-small-latest` is the `TEST_DEFAULT_*` constant) | Mistral model for summarization |
 | `mistral_temperature` | `--mistral-temperature` | `0.3` | Temperature for generation (0.0-1.0) |
 | `mistral_max_tokens` | `--mistral-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -623,8 +628,8 @@ Grok providers support configurable model selection.
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `grok_speaker_model` | `--grok-speaker-model` | `grok-2` | Grok model for speaker detection |
-| `grok_summary_model` | `--grok-summary-model` | `grok-2` | Grok model for summarization |
+| `grok_speaker_model` | `--grok-speaker-model` | `grok-4.3` | Grok model for speaker detection |
+| `grok_summary_model` | `--grok-summary-model` | `grok-4.3` | Grok model for summarization |
 | `grok_temperature` | `--grok-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `grok_max_tokens` | `--grok-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -632,16 +637,16 @@ Grok providers support configurable model selection.
 
 | Purpose | Test/Dev | Production | Notes |
 | --------- | ---------- | ------------ | ------- |
-| Speaker Detection | `grok-2` | `grok-2` | Same model for all environments |
-| Summarization | `grok-2` | `grok-2` | Same model for all environments |
+| Speaker Detection | `grok-4.3` | `grok-4.3` | Same model for all environments (`grok-2` is retired by xAI) |
+| Summarization | `grok-4.3` | `grok-4.3` | Same model for all environments |
 
 **Example** (Grok config file):
 
 ```yaml
 speaker_detector_provider: grok
 summary_provider: grok
-grok_speaker_model: grok-2
-grok_summary_model: grok-2
+grok_speaker_model: grok-4.3
+grok_summary_model: grok-4.3
 grok_temperature: 0.3
 ```
 
@@ -651,8 +656,8 @@ grok_temperature: 0.3
 podcast-scraper --rss https://example.com/feed.xml \
   --speaker-detector-provider grok \
   --summary-provider grok \
-  --grok-speaker-model grok-2 \
-  --grok-summary-model grok-2 \
+  --grok-speaker-model grok-4.3 \
+  --grok-summary-model grok-4.3 \
   --grok-temperature 0.3
 ```
 
@@ -671,7 +676,7 @@ Ollama providers support configurable model selection for dev/test vs production
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `ollama_speaker_model` | `--ollama-speaker-model` | `llama3.2:latest` (test) / `llama3.3:latest` (prod) | Ollama model for speaker detection |
+| `ollama_speaker_model` | `--ollama-speaker-model` | `llama3.1:8b` | Ollama model for speaker detection |
 | `ollama_summary_model` | `--ollama-summary-model` | `llama3.1:8b` | Ollama model for summarization |
 | `ollama_temperature` | `--ollama-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `ollama_max_tokens` | `--ollama-max-tokens` | `None` | Max tokens for generation (None = model default) |
@@ -688,8 +693,8 @@ Ollama providers support configurable model selection for dev/test vs production
 
 | Purpose | Test/Dev | Production | Notes |
 | --------- | ---------- | ------------ | ------- |
-| Speaker Detection | `llama3.2:latest` | `llama3.3:latest` | 3.2 is smaller/faster; 3.3 is higher quality |
-| Summarization | `llama3.2:latest` | `llama3.3:latest` | 3.2 is smaller/faster; 3.3 produces better summaries |
+| Speaker Detection | `llama3.1:8b` | `llama3.3:latest` | 8b is the shipped default (a pinned tag, so it never resolves to a larger model); 3.3 is higher quality |
+| Summarization | `llama3.1:8b` | `llama3.3:latest` | Same |
 
 **Example** (Ollama config file):
 
@@ -715,53 +720,9 @@ podcast-scraper --rss https://example.com/feed.xml \
   --ollama-timeout 300
 ```
 
-#### Hybrid ML (MAP-REDUCE) Configuration
+#### Summary provider values
 
-When `summary_provider: hybrid_ml`, summarization uses a local MAP model (e.g. LongT5) for chunk summarization and a configurable REDUCE backend for the final synthesis.
-
-| Field | CLI Flag | Default | Description |
-| ------- | ---------- | --------- | ------------- |
-| `hybrid_map_model` | `--hybrid-map-model` | `longt5-base` | HuggingFace model for MAP phase (chunk summarization). |
-| `hybrid_map_device` | `--hybrid-map-device` | (auto) | Device for MAP (e.g. `mps`, `cuda`, `cpu`, `auto`). |
-| `hybrid_reduce_model` | `--hybrid-reduce-model` | `google/flan-t5-base` | REDUCE model: HuggingFace ID (transformers), Ollama tag (e.g. `llama3.1:8b`) for ollama, or path to GGUF file for llama_cpp. |
-| `hybrid_reduce_backend` | `--hybrid-reduce-backend` | `transformers` | REDUCE backend: `transformers`, `ollama`, or `llama_cpp`. |
-| `hybrid_reduce_device` | `--hybrid-reduce-device` | (auto) | Device for REDUCE when backend is transformers (e.g. `mps`, `cuda`, `cpu`). |
-| `hybrid_llama_n_ctx` | N/A | `4096` | Context size for llama_cpp REDUCE. Config file only. |
-| `hybrid_internal_preprocessing_after_pattern` | `--hybrid-internal-preprocessing-after-pattern` | `cleaning_hybrid_after_pattern` | When `transcript_cleaning_strategy` is `pattern`, preprocessing profile applied **inside** `HybridMLProvider.summarize` after workflow pattern cleaning (avoids repeating full `cleaning_v4` sponsor/outro work). Registered profile id from `preprocessing.profiles`. |
-
-**Layered cleaning (Issue #419):** The pipeline runs `transcript_cleaning_strategy` (and `HybridMLProvider.cleaning_processor`) **before** `summarize()`. For `pattern` + `hybrid_ml`, the workflow injects `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` so MAP sees v4-only delta steps without duplicate sponsor passes. For `llm` / `hybrid` strategies, internal preprocessing stays **`cleaning_v4`**. Details: [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
-
-**Example** (Hybrid ML with Ollama REDUCE):
-
-```yaml
-summary_provider: hybrid_ml
-hybrid_map_model: longt5-base
-hybrid_reduce_backend: ollama
-hybrid_reduce_model: llama3.1:8b
-```
-
-**Example** (Hybrid ML with transformers REDUCE):
-
-```yaml
-summary_provider: hybrid_ml
-hybrid_map_model: longt5-base
-hybrid_reduce_backend: transformers
-hybrid_reduce_model: google/flan-t5-base
-hybrid_reduce_device: mps
-```
-
-**Example** (Hybrid ML + pattern strategy + layered internal profile, Issue #419):
-
-```yaml
-summary_provider: hybrid_ml
-transcript_cleaning_strategy: pattern
-hybrid_internal_preprocessing_after_pattern: cleaning_hybrid_after_pattern
-hybrid_map_model: longt5-base
-hybrid_reduce_backend: transformers
-hybrid_reduce_model: google/flan-t5-base
-```
-
-See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) and [Ollama Provider Guide](../guides/OLLAMA_PROVIDER_GUIDE.md) for details.
+`summary_provider` accepts `transformers` (the default, local), `summllama`, `openai`, `gemini`, `grok`, `mistral`, `deepseek`, `anthropic`, `ollama`, `vllm`, `litellm`, `qwen` and `groq`; any other value, including the retired `hybrid_ml`, is refused at validation. The `--summary-provider` flag lists the first eight of these (see [CLI.md](CLI.md#provider-selection-v240)). `quote_extraction_provider` and `entailment_provider` accept the same set minus `summllama`.
 
 #### Logging Configuration
 
@@ -809,7 +770,7 @@ See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provide
 **`SUMMARY_BATCH_SIZE`**
 
 - **Description**: Number of episodes to summarize in parallel (episode-level parallelism)
-- **Required**: No (defaults to 2)
+- **Required**: No (defaults to 1)
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Memory-bound for local providers, Rate-limited for API providers (OpenAI)
 
@@ -845,26 +806,24 @@ See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provide
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda` or auto-detect), Apple Silicon (`WHISPER_DEVICE=mps` or auto-detect)
 
-**`TRANSCRIPTION_DEVICE`** (Issue #387)
+**`transcription_device`** (Issue #387; config field and `--transcription-device`, no environment variable)
 
 - **Description**: Device for transcription stage (overrides provider-specific device like `WHISPER_DEVICE`)
 - **Required**: No (defaults to None for auto-detection)
-- **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
-- **Priority**: Config file → Environment variable → Default
+- **Valid Values**: `cpu`, `cuda`, `mps`, `auto`, or unset
 - **Use Cases**:
-  - CPU/GPU mix to regain overlap: `TRANSCRIPTION_DEVICE=cpu` with `SUMMARIZATION_DEVICE=mps` allows concurrent processing
-  - Force CPU for transcription: `TRANSCRIPTION_DEVICE=cpu` (useful when GPU memory is limited)
+  - CPU/GPU mix to regain overlap: `transcription_device: cpu` with `summarization_device: mps` allows concurrent processing
+  - Force CPU for transcription: `transcription_device: cpu` (useful when GPU memory is limited)
 - **Behavior**: Stage-level device config takes precedence over provider-specific device config. Allows independent device selection per stage.
 
-**`SUMMARIZATION_DEVICE`** (Issue #387)
+**`summarization_device`** (Issue #387; config field and `--summarization-device`, no environment variable)
 
 - **Description**: Device for summarization stage (overrides provider-specific device like `SUMMARY_DEVICE`)
 - **Required**: No (defaults to None for auto-detection)
-- **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
-- **Priority**: Config file → Environment variable → Default
+- **Valid Values**: `cpu`, `cuda`, `mps`, `auto`, or unset
 - **Use Cases**:
-  - CPU/GPU mix to regain overlap: `SUMMARIZATION_DEVICE=mps` with `TRANSCRIPTION_DEVICE=cpu` allows concurrent processing
-  - Force CPU for summarization: `SUMMARIZATION_DEVICE=cpu` (useful when GPU memory is limited)
+  - CPU/GPU mix to regain overlap: `summarization_device: mps` with `transcription_device: cpu` allows concurrent processing
+  - Force CPU for summarization: `summarization_device: cpu` (useful when GPU memory is limited)
 - **Behavior**: Stage-level device config takes precedence over provider-specific device config. Allows independent device selection per stage.
 
 **`MPS_EXCLUSIVE`**
@@ -876,7 +835,7 @@ See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provide
 - **Use Cases**:
   - Apple Silicon with limited GPU memory: `MPS_EXCLUSIVE=1` (default) prevents both models from competing for GPU memory
   - Systems with sufficient GPU memory: `MPS_EXCLUSIVE=0` allows concurrent GPU operations for better throughput
-- **Behavior**: When enabled and both transcription and summarization stages use MPS (checked via stage-level device config), transcription completes before summarization starts. I/O operations (downloads, parsing) remain parallel. With CPU/GPU mix (e.g., `TRANSCRIPTION_DEVICE=cpu`, `SUMMARIZATION_DEVICE=mps`), serialization is not needed and overlap is regained (Issue #387).
+- **Behavior**: When enabled and both transcription and summarization stages use MPS (checked via stage-level device config), transcription completes before summarization starts. I/O operations (downloads, parsing) remain parallel. With CPU/GPU mix (e.g., `transcription_device: cpu`, `summarization_device: mps`), serialization is not needed and overlap is regained (Issue #387).
 - **Related**: See [Segfault Mitigation Guide](../guides/SEGFAULT_MITIGATION.md) for MPS stability issues
 
 #### Audio Preprocessing Configuration (RFC-040)
@@ -885,7 +844,7 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `preprocessing_enabled` | `--enable-preprocessing` | `false` | Enable audio preprocessing before transcription |
+| `preprocessing_enabled` | `--enable-preprocessing` | `true` | Enable audio preprocessing before transcription. The CLI flag only turns it on; set `preprocessing_enabled: false` in the config file to turn it off. |
 | `preprocessing_cache_dir` | `--preprocessing-cache-dir` | `.cache/preprocessing` | Custom cache directory for preprocessed audio |
 | `preprocessing_sample_rate` | `--preprocessing-sample-rate` | `16000` | Target sample rate in Hz before MP3 encode (default `16000`; use values FFmpeg accepts for `-ar`, e.g. 8000, 16000, 22050, 44100, 48000) |
 | `preprocessing_silence_removal` | `--preprocessing-silence-removal` | `false` | Drop interior silence. **Off by default — it breaks the transcript↔audio timeline** (GitHub #1173, see below). |
@@ -954,59 +913,48 @@ Transcript cleaning removes unwanted content (sponsor blocks, ads, timestamps) f
 
 | Strategy | Description | Use Case |
 | -------- | ----------- | -------- |
-| `pattern` | Pattern-based cleaning using regex rules (default for ML providers) | Fast, deterministic, no API costs |
+| `pattern` | Pattern-based cleaning using regex rules | Fast, deterministic, no API costs |
 | `llm` | LLM-based semantic cleaning using language models | Highest quality, removes semantic noise |
-| `hybrid` | Pattern-based first, then conditional LLM cleaning (default for LLM providers) | Best balance of quality and cost |
+| `hybrid` | Pattern-based first, then conditional LLM cleaning (the `Config` default) | Best balance of quality and cost |
+
+**What runs in this repository.** The cleaner is chosen through the `transcript_cleaner` stage hook (`src/podcast_scraper/stage_hooks.py`). Public registers none, and without a registered cleaner the hook returns the pattern-based cleaner **for every strategy**: `llm` and `hybrid` clean with patterns only. The LLM cleaners (`LLMBasedCleaner`, see the length guard below) are an installed extension's, so the `*_cleaning_model` and `*_cleaning_temperature` fields below take effect only with that extension.
 
 **Default Behavior**:
 
-- **LLM Providers** (OpenAI, Gemini, Anthropic, etc.): `hybrid` (pattern + conditional LLM)
-- **ML Providers** (`transformers`): typically `pattern` (pattern-based only; Config default is still `hybrid`, but hybrid LLM cleaning is not used the same way without an API cleaner)
-- **Hybrid ML** (`hybrid_ml`): same `transcript_cleaning_strategy` / `cleaning_processor` behavior as API providers; combine with `hybrid_internal_preprocessing_after_pattern` when using `pattern` to layer internal MAP preprocessing (see Hybrid ML table above and RFC-042)
-
-**Hybrid Strategy Details**:
-
-The hybrid strategy applies pattern-based cleaning first, then conditionally uses LLM cleaning when:
-
-- Pattern-based cleaning reduces text by less than the threshold (default: 10%)
-- Heuristics detect sponsor keywords or high promotional density
-
-This reduces LLM API calls by 70-90% while maintaining high quality.
+- `transcript_cleaning_strategy` defaults to `hybrid` for every summarization provider; with the extension's cleaners it applies pattern cleaning first and then conditional LLM cleaning, without them it is pattern cleaning.
 
 **Configuration Fields**:
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` | Cleaning strategy: `pattern`, `llm`, or `hybrid` (applies to LLM + `hybrid_ml` summarization providers). Pair with `hybrid_internal_preprocessing_after_pattern` under [Hybrid ML](#hybrid-ml-map-reduce-configuration) when using **`hybrid_ml`** + **`pattern`**. |
+| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` | Cleaning strategy: `pattern`, `llm`, or `hybrid` (applies to LLM summarization providers). |
 | `llm_pipeline_mode` | N/A | `staged` | Issue #477: `staged` = separate semantic clean + summarize; `bundled` = one structured completion when the provider implements `summarize_bundled` (OpenAI, Anthropic, Gemini), with automatic fallback to staged on failure. Config file only unless wired via CLI later. |
 | `llm_bundled_max_output_tokens` | N/A | `16384` | Max completion tokens for bundled clean+summary+bullets (large default because JSON includes full `cleaned_text`). Config file only. |
 | `openai_cleaning_model` | `--openai-cleaning-model` | `gpt-4o-mini` | OpenAI model for cleaning (cheaper than summary model) |
 | `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
-| `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |
-| `gemini_cleaning_temperature` | `--gemini-cleaning-temperature` | `0.2` | Temperature for Gemini cleaning (lower = more deterministic) |
+| `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-2.5-flash-lite` | Gemini model for cleaning (cheaper than summary model) |
+| `gemini_cleaning_temperature` | `--gemini-cleaning-temperature` | `0.4` | Temperature for Gemini cleaning (lower = more deterministic) |
 | `anthropic_cleaning_model` | `--anthropic-cleaning-model` | `claude-haiku-4-5` | Anthropic model for cleaning (cheaper than summary model) |
-| `anthropic_cleaning_temperature` | `--anthropic-cleaning-temperature` | `0.2` | Temperature for Anthropic cleaning (lower = more deterministic) |
-| `mistral_cleaning_model` | `--mistral-cleaning-model` | `mistral-small-latest` | Mistral model for cleaning (cheaper than summary model) |
+| `anthropic_cleaning_temperature` | `--anthropic-cleaning-temperature` | `0.4` | Temperature for Anthropic cleaning (lower = more deterministic) |
+| `mistral_cleaning_model` | `--mistral-cleaning-model` | `mistral-small` | Mistral model for cleaning (cheaper than summary model) |
 | `mistral_cleaning_temperature` | `--mistral-cleaning-temperature` | `0.2` | Temperature for Mistral cleaning (lower = more deterministic) |
 | `deepseek_cleaning_model` | `--deepseek-cleaning-model` | `deepseek-chat` | DeepSeek model for cleaning (cheaper than summary model) |
 | `deepseek_cleaning_temperature` | `--deepseek-cleaning-temperature` | `0.2` | Temperature for DeepSeek cleaning (lower = more deterministic) |
-| `grok_cleaning_model` | `--grok-cleaning-model` | `grok-3-mini` | Grok model for cleaning (cheaper than summary model) |
+| `grok_cleaning_model` | `--grok-cleaning-model` | `grok-4.3` | Grok model for cleaning |
 | `grok_cleaning_temperature` | `--grok-cleaning-temperature` | `0.2` | Temperature for Grok cleaning (lower = more deterministic) |
 | `ollama_cleaning_model` | `--ollama-cleaning-model` | `llama3.1:8b` | Ollama model for cleaning (smaller/faster than summary model) |
 | `ollama_cleaning_temperature` | `--ollama-cleaning-temperature` | `0.2` | Temperature for Ollama cleaning (lower = more deterministic) |
-| `{provider}_cleaning_max_tokens` | N/A | `None` (80-90% of input) | Max tokens for cleaning output (config file only) |
-| `{provider}_cleaning_llm_threshold` | N/A | `0.10` | Reduction ratio threshold for hybrid cleaning (0.0-1.0, config file only) |
 
 **Provider-Specific Cleaning Models**:
 
 Each LLM provider can use a different model for cleaning (typically cheaper/faster than summarization):
 
-- **OpenAI**: `openai_cleaning_model` (defaults to `gpt-4o-mini` via `TEST_DEFAULT_OPENAI_CLEANING_MODEL` / `PROD_DEFAULT_OPENAI_CLEANING_MODEL` in `config_constants.py`; override with e.g. `gpt-3.5-turbo` for lower cost)
-- **Gemini**: `gemini_cleaning_model` (defaults to `gemini-1.5-flash`)
+- **OpenAI**: `openai_cleaning_model` (defaults to `gpt-4o-mini`, `DEFAULT_OPENAI_CLEANING_MODEL` in `config_constants.py`)
+- **Gemini**: `gemini_cleaning_model` (defaults to `gemini-2.5-flash-lite`)
 - **Anthropic**: `anthropic_cleaning_model` (defaults to `claude-haiku-4-5`)
-- **Mistral**: `mistral_cleaning_model` (defaults to `mistral-small-latest`)
+- **Mistral**: `mistral_cleaning_model` (defaults to `mistral-small`)
 - **DeepSeek**: `deepseek_cleaning_model` (defaults to `deepseek-chat`)
-- **Grok**: `grok_cleaning_model` (defaults to `grok-3-mini`)
+- **Grok**: `grok_cleaning_model` (defaults to `grok-4.3`)
 - **Ollama**: `ollama_cleaning_model` (defaults to `llama3.1:8b`)
 
 **Example** (config file with hybrid cleaning):
@@ -1016,7 +964,6 @@ summary_provider: openai
 transcript_cleaning_strategy: hybrid  # Pattern + conditional LLM
 openai_cleaning_model: gpt-4o-mini    # Cheaper model for cleaning
 openai_cleaning_temperature: 0.2      # Lower temp for deterministic cleaning
-openai_cleaning_llm_threshold: 0.10   # Use LLM if pattern reduces < 10%
 ```
 
 **Example** (CLI with OpenAI):
@@ -1035,7 +982,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --summary-provider gemini \
   --transcript-cleaning-strategy hybrid \
-  --gemini-cleaning-model gemini-1.5-flash \
+  --gemini-cleaning-model gemini-2.5-flash-lite \
   --gemini-cleaning-temperature 0.2
 ```
 
@@ -1062,7 +1009,7 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 
 This guard targets model **collapse** (a short unrelated paragraph instead of a full cleaned transcript). It is a **hard cliff**: for example, ratio **0.179** is rejected and **0.20** is accepted, so dense shows that legitimately remove most boilerplate can still fall slightly below 20% and trigger fallback. Mitigations without code changes: use **`pattern`** only for those feeds, or try a different **`{provider}_cleaning_model`** / temperature. There are **no** YAML knobs for the 2000 / 0.20 constants in the current release (Path A for #564).
 
-**Note**: LLM-based cleaning runs when the selected `cleaning_processor` uses LLM calls (`llm` or `hybrid` strategy with an LLM provider). **`transformers`** summarization uses pattern-oriented cleaning in typical setups. **`hybrid_ml`** uses the same strategy-driven cleaners as API providers; internal MAP preprocessing defaults to **`cleaning_v4`** except for the layered **`pattern`** path (Issue #419).
+**Note**: LLM-based cleaning runs when the selected `cleaning_processor` uses LLM calls (`llm` or `hybrid` strategy with an LLM provider). **`transformers`** summarization uses pattern-oriented cleaning in typical setups.
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
 
@@ -1071,9 +1018,9 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | Field | CLI Flag | Default | Description |
 | --- | --- | --- | --- |
 | `generate_kg` | `--generate-kg` | `false` | Write per-episode `*.kg.json` during metadata generation. Requires `generate_metadata=true`. Separate from GIL. See [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md). |
-| `kg_extraction_source` | `--kg-extraction-source` | `summary_bullets` | `stub`, `summary_bullets`, or `provider` (LLM `extract_kg_graph`; see `kg_extraction_provider`; default uses `summary_provider`; ML backends no-op). |
-| `kg_extraction_provider` | `--kg-extraction-provider` | (none) | Which summarization backend runs KG LLM calls (`extract_kg_graph`, and KG-from-bullets when that path is used). Unset means same as `summary_provider`. Ignored for `kg_extraction_source: stub`. See [KG guide § KG LLM provider vs summary](../guides/KNOWLEDGE_GRAPH_GUIDE.md#kg-llm-provider-vs-summary-provider). |
-| `kg_max_topics` | `--kg-max-topics` | `20` | Max topic nodes (bullets or provider). Hard cap `20` in pipeline. |
+| `kg_extraction_source` | `--kg-extraction-source` | `provider` | `provider` (LLM `extract_kg_graph` on the cleaned transcript; see `kg_extraction_provider`; default uses `summary_provider`; ML backends no-op) or `metadata_only` (episode plus pipeline hosts/guests only, no LLM call, no summary topics). The older `stub` and `summary_bullets` values are gone (`summary_bullets` was removed in #1034). |
+| `kg_extraction_provider` | `--kg-extraction-provider` | (none) | Which summarization backend runs KG LLM calls (`extract_kg_graph`). Unset means same as `summary_provider`. Ignored for `kg_extraction_source: metadata_only`. See [KG guide § KG LLM provider vs summary](../guides/KNOWLEDGE_GRAPH_GUIDE.md#kg-llm-provider-vs-summary-provider). |
+| `kg_max_topics` | `--kg-max-topics` | `20` | Max topic nodes from provider extraction. Hard cap `20` in pipeline. |
 | `kg_max_entities` | `--kg-max-entities` | `15` | Max entity nodes from provider extraction. |
 | `kg_extraction_model` | `--kg-extraction-model` | (none) | Optional model override for KG LLM calls; else summary model. |
 | `kg_merge_pipeline_entities` | `--no-kg-merge-pipeline-entities` | `true` | Merge hosts/guests after provider extraction (dedup vs existing entities by **entity_kind + name**); disable with flag. |
@@ -1082,12 +1029,13 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 
 #### Grounded Insights (GIL)
 
+GI is a stage an installed extension provides. These fields are public `Config` fields (they validate, merge with profiles and reach the extension), but public itself writes no `*.gi.json`: with `generate_gi: true` and no extension, the episode-insights hook answers nothing. The key `gi_insight_source` and the `--gi-insight-source` flag are not fields of public's `Config`; an installed extension declares such keys itself ([ADR-182](../adr/ADR-182-extension-owned-configuration.md)).
+
 | Field | CLI Flag | Default | Description |
 | --- | --- | --- | --- |
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
 | `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
-| `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). |
-| `gi_max_insights` | `--gi-max-insights` | `50` | Max insights when using `provider` or `summary_bullets` (range `1`–`200`; hard cap not a target). |
+| `gi_max_insights` | `--gi-max-insights` | `50` | Max insights (range `1`–`200`; hard cap not a target). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
 | `gi_fail_on_missing_grounding` | (config) | `false` | When true with `gi_require_grounding`, raise `GILGroundingUnsatisfiedError` if an episode ends with zero grounded quotes (strict CI). |
 | `gi_evidence_extract_retries` | (config) | `1` | Provider `extract_quotes` only: extra attempts when the first returns no candidates (hint appended to insight text). NLI still uses the original insight. Range `0`–`5`. |
@@ -1095,17 +1043,15 @@ This guard targets model **collapse** (a short unrelated paragraph instead of a 
 | `gi_nli_entailment_min` | (config) | `0.5` | Minimum NLI entailment probability to attach a `SUPPORTED_BY` quote. Range `0`–`1`. |
 | `gi_qa_window_chars` | (config) | `1800` | Local GIL QA: when &gt; `0` and transcript is longer, scan overlapping windows of this size (characters) and take the best QA span. `0` = one QA call on the full transcript. |
 | `gi_qa_window_overlap_chars` | (config) | `300` | Overlap between QA windows; must be **&lt;** `gi_qa_window_chars` when windowing is enabled. |
-| `gi_qa_model` | (config) | (see `config_constants`) | HuggingFace / registry id for extractive QA (`transformers` / `hybrid_ml` evidence). |
+| `gi_qa_model` | (config) | (see `config_constants`) | HuggingFace / registry id for extractive QA (`transformers` evidence). |
 | `gi_nli_model` | (config) | (see `config_constants`) | CrossEncoder NLI model id for local entailment. |
 | `gi_embedding_model` | (config) | (see `config_constants`) | Sentence-transformers embedding model used when GIL evidence stack preloads embeddings. |
 
 **Config file and the CLI:** For `python -m podcast_scraper.cli --config <file.yaml>`, validated YAML is merged into argparse defaults, then `cli._build_config()` rebuilds `Config`. GIL tuning keys (thresholds, `gi_qa_model`, `gi_nli_model`, `gi_embedding_model`, `extractive_qa_device`, `nli_device`, window sizes, retries, `gi_require_grounding`, etc.) must be **copied in `_build_config`**; otherwise file values are dropped and model defaults apply. If you add new `Config` fields for GIL, extend that forward list in `cli.py`.
 
-`gi.json` **model_version** is not a separate config field: it is derived from `gi_insight_source` and the summarization / insight model in use.
+`gi.json` **model_version** is not a separate config field.
 
-When `summary_provider` is `transformers` or `hybrid_ml`, use **`gi_insight_source: summary_bullets`** (with bullets) or an LLM provider for real insight wording; **`stub`** is for tests/smoke only (CLI warns outside pytest when `generate_gi` + `stub`).
-
-Local entailment (`entailment_provider`: `transformers` or `hybrid_ml`) requires **`sentence-transformers`** (install **`pip install -e ".[ml]"`**). The pipeline validates this at startup when `generate_gi` and `gi_require_grounding` are true.
+Local entailment (`entailment_provider: transformers`) requires **`sentence-transformers`** (install **`pip install -e ".[ml]"`**). The pipeline validates this at startup when `generate_gi` and `gi_require_grounding` are true.
 
 #### Grounded Insights (GIL) evidence providers
 
@@ -1113,13 +1059,13 @@ When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a config
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `quote_extraction_provider` | `--quote-extraction-provider` | `transformers` | Provider for GIL quote extraction (QA). Options: transformers, hybrid_ml, openai, gemini, grok, mistral, deepseek, anthropic, ollama. |
+| `quote_extraction_provider` | `--quote-extraction-provider` | `transformers` | Provider for GIL quote extraction (QA). Options: transformers, openai, gemini, grok, mistral, deepseek, anthropic, ollama, vllm, litellm, qwen, groq. |
 | `entailment_provider` | `--entailment-provider` | `transformers` | Provider for GIL entailment (NLI). Same options as quote_extraction_provider. |
-| `gil_evidence_match_summary_provider` | N/A | `true` | When `generate_gi` is true: if `summary_provider` is an API LLM or `hybrid_ml` and both evidence fields are still default `transformers`, align them to `summary_provider` so grounding matches the summary backend. Set `false` to keep local QA + NLI with API summaries. |
+| `gil_evidence_match_summary_provider` | N/A | `true` | When `generate_gi` is true: if `summary_provider` is an API LLM and both evidence fields are still default `transformers`, align them to `summary_provider` so grounding matches the summary backend. Set `false` to keep local QA + NLI with API summaries. |
 
 **GIL evidence × provider (parity):** All backends in the `quote_extraction_provider` / `entailment_provider` enums implement `extract_quotes` and `score_entailment`. ML backends use local QA + NLI; LLM backends use chat-style calls.
 
-When `summary_provider` is an API but either evidence field remains `transformers` or `hybrid_ml` (after your overrides), the CLI emits a **WARNING** at config log time about **`.[ml]`** / **sentence-transformers** so hybrid setups are visible.
+When `summary_provider` is an API but either evidence field remains `transformers` (after your overrides), the CLI emits a **WARNING** at config log time about **`.[ml]`** / **sentence-transformers** so mixed setups are visible.
 
 If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set.
 
@@ -1194,7 +1140,7 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 
 - **Description**: Timeout in seconds for transcription operations (Issue #379). `None` means no timeout.
 - **CLI Flag**: Not available (config file only)
-- **Default**: `None` (no timeout)
+- **Default**: `1800` (30 minutes)
 - **Type**: `Optional[int]`
 - **Use Cases**: Preventing hung transcription operations, Production reliability, Long-running episode handling
 
@@ -1328,7 +1274,7 @@ These variables are read once per process. `podcast_scraper db --help` lists the
 - **`PODCAST_TEST_DATABASE_URL`**: tests only. `make test-db-up` starts a local `postgres:18` and
   prints the URL to export; each pytest process creates its own database on that server.
 
-`make serve-api` (and `make serve`, `make serve-app-dev`) runs the API through
+`make serve-api` (and `make serve`) runs the API through
 `scripts/tools/dev_db.py`, which needs no docker. It starts a dev PostgreSQL for the checkout,
 migrates both planes, loads the dev fixtures once, and stops the server when the API stops. With
 `PODCAST_DATABASE_URL` set it uses that database as is: migrated, no fixtures, never started or
@@ -1539,9 +1485,9 @@ parks nothing. State is **`parked_episodes.json`** beside **`corpus_incidents.js
 
 - **Single feed** keeps the existing behavior: `output_dir` can default from env; the pipeline root is typically `output_dir` itself (no `feeds/` segment for the lone feed).
 
-**Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`**, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`**, **`gi explore --topic`**, and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
+**Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`**, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`** (and the extension's **`gi explore --topic`**, where installed) and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
 
-**Hybrid retrieval config (RFC-090).** The hybrid search backend is configured **separately** in **`config/search.yaml`** (not the pipeline `Config` above): **`router.mode`** (`rules` | `ml`). When a two-tier LanceDB index exists at **`<corpus>/search/lance_index`**, `GET /api/search` and `podcast search` route through hybrid (BM25 + dense + RRF, compounds); when no usable index is present they report `no_index` (FAISS was retired in #995, ADR-099; there is no fallback). Build the index with **`make index-two-tier`**; derive relational edges with **`make enrich-relational-edges`**, a target of the extension's Makefile. See [Semantic Search Guide — Hybrid retrieval](../guides/SEMANTIC_SEARCH_GUIDE.md#hybrid-retrieval-rfc-090).
+**Hybrid retrieval config (RFC-090).** The hybrid search backend is configured **separately** in **`config/search.yaml`** (not the pipeline `Config` above): **`router.mode`** (`rules` | `ml`). When a two-tier LanceDB index exists at **`<corpus>/search/lance_index`**, `GET /api/search` and `python -m podcast_scraper.cli search` route through hybrid (BM25 + dense + RRF, compounds); when no usable index is present they report `no_index` (FAISS was retired in #995, ADR-099; there is no fallback). Build the index with **`make index-two-tier`**; derive relational edges with **`make enrich-relational-edges`**, a target of the extension's Makefile. See [Semantic Search Guide — Hybrid retrieval](../guides/SEMANTIC_SEARCH_GUIDE.md#hybrid-retrieval-rfc-090).
 
 **Interim search maintenance checkpoints:** During long runs, orchestration can trigger best-effort interim
 indexing/topic clustering before finalize. Optional fields:
@@ -1562,7 +1508,7 @@ Guidance:
 - Prod/slow runs: index `25-100`, topic clusters `100-500`
 - Very low values increase overhead; keep finalize enabled for authoritative end-of-run refresh.
 
-**GI / KG inspect by episode:** **`gi inspect`** and **`kg inspect`** accept **`--output-dir`** as the corpus parent; if the same **`episode_id`** exists in multiple feeds, pass **`--feed-id`** (same value as metadata **`feed.feed_id`**).
+**KG inspect by episode:** **`kg inspect`** (and the extension's **`gi inspect`**) accepts **`--output-dir`** as the corpus parent; if the same **`episode_id`** exists in multiple feeds, pass **`--feed-id`** (same value as metadata **`feed.feed_id`**).
 
 **YAML examples:**
 
@@ -1626,7 +1572,7 @@ End-user copy of the first pattern: [README.md](https://github.com/chipi/podcast
 
 | Goal | Set `profile:` | Typical extra keys (besides `output_dir`, `max_episodes`, `append`) | Notes |
 | ---- | ---------------- | -------------------------------------------------------------------- | ----- |
-| Cloud OpenAI Whisper + Gemini GI/KG + vector | `cloud_balanced` | Often none beyond sizing / workers | `OPENAI_API_KEY`, `GEMINI_API_KEY`, and other env keys as in the profile |
+| Cloud OpenAI Whisper + Gemini KG + vector | `cloud_balanced` | Often none beyond sizing / workers | `OPENAI_API_KEY`, `GEMINI_API_KEY`, and other env keys as in the profile. The profile also sets GI keys that act only with an extension that provides GI. |
 | Local Whisper + Ollama bundled | `local` | `ollama_speaker_model` (e.g. `qwen3.5:9b`), `ollama_temperature` | Ollama with the requested model pulled |
 | Airgapped + RFC-044 ML dev authority | `airgapped` | `summary_mode_id: ml_small_authority`, `summary_mode_precedence: mode`, GI/KG overrides as needed | Local ML stack per RFC-044 |
 | Airgapped + RFC-044 BART LED prod tier | `airgapped` | `summary_mode_id: ml_bart_led_autoresearch_v1`, `summary_mode_precedence: mode` | Same |
@@ -1768,8 +1714,8 @@ preprocessing_sample_rate: 16000  # Target sample rate
 # Download resilience (defaults shown; omit to use these values)
 # http_retry_total: 8
 # http_backoff_factor: 1.0
-# rss_retry_total: 10
-# rss_backoff_factor: 2.0
+# rss_retry_total: 5
+# rss_backoff_factor: 1.0
 # episode_retry_max: 1
 # episode_retry_delay_sec: 10.0
 # Fair HTTP (Issue #522; optional)
@@ -1813,7 +1759,7 @@ except ValidationError as e:
 
 ## Additional shipped fields (catalog only)
 
-`config.py` defines ~360 pydantic fields. This doc walks the ones an
+`config.py` defines about 470 pydantic fields (468 at the time of writing: `len(Config.model_fields)` less `extension_settings`). This doc walks the ones an
 operator sets most often; the section below catalogues the load-bearing
 fields that weren't in the main tables above. Full source of truth
 remains `src/podcast_scraper/config.py`.
@@ -1861,7 +1807,12 @@ is enumerated in the main tables:
   on every provider). Set these when the default prompts don't fit the
   operator's preferred style.
 - Transcription: `<provider>_transcription_model` where the provider
-  offers STT (currently `openai`, `gemini`, `mistral`, `deepgram`).
+  offers STT (currently `openai`, `gemini`, `mistral`, `deepgram`, plus the
+  OpenAI-compatible `vllm`, `litellm`, `qwen` and `groq`).
+- The OpenAI-compatible providers `vllm`, `litellm`, `qwen` and `groq` follow the same pattern
+  (`<provider>_api_base`, `_api_key`, `_api_key_env`, `_summary_model`, `_speaker_model`,
+  `_cleaning_model`, `_temperature`, `_max_tokens`, `_extra_body`, ...); they are not columns of
+  the matrix below, which covers eight providers.
 
 Deprecated aliases and their canonical replacements are already
 documented above in the "Deprecated fields" section.
@@ -1880,9 +1831,12 @@ tasks). "Y" means the field is defined on that provider.
 |`_api_key_env`||||||||Y|
 |`_cleaning_model`|Y||Y|Y|Y|Y|Y|Y|
 |`_cleaning_temperature`|Y||Y|Y|Y|Y|Y|Y|
+|`_context_cache_enabled`||||Y|||||
+|`_context_cache_ttl_seconds`||||Y|||||
 |`_diarization_model`||Y|||||||
-|`_extra_body`||||||||Y|
+|`_extra_body`|||Y|||||Y|
 |`_insight_model`||||||||Y|
+|`_max_context_tokens`|Y|||Y|Y|Y|Y|Y|
 |`_max_tokens`|Y||Y|Y|Y|Y|Y|Y|
 |`_model`||Y|||||||
 |`_num_ctx`|||||||Y||
@@ -1912,6 +1866,7 @@ Fields with numeric or length constraints enforced by pydantic (via
 
 |Field|Constraints|
 |---|---|
+|`board_summary_max_tokens`|ge=50, le=4000|
 |`circuit_breaker_cooldown_seconds`|ge=1, le=86400|
 |`circuit_breaker_failure_threshold`|ge=1, le=100|
 |`circuit_breaker_window_seconds`|ge=1, le=86400|
@@ -1928,21 +1883,25 @@ Fields with numeric or length constraints enforced by pydantic (via
 |`diarization_min_segment_ms`|ge=0, le=60000|
 |`episode_retry_delay_sec`|ge=0.0, le=120.0|
 |`episode_retry_max`|ge=0, le=10|
+|`gemini_context_cache_ttl_seconds`|ge=60, le=3600|
 |`gemini_retry_initial_delay_seconds`|ge=0.0, le=120.0|
 |`gemini_retry_max_delay_seconds`|ge=0.0, le=600.0|
 |`gemini_retry_max_retries`|ge=0, le=15|
 |`gi_evidence_extract_retries`|ge=0, le=5|
-|`gi_insight_chunk_chars`|ge=0, le=200_000|
+|`gi_insight_chunk_chars`|ge=0, le=200000|
 |`gi_insight_dedupe_threshold`|ge=0.0, le=1.0|
 |`gi_insight_temperature`|ge=0.0, le=2.0|
+|`gi_max_insights`|ge=1, le=200|
 |`gi_nli_entailment_min`|ge=0.0, le=1.0|
 |`gi_qa_score_min`|ge=0.0, le=1.0|
-|`gi_qa_window_chars`|ge=0, le=500_000|
-|`gi_qa_window_overlap_chars`|ge=0, le=100_000|
+|`gi_qa_window_chars`|ge=0, le=500000|
+|`gi_qa_window_overlap_chars`|ge=0, le=100000|
+|`gi_surface_default_limit`|ge=1, le=100|
 |`gi_value_gate_min_tier`|ge=0, le=3|
+|`gil_evidence_quote_bundle_chunk`|ge=1, le=100|
 |`grok_timeout`|ge=30|
 |`host_max_concurrent`|ge=0, le=64|
-|`host_request_interval_ms`|ge=0, le=600_000|
+|`host_request_interval_ms`|ge=0, le=600000|
 |`http_backoff_factor`|ge=0.0, le=10.0|
 |`http_retry_total`|ge=0, le=20|
 |`insight_cluster_threshold`|ge=0.0, le=1.0|
@@ -1956,12 +1915,30 @@ Fields with numeric or length constraints enforced by pydantic (via
 |`llm_circuit_breaker_window_seconds`|ge=1.0, le=3600.0|
 |`llm_max_calls_per_episode`|ge=0, le=100000|
 |`llm_max_calls_per_run`|ge=0, le=1000000|
+|`llm_retry_initial_delay_seconds`|ge=0.0, le=600.0|
+|`llm_retry_max_delay_seconds`|ge=0.0, le=1800.0|
+|`llm_retry_max_retries`|ge=0, le=100|
+|`merge_split_voices_threshold`|ge=0.0, le=1.0|
+|`metadata_sec_per_1k_words`|gt=0|
 |`moss_port`|gt=0|
 |`moss_request_timeout_sec`|gt=0|
 |`ollama_num_ctx`|ge=512|
+|`resilience_on_open_max_wait_sec`|gt=0|
+|`resilience_probe_interval_sec`|gt=0|
+|`resilience_retries_before_trip`|ge=1|
 |`rss_backoff_factor`|ge=0.0, le=10.0|
 |`rss_retry_total`|ge=0, le=20|
+|`speaker_detection_temperature`|ge=0.0, le=2.0|
+|`speaker_name_min_talk_share`|ge=0.0, le=1.0|
+|`storyline_summary_max_tokens`|ge=50, le=4000|
 |`topic_cluster_threshold`|ge=0.0, le=1.0|
+|`transcription_coverage_min`|ge=0.0, le=1.0|
+|`transcription_park_after_failures`|ge=0|
+|`transcription_speech_coverage_min`|ge=0.0, le=1.0|
+|`translation_context_sentences`|ge=0, le=3|
+|`translation_max_concurrency`|ge=1, le=32|
+|`translation_max_sentence_words`|ge=0|
+|`translation_max_unit_words`|ge=0|
 |`vector_chunk_overlap_tokens`|ge=0, le=500|
 |`vector_chunk_size_tokens`|ge=20, le=2000|
 |`vector_upsert_batch_size`|ge=1, le=100000|

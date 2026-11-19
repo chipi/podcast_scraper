@@ -2,7 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) -- shared tokens,
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) -- shared tokens,
   typography, layout, states
 - **Related PRDs**:
   - [PRD-026: Topic Entity View](../prd/PRD-026-topic-entity-view.md) -- full
@@ -10,7 +10,7 @@
 - **Related RFCs**:
   - [RFC-088: Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md) --
     `topic_cooccurrence` and `temporal_velocity` enrichers that provide the data
-  - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) -- the relational-query layer (`cross_show_synthesis` / `who_said` / `insights_about` over the #874 edges) powering this view; surface plan in [PRD-033](../prd/PRD-033-search-powered-surfaces.md) FR4.2, tracked in [#886](https://github.com/chipi/podcast_scraper/issues/886)
 - **Related UX specs**:
   - [UXS-003: Corpus Library](UXS-003-corpus-library.md) -- Episode subject rail shared with
@@ -25,31 +25,37 @@
     person chip click can open Person Landing with Person Profile
 - **Implementation paths**:
   - **Shipped (#672)**:
-    `web/gi-kg-viewer/src/components/subject/TopicEntityView.vue` (rail panel),
-    `web/gi-kg-viewer/src/components/subject/SubjectTimelineChart.vue` (Chart.js
-    monthly mentions bar), `web/gi-kg-viewer/src/utils/subjectMentionsTimeline.ts`
+    `web/workbench/src/components/subject/TopicEntityView.vue` (rail panel),
+    `web/workbench/src/components/subject/SubjectTimelineChart.vue` (Chart.js
+    monthly mentions bar), `web/workbench/src/utils/subjectMentionsTimeline.ts`
     (walks ABOUT / RELATED_TO / MENTIONS edges incident to the subject, hops to
     linked Insight / Quote, resolves each item's `episode_id` to the Episode
     node's `publish_date` for YYYY-MM bucketing). Subject store entry: `focusTopic`
     /  `focusEntity` (#672 Fix 2 alias). Mounts inside `SubjectRail` for
     `subject.kind === 'topic'`.
   - **Existing graph-rail surface stays separate**:
-    `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` +
+    `web/workbench/src/components/graph/GraphNodeRailPanel.vue` +
     `NodeDetail.vue` continue to render for `subject.kind === 'graph-node'`.
     Graph **clicks** route through `focusGraphNode` → rich graph-aware detail;
     `focusTopic` / `focusEntity` from non-graph surfaces (Digest, Search,
-    Explore) go through this UXS's higher-level overview panel.
-  - **Graph-node timeline surface is separate from TEV**:
-    `web/gi-kg-viewer/src/components/graph/NodeDetail.vue` renders the topic/cluster
+    ~~Explore~~, retired) go through this UXS's higher-level overview panel.
+  - ~~**Graph-node timeline surface is separate from TEV**:
+    `web/workbench/src/components/graph/NodeDetail.vue` renders the topic/cluster
     CIL timeline inline inside graph-node **Details** (`node-detail-inline-timeline`),
-    complementary to this rail timeline overview.
-- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — subject rail as single context layer; navigation axes; status bar
+    complementary to this rail timeline overview.~~ Removed from public; the private viewer draws it (Studio's `topic-timeline-tab.spec.ts`).
+- **Shell IA:** [WORKBENCH_IA.md](WORKBENCH_IA.md) — subject rail as single context layer; navigation axes; status bar
 
 ---
 
+**Where it renders (2026-11-17).** The Workbench draws the Topic header (name, aliases, description; `TopicEntityView.vue:100-140`), the action buttons (`TopicEntityView.vue:156-167`) and, in the node detail panel, a **Mentions by month** chart in the Enrichment tab (`node-detail-signals-timeline`, `NodeDetail.vue:1135`). It also draws **NodeEpisodesSection** (`node-episodes`, `NodeEpisodesSection.vue`) in the Details tab of Topic, Person and Organization nodes (`NodeDetail.vue:1079`): the 10 newest episodes from `POST /api/corpus/node-episodes`, each with title, show and date, headed "(10 newest of N)" when there are more, and nothing at all when the node is in no episode.
+
+The rest of the **Section layout** below is not drawn by `TopicEntityView.vue`: the trend badge and episode count badge, the Timeline section, Insights, Persons, Related topics and the relational sections (`tev-cross-show`, `tev-voices`, `tev-entities`). None of those ids is in `web/workbench/src`. The only slot the view provides is `topicViewSections`, region `after-description` (`TopicEntityView.vue:146`); node detail sections go through `nodeDetailExtensions`. Which entries the private viewer registers: not checked. Without extensions these parts are absent.
+
+Removed from public: `TopicConversationArc` and the topic perspectives tab (`NodeTopicPerspectives`), both now in the private viewer; the topic timeline dialog (`TopicTimelineDialog`; removed 2026-11-17), the Timeline rail tab (`node-detail-inline-timeline`) and `SemanticSearchTip` (the Timeline rail tab is the private viewer's; the dialog and the tip are in neither repo). Explore is retired.
+
 ## Summary
 
-For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Topic Entity View** in the subject rail only (sections, density, handoffs).
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[WORKBENCH_IA.md](WORKBENCH_IA.md)**. This document specifies **Topic Entity View** in the subject rail only (sections, density, handoffs).
 
 The Topic Entity View is a concept-first navigable surface in the right rail panel
 where `topic:{slug}` is the subject. The user navigates *to a topic* and sees the
@@ -58,7 +64,7 @@ what the most insightful things said about it are, and who said them.
 
 This UXS defines the visual contract for the Topic Entity View panel layout, section
 density, chart appearance, and graceful degradation states. All tokens reference
-[UXS-001](UXS-001-gi-kg-viewer.md). Functional requirements are in
+[UXS-001](UXS-001-workbench.md). Functional requirements are in
 [PRD-026](../prd/PRD-026-topic-entity-view.md).
 
 ---
@@ -88,6 +94,8 @@ KG identity coloring in UXS-001.
 ---
 
 ## Section layout
+
+*As of 2026-11-17 the public Workbench draws only the header's name, aliases and description from this list, plus NodeEpisodesSection. See Where it renders.*
 
 The panel is a single scrollable column on `surface` background. Sections stack
 vertically with `border` dividers between them:
@@ -121,7 +129,7 @@ vertically with `border` dividers between them:
 
 - Scrollable list of grounded Insight cards on `surface` background. Insight cards
   follow the **shared InsightCard** contract in
-  [UXS-001 — InsightCard (shared component)](UXS-001-gi-kg-viewer.md#insightcard-shared-component).
+  [UXS-001 — InsightCard (shared component)](UXS-001-workbench.md#insightcard-shared-component).
   This view uses the following InsightCard slots: insight text, grounding badge,
   speaker chip, episode attribution, and supporting quote blockquote.
 - Each card: insight text (`text-sm`), speaker name chip (`muted`), episode title +
@@ -162,7 +170,9 @@ vertically with `border` dividers between them:
 
 ### Relational sections (PRD-033 FR4.2)
 
-Shipped in #886 over the RFC-094 relational layer (`web/gi-kg-viewer/src/api/relationalApi.ts`).
+*Not drawn by the public Workbench; the private viewer draws them (Studio `TopicGi`, `tev-cross-show`).*
+
+Shipped in #886 over the RFC-094 relational layer (`web/workbench/src/api/relationalApi.ts`).
 Both fetch async on subject change, render skeleton-first (`Loading…`), and are
 StaleGeneration-gated against rapid subject switches; each is hidden when its query
 returns nothing.
@@ -230,7 +240,7 @@ All degradation states use `muted` text and honest language:
 ## E2E contract
 
 New visible labels and selectors require updates to the
-[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 before or with implementation. Key surfaces:
 
 - Right rail panel with `aria-label="Topic"` (use `exact: true` in automation)

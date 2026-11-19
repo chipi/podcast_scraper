@@ -1,0 +1,189 @@
+"""A news item's metadata document, exactly as the News 1.0 contract has it
+(``docs/architecture/corpus/news-item-1.0.md``): shared fields at the top level, the type's own
+under ``news_article``.
+
+Built from the document the shared metadata stage made (for its summary) and the item's context:
+its ids, times, and the fields its transport and fetch gave.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Dict, Mapping, Optional
+from urllib.parse import urlsplit
+
+from ..content_types import ItemContext, SourceItem
+from ..kg.v3 import ITEM_TIMES
+from ..news_items import (
+    EDITORIAL_TYPES,
+    F_BYLINE,
+    F_CONTENT_TYPE,
+    F_EDITORIAL_TYPE,
+    F_ITEM_CLASS,
+    F_ITEM_ID,
+    F_LANGUAGE,
+    F_PAYWALLED,
+    F_PUBLISHER_ID,
+    F_SERVEABLE,
+    F_SOURCE_ID,
+    F_SUMMARY,
+    F_TEXT_STATUS,
+    F_TITLE,
+    F_URL,
+    NEWS_ARTICLE,
+    SERVEABLE_METADATA,
+)
+from ..publishers import load_registry, Publisher, Registry
+from ..utils.canonical_url import canonical_url
+from . import byline
+
+#: What a source with no stated rights may show: the narrowest value that still shows the item.
+DEFAULT_SERVEABLE = SERVEABLE_METADATA
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _summary_text(doc: Mapping[str, Any]) -> Optional[str]:
+    """The summary the platform wrote, as one string (the summary stage's ``short_summary``)."""
+    summary = doc.get("summary")
+    if not isinstance(summary, Mapping):
+        return None
+    bullets = [b for b in summary.get("bullets") or [] if isinstance(b, str) and b.strip()]
+    text = " ".join(bullets[:2]) if bullets else str(summary.get("raw_text") or "")
+    return text.strip() or None
+
+
+#: The contract's top-level fields a restored item carries back (``ingested_at`` is the new run's).
+_RESTORED_TOP = (
+    F_TITLE,
+    F_LANGUAGE,
+    "licence",
+    F_PAYWALLED,
+    F_SERVEABLE,
+    "mineable",
+    "fetched_at",
+)
+#: The fields under ``news_article`` a restored item carries back.
+_RESTORED_OWN = (
+    "transport_ids",
+    F_BYLINE,
+    "byline_raw",
+    F_EDITORIAL_TYPE,
+    F_TEXT_STATUS,
+    "live_blog",
+    "roundup",
+    F_ITEM_CLASS,
+    "language_source",
+)
+
+
+def also_listed(doc: Dict[str, Any], listed: SourceItem) -> Optional[Dict[str, Any]]:
+    """The written item with the listing's transport ids it lacks (contract: one article over two
+    transports is one item, and ``transport_ids`` keeps both); ``None`` when it has them all. A
+    transport already present keeps its first id."""
+    own = doc.get(NEWS_ARTICLE)
+    if not isinstance(own, dict):
+        return None
+    raw_have = own.get("transport_ids")
+    have: Dict[str, Any] = raw_have if isinstance(raw_have, dict) else {}
+    raw = listed.metadata.get("transport_ids")
+    new = {
+        k: v for k, v in (raw.items() if isinstance(raw, Mapping) else ()) if v and k not in have
+    }
+    if not new:
+        return None
+    return {**doc, NEWS_ARTICLE: {**own, "transport_ids": {**have, **new}}}
+
+
+def restore_item(doc: Dict[str, Any], body: str) -> SourceItem:
+    """A stored news item as its transport listed it, with its stored body and every field the
+    writer recorded, so ``rederive_only`` re-runs summary and KG on it without fetching anything.
+    Its id is minted again from its URL, as at first."""
+    raw_own = doc.get(NEWS_ARTICLE)
+    own: Mapping[str, Any] = raw_own if isinstance(raw_own, Mapping) else {}
+    fields: Dict[str, Any] = {k: doc[k] for k in _RESTORED_TOP if k in doc}
+    fields.update({k: own[k] for k in _RESTORED_OWN if k in own})
+    for name in ITEM_TIMES:
+        if doc.get(name):
+            fields[name] = doc[name]
+    raw_ids = own.get("transport_ids")
+    transport_ids: Mapping[str, Any] = raw_ids if isinstance(raw_ids, Mapping) else {}
+    native = next(iter(transport_ids.values()), None) if transport_ids else None
+    return SourceItem(
+        item_id=str(native or doc.get(F_ITEM_ID) or ""),
+        metadata=fields,
+        text=body,
+        url=str(doc.get(F_URL) or ""),
+    )
+
+
+def publisher(registry: Registry, source_id: Optional[str], url: str) -> Optional[Publisher]:
+    """The source's publisher, else the publisher whose domain the URL's host matches."""
+    pub = registry.for_source(source_id) if source_id else None
+    if pub is None:
+        host = urlsplit(url).hostname or ""
+        pub = registry.for_domain(host) if host else None
+    return pub
+
+
+def shape(
+    doc: Dict[str, Any], item: ItemContext, *, registry: Optional[Registry] = None
+) -> Dict[str, Any]:
+    """The contract's document for ``item``; ``doc`` is the shared stage's document."""
+    f = item.fields
+    url = canonical_url(str(f.get("url") or ""))
+    reg = registry if registry is not None else load_registry()
+    pub = publisher(reg, item.source_id, url)
+    raw_episode = doc.get("episode")
+    episode: Mapping[str, Any] = raw_episode if isinstance(raw_episode, Mapping) else {}
+    out: Dict[str, Any] = {
+        F_CONTENT_TYPE: NEWS_ARTICLE,
+        F_ITEM_ID: item.item_id,
+        F_URL: url,
+        F_SOURCE_ID: item.source_id,
+        F_TITLE: f.get("title") or episode.get("title"),
+        **dict(item.times),
+        "ingested_at": _now(),
+        F_LANGUAGE: f.get("language"),
+        "licence": f.get("licence"),
+        F_PAYWALLED: f.get("paywalled"),
+        F_SERVEABLE: f.get("serveable") or DEFAULT_SERVEABLE,
+        "mineable": f.get("mineable", True),
+    }
+    if pub is not None:
+        out[F_PUBLISHER_ID] = pub.id
+    summary = _summary_text(doc)
+    if summary:
+        out[F_SUMMARY] = summary
+    out["fetched_at"] = f.get("fetched_at")
+    out["body_sha256"] = f.get("body_sha256")
+    raw = f.get("byline_raw")
+    editorial = f.get("editorial_type")
+    stored_byline = f.get("byline")
+    own: Dict[str, Any] = {
+        "transport_ids": dict(f.get("transport_ids") or {}),
+        # A restored item (rederive) keeps the byline it was written with.
+        F_BYLINE: (
+            list(stored_byline)
+            if isinstance(stored_byline, list)
+            else byline.parse(
+                raw,
+                # A personal site's publisher is its author (``personal`` on the source).
+                organisations=[pub.name] if pub and not f.get("personal_publisher") else [],
+            )
+        ),
+        "byline_raw": raw,
+        F_EDITORIAL_TYPE: editorial if editorial in EDITORIAL_TYPES else None,
+        F_TEXT_STATUS: f.get("text_status"),
+        "language_source": f.get("language_source"),
+    }
+    if f.get("live_blog") is True:
+        own["live_blog"] = True
+    if f.get("roundup") is True:
+        own["roundup"] = True
+    if f.get(F_ITEM_CLASS):
+        own[F_ITEM_CLASS] = f[F_ITEM_CLASS]
+    out[NEWS_ARTICLE] = own
+    return out

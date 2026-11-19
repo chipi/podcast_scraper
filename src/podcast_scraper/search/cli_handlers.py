@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Sequence, Tuple
 
 from podcast_scraper import config
+from podcast_scraper.grounded_insights_view import gi_read_view
 from podcast_scraper.search.corpus_scope import (
     discover_metadata_files,
     gi_map_lookup_key_from_vector_meta,
@@ -388,7 +389,7 @@ def _hit_passes_cli_filters(
         if not gpath or not gpath.is_file():
             return False
         try:
-            art = cast(Dict[str, Any], json.loads(gpath.read_text(encoding="utf-8")))
+            art = cast(Dict[str, Any], gi_read_view(json.loads(gpath.read_text(encoding="utf-8"))))
         except json.JSONDecodeError:
             return False
         src = meta.get("source_id")
@@ -433,7 +434,7 @@ def _hit_passes_topic_filter(
         if not gpath or not gpath.is_file():
             return False
         try:
-            art = cast(Dict[str, Any], json.loads(gpath.read_text(encoding="utf-8")))
+            art = cast(Dict[str, Any], gi_read_view(json.loads(gpath.read_text(encoding="utf-8"))))
         except json.JSONDecodeError:
             return False
         return _insight_passes_topic_filter(art, src, topic_substr)
@@ -538,7 +539,7 @@ def _enrich_hit(
         art = docs[key]
     else:
         try:
-            art = cast(Dict[str, Any], json.loads(gpath.read_text(encoding="utf-8")))
+            art = cast(Dict[str, Any], gi_read_view(json.loads(gpath.read_text(encoding="utf-8"))))
         except json.JSONDecodeError:
             art = None
         if docs is not None:

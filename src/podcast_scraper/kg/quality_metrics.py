@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from podcast_scraper.kg.read_view import kg_read_view
+
 from .corpus import collect_kg_paths_from_inputs
 from .io import read_artifact
 from .schema import validate_artifact
@@ -81,6 +83,7 @@ def compute_kg_quality_metrics(
         try:
             data = read_artifact(gpath, validate=False)
             validate_artifact(data, strict=strict_schema)
+            data = kg_read_view(data)
         except Exception as e:
             out.errors.append(f"{gpath}: {e}")
             continue

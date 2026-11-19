@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Daily Example</title>
+    <link>https://www.dailyexample.test/</link>
+    <description>Invented news for tests.</description>
+    <language>en-gb</language>
+    <item>
+      <title>WITHHELD-ITEM-TITLE</title>
+      <link>https://www.dailyexample.test/2026/11/withheld</link>
+      <guid isPermaLink="false">withheld</guid>
+      <pubDate>Tue, 17 Nov 2026 08:00:00 +0000</pubDate>
+      <description>WITHHELD-ITEM-TITLE.</description>
+    </item>
+    <item>
+      <title>Risk desks learn to sit still</title>
+      <link>https://www.dailyexample.test/2026/11/risk-desks-learn-to-sit-still</link>
+      <guid isPermaLink="false">risk-desks</guid>
+      <pubDate>Tue, 17 Nov 2026 07:30:00 +0000</pubDate>
+      <dc:creator>Ana Example</dc:creator>
+      <description>Risk desks learn to sit still.</description>
+    </item>
+    <item>
+      <title>Soil report finds erosion slowing</title>
+      <link>https://www.dailyexample.test/2026/11/soil-report</link>
+      <guid isPermaLink="false">soil-report</guid>
+      <pubDate>Mon, 16 Nov 2026 12:00:00 +0000</pubDate>
+      <dc:creator>Ana Example and Cy Example</dc:creator>
+      <description>Soil report finds erosion slowing.</description>
+    </item>
+    <item>
+      <title>Los mercados y la gestión del riesgo</title>
+      <link>https://www.dailyexample.test/es/2026/11/mercados</link>
+      <guid isPermaLink="false">mercados</guid>
+      <pubDate>Sun, 15 Nov 2026 09:00:00 +0000</pubDate>
+      <dc:creator>Dora Ejemplo</dc:creator>
+      <description>Los mercados y la gestión del riesgo.</description>
+    </item>
+  </channel>
+</rss>

@@ -7,7 +7,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Query, Request
 
-from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.catalog_cache import current_catalog
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
@@ -56,7 +56,7 @@ def corpus_coverage(
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
-    rows = cached_catalog(root)
+    rows = current_catalog(root)
 
     total_episodes = len(rows)
     with_gi = sum(1 for r in rows if r.has_gi)

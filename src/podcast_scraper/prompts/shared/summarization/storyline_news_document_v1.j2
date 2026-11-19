@@ -1,0 +1,4 @@
+{{ label }}. {% for ep in episodes %}{% if ep.date %}{{ ep.date }}: {% endif %}{{ ep.title }}{% if ep.show %}, from {{ ep.show }}{% endif %}. {% if ep.summary %}{{ ep.summary }} {% endif %}{% for i in ep.insights %}{% if i.speaker %}{{ i.speaker }}: {% endif %}{{ i.text }} {% endfor %}
+
+{% endfor %}{% for a in articles or [] %}{% if a.date %}{{ a.date }}: {% endif %}{{ a.title }}{% if a.publisher %}, from {{ a.publisher }}{% endif %}. {% if a.summary %}{{ a.summary }} {% endif %}
+{% endfor %}

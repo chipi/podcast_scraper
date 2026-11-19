@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test"
 /**
  * UXS-015 / RFC-104 — the operator Library tab's shows-first browse, against the
  * Docker-served seeded corpus (served-corpus tier-3, companion to the mocked
- * web/gi-kg-viewer/e2e/shows-library.spec.ts). Drives Library → Shows → grid →
+ * web/workbench/e2e/shows-library.spec.ts). Drives Library → Shows → grid →
  * open a show → its episodes, exercising the real /api/corpus/feeds +
  * /api/corpus/episodes endpoints and PodcastCover art resolution.
  */

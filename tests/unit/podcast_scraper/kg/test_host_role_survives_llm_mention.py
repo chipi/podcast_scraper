@@ -139,12 +139,12 @@ class TestMetadataBeatsTheTranscriptOnKind:
 
     def test_someone_NOT_a_known_participant_keeps_the_llm_kind(self) -> None:
         # The override is scoped to hosts/guests. A genuine object must stay an object.
-        art = _artifact([{"name": "The Norman Conquest", "entity_kind": "event"}])
+        art = _artifact([{"name": "The Battle of Hastings", "entity_kind": "event"}])
         objects = [
             n
             for n in art["nodes"]
             if n["type"] == "Object"
-            and (n.get("properties") or {}).get("name") == "The Norman Conquest"
+            and (n.get("properties") or {}).get("name") == "The Battle of Hastings"
         ]
         assert objects, "metadata override must not promote every entity to a person"
 

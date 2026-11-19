@@ -29,11 +29,12 @@ def _ext(types: Tuple[Any, ...] = (), transports: Tuple[Any, ...] = ()) -> Exten
     )
 
 
-def test_podcast_is_the_built_in_type_over_rss_enclosures() -> None:
+def test_podcast_then_news_are_the_built_in_types() -> None:
+    """Podcast over RSS enclosures first; news is public's second built-in (ADR-177 decision 5)."""
     with use_extensions([]):
         types, transports = ct.registry()
-    assert list(types) == [ct.PODCAST_EPISODE]
-    assert list(transports) == [ct.RSS_ENCLOSURE]
+    assert list(types) == [ct.PODCAST_EPISODE, "news_article"]
+    assert list(transports) == [ct.RSS_ENCLOSURE, "rss", "hn", "guardian"]
     assert ct.PODCAST.stage_profile.runs("diarization")  # the full pipeline runs every stage
 
 

@@ -27,7 +27,7 @@ For one `Config` with a single `rss_url`, the pipeline does the following early 
 3. **`prepare_episodes_from_feed`**: apply **episode selection** (order, date window, offset, cap),
    then **`create_episode_from_item`** per retained item → list of **`Episode`** models.
 4. Later stages use those episodes for transcript discovery, download, transcription, metadata,
-   summaries, GIL, KG, etc.
+   summaries, KG, etc., and by any stage an installed extension adds.
 
 Multi-feed mode repeats the same inner sequence **once per feed URL** with a per-feed
 `output_dir`; see [Multi-feed corpus](#multi-feed-corpus-github-440) below.
@@ -80,11 +80,11 @@ For multi-feed (and single-feed) runs, the usual **argv** split is:
 ```bash
 python -m podcast_scraper.cli \
   --profile cloud_balanced \
-  --config config/manual/operator_defaults.yaml \
-  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+  --config path/to/operator.yaml \
+  --feeds-spec config/examples/feeds.spec.example.yaml
 ```
 
-Same pattern in the root [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list), [CLI.md — Quick Start](../api/CLI.md#quick-start), and [CONFIGURATION.md — Multi-feed compose](../api/CONFIGURATION.md#multi-feed-compose).
+Same pattern in [CLI.md — Quick Start](../api/CLI.md#quick-start), and [CONFIGURATION.md — Multi-feed compose](../api/CONFIGURATION.md#multi-feed-compose).
 
 ## HTTP layer for the feed document
 

@@ -18,7 +18,7 @@ def _minimal_valid_payload() -> dict:
         "schema_version": "2.0",
         "episode_id": "e:test",
         "extraction": {
-            "model_version": "stub",
+            "model_version": "metadata_only",  # "stub" until #1657; KG 3.0 has no stub
             "extracted_at": "2026-01-01T00:00:00Z",
             "transcript_ref": "t.txt",
         },
@@ -43,7 +43,10 @@ class TestKgIoWriteRead(unittest.TestCase):
             write_artifact(path, payload, validate=True)
             self.assertTrue(path.is_file())
             loaded = read_artifact(path)
-            self.assertEqual(loaded["episode_id"], "e:test")
+            # R3b: every KG file is written as KG 3.0; the root names its item.
+            self.assertEqual(loaded["schema_version"], "3.0")
+            self.assertEqual(loaded["item_id"], "e:test")
+            self.assertNotIn("episode_id", loaded)
             self.assertEqual(loaded["nodes"], [])
             self.assertEqual(loaded["edges"], [])
 
@@ -51,11 +54,13 @@ class TestKgIoWriteRead(unittest.TestCase):
         import tempfile
 
         raw = json.loads(_FIXTURE_MINIMAL.read_text(encoding="utf-8"))
+        # The fixture keeps the legacy "stub"; KG 3.0 names that mode metadata_only (#1657).
+        raw["extraction"]["model_version"] = "metadata_only"
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "out.kg.json"
             write_artifact(path, raw, validate=True)
             loaded = read_artifact(path)
-            self.assertEqual(loaded["episode_id"], raw["episode_id"])
+            self.assertEqual(loaded["item_id"], raw["episode_id"])
             self.assertEqual(len(loaded["nodes"]), 1)
 
     def test_write_validate_true_rejects_invalid_payload(self) -> None:
@@ -68,12 +73,14 @@ class TestKgIoWriteRead(unittest.TestCase):
                 write_artifact(path, bad, validate=True)
             self.assertFalse(path.exists())
 
-    def test_write_validate_false_writes_without_validation(self) -> None:
+    def test_validate_false_never_writes_an_invalid_kg_3_0_file(self) -> None:
         import tempfile
 
+        # R3b: the written file is validated strictly against KG 3.0 whatever ``validate`` says;
+        # an invalid file is never written (never warn and write).
         arbitrary = {"foo": 1}
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "raw.kg.json"
-            write_artifact(path, arbitrary, validate=False)
-            loaded = read_artifact(path, validate=False)
-            self.assertEqual(loaded, arbitrary)
+            with self.assertRaises(Exception):
+                write_artifact(path, arbitrary, validate=False)
+            self.assertFalse(path.exists())

@@ -21,6 +21,8 @@ BASE = "https://example.com/world/2026/nov/12/a-story"
         "https://example.com/world/2026/nov/12/a-story/",  # trailing slash
         "https://example.com/world/2026/nov/12/a-story?utm_source=rss&utm_medium=feed",
         "https://example.com/world/2026/nov/12/a-story?fbclid=abc&gclid=def",
+        "https://example.com/world/2026/nov/12/a-story?at_medium=RSS&at_campaign=rss",  # BBC
+        "https://example.com/world/2026/nov/12/a-story?traffic_source=rss",  # Al Jazeera
         "https://example.com/world/2026/nov/12/a-story#comments",  # fragment
         "https://amp.example.com/world/2026/nov/12/a-story",  # AMP host
         "https://example.com/world/2026/nov/12/a-story/amp",  # AMP path

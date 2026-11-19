@@ -20,19 +20,7 @@ from typing import Any, Optional
 from .._http import get_json, post_json
 from ..config import TargetConfig
 from ..result import err, ok
-
-
-def _auth(target: TargetConfig) -> dict[str, str]:
-    """``X-Operator-Key`` header when the target carries one, else ``{}``.
-
-    Sent on every call in this module rather than only the gated paths: the open endpoints
-    ignore an unknown header, the destination host is identical, and a per-endpoint allowlist
-    is one more thing to forget when a route later moves under the operator gate — which is
-    exactly how ``runs`` came to 403 in the first place.
-    """
-    key = getattr(target, "operator_key", None)
-    return {"X-Operator-Key": key} if key else {}
-
+from .prod_api import _auth  # one helper for every gated probe: the key and the session
 
 _NOT_CONFIGURED = "api_base not set (PODCAST_OBS_API_BASE or targets.<name>.api_base)"
 

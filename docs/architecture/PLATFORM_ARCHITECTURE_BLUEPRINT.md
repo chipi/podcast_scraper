@@ -160,7 +160,7 @@ Avoid **schema-per-tenant** early unless compliance requires it.
 ### A.7 Service shape (logical components)
 
 1. **API + UI** — Admin: catalog. User: subscriptions, entitled reads. **RFC-062** defines the
-   initial server layer (`src/podcast_scraper/server/`) and GI/KG Viewer as the first UI
+   initial server layer (`src/podcast_scraper/server/`) and Workbench as the first UI
    consumer; platform CRUD routes activate via feature flag (`enable_platform`).
 
 2. **Scheduler / worker** — Feeds with subscribers (or globally enabled); enqueue work;
@@ -192,13 +192,13 @@ out). Platform adds **queue, dedup, paths, post-run projection**.
 | **A** | `tenant_id`, `tenants`, subscriptions, catalog; single tenant row. | Schema + migrations |
 | **B** | Long-lived worker + cursors; feeds from catalog ∩ subscriptions. | Worker process, queue, Redis/PG jobs |
 | **C** | Projection to Postgres (RFC-051); API reads DB + blob pointers. | SQL projection, GIL/KG tables (ADR-054) |
-| **D** | Server + UI (RFC-062). `podcast serve` CLI. GI/KG Viewer as first UI. Semantic search panel. | FastAPI `server/` module (ADR-064), Vue 3 SPA (ADR-065), Playwright E2E (ADR-066) |
+| **D** | Server + UI (RFC-062). `podcast serve` CLI. Workbench as first UI. Semantic search panel. | FastAPI `server/` module (ADR-064), Vue 3 SPA (ADR-065), Playwright E2E (ADR-066) |
 | **E** | Second tenant + RLS; access controls. | RLS policies, API auth |
 
 **Phase D is now concrete** — RFC-062 defines the server module, route groups, frontend stack,
 and `podcast serve` CLI entry point. The viewer is the first consumer; platform CRUD routes
 (feeds, episodes, jobs) extend the same server via feature flags. See
-[RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
+[RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and [UXS-001](../uxs/UXS-001-workbench.md).
 
 Defer: orgs, per-tenant pipeline overrides, legal review — but **name** shared-corpus /
 ToS risks in a threat model.
@@ -212,7 +212,7 @@ ToS risks in a threat model.
 ### A.11 Relation to current repo
 
 - **Today:** One `Config`, one `rss`, `run_pipeline` → filesystem; `service.run` one-shot.
-  **CLI** = default mental model. GI/KG viewer v2 (`web/gi-kg-viewer/`) is a Vue 3 + FastAPI app (RFC-062).
+  **CLI** = default mental model. Workbench (`web/workbench/`) is a Vue 3 + FastAPI app (RFC-062).
   Semantic search (RFC-061 Phase 1) adds `podcast search`, `podcast index`, vector store.
 
 - **Platform:** Catalog + subscriptions **when** operator chooses platform mode; workers replace
@@ -783,7 +783,7 @@ Digest features should assume these layers are **stable and versioned** before h
 4. **Ranking / time budgets** — e.g. "30 minutes this week."
 5. **Digest output contract** — Versioned JSON or doc (themes, GI-backed bullets, episode links).
 6. **Presentation** — HTML/email/Obsidian out of core unless scoped; **contract** first. The
-   GI/KG Viewer (RFC-062) can serve as the first digest consumption UI.
+   Workbench (RFC-062) can serve as the first digest consumption UI.
 7. **Personalization** — Watchlists; **user config** + KG.
 
 **Cross-content-type digest (v3.0, Part G):** When the generic core is in place, digest
@@ -847,7 +847,7 @@ resources.
 
 ### C.8 Digest and the viewer (RFC-062)
 
-The GI/KG Viewer (RFC-062) is the first **consumption layer** for digest output. Planned
+The Workbench (RFC-062) is the first **consumption layer** for digest output. Planned
 viewer extensions for digest:
 
 | View | What it shows | API endpoint | Phase |
@@ -2497,7 +2497,7 @@ This is a **v3.0 effort** -- after podcast capabilities are fully solid:
 
 | Prerequisite | Status |
 | --- | --- |
-| GI/KG Viewer v2 (RFC-062) | Shipped |
+| Workbench (RFC-062) | Shipped |
 | Canonical Identity Layer + bridge | Shipped |
 | Semantic search (RFC-061) | Shipped |
 | Enrichment layer (RFC-088 + v2 config surface) | Shipped |
@@ -2562,7 +2562,7 @@ land as ADRs and RFCs in this repository.
 - [RFC-055: KG core](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - [RFC-056: KG use cases](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
 - [RFC-061: Semantic corpus search (FAISS)](../rfc/RFC-061-semantic-corpus-search.md)
-- [RFC-062: GI/KG Viewer v2 & server architecture](../rfc/RFC-062-gi-kg-viewer-v2.md)
+- [RFC-062: Workbench & server architecture](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - [RFC-063: Multi-feed corpus, append/resume, and unified discovery](../rfc/RFC-063-multi-feed-corpus-append-resume.md)
 - [RFC-065: Live pipeline monitor](../rfc/RFC-065-live-pipeline-monitor.md)
 - [RFC-067: Corpus Library -- catalog API & viewer](../rfc/RFC-067-corpus-library-api-viewer.md)
@@ -2589,7 +2589,7 @@ land as ADRs and RFCs in this repository.
 
 ### UX specifications
 
-- [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) — visual and token contract
+- [UXS-001: Workbench](../uxs/UXS-001-workbench.md) — visual and token contract
 - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md)
 - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md)
 - [UXS-004: Graph Exploration](../uxs/UXS-004-graph-exploration.md)

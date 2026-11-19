@@ -1,6 +1,7 @@
 """KG artifact I/O: read and write per-episode kg.json files."""
 
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast, Dict, Optional
 
@@ -57,15 +58,43 @@ def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -
         payload: Dict with schema_version, episode_id, extraction, nodes, edges.
         validate: If True, run validation before writing.
     """
+    # KG 3.0 from R3b on (docs/wip/changes/0051_kg_3_0.md): every KG file is written as KG 3.0. A
+    # writer may still build in 2.x names; the file is converted, given PUBLISHED_BY when the
+    # publisher registry lists its source, and validated strictly against kg.v3.schema.json. A file
+    # that does not validate is not written (never warn and write).
+    from podcast_scraper.kg.v3_file import to_v3_file
+
+    v3 = to_v3_file(payload, language=_episode_language(Path(path)), registry=_registry())
     if validate:
-        validate_artifact(payload, strict=False)
+        validate_artifact(v3, strict=False)
+    validate_artifact(v3, strict=True)
     write_json_atomic(
         Path(path),
-        payload,
+        v3,
         indent=2,
         ensure_ascii=False,
         allow_nan=False,
     )
+
+
+@lru_cache(maxsize=1)
+def _registry() -> Any:
+    from podcast_scraper.publishers import load_registry
+
+    return load_registry()
+
+
+def _episode_language(path: Path) -> Optional[str]:
+    """The episode's ``episode.language`` from the metadata beside a ``.kg.json`` file."""
+    if not path.name.endswith(".kg.json"):
+        return None
+    meta = path.with_name(path.name[: -len(".kg.json")] + ".metadata.json")
+    try:
+        doc = json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    lang = (doc.get("episode") or {}).get("language") if isinstance(doc, dict) else None
+    return str(lang) if lang else None
 
 
 def read_artifact(

@@ -45,17 +45,17 @@ services:
       postgres:
         condition: service_healthy
 
-  viewer:
+  workbench:
     build:
       context: ..
-      dockerfile: docker/viewer/Dockerfile
+      dockerfile: docker/workbench/Dockerfile
       args:
         # Optional build-time DSN for a local image build. A running viewer takes its DSN from
         # PODCAST_SENTRY_DSN_VIEWER below instead (nginx injects it at request time, like the env
         # tag), so ONE viewer image serves every deployment. See RFC-081 (not in this repository) §Layer 2.
         VITE_SENTRY_DSN_VIEWER: ${VITE_SENTRY_DSN_VIEWER:-}
         VITE_PODCAST_RELEASE: ${VITE_PODCAST_RELEASE:-}
-    image: podcast-scraper-stack-viewer:latest
+    image: podcast-scraper-stack-workbench:latest
     ports:
       - "${VIEWER_PORT:-8080}:80"
     environment:

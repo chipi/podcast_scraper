@@ -1,0 +1,29 @@
+{
+  "body_sha256": "8bb15c51c72135512438b7b686601c19857f861f471138c85d272d0e1d35df35",
+  "content_type": "news_article",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "item_id": "item:news_article:b626e4b9538458cb6235",
+  "language": "es",
+  "licence": null,
+  "mineable": true,
+  "news_article": {
+    "byline": [
+      "Dora Ejemplo"
+    ],
+    "byline_raw": "Dora Ejemplo",
+    "editorial_type": "opinion",
+    "text_status": "full",
+    "transport_ids": {
+      "rss": "mercados"
+    }
+  },
+  "paywalled": false,
+  "published_at": "2026-11-15T09:00:00Z",
+  "publisher_id": "org:daily-example",
+  "serveable": "summary",
+  "source_id": "source:125361805bbcfcb84b90",
+  "summary": "A column on how markets manage risk, translated from Spanish.",
+  "title": "Los mercados y la gestión del riesgo",
+  "url": "https://www.dailyexample.test/es/2026/11/mercados"
+}

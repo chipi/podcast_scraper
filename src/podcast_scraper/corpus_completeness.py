@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from podcast_scraper.grounded_insights_view import gi_read_view
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 from .search import groupings
@@ -144,7 +145,7 @@ def _collect_edge_types(corpus_root: Path) -> Tuple[Set[str], int]:
         seen += 1
         try:
             with open(gi_path, encoding="utf-8") as fh:
-                doc = json.load(fh)
+                doc = gi_read_view(json.load(fh))
         except (OSError, json.JSONDecodeError):
             continue
         for edge in doc.get("edges", []) or []:

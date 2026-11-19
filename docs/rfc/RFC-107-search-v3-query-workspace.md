@@ -1,8 +1,8 @@
 # RFC-107: Search v3 — Query Workspace (technical design)
 
 - **Status**: Draft
-- **PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md) · **UXS**: introduces [UXS-016](../uxs/UXS-016-query-workspace.md) (Query Workspace); extends [UXS-005](../uxs/UXS-005-semantic-search.md) (compact launcher role); heroifies the enriched answer; shell IA in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
-- **Surface**: `web/gi-kg-viewer` (viewer) · `src/podcast_scraper/server/routes/search.py` (additive query params only)
+- **PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md) · **UXS**: introduces [UXS-016](../uxs/UXS-016-query-workspace.md) (Query Workspace); extends [UXS-005](../uxs/UXS-005-semantic-search.md) (compact launcher role); heroifies the enriched answer; shell IA in [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md)
+- **Surface**: `web/workbench` (viewer) · `src/podcast_scraper/server/routes/search.py` (additive query params only)
 - **Authors**: Marko
 - **Related RFCs**:
   - [RFC-090](RFC-090-hybrid-retrieval.md) — hybrid retrieval (**do not re-enable native combine**; #1205)
@@ -55,13 +55,13 @@ Ten sub-designs, shipped as slices S1–S8 under epic #1229 (landed by commit `e
 
 **Store additions:** `shellStore.mainTab` gains `'search'`. `useSearchStore` grows a `workspace` sub-state (see §2). `shellStore.leftPanelSurface` collapses to a single `'launcher'` mode outside of Search. `useExploreStore` is folded into `useSearchStore` and deleted.
 
-**Composed shipped stores (RFC-094):** the Workspace and every rail launcher **publish** to `useActiveSearchContextStore` (already at `web/gi-kg-viewer/src/stores/activeSearchContext.ts`) so LibraryView and GraphCanvas consumers react as they do today. `PanelRetrievalStore` (RFC-094 OQ-1) is unchanged — Detail panels keep their per-entity cache.
+**Composed shipped stores (RFC-094):** the Workspace and every rail launcher **publish** to `useActiveSearchContextStore` (already at `web/workbench/src/stores/activeSearchContext.ts`) so LibraryView and GraphCanvas consumers react as they do today. `PanelRetrievalStore` (RFC-094 OQ-1) is unchanged — Detail panels keep their per-entity cache.
 
-**Subject persistence rule** (VIEWER_IA.md) holds: switching to Search does not clear the current subject.
+**Subject persistence rule** (WORKBENCH_IA.md) holds: switching to Search does not clear the current subject.
 
 ### §2 Store shape
 
-Extend the existing `web/gi-kg-viewer/src/stores/search.ts` with a **request/response record** shape:
+Extend the existing `web/workbench/src/stores/search.ts` with a **request/response record** shape:
 
 ```ts
 interface SearchRequest {
@@ -103,7 +103,7 @@ SearchTab.vue                          [new — mounts on shellStore.mainTab ===
 
 **Superseded by §S4-shell:** WorkspaceSidebar.vue was hosted as a child of SearchTab. **ACTUAL:** Saved + Recent now live in LeftPanel (all main tabs), collapsible right-edge pattern. Same USERPREFS-1 keys (`search.savedQueries`, `search.recentQueries`); rows emit `apply-query` to switch tab + run.
 
-Uses `w-full` main area (respects VIEWER_IA §Viewport widths); no `w-72` constraint.
+Uses `w-full` main area (respects WORKBENCH_IA §Viewport widths); no `w-72` constraint.
 
 ### §4 Command palette (Cmd-K / `/`)
 
@@ -188,20 +188,20 @@ In-episode search (`EpisodeDetailPanel` inline field): renders `WorkspaceResults
 
 ### §T1 Three-tier pyramid (ADR-095 adopted, no new invention)
 
-- **Tier 1 (fast, mocked, ~30 s)** — per-surface contract specs under `web/gi-kg-viewer/e2e/`:
+- **Tier 1 (fast, mocked, ~30 s)** — per-surface contract specs under `web/workbench/e2e/`:
   - `search-workspace.spec.ts` (tab renders; header + operator bar + results; header intent chip; filter chip bar merges Explore filters)
   - `command-palette.spec.ts` (Cmd-K open/close; live query; three actions per row; recent/saved sections from USERPREFS)
   - `result-set-operators.spec.ts` (cluster/timeline/graph/compare/consensus — mocked responses)
   - `rail-search-launch.spec.ts` (5 rail launchers; each also asserts `activeSearchContext` was published)
   - `saved-queries.spec.ts` (round-trip via mocked USERPREFS-1 endpoints; silent-degrade when unavailable)
-- **Tier 2 (production-shaped, ~3–5 min)** — extend `web/gi-kg-viewer/e2e/fixtures/production-shaped/` with search-oriented content:
+- **Tier 2 (production-shaped, ~3–5 min)** — extend `web/workbench/e2e/fixtures/production-shaped/` with search-oriented content:
   - Add ≥ 1 compound-lift pair (transcript + linked insight).
   - Add ≥ 1 `topic_consensus` pair (cross-speaker corroboration).
   - Add ≥ 1 theme cluster with ≥ 5 members.
   - Add labelled query set (see §T2) as a sibling `queries.json`.
   - Extend `scripts/build_production_shaped_fixture.py` with a `--search-slice` flag that appends these; deterministic + idempotent.
-  - New spec dir `web/gi-kg-viewer/e2e/search-production/` mirrors Tier 1 row-for-row.
-- **Tier 3 (real-corpus, ~5–10 min)** — new `web/gi-kg-viewer/e2e/validation/search-real-corpus.spec.ts`:
+  - New spec dir `web/workbench/e2e/search-production/` mirrors Tier 1 row-for-row.
+- **Tier 3 (real-corpus, ~5–10 min)** — new `web/workbench/e2e/validation/search-real-corpus.spec.ts`:
   - Runs against `make serve` + operator-supplied corpus.
   - Same 6-point user-visible contract as graph handoff Tier 3 (selection + camera + subject + no console errors), extended for search: (a) enriched answer paints, (b) intent chip matches expected label on labelled subset, (c) cluster operator returns ≥ 1 cluster on a corpus known to have themes, (d) rail launchers open Workspace with correct scope AND publish to `activeSearchContext`.
   - New Make target: `make ci-ui-validation-search CORPUS=…`.
@@ -239,9 +239,9 @@ In-episode search (`EpisodeDetailPanel` inline field): renders `WorkspaceResults
 ### §T3 Unit / integration (pyramid base)
 
 Standard vitest + pytest at:
-- `web/gi-kg-viewer/src/stores/search.test.ts` (extend for operator + scope shape)
-- `web/gi-kg-viewer/src/stores/savedQueries.test.ts` (new — USERPREFS-1 integration + silent-degrade)
-- `web/gi-kg-viewer/src/components/search/**/*.test.ts` (per-component)
+- `web/workbench/src/stores/search.test.ts` (extend for operator + scope shape)
+- `web/workbench/src/stores/savedQueries.test.ts` (new — USERPREFS-1 integration + silent-degrade)
+- `web/workbench/src/components/search/**/*.test.ts` (per-component)
 - `tests/integration/server/test_search_operator_endpoints.py` (new — operator params + compare endpoint contract)
 - `tests/unit/search/test_operator_cluster.py` / `test_operator_consensus.py` / `test_search_compare_endpoint.py`
 - **SIGSEGV regression** (see §S): `tests/integration/search/test_lancedb_concurrent_no_native_combine.py` — extends the #1205 repro harness.
@@ -315,12 +315,12 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - **Slice order** — S0 baseline → S1–S8 (epic #1229; shipped via #1274).
 - **Feature flag** — none. Search v3 is an operator-viewer refactor; no toggle behind users. LeftPanel Search remains functional until slice 1 lands the tab; the mode-switch is retired only when the tab is in.
 - **E2E surface map** — updated in each slice; the old Explore test IDs get a "retired in RFC-107 slice 2" note.
-- **Docs** — VIEWER_IA.md gains a Search-tab paragraph; UXS-005 grows a "compact launcher" section (retiring its main-column role); UXS-016 is the primary UX doc for the Workspace.
+- **Docs** — WORKBENCH_IA.md gains a Search-tab paragraph; UXS-005 grows a "compact launcher" section (retiring its main-column role); UXS-016 is the primary UX doc for the Workspace.
 
 ## Alternatives considered
 
 1. **Global command bar only, no Search tab.** Cheaper. Rejected — result-set operators + enriched-answer hero need main-area real estate; cmd-K alone can't host them.
-2. **Search as a right-rail mode.** Rejected — collides with subject rail (VIEWER_IA §Persistence).
+2. **Search as a right-rail mode.** Rejected — collides with subject rail (WORKBENCH_IA §Persistence).
 3. **Keep Explore separate, merge later.** Rejected — Explore drift is what caused the "two UIs, one column" problem; deferring re-encodes the debt.
 4. **Re-enable native LanceDB hybrid combine.** Rejected on `T7` / #1205 grounds — that path is the SIGSEGV; a future upstream fix + independent verification could revisit, out of scope here.
 5. **Per-corpus JSON at `<corpus_root>/.viewer/saved_queries.json`.** Rejected — the corpus is transient (moving to a DB). ADR-119 formalizes the rule; §8 uses USERPREFS-1 instead.
@@ -364,7 +364,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) — three-tier pyramid (adopted)
 - [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) — LanceDB-first (SIGSEGV context)
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
-- [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab + LeftPanel role change)
+- [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) — shell IA (tab + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (primary UX)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)

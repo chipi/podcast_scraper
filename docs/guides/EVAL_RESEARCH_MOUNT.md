@@ -30,11 +30,14 @@ linters and formatters already exclude it (see below), so nothing else is needed
 If you do not have access to that repo, everything in this one still works. The
 eval harness is simply absent; no target here depends on it.
 
+Other private repos mount the same way, in the gitignored `apps/` folder; see
+[ADR-170](../adr/ADR-170-private-repo-split-platform-common-apps.md).
+
 ## Why `eval-data/` and not somewhere else
 
 It maps one-to-one onto the repo name, so a reader who sees the directory can
-guess what it is. It collides with nothing (`data/`, `docs/`, `config/`,
-`scripts/`, `tools/`, `web/`, `infra/` are all taken). And it is deliberately
+guess what it is. It collides with nothing at the repository root (`docs/`,
+`config/`, `scripts/`, `tools/`, `web/`, ... are all taken). And it is deliberately
 **not** dot-prefixed: a `.research/` directory looks safer and is not — black and
 flake8 walk into a dot-directory exactly as readily, which was measured rather
 than assumed.
@@ -47,6 +50,7 @@ than assumed.
 | `.flake8` | `exclude = eval-data, …` | `make lint` runs `flake8 .` and would lint the nested tree |
 | `pyproject.toml` | black `exclude` regex | `make format-check` runs `black --check .` |
 | `pyproject.toml` | isort `skip_glob` | same reason |
+| `pyproject.toml` | mypy `exclude` (`^eval-data/.*`) | `make type` runs `mypy .`; the eval repo type-checks itself |
 
 `pytest` needed nothing: `testpaths = ["tests"]` already confines collection.
 `mkdocs` needed nothing: `docs_dir` is `docs/`.
@@ -91,7 +95,8 @@ forms are now present.
 ### `..` means different things in the two setups
 
 With a **clone** at `eval-data/`, the parent directory is the public repo, so
-this works from inside the mount:
+this works from inside the mount (`eval-against-local` is a target of the eval
+repo's own Makefile, not of this one):
 
 ```bash
 make eval-against-local PATH_TO_CHECKOUT=..

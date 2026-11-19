@@ -80,7 +80,7 @@ its label.
 **Why:** shape variance is the highest-signal channel at low zoom, where
 labels are illegible. Colour alone would collapse on colour-blind viewers.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts` — `shapeByType`
+**Code:** `web/workbench/src/utils/cyGraphStylesheet.ts` — `shapeByType`
 map inside `buildGiKgCyStylesheet`. Compact-profile scaling handled in the
 same function.
 
@@ -103,7 +103,7 @@ CIL topic list. Hand-editing hexes across three files caused a collision
 before (`Entity_person` and `TopicCluster` were both `#9775fa`); the fix
 routed everything through `utils/colors.ts::graphNodeTypeStyles`.
 
-**Code:** `web/gi-kg-viewer/src/utils/colors.ts` — `graphNodeTypeStyles`
+**Code:** `web/workbench/src/utils/colors.ts` — `graphNodeTypeStyles`
 map. Collision guard test: `utils/colors.test.ts` — asserts every type has
 a unique background AND that the Entity/Entity_person alias whitelist is
 respected.
@@ -133,8 +133,8 @@ localStorage, mirrored to server via USERPREFS-1.
 
 **Code:**
 
-- `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts` — `mapData(degreeHeat, 0.7, 1.5)` selector, scoped to `[type][degreeHeat]` so per-element warnings don't fire on nodes without the field.
-- `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue` — `applyTopicDegreeHeat` populates `data.degreeHeat` post-layout.
+- `web/workbench/src/utils/cyGraphStylesheet.ts` — `mapData(degreeHeat, 0.7, 1.5)` selector, scoped to `[type][degreeHeat]` so per-element warnings don't fire on nodes without the field.
+- `web/workbench/src/components/graph/GraphCanvas.vue` — `applyTopicDegreeHeat` populates `data.degreeHeat` post-layout.
 
 **Caveat:** `topic-heat-high` class (bright text-outline for the top-N
 connected Topics) is still Topic-only — existing selector contract kept
@@ -159,7 +159,7 @@ anyway; hiding them until the analyst zooms in is honest, not lossy.
 **Gate:** always on. Not user-toggleable — this is a decluttering primitive,
 not a lens.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphLabelTier.ts` —
+**Code:** `web/workbench/src/utils/cyGraphLabelTier.ts` —
 `syncGraphNodeVisibilityTierClasses`. Fires on every layout pass and zoom
 change.
 
@@ -179,7 +179,7 @@ the topology visible. This is the primary declutter action of tier 6.
 hide Quotes filter** (§6) hides Quotes at all zoom levels by default; users
 who re-enable Quotes via the Types chip still get zoom-gated Quotes.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphLabelTier.ts` —
+**Code:** `web/workbench/src/utils/cyGraphLabelTier.ts` —
 `syncGraphNodeVisibilityTierClasses`. Test coverage:
 `utils/cyGraphLabelTier.test.ts`.
 
@@ -209,7 +209,7 @@ disable via the "Bridge nodes" row in Lenses.
 
 **Code:**
 
-- `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue` — `applyBridgeNodeClass`.
+- `web/workbench/src/components/graph/GraphCanvas.vue` — `applyBridgeNodeClass`.
 - Stylesheet class `.graph-bridge` in `utils/cyGraphStylesheet.ts`.
 - Hover tooltip surfaces the two theme regions the bridge connects
   (Tier 6-4; hover handler in `GraphCanvas.vue`).
@@ -227,7 +227,7 @@ disable via the "Bridge nodes" row in Lenses.
 
 **Enricher:** `temporal_velocity` — computes `velocity_last_over_6mo`
 per Topic and per Person. Thresholds shared with the reader's arc-tint
-colour via `web/gi-kg-viewer/src/utils/trend.ts` — the graph and the arcs
+colour via `web/workbench/src/utils/trend.ts` — the graph and the arcs
 tell the same story.
 
 **Gate:** `useGraphLensesStore.velocityHalo`. Row hidden entirely when the
@@ -237,9 +237,9 @@ controls per operator direction).
 
 **Code:**
 
-- Lens overlay: `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` —
+- Lens overlay: `web/workbench/src/utils/cyGraphLensOverlays.ts` —
   `applyVelocityHaloClasses` / `clearVelocityHaloClasses`.
-- Availability probe: `web/gi-kg-viewer/src/composables/useEnrichmentEnvelopeCache.ts`
+- Availability probe: `web/workbench/src/composables/useEnrichmentEnvelopeCache.ts`
   (Map-based cache; probed once per corpus path).
 
 **Live count (prod-v2):** 164 up, 129 down.
@@ -266,7 +266,7 @@ it carries no `persons` today and the row stays hidden).
 credibility is a **border colour**. Both are on Person; they never conflict
 because they use different visual channels.
 
-**Code:** registered at `web/gi-kg-viewer/src/extensions/index.ts` —
+**Code:** registered at `web/workbench/src/extensions/index.ts` —
 `graphLenses`; the viewer draws no credibility border of its own.
 
 **Live count (prod-v2):** 51 Persons at high credibility.
@@ -292,7 +292,7 @@ adding a fourth border layer.
 
 **Code:**
 
-- `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` — `applyPersonCommunityClasses`.
+- `web/workbench/src/utils/cyGraphLensOverlays.ts` — `applyPersonCommunityClasses`.
 - Enricher: `guest_coappearance`, provided by an installed extension.
 
 ---
@@ -321,7 +321,7 @@ order is deterministic.
 **Palette:** 8 pastel hues around HSL, sat 45% / light 65%, opacity 0.14.
 Same `graph_compound_parent_id` maps to the same colour across sessions
 via djb2 hash. Palette lives in
-`web/gi-kg-viewer/src/utils/themeRegionPalette.ts` — imported by both the
+`web/workbench/src/utils/themeRegionPalette.ts` — imported by both the
 legend and the stylesheet so hand-edits can't drift.
 
 **Gate:** `useGraphLensesStore.themeClusterRegions` — **default off**.
@@ -335,10 +335,10 @@ retain their opt-in.
 
 **Code:**
 
-- `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue` — `applyThemeRegionClasses`.
-- Propagation: `web/gi-kg-viewer/src/utils/topicClustersOverlay.ts`.
+- `web/workbench/src/components/graph/GraphCanvas.vue` — `applyThemeRegionClasses`.
+- Propagation: `web/workbench/src/utils/topicClustersOverlay.ts`.
 - Enricher: `src/podcast_scraper/enrichment/enrichers/topic_theme_clusters.py`.
-- Legend: `web/gi-kg-viewer/src/components/graph/ThemeClusterLegend.vue`
+- Legend: `web/workbench/src/components/graph/ThemeClusterLegend.vue`
   (see §Legend).
 
 **Live count (prod-v2):** 161 nodes tagged across 4 hash-buckets.
@@ -368,7 +368,7 @@ Tiers keep both readable.
 **Compact profile:** widths scale proportionally under the compact-profile
 render path. Aggregate `mapData(weight)` untouched (already scaled).
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts` — edge-type
+**Code:** `web/workbench/src/utils/cyGraphStylesheet.ts` — edge-type
 selectors + `edgeWidthByType`. Tier assertions:
 `utils/cyGraphStylesheet.test.ts`.
 
@@ -402,7 +402,7 @@ compete with the new activity.
 **Gate:** always on. Floor at 0.4 so nothing disappears.
 
 **Code:** `mapData(recencyWeight)` selector in
-`web/gi-kg-viewer/src/utils/cyGraphStylesheet.ts`. Recency computed at
+`web/workbench/src/utils/cyGraphStylesheet.ts`. Recency computed at
 artifact-merge time.
 
 ---
@@ -441,9 +441,9 @@ hidden when no decorator does; the viewer alone has none.
 
 **Code:**
 
-- Decorator hooks: `web/gi-kg-viewer/src/extensions/index.ts` —
+- Decorator hooks: `web/workbench/src/extensions/index.ts` —
   `GraphElementDecorator`, applied in `utils/parsing.ts::toCytoElements`.
-- Chip data-gate: `web/gi-kg-viewer/src/components/graph/chips/GraphLensesChip.vue`
+- Chip data-gate: `web/workbench/src/components/graph/chips/GraphLensesChip.vue`
   — `aggregatedEdgesAvailable` computed.
 
 ---
@@ -463,7 +463,7 @@ routing keeps them from stacking on top of the ABOUT edges. Green because
 
 **Gate:** `useGraphLensesStore.consensusEdges`. Enricher-gated.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` —
+**Code:** `web/workbench/src/utils/cyGraphLensOverlays.ts` —
 `applyConsensusEdges`.
 
 **Live count (prod-v2):** 5 edges — sparse by design; consensus is rare.
@@ -483,7 +483,7 @@ community overlay is a tint (nodes). Two views on the same signal.
 
 **Gate:** `useGraphLensesStore.coGuestEdges`. Enricher-gated.
 
-**Code:** `web/gi-kg-viewer/src/utils/cyGraphLensOverlays.ts` —
+**Code:** `web/workbench/src/utils/cyGraphLensOverlays.ts` —
 `applyCoGuestEdges`.
 
 **Live count (prod-v2):** 1 edge — very sparse; kicks in on larger corpora.
@@ -497,7 +497,7 @@ community overlay is a tint (nodes). Two views on the same signal.
 **Choice:** fcose (force-directed, coarse-to-fine). Chosen over cose in #967
 for perf on 800+ node corpora — fcose settles in ~1.5s vs cose's 8s+.
 
-**Key parameters** (in `web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts`):
+**Key parameters** (in `web/workbench/src/utils/cyCoseLayoutOptions.ts`):
 
 - `nodeRepulsion: 880_000` — base repulsion. Not tuned to the docs' 8000
   proposal (units differ from the current base).
@@ -647,7 +647,7 @@ default* — not on "anything unchecked". A user who ticks Quote *on* and
 Speaker *off* sees the reset indicator because Speaker is at default but
 Quote isn't. The `filtersActive` computed does the deviation math.
 
-**Code:** `web/gi-kg-viewer/src/utils/parsing.ts::typeHiddenByDefault`
+**Code:** `web/workbench/src/utils/parsing.ts::typeHiddenByDefault`
 (reads `graphTypeTraits.defaultHidden`) and `stores/graphFilters.ts`.
 
 ---
@@ -658,7 +658,7 @@ Quote isn't. The `filtersActive` computed does the deviation math.
 `allowedTypes.SuperTheme = true` so the canvas isn't emptied by a stale
 "SuperTheme unchecked" filter state.
 
-**Code:** `web/gi-kg-viewer/src/stores/graphFilters.ts` — top-down routing
+**Code:** `web/workbench/src/stores/graphFilters.ts` — top-down routing
 plus SuperTheme force-through.
 
 ---
@@ -746,7 +746,7 @@ approach.
 
 **Code:**
 
-- Slice derivation: `web/gi-kg-viewer/src/utils/topDownSlice.ts`.
+- Slice derivation: `web/workbench/src/utils/topDownSlice.ts`.
 - Search auto-expand: `GraphCanvas.vue::maybeExpandTopDownForPendingFocus`.
 - Filter routing: `stores/graphFilters.ts`.
 
@@ -756,7 +756,7 @@ approach.
 
 The Theme Cluster Legend is a floating panel — one entry per theme cluster
 in the current corpus, coloured by the theme-region palette hash. It lives
-in `web/gi-kg-viewer/src/components/graph/ThemeClusterLegend.vue`.
+in `web/workbench/src/components/graph/ThemeClusterLegend.vue`.
 
 ### Hierarchical rollup (Tier 7-1)
 
@@ -795,7 +795,7 @@ and dims all nodes outside the focused theme region.
 the search-reveals-hidden and expand-on-tap flows in top-down mode. Single
 focus is cleaner to reason about.
 
-**Store:** `web/gi-kg-viewer/src/stores/graphThemeFocus.ts`.
+**Store:** `web/workbench/src/stores/graphThemeFocus.ts`.
 
 ---
 
@@ -812,7 +812,7 @@ Full store map for the graph:
 | `useGraphHandoffStore` | `stores/graphHandoff.ts` | Handoff FSM (see `VIEWER_GRAPH_SPEC.md`) |
 | `useArtifactsStore` | `stores/artifacts.ts` | Merged GI+KG artifact; `displayArtifact`, `topDownDisplayArtifact` computeds |
 
-**USERPREFS-1** (`web/gi-kg-viewer/src/composables/useUserPreferences.ts` +
+**USERPREFS-1** (`web/workbench/src/composables/useUserPreferences.ts` +
 `api/userPreferencesApi.ts`): file-backed per-user preferences. Read on
 mount, patched on each toggle, replaced on `resetToDefaults`. Backend at
 `src/podcast_scraper/server/routes/app_user_preferences.py` — one JSON blob

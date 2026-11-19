@@ -1,10 +1,10 @@
 # PRD-024: GI/KG Graph Exploration Toolkit (Viewer)
 
-- **Status**: Implemented (v2.6.0) — [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) implemented in `web/gi-kg-viewer` (Graph tab: zoom UI, minimap, degree buckets, layouts, box zoom).
+- **Status**: Implemented (v2.6.0) — [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) implemented in `web/workbench` (Graph tab: zoom UI, minimap, degree buckets, layouts, box zoom).
 
 ## Summary
 
-Expand the **Graph** tab in the GI/KG viewer (`web/gi-kg-viewer`) with a **single delivery pass** of graph-native controls: clearer zoom/pan affordances, **minimap (in v1)**, type/degree summaries (degree buckets **act as a filter** when clicked), edge visibility controls, **simple** built-in layouts only (cose, breadthfirst, circle, grid), **Shift+drag** box zoom, and zoom **%** readout (zoom controls live in the **graph bottom bar** after [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover)). **Zoom reset = 100%** (`zoom(1)`); **Fit** remains fit-to-viewport. Goal is to make large merged corpora explorable without leaving the graph surface, while preserving existing behavior (filters, search highlights, ego neighborhood, export).
+Expand the **Graph** tab in the Workbench (`web/workbench`) with a **single delivery pass** of graph-native controls: clearer zoom/pan affordances, **minimap (in v1)**, type/degree summaries (degree buckets **act as a filter** when clicked), edge visibility controls, **simple** built-in layouts only (cose, breadthfirst, circle, grid), **Shift+drag** box zoom, and zoom **%** readout (zoom controls live in the **graph bottom bar** after [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover)). **Zoom reset = 100%** (`zoom(1)`); **Fit** remains fit-to-viewport. Goal is to make large merged corpora explorable without leaving the graph surface, while preserving existing behavior (filters, search highlights, ego neighborhood, export).
 
 ## Background & Context
 
@@ -13,8 +13,8 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 ## Goals
 
 - **G1**: One coordinated implementation slice (“toolkit pass”) so interactions can be evaluated together.
-- **G2**: All new controls are **graph-local** (top **Types** row + **⚙** popover + **`GraphBottomBar`** + canvas overlays), consistent with [UXS-004](../uxs/UXS-004-graph-exploration.md) and [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) tokens.
-- **G3**: **No regression** on existing E2E contracts; update [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) and Playwright as needed.
+- **G2**: All new controls are **graph-local** (top **Types** row + **⚙** popover + **`GraphBottomBar`** + canvas overlays), consistent with [UXS-004](../uxs/UXS-004-graph-exploration.md) and [UXS-001](../uxs/UXS-001-workbench.md) tokens.
+- **G3**: **No regression** on existing E2E contracts; update [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) and Playwright as needed.
 - **G4**: Acceptable performance on **medium** corpora (hundreds of nodes); document limits for **very large** graphs.
 
 ## Non-Goals
@@ -77,6 +77,6 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 ## Related Documents
 
 - **RFC**: [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) (technical design).
-- **Viewer**: [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [UXS-004](../uxs/UXS-004-graph-exploration.md), [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
+- **Viewer**: [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [UXS-004](../uxs/UXS-004-graph-exploration.md), [UXS-001](../uxs/UXS-001-workbench.md).
 - **Chrome layout (2026-04)**: [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover) — **Types** row, **⚙** popover, **`GraphBottomBar`**.
-- **Automation**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).
+- **Automation**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md).

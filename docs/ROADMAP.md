@@ -1,59 +1,48 @@
 # Roadmap
 
-This document lists **open work only** — items that are not yet fully implemented. For completed work, see [RFC index](rfc/index.md) (Completed table) and [Release notes](releases/index.md).
+This document lists **open work only** — items that are not yet fully implemented in this repository. For completed work, see [RFC index](rfc/index.md) (Completed table) and [Release notes](releases/index.md).
 
-**Last audited**: 2026-05-22 (PRD / RFC / ADR **Gap analysis** sections on each index:
+This repository is the open platform (pipeline, corpus, search, the Workbench and the extension seams; scope in [ADR-170](adr/ADR-170-private-repo-split-platform-common-apps.md)). Work that belongs to an installed extension, a downstream build or the research repository is not tracked here.
+
+**Last audited**: 2026-11-17 (PRD / RFC / ADR **Gap analysis** sections on each index:
 [`docs/prd/index.md`](prd/index.md#gaps), [`docs/rfc/index.md`](rfc/index.md#gaps),
-[`docs/adr/index.md`](adr/index.md#gaps))
+[`docs/adr/index.md`](adr/index.md#gaps)). Each item's status is the one its own RFC, PRD or ADR states.
 
 ## Current Status
 
-- **Open RFCs**: **6** (see [RFC index](rfc/index.md); includes Draft [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md), RFC-082 (not in this repository), RFC-083 (not in this repository), RFC-087 (not in this repository))
-- **Completed RFCs**: **62** (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS, [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) single-layer GIL/KG, `RFC-057` (moved to the private eval repo as RFC-002) per `ADR-073` (moved to the private eval repo as ADR-005), [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) backup manifest, [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) graph FSM, [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) test pyramid)
-- **Open PRDs**: **7** (see [PRD index](prd/index.md))
+- **Open RFCs**: see the [RFC index](rfc/index.md) (Open table). All are **Draft** except [RFC-091](rfc/RFC-091-kg-proximity-signal.md), a decision record that **rejects** KG proximity as a retrieval signal.
+- **Open PRDs**: see the [PRD index](prd/index.md) (Open table).
+- **Direction already decided**: Postgres is the source of truth for app state ([ADR-169](adr/ADR-169-the-database-is-the-source-of-truth.md)), which supersedes the Postgres-projection plan ([RFC-051](rfc/RFC-051-database-projection-gil-kg.md)).
 
-**Completed reference (not backlog):** [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) viewer v2; [RFC-063](rfc/RFC-063-multi-feed-corpus-append-resume.md)–[RFC-071](rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) v2.6.0 corpus/viewer track; [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) / [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) v2.6.0 stabilization track ([ADR-092](adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md), ADR-093 (not in this repository), [ADR-094](adr/ADR-094-graph-handoff-orchestrator-fsm.md), [ADR-095](adr/ADR-095-viewer-test-pyramid.md)).
+**Completed reference (not backlog):** [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) Workbench v2; [RFC-063](rfc/RFC-063-multi-feed-corpus-append-resume.md)–[RFC-071](rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) v2.6.0 corpus/viewer track; [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) / [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) v2.6.0 stabilization track ([ADR-092](adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md), [ADR-094](adr/ADR-094-graph-handoff-orchestrator-fsm.md), [ADR-095](adr/ADR-095-viewer-test-pyramid.md)); [RFC-090](rfc/RFC-090-hybrid-retrieval.md) hybrid retrieval over LanceDB.
 
 ## Tier 1 — Active / Near-Term
 
-Items currently in progress or next up. High user value or blocking other work.
+Items in progress or next up.
 
 | Pri | Item | Type | Status | Gaps | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **1** | [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md) / [PRD-021](prd/PRD-021-semantic-corpus-search.md) | RFC | **Draft** | [RFC-061](rfc/RFC-061-semantic-corpus-search.md) (FAISS) **Completed**. Open: Qdrant **`VectorStore`**, native filters, pgvector/RFC-051, re-ranking | High |
-| **2** | [RFC-054](rfc/RFC-054-e2e-mock-response-strategy.md) | RFC | **Partial** | E2E mock server exists. Full composable ResponseProfile/Router architecture NOT implemented. Blocks #399 (provider hardening) | High |
-| **3** | [PRD-017](prd/PRD-017-grounded-insight-layer.md), [PRD-019](prd/PRD-019-knowledge-graph-layer.md) | RFC | **Open** | Cross-layer IDs, `bridge.json`, flagship use cases. Single-layer GIL/KG consumption (**RFC-056**) **Completed** — see [RFC index](rfc/index.md) | Medium-High |
-| **4** | [RFC-051](rfc/RFC-051-database-projection-gil-kg.md) / [PRD-018](prd/PRD-018-database-projection-gil-kg.md) | RFC | **Not Started** | No Postgres integration, no SQL migrations. [ADR-054](adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) accepted, Code **No** | Medium |
+| **1** | [RFC-107](rfc/RFC-107-search-v3-query-workspace.md) / [PRD-045](prd/PRD-045-search-v3-query-workspace.md) | RFC | **Draft** | Query workspace for the Workbench Search tab, with additive query params on the search route | High |
+| **2** | [RFC-124](rfc/RFC-124-multilingual-transcription-and-translation.md) / [PRD-047](prd/PRD-047-multilingual-ingest.md) | RFC | **Draft** | The translation stage and the English-canonical layout ship ([Multilingual Arc](architecture/MULTILINGUAL_ARC.md)); the RFC itself is still Draft | High |
+| **3** | [RFC-092](rfc/RFC-092-ml-query-router.md) | RFC | **Draft** | Rules router shipped; the ML classifier is gated on eval data | Medium |
 
-## Tier 2 — Quality & Observability
-
-Improve output quality, testing, and operational visibility.
+## Tier 2 — Workbench and pipeline
 
 | Pri | Item | Type | Status | Gaps | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **5** | [RFC-053](rfc/RFC-053-adaptive-summarization-routing.md) | RFC | **Not Started** | No episode profiling, no routing logic. Only generic MAP-REDUCE short-input routing exists | High |
-| **6** | [RFC-027](rfc/RFC-027-pipeline-metrics-improvements.md) | RFC | **Partial** | Rich metrics + JSON export exist. CSV export missing. Two-tier logging partial | Medium |
-| **7** | [RFC-043](rfc/RFC-043-automated-metrics-alerts.md) | RFC | **Partial** | `generate_metrics.py` alerts + nightly CI summary work. Automated PR comments NOT done. Depends on RFC-027 | Medium |
-| **8** | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) | PRD | **Open** | Operational observability umbrella; metrics improvements (RFC-027) and alerts (RFC-043) are components | Medium |
+| **4** | [RFC-104](rfc/RFC-104-operator-shows-library.md) / [PRD-044](prd/PRD-044-operator-shows-library.md) | RFC | **Draft** | Shows-first Library browse; the Library tab has a Shows mode today, so the status needs reconciling | Medium |
+| **5** | [RFC-080](rfc/RFC-080-graph-visualization-extensions.md) | RFC | **Draft** | Five composable graph visualization lenses | Medium |
+| **6** | [RFC-105](rfc/RFC-105-cross-feed-audio-llm-pipelining.md) | RFC | **Draft** | Shared queue across feeds so the next feed's audio work overlaps the previous feed's LLM tail | Medium |
+| **7** | [RFC-053](rfc/RFC-053-adaptive-summarization-routing.md) | RFC | **Draft** | No episode profiling or content-type routing in the pipeline | Medium |
+| **8** | [PRD-027](prd/PRD-027-enriched-search.md) | PRD | **Partial** | The `QueryEnricher` protocol and `/api/search?enrich_results=true` wiring ship; this repository registers no query enricher, installed extensions add them | Medium |
 
-## Tier 3 — Infrastructure & Developer Experience
-
-Experimentation platform, CI integration, review tooling.
+## Tier 3 — Quality, observability and developer experience
 
 | Pri | Item | Type | Status | Gaps | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **9** | `RFC-015` (moved to the private eval repo as RFC-004) / [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) | RFC | **Partial** | Core pipeline, runner, configs, eval scoring exist. CI auto-run on PR not wired | Low-Medium |
-| **10** | `RFC-041` (moved to the private eval repo as RFC-005) | RFC | **Partial** | `data/eval/`, golden datasets, baselines, comparison scripts exist. Automated CI benchmarking not wired | Low-Medium |
-| **11** | [RFC-038](rfc/RFC-038-continuous-review-tooling.md) | RFC | **Partial** | Dependabot config + pydeps/coupling analysis exist. `make pre-release` checklist script missing | Low |
-| **12** | [PRD-015](prd/PRD-015-engineering-governance-productivity.md) | PRD | **Open** | Engineering governance umbrella | Low |
-
-## Tier 4 — Future / Not Started
-
-Planned but no implementation exists yet (or design-only).
-
-| Pri | Item | Type | Status | Dependencies | Impact |
-| --- | --- | --- | --- | --- | --- |
-| **13** | [PRD-020](prd/PRD-020-audio-speaker-diarization.md) | RFC | **Partial** | Core diarization module + `[ml]`/`[dev]` deps; caching + fixture proof open | Medium |
+| **9** | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) | PRD | **Partial** | Test metrics, dashboards and the live monitor ship; operational observability umbrella still open | Medium |
+| **10** | [RFC-116](rfc/RFC-116-autoresearch-driven-fixture-corpus.md) | RFC | **Draft** | Fixture corpus driven by real failure modes; the v3 text side has landed | Medium |
+| **11** | [PRD-015](prd/PRD-015-engineering-governance-productivity.md) | PRD | **Draft** | Engineering governance umbrella | Low |
 
 ## ADRs with remaining implementation work
 
@@ -61,20 +50,19 @@ Architectural decisions that are **Proposed**, **Accepted** with **Code = No**, 
 
 | ADR | Title | Code | Blocked by / gap |
 | :--- | :--- | :--- | :--- |
-| [ADR-054](adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) | Relational Postgres Projection | No | RFC-051 (Not Started) |
-| [ADR-055](adr/ADR-055-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | RFC-053 (Not Started) |
-| [ADR-056](adr/ADR-056-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | RFC-054 (Partial) |
-| [ADR-031](adr/ADR-031-mandatory-pre-release-validation.md) | Mandatory Pre-Release Validation | Partial | RFC-038 checklist alignment |
-| [ADR-047](adr/ADR-047-proactive-metric-regression-alerting.md) | Proactive Metric Regression Alerting | Partial | RFC-043 PR comments |
+| [ADR-170](adr/ADR-170-private-repo-split-platform-common-apps.md) | Split the apps, MCP, enrichers and sign-in providers into private repos | Proposed | Defines this repository's scope; the extension interface exists (`src/podcast_scraper/extensions.py`) |
+| [ADR-054](adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) | Relational Postgres Projection | No | Its "files canonical" part is superseded by ADR-169 |
+| [ADR-055](adr/ADR-055-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | RFC-053 (Draft) |
+| [ADR-031](adr/ADR-031-mandatory-pre-release-validation.md) | Mandatory Pre-Release Validation | Partial | Pre-release checklist script |
+| [ADR-047](adr/ADR-047-proactive-metric-regression-alerting.md) | Proactive Metric Regression Alerting | Partial | PR-comment and webhook scripts deliberately abandoned; alerting is operator-side |
 
 ## Dependency Graph
 
 ```text
-RFC-027 (metrics) ──────► RFC-043 (automated alerts)
-RFC-061 (semantic search, FAISS, Completed) ──► RFC-062 (Completed); RFC-070 (platform vector) Draft
-PRD-017/019 (GIL/KG) ──► RFC-056 single-layer Completed
-PRD-018 ──► RFC-051 (database projection)
-RFC-054 (E2E mocks) ──► #399 (provider hardening)
+RFC-090 (hybrid retrieval, Completed) ──► RFC-107 (Search v3, Draft); RFC-092 (ML router, Draft)
+RFC-124 (multilingual, Draft) ──► PRD-047
+RFC-053 (adaptive routing, Draft) ──► ADR-055 (Proposed)
+ADR-169 (database is the source of truth) ──► supersedes RFC-051 and the "files canonical" part of ADR-054
 ```
 
 ## Related Documents
@@ -87,5 +75,5 @@ RFC-054 (E2E mocks) ──► #399 (provider hardening)
 
 ---
 
-**Last Updated**: 2026-04-11
+**Last Updated**: 2026-11-17
 **Next Review**: Quarterly (or as priorities shift)

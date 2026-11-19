@@ -106,6 +106,7 @@ enrichment:
   enrichers:
     topic_cooccurrence_corpus: {}
     topic_theme_clusters: {}
+    news_connection: {}
     temporal_velocity: {}
     grounding_rate: {}
     guest_coappearance: {}

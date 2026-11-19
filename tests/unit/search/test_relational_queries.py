@@ -30,6 +30,7 @@ from podcast_scraper.search.relational_queries import (
     RelatedNode,
     rerank_by_relevance,
     shared_topics,
+    show_sources,
     topics_of,
     topics_of_insight,
     who_said,
@@ -465,3 +466,29 @@ class TestTypedMentionsFamilyQueries:
         result_ids = {r.id for r in result}
         # Both i2 (shared ABOUT topic) and i3 (shared alice mention) are siblings
         assert "insight:3" in result_ids
+
+
+def test_show_sources_give_each_show_kg_source_id_and_title() -> None:
+    """GI 4.0 R3b: a cross-show group's key is GI's title-based show id today; consumers need the
+    show's title and KG's source id (``_podcast_node_id`` of the feed id KG writes)."""
+    g = FakeGraph(
+        {
+            "podcast:the-daily": ("podcast", {"title": "The Daily"}),
+            "episode:d1": ("episode", {"feed_id": "nyt-daily"}),
+            "podcast:no-feed": ("podcast", {"name": "No Feed"}),
+            "episode:n1": ("episode", {}),
+        },
+        [
+            ("podcast:the-daily", "episode:d1", "HAS_EPISODE"),
+            ("podcast:no-feed", "episode:n1", "HAS_EPISODE"),
+        ],
+    )
+    out = show_sources(g, ["podcast:the-daily", "podcast:no-feed", "feed-x"])
+    assert out["podcast:the-daily"] == {
+        "source_id": "podcast:nyt-daily",
+        "source_title": "The Daily",
+    }
+    # No feed id on its episodes: no source id (never one derived from the title).
+    assert out["podcast:no-feed"] == {"source_id": None, "source_title": "No Feed"}
+    # A key taken from an insight's show_id/feed_id payload is the feed id itself.
+    assert out["feed-x"] == {"source_id": "podcast:feed-x", "source_title": None}

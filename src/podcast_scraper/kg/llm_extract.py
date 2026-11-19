@@ -21,6 +21,37 @@ def strip_known_ml_bullet_prefixes(text: str) -> str:
     return s.strip()
 
 
+#: The entities the extraction prompt shows as examples. A model can copy one into a text that
+#: never mentions it (a short news article most of all), so an extracted entity with one of these
+#: names that the text does not contain is dropped (:func:`drop_prompt_example_entities`).
+PROMPT_EXAMPLE_ENTITIES: Tuple[Tuple[str, str], ...] = (
+    ("Maya", "person"),
+    ("Cascadia Alliance", "organization"),
+    ("Strava", "organization"),
+    ("Singletrack Sessions", "object"),
+    ("The Norman Conquest", "object"),
+)
+
+
+def drop_prompt_example_entities(
+    entities: List[Dict[str, Any]], text: str
+) -> Tuple[List[Dict[str, Any]], int]:
+    """``entities`` without those named as one of the prompt's examples when ``text`` does not
+    contain that name (case-insensitive): a name the model took from the prompt, not the text.
+    Returns the kept entities and how many were dropped."""
+    folded = (text or "").casefold()
+    examples = {name.casefold() for name, _ in PROMPT_EXAMPLE_ENTITIES}
+    kept: List[Dict[str, Any]] = []
+    dropped = 0
+    for e in entities:
+        name = str(e.get("name") or "").strip().casefold()
+        if name in examples and name not in folded:
+            dropped += 1
+            continue
+        kept.append(e)
+    return kept, dropped
+
+
 def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str:
     """System message for transcript-based KG extraction with explicit array caps.
 
@@ -57,11 +88,11 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         "Use object when unsure. NEVER default to person: a wrong person makes a "
         "battle or a podcast appear in the show's list of human voices.\n\n"
         "Correct entity examples (extract these into entities):\n"
-        '  - {"name":"Maya","entity_kind":"person"}\n'
-        '  - {"name":"Cascadia Alliance","entity_kind":"organization"}\n'
-        '  - {"name":"Strava","entity_kind":"organization"}\n'
-        '  - {"name":"Singletrack Sessions","entity_kind":"object"}\n'
-        '  - {"name":"The Norman Conquest","entity_kind":"object"}\n\n'
+        + "".join(
+            f'  - {{"name":"{name}","entity_kind":"{kind}"}}\n'
+            for name, kind in PROMPT_EXAMPLE_ENTITIES
+        )
+        + "\n"
         "Common mistakes — these are TOPICS not ENTITIES (do NOT put them in entities):\n"
         '  - "error budgets" → topic (concept), not entity\n'
         '  - "security practices" → topic (concept), not entity\n'

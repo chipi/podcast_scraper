@@ -26,7 +26,7 @@ make restore-cache           # Restore cache from backup (interactive)
 make backup-cache-list       # List available backups
 ```
 
-**Polyglot repo:** Python and `Makefile` at the root; GI/KG viewer UI under `web/gi-kg-viewer/`
+**Polyglot repo:** Python and `Makefile` at the root; Workbench UI under `web/workbench/`
 (npm). See [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env file locations and viewer
 commands.
 
@@ -95,8 +95,8 @@ make ci                      # Full CI suite (+ Playwright, coverage enforce)
 | `make test-fast` | Critical path only | ~1min |
 | `make test` | All tests | ~8min |
 | `make test-nightly` | Nightly tests (production models) | ~4hrs |
-| `make test-ui` | Vitest unit tests for `web/gi-kg-viewer` TS utils (no browser) | ~1s |
-| `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Chrome; installs browsers) | ~1–3 min |
+| `make test-ui` | Vitest unit tests for `web/workbench` TS utils (no browser) | ~1s |
+| `make test-ui-e2e` | Playwright E2E for `web/workbench` (Chrome; installs browsers) | ~1–3 min |
 | `make test-acceptance-fixtures-fast` | Full-pipeline acceptance **fast matrix** + E2E fixtures (materializes **`MAIN_ACCEPTANCE_CONFIG.yaml`** rows) | slow (CI-scale) |
 
 Full-pipeline acceptance presets: **`make test-acceptance CONFIGS="…"`** or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** — see [Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests) and **`scripts/acceptance/README.md`**.
@@ -144,7 +144,7 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 ---
 
-## GI / KG Viewer (v2, RFC-062)
+## Workbench, RFC-062)
 
 | Command | What it does |
 | ------- | ------------ |
@@ -154,11 +154,11 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 | `make test-ui` | Vitest unit tests for TS utils (fast, no browser) |
 | `make test-ui-e2e` | Playwright tests (Chrome; Vite on **5174** inside config) |
 
-**Prerequisites:** `pip install -e ".[dev]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
+**Prerequisites:** `pip install -e ".[dev]"`; once per clone, `cd web/workbench && npm install && npm run build` to serve the built SPA from `serve`.
 
 **Docs:**
 [Server Guide](SERVER_GUIDE.md) (`/api/*`, **`/docs`**)
-· [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+· [web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)
 · [Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
 
 ---
@@ -268,7 +268,7 @@ Grounded insights are key takeaways linked to verbatim quotes (evidence). When t
 - **Config**: `generate_gi: true`; optional evidence stack: `embedding_model`, `extractive_qa_model`, `nli_model` (and `*_device`).
 - **Output**: One `gi.json` per episode (co-located with transcript/summary).
 - **CLI**: `gi inspect`, `gi show-insight`, `gi explore` (see Grounded Insights Guide).
-- **Browser viewer (v2):** `python -m podcast_scraper.cli serve --output-dir …` with built `web/gi-kg-viewer/dist/` — or `make serve` for dev ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
+- **Browser viewer (v2):** `python -m podcast_scraper.cli serve --output-dir …` with built `web/workbench/dist/` — or `make serve` for dev ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
 
 See the [GIL Ontology](../architecture/gi/ontology.md).
 

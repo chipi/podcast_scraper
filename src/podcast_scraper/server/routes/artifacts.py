@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
+from podcast_scraper.news_items import is_news_item_file, news_kg_item_id
 from podcast_scraper.search.corpus_scope import episode_artifact_kinds, member_episode_artifacts
 from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_artifact_listing
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
@@ -134,6 +135,15 @@ def get_artifact(
     target = _safe_artifact_target(base, artifact_path)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="Artifact not found.")
+    # A news item's files are never served here (RFC-134 §10), except the KG of an item served now
+    # (its current copy, not this file's run): the graph's expand draws article nodes from it.
+    if is_news_item_file(target, base):
+        from podcast_scraper.server.routes.corpus_news import cached_served_items
+
+        item_id = news_kg_item_id(target)
+        served = {i["item_id"] for i in cached_served_items(base)}
+        if not item_id or item_id not in served:
+            raise HTTPException(status_code=404, detail="Artifact not found.")
     if _kind_for_suffix(target.name) is None:
         raise HTTPException(
             status_code=400,

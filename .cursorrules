@@ -41,7 +41,7 @@ When editing files matching these paths, load the listed guide before editing:
   any non-`[dev]` extra. Never use `pytest.importorskip()` to sidestep.
 - `tests/integration/**` or `tests/e2e/**` → `docs/guides/TESTING_GUIDE.md`.
 - `config/profiles/*.yaml` → see *Profile completeness* in `AGENTS.md`.
-- `web/gi-kg-viewer/**` → see *GI/KG viewer UX* in `AGENTS.md`.
+- `web/workbench/**` → see *Workbench UX* in `AGENTS.md`.
 - `docs/prd/**`, `docs/uxs/**`, `docs/rfc/**`, `docs/adr/**`,
   `docs/architecture/**` → `docs/guides/ENGINEERING_PROCESS.md` (and
   `engineering-process.mdc`); RFC carries design, ADR carries **Accepted**

@@ -1,0 +1,81 @@
+{
+  "schema_version": "3.0",
+  "item_id": "item:news_article:9daff705c69561dcd905",
+  "content_type": "news_article",
+  "extraction": {
+    "model_version": "metadata_only",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "document_ref": "transcripts/wire-reliability.txt",
+    "variant": "raw"
+  },
+  "nodes": [
+    {
+      "id": "source:8c47148ce1eea59a43d1",
+      "type": "Source",
+      "properties": {
+        "title": "Link Board",
+        "source_kind": "news",
+        "transport": "json_api",
+        "url": "https://linkboard.test/api/front"
+      }
+    },
+    {
+      "id": "item:news_article:9daff705c69561dcd905",
+      "type": "ContentItem",
+      "properties": {
+        "title": "Reliability at scale, a field report",
+        "content_type": "news_article",
+        "source_id": "source:8c47148ce1eea59a43d1",
+        "url": "https://m.otherwire.test/reliability-at-scale",
+        "published_at": "2026-11-17T06:00:00Z"
+      }
+    },
+    {
+      "id": "topic:reliability",
+      "type": "Topic",
+      "properties": {
+        "label": "Reliability",
+        "slug": "reliability"
+      }
+    },
+    {
+      "id": "person:bo-example",
+      "type": "Person",
+      "properties": {
+        "name": "Bo Example"
+      }
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "type": "Person",
+      "properties": {
+        "name": "Skanda Amarnath"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_ITEM",
+      "from": "source:8c47148ce1eea59a43d1",
+      "to": "item:news_article:9daff705c69561dcd905"
+    },
+    {
+      "type": "MENTIONS",
+      "from": "topic:reliability",
+      "to": "item:news_article:9daff705c69561dcd905"
+    },
+    {
+      "type": "PARTICIPATES_IN",
+      "from": "person:bo-example",
+      "to": "item:news_article:9daff705c69561dcd905",
+      "properties": {
+        "role": "author"
+      }
+    },
+    {
+      "type": "MENTIONS",
+      "from": "person:skanda-amarnath",
+      "to": "item:news_article:9daff705c69561dcd905"
+    }
+  ]
+}

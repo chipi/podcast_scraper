@@ -17,8 +17,8 @@
   - `docs/rfc/RFC-062-gi-kg-viewer-v2.md` (the viewer itself)
 - **Related Documents**:
   - `docs/architecture/VIEWER_GRAPH_SPEC.md` §"Matrix assertion layers (L0–L6)"
-  - `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` (the 41-row coverage contract)
-  - `web/gi-kg-viewer/e2e/validation/real-corpus.spec.ts` (the validation
+  - `web/workbench/e2e/HANDOFF_MATRIX.md` (the 41-row coverage contract)
+  - `web/workbench/e2e/validation/real-corpus.spec.ts` (the validation
     walk that surfaced V5)
 
 ## Abstract
@@ -131,21 +131,21 @@ supersession path doesn't cancel cleanly).
 
 ```text
 TIER 1 — Fast matrix        ~30 s    Every PR (blocking)
-  Fixture:   web/gi-kg-viewer/e2e/handoff/_handoff-helpers.ts
+  Fixture:   web/workbench/e2e/handoff/_handoff-helpers.ts
              1 episode, 1 topic cluster, trivial GI fixture
   Catches:   contract regressions, FSM transition-table breaks,
              envelope-shape drift
   Runs in:   make ci-ui-fast
 
 TIER 2 — Production-shaped matrix   ~3–5 min   ci-ui-full only
-  Fixture:   web/gi-kg-viewer/e2e/fixtures/production-shaped/
+  Fixture:   web/workbench/e2e/fixtures/production-shaped/
              25 episodes × 5 feeds, 5 topic clusters (3–6 members each),
              GI + KG both populated, 200–400 cy nodes after merge,
              layout times in the 1–3 s range
   Catches:   scale-sensitive bugs, timing races, KG-second-wave,
              compound-mount ordering, subject↔cy resolution drift
   Runs in:   make ci-ui-full
-  Spec:      web/gi-kg-viewer/e2e/handoff-production/*.spec.ts
+  Spec:      web/workbench/e2e/handoff-production/*.spec.ts
 
 TIER 3 — Real-backend validation    ~5–10 min  Manual + weekly cron
   Fixture:   any on-disk corpus the operator points at
@@ -153,12 +153,12 @@ TIER 3 — Real-backend validation    ~5–10 min  Manual + weekly cron
              (vector index, real LLM-generated topic clusters, etc.)
   Runs in:   make ci-ui-validation  +  scheduled GHA against a
              checked-in corpus snapshot
-  Spec:      web/gi-kg-viewer/e2e/validation/real-corpus.spec.ts
+  Spec:      web/workbench/e2e/validation/real-corpus.spec.ts
 ```
 
 ### What Tier 2 looks like — the production-shaped fixture
 
-A checked-in static fixture under `web/gi-kg-viewer/e2e/fixtures/production-shaped/`:
+A checked-in static fixture under `web/workbench/e2e/fixtures/production-shaped/`:
 
 ```text
 production-shaped/
@@ -227,7 +227,7 @@ Mirror the 41 fast-matrix rows under `e2e/handoff-production/`:
 
 ### What Tier 3 looks like
 
-`web/gi-kg-viewer/e2e/validation/real-corpus.spec.ts` (already exists,
+`web/workbench/e2e/validation/real-corpus.spec.ts` (already exists,
 from the V1–V5 walk) becomes a permanent fixture. Promoted to:
 
 - `playwright.validation.config.ts` (already exists) targets
@@ -312,12 +312,12 @@ wrong-place" bug class without the maintenance burden.
 
 Build `scripts/build_production_shaped_fixture.py`. Extract a deterministic
 slice from an operator-supplied real-corpus snapshot into
-`web/gi-kg-viewer/e2e/fixtures/production-shaped/`. Verify total size <5 MB.
+`web/workbench/e2e/fixtures/production-shaped/`. Verify total size <5 MB.
 Verify all referenced files exist. Commit the fixture + the script.
 
 ### Phase 2 — Production-shaped matrix (~1.5 days)
 
-Author `web/gi-kg-viewer/e2e/handoff-production/*.spec.ts` mirroring the
+Author `web/workbench/e2e/handoff-production/*.spec.ts` mirroring the
 41 fast-matrix rows. Author `setupProductionShapedMocks(page)` helper.
 Mark currently-failing rows `test.fail()` with tracking refs. Wire into
 `make ci-ui-full`.
@@ -335,9 +335,9 @@ V3 search index integration.
 
 ### Phase 4 — Tier 3 promoted to permanent gate (~0.5 day)
 
-Move `web/gi-kg-viewer/e2e/validation/` and `playwright.validation.config.ts`
+Move `web/workbench/e2e/validation/` and `playwright.validation.config.ts`
 out of "session artefact" status. Add `make ci-ui-validation` target.
-Document in `web/gi-kg-viewer/e2e/validation/README.md` how to point at
+Document in `web/workbench/e2e/validation/README.md` how to point at
 arbitrary corpora.
 
 ### Phase 5 — Institutional muscle (~0.5 day)
@@ -381,5 +381,5 @@ arbitrary corpora.
 - [ADR-094: Graph handoff orchestrator FSM](../adr/ADR-094-graph-handoff-orchestrator-fsm.md) — what the matrix tests
 - [ADR-095: Three-tier viewer test pyramid](../adr/ADR-095-viewer-test-pyramid.md) — locked decision (companion to this RFC)
 - [VIEWER_GRAPH_SPEC.md §"Matrix assertion layers (L0–L6)"](../architecture/VIEWER_GRAPH_SPEC.md)
-- `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` — Tier 1 contract
-- `web/gi-kg-viewer/e2e/validation/real-corpus.spec.ts` — Tier 3 starting point
+- `web/workbench/e2e/HANDOFF_MATRIX.md` — Tier 1 contract
+- `web/workbench/e2e/validation/real-corpus.spec.ts` — Tier 3 starting point

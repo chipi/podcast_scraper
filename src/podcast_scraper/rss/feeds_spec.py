@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, TypeVar
 from urllib.parse import urlparse
@@ -73,7 +74,72 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
 #: What a source IS (ADR-177), not how to run it: kept on its entry by every path that builds one,
 #: never merged into Config as an override. A config-inline entry used to lose both, so a text
 #: source listed in a service config ran as a podcast.
-RSS_FEED_ENTRY_IDENTITY_KEYS: frozenset[str] = frozenset({"content_type", "transport"})
+RSS_FEED_ENTRY_IDENTITY_KEYS: frozenset[str] = frozenset({"content_type", "transport", "news"})
+
+
+class NewsSourceSpec(BaseModel):
+    """A news source's own settings (E05, RFC-134 §12): what it may show and mine, how many items
+    a run takes, and which of its URLs are articles."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    #: Items one run takes at most, newest first (RFC-134 §12: every source has a cap).
+    max_items: int = Field(default=20, ge=1, le=500)
+    #: An item's URL must match this (regex, searched) to be taken, e.g. Nature's news ids.
+    include_url_pattern: Optional[str] = None
+    #: An item whose URL matches this (regex, searched) is skipped, e.g. video and gallery pages.
+    exclude_url_pattern: Optional[str] = None
+    #: Forces every item's text_status (``teaser`` for a source that only ever gives one).
+    text_status: Optional[Literal["full", "teaser", "video"]] = None
+    #: Rights, per ontology v3 "Rights, per item": written on every item of the source.
+    serveable: Literal["metadata", "summary", "none"] = "metadata"
+    mineable: bool = True
+    licence: Optional[str] = None
+    paywalled: Optional[bool] = None
+    #: The source's editorial type when all its items share one (central bank speeches).
+    editorial_type: Optional[Literal["reporting", "opinion", "analysis", "paid"]] = None
+    #: An item whose URL matches this (regex, searched) is a live blog (E05 "Ids").
+    live_blog_url_pattern: Optional[str] = None
+    #: An item whose title matches this (regex, searched) is a roundup: a newsletter issue
+    #: covering several stories (operator, 2026-11-18). Per item: the same source also
+    #: publishes ordinary articles.
+    roundup_title_pattern: Optional[str] = None
+    #: Where each item's text comes from: ``page`` (the article page, with the feed's own text
+    #: or the page's standfirst when the page has less), ``feed`` (the feed's own text), or
+    #: ``standfirst`` (the page's summary line: a source whose article pages are paywalled).
+    text_from: Literal["page", "feed", "standfirst"] = "page"
+    #: The publisher is one person (a personal site): a byline naming the publisher is that
+    #: person, kept, not the organisation writing as itself.
+    personal: bool = False
+    #: Translate this source's articles not in English. Off by choice in News 1.0: such an
+    #: article is written as it is, and no translation, summary or KG runs over it.
+    translate: bool = False
+    #: The environment variable that holds this source's API key, for a keyed API transport
+    #: (the Guardian; others later). Unset: the transport's own default variable.
+    api_key_env: Optional[str] = None
+
+    @field_validator(
+        "include_url_pattern",
+        "exclude_url_pattern",
+        "live_blog_url_pattern",
+        "roundup_title_pattern",
+        mode="after",
+    )
+    @classmethod
+    def _compiles(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            try:
+                re.compile(v)
+            except re.error as exc:
+                raise ValueError(f"not a regular expression: {v!r} ({exc})") from exc
+        return v
+
+    @field_validator("api_key_env", mode="after")
+    @classmethod
+    def _env_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not re.fullmatch(r"[A-Z][A-Z0-9_]*", v):
+            raise ValueError(f"not an environment variable name: {v!r} ([A-Z][A-Z0-9_]*)")
+        return v
 
 
 def _validate_http_url(url: str) -> str:
@@ -95,6 +161,8 @@ class RssFeedEntry(BaseModel):
     #: RSS enclosures. Identity of the source, not config overrides: never merged into Config.
     content_type: Optional[str] = None
     transport: Optional[str] = None
+    #: A news source's own settings (``content_type: news_article``); identity, never merged.
+    news: Optional[NewsSourceSpec] = None
     user_agent: Optional[str] = None
     timeout: Optional[int] = Field(default=None, ge=1)
     http_retry_total: Optional[int] = Field(default=None, ge=0, le=20)

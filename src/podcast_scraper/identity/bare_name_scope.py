@@ -232,7 +232,7 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
             if sid is not None and sid in id_map:
                 node = {
                     **node,
-                    "properties": {**(node.get("properties") or {}), "speaker_id": id_map[sid]},
+                    "properties": _with_speaker_id(node.get("properties") or {}, sid, id_map[sid]),
                 }
                 changes += 1
 
@@ -282,12 +282,10 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
                 if isinstance(val, str) and val in id_map:
                     e[end] = id_map[val]
                     changes += 1
-            props = e.get("properties")
-            if isinstance(props, dict) and isinstance(props.get("speaker_id"), str):
-                sid = props["speaker_id"]
-                if sid in id_map:
-                    e = {**e, "properties": {**props, "speaker_id": id_map[sid]}}
-                    changes += 1
+            sid = _speaker_id_of(e)
+            if sid is not None and sid in id_map:
+                e = {**e, "properties": _with_speaker_id(e["properties"], sid, id_map[sid])}
+                changes += 1
             key = json.dumps(e, sort_keys=True, default=str)
             if key in emitted:
                 changes += 1
@@ -414,7 +412,23 @@ def _speaker_id_of(container: Mapping) -> Optional[str]:
     if not isinstance(props, dict):
         return None
     sid = props.get("speaker_id")
+    nested = props.get("podcast_episode")
+    if not isinstance(sid, str) and isinstance(nested, Mapping):
+        # GI 4.0 (R3b) keeps a quote's speaker_id under properties.podcast_episode.
+        sid = nested.get("speaker_id")
     return sid if isinstance(sid, str) and sid.startswith(_PERSON) else None
+
+
+def _with_speaker_id(props: Mapping, old: str, new: str) -> dict:
+    """``props`` with ``speaker_id`` ``old`` replaced by ``new`` wherever it is held: at the top
+    (GI 3.1) and under ``podcast_episode`` (GI 4.0)."""
+    out = dict(props)
+    if out.get("speaker_id") == old:
+        out["speaker_id"] = new
+    nested = out.get("podcast_episode")
+    if isinstance(nested, Mapping) and nested.get("speaker_id") == old:
+        out["podcast_episode"] = {**nested, "speaker_id": new}
+    return out
 
 
 def person_node_ids_in(payload: Mapping) -> Set[str]:

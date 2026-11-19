@@ -101,7 +101,7 @@ This surfaces in multiple places:
    hits whose Quotes overlap the matched transcript chunk.  With no Quotes,
    ML-stack insights get zero lift, making search results less relevant for
    ML-only corpora.
-3. **Viewer quote panel** -- the GI/KG viewer shows supporting quotes under
+3. **Viewer quote panel** -- the Workbench shows supporting quotes under
    each insight.  ML-stack insights have none, so the panel is empty.
 4. **Position tracker / person profile** (future the Position Tracker, PRD-029) -- these
    features depend on grounded quotes with speaker IDs and char spans.

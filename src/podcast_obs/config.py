@@ -51,6 +51,11 @@ class TargetConfig:
     #: (harmless) plus a credential leaving the box it belongs to (less so). Prefer an explicit
     #: per-target ``operator_key_env`` whenever more than one deploy is configured.
     operator_key: Optional[str] = None
+    #: The caller's ``Cookie`` header, set only by the API's own Ops route when it probes itself
+    #: (no ``api_base`` configured): the operator gate also admits an admin session, so a server
+    #: without an operator key still reads its own gated routes as the admin looking at Ops. Never
+    #: loaded from env or YAML, so a session cannot be sent to another deploy.
+    cookie: Optional[str] = None
     github_repo: Optional[str] = DEFAULT_GITHUB_REPO
     github_token: Optional[str] = None
     sentry_org: Optional[str] = None

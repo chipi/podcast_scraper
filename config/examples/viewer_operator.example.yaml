@@ -1,4 +1,4 @@
-# Packaged default for the GI/KG viewer: seeded as ``viewer_operator.yaml`` in a corpus
+# Packaged default for the Workbench: seeded as ``viewer_operator.yaml`` in a corpus
 # directory when the file is missing or whitespace-only (GET /api/operator-config).
 #
 # Do not set ``profile:`` here — same as thin CLI operator files: pick a preset in the

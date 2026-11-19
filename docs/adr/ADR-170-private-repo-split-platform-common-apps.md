@@ -56,7 +56,7 @@ module in both directions. With the manifest as of decision 5 below:
 | --- | --- | --- |
 | **Platform** (this repo) | public | pipeline, corpus, plain search, operator viewer without the tier-A features (Decision 5), corpus read-models, the public kernel, the enrichment framework and the five enrichers without IP, the observability data layer, the fixture corpora (public outputs only) |
 | **Common** | private | two subpackages. `identity`: Google and Apple sign-in providers; the corpus MCP server (`mcp/`), its OAuth authorization server, MCP tokens and rate limiter. `intelligence`: the corpus MCP tools, the observability MCP server, the six enrichers with real logic, their eval scorers, and the platform features built on their outputs (Decision 5); further IP chosen later |
-| **Studio** | private | the full operator viewer (`web/gi-kg-viewer` with every tier-A feature), its unit tests, e2e specs and fixtures, make targets and CI job |
+| **Studio** | private | the full operator viewer (`web/workbench` with every tier-A feature), its unit tests, e2e specs and fixtures, make targets and CI job |
 | **Player** | private | player backend (product logic), `web/learning-player`, `android/`, `ios/`, its tests, make targets and CI jobs, player ranking-eval scripts |
 | **News** | private, future | same shape as Player |
 

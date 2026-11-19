@@ -16,6 +16,7 @@ nav:
       - Dev/Prod Env-Detect Removal: guides/DEV_PROD_ENV_DETECT_REMOVAL.md
       - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
       - Corpus reprocessing runbook: guides/CORPUS_REPROCESSING.md
+      - News API keys: guides/NEWS_API_KEYS.md
       - Operator surface post-deploy smoke test: guides/OPERATOR_SMOKE_TEST.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
@@ -83,6 +84,7 @@ nav:
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
       - Corpus Ontology (v2, unified): architecture/corpus/ontology.md
       - Corpus Ontology v3 (proposed): architecture/corpus/ontology-v3.md
+      - The news item (News 1.0): architecture/corpus/news-item-1.0.md
       - GI Ontology: architecture/gi/ontology.md
       - KG Ontology:
           - architecture/kg/README.md
@@ -139,7 +141,7 @@ nav:
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
-      - UXS-001 GI / KG Viewer: uxs/UXS-001-gi-kg-viewer.md
+      - UXS-001 Workbench: uxs/UXS-001-workbench.md
       - UXS-002 Corpus Digest: uxs/UXS-002-corpus-digest.md
       - UXS-003 Corpus Library: uxs/UXS-003-corpus-library.md
       - UXS-004 Graph Exploration: uxs/UXS-004-graph-exploration.md
@@ -152,6 +154,7 @@ nav:
       - UXS-016 Query Workspace: uxs/UXS-016-query-workspace.md
       - UXS-017 Shareable Cards: uxs/UXS-017-share-cards.md
       - UXS-018 Operator Ops and Admin: uxs/UXS-018-operator-ops-and-admin.md
+      - UXS-019 News in the public viewer: uxs/UXS-019-news-in-the-public-viewer.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -262,6 +265,7 @@ nav:
       - ADR-180 Bylines join within their publisher: adr/ADR-180-bylines-join-within-their-publisher.md
       - ADR-181 A content type's own fields: adr/ADR-181-a-content-types-own-fields.md
       - ADR-182 Extension-owned configuration: adr/ADR-182-extension-owned-configuration.md
+      - ADR-183 The graph API: adr/ADR-183-the-graph-api.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -314,7 +318,7 @@ nav:
       - RFC-055 Knowledge Graph Layer – Core: rfc/RFC-055-knowledge-graph-layer-core.md
       - RFC-056 Knowledge Graph Layer – Use Cases: rfc/RFC-056-knowledge-graph-layer-use-cases.md
       - RFC-061 Semantic Corpus Search: rfc/RFC-061-semantic-corpus-search.md
-      - RFC-062 GI/KG Viewer v2: rfc/RFC-062-gi-kg-viewer-v2.md
+      - RFC-062 Workbench: rfc/RFC-062-gi-kg-viewer-v2.md
       - RFC-063 Multi-Feed Corpus & Append/Resume: rfc/RFC-063-multi-feed-corpus-append-resume.md
       - RFC-065 Live Pipeline Monitor: rfc/RFC-065-live-pipeline-monitor.md
       - RFC-067 Corpus Library API & Viewer: rfc/RFC-067-corpus-library-api-viewer.md

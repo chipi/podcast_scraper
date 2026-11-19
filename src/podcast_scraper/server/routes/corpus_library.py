@@ -11,9 +11,10 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from podcast_scraper import read_hooks
+from podcast_scraper import perf_cache, read_hooks
+from podcast_scraper.kg.pipeline import _podcast_node_id
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
-from podcast_scraper.server.catalog_cache import cached_catalog, cached_catalog_last_run
+from podcast_scraper.server.catalog_cache import current_catalog, current_catalog_last_run
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
@@ -55,6 +56,7 @@ from podcast_scraper.server.schemas import (
     CorpusResolveEpisodesResponse,
     CorpusSimilarEpisodeItem,
     CorpusSimilarEpisodesResponse,
+    NewsItem,
 )
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
@@ -193,7 +195,7 @@ def corpus_resolve_episode_artifacts(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
-    rows = cached_catalog_last_run(root)
+    rows = current_catalog_last_run(root)
     by_eid = index_rows_by_episode_id(rows)
     resolved: list[CorpusResolvedEpisodeArtifact] = []
     missing: list[str] = []
@@ -235,7 +237,9 @@ def _kg_node_episodes(
     from podcast_scraper.server.kg_index import get_kg_index
 
     canon = re.sub(r"^[gk]:", "", node_id.strip())
-    index = get_kg_index(root)
+    # The current index, not the previous one while it rebuilds (#2486, as current_catalog).
+    with perf_cache.fresh():
+        index = get_kg_index(root)
     if canon.startswith("topic:"):
         found = index.topic_episodes(canon)
     elif canon.startswith("person:"):
@@ -257,6 +261,20 @@ def _kg_node_episodes(
     return canon, rows, len(kept) < total, total
 
 
+def node_episodes(
+    root: Path, anchor: Path | str | None, node_id: str, max_episodes: int | None
+) -> tuple[str, list[dict[str, Any]], bool, int | None]:
+    """The episodes that name *node_id*: the bridge stage's answer when one is installed, else the
+    KG index's. The one source for node-episodes and for anything that links to a node's rail."""
+    root_s = str(root.resolve())
+    anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
+    if read_hooks.bridge_node_episodes_installed():
+        return read_hooks.bridge_node_episodes(
+            root_s, anchor_path, node_id, max_episodes=max_episodes
+        )
+    return _kg_node_episodes(root, node_id, max_episodes)
+
+
 @router.post("/corpus/node-episodes", response_model=CorpusNodeEpisodesResponse)
 def corpus_node_episodes(
     request: Request,
@@ -270,31 +288,46 @@ def corpus_node_episodes(
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
-    anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
-    if read_hooks.bridge_node_episodes_installed():
-        canon, rows, truncated, total_matched = read_hooks.bridge_node_episodes(
-            root_s,
-            anchor_path,
-            body.node_id,
-            max_episodes=body.max_episodes,
+    canon, rows, truncated, total_matched = node_episodes(
+        root, anchor, body.node_id, body.max_episodes
+    )
+    # The display fields come from the catalog, joined here on the KG path, so the rails never
+    # read or join artifact files in the browser.
+    by_kg = {row.kg_relative_path: row for row in current_catalog(root) if row.kg_relative_path}
+    items = []
+    for r in rows:
+        row = by_kg.get(str(r["kg_relative_path"]))
+        items.append(
+            CorpusNodeEpisodeItem(
+                gi_relative_path=str(r["gi_relative_path"]),
+                kg_relative_path=str(r["kg_relative_path"]),
+                bridge_relative_path=str(r["bridge_relative_path"]),
+                episode_id=r.get("episode_id") if isinstance(r.get("episode_id"), str) else None,
+                episode_title=row.episode_title if row else None,
+                feed_id=row.feed_id if row else None,
+                feed_title=row.feed_title if row else None,
+                publish_date=row.publish_date if row else None,
+                metadata_relative_path=row.metadata_relative_path if row else None,
+            )
         )
-    else:
-        canon, rows, truncated, total_matched = _kg_node_episodes(
-            root, body.node_id, body.max_episodes
+    news: list[NewsItem] = []
+    if "news_article" in (body.content_types or []):
+        from podcast_scraper.server.routes.corpus_news import (
+            news_items_in_cluster,
+            news_items_naming,
         )
-    items = [
-        CorpusNodeEpisodeItem(
-            gi_relative_path=str(r["gi_relative_path"]),
-            kg_relative_path=str(r["kg_relative_path"]),
-            bridge_relative_path=str(r["bridge_relative_path"]),
-            episode_id=r.get("episode_id") if isinstance(r.get("episode_id"), str) else None,
-        )
-        for r in rows
-    ]
+
+        # A theme or storyline lists its members' articles (Common's grouping files); any other
+        # node, the items whose KG names it.
+        bare = re.sub(r"^(?:g:|k:|kg:)+", "", body.node_id.strip())
+        cluster = next((p for p in ("tc:", "thc:") if bare.startswith(p)), None)
+        found = news_items_in_cluster(root, bare) if cluster else news_items_naming(root, canon)
+        news = [NewsItem(**i) for i in found]
     return CorpusNodeEpisodesResponse(
         path=root_s,
         node_id=canon,
         episodes=items,
+        news_items=news,
         truncated=truncated,
         total_matched=total_matched,
     )
@@ -327,11 +360,12 @@ def corpus_feeds(
     # Cumulative catalog scan (~150 ms of Python) only changes on INGEST — served from the shared
     # corpus-mtime cache so it doesn't contend (GIL) with a concurrent search, and so every catalog
     # route (episodes / feeds / stats / coverage) shares ONE warm scan rather than caching its own.
-    rows = cached_catalog(root)
+    rows = current_catalog(root)
     feeds_raw = aggregate_feeds(rows)
     feeds = [
         CorpusFeedItem(
             feed_id=str(f["feed_id"]),
+            source_id=_podcast_node_id(str(f["feed_id"])),
             display_title=f["display_title"],
             episode_count=int(f["episode_count"]),
             language=f.get("language"),
@@ -425,7 +459,7 @@ def corpus_episodes(
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = cached_catalog(root)
+    rows = current_catalog(root)
     titles_by_feed = feed_display_title_by_feed_id(rows)
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
@@ -456,6 +490,7 @@ def corpus_episodes(
         CorpusEpisodeListItem(
             metadata_relative_path=r.metadata_relative_path,
             feed_id=r.feed_id,
+            source_id=_podcast_node_id(r.feed_id),
             feed_display_title=resolve_feed_display_title(r, titles_by_feed),
             feed_rss_url=resolve_feed_rss_url(r, rss_by_feed),
             feed_description=resolve_feed_description(r, desc_by_feed),
@@ -527,7 +562,7 @@ def corpus_episode_detail(
     rel_posix = os.path.relpath(target, root_s).replace("\\", "/")
     if rel_posix.startswith(".."):
         raise HTTPException(status_code=400, detail="Invalid path.")
-    rows = cached_catalog_last_run(root)
+    rows = current_catalog_last_run(root)
     r = next((row for row in rows if row.metadata_relative_path == rel_posix), None)
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
@@ -695,7 +730,7 @@ def corpus_episodes_similar(
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
 
-    catalog_rows = cached_catalog_last_run(root)
+    catalog_rows = current_catalog_last_run(root)
     by_scope = index_rows_by_feed_episode(catalog_rows)
     outcome = run_similar_episodes(
         root,

@@ -546,7 +546,7 @@ working rhythm around it.
 ## Stack
 
 - **Python** 3.12 (`.python-version`; the images run `python:3.12`), Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs
-- **Node** 22 (viewer: `web/gi-kg-viewer/`, Vue 3 + Vite + Cytoscape + Playwright)
+- **Node** 22 (viewer: `web/workbench/`, Vue 3 + Vite + Cytoscape + Playwright)
 - **ML**: sentence-transformers + lancedb + torch (`[search]`), Whisper +
   spaCy + transformers + llama-cpp-python (`[ml]`), see `pyproject.toml`
   extras header
@@ -559,7 +559,7 @@ Python tool for podcast transcript downloading/generation:
 
 - Download from RSS feeds, fallback to Whisper transcription.
 - Speaker detection (spaCy NER), summarization (BART/LED or OpenAI/Gemini).
-- Knowledge graph extraction → GI/KG viewer for exploration.
+- Knowledge graph extraction → Workbench for exploration.
 
 ### Module boundaries (detail: `.cursor/rules/module-boundaries.mdc`)
 
@@ -603,14 +603,14 @@ feature** — see #643 Phase 3C near-miss for the canonical example.
   naming (`_kg`, `_cil`, `_cleaning`) documented in
   `data/eval/datasets/README.md`.
 
-### GI/KG viewer UX (`web/gi-kg-viewer/`)
+### Workbench UX (`web/workbench/`)
 
 When changing viewer UX (visible copy, labels, routes, panels, layout, theme
 tokens, accessible names used by tests), update in order:
 
 1. `e2e/E2E_SURFACE_MAP.md` — automation contract first
 2. Playwright — `e2e/*.spec.ts`, helpers; run `make ci-ui-fast`
-3. `docs/uxs/` — `VIEWER_IA.md` for shell-IA changes; feature UXS for visual /
+3. `docs/uxs/` — `WORKBENCH_IA.md` for shell-IA changes; feature UXS for visual /
    token contracts
 
 User-reported viewer bugs: reproduce + re-validate with **Chrome DevTools MCP
@@ -747,7 +747,7 @@ network); the operator's runbook (not in this repository) has the access recipes
 - **Don't use**: raw `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`.
   Exception: `git`; Python: `.venv/bin/python3 script.py`.
 
-### Viewer (`web/gi-kg-viewer/`): `npm run …` / `node_modules/.bin/<tool>`, never `npx`
+### Viewer (`web/workbench/`): `npm run …` / `node_modules/.bin/<tool>`, never `npx`
 
 The viewer pins `@playwright/test` but not a separate `playwright` package.
 `npx playwright` silently fetches a fresh copy from the npm registry → two
@@ -885,7 +885,7 @@ can hide a drift-induced native crash that only surfaces in CI.
 
 - Backend diff (pipeline, providers, data, server): `make ci-fast` — static checks, fast Python
   tiers incl. the fast Python e2e, docs, build. It runs NO viewer or player tests or builds.
-- UI diff (`web/gi-kg-viewer/`), or a backend change the viewer depends on:
+- UI diff (`web/workbench/`), or a backend change the viewer depends on:
   `make ci-ui-fast` — the same static checks, fast Python tiers without Python e2e, and the
   viewer's unit tests, Playwright e2e and build.
 - `make ci` runs everything (the `main` equivalent).
@@ -1035,6 +1035,7 @@ make type          # mypy
 make ci-fast       # Fast tests before commit (~6-10 min)
 make ci-ui-fast    # Like ci-fast, Playwright instead of Python tests/e2e
 make ci            # Full CI suite (~10-15 min)
+make ci-local      # optional: main's full unit/integration/e2e jobs locally, CI's flags (TESTING_GUIDE#ci-local)
 make docs          # Build docs (before committing doc changes)
 make lint-markdown # Check markdown
 make fix-md        # Auto-fix markdown
@@ -1302,7 +1303,7 @@ When the situation matches, load before proceeding:
 | Viewer UI bug fixing | `.cursor/rules/agent-browser-ui-fixes.mdc` + `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` |
 | About to commit or push | `.cursor/rules/ai-guidelines.mdc` |
 | Configuring profiles | `config/profiles/*.yaml` — see *Profile completeness* above |
-| Viewer UX changes | `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` first |
+| Viewer UX changes | `web/workbench/e2e/E2E_SURFACE_MAP.md` first |
 
 `PRD` = product what/why · `UXS` = UI contract when needed · `RFC` = technical
 how (Draft → Completed) · `ADR` = immutable decision record (**Accepted**),

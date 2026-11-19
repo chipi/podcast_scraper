@@ -81,10 +81,10 @@ services:
     # operator-config mode (``viewer_operator.yaml`` per corpus root,
     # no static ``--config-file``).
 
-  viewer:
+  workbench:
     build:
       context: ..
-      dockerfile: docker/viewer/Dockerfile
+      dockerfile: docker/workbench/Dockerfile
       args:
         # Empty string = "all time" — stack-test fixtures use static
         # 2025 publish dates. The viewer's default 7-day lens would
@@ -96,7 +96,7 @@ services:
         # hooks in the production-mode bundle so Playwright stack-test
         # specs can drive the subject store deterministically. Production
         # deploys leave this unset and the hook is stripped at build time
-        # (see ``web/gi-kg-viewer/src/stores/subject.ts``).
+        # (see ``web/workbench/src/stores/subject.ts``).
         VITE_E2E_HOOKS: "true"
     ports:
       - "${STACK_TEST_VIEWER_PORT:-8090}:80"

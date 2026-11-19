@@ -75,7 +75,7 @@ cited correctly. Zero real drift — do not re-investigate.
 
 **Decision Tree:**
 
-1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? --> **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy -- Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
+1. Testing the **Workbench UI** in a real browser (graph, search shell, keyboard, theme)? --> **`make test-ui-e2e`** (Playwright). See [Browser E2E (Workbench](#browser-e2e-workbench) and [Testing Strategy -- Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
 2. Testing a complete **CLI / library / service** workflow? --> **E2E Test** (pytest)
 3. Testing component interactions? --> **Integration Test**
 4. Testing a single function? --> **Unit Test**
@@ -107,7 +107,55 @@ make test-e2e
 make test
 ```
 
-### Browser E2E (GI / KG Viewer v2) {#browser-e2e-gi-kg-viewer-v2}
+### Main's full suites, locally: `make ci-local` {#ci-local}
+
+`make ci-fast` is the standard check before a push: it matches what a pull request runs. A pull
+request runs the critical-path subsets of integration and e2e (`test-integration-fast`,
+`test-e2e-fast`); the full suites run in GitHub CI only on a push to `main` or a release branch
+(the `if:` on the `test-integration` and `test-e2e` jobs in `.github/workflows/python-app.yml`).
+That split is by design: fast feedback on the branch, more work on main, which sometimes fails
+there. `make ci-local` is the optional, heavier check that runs those three pytest jobs locally,
+with CI's commands and flags: to reproduce a failure of main's CI, or before a release PR.
+
+```bash
+make ci-local                       # unit, integration, e2e
+make ci-local SUITES=integration    # one of unit | integration | e2e | all
+```
+
+- **Environment:** this checkout's `.venv` as set up in [CONTRIBUTING](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
+  (`make init`) plus the `search` extra, which is the `.[dev,ml,llm,search]` CI's integration and e2e
+  jobs install. No private packages and no pandas: a shared venv that has either passes tests
+  CI fails (the core release's `to_pandas()` import, #2485). The script warns when pandas is
+  importable, and refuses to run when `.venv`'s Python minor is not the tested tree's
+  `.python-version`, which CI's `setup-python` reads.
+- **Test database:** this checkout's `postgres:18` from `scripts/tools/test_db.sh`, started when
+  `PODCAST_TEST_DATABASE_URL` is unset and removed at the end. The e2e suite runs without it,
+  as CI's `test-e2e` job does.
+- **Flags:** `-m integration` / `-m "e2e and not nightly"`, `--reruns 2 --reruns-delay 1`,
+  `--disable-socket --allow-hosts=127.0.0.1,localhost`, `--cov-fail-under=42` (integration) and
+  `37.5` (e2e), and the "at least 50 passed" check CI runs after pytest. The unit suite also runs
+  the import check and the KG quality metrics step of CI's `test-unit` job.
+- **Workers:** 6 by default (`CI_LOCAL_WORKERS=N`): the machine is shared.
+- **Another commit:** `CI_LOCAL_TREE=<worktree>` tests that tree with this checkout's `.venv`
+  (the tree's `src/` first on `PYTHONPATH`), for example a detached worktree at an older commit.
+- **Result:** one `PASS <suite>` / `FAIL <suite>` line per suite, then `CI-LOCAL: PASS` or
+  `CI-LOCAL: FAIL` as the last line, with the exit code to match. Logs:
+  `reports/ci-local/<suite>.log`.
+
+What it does not reproduce: CI's unit job installs `.[dev]` only, while `.venv` has the ML extras,
+so a unit test that needs an ML extra passes here and fails or skips there (`make venv-dev-init &&
+make test-unit-dev-venv` covers that); the private-image integration stack is
+not part of it. Tools on the machine change what skips: with `rclone` on PATH (`mise install`) the
+two archive offload tests under `tests/integration/archive/` run here and skip in CI, and without
+`shellcheck` the shellcheck test in `test_infra_config_validates.py` skips here and runs in CI.
+The e2e suite gets `HF_TOKEN` (CI's one e2e secret) from the environment or the checkout's
+gitignored `.env`, and nothing else from `.env`. No test under `tests/e2e/` reads it today; it is
+passed for parity with CI.
+
+A full run takes about 12 minutes on a shared machine; run it through a detached job (the
+`long-job` skill) and watch it.
+
+### Browser E2E (Workbench {#browser-e2e-workbench}
 
 Playwright drives a **real browser** against the Vue SPA. This stack is **orthogonal to pytest**:
 specs are not collected by `pytest`, and **`make test` does not run them**. Strategically, it is
@@ -115,16 +163,16 @@ documented as an **additive** layer on the test pyramid — see
 [Testing Strategy — Browser UI E2E (Playwright)](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright)
 and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 
-**Where this lives in the repo:** npm commands and `package.json` are under `web/gi-kg-viewer/`;
+**Where this lives in the repo:** npm commands and `package.json` are under `web/workbench/`;
 `make test-ui` / `make test-ui-e2e` run from the root. See
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
-**E2E surface map:** the operator viewer's [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) lists
+**E2E surface map:** the operator viewer's [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) lists
 the viewer's surfaces, entry paths, and stable selectors. Use them when **debugging** Playwright failures,
 manual repros, or **agent-driven** browser tools (same a11y vocabulary as the tests). **Whenever you change viewer UX** (labels,
 layout, routes, tokens, a11y names, or E2E flows), update artifacts in this order: **(1)** the
 surface map, **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**,
-**(3)** [VIEWER_IA.md](../uxs/VIEWER_IA.md) if **shell IA** changed, then [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) if the **visual** / experience contract changed.
+**(3)** [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) if **shell IA** changed, then [UXS-001](../uxs/UXS-001-workbench.md) and/or the relevant [feature UXS](../uxs/index.md) if the **visual** / experience contract changed.
 Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
 ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)). Agent-browser loop:
 [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md).
@@ -133,10 +181,10 @@ Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GU
 
 | Concern | Tool | Location |
 | -------- | ---- | -------- |
-| Viewer **TS utility logic** (parsing, merge, metrics, formatting) | **Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` |
+| Viewer **TS utility logic** (parsing, merge, metrics, formatting) | **Vitest** | `web/workbench/src/utils/*.test.ts` |
 | Viewer **HTTP API** (`/api/*`) -- pure logic helpers | pytest **unit** tests (no FastAPI needed) | `tests/unit/podcast_scraper/server/` (catalog, index staleness, pathutil) |
 | Viewer **HTTP API** — wired app + real files | pytest **integration** | `tests/integration/server/` (`test_server_api.py`, `test_viewer_corpus_library.py`, `test_index_rebuild.py`, …) |
-| Viewer **UI** (render, click, keyboard, graph container) | **Playwright** | `web/gi-kg-viewer/e2e/*.spec.ts` |
+| Viewer **UI** (render, click, keyboard, graph container) | **Playwright** | `web/workbench/e2e/*.spec.ts` |
 | Full **pipeline** / CLI / providers | pytest **E2E** | `tests/e2e/` |
 
 #### Commands
@@ -146,12 +194,12 @@ make test-ui          # Vitest unit tests (fast, no browser)
 make test-ui-e2e      # Playwright browser E2E (Chrome; CI runs Firefox)
 ```
 
-**`make test-ui`** runs `npm run test:coverage` (Vitest with a coverage gate, #914) in `web/gi-kg-viewer`. Tests cover pure
+**`make test-ui`** runs `npm run test:coverage` (Vitest with a coverage gate, #914) in `web/workbench`. Tests cover pure
 TypeScript logic: artifact parsing, GI+KG merge, bridge-aware dedupe where implemented, metrics,
 formatting, colors, visual groups,
 and search-focus mapping. No browser or DOM required — runs in ~150 ms.
 
-**`make test-ui-e2e`** runs `npm install` in `web/gi-kg-viewer`, installs the **Chromium** browser
+**`make test-ui-e2e`** runs `npm install` in `web/workbench`, installs the **Chromium** browser
 for Playwright (the suite runs Chrome locally and Firefox under `CI`), and runs `npm run test:e2e`. Playwright’s **`webServer`** starts **Vite** on
 **127.0.0.1:5174** so it does not collide with `npm run dev` on **5173**.
 
@@ -162,8 +210,8 @@ live **`/api/*`** on corpus files). Use **`serve`** / **`make serve`** for manua
 combined server, and **`tests/integration/server/`** (e.g. **`test_server_api.py`**) for pytest
 coverage of a wired `create_app` and temp corpus.
 
-For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (see
-[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)).
+For interactive debugging: `cd web/workbench && npx playwright test --ui` (see
+[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)).
 
 #### CI
 
@@ -175,7 +223,7 @@ GitHub Actions jobs:
   `main` / `release/*`). **`coverage-unified`** waits on **`viewer-e2e`** so the merge report
   runs only after browser E2E has passed.
 
-Both viewer jobs are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a
+Both viewer jobs are in `.github/workflows/python-app.yml`. Touching `web/workbench/` in a
 PR should include green runs for both (see
 [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)).
 
@@ -190,7 +238,7 @@ indexing**, or **search response shape**.
 | KG pipeline, `kg` CLI | `tests/unit/kg/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`kg validate` / `kg inspect`) |
 | CIL query helpers | `tests/integration/server/test_cil_queries.py` |
 | Transcript search | `tests/integration/server/test_viewer_search.py` |
-| Viewer merge / bridge TS | `make test-ui`; UX changes also `make test-ui-e2e` + [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) |
+| Viewer merge / bridge TS | `make test-ui`; UX changes also `make test-ui-e2e` + [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) |
 
 **Corpus-level gate (indexed run only):** `make verify-gil-offsets-strict` runs
 `verify-gil-chunk-offsets` with **`--strict`** and **`--min-overlap-rate 0.95`** (override
@@ -205,16 +253,16 @@ such a tree.
 
 #### Writing and extending tests
 
-- **Vitest specs:** `web/gi-kg-viewer/src/utils/*.test.ts` — co-located with source.
+- **Vitest specs:** `web/workbench/src/utils/*.test.ts` — co-located with source.
   Add a `.test.ts` file next to any new utility. Config: `vite.config.ts` `test` block.
-- **Playwright specs:** `web/gi-kg-viewer/e2e/*.spec.ts` (e.g. offline graph, search mocks,
+- **Playwright specs:** `web/workbench/e2e/*.spec.ts` (e.g. offline graph, search mocks,
   dashboard, theme).
-- **Playwright config:** `web/gi-kg-viewer/playwright.config.ts` (`testDir: ./e2e`,
+- **Playwright config:** `web/workbench/playwright.config.ts` (`testDir: ./e2e`,
   **Desktop Chrome** locally and **Desktop Firefox** under `CI`, `baseURL` / `webServer` on **5174**).
 - **Shared helpers:** `e2e/fixtures.ts`, `e2e/helpers.ts`.
 
 More detail: [E2E Testing Guide — Browser E2E (Playwright)](E2E_TESTING_GUIDE.md#browser-e2e-playwright),
-[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+[web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)
 (section **Browser E2E (M7)**).
 
 ## Fast Variants (Critical Path Only)
@@ -474,7 +522,7 @@ Optional full-pipeline YAML presets may live under **`config/acceptance/`** besi
 
 **Episode selection (GitHub #521):** Pytest E2E regression for `--episode-order`, `--since` / `--until`, `--episode-offset`, and config overrides lives in **`tests/e2e/test_episode_selection_e2e.py`** (mock server feed **`podcast1_episode_selection`**, fixture **`tests/fixtures/rss/p01_episode_selection.xml`**). One test is marked **`critical_path`** so it runs under **`make test-e2e-fast`** / the E2E slice of **`make test-ci-fast`**. Integration coverage includes **`tests/integration/workflow/test_workflow_stages_integration.py`** (`prepare_episodes_from_feed`) and **`tests/integration/infrastructure/test_e2e_server.py`** (`TestE2EEpisodeSelectionFeed`). See [CONFIGURATION.md — Episode selection](../api/CONFIGURATION.md#episode-selection-github-521) and [E2E Testing Guide — E2E Feeds (RSS)](E2E_TESTING_GUIDE.md#e2e-feeds-rss).
 
-**Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI). (The earlier dedicated **`test_corpus_episode_paths.py`** / **`test_corpus_lock.py`** modules were removed after their concerns were folded into caller-level tests; grep `PODCAST_SCRAPER_CORPUS_LOCK` / `corpus_search_parent_hint` to locate current coverage.)
+**Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/workbench/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/workbench/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI). (The earlier dedicated **`test_corpus_episode_paths.py`** / **`test_corpus_lock.py`** modules were removed after their concerns were folded into caller-level tests; grep `PODCAST_SCRAPER_CORPUS_LOCK` / `corpus_search_parent_hint` to locate current coverage.)
 
 **Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` materializes each enabled row from **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** into **`sessions/session_*/materialized/{id}.yaml`** and runs those configs. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, **900s** subprocess **`TIMEOUT`**, and **600s** post-run wall budget (`PER_RUN_WALL_SECONDS` / `ACCEPTANCE_PER_RUN_WALL_SECONDS`; **`session.json`** records **`wall_clock_seconds`** per run and **`walltime_vs_baseline`** when **`COMPARE_BASELINE=…`**). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
 
@@ -652,7 +700,7 @@ tests/
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
 
-web/gi-kg-viewer/            # Browser UI E2E (Playwright — not pytest)
+web/workbench/            # Browser UI E2E (Playwright — not pytest)
 ├── e2e/                     # *.spec.ts
 ├── e2e/fixtures.ts          # Shared test fixtures
 ├── playwright.config.ts     # webServer (Vite :5174), Chrome (Firefox under CI)

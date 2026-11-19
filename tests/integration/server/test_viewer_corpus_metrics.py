@@ -108,8 +108,11 @@ def test_corpus_manifest_and_run_summary_documents(tmp_path: Path) -> None:
 
     empty = tmp_path / "empty_sub"
     empty.mkdir()
+    # A corpus without a manifest is a normal state (single-feed runs), not an error: a 404 here
+    # put a console error on every Dashboard visit (public-only walk, 2026-11-17).
     miss = client.get("/api/corpus/documents/manifest", params={"path": str(empty)})
-    assert miss.status_code == 404
+    assert miss.status_code == 200
+    assert miss.json() is None
 
 
 def test_corpus_runs_summary_discovers_run_json(tmp_path: Path) -> None:

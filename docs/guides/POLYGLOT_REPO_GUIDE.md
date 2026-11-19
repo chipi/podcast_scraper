@@ -3,9 +3,9 @@
 This repository is **Python-first**: the package, CLI, tests, and `Makefile` live at the **repo
 root**. On top of that, **a Node/Vue project** lives under `web/`:
 
-- **GI/KG Viewer** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** inspection
-  tool for knowledge-graph + grounded-insight artifacts. Under
-  [`web/gi-kg-viewer/`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/).
+- **Workbench** ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)) — the **operator** browser UI
+  for a pipeline output corpus (Digest, Library, Search, Graph, Dashboard, Ops). Under
+  [`web/workbench/`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/).
 
 Treat it as two toolchains (Python + Node) that share one git tree, not one unified `npm`
 workspace (by design).
@@ -17,11 +17,11 @@ workspace (by design).
 | Area | Location | Install / run |
 | ---- | -------- | ------------- |
 | **Python app** (CLI, pipeline, FastAPI server) | Repo root (`pyproject.toml`, `src/`) | `python3 -m venv .venv`, `source .venv/bin/activate`, `make init` or `pip install -e ".[…]"` |
-| **GI/KG Viewer** (Vue 3 + Vite + TS — operator) | `web/gi-kg-viewer/` (`package.json`) | `cd web/gi-kg-viewer && npm install`; `npm run dev` / `npm run build` / `npm run test:*` |
+| **Workbench** (Vue 3 + Vite + TS — operator) | `web/workbench/` (`package.json`) | `cd web/workbench && npm install`; `npm run dev` / `npm run build` / `npm run test:*` |
 
 **End-to-end viewer (API + built SPA in one process):** install `[dev]`, build `dist/` under
-`web/gi-kg-viewer`, then `python -m podcast_scraper.cli serve --output-dir …`. See
-[Server Guide](SERVER_GUIDE.md) and [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
+`web/workbench`, then `python -m podcast_scraper.cli serve --output-dir …`. See
+[Server Guide](SERVER_GUIDE.md) and [web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md).
 
 ---
 
@@ -30,7 +30,7 @@ workspace (by design).
 | File | Purpose |
 | ---- | ------- |
 | **`config/examples/.env.example`** | Copy to **repo root** `.env` for **Python**: API keys, `CACHE_DIR`, logging, optional `PODCAST_SCRAPER_*`, etc. ([CONFIGURATION.md](../api/CONFIGURATION.md); [twelve-factor config](../api/CONFIGURATION.md#twelve-factor-app-alignment-config)). |
-| **`web/gi-kg-viewer/.env.example`** | Copy to **`web/gi-kg-viewer/.env`** for **Vite** only: `VITE_DEFAULT_CORPUS_PATH` (pre-fills the shell corpus path for Graph tab auto-load — **API corpus path** only; offline file-picker loads skip `topic_clusters.json` fetch and sibling merge), `VITE_CLUSTER_SIBLING_EPISODE_CAP` (Graph tab topic-cluster sibling auto-load), `VITE_DEFAULT_GRAPH_LENS_DAYS` (Graph time-lens lower bound on first auto-load: positive integer = "last N days" — production default `7`; `0` or empty = "all time", used by the stack-test viewer build so static fixture publish dates aren't filtered out). Vite loads `.env*` next to the app by default. |
+| **`web/workbench/.env.example`** | Copy to **`web/workbench/.env`** for **Vite** only: `VITE_DEFAULT_CORPUS_PATH` (pre-fills the status-bar corpus path for Graph tab auto-load — **API corpus path** only; offline file-picker loads skip the `topic_clusters.json` fetch and sibling merge), `VITE_DEFAULT_GRAPH_LENS_DAYS` (Graph time-lens lower bound on first auto-load: positive integer = "last N days" — production default `7`; `0` or empty = "all time", used by the stack-test viewer build so static fixture publish dates aren't filtered out). Vite loads `.env*` next to the app by default. |
 
 Root `.gitignore` already ignores `.env`, `.env.local`, and similar patterns so secrets are not
 committed from either location.
@@ -40,9 +40,9 @@ committed from either location.
 ## Git ignores (viewer)
 
 **Node / Vite / Playwright** artifacts for the viewer (`node_modules/`, `dist/`, Playwright
-reports, log files, etc.) are listed under **`web/gi-kg-viewer/`** in the **repository root**
+reports, log files, etc.) are listed under **`web/workbench/`** in the **repository root**
 [`.gitignore`](https://github.com/chipi/podcast_scraper/blob/main/.gitignore). There is no
-separate `web/gi-kg-viewer/.gitignore`.
+separate `web/workbench/.gitignore`.
 
 ---
 
@@ -51,26 +51,26 @@ separate `web/gi-kg-viewer/.gitignore`.
 All of these assume an **activated** Python venv when Python is involved.
 
 The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://github.com/chipi/podcast_scraper/blob/main/Makefile)
-(default **`web/gi-kg-viewer`**). You can override it for a one-off command, e.g.
+(default **`web/workbench`**). You can override it for a one-off command, e.g.
 `make serve-ui WEB_VIEWER_DIR=path/to/viewer`.
 
 | Target | What it does |
 | ------ | ------------- |
 | `make serve SERVE_OUTPUT_DIR=…` | **Parallel:** FastAPI (`serve-api`) + Vite dev (`serve-ui`); UI usually on **5173**, API on **8000**. |
 | `make serve-api SERVE_OUTPUT_DIR=…` | FastAPI only. |
-| `make serve-ui` | Vite only in `web/gi-kg-viewer` (proxies `/api` → **8000**). |
+| `make serve-ui` | Vite only in `web/workbench` (proxies `/api` → **8000**). |
 | `make serve-e2e-mock` | **E2E fixture HTTP server** (RSS + mock API paths) on **`127.0.0.1`**; default port **18765** (**`E2E_MOCK_PORT`**). Use **`--feeds-spec`** with fixture URLs on that host/port (primary p01–p05 + long-form p07–p09; skips p06 edge cases) ([E2E Testing Guide](E2E_TESTING_GUIDE.md#manual-cli-runs-against-the-fixture-server)). |
-| `make test-ui` | Vitest unit tests for TS utils under `web/gi-kg-viewer` (no browser). |
-| `make test-ui-e2e` | Playwright E2E (Chrome; Firefox in CI); installs npm deps and browsers as needed. |
-| `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets against **indexed transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification). |
+| `make test-ui` | Vitest unit tests for TS utils under `web/workbench` (no browser). |
+| `make test-ui-e2e` | Playwright E2E (Firefox); installs npm deps and the browser as needed. |
+| `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets (needs GIL artifacts, which an installed extension writes) against **indexed transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification). |
 
-**CI** runs the same `web/gi-kg-viewer` paths; see `.github/workflows/python-app.yml`.
+**CI** runs the same `web/workbench` paths: Vitest in the `viewer-unit` job of `.github/workflows/python-app.yml`, Playwright in its `viewer-e2e` job (on main, and on pull requests that change the Workbench or what it runs against) and in `nightly-viewer-e2e` of `.github/workflows/nightly.yml`.
 
 ---
 
 ## Invoking viewer tools — `npm` / `./node_modules/.bin/` (not `npx`)
 
-The Node analog of Python's `.venv` is **`web/gi-kg-viewer/node_modules/`** —
+The Node analog of Python's `.venv` is **`web/workbench/node_modules/`** —
 a per-project, gitignored dependency folder. Use it the same way you'd
 use `.venv/bin/<tool>` for Python: invoke project-pinned binaries, not
 ambient ones.
@@ -84,7 +84,7 @@ ambient ones.
 **Use these:**
 
 ```sh
-cd web/gi-kg-viewer
+cd web/workbench
 npm install                       # creates / updates node_modules
 npm run test:e2e                  # Playwright via project-pinned CLI
 npm run test:unit                 # Vitest
@@ -123,7 +123,7 @@ the registry** if the literal name isn't in `node_modules`. Reach for
 - **First pipeline run (profile + operator YAML + feeds):** [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list),
   [Installation Guide](INSTALLATION_GUIDE.md), [CLI.md — Quick Start](../api/CLI.md#quick-start)
 - **Contributor setup:** [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
-- **Daily dev patterns:** [Development Guide](DEVELOPMENT_GUIDE.md) — [GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
+- **Daily dev patterns:** [Development Guide](DEVELOPMENT_GUIDE.md) — [Workbench (browser viewer)](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
 - **FastAPI routes and `serve`:** [Server Guide](SERVER_GUIDE.md) — `/api/*` overview; OpenAPI UI at **`/docs`** when the API is up
-- **Vitest + Playwright:** [Testing Guide](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2)
+- **Vitest + Playwright:** [Testing Guide](TESTING_GUIDE.md#browser-e2e-workbench)
 - **One-page commands:** [Quick Reference](QUICK_REFERENCE.md)

@@ -16,8 +16,8 @@ Common issues and solutions for podcast_scraper development and usage.
 | Memory errors in tests | ML models loading repeatedly | Use `@pytest.mark.serial` |
 | Import errors after pull | Dependencies changed | `pip install -e ".[dev,ml]"` |
 | Tests hang with `-s` flag | tqdm + parallel execution deadlock | Use `-v` instead, or `-n 0` |
-| OpenAI episodes skipped | Audio file size > 25MB (legacy) | API providers now use **AudioChunker** (#286); or use local Whisper |
-| Diarization skipped / gap-only screenplay | Missing `HF_TOKEN` or pyannote not installed | Set `HF_TOKEN`; accept model terms; `pip install -e ".[ml]"`; or `--no-diarize` |
+| Oversized audio with an API provider | 25 MB request cap | API providers split oversized audio with the **AudioChunker** (#286); see [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md) |
+| No speakers, no diarization, no `gi.json`, or `no command named 'gi'` | Those stages come from an installed extension, which is not installed | Expected on a public-only install; see [Speaker, diarization and GI steps do nothing](#speaker-diarization-and-gi-steps-do-nothing) |
 | Deepgram config validation error | Missing API key | Set `DEEPGRAM_API_KEY` or `--deepgram-api-key` |
 | Pipeline hangs on transcription | No timeout configured | Set `transcription_timeout` in config |
 | Pipeline hangs on summarization | No timeout configured | Set `summarization_timeout` in config |
@@ -25,9 +25,9 @@ Common issues and solutions for podcast_scraper development and usage.
 | Want to stop on first failure | Default continues on errors | Use `--fail-fast` flag |
 | Want to limit failures | Default has no limit | Use `--max-failures N` flag |
 | E2E phase of `test-fast` / `ci-fast` sits at high % a long time | Often Whisper / ML tests (not frozen); was xdist tail on one worker | See [E2E Testing Guide — E2E progress](E2E_TESTING_GUIDE.md#make-test-fast--make-ci-fast-and-e2e-progress); Makefile runs `ml_models` E2E sequentially |
-| Unsure if environment is ready | Python, ffmpeg, cache, or models missing | Run `podcast-scraper doctor` (see below) |
-| Viewer shows no **Choose .gi.json** button but API is down | Something answered `/api/health` on port 8000 (proxy “healthy”) | Stop the other process or use offline flow from a clean profile; E2E tests abort `/api/health` for determinism |
-| `make test-ui-e2e` / Playwright “Executable doesn't exist” | Playwright browsers not installed | `cd web/gi-kg-viewer && npx playwright install chromium` (CI: `firefox`) |
+| Unsure if environment is ready | Python, ffmpeg, cache, or models missing | Run `python -m podcast_scraper.cli doctor` (see below) |
+| Workbench shows the API as healthy (no offline **Files** flow) but the API is down | Something else answered `/api/health` on port 8000 (proxy “healthy”) | Stop the other process or use the offline flow from a clean profile; E2E tests abort `/api/health` for determinism |
+| `make test-ui-e2e` / Playwright “Executable doesn't exist” | Playwright browsers not installed | `cd web/workbench && npx playwright install firefox` |
 | `make serve` / Vite “port already in use” | Another dev server on 5173 or 5174 | Stop the other process; Playwright E2E uses **5174** by config |
 
 ---
@@ -77,21 +77,19 @@ The **`doctor`** subcommand runs environment and dependency checks so you can fi
 ```bash
 # Standard checks (Python, ffmpeg, permissions, cache, ML imports)
 python -m podcast_scraper.cli doctor
-# or, if installed as a script:
-podcast-scraper doctor
 
 # Also check network connectivity
-podcast-scraper doctor --check-network
+python -m podcast_scraper.cli doctor --check-network
 
 # Also try loading default Whisper and summarizer models once (slow; validates "can load each model")
-podcast-scraper doctor --check-models
+python -m podcast_scraper.cli doctor --check-models
 ```
 
 ### What it checks
 
 | Check | Purpose |
 | ----- | ------- |
-| **Python version** | Must be 3.10 or higher (same as `requires-python` in pyproject.toml). |
+| **Python version** | Must be 3.12 or higher (same as `requires-python` in pyproject.toml). |
 | **ffmpeg** | Required for audio processing and Whisper. Must be on PATH and runnable. |
 | **Write permissions** | Creates a test file under `~/.podcast_scraper_test` to ensure the process can write. |
 | **Model cache directory** | Verifies the Whisper/Transformers cache dir exists and is writable (e.g. `.cache/whisper` or `~/.cache/huggingface/hub`). |
@@ -313,17 +311,13 @@ dot -V
 
 **Note:** Diagrams are not generated in CI; you must run `make visualize` locally and commit `docs/architecture/diagrams/*.svg`. CI runs `make visualize` and fails if diagrams are stale. See [Architecture visualizations](../architecture/diagrams/README.md) and the [Release checklist](DEVELOPMENT_GUIDE.md#release-checklist).
 
-### Episodes Skipped with OpenAI Provider
+### Large Audio with API Transcription Providers
 
-**Symptom:** Some episodes are skipped when using the OpenAI transcription provider, with a log message about "exceeds OpenAI API limit (25 MB)".
+**Symptom:** An episode's audio is larger than an API provider accepts (OpenAI's upload cap is 25 MB).
 
-**Cause:** The OpenAI Whisper API has a hard limit of 25MB per audio file. To avoid API errors and wasting bandwidth, the system checks the file size before downloading.
+**Cause:** Each API provider has a request size or duration cap.
 
-**Solutions:**
-
-1. **Use Local Whisper**: The local Whisper provider does not have this file size limit (it's only limited by your system's RAM).
-2. **Compress Audio**: Use a tool like `ffmpeg` to reduce the bitrate or convert to a more efficient format (like Mono instead of Stereo) before processing if you must use the OpenAI API.
-3. **Wait for Future Feature**: Plan for automatic audio preprocessing (downsampling/mono conversion) is in the roadmap.
+**Solution:** Nothing to do by default: the pipeline splits oversized audio into chunks (`AudioChunker`, `utils/audio_payload_limits.py`) and joins the transcripts. Enabling audio preprocessing (`--enable-preprocessing`) shrinks the file first. Local Whisper has no upload cap. Details: [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).
 
 ### Ollama Provider Issues
 
@@ -702,45 +696,13 @@ python -c "import feedparser; print(feedparser.parse('https://example.com/feed.x
 
 ---
 
-## Speaker Detection Issues
+## Speaker, diarization and GI steps do nothing
 
-### Organization Names in RSS Feeds (Issue #393)
+**Symptom:** A run writes transcripts, summaries and metadata but no speaker names, no diarized screenplay, no ad-free transcript and no `gi.json`; `python -m podcast_scraper.cli gi` answers `no command named 'gi'; an installed extension may provide it`.
 
-**Symptom:** Speaker detection returns organization names (e.g., "NPR", "BBC") instead of actual host names, or no hosts are detected.
+**Cause:** This repository registers no built-in stages for speaker detection and diarization, grounded insights (GIL), the identity ledger, the advanced KG passes, ad cleaning or audio sync (`src/podcast_scraper/builtin_stage_hooks.py`). An installed extension provides them through `Extension.pipeline_hooks`; without one each hook answers its plain default, so the settings that drive them (`diarize`, `speaker_detector_provider`, `generate_gi`, ...) are accepted and have no effect.
 
-**Cause:** RSS feed author tags may contain organization/publisher names rather than actual host names. The system automatically filters out organization names that match common patterns (all caps, short, no spaces).
-
-**How it works:**
-
-- The system checks RSS author tags for organization patterns:
-  - All uppercase (e.g., "NPR", "BBC", "CNN")
-  - Short length (≤10 characters)
-  - No spaces
-- Organization names are logged as "publisher metadata" and excluded from host detection
-- The system falls back to NER extraction from feed title/description if author tags only contain organizations
-
-**Solutions:**
-
-1. **Use manual speaker names** (if automatic detection fails):
-
-   ```bash
-   python3 -m podcast_scraper.cli feed.xml --speaker-names "Host Name" "Guest"
-   ```
-
-2. **Check debug logs** to see what was detected:
-
-   ```bash
-   export LOG_LEVEL=DEBUG
-   python3 -m podcast_scraper.cli feed.xml
-   ```
-
-   Look for messages like: `"RSS author 'NPR' appears to be an organization name"`
-
-3. **Verify RSS feed metadata** - Some feeds have proper author tags with actual host names, while others only have publisher information.
-
-**Note:** This is expected behavior - organization names are intentionally filtered out because they represent publishers, not actual speakers. The system prioritizes person names over organization names for speaker detection.
-
----
+**Solution:** Install the extension that provides those stages. Summaries, metadata, KG extraction, the search index and the Workbench work without it.
 
 ---
 
@@ -751,9 +713,9 @@ If your issue isn't covered here:
 1. **Run doctor** to capture environment state:
 
    ```bash
-   podcast-scraper doctor --check-network > doctor_output.txt 2>&1
+   python -m podcast_scraper.cli doctor --check-network > doctor_output.txt 2>&1
    # Optionally include model load check (slow):
-   podcast-scraper doctor --check-models >> doctor_output.txt 2>&1
+   python -m podcast_scraper.cli doctor --check-models >> doctor_output.txt 2>&1
    ```
 
    Attach `doctor_output.txt` when opening an issue.

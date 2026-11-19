@@ -11,7 +11,7 @@ docs/prd/*.md
 docs/releases/*.md
 
 # Claude Code skill references under the viewer (upstream-style notes; not repo docs)
-web/gi-kg-viewer/.claude/
+web/workbench/.claude/
 
 # The consumer app's old in-tree folder: leftovers in older checkouts hold vendored gem READMEs.
 web/learning-player/

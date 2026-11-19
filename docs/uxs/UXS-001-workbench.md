@@ -1,0 +1,596 @@
+# UXS-001: Workbench -- Shared Design System
+
+- **Status**: Active
+- **Authors**: Podcast Scraper Team
+- **Related PRDs**:
+  - [PRD-003: User Interfaces & Configuration](../prd/PRD-003-user-interface-config.md)
+  - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md)
+  - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
+- **Related RFCs**:
+  - [RFC-062: Workbench](../rfc/RFC-062-gi-kg-viewer-v2.md)
+- **Shell information architecture (regions, axes, persistence):**
+  [WORKBENCH_IA.md](WORKBENCH_IA.md)
+- **Consumer app design system:** separate, by design.
+- **Playwright / E2E**:
+  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
+- **Feature UX specs** (each viewer surface has its own UXS):
+  - [UXS-002: Corpus Digest](UXS-002-corpus-digest.md)
+  - [UXS-003: Corpus Library](UXS-003-corpus-library.md)
+  - [UXS-004: Graph Exploration](UXS-004-graph-exploration.md)
+  - [UXS-005: Semantic Search](UXS-005-semantic-search.md)
+  - [UXS-006: Dashboard](UXS-006-dashboard.md)
+  - [UXS-007: Topic Entity View](UXS-007-topic-entity-view.md)
+- **Implementation paths**:
+  - `web/workbench/src/theme/tokens.css` -- CSS custom properties (`--ps-*`)
+  - `web/workbench/tailwind.config.js` -- Tailwind color mapping to CSS vars
+  - `web/workbench/src/style.css` -- global styles, font stacks, focus ring
+  - `web/workbench/src/utils/chartTheme.ts` -- Chart.js theme integration
+  - `web/workbench/src/utils/cyGraphStylesheet.ts` -- Cytoscape node/edge styles
+
+---
+
+**Where it renders (2026-11-17).** The Workbench draws the tokens, the shell, the status bar and the shared components below. These parts are slots that only a registered extension fills:
+
+- Configuration dialog tabs after the viewer's own: `configTabs` (`StatusBar.vue:53`).
+- App banners: `appBanners` (`App.vue:1075`).
+- Palette commands and hit actions: `paletteCommands` (`utils/paletteCommands.ts:249`), `paletteHitActions` (`CommandPalette.vue:683`).
+- Graph chrome and canvas: `graphPanels` (`GraphTabPanel.vue:37,58`), `graphBottomBarChips` (`GraphBottomBar.vue:205`), `graphFilterBarChips` (`GraphFilterBar.vue:46`), `graphLenses` (`GraphLensesChip.vue:57`), `graphStylesheet` (`cyGraphStylesheet.ts:773`), `graphCanvasPlugins` (`GraphCanvas.vue:1089`).
+
+Removed from public: the **Explore** slide-in mode of the left column. `stores/shell.ts:38-48,136-137` keeps one left-column surface and ignores `explore_api`, so the Explore sentences below are history. The **InsightCard** below is specified and has no component in `web/workbench/src` (see its own status line); whether the private viewer builds it: not checked. Without extensions, the slots above are absent.
+
+## Summary
+
+This is the **shared design system** for the Workbench SPA (`web/workbench/`).
+It defines semantic color tokens, typography, layout primitives, key interactive states,
+accessibility targets, and component conventions that all feature UXS files reference.
+
+Individual viewer surfaces (search, library, digest, graph, dashboard, topic entity
+view) have their own UXS files for layout, density, and
+surface-specific rules. This file is the foundation they all build on.
+
+**Shell layout (information architecture):** The three-column shell (left
+query column, main tabs, right subject rail, bottom status bar) is defined in
+[WORKBENCH_IA.md](WORKBENCH_IA.md) — regions, navigation axes, subject persistence and
+clearing, status bar contents, and left-panel collapse. This UXS-001 file
+anchors **tokens, typography, tunables, and shared components** for those
+regions; do not duplicate the full IA narrative here.
+
+**InsightCard:** The reusable **InsightCard** layout for GIL insight rows (slots,
+tokens, accessibility) is specified below under **[Components → InsightCard (shared
+component)](#insightcard-shared-component)**. UXS-007, UXS-009, and UXS-010 reference
+that subsection instead of duplicating card rules.
+
+---
+
+## Principles
+
+- **Data-first:** Maximize space for the graph and evidence; chrome stays quiet.
+- **Respect system theme:** Support light and dark via `prefers-color-scheme` (or
+  equivalent) unless a future PRD mandates a manual toggle only.
+- **Semantic coloring:** GIL vs KG cues use dedicated domain tokens (`gi`, `kg`), not
+  ad hoc greens and purples in components. UI-level intents (`primary`, `success`,
+  `warning`, `danger`) are separate from domain tokens.
+- **Intelligence-tool aesthetic:** Feel like a serious analytics/intelligence platform
+  (Palantir Blueprint, Grafana, Elastic) -- professional, data-dense, modern but
+  relaxed. Not a marketing site, not a consumer app.
+
+---
+
+## Scope
+
+**In scope:**
+
+- Viewer shell: header (**Workbench** + **v2**), panels,
+  file/folder pickers, banners
+- Semantic color tokens (surface, text, intent, domain, chart series)
+- Typography (font stacks, scale, weights)
+- Layout primitives (base unit, max width, regions)
+- Key interactive states (hover, focus, disabled, loading, empty, error)
+- Component conventions (buttons, inputs, banners)
+- Chart and graph color rules
+- Accessibility targets
+
+**Non-goals:**
+
+- Brand marketing pages, email templates, or MkDocs theme
+- CLI ANSI styling (covered only if a separate UXS is added)
+- Feature-specific layout and density (see feature UXS files)
+- Full **shell information architecture** (regions, the three navigation axes, subject persistence and clearing rules, first-run policy, cross-surface pseudocode) — specified only in **[WORKBENCH_IA.md](WORKBENCH_IA.md)**; UXS-001 does not replace it
+
+**Historical note:** The pre–shell-restructure left-panel **Corpus | API·Data** tabs are obsolete. Current chrome follows **WORKBENCH_IA** (status bar corpus path + left Search; ~~Explore~~ retired 2026-11-17); see [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606).
+
+**Boundary note:** This UXS covers the **static visual contract** (tokens, layout,
+component appearance, accessibility targets). Behavioral rules (animation timing,
+debounce intervals, resize/collapse logic, keyboard shortcuts) belong in
+[RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). See the
+[UXS vs RFC boundary](index.md#uxs-vs-rfc-boundary) guidance.
+
+---
+
+## Theme support
+
+- **Mode:** both (follows system via `prefers-color-scheme`; manual override via
+  `data-theme` attribute on `:root`)
+- **Primary palette:** dark -- the viewer is a data tool used in terminal-adjacent
+  contexts; dark mode is the design baseline
+- **Breakpoints:** desktop only (minimum 1024px assumed; no mobile breakpoints).
+  Approximate three-column widths at 1024px are recorded in
+  [WORKBENCH_IA.md — Shell layout](WORKBENCH_IA.md#shell-layout).
+
+---
+
+## Semantic color tokens
+
+Token values are inspired by the **Palantir Blueprint** gray scale with the
+**shadcn/ui** foreground-pairing convention. Every surface token has a matching
+`-foreground` text token so contrast is validated at the token level.
+
+CSS custom properties use the `--ps-` prefix (defined in
+`src/theme/tokens.css`). Tailwind maps these via `tailwind.config.js`.
+
+**Design references:** Blueprint gray scale (`#111418` .. `#F6F7F9`), shadcn/ui
+background/foreground pairs, Grafana layered surfaces, Elastic UI intent/vis
+separation.
+
+### Surface tokens (gray scale)
+
+Five semantic steps for surfaces, from deepest background to lightest border.
+
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `canvas` | `#111418` | `#F6F7F9` | Page/app background |
+| `canvas-foreground` | `#E5E8EB` | `#1C2127` | Primary text on canvas |
+| `surface` | `#1C2127` | `#FFFFFF` | Panels, cards, `code` blocks |
+| `surface-foreground` | `#E5E8EB` | `#1C2127` | Primary text on surface |
+| `elevated` | `#252A31` | `#F0F1F4` | Popovers, dropdowns, modals |
+| `elevated-foreground` | `#DCE0E5` | `#252A31` | Text on elevated surfaces |
+| `overlay` | `#2F343C` | `#E4E7EB` | Hover overlays, active table rows |
+| `overlay-foreground` | `#DCE0E5` | `#252A31` | Text on overlay surfaces |
+| `border` | `#404854` | `#C5CCD6` | Dividers, input borders |
+| `graph-canvas` | `#0A0D10` | `var(--canvas)` | Cytoscape canvas only (dark is deeper than `canvas`) |
+
+### Text tokens
+
+| Token      | Dark      | Light     | Usage                                    |
+| ---------- | --------- | --------- | ---------------------------------------- |
+| `muted`    | `#929CAB` | `#5C6878` | Secondary labels, help text, timestamps  |
+| `disabled` | `#5F6B7C` | `#ABB3BF` | Disabled controls and placeholder text   |
+| `link`     | `#6cb3f7` | `#1a6fc4` | Inline text links (distinct from action) |
+
+### Intent tokens (UI actions and feedback)
+
+Separate from domain tokens; used for buttons, alerts, and status indicators.
+
+| Token                  | Dark      | Light     | Usage                          |
+| ---------------------- | --------- | --------- | ------------------------------ |
+| `primary`              | `#4C90F0` | `#2D72D2` | Primary action buttons, links  |
+| `primary-foreground`   | `#111418` | `#FFFFFF` | Text on primary surfaces       |
+| `success`              | `#36B270` | `#1F7648` | Positive status, confirmations |
+| `success-foreground`   | `#111418` | `#FFFFFF` | Text on success surfaces       |
+| `warning`              | `#EC9A3C` | `#C87619` | Caution states, non-critical   |
+| `warning-foreground`   | `#111418` | `#111418` | Text on warning surfaces       |
+| `danger`               | `#EA7A7E` | `#BF3236` | Errors, destructive actions    |
+| `danger-foreground`    | `#111418` | `#FFFFFF` | Text on danger surfaces        |
+
+### Domain tokens (GIL / KG identity)
+
+These are visualization-level cues, not generic UI intents. They stay stable across
+themes and distinguish GIL from KG content at a glance.
+
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `gi` | `#7dd3a0` | `#1e7a4a` | GIL / insight affordances |
+| `gi-foreground` | `#111418` | `#FFFFFF` | Text on gi surfaces |
+| `kg` | `#c4a8ff` | `#5c4d8a` | KG affordances |
+| `kg-foreground` | `#111418` | `#FFFFFF` | Text on kg surfaces |
+| `news` | `#9fb7d0` | `#3d5a7a` | The news type label, row accent and article card accent ([UXS-019](UXS-019-news-in-the-public-viewer.md)) |
+| `news-foreground` | `#111418` | `#FFFFFF` | Text on news surfaces |
+| `grounded` | `var(--gi)` | `var(--gi)` | Grounded claims — same concept as GI |
+| `topic` | `#7cd0d4` | `#1f7a7f` | Topic chips (teal — distinct from KG purple) |
+| `person` | `#ffb37a` | `#9c5822` | Person chips (peach) |
+| `theme` | `#7dd3c0` | `#0e7469` | Theme (topics discussed together) — graph ring, Details block, show-rail and topic pills |
+| `related-topic` | `#da77f2` | `#9c36b5` | "Related topics" (shared insights) heading and chips |
+
+> **Tables are checked (#2280).** `web/workbench/src/__checks__/uxs-token-tables.test.ts`
+> fails when a token in these tables is missing from `tokens.css`, when its dark or light value
+> differs, or when `tokens.css` defines a `--ps-*` token no table lists.
+> `src/__checks__/token-contrast.test.ts` holds every `-foreground` pair, plus `muted` and `link`,
+> to 4.5:1 in both themes. Change the code and the table in the same commit.
+
+**`warning` token vs clusters:** After CIL digest pill alignment (UXS-002),
+**`warning`** fill/border for **search-hit emphasis** on graph nodes (e.g.
+Quote / search-highlighted nodes) only. **Topic cluster** membership and topic
+discovery UI use the **`kg`** token everywhere — Digest CIL pills, graph
+`TopicCluster` compounds, Dashboard Intelligence cluster cards. Do **not** use
+`warning` fill for cluster membership or topic grouping.
+
+### Chart series colours
+
+There are **no `series-*` tokens.** Multi-series Chart.js charts take their colours from
+`chartSeriesColors()` in `src/utils/chartTheme.ts`, which walks five existing semantic tokens in
+order — `primary`, `gi`, `kg`, `warning`, `success` — at 0.75 alpha, and repeats after five
+(`CHART_SEMANTIC_COLOR_SLOTS`; more hues than that is rainbow sprawl). That list is the contract:
+a chart's colours follow the theme because they *are* theme tokens.
+
+> **Corrected (#2280).** This section used to specify five `series-1`…`series-5` tokens, the
+> fifth a teal (`#3FA6DA` / `#147EB3`). None was ever defined; the code has used the semantic list
+> above since charts shipped, so the fifth slot is `success` green.
+
+**Categorical ramp.** Charts whose series are just "N different things" with no semantic meaning
+— the Dashboard's stream chart — use `cat-1`…`cat-6`. A series takes the next slot; the hue
+carries no meaning. Light values are the same hue families darkened to clear 3:1 (WCAG 1.4.11)
+against light surfaces, which the original Tailwind 400/500 hues did not (1.81–2.65:1).
+
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `cat-1` | `#8b5cf6` | `#7c3aed` | Categorical series 1 |
+| `cat-2` | `#22d3ee` | `#0e7490` | Categorical series 2 |
+| `cat-3` | `#f59e0b` | `#b45309` | Categorical series 3 |
+| `cat-4` | `#34d399` | `#047857` | Categorical series 4 |
+| `cat-5` | `#f472b6` | `#be185d` | Categorical series 5 |
+| `cat-6` | `#60a5fa` | `#2563eb` | Categorical series 6 |
+
+**Graph overlays** — tokenized as shipped (#2280), named after what the UI shows, and separate
+from the trend colours they used to share by accident. Dark keeps the shipped values. On the
+light graph canvas the green and amber measured 2.00–2.13:1, so light uses the same hues
+darkened to clear 3:1 (`token-contrast.test.ts` holds it); region tints are low-opacity
+underlays with no legibility role and are identical in both themes.
+
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `region-1` | `#7ba3d9` | `#7ba3d9` | Theme / person-community region tint 1 |
+| `region-2` | `#d9d97b` | `#d9d97b` | Theme / person-community region tint 2 |
+| `region-3` | `#d97ba3` | `#d97ba3` | Theme / person-community region tint 3 |
+| `region-4` | `#7bd9a3` | `#7bd9a3` | Theme / person-community region tint 4 |
+| `region-5` | `#d9a37b` | `#d9a37b` | Theme / person-community region tint 5 |
+| `region-6` | `#a37bd9` | `#a37bd9` | Theme / person-community region tint 6 |
+| `region-7` | `#a3d97b` | `#a3d97b` | Theme / person-community region tint 7 |
+| `region-8` | `#7bd9d9` | `#7bd9d9` | Theme / person-community region tint 8 |
+| `coguest` | `#f59e0b` | `#c27d08` | "Co-guest edges" (dotted) |
+
+Banners may use `color-mix` against `surface` / `border`; new variants should
+still derive from the tokens above.
+
+---
+
+## Typography
+
+- **UI font:** `Inter, system-ui, -apple-system, "Segoe UI", sans-serif` -- Inter
+  (variable, self-hosted or Google Fonts) provides tabular numerals for data tables and
+  a tall x-height for dense layouts. Falls back to system fonts if Inter is not loaded.
+- **Monospace font:** `"JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code",
+  monospace` -- used for transcript snippets, code blocks, JSON, and any fixed-width
+  data. Clear glyph differentiation (0/O, 1/l/I) matters for data review.
+- **Scale:** Prefer relative sizes (`rem` / Tailwind `text-sm` / `text-base`); keep
+  body at **1rem** (16px) equivalent for long reading; tighten slightly for dense
+  metadata rows. Heading scale: `text-xl` (h1), `text-lg` (h2),
+  `text-base font-semibold` (h3).
+- **Dense UI:** Tables and stat rows may use **one step smaller** (`text-sm`, 0.875rem)
+  than body but not below **0.8125rem** without an explicit accessibility review.
+- **Font weights:** 400 (regular body), 500 (medium emphasis), 600 (semibold headings
+  and labels), 700 (bold, sparingly).
+
+---
+
+## Layout and spacing
+
+- **Base unit:** **4px** (0.25rem) -- spacing and gaps should be multiples where
+  practical.
+- **Max content width:** **960px** for primary column content; graph area may be
+  full viewport width.
+- **Left query column** (**Semantic search**; ~~**Explore** as a slide-in mode~~ retired 2026-11-17, from
+  **`LeftPanel.vue`**): collapsible **`w-72`** rail in `App.vue` when expanded.
+- **Right subject column** (Episode detail, graph node detail, future topic/person): fixed
+  width **`w-96`** (**24rem** / **384px** at **16px** root) when expanded. To tune further,
+  change that class on the same element (desktop-only layout).
+- **Status bar:** full-width footer under the three-column row — visual contract in **[Status bar](#status-bar)** below (`StatusBar.vue`, **`data-testid="app-status-bar"`**).
+- **Regions:** Header + lede + panel stack; graph pages use full-height canvas with
+  overlays/panels that respect `surface` and `border`.
+
+---
+
+## Key states
+
+Visual treatment for interactive elements. Behavioral timing (debounce, transition
+duration) belongs in RFC-062.
+
+- **Hover:** Show `overlay` background (one step lighter than `surface`); underline on
+  links; graph nodes may show a tooltip or highlight ring using `primary` at reduced
+  opacity
+- **Active / pressed:** Show `elevated` background (one step darker than `overlay`)
+- **Focus:** 2px solid `primary` ring with 2px offset; never remove native outline
+  without an equivalent replacement
+- **Disabled:** Use `disabled` text color, 40% opacity on controls,
+  `cursor: not-allowed`
+- **Loading:** Skeleton placeholder using `surface` / `border` stripes; graph area may
+  show a centered spinner using `muted`
+- **Empty state:** Centered `muted` text explaining what to load (e.g. "Select a file
+  or folder to begin"); no decorative illustration required
+- **Error state:** `danger` border on inputs; inline error message in `danger`; banner
+  variant for page-level errors using `danger` / `danger-foreground`
+
+---
+
+## Components
+
+- **Buttons:** Primary uses `primary` / `primary-foreground`; secondary uses
+  `surface` / `border`; destructive uses `danger` / `danger-foreground`.
+- **File inputs / pickers:** Match `surface` background; clear label weight (**600**).
+- **Banners / alerts:** Success uses `success` background tint; warning uses `warning`
+  tint; error uses `danger` tint; neutral info uses `primary` or `muted`.
+  Domain-specific success messages (e.g. "insights loaded") may lean on `gi` instead
+  of generic `success`.
+
+### InsightCard (shared component) {#insightcard-shared-component}
+
+**Status: specified, not built.** No `InsightCard` component exists in
+`web/workbench/src` (checked 2026-10-05); the feature UXSs that cite it (UXS-007,
+UXS-009, UXS-010) are Draft. This subsection is the contract for when it is built, so
+there is nothing for an e2e test to assert yet.
+
+The **InsightCard** is a reusable card component for multiple feature UXSs
+(UXS-007, UXS-009, UXS-010) to display a GIL Insight with consistent visual
+treatment. Feature UXSs declare which slots they use; the component renders only
+populated slots.
+
+**Required slots** (always present):
+
+- **Insight text**: the Insight's text content (`text-sm`, `canvas-foreground`).
+- **Grounding badge**: "grounded" (`success` token, `text-xs`) or "ungrounded"
+  (`warning` token, `text-xs`). Visual indicator of data quality.
+
+**Optional slots** (feature UXSs opt in):
+
+| Slot                 | Token / style                                         | Used by          |
+| -------------------- | ----------------------------------------------------- | ---------------- |
+| `insight_type` badge | Small pill, `text-xs`. See token mapping below        | UXS-009, UXS-010 |
+| `position_hint` bar  | 40px bar, `primary` on `border`; UXS-009 tooltip      | UXS-009, UXS-010 |
+| Confidence score     | `muted`, `text-xs`. Hidden when unavailable           | UXS-009, UXS-010 |
+| Speaker chip         | `muted`, `text-sm`. Clickable to Person Landing       | UXS-007          |
+| Episode attribution  | Episode title + publish date, `muted`, `text-xs`      | UXS-007, UXS-010 |
+| Supporting quote     | Blockquote, `border` left 3px, italic. With timestamp | UXS-007, UXS-009 |
+
+**`insight_type` token mapping**: `claim` = `primary`, `recommendation` = `success`,
+`observation` = `muted`, `question` = `link`, other = `muted`.
+
+**"Strongest" variant** (UXS-010 only): When a card represents the
+`strongest_insight` for a topic group, it receives a `primary` left border (3px)
+and a "Strongest" label (`primary`, `text-xs`).
+
+**Accessibility**: InsightCard uses `role="article"` with `aria-label` constructed
+from the insight type and first ~50 characters of text. Badge tokens are
+supplemented by text labels (colour is never the sole differentiator).
+
+---
+
+## Charts and graph
+
+- Chart.js (and future chart wrappers) **must** resolve axis/grid/text colors from the
+  same light/dark logic as the page (CSS variables or the shared `chartTheme.ts`
+  module).
+- Multi-series charts use `chartSeriesColors()` (`primary`, `gi`, `kg`, `warning`, `success`
+  in order — see *Chart series colours*). Single-series charts default to `primary`.
+  Domain-specific charts (GIL vs KG breakdowns) use `gi` / `kg`.
+- Cytoscape (v2) node/edge styling consumes the same semantic tokens via
+  `cyGraphStylesheet.ts` so the graph matches panels and charts.
+- **Dashboard charts (UXS-006):** Every chart on the Dashboard **must** expose a
+  **written takeaway** (Tufte-style insight): either a dedicated line below the chart
+  **or** the chart title itself when it states the quantitative conclusion (e.g. stage
+  timings headline). Parents **must not** render a chart with data and no takeaway.
+  If the data does not support a clear, honest takeaway, **that chart does not belong**
+  on the Dashboard surface.
+
+---
+
+## Status bar {#status-bar}
+
+Visual contract for the permanent bottom row (**`StatusBar.vue`**, **`data-testid="app-status-bar"`**). **What belongs in the bar** (corpus path, folder picker, health dot, rebuild indicator, persistence keys) is defined in [WORKBENCH_IA.md — Status bar](WORKBENCH_IA.md#status-bar). Here: **tokens and layout** only.
+
+- **Height:** ~**36px** single row; background **`canvas`**; top border **`border`**
+- **Corpus path field:** `surface` background, **`border`**; placeholder copy **Set corpus path…** (`muted`); full remaining width left of trailing affordances
+- **Health dot:** **8px** filled circle; **`success`** / **`warning`** / **`danger`** intent tokens
+- **Rebuild indicator (⚡):** **`warning`** when index stats recommend reindex (see WORKBENCH_IA)
+- **Folder picker** (offline): icon control per shipped chrome; match **`surface`** / **`border`**
+
+### Corpus path field — listing and artifacts
+
+**Subject clearing and path-change cascade** (what invalidates the subject rail, tab handoffs): [WORKBENCH_IA.md — Corpus path change](WORKBENCH_IA.md#corpus-path-change).
+
+- **Online (health ok):** Typing a corpus path in the **status bar** field triggers listing via
+  `GET /api/artifacts` and loads every listed `.gi.json` / `.kg.json` into the merged
+  graph automatically. **List** opens the **Corpus artifacts** dialog (`data-testid="artifact-list-dialog"`)
+  with **All** / **None** / **Load into graph**; **Load into graph** applies the current selection
+  and switches to **Graph** when ready.
+- **Offline:** **Files** on the **status bar** (or **Choose files…** inside the **Health** dialog)
+  loads local GI/KG without the server. The value persists in **`localStorage`** key **`ps_corpus_path`**.
+
+### Configuration dialog (Feeds / Job Configuration / Scheduled / Index / Health) {#corpus-sources-dialog}
+
+Modal **`data-testid="status-bar-sources-dialog"`** (title **Configuration**). Opens from the status bar **Configuration** trigger when **`feeds_api`** and/or **`operator_config_api`** is true on **`GET /api/health`**.
+
+- **Layout:** widened modal (`w-[min(60rem,96vw)]`) with a **left sub-nav rail** (`<nav aria-label="Configuration sections">`) — replaces the former top tab-strip so per-feed editors and future sections get vertical room (2026-06-19 restructure). Built on the shared **`AppDialog`** primitive (native `<dialog>`, Esc/backdrop/Close, focus trap) — as are the Vector-index, Artifact-list, Transcript, and pipeline-job-log dialogs (2026-06-20 consolidation). The selected section renders in the content column to the right; loading / error banners pin above it.
+- **Sections (rail items):** **Feeds** (`data-testid="sources-dialog-tab-feeds"`) / **Job Configuration** (`sources-dialog-tab-operator`) / **Scheduled** (`sources-dialog-tab-scheduled`) / **Index** (`sources-dialog-tab-index`) / **Health** (`sources-dialog-tab-health`). Feeds + Job-Configuration + Scheduled appear only when their API capability is true. Selecting a section **lazy-loads** only that section's API so a broken operator file does not block the Feeds editor.
+- **Job Configuration** is one page with two **sub-tabs** (default **Profile**, mirroring the Feeds Manage/Raw-JSON pattern): **Profile** (`sources-dialog-operator-subtab-profile`) picks the packaged **profile** (`sources-dialog-profile-select`; **None** = no preset) and shows **what that profile brings** (`sources-dialog-profile-content`) — parsed key settings (`sources-dialog-profile-settings`) + full profile YAML in a `details`, bodies from **`GET /api/operator-config/profiles`** (packaged; same allowlist as `available_profiles`); **Configuration** (`sources-dialog-operator-subtab-config`) is the YAML overrides editor (`sources-dialog-operator-textarea`) + live cron preview, keys here overriding the profile. One shared **Save** (`sources-dialog-save-overrides`) persists profile + overrides. Terminology: the concept is a **profile** throughout (the dropdown was relabeled from "Preset"). All sections share one **fixed-height** panel (the dialog does not resize per active section).
+- **Index section** (`data-testid="sources-dialog-index-panel"`): "understand the index" — facts table (`sources-dialog-index-stats`: path / vectors / embedding model + dim / last updated / on-disk size / feeds, plus doc-type counts) + reindex-reason banner (`sources-dialog-index-banner`) + rebuild controls (**Refresh** / **Update index** `index-dialog-update` / **Full rebuild** `index-dialog-full-rebuild`). This **replaces the former standalone "Vector index" popup**; the Dashboard card's **Manage in Configuration**, the status-bar ⚡ bolt, and the Briefing **Open index controls** all open here.
+- **Scheduled section** (#709, `data-testid="scheduled-jobs-section"`): read-only table from **`GET /api/scheduled-jobs`** — **Name** / **Cron** / **Enabled** / **Next run** (`scheduled-jobs-row-{idx}`). `next_run_at` renders as a relative label with absolute-UTC hover (`RelativeTime`); disabled rows are greyed and show **—**; an **invalid cron** badge (`scheduled-jobs-invalid-cron`, client-side `cron-parser`) distinguishes a bad expression from a merely disabled one; the cron cell's hover previews the next 3 runs. The per-row **`ToggleSwitch`** (`scheduled-jobs-toggle-{idx}`) flips `enabled` by rewriting **only** that entry's `enabled:` line in the operator YAML (comments preserved) and PUT-ing it back (server reloads the scheduler). Authoring schedules stays in **Job Configuration**.
+- **Feeds tab:** Internal sub-tabs **Manage** (`sources-dialog-feeds-panel-list`) vs **Raw JSON** (`sources-dialog-feeds-panel-json`). **Manage:** **`sources-dialog-feeds-add-url`** + **`sources-dialog-feeds-add-btn`** (**Add feed**) appends one URL at a time (deduped); per-row **Edit** / **Configure** / **Delete**; each change persists via **`PUT /api/feeds`**. **Configure** (`sources-dialog-feeds-row-configure-{idx}`) opens a per-feed **override drill-in** (#694, `data-testid="feed-override-editor"`, **← Feeds** back button): structured inputs for **max_episodes** / **episode_order** / **episode_offset** / **episode_since** / **episode_until**, plus a collapsible **Advanced** block of structured inputs (`feed-override-adv-{key}` — retry / delay / circuit-breaker / conditional-GET / episode-retry / `user_agent`) and a raw-JSON box (`feed-override-extras`) that round-trips unmodelled keys untouched. Empty field = inherit (the key is omitted, never `null`); an entry with no overrides collapses back to a bare URL string. A hint chip (`feed-override-maxep-hint`) flags when `max_episodes` overrides the viewer_operator default. **Raw JSON:** **`sources-dialog-feeds-textarea`** + **Apply JSON**. Persisted as corpus **`feeds.spec.yaml`** (same as CLI **`--feeds-spec`**, RFC-077 / #626). Help copy states feeds are **not** edited in Operator YAML.
+- **Operator YAML tab:**
+  - Shows resolved file path from **`GET /api/operator-config`** (`operator_config_path`) in small muted text above the controls.
+  - **Profile** row: native **`<select>`** **`data-testid="sources-dialog-profile-select"`**. Options: **`None`** (empty value — no `profile:` line persisted), then every name in **`available_profiles`** from **GET** (sorted server list). If the on-disk file references a **`profile:`** name **not** in that list (custom / stale preset), show an extra option **`{name} (custom)`** so the value round-trips until the operator changes it. When **`viewer_operator.yaml`** is **missing or whitespace-only**, **GET** **`/api/operator-config`** seeds **`profile: cloud_balanced`** on disk if that stem exists under packaged **`config/profiles`** (otherwise content stays empty until the user saves).
+  - **Overrides** editor: monospace **`sources-dialog-operator-textarea`** — YAML for keys **other than** top-level **`profile:`** (the **`<select>`** is the sole source of truth for `profile:` on **Save**). Any `profile:` line pasted into the textarea is **stripped on save** when resolving body text; **None** in the menu therefore always persists **without** a `profile:` key even if the textarea still contained a pasted `profile:` line. On load, the client splits file content into select + body (see `operatorYamlProfile.ts`).
+  - **Save YAML** persists via **`PUT /api/operator-config`** with JSON `{ "content": "..." }`. Errors: **422** invalid YAML; **400** with `detail.keys` for forbidden secrets or forbidden feed keys (`rss`, `rss_url`, `rss_urls`, `feeds` at root). Server validation is **shallow** (top-level keys only), not a full duplicate of `Config` validation.
+  - Help copy: secrets only via environment; packaged preset defaults merge first (#593), explicit keys in the file override; feeds belong in the Feeds tab / list file.
+
+**Playwright map:** update [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) when `data-testid`s here change.
+
+---
+
+## Shell keyboard shortcuts
+
+Implemented in `useViewerKeyboard.ts` (global handlers, not per-component ad hoc):
+
+- **Cmd-K / Ctrl-K** (Search v3 §S3, RFC-107 §4) — Opens the shell-wide **command palette**
+  from any tab, including while focus is in an editable control (it is a summon shortcut).
+- **Slash** — When focus is not in an editable control: opens the **command palette** (the
+  compact launcher it once focused is retired by UXS-016 §S4-shell). In an editable control,
+  `/` is a normal character.
+- **Escape** — On the **Graph** main tab, when focus is not in an editable control: clear
+  graph interaction / transient selection state. The palette handles its own Escape.
+- **1 / 2 / 3 / 4 / 5** (#674 item 5, RFC-107 §1 tab order) — When focus is not in an
+  editable control: switch the main tab to **Digest** / **Library** / **Search** / **Graph** /
+  **Dashboard** respectively. Matched on `key`, not `Digit*`, so non-QWERTY layouts work.
+  Editable-target guard prevents firing while typing in any text input / textarea / select /
+  contenteditable.
+- **G** / **L** on semantic search hits + Library episode rows (#674 item 2) — Bound as **click
+  targets on each row** (Show on graph / open episode in subject panel; Library row also has an
+  **S** prefill-search button), **not** as document-level shortcuts, so they do not fight the
+  browser’s find shortcut or OS bindings.
+
+---
+
+## Accessibility
+
+- **Focus:** Visible focus styles on all interactive elements (native or custom); do
+  not remove outline without a replacement that meets contrast.
+- **Contrast:** Aim for **WCAG 2.1 AA** for normal text against `canvas` / `surface`;
+  verify `muted` on `surface` for small text. Foreground-pairing ensures each surface
+  token has a pre-validated text color.
+- **Motion:** Respect `prefers-reduced-motion` for non-essential animations.
+
+---
+
+## Tunable parameters
+
+The token **architecture** (names, pairing convention, intent/domain split) is frozen.
+The **values** below are deliberately open for experimentation during early v2
+development. Adjust them in `tokens.css` (CSS custom properties) or via browser
+DevTools; do not hard-code alternatives in component files.
+
+| Parameter                               | Current value                              | Status | Notes                                                    |
+| --------------------------------------- | ------------------------------------------ | ------ | -------------------------------------------------------- |
+| UI font family                          | Inter                                      | Open   | Could try Geist, IBM Plex Sans, system stack             |
+| Monospace font family                   | JetBrains Mono                             | Open   | Could try Fira Code, Source Code Pro                     |
+| Base font size                          | 16px (1rem)                                | Open   | 14px more dense; 16px more readable                      |
+| Border radius                           | 0.375rem (6px)                             | Open   | 0 = sharp/Palantir; 0.5rem = softer                      |
+| Spacing base unit                       | 4px                                        | Open   | Could move to 6px or 8px for more air                    |
+| Shadow depth                            | None (flat)                                | Open   | Subtle shadow = more depth/elevation cue                 |
+| Surface gray palette                    | Blueprint-derived `#111418`..`#404854`     | Open   | Exact values may shift during contrast review            |
+| Intent color hues                       | Blueprint-derived blue/green/orange/red    | Open   | Hues stable; saturation/lightness may tune               |
+| Domain color hues (gi/kg)               | Green `#7dd3a0` / Purple `#c4a8ff`         | Frozen | Identity colors; do not change w/o UXS rev               |
+| Token names                             | `canvas`, `surface`, `primary`, `gi`, etc. | Frozen | Names are the API; values are the theme                  |
+| Pairing convention                      | Every surface gets `-foreground`           | Frozen | Structural rule; not negotiable                          |
+| Intent/domain separation                | Intent for UI; domain for GIL/KG           | Frozen | Structural rule; not negotiable                          |
+| Digest similarity strong floor          | **0.85**                                   | Open   | Strong vs good; constant DIGEST_SIMILARITY_STRONG_MIN    |
+| Digest similarity good floor            | **0.70**                                   | Open   | Good vs weak; constant DIGEST_SIMILARITY_GOOD_MIN        |
+| Recency dot rolling window              | **24h** from local **YYYY-MM-DD** midnight | Open   | Digest + Library episode rows; date-only API             |
+| Library feed search threshold           | **15** feeds                               | Open   | CORPUS_FEED_FILTER_SEARCH_THRESHOLD (feed panel)         |
+| Graph default episode cap (initial)     | **22** episodes                            | Open   | GRAPH_DEFAULT_EPISODE_CAP (graphEpisodeSelection.ts)     |
+| Graph episode load recency score floor  | **0.2**                                    | Open   | ``GRAPH_SCORE_RECENCY_MIN``; linear mix with max **1.0** |
+| Graph episode load all-time decay days  | **90**                                     | Open   | GRAPH_SCORE_ALL_TIME_DECAY_DAYS; trailing window         |
+| Graph episode load GI density max weight| **0.4**                                    | Open   | GRAPH_SCORE_GI_DENSITY_MAX; defined, not applied yet     |
+| Graph recency seed default              | **7d**                                     | Open   | Initial graph window; VIEWER_GRAPH_SPEC (init load)      |
+| Dashboard GI coverage warn threshold    | **50%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
+| Dashboard index coverage warn threshold | **60%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
+| Dashboard action items max              | **3**                                      | Open   | Briefing card triage cap                                 |
+| Dashboard Top voices limit              | **5**                                      | Open   | persons/top default limit                                |
+| COSE ABOUT edge ideal length            | **80px**                                   | Open   | cyCoseLayoutOptions.ts; VIEWER_GRAPH_SPEC (styling)      |
+| COSE MENTIONS edge ideal length         | **150px**                                  | Open   | cyCoseLayoutOptions.ts; VIEWER_GRAPH_SPEC (styling)      |
+| Graph recency decay (opacity)           | **90 days**                                | Open   | VIEWER_GRAPH_SPEC §4.1 node recency vs episode pick      |
+| Graph recency minimum opacity           | **0.4**                                    | Open   | VIEWER_GRAPH_SPEC §4.1                                   |
+| Graph degree heat max degree            | **30**                                     | Open   | GraphCanvas.vue; VIEWER_GRAPH_SPEC §4.3                  |
+| Graph label zoom (hide all labels)      | **0.5**                                    | Open   | Below: no labels (GraphCanvas.vue)                       |
+| Graph label zoom (full labels)          | **1.0**                                    | Open   | Above: full node labels                                  |
+| Graph compound fill opacity             | **0.06**                                   | Open   | TopicCluster compound; VIEWER_GRAPH_SPEC §3.6            |
+
+**Code map:** Similarity floors live in `web/workbench/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/workbench/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`. Corpus graph episode pick (cap, recency, tie-break) lives in `web/workbench/src/utils/graphEpisodeSelection.ts`.
+
+**Graph canvas / layout (open, not in table above):** They ship in code today but are
+intentionally easy to tune without a UXS revision — see
+[Viewer graph spec — Graph visual styling](../architecture/VIEWER_GRAPH_SPEC.md#graph-visual-styling) and [UXS-004](UXS-004-graph-exploration.md).
+
+- **COSE semantic `idealEdgeLength`:** per `edgeType` in `cyCoseLayoutOptions.ts`, applied only
+  after the intra-`tc:` topic-cluster branch (that branch stays highest priority).
+- **COSE semantic `edgeElasticity`:** same file; inside `tc:` clusters the profile default applies.
+- **Label zoom thresholds:** `GraphCanvas.vue` — no labels when zoom is strictly below **0.5**;
+  short labels from **0.5** through **1.0**; full label above **1.0** (event-driven node classes,
+  not Cytoscape min-zoom stylesheet selectors).
+- **Topic degree heat `maxDegree`:** **30** in `GraphCanvas.vue` (WIP §4.3 cap).
+- **Rail minimap (`GraphNeighborhoodMiniMap.vue`):** Reuses **`buildGiKgCyStylesheet`**
+  **compact** + **`prefersReducedMotionQuery()`**, and **`syncGraphLabelTierClasses`**
+  after **`layoutstop`** / **fit** so label-tier rules match that instance’s zoom.
+
+### How to experiment
+
+- **Browser DevTools:** Inspect `:root`, change any `--ps-*` variable live.
+- **`tokens.css` presets:** Create alternate files (`theme-compact.css`,
+  `theme-relaxed.css`) that override the open parameters. Import one at a time.
+- **Pinia theme store (`stores/theme.ts`):** Sets CSS variables at runtime, enabling
+  a theme switcher in the UI for side-by-side comparison.
+
+When an open parameter is finalized after experimentation, update its status to
+**Frozen** in this table and record the decision in the revision history.
+
+---
+
+## Visual references
+
+No wireframes checked in yet. As the v2 UI stabilizes, add annotated screenshots or
+Figma frames here to lock layout expectations for the main panels, graph canvas, and
+search overlay.
+
+---
+
+## Acceptance criteria
+
+- [ ] New viewer UI uses semantic tokens only (no stray hex in Vue/SFC or JS style
+  objects)
+- [ ] Theme support matches declared mode (both, system-driven, dark baseline)
+- [ ] Light and dark values match the token table (or the table is updated with
+  rationale)
+- [ ] Every surface token uses its matching `-foreground` for text (no ad hoc text
+  colors)
+- [ ] Intent tokens (`primary`/`success`/`warning`/`danger`) are used for UI feedback;
+  domain tokens (`gi`/`kg`) are used only for GIL/KG identity
+- [ ] Key interactive states match this spec (hover, focus, disabled, error, empty,
+  loading)
+- [ ] Focus states visible on buttons, inputs, and graph controls
+- [ ] Chart.js series use `chartSeriesColors()` (semantic tokens); graph colors derive from
+  palette
+- [ ] Inter and JetBrains Mono load correctly (or system fallbacks render acceptably)
+- [ ] RFC-062 implementation checklist references this UXS for theme work
+- [ ] Tunable parameters table reflects current status (open values finalized -> frozen)
+
+---
+
+## Revision history
+
+| Date | Change |
+| --- | --- |
+| 2026-06-19 | **Configuration dialog restructure**: widened to `min(60rem,96vw)`; top tab-strip → **left sub-nav rail**; reconciled doc + UI drift (renamed dialog `h2` to **Configuration** to match the trigger; four sections Feeds / Job Profile / Job Configuration / Health, was documented as two). Index rebuild action consolidated here (Dashboard `index-status-card` is now status-only) |
+| 2026-06-19 | **Per-feed override editor** (#694): Feeds **Configure** drill-in (`feed-override-editor`) — structured max_episodes / episode_order / offset / since / until + collapsible Advanced raw-JSON; empty = inherit, collapses to bare URL, preserves unknown keys |
+| 2026-06-19 | **Scheduled section** (#709): new rail item (`sources-dialog-tab-scheduled`) — Name/Cron/Enabled/Next-run table from `GET /api/scheduled-jobs`, `ToggleSwitch` enable/disable via operator-YAML line-rewrite + `PUT /api/operator-config`, `RelativeTime` next-run, invalid-cron badge + next-3 preview via `cron-parser` |
+| 2026-06-20 | **Polish pass**: all 5 dialogs consolidated onto shared `AppDialog`; live `cron-schedule-preview` under the Job Configuration editor (#709); in-log find bar (#695); per-feed Advanced upgraded from raw-JSON to structured inputs (#694); job-log auto-refresh now status-aware (stops on true terminal transition) |
+| 2026-06-20 | **Configuration review tweaks**: shorter dialog header + breathing room above content; **fixed-height** Configuration popup (no resize per rail section) |
+| 2026-06-20 | **Job Configuration = one page, two sub-tabs** (Profile \| Configuration): single rail item; Profile sub-tab shows **what each profile brings** (parsed settings + full YAML) via new **`GET /api/operator-config/profiles`**; shared Save; terminology unified to **"profile"** (dropdown relabeled from "Preset") |
+| 2026-06-20 | **Index section** added to the Configuration rail (index facts + doc-type counts + reindex reasons + rebuild controls); standalone "Vector index" popup retired so **Manage in Configuration** / ⚡ bolt / Briefing **Open index controls** all open Configuration → Index |
+| 2026-04-20 | Tunables: graph initial-load **episode scoring** (recency floor/max, topic-cluster bonus, 90d all-time decay, future GI density cap) in `graphEpisodeSelection.ts` + table rows |
+| 2026-04-19 | Tunable: **Graph default episode cap** (15 then; 22 now, `GRAPH_DEFAULT_EPISODE_CAP`) for corpus graph initial load (`VIEWER_GRAPH_SPEC` initial load) |
+| 2026-04-19 | Open tunables for digest similarity tiers, recency dot window, Library feed-search threshold (#610) |
+| 2026-04-03 | Initial draft |
+| 2026-04-03 | Added theme support, key states, boundary note, visual refs section |
+| 2026-04-03 | Blueprint gray scale, shadcn pairing, intent/domain split, Inter + JetBrains Mono, chart series tokens, design-reference citations |
+| 2026-04-03 | Added Tunable parameters section (frozen vs open knobs); RFC-062 and PRD cross-references updated to document theme preset system |
+| 2026-04-06 | Status Active — viewer v2 implements this contract per RFC-062 |
+| 2026-04-13 | UXS-001 hub; UXS-002 onward for feature specs |
+| 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment) |
+| 2026-04-19 | Summary pointer to InsightCard subsection for discoverability |
+| 2026-04-17 | Open tunables for graph COSE semantics, label zoom tiers, Topic degree heat cap (`VIEWER_GRAPH_SPEC`) |
+| 2026-04-17 | Graph bullets: rail minimap shares reduced-motion + `syncGraphLabelTierClasses` with main canvas |
+| 2026-04-19 | Corpus path **List** opens status-bar **artifact-list-dialog** (not Dashboard workspace) |
+| 2026-04-19 | Corpus path List/Load wording; shell keyboard shortcuts (slash, Escape, row G/L) |
+| 2026-04-19 | **Status bar** section with `#status-bar`; scope non-goal + historical note for shell IA; corpus path subsection links WORKBENCH_IA flows |
+| 2026-04-20 | **Corpus sources dialog** (`#corpus-sources-dialog`): Feeds vs Operator YAML; profile `<select>` + overrides textarea; `sources-dialog-profile-select`; RFC-077 / #593 merge semantics |
+| 2026-04-21 | Operator save: profile `<select>` sole source of truth; None strips pasted `profile:` in textarea; shallow validation called out |
+| 2026-04-21 | Corpus sources Feeds: **Add feed** one URL at a time + **Manage** / **Raw JSON** sub-tabs; operator **GET** seeds `profile: cloud_balanced` when `viewer_operator.yaml` is missing/whitespace-only and preset exists; client parses FastAPI JSON `detail` for clearer errors |
+| 2026-04-19 | Shell IA pointer to WORKBENCH_IA; `warning` vs `kg` clusters; Dashboard charts require a **written takeaway** (dedicated line or chart title); tunables: graph 7d seed, COSE lengths, recency decay, label tiers, compound opacity, Dashboard thresholds / caps |
+| 2026-10-04 | **Token tables reconciled with `tokens.css` (#2280).** The tables were written 2026-04-03, three days before the viewer shipped, and never reconciled. The shipped values have not changed since 2026-04-06, so the **tables now follow the code**: light `elevated` `#F0F1F4`, `overlay` `#E4E7EB`, `border` `#C5CCD6`; **`kg` (Frozen) `#c4a8ff` / `#5c4d8a`** — the frozen identity colour is the one users have seen for six months, not a revision of it. Dark `primary-foreground` went the other way: the code was wrong (white, 3.20:1) and now matches the table's `#111418`. Defined the five specified-but-missing `-foreground` tokens (success, warning, danger, gi, kg — all ≥ 4.5:1). Removed the never-defined `series-1`…`5` in favour of the real `chartSeriesColors()` contract. Added rows for `grounded`, `topic`, `person`, `graph-canvas`. Both directions are now tested |

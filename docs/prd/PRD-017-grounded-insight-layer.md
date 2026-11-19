@@ -4,7 +4,7 @@
 - **v2 closure (RFC-097, 2026-06-20)**: FR1.3 (Insight → Topic via ABOUT), FR1.4 (`insight_type` marking), entity v1.1 deferral retired (Person/Org first-class via MENTIONS_PERSON/MENTIONS_ORG attribution per Insight), GI schema v3.0 ships. Cross-layer bridge Completed. Single-layer use cases Completed. Postgres database projection ([RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) remains Draft — orthogonal persistence-layer scope, not gating GIL itself. See [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md).
 - **Authors**: Podcast Scraper Team
 - **Related RFCs** (RFCs whose **Related PRD** is PRD-017 in [RFC index](../rfc/index.md); they specify or ship this feature):
-  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer (GIL surfaces: explore, search, evidence UI) (**complete**)
+  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — Workbench (GIL surfaces: explore, search, evidence UI) (**complete**)
   - [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md) — Unified KG + GI ontology v2 (**complete**)
   - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — Postgres projection (**Draft**, deferred persistence-layer scope)
 - **Related PRDs** (separate feature — not GIL):
@@ -13,7 +13,7 @@
   - `docs/architecture/gi/ontology.md` - Human-readable ontology
   - `docs/architecture/gi/gi.schema.json` - Machine-readable schema
 - **Related UX specs**:
-  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
+  - [UXS-001: Workbench](../uxs/UXS-001-workbench.md) -- shared design system
 
 ## Summary
 

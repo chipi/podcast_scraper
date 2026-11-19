@@ -32,7 +32,6 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-124](RFC-124-multilingual-transcription-and-translation.md) | Multilingual Transcription and English Translation Stage | [PRD-047](../prd/PRD-047-multilingual-ingest.md) | **Draft:** multilingual transcription plus an English translation stage so every downstream layer keeps reading one language. |
 | [RFC-091](RFC-091-kg-proximity-signal.md) | KG Proximity Signal | [PRD-032](../prd/PRD-032-hybrid-corpus-search.md) | **Rejected as a retrieval signal** (Decision Record): refuted on every corpus/axis. KG value is meaning-bearing relational edges (Person→Insight, #874), not proximity ranking. |
 | [RFC-092](RFC-092-ml-query-router.md) | ML Query Router | [PRD-032](../prd/PRD-032-hybrid-corpus-search.md) | **Draft:** rules router shipped; ML classifier gated on eval data ([#860](https://github.com/chipi/podcast_scraper/issues/860)). |
-| [RFC-096](RFC-096-audio-pipeline-separation-and-viewer-media.md) | Audio pipeline separation and viewer media | — | **Draft:** `pipeline_stage` split ([#414](https://github.com/chipi/podcast_scraper/issues/414)); persist corpus **`media/`** + local **`GET /api/corpus/media`** + viewer transcript audio player ([#547](https://github.com/chipi/podcast_scraper/issues/547)). |
 
 ## Completed RFCs
 
@@ -95,6 +94,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-088](RFC-088-enrichment-layer-architecture.md) | Enrichment Layer Architecture | PRD-026, PRD-027, PRD-017, PRD-019 | — | Architecture of the enrichment layer (enricher protocol, resilience, cost-cap, health, metrics) that derives corpus-level outputs without modifying core pipeline artifacts; Epic #1101 shipped all 9 chunks (completed 2026-06-27). |
 | [RFC-090](RFC-090-hybrid-retrieval.md) | Hybrid Retrieval Pipeline | PRD-032 | v2.6.0 | Two-tier (segment + insight) + BM25 + dense + RRF over LanceDB; hybrid default-on; FAISS retired via [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md) / PR #1010. |
 | [RFC-094](RFC-094-search-powered-surfaces-query-layer.md) | Search-Powered Surfaces Query Layer | PRD-033 | v2.6.0–v2.7 | Relational-query layer (positions_of / who_said / cross_show_synthesis / related_topics) + front-end retrieval state stack: OQ-1 panel cache (#1075, PR #1089), OQ-2 `activeSearchContext` Pinia store, OQ-3 skeleton-first async cards (PersonLanding + TopicEntity views). MCP exposure landed later. |
+| [RFC-096](RFC-096-audio-pipeline-separation-and-viewer-media.md) | Audio pipeline separation and corpus media | PRD-020 | — | `pipeline_stage` split (#414) and persisted corpus `media/` served by `GET /api/corpus/media` for transcript audio playback (#547). |
 | [RFC-106](RFC-106-tiered-dgx-service-fallback.md) | Tiered fallback for DGX-backed pipeline stages | — | — | Provider-agnostic ordered fallback chain per DGX-backed stage (transcription, diarization, summary/GI/KG) applied uniformly in one place; implemented, all migration steps landed under #1198. |
 | [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | PRD-030 | v2.6.0–v2.7 | Phase 1a (`/api/feeds` + `feeds.spec.yaml`), Phase 1b (`/api/operator-config` + `viewer_operator.yaml` + `available_profiles`), Phase 2 (jobs API + asyncio subprocess runner + JSONL registry + stale/PID-orphan reconcile + cancel) all shipped; viewer Operator tab consumes the APIs. Tracks [#626](https://github.com/chipi/podcast_scraper/issues/626). |
 | [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md) | Ephemeral acceptance smoke test (full-stack) | — | v2.6.0 | Phase 1 shipped: `compose/docker-compose.stack-test.yml`, `tests/stack-test/` Playwright suite, `make stack-test-*` targets, `.github/workflows/stack-test.yml`. Follow-ups (`workflow_run`, merge policy, BuildKit cache) tracked as separate issues per the materialization rule. |
@@ -121,7 +121,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 (some IDs are unused or live elsewhere, e.g. RFC-014; RFC-132 and RFC-133 are the Player's). Open / completed / Draft breakdown in the tables above (last recount 2026-08-08);
 re-tally when the tables change.
 
-**Open RFC clusters:** ML query router (**RFC-092**), audio pipeline separation + viewer media (**RFC-096**),
+**Open RFC clusters:** ML query router (**RFC-092**),
 KG proximity signal — rejected (**RFC-091**).
 
 **Active RFCs (in implementation):** Enrichment-layer architecture
@@ -143,7 +143,6 @@ These are discoverable by filename under `docs/rfc/` but excluded from the index
 | --- | --- | --- |
 | [RFC-091](RFC-091-kg-proximity-signal.md) | KG Proximity Signal | **Decision Record:** rejected as retrieval signal on every corpus/axis; KG value is meaning-bearing relational edges (Person→Insight, #874), not proximity ranking. |
 | [RFC-092](RFC-092-ml-query-router.md) | ML Query Router | **Draft:** rules router shipped; ML classifier gated on eval data ([#860](https://github.com/chipi/podcast_scraper/issues/860)). |
-| [RFC-096](RFC-096-audio-pipeline-separation-and-viewer-media.md) | Audio pipeline separation + viewer media | **Draft:** `pipeline_stage` split ([#414](https://github.com/chipi/podcast_scraper/issues/414)); persist corpus `media/` + `GET /api/corpus/media` + viewer transcript audio player ([#547](https://github.com/chipi/podcast_scraper/issues/547)). |
 
 ### Recently completed (v2.6.0+)
 

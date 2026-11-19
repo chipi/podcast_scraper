@@ -3,7 +3,7 @@
 Two responsibilities:
 
 1. The hand-authored ``search-v3/mocks.json`` under
-   ``web/gi-kg-viewer/e2e/fixtures/production-shaped/`` is well-formed and its
+   ``web/workbench/e2e/fixtures/production-shaped/`` is well-formed and its
    scenarios cover the public shapes RFC-107 / UXS-016 spec (compound-lift,
    temporal-intent). The cluster and consensus operators and the enriched answer read
    enrichers outside the base set (ADR-168) and have no scenario here.
@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-FIXTURE_ROOT = REPO_ROOT / "web" / "gi-kg-viewer" / "e2e" / "fixtures" / "production-shaped"
+FIXTURE_ROOT = REPO_ROOT / "web" / "workbench" / "e2e" / "fixtures" / "production-shaped"
 MOCKS_PATH = FIXTURE_ROOT / "search-v3" / "mocks.json"
 PARENT_MANIFEST = FIXTURE_ROOT / "manifest.json"
 

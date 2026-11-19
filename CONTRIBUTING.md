@@ -25,7 +25,7 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | 8 | [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md) | 5 min | Python vs Node, env files, `make test-ui` / viewer paths |
 | 9 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
 
-**Viewer or FastAPI:** If you touch **`src/podcast_scraper/server/`** or **`web/gi-kg-viewer/`**,
+**Viewer or FastAPI:** If you touch **`src/podcast_scraper/server/`** or **`web/workbench/`**,
 read **[Server Guide](docs/guides/SERVER_GUIDE.md)** (`/api/*`, **`/docs`** OpenAPI) and
 **[API index — HTTP](docs/api/index.md#http-viewer-api-server-extra)**. For UI or Playwright
 selectors, follow **E2E surface map → specs → UXS-001** ([E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)).
@@ -37,14 +37,14 @@ selectors, follow **E2E surface map → specs → UXS-001** ([E2E Testing Guide]
 
 ### Polyglot layout (Python + web viewer)
 
-The repo is **Python-first** at the root; the GI/KG UI is **`web/gi-kg-viewer/`** (npm). Use
+The repo is **Python-first** at the root; the Workbench UI is **`web/workbench/`** (npm). Use
 **`config/examples/.env.example` → `.env` at the repo root** for the Python app, and
-**`web/gi-kg-viewer/.env.example` → `.env` inside that folder** for Vite-only variables. Makefile
-targets such as **`make test-ui`** and **`make test-ui-e2e`** run npm under `web/gi-kg-viewer` for
+**`web/workbench/.env.example` → `.env` inside that folder** for Vite-only variables. Makefile
+targets such as **`make test-ui`** and **`make test-ui-e2e`** run npm under `web/workbench` for
 you. Full table and commands: [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md).
 
 **Viewer tools — `npm run …` / `node_modules/.bin/…`, never `npx`.**
-`web/gi-kg-viewer/node_modules/` is the Node analog of `.venv/` —
+`web/workbench/node_modules/` is the Node analog of `.venv/` —
 project-pinned, gitignored. Invoke pinned binaries via `npm run` (e.g.
 `npm run test:e2e`) or directly via `./node_modules/.bin/<tool>`.
 **Avoid `npx <tool>`**: the viewer pins **`@playwright/test`** (CLI
@@ -60,8 +60,8 @@ Before you begin, ensure you have these installed:
 
 - **Python 3.12+ (REQUIRED)** — The project requires Python 3.12 or higher
   - Check system Python: `python3 --version`
-  - If your system Python is < 3.10, install a newer version:
-    - macOS: `brew install python@3.11` (or use [pyenv](https://github.com/pyenv/pyenv))
+  - If your system Python is < 3.12, install a newer version:
+    - macOS: `brew install python@3.12` (or use [pyenv](https://github.com/pyenv/pyenv))
     - Linux: Use your package manager or [pyenv](https://github.com/pyenv/pyenv)
 - **ffmpeg** — Required for Whisper transcription
   - macOS: `brew install ffmpeg`
@@ -69,8 +69,8 @@ Before you begin, ensure you have these installed:
 - **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). Diagrams are committed so most contributors don't need Graphviz.
   - macOS: `brew install graphviz`
   - Linux: `apt install graphviz` or `yum install graphviz`
-- **Node.js and npm** — Required for markdown linting; **Node 20+** also for the GI/KG
-  viewer (`web/gi-kg-viewer`) and **`make test-ui-e2e`** (Playwright).
+- **Node.js and npm** — Required for markdown linting; **Node 20+** also for the
+  Workbench (`web/workbench`) and **`make test-ui-e2e`** (Playwright).
   For server/API work, see the [Server Guide](docs/guides/SERVER_GUIDE.md)
   - Check with `node --version` and `npm --version`
   - Install from [nodejs.org](https://nodejs.org/) if missing
@@ -98,7 +98,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python --version   # Should show Python 3.12.x or higher
 pip --version      # Should show pip with Python 3.12+ support
 
-# If Python version is < 3.10, recreate the venv with a newer Python:
+# If Python version is < 3.12, recreate the venv with a newer Python:
 # deactivate
 # rm -rf .venv
 # python3.12 -m venv .venv  # Use specific version if needed
@@ -175,7 +175,7 @@ Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change
 
 **Important Notes:**
 
-- **Python 3.12+ is REQUIRED** — The project uses features that require Python 3.12 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.10, recreate the venv with a newer Python version.
+- **Python 3.12+ is REQUIRED** — The project uses features that require Python 3.12 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.12, recreate the venv with a newer Python version.
 - **Always activate your virtual environment** before running `make` commands. The Makefile uses tools installed in `.venv/bin/`, so they won't be found if the venv isn't activated.
 - **Pre-commit hook is REQUIRED** — The git pre-commit hook automatically checks your code (formatting, linting, type checking, markdown linting, JSON/YAML validation) before each commit. Install it with:
 
@@ -343,19 +343,20 @@ make ci                 # Full suite before PR (~10-15 min)
 make check-zombie       # After any stuck/hung make run (macOS)
 ```
 
-If your PR touches **`web/gi-kg-viewer/`**:
+If your PR touches **`web/workbench/`**:
 
 - **UX / UI changes:** Update in order: **(1)**
-  [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
   if Playwright-visible copy, flows, or selectors change; **(2)** `e2e/*.spec.ts` / helpers /
-  fixtures; **(3)** [UXS-001](docs/uxs/UXS-001-gi-kg-viewer.md) if the visual/token experience
+  fixtures; **(3)** [UXS-001](docs/uxs/UXS-001-workbench.md) if the visual/token experience
   contract changes. Full checklist: [E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 - **`make test-ui`** — Vitest unit tests for TS utility logic (fast, no browser).
 - **`make test-ui-e2e`** — Playwright browser E2E (Firefox; downloads browser binaries on first
   run).
 
-See [Testing Guide](docs/guides/TESTING_GUIDE.md) (*Browser E2E*). CI runs both in the
-**`viewer-unit`** and **`viewer-e2e`** jobs.
+See [Testing Guide](docs/guides/TESTING_GUIDE.md) (*Browser E2E*). CI runs Vitest in the
+**`viewer-unit`** job (`python-app.yml`) and Playwright in **`viewer-e2e`** (`python-app.yml`: on main, and on pull requests that change the Workbench or what it runs against) and **`nightly-viewer-e2e`**
+(`nightly.yml`); `make ci` runs both locally.
 
 ### 4. Commit
 
@@ -389,7 +390,7 @@ Then open a PR on GitHub.
 Before submitting:
 
 - [ ] `make ci-fast` passes locally (`make ci` for full suite including Playwright)
-- [ ] If `web/gi-kg-viewer/` changed: `make test-ui` and `make test-ui-e2e` pass
+- [ ] If `web/workbench/` changed: `make test-ui` and `make test-ui-e2e` pass
 - [ ] If viewer **UX** changed: `E2E_SURFACE_MAP.md` and Playwright specs/helpers updated; UXS-001 updated if the visual contract changed ([checklist](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow))
 - [ ] If you renamed `data-testid`s or refactored chip / Status-bar surfaces: `make ci-ui-full` (not `ci-ui-fast`) before push — `tests/stack-test/` only runs in `ci` / `ci-ui-full`
 - [ ] If you fixed a real-corpus viewer bug: a **Tier-2 matrix row** reproducing it landed first ([ADR-095](docs/adr/ADR-095-viewer-test-pyramid.md))
@@ -413,7 +414,7 @@ responsibility:
   **`search/`** — LanceDB indexing
 - **`kg/`** — KG
   extraction
-- **`providers/`** — All 9 provider implementations
+- **`providers/`** — The transcription, summarization and embedding provider implementations
 
 Full module map:
 [Architecture](docs/architecture/ARCHITECTURE.md#module-dependencies-diagram)
@@ -427,10 +428,9 @@ and `.cursor/rules/module-boundaries.mdc`.
 | KG extraction | `src/podcast_scraper/kg/` | [KG Guide](docs/guides/KNOWLEDGE_GRAPH_GUIDE.md) |
 | Semantic search | `src/podcast_scraper/search/` | [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) |
 | Viewer API (FastAPI) | `src/podcast_scraper/server/` | [Server Guide](docs/guides/SERVER_GUIDE.md) |
-| Viewer UI (Vue) | `web/gi-kg-viewer/` | [Polyglot Guide](docs/guides/POLYGLOT_REPO_GUIDE.md) |
+| Viewer UI (Vue) | `web/workbench/` | [Polyglot Guide](docs/guides/POLYGLOT_REPO_GUIDE.md) |
 | New providers | `src/podcast_scraper/providers/` | [Provider Implementation](docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md), [Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) |
 | Acceptance tests | `scripts/acceptance/`, `config/acceptance/` | [Testing Guide](docs/guides/TESTING_GUIDE.md) |
-| Eval & model validation | `data/eval/`, `data/eval/configs/` | — |
 | Performance profiles | `config/profiles/` | — |
 
 ## Choosing and Validating Providers
@@ -440,14 +440,11 @@ benchmarks, and the magic quadrant, see
 [Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md).
 
 **Validating quality and performance:** When adding
-or tuning a provider/model, use the evaluation and
-profiling infrastructure to prove quality and
-performance before merging.
-
-**Quality validation (`data/eval/`):**
-
-The experiment, run-compare and run-promote commands are retired from this
-repository (#2134).
+or tuning a provider/model, prove quality and performance
+before merging. The experiment, run-compare, run-promote,
+profile-freeze and profile-diff commands, and their
+`data/eval/` and `data/profiles/` data, are retired from this
+repository (#2134); the research lives in a separate private repository.
 
 **Materialize the decision into the registry.** When the eval proves a
    new default — transcription backend, summary model, GI/KG threshold — the
@@ -496,11 +493,6 @@ env files show the canonical patterns.
 - `tests/**` — assert literal FQDNs to prove resolver behaviour; scrubbing
   breaks the suite.
 
-**Performance validation (`data/profiles/`):**
-
-The profile-freeze and profile-diff commands are retired from this repository
-(#2134).
-
 ## Exit Codes (Issue #379)
 
 The CLI uses standard exit codes for automation and scripting:
@@ -548,7 +540,7 @@ If you're using Cursor, Claude, or Copilot, the project includes AI-specific gui
 
 **Key rules:** Never commit without approval. Always run `make ci-fast` before pushing (`make ci` for the full suite including Playwright).
 
-**GI/KG viewer UX:** `.cursorrules` and `.ai-coding-guidelines.md` require updating
+**Workbench UX:** `.cursorrules` and `.ai-coding-guidelines.md` require updating
 `e2e/E2E_SURFACE_MAP.md` → Playwright → UXS-001 (when needed) in the same change set; see
 [E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 

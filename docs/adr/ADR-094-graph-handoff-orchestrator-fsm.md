@@ -56,11 +56,11 @@ the locked decisions; together they form the contract.
 | # | Decision | Enforced at |
 | --- | --- | --- |
 | 1 | Synchronous `setLoadSource` rule. Every entry surface sets a load-source synchronously at click time. | All 13 surfaces (see §"Critical files" in plan) |
-| 2 | Medium granularity load-source enum. `subject-external`, `digest-external`, `graph-internal`. `library-external` renamed to `subject-external`. | `web/gi-kg-viewer/src/stores/artifacts.ts` |
-| 3 | `graph-internal` semantics = "expansion that preserves layout" (Definition X). | `web/gi-kg-viewer/src/services/graphHandoffFsm.ts` |
-| 4 | Single envelope replaces the `requestFocusNode` multi-arity API. `pendingFocusNodeId` triple collapses into one `pendingHandoff` field. | `services/graphHandoffFsm.ts`, `web/gi-kg-viewer/src/stores/graphHandoff.ts` |
+| 2 | Medium granularity load-source enum. `subject-external`, `digest-external`, `graph-internal`. `library-external` renamed to `subject-external`. | `web/workbench/src/stores/artifacts.ts` |
+| 3 | `graph-internal` semantics = "expansion that preserves layout" (Definition X). | `web/workbench/src/services/graphHandoffFsm.ts` |
+| 4 | Single envelope replaces the `requestFocusNode` multi-arity API. `pendingFocusNodeId` triple collapses into one `pendingHandoff` field. | `services/graphHandoffFsm.ts`, `web/workbench/src/stores/graphHandoff.ts` |
 | 5 | Explicit FSM with events as methods. Generation tokens enforce concurrency; invalid transitions rejected. | `services/graphHandoffFsm.ts:applyEvent` |
-| 6 | Mini-map / neighbour click → `canvasTapped({ source: 'minimap', suppressCamera: true })`. Selection without camera chase. | `web/gi-kg-viewer/src/components/graph/GraphConnectionsSection.vue` |
+| 6 | Mini-map / neighbour click → `canvasTapped({ source: 'minimap', suppressCamera: true })`. Selection without camera chase. | `web/workbench/src/components/graph/GraphConnectionsSection.vue` |
 | 7 | `tabReturned` policy = reconcile-only. No re-apply on consistent state. | `stores/graphHandoff.ts:tabReturned` |
 | 8 | `restoreFromPreference` is an FSM init step (not a self-triggering watcher). | `components/graph/GraphCanvas.vue` (restoreEpisodeCyId block) |
 | 9 | Search dual-action (S1 navigates, S2 rail-only) preserved as designed. | `App.vue`, `SearchPanel.vue` |
@@ -69,7 +69,7 @@ the locked decisions; together they form the contract.
 | 12 | People stay rail-only. FSM design leaves `kind: 'person'` reserved for 2.7. | `services/graphHandoffFsm.ts:EnvelopeKind` |
 | 13 | `activateGraphTab` double-fire folds into FSM `loading` state (await topic-cluster bootstrap as part of artifact-ready barrier). | `App.vue:activateGraphTab` |
 | 14 | 8 flat states: `idle` → `loading_fetch` → `loading_bootstrap` → `loading_merge` → `redrawing_incremental` or `redrawing_full` → `applying` → `ready`. | `services/graphHandoffFsm.ts:FsmState` |
-| 15 | Visible failure UX. Failed handoffs render `data-testid="handoff-error-strip"`. Replaces silent swallow. | `web/gi-kg-viewer/src/components/graph/HandoffErrorStrip.vue` |
+| 15 | Visible failure UX. Failed handoffs render `data-testid="handoff-error-strip"`. Replaces silent swallow. | `web/workbench/src/components/graph/HandoffErrorStrip.vue` |
 | 16 | 15s wall-clock stuck-handoff timeout (originally 5s; raised to 15s after slow real-world handoffs — large topic-cluster bootstraps — were tripping it). The "no time-based gates" rule (concern #3) carves out timeouts (real-time bounds) vs synchronisation (use promises/events). | `stores/graphHandoff.ts:STUCK_TIMEOUT_MS` |
 
 ## Rationale
@@ -191,19 +191,19 @@ documented as such.
 
 ## Implementation Notes
 
-- **Pure FSM**: `web/gi-kg-viewer/src/services/graphHandoffFsm.ts`
+- **Pure FSM**: `web/workbench/src/services/graphHandoffFsm.ts`
   (state types, events, `applyEvent`, `validateEnvelope`, `advanceState`,
   `isStale`, `STUCK_TIMEOUT_MS`).
-- **Pinia wrapper**: `web/gi-kg-viewer/src/stores/graphHandoff.ts`
+- **Pinia wrapper**: `web/workbench/src/stores/graphHandoff.ts`
   (reactive state, stuck timer, dev-only `window.__GIKG_FSM__` hook,
   analytics telemetry — PostHog originally, now Umami).
-- **Service-level README**: `web/gi-kg-viewer/src/services/README.md`
+- **Service-level README**: `web/workbench/src/services/README.md`
   (FSM contract for code-local audience).
-- **Failure UX**: `web/gi-kg-viewer/src/components/graph/HandoffErrorStrip.vue`.
-- **Pure resolver**: `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts`
+- **Failure UX**: `web/workbench/src/components/graph/HandoffErrorStrip.vue`.
+- **Pure resolver**: `web/workbench/src/utils/graphEpisodeMetadata.ts`
   (3-layer episode identity: metadata path / episode_id / `__unified_ep__:UUID`).
-- **E2E matrix**: `web/gi-kg-viewer/e2e/handoff/` +
-  `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` coverage contract.
+- **E2E matrix**: `web/workbench/e2e/handoff/` +
+  `web/workbench/e2e/HANDOFF_MATRIX.md` coverage contract.
 - **Pattern**: 8-state FSM + generation tokens + envelope dispatch (similar
   in spirit to `XState` / `Boost.SML` / `redux-saga`'s state machine
   middleware, but hand-rolled for this surface).

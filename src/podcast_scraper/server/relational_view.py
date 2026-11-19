@@ -47,6 +47,7 @@ from podcast_scraper.server.kg_index import (
 )
 from podcast_scraper.server.schemas import (
     AppClusterCard,
+    AppClusterCardWithNews,
     AppClusterMember,
     AppClusterPair,
     AppEntity,
@@ -62,6 +63,7 @@ from podcast_scraper.server.schemas import (
     AppTopicCard,
     AppTopicPerspective,
     AppTopicPerspectivesResponse,
+    NewsItem,
 )
 from podcast_scraper.server.slugs import slug_for_row
 
@@ -864,12 +866,24 @@ def _label_key(text: str) -> str:
     return re.sub(r"[\W_]+", " ", text.split(":", 1)[-1].casefold()).strip()
 
 
+def _with_news(root: Path, card: AppClusterCard) -> AppClusterCardWithNews:
+    """*card* plus its articles: the cluster's news items as served (rights and registry applied;
+    a serveable-none item dropped; no body text), newest first."""
+    from podcast_scraper.server.routes.corpus_news import news_items_in_cluster
+
+    articles = [NewsItem(**i) for i in news_items_in_cluster(root, card.id)]
+    return AppClusterCardWithNews(
+        **card.model_dump(), articles=articles, article_count=len(articles)
+    )
+
+
 def build_theme_card(
     root: Path,
     theme_id: str,
     *,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
+    news: bool = False,
 ) -> AppClusterCard | None:
     """A THEME (`tc:`) — topics that MEAN the same thing. See :func:`_build_cluster_card`."""
     built = _build_cluster_card(
@@ -886,7 +900,7 @@ def build_theme_card(
     if built is None:
         return None
     label, members, about, people, pair = built
-    return AppClusterCard(
+    card = AppClusterCard(
         id=theme_id,
         label=label,
         member_topics=members,
@@ -895,6 +909,7 @@ def build_theme_card(
         related_people=people,
         strongest_pair=pair,
     )
+    return _with_news(root, card) if news else card
 
 
 def build_storyline_card(
@@ -903,6 +918,7 @@ def build_storyline_card(
     *,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
+    news: bool = False,
 ) -> AppClusterCard | None:
     """A STORYLINE (`thc:`) — topics that keep coming up TOGETHER.
 
@@ -939,7 +955,7 @@ def build_storyline_card(
         return None
     label, members, about, people, pair = built
     life = storyline_lifecycle(root).get(resolved_id) or {}
-    return AppClusterCard(
+    card = AppClusterCard(
         id=resolved_id,
         label=label,
         member_topics=members,
@@ -951,6 +967,7 @@ def build_storyline_card(
         state=life.get("state"),
         last_active_at=life.get("last_active_at"),
     )
+    return _with_news(root, card) if news else card
 
 
 def build_topic_card(

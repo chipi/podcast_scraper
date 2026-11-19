@@ -4,27 +4,29 @@ This guide explains how to use different Docker image variants based on your nee
 
 ## Overview
 
-Podcast Scraper provides two Docker image variants:
+`docker/pipeline/Dockerfile` builds two image variants, selected by the `INSTALL_EXTRAS` build argument. There is no `Dockerfile` at the repository root, so every `docker build` below passes `-f docker/pipeline/Dockerfile` and runs from the repository root. The tags are names you choose for your own builds.
 
-| Variant | Tag | Size | Use Case | Dependencies |
-| ------- | --- | ---- | ------- | ------------ |
-| **LLM-only** | `:llm-only` or `:latest-llm` | ~200-300MB | OpenAI/API providers only | Core + OpenAI SDK |
-| **ML-enabled** | `:ml` or `:latest` | ~1-3GB | Local ML models (Whisper, spaCy, Transformers) | Core + ML dependencies |
+| Variant | `INSTALL_EXTRAS` | Example tag | Size | Use Case | Dependencies |
+| ------- | ---------------- | ----------- | ---- | -------- | ------------ |
+| **LLM-only** | `llm` | `:llm` | ~200-300MB | Cloud API providers only | Core + the `[llm]` extra (OpenAI, Gemini, Anthropic, Mistral, Deepgram SDKs) |
+| **ML-enabled** | `ml` (default) | `:ml` | ~1-3GB | Local ML models (Whisper, spaCy, Transformers) | Core + the `[ml]` extra |
+
+An empty `INSTALL_EXTRAS` installs the core only: no cloud SDKs and no local ML. It is a valid build (CI's `docker-build-fast` job uses it for smoke tests), but it cannot run any provider that needs a third-party SDK.
 
 ## Quick Start
 
 ### LLM-Only Variant (Recommended for API Users)
 
-For users who only use OpenAI or other LLM API providers:
+For users who only use cloud API providers (OpenAI, Gemini, Anthropic, Mistral, Deepgram, ...):
 
 ```bash
 # Build LLM-only image
-docker build --build-arg INSTALL_EXTRAS="" -t podcast-scraper:llm-only .
+docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=llm -t podcast-scraper:llm .
 
 # Run LLM-only image
 docker run -v /host/config.yaml:/app/config.yaml \
            -e OPENAI_API_KEY=sk-your-key \
-           podcast-scraper:llm-only
+           podcast-scraper:llm
 ```
 
 **Benefits:**
@@ -39,7 +41,7 @@ docker run -v /host/config.yaml:/app/config.yaml \
 - Cannot use local Whisper transcription
 - Cannot use local spaCy speaker detection
 - Cannot use local Transformers summarization
-- Requires API keys for OpenAI providers
+- Requires API keys for the cloud providers you select
 
 ### ML-Enabled Variant (Full Features)
 
@@ -47,10 +49,10 @@ For users who want local ML models:
 
 ```bash
 # Build ML-enabled image (default)
-docker build --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
+docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
 
-# Or use default (ML is default for backwards compatibility)
-docker build -t podcast-scraper:ml .
+# Or use default (ML is the Dockerfile default)
+docker build -f docker/pipeline/Dockerfile -t podcast-scraper:ml .
 
 # Run ML-enabled image
 docker run -v /host/config.yaml:/app/config.yaml \
@@ -76,17 +78,18 @@ docker run -v /host/config.yaml:/app/config.yaml \
 
 Controls which optional dependencies to install:
 
-- `""` (empty) = Core only (LLM-only variant)
+- `""` (empty) = Core only (no cloud SDKs, no local ML)
+- `"llm"` = Core + cloud API SDKs (`pip install '.[llm]'`; no torch, spaCy or lancedb)
 - `"ml"` = Core + ML dependencies (ML-enabled variant, default)
 
 **Example:**
 
 ```bash
 # LLM-only
-docker build --build-arg INSTALL_EXTRAS="" -t podcast-scraper:llm-only .
+docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=llm -t podcast-scraper:llm .
 
 # ML-enabled
-docker build --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
+docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
 ```
 
 ### `PRELOAD_ML_MODELS`
@@ -100,22 +103,24 @@ Only applies when `INSTALL_EXTRAS=ml`. Controls ML model preloading:
 
 ```bash
 # Build ML variant without preloading models (faster build)
-docker build --build-arg INSTALL_EXTRAS=ml --build-arg PRELOAD_ML_MODELS=false -t podcast-scraper:ml .
+docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=ml --build-arg PRELOAD_ML_MODELS=false -t podcast-scraper:ml .
 ```
 
 ### ML preloading details
 
 When `INSTALL_EXTRAS=ml` and `PRELOAD_ML_MODELS=true`, the image runs
-`scripts/cache/preload_ml_models.py --production` (same bundle as `make preload-ml-models-production`):
+`scripts/cache/preload_ml_models.py --$PRELOAD_VARIANT`; the default `PRELOAD_VARIANT=production` is the same bundle as `make preload-ml-models-production`:
 Whisper (`tiny.en` + `base.en`), production and test Transformers models, hybrid LongT5/FLAN, and GIL
 evidence models. There are no separate `WHISPER_MODELS` / `SKIP_TRANSFORMERS` Docker build args; use
-`PRELOAD_ML_MODELS=false` for a smaller image that downloads models at runtime.
+`PRELOAD_ML_MODELS=false` for a smaller image that downloads models at runtime. `--build-arg PRELOAD_VARIANT=airgapped-thin` bakes only what `config/profiles/airgapped_thin.yaml` needs (the compose stack-test build uses it).
 
-> **No diarization model is baked into the image.** The default `community-1` (v4) and
+> **No diarization model is baked into the image, and the diarization stage is not in
+> this repository.** This repository registers no built-in stages; diarization comes
+> from an installed extension. A diarization stage loads the default `community-1` (v4) or
 > the `3.1` fallback (`pyannote/speaker-diarization-3.1` + `pyannote/segmentation-3.0`)
-> are both gated on Hugging Face (401 without a token, checked 2026-11-03), and the image
-> build passes no token, so the preload skips them gracefully (the build still succeeds).
-> The 3.1 licence also restricts redistribution. To use neural diarization
+> models that are both gated on Hugging Face (401 without a token, checked 2026-11-03), and
+> the image build passes no token, so the preload skips them gracefully (the build still
+> succeeds). The 3.1 licence also restricts redistribution. To use neural diarization
 > from a container you must **supply your own Hugging Face token at runtime**:
 > accept the model terms on Hugging Face, then pass `-e HF_TOKEN=hf_...` (and a
 > persistent `~/.cache/huggingface` volume so the one-time download survives
@@ -126,29 +131,30 @@ evidence models. There are no separate `WHISPER_MODELS` / `SKIP_TRANSFORMERS` Do
 
 ### Recommended Tags
 
+This repository's CI builds these variants as `podcast-scraper:test` and `podcast-scraper:test-llm` and does not publish them (`.github/workflows/docker.yml`, `push: false`). If you tag and push your own builds, a scheme that works, with `<version>` the package version (`pyproject.toml`):
+
 **LLM-only variant:**
 
-- `podcast-scraper:llm-only` - LLM-only variant
-- `podcast-scraper:latest-llm` - Latest LLM-only variant
-- `podcast-scraper:2.5.0-llm` - Versioned LLM-only variant
+- `podcast-scraper:llm` - LLM-only variant
+- `podcast-scraper:<version>-llm` - Versioned LLM-only variant
 
 **ML-enabled variant:**
 
 - `podcast-scraper:ml` - ML-enabled variant
 - `podcast-scraper:latest` - Latest ML-enabled variant (default)
-- `podcast-scraper:2.5.0` - Versioned ML-enabled variant
+- `podcast-scraper:<version>` - Versioned ML-enabled variant
 
 ### Industry Best Practices
 
 This follows common Docker tagging patterns:
 
 1. **`:latest`** points to the most common variant (ML-enabled in this case)
-2. **Variant-specific tags** (`:llm-only`, `:ml`) for explicit selection
-3. **Versioned tags** (`:2.5.0`, `:2.5.0-llm`) for reproducibility
+2. **Variant-specific tags** (`:llm`, `:ml`) for explicit selection
+3. **Versioned tags** (`:<version>`, `:<version>-llm`) for reproducibility
 
 ## Where the variants are used
 
-The variants live as build arguments on `docker/pipeline/Dockerfile`. They show up in two places in the compose stack:
+The variants live as build arguments on `docker/pipeline/Dockerfile`. They show up in two services of the compose stack:
 
 | Compose service | `INSTALL_EXTRAS` | Built by |
 | --------------- | ----------------- | -------- |
@@ -226,7 +232,7 @@ openai_api_key: ${OPENAI_API_KEY}
 1. **Rebuild image:**
 
    ```bash
-   docker build --build-arg INSTALL_EXTRAS="" -t podcast-scraper:llm-only .
+   docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=llm -t podcast-scraper:llm .
    ```
 
 2. **Update configuration:**
@@ -239,7 +245,7 @@ openai_api_key: ${OPENAI_API_KEY}
    - Or add `openai_api_key` to config file
 
 4. **Update Docker Compose:**
-   - Change `image: podcast-scraper:ml` → `image: podcast-scraper:llm-only`
+   - Change `image: podcast-scraper:ml` → `image: podcast-scraper:llm`
    - Add `OPENAI_API_KEY` environment variable
 
 ### Switching from LLM-Only to ML
@@ -247,7 +253,7 @@ openai_api_key: ${OPENAI_API_KEY}
 1. **Rebuild image:**
 
    ```bash
-   docker build --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
+   docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
    ```
 
 2. **Update configuration:**
@@ -255,7 +261,7 @@ openai_api_key: ${OPENAI_API_KEY}
    - Remove `openai_api_key` if using only local providers
 
 3. **Update Docker Compose:**
-   - Change `image: podcast-scraper:llm-only` → `image: podcast-scraper:ml`
+   - Change `image: podcast-scraper:llm` → `image: podcast-scraper:ml`
 
 ## CI/CD Integration
 
@@ -268,15 +274,15 @@ jobs:
       matrix:
         variant:
           - name: llm-only
-            args: INSTALL_EXTRAS=
-            tag: podcast-scraper:llm-only
+            args: INSTALL_EXTRAS=llm
+            tag: podcast-scraper:llm
           - name: ml
             args: INSTALL_EXTRAS=ml
             tag: podcast-scraper:ml
     steps:
       - name: Build ${{ matrix.variant.name }} variant
         run: |
-          docker build \
+          docker build -f docker/pipeline/Dockerfile \
             --build-arg ${{ matrix.variant.args }} \
             -t ${{ matrix.variant.tag }} .
 ```

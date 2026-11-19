@@ -407,6 +407,16 @@ class AppInsight(BaseModel):
         default=None, description="claim/recommendation/observation/... when set."
     )
     confidence: float | None = Field(default=None, description="Extractor confidence when set.")
+    grounding_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "The best NLI entailment score among the insight's supporting quotes, 0 to 1; absent "
+            "when the insight is not grounded (GI 4.0). Filled by the build that grounds insights; "
+            "``confidence`` keeps its own meaning."
+        ),
+    )
     position_hint: str | None = Field(default=None, description="Temporal position hint when set.")
     # Route-and-tag (#1191): surfaces sort by salience desc and may cap at
     # gi_surface_default_limit. Optional so pre-3.1 artifacts (no fields) still project.
@@ -2763,6 +2773,44 @@ class UserPreferencesResponse(BaseModel):
     )
 
 
+class UserPreferencesPatchResponse(UserPreferencesResponse):
+    """PATCH's answer: the merged state, and how many ``ops`` it applied (0 when none were sent).
+
+    A server that predates ops ignores them and answers without this field, which is how a client
+    tells it should write the whole key instead.
+    """
+
+    ops_applied: int = Field(description="Number of item-level ops applied by this PATCH.")
+
+
+class PreferenceOp(BaseModel):
+    """One item-level edit of a preference key; the server still does not interpret the key.
+
+    - ``push_front``: put ``value`` first in the list at ``key``, dropping any item with the same
+      identity, then keep at most ``max`` items.
+    - ``remove``: drop the items with ``value``'s identity; an absent key stays absent.
+    - ``clear``: set the list to ``[]``.
+    - ``set_field``: set ``field`` of the object at ``key`` to ``value``; ``null`` deletes it.
+    - ``increment``: add ``by`` to the number at ``key`` (absent counts as 0).
+
+    Identity is the whole value, or with ``match`` the named fields of an object item; with
+    ``fold_case`` strings compare trimmed and case-folded. Values compare with their JSON type
+    (``true`` is not ``1``). With ``match``, ``value`` must carry every named field, and a stored
+    item missing one matches nothing.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    op: Literal["push_front", "remove", "clear", "set_field", "increment"]
+    key: str = Field(min_length=1, max_length=128)
+    value: Any = None
+    match: list[str] | None = Field(default=None, max_length=8)
+    fold_case: bool = False
+    max: int | None = Field(default=None, ge=1, le=1000)
+    field: str | None = Field(default=None, min_length=1, max_length=256)
+    by: int = Field(default=1, ge=-1_000_000, le=1_000_000)
+
+
 class UserPreferencesPatch(BaseModel):
     """USERPREFS-1 — shallow-merge patch. Keys with value ``null`` are DELETED.
 
@@ -2771,7 +2819,16 @@ class UserPreferencesPatch(BaseModel):
     """
 
     preferences: dict[str, Any] = Field(
+        default_factory=dict,
         description="Object of key → value. `null` value deletes the stored key.",
+    )
+    #: Item-level edits of list, map and counter keys, applied after ``preferences`` under the same
+    #: row lock. Two devices editing one list each send only their own change, so both survive;
+    #: sending the whole list made the last device's copy win.
+    ops: list[PreferenceOp] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Item-level edits of list, map and counter keys, in order.",
     )
 
 
@@ -3330,6 +3387,14 @@ class HealthResponse(BaseModel):
         default=True,
         description="True when GET /api/corpus/persons/top (dashboard top voices) is mounted.",
     )
+    content_types: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Content types the served corpus holds items of: ``podcast_episode``, plus "
+            "``news_article`` when it holds a news item some surface may show (RFC-134 §10). "
+            "Absent on older servers: podcasts only."
+        ),
+    )
     artifact_kinds: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -3404,8 +3469,28 @@ class VersionResponse(BaseModel):
     )
 
 
+class FeedContentTypeOption(BaseModel):
+    """A registered content type a feed entry may name (ADR-177), with its default transport."""
+
+    name: str
+    default_transport: str
+    source_kind: str = ""
+
+
 class FeedsListResponse(BaseModel):
     """Response for GET/PUT /api/feeds (structured ``{ feeds: [...] }`` on disk)."""
+
+    content_types: list[FeedContentTypeOption] = Field(
+        default_factory=list,
+        description=(
+            "Content types this server registers (podcast built in; others from installed "
+            "extensions), for a feed entry's content_type. Absent on older servers: podcast only."
+        ),
+    )
+    transports: list[str] = Field(
+        default_factory=list,
+        description="Transports this server registers, for a feed entry's transport.",
+    )
 
     path: str = Field(description="Resolved absolute corpus root path.")
     file_relpath: str = Field(description="Feeds spec file relative to corpus root (POSIX).")
@@ -3664,10 +3749,16 @@ class IndexRebuildAccepted(BaseModel):
 
 
 class SearchHitModel(BaseModel):
-    """One semantic search hit (enriched metadata + optional quote stack)."""
+    """One semantic search hit (enriched metadata + optional quote stack).
+
+    A news hit (``content_type: news_article``, RFC-134 §9) is one per item: ``doc_id`` is the
+    item id, ``source_tier`` is ``news``, ``text`` is empty (the matched chunk is never served,
+    ADR-179) and ``news_item`` carries what a surface may show."""
 
     doc_id: str
     score: float
+    content_type: str = "podcast_episode"
+    news_item: Optional["NewsItem"] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     text: str = ""
     source_tier: str = Field(
@@ -4012,6 +4103,13 @@ class RelationalListResponse(BaseModel):
     error: str | None = None
 
 
+class RelationalShowSource(BaseModel):
+    """A cross-show group's show: KG's source id and the show's title (GI 4.0 R3b)."""
+
+    source_id: str | None = None
+    source_title: str | None = None
+
+
 class RelationalGroupedResponse(BaseModel):
     """Response for the grouped relational endpoints (who-said / cross-show).
 
@@ -4021,6 +4119,14 @@ class RelationalGroupedResponse(BaseModel):
 
     subject: str = Field(description="The queried topic id.")
     groups: dict[str, list[RelatedNodeModel]] = Field(default_factory=dict)
+    sources: dict[str, RelationalShowSource] | None = Field(
+        default=None,
+        description=(
+            "cross-show only: each group key's show, as KG's source id (``podcast:`` + the slug "
+            "of the feed id, the id the Podcast node gets at GI 4.0 R3b) and its title. "
+            "``source_id`` is null when no episode of the show carries a feed id."
+        ),
+    )
     error: str | None = None
 
 
@@ -4081,6 +4187,13 @@ class CorpusFeedItem(BaseModel):
     """One feed row for GET /api/corpus/feeds."""
 
     feed_id: str = Field(description="Normalized feed id; empty string if missing in metadata.")
+    source_id: str | None = Field(
+        default=None,
+        description=(
+            "KG's id for this show: ``podcast:`` + the slug of ``feed_id`` (GI 4.0 R3b). Null when "
+            "the feed id is empty."
+        ),
+    )
     display_title: str | None = Field(
         default=None,
         description="Feed title from metadata when present.",
@@ -4329,6 +4442,13 @@ class CorpusEpisodeListItem(BaseModel):
 
     metadata_relative_path: str
     feed_id: str
+    source_id: str | None = Field(
+        default=None,
+        description=(
+            "KG's id for the row's show: ``podcast:`` + the slug of ``feed_id`` (GI 4.0 R3b). "
+            "Focus the show node by this, not by a slug of the title."
+        ),
+    )
     feed_display_title: str | None = Field(
         default=None,
         description="Feed title from episode metadata when present.",
@@ -4700,8 +4820,8 @@ class CorpusDigestTopicBand(BaseModel):
     query: str
     graph_topic_id: str = Field(
         description=(
-            "Suggested GI/KG topic node id (topic:{slug}) from the band label; "
-            "may be absent in a given episode graph."
+            "GI/KG topic node id (topic:{slug}) from the band label, or empty when no episode "
+            "names that topic (node-episodes has none), so the band does not link an empty rail."
         ),
     )
     hits: list[CorpusDigestTopicHit] = Field(default_factory=list)
@@ -4716,6 +4836,10 @@ class CorpusDigestResponse(BaseModel):
     window_end_utc: str
     compact: bool
     rows: list[CorpusDigestRow] = Field(default_factory=list)
+    rows_in_window: int = Field(
+        default=0,
+        description="Episodes in the window; ``rows`` is a per-show sample of them, capped.",
+    )
     topics: list[CorpusDigestTopicBand] = Field(default_factory=list)
     topics_unavailable_reason: str | None = None
 
@@ -4890,6 +5014,14 @@ class CorpusNodeEpisodesRequest(BaseModel):
         ge=1,
         description="Optional cap after stable sort by gi_relative_path; omit for all matches.",
     )
+    content_types: list[str] | None = Field(
+        default=None,
+        description=(
+            "Content types to list (RFC-134 §10): ``podcast_episode`` (the default, in "
+            "``episodes``) and ``news_article`` (in ``news_items``: the news items whose KG names "
+            "the node). Without it the answer is exactly the podcast one."
+        ),
+    )
 
 
 class CorpusNodeEpisodeItem(BaseModel):
@@ -4899,6 +5031,12 @@ class CorpusNodeEpisodeItem(BaseModel):
     kg_relative_path: str
     bridge_relative_path: str
     episode_id: str | None = None
+    # From the catalog row, so a rail lists the episode without reading its files.
+    episode_title: str | None = None
+    feed_id: str | None = None
+    feed_title: str | None = None
+    publish_date: str | None = None
+    metadata_relative_path: str | None = None
 
 
 class CorpusNodeEpisodesResponse(BaseModel):
@@ -4907,6 +5045,10 @@ class CorpusNodeEpisodesResponse(BaseModel):
     path: str
     node_id: str
     episodes: list[CorpusNodeEpisodeItem] = Field(default_factory=list)
+    news_items: list["NewsItem"] = Field(
+        default_factory=list,
+        description="News items whose KG names the node, newest first, when news_article is asked.",
+    )
     truncated: bool = False
     total_matched: int | None = Field(
         default=None,
@@ -5065,3 +5207,110 @@ class CilIdListResponse(BaseModel):
     path: str
     anchor_id: str
     ids: list[str] = Field(default_factory=list)
+
+
+class NewsPublisher(BaseModel):
+    """A news item's publisher as the registry names it (ADR-180 rule 6)."""
+
+    id: str
+    name: str
+    domain: str = ""
+
+
+class NewsItem(BaseModel):
+    """A news item as a surface shows it (news-item-1.0.md; RFC-134 §10). Metadata only: no field
+    carries the article body (ADR-179). ``summary`` is set only when ``serveable`` is ``summary``;
+    an item whose ``serveable`` is ``none`` is never returned."""
+
+    content_type: Literal["news_article"] = "news_article"
+    item_id: str
+    title: str
+    url: Optional[str] = None
+    source_id: Optional[str] = None
+    publisher: Optional[NewsPublisher] = None
+    site: Optional[str] = Field(
+        default=None,
+        description=(
+            "The article URL's host without www.: the origin to show when publisher is null "
+            "(a link to a site the publisher registry does not hold)."
+        ),
+    )
+    published_at: Optional[str] = None
+    language: Optional[str] = None
+    byline: List[str] = Field(default_factory=list)
+    editorial_type: Optional[Literal["reporting", "opinion", "analysis", "paid"]] = None
+    paywalled: Optional[bool] = None
+    text_status: Optional[str] = None
+    node_role: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only in a node's list (node-episodes): the node's role in this item, 'author' when "
+            "the node is a person who wrote it (UXS-019's 'By' marker); else null."
+        ),
+    )
+    roundup: bool = Field(
+        default=False,
+        description=(
+            "True when the item is a roundup: a newsletter issue covering several stories (its "
+            "source's roundup_title_pattern matched its title at ingest)."
+        ),
+    )
+    serveable: Literal["metadata", "summary"]
+    summary: Optional[str] = None
+    metadata_relative_path: str = ""
+
+
+class NewsItemsResponse(BaseModel):
+    """Response for GET /api/corpus/news/items."""
+
+    path: str
+    items: List[NewsItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class NewsSummaryResponse(BaseModel):
+    """Response for GET /api/corpus/news/summary: counts over every shown news item."""
+
+    path: str
+    items: int = 0
+    publishers: int = 0
+    teasers: int = 0
+    paywalled: int = 0
+
+
+class NewsKgNode(BaseModel):
+    """A topic, person, organisation or object the item's KG names; ``role`` is ``author`` for a
+    byline person."""
+
+    id: str
+    type: str
+    label: str
+    role: Optional[str] = None
+
+
+class NewsItemDetailResponse(BaseModel):
+    """Response for GET /api/corpus/news/item: the item, its KG file and the nodes it names."""
+
+    path: str
+    item: NewsItem
+    kg_relative_path: Optional[str] = None
+    kg_nodes: List[NewsKgNode] = Field(default_factory=list)
+
+
+class AppClusterCardWithNews(AppClusterCard):
+    """A theme or storyline card with its news articles (asked for with ``news=1``; the news
+    release's piece F). Without the ask, the card is :class:`AppClusterCard`, byte for byte."""
+
+    articles: list[NewsItem] = Field(
+        default_factory=list,
+        description=(
+            "The news items of every member topic (members' news_item_ids), de-duplicated, newest "
+            "first; never a serveable-none item and never body text."
+        ),
+    )
+    article_count: int = Field(default=0, description="len(articles); episode_count is unchanged.")
+
+
+SearchHitModel.model_rebuild()
+AppClusterCardWithNews.model_rebuild()
+CorpusNodeEpisodesResponse.model_rebuild()

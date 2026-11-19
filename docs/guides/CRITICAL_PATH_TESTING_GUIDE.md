@@ -58,7 +58,7 @@ regardless of provider selection.
 
 ### Workflow 2 — Viewer UI usage
 
-The viewer (`web/gi-kg-viewer/`, served by the FastAPI app) is the second
+The viewer (`web/workbench/`, served by the FastAPI app) is the second
 primary product surface. A user opens the app, points it at a corpus, and
 expects to:
 

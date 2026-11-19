@@ -127,7 +127,7 @@ test.describe('Operator first-run UX from an empty corpus subdir (#693)', () => 
   }) => {
     await waitForHealthFlag(request, 'feeds_api', 60_000)
     await page.goto('/')
-    await page.getByRole('heading', { name: /Podcast Intelligence Platform/i }).waitFor()
+    await page.getByRole('heading', { name: /Workbench/i }).waitFor()
 
     // Set corpus path to the empty subdir.
     await page.getByTestId('status-bar-corpus-path').fill(CORPUS)
@@ -166,7 +166,7 @@ test.describe('Operator first-run UX from an empty corpus subdir (#693)', () => 
 
   test('Picking profile + Save persists profile: line on disk', async ({ page, request }) => {
     await page.goto('/')
-    await page.getByRole('heading', { name: /Podcast Intelligence Platform/i }).waitFor()
+    await page.getByRole('heading', { name: /Workbench/i }).waitFor()
 
     await page.getByTestId('status-bar-corpus-path').fill(CORPUS)
     await page.getByTestId('status-bar-corpus-path').press('Tab')

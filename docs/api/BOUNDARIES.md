@@ -120,7 +120,7 @@ if not result.success:
 
 ### HTTP viewer (`[dev]` extra)
 
-The FastAPI app in `podcast_scraper.server` and the Vue SPA in `web/gi-kg-viewer/` are **product surfaces** shipped with the same version tag but **outside** the minimal `__init__.py` export list. Integrators should treat `/api/*` JSON shapes as documented in the [Server Guide](../guides/SERVER_GUIDE.md); new routes and fields may appear in **minor** releases without a major bump.
+The FastAPI app in `podcast_scraper.server` and the Vue SPA in `web/workbench/` are **product surfaces** shipped with the same version tag but **outside** the minimal `__init__.py` export list. Integrators should treat `/api/*` JSON shapes as documented in the [Server Guide](../guides/SERVER_GUIDE.md); new routes and fields may appear in **minor** releases without a major bump.
 
 ## Versioning Policy
 

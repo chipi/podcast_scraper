@@ -97,12 +97,26 @@ def _iso_z(dt: datetime) -> str:
     return s.replace("+00:00", "Z")
 
 
+def _linkable_topic_id(root: Path, anchor: Path | str | None, graph_topic_id: str) -> str:
+    """*graph_topic_id* when at least one episode names it, else "": the band's heading opens the
+    topic's rail, which shows nothing for a topic no episode names (the id is made from the band's
+    label, so it need not exist). Asks the rail's own source, so both builds agree with their rail.
+    """
+    if not graph_topic_id:
+        return ""
+    from podcast_scraper.server.routes.corpus_library import node_episodes
+
+    _canon, rows, _truncated, _total = node_episodes(root, anchor, graph_topic_id, 1)
+    return graph_topic_id if rows else ""
+
+
 def _topic_band_for_query(
     root: Path,
     topic_id: str,
     label: str,
     query: str,
     *,
+    anchor: Path | str | None = None,
     start: datetime,
     end: datetime,
     since: str,
@@ -177,7 +191,9 @@ def _topic_band_for_query(
     if not hits:
         return None
     # #1933: READ path — same canonicalisation as the KG write site.
-    graph_topic_id = topic_node_id_from_slug(canonical_topic_slug(label))
+    graph_topic_id = _linkable_topic_id(
+        root, anchor, topic_node_id_from_slug(canonical_topic_slug(label))
+    )
     return CorpusDigestTopicBand(
         topic_id=topic_id,
         label=label,
@@ -251,7 +267,7 @@ def corpus_digest(
 
     # Catalog rows are a full metadata scan that only changes on INGEST: the shared
     # last-run cache (corpus-mtime token), the same rows build_catalog_rows returns.
-    catalog = catalog_cache.cached_catalog_last_run(root)
+    catalog = catalog_cache.current_catalog_last_run(root)
     in_window = filter_rows_in_window(catalog, start, end)
     picked = diversify_digest_rows(
         in_window,
@@ -318,6 +334,7 @@ def corpus_digest(
                         t["id"],
                         t["label"],
                         t["query"],
+                        anchor=anchor,
                         start=start,
                         end=end,
                         since=since_s,
@@ -352,6 +369,7 @@ def corpus_digest(
         window_end_utc=_iso_z(end),
         compact=compact,
         rows=row_models,
+        rows_in_window=len(in_window),
         topics=topics,
         topics_unavailable_reason=topics_reason,
     )

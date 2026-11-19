@@ -1,13 +1,23 @@
 # Corpus search (RFC-090 Hybrid over LanceDB)
 
-Meaning-based retrieval over **Grounded Insights** (insights and quotes), **summary
-bullets**, **transcript chunks**, and **Knowledge Graph** **Topic** / **Entity** nodes
+Meaning-based retrieval over **transcript chunks**, **summary bullets** (and each episode's
+title, description and short summary), and **Knowledge Graph** **Topic** / **Entity** nodes
 (when `kg.json` is present) in a pipeline output directory.
 
+**What a public install indexes.** The index builder in this repository
+(`src/podcast_scraper/search/indexer.py`) writes `transcript`, `summary` (bullets),
+`summary_short`, `episode_title`, `episode_description`, `kg_topic` and `kg_entity` rows.
+**Insight** and **quote** rows come from grounded insights (GI), a stage that an installed
+extension provides ([ADR-168](../adr/ADR-168-installed-extensions.md); public registers no
+built-in stages, `builtin_stage_hooks.py`); the extension contributes them through the
+`index_rows` stage hook. Without one, a corpus has no insight or quote rows, the insight tier
+is empty, and everything below that mentions insights, quotes or `.gi.json` applies only
+where an extension wrote them.
+
 **Hybrid retrieval (RFC-090) is the single search path (v2.7+):** a two-tier index —
-transcript segments + GIL insights — with **BM25 + dense vector fused via RRF** over an
+transcript segments + insights — with **BM25 + dense vector fused via RRF** over an
 embedded **LanceDB** backend, plus **compound results** (a segment and its linked insight
-merged). FAISS was retired in #995 (ADR-099); LanceDB is now the only index and there is
+merged, where insights exist). FAISS was retired in #995 (ADR-099); LanceDB is now the only index and there is
 no fallback. See [Hybrid retrieval](#hybrid-retrieval-rfc-090) below. **Qdrant** and other
 remote/platform-scale backends are no longer planned —
 [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) was **Superseded** by
@@ -16,19 +26,21 @@ remote/platform-scale backends are no longer planned —
 ## Hybrid retrieval (RFC-090) {#hybrid-retrieval-rfc-090}
 
 The single serving path. When a two-tier LanceDB index exists at
-`<output_dir>/search/lance_index`, `GET /api/search` and `podcast search` route through the
+`<output_dir>/search/lance_index`, `GET /api/search` and `python -m podcast_scraper.cli search` route through the
 two-tier **`RetrievalLayer`** (BM25 + dense vector → RRF, with compound dedup). When no
 usable index is present, the caller reports `no_index` (FAISS was retired in #995; there is
 no fallback).
 
-- **Tiers:** Tier 1 = transcript **segments**, Tier 2 = GIL **insights**, plus a full-coverage
-  **aux** tier (`kg_entity` / `kg_topic` / `quote` / `summary`). Compound results merge a
-  segment and its linked insight when both match.
+- **Tiers:** Tier 1 = transcript **segments**, Tier 2 = **insights** (an extension's GI rows;
+  empty on a public-only corpus), plus a full-coverage **aux** tier (`kg_entity` / `kg_topic` /
+  `summary` / `summary_short` / `episode_title` / `episode_description`, and `quote` where an
+  extension writes it). Compound results merge a segment and its linked insight when both match.
 - **Build the index:**
   - Build the two-tier index (populates insight↔segment links + compounds):
-    `make index-two-tier CORPUS_DIR=<corpus>`.
+    `make index-two-tier CORPUS_DIR=<corpus>` (runs `python -m podcast_scraper.cli index-two-tier`).
   - Derive the relational edges into the corpus (`Person→Insight`, `MENTIONS`, `HAS_EPISODE`; #874):
-    `make enrich-relational-edges CORPUS_DIR=<corpus>`, a target of the extension's Makefile.
+    `make enrich-relational-edges CORPUS_DIR=<corpus>`, a target of the extension's Makefile (not in
+    this repository's Makefile).
 - **Config (`config/search.yaml`):** `router.mode` (`rules` | `ml`).
 - **Not a retrieval signal:** KG-proximity was evaluated and **rejected** (RFC-091 Decision
   Record); the KG's value is the relational edges above, consumed by viewer surfaces (PRD-033 /
@@ -71,12 +83,10 @@ tables.
 ## When to use it
 
 - Cross-episode questions: “What do my podcasts say about X?” without exact keywords.
-- **`gi explore --topic`**: when `<output_dir>/search/lance_index/` exists, topic
-  matching uses the vector index first (metadata is scanned to find `gi.json` paths;
-  only matching episodes load full artifacts), then falls back to substring/topic-label
-  matching if the index is missing, fails, or returns no hits.
-- Ad hoc CLI search: **`podcast search`** with filters (`--type`, `--feed`, `--since`,
-  `--speaker`, `--grounded-only`, `--top-k`, `--format`).
+- Ad hoc CLI search: **`python -m podcast_scraper.cli search`** with filters (`--type`, `--feed`,
+  `--since`, `--speaker`, `--grounded-only`, `--top-k`, `--format`). `--speaker` and
+  `--grounded-only` filter quote and insight rows, so they matter only where an extension wrote
+  them.
 
 ## Enable indexing
 
@@ -88,7 +98,7 @@ In your config file (see `config/examples/config.example.yaml`):
 vector_search: true
 # Optional overrides:
 # vector_index_path: search          # default relative dir under output_dir
-# vector_embedding_model: minilm-l6
+# vector_embedding_model: sentence-transformers/all-MiniLM-L6-v2   # the default
 # vector_chunk_size_tokens: 300
 # vector_chunk_overlap_tokens: 50
 ```
@@ -116,7 +126,12 @@ Per-feed pipeline runs set **`skip_auto_vector_index: true`** internally when
 python -m podcast_scraper.cli index --output-dir /path/to/run
 python -m podcast_scraper.cli index --output-dir /path/to/run --rebuild
 python -m podcast_scraper.cli index --output-dir /path/to/run --stats
+python -m podcast_scraper.cli index --output-dir /path/to/run --with-clusters
 ```
+
+`--with-clusters` also re-derives `search/topic_clusters.json` after the index. Other flags:
+`--index-path`, `--embedding-model`, `--embedding-provider {sentence_transformers,ollama}`,
+`--embedding-endpoint`, `--vector-index-types`.
 
 For a multi-feed tree, **`--output-dir`** should be the **corpus parent** (the directory that
 contains **`feeds/`**), not an individual feed subdirectory.
@@ -156,16 +171,20 @@ You should never need to compact by hand; if an index ever looks bloated (thousa
 
 ## Corpus topic clustering
 
-After **`kg_topic`** rows exist in the LanceDB index, you can build **`search/topic_clusters.json`**
-with **`topic-clusters`** (see [CLI reference](../api/CLI.md) — section **Topic clusters**).
-Optional **`--merge-cil-overrides`** writes merged **`topic_id_aliases`** into
-**`cil_lift_overrides.json`** (see **Optional corpus overrides** below). The GI/KG viewer loads
-clusters via **`GET /api/corpus/topic-clusters`** when serving the same corpus root.
+Topic clustering is provided by an installed extension. Public's `index --with-clusters` and
+`POST /api/corpus/topic-clusters/rebuild` call `build_topic_clusters_for_corpus`
+(`search/groupings.py`), which returns nothing when no extension provides themes, so a
+public-only corpus gets no **`search/topic_clusters.json`**. The `topic-clusters` subcommand and
+its **`--merge-cil-overrides`** option (which writes merged **`topic_id_aliases`** into
+**`cil_lift_overrides.json`**, see **Optional corpus overrides** below) are the extension's too;
+see the [CLI reference](../api/CLI.md) — section **Topic clusters**. Public has no
+`GET /api/corpus/topic-clusters` route.
 
-New CLI runs emit **`schema_version`: `"2"`** with distinct ids: **`graph_compound_parent_id`**
-(`tc:`…, viewer **TopicCluster** parents only) and **`cil_alias_target_topic_id`** (`topic:`…,
-**`topic_id_aliases`** merge target). Older **`topic_clusters.json`** files may still use v1
-keys (`cluster_id`, `canonical_topic_id`); readers accept both.
+When a cluster file exists, search reads it. Files from the extension carry distinct ids:
+**`graph_compound_parent_id`** (`tc:`…, viewer **TopicCluster** parents only) and
+**`cil_alias_target_topic_id`** (`topic:`…, **`topic_id_aliases`** merge target); older files
+may use v1 keys (`cluster_id`, `canonical_topic_id`), and readers accept both
+(`grouping_id` in `search/groupings.py`).
 
 **Search responses:** Membership is **not** copied into index metadata at index time. On each
 **`GET /api/search`** (and CLI search), the server **joins** **`search/topic_clusters.json`**
@@ -195,23 +214,25 @@ python -m podcast_scraper.cli search "your question" --output-dir /path/to/run -
 
 Use **`--index-path`** if the index is not under `<output_dir>/search`.
 
-## Web UI (GI / KG Viewer v2)
+## Web UI (Workbench)
 
 The Vue viewer can run the **same** corpus search as the CLI via **`GET /api/search`** when
-the FastAPI server is up (`pip install -e ".[dev]"` + `[ml]` for LanceDB/embeddings) and
-the index exists under `<corpus>/search/`. Set **Corpus root** in the sidebar to your
-pipeline output directory. See
-[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+the FastAPI server is up (`pip install -e ".[dev,search]"`: LanceDB and the embedding stack are in
+the `[search]` extra, not `[ml]`) and
+the index exists under `<corpus>/search/`. The Workbench opens on the corpus the server was
+started with (`--output-dir`); if it asks for a **Corpus root**, enter that same pipeline output
+directory. See
+[web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)
 (*Semantic search*) and [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
-(*GI / KG Viewer*).
+(*Workbench*).
 
 Response hits are **JSON objects** with `doc_id`, `score`, `metadata`, `text`, optional
-`supporting_quotes` (insight rows), optional **`lifted`** on **transcript** rows when
-The cross-layer identity design lift applies (see below), and optional **`metadata.topic_cluster`** on **kg_topic**
+`supporting_quotes` (insight rows), optional **`lifted`** on **transcript** rows when an installed
+extension's read hook applies the lift (see below), and optional **`metadata.topic_cluster`** on **kg_topic**
 rows when **`topic_clusters.json`** exists (topic clustering join; see **Corpus topic clustering** above).
 
 **Quote speaker fields (GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541)):** On
-**insight** hits, each entry in **`supporting_quotes`** may include **`speaker_id`** /
+**insight** hits (extension-written rows), each entry in **`supporting_quotes`** may include **`speaker_id`** /
 **`speaker_name`** mirroring **`.gi.json`**; both are often absent when transcription segments
 lack diarization labels. On **transcript** hits, **`lifted.speaker`** / **`lifted.topic`**
 carry **`display_name`** from **`bridge.json`** when the graph id resolves; the matched
@@ -219,6 +240,11 @@ carry **`display_name`** from **`bridge.json`** when the graph id resolves; the 
 rules: [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
 
 ## Chunk-to-Insight lift and offset verification {#chunk-to-insight-lift-and-offset-verification}
+
+The lift is the `lift_transcript_hits` **read hook** (`read_hooks.py`); public registers no read
+hooks (`builtin_read_hooks.py`), so on a public-only install `lifted` is never set and
+`lift_stats.lift_applied` stays `0`. The rest of this section describes the lift as it applies
+where an extension provides it.
 
 **Lift:** For hits whose metadata has **`doc_type`: `transcript`**, the server may attach a
 **`lifted`** dictionary: **insight** (id, text, grounded, optional `insight_type` /
@@ -242,12 +268,14 @@ the paginated **`top_k`** slice after server-side KG surface dedupe.
 - **`entity_id_aliases`** / **`topic_id_aliases`** — string-to-string maps; **speaker** /
   **topic** ids from the graph are resolved through the map before **`bridge.json`**
   **`display_name`** lookup and before emitting **`lifted.speaker.id`** / **`lifted.topic.id`**.
-  After **topic clustering** clustering, **`topic-clusters --merge-cil-overrides`** can append
+  After topic clustering, the extension's **`topic-clusters --merge-cil-overrides`** can append
   **`topic_id_aliases`** derived from **`topic_clusters.json`**; keys already in the file
   keep their values (hand overrides win).
 
 **Prerequisite:** **Quote** offsets and **index** transcript chunk offsets must refer to the
-**same normalised transcript text**. Validate on a real indexed corpus with:
+**same normalised transcript text**. Public ships the verifier, but it has Quote nodes to check
+only on a corpus whose `.gi.json` an installed extension wrote (otherwise the verdict is
+`no_quotes`). Validate on a real indexed corpus with:
 
 ```bash
 python -m podcast_scraper.cli verify-gil-chunk-offsets --output-dir /path/to/corpus --strict --min-overlap-rate 0.95
@@ -276,7 +304,7 @@ Useful labels:
   index for those episodes (strict mode passes; nothing to compare).
 
 If transcript text normalisation (BOM, newlines, Unicode) differs between indexing and GIL
-generation, overlap drops; use the report to align pipelines (the cross-layer identity design Known Limitations).
+generation, overlap drops; use the report to align the two pipelines.
 
 **Flags:** `--index-path DIR` (default `<output-dir>/search`), `--strict` (non-zero exit when
 overlap is below `--min-overlap-rate` or verdict is `divergent`; `no_quotes` and
@@ -287,18 +315,17 @@ optionally **`GIL_OFFSET_MIN_RATE`** (default **0.95**).
 
 ## `gi explore` and `gi query`
 
-- **`gi explore --topic "…"`** — If a LanceDB index is present at **`output_dir/search`**
-  (or the path implied by your pipeline layout), insights are ranked by embedding
-  similarity to the topic string. Otherwise behavior is unchanged (substring + Topic
-  labels).
-- **`gi query`** — Questions that map to topic/speaker filters use the same
-  **`run_uc5_insight_explorer`** path, so they benefit from the index when present.
+The `gi` subcommands (`gi explore --topic`, `gi query`) are added by an installed extension;
+public has no `gi` command (`python -m podcast_scraper.cli gi` answers `no command named 'gi'`).
+Where an extension provides them, they use the index in `<output_dir>/search` when it exists.
 
 ## Requirements
 
-- **`pip install -e ".[ml]"`** (or equivalent) for sentence-transformers and LanceDB.
+- **`pip install -e ".[search]"`** for sentence-transformers and LanceDB (`lancedb` is in the
+  `[search]` extra only, not in `[ml]`).
 - Embedding models must be available locally (or cached); search uses
-  **`allow_download=False`** — run the pipeline or `index` once with network if needed.
+  **`allow_download=False`** — cache the model first, or build with
+  `index-two-tier --allow-download`.
 
 ## Related docs
 

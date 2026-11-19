@@ -32,7 +32,7 @@ from podcast_scraper.extensions import use_extensions
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 from tests.integration.test_text_in_fixture_type import _ext, _transport
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 _PODCAST = Path(__file__).resolve().parents[1] / "fixtures" / "app-validation-corpus" / "v3"
 _GUEST = {"id": "person:liam-verbeek", "type": "Person", "properties": {"name": "Liam Verbeek"}}
@@ -109,7 +109,7 @@ def corpora(
 
     from podcast_scraper.kg.schema import validate_artifact
 
-    text_kgs = sorted((mixed / "sources").rglob("*.kg.json"))
+    text_kgs = sorted((mixed / "sources" / "test_text_item").rglob("*.kg.json"))
     assert len(text_kgs) == 2, text_kgs
     art = json.loads(text_kgs[0].read_text(encoding="utf-8"))
     art["nodes"].extend([_GUEST, _AUTHOR, _TOPIC])

@@ -7,7 +7,7 @@
   - [RFC-069](RFC-069-graph-exploration-toolkit.md) (graph chrome, Shift+`dbltap` / 1-hop ego)
 - **Related UXS**:
   - [UXS-004](../uxs/UXS-004-graph-exploration.md)
-  - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) (shell)
+  - [UXS-001](../uxs/UXS-001-workbench.md) (shell)
 
 ## Abstract
 
@@ -87,7 +87,7 @@ Server cost is **O(number of bridge files)** with one JSON read per bridge. View
 - Python unit: `tests/unit/podcast_scraper/server/test_cil_queries_node_episodes.py`
 - Python integration: `tests/integration/server/test_corpus_node_episodes_integration.py`
 - Viewer Vitest: `corpusLibraryApi.test.ts` for `fetchNodeEpisodes`
-- Playwright (GI/KG viewer): `web/gi-kg-viewer/e2e/graph-expansion-mocks.spec.ts` — drives **`dbltap`** expand/collapse by sending **two quick click cycles** on `.graph-canvas` at the node’s rendered position (same Cytoscape input path as a user **double-click** / **double-tap**); it does not call `cy.emit` from test code. Expand **`POST`** bodies are expected to include **`max_episodes`** set to the viewer constant **`GRAPH_NODE_EPISODES_EXPAND_MAX`** (same value as Vitest `corpusLibraryApi` tests) on every mocked expand path that receives a request.
+- Playwright (GI/KG viewer): `web/workbench/e2e/graph-expansion-mocks.spec.ts` — drives **`dbltap`** expand/collapse by sending **two quick click cycles** on `.graph-canvas` at the node’s rendered position (same Cytoscape input path as a user **double-click** / **double-tap**); it does not call `cy.emit` from test code. Expand **`POST`** bodies are expected to include **`max_episodes`** set to the viewer constant **`GRAPH_NODE_EPISODES_EXPAND_MAX`** (same value as Vitest `corpusLibraryApi` tests) on every mocked expand path that receives a request.
 
 ## Resolved decisions
 

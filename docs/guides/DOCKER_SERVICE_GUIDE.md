@@ -1,6 +1,6 @@
 # Docker Service Guide
 
-> **Looking for end-to-end stack instructions (viewer + API + on-demand pipeline jobs)?** Start at the [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md). It's the recommended way to operate the platform and covers the full operator UI flow, profiles (ml/airgapped vs llm/cloud-thin), persistence, and troubleshooting. The current document covers the **single-container** `docker run podcast_scraper` deployment style (supervisor / systemd / standalone CLI host) — still supported, but no longer the default route.
+> **Looking for end-to-end stack instructions (Workbench + API + on-demand pipeline jobs)?** Start at the [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md). It's the recommended way to operate the platform and covers the full operator UI flow, profiles (ml/airgapped vs llm/cloud-thin), persistence, and troubleshooting. The current document covers the **single-container** `docker run podcast_scraper` deployment style (supervisor / systemd / standalone CLI host) — still supported, but no longer the default route.
 
 This guide explains how to use podcast_scraper as a service-oriented Docker container, suitable for daemon/service usage with supervisor, systemd, or as a long-running container.
 
@@ -9,6 +9,16 @@ This guide explains how to use podcast_scraper as a service-oriented Docker cont
 The single-container Docker image is designed to run headless without requiring CLI arguments. It automatically reads configuration from a mounted config file and can be managed with supervisor for advanced process management. This is appropriate for ops setups where the pipeline runs on a fixed schedule or is triggered by an external orchestrator — for the interactive operator-driven flow, use the Compose stack instead (link above).
 
 ## Quick Start
+
+### Build the image
+
+The examples below use a locally built image; build it from the repository root. They use the tag `podcast_scraper` (the `:ml` and `:latest` tags in later snippets are your own tags for the ml and default builds):
+
+```bash
+docker build -f docker/pipeline/Dockerfile --build-arg INSTALL_EXTRAS=ml -t podcast_scraper .
+```
+
+`INSTALL_EXTRAS` is `ml` (default), `llm` or empty; see the [Docker Variants guide](DOCKER_VARIANTS_GUIDE.md).
 
 ### Simple Service Mode (Direct)
 
@@ -60,7 +70,7 @@ default location. See [CONFIGURATION.md — Twelve-factor app alignment (config)
 | :------- | :------ | :---------- |
 | `PODCAST_SCRAPER_CONFIG` | `/app/config.yaml` | Path to configuration file |
 | `PODCAST_SCRAPER_WORK_DIR` | `/app` | Working directory for service |
-| `HF_TOKEN` | _(none)_ | Needed for in-container diarization: the **default `community-1` (v4) and the `3.1` fallback** (`pyannote/speaker-diarization-3.1` + `segmentation-3.0`) are both gated on Hugging Face (401 without a token, checked 2026-11-03), and the image build passes no token, so neither is in the image. Supply a token whose account accepted the terms; without it, diarization falls back to gap-based screenplay. Pair with a persistent `~/.cache/huggingface` mount (see Model cache below). |
+| `HF_TOKEN` | _(none)_ | Needed for gated Hugging Face models such as in-container diarization (a stage an installed extension provides; this repository registers no built-in stages): the **default `community-1` (v4) and the `3.1` fallback** (`pyannote/speaker-diarization-3.1` + `segmentation-3.0`) are both gated on Hugging Face (401 without a token, checked 2026-11-03), and the image build passes no token, so neither is in the image. Supply a token whose account accepted the terms; without it, diarization falls back to gap-based screenplay. Pair with a persistent `~/.cache/huggingface` mount (see Model cache below). |
 
 ### Setting Environment Variables
 
@@ -150,12 +160,9 @@ Supervisor provides advanced process management with automatic restarts, logging
 
 1. **Create supervisor config file** (see `docker/pipeline/supervisor.conf.example` in the repository):
 
-   ```ini
-   [supervisord]
-   nodaemon=true
-   logfile=/var/log/supervisor/supervisord.log
-   pidfile=/var/run/supervisord.pid
+   The image already ships the main `supervisord.conf`, which includes `/etc/supervisor/conf.d/*.conf`; your file only needs the program section:
 
+   ```ini
    [program:podcast_scraper]
    command=python -m podcast_scraper.service
    directory=/app
@@ -170,7 +177,7 @@ Supervisor provides advanced process management with automatic restarts, logging
    stderr_logfile_maxbytes=10MB
    stdout_logfile_backups=5
    stderr_logfile_backups=5
-   environment=PYTHONUNBUFFERED="1",PODCAST_SCRAPER_CONFIG="/app/config.yaml"
+   environment=PYTHONUNBUFFERED="1",PODCAST_SCRAPER_CONFIG="/app/config.yaml",PODCAST_SCRAPER_WORK_DIR="/app"
    ```
 
 1. **Mount supervisor config:**
@@ -192,7 +199,7 @@ Supervisor provides advanced process management with automatic restarts, logging
 
 ## Docker Compose Examples
 
-For the **end-to-end stack** (viewer + API + on-demand pipeline jobs) use [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml) and follow the [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md).
+For the **end-to-end stack** (Workbench + API + on-demand pipeline jobs) use [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml) and follow the [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md).
 
 The Compose snippets below are for the **single-container** service deployment style covered in this guide — long-running pipeline triggered by an external scheduler, no operator UI. Build the image yourself with `docker/pipeline/Dockerfile` and the `INSTALL_EXTRAS=ml` or `INSTALL_EXTRAS=llm` build arg (see [Docker Variants guide](DOCKER_VARIANTS_GUIDE.md)).
 
@@ -291,8 +298,8 @@ summary_model: facebook/bart-base
 If the config file is not found, the container will exit with an error:
 
 ```text
-Error: Config file not found: /app/config.yaml
-Please mount a config file or set PODCAST_SCRAPER_CONFIG environment variable
+ERROR: Config file not found: /app/config.yaml
+Mount one with -v <host-config>:/app/config.yaml or set PODCAST_SCRAPER_CONFIG.
 ```
 
 **Solution:** Mount a config file or set `PODCAST_SCRAPER_CONFIG` environment variable.
@@ -309,12 +316,11 @@ Error: Failed to load configuration file: <error details>
 
 ## Backwards Compatibility
 
-The service maintains backwards compatibility with CLI-style usage:
+Any command you pass is executed as given instead of the default service start, so an explicit `--config` goes to the service module (or to `python -m podcast_scraper.cli`, which is how the Compose stack runs jobs):
 
 ```bash
-# Still works: explicit --config argument
 docker run -v /host/config.yaml:/app/config.yaml \
-           podcast_scraper --config /app/config.yaml
+           podcast_scraper python -m podcast_scraper.service --config /app/config.yaml
 ```
 
 However, the recommended approach is to use the default config path or environment variable:
@@ -434,7 +440,7 @@ These are optimal for containerized environments. Override only if you have spec
 
 **Smaller images:**
 
-- Use LLM-only variant (`INSTALL_EXTRAS=""`) if you only need API providers
+- Use `INSTALL_EXTRAS=llm` (cloud API SDKs only) or an empty `INSTALL_EXTRAS` (core only) if you do not need local ML
 - Reduces image size from ~1-3GB to ~200-300MB
 
 ## Security Best Practices
@@ -554,9 +560,9 @@ snyk test --docker podcast-scraper:latest
 - Skip security scanning
 - Hardcode secrets in Dockerfiles
 
-## Full stack (viewer + API + on-demand pipeline jobs)
+## Full stack (Workbench + API + on-demand pipeline jobs)
 
-The interactive operator-driven flow — viewer SPA + FastAPI + on-demand pipeline runs — is documented in [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md). That guide covers:
+The interactive operator-driven flow — Workbench SPA + FastAPI + on-demand pipeline runs — is documented in [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md). That guide covers:
 
 - First-run sequence (`make stack-test-build` → `up` → `seed` → open browser)
 - Architecture (services, volumes, network) and image-tier mapping
@@ -570,7 +576,7 @@ The single-container deployment style covered in **this** guide is appropriate w
 
 ## Related Documentation
 
-- [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md) - **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs)
+- [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md) - **Recommended** end-to-end stack (Workbench + API + on-demand pipeline jobs)
 - [Service API](../api/SERVICE.md) - Service mode API reference
 - [Configuration API](../api/CONFIGURATION.md) - Config file format and options
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled image tiers

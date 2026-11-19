@@ -28,7 +28,7 @@ The functions accept any object exposing ``get_node(id) -> Node | None`` and
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Protocol, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Protocol, Sequence, Union
 
 from .corpus_graph import Node
 
@@ -212,6 +212,39 @@ def _show_id_for_insight(graph: GraphLike, insight: Node) -> str:
         for podcast in _via(graph, episode.id, _HAS_EPISODE, _PODCAST, limit=1):
             return podcast.id
     return ""
+
+
+def show_sources(graph: GraphLike, show_ids: Iterable[str]) -> Dict[str, Dict[str, Optional[str]]]:
+    """Each show key's KG source id and title (GI 4.0 R3b).
+
+    A cross-show key is GI's show id, today derived from the show's title. KG's id for the same
+    show is ``_podcast_node_id`` of the feed id it writes (``podcast_id=feed_id``), read here from
+    the show's episodes; a key that is not a graph node is already a feed id (from an insight's
+    ``show_id`` / ``feed_id``). With no feed id the source id is ``None``, never one from the title.
+    """
+    from podcast_scraper.kg.pipeline import _podcast_node_id
+
+    out: Dict[str, Dict[str, Optional[str]]] = {}
+    for show_id in show_ids:
+        node = graph.get_node(show_id)
+        title: Optional[str] = None
+        feed: Optional[str] = None
+        if node is None:
+            feed = show_id
+        else:
+            props = node.payload or {}
+            title = str(props.get("title") or props.get("name") or props.get("label") or "") or None
+            for ep_id in graph.typed_neighbors(show_id, _HAS_EPISODE):
+                ep = graph.get_node(ep_id)
+                raw = (ep.payload or {}).get("feed_id") if ep else None
+                if raw:
+                    feed = str(raw)
+                    break
+        out[show_id] = {
+            "source_id": _podcast_node_id(feed) if feed else None,
+            "source_title": title,
+        }
+    return out
 
 
 def who_said(graph: GraphLike, topic_id: str, *, k: int = 20) -> Dict[str, List[RelatedNode]]:

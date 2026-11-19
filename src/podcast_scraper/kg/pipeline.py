@@ -20,6 +20,7 @@ from ..graph_id_utils import (
 from .llm_extract import (
     _enforce_noun_phrase_label,
     _normalize_entity_kind,
+    drop_prompt_example_entities,
     ENTITY_KIND_OBJECT,
     ENTITY_KIND_ORGANIZATION,
     ENTITY_KIND_PERSON,
@@ -379,6 +380,18 @@ def build_artifact(
         # #652 Part B — deterministic topic + entity filters (extracted helper
         # to keep build_artifact within complexity budget).
         llm_partial = _apply_kg_filters(llm_partial, pipeline_metrics)
+        # The prompt's own example entities, copied into a text that never names them.
+        kept, leaked = drop_prompt_example_entities(
+            [e for e in (llm_partial.get("entities") or []) if isinstance(e, dict)],
+            transcript_text,
+        )
+        if leaked:
+            logger.info(
+                "kg: dropped %d entity(ies) copied from the prompt's examples (episode_id=%s)",
+                leaked,
+                episode_id,
+            )
+            llm_partial = {**llm_partial, "entities": kept}
 
         _append_topics_and_entities_from_partial(
             ep_node_id,

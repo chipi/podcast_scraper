@@ -18,6 +18,8 @@ run finishes.
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
 import json
 import logging
 import os
@@ -28,18 +30,21 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
 from .. import config, content_types, stage_hooks
 from ..kg.v3 import ITEM_TIMES
 from ..models import Episode, RssFeed
 from ..utils import filesystem
+from ..utils.corpus_walk import corpus_rglob, SOURCES_DIR
 from .types import FeedMetadata, HostDetectionResult, ProcessingJob
 
 logger = logging.getLogger(__name__)
 
 TEXT_BODY: Literal["text_body"] = "text_body"
 CURSOR_FILE = "source_cursor.json"
+#: The pipeline stage that re-runs a source's stored items instead of listing new ones.
+REDERIVE_ONLY = "rederive_only"
 
 
 def _item_element(item: content_types.SourceItem, title: str, minted_id: str) -> ET.Element:
@@ -108,6 +113,109 @@ def _write_cursor(source_dir: str, transport: str, cursor: Optional[str]) -> Non
     os.replace(tmp, path)
 
 
+def _item_doc_id(doc: Dict[str, Any]) -> Optional[str]:
+    raw_episode = doc.get("episode")
+    episode: Dict[str, Any] = raw_episode if isinstance(raw_episode, dict) else {}
+    found = doc.get("item_id") or episode.get("guid")
+    return found if isinstance(found, str) and found else None
+
+
+def stored_items(
+    source_dir: str, ctype: content_types.ContentType
+) -> List[content_types.SourceItem]:
+    """This source's items as they are stored: the newest run of each (by run directory name), its
+    body from ``transcripts/``, listed again by the type's ``restore_item``. What ``rederive_only``
+    re-runs the stages on, so nothing is fetched."""
+    newest: Dict[str, Tuple[str, Path, Dict[str, Any]]] = {}
+    for path in corpus_rglob(Path(source_dir), "*.metadata.json"):
+        if path.parent.name != "metadata":
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        iid = _item_doc_id(doc)
+        run = path.parent.parent.name
+        if iid is None or (iid in newest and newest[iid][0] >= run):
+            continue
+        newest[iid] = (run, path, doc)
+    items: List[content_types.SourceItem] = []
+    for _iid, (_run, path, doc) in sorted(newest.items()):
+        stem = path.name[: -len(".metadata.json")]
+        body = path.parent.parent / filesystem.TRANSCRIPTS_SUBDIR / f"{stem}.txt"
+        try:
+            text = body.read_text(encoding="utf-8")
+        except OSError:
+            logger.warning("text-in: rederive: %s has no stored body; skipped", path)
+            continue
+        if ctype.restore_item is not None:
+            item = ctype.restore_item(doc, text)
+        else:
+            item = content_types.SourceItem(
+                item_id=_item_doc_id(doc) or stem,
+                metadata={"title": doc.get("title")},
+                text=text,
+                url=doc.get("url"),
+            )
+        raws = sorted(body.parent.glob(f"{stem}.raw.*"))
+        if raws and item.raw is None:
+            item = dataclasses.replace(
+                item, raw=raws[0].read_text(encoding="utf-8"), raw_suffix=raws[0].suffix
+            )
+        items.append(item)
+    return items
+
+
+def written_items(source_dir: str, ctype: content_types.ContentType) -> Dict[str, List[Path]]:
+    """Every item of ``ctype`` the corpus holds, by id, with its metadata files, read under
+    ``sources/<type>/`` (all sources, all runs). ``source_dir`` is this source's workspace; when
+    it is not inside a corpus, only that workspace is read."""
+    workspace = Path(source_dir)
+    root = filesystem.corpus_root_of_workspace(workspace)
+    base = root / SOURCES_DIR / ctype.name if root is not None else workspace
+    ids: Dict[str, List[Path]] = {}
+    for path in corpus_rglob(base, "*.metadata.json"):
+        if path.parent.name != "metadata":
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        episode = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
+        found = doc.get("item_id") or episode.get("guid")
+        if isinstance(found, str) and found:
+            ids.setdefault(found, []).append(path)
+    return ids
+
+
+def _note_also_listed(
+    ctype: content_types.ContentType, paths: List[Path], listed: content_types.SourceItem
+) -> None:
+    """Give each written file of an item what a later listing of it adds (``also_listed``),
+    rewritten atomically with its key order kept. Best-effort: a file that cannot be read or
+    written is left as it was."""
+    if ctype.also_listed is None:
+        return
+    for path in paths:
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        updated = ctype.also_listed(doc, listed) if isinstance(doc, dict) else None
+        if updated is None:
+            continue
+        tmp = path.with_name(path.name + ".also-listed.tmp")
+        try:
+            tmp.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, path)
+        except OSError:
+            logger.warning("text-in: could not record a second listing on %s", path)
+            continue
+        logger.info(
+            "text-in: %s is also listed (url=%s); recorded on %s", ctype.name, listed.url, path
+        )
+
+
 def _jobs_for_items(
     items: List[content_types.SourceItem],
     ctype: content_types.ContentType,
@@ -116,16 +224,42 @@ def _jobs_for_items(
     *,
     source_id: str,
     transport: str,
+    entry: Any = None,
+    written: Optional[Dict[str, List[Path]]] = None,
 ) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
+    """``written``: the items the corpus already holds for this type, with their metadata files.
+    One article is one item, so an item already written, by this source or another (two feeds
+    carrying one article), or listed twice in this batch, is skipped before its body is fetched:
+    the first source to write it keeps it, and takes what the later listing adds (its type's
+    ``also_listed``: news, the listing's transport id). The set grows with this batch."""
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
-    for item in items:
-        if item.text is None:
-            # Fetching and extracting a page is the news type's work (News 1.0), not the seam's.
-            logger.warning("text-in: item %s has no text (url=%s); skipped", item.item_id, item.url)
+    on_disk: Dict[str, List[Path]] = written or {}
+    seen: Set[str] = set(on_disk)
+    for listed in items:
+        try:
+            listed_id: Optional[str] = content_types.item_id(ctype, listed)
+        except ValueError:
+            listed_id = None
+        if listed_id is not None and listed_id in seen:
+            logger.info("text-in: %s is already written; skipped (url=%s)", listed_id, listed.url)
+            _note_also_listed(ctype, on_disk.get(listed_id, []), listed)
+            continue
+        item: Optional[content_types.SourceItem] = listed
+        if listed.text is None and ctype.fetch_body is not None:
+            item = ctype.fetch_body(listed, entry)
+        if item is None or item.text is None:
+            logger.warning(
+                "text-in: item %s has no text (url=%s); skipped", listed.item_id, listed.url
+            )
             continue
         idx = len(episodes)
         minted = content_types.item_id(ctype, item)
+        if minted in seen:
+            logger.info("text-in: %s is already written; skipped (url=%s)", minted, item.url)
+            _note_also_listed(ctype, on_disk.get(minted, []), listed)
+            continue
+        seen.add(minted)
         title = str(item.metadata.get("title") or item.item_id)
         title_safe = filesystem.sanitize_filename(title)
         episode = Episode(
@@ -144,6 +278,9 @@ def _jobs_for_items(
         body = Path(effective_output_dir) / rel
         body.parent.mkdir(parents=True, exist_ok=True)
         body.write_text(item.text, encoding="utf-8")
+        if item.raw is not None:
+            raw = os.path.splitext(str(body))[0] + ".raw" + item.raw_suffix
+            Path(raw).write_text(item.raw, encoding="utf-8")
         episodes.append(episode)
         jobs.append(
             ProcessingJob(
@@ -160,6 +297,11 @@ def _jobs_for_items(
                     source_id=source_id,
                     transport=transport,
                     times=_item_times(item),
+                    fields={
+                        **item.metadata,
+                        "url": item.url,
+                        "body_sha256": hashlib.sha256(item.text.encode("utf-8")).hexdigest(),
+                    },
                 ),
             )
         )
@@ -187,8 +329,14 @@ def run_text_source(
         jsonl_emitter = orch._setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
         run_manifest = orch._create_run_manifest(cfg, effective_output_dir)
 
-        cursor = _read_cursor(source_dir, transport.name)
-        items, next_cursor = transport.list_items(entry, cursor)
+        rederive = str(getattr(cfg, "pipeline_stage", "") or "") == REDERIVE_ONLY
+        if rederive:
+            # The stored items again, under this run's profile: nothing fetched, the cursor kept,
+            # and every item rewritten (a new run supersedes the old one, newest run per item).
+            items, next_cursor = stored_items(source_dir, ctype), None
+        else:
+            cursor = _read_cursor(source_dir, transport.name)
+            items, next_cursor = transport.list_items(entry, cursor)
         episodes, jobs = _jobs_for_items(
             items,
             ctype,
@@ -196,6 +344,8 @@ def run_text_source(
             run_suffix,
             source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
             transport=transport.name,
+            entry=entry,
+            written=None if rederive else written_items(source_dir, ctype),
         )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",

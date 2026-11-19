@@ -47,14 +47,14 @@ When working on documentation tasks:
    - MkDocs configuration
    - **Acceptance runner / matrix:** when acceptance behavior or CI changes, align **`scripts/acceptance/README.md`**, **`config/acceptance/README.md`**, **`docs/guides/TESTING_GUIDE.md`** (E2E Acceptance Tests), **`Makefile`** help for **`test-acceptance`** / **`test-acceptance-fixtures-fast`**, and any guide that still says **`make acceptance`** (obsolete — use **`make test-acceptance`** with **`CONFIGS=`** or **`FROM_FAST_STEMS=1`**).
    - **Cursor saved prompts:** when adding slash workflows, document them in **`.cursor/commands/README.md`** (if present) and in **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** under project custom commands.
-   - **GI/KG viewer (`web/gi-kg-viewer/`):** keep
-     [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+   - **Workbench (`web/workbench/`):** keep
+     [web/workbench/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/README.md)
      aligned with user-facing commands; sync [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md),
      [TESTING_GUIDE.md](TESTING_GUIDE.md), [QUICK_REFERENCE.md](QUICK_REFERENCE.md), and root
      [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md) when `make serve`,
      `make test-ui-e2e`, or ports change. When **viewer UX** changes, remind authors to update
-     [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
-     → Playwright specs/helpers → [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) / [feature UXS](../uxs/index.md) as needed
+     [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
+     → Playwright specs/helpers → [UXS-001](../uxs/UXS-001-workbench.md) / [feature UXS](../uxs/index.md) as needed
      ([E2E Testing Guide — workflow](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)).
 
 3. **Follow documentation standards**:

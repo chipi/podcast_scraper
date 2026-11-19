@@ -46,6 +46,10 @@
             ],
             "label": "risk management",
             "lift_to_cluster": 2.6,
+            "news_item_ids": [
+              "item:news_article:a8d6e89ce92ef7521ed5",
+              "item:news_article:b626e4b9538458cb6235"
+            ],
             "topic_id": "topic:risk-management"
           },
           {
@@ -67,6 +71,7 @@
             ],
             "label": "systems thinking",
             "lift_to_cluster": 2.1,
+            "news_item_ids": [],
             "topic_id": "topic:systems-thinking"
           },
           {
@@ -77,6 +82,7 @@
             ],
             "label": "correlated bets",
             "lift_to_cluster": 1.7,
+            "news_item_ids": [],
             "topic_id": "topic:correlated-bets"
           },
           {
@@ -86,9 +92,15 @@
             ],
             "label": "decision making under uncertainty",
             "lift_to_cluster": 1.5,
+            "news_item_ids": [],
             "topic_id": "topic:decision-making-under-uncertainty"
           }
         ],
+        "news_count": 2,
+        "news_scores": {
+          "item:news_article:a8d6e89ce92ef7521ed5": 1.5,
+          "item:news_article:b626e4b9538458cb6235": 1.5
+        },
         "super_theme_id": "sth:managing-risk-across-domains",
         "super_theme_label": "Managing risk across domains"
       },
@@ -124,6 +136,7 @@
             ],
             "label": "second-order effects",
             "lift_to_cluster": 2.4,
+            "news_item_ids": [],
             "topic_id": "topic:second-order-effects"
           },
           {
@@ -148,6 +161,7 @@
             ],
             "label": "reliability",
             "lift_to_cluster": 2.0,
+            "news_item_ids": [],
             "topic_id": "topic:reliability"
           },
           {
@@ -157,6 +171,7 @@
             ],
             "label": "incident response",
             "lift_to_cluster": 1.6,
+            "news_item_ids": [],
             "topic_id": "topic:incident-response"
           },
           {
@@ -171,9 +186,12 @@
             ],
             "label": "iteration practice",
             "lift_to_cluster": 1.4,
+            "news_item_ids": [],
             "topic_id": "topic:iteration-practice"
           }
         ],
+        "news_count": 0,
+        "news_scores": {},
         "super_theme_id": "sth:second-order-effects",
         "super_theme_label": "Second-order effects"
       },
@@ -194,6 +212,7 @@
             ],
             "label": "trail building",
             "lift_to_cluster": 2.8,
+            "news_item_ids": [],
             "topic_id": "topic:trail-building"
           },
           {
@@ -215,6 +234,7 @@
             ],
             "label": "soil erosion",
             "lift_to_cluster": 2.5,
+            "news_item_ids": [],
             "topic_id": "topic:soil-erosion"
           },
           {
@@ -228,6 +248,7 @@
             ],
             "label": "drainage design",
             "lift_to_cluster": 2.2,
+            "news_item_ids": [],
             "topic_id": "topic:drainage-design"
           },
           {
@@ -241,9 +262,12 @@
             ],
             "label": "land stewardship",
             "lift_to_cluster": 1.9,
+            "news_item_ids": [],
             "topic_id": "topic:land-stewardship"
           }
         ],
+        "news_count": 0,
+        "news_scores": {},
         "super_theme_id": "sth:building-trails-that-last",
         "super_theme_label": "Building trails that last"
       }
@@ -252,7 +276,33 @@
     "merge_threshold": 2.0,
     "method": "cooccurrence_lift",
     "min_pair_episode_count": 2,
-    "schema_version": "1",
+    "news": {
+      "articles": 5,
+      "articles_attached": 2,
+      "attach_threshold": 1.0,
+      "candidates": 0,
+      "core_boost": 1.5,
+      "peripheral_cap": 2,
+      "storylines_with_news": 1,
+      "support": {
+        "topic:correlated-bets": 0.4037,
+        "topic:cross-cutting-trade-offs": 0.3199,
+        "topic:decision-making-under-uncertainty": 0.3199,
+        "topic:drainage-design": 0.5667,
+        "topic:incident-response": 0.3199,
+        "topic:iteration-practice": 0.6055,
+        "topic:land-stewardship": 0.5667,
+        "topic:reliability": 0.8417,
+        "topic:risk-management": 1.0,
+        "topic:second-order-effects": 0.9001,
+        "topic:soil-erosion": 0.7886,
+        "topic:systems-thinking": 0.7886,
+        "topic:trading-desks": 0.0,
+        "topic:trail-building": 0.5667
+      },
+      "theme_match": 0.6
+    },
+    "schema_version": "2",
     "singletons": 389,
     "super_theme_count": 3,
     "super_theme_method": "cross_cluster_lift_avg_linkage",

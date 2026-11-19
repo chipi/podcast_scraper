@@ -100,7 +100,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # Opt in the o11y extensions this deployed image uses: [sentry] error reporting +
         # [langfuse] LLM tracing (#1052). Both no-op unless their secrets are set; neither is a
         # core dep (see pyproject [project.optional-dependencies] / OBSERVABILITY_EXTENSIONS.md).
-        pip install '.[ml,search,sentry,langfuse]' && \
+        # [news] (feedparser, trafilatura, readability): news sources run in this image (E05).
+        pip install '.[ml,search,sentry,langfuse,news]' && \
         pip uninstall -y podcast-scraper && \
         # `.[ml]` may pull a CUDA-linked torch from PyPI; force it back to the CPU build.
         pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
@@ -108,7 +109,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # cloud-API pipeline image. Includes [search] (lancedb + sentence-transformers + torch CPU)
         # so cloud_balanced can build its LanceDB vector index without [ml]'s spaCy/Whisper/Pegasus.
         pip install torch --index-url https://download.pytorch.org/whl/cpu && \
-        pip install '.[llm,search,sentry,langfuse]' && \
+        pip install '.[llm,search,sentry,langfuse,news]' && \
         pip uninstall -y podcast-scraper && \
         pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
     else \

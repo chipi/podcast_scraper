@@ -18,8 +18,19 @@ from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter(tags=["ops"])
 
-# The api container serves /api on 8000 (GH-745); observe ourselves when no target is configured.
+# The api container serves /api on 8000 (GH-745); the fallback when a request has no server address.
 _LOCAL_API_BASE = "http://127.0.0.1:8000"
+
+
+def _local_api_base(request: Request) -> str:
+    """This server, on the port it listens on (from the connection, so a proxy's Host header does
+    not matter): a dev server on another port probed 8000 and reported itself unreachable."""
+    server = request.scope.get("server")
+    if server and len(server) >= 2 and isinstance(server[1], int):
+        return f"http://127.0.0.1:{server[1]}"
+    return _LOCAL_API_BASE
+
+
 # Keep the endpoint responsive: a configured-but-unreachable source shouldn't hang the dashboard.
 # summary() fans out to several backends sequentially, so keep the per-probe timeout tight.
 _WEB_TIMEOUT = 4.0
@@ -28,7 +39,7 @@ _WEB_TIMEOUT = 4.0
 # Deliberately a SYNC ``def`` (not ``async``): ``summary()`` makes blocking ``httpx`` calls, so
 # Starlette runs this handler in a threadpool — it must not block the event loop.
 @router.get("/ops/summary")
-def ops_summary() -> dict:
+def ops_summary(request: Request) -> dict:
     """Cross-source prod-state summary (live / unconfigured / failed + per-source envelopes)."""
     from podcast_obs.aggregate import summary as obs_summary
     from podcast_obs.config import ObservabilityConfig
@@ -36,7 +47,10 @@ def ops_summary() -> dict:
     target = ObservabilityConfig.load().target()
     overrides: dict = {"timeout": _WEB_TIMEOUT}
     if not target.api_base:
-        overrides["api_base"] = _LOCAL_API_BASE
+        overrides["api_base"] = _local_api_base(request)
+        # Probing itself, it goes as the caller: an admin session passes the operator gate on
+        # /api/jobs where an anonymous probe got 403 on a server without an operator key.
+        overrides["cookie"] = request.headers.get("cookie")
     target = replace(target, **overrides)
     data: dict = obs_summary(target)["data"]
     return data

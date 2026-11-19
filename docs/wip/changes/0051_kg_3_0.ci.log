@@ -1,0 +1,29 @@
+tree: dd15b584baf8ca1a2418b5c3057b7978f1f6e77f clean=0
+make ci-fast on the landing tree (0051's outcome re-gated after the ledger fix committed), interpreter /work/closelistening/ingestion/.venv (public's news extras, no Common installed: public's CI shape), 2026-11-19; TMPDIR /work/t
+=== ci-fast START 2026-11-19 21:38:43
+stage: format-check
+stage: lint
+stage: lint-markdown
+stage: check-doc-structure
+stage: llms-txt-check
+stage: type (mypy)
+stage: security
+stage: complexity
+stage: deadcode
+stage: docstrings
+stage: spelling
+stage: check-test-policy
+stage: quality-metrics-ci
+stage: profile-drift-check
+stage: test-fast (pytest)
+stage: docs
+stage: build
+=== ci-fast DONE 2026-11-19 21:52:40
+All done! ✨ 🍰 ✨
+Success: no issues found in 1758 source files
+--------------- RESULT: PASSED (minimum: 100.0%, actual: 100.0%) ---------------
+========== 10727 passed, 86 skipped, 20 warnings in 112.25s (0:01:52) ==========
+========== 1149 passed, 46 skipped, 230 warnings in 90.95s (0:01:30) ===========
+================= 104 passed, 13 warnings in 164.92s (0:02:44) =================
+================= 33 passed, 10 warnings in 330.90s (0:05:30) ==================
+MAKE_EXIT=0

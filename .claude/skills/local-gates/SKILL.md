@@ -22,7 +22,7 @@ rewrite files, `make format`.
 | `*.py` | + pytest on the changed test files and every `tests/**/test_*.py` that names a changed module (dotted path or file stem) |
 | `*.md` | markdownlint with `.markdownlint.json` |
 | `docs/**`, `mkdocs.yml` | `make docs` (strict) |
-| `web/gi-kg-viewer/{src,e2e}` | `vitest related --run`, vue-tsc (app config) |
+| `web/workbench/{src,e2e}` | `vitest related --run`, vue-tsc (app config) |
 | `.github/workflows/*.yml` | actionlint |
 
 `NODE_OPTIONS` is unset inside the script: an inherited `--require` shim path makes every node
@@ -34,7 +34,7 @@ step die with MODULE_NOT_FOUND (see the top of the Makefile).
   is missed. The whole suite (`.venv/bin/python -m pytest tests/unit tests/integration -n 6`,
   ~6 min, ~21k tests) runs once at the end of an arc, before pushing, not after every edit.
 - **No viewer e2e** (Playwright) here: `make test-ui-e2e` when the change is under
-  `web/gi-kg-viewer/`.
+  `web/workbench/`.
 - **CI runs slower than a laptop.** A test that takes seconds locally can hit a CI timeout (a
   vitest file ran ~50x slower on the shared runner, 2026-10-16). After pushing, watch it with the
   `ci-watch` skill.

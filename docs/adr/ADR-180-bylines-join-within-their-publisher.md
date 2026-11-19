@@ -1,6 +1,6 @@
 # ADR-180: Bylines join people within their publisher; publishers are organisations across media
 
-- **Status**: Accepted (the operator, 2026-11-17)
+- **Status**: Accepted (the operator, 2026-11-17); rule 6 amended 2026-11-18 (below)
 - **Date**: 2026-11-11
 - **Authors**: Marko Dragoljevic
 - **Related**: [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) (news as the second
@@ -44,14 +44,22 @@ A wrong merge is worse than a cautious split.
 5. **An organisation in a news byline is the publisher, not a person.** It is removed from the
    byline before joining. This holds for news only: for a filing or a company press release, the
    company is the author and the newsroom is the source, which those types decide.
-6. **Publishers are organisations (T-12), held in a publisher registry in public configuration:**
-   id, name, web domain, external identifiers.
-   - A source points at its publisher through `PUBLISHED_BY` (KG 3.0).
+6. **Publishers are organisations (T-12), held in a publisher registry in public configuration**
+   (`config/publishers.yaml`, loaded by `podcast_scraper.publishers`): id, name, web domains,
+   external identifiers, and the KG `Source` ids it publishes.
+   - A source points at its publisher through `PUBLISHED_BY` (KG 3.0), drawn from the registry's
+     list of `Source` ids (`podcast:…`, `source:…`), one list for every type.
+   - A news item's publisher is found by its canonical URL's host: a listed domain matches itself
+     and its subdomains, the longest match wins, and no match means no publisher, never a guess.
    - A publisher that also publishes a podcast in the corpus (the BBC, Meduza) is one organisation
      across both.
    - External identifiers (a web domain now; later a company's CIK, ticker or LEI) are kept side by
      side and never merged into one key.
-   - Organisation nodes found by NER are not joined to publishers automatically, for now.
+   - **Amended 2026-11-18 (the operator: "Yes on same organization"):** a publisher's id is an
+     organisation id, `org:{slug}`, the namespace NER's organisation nodes use. An NER organisation
+     with the identical slug is the same organisation as the publisher. Nothing else joins them:
+     never a fuzzy, partial or translated name. (Before: "Organisation nodes found by NER are not
+     joined to publishers automatically, for now.")
 7. **Roles are an open vocabulary.** Author joins host and guest now. Later roles, such as an
    earnings call's executive or analyst, follow the same shape: joining within the scope that
    verifies the name, and the general rule elsewhere.

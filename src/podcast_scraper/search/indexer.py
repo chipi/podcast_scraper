@@ -13,6 +13,7 @@ from typing import Any, cast, Dict, List, Mapping, Optional, Sequence, Set, Tupl
 from filelock import FileLock, Timeout
 
 from podcast_scraper import config, stage_hooks
+from podcast_scraper.kg.read_view import kg_read_view
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.chunker import chunk_transcript
 from podcast_scraper.search.corpus_scope import (
@@ -197,8 +198,10 @@ def _filter_rows_by_doc_types(
     return out
 
 
-def _kg_embed_text_topic(props: Dict[str, Any]) -> Optional[str]:
-    """Concatenate Topic label and optional description for embedding."""
+def kg_topic_embed_text(props: Dict[str, Any]) -> Optional[str]:
+    """A KG Topic's text as the index embeds it: its label, then its description if any, joined by
+    a space. Public: news topic rows (``news_aux``) and Common's theme builder embed the same text
+    as the podcast ``kg_topic`` rows."""
     parts: List[str] = []
     label = props.get("label")
     if isinstance(label, str) and label.strip():
@@ -207,6 +210,10 @@ def _kg_embed_text_topic(props: Dict[str, Any]) -> Optional[str]:
     if isinstance(desc, str) and desc.strip():
         parts.append(desc.strip())
     return " ".join(parts) if parts else None
+
+
+#: The old private name, kept for its callers.
+_kg_embed_text_topic = kg_topic_embed_text
 
 
 def _kg_entity_kind_for_meta(props: Dict[str, Any]) -> Optional[str]:
@@ -247,7 +254,9 @@ def _kg_vector_rows_from_path(
     """Parse ``kg.json`` and return vector rows for Topic and Entity nodes only."""
     rows: List[Tuple[str, str, Dict[str, Any]]] = []
     try:
-        kg_artifact = cast(Dict[str, Any], json.loads(kg_disk.read_text(encoding="utf-8")))
+        kg_artifact = cast(
+            Dict[str, Any], kg_read_view(json.loads(kg_disk.read_text(encoding="utf-8")))
+        )
     except Exception as exc:
         logger.warning("Skip kg.json %s: %s", kg_disk, exc)
         return rows

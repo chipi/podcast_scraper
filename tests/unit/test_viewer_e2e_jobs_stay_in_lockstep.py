@@ -1,9 +1,9 @@
 """``viewer-e2e`` and ``nightly-viewer-e2e`` run the same suite; they must run it the same way.
 
-#1619 moved the gi-kg-viewer Playwright suite off route-fulfilled mocks and onto a real Python
-API. ``python-app.yml``'s ``viewer-e2e`` was updated for that — Python 3.11, a venv with
-``[dev,search]``, ffmpeg, the MiniLM preload. Its nightly twin was not, and stayed node-only. It
-went red on 2026-08-21 with::
+#1619 moved the Workbench (then gi-kg-viewer) Playwright suite off route-fulfilled mocks and onto
+a real Python API. ``python-app.yml``'s ``viewer-e2e`` was updated for that — Python 3.11, a venv
+with ``[dev,search]``, ffmpeg, the MiniLM preload. Its nightly twin was not, and stayed node-only.
+It went red on 2026-08-21 with::
 
     [WebServer] ModuleNotFoundError: No module named 'dotenv'
 

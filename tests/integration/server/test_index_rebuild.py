@@ -77,3 +77,30 @@ def test_index_rebuild_409_when_already_running(tmp_path: Path) -> None:
         assert second.status_code == 409
         released.set()
         worker.join(timeout=5.0)
+
+
+def test_a_rebuild_that_fails_inside_index_corpus_reports_its_error(tmp_path: Path) -> None:
+    """``index_corpus`` returns a failed build in ``stats.errors`` rather than raising (the
+    two-tier build's own catch, indexer.py). The rebuild must still record it as the last error,
+    or Configuration > Index says "No index built yet" with nothing to explain why."""
+    from podcast_scraper.search.indexer import IndexRunStats
+
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "a.metadata.json").write_text(
+        '{"episode": {"episode_id": "e1"}, "feed": {}}',
+        encoding="utf-8",
+    )
+    failed = IndexRunStats(errors=["two-tier index build: the embedding model is not cached"])
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    with patch("podcast_scraper.server.routes.index_rebuild.index_corpus", return_value=failed):
+        assert client.post("/api/index/rebuild", params={"path": str(tmp_path)}).status_code == 202
+        stats = {}
+        for _ in range(100):
+            stats = client.get("/api/index/stats", params={"path": str(tmp_path)}).json()
+            if not stats.get("rebuild_in_progress"):
+                break
+            time.sleep(0.05)
+    assert stats.get("rebuild_in_progress") is False
+    assert "the embedding model is not cached" in (stats.get("rebuild_last_error") or "")

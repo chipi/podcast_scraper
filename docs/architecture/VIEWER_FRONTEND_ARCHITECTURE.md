@@ -1,10 +1,10 @@
 # Viewer Frontend Architecture
 
 > **Scope:** Internal architecture of the GI/KG browser viewer SPA
-> (`web/gi-kg-viewer/`). For the FastAPI backend see the
+> (`web/workbench/`). For the FastAPI backend see the
 > [Server Guide](../guides/SERVER_GUIDE.md); for **shell information architecture** see
-> [VIEWER_IA](../uxs/VIEWER_IA.md); for visual/UX contracts see
-> [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and the
+> [WORKBENCH_IA](../uxs/WORKBENCH_IA.md); for visual/UX contracts see
+> [UXS-001](../uxs/UXS-001-workbench.md) and the
 > [UXS index](../uxs/index.md); for the original design rationale see
 > [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
 
@@ -62,11 +62,10 @@ App.vue
 
 | Component | Used by |
 | --------- | ------- |
-| `HelpTip` | App, DigestView, LibraryView, ExplorePanel, SearchPanel, EpisodeDetailPanel, NodeDetail, TopicTimelineDialog |
-| `PodcastCover` | DigestView, LibraryView, EpisodeDetailPanel, TopicTimelineDialog |
+| `HelpTip` | App, DigestView, LibraryView, ExplorePanel, SearchPanel, EpisodeDetailPanel, NodeDetail |
+| `PodcastCover` | DigestView, LibraryView, EpisodeDetailPanel |
 | `CollapsibleSection` | LibraryView |
 | `TranscriptViewerDialog` | NodeDetail |
-| `TopicTimelineDialog` | NodeDetail |
 
 ### Dialogs
 
@@ -327,7 +326,7 @@ Key contracts:
 
 The full state-walk lifecycle, event re-entrance matrix, and entry-point catalog
 are in [VIEWER_GRAPH_SPEC](VIEWER_GRAPH_SPEC.md) §Graph handoff orchestrator.
-Coverage is enforced by `web/gi-kg-viewer/e2e/handoff/contracts.spec.ts` — one
+Coverage is enforced by `web/workbench/e2e/handoff/contracts.spec.ts` — one
 contract test per surface, locked to the FSM event + source + load-source it
 must fire.
 
@@ -347,8 +346,8 @@ matrix under `e2e/handoff/`, mocked corpus), Tier 3 real-corpus walks. Real
 bugs land a Tier-2 matrix row reproducing them **before** the fix PR merges.
 
 The E2E surface contract is documented in
-`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` (outside the docs tree); the handoff
-coverage matrix is at `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`.
+`web/workbench/e2e/E2E_SURFACE_MAP.md` (outside the docs tree); the handoff
+coverage matrix is at `web/workbench/e2e/HANDOFF_MATRIX.md`.
 
 ## Related documents
 
@@ -356,9 +355,9 @@ coverage matrix is at `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`.
 | -------- | -------------- |
 | [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | Design rationale, stack choices, folder layout |
 | [Server Guide](../guides/SERVER_GUIDE.md) | FastAPI routes, API contract |
-| [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) | Shared design system, tokens, typography |
+| [UXS-001](../uxs/UXS-001-workbench.md) | Shared design system, tokens, typography |
 | [UXS index](../uxs/index.md) | Per-feature UXS docs (Digest, Library, Graph, Search, Dashboard) |
-| E2E Surface Map (`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`) | Playwright selectors, surface ownership |
+| E2E Surface Map (`web/workbench/e2e/E2E_SURFACE_MAP.md`) | Playwright selectors, surface ownership |
 | [Viewer async stability](VIEWER_ASYNC_STABILITY.md) | HTTP timeouts, `StaleGeneration`, dedupe, corpus graph load hardening |
 | [Viewer graph spec](VIEWER_GRAPH_SPEC.md) | Cytoscape load, styling, gestures, focus entry points |
 | [Architecture](ARCHITECTURE.md) | System-level architecture (viewer is one surface) |

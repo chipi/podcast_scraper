@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper import perf_cache
 from podcast_scraper.server.app import create_app
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
@@ -1045,7 +1046,7 @@ _V3 = Path(__file__).resolve().parents[2] / "fixtures" / "app-validation-corpus"
 def _kg_files_naming(root: Path, node_id: str) -> set[str]:
     """Every KG artifact under *root* whose nodes include *node_id*, as corpus-relative paths."""
     out = set()
-    for p in root.rglob("*.kg.json"):
+    for p in corpus_rglob(root, "*.kg.json"):
         nodes = json.loads(p.read_text(encoding="utf-8")).get("nodes") or []
         if any(isinstance(n, dict) and n.get("id") == node_id for n in nodes):
             out.add(p.relative_to(root).as_posix())
@@ -1055,7 +1056,7 @@ def _kg_files_naming(root: Path, node_id: str) -> set[str]:
 def _shared_topic(root: Path) -> str:
     """A topic two or more episodes' KG name, so the answer is more than one episode."""
     counts: dict[str, int] = {}
-    for p in sorted(root.rglob("*.kg.json")):
+    for p in sorted(corpus_rglob(root, "*.kg.json")):
         ids = {
             str(n["id"])
             for n in json.loads(p.read_text(encoding="utf-8")).get("nodes") or []
@@ -1104,6 +1105,37 @@ def test_node_episodes_answers_from_the_kg_without_a_bridge_stage(
     assert capped["total_matched"] == len(want)
 
 
+def test_node_episodes_carry_what_a_rail_shows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each episode comes with its title, show, date and metadata path from the catalog, so the
+    topic and person rails list episodes without joining files in the browser (the database-era
+    sweep: the server owns the join)."""
+    import shutil
+
+    from podcast_scraper import read_hooks
+    from podcast_scraper.server.catalog_cache import cached_catalog
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: False)
+    topic = _shared_topic(root)
+    by_kg = {r.kg_relative_path: r for r in cached_catalog(root) if r.kg_relative_path}
+
+    client = TestClient(create_app(root, static_dir=False))
+    body = client.post(
+        "/api/corpus/node-episodes", json={"path": str(root), "node_id": topic}
+    ).json()
+    assert body["episodes"]
+    for e in body["episodes"]:
+        row = by_kg[e["kg_relative_path"]]
+        assert e["episode_title"] == row.episode_title
+        assert e["feed_id"] == row.feed_id
+        assert e["feed_title"] == row.feed_title
+        assert e["publish_date"] == row.publish_date
+        assert e["metadata_relative_path"] == row.metadata_relative_path
+
+
 def test_node_episodes_keeps_the_bridge_answer_when_a_stage_reads_bridges(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1125,4 +1157,61 @@ def test_node_episodes_keeps_the_bridge_answer_when_a_stage_reads_bridges(
     body = client.post(
         "/api/corpus/node-episodes", json={"path": str(tmp_path), "node_id": "topic:x"}
     ).json()
-    assert body["episodes"] == [row]
+    # The bridge answer is kept as given (the display fields come from the catalog, None here).
+    assert [{k: e[k] for k in row} for e in body["episodes"]] == [row]
+
+
+def test_a_digest_band_links_its_topic_only_when_episodes_name_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A band's topic id is made from its label ("Technology" -> topic:technology). When no episode
+    names that topic, the heading opened a Topic rail with nothing in it (public-only walk,
+    2026-11-17). The band now links a topic only where the rail's own source (node-episodes) has an
+    episode for it."""
+    import shutil
+
+    from podcast_scraper import read_hooks
+    from podcast_scraper.server.routes.corpus_digest import _linkable_topic_id
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: False)
+    topic = _shared_topic(root)
+
+    assert _linkable_topic_id(root, root, topic) == topic
+    assert _linkable_topic_id(root, root, "topic:no-episode-names-this") == ""
+    assert _linkable_topic_id(root, root, "") == ""
+
+    # A build with the bridge stage answers from it, and a topic it knows stays linked.
+    monkeypatch.setattr(read_hooks, "bridge_node_episodes_installed", lambda: True)
+    monkeypatch.setattr(
+        read_hooks,
+        "bridge_node_episodes",
+        lambda r, a, node_id, max_episodes=None: (node_id, [{"kg_relative_path": "x"}], False, 1),
+    )
+    assert _linkable_topic_id(root, root, "topic:only-the-bridge-knows") == (
+        "topic:only-the-bridge-knows"
+    )
+
+
+def test_episode_and_feed_rows_carry_the_kg_source_id(tmp_path: Path) -> None:
+    """GI 4.0 R3b: KG's show id is ``podcast:`` + the slug of the feed id (``podcast_id=feed_id``
+    at write time). Rows carry it as ``source_id`` so a client focuses the show node by id, never by
+    a slug of the title (which is GI's id until R3b)."""
+    import shutil
+
+    from podcast_scraper.kg.pipeline import _podcast_node_id
+
+    root = tmp_path / "corpus"
+    shutil.copytree(_V3, root)
+    client = TestClient(create_app(root, static_dir=False))
+    rows = client.get("/api/corpus/episodes", params={"path": str(root), "limit": 50}).json()[
+        "items"
+    ]
+    assert rows
+    for r in rows:
+        assert r["source_id"] == _podcast_node_id(r["feed_id"])
+    feeds = client.get("/api/corpus/feeds", params={"path": str(root)}).json()["feeds"]
+    assert feeds
+    for f in feeds:
+        assert f["source_id"] == _podcast_node_id(f["feed_id"])

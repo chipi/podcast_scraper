@@ -899,6 +899,7 @@ def build_two_tier_index(
         index_metadata=index_metadata,
         model_id=model_id,
     )
+    _build_news_rows(backend, lance_path, out, model_id, allow_download)
     # D8: persist fingerprints on success so the NEXT incremental build can skip unchanged episodes.
     # A mid-build failure returns/raises before here, leaving the old sidecar → next build re-embeds
     # (safe). Skipped on a limited walk (a partial episode set would drop fingerprints for un-walked
@@ -906,6 +907,36 @@ def build_two_tier_index(
     if limit_episodes is None:
         _write_episode_fingerprints(lance_path, result_fps)
     return stats
+
+
+def _build_news_rows(
+    backend: Optional[LanceDBBackend],
+    lance_path: str | Path,
+    corpus: Path,
+    model_id: str,
+    allow_download: bool,
+) -> None:
+    """News rows (RFC-134 §9): their own table, rebuilt whole, outside the podcast tiers. A
+    news-only corpus (no podcast index) gets the index directory and its model metadata here, so
+    its news is searchable; a corpus with neither still creates no index at all."""
+    from podcast_scraper.search.news_index import (
+        build_news_aux_table,
+        build_news_table,
+        news_rows,
+        news_topic_rows,
+    )
+
+    if backend is None:
+        if not news_rows(corpus) and not news_topic_rows(corpus):
+            return
+        Path(lance_path).mkdir(parents=True, exist_ok=True)
+        LanceDBBackend(str(lance_path)).write_index_meta(model_id)
+    n_news = build_news_table(Path(lance_path), corpus, model_id, allow_download=allow_download)
+    n_topics = build_news_aux_table(
+        Path(lance_path), corpus, model_id, allow_download=allow_download
+    )
+    if n_news or n_topics:
+        logger.info("news: %d paragraph rows, %d topic rows indexed", n_news, n_topics)
 
 
 def _finalize_index_build(

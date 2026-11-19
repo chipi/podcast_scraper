@@ -1,0 +1,275 @@
+import { defineStore } from 'pinia'
+import { computed, reactive, ref, watch } from 'vue'
+import { track } from '../lib/analytics'
+import {
+  searchCorpus,
+  type SearchRequestOptions,
+  type CorpusSearchLiftStats,
+  type SearchHit,
+} from '../api/searchApi'
+import { useGraphNavigationStore } from './graphNavigation'
+import { useActiveSearchContextStore } from './activeSearchContext'
+import { useSavedQueriesStore } from './savedQueries'
+import { useShellStore } from './shell'
+import { searchListeners, searchRequestParams, searchResultFilters } from '../extensions'
+import { normalizeFeedIdForViewer } from '../utils/feedId'
+import { StaleGeneration } from '../utils/staleGeneration'
+
+/** Friendly text for server search error codes (mirrors the similar-episodes panel). */
+export function mapSearchError(code: string, detail: string | null | undefined): string {
+  if (code === 'no_index') {
+    return 'No vector index for this corpus yet. Run indexing to enable search.'
+  }
+  if (code === 'embed_failed') {
+    return 'Embedding failed (model missing or offline) — the index is fine, but the query could not be embedded.'
+  }
+  if (code === 'empty_query') {
+    return 'Enter a search query.'
+  }
+  return detail ? `${code}: ${detail}` : code
+}
+
+export const useSearchStore = defineStore('search', () => {
+  const query = ref('')
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  const apiError = ref<string | null>(null)
+  const results = ref<SearchHit[]>([])
+  const liftStats = ref<CorpusSearchLiftStats | null>(null)
+  /** Detected query intent for the last run (PRD-033 FR1.4); null until a run. */
+  const queryType = ref<string | null>(null)
+
+  /**
+   * Search v3 §S4a/S8 — which operator panel is currently open on
+   * ``ResultSetOperatorBar``. Promoted from the bar's local ref
+   * (#1259-4 followup) so external surfaces — the Cmd-K palette's
+   * ``operator.timeline-last`` command and registered operators' commands —
+   * can toggle the panel visible without also clicking the chip.
+   * ``null`` means no panel is open.
+   */
+  const activeOperator = ref<string | null>(null)
+
+  const searchRunGate = new StaleGeneration()
+
+  /**
+   * When set with ``feedFilterHandoffPristine``, Advanced feed input shows this title while
+   * ``filters.feed`` stays the catalog id substring for ``GET /api/search`` until the user edits.
+   */
+  const feedFilterDisplayLabel = ref<string | null>(null)
+  const feedFilterHandoffPristine = ref(false)
+
+  const filters = reactive({
+    topK: 10,
+    feed: '',
+    since: '',
+    speaker: '',
+    /** Lowercase doc_type values matching the index (insight, quote, …). */
+    types: [] as string[],
+    /** Override the default embedding model (blank = server default). */
+    embeddingModel: '',
+    /**
+     * When true (default), server collapses kg_entity/kg_topic rows with the same embedded text.
+     */
+    dedupeKgSurfaces: true,
+    /**
+     * Topic-substring filter. Server-side since the S1 follow-up wired ``topic=``
+     * into /api/search — passes through to the search API and drives retrieval
+     * (kg_topic id/text + insight ABOUT-edge topic labels). No client-side
+     * fallback anymore.
+     */
+    topic: '',
+    /**
+     * Search v3 §S6 — exact ``episode_id`` scope. Set by the "Search
+     * within this episode" rail launcher on EpisodeDetailPanel; empty
+     * string means no episode scope. Server-side (drives retrieval),
+     * not client-side (drops non-matching hits before top-k slice).
+     */
+    episodeId: '',
+    /**
+     * Content types to search (UXS-019's Type chip): podcasts by default; ``news_article`` alone
+     * or both when the operator asks. Sent only when it differs from the default, so a podcast
+     * search's request is unchanged.
+     */
+    contentTypes: ['podcast_episode'] as string[],
+  })
+
+  // The Type chip shows only while the corpus holds news. When a corpus without news is opened,
+  // its value goes back to podcasts: the user could no longer see or change it (review
+  // 2026-11-19: a News choice kept sending content_types=news_article to a podcast-only corpus).
+  const shell = useShellStore()
+  watch(
+    () => shell.hasNews,
+    (hasNews) => {
+      if (!hasNews) filters.contentTypes = ['podcast_episode']
+    },
+  )
+
+  /**
+   * The page after every registered client-side filter (`searchResultFilters`). Keeps
+   * ``results`` untouched so callers that need the server's page (intent chip, tier counts)
+   * still see the top-K.
+   */
+  const filteredResults = computed<SearchHit[]>(() => {
+    const active = searchResultFilters.list()
+    if (!active.length) return results.value
+    return results.value.filter((hit) => active.every((f) => f.keep(hit)))
+  })
+
+  function applyLibrarySearchHandoff(
+    feed: string,
+    queryText: string,
+    options?: { since?: string; feedDisplayTitle?: string },
+  ): void {
+    results.value = []
+    liftStats.value = null
+    apiError.value = null
+    error.value = null
+    filters.feed = normalizeFeedIdForViewer(feed)
+    const title = options?.feedDisplayTitle?.trim()
+    if (title && filters.feed.trim()) {
+      feedFilterDisplayLabel.value = title
+      feedFilterHandoffPristine.value = true
+    } else {
+      feedFilterDisplayLabel.value = null
+      feedFilterHandoffPristine.value = false
+    }
+    query.value = queryText
+    const sinceDay = options?.since?.trim().slice(0, 10)
+    if (sinceDay && /^\d{4}-\d{2}-\d{2}$/.test(sinceDay)) {
+      filters.since = sinceDay
+    }
+  }
+
+  /** Advanced feed field: clears Library title pairing once the user edits. */
+  function commitFeedFilterUiInput(raw: string): void {
+    if (feedFilterHandoffPristine.value) {
+      feedFilterHandoffPristine.value = false
+      feedFilterDisplayLabel.value = null
+    }
+    filters.feed = raw
+  }
+
+  async function runSearch(corpusPath: string): Promise<void> {
+    const q = query.value.trim()
+    error.value = null
+    apiError.value = null
+    if (!q) {
+      error.value = 'Enter a search query.'
+      return
+    }
+    useGraphNavigationStore().clearLibraryEpisodeHighlights()
+    const root = corpusPath.trim()
+    if (!root) {
+      error.value = 'Set corpus root first (same folder as List files).'
+      return
+    }
+    const seq = searchRunGate.bump()
+    loading.value = true
+    results.value = []
+    liftStats.value = null
+    queryType.value = null
+    for (const l of searchListeners.list()) l.onClear?.()
+    try {
+      const opts = requestOptions(root)
+      const body = await searchCorpus(q, opts)
+      if (searchRunGate.isStale(seq)) {
+        return
+      }
+      if (body.error) {
+        apiError.value = mapSearchError(body.error, body.detail)
+        results.value = []
+        liftStats.value = null
+        return
+      }
+      results.value = body.results
+      liftStats.value = body.lift_stats ?? null
+      queryType.value = body.query_type ?? null
+      for (const l of searchListeners.list()) l.onResponse?.(body as unknown as Record<string, unknown>)
+      // RFC-094 OQ-2: publish the active context so Library/Graph can rank + snippet.
+      useActiveSearchContextStore().setContext(q, body.results)
+      // Search v3 §S7 — push onto USERPREFS-1 Recent ring buffer. Best-
+      // effort: userPrefs.set never rejects, so a persistence failure
+      // never blocks the user-visible search flow. Runs off-path so the
+      // async PATCH doesn't tack onto the runSearch latency budget.
+      void useSavedQueriesStore().pushRecent(q)
+      track('search_run', {
+        query_length: q.length,
+        result_count: body.results.length,
+        filter_types: filters.types.length ? filters.types : [],
+        has_feed_filter: Boolean(filters.feed),
+        has_speaker_filter: Boolean(filters.speaker),
+        has_since_filter: Boolean(filters.since),
+        ...opts.extraParams,
+        top_k: filters.topK,
+      })
+    } catch (e) {
+      if (searchRunGate.isStale(seq)) {
+        return
+      }
+      error.value = e instanceof Error ? e.message : String(e)
+      results.value = []
+      liftStats.value = null
+    } finally {
+      if (searchRunGate.isCurrent(seq)) {
+        loading.value = false
+      }
+    }
+  }
+
+  /**
+   * The request the current filters make, with every registered extra parameter. `topK`
+   * overrides the filter's (an operator over-fetching for its aggregation).
+   */
+  function requestOptions(root: string, topK?: number): SearchRequestOptions {
+    const extraParams: Record<string, string> = {}
+    for (const e of searchRequestParams.list()) Object.assign(extraParams, e.params() ?? {})
+    return {
+      path: root,
+      types: filters.types.length ? filters.types : undefined,
+      feed: filters.feed || undefined,
+      since: filters.since || undefined,
+      speaker: filters.speaker || undefined,
+      topic: filters.topic || undefined,
+      episodeId: filters.episodeId || undefined,
+      topK: topK ?? filters.topK,
+      embeddingModel: filters.embeddingModel.trim() || undefined,
+      dedupeKgSurfaces: filters.dedupeKgSurfaces,
+      contentTypes:
+        !shell.hasNews ||
+        (filters.contentTypes.length === 1 && filters.contentTypes[0] === 'podcast_episode')
+          ? undefined
+          : filters.contentTypes,
+      extraParams,
+    }
+  }
+
+  function clearResults(): void {
+    results.value = []
+    apiError.value = null
+    error.value = null
+    queryType.value = null
+    for (const l of searchListeners.list()) l.onClear?.()
+    useActiveSearchContextStore().clear()
+    useGraphNavigationStore().clearLibraryEpisodeHighlights()
+  }
+
+  return {
+    query,
+    loading,
+    error,
+    apiError,
+    results,
+    filteredResults,
+    liftStats,
+    queryType,
+    filters,
+    feedFilterDisplayLabel,
+    feedFilterHandoffPristine,
+    applyLibrarySearchHandoff,
+    commitFeedFilterUiInput,
+    runSearch,
+    clearResults,
+    requestOptions,
+    activeOperator,
+  }
+})

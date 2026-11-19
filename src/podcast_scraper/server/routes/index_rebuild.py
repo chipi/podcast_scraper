@@ -69,7 +69,16 @@ def _spawn_rebuild_thread(
             vector_embedding_model=vector_embedding_model,
             vector_index_types=vector_index_types,
         )
-        index_corpus(output_dir, cfg, rebuild=rebuild)
+        stats = index_corpus(output_dir, cfg, rebuild=rebuild)
+        # index_corpus reports a failed build in stats.errors instead of raising (its two-tier
+        # build catches); without this the panel showed "No index built yet" and no reason.
+        build_errors = list(getattr(stats, "errors", None) or [])
+        if build_errors:
+            logger.error(
+                "Background index rebuild failed for %s: %s", corpus_key, "; ".join(build_errors)
+            )
+            err = "; ".join(build_errors)
+            return
         # Build topic_clusters.json off the just-built LanceDB index (reads search/lance_index);
         # a no-op when no installed extension provides themes.
         from podcast_scraper.search.groupings import build_topic_clusters_for_corpus

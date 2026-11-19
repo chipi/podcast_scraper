@@ -165,7 +165,7 @@ Use the diff to map **changed source** to **docs that may need updating**:
 | Server routes (`server/routes/`) | [Server Guide](SERVER_GUIDE.md), relevant RFCs |
 | Breaking behavior | [MIGRATION_GUIDE](../api/MIGRATION_GUIDE.md), [VERSIONING](../api/VERSIONING.md) |
 | Pipeline / workflow modules | [ARCHITECTURE](../architecture/ARCHITECTURE.md), [Platform blueprint](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md) |
-| Viewer (`web/gi-kg-viewer/`) | `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`, UXS docs in `docs/uxs/` |
+| Viewer (`web/workbench/`) | `web/workbench/e2e/E2E_SURFACE_MAP.md`, UXS docs in `docs/uxs/` |
 | `mkdocs.yml` or new/moved pages | Verify nav entries; `make docs` catches missing pages |
 
 **Agent hint:** Run `git diff --name-only vPREVIOUS..HEAD -- src/` to get the file list, then match

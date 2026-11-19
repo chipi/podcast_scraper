@@ -78,7 +78,7 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
     parser = argparse.ArgumentParser(
         prog="podcast serve",
         description=(
-            "Run the GI/KG viewer HTTP API (use pip install -e '.[dev]' or matching pins from "
+            "Run the Workbench HTTP API (use pip install -e '.[dev]' or matching pins from "
             "docker/api/Dockerfile)."
         ),
     )
@@ -115,7 +115,7 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--no-static",
         action="store_true",
-        help="Do not mount built SPA assets from web/gi-kg-viewer/dist even if present.",
+        help="Do not mount built SPA assets from web/workbench/dist even if present.",
     )
     parser.add_argument(
         "--enable-feeds-api",

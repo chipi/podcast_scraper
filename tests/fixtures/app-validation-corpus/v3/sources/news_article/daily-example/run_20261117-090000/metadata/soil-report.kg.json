@@ -1,0 +1,96 @@
+{
+  "schema_version": "3.0",
+  "item_id": "item:news_article:6f5ab0dc6a7c03409dbf",
+  "content_type": "news_article",
+  "extraction": {
+    "model_version": "metadata_only",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "document_ref": "transcripts/soil-report.txt",
+    "variant": "raw"
+  },
+  "nodes": [
+    {
+      "id": "source:125361805bbcfcb84b90",
+      "type": "Source",
+      "properties": {
+        "title": "Daily Example",
+        "source_kind": "news",
+        "transport": "rss",
+        "url": "https://www.dailyexample.test/feed.xml"
+      }
+    },
+    {
+      "id": "item:news_article:6f5ab0dc6a7c03409dbf",
+      "type": "ContentItem",
+      "properties": {
+        "title": "Soil report finds erosion slowing",
+        "content_type": "news_article",
+        "source_id": "source:125361805bbcfcb84b90",
+        "url": "https://www.dailyexample.test/2026/11/soil-report",
+        "published_at": "2026-11-16T12:00:00Z"
+      }
+    },
+    {
+      "id": "org:daily-example",
+      "type": "Organization",
+      "properties": {
+        "name": "Daily Example"
+      }
+    },
+    {
+      "id": "topic:soil-erosion",
+      "type": "Topic",
+      "properties": {
+        "label": "Soil Erosion",
+        "slug": "soil-erosion"
+      }
+    },
+    {
+      "id": "person:ana-example",
+      "type": "Person",
+      "properties": {
+        "name": "Ana Example"
+      }
+    },
+    {
+      "id": "person:cy-example",
+      "type": "Person",
+      "properties": {
+        "name": "Cy Example"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_ITEM",
+      "from": "source:125361805bbcfcb84b90",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf"
+    },
+    {
+      "type": "PUBLISHED_BY",
+      "from": "source:125361805bbcfcb84b90",
+      "to": "org:daily-example"
+    },
+    {
+      "type": "MENTIONS",
+      "from": "topic:soil-erosion",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf"
+    },
+    {
+      "type": "PARTICIPATES_IN",
+      "from": "person:ana-example",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf",
+      "properties": {
+        "role": "author"
+      }
+    },
+    {
+      "type": "PARTICIPATES_IN",
+      "from": "person:cy-example",
+      "to": "item:news_article:6f5ab0dc6a7c03409dbf",
+      "properties": {
+        "role": "author"
+      }
+    }
+  ]
+}

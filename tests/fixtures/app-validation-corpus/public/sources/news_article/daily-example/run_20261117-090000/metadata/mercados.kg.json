@@ -1,0 +1,81 @@
+{
+  "content_type": "news_article",
+  "edges": [
+    {
+      "from": "source:125361805bbcfcb84b90",
+      "to": "item:news_article:b626e4b9538458cb6235",
+      "type": "HAS_ITEM"
+    },
+    {
+      "from": "source:125361805bbcfcb84b90",
+      "to": "org:daily-example",
+      "type": "PUBLISHED_BY"
+    },
+    {
+      "from": "topic:risk-management",
+      "to": "item:news_article:b626e4b9538458cb6235",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "person:dora-ejemplo",
+      "properties": {
+        "role": "author"
+      },
+      "to": "item:news_article:b626e4b9538458cb6235",
+      "type": "PARTICIPATES_IN"
+    }
+  ],
+  "extraction": {
+    "document_ref": "transcripts/mercados.txt",
+    "extracted_at": "2026-11-17T09:00:00Z",
+    "model_version": "metadata_only",
+    "variant": "raw"
+  },
+  "item_id": "item:news_article:b626e4b9538458cb6235",
+  "nodes": [
+    {
+      "id": "source:125361805bbcfcb84b90",
+      "properties": {
+        "source_kind": "news",
+        "title": "Daily Example",
+        "transport": "rss",
+        "url": "https://www.dailyexample.test/feed.xml"
+      },
+      "type": "Source"
+    },
+    {
+      "id": "item:news_article:b626e4b9538458cb6235",
+      "properties": {
+        "content_type": "news_article",
+        "published_at": "2026-11-15T09:00:00Z",
+        "source_id": "source:125361805bbcfcb84b90",
+        "title": "Los mercados y la gestión del riesgo",
+        "url": "https://www.dailyexample.test/es/2026/11/mercados"
+      },
+      "type": "ContentItem"
+    },
+    {
+      "id": "org:daily-example",
+      "properties": {
+        "name": "Daily Example"
+      },
+      "type": "Organization"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "Risk Management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:dora-ejemplo",
+      "properties": {
+        "name": "Dora Ejemplo"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "3.0"
+}

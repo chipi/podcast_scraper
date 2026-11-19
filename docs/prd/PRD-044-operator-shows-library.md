@@ -2,8 +2,8 @@
 
 **Status:** Draft
 **Related:** UXS-003 (operator Library, episode-first),
-UXS-015 (this feature), RFC-104 (this feature), [VIEWER_IA](../uxs/VIEWER_IA.md)
-**Surfaces:** `web/gi-kg-viewer` (operator viewer) — the `library` main tab
+UXS-015 (this feature), RFC-104 (this feature), [WORKBENCH_IA](../uxs/WORKBENCH_IA.md)
+**Surfaces:** `web/workbench` (operator viewer) — the `library` main tab
 
 ---
 
@@ -138,5 +138,5 @@ No new endpoints. Reuses:
 ## References
 
 - UXS-003 (operator Library), UXS-015 + RFC-104 (this feature)
-- [VIEWER_IA](../uxs/VIEWER_IA.md) — operator shell IA
+- [WORKBENCH_IA](../uxs/WORKBENCH_IA.md) — operator shell IA
 - `corpusLibraryApi.ts` (`fetchCorpusFeeds`, `fetchCorpusEpisodes`) · `PodcastCover.vue`

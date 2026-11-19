@@ -39,8 +39,8 @@ FIXTURES_VERSION ?= $(shell cat tests/fixtures/FIXTURES_VERSION 2>/dev/null | tr
 # PYTHONUNBUFFERED on fast pytest lines reduces line buffering in IDE/agent terminals.
 PYTEST_PROGRESS_OPTS := -o console_output_style=classic
 
-# GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
-WEB_VIEWER_DIR ?= web/gi-kg-viewer
+# Workbench (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
+WEB_VIEWER_DIR ?= web/workbench
 
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: gates-changed regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure llms-txt llms-txt-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-kg-schema kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict upgrade-undo-roles
+.PHONY: gates-changed ci-local regen-fixtures withdraw-language profiles-materialize profiles-check check-doc-structure llms-txt llms-txt-check help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-kg-schema kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer verify-gil-offsets-strict upgrade-undo-roles
 
 help:
 	@echo "Common developer commands:"
@@ -145,6 +145,7 @@ help:
 	@echo "Test commands:"
 	@echo "  make test-db-up           Start the local postgres:18 the tests need; prints PODCAST_TEST_DATABASE_URL to export"
 	@echo "  make test-db-down         Remove that test database container (this checkout's only)"
+	@echo "  make ci-local             Unit, integration and e2e as GitHub CI runs them (SUITES=unit|integration|e2e|all); last line CI-LOCAL: PASS|FAIL"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
 	@echo "  make test-unit-dev-venv   Unit tests inside $(VENVDEV) (run venv-dev-init first; true CI parity)"
@@ -216,16 +217,16 @@ help:
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
 	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
 	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
-	@echo "  make stack-build        Docker stack (production base, no mock-feeds): build viewer + api + pipeline images"
+	@echo "  make stack-build        Docker stack (production base, no mock-feeds): build workbench + api + pipeline images"
 	@echo "  make stack-build-llm    Docker stack: also build pipeline-llm (INSTALL_EXTRAS=llm)"
-	@echo "  make stack-up           Docker stack: start viewer + api (VIEWER_PORT=8080); pipeline jobs spawn via API factory"
+	@echo "  make stack-up           Docker stack: start workbench + api (VIEWER_PORT=8080); pipeline jobs spawn via API factory"
 	@echo "  make stack-down         Docker stack: stop stack (REMOVE_VOLUMES=1 runs compose down -v)"
-	@echo "  make stack-logs         Docker stack: follow viewer + api logs"
+	@echo "  make stack-logs         Docker stack: follow workbench + api logs"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
 	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
-	@echo "  make stack-test-build       Stack-test: build api + viewer + pipeline (airgapped/ml) images"
+	@echo "  make stack-test-build       Stack-test: build api + workbench + pipeline (airgapped/ml) images"
 	@echo "  make stack-test-build-cloud Stack-test: also build pipeline-llm ([llm] extras for cloud-thin runs — local only)"
-	@echo "  make stack-test-up          Stack-test: bring up api + viewer + mock-feeds (sources .env if present)"
+	@echo "  make stack-test-up          Stack-test: bring up api + workbench + mock-feeds (sources .env if present)"
 	@echo "  make stack-test-seed        Stack-test: seed corpus_data volume with feeds.spec.yaml + viewer_operator.yaml (STACK_TEST_OPERATOR_VARIANT=ml|cloud-thin)"
 	@echo "  make stack-test-playwright  Stack-test: run Playwright (smoke + full UI flow; STACK_TEST_OPERATOR_PROFILE=cloud_thin for llm runs)"
 	@echo "  make stack-test-ml          Stack-test (one-shot): ml pipeline — build → up → seed → Playwright (airgapped_thin)"
@@ -760,7 +761,7 @@ validate-kg-schema:
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
 
-# GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
+# Workbench (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
 SERVE_OUTPUT_DIR ?= ./output
 # serve-api bind — DEFAULT 0.0.0.0:8000 so `make serve` "just works" for off-box dev:
@@ -790,10 +791,13 @@ serve-api:
 	@# sign-in work out of the box (also required to exercise personalization). serve-api is local-only
 	@# (prod runs via compose/stack with a real provider), so the mock default is safe here. Override
 	@# any of these env vars to disable or point elsewhere; NEVER use the mock provider outside dev.
+	@# APP_ALLOWED_DOMAINS: the sign-in allowlist defaults to empty, so without it every mock user
+	@# (<hint>@e2e.local, dev@localhost) got 403. Both domains are dev-only; no real account has them.
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && export KMP_DUPLICATE_LIB_OK=$${KMP_DUPLICATE_LIB_OK:-TRUE} && \
 		export APP_OAUTH_PROVIDER=$${APP_OAUTH_PROVIDER:-mock} && \
 		export APP_SESSION_SECRET=$${APP_SESSION_SECRET:-dev-secret} && \
 		export APP_ADMIN_EMAILS=$${APP_ADMIN_EMAILS:-dev@localhost} && \
+		export APP_ALLOWED_DOMAINS=$${APP_ALLOWED_DOMAINS:-e2e.local,localhost} && \
 		export APP_SEED_USERS_FILE=$${APP_SEED_USERS_FILE:-config/dev-seed-users.json} && \
 		if [ -f .env.obs.dev ]; then set -a; . ./.env.obs.dev; set +a; echo "[obs] streaming to homelab as environment=dev instance=$(notdir $(CURDIR))-$${PODCAST_OBS_PORT:-8000}"; fi && \
 		export PODCAST_OBS_PORT=$${PODCAST_OBS_PORT:-8000} && \
@@ -801,7 +805,8 @@ serve-api:
 			$(PYTHON) -m $(PACKAGE).cli serve --host "$(SERVE_HOST)" --port "$(SERVE_PORT)" --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
-	@cd $(WEB_VIEWER_DIR) && npm run dev
+	@# The corpus path the API serves (make serve), unless the shell already set one.
+	@cd $(WEB_VIEWER_DIR) && VITE_DEFAULT_CORPUS_PATH="$${VITE_DEFAULT_CORPUS_PATH:-$(abspath $(SERVE_OUTPUT_DIR))}" npm run dev
 
 # --- Local MCP servers (#56) — stdio, auth-free (local trust), for an MCP client to SPAWN. ---
 # These are what `.mcp.json` invokes, so Claude Code/Desktop just connects with zero config against
@@ -866,7 +871,7 @@ stack-down:
 	@if [ -n "$(REMOVE_VOLUMES)" ]; then $(STACK_COMPOSE) down -v; else $(STACK_COMPOSE) down; fi
 
 stack-logs:
-	@$(STACK_COMPOSE) logs -f viewer api
+	@$(STACK_COMPOSE) logs -f workbench api
 
 stack-test-build:
 	@# ``--profile pipeline`` is required: the ``pipeline`` service has
@@ -1335,12 +1340,12 @@ enrich-viewer-fixture:
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
-	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
+	@echo "Vitest unit tests + coverage gate (Workbench, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
-# Playwright browser E2E: Chrome locally, Firefox under CI (playwright.config.ts).
+# Playwright browser E2E: Firefox (playwright.config.ts), against a real API and the test database.
 test-ui-e2e:
-	@echo "Playwright E2E (gi-kg-viewer)..."
+	@echo "Playwright E2E (Workbench)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
 
 # API image the e2e run-local-stack scripts expect (#1619). Nothing built this before, so
@@ -1360,7 +1365,7 @@ e2e-api-image:
 # DISPOSABLE COPY of the fixture corpus (the operator plane writes into whatever corpus it is
 # given), so this leaves the tracked fixture untouched.
 test-ui-e2e-live: e2e-api-image
-	@echo "Playwright E2E (gi-kg-viewer) against the fixture-bootstrapped API..."
+	@echo "Playwright E2E (Workbench) against the fixture-bootstrapped API..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox
 	@$(WEB_VIEWER_DIR)/e2e/run-local-stack.sh
 
@@ -2381,7 +2386,7 @@ ci-ui-validation:
 	# Usage: ``make ci-ui-validation CORPUS=/path/to/corpus``
 	#
 	# Per RFC-086 institutional rule: bugs surfaced here must land a
-	# Tier-2 matrix row under web/gi-kg-viewer/e2e/handoff-production/
+	# Tier-2 matrix row under web/workbench/e2e/handoff-production/
 	# that reproduces them before the fix PR merges.
 	@if [ -z "$(CORPUS)" ]; then \
 		echo "ERROR: set CORPUS=/abs/path/to/corpus"; \
@@ -2398,7 +2403,7 @@ ci-ui-validation:
 	fi
 	@echo "=== ci-ui-validation against $(CORPUS) ==="
 	@echo "Requires ``make serve`` (or ``make serve-for-validation``) running in another terminal."
-	cd web/gi-kg-viewer && \
+	cd web/workbench && \
 		CORPUS_PATH=$(CORPUS) \
 		node_modules/.bin/playwright test --config playwright.validation.config.ts
 
@@ -2901,6 +2906,12 @@ regen-fixtures:
 
 gates-changed:
 	@scripts/tools/gates_changed.sh $(if $(filter 1,$(STAGED)),--staged,$(if $(SINCE),--since $(SINCE),))
+
+# Public's Python suites as GitHub CI runs them (python-app.yml test-unit / test-integration /
+# test-e2e flags, .venv, this checkout's postgres:18). SUITES=unit|integration|e2e|all (default all).
+# Last line CI-LOCAL: PASS|FAIL. Optional (ci-fast is the pre-push check): reproduces main's full CI.
+ci-local:
+	@scripts/tools/ci_local.sh $(or $(SUITES),all)
 
 validate-files:
 	@# Validate changed files: lint/format + run only impacted tests

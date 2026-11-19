@@ -20,7 +20,7 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 REPO = Path(__file__).resolve().parents[3]
-VIEWER_NGINX_CONF = REPO / "docker" / "viewer" / "default.conf.template"
+VIEWER_NGINX_CONF = REPO / "docker" / "workbench" / "default.conf.template"
 SHELL_SCRIPTS = [
     REPO / "docker" / "secrets-shim.sh",
 ]
@@ -86,12 +86,12 @@ def test_viewer_dsn_is_injected_at_container_start() -> None:
     # not from a CI build-arg: nginx's envsubst renders it into index.html, main.ts reads it.
     conf = VIEWER_NGINX_CONF.read_text()
     assert 'window.__PODCAST_SENTRY_DSN_VIEWER__="${PODCAST_SENTRY_DSN_VIEWER}"' in conf
-    dockerfile = (REPO / "docker" / "viewer" / "Dockerfile").read_text()
+    dockerfile = (REPO / "docker" / "workbench" / "Dockerfile").read_text()
     assert "ENV PODCAST_SENTRY_DSN_VIEWER=" in dockerfile, "empty default, so envsubst renders ''"
     assert (
         "ENV NGINX_ENVSUBST_FILTER=^PODCAST_" in dockerfile
     ), "the PODCAST_ var must be substituted"
-    main_ts = (REPO / "web" / "gi-kg-viewer" / "src" / "main.ts").read_text()
+    main_ts = (REPO / "web" / "workbench" / "src" / "main.ts").read_text()
     assert "__PODCAST_SENTRY_DSN_VIEWER__" in main_ts
     stack_test = (REPO / ".github" / "workflows" / "stack-test.yml").read_text()
     assert "VITE_SENTRY_DSN_VIEWER" not in stack_test, "CI must not bake a viewer DSN"

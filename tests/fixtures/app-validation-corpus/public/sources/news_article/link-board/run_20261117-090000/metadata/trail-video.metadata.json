@@ -1,0 +1,25 @@
+{
+  "body_sha256": "2fe606c502d50fbe70b6f15d3af20e01cfd8dff4df4e1da671a2ff16e8bf41ce",
+  "content_type": "news_article",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "item_id": "item:news_article:10f6e9ad61532e120b60",
+  "language": "en",
+  "licence": null,
+  "mineable": true,
+  "news_article": {
+    "byline": [],
+    "byline_raw": null,
+    "editorial_type": null,
+    "text_status": "video",
+    "transport_ids": {
+      "api": "trail-video"
+    }
+  },
+  "paywalled": null,
+  "published_at": "2026-11-14T18:00:00Z",
+  "serveable": "metadata",
+  "source_id": "source:8c47148ce1eea59a43d1",
+  "title": "Trail building, in pictures",
+  "url": "https://nowhere.test/videos/trail-building"
+}

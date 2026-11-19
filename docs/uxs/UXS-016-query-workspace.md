@@ -2,7 +2,7 @@
 
 - **Status**: Draft
 - **Authors**: Podcast Scraper Team
-- **Parent UXS**: [UXS-001: GI/KG Viewer](UXS-001-gi-kg-viewer.md) — shared tokens, typography, layout, states
+- **Parent UXS**: [UXS-001: Workbench](UXS-001-workbench.md) — shared tokens, typography, layout, states
 - **Related PRDs**:
   - [PRD-045: Search v3 — Query Workspace](../prd/PRD-045-search-v3-query-workspace.md)
 - **Related RFCs**:
@@ -15,9 +15,21 @@
   - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — saved-queries persistence
 - **Related UX specs**:
   - [UXS-005](UXS-005-semantic-search.md) — retains compact-launcher role after Workspace lands
-- **Shell IA**: [VIEWER_IA.md](VIEWER_IA.md) — Search as 5th main tab
+- **Shell IA**: [WORKBENCH_IA.md](WORKBENCH_IA.md) — Search as 5th main tab
 
 ---
+
+**Where it renders (2026-11-17).** The Workbench draws the Search tab, the query field, the filter chips (Since, Top-k, Doc types, Topic, Speaker, More), the intent chip, the **Timeline** and **On graph** operators (`ResultSetOperatorBar.vue`), result cards with the tier badge, and the Saved and Recent sections in the left column (`LeftPanel.vue:62-107`).
+
+Slots that only a registered extension fills:
+
+- Extra operators such as **Compare**: `searchOperators` (`ResultSetOperatorBar.vue:41-51`). The viewer's own are Timeline (order 10) and graph (20). No `build_briefing_pack` use is in `web/workbench/src`.
+- Extra chips such as Min confidence and Grounded only: `searchFilterChips` (`SearchFilterBar.vue:69`).
+- The `+ insight` badge, the Lifted GI insight region and supporting quotes: `resultCardBadges`, `resultCardSections` (`ResultCard.vue:236,282`).
+- The evidence toggle and lift line (`results-header`), and `header` / `above-results` sections: `searchPanelSections` (`SearchPanel.vue:350,576,599`).
+- Extra doc types: `searchDocTypes`.
+
+Removed from public: the **Explore** mode (`stores/shell.ts:38-48`); its filters are the chips above. Not found in `web/workbench/src`: the ids `rail-search-in-*`, `episode-inline-search-*`, `workspace-*`, `search-op-*` (the built operators use `operator-chip-*`). The private viewer draws `rail-search-in-*` and `workspace-*` (Studio main `afbff8e`); `search-op-*` and `episode-inline-search-*` are in neither repo, so those parts of this spec differ from the code. Without extensions, the slots above are absent.
 
 ## Summary
 
@@ -29,7 +41,7 @@ Detail per-surface is in [UXS-005](UXS-005-semantic-search.md) (**Revised in §S
 
 ## Placement
 
-Full-width main area (`w-full`, no `w-72` constraint). Right subject rail persistence rule from VIEWER_IA.md holds: opening the Search tab does NOT clear the current subject. Subject rail sits to the right of the Workspace as on any other main tab.
+Full-width main area (`w-full`, no `w-72` constraint). Right subject rail persistence rule from WORKBENCH_IA.md holds: opening the Search tab does NOT clear the current subject. Subject rail sits to the right of the Workspace as on any other main tab.
 
 **Revised in §S4-shell (2026-07-20):** The LeftPanel is **visible on ALL main tabs** (Digest / Library / Search / Graph / Dashboard). On the Search tab, it hosts the Saved + Recent query sections (collapsible right-edge pattern, §Sidebar below). On other tabs, it remains visible for these sections, supporting the compact-launcher patterns those tabs use — see UXS-005 for the launcher integration. The compact SearchPanel launcher that previously occupied the LeftPanel on non-Search tabs has been retired; all query surfaces now route through the Workspace (Search tab) or the Cmd-K palette.
 
@@ -178,7 +190,7 @@ Inherits UXS-001 tokens. New surface-level rules:
 
 ## E2E contract
 
-New visible labels and selectors require updates to [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) before or with implementation. Key surfaces:
+New visible labels and selectors require updates to [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md) before or with implementation. Key surfaces:
 
 - `SearchTab.vue` (`workspace-root`)
 - Header (`workspace-header`, `search-query-type`, `search-filter-bar`, `search-chip-*`)
@@ -188,9 +200,9 @@ New visible labels and selectors require updates to [E2E surface map](https://gi
 - Rail launchers (`rail-search-in-episode`, `-topic`, `-person`, `-show`, `-selection`)
 - In-episode search (`episode-inline-search-field`, `episode-inline-search-results`)
 
-Retired (was UXS-005 / VIEWER_IA §Left panel): `left-panel-enter-explore`, `left-panel-back-search`.
+Retired (was UXS-005 / WORKBENCH_IA §Left panel): `left-panel-enter-explore`, `left-panel-back-search`.
 
-**As built (checked against `web/gi-kg-viewer/src`, 2026-10-05).** The list above is the
+**As built (checked against `web/workbench/src`, 2026-10-05).** The list above is the
 Draft's planned names; what shipped differs, and Playwright targets the shipped names:
 
 | Planned | Shipped |
@@ -206,7 +218,7 @@ Draft's planned names; what shipped differs, and Playwright targets the shipped 
 | `episode-inline-search-field` / `-results` | **not built** |
 | `workspace-no-corpus` card | **not built as a card**: a muted line in `SearchPanel.vue` ("Set corpus path in the status bar to enable search."), no testid |
 
-Playwright coverage: per-surface Tier-1 mocked specs + Tier-2 production-shaped specs (RFC-107 §T1); Tier-3 real-corpus spec `web/gi-kg-viewer/e2e/validation/search-real-corpus.spec.ts`.
+Playwright coverage: per-surface Tier-1 mocked specs + Tier-2 production-shaped specs (RFC-107 §T1); Tier-3 real-corpus spec `web/workbench/e2e/validation/search-real-corpus.spec.ts`.
 
 ---
 

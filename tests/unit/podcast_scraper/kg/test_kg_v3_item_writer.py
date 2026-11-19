@@ -87,3 +87,31 @@ def test_a_v2_shape_v3_has_no_place_for_is_refused() -> None:
     v2_payload["edges"].append({"type": "SPOKE_IN", "from": "person:a", "to": ITEM})
     with pytest.raises(v3.V3MappingError, match="SPOKE_IN"):
         _v3(v2_payload)
+
+
+@pytest.mark.parametrize(
+    ("node_type", "node_id", "respelled_from", "valid"),
+    [
+        ("Person", "person:ana-lopez", "Ana Lópes", True),
+        ("Person", "person:ana-lopez", "", False),
+        ("Organization", "org:acme", "Acme Inc", False),
+    ],
+)
+def test_respelled_from_is_a_person_property(
+    node_type: str, node_id: str, respelled_from: str, valid: bool
+) -> None:
+    """0041 writes ``respelled_from`` on a Person whose name it respelled for display; the identity
+    ledger reads it, so KG 3.0 keeps it (R3b's exit check: no identity join moves)."""
+    art = _v3(_v2())
+    art["nodes"].append(
+        {
+            "id": node_id,
+            "type": node_type,
+            "properties": {"name": "Ana López", "respelled_from": respelled_from},
+        }
+    )
+    if valid:
+        validate_artifact(art, strict=True)
+    else:
+        with pytest.raises(ValueError, match="schema validation failed"):
+            validate_artifact(art, strict=True)

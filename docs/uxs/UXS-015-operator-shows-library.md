@@ -1,13 +1,15 @@
 # UXS-015: Operator Shows Library (shows-first browse)
 
 - **Status**: Active
-- **Surface:** `web/gi-kg-viewer` — `library` tab, **Shows** mode
-- **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator shared design system — tokens, type, density),
+- **Surface:** `web/workbench` — `library` tab, **Shows** mode
+- **Inherits:** [UXS-001](UXS-001-workbench.md) (operator shared design system — tokens, type, density),
   [UXS-003](UXS-003-corpus-library.md) (episode-first Library — episode-row contract)
 - **PRD/RFC:** [PRD-044](../prd/PRD-044-operator-shows-library.md) · [RFC-104](../rfc/RFC-104-operator-shows-library.md)
 
 This UXS owns the **static visual contract** (layout grid, card appearance, tokens, states, a11y).
 Behavioral rules (fetch strategy, state machine, cross-link) live in RFC-104.
+
+**Where it renders (2026-11-17).** The Workbench draws the shows grid, the show detail and the **Signals band** (`show-rail-signals`, `show-rail-topic`, `show-rail-person`; `ShowRailPanel.vue:333,429,447`). Two slots only a registered extension fills: `showRailSections` region `signals` (extra signals in the band, which shows for a show whose signals have registered content; `ShowRailPanel.vue:98-102,337`) and region `episode-row` (under each episode row; `ShowRailPanel.vue:553`). What the private viewer puts there: not checked. Without extensions both are absent.
 
 ## Scope
 

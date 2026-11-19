@@ -1,0 +1,29 @@
+{
+  "body_sha256": "66d7c26281c22727be74b45403bb4a43e5c0bb0e9b978fea6a95c98ffce429e0",
+  "content_type": "news_article",
+  "fetched_at": "2026-11-17T09:00:00Z",
+  "ingested_at": "2026-11-17T09:00:00Z",
+  "item_id": "item:news_article:a8d6e89ce92ef7521ed5",
+  "language": "en",
+  "licence": null,
+  "mineable": true,
+  "news_article": {
+    "byline": [
+      "Ana Example"
+    ],
+    "byline_raw": "Ana Example",
+    "editorial_type": "analysis",
+    "text_status": "full",
+    "transport_ids": {
+      "rss": "risk-desks"
+    }
+  },
+  "paywalled": false,
+  "published_at": "2026-11-17T07:30:00Z",
+  "publisher_id": "org:daily-example",
+  "serveable": "summary",
+  "source_id": "source:125361805bbcfcb84b90",
+  "summary": "Trading desks say the hard part of risk management is behavioural, not maths.",
+  "title": "Risk desks learn to sit still",
+  "url": "https://www.dailyexample.test/2026/11/risk-desks-learn-to-sit-still"
+}

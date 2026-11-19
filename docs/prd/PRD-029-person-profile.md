@@ -20,7 +20,7 @@
 - **Related UX specs**:
   - `docs/uxs/UXS-010-person-profile.md` -- visual contract for Person
     Profile panel layout and degradation states
-  - `docs/uxs/UXS-001-gi-kg-viewer.md` -- shared design system (tokens, typography,
+  - `docs/uxs/UXS-001-workbench.md` -- shared design system (tokens, typography,
     states)
 - **Related Architecture**:
   - `docs/architecture/gi/ontology.md`

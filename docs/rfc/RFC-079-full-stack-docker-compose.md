@@ -11,7 +11,7 @@
   - Stack implementation (Phase 1): [GitHub #659](https://github.com/chipi/podcast_scraper/issues/659)
   - Jobs API ↔ Docker pipeline execution (Phase 2): [GitHub #660](https://github.com/chipi/podcast_scraper/issues/660)
   - **#659** and **#660** both implement **this RFC (RFC-079)**. [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md) **documents** smoke acceptance on top of this stack; **GitHub issues for that smoke work are not opened yet** (RFCs are not the task tracker).
-- **Implementation (Phase 1 / #659):** `compose/docker-compose.stack.yml`, `docker/viewer/` (Nginx + Vue build),
+- **Implementation (Phase 1 / #659):** `compose/docker-compose.stack.yml`, `docker/workbench/` (Nginx + Vue build),
   `docker/api/` (FastAPI serve), Makefile `stack-*` targets, `config/examples/docker-stack.example.yaml`,
   and **Full stack (RFC-079)** in `docs/guides/DOCKER_SERVICE_GUIDE.md`. Acceptance: build, `up -d`,
   `curl …/api/health` via Nginx, `compose run pipeline` with `CONFIG_FILE` + `output_dir: /app/output`.
@@ -67,7 +67,7 @@ This works for local dev but has no path to deployment:
 4. **Production-grade Nginx**: serves pre-built Vue SPA, reverse-proxies `/api/*` to FastAPI,
    handles static caching headers, gzip, and SPA fallback routing
 5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile)) with minimal changes
-6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
+6. **New Dockerfiles** under `docker/api/` and `docker/workbench/` for API (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
 7. **Health checks** on all long-running containers
 8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses stack-test overlay + an optional production overlay (see OQ2).
 9. **Document and track** the gap between viewer-triggered jobs and the `pipeline` service,
@@ -90,7 +90,7 @@ This works for local dev but has no path to deployment:
   `faiss-cpu`, and `sentence-transformers` (CPU torch). Full Whisper/spaCy/llama-cpp remains on
   the **pipeline** image. See `docker/api/Dockerfile` and `docs/guides/DOCKER_SERVICE_GUIDE.md`.
 - The Vue viewer builds successfully with `npm run build` (produces `dist/`)
-- The FastAPI server already mounts `StaticFiles` from `web/gi-kg-viewer/dist` when
+- The FastAPI server already mounts `StaticFiles` from `web/workbench/dist` when
   available, but in this topology Nginx handles static serving and the API runs
   with `--no-static`
 - A future phase will add a database; the volume-based design accommodates that migration
@@ -127,22 +127,22 @@ This works for local dev but has no path to deployment:
 
 Multi-stage build: Node stage builds the Vue app, Nginx stage serves it.
 
-**`docker/viewer/Dockerfile`:**
+**`docker/workbench/Dockerfile`:**
 
 ```dockerfile
 # ── Build stage ──────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
 WORKDIR /build
-COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
+COPY web/workbench/package.json web/workbench/package-lock.json ./
 RUN npm ci
-COPY web/gi-kg-viewer/ ./
+COPY web/workbench/ ./
 RUN npm run build
 
 # ── Serve stage ──────────────────────────────────────────────
 FROM nginx:1.27-alpine
 
-COPY docker/viewer/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/workbench/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /build/dist /usr/share/nginx/html
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
@@ -151,7 +151,7 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
 EXPOSE 80
 ```
 
-**`docker/viewer/nginx.conf`:**
+**`docker/workbench/nginx.conf`:**
 
 ```nginx
 upstream api {
@@ -249,7 +249,7 @@ services:
   viewer:
     build:
       context: ..
-      dockerfile: docker/viewer/Dockerfile
+      dockerfile: docker/workbench/Dockerfile
     ports:
       - "${VIEWER_PORT:-8080}:80"
     depends_on:
@@ -334,7 +334,7 @@ volumes:
 ```text
 docker/
   viewer/
-    Dockerfile          # Multi-stage: Node build + Nginx serve (under docker/viewer/)
+    Dockerfile          # Multi-stage: Node build + Nginx serve (under docker/workbench/)
     nginx.conf          # Reverse proxy + SPA fallback
   api/
     Dockerfile          # Slim FastAPI server (no ML) — under docker/api/
@@ -514,7 +514,7 @@ Design alternatives evaluated during planning (historical context only):
 
 ## Rollout
 
-1. **Phase 1a** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Create `docker/viewer/Dockerfile`, `docker/viewer/nginx.conf`,
+1. **Phase 1a** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Create `docker/workbench/Dockerfile`, `docker/workbench/nginx.conf`,
    `docker/api/Dockerfile`, `compose/docker-compose.stack.yml`. Validate locally with
    `stack-up` and manual browser test; validate `docker compose run` for `pipeline`.
 2. **Jobs / Docker** — **[#660](https://github.com/chipi/podcast_scraper/issues/660):** Implemented Option B — `pipeline_docker_factory` + host socket + `docker compose run`; native subprocess unchanged (see §Native vs Docker).
@@ -581,7 +581,7 @@ Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_
 
 | Topic | Source of truth |
 | ----- | ---------------- |
-| Stack compose + images | [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml), [`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile), [`docker/api/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/api/Dockerfile), [`docker/viewer/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/viewer/Dockerfile) |
+| Stack compose + images | [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml), [`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile), [`docker/api/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/api/Dockerfile), [`docker/workbench/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/workbench/Dockerfile) |
 | Makefile targets | `Makefile` (`stack-*`, `smoke-*`, `verify-stack-profiles`) |
 | Secrets / `.env` | [`DOCKER_SERVICE_GUIDE.md` § Secrets Management](../guides/DOCKER_SERVICE_GUIDE.md#secrets-management) |
 | Native vs Docker jobs | [§Native vs Docker](#native-vs-docker); [#660](https://github.com/chipi/podcast_scraper/issues/660) |

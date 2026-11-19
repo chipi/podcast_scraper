@@ -17,8 +17,8 @@
   - [RFC-065](RFC-065-live-pipeline-monitor.md) — **CLI** monitor only; not authoritative for HTTP jobs
   - [RFC-007](RFC-007-cli-interface.md)
 - **Related UX specs**:
-  - [VIEWER_IA.md](../uxs/VIEWER_IA.md)
-  - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+  - [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md)
+  - [UXS-001](../uxs/UXS-001-workbench.md)
   - [UXS-006](../uxs/UXS-006-dashboard.md)
 - **Related Documents**:
   - [SERVER_GUIDE.md](../guides/SERVER_GUIDE.md)
@@ -195,7 +195,7 @@ Optional bridge: child pipeline may still emit `.pipeline_status.json`; server *
 
 ## Documentation deliverables
 
-**Phase 1a:** SERVER_GUIDE (feeds), VIEWER_IA, UXS-001 (Feeds).
+**Phase 1a:** SERVER_GUIDE (feeds), WORKBENCH_IA, UXS-001 (Feeds).
 
 **Phase 1b:** SERVER_GUIDE (operator-config path rules, forbidden keys), UXS-001 (tabs / Config editor).
 

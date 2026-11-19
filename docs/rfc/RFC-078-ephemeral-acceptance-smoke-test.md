@@ -84,7 +84,7 @@ undetected and only surface during manual testing or prod deployment.
 **Assumptions:**
 
 - **RFC-079** is in place enough to run smoke: **Phase 1 (#659)** provides `compose/docker-compose.stack.yml`,
-  `docker/viewer/`, `docker/api/`, Makefile `stack-*` targets, example config. **Phase 2 (#660)**
+  `docker/workbench/`, `docker/api/`, Makefile `stack-*` targets, example config. **Phase 2 (#660)**
   completes RFC-079’s Docker job path but is not required for “pipeline one-shot + API + viewer” smoke.
   The stack-test overlay (`compose/docker-compose.stack-test.yml`) layers on top.
 - The pipeline supports local file paths as feed sources (or fixture feeds are served
@@ -612,7 +612,7 @@ RFC-079 Phase 1 has been implemented:
 
 - `compose/docker-compose.stack.yml`: viewer (Nginx) + api (FastAPI) + pipeline (profile `pipeline`).
 - `docker/pipeline/Dockerfile` (pipeline / ML / LLM runner).
-- `docker/viewer/Dockerfile` (multi-stage Node 22 + `nginx:alpine`) + `docker/viewer/nginx.conf`.
+- `docker/workbench/Dockerfile` (multi-stage Node 22 + `nginx:alpine`) + `docker/workbench/nginx.conf`.
 - `docker/api/Dockerfile` (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + CPU torch / FAISS / sentence-transformers).
 - `docker/api/entrypoint.sh` (ensures `/app/output` exists before serve).
 - `config/examples/docker-stack.example.yaml` (`output_dir: /app/output`, `dry_run: true`).

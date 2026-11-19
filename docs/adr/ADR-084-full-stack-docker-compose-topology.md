@@ -57,7 +57,7 @@ laptop development.
 
 ## Implementation Notes
 
-- **Paths**: `compose/docker-compose.stack.yml`, `docker/api/Dockerfile`, `docker/viewer/Dockerfile`,
+- **Paths**: `compose/docker-compose.stack.yml`, `docker/api/Dockerfile`, `docker/workbench/Dockerfile`,
   `docker/pipeline/Dockerfile`, `compose/docker-compose.jobs-docker.yml`
 - **Docs**: `docs/guides/DOCKER_SERVICE_GUIDE.md`
 

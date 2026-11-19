@@ -1,4 +1,4 @@
-"""FastAPI application factory for the GI/KG viewer API."""
+"""FastAPI application factory for the Workbench API."""
 
 from __future__ import annotations
 
@@ -41,6 +41,7 @@ from podcast_scraper.server.routes import (
     corpus_library,
     corpus_media,
     corpus_metrics,
+    corpus_news,
     corpus_rollback,
     corpus_text_file,
     enrichment as enrichment_route,
@@ -174,9 +175,9 @@ def _open_app_database(app: FastAPI) -> None:
 
 
 def _default_static_dir() -> Path | None:
-    """Built SPA assets under ``web/gi-kg-viewer/dist`` (repo root relative to this file)."""
+    """Built SPA assets under ``web/workbench/dist`` (repo root relative to this file)."""
     repo_root = Path(__file__).resolve().parents[3]
-    dist = repo_root / "web" / "gi-kg-viewer" / "dist"
+    dist = repo_root / "web" / "workbench" / "dist"
     return dist if dist.is_dir() else None
 
 
@@ -191,6 +192,7 @@ _OPERATOR_READ_ROUTES = (
     relational,
     query_activity,
     corpus_library,
+    corpus_news,
     corpus_binary,
     corpus_media,
     corpus_text_file,
@@ -223,6 +225,7 @@ _OPERATOR_PUBLIC_READ_ROUTES = (
     relational,
     query_activity,
     corpus_library,
+    corpus_news,
     corpus_binary,
     corpus_media,
     corpus_text_file,
@@ -948,8 +951,17 @@ def create_app(
         # SpaStaticFiles (not bare StaticFiles): serves real files as before, falls back to
         # index.html for client-routed documents (the history-mode fallback the bare mount lacked),
         # and injects per-entity OG tags for shareable entity paths so a shared link unfurls as the
-        # card (#2036). Real-asset 404s are preserved.
-        app.mount("/", SpaStaticFiles(directory=str(resolved_static), html=True), name="viewer")
+        # card (#2036). Real-asset 404s are preserved. On the operator's own server (neither public
+        # mode) the shell also carries the --output-dir corpus path, as nginx injects it deployed.
+        app.mount(
+            "/",
+            SpaStaticFiles(
+                directory=str(resolved_static),
+                html=True,
+                inject_corpus_path=not (app_only or operator_public),
+            ),
+            name="viewer",
+        )
 
     return app
 

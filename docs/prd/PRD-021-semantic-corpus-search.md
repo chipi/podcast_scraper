@@ -6,7 +6,7 @@
   - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search, FAISS Phase 1 (**Completed**; FAISS retired by RFC-090)
   - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — LanceDB-first hybrid retrieval (BM25 + dense + RRF) (**Completed**; current retrieval pipeline)
   - [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) — Qdrant / pgvector platform backends (**Superseded by RFC-090**; LanceDB replaces both)
-  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer v2 (**complete**)
+  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — Workbench (**complete**)
   - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core (**complete**; indexable KG artifacts)
   - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**complete**)
   - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection (**Draft**; orthogonal SQL-serving scope)
@@ -20,7 +20,7 @@
 - **Related UX specs**:
   - [UXS-005: Semantic Search](../uxs/UXS-005-semantic-search.md) -- search panel
     layout, advanced filters, result cards, insights modal
-  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
+  - [UXS-001: Workbench](../uxs/UXS-001-workbench.md) -- shared design system
 
 ## Summary
 

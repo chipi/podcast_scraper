@@ -70,8 +70,8 @@ REQUIRED_READMES: tuple[str, ...] = (
     "tests/fixtures/app-validation-corpus",
     "tests/stack-test",
     "web",
-    "web/gi-kg-viewer",
-    "web/gi-kg-viewer/e2e",
+    "web/workbench",
+    "web/workbench/e2e",
     "docker/mock-feeds",
 )
 

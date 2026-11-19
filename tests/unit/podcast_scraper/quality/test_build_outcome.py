@@ -98,3 +98,31 @@ def test_the_refusal_reads_the_last_verdict_not_an_earlier_one(bo, tmp_path: Pat
         tmp_path, "Verdict: GO WITH CONDITIONS (r, A), conditions elsewhere.\n\nVerdict: GO (r, B)"
     )
     assert bo.build("0099_x")["verdict"] == "GO"
+
+
+def _extension_checkout(tmp_path: Path) -> Path:
+    """Another checkout (an extension's) with its own config, record and gate report."""
+    other = tmp_path / "extension"
+    (other / "config").mkdir(parents=True)
+    shutil.copy(REPO / "config/corpus_change_gate.json", other / "config")
+    _write(other, "Verdict: GO (r)")
+    return other
+
+
+def test_the_record_is_read_from_the_root_given(bo, tmp_path: Path) -> None:
+    """An extension's migration keeps its record in that extension's checkout (ADR-174)."""
+    other = _extension_checkout(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        bo.build("0099_x")
+    assert bo.build("0099_x", other)["verdict"] == "GO"
+
+
+def test_the_outcome_is_written_where_the_hook_reads_it(bo, tmp_path: Path, monkeypatch) -> None:
+    other = _extension_checkout(tmp_path)
+    target = tmp_path / "extension_pkg" / "outcomes" / "0099_x.json"
+    monkeypatch.setattr(bo, "outcome_path", lambda mid: target)
+    monkeypatch.setattr(
+        "sys.argv", ["build_outcome", "--migration", "0099_x", "--root", str(other)]
+    )
+    assert bo.main() == 0
+    assert json.loads(target.read_text())["migration"] == "0099_x"

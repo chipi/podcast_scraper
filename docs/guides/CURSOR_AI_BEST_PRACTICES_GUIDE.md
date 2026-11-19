@@ -52,17 +52,17 @@ Write unit tests for the new provider
 Set up worktree for issue #200
 ```
 
-## GI/KG viewer UX (`web/gi-kg-viewer`)
+## Workbench UX (`web/workbench`)
 
 When the task changes **Vue viewer UI** (copy, layout, routes, tokens, accessible names), treat
 documentation and Playwright as part of the same PR:
 
-1. [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+1. [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/workbench/e2e/E2E_SURFACE_MAP.md)
 2. `e2e/*.spec.ts`, `helpers.ts`, `fixtures.ts` — `make test-ui-e2e`
-3. [VIEWER_IA.md](../uxs/VIEWER_IA.md) when **shell IA** changes; [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual** / experience contract changes
+3. [WORKBENCH_IA.md](../uxs/WORKBENCH_IA.md) when **shell IA** changes; [UXS-001](../uxs/UXS-001-workbench.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual** / experience contract changes
 
 Canonical checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
-Also in `.cursorrules` (*GI/KG viewer UX*) and `.ai-coding-guidelines.md`.
+Also in `.cursorrules` (*Workbench UX*) and `.ai-coding-guidelines.md`.
 
 ## Model Roles (Quick Guide)
 

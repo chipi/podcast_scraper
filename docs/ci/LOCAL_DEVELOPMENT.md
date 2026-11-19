@@ -118,7 +118,7 @@ make stack-test-cloud-thin
 
 # Standalone viewer production bundle check
 
-# - vue-tsc -b && vite build inside web/gi-kg-viewer
+# - vue-tsc -b && vite build inside web/workbench
 
 # - Catches strict TypeScript regressions that vitest/playwright skip
 

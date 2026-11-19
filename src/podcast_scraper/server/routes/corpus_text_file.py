@@ -15,6 +15,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
+from podcast_scraper.news_items import is_news_item_file
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import (
     normpath_if_under_root,
@@ -206,6 +207,8 @@ def corpus_text_file(
     # resolves outside the corpus root.
     if not resolves_under_root(verified_path, root_s):
         raise HTTPException(status_code=400, detail="Invalid path.")
+    if is_news_item_file(verified_path, root_s):
+        raise HTTPException(status_code=404, detail="File not found.")
 
     # codeql[py/path-injection] -- verified_path from normpath_if_under_root(safe_file, root_s).
     return FileResponse(

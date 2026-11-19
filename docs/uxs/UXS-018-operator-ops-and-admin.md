@@ -1,15 +1,17 @@
 # UXS-018: Operator Ops and Admin tabs
 
 - **Status**: Active (written 2026-10-05 from the shipped components; the code was the source)
-- **Surface:** `web/gi-kg-viewer` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
+- **Surface:** `web/workbench` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
   panels registered at `adminPanels`, `ReleaseAdminView`, `GraphAnalyticsAdminView`)
-- **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator design system — tokens, type, density)
+- **Inherits:** [UXS-001](UXS-001-workbench.md) (operator design system — tokens, type, density)
 - **Related:** #1128 (viewer roles, user management), ADR-113 (resilience), ADR-142 (not in this repository) (LLM gateway),
   #11 B2 (discovery ranking)
 
 These are the operator's control surfaces. Until this spec they had unit tests but no UXS and no
 browser coverage. This document describes what shipped; where shipped behaviour looks wrong it says
 so under **Open questions** rather than specifying a fix.
+
+**Where it renders (2026-11-17).** The Workbench draws the Ops tab (`App.vue:1163-1166`) and, on the Admin tab, Users, Released app version and Analytics (`App.vue:1172-1175`). One slot only a registered extension fills: `adminPanels`, between Users and Released app version (`App.vue:1173`). The discovery ranking panel is one; this build registers none. Configuration dialog tabs from `configTabs` (`StatusBar.vue:53`) are the other admin-side slot. Without extensions both are absent.
 
 ## Access
 

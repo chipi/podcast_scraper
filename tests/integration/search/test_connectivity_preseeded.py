@@ -1,7 +1,7 @@
 """Connectivity over the pre-seeded production-shaped fixture (#1055).
 
 The exploration/relational connectivity (#1054/#1055) is exercised here against the
-**checked-in** production-shaped corpus (`web/gi-kg-viewer/e2e/fixtures/production-shaped`,
+**checked-in** production-shaped corpus (`web/workbench/e2e/fixtures/production-shaped`,
 the Tier-2 deterministic fixture extracted from a real snapshot) — no LLM, no live
 pipeline. This guards the *real* relational traversal (not a hand-built graph) against
 realistic data: `related_topics` should surface adjacent themes that share insights.
@@ -26,7 +26,7 @@ def _repo_fixture() -> Path:
     # Resolve from the repo root regardless of where pytest is invoked.
     root = Path(__file__).resolve()
     for parent in root.parents:
-        candidate = parent / "web/gi-kg-viewer/e2e/fixtures/production-shaped/artifacts"
+        candidate = parent / "web/workbench/e2e/fixtures/production-shaped/artifacts"
         if candidate.is_dir():
             return candidate
     pytest.skip("production-shaped fixture not found")

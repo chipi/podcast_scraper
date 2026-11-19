@@ -35,7 +35,7 @@ from pydantic import (
 )
 
 from .. import config, config_constants, models
-from ..languages import resolve_episode_language, SOURCE_DETECTED
+from ..languages import primary_language, resolve_episode_language, SOURCE_DETECTED
 from ..rss.licence import episode_licence, LicenceRecord
 from .translation_stage import analysis_blocked_reason, run_translation_stage
 
@@ -56,6 +56,10 @@ from ..utils.log_redaction import format_exception_for_log, redact_for_log
 from .transcript_resolution import resolve_text_path, TranscriptPurpose
 
 logger = logging.getLogger(__name__)
+
+#: Why an item's enrichment stage did not run when its source may not be mined (ontology v3
+#: "Rights, per item"), as its processing manifest records it.
+SKIP_NOT_MINEABLE = "not_mineable"
 
 # Detection for a model that copies the few-shot *style examples* carried in the summarization
 # prompts (all eight of them ship the same three sentences) instead of summarizing the transcript.
@@ -348,6 +352,8 @@ def _kg_v3_for_item(
         source_url=source_url,
         times=item.times,
     )
+    if ctype.kg_extend is not None:
+        payload = ctype.kg_extend(payload, item)
     validate_artifact(payload, strict=True)
     return payload
 
@@ -358,6 +364,21 @@ def _non_podcast_item_type() -> Optional[str]:
 
     name = content_types.current_item().content_type.name
     return None if name == content_types.PODCAST_EPISODE else name
+
+
+def _item_document(doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """A non-podcast item's document: its type's contract shape when the type has one, else
+    ``doc`` with ``content_type`` first; ``None`` for a podcast, whose document stays byte-identical
+    (ADR-177 decision 6: an absent content_type reads as podcast_episode)."""
+    from .. import content_types
+
+    item = content_types.current_item()
+    ctype = item.content_type
+    if ctype.name == content_types.PODCAST_EPISODE:
+        return None
+    if ctype.shape_metadata is not None:
+        return ctype.shape_metadata(doc, item)
+    return {"content_type": ctype.name, **doc}
 
 
 def generate_feed_id(feed_url: str) -> str:
@@ -3143,8 +3164,9 @@ def _generate_episode_summary(  # noqa: C901
             if parse_result.success and parse_result.schema and parse_result.repair_attempted:
                 logger.warning(
                     "[%s] Summary shipped from a REPAIRED payload (#1878) — status=%s. The "
-                    "provider's JSON needed closing tokens appended; if this recurs, the "
-                    "backend is ending generations early.",
+                    "provider's reply was not valid JSON as returned: the parser closed a "
+                    "truncated document, escaped a quote inside a string, or read the bullets "
+                    "from prose.",
                     episode_idx,
                     parse_result.schema.status,
                 )
@@ -3422,15 +3444,9 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         json_start = time.time()
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
-        item_type = _non_podcast_item_type()
-        if item_type is not None:
-            # Only a non-podcast item records its type; a podcast document stays byte-identical
-            # (ADR-177 decision 6: an absent content_type reads as podcast_episode).
-            content_str = json.dumps(
-                {"content_type": item_type, **json.loads(content_str)},
-                indent=2,
-                ensure_ascii=False,
-            )
+        item_doc = _item_document(json.loads(content_str))
+        if item_doc is not None:
+            content_str = json.dumps(item_doc, indent=2, ensure_ascii=False)
         json_elapsed = time.time() - json_start
 
         # Time actual file write
@@ -3455,9 +3471,10 @@ def _serialize_metadata(
         # Time serialization separately from I/O
         yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
-        item_type = _non_podcast_item_type()
-        if item_type is not None:
-            content_dict = {"content_type": item_type, **content_dict}
+        if _non_podcast_item_type() is not None:
+            item_doc = _item_document(json.loads(json.dumps(content_dict, default=str)))
+            if item_doc is not None:
+                content_dict = item_doc
         yaml_serialize_elapsed = time.time() - yaml_start
 
         # Time actual file write
@@ -4338,6 +4355,60 @@ def _record_analysis_skipped(
     _mark_episode_unusable(output_dir, transcript_relpath, reason)
 
 
+def _record_type_skips(
+    cfg: config.Config,
+    output_dir: str,
+    transcript_relpath: Optional[str],
+    item: Any,
+    episode_id: Optional[str],
+) -> Optional[str]:
+    """Record each stage skipped for this item as ``ran: false`` with why, so a skip reads as a
+    skip, not as a stage that never existed (D-39): ``not_mineable`` when its source may not be
+    mined (``runs_for_item``), else the type's own rule (``stage_skip_reason``). Returns why the
+    item must not be served, or ``None``."""
+    from .. import content_types
+
+    if not transcript_relpath or not item.item_id:
+        return None
+    from . import processing_manifest as pm
+
+    not_mineable = item.fields.get("mineable") is False
+    for stage in (content_types.TRANSLATION, content_types.SUMMARY, content_types.KG):
+        reason = (
+            SKIP_NOT_MINEABLE
+            if not_mineable and stage in content_types.ENRICHMENT_STAGES
+            else content_types.stage_skip_reason(item, stage)
+        )
+        if reason is None or not item.content_type.stage_profile.runs(stage):
+            continue
+        try:
+            pm.update_stage(
+                output_dir,
+                transcript_relpath,
+                stage,
+                pm.stage_block(
+                    ran=False,
+                    method_version=pm.METHOD_VERSIONS.get(stage),
+                    cost_usd=0.0,
+                    metrics={"skipped_reason": reason},
+                ),
+                episode_id=episode_id,
+                feed_id=getattr(cfg, "rss_url", None),
+                run_id=_resolved_run_id(cfg),
+            )
+        except Exception:  # noqa: BLE001 — the manifest never fails the item
+            logger.debug("could not record %s as skipped", stage, exc_info=True)
+
+    # D-44, as for an untranslated episode: an item not in English that is not translated has its
+    # source-language body at the canonical path, so no surface serves it. Returned, not marked
+    # here: the marker goes on the metadata file, which is written after the stages.
+    reason = content_types.stage_skip_reason(item, content_types.TRANSLATION)
+    language = primary_language(item.fields.get("language"))
+    if reason is not None and language != "en":
+        return f"item language is {language or 'unknown'!r} and it is not translated ({reason})"
+    return None
+
+
 def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], reason: str) -> None:
     """Flag this episode as unservable, so no surface shows it (D-44 point 2).
 
@@ -4537,15 +4608,19 @@ def generate_episode_metadata(  # noqa: C901
     # gated) in that language; the run's own config describes the show.
     from .. import content_types
 
-    _profile = content_types.current_item().content_type.stage_profile
+    _current = content_types.current_item()
     episode_cfg = episode_language_cfg(cfg, output_dir, transcript_file_path)
+    # A text item carries its own language (one news feed carries articles in several); a
+    # podcast's is its feed's.
+    _item_language = _current.fields.get("language") if _current.item_id else None
+    _feed_language = _item_language or getattr(feed, "language", None)
     # ADR-177 decision 7: an item whose profile has no translation skips it and its completeness
     # gate (a gate waiting on a translation that never runs would block the item for good).
     _blocked: Optional[str] = None
-    if _profile.runs(content_types.TRANSLATION):
+    if content_types.runs_for_item(_current, content_types.TRANSLATION):
         run_translation_stage(
             episode_cfg,
-            feed_language=getattr(feed, "language", None),
+            feed_language=_feed_language,
             transcript_relpath=transcript_file_path,
             effective_output_dir=output_dir,
             episode_id=episode_id,
@@ -4572,11 +4647,16 @@ def generate_episode_metadata(  # noqa: C901
             episode_cfg,
             transcript_relpath=transcript_file_path,
             effective_output_dir=output_dir,
-            feed_language=getattr(feed, "language", None),
+            feed_language=_feed_language,
         )
     if _blocked:
         logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
         _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
+    _not_served: Optional[str] = None
+    if not _blocked:
+        _not_served = _record_type_skips(
+            cfg, output_dir, transcript_file_path, _current, episode_id
+        )
 
     # S2.11: publish this episode's translation so EVERY `gi.json` written below carries
     # provenance, without ten call sites each having to remember. Called unconditionally — with
@@ -4590,7 +4670,7 @@ def generate_episode_metadata(  # noqa: C901
     )
 
     # Generate summary if enabled and transcript is available
-    if _blocked or not _profile.runs(content_types.SUMMARY):
+    if _blocked or not content_types.runs_for_item(_current, content_types.SUMMARY):
         # Skipped, not failed. `metadata.json` is still written below, so the episode EXISTS —
         # the player serves its source text through the resolver's tail, S2.8's
         # `translation_status` reports it, and the backlog is queryable. Raising here instead
@@ -4742,7 +4822,11 @@ def generate_episode_metadata(  # noqa: C901
     # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
     # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts
     # contradicting each other, with the wrong one being the durable corpus fact.
-    if getattr(cfg, "generate_kg", False) and not _blocked and _profile.runs(content_types.KG):
+    if (
+        getattr(cfg, "generate_kg", False)
+        and not _blocked
+        and content_types.runs_for_item(_current, content_types.KG)
+    ):
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)
@@ -4959,6 +5043,8 @@ def generate_episode_metadata(  # noqa: C901
     try:
         _serialize_metadata(metadata_doc, metadata_path, cfg, pipeline_metrics=pipeline_metrics)
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
+        if _not_served:
+            _mark_episode_unusable(output_dir, transcript_file_path, _not_served)
 
         # RFC-109 / ADR-132: append the summary/GI/KG stage blocks to the per-episode manifest that
         # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.

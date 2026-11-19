@@ -12,6 +12,7 @@ guard is tested against the exact provenance strings the pipeline stamps, not ha
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +101,10 @@ def test_a_fabricated_graph_is_not_protected(
     """``topic_labels`` graphs are summary bullets posing as topics (ADR-156): empty beats them."""
     fabricated = _build(_Answers(), monkeypatch)
     fabricated["extraction"]["model_version"] = "topic_labels"
-    path = _on_disk(tmp_path, fabricated)
+    # A graph older code left on disk: today's writer refuses "topic_labels" (KG 3.0), so the file
+    # is put there as it was written then.
+    path = tmp_path / "0004 - ep.kg.json"
+    path.write_text(json.dumps(fabricated), encoding="utf-8")
     assert previous_artifact_to_keep(path, _build(_ReturnsNothing(), monkeypatch)) is None
 
 

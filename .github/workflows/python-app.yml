@@ -52,10 +52,10 @@ on:
       - 'Makefile'
       - 'docker/pipeline/Dockerfile'
       - 'docker/api/**'
-      - 'docker/viewer/**'
+      - 'docker/workbench/**'
       - 'docker/observability/**'
       - '.dockerignore'
-      - 'web/gi-kg-viewer/**'
+      - 'web/workbench/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - 'config/profiles/**'
@@ -81,10 +81,10 @@ on:
       - 'Makefile'
       - 'docker/pipeline/Dockerfile'
       - 'docker/api/**'
-      - 'docker/viewer/**'
+      - 'docker/workbench/**'
       - 'docker/observability/**'
       - '.dockerignore'
-      - 'web/gi-kg-viewer/**'
+      - 'web/workbench/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - 'config/profiles/**'
@@ -178,7 +178,7 @@ jobs:
             - 'docker/pipeline/Dockerfile'
             - '.dockerignore'
             - '.github/workflows/**'
-            - 'web/gi-kg-viewer/**'
+            - 'web/workbench/**'
           python:
             - 'src/podcast_scraper/upgrade/outcomes/**'
             - 'docs/wip/changes/**'
@@ -213,12 +213,12 @@ jobs:
           # (`podcast_scraper.cli serve`) over a disposable copy of the committed corpus, so the
           # server and that corpus are its dependencies (#2285, #2286, #2288).
           viewer:
-            - 'web/gi-kg-viewer/**'
-            - 'docker/viewer/**'
+            - 'web/workbench/**'
+            - 'docker/workbench/**'
             - '.github/workflows/python-app.yml'
           viewer-e2e:
-            - 'web/gi-kg-viewer/**'
-            - 'docker/viewer/**'
+            - 'web/workbench/**'
+            - 'docker/workbench/**'
             - '.github/workflows/python-app.yml'
             - 'src/podcast_scraper/server/**'
             # The viewer e2e builds and queries the two-tier search index.
@@ -233,7 +233,7 @@ jobs:
           stack-compose:
             - 'compose/**'
             - 'docker/api/**'
-            - 'docker/viewer/**'
+            - 'docker/workbench/**'
             - 'docker/pipeline/Dockerfile'
             - 'compose/docker-compose.jobs-docker.yml'
             - '.github/workflows/python-app.yml'
@@ -250,7 +250,7 @@ jobs:
             - 'src/podcast_scraper/providers/**'
             - '.github/workflows/python-app.yml'
 
-  # GI/KG viewer v2 — Playwright E2E
+  # Workbench — Playwright E2E
   #
   # Gates on ``viewer-unit`` (Vitest, ~30 s) — same fail-fast pattern as
   # ``test-unit`` gating the Python heavy jobs: if the viewer source has
@@ -330,15 +330,15 @@ jobs:
       with:
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+        cache-dependency-path: web/workbench/package-lock.json
     - name: Install dependencies
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm ci
     - name: Install Playwright firefox
       uses: ./.github/actions/install-playwright
       with:
-        working-directory: web/gi-kg-viewer
+        working-directory: web/workbench
         browser: firefox
     - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
       uses: actions/cache@v6
@@ -359,14 +359,14 @@ jobs:
         .venv/bin/python scripts/cache/preload_ml_models.py
     - name: Run Playwright E2E (real API + Vite; globalSetup seeds the corpus and builds the index)
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm run test:e2e
     - name: Upload Playwright traces of failed tests
       if: failure()
       uses: actions/upload-artifact@v7
       with:
         name: viewer-e2e-test-results
-        path: web/gi-kg-viewer/test-results/
+        path: web/workbench/test-results/
         retention-days: 7
         if-no-files-found: ignore
 
@@ -430,7 +430,7 @@ jobs:
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
     needs: [lint, build, detect-changes]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     # Python-only gate (path-A): bandit/flake8/codespell only scan Python
-    # sources, so viewer-only PRs (web/gi-kg-viewer/**) can skip this.
+    # sources, so viewer-only PRs (web/workbench/**) can skip this.
     if: needs.detect-changes.outputs.python == 'true'
     steps:
     - uses: actions/checkout@v7
@@ -505,7 +505,7 @@ jobs:
     timeout-minutes: 25
     needs: [lint, build, detect-changes]  # optional verify-stack-profiles + stack compose config steps
     # Python-only gate (path-A): viewer-only PRs run viewer-unit (Vitest)
-    # instead; pytest doesn't apply to web/gi-kg-viewer/**.
+    # instead; pytest doesn't apply to web/workbench/**.
     if: needs.detect-changes.outputs.python == 'true'
     # App state is Postgres (ADR-169): the suites that touch it read PODCAST_TEST_DATABASE_URL.
     services:
@@ -686,7 +686,7 @@ jobs:
         export PYTHONPATH
         pytest tests/integration/server/test_corpus_version_compat.py -v --tb=short
 
-  # GI/KG viewer v2 — Vitest unit tests (same parallel segment as security-quality + test-unit)
+  # Workbench — Vitest unit tests (same parallel segment as security-quality + test-unit)
   viewer-unit:
     runs-on: ubuntu-24.04
     # 12 minutes, not 5: the job was sitting ON its old 5-minute budget and being killed by it, and
@@ -704,14 +704,18 @@ jobs:
         # Vite 8 requires ^20.19 || >=22.12; bare "20" on the runner can be older and breaks Vite
         node-version: "22"
         cache: "npm"
-        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+        cache-dependency-path: web/workbench/package-lock.json
     - name: Install dependencies
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         npm ci
+    - name: Lint (eslint)
+      run: |
+        cd web/workbench
+        npm run lint
     - name: Run Vitest unit tests with coverage gate (#914)
       run: |
-        cd web/gi-kg-viewer
+        cd web/workbench
         # test:coverage runs vitest with --coverage; the thresholds in
         # vite.config.ts fail the job if UI coverage regresses (parallel to the
         # Python coverage gate; not merged into coverage-unified).
@@ -751,7 +755,7 @@ jobs:
         df -h
     - name: Cache ML models (check first - no Python needed, if cache hits job completes in ~6-12s)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       id: cache-models
       with:
         path: |
@@ -828,14 +832,29 @@ jobs:
         echo "model dirs: $(find "$HUB" -maxdepth 1 -name 'models--*' -type d 2>/dev/null | wc -l)"
         du -sh "$HUB" 2>/dev/null || true
         find "$HUB" -maxdepth 1 -name 'models--*' -type d -exec du -sh {} + 2>/dev/null | sort -h
+    - name: Pack ML models (a tar keeps the Hugging Face cache's symlinks)
+      if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
+      run: |
+        # upload-artifact follows symlinks: zipping ~/.cache stored each Hugging Face model file
+        # three times (hub/blobs, where the bytes live, and the models--*/blobs and snapshots/
+        # links resolved into copies), 9.89 GB uncompressed for ~3.3 GB on disk (measured
+        # 2026-11-19 from the zip's index). A tar keeps the links, so each file goes up once.
+        # hub/blobs must stay: leaving it out broke every model (0b2eb6d58's verify step).
+        # Weights do not compress, so the tar is not compressed.
+        cd /home/runner/.cache
+        dirs=""
+        for d in whisper huggingface; do [ -d "$d" ] && dirs="$dirs $d"; done
+        # shellcheck disable=SC2086
+        tar -cf /home/runner/ml-models.tar $dirs
+        ls -l /home/runner/ml-models.tar
     - name: Upload ML models artifact (for dependent test jobs in same run)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
       uses: actions/upload-artifact@v7
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models.tar
         retention-days: 1
-        include-hidden-files: true
+        compression-level: 0
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
@@ -887,7 +906,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -907,7 +931,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run all integration tests with coverage (full suite, with network guard)
@@ -1031,7 +1054,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -1051,7 +1079,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run fast integration tests with coverage (critical path only, with network guard)
@@ -1148,7 +1175,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -1168,7 +1200,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run fast E2E tests with coverage (critical path only, with network guard)
@@ -1273,7 +1304,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
     # The mirror of the listing the preload prints before upload. When those two disagree,
     # the transfer is the culprit and the log says so outright — which beats inferring it
     # from a transformers stack trace three steps downstream.
@@ -1303,7 +1339,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,ml,llm,search]"
-        pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       uses: ./.github/actions/install-ffmpeg
     - name: Run all E2E tests with coverage (full suite, with network guard)
@@ -1421,7 +1456,12 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: ml-models
-        path: /home/runner/.cache
+        path: /home/runner/ml-models
+    - name: Unpack ML models (the tar keeps the Hugging Face cache's symlinks)
+      run: |
+        mkdir -p /home/runner/.cache
+        tar -C /home/runner/.cache -xf /home/runner/ml-models/ml-models.tar
+        rm -rf /home/runner/ml-models
     - name: Validate ML model cache (same checks as E2E)
       run: python scripts/cache/verify_required_models.py
     - name: Install dependencies (ML + LLM for full pipeline acceptance)

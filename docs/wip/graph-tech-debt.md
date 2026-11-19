@@ -68,7 +68,7 @@ contract landed in PR #1207. Median-of-3 on prod-v2 is the metric.
 (14%) vs `everything` on prod-v2 initial mount — 5328 ms vs 6228 ms.
 Small win for a 6-node vs 833-node canvas.
 
-Root cause: `web/gi-kg-viewer/src/stores/artifacts.ts:126` — the
+Root cause: `web/workbench/src/stores/artifacts.ts:126` — the
 `topDownDisplayArtifact` computed derives its slice from
 `displayArtifact.value?.data`, so the full corpus envelope must fetch
 and the full merged artifact must parse before the 6-SuperTheme slice
@@ -118,7 +118,7 @@ KG-second-wave. Cy is destroyed + rebuilt with the merged
 wave-2 artifact.
 
 Root cause upstream of the render pipeline:
-`web/gi-kg-viewer/src/utils/mergeGiKg.ts:219-243` (`remapData`)
+`web/workbench/src/utils/mergeGiKg.ts:219-243` (`remapData`)
 prefixes **every** GI node with `g:` and every KG node with `k:` on
 wave 2. Wave-1 cy has raw ids (`ep:X`, `topic:Y`, `person:Z`);
 wave-2's artifact has the same nodes as `g:ep:X`, `g:topic:Y`,
@@ -161,7 +161,7 @@ in the metrics — should drop from 2 → 1 when the fast path fires.
 
 **Related:** [#1219](https://github.com/chipi/podcast_scraper/issues/1219)
 (follow-up tracking the id-stability refactor + candidate designs),
-#1211 fast path (seed), HD22 (topDown audit), HD23
+issue #1211 fast path (seed), HD22 (topDown audit), HD23
 (instrumentation + audit correction).
 
 ---
@@ -197,12 +197,12 @@ reader doesn't chase the same ghost.
 **Surfaced by:** #1211 tuning session / 2026-07-19
 **Category:** perf
 **Estimated cost:** S (revert + measure)
-**Context:** Setting `quality: 'draft'` in `web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts` cut graph settle time from 6352 ms to 4887 ms on prod-v2 — a **1465 ms (~30%) saving**. But layout quality degraded: one dense clump on the right + empty left half. Unusable on prod-v2.
+**Context:** Setting `quality: 'draft'` in `web/workbench/src/utils/cyCoseLayoutOptions.ts` cut graph settle time from 6352 ms to 4887 ms on prod-v2 — a **1465 ms (~30%) saving**. But layout quality degraded: one dense clump on the right + empty left half. Unusable on prod-v2.
 
 **Why deferred:** the visual regression outweighs the perf win on the corpora we have today. A different corpus (denser, more evenly connected) might tolerate it.
 
 **Handle:** flag location is documented at the assignment site in
-`web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts`. To try again on a
+`web/workbench/src/utils/cyCoseLayoutOptions.ts`. To try again on a
 new corpus: flip to `'draft'`, capture with the LCP tool, compare
 median + visually inspect the settle screenshot.
 
@@ -219,7 +219,7 @@ median + visually inspect the settle screenshot.
 "download my preferences JSON" / "restore from file" pair on the account settings page, and no
 reset-to-defaults button. `graphFilters.allowedTypes` (per-corpus) is not persisted yet either.
 
-**Handle:** pure client work in `web/gi-kg-viewer`; no server change.
+**Handle:** pure client work in `web/workbench`; no server change.
 
 ---
 

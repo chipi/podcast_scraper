@@ -429,7 +429,7 @@ def _open_http_request(
         sess = session if session is not None else _get_thread_request_client()
         logger.debug(
             "Opening HTTP connection to %s (timeout=%s, stream=%s) via client %s",
-            normalized_url,
+            redact_for_log(normalized_url),
             timeout,
             stream,
             hex(id(sess)),
@@ -449,7 +449,7 @@ def _open_http_request(
             br.record_success(normalized_url)
         logger.debug(
             "HTTP request to %s succeeded with status %s and Content-Length=%s",
-            normalized_url,
+            redact_for_log(normalized_url),
             resp.status_code,
             resp.headers.get("Content-Length"),
         )
@@ -495,7 +495,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Respons
         client = _get_thread_request_client()
         logger.debug(
             "Checking file size via HEAD request to %s (timeout=%s) via client %s",
-            normalized_url,
+            redact_for_log(normalized_url),
             timeout,
             hex(id(client)),
         )
@@ -508,7 +508,7 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Respons
         content_length = resp.headers.get("Content-Length")
         logger.debug(
             "HEAD request to %s succeeded with status %s and Content-Length=%s",
-            normalized_url,
+            redact_for_log(normalized_url),
             resp.status_code,
             content_length,
         )
@@ -525,10 +525,20 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[httpx.Respons
 
 
 def fetch_url(
-    url: str, user_agent: str, timeout: int, *, stream: bool = False
+    url: str,
+    user_agent: str,
+    timeout: int,
+    *,
+    stream: bool = False,
+    extra_headers: Optional[Dict[str, str]] = None,
 ) -> Optional[httpx.Response]:
-    """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches)."""
+    """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches).
+    ``extra_headers`` carries what must not sit in a URL, which is logged (an API key)."""
 
+    if extra_headers:
+        return _open_http_request(
+            url, user_agent, timeout, stream=stream, extra_headers=extra_headers
+        )
     return _open_http_request(url, user_agent, timeout, stream=stream)
 
 
@@ -583,6 +593,25 @@ def fetch_rss_feed_url(
             logger.debug("RSS conditional cache update skipped", exc_info=True)
 
     return resp
+
+
+def http_get_any_status(url: str, user_agent: str, timeout: int) -> Tuple[int, bytes]:
+    """HTTP GET that returns the status and body whatever the status, ``(0, b"")`` when refused or
+    unreachable. robots.txt needs it: a 4xx allows everything, a 5xx disallows (RFC 9309)."""
+    normalized_url = normalize_url(url)
+    if _is_ssrf_target(normalized_url):
+        return 0, b""
+    try:
+        sess = _get_thread_request_client()
+        with http_policy.gated_http_request(normalized_url):
+            request = sess.build_request(
+                "GET", normalized_url, headers={"User-Agent": user_agent}, timeout=timeout
+            )
+            resp = sess.send(request)
+        return resp.status_code, resp.content
+    except httpx.HTTPError as exc:
+        logger.warning("Failed to fetch %s: %s", redact_for_log(url), format_exception_for_log(exc))
+        return 0, b""
 
 
 def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:

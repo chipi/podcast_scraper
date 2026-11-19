@@ -2,7 +2,7 @@
 
 **Status:** shipped; the specs below are in this repository, the deploy pipeline that
 runs them is not. The smoke drives
-`web/gi-kg-viewer/e2e/live/smoke.live.spec.ts` (unauthed) and `account.live.spec.ts`
+`web/workbench/e2e/live/smoke.live.spec.ts` (unauthed) and `account.live.spec.ts`
 (authed creator + role boundary). §8 is the one-time setup and stays manual.
 **Surface:** the operator host of a deployment (the `gi-kg-viewer` SPA + `PODCAST_SERVE_OPERATOR_PUBLIC` backend)
 **Sibling:** mirrors the player post-deploy smoke. This is the **third surface** (task #18) after the player public + per-user smoke.
@@ -11,10 +11,10 @@ runs them is not. The smoke drives
 
 ## 1. What already exists (build on, do not duplicate)
 
-- `web/gi-kg-viewer/playwright.live.config.ts` — targets the operator host (`LIVE_BASE_URL`), **desktop-chrome only**, passes the coming-soon gate via `httpCredentials` (reuses the player's `PLAYER_PREVIEW_PASS` doorman). Login-wall aware.
-- `web/gi-kg-viewer/e2e/live/smoke.live.spec.ts` — the **unauthed** smoke: public sees coming-soon; preview users reach the **login wall**; sign-in entrypoint **307s to Google** with the correct HTTPS `redirect_uri` (regression guard for the 2026-07-25 `redirect_uri_mismatch`); `/api/health` 200.
-- `web/gi-kg-viewer/e2e/handoff-production/*.spec.ts` — a real-stack "handoff" suite (cold-start, concurrency, cross-entry, digest, filters, hot-state, lifecycle, repeat-click) + `_helpers.ts`. **Tier-3-style** — the closest existing analog to what we're extending.
-- `web/gi-kg-viewer/e2e/*.spec.ts` (mock-backed) — dashboard, digest, library, graph, pipeline, auth-roles, person-landing, etc. These run under the local `playwright.config.ts` against mocked APIs.
+- `web/workbench/playwright.live.config.ts` — targets the operator host (`LIVE_BASE_URL`), **desktop-chrome only**, passes the coming-soon gate via `httpCredentials` (reuses the player's `PLAYER_PREVIEW_PASS` doorman). Login-wall aware.
+- `web/workbench/e2e/live/smoke.live.spec.ts` — the **unauthed** smoke: public sees coming-soon; preview users reach the **login wall**; sign-in entrypoint **307s to Google** with the correct HTTPS `redirect_uri` (regression guard for the 2026-07-25 `redirect_uri_mismatch`); `/api/health` 200.
+- `web/workbench/e2e/handoff-production/*.spec.ts` — a real-stack "handoff" suite (cold-start, concurrency, cross-entry, digest, filters, hot-state, lifecycle, repeat-click) + `_helpers.ts`. **Tier-3-style** — the closest existing analog to what we're extending.
+- `web/workbench/e2e/*.spec.ts` (mock-backed) — dashboard, digest, library, graph, pipeline, auth-roles, person-landing, etc. These run under the local `playwright.config.ts` against mocked APIs.
 
 ## 2. THE GAP (what must be wired)
 
@@ -83,7 +83,7 @@ Uses the **stored opaque `u_…` id**, not the email (same gotcha proven on the 
 
 Wire it into your deploy pipeline as a gating `smoke` step that runs after the deploy:
 
-- Runs only when the deploy succeeded, with `web/gi-kg-viewer` as the working directory.
+- Runs only when the deploy succeeded, with `web/workbench` as the working directory.
 - `npm ci` → `playwright install --with-deps chromium` → `npm run test:e2e:live`.
 - env: `LIVE_BASE_URL=https://<operator host>`, `OPERATOR_PREVIEW_USER`, `OPERATOR_PREVIEW_PASS` (→ `PLAYER_PREVIEW_PASS`), `PLAYER_APP_SESSION_SECRET`, `OPERATOR_SMOKE_CREATOR_USER_ID`, `OPERATOR_SMOKE_ADMIN_USER_ID`.
 - Alert on failure (tags `surface:operator` / `stage:post-deploy-smoke`) and upload the Playwright report artifact.

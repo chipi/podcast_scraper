@@ -13,7 +13,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXTURE_ARTIFACTS = (
-    REPO_ROOT / "web" / "gi-kg-viewer" / "e2e" / "fixtures" / "production-shaped" / "artifacts"
+    REPO_ROOT / "web" / "workbench" / "e2e" / "fixtures" / "production-shaped" / "artifacts"
 )
 
 

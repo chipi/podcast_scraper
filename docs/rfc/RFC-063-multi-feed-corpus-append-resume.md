@@ -19,7 +19,7 @@
   - [RFC-061](RFC-061-semantic-corpus-search.md) — semantic index; **recursive corpus discovery** and composite keys align here
   - [RFC-062](RFC-062-gi-kg-viewer-v2.md) — viewer and `serve`; corpus root path semantics
 - **Related UX specs**:
-  - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) — GI/KG viewer (corpus root folder)
+  - [UXS-001](../uxs/UXS-001-workbench.md) — GI/KG viewer (corpus root folder)
 - **Related Documents**:
   - [GitHub #440](https://github.com/chipi/podcast_scraper/issues/440) — multiple RSS feeds
   - [GitHub #444](https://github.com/chipi/podcast_scraper/issues/444) — append / incremental resume
@@ -284,7 +284,7 @@ searchable; failed feeds add no metadata until a later successful run.
 - `src/podcast_scraper/cli.py` — `_build_config`
 - `src/podcast_scraper/search/indexer.py` — `index_corpus`, `maybe_index_corpus`
 - `src/podcast_scraper/server/routes/artifacts.py` — recursive GI/KG listing
-- `web/gi-kg-viewer/README.md` — corpus root instructions
+- `web/workbench/README.md` — corpus root instructions
 
 ## Lineage
 

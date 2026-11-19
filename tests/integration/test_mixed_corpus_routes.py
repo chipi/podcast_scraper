@@ -117,7 +117,9 @@ def baseline_and_mixed(
     # copy (FileExistsError) and hid that attempt's own error (CI run 43949561223).
     shutil.rmtree(baseline, ignore_errors=True)
     shutil.copytree(mixed, baseline, dirs_exist_ok=False)
-    shutil.rmtree(baseline / "sources")
+    # Only the test type's batch: the fixture's news items stay in both, so the two corpora
+    # differ only in that batch's items.
+    shutil.rmtree(baseline / "sources" / "test_text_item")
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(embedding_loader, "encode", _fake_encode)
         for root in (baseline, mixed):
