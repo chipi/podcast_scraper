@@ -65,11 +65,16 @@ chipi/podcast_scraper#2502 builds an eval set and tunes the classifier.
 - Items written before ingestion's writer fixes carry no `unusable`, `roundup` or `item_class`
   marker: a corpus written earlier (all8 included) serves its untranslated items until rewritten,
   and hides all its teasers. No prod corpus holds news yet.
-- ingestion's writer does not call `news_classify` yet (asked 2026-11-19); until it does, every
-  teaser stays hidden.
 - The classifier is measured only on the 12 labels it was written from (12 of 12, which is not an
-  accuracy figure); #2502 measures it properly.
-- `nightly.yml`'s ml-models tar change (0b2eb6d58, 4b00455fa) has not run yet; `python-app.yml`'s
-  has (4b00455fa, VERDICT GREEN).
+  accuracy figure); #2502 measures it properly. The writer stores its class
+  (`news/fetch.py`, `fields[F_ITEM_CLASS] = classify(title, text, url)`), so a teaser is shown
+  only when classed `news_summary`.
+- The classifier has no rule for an index or newsletter-signup page: Tech Review's "Research
+  Reports" is classed `news_summary` (Common's KNOWN-GAPS-NEWS-1.0.md, gap 13). The rule waits
+  until after the deploy, because `news_classify` is in the import closure of migrations 0046 to
+  0053.
+- `model_manifest.py` still lists the diarization model, which public no longer downloads; the
+  nightly's verifier skips it (5a58f8621). The entry goes once 0051 has run on prod, for the same
+  closure reason.
 - The Guardian source is off until `PROD_GUARDIAN_API_KEY` is set (the operator's choice).
 - The Snyk PR check on this repo stays red until the Snyk org setting is changed (the operator's).
