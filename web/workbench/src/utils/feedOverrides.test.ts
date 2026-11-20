@@ -106,3 +106,24 @@ describe('per-feed profile (#1872 cascade)', () => {
     expect(entry).toBe('https://a.example/f')
   })
 })
+
+describe('the news: block', () => {
+  it('splits out of extras and builds back into the entry', () => {
+    const entry = {
+      url: 'https://n.example/feed',
+      content_type: 'news_article',
+      transport: 'hn',
+      news: { max_items: 20, serveable: 'summary' },
+    }
+    const s = splitFeedEntry(entry)
+    expect(s.news).toEqual({ max_items: 20, serveable: 'summary' })
+    expect(s.extras).toEqual({})
+    expect(buildFeedEntry(s.urlKey, s.url, s.must, s.extras, s.news)).toEqual(entry)
+  })
+
+  it('leaves a non-object news value in extras', () => {
+    const s = splitFeedEntry({ url: 'https://n.example/feed', news: 'odd' })
+    expect(s.news).toBeUndefined()
+    expect(s.extras).toEqual({ news: 'odd' })
+  })
+})

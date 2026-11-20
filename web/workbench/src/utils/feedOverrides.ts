@@ -74,6 +74,45 @@ export const FEED_ADVANCED_FIELDS: FeedAdvancedFieldDef[] = [
 ]
 export const FEED_ADVANCED_FIELD_KEYS = FEED_ADVANCED_FIELDS.map((f) => f.key)
 
+/** The podcast fields a news source never reads: the news path takes its own ``news:`` block. */
+export const PODCAST_ONLY_FIELD_KEYS = [
+  'max_episodes',
+  'episode_order',
+  'episode_offset',
+  'episode_since',
+  'episode_until',
+  'use_publisher_transcripts',
+] as const
+
+/** A news source's own settings, the ``news:`` block (``NewsSourceSpec``, rss/feeds_spec.py).
+ *  ``default`` is the server's value for an absent key, shown in the "Default" option. */
+export type NewsFieldType = 'int' | 'bool' | 'choice' | 'string'
+export interface NewsFieldDef {
+  key: string
+  label: string
+  type: NewsFieldType
+  group: string
+  options?: string[]
+  default?: string
+}
+export const NEWS_FIELDS: NewsFieldDef[] = [
+  { key: 'serveable', label: 'Serveable', type: 'choice', group: 'Rights', options: ['summary', 'metadata', 'none'], default: 'metadata' },
+  { key: 'mineable', label: 'Mineable', type: 'bool', group: 'Rights', default: 'on' },
+  { key: 'paywalled', label: 'Paywalled', type: 'bool', group: 'Rights' },
+  { key: 'licence', label: 'Licence', type: 'string', group: 'Rights' },
+  { key: 'max_items', label: 'Max items per run', type: 'int', group: 'Items', default: '20' },
+  { key: 'text_from', label: 'Text from', type: 'choice', group: 'Items', options: ['page', 'feed', 'standfirst'], default: 'page' },
+  { key: 'text_status', label: 'Text status (forced)', type: 'choice', group: 'Items', options: ['full', 'teaser', 'video'] },
+  { key: 'editorial_type', label: 'Editorial type', type: 'choice', group: 'Items', options: ['reporting', 'opinion', 'analysis', 'paid'] },
+  { key: 'personal', label: 'Personal site', type: 'bool', group: 'Items', default: 'off' },
+  { key: 'translate', label: 'Translate', type: 'bool', group: 'Items', default: 'off' },
+  { key: 'include_url_pattern', label: 'Include URLs matching', type: 'string', group: 'Patterns' },
+  { key: 'exclude_url_pattern', label: 'Exclude URLs matching', type: 'string', group: 'Patterns' },
+  { key: 'live_blog_url_pattern', label: 'Live blog URLs matching', type: 'string', group: 'Patterns' },
+  { key: 'roundup_title_pattern', label: 'Roundup titles matching', type: 'string', group: 'Patterns' },
+  { key: 'api_key_env', label: 'API key variable', type: 'string', group: 'API' },
+]
+
 export interface SplitFeedEntry {
   urlKey: FeedUrlKey
   url: string
@@ -82,6 +121,8 @@ export interface SplitFeedEntry {
   advanced: Record<string, unknown>
   /** Keys the editor doesn't model — preserved verbatim via the raw-JSON box. */
   extras: Record<string, unknown>
+  /** The entry's ``news:`` block, when it has one (an object). */
+  news?: Record<string, unknown>
 }
 
 export function splitFeedEntry(entry: FeedApiEntry): SplitFeedEntry {
@@ -108,12 +149,15 @@ export function splitFeedEntry(entry: FeedApiEntry): SplitFeedEntry {
   const advancedKeys = new Set<string>(FEED_ADVANCED_FIELD_KEYS)
   const advanced: Record<string, unknown> = {}
   const extras: Record<string, unknown> = {}
+  let news: Record<string, unknown> | undefined
   for (const k of Object.keys(o)) {
     if (skip.has(k)) continue
-    if (advancedKeys.has(k)) advanced[k] = o[k]
+    if (k === 'news' && o.news && typeof o.news === 'object' && !Array.isArray(o.news)) {
+      news = { ...(o.news as Record<string, unknown>) }
+    } else if (advancedKeys.has(k)) advanced[k] = o[k]
     else extras[k] = o[k]
   }
-  return { urlKey, url, must, advanced, extras }
+  return news ? { urlKey, url, must, advanced, extras, news } : { urlKey, url, must, advanced, extras }
 }
 
 export function buildFeedEntry(
@@ -121,12 +165,14 @@ export function buildFeedEntry(
   url: string,
   must: FeedMustFields,
   extras: Record<string, unknown> = {},
+  news: Record<string, unknown> = {},
 ): FeedApiEntry {
   const obj: Record<string, unknown> = {}
   obj[urlKey] = url.trim()
   for (const [k, v] of Object.entries(extras)) {
     obj[k] = v
   }
+  if (Object.keys(news).length) obj.news = news
   // Must-fields win over any same-named extra; omit empties (= inherit).
   if (must.content_type) obj.content_type = must.content_type
   if (must.transport) obj.transport = must.transport
