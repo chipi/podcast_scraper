@@ -1,6 +1,10 @@
-# Publisher registry (ADR-180 rule 6): publishers are organisations across media.
+# Publisher registry (ADR-180 rule 6): publishers are organisations across media. A sample:
+# every publisher here is made up, and they publish the sample news sources in
+# config/examples/news.feeds.example.yaml. A deployment keeps its real registry elsewhere and
+# points PODCAST_PUBLISHERS_FILE at it.
 # Loaded by podcast_scraper.publishers.load_registry, which refuses an id, domain, source or
-# external id claimed by two publishers.
+# external id claimed by two publishers. Nothing writes this file: add a publisher, or a source
+# to one, by hand when you add a feed.
 #
 #   - id: org:example            # a KG Organization id; NER's org with the same slug is the same org
 #     name: Example News
@@ -9,127 +13,30 @@
 #     external_ids: {}           # e.g. {wikidata: Q...}; kept side by side, never merged into one key
 #     sources: []                # KG Source ids (podcast:..., source:...): PUBLISHED_BY, never from NER
 #
-# Entries are added with their sources: news by ingestion, podcasts by R3b's KG half.
-# News publishers: RFC-134 §12's first set (2026-11-11); domains answered HTTPS 2026-11-18.
-# Hacker News has no entry: it links to other publishers' pages, found by their domain.
-# News Source ids from ingestion's config/news.feeds.yaml (2026-11-18): source:{url_identity(feed
-# url)}. Hacker News has no publisher. Podcast Source ids (BBC, Meduza and others) come from
-# R3b's KG half.
+# A news Source id is source:{url_identity(feed url)}. A link aggregator (transport hn) has no
+# publisher: its items find theirs by domain.
 publishers:
-- id: org:ars-technica
-  name: Ars Technica
+- id: org:example-news
+  name: Example News
   domains:
-  - arstechnica.com
+  - news.example.com
   sources:
-  - source:7170fc473d11956d2f13
-- id: org:the-verge
-  name: The Verge
+  - source:8c44402e1b3a0091068b
+- id: org:example-world
+  name: Example World
   domains:
-  - theverge.com
+  - world.example.org
   sources:
-  - source:8c3d9d5d77bb3a8307bb
-- id: org:mit-technology-review
-  name: MIT Technology Review
+  - source:589f80a39826be5ba4d7
+- id: org:example-paywalled
+  name: Example Paywalled
   domains:
-  - technologyreview.com
+  - paywalled.example.net
   sources:
-  - source:795a5369f7cef7f208f8
-- id: org:import-ai
-  name: Import AI
+  - source:9ef1f1511e11065b28cc
+- id: org:example-blog
+  name: Example Blog
   domains:
-  - importai.substack.com
-  - jack-clark.net
+  - blog.example.com
   sources:
-  - source:0f90c142536df2544caf
-- id: org:simon-willison
-  name: Simon Willison
-  domains:
-  - simonwillison.net
-  sources:
-  - source:7aae8f2de4f5bbb6df8d
-- id: org:bank-for-international-settlements
-  name: Bank for International Settlements
-  domains:
-  - bis.org
-  sources:
-  - source:140216a5b6554dde3d4e
-- id: org:federal-reserve
-  name: Federal Reserve
-  domains:
-  - federalreserve.gov
-  sources:
-  - source:97656cefc7b0673b2ad5
-- id: org:bbc
-  name: BBC
-  domains:
-  - bbc.co.uk
-  - bbc.com
-  sources:
-  - source:94537534d0ee5d247dde
-  - source:1796df62c4a287ccaef6
-- id: org:al-jazeera
-  name: Al Jazeera
-  domains:
-  - aljazeera.com
-  sources:
-  - source:fa080031bb9f0725b354
-- id: org:meduza
-  name: Meduza
-  domains:
-  - meduza.io
-  sources:
-  - source:91cba085b21b72ec6d05
-- id: org:the-diplomat
-  name: The Diplomat
-  domains:
-  - thediplomat.com
-  sources:
-  - source:5d6759a8aa07a056bc96
-- id: org:south-china-morning-post
-  name: South China Morning Post
-  domains:
-  - scmp.com
-  sources:
-  - source:086cf7ee8196a5b52f17
-- id: org:rest-of-world
-  name: Rest of World
-  domains:
-  - restofworld.org
-  sources:
-  - source:14333881097406c7c46f
-- id: org:techcabal
-  name: TechCabal
-  domains:
-  - techcabal.com
-  sources:
-  - source:2360e62852151e6e3104
-- id: org:stat
-  name: STAT
-  domains:
-  - statnews.com
-  sources:
-  - source:16bca3c1a6d06a99f1f7
-- id: org:quanta-magazine
-  name: Quanta Magazine
-  domains:
-  - quantamagazine.org
-  sources:
-  - source:2c152edcbf5a6dc45984
-- id: org:nature
-  name: Nature
-  domains:
-  - nature.com
-  sources:
-  - source:d592eddffea98806b157
-- id: org:the-conversation
-  name: The Conversation
-  domains:
-  - theconversation.com
-  sources:
-  - source:416290f643d7574e2fa0
-- id: org:the-guardian
-  name: The Guardian
-  domains:
-  - theguardian.com
-  sources:
-  - source:6e5787f5d9019b5f05f5
+  - source:e2616bf435288913d53c
