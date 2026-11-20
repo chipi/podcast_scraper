@@ -62,9 +62,20 @@ def _whisper_cached(name: str) -> bool:
     return (Path.home() / ".cache" / "whisper" / f"{name}.pt").is_file()
 
 
+#: spaCy (en_core_web_sm) is delivered by `pip install .[ml]`, NOT the ml-models artifact, and
+#: this verifier runs at the pre-install Validate step -- so it is not importable yet. Don't
+#: gate on it here; the [ml] install guarantees it.
+PIP_DELIVERED_KINDS = frozenset({"spacy"})
+
+#: The pyannote provider and its model preload moved to Common's stages package with the E04
+#: move (#2483); public's preload no longer downloads it, so requiring it here failed every
+#: nightly from 2026-11-17. The manifest entry stays until 0051 ships: model_manifest.py is in
+#: 0051's code digest, and editing it would stale that migration's outcome.
+COMMON_DELIVERED_KINDS = frozenset({"diarization"})
+
+
 #: Extensions that mean the WEIGHTS are here, not merely a directory that looks populated.
-#: pyannote pipelines keep theirs one level down (``segmentation/pytorch_model.bin``), hence
-#: the rglob rather than a top-level check.
+#: Some repos keep theirs below the snapshot root, hence the rglob rather than a top-level check.
 _WEIGHT_SUFFIXES = frozenset({".safetensors", ".bin", ".pt", ".pth", ".onnx", ".ckpt"})
 
 
@@ -118,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         default="ci_artifact",
         help=(
             "Manifest tier to verify (default ci_artifact, for the consumer test jobs). "
-            "Nightly passes 'production' to also verify the pyannote diarization cache."
+            "Nightly passes 'production' to also verify the production-only models."
         ),
     )
     args = parser.parse_args(argv)
@@ -136,18 +147,15 @@ def main(argv: list[str] | None = None) -> int:
         "embedding": _hf_cached,
         "qa": _hf_cached,
         "nli": _hf_cached,
-        "diarization": _hf_cached,  # pyannote pipeline repo (HF cache)
     }
-    # spaCy (en_core_web_sm) is delivered by `pip install .[ml]`, NOT the ml-models
-    # artifact, and this verifier runs at the pre-install Validate step -- so it is
-    # not importable yet. Don't gate on it here; the [ml] install guarantees it.
-    pip_delivered_kinds = {"spacy"}
-
     missing: list[str] = []
     print(f"Verifying '{args.tier}' models (from model_manifest):")
     for spec in mm.models_for_tier(args.tier):
-        if spec.kind in pip_delivered_kinds:
+        if spec.kind in PIP_DELIVERED_KINDS:
             print(f"  [skip] {spec.kind:9} {spec.model_id} (pip-delivered, not in artifact)")
+            continue
+        if spec.kind in COMMON_DELIVERED_KINDS:
+            print(f"  [skip] {spec.kind:9} {spec.model_id} (its preload moved to Common)")
             continue
         check = artifact_checks.get(spec.kind)
         if check is None:

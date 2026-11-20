@@ -735,11 +735,8 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      # The default diarization model (community-1, v4) is gated: it answers 401
-      # without a token (checked 2026-11-03). The 3.1 fallback
-      # (speaker-diarization-3.1 + segmentation-3.0) is gated too. HF_TOKEN must belong to an
-      # account that accepted their terms; a fine-grained token also needs "public
-      # gated repositories". Without it the pyannote preload skips (build still green).
+      # Authenticated Hub downloads (higher rate limits). The gated pyannote diarization
+      # models left public with the E04 move (#2483); their preload is in Common.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
     - uses: actions/checkout@v7

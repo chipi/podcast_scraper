@@ -54,7 +54,7 @@ def _write_hf_model(hub: Path, model_id: str, revision: str | None = None) -> Pa
     return model_dir
 
 
-def _build_real_cache(home: Path, hub: Path) -> None:
+def _build_real_cache(home: Path, hub: Path, tier: str = "ci_artifact") -> None:
     import sys
 
     sys.path.insert(0, str(_ROOT / "src"))
@@ -62,11 +62,11 @@ def _build_real_cache(home: Path, hub: Path) -> None:
 
     whisper_cache = home / ".cache" / "whisper"
     whisper_cache.mkdir(parents=True)
-    for spec in mm.models_for_tier("ci_artifact"):
+    for spec in mm.models_for_tier(tier):
         if spec.kind == "whisper":
             (whisper_cache / f"{spec.model_id}.pt").write_bytes(b"whisper-weights")
-        elif spec.kind == "spacy":
-            continue  # pip-delivered; verifier skips it
+        elif spec.kind in ("spacy", "diarization"):
+            continue  # pip-delivered, and Common's: public's preload writes neither
         else:
             _write_hf_model(hub, spec.model_id)
 
@@ -83,6 +83,22 @@ def test_verifier_passes_on_real_cache_layout(tmp_path, monkeypatch):
     monkeypatch.setattr("podcast_scraper.cache.directories.get_transformers_cache_dir", lambda: hub)
 
     assert verifier.main(["--tier", "ci_artifact"]) == 0
+
+
+def test_verifier_passes_on_what_the_production_preload_writes(tmp_path, monkeypatch):
+    # The nightly failed 2026-11-17..19: #2483 moved the pyannote preload to Common, and the
+    # production check still required diarization, which nothing in public downloads.
+    home = tmp_path / "home"
+    hub = tmp_path / "hub"
+    home.mkdir()
+    hub.mkdir()
+    _build_real_cache(home, hub, tier="production")
+
+    verifier = _load_verifier()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr("podcast_scraper.cache.directories.get_transformers_cache_dir", lambda: hub)
+
+    assert verifier.main(["--tier", "production"]) == 0
 
 
 def test_verifier_fails_when_a_model_is_missing(tmp_path, monkeypatch):

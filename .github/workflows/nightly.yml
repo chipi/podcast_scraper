@@ -65,7 +65,7 @@ jobs:
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      # Gated pyannote diarization models download only with a terms-accepted token.
+      # Authenticated Hub downloads (higher rate limits); no model this job preloads is gated.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
     - uses: actions/checkout@v7
@@ -86,7 +86,7 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # Fully content-based cache key. `diar2` salt forces a clean re-preload (`diar1` was saved
-        # incomplete by a cancelled run); the gated pyannote + MiniLM models get added to the cache.
+        # incomplete by a cancelled run). The salt name is historical: diarization left in #2483.
         key: ml-models-nightly-${{ runner.os }}-diar2-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-diar2-
@@ -99,7 +99,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Install ffmpeg (pyannote 4.x / torchcodec needs FFmpeg shared libs to import)
+    - name: Install ffmpeg
       uses: ./.github/actions/install-ffmpeg
     - name: Install full dependencies (including ML)
       run: |
@@ -524,9 +524,8 @@ jobs:
       ML_MODELS_VALIDATED: "true"
       # E2E test mode - matches regular CI (python-app.yml)
       E2E_TEST_MODE: "multi_episode"
-      # Diarization e2e: pyannote provider needs a token to construct; gated models
-      # are preloaded in preload-ml-models-nightly. OFFLINE=1 → load from cache only,
-      # no 3rd-party traffic at test time (airgapped contract).
+      # OFFLINE=1: load models from the preloaded cache only, no third-party traffic at test
+      # time (airgapped contract). The token is kept for any authenticated Hub call.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HF_HUB_OFFLINE: "1"
     steps:
