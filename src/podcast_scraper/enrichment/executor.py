@@ -123,6 +123,39 @@ DEFAULT_EPISODE_TIMEOUT_S = 60
 DEFAULT_CORPUS_TIMEOUT_S = 600
 
 
+def _dependencies(enrichers: list[Enricher]) -> dict[str, list[str]]:
+    """Enricher id -> the ids in *enrichers* whose ``writes`` it ``reads``.
+
+    An enricher in a cycle waits for nobody: a cycle would otherwise wait forever, and running
+    such enrichers together is what the executor did before it ordered any.
+    """
+    by_output = {e.manifest.writes: e.manifest.id for e in enrichers if e.manifest.writes}
+    deps = {
+        e.manifest.id: sorted(
+            {by_output[r] for r in e.manifest.reads if r in by_output} - {e.manifest.id}
+        )
+        for e in enrichers
+    }
+
+    def reaches(start: str, target: str) -> bool:
+        seen, stack = set(), list(deps.get(start, ()))
+        while stack:
+            node = stack.pop()
+            if node == target:
+                return True
+            if node not in seen:
+                seen.add(node)
+                stack.extend(deps.get(node, ()))
+        return False
+
+    in_cycle = {eid for eid in deps if reaches(eid, eid)}
+    if in_cycle:
+        logger.warning(
+            "enrichment: read cycle among %s; they run without waiting", sorted(in_cycle)
+        )
+    return {eid: ([] if eid in in_cycle else d) for eid, d in deps.items()}
+
+
 @dataclass
 class ExecutorOptions:
     """Operator-facing knobs for one executor invocation."""
@@ -554,7 +587,22 @@ class EnrichmentExecutor:
                         cost_opts=cost_opts,
                     )
 
-        await asyncio.gather(*(_run_one_enricher(e) for e in enrichers))
+        # An enricher that reads another's output in this phase starts after it has finished
+        # (news_connection measured the storyline file topic_theme_clusters was rewriting, 0.3 s
+        # before the build ended: the previous build's 10 attached instead of 18, 2026-11-20).
+        # Waiting happens before the tier slot is taken, so a waiting enricher blocks nothing.
+        done = {e.manifest.id: asyncio.Event() for e in enrichers}
+        waits_for = _dependencies(enrichers)
+
+        async def _in_order(enricher: Enricher) -> None:
+            try:
+                for dep in waits_for.get(enricher.manifest.id, ()):
+                    await done[dep].wait()
+                await _run_one_enricher(enricher)
+            finally:
+                done[enricher.manifest.id].set()
+
+        await asyncio.gather(*(_in_order(e) for e in enrichers))
 
     # ------------------------------------------------------------------ single enricher
 
