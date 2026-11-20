@@ -275,6 +275,19 @@ an organisation node joined by `PUBLISHED_BY` through the source. News nodes are
 the first graph slice: a podcast graph opens exactly as before. Opening an article node opens the
 article card.
 
+### The feed editor: a news source
+
+The Configuration dialog's per-feed editor (`feed-override-editor`, UXS-001) shows a source whose
+content type is News with its `news:` block as fields (`feed-override-news`), grouped as Rights
+(serveable, mineable, paywalled, licence), Items (max items per run, text from, a forced text
+status, editorial type, personal site, translate), Patterns (include, exclude, live blog, roundup)
+and API (the key variable). Each field is `feed-override-news-{key}`; an empty field leaves the key
+out, so the server's default applies, and the "Default" option names it. A key the form does not
+know is kept as it is. The podcast-only fields (max episodes, episode order, offset, since, until,
+and Advanced's "Use the feed's own transcript") are hidden for a news source unless the entry sets
+one, so no saved value is out of sight. Profile, transport and the fetch settings stay. A
+publisher field per feed waits for a registry writer (News 2.0, gap 15).
+
 ## Key states
 
 - **Loading:** the existing rail and row skeletons.
@@ -359,3 +372,4 @@ No graph change in News 1.0. Article and publisher nodes are later (see Scope).
 | 2026-11-18 | Every other view pulled in (the operator's acceptance): node rail "In the news", Library News mode and publisher pages, Digest news band, Dashboard counts, graph article and publisher nodes |
 | 2026-11-18 | Built: the Type chip re-runs the current query (the other chips do not); the card's topics and people come from `GET /api/corpus/news/item` |
 | 2026-11-18 | The item contract accepted (the operator): every field named as `news-item-1.0.md` has it; `text_status` adds `video`; the publisher order (item, source, domain) |
+| 2026-11-20 | The feed editor shows a news source's `news:` block as fields and hides the podcast-only fields (the player session's Studio check, gap 24 of Common's known-gaps list) |

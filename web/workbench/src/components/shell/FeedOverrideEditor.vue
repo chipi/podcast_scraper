@@ -4,10 +4,13 @@ import type { FeedApiEntry } from '../../api/feedsApi'
 import {
   buildFeedEntry,
   FEED_ADVANCED_FIELDS,
+  NEWS_FIELDS,
+  PODCAST_ONLY_FIELD_KEYS,
   splitFeedEntry,
   type EpisodeOrder,
   type FeedAdvancedFieldDef,
   type FeedMustFields,
+  type NewsFieldDef,
 } from '../../utils/feedOverrides'
 import CollapsibleSection from '../shared/CollapsibleSection.vue'
 
@@ -18,6 +21,9 @@ import CollapsibleSection from '../shared/CollapsibleSection.vue'
  * any keys the editor doesn't model round-trip through a raw-JSON escape hatch.
  * Save semantics live in `utils/feedOverrides.ts` (empty = inherit; collapse to
  * a bare URL when clean; preserve unknown keys).
+ *
+ * A news source (UXS-019) gets its ``news:`` block as fields, and the podcast-only fields are
+ * hidden unless the entry sets one, so no saved value is out of sight.
  */
 const props = withDefaults(
   defineProps<{
@@ -79,10 +85,42 @@ const until = ref('')
 const advancedValues = ref<Record<string, string>>({})
 const unknownText = ref('')
 const error = ref<string | null>(null)
+/** ``news:`` field values keyed by field key, as strings (bool = ''/'true'/'false'). */
+const newsValues = ref<Record<string, string>>({})
+/** ``news:`` keys the form doesn't model (a newer server's), kept as they are. */
+const newsUnknown = ref<Record<string, unknown>>({})
+
+const isNews = computed(() => contentType.value === 'news_article')
+const podcastValues = computed<Record<string, string>>(() => ({
+  max_episodes: maxEpisodesStr.value,
+  episode_order: episodeOrder.value,
+  episode_offset: offsetStr.value,
+  episode_since: since.value,
+  episode_until: until.value,
+  use_publisher_transcripts: advancedValues.value.use_publisher_transcripts ?? '',
+}))
+/** A podcast-only field shows for a podcast, or for a news source that sets it. */
+function showField(key: string): boolean {
+  if (!isNews.value || !(PODCAST_ONLY_FIELD_KEYS as readonly string[]).includes(key)) return true
+  return String(podcastValues.value[key] ?? '').trim() !== ''
+}
+
+const newsGroups = computed(() => {
+  const groups: { group: string; fields: NewsFieldDef[] }[] = []
+  for (const f of NEWS_FIELDS) {
+    let g = groups.find((x) => x.group === f.group)
+    if (!g) {
+      g = { group: f.group, fields: [] }
+      groups.push(g)
+    }
+    g.fields.push(f)
+  }
+  return groups
+})
 
 const advancedGroups = computed(() => {
   const groups: { group: string; fields: FeedAdvancedFieldDef[] }[] = []
-  for (const f of FEED_ADVANCED_FIELDS) {
+  for (const f of FEED_ADVANCED_FIELDS.filter((x) => showField(x.key))) {
     let g = groups.find((x) => x.group === f.group)
     if (!g) {
       g = { group: f.group, fields: [] }
@@ -123,6 +161,17 @@ watch(
       }
     }
     advancedValues.value = av
+    const nv: Record<string, string> = {}
+    const nu: Record<string, unknown> = { ...(s.news ?? {}) }
+    for (const f of NEWS_FIELDS) {
+      const raw = nu[f.key]
+      delete nu[f.key]
+      if (raw === undefined || raw === null) nv[f.key] = ''
+      else if (f.type === 'bool') nv[f.key] = raw ? 'true' : 'false'
+      else nv[f.key] = String(raw)
+    }
+    newsValues.value = nv
+    newsUnknown.value = nu
     unknownText.value = Object.keys(s.extras).length ? JSON.stringify(s.extras, null, 2) : ''
     error.value = null
   },
@@ -200,8 +249,36 @@ function onSave(): void {
   if (since.value.trim()) must.episode_since = since.value.trim()
   if (until.value.trim()) must.episode_until = until.value.trim()
 
+  const news = collectNews()
+  if (news === null) return
+
   // Advanced wins over any same-named unknown key (shouldn't overlap, but be safe).
-  emit('save', buildFeedEntry(urlKey.value, url.value, must, { ...unknown, ...advanced }))
+  emit('save', buildFeedEntry(urlKey.value, url.value, must, { ...unknown, ...advanced }, news))
+}
+
+/** The ``news:`` block from the fields: empty = absent (the server's default); null = invalid. */
+function collectNews(): Record<string, unknown> | null {
+  const news: Record<string, unknown> = { ...newsUnknown.value }
+  for (const f of NEWS_FIELDS) {
+    const t = String(newsValues.value[f.key] ?? '').trim()
+    if (t === '') continue
+    if (f.type === 'bool') {
+      news[f.key] = t === 'true'
+    } else if (f.type === 'int') {
+      const n = Number(t)
+      if (!Number.isInteger(n) || n < 1 || n > 500) {
+        error.value = `${f.label} must be a whole number from 1 to 500.`
+        return null
+      }
+      news[f.key] = n
+    } else if (f.key === 'api_key_env' && !/^[A-Z][A-Z0-9_]*$/.test(t)) {
+      error.value = `${f.label} must be an environment variable name (A-Z, 0-9, _).`
+      return null
+    } else {
+      news[f.key] = t
+    }
+  }
+  return news
 }
 </script>
 
@@ -232,7 +309,7 @@ function onSave(): void {
     </p>
 
     <div class="grid shrink-0 grid-cols-2 gap-2">
-      <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+      <label v-if="showField('max_episodes')" class="flex flex-col gap-0.5 text-[10px] text-muted">
         <span>Max episodes</span>
         <input
           v-model="maxEpisodesStr"
@@ -304,7 +381,7 @@ function onSave(): void {
         <span class="text-[9px] text-muted">Overrides the corpus profile for this feed only.</span>
       </label>
 
-      <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+      <label v-if="showField('episode_order')" class="flex flex-col gap-0.5 text-[10px] text-muted">
         <span>Episode order</span>
         <select
           v-model="episodeOrder"
@@ -323,7 +400,7 @@ function onSave(): void {
         </select>
       </label>
 
-      <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+      <label v-if="showField('episode_offset')" class="flex flex-col gap-0.5 text-[10px] text-muted">
         <span>Episode offset</span>
         <input
           v-model="offsetStr"
@@ -336,8 +413,8 @@ function onSave(): void {
         >
       </label>
 
-      <div class="flex flex-col gap-0.5">
-        <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+      <div v-if="showField('episode_since') || showField('episode_until')" class="flex flex-col gap-0.5">
+        <label v-if="showField('episode_since')" class="flex flex-col gap-0.5 text-[10px] text-muted">
           <span>Episode since</span>
           <input
             v-model="since"
@@ -346,7 +423,7 @@ function onSave(): void {
             data-testid="feed-override-since"
           >
         </label>
-        <label class="flex flex-col gap-0.5 text-[10px] text-muted">
+        <label v-if="showField('episode_until')" class="flex flex-col gap-0.5 text-[10px] text-muted">
           <span>Episode until</span>
           <input
             v-model="until"
@@ -357,6 +434,67 @@ function onSave(): void {
         </label>
       </div>
     </div>
+
+    <section
+      v-if="isNews || Object.values(newsValues).some((v) => v !== '')"
+      class="shrink-0 space-y-2"
+      data-testid="feed-override-news"
+    >
+      <h4 class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+        News source
+      </h4>
+      <fieldset
+        v-for="grp in newsGroups"
+        :key="grp.group"
+        class="rounded border border-border/60 p-1.5"
+      >
+        <legend class="px-1 text-[9px] font-medium uppercase tracking-wide text-muted">
+          {{ grp.group }}
+        </legend>
+        <div class="grid grid-cols-2 gap-1.5">
+          <label
+            v-for="f in grp.fields"
+            :key="f.key"
+            class="flex flex-col gap-0.5 text-[10px] text-muted"
+          >
+            <span>{{ f.label }}</span>
+            <select
+              v-if="f.type === 'bool' || f.type === 'choice'"
+              v-model="newsValues[f.key]"
+              class="rounded border border-border bg-elevated px-1.5 py-0.5 text-[11px] text-elevated-foreground"
+              :data-testid="`feed-override-news-${f.key}`"
+            >
+              <option value="">
+                Default{{ f.default ? ` (${f.default})` : '' }}
+              </option>
+              <template v-if="f.type === 'bool'">
+                <option value="true">
+                  On
+                </option>
+                <option value="false">
+                  Off
+                </option>
+              </template>
+              <option v-for="o in f.options ?? []" v-else :key="o" :value="o">
+                {{ o }}
+              </option>
+            </select>
+            <input
+              v-else
+              v-model="newsValues[f.key]"
+              :type="f.type === 'int' ? 'number' : 'text'"
+              :inputmode="f.type === 'int' ? 'numeric' : undefined"
+              :min="f.type === 'int' ? 1 : undefined"
+              :max="f.type === 'int' ? 500 : undefined"
+              :spellcheck="false"
+              class="rounded border border-border bg-elevated px-1.5 py-0.5 font-mono text-[11px] text-elevated-foreground"
+              :data-testid="`feed-override-news-${f.key}`"
+              :placeholder="f.default ? `default ${f.default}` : 'none'"
+            >
+          </label>
+        </div>
+      </fieldset>
+    </section>
 
     <CollapsibleSection
       :title="`Advanced${advancedActiveCount ? ` (${advancedActiveCount} set)` : ''}`"
