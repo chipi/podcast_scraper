@@ -1,0 +1,52 @@
+# News sources (News 1.0, E05): a sample. Every source here is made up.
+#
+# Each entry is a feeds.spec.yaml entry: copy the ones you want into your corpus's
+# feeds.spec.yaml (by hand, or PUT /api/feeds), and the next pipeline run with --feeds-spec
+# downloads them. Give each source's publisher an entry in the publisher registry
+# (config/publishers.yaml, or the file PODCAST_PUBLISHERS_FILE names), with the source id
+# source:{url_identity(feed url)}; nothing adds it for you.
+#
+# news: settings (rss/feeds_spec.py NewsSourceSpec): max_items per run (newest first), URL
+# include/exclude patterns, a forced text_status, rights (serveable: metadata|summary|none,
+# mineable), live-blog and roundup title patterns, text_from, personal, api_key_env.
+
+feeds:
+
+  # An RSS feed: the default transport.
+  - url: https://news.example.com/rss.xml
+    content_type: news_article
+    news: {serveable: summary, mineable: true, max_items: 20}
+
+  # A feed that mixes video and gallery pages and live blogs into its articles.
+  - url: https://world.example.org/feed/
+    content_type: news_article
+    news:
+      serveable: summary
+      mineable: true
+      max_items: 15
+      exclude_url_pattern: "/(video|gallery)/"
+      live_blog_url_pattern: "/live/"
+      roundup_title_pattern: "^Daily Briefing:"
+
+  # A paywalled source: the page gives a teaser only, so only metadata is served.
+  - url: https://paywalled.example.net/rss
+    content_type: news_article
+    news: {serveable: metadata, mineable: true, max_items: 10, text_status: teaser}
+
+  # A personal weblog: its publisher is its author.
+  - url: https://blog.example.com/atom.xml
+    content_type: news_article
+    news: {serveable: summary, mineable: true, max_items: 10, personal: true}
+
+  # A link aggregator through its API (transport hn): each linked article page is fetched.
+  # - url: https://hn.algolia.com/api/v1/search_by_date?tags=front_page&hitsPerPage=50
+  #   content_type: news_article
+  #   transport: hn
+  #   news: {serveable: summary, mineable: true, max_items: 20}
+
+  # A keyed API (transport guardian): the key in the variable api_key_env names
+  # (docs/guides/NEWS_API_KEYS.md); it lists nothing without it.
+  # - url: https://content.guardianapis.com/search
+  #   content_type: news_article
+  #   transport: guardian
+  #   news: {serveable: summary, mineable: true, max_items: 20, api_key_env: GUARDIAN_API_KEY}

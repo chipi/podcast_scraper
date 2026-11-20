@@ -116,7 +116,7 @@ So there is no way yet to add a type without editing the podcast path.
 **Assumptions:**
 
 - **Two or three articles a day per source** on average. That is about 1,000 items a month for 19
-  sources, against today's 3,151 episodes. Not true without a cap for Hacker News or BBC World, so
+  sources, against today's 3,151 episodes. Not true without a cap for a link aggregator or a busy world desk, so
   each source has a per-run cap (§12). To measure on the first month.
 - **Enrichment cost per article is well below an episode's:** no transcription and shorter text.
   Not measured yet.
@@ -315,13 +315,13 @@ The core release builds this section (R3a).
   - **Two names in one byline are two people** (a co-byline guard, the analogue of co-voice).
   - Across publishers, or into podcasts, a byline joins only through the general rule and its
     guards.
-- **An organisation as author** ("Meduza", "Reuters") is the publisher, not a person. That rule is
+- **An organisation as author** ("Example News") is the publisher, not a person. That rule is
   for news only: for a filing or a company press release, the company is the author and the
   newsroom is the source, which later types decide.
 - **Publishers are organisations** (T-12), held in a **publisher registry** in public configuration:
   id, name, web domain, external identifiers.
   - A source points at its publisher through `PUBLISHED_BY`.
-  - A publisher that also publishes a podcast in the corpus (the BBC, Meduza) is one organisation
+  - A publisher that also publishes a podcast in the corpus is one organisation
     across both.
   - Organisation nodes found by NER are not joined to publishers automatically in News 1.0.
 - **An organisation carries its external identifiers side by side, never conflated:** a web domain
@@ -413,24 +413,19 @@ this section (a read-time proof only, no new enrichment) is replaced by the foll
 
 ### 12. The prod sources (first set, 2026-11-11)
 
-Chosen to match and complement the podcast corpus's subjects. Every feed answered HTTP 200 with
-recent items on 2026-11-11.
+Chosen to match and complement the podcast corpus's subjects, across five areas: AI and
+technology, central banks and economics, world and geopolitics, technology in the Global South,
+and health, biotech and science, plus the two API transports. Every feed answered HTTP 200 with
+recent items on 2026-11-11. The deployment keeps its source list and publisher registry outside
+this repository (the operator, 2026-11-20); `config/examples/news.feeds.example.yaml` and the sample
+`config/publishers.yaml` show their shape.
 
-| Area | Sources |
-| --- | --- |
-| AI and technology | Ars Technica, The Verge, MIT Technology Review, Import AI, Simon Willison's weblog |
-| Central banks and economics | BIS central bankers' speeches, Federal Reserve press releases, BBC Business |
-| World and geopolitics | BBC World, Al Jazeera, Meduza (English), The Diplomat, South China Morning Post (China) |
-| Technology in the Global South | Rest of World, TechCabal |
-| Health, biotech and science | STAT News, Quanta Magazine, Nature News, The Conversation |
-| APIs | Hacker News (Algolia), The Guardian Content API |
+**Shapes the first set has** (each has a setting in the source's `news:` block):
 
-**Known per source:**
-
-- **SCMP:** returns a teaser only.
-- **Al Jazeera:** its feed mixes in video pages, which are filtered.
-- **The Brazilian Report:** wanted, since it publishes a podcast in the corpus, but its feed
-  answered 404. It needs another route.
+- a source whose page gives a teaser only (`text_status: teaser`, served as metadata);
+- a feed that mixes video and gallery pages into its articles (`exclude_url_pattern`);
+- a source wanted for a podcast it also publishes whose feed answered 404, which needs another
+  route.
 
 Fixtures and invented items, as for podcasts, cover the same shapes in CI. Fixtures use invented
 names and domains only.

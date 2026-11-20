@@ -21,9 +21,9 @@ host joins only through the general rule and its guards.
 Bylines are noisy. In a sample of 19 sources on 2026-11-11 they included:
 
 - several authors in one string;
-- a surname first ("Arnold; Mark");
-- a date stuck to a name ("Perri Thaler November");
-- the publisher as the author ("Meduza", "TechCabal; Adonijah Ndege").
+- a surname first ("Doe; Jane");
+- a date stuck to a name ("Sam Rivera November");
+- the publisher as the author ("Example News", "Example World; Alex Kim").
 
 A wrong merge is worse than a cautious split.
 
@@ -51,7 +51,7 @@ A wrong merge is worse than a cautious split.
      list of `Source` ids (`podcast:…`, `source:…`), one list for every type.
    - A news item's publisher is found by its canonical URL's host: a listed domain matches itself
      and its subdomains, the longest match wins, and no match means no publisher, never a guess.
-   - A publisher that also publishes a podcast in the corpus (the BBC, Meduza) is one organisation
+   - A publisher that also publishes a podcast in the corpus is one organisation
      across both.
    - External identifiers (a web domain now; later a company's CIK, ticker or LEI) are kept side by
      side and never merged into one key.

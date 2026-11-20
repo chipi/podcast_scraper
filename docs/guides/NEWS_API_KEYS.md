@@ -6,11 +6,11 @@ The operator's decision of 2026-11-18: prepare this now, add the Guardian key la
 
 ## How a source finds its key
 
-A news source in `config/news.feeds.yaml` names the environment variable that holds its key with
-`api_key_env`. The Guardian's transport falls back to `GUARDIAN_API_KEY` when the field is absent.
+A news source in the corpus's `feeds.spec.yaml` names the environment variable that holds its key
+with `api_key_env`. The Guardian's transport falls back to `GUARDIAN_API_KEY` when the field is absent.
 With no key set, the source lists nothing and the run logs one warning naming the source's URL
 ("the API key variable is not set"). Neither the key nor the variable's name is ever written to a
-log; the variable's name is the source's `api_key_env` in `config/news.feeds.yaml`, or
+log; the variable's name is the source's `api_key_env` in `feeds.spec.yaml`, or
 `GUARDIAN_API_KEY` for the Guardian when the field is absent.
 
 ```yaml
@@ -32,8 +32,8 @@ log; the variable's name is the source's `api_key_env` in `config/news.feeds.yam
    `guardian_api_key` (empty while unset, so prod boots without it), mounted into the `api`,
    `pipeline` and `pipeline-llm` services (the api hands it to the pipeline jobs it starts), and the
    secrets shim exports it as `GUARDIAN_API_KEY`.
-4. **Switch the source on** in `config/news.feeds.yaml` (the Guardian's block is there, commented
-   out) and run the ingest. Its first run lists the newest articles.
+4. **Switch the source on**: add its entry to the corpus's `feeds.spec.yaml` (a commented sample
+   is in `config/examples/news.feeds.example.yaml`) and run the ingest. Its first run lists the newest articles.
 
 ## The next API
 
