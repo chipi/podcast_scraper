@@ -13,6 +13,10 @@ import { StaleGeneration } from '../../utils/staleGeneration'
 import NewsResultRow from '../search/NewsResultRow.vue'
 
 const PAGE = 50
+/** The items route's largest page: the publisher sweep reads the whole list in few requests. */
+const SWEEP = 500
+
+type Publisher = { id: string; name: string; domain: string }
 
 const shell = useShellStore()
 const subject = useSubjectStore()
@@ -23,13 +27,41 @@ const publisherId = computed({
   get: () => shell.libraryNewsPublisherId,
   set: (v: string) => (shell.libraryNewsPublisherId = v),
 })
-/** Every publisher seen in the unfiltered list, for the select. */
-const publishers = ref<{ id: string; name: string; domain: string }[]>([])
+/** Every publisher of the corpus's shown items, for the select. */
+const publishers = ref<Publisher[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const gate = new StaleGeneration()
+const sweepGate = new StaleGeneration()
 
 const chosen = computed(() => publishers.value.find((p) => p.id === publisherId.value) ?? null)
+
+function addPublishers(from: NewsItem[]): void {
+  const seen = new Map(publishers.value.map((p) => [p.id, p]))
+  for (const it of from) if (it.publisher) seen.set(it.publisher.id, it.publisher)
+  publishers.value = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Every publisher in the corpus, from the whole unfiltered list. The pages shown hold only the
+ * newest items, so a select built from them alone missed the publishers further back (7 of 17 on
+ * the 2026-11-20 test corpus). A failed sweep leaves the publishers the pages gave.
+ */
+async function loadPublishers(): Promise<void> {
+  const root = shell.corpusPath.trim()
+  if (!root) return
+  const seq = sweepGate.bump()
+  try {
+    for (let offset = 0; ; offset += SWEEP) {
+      const page = await fetchNewsItems(root, { limit: SWEEP, offset })
+      if (sweepGate.isStale(seq)) return
+      addPublishers(page.items)
+      if (!page.items.length || offset + page.items.length >= page.total) return
+    }
+  } catch (e) {
+    if (sweepGate.isCurrent(seq)) console.warn('news publisher list incomplete:', e)
+  }
+}
 
 async function load(offset = 0): Promise<void> {
   const root = shell.corpusPath.trim()
@@ -46,11 +78,9 @@ async function load(offset = 0): Promise<void> {
     if (gate.isStale(seq)) return
     items.value = offset ? [...items.value, ...page.items] : page.items
     total.value = page.total
-    // Every publisher seen so far, from any page: opened straight onto one publisher (another
-    // surface set it), the list still holds it, for the select and the page's heading.
-    const seen = new Map(publishers.value.map((p) => [p.id, p]))
-    for (const it of page.items) if (it.publisher) seen.set(it.publisher.id, it.publisher)
-    publishers.value = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+    // Opened straight onto one publisher (another surface set it), the select holds it before
+    // the sweep ends, for the select and the page's heading.
+    addPublishers(page.items)
   } catch (e) {
     if (gate.isStale(seq)) return
     error.value = e instanceof Error ? e.message : String(e)
@@ -59,6 +89,15 @@ async function load(offset = 0): Promise<void> {
   }
 }
 
+// Declared first: on a corpus change the old corpus's publishers go before either load adds any.
+watch(
+  () => shell.corpusPath,
+  () => {
+    publishers.value = []
+    void loadPublishers()
+  },
+  { immediate: true },
+)
 watch(() => [shell.corpusPath, publisherId.value], () => void load(0), { immediate: true })
 
 function open(item: NewsItem): void {
