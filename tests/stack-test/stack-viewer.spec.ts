@@ -214,12 +214,12 @@ test.describe("Stack smoke test", () => {
     // capability block in ``config/profiles/airgapped_thin.yaml``.
     //
     // What airgapped_thin DOES produce (asserted strictly here):
-    //   - schema_version: "3.1" on every GI artifact
+    //   - schema_version: "4.0" on every GI artifact
     //   - Insight nodes with text from BART summary bullets
     //   - Insight.insight_type ≠ "unknown" via the rule-based classifier
     //   - Insight.position_hint numeric via waterfall step 1 (RSS duration)
     //   - KG Person nodes from speaker detection (hosts + guests)
-    //   - KG Podcast node + HAS_EPISODE edges from feed metadata
+    //   - KG Source node + HAS_ITEM edges from feed metadata (KG 3.0)
     //   - Migration safety: ZERO legacy MENTIONS edges pointing at typed
     //     KG nodes (the typed-MENTIONS post-pass rewrites them all)
     //
@@ -272,7 +272,7 @@ test.describe("Stack smoke test", () => {
       expect(r.status()).toBe(200)
       const body = (await r.json()) as GiArtifact
       giContents.push(body)
-      expect(body.schema_version, `${a.relative_path} schema_version`).toBe("3.1")
+      expect(body.schema_version, `${a.relative_path} schema_version`).toBe("4.0")
     }
     const kgContents: KgArtifact[] = []
     for (const a of kgArtifacts) {
@@ -425,19 +425,19 @@ test.describe("Stack smoke test", () => {
     // - Person nodes from speaker detection — strictly required.
     // - Organization nodes — out of scope (no LLM). Asserted in the
     //   Python integration surface (test_cil_queries.py).
-    // - Podcast node + HAS_EPISODE edge — required (feed metadata path).
+    // - Source node + HAS_ITEM edge (KG 3.0) — required (feed metadata path).
     const kgPersonIds = new Set<string>()
-    let podcastNodeCount = 0
-    let hasEpisodeEdgeCount = 0
+    let sourceNodeCount = 0
+    let hasItemEdgeCount = 0
     for (const kg of kgContents) {
       for (const n of kg.nodes ?? []) {
         if (n.type === "Person") {
           if (typeof n.id === "string") kgPersonIds.add(n.id)
         }
-        if (n.type === "Podcast") podcastNodeCount += 1
+        if (n.type === "Source") sourceNodeCount += 1
       }
       for (const e of kg.edges ?? []) {
-        if (e.type === "HAS_EPISODE") hasEpisodeEdgeCount += 1
+        if (e.type === "HAS_ITEM") hasItemEdgeCount += 1
       }
     }
     expect(
@@ -445,12 +445,12 @@ test.describe("Stack smoke test", () => {
       "airgapped_thin: KG must emit at least one Person node from speaker detection",
     ).toBeGreaterThan(0)
     expect(
-      podcastNodeCount,
-      "airgapped_thin: KG must emit at least one Podcast node from feed metadata",
+      sourceNodeCount,
+      "airgapped_thin: KG must emit at least one Source node from feed metadata",
     ).toBeGreaterThan(0)
     expect(
-      hasEpisodeEdgeCount,
-      "airgapped_thin: KG must emit at least one HAS_EPISODE edge",
+      hasItemEdgeCount,
+      "airgapped_thin: KG must emit at least one HAS_ITEM edge",
     ).toBeGreaterThan(0)
 
     // Migration safety: any GI MENTIONS family edge targeting a typed KG
