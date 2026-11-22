@@ -168,7 +168,7 @@ Use this block **after** you work through Tier 1–3. It ties the operational ch
 - [ ] **Tier 2 prompts (27B):** `src/podcast_scraper/prompts/ollama/qwen3.5_27b/`
 - [ ] **Tier 3 prompts (35B):** `src/podcast_scraper/prompts/ollama/qwen3.5_35b/`; for tag `qwen3.5:35b-a3b`, use `src/podcast_scraper/prompts/ollama/qwen3.5_35b-a3b/`
 - [ ] **Integration tests:** `pytest tests/integration/providers/ollama/test_qwen3_5_ollama_tiers.py` (or run the full Ollama integration slice via `make test-integration`)
-- [ ] **Eval configs (`data/eval/configs/`):** **`llm_ollama_*_smoke_v1`** = pure Ollama summarization (no LongT5; same shape as `llm_mistral_smoke_v1`). Mistral-family Ollama smokes include `llm_ollama_mistral_7b_smoke_v1`, `llm_ollama_mistral_nemo_12b_smoke_v1`, `llm_ollama_mistral_small3_2_smoke_v1`. Llama 3.x smokes include `llm_ollama_llama32_3b_smoke_v1`, `llm_ollama_llama33_70b_q3km_smoke_v1`. **`hybrid_ml_tier2_*`** = LongT5 MAP + Ollama REDUCE (needs HF MAP cache + `ollama pull`). Qwen 3.5 tier extras: `hybrid_ml_tier2_qwen35_*b_authority_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_tuned_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1`.
+- [ ] **Eval configs (`data/eval/configs/` in the private eval repo):** **`llm_ollama_*_smoke_v1`** = pure Ollama summarization (no LongT5; same shape as `llm_mistral_smoke_v1`). Mistral-family Ollama smokes include `llm_ollama_mistral_7b_smoke_v1`, `llm_ollama_mistral_nemo_12b_smoke_v1`, `llm_ollama_mistral_small3_2_smoke_v1`. Llama 3.x smokes include `llm_ollama_llama32_3b_smoke_v1`, `llm_ollama_llama33_70b_q3km_smoke_v1`. **`hybrid_ml_tier2_*`** = LongT5 MAP + Ollama REDUCE (needs HF MAP cache + `ollama pull`). Qwen 3.5 tier extras: `hybrid_ml_tier2_qwen35_*b_authority_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_tuned_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1`.
 - [ ] **Acceptance presets:** CI-style full pipeline rows live in **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** (see **`config/acceptance/README.md`**). For extra operator YAMLs, use your own paths (often under **`config/playground/`**) with **`profile: local`** and required Ollama fields.
 
 ### Step 4: Install Podcast Scraper Dependencies
@@ -255,7 +255,7 @@ Use this when you introduce another **Ollama model tag** (e.g. a larger variant 
 
 2. **Prompts (only if needed):** Optional model-specific templates live under `prompts/.../ollama/<dir>/`, where `<dir>` is the tag with `:` replaced by `_` (e.g. `qwen2.5:32b` → `qwen2.5_32b`). If that path does not exist, the provider **falls back** to generic `ollama/<task>/...` prompts.
 
-3. **Eval configs (optional):** Add a new file under `data/eval/configs/` with a unique `id`, copied from a similar run; set `reduce_model` or the relevant Ollama fields to `<tag>` so multi-run / comparison workflows can name the run.
+3. **Eval configs (optional):** Add a new file under `data/eval/configs/` in the private eval repo with a unique `id`, copied from a similar run; set `reduce_model` or the relevant Ollama fields to `<tag>` so multi-run / comparison workflows can name the run.
 
 4. **Acceptance configs (optional):** Add operator YAML where you keep local configs (for example **`config/playground/`**) with **`profile: local`** / Ollama fields. **Do not** add Ollama-heavy rows to **`MAIN_ACCEPTANCE_CONFIG.yaml`** unless you want PR CI to run them.
 

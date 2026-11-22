@@ -313,16 +313,12 @@ lint:
 lint-search-v3:
 	$(PYTHON) scripts/check/lint_search_v3_forbidden_imports.py
 
-# Search v3 quality-eval harness (RFC-107 §T2, PRD-045 FR10; #1230 S0(c)).
-# Default corpus + query set = the v3 synthetic fixture; output the S0 baseline
-# under data/eval/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
-# eval against a different corpus / query set.
+# Default CORPUS for every target that reads it (ci-ui-validation, enrich, pipeline-check): the
+# v3 synthetic fixture, so it is never empty.
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
-QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
-OUT ?= data/eval/search-v3/eval/latest.json
-# `data/eval/**`: eval runs write their reports there. The `eval-data` ignores below point at
-# a directory that no longer exists (the path moved), so 320 generated reports were being
-# linted locally. CI never saw it — they are gitignored, so a fresh checkout has none.
+
+# `data/eval/**`: eval runs write their reports there; gitignored, so CI never sees them, but a
+# local run left 320 generated reports to lint. `eval-data/` is the private eval repo mount.
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	".github/**/*.md" \
 	".cursor/**/*.md" \

@@ -5,7 +5,7 @@
 # and timestamps together. The LLM stages stay on the same pinned qwen3.5:35b, so a comparison
 # against prod_dgx_only isolates the audio stage and nothing else.
 #
-# Run it over the SAME 10 pilot episodes and diff with scripts/eval/compare_corpora_v1.py.
+# Run it over the SAME 10 pilot episodes and diff with scripts/eval/compare_corpora_v1.py (private eval repo).
 #
 # What we are testing (and what we do not yet know):
 #   speed         claimed 50-100x realtime vs large-v3's measured 7.8x. If it holds, it is the
@@ -80,7 +80,7 @@ llm_pipeline_mode: staged
 # insight?") on a graded scale, and 0.75 keeps only "clearly supports".
 #
 # Calibrated on 20 pos / 20 neg pairs taken from gemini's own SUPPORTED_BY edges on the SAME
-# episodes (scripts/eval/score/entailment_calibration_v1.py):
+# episodes (scripts/eval/score/entailment_calibration_v1.py, private eval repo):
 #
 #   shipped prompt   @ 0.50   recall 40%   rejection 95%   <- discards real evidence
 #   evidence-framed  @ 0.50   recall 95%   rejection 80%   <- certifies unrelated pairs

@@ -172,7 +172,7 @@ operator used.
 The one gated ML enricher (`topic_consensus`) is wired and registered, and its profile membership is
 decided by a data-driven accuracy gate (`enrichment/eval/admission.py` → `profile_sets._admit`), not a
 hand-toggle. It declares an `accuracy_gate` (precision ≥ 0.5) on its manifest; until an eval records a
-passing precision under `data/eval/enrichment/<id>/gate_metrics.json`, the gate excludes it from the
+passing precision under `<eval root>/enrichment/<id>/gate_metrics.json` (shipped copies: `enrichment/eval/gate_metrics/`), the gate excludes it from the
 registry → profiles → UI. **`topic_consensus` cleared it** — precision 0.91 on prod-v2 (composite) → admitted to the cloud / dgx / dev / local profiles. A candidate with no passing eval
 auto-promotes with no code edit once one is recorded. The live multi-speaker surface users also see is
 **perspectives** (#1146), a CIL query over the GI, **not** an enricher, so it sidesteps the gate. `GET
@@ -191,7 +191,7 @@ set per profile; the accuracy gate then filters the ML tier (above):
 | unknown profile | (none — conservative default) |
 
 Membership is **data-driven, not a hand-maintained list**: profiles list CANDIDATES; `_admit()`
-runs each through its manifest `accuracy_gate` + the recorded `data/eval` metric, so an ML
+runs each through its manifest `accuracy_gate` + the recorded gate metric, so an ML
 candidate ships only once it clears precision ≥ 0.5. There is no `config/profiles/prod.yaml` —
 the production profiles are `prod_dgx_*`.
 
@@ -320,9 +320,9 @@ which filters similar-but-opposite pairs). No LLM (MiniLM + DeBERTa, both CPU-lo
 `enrichers.topic_consensus.provider.type` to `consensus_local` (MiniLM + DeBERTa, requires `[ml]`
 extra) or `fixed_consensus` (CI-safe test fixture).
 **Status: PROMOTED** — measured **precision 0.91** on prod-v2 (curated 28-pair gold), recorded in
-`data/eval/enrichment/topic_consensus/gate_metrics.json`, so the `accuracy_gate(precision ≥ 0.5)`
+`enrichment/eval/gate_metrics/enrichment/topic_consensus/gate_metrics.json`, so the `accuracy_gate(precision ≥ 0.5)`
 auto-admits it into the cloud / dgx / dev / local profiles. Re-score with
-`scripts/eval/score/enrichment_topic_consensus.py`.
+`scripts/eval/score/enrichment_topic_consensus.py` (private eval repo).
 
 ### `insight_sentiment` (deterministic, episode scope)
 
@@ -596,8 +596,8 @@ profile YAML still produces an EnricherSet.
 
 ### 6. Add an eval row (optional)
 
-The scoring scaffolding lives under `scripts/eval/score/enrichment_<tier>.py`.
-Drop a gold fixture under `data/eval/enrichment/<id>/gold/`; the
+The scoring scaffolding lives in the private eval repo, under `scripts/eval/score/enrichment_<tier>.py`.
+Drop a gold fixture under `data/eval/enrichment/<id>/gold/` there; the
 script computes the metric (exact-match for deterministic, recall@K
 for embedding, P/R/F1 + Brier for NLI). Run direct-Python — no Make
 wrapper for the scoring script itself (per REPLAN-O6).

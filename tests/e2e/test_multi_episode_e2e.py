@@ -183,7 +183,7 @@ class TestMultiEpisodeE2E:
 # Removed: ``test_multi_episode_with_summarization`` — the test asserted on
 # ML summarization output content (``summary is not None``, ``bullets`` length,
 # ``short_summary`` populated) for every episode in a 5-episode run, which is
-# precisely the dimension ``data/eval/`` now covers with versioned silver
+# precisely the dimension the private eval repo now covers with versioned silver
 # references and pairwise LLM judging. The pipeline-mechanics dimension
 # (5-episode iteration, file-write ordering, concurrent processing) stays
 # covered by the two sibling tests in this class. Removed in the chore-class

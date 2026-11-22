@@ -498,7 +498,7 @@ is a bug waiting for the content to change.
 - Known secret-leak vector: `docker compose config` resolves and inlines
   every `${...}` env var (including `HF_TOKEN`, `VLLM_API_KEY`, etc.) into
   literal values. Never `git add` its output without scrubbing first — the
-  `autoresearch/1022_gb10_tuning/run_labeled.sh` scrubber is the canonical
+  `autoresearch/1022_gb10_tuning/run_labeled.sh` scrubber (private eval repo) is the canonical
   pattern. Same hazard applies to any `*.env` snapshot, `printenv` dump,
   or `terraform state show` output. Locally the pre-commit hook's secret
   scan will catch these; do not bypass with `--no-verify` without
@@ -582,26 +582,9 @@ grep the literal strings in `src/`, confirm every value has a dispatch arm
 that does something different. **Half-wired features are worse than no
 feature** — see #643 Phase 3C near-miss for the canonical example.
 
-### Eval-track fixtures + silvers (`data/eval/`)
+### Eval-track fixtures and silvers
 
-- **v2 generator is deterministic** since #903: same spec → identical
-  transcripts across runs / `PYTHONHASHSEED` values. Don't reach for env
-  pinning to "stabilize" output, and don't reintroduce `hash(...)` for
-  seeding — use `_stable_seed(s)` (md5-based) the way
-  `scripts/eval/data/generate_v2_transcripts.py` does. Regression test in
-  `tests/unit/scripts/eval/data/test_generate_v2_transcripts.py`.
-- **Silver naming convention** (v1↔v2):
-  - `silver_<provider>_<cell>_v1` — autoresearch v1 winners over v1 sources.
-  - `silver_<provider>_smoke_v2` / `_smoke_v2_bullets` — v2 source content,
-    smoke scale (5 eps).
-  - `silver_<provider>_kg_v2_paragraph` / `_kg_v2_bullets` — v2 source
-    content, benchmark scale (15 eps from `curated_5feeds_kg_v2`).
-  - `silver_<provider>_benchmark_v2_*` — **autoresearch-v2-framework era**,
-    references v1 sources via `curated_5feeds_benchmark_v2`. The framework
-    "_v2" is unrelated to v2 source content.
-- v1 silvers / baselines are frozen; never overwrite. Layer-suffix dataset
-  naming (`_kg`, `_cil`, `_cleaning`) documented in
-  `data/eval/datasets/README.md`.
+They live in the private eval repo; see `docs/guides/EVAL_RESEARCH_MOUNT.md`.
 
 ### Workbench UX (`web/workbench/`)
 
@@ -1173,12 +1156,10 @@ After **every** autoresearch finding that changes a default — transcription
 backend, summary model, GI/KG thresholds, anything — the lifecycle is:
 
 ```text
-1. Run experiment(s)              →  data/eval/runs/<run_id>/
-2. Score with finale judges       →  data/eval/runs/finale/<tag>/
-3. Write eval report              →  docs/guides/eval-reports/EVAL_*.md
+1-3. Run, score, write the report →  in the private eval repo
 4. ★ MATERIALIZE DECISION ★       →  src/podcast_scraper/providers/ml/model_registry.py
      - Add or update StageOption / ProfilePreset entries
-     - research_ref points back at the eval report from step 3
+     - research_ref cites a public doc or an issue (eval reports are private)
      - headline_metric + measured_at for provenance
 5. ★ REGENERATE PROFILES ★        →  config/profiles/*.yaml
      - Update profile YAMLs to match the registry preset
@@ -1211,7 +1192,7 @@ See:
 ### vLLM-on-GB10 model sweeps — consult & maintain `PER_MODEL_OPTIMAL_PARAMS.md`
 
 Before dispatching any multi-model vLLM sweep on the DGX-GB10 autoresearch
-slot, **read `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`** (the
+slot, **read `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md` in the private eval repo** (the
 compendium sits beside the autoresearch README and model playbook — the
 three-doc pair that describes *how to run autoresearch*).
 It is the canonical per-model flag compendium — every model that has
@@ -1243,7 +1224,7 @@ outdated relative to the compendium, the compendium wins for sweep
 scripts — but flag a follow-up to push the compendium values back into
 the compose.
 
-The compendium lives at `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`.
+The compendium lives in the private eval repo.
 Raw metric captures that feed it sit under `docs/wip/EVAL_1016_metrics/`
 (`vllm_metrics_<candidate>_phase2c.log`) — those are inputs, not
 authoritative documents.

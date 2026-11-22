@@ -3,7 +3,8 @@
 
 Every fixture transcript line was stamped on a synthetic 6-second grid (``i * 6``), which the TTS
 audio does not follow — a line takes as long as the voice takes to say it. A clip cut at a
-segment's time played other words: ``scripts/eval/clip_alignment_check.py`` found 2 of 24 clips
+segment's time played other words: ``scripts/eval/clip_alignment_check.py`` (private eval repo)
+found 2 of 24 clips
 playing what their card says, the offset growing to +41 s through an episode.
 
 The real times are known exactly: ``tests/fixtures/scripts/transcripts_to_mp3.py`` renders each

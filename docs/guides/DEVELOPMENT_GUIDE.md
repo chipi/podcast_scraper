@@ -695,9 +695,10 @@ Playwright or MCP clicking the wrong **Search**):
 **See also:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
 [CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
-## Evaluation artifacts (`data/eval/`)
+## Evaluation artifacts (private eval repo)
 
-The `data/eval/` tree is the project's ML quality
+The `data/eval/` tree lives in the private eval repo (mounted at `eval-data/`, see
+[Mounting the private eval repo](EVAL_RESEARCH_MOUNT.md)). It is the project's ML quality
 infrastructure. Contributors use it to validate new
 models, compare provider outputs, and gate regressions
 before merging.
@@ -1887,7 +1888,7 @@ AI Provider Comparison (moved to the private eval repo)
 quadrant).
 
 **Validating provider quality:** Run experiments
-against `data/eval/` baselines and capture
+against the private eval repo's baselines and capture
 performance profiles in `data/profiles/`. See
 `Experiment Guide` and
 Performance Profile Guide (moved to the private eval repo).
