@@ -76,7 +76,7 @@ read/write tools backing the same HTTP surface. Configure with
 | `enrichment_health(target?, enricher_id?)` | Per-enricher health (or one enricher) | GET `/api/enrichment/health` |
 | `enrichment_metrics(target?, window="24h")` | Rollup metrics over a window | GET `/api/enrichment/metrics` |
 | `enrichment_recent_events(target?, enricher_id?, event_type?, limit=50)` | JSONL event tail | GET `/api/enrichment/events` |
-| `enrichment_eval_history(target?, eval_root?, limit=10)` | Enrichment-tagged eval runs from local `data/eval/runs/` (default; the private eval repo mount is `eval-data/data/eval/runs/`, pass it as `eval_root`) | On-disk scan; no remote endpoint by design — eval artefacts are frozen-once-written operator-side data |
+| `enrichment_eval_history(target?, eval_root?, limit=10)` | Enrichment-tagged eval runs from local `data/eval/runs/` (default; the private eval repo mount is `eval-data/records/runs/`, `eval-data/data/eval/runs/` in a checkout from before 2026-11-22: pass it as `eval_root`) | On-disk scan; no remote endpoint by design — eval artefacts are frozen-once-written operator-side data |
 | `enrichment_re_enable(enricher_id, target?, reason?)` | Clear `auto_disabled` + zero `consecutive_failures` | POST `/api/enrichment/health/{id}/re-enable` |
 | `enrichment_cancel(job_id, target?)` | Cancel a running/queued enrichment job | POST `/api/jobs/{id}/cancel` (command-type-agnostic) |
 

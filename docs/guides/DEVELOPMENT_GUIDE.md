@@ -697,8 +697,9 @@ Playwright or MCP clicking the wrong **Search**):
 
 ## Evaluation artifacts (private eval repo)
 
-The `data/eval/` tree lives in the private eval repo (mounted at `eval-data/`, see
-[Mounting the private eval repo](EVAL_RESEARCH_MOUNT.md)). It is the project's ML quality
+The eval records live in the private eval repo (mounted at `eval-data/`, see
+[Mounting the private eval repo](EVAL_RESEARCH_MOUNT.md)), under `records/` (`data/eval/`
+until 2026-11-22). It is the project's ML quality
 infrastructure. Contributors use it to validate new
 models, compare provider outputs, and gate regressions
 before merging.
@@ -726,7 +727,7 @@ regenerated or discarded.
 The experiment, run-compare, run-promote, baselines-list and runs-list
 commands are retired from this repository (#2134).
 
-## Performance profiles (`data/profiles/`)
+## Performance profiles (private eval repo, `records/profiles/`)
 
 RFC-064 frozen performance snapshots per
 provider/release. Each YAML captures per-stage
