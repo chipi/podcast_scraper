@@ -5,12 +5,11 @@ and a clip of the person making that point.
 
 WHICH insights (``ranking``). The default is ``player``: the order the player already shows
 (``insights_from_gi`` — salience, which ties for most of an episode, then extraction order). A
-blind check on 100 prod episodes (2026-10-10, ``scripts/eval/moments_eval.py``, private eval repo)
-found it beats a score built from depth, topic centrality, insight kind and speaker: the judge
-scored the player order 3.02 vs 2.90 and preferred it in 54 episodes to 25. Per signal, depth,
-centrality and kind were noise (Spearman −0.05, +0.01, −0.01); extraction order was not
-(−0.17: the extractor writes its strongest insights first). ``ranking: "score"`` keeps the score
-available to retry.
+blind check on 100 prod episodes (2026-10-10, ``scripts/eval/moments_eval.py``) found it beats a
+score built from depth, topic centrality, insight kind and speaker: the judge scored the player
+order 3.02 vs 2.90 and preferred it in 54 episodes to 25. Per signal, depth, centrality and kind
+were noise (Spearman −0.05, +0.01, −0.01); extraction order was not (−0.17: the extractor writes
+its strongest insights first). ``ranking: "score"`` keeps the score available to retry.
 
 WHAT plays (``clip_rule``). The strongest signal in that check was the clip itself (quote length
 +0.42 against the judge's score; model judges also favour longer text, so part of that may be the
