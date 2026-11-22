@@ -52,7 +52,7 @@ that looks like it worked:
 
 ```text
 analysis, app, chaos, data_quality, golden, infrastructure, module_cache,
-module_evaluation, module_exceptions, module_groq_providers, multi_episode, offline
+module_exceptions, module_groq_providers, multi_episode, offline
 ```
 
 Verified by `git grep -c "pytest.mark.<name>" -- tests/` returning zero files for each.

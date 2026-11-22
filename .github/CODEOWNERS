@@ -1,10 +1,7 @@
 # CODEOWNERS — operator review required for paths listed below.
 #
 # Combined with the ``main`` ruleset (which requires PRs for direct pushes),
-# this is the gate that keeps the BASELINES_COMMIT_TOKEN-bypass bot from
-# escaping its data/baselines/* sandbox: any PR that would let the
-# nightly-data-baseline job stage non-baseline paths requires operator
-# approval before it can land.
+# paths listed here need operator approval before a PR can land.
 #
 # Pattern order matters — later entries override earlier ones.
 
@@ -16,9 +13,6 @@
 # Gate every workflow change behind operator review so a malicious or
 # accidental PR can't add a new bypass-capable workflow.
 .github/workflows/**                          @chipi
-
-# Baseline scripts — paired with the baseline workflow; same scope.
-scripts/baselines/**                          @chipi
 
 # CODEOWNERS itself — don't let it edit itself away.
 .github/CODEOWNERS                            @chipi
