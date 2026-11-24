@@ -227,6 +227,20 @@ def test_the_listing_filters_by_url_and_keeps_the_newest_up_to_the_cap(feed: Non
     assert cursor == "2026-11-17T10:00:00Z"
 
 
+def test_after_a_cursor_items_over_the_cap_are_taken_by_the_next_runs(feed: None) -> None:
+    """Next-cycle item 24 (2026-11-23: 7 of 20 feeds published more a day than their caps): the
+    cursor moved to the newest item listed, so the ones over the cap were never taken."""
+    src = _Source()
+    src.news = NewsSourceSpec(max_items=2, include_url_pattern="/articles/")
+    first, cursor = rss.list_items(src, "2026-11-17T05:00:00Z")
+    assert [i.metadata["title"] for i in first] == ["D", "C paper"]
+    assert cursor == "2026-11-17T07:00:00Z"
+    second, cursor = rss.list_items(src, cursor)
+    assert [i.metadata["title"] for i in second] == ["A", "E"]
+    assert cursor == "2026-11-17T10:00:00Z"
+    assert rss.list_items(src, cursor) == ([], cursor)
+
+
 def test_a_feeds_spec_entry_carries_its_news_settings() -> None:
     doc = FeedsSpecDocument.model_validate(
         {
