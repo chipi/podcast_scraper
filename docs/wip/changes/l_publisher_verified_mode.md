@@ -1,7 +1,7 @@
 ---
 id: l_publisher_verified_mode
 class: full
-status: open
+status: landed
 issue: none (ingestion arc, tier L: L2, L3 ledger side, L4, L5, L6; #2056)
 touches:
   - src/podcast_scraper/identity/ledger.py
@@ -411,7 +411,28 @@ Verdict: GO WITH CONDITIONS
 
 ## 11. After apply / deploy
 
-_TODO_
+Shipped with the core release (deploy-player run 44042788760, 2026-11-17 07:58–08:03Z; the control
+plane's exact deploy time not confirmed). Facts read by the prod session from
+`/app/output/identity_ledger_changes.jsonl` and the respell receipts, 2026-11-24:
+
+| Row | Predicted (section 10) | Prod, first refresh after the deploy |
+| --- | --- | --- |
+| the refresh | the first after the deploy | the 2026-11-18 nightly's (job 35fb7a8e), built_at 03:25:29Z, code_version 2.7.0.dev0, rule_version `cluster-person-no-bridge-guarded-publisher-verified/1` |
+| joins | +4 | 766: 7 added |
+| joins removed | 0 | 0 (changed 0, canonical_changed 0) |
+| blocked joins | 40, same set | not read: the changes file has no blocked, refused or state field |
+| refused | 0 | not read (as above) |
+| episodes respelled | about 102 | 5 (`ledger_respell_20261118T032529436803Z.jsonl`) |
+| files written | about 980 | 17 |
+
+The build before the deploy (2026-11-17 05:54:45Z, the extracted mode): 759 joins, +6, -0, respell 38
+files.
+
+**The prediction missed.** Joins added 7 against 4; episodes respelled 5 against about 102, files 17
+against about 980. Not diagnosed. Section 10 said the live counts were not known before the dry run
+(the live corpus had moved on from the copy of snapshot-prod-20261105); 12 days of nightlies lie
+between that copy and 2026-11-18. Whether prod copied the `/3` ledger before this refresh (section
+10's undo) was not read.
 
 ## 12. Retrospective
 
