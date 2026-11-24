@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 from ..content_types import SourceItem, Transport
 from ..rss import downloader
+from . import listing
 from .fetch import source_spec, TIMEOUT_S, user_agent
 
 logger = logging.getLogger(__name__)
@@ -53,9 +54,8 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     after = int(cursor) if cursor and cursor.isdigit() else None
     items: List[SourceItem] = []
     newest = after
-    for hit in sorted(
-        hits, key=lambda h: int(h.get("created_at_i") or 0), reverse=after is None
-    ):
+    waiting = 0
+    for hit in sorted(hits, key=lambda h: int(h.get("created_at_i") or 0), reverse=after is None):
         link = str(hit.get("url") or "")
         created = int(hit.get("created_at_i") or 0)
         if urlsplit(link).scheme not in ("http", "https") or not urlsplit(link).netloc:
@@ -64,8 +64,9 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
             continue
         if after is not None and created <= after:
             continue
+        waiting += 1
         if len(items) >= spec.max_items:
-            break
+            continue
         story = str(hit.get("objectID") or "")
         metadata = {
             "title": hit.get("title"),
@@ -75,6 +76,16 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
         items.append(SourceItem(item_id=story or link, metadata=metadata, url=link))
         if newest is None or created > newest:
             newest = created
+    # The front page is a ranking, not a window of every story: a story leaving it is not lost
+    # in the sense of a feed's window, so no oldest entry is compared with the cursor here.
+    listing.report(
+        NAME,
+        source,
+        cursor_before=cursor,
+        cursor_after=_iso(newest) if newest is not None else None,
+        waiting=waiting,
+        taken=len(items),
+    )
     return items, (str(newest) if newest is not None else cursor)
 
 

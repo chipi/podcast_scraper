@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 from ..content_types import SourceItem, Transport
 from ..rss import downloader
+from . import listing
 from .fetch import source_spec, TIMEOUT_S, user_agent
 
 logger = logging.getLogger(__name__)
@@ -35,12 +36,16 @@ def _iso(parsed: Any) -> Optional[str]:
         return None
 
 
+def _entry_iso(entry: Any) -> Optional[str]:
+    return _iso(entry.get("published_parsed") or entry.get("updated_parsed"))
+
+
 def _in_cap_order(entries: List[Any], cursor: Optional[str]) -> List[Any]:
     """Dated entries oldest first after a cursor, newest first without one; then undated ones in
     feed order. The cap takes from the front."""
 
     def key(e: Any) -> str:
-        return _iso(e.get("published_parsed") or e.get("updated_parsed")) or ""
+        return _entry_iso(e) or ""
 
     dated = sorted((e for e in entries if key(e)), key=key, reverse=not cursor)
     return dated + [e for e in entries if not key(e)]
@@ -63,6 +68,7 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     exclude = re.compile(spec.exclude_url_pattern) if spec.exclude_url_pattern else None
     items: List[SourceItem] = []
     newest = cursor
+    waiting = 0
     for entry in _in_cap_order(parsed.entries, cursor):
         link = entry.get("link") or ""
         # feedparser copies a permalink guid into ``link``; only an absolute web URL is an article.
@@ -73,8 +79,9 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
         published = _iso(entry.get("published_parsed") or entry.get("updated_parsed"))
         if cursor and published and published <= cursor:
             continue
+        waiting += 1
         if len(items) >= spec.max_items:
-            break
+            continue
         guid = entry.get("id") or link
         metadata = {
             "title": entry.get("title"),
@@ -89,6 +96,16 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
         items.append(SourceItem(item_id=guid, metadata=metadata, url=link))
         if published and (newest is None or published > newest):
             newest = published
+    dated = [d for d in map(_entry_iso, parsed.entries) if d]
+    listing.report(
+        NAME,
+        source,
+        cursor_before=cursor,
+        cursor_after=newest,
+        waiting=waiting,
+        taken=len(items),
+        oldest_listed=min(dated) if dated else None,
+    )
     return items, newest
 
 

@@ -19,7 +19,7 @@ from urllib.parse import urlencode, urlsplit
 
 from ..content_types import SourceItem, Transport
 from ..rss import downloader
-from . import extract
+from . import extract, listing
 from .fetch import complete, source_spec, TIMEOUT_S, user_agent
 
 logger = logging.getLogger(__name__)
@@ -100,6 +100,8 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     page_size = max(spec.max_items, PAGE_SIZE_AFTER_CURSOR) if cursor else spec.max_items
     items: List[SourceItem] = []
     newest = cursor
+    waiting = 0
+    read_all = False
     for page in range(1, (MAX_PAGES if cursor else 1) + 1):
         resp = downloader.fetch_url(
             _request_url(source, page_size, cursor, key, page), user_agent(source), TIMEOUT_S
@@ -119,15 +121,28 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
                 continue
             if (include and not include.search(link)) or (exclude and exclude.search(link)):
                 continue
+            waiting += 1
             if len(items) >= spec.max_items:
-                break
+                continue
             item = _item(result, source)
             if item is not None:
                 items.append(item)
             if published and (newest is None or published > newest):
                 newest = published
-        if len(items) >= spec.max_items or page >= int(body.get("pages") or 1):
+        read_all = page >= int(body.get("pages") or 1)
+        if len(items) >= spec.max_items or read_all:
             break
+    # The API lists everything from the cursor's day, so nothing falls out of a window here; a
+    # listing that stopped before the last page reports its backlog as a lower bound.
+    listing.report(
+        NAME,
+        source,
+        cursor_before=cursor,
+        cursor_after=newest,
+        waiting=waiting,
+        taken=len(items),
+        complete=read_all,
+    )
     return items, newest
 
 
