@@ -1,7 +1,7 @@
 ---
 id: c5_outcome_hook_matched_rise
 class: light
-status: open
+status: landed
 issue: none (0043's false FAIL on prod, 2026-11-05)
 touches:
   - src/podcast_scraper/upgrade/outcome_hook.py
@@ -155,6 +155,10 @@ Verdict: GO WITH CONDITIONS
 
 - Operator, 2026-11-05, in the ingestion session (typos corrected): "can you do the hook fixes now
   and also send to main asap?".
+
+Operator accepted: 2026-11-24 condition 1 missed on the news release's chain (no write_digest_ro.py before
+the accept files of 2026-11-23); answered "Accept the miss" in the ingestion session. The digest goes into the
+run steps next cycle.
 
 ## 10. Before apply / deploy
 
