@@ -13,6 +13,7 @@ from typing import Any, cast, Dict, List, Mapping, Optional, Sequence, Set, Tupl
 from filelock import FileLock, Timeout
 
 from podcast_scraper import config, stage_hooks
+from podcast_scraper.grounded_insights_view import gi_read_view
 from podcast_scraper.kg.read_view import kg_read_view
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.chunker import chunk_transcript
@@ -476,6 +477,47 @@ def _source_layer_body(
     return path.resolve(), source_language
 
 
+def _attach_grounding_confidence(
+    rows: List[Tuple[str, str, Dict[str, Any]]],
+    episode_root: Path,
+    metadata_path: Path,
+    doc: Dict[str, Any],
+) -> None:
+    """Copy each insight node's GI 4.0 ``grounding_confidence`` onto its row's metadata, so the
+    index stores it (#2521). An insight whose node carries none keeps no key."""
+    pending = [
+        meta
+        for _, _, meta in rows
+        if meta.get("doc_type") == "insight"
+        and meta.get("grounding_confidence") is None
+        and isinstance(meta.get("source_id"), str)
+    ]
+    if not pending:
+        return
+    gi_disk = _gi_path(episode_root, metadata_path, doc)
+    if not gi_disk.is_file():
+        return
+    try:
+        artifact = cast(
+            Dict[str, Any], gi_read_view(json.loads(gi_disk.read_text(encoding="utf-8")))
+        )
+    except Exception as exc:
+        logger.warning("Skip gi.json grounding confidence %s: %s", gi_disk, exc)
+        return
+    by_id: Dict[str, float] = {}
+    for node in artifact.get("nodes") or []:
+        if not isinstance(node, dict) or node.get("type") != "Insight":
+            continue
+        props = node.get("properties")
+        conf = props.get("grounding_confidence") if isinstance(props, dict) else None
+        if isinstance(conf, (int, float)) and not isinstance(conf, bool):
+            by_id[str(node.get("id"))] = float(conf)
+    for meta in pending:
+        conf = by_id.get(meta["source_id"])
+        if conf is not None:
+            meta["grounding_confidence"] = conf
+
+
 def _collect_docs_for_episode(  # noqa: C901
     episode_root: Path,
     metadata_path: Path,
@@ -680,6 +722,7 @@ def _collect_docs_for_episode(  # noqa: C901
                     )
                 )
 
+    _attach_grounding_confidence(rows, episode_root, metadata_path, doc)
     episode_title, feed_title = _scope_display_titles(doc, ep, feed)
     for _, _, meta in rows:
         meta["source_metadata_relative_path"] = metadata_relative_path

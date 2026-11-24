@@ -168,12 +168,22 @@ def _episode_fingerprint(rows: List[Tuple[str, str, dict]], model_id: str) -> st
     """
     h = hashlib.sha256()
     h.update(f"v{_FP_SCHEMA_VERSION}\x1f{model_id}".encode("utf-8"))
-    for doc_id, text, _meta in sorted(rows, key=lambda r: str(r[0])):
+    for doc_id, text, meta in sorted(rows, key=lambda r: str(r[0])):
         h.update(b"\x1e")
         h.update(str(doc_id).encode("utf-8"))
         h.update(b"\x1f")
         h.update(str(text).encode("utf-8"))
+        # Only a row that carries a confidence hashes it, so every episode without one keeps its
+        # stored fingerprint and an incremental build re-embeds just the episodes that gained one.
+        if meta.get("grounding_confidence") is not None:
+            h.update(b"\x1fgc=" + repr(float(meta["grounding_confidence"])).encode("utf-8"))
     return h.hexdigest()
+
+
+def _grounding_confidence(meta: dict) -> float:
+    """An insight row's grounding confidence; 0.0 when its GI node carries none."""
+    value = meta.get("grounding_confidence")
+    return float(value) if value is not None else 0.0
 
 
 def _episode_scope_key(rows: List[Tuple[str, str, dict]], doc: dict) -> Optional[str]:
@@ -789,7 +799,7 @@ def build_two_tier_index(
                         show_id=meta.get("feed_id") or "",
                         episode_id=meta.get("episode_id") or "",
                         entity_type="insight",
-                        confidence=0.0,
+                        confidence=_grounding_confidence(meta),
                         derived=bool(meta.get("grounded")),
                         publish_date=meta.get("publish_date"),
                         source_id=meta.get("source_id"),
