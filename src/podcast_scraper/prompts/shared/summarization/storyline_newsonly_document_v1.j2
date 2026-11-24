@@ -1,0 +1,2 @@
+{{ label }}. {% for a in articles %}{% if a.date %}{{ a.date }}: {% endif %}{{ a.title }}{% if a.publisher %}, from {{ a.publisher }}{% endif %}. {% if a.summary %}{{ a.summary }} {% endif %}
+{% endfor %}
