@@ -287,6 +287,37 @@ def _insight_passes_speaker_filter(
     return False
 
 
+def _quote_hit_passes_speaker_filter(
+    meta: Dict[str, Any],
+    key: str,
+    gi_by_episode: Dict[str, Path],
+    id_map: Optional[Dict[str, str]] = None,
+) -> bool:
+    # The LanceDB aux table stores no speaker_id, so a quote hit from the hybrid path carries
+    # none: the speaker is read from the episode's GI, as the insight branch does.
+    if _speaker_matches(meta.get("speaker_id"), key, id_map):
+        return True
+    ep, qid = meta.get("episode_id"), meta.get("source_id")
+    gpath = gi_by_episode.get(ep) if isinstance(ep, str) else None
+    if not isinstance(qid, str) or not gpath or not gpath.is_file():
+        return False
+    try:
+        art = cast(Dict[str, Any], gi_read_view(json.loads(gpath.read_text(encoding="utf-8"))))
+    except json.JSONDecodeError:
+        return False
+    for n in art.get("nodes") or []:
+        if isinstance(n, dict) and n.get("id") == qid and n.get("type") == "Quote":
+            if _speaker_matches((n.get("properties") or {}).get("speaker_id"), key, id_map):
+                return True
+    return any(
+        isinstance(e, dict)
+        and e.get("type") == "SPOKEN_BY"
+        and e.get("from") == qid
+        and _speaker_matches(e.get("to"), key, id_map)
+        for e in art.get("edges") or []
+    )
+
+
 def _insight_passes_topic_filter(
     artifact: Dict[str, Any],
     insight_id: str,
@@ -378,7 +409,9 @@ def _hit_passes_cli_filters(
             return False
 
     if speaker_substr and meta.get("doc_type") == "quote":
-        if not _speaker_matches(meta.get("speaker_id"), speaker_substr.lower(), id_map):
+        if not _quote_hit_passes_speaker_filter(
+            meta, speaker_substr.lower(), gi_by_episode, id_map
+        ):
             return False
 
     if speaker_substr and meta.get("doc_type") == "insight":

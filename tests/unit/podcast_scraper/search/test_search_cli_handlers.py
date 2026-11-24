@@ -236,6 +236,59 @@ def test_hit_passes_cli_episode_id_filter() -> None:
     )
 
 
+def _quote_hit_and_gi(tmp_path, quote_props, edges=()):
+    """A quote hit as the hybrid path builds it (no speaker_id in its metadata) and its GI file."""
+    gi = tmp_path / "e1.gi.json"
+    gi.write_text(
+        json.dumps(
+            {
+                "nodes": [{"id": "quote:1", "type": "Quote", "properties": quote_props}],
+                "edges": list(edges),
+            }
+        ),
+        encoding="utf-8",
+    )
+    hit = SearchResult(
+        "quote:scope:quote:1",
+        1.0,
+        {"doc_type": "quote", "episode_id": "e1", "source_id": "quote:1"},
+    )
+    return hit, {"e1": gi}
+
+
+def _passes_speaker(hit, gi_by_episode, speaker):
+    return cli_handlers._hit_passes_cli_filters(
+        hit,
+        feed_substr=None,
+        since_dt=None,
+        speaker_substr=speaker,
+        grounded_only=False,
+        gi_by_episode=gi_by_episode,
+    )
+
+
+def test_a_speaker_filter_keeps_the_speakers_quote_from_its_gi(tmp_path) -> None:
+    """The LanceDB aux row stores no speaker_id, so the quote's speaker is read from its GI."""
+    hit, gis = _quote_hit_and_gi(tmp_path, {"text": "hi", "speaker_id": "person:alice-jones"})
+    assert _passes_speaker(hit, gis, "alice") is True
+    assert _passes_speaker(hit, gis, "zzz") is False
+
+
+def test_a_speaker_filter_reads_the_quotes_spoken_by_edge(tmp_path) -> None:
+    hit, gis = _quote_hit_and_gi(
+        tmp_path,
+        {"text": "hi"},
+        edges=[{"type": "SPOKEN_BY", "from": "quote:1", "to": "person:alice-jones"}],
+    )
+    assert _passes_speaker(hit, gis, "alice") is True
+    assert _passes_speaker(hit, gis, "zzz") is False
+
+
+def test_a_speaker_filter_drops_a_quote_with_no_speaker(tmp_path) -> None:
+    hit, gis = _quote_hit_and_gi(tmp_path, {"text": "hi"})
+    assert _passes_speaker(hit, gis, "alice") is False
+
+
 def test_insight_passes_speaker_filter() -> None:
     art = {
         "nodes": [
