@@ -484,7 +484,11 @@ def clean_for_summary(
     pattern_kwargs: Optional[Dict[str, Any]] = None,
 ) -> str:
     """The ``clean_for_summary`` stage hook: the first owner that sets it answers; without one,
-    ``processor.clean(text, **pattern_kwargs)``."""
+    ``processor.clean(text, **pattern_kwargs)``. For an item whose profile has no ad cleaning (a
+    news article), the text is returned unchanged: the podcast cleaners cut a 704-character STAT
+    item to 195 on prod (GlitchTip podcast-pipeline 1191, 2026-11-24)."""
+    if not _profile_runs(AD_CLEANING):
+        return text
     for hooks in _all():
         if hooks.clean_for_summary is not None:
             return hooks.clean_for_summary(
