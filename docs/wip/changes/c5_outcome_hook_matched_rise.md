@@ -158,11 +158,24 @@ Verdict: GO WITH CONDITIONS
 
 ## 10. Before apply / deploy
 
-_TODO_
+Code only (the outcome hook and two read-only scripts), commit f2e5dff3e (2026-11-05), in every release
+since. Its first applies under accept files were the news release's chain (2026-11-23). Condition 1
+applied to every accept file there with inputs-only rows.
 
 ## 11. After apply / deploy
 
-_TODO_
+MISSED: condition 1 (8): no accept file of the news release's chain was preceded by `write_digest_ro.py`
+on the gate's clone and on prod. The accept files with inputs-only rows: 0047 (8 ledger-only rows of 8),
+0049 (512 ledger-only rows of 517; whether its 3 respell rows are inputs-only was not counted) and 0053 (26
+ledger-only rows of 27), written by the ingestion session; 0048, 0050 and 0051, written by the database
+session (their row kinds not counted here). The ingestion session wrote its three without reading this condition. Prod's run steps
+(`run_steps.sh` at Common 98946d8) have no digest call, and nothing under `.viewer/jobs` names the script
+(the prod session, 2026-11-24).
+
+What did hold on 2026-11-23 (prod's facts): every apply's counters equal its dry run's; the hook held each
+inputs-only row to the clone's measured delta exactly and stopped 0049 on the one episode whose delta
+was not the clone's (Macro Musings 0009, judged with the operator's go); 0046, 0047, 0048, 0050, 0052 and
+0053 ended EXIT=0. That check is on scoreboard deltas, not on the written bytes this condition asks for.
 
 ## 12. Retrospective
 
@@ -170,4 +183,7 @@ _TODO_
 
 ## Not covered
 
-_TODO_
+- Whether the written bytes of the inputs-only rows of 2026-11-23 equal the clone's: not checked, and
+  no longer checkable by `write_digest_ro.py` on prod (the migrations are applied).
+- An accept file carrying the write-digest proof, so the hook checks it (the reviewer's open call): not
+  built.
