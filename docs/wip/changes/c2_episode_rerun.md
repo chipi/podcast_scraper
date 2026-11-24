@@ -1,7 +1,7 @@
 ---
 id: c2_episode_rerun
 class: light
-status: open
+status: landed
 issue: none (ingestion arc, tier C: C2)
 touches:
   - src/podcast_scraper/upgrade/corpus_selection.py
@@ -221,19 +221,21 @@ Verdict: GO WITH CONDITIONS
 
 ## 9. Operator review
 
-_TODO_
+Not applicable: a light change (section 0), command code only.
 
 ## 10. Before apply / deploy
 
-_TODO_
+Not applicable: no corpus change; the command ships with the code.
 
 ## 11. After apply / deploy
 
-_TODO_
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17);
+the news release (085bdc27b) carries it too. No prod rerun was made under this record; each one
+is its own corpus change (Not covered).
 
 ## 12. Retrospective
 
-_TODO_
+None.
 
 ## Not covered
 

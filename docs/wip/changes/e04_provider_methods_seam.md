@@ -1,7 +1,7 @@
 ---
 id: e04_provider_methods_seam
 class: light
-status: open
+status: landed
 issue: none
 touches:
   - src/podcast_scraper/speaker_detectors/factory.py
@@ -30,3 +30,11 @@ type-only and `mypy src/podcast_scraper` is the check it satisfies.
 
 Effect on landed outcomes: none beyond any code change (every migration's measured closure covers
 the whole package, so its digest moves with any commit).
+
+## Landed
+
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17); the
+news release (085bdc27b, release d8bb835, 2026-11-23) carries it too. Code only: no corpus
+change, no prod step.
+Status set to landed 2026-11-24 in the record cleanup after the news release (the change gate's
+records are open or landed; this one shipped).

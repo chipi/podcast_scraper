@@ -1,7 +1,7 @@
 ---
 id: a3_text_backup_dir_owner
 class: light
-status: open
+status: landed
 issue: none
 touches:
   - src/podcast_scraper/upgrade/migrations/m0023_transcript_speaker_prefixes_resynced.py
@@ -29,3 +29,11 @@ Effect on landed outcomes: the change moves the code digest of every migration t
 function. 0031–0042 are all `landed`, and a landed record is no longer compared with today's code
 (method v0.7); the prod hook still refuses a stale outcome at any later apply. Measured with the
 unit test `test_text_backup_dirs_it_creates_get_the_corpus_owner` (fails before, passes after).
+
+## Landed
+
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17); the
+news release (085bdc27b, release d8bb835, 2026-11-23) carries it too. Code only: no corpus
+change, no prod step.
+Status set to landed 2026-11-24 in the record cleanup after the news release (the change gate's
+records are open or landed; this one shipped).

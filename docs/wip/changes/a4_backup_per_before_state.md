@@ -1,7 +1,7 @@
 ---
 id: a4_backup_per_before_state
 class: light
-status: open
+status: landed
 issue: none
 touches:
   - src/podcast_scraper/upgrade/file_rewrite.py
@@ -43,3 +43,11 @@ after, and the 754 other upgrade unit tests pass.
 Revision after Review 2 (2026-11-04): the copy is flushed to disk (`fsync`) before the rename. The
 directory entry is not, so a power cut right after a run can lose the renamed backup; the next run
 then copies it again. A killed run leaves at most a `<backup>.part`, overwritten on the next run.
+
+## Landed
+
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17); the
+news release (085bdc27b, release d8bb835, 2026-11-23) carries it too. Code only: no corpus
+change, no prod step.
+Status set to landed 2026-11-24 in the record cleanup after the news release (the change gate's
+records are open or landed; this one shipped).

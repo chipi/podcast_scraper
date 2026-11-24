@@ -1,7 +1,7 @@
 ---
 id: s5_extension_corpus_migrations
 class: light
-status: open
+status: landed
 issue: none (E04 release 1, seam S5; the operator, 2026-11-08)
 touches:
   - src/podcast_scraper/upgrade/registry.py
@@ -50,3 +50,11 @@ the move possible; it moves nothing.
 
 Not covered: the move itself, and what a moved migration's digest becomes (its files' paths
 change). That is the core release's step, with its own record.
+
+## Landed
+
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17); the
+news release (085bdc27b, release d8bb835, 2026-11-23) carries it too. Code only: no corpus
+change, no prod step.
+Status set to landed 2026-11-24 in the record cleanup after the news release (the change gate's
+records are open or landed; this one shipped).

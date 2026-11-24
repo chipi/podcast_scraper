@@ -1,7 +1,7 @@
 ---
 id: e04_move_arc2
 class: light
-status: open
+status: landed
 issue: none
 touches:
   - src/podcast_scraper/upgrade/migrations/m0004_insight_type_reindex.py
@@ -135,3 +135,11 @@ the scoreboard through a seam, `Extension.corpus_scoreboard` (`quality/scoreboar
   of its own yet.
 - The remaining migrations of IP plan item 4 (0004, 0007, 0010), the prompts (item 6), Player's
   import sites and the viewer's GI panels (the viewer session's E04 8b).
+
+## Landed
+
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17); the
+news release (085bdc27b, release d8bb835, 2026-11-23) carries it too. Code only: no corpus
+change, no prod step.
+Status set to landed 2026-11-24 in the record cleanup after the news release (the change gate's
+records are open or landed; this one shipped).

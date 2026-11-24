@@ -1,7 +1,7 @@
 ---
 id: w1_whisper_repeat_failures
 class: light
-status: open
+status: landed
 issue: 2475
 touches:
   - src/podcast_scraper/providers/guardrails/transcription.py
@@ -57,3 +57,11 @@ without the provider's `answered` wiring it fails). Kept unchanged by tests:
 
 Not covered: why faster-whisper's alignment fails on prod's archived copy of 26d7aade. A replay of
 that exact file needs prod's audio archive, which this workstation cannot reach.
+
+## Landed
+
+On prod at the latest with the core release (public d12e9acb0, release d4033b3, 2026-11-17); the
+news release (085bdc27b, release d8bb835, 2026-11-23) carries it too. Code only: no corpus
+change, no prod step.
+Status set to landed 2026-11-24 in the record cleanup after the news release (the change gate's
+records are open or landed; this one shipped).
