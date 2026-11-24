@@ -289,6 +289,26 @@ def test_a_speaker_filter_drops_a_quote_with_no_speaker(tmp_path) -> None:
     assert _passes_speaker(hit, gis, "alice") is False
 
 
+def test_a_speaker_filter_takes_the_hits_own_speaker_id_without_reading_the_gi(tmp_path) -> None:
+    hit, _ = _quote_hit_and_gi(tmp_path, {"text": "hi"})
+    hit.metadata["speaker_id"] = "person:alice-jones"
+    assert _passes_speaker(hit, {}, "alice") is True
+
+
+def test_a_speaker_filter_drops_a_quote_whose_gi_is_missing_or_unreadable(tmp_path) -> None:
+    hit, gis = _quote_hit_and_gi(tmp_path, {"text": "hi", "speaker_id": "person:alice-jones"})
+    assert _passes_speaker(hit, {}, "alice") is False
+    assert _passes_speaker(hit, {"e1": tmp_path / "absent.gi.json"}, "alice") is False
+    gis["e1"].write_text("{not json", encoding="utf-8")
+    assert _passes_speaker(hit, gis, "alice") is False
+
+
+def test_a_speaker_filter_drops_a_quote_the_gi_does_not_hold(tmp_path) -> None:
+    hit, gis = _quote_hit_and_gi(tmp_path, {"text": "hi", "speaker_id": "person:alice-jones"})
+    hit.metadata["source_id"] = "quote:2"
+    assert _passes_speaker(hit, gis, "alice") is False
+
+
 def test_insight_passes_speaker_filter() -> None:
     art = {
         "nodes": [
