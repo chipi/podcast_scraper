@@ -162,6 +162,11 @@ def _attach_storyline_metadata(
     old row lingers in the index until a build prunes it. A user must never be offered a storyline
     that is gone.
     """
+    if not any(
+        isinstance(r.get("metadata"), dict) and r["metadata"].get("doc_type") == STORYLINE_DOC_TYPE
+        for r in rows
+    ):
+        return rows
     summaries = {
         str(s["id"]): s for s in top_storylines_by_member_count(corpus_root, 10_000, min_members=1)
     }
