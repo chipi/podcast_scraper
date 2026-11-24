@@ -138,7 +138,7 @@ def get_artifact(
     # A news item's files are never served here (RFC-134 §10), except the KG of an item served now
     # (its current copy, not this file's run): the graph's expand draws article nodes from it.
     if is_news_item_file(target, base):
-        from podcast_scraper.server.routes.corpus_news import cached_served_items
+        from podcast_scraper.server.news_access import cached_served_items
 
         item_id = news_kg_item_id(target)
         served = {i["item_id"] for i in cached_served_items(base)}

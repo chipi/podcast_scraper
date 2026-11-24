@@ -1,19 +1,18 @@
 """News items over the corpus (News 1.0, RFC-134 §10; UXS-019).
 
-Every item goes through :func:`podcast_scraper.news_items.served_item`, so an item whose
-``serveable`` is ``none`` never appears and no response carries the article body (ADR-179).
+Every item comes from :func:`podcast_scraper.server.news_access.cached_served_items`, so an item
+whose ``serveable`` is ``none`` never appears and no response carries the article body (ADR-179).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from podcast_scraper import perf_cache
-from podcast_scraper.news_items import item_kg, served_items
-from podcast_scraper.publishers import load_registry, registry_path
+from podcast_scraper.news_items import item_kg
+from podcast_scraper.server.news_access import cached_served_items
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     NewsItem,
@@ -25,8 +24,6 @@ from podcast_scraper.server.schemas import (
 
 router = APIRouter(tags=["corpus"])
 
-_NS = "news_served_items"
-
 
 def _root(request: Request, path: Optional[str]) -> Path:
     anchor = getattr(request.app.state, "output_dir", None)
@@ -35,103 +32,6 @@ def _root(request: Request, path: Optional[str]) -> Path:
     if anchor is not None:
         return Path(anchor).expanduser().resolve()
     raise HTTPException(status_code=400, detail="path is required without a default corpus.")
-
-
-def _news_token(root: Path) -> float:
-    """What the news caches are valid for: the corpus token (an ingest moves it), the newest
-    ``metadata/`` folder of any news run (the writer replaces a metadata file by renaming a new one
-    into place, which moves its folder's time, so one item's rights changing shows here), and the
-    publisher registry file. Stats one folder per run, not one file per item."""
-    stamps = [perf_cache.corpus_mtime(root)]
-    for meta in (root / "sources" / "news_article").glob("*/*/metadata"):
-        try:
-            stamps.append(meta.stat().st_mtime)
-        except OSError:
-            continue
-    try:
-        stamps.append(registry_path().stat().st_mtime)
-    except OSError:
-        pass
-    return max(stamps)
-
-
-def cached_served_items(root: Path) -> List[Dict[str, Any]]:
-    """:func:`served_items` for ``root``, cached until a news item or the registry changes
-    (:func:`_news_token`)."""
-    items: List[Dict[str, Any]] = perf_cache.get_or_compute(
-        _NS,
-        str(root),
-        _news_token(root),
-        lambda: served_items(root, load_registry()),
-    )
-    return items
-
-
-def _node_index(root: Path) -> Dict[str, Dict[str, Optional[str]]]:
-    """KG node id -> {item_id: the node's role in it} for the shown news items naming it (topics,
-    people, organisations, objects); the role is ``author`` for a byline author, else ``None``."""
-    index: Dict[str, Dict[str, Optional[str]]] = {}
-    for item in cached_served_items(root):
-        for node in item_kg(root, item["metadata_relative_path"])["kg_nodes"]:
-            roles = index.setdefault(str(node["id"]), {})
-            role = node.get("role")
-            roles[item["item_id"]] = roles.get(item["item_id"]) or (role if role else None)
-    return index
-
-
-def news_items_naming(root: Path, node_id: str) -> List[Dict[str, Any]]:
-    """The shown news items whose KG names ``node_id``, newest first (cached per corpus), each
-    with ``node_role``: the node's role in that item (``author`` when it wrote it, else ``None``).
-    """
-    index: Dict[str, Dict[str, Optional[str]]] = perf_cache.get_or_compute(
-        _NS + "_nodes", str(root), _news_token(root), lambda: _node_index(root)
-    )
-    roles = index.get(node_id, {})
-    return [
-        {**i, "node_role": roles[i["item_id"]]}
-        for i in cached_served_items(root)
-        if i["item_id"] in roles
-    ]
-
-
-#: Where each grouping keeps its members' ``news_item_ids`` (Common's piece A): themes (``tc:``)
-#: in the search directory's topic clusters, storylines (``thc:``) in the theme-clusters
-#: enrichment, under ``data``.
-_THEMES_FILE = "search/topic_clusters.json"
-_STORYLINES_FILE = "enrichments/topic_theme_clusters.json"
-
-
-def _cluster_item_ids(root: Path, cluster_id: str) -> List[str]:
-    from podcast_scraper.server.corpus_access import cached_json_artifact
-
-    relpath = _STORYLINES_FILE if cluster_id.startswith("thc:") else _THEMES_FILE
-    doc = cached_json_artifact(root, relpath) or {}
-    data = doc.get("data")
-    holder: Dict[str, Any] = data if isinstance(data, dict) else doc
-    ids: Dict[str, None] = {}
-    for cluster in holder.get("clusters") or []:
-        if not isinstance(cluster, dict) or cluster.get("graph_compound_parent_id") != cluster_id:
-            continue
-        # Podcast topics (members) and news-only topics that joined by meaning (news_members,
-        # themes schema 3) both carry news_item_ids.
-        for member in [*(cluster.get("members") or []), *(cluster.get("news_members") or [])]:
-            if isinstance(member, dict):
-                for item_id in member.get("news_item_ids") or []:
-                    if isinstance(item_id, str) and item_id:
-                        ids[item_id] = None
-    return list(ids)
-
-
-def news_items_in_cluster(root: Path, cluster_id: str) -> List[Dict[str, Any]]:
-    """The shown news items of a theme (``tc:``) or storyline (``thc:``): the union of its
-    members' ``news_item_ids``, newest first. A ``serveable: none`` item is never among them."""
-    wanted = set(_cluster_item_ids(root, cluster_id))
-    return [i for i in cached_served_items(root) if i["item_id"] in wanted]
-
-
-def corpus_has_news(root: Path) -> bool:
-    """Whether the corpus holds a news item some surface may show."""
-    return bool(cached_served_items(root))
 
 
 @router.get("/corpus/news/items", response_model=NewsItemsResponse)

@@ -312,7 +312,7 @@ def corpus_node_episodes(
         )
     news: list[NewsItem] = []
     if "news_article" in (body.content_types or []):
-        from podcast_scraper.server.routes.corpus_news import (
+        from podcast_scraper.server.news_access import (
             news_items_in_cluster,
             news_items_naming,
         )

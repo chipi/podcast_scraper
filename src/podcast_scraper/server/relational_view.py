@@ -869,7 +869,7 @@ def _label_key(text: str) -> str:
 def _with_news(root: Path, card: AppClusterCard) -> AppClusterCardWithNews:
     """*card* plus its articles: the cluster's news items as served (rights and registry applied;
     a serveable-none item dropped; no body text), newest first."""
-    from podcast_scraper.server.routes.corpus_news import news_items_in_cluster
+    from podcast_scraper.server.news_access import news_items_in_cluster
 
     articles = [NewsItem(**i) for i in news_items_in_cluster(root, card.id)]
     return AppClusterCardWithNews(

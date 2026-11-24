@@ -65,7 +65,7 @@ def _news_hits(
     from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
     from podcast_scraper.search.hybrid_search import lance_index_dir
     from podcast_scraper.search.news_index import search_news
-    from podcast_scraper.server.routes.corpus_news import cached_served_items
+    from podcast_scraper.server.news_access import cached_served_items
     from podcast_scraper.server.schemas import NewsItem
 
     lance_dir = lance_index_dir(root)
