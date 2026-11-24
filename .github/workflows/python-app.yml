@@ -72,7 +72,7 @@ on:
       # lint + build and skips every heavy test job and coverage-unified.
       - '.github/workflows/**'
   pull_request:
-    branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
+    branches: [ "main", "release/2.4", "release/2.5", "release/2.6", "feat/*-release" ]
     paths:
       - '**.py'
       - '**.j2'

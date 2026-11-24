@@ -12,7 +12,7 @@ on:
   # Fast Docker build runs on PRs when Docker-related files change
   # Full Docker validation still runs on merge to main
   pull_request:
-    branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
+    branches: [ "main", "release/2.4", "release/2.5", "release/2.6", "feat/*-release" ]
     paths:
       - 'docker/pipeline/Dockerfile'
       - '.dockerignore'

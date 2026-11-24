@@ -31,7 +31,7 @@ on:
       - 'AGENTS.md'
       - 'CLAUDE.md'
   pull_request:
-    branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
+    branches: [ "main", "release/2.4", "release/2.5", "release/2.6", "feat/*-release" ]
     # PRs can still be tested against both branches, but only main deploys
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
