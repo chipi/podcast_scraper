@@ -7,6 +7,11 @@ fuse them — plus a KG-proximity signal (RFC-091) — via RRF (#856).
 
 Tier 1 = transcript segments (raw evidence); Tier 2 = GIL insight nodes
 (synthesized intelligence). Results are mixed by score, not grouped by tier.
+
+``show_id`` on every tier is the show's feed key (the metadata ``feed.feed_id``), not the
+graph's show node id: hits expose it as ``metadata.feed_id`` and the ``feed`` filter is a
+substring match on it. Only the news rows put their source id there. A join to a graph show
+goes through the feed key; the column keeps its name because it is part of the stored schema.
 """
 
 from __future__ import annotations
