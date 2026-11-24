@@ -29,16 +29,27 @@ KEY_ENV = "GUARDIAN_API_KEY"
 FIELDS = "body,byline,trailText,lang"
 
 
-def _request_url(source: Any, page_size: int, cursor: Optional[str], key: str) -> str:
+# After a cursor the API is read oldest first from the cursor's day (``from-date`` takes a day, not
+# a time), so the articles of that day up to the cursor come first and are skipped here: it pages
+# on until the cap is filled, at most this many pages a run.
+PAGE_SIZE_AFTER_CURSOR = 50
+MAX_PAGES = 5
+
+
+def _request_url(
+    source: Any, page_size: int, cursor: Optional[str], key: str, page: int = 1
+) -> str:
     base = str(getattr(source, "url", "") or "")
     params: Dict[str, Any] = {
-        "order-by": "newest",
+        "order-by": "oldest" if cursor else "newest",
         "page-size": page_size,
         "show-fields": FIELDS,
         "api-key": key,
     }
     if cursor:
         params["from-date"] = cursor[:10]
+    if page > 1:
+        params["page"] = page
     joiner = "&" if urlsplit(base).query else "?"
     return base + joiner + urlencode(params)
 
@@ -72,7 +83,8 @@ def _item(result: Dict[str, Any], source: Any) -> Optional[SourceItem]:
 
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
-    """The newest articles published after ``cursor``, at most the source's ``max_items``."""
+    """The articles published after ``cursor`` (oldest first; the newest without a cursor), at
+    most the source's ``max_items``."""
     key_env = source_spec(source).api_key_env or KEY_ENV
     key = os.environ.get(key_env, "").strip()
     if not key:
@@ -85,33 +97,37 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     spec = source_spec(source)
     include = re.compile(spec.include_url_pattern) if spec.include_url_pattern else None
     exclude = re.compile(spec.exclude_url_pattern) if spec.exclude_url_pattern else None
-    resp = downloader.fetch_url(
-        _request_url(source, spec.max_items, cursor, key), user_agent(source), TIMEOUT_S
-    )
-    if resp is None:
-        logger.warning("news guardian: the API could not be reached; cursor kept")
-        return [], cursor
-    try:
-        results = (resp.json().get("response") or {}).get("results") or []
-    except ValueError:
-        logger.warning("news guardian: the API did not answer JSON; cursor kept")
-        return [], cursor
+    page_size = max(spec.max_items, PAGE_SIZE_AFTER_CURSOR) if cursor else spec.max_items
     items: List[SourceItem] = []
     newest = cursor
-    for result in results:
-        published = str(result.get("webPublicationDate") or "")
-        link = str(result.get("webUrl") or "")
-        if cursor and published and published <= cursor:
-            continue
-        if (include and not include.search(link)) or (exclude and exclude.search(link)):
-            continue
-        if len(items) >= spec.max_items:
+    for page in range(1, (MAX_PAGES if cursor else 1) + 1):
+        resp = downloader.fetch_url(
+            _request_url(source, page_size, cursor, key, page), user_agent(source), TIMEOUT_S
+        )
+        if resp is None:
+            logger.warning("news guardian: the API could not be reached; cursor kept at %s", newest)
             break
-        item = _item(result, source)
-        if item is not None:
-            items.append(item)
-        if published and (newest is None or published > newest):
-            newest = published
+        try:
+            body = resp.json().get("response") or {}
+        except ValueError:
+            logger.warning("news guardian: the API did not answer JSON; cursor kept at %s", newest)
+            break
+        for result in body.get("results") or []:
+            published = str(result.get("webPublicationDate") or "")
+            link = str(result.get("webUrl") or "")
+            if cursor and published and published <= cursor:
+                continue
+            if (include and not include.search(link)) or (exclude and exclude.search(link)):
+                continue
+            if len(items) >= spec.max_items:
+                break
+            item = _item(result, source)
+            if item is not None:
+                items.append(item)
+            if published and (newest is None or published > newest):
+                newest = published
+        if len(items) >= spec.max_items or page >= int(body.get("pages") or 1):
+            break
     return items, newest
 
 

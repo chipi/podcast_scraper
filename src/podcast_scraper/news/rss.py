@@ -2,7 +2,10 @@
 
 The feed is read through the shared downloader (conditional GET when the run enables it). The
 cursor is the newest ``published_at`` listed; the next run lists only articles published after it.
-An article without a date is listed every run, and its id makes it the same item each time.
+After a cursor the oldest are taken first, so a feed that publishes more than its cap between runs
+is caught up over the next runs instead of losing the ones in between; the first run (no cursor)
+takes the newest. An article without a date is listed every run, and its id makes it the same item
+each time.
 """
 
 from __future__ import annotations
@@ -32,19 +35,20 @@ def _iso(parsed: Any) -> Optional[str]:
         return None
 
 
-def _newest_first(entries: List[Any]) -> List[Any]:
-    """Dated entries newest first, then undated ones in feed order (the cap keeps the newest)."""
+def _in_cap_order(entries: List[Any], cursor: Optional[str]) -> List[Any]:
+    """Dated entries oldest first after a cursor, newest first without one; then undated ones in
+    feed order. The cap takes from the front."""
 
     def key(e: Any) -> str:
         return _iso(e.get("published_parsed") or e.get("updated_parsed")) or ""
 
-    dated = sorted((e for e in entries if key(e)), key=key, reverse=True)
+    dated = sorted((e for e in entries if key(e)), key=key, reverse=not cursor)
     return dated + [e for e in entries if not key(e)]
 
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
-    """The feed's articles published after ``cursor``, newest first, at most the source's
-    ``max_items``, filtered by its URL patterns."""
+    """The feed's articles published after ``cursor`` (oldest first; newest first without a
+    cursor), at most the source's ``max_items``, filtered by its URL patterns."""
     import feedparser
 
     url = str(getattr(source, "url", "") or "")
@@ -59,7 +63,7 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     exclude = re.compile(spec.exclude_url_pattern) if spec.exclude_url_pattern else None
     items: List[SourceItem] = []
     newest = cursor
-    for entry in _newest_first(parsed.entries):
+    for entry in _in_cap_order(parsed.entries, cursor):
         link = entry.get("link") or ""
         # feedparser copies a permalink guid into ``link``; only an absolute web URL is an article.
         if urlsplit(link).scheme not in ("http", "https") or not urlsplit(link).netloc:

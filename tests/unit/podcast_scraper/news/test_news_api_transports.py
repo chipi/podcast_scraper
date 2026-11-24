@@ -68,6 +68,19 @@ def test_hn_lists_only_what_is_newer_than_its_cursor(monkeypatch: pytest.MonkeyP
     assert cursor == "300"
 
 
+def test_hn_after_a_cursor_takes_the_oldest_first_so_none_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Next-cycle item 24: over the cap, the newest-first listing moved the cursor past the rest."""
+    _serve(monkeypatch, HITS, [])
+    first, cursor = hn.list_items(_Source("https://hn.test/api"), "50")
+    assert [i.metadata["title"] for i in first] == ["A", "B"]
+    assert cursor == "200"
+    second, cursor = hn.list_items(_Source("https://hn.test/api"), cursor)
+    assert [i.metadata["title"] for i in second] == ["C"]
+    assert cursor == "300"
+
+
 def test_an_article_over_hn_and_over_its_feed_is_one_item() -> None:
     news = ct.content_type("news_article")
     # A trailing slash and a tracking parameter (``www.`` is kept as given: canonical_url).
@@ -173,3 +186,42 @@ def test_the_guardians_items_carry_their_text_and_record(
     assert cursor == "2026-11-18T09:00:00Z"
     assert "api-key=FAKEKEYFAKEKEY" in seen[0]
     assert "FAKEKEYFAKEKEY" not in redact_for_log(seen[0])  # what the downloader logs
+
+
+def _result(n: int, when: str) -> Dict[str, Any]:
+    return {
+        "id": f"world/2026/nov/18/r{n}",
+        "webUrl": f"https://www.theguardian.com/world/2026/nov/18/r{n}",
+        "webTitle": f"R{n}",
+        "webPublicationDate": when,
+        "fields": {"body": BODY, "lang": "en"},
+    }
+
+
+def test_the_guardian_after_a_cursor_reads_oldest_first_and_pages_past_the_cursors_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Next-cycle item 24. ``from-date`` takes a day, so the day's articles up to the cursor come
+    first in an oldest-first listing; the run pages on until its cap is filled."""
+    monkeypatch.setenv(guardian.KEY_ENV, "FAKEKEYFAKEKEY")
+    pages = {
+        1: [_result(1, "2026-11-18T07:00:00Z"), _result(2, "2026-11-18T08:00:00Z")],
+        2: [_result(3, "2026-11-18T09:00:00Z"), _result(4, "2026-11-18T10:00:00Z")],
+        3: [_result(5, "2026-11-18T11:00:00Z")],
+    }
+    seen: List[str] = []
+
+    def fake(url: str, *a: Any, **k: Any) -> httpx.Response:
+        seen.append(url)
+        page = int(url.split("&page=")[1].split("&")[0]) if "&page=" in url else 1
+        body = {"response": {"pages": 3, "results": pages[page]}}
+        return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(downloader, "fetch_url", fake)
+    source = _Source("https://guardian.test/search")
+    items, cursor = guardian.list_items(source, "2026-11-18T08:00:00Z")
+    assert [i.metadata["title"] for i in items] == ["R3", "R4"]  # cap 2; R1, R2 at or before it
+    assert cursor == "2026-11-18T10:00:00Z"
+    assert len(seen) == 2 and "order-by=oldest" in seen[0] and "from-date=2026-11-18" in seen[0]
+    items, cursor = guardian.list_items(source, cursor)
+    assert [i.metadata["title"] for i in items] == ["R5"]

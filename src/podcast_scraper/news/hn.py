@@ -4,7 +4,8 @@ A story links to an article elsewhere; the news type fetches and extracts that p
 item, so one article reached through Hacker News and through its publisher's feed is one item
 (its id is the canonical URL's). A story with no link (Ask HN, a poll) is not an article and is
 skipped. The story's author is who submitted it, not who wrote the article, so it is never a
-byline. The cursor is the newest ``created_at_i`` listed.
+byline. The cursor is the newest ``created_at_i`` listed; after a cursor the oldest stories are
+taken first, so stories over the cap are taken by the next runs instead of skipped.
 """
 
 from __future__ import annotations
@@ -33,8 +34,9 @@ def _iso(epoch: Any) -> Optional[str]:
 
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
-    """The front page's linked stories created after ``cursor`` (an epoch second), newest first,
-    at most the source's ``max_items``, filtered by its URL patterns."""
+    """The front page's linked stories created after ``cursor`` (an epoch second; oldest first,
+    newest first without a cursor), at most the source's ``max_items``, filtered by its URL
+    patterns."""
     url = str(getattr(source, "url", "") or "")
     resp = downloader.fetch_url(url, user_agent(source), TIMEOUT_S)
     if resp is None:
@@ -51,7 +53,9 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     after = int(cursor) if cursor and cursor.isdigit() else None
     items: List[SourceItem] = []
     newest = after
-    for hit in sorted(hits, key=lambda h: int(h.get("created_at_i") or 0), reverse=True):
+    for hit in sorted(
+        hits, key=lambda h: int(h.get("created_at_i") or 0), reverse=after is None
+    ):
         link = str(hit.get("url") or "")
         created = int(hit.get("created_at_i") or 0)
         if urlsplit(link).scheme not in ("http", "https") or not urlsplit(link).netloc:
