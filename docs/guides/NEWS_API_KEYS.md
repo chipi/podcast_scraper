@@ -25,8 +25,10 @@ log; the variable's name is the source's `api_key_env` in `feeds.spec.yaml`, or
 1. **Get the key** from the provider. The Guardian's is a free developer key from
    open-platform.theguardian.com.
 2. **Local runs:** put `GUARDIAN_API_KEY=...` in the repository's gitignored `.env`. Never commit it.
-3. **Production:** set the GitHub secret `PROD_GUARDIAN_API_KEY` in the repository's `prod`
-   environment; the next `deploy-prod` (or `restage-prod-secrets`) delivers it. Never place a key
+3. **Production:** set the GitHub secret `PROD_GUARDIAN_API_KEY` in **chipi/infra**'s `prod`
+   environment (`gh secret set PROD_GUARDIAN_API_KEY --repo chipi/infra --env prod`, which reads
+   the key from stdin, never from the command line); that repository's `deploy-prod` (or
+   `restage-prod-secrets`) delivers it. This repository has no `prod` environment. Never place a key
    file on the server by hand: each deploy rebuilds the secrets directory from GitHub secrets and
    would wipe it. On the way (ADR-115; chipi/infra #88): the secret is staged as the file
    `guardian_api_key` (empty while unset, so prod boots without it), mounted into the `api`,
@@ -45,5 +47,6 @@ file `<name>_api_key` (infra adds that slot; its recipe is chipi/infra
 
 ## Not covered
 
-- Rotating a key: update the GitHub secret and run `restage-prod-secrets` (or the next deploy).
+- Rotating a key: update the GitHub secret in chipi/infra's `prod` environment and run its
+  `restage-prod-secrets` (or the next deploy).
 - Rate limits and quotas are per provider; a source's `max_items` keeps each run small.
