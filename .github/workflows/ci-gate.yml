@@ -115,7 +115,16 @@ jobs:
               ])
               .write();
 
-            if (failed.length) {
+            // A workflow_run run's own check-run is posted on the default branch's head at the time
+            // (context.sha), not on the commit it judged. On 2026-11-24 a RED for 558cb1bce landed on
+            // 4bae29973 as a failed check, so a green commit read as red. A verdict for another
+            // commit is reported, with that commit, but never fails this check-run.
+            const judgedHere = sha === context.sha;
+            if (failed.length && !judgedHere) {
+              core.warning(
+                `CI Gate RED for ${sha.slice(0, 9)} (not ${context.sha.slice(0, 9)}, which this check is ` +
+                `posted on) — ${failed.length} important check(s) failed: ${failed.join(', ')}`);
+            } else if (failed.length) {
               core.setFailed(`CI Gate RED — ${failed.length} important check(s) failed: ${failed.join(', ')}`);
             } else if (unresolved.length) {
               // Not a failure — either checks still running (an early snapshot; a later firing
