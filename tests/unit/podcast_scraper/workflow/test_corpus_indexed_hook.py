@@ -49,7 +49,7 @@ class _Cfg(SimpleNamespace):
 
 def _finalize(corpus: Path, *, index_ok: bool) -> List[Path]:
     seen: List[Path] = []
-    cfg = _Cfg(vector_search=True, rss_url="https://feeds.example/a.xml")
+    cfg: Any = _Cfg(vector_search=True, rss_url="https://feeds.example/a.xml")
     result = MultiFeedFeedResult(
         feed_url="https://feeds.example/a.xml",
         ok=True,
