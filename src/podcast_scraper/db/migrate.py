@@ -243,15 +243,28 @@ def _engine(url: str) -> Engine:
     return create_engine(normalize_url(url), connect_args=unbounded_connect_args())
 
 
+def migration_lock_name(schema: str) -> str:
+    """The advisory lock ``db upgrade`` holds on ``schema`` while it migrates it (hashed to the
+    lock's key with ``hashtextextended(name, 0)``)."""
+    return f"podcast_scraper.db.migrate:{schema}"
+
+
 def _upgrade_schema(
     engine: Engine, schema: str, revision: str, history: History | None = None
 ) -> list[str]:
-    """One history on one schema, with its ``schema_history`` rows, in one transaction."""
+    """One history on one schema, with its ``schema_history`` rows, in one transaction.
+
+    The transaction first takes the schema's advisory lock: prod's plane deploys run their
+    migrate steps in parallel, and each brings ``shared`` and ``corpus`` to head, so a second
+    process waits for the first and then finds nothing left to apply."""
     applied: list[tuple[str, int]] = []
-    with engine.begin() as conn:
+    with engine.connect() as conn:
+        conn.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:name, 0))"),
+            {"name": migration_lock_name(schema)},
+        )
         _ensure_schema(conn, schema)
         _ensure_extensions(conn, (history or _default(schema)).extensions)
-    with engine.connect() as conn:
         cfg = _config(schema, conn, history)
         cfg.attributes["applied"] = applied
         command.upgrade(cfg, revision)
