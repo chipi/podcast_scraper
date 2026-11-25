@@ -300,6 +300,44 @@ def test_a_source_can_take_the_standfirst_or_the_feed_text() -> None:
     assert feed is not None and feed.method == extract.FEED and feed.text == ES
 
 
+def test_a_source_whose_text_is_the_feeds_never_fetches_the_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SCMP (Common #51): its pages answer 403 and its text is the feed's anyway; 49 of 50 items
+    were lost to the page fetch on the 2026-11-24 nightly."""
+
+    def _no_page(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("the article page was fetched")
+
+    monkeypatch.setattr(downloader, "fetch_url", _no_page)
+    monkeypatch.setattr(downloader, "http_get_any_status", _no_page)
+    src = _Source()
+    src.news = NewsSourceSpec(serveable="metadata", text_from="feed", text_status="teaser")
+    item = ct.SourceItem(
+        item_id="g",
+        url="https://news.test/a",
+        metadata={"feed_html": f"<p>{EN}</p>", "byline_raw": "Ana Example"},
+    )
+    got = fetch.fetch_body(item, src)
+    assert got is not None
+    assert (got.text, got.metadata["extraction"], got.metadata["text_status"]) == (
+        EN,
+        extract.FEED,
+        "teaser",
+    )
+    assert got.metadata["byline_raw"] == "Ana Example"
+
+
+def test_a_feed_text_source_with_no_feed_text_is_skipped_without_a_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: pytest.fail("page fetched"))
+    monkeypatch.setattr(downloader, "http_get_any_status", lambda *a: pytest.fail("robots read"))
+    src = _Source()
+    src.news = NewsSourceSpec(text_from="feed")
+    assert fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src) is None
+
+
 def test_the_page_author_is_its_meta_tag() -> None:
     html = '<html><head><meta name="author" content="Ana  Example"></head><body></body></html>'
     assert extract.page_author(html, "https://news.test/a") == "Ana Example"
