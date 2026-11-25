@@ -1,5 +1,5 @@
-"""Test database support (ADR-169): one throwaway database per pytest process, kernel tables
-emptied after every test.
+"""Test database support (ADR-169): one throwaway database per pytest process, kernel and corpus
+tables emptied after every test.
 
 ``PODCAST_TEST_DATABASE_URL`` points at a Postgres server (``make test-db-up`` starts one and
 prints the line to export). Each pytest process (each xdist worker) creates its own database on it,
@@ -30,7 +30,7 @@ from podcast_scraper.db import (
     rw_engine,
 )
 from podcast_scraper.db.migrate import with_kernel
-from podcast_scraper.db.schema import app_releases, metadata
+from podcast_scraper.db.schema import app_releases, corpus_metadata, metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
 
 # Bound at import, not inside the cleanup: a test that strips podcast_scraper from sys.modules
@@ -69,6 +69,13 @@ def _create_worker_database(base_url: str) -> str:
         admin.dispose()
     url = make_url(normalize_url(base_url)).set(database=name)
     rendered = url.render_as_string(hide_password=False)
+    # Infra creates the extension in prod (ADR-184); a revision never does.
+    fresh = create_engine(url, isolation_level="AUTOCOMMIT")
+    try:
+        with fresh.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+    finally:
+        fresh.dispose()
     for plane in PLANES:
         migrate.upgrade(rendered, plane)
     _state["admin_url"] = base_url
@@ -103,6 +110,8 @@ def empty_kernel_tables() -> None:
             for table in reversed(metadata.sorted_tables):
                 planed.execute(table.delete())
         conn.execute(app_releases.delete())
+        for table in reversed(corpus_metadata.sorted_tables):
+            conn.execute(table.delete())
     # In-process memory of what the emptied tables held (imported here: the server modules are
     # heavy and the window comment above applies to them too).
     from podcast_scraper.server import app_outbox_store, app_release_store

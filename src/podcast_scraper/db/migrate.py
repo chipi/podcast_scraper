@@ -1,10 +1,10 @@
 """Run and inspect the Alembic histories (ADR-169, ADR-172), never at app start.
 
 The kernel's history runs once per plane schema; the ``shared`` schema's once (the rows both
-planes read and write); each installed extension's module history (``Extension.database``) on the
-planes it names, with its own version table. ``upgrade --plane P`` runs ``shared``, then the
-kernel, then each module, each in its own transaction; a failed step leaves the earlier ones
-where they got to.
+planes read and write); the ``corpus`` schema's once (ADR-184); each installed extension's module
+history (``Extension.database``) on the planes it names, with its own version table.
+``upgrade --plane P`` runs ``shared``, then ``corpus``, then the kernel, then each module, each in
+its own transaction; a failed step leaves the earlier ones where they got to.
 """
 
 from __future__ import annotations
@@ -25,15 +25,21 @@ from sqlalchemy.schema import CreateSchema
 
 from podcast_scraper import build_info
 from podcast_scraper.db.engines import unbounded_connect_args
-from podcast_scraper.db.schema import metadata as kernel_metadata, schema_history, SHARED_SCHEMA
+from podcast_scraper.db.schema import (
+    CORPUS_SCHEMA,
+    metadata as kernel_metadata,
+    schema_history,
+    SHARED_SCHEMA,
+)
 from podcast_scraper.db.settings import normalize_url, validate_plane
 
 _HERE = Path(__file__).parent
 _PLANE_SCRIPTS = _HERE / "migrations"
 _SHARED_SCRIPTS = _HERE / "migrations_shared"
+_CORPUS_SCRIPTS = _HERE / "migrations_corpus"
 _VERSION_TABLE = "alembic_version"
 _MODULE_NAME = re.compile(r"^[a-z][a-z0-9]{1,30}$")
-_RESERVED = frozenset({"kernel", "shared", "alembic", "schema"})
+_RESERVED = frozenset({"kernel", "shared", "corpus", "alembic", "schema"})
 
 
 @dataclass(frozen=True)
@@ -47,10 +53,13 @@ class History:
 
 KERNEL = History("kernel", _PLANE_SCRIPTS)
 SHARED = History("shared", _SHARED_SCRIPTS)
+CORPUS = History("corpus", _CORPUS_SCRIPTS)
 
 
 def _default(schema: str | None) -> History:
-    return SHARED if schema == SHARED_SCHEMA else KERNEL
+    if schema == SHARED_SCHEMA:
+        return SHARED
+    return CORPUS if schema == CORPUS_SCHEMA else KERNEL
 
 
 def _config(
@@ -186,13 +195,13 @@ def readiness(
     try:
         scripts.get_revision(current)
     except CommandError:
+        # Named by schema, not translated: an app engine's connection-level map (None -> plane)
+        # overrides a statement-level one and would read the plane's history instead.
+        named = schema_history.to_metadata(MetaData(), schema=schema)
         if (
             _can_read_history(connection, schema)
             and connection.execute(
-                select(schema_history.c.id)
-                .where(schema_history.c.revision == head)
-                .limit(1)
-                .execution_options(schema_translate_map={None: schema})
+                select(named.c.id).where(named.c.revision == head).limit(1)
             ).first()
         ):
             return "ahead", current, head
@@ -235,12 +244,16 @@ def _upgrade_schema(
 
 
 def upgrade_all(url: str, plane: str) -> dict[str, list[str]]:
-    """``shared``, the plane's kernel, then each installed module, to head: applied, by history."""
+    """``shared``, ``corpus``, the plane's kernel, then each installed module, to head: applied,
+    by history."""
     validate_plane(plane)
     histories = plane_histories(plane)
     engine = _engine(url)
     try:
-        applied = {SHARED.name: _upgrade_schema(engine, SHARED_SCHEMA, "head", SHARED)}
+        applied = {
+            SHARED.name: _upgrade_schema(engine, SHARED_SCHEMA, "head", SHARED),
+            CORPUS.name: _upgrade_schema(engine, CORPUS_SCHEMA, "head", CORPUS),
+        }
         for hist in histories:
             applied[hist.name] = _upgrade_schema(engine, plane, "head", hist)
         return applied
@@ -249,8 +262,8 @@ def upgrade_all(url: str, plane: str) -> dict[str, list[str]]:
 
 
 def upgrade(url: str, plane: str, revision: str = "head") -> list[str]:
-    """Bring ``shared`` to its head, the plane's kernel to ``revision``, and, at ``head``, each
-    installed module to its head (schemas created if missing).
+    """Bring ``shared`` and ``corpus`` to their heads, the plane's kernel to ``revision``, and, at
+    ``head``, each installed module to its head (schemas created if missing).
 
     Appends one ``schema_history`` row per revision each run applied (none when already there),
     in the same transaction as that upgrade. Returns the kernel's applied revisions, oldest first;
@@ -262,6 +275,7 @@ def upgrade(url: str, plane: str, revision: str = "head") -> list[str]:
     engine = _engine(url)
     try:
         _upgrade_schema(engine, SHARED_SCHEMA, "head")
+        _upgrade_schema(engine, CORPUS_SCHEMA, "head")
         return _upgrade_schema(engine, plane, revision)
     finally:
         engine.dispose()
@@ -272,6 +286,15 @@ def upgrade_shared(url: str) -> list[str]:
     engine = _engine(url)
     try:
         return _upgrade_schema(engine, SHARED_SCHEMA, "head")
+    finally:
+        engine.dispose()
+
+
+def upgrade_corpus(url: str) -> list[str]:
+    """Bring ``corpus`` to its head; the revisions applied, oldest first."""
+    engine = _engine(url)
+    try:
+        return _upgrade_schema(engine, CORPUS_SCHEMA, "head")
     finally:
         engine.dispose()
 
@@ -342,6 +365,11 @@ def shared_status(url: str) -> tuple[str | None, str]:
     return _status(url, SHARED_SCHEMA)
 
 
+def corpus_status(url: str) -> tuple[str | None, str]:
+    """``(current, head)`` for the ``corpus`` schema."""
+    return _status(url, CORPUS_SCHEMA)
+
+
 def module_status(url: str, plane: str) -> list[tuple[str, str | None, str]]:
     """``(module, current, head)`` for each installed module history on ``plane``."""
     validate_plane(plane)
@@ -360,7 +388,7 @@ def module_status(url: str, plane: str) -> list[tuple[str, str | None, str]]:
 
 def history_rows(url: str, schema: str, limit: int = 5) -> list[dict[str, object]]:
     """``history`` over a fresh connection to ``url``, with ``applied_at`` in UTC."""
-    if schema != SHARED_SCHEMA:
+    if schema not in (SHARED_SCHEMA, CORPUS_SCHEMA):
         validate_plane(schema)
     engine = _engine(url)
     try:
@@ -390,15 +418,16 @@ def _render(schema: str, start: str | None, label: str, history: History | None 
 def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None) -> str:
     """The SQL ``upgrade`` would run for ``plane``, as text; nothing is executed.
 
-    ``shared`` first, then the plane's kernel, then each installed module, as ``upgrade`` runs
-    them. Each starts from its current revision, read with a read-only query when a URL is
-    configured, else from base; ``from_revision`` overrides the kernel's start. Already at head:
-    a comment line.
+    ``shared`` first, then ``corpus``, then the plane's kernel, then each installed module, as
+    ``upgrade`` runs them. Each starts from its current revision, read with a read-only query when
+    a URL is configured, else from base; ``from_revision`` overrides the kernel's start. Already at
+    head: a comment line.
     """
     validate_plane(plane)
     found = modules(plane)
     start: str | None = None
     shared_start: str | None = None
+    corpus_start: str | None = None
     module_starts: dict[str, str | None] = {}
     if url:
         engine = create_engine(
@@ -409,12 +438,17 @@ def upgrade_sql(url: str | None, plane: str, *, from_revision: str | None = None
             with engine.connect() as conn:
                 start = current_revision(conn, plane)
                 shared_start = current_revision(conn, SHARED_SCHEMA)
+                corpus_start = current_revision(conn, CORPUS_SCHEMA)
                 module_starts = {h.name: current_revision(conn, plane, h) for h in found}
         finally:
             engine.dispose()
     if from_revision is not None:
         start = from_revision
-    rendered = _render(SHARED_SCHEMA, shared_start, "schema") + _render(plane, start, "plane")
+    rendered = (
+        _render(SHARED_SCHEMA, shared_start, "schema")
+        + _render(CORPUS_SCHEMA, corpus_start, "schema")
+        + _render(plane, start, "plane")
+    )
     for h in found:
         rendered += _render(plane, module_starts.get(h.name), f"module {h.name} on plane", h)
     return rendered

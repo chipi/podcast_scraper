@@ -19,6 +19,7 @@ from tests._database import worker_database_url
 
 REPO = Path(__file__).resolve().parents[4]
 VERSIONS = REPO / "src" / "podcast_scraper" / "db" / "migrations" / "versions"
+CORPUS_VERSIONS = REPO / "src" / "podcast_scraper" / "db" / "migrations_corpus" / "versions"
 
 
 @pytest.fixture
@@ -41,9 +42,11 @@ def test_a_migrating_role_that_owns_the_schema_but_cannot_create_in_the_database
         with admin.connect() as conn:
             conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
             conn.execute(text("DROP SCHEMA IF EXISTS shared CASCADE"))
+            conn.execute(text("DROP SCHEMA IF EXISTS corpus CASCADE"))
             conn.execute(text(f"CREATE ROLE {role} LOGIN PASSWORD 'migrator'"))
             conn.execute(text("CREATE SCHEMA operator AUTHORIZATION " + role))
             conn.execute(text("CREATE SCHEMA shared AUTHORIZATION " + role))
+            conn.execute(text("CREATE SCHEMA corpus AUTHORIZATION " + role))
             can_create = conn.execute(
                 text("SELECT has_database_privilege(:r, :d, 'CREATE')"), {"r": role, "d": database}
             ).scalar()
@@ -55,10 +58,12 @@ def test_a_migrating_role_that_owns_the_schema_but_cannot_create_in_the_database
         current, head = migrate.status(rendered, "operator")
         assert current == head
         assert migrate.shared_status(rendered)[0] == migrate.head_revision("shared")
+        assert migrate.corpus_status(rendered)[0] == migrate.head_revision("corpus")
     finally:
         with admin.connect() as conn:
             conn.execute(text("DROP SCHEMA IF EXISTS operator CASCADE"))
             conn.execute(text("DROP SCHEMA IF EXISTS shared CASCADE"))
+            conn.execute(text("DROP SCHEMA IF EXISTS corpus CASCADE"))
             conn.execute(text(f"DROP ROLE IF EXISTS {role}"))
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -75,12 +80,14 @@ def test_a_missing_schema_is_still_created_for_local_and_ci(url: str) -> None:
         admin.dispose()
 
 
-def test_migrations_only_create_objects_in_the_plane() -> None:
-    """Infra owns schemas and grants; a migration creates objects, on the schema it is given."""
-    sources = {p.name: p.read_text() for p in VERSIONS.glob("*.py") if p.name != "__init__.py"}
+@pytest.mark.parametrize("versions", [VERSIONS, CORPUS_VERSIONS], ids=["kernel", "corpus"])
+def test_migrations_only_create_objects_in_the_plane(versions: Path) -> None:
+    """Infra owns schemas, extensions and grants; a migration creates objects, on the schema it is
+    given."""
+    sources = {p.name: p.read_text() for p in versions.glob("*.py") if p.name != "__init__.py"}
     assert sources
     for name, source in sources.items():
-        assert not re.search(r"create\s+schema|\bgrant\b", source, re.I), name
+        assert not re.search(r"create\s+(schema|extension)|\bgrant\b", source, re.I), name
         # An object names the plane it was given and no other schema.
         assert not re.search(r"\bschema=(?!schema\b)", source), name
 
@@ -113,15 +120,18 @@ def test_the_cli_entry_point_upgrades_and_reports_status(url: str) -> None:
 
     head = migrate.head_revision()
     shared_head = migrate.head_revision("shared")
+    corpus_head = migrate.head_revision("corpus")
     up = _cli("upgrade", "--plane", "operator", url=url)
     assert up.returncode == 0, up.stderr
     assert f"plane operator: {head} (head {head})" in up.stdout
     assert f"schema shared: {shared_head} (head {shared_head})" in up.stdout
+    assert f"schema corpus: {corpus_head} (head {corpus_head})" in up.stdout
 
     player = _cli("status", "--plane", "player", url=url)
     assert player.returncode == 0
     assert f"current {head}, head {head}" in player.stdout
     assert f"schema shared: current {shared_head}, head {shared_head}" in player.stdout
+    assert f"schema corpus: current {corpus_head}, head {corpus_head}" in player.stdout
 
 
 def test_status_is_behind_when_only_the_shared_schema_is_behind(url: str) -> None:
@@ -178,13 +188,17 @@ def test_sql_for_a_fresh_plane_creates_the_plane_tables_and_nothing_in_public() 
     assert re.search(r'INSERT INTO "?player"?\.alembic_version', out)
     assert "CREATE SCHEMA" not in out.upper()
     tables = [t.strip('"') for t in re.findall(r"CREATE TABLE ([^ (]+)", out)]
-    # The shared schema's history runs first, then the plane's; nothing else is touched.
-    assert sorted(t for t in tables if not t.startswith("player.")) == [
+    # The shared schema's history runs first, then corpus's, then the plane's; nothing else.
+    others = [t for t in tables if not t.startswith("player.")]
+    assert [t for t in others if t.startswith("shared.")] == [
         "shared.alembic_version",
         "shared.app_releases",
         "shared.schema_history",
     ]
-    assert out.index("shared.alembic_version") < out.index("player.alembic_version")
+    assert {t.split(".")[0] for t in others} == {"shared", "corpus"}
+    assert "corpus.sources" in others and "corpus.content_items" in others
+    assert out.index("shared.alembic_version") < out.index("corpus.alembic_version")
+    assert out.index("corpus.alembic_version") < out.index("player.alembic_version")
     assert "public" not in out
 
 
@@ -235,6 +249,8 @@ def test_the_emitted_sql_builds_the_same_table_the_upgrade_does(url: str) -> Non
         with scratch.connect() as conn:
             conn.execute(text("CREATE SCHEMA player"))
             conn.execute(text("CREATE SCHEMA shared"))
+            conn.execute(text("CREATE SCHEMA corpus"))
+            conn.execute(text("CREATE EXTENSION pg_trgm"))
             raw = conn.connection.dbapi_connection
             assert raw is not None
             raw.execute(done.stdout)
@@ -253,26 +269,26 @@ def test_the_emitted_sql_builds_the_same_table_the_upgrade_does(url: str) -> Non
 
 
 def _shape(conn) -> dict[str, list[tuple]]:  # type: ignore[no-untyped-def]
-    """Every column, constraint and index of the player and shared schemas."""
+    """Every column, constraint and index of the player, shared and corpus schemas."""
     return {
         "columns": conn.execute(
             text(
                 "SELECT table_schema, table_name, column_name, data_type, is_nullable, "
                 "column_default FROM information_schema.columns "
-                "WHERE table_schema IN ('player', 'shared') ORDER BY 1, 2, 3"
+                "WHERE table_schema IN ('player', 'shared', 'corpus') ORDER BY 1, 2, 3"
             )
         ).all(),
         "constraints": conn.execute(
             text(
                 "SELECT n.nspname, c.conname, pg_get_constraintdef(c.oid) FROM pg_constraint c "
                 "JOIN pg_namespace n ON n.oid = c.connamespace "
-                "WHERE n.nspname IN ('player', 'shared') ORDER BY 1, 2"
+                "WHERE n.nspname IN ('player', 'shared', 'corpus') ORDER BY 1, 2"
             )
         ).all(),
         "indexes": conn.execute(
             text(
                 "SELECT schemaname, indexname, indexdef FROM pg_indexes "
-                "WHERE schemaname IN ('player', 'shared') ORDER BY 1, 2"
+                "WHERE schemaname IN ('player', 'shared', 'corpus') ORDER BY 1, 2"
             )
         ).all(),
     }
