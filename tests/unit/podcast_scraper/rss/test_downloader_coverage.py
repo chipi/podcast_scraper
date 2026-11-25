@@ -100,6 +100,49 @@ class TestNormalizeUrl(unittest.TestCase):
         self.assertNotIn(" ", result)
 
 
+class TestHttpGetResponse(unittest.TestCase):
+    def setUp(self) -> None:
+        http_policy.configure_http_policy()
+
+    def _client(self, send: object) -> Mock:
+        client = Mock(spec=httpx.Client)
+        client.build_request.side_effect = lambda method, url, headers=None, timeout=None: (
+            httpx.Request(method, url, headers=headers or {})
+        )
+        client.send.side_effect = send
+        return client
+
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_any_status_comes_back_with_the_validators_sent(self, mock_client_fn: Mock) -> None:
+        sent: list[httpx.Request] = []
+
+        def send(request: httpx.Request) -> httpx.Response:
+            sent.append(request)
+            return httpx.Response(304, request=request)
+
+        mock_client_fn.return_value = self._client(send)
+        resp = downloader.http_get_response(
+            "https://news.example/a", "ua", 30, extra_headers={"If-None-Match": '"v1"'}
+        )
+        assert resp is not None and resp.status_code == 304
+        assert sent[0].headers["If-None-Match"] == '"v1"'
+        assert sent[0].headers["User-Agent"] == "ua"
+
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_unreachable_is_none_and_any_status_keeps_its_old_shape(
+        self, mock_client_fn: Mock
+    ) -> None:
+        mock_client_fn.return_value = self._client(httpx.ConnectTimeout("slow"))
+        assert downloader.http_get_response("https://news.example/a", "ua", 30) is None
+        assert downloader.http_get_any_status("https://news.example/a", "ua", 30) == (0, b"")
+
+    @patch("podcast_scraper.rss.downloader._get_thread_request_client")
+    def test_an_ssrf_target_is_refused_without_a_request(self, mock_client_fn: Mock) -> None:
+        url = "http://169.254.169.254/latest/meta-data/"
+        assert downloader.http_get_response(url, "ua", 30) is None
+        mock_client_fn.assert_not_called()
+
+
 class TestHttpHead(unittest.TestCase):
     def setUp(self) -> None:
         http_policy.configure_http_policy()
