@@ -603,8 +603,8 @@ def http_get_response(
     extra_headers: Optional[Dict[str, str]] = None,
 ) -> Optional[httpx.Response]:
     """HTTP GET that returns the response whatever its status, ``None`` when refused or
-    unreachable. ``extra_headers`` carries a conditional GET's validators (``If-None-Match``,
-    ``If-Modified-Since``)."""
+    unreachable. ``extra_headers`` carries the validators of a conditional request
+    (``If-None-Match``, ``If-Modified-Since``)."""
     normalized_url = normalize_url(url)
     if _is_ssrf_target(normalized_url):
         return None
