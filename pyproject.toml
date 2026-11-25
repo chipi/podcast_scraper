@@ -479,6 +479,10 @@ branch = true
 # tree (no subtree ``omit``); the E2E job’s percentage is expected in the mid-30s until more E2E
 # exercises server, search, GI, and related paths. Threshold: ``COVERAGE_THRESHOLD_E2E`` in the Makefile / CI.
 source = ["podcast_scraper"]
+# The pytest commands (Makefile, workflows, ci_local.sh) pass ``--cov=podcast_scraper
+# --cov=src/podcast_scraper``, which overrides this. The directory is there because Alembic loads
+# its env.py and revision files by path under its own module names, which the package name never
+# attributes: every migration read 0% while the db tests ran each line.
 # pytest-cov 7+ / coverage.py: measure code run inside ``subprocess.run([python, -m, ...])``.
 # Many E2E tests invoke ``python -m podcast_scraper.cli`` in a child process; without this
 # patch those runs do not contribute hits while all ``podcast_scraper`` lines still count

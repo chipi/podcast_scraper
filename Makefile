@@ -1546,7 +1546,7 @@ test-unit: cleanup-processes
 	# Unit tests are lightweight (~100 MB per worker), so can use more workers
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
-	$(PYTHON) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-no-ml: cleanup-processes
 	# Runs import guard + unit tests with *current* $(PYTHON) (.venv if present).
@@ -1554,14 +1554,14 @@ test-unit-no-ml: cleanup-processes
 	@echo "Verifying unit tests can import modules without ML dependencies..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
 	@echo "Running unit tests..."
-	$(PYTHON) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-dev-venv: cleanup-processes
 	@test -x "$(VENVDEV_PY)" || { echo "Missing $(VENVDEV_PY). Run: make venv-dev-init [VENVDEV=$(VENVDEV)]"; exit 1; }
 	@echo "Verifying imports (CI-style, .[dev] only)..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(VENVDEV_PY) scripts/tools/check_unit_test_imports.py
 	@echo "Running unit tests in $(VENVDEV)..."
-	$(VENVDEV_PY) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(VENVDEV_PY) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(VENVDEV_PY) -m pytest tests/unit/ tests/guardrails/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(VENVDEV_PY) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
@@ -1581,7 +1581,7 @@ test-integration: cleanup-processes
 	@echo "🔄 Starting integration tests at $$(date '+%Y-%m-%d %H:%M:%S')"
 	@set -e; \
 	pytest_exit=0; \
-	$(PYTHON) -m pytest tests/integration/ -m integration -v --tb=short -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost --durations=20 || pytest_exit=$$?; \
+	$(PYTHON) -m pytest tests/integration/ -m integration -v --tb=short -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost --durations=20 || pytest_exit=$$?; \
 	echo "📊 Tests completed, combining coverage files..."; \
 	$(MAKE) merge-cov-fragments || { echo "⚠️  Coverage fragment merge failed (non-fatal)"; true; }; \
 	echo "✅ Integration tests finished at $$(date '+%Y-%m-%d %H:%M:%S')"; \
@@ -1595,7 +1595,7 @@ test-integration-fast:
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	$(PYTHON) -m pytest tests/integration/ -m "integration and (critical_path or app) and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	$(PYTHON) -m pytest tests/integration/ -m "integration and (critical_path or app) and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 .PHONY: audio-archive-local-e2e
 audio-archive-local-e2e:
@@ -1611,7 +1611,7 @@ test-ci:
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	# Note: Non-critical path tests run on main branch only
-	$(PYTHON) -m pytest -m '(not integration and not e2e) or (integration and (critical_path or (app and not ml_models))) or (e2e and critical_path)' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing
+	$(PYTHON) -m pytest -m '(not integration and not e2e) or (integration and (critical_path or (app and not ml_models))) or (e2e and critical_path)' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing
 
 test-ci-fast:
 	# Fast CI test suite: parallel execution for speed
@@ -1652,7 +1652,7 @@ test-e2e: cleanup-processes
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
@@ -1672,9 +1672,9 @@ test-e2e-fast:
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
 	@WE=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2); \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and not ml_models" -n $$WE --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 && \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and not ml_models" -n $$WE --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 && \
 	set +e; \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and ml_models" -n 1 --cov=$(PACKAGE) --cov-append --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and ml_models" -n 1 --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20; \
 	ec=$$?; \
 	set -e; \
 	if [ $$ec -eq 5 ]; then ec=0; fi; \
@@ -1768,15 +1768,15 @@ test:
 	# Excludes nightly tests (run separately via make test-nightly)
 	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
 	@echo "Running unit tests with coverage..."
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/unit/ -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/unit/ -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Running integration tests with coverage (appending)..."
 	# Note: --disable-socket is required to block real network calls (without it, tests hang)
 	# Note: --reruns removed because pytest-rerunfailures 14.0+ uses sockets with -n (parallel)
 	# which conflicts with --disable-socket. Reruns are available via make test-integration standalone.
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Running E2E tests with coverage (appending)..."
 	# Note: Same as integration - --disable-socket for network isolation, no --reruns with -n
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Final coverage:"
 	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report (check for coverage errors above)"; exit 1)
@@ -1786,7 +1786,7 @@ test-sequential:
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not analytical" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
+	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not analytical" --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Fast tests: same coverage approach as 'test' — separate pytest runs per layer, then combine.
 # Avoids one large xdist session (which can hang at shutdown). Each layer uses its own worker count.
@@ -1798,20 +1798,20 @@ test-fast:
 	@echo "Running unit tests (fast) with coverage..."
 	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
-		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
+		--cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path integration tests with coverage (appending)..."
 	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and (critical_path or (app and not ml_models))' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
+		--cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path E2E tests (non-ML, parallel) with coverage (appending)..."
 	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and not ml_models' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS) --durations=20
+		--cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS) --durations=20
 	@echo "Running critical path E2E tests (ML models, sequential) with coverage (appending)..."
 	@set +e; \
 	E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and ml_models' \
 		-n 1 \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS) --durations=20; \
+		--cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS) --durations=20; \
 	ec=$$?; \
 	set -e; \
 	if [ $$ec -eq 5 ]; then ec=0; fi; \
@@ -1826,18 +1826,18 @@ test-fast-no-py-e2e:
 	@echo "Running unit tests (fast) with coverage..."
 	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
-		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
+		--cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path integration tests with coverage (appending)..."
 	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and (critical_path or (app and not ml_models))' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
+		--cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Combining coverage..."
 	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-acceptance:
 	@# Run E2E acceptance tests (multiple configs sequentially)
@@ -2180,19 +2180,19 @@ coverage-check: coverage-check-unit coverage-check-integration coverage-check-e2
 coverage-check-unit:
 	# Check unit test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_UNIT)%)
 	@echo "Checking unit test coverage (minimum $(COVERAGE_THRESHOLD_UNIT)%)..."
-	@$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost -q
 
 coverage-check-integration:
 	# Check integration test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_INTEGRATION)%)
 	@echo "Checking integration test coverage (minimum $(COVERAGE_THRESHOLD_INTEGRATION)%)..."
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@$(PYTHON) -m pytest tests/integration/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@$(PYTHON) -m pytest tests/integration/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-e2e:
 	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
 	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-config=.coveragerc-e2e --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-config=.coveragerc-e2e --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-combined:
 	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)
@@ -2200,7 +2200,7 @@ coverage-check-combined:
 	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	@echo "Checking combined coverage (minimum $(COVERAGE_THRESHOLD_COMBINED)%)..."
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov=src/$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 # Merge ``.coverage.*`` from pytest-xdist / subprocess coverage without clobbering ``.coverage``.
 # Plain ``coverage combine`` loads no existing DB and ``save()`` overwrites the full pytest dataset.
