@@ -1,6 +1,6 @@
 # ADR-184: The corpus schema has its own built-in history; a type module's corpus tables live beside it
 
-- **Status**: Proposed (the database session, 2026-11-25)
+- **Status**: Accepted (the operator, 2026-11-25)
 - **Date**: 2026-11-25
 - **Authors**: Marko Dragoljevic
 - **Related**: [ADR-169](ADR-169-the-database-is-the-source-of-truth.md) (the database is the source
