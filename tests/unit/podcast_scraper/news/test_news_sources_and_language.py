@@ -352,6 +352,25 @@ def test_a_feed_text_source_with_no_feed_text_is_skipped_without_a_fetch(
     assert fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src) is None
 
 
+def test_the_feed_text_keeps_the_words_outside_its_blocks() -> None:
+    # Nature's content:encoded (Common #50): a date line in a <p>, then the standfirst as loose
+    # text after it. The date line is boilerplate; the standfirst is the item's text.
+    feed_html = (
+        '<p>Nature, Published online: 25 November 2026; <a href="https://news.test/a">'
+        "doi:10.1038/d41586-026-00001-1</a></p>A survey of ten thousand gardens finds that bees "
+        "visit the oldest plants first."
+    )
+    found = extract.main_text("", "https://news.test/a", feed_html, text_from="feed")
+    assert found is not None and found.method == extract.FEED
+    assert found.text == (
+        "A survey of ten thousand gardens finds that bees visit the oldest plants first."
+    )
+    mixed = extract.main_text(
+        "", "https://news.test/a", f"Lead <b>words</b> here.<p>{EN}</p>Tail.", text_from="feed"
+    )
+    assert mixed is not None and mixed.text == f"Lead words here.\n\n{EN}\n\nTail."
+
+
 def test_the_page_author_is_its_meta_tag() -> None:
     html = '<html><head><meta name="author" content="Ana  Example"></head><body></body></html>'
     assert extract.page_author(html, "https://news.test/a") == "Ana Example"
