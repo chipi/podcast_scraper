@@ -125,30 +125,36 @@ def test_summary_counts_the_shown_items(client: TestClient) -> None:
     assert body["teasers"] == 1 and body["paywalled"] == 1
 
 
-def _name_news(path: Path, cluster_id: str, item_ids: list) -> None:
+def _name_news(path: Path, cluster_id: str, item_ids: list, topic_id: str | None = None) -> None:
+    """Set the news of *cluster_id*'s member *topic_id* (its first member when ``None``)."""
     doc = json.loads(path.read_text(encoding="utf-8"))
     holder = doc["data"] if isinstance(doc.get("data"), dict) else doc
     cluster = next(c for c in holder["clusters"] if c["graph_compound_parent_id"] == cluster_id)
-    cluster["members"][0]["news_item_ids"] = sorted(item_ids)
+    members = cluster["members"]
+    member = next(m for m in members if m["topic_id"] == topic_id) if topic_id else members[0]
+    member["news_item_ids"] = sorted(item_ids)
     path.write_text(json.dumps(doc), encoding="utf-8")
 
 
 @pytest.mark.parametrize(
-    "relpath, cluster_id",
+    "named_on, topic_id, cluster_id",
     [
-        ("search/topic_clusters.json", "tc:alerting-actionability"),
-        ("enrichments/topic_theme_clusters.json", "thc:managing-risk"),
+        ("tc:alerting-actionability", None, "tc:alerting-actionability"),
+        # A storyline reads its member topics' articles from the themes file (next-cycle item 25);
+        # topic:risk-management is a member of both.
+        ("tc:risk-management", "topic:risk-management", "thc:managing-risk"),
     ],
 )
 def test_node_episodes_lists_a_groupings_articles(
-    client: TestClient, tmp_path: Path, relpath: str, cluster_id: str
+    client: TestClient, tmp_path: Path, named_on: str, topic_id: str | None, cluster_id: str
 ) -> None:
     """A theme or storyline rail lists its members' news_item_ids (the news release's piece H),
     served items only: the withheld item named there never shows."""
     items = client.get("/api/corpus/news/items").json()["items"]
     risk = next(i["item_id"] for i in items if i["title"] == _RISK)
     withheld = "item:news_article:2043d8230c86beddfb95"
-    _name_news(tmp_path / "corpus" / relpath, cluster_id, [risk, withheld])
+    themes = tmp_path / "corpus" / "search/topic_clusters.json"
+    _name_news(themes, named_on, [risk, withheld], topic_id)
     res = client.post(
         "/api/corpus/node-episodes",
         json={"node_id": "g:" + cluster_id, "content_types": ["news_article"]},

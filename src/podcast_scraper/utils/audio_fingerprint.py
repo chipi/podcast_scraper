@@ -41,7 +41,7 @@ import os
 import tempfile
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ def record(
     """Persist ``digest`` → episode once a transcript actually exists. Atomic, best-effort."""
     if not root or not isinstance(digest, str) or not digest or not identity:
         return
-    entry = {
+    entry: Dict[str, Any] = {
         "identity": identity,
         "feed_id": feed_id,
         "episode_title": episode_title,
@@ -165,24 +165,69 @@ def record(
     with _LOCK:
         try:
             index = _load(root)
+            # A retry of the original re-records its digest; the republishes it already
+            # skipped must stay known, or selection picks them up again.
+            duplicates = (index.get(digest) or {}).get("duplicates")
+            if duplicates:
+                entry["duplicates"] = duplicates
             index[digest] = entry
-            path = _index_path(root)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".fingerprints-")
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                    json.dump(index, fh, ensure_ascii=False, indent=0, sort_keys=True)
-                os.replace(tmp, path)
-            except BaseException:
-                try:
-                    os.unlink(tmp)
-                except OSError:
-                    pass
-                raise
+            _write(root, index)
         except OSError as exc:
             logger.warning("audio fingerprint: failed to record %s: %s", digest[:12], exc)
         finally:
             _PENDING.pop((root, digest), None)
+
+
+def record_duplicate(root: Optional[str], digest: str, identity: str) -> None:
+    """Remember that ``identity`` was skipped as a copy of the episode recorded under ``digest``.
+
+    A content-duplicate skip writes no episode metadata, so without this record
+    ``episode_selection=unprocessed`` keeps offering the republish as new work every run. Only
+    a hit on the persistent index is recorded: a same-run twin's original can still fail, and
+    then the twin must be a candidate again (the self-healing in the module docstring).
+    """
+    if not root or not digest or not identity:
+        return
+    with _LOCK:
+        try:
+            index = _load(root)
+            entry = index.get(digest)
+            if entry is None:
+                return
+            duplicates = list(entry.get("duplicates") or [])
+            if identity in duplicates:
+                return
+            entry["duplicates"] = duplicates + [identity]
+            _write(root, index)
+        except OSError as exc:
+            logger.warning("audio fingerprint: failed to record duplicate %s: %s", digest[:12], exc)
+
+
+def known_duplicate_identities(root: Optional[str]) -> Set[str]:
+    """Every identity the gate skipped as a copy of an already-transcribed episode."""
+    if not root:
+        return set()
+    out: Set[str] = set()
+    for entry in _load(root).values():
+        if isinstance(entry, dict):
+            out.update(str(i) for i in entry.get("duplicates") or [] if i)
+    return out
+
+
+def _write(root: str, index: Dict[str, Dict[str, Any]]) -> None:
+    path = _index_path(root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".fingerprints-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(index, fh, ensure_ascii=False, indent=0, sort_keys=True)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def reset_pending_for_tests() -> None:
