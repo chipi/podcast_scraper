@@ -13,7 +13,7 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, exc as sa_exc, select, text
+from sqlalchemy import create_engine, exc as sa_exc, insert, select, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, make_url
 
@@ -79,10 +79,9 @@ def conn(url: str) -> Iterator[Connection]:
 
 def _source(conn: Connection, natural_id: str = "source:a", **fields: object) -> int:
     values = {"natural_id": natural_id, "content_type": "podcast", "title": "A", **fields}
-    cols = ", ".join(values)
-    binds = ", ".join(f":{k}" for k in values)
+    table = corpus_metadata.tables["corpus.sources"]
     source_id: int = conn.execute(
-        text(f"INSERT INTO corpus.sources ({cols}) VALUES ({binds}) RETURNING source_id"), values
+        insert(table).values(values).returning(table.c.source_id)
     ).scalar_one()
     return source_id
 
@@ -97,11 +96,9 @@ def _item(conn: Connection, source_id: int, n: str = "1", **fields: object) -> i
         "title": f"Episode {n}",
         **fields,
     }
-    cols = ", ".join(values)
-    binds = ", ".join(f":{k}" for k in values)
+    table = corpus_metadata.tables["corpus.content_items"]
     item_id: int = conn.execute(
-        text(f"INSERT INTO corpus.content_items ({cols}) VALUES ({binds}) RETURNING item_id"),
-        values,
+        insert(table).values(values).returning(table.c.item_id)
     ).scalar_one()
     return item_id
 
