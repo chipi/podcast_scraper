@@ -1,9 +1,13 @@
 """The re-check's page fetch (CRFC-006 Part B, B.2): a fake network serving two versions of a page
 per URL, as B.5's proof names (same page, whitespace change, edit, 404, paywall appears), plus the
-answers that must not count as gone (a timeout, a 5xx, robots.txt) and the conditional GET."""
+answers that must not count as gone (a timeout, a 5xx, robots.txt) and the conditional GET.
+
+The extractor is faked (a page's ``<p>`` text): it is a ``[news]`` extra, and what is under test
+here is the fetch and how its answers reach the compare, not the extraction."""
 
 from __future__ import annotations
 
+import re
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
@@ -14,8 +18,6 @@ from podcast_scraper.news import extract, recheck, recheck_fetch
 from podcast_scraper.rss import downloader
 
 pytestmark = pytest.mark.unit
-
-pytest.importorskip("trafilatura")
 
 URL = "https://news.test/world/2026/nov/24/bridge"
 SOURCE = SimpleNamespace(user_agent="close-listening-test")
@@ -42,8 +44,21 @@ def _page(paragraphs: List[str], *, spacing: str = " ") -> str:
 ORIGINAL = _page(_P)
 
 
+def _fake_main_text(
+    html: str, url: str, feed_html: Optional[str] = None, *, text_from: str = "page"
+) -> Optional[extract.Extracted]:
+    assert text_from == "page", "the source's own text_from reaches the extractor"
+    paragraphs = [" ".join(p.split()) for p in re.findall(r"<p>(.*?)</p>", html, re.S)]
+    return extract.Extracted("\n\n".join(paragraphs), "fake", "en") if paragraphs else None
+
+
+@pytest.fixture(autouse=True)
+def _extractor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(extract, "main_text", _fake_main_text)
+
+
 def _served() -> str:
-    found = extract.main_text(ORIGINAL, URL)
+    found = _fake_main_text(ORIGINAL, URL)
     assert found is not None
     return found.text
 
