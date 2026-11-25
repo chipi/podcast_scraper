@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
+import sys
 from collections.abc import Iterator
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, exc as sa_exc, text
-from sqlalchemy.engine import Connection
+from sqlalchemy import create_engine, exc as sa_exc, select, text
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.engine import Connection, make_url
 
 from podcast_scraper.db import init_engines, migrate, reset_engines, rw_engine
 from podcast_scraper.db.engines import DatabaseNotReady
 from podcast_scraper.db.schema import corpus_metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
-from tests._database import worker_database_url
-from tests.unit.podcast_scraper.db.test_db_migrate import _shape
+from tests._database import captured_statements, worker_database_url
+from tests.unit.podcast_scraper.db.test_db_migrate import _shape, REPO
 
 TABLES = {
     "alembic_version",
@@ -479,8 +483,6 @@ def test_every_corpus_table_names_its_schema_so_no_translate_map_is_needed(
 ) -> None:
     """The ``corpus_ro`` engine carries no ``schema_translate_map``: a query built from the
     metadata must render ``corpus.<table>`` by itself, and run on a connection with no map."""
-    from sqlalchemy import select
-    from sqlalchemy.dialects import postgresql
 
     assert {t.schema for t in corpus_metadata.tables.values()} == {"corpus"}
     for table in corpus_metadata.sorted_tables:
@@ -488,3 +490,80 @@ def test_every_corpus_table_names_its_schema_so_no_translate_map_is_needed(
         assert f"FROM corpus.{table.name}" in sql, sql
         conn.execute(select(table).limit(1))
     assert not conn.get_execution_options().get("schema_translate_map")
+
+
+def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
+    """Prod runs ``db upgrade --plane player`` then ``--plane operator``, never a corpus step."""
+
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    reset_engines()
+    with admin.connect() as c:
+        c.execute(text("DROP SCHEMA IF EXISTS corpus CASCADE"))
+    env = {**os.environ, "PODCAST_DATABASE_URL": url, "PYTHONPATH": str(REPO / "src")}
+    try:
+        for plane in ("player", "operator"):
+            done = subprocess.run(
+                [sys.executable, "-m", "podcast_scraper.cli", "db", "upgrade", "--plane", plane],
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=180,
+                check=False,
+            )
+            assert done.returncode == 0, done.stderr
+            head = migrate.head_revision("corpus")
+            assert f"schema corpus: {head} (head {head})" in done.stdout
+            first = plane == "player"
+            assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
+        assert len(revisions) == 3
+    finally:
+        admin.dispose()
+        migrate.upgrade(url, "operator")
+
+
+def test_the_shared_schema_ahead_is_read_through_an_app_engine(url: str) -> None:
+    """The engines carry a connection-level ``None -> plane`` map; the history read must still
+    be the schema's own, as for corpus."""
+    settings = DatabaseSettings(rw_url=url, ro_url=url)
+    head = migrate.head_revision("shared")
+    reset_engines()
+    admin = create_engine(normalize_url(url))
+    try:
+        with admin.begin() as c:
+            c.execute(text("UPDATE shared.alembic_version SET version_num = '9999_later'"))
+            c.execute(text("INSERT INTO shared.schema_history (revision) VALUES (:r)"), {"r": head})
+        init_engines(settings)
+        with rw_engine().connect() as c:
+            assert migrate.readiness(c, "shared") == ("ahead", "9999_later", head)
+            assert migrate.readiness(c, "player")[0] == "at_head"
+    finally:
+        reset_engines()
+        with admin.begin() as c:
+            c.execute(text("DELETE FROM shared.schema_history WHERE revision = :r"), {"r": head})
+            c.execute(text("UPDATE shared.alembic_version SET version_num = :r"), {"r": head})
+        admin.dispose()
+
+
+def test_upgrade_creates_pg_trgm_only_when_it_is_missing(url: str) -> None:
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    name = f"trgm_{os.getpid()}"
+    try:
+        with admin.connect() as c:
+            c.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+            c.execute(text(f'CREATE DATABASE "{name}"'))
+        scratch = (
+            make_url(normalize_url(url)).set(database=name).render_as_string(hide_password=False)
+        )
+        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0003_sources_and_items"
+        probe = create_engine(normalize_url(scratch))
+        with probe.connect() as c:
+            assert c.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")).first()
+        probe.dispose()
+        with captured_statements() as seen:
+            migrate.upgrade_corpus(scratch)
+        assert not [sql for sql, _ in seen if "CREATE EXTENSION" in sql.upper()]
+    finally:
+        with admin.connect() as c:
+            c.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+        admin.dispose()

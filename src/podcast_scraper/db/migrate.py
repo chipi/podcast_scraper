@@ -49,11 +49,13 @@ class History:
     name: str
     scripts: Path
     version_table: str = _VERSION_TABLE
+    #: Extensions its revisions need; infra creates them in prod, ``upgrade`` only when missing.
+    extensions: tuple[str, ...] = ()
 
 
 KERNEL = History("kernel", _PLANE_SCRIPTS)
 SHARED = History("shared", _SHARED_SCRIPTS)
-CORPUS = History("corpus", _CORPUS_SCRIPTS)
+CORPUS = History("corpus", _CORPUS_SCRIPTS, extensions=("pg_trgm",))
 
 
 def _default(schema: str | None) -> History:
@@ -223,6 +225,20 @@ def _ensure_schema(conn: Connection, schema: str) -> None:
         conn.execute(CreateSchema(schema, if_not_exists=True))
 
 
+def _ensure_extensions(conn: Connection, extensions: tuple[str, ...]) -> None:
+    """Create each extension only when it is missing, for local and CI databases.
+
+    Prod's infra creates them (ADR-184); creating one needs privileges the migrating role lacks,
+    so a present extension is never touched.
+    """
+    for name in extensions:
+        present = conn.execute(
+            text("SELECT 1 FROM pg_extension WHERE extname = :name"), {"name": name}
+        ).first()
+        if present is None:
+            conn.execute(text(f'CREATE EXTENSION IF NOT EXISTS "{name}"'))
+
+
 def _engine(url: str) -> Engine:
     return create_engine(normalize_url(url), connect_args=unbounded_connect_args())
 
@@ -234,6 +250,7 @@ def _upgrade_schema(
     applied: list[tuple[str, int]] = []
     with engine.begin() as conn:
         _ensure_schema(conn, schema)
+        _ensure_extensions(conn, (history or _default(schema)).extensions)
     with engine.connect() as conn:
         cfg = _config(schema, conn, history)
         cfg.attributes["applied"] = applied
