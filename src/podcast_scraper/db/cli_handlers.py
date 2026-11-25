@@ -1,8 +1,8 @@
 """CLI for the database (ADR-169): ``podcast_scraper db upgrade | status | import``.
 
-- ``upgrade --plane P``: bring plane ``P``'s schema to head. The prod migrate step; the API never
-  does this at start. ``--sql`` prints the SQL it would run (from the plane's current revision, or
-  ``--from REV``) and executes nothing.
+- ``upgrade --plane P``: bring ``shared``, ``corpus`` and plane ``P``'s schema to head. The prod
+  migrate step; the API never does this at start. ``--sql`` prints the SQL it would run (from the
+  plane's current revision, or ``--from REV``) and executes nothing.
 - ``status --plane P``: current vs head. Exit **2** when behind (distinct from error=1), so a
   boot script can gate on it.
 - ``import --from-files DIR --plane P [--only STORE] [--dry-run]``: read the file stores into the
@@ -26,7 +26,7 @@ from sqlalchemy import create_engine
 from podcast_scraper.db import inventory, migrate
 from podcast_scraper.db.engines import unbounded_connect_args
 from podcast_scraper.db.importers import registry
-from podcast_scraper.db.schema import SHARED_SCHEMA
+from podcast_scraper.db.schema import CORPUS_SCHEMA, SHARED_SCHEMA
 from podcast_scraper.db.settings import (
     DatabaseSettings,
     DEFAULT_PLANE,
@@ -83,9 +83,11 @@ def _upgrade(args: argparse.Namespace, log: logging.Logger) -> int:
     url = DatabaseSettings.from_env().rw_url
     applied = migrate.upgrade_all(url, args.plane)
     shared_current, shared_head = migrate.shared_status(url)
+    corpus_current, corpus_head = migrate.corpus_status(url)
     current, head = migrate.status(url, args.plane)
     found = [
         (f"schema {SHARED_SCHEMA}", shared_current, shared_head, applied[migrate.SHARED.name]),
+        (f"schema {CORPUS_SCHEMA}", corpus_current, corpus_head, applied[migrate.CORPUS.name]),
         (f"plane {args.plane}", current, head, applied[migrate.KERNEL.name]),
     ]
     found += [
@@ -115,7 +117,10 @@ def _status(args: argparse.Namespace, log: logging.Logger) -> int:
     shared_current, shared_head = migrate.shared_status(url)
     print(f"schema {SHARED_SCHEMA}: current {shared_current or 'none'}, head {shared_head}")
     _print_history(url, SHARED_SCHEMA)
-    behind = current != head or shared_current != shared_head
+    corpus_current, corpus_head = migrate.corpus_status(url)
+    print(f"schema {CORPUS_SCHEMA}: current {corpus_current or 'none'}, head {corpus_head}")
+    _print_history(url, CORPUS_SCHEMA)
+    behind = current != head or shared_current != shared_head or corpus_current != corpus_head
     for name, cur, hd in migrate.module_status(url, args.plane):
         print(f"module {name} on plane {args.plane}: current {cur or 'none'}, head {hd}")
         behind = behind or cur != hd

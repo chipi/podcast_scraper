@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-#: One schema per API plane (ADR-116). A later ``corpus`` schema is not a plane.
+#: One schema per API plane (ADR-116). The ``corpus`` schema is not a plane.
 PLANES = ("player", "operator")
 DEFAULT_PLANE = "player"
 

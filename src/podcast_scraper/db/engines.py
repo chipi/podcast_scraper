@@ -17,7 +17,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 from sqlalchemy import create_engine, Engine, exc as sa_exc, text
 from sqlalchemy.engine import Connection
@@ -144,10 +144,17 @@ def check_ready(engines: _Engines) -> None:
     checks = [("schema", SHARED_SCHEMA, migrate.SHARED), ("plane", plane, migrate.KERNEL)]
     checks += [(f"module {h.name} on plane", plane, h) for h in migrate.modules(plane)]
     with read_connection(engines.rw) as conn:
-        found = [
-            (label, schema, *migrate.readiness(conn, schema, hist))
-            for label, schema, hist in checks
-        ]
+        _refuse_unless_ready(conn, checks, f"--plane {plane}")
+
+
+def _refuse_unless_ready(
+    conn: Connection, checks: list[tuple[str, str, Any]], plane_arg: str
+) -> None:
+    from podcast_scraper.db import migrate
+
+    found = [
+        (label, schema, *migrate.readiness(conn, schema, hist)) for label, schema, hist in checks
+    ]
     for label, schema, state, current, head in found:
         if state == "ahead":
             # A later release migrated past this code, expand-only: the rollback case (ADR-172).
@@ -161,7 +168,7 @@ def check_ready(engines: _Engines) -> None:
         elif state == "behind":
             raise DatabaseNotReady(
                 f"{label} {schema!r} is at revision {current or 'none'}, behind head {head}; run "
-                f"`python -m podcast_scraper.cli db upgrade --plane {plane}` (prod: the dedicated "
+                f"`python -m podcast_scraper.cli db upgrade {plane_arg}` (prod: the dedicated "
                 "migrate step, never app start)"
             )
         elif state == "unknown":
@@ -210,11 +217,23 @@ def init_corpus_engine(settings: CorpusSettings | None = None, *, check: bool = 
         if check:
             try:
                 _check_reachable("corpus_ro", engine)
+                _check_corpus_ready(engine)
             except Exception:
                 engine.dispose()
                 raise
         _corpus = (cfg, engine)
         logger.info("corpus_ro engine ready")
+
+
+def _check_corpus_ready(engine: Engine) -> None:
+    # Through corpus_ro itself: the plane roles hold no privilege on the corpus schema.
+    from podcast_scraper.db import migrate
+    from podcast_scraper.db.schema import CORPUS_SCHEMA
+
+    with read_connection(engine) as conn:
+        _refuse_unless_ready(
+            conn, [("schema", CORPUS_SCHEMA, migrate.CORPUS)], "--plane <player|operator>"
+        )
 
 
 def corpus_ro_engine() -> Engine:

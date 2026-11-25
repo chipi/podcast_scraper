@@ -1,8 +1,8 @@
 """Kernel tables (ADR-169): defined WITHOUT a schema, mapped onto the plane at connection time.
 
 Never add ``schema=`` to a ``metadata`` table: the engine's ``schema_translate_map={None: plane}``
-and Alembic's per-plane run depend on every kernel table having none. The one exception is the
-``shared`` schema at the end, with its own metadata and its own history.
+and Alembic's per-plane run depend on every kernel table having none. The exceptions are the
+``shared`` and ``corpus`` schemas at the end, each with its own metadata and its own history.
 """
 
 from __future__ import annotations
@@ -229,4 +229,301 @@ app_releases = Table(
     CheckConstraint(
         "version ~ '^[0-9]{1,4}(\\.[0-9]{1,4}){0,3}$'", name="app_releases_version_check"
     ),
+)
+
+
+#: The ``corpus`` schema: the platform's content tables, read by every plane and the pipeline
+#: (ADR-184). Its tables name their schema, like ``shared``'s. ``schema_history`` is the kernel's
+#: table definition, written there by ``migrate``.
+CORPUS_SCHEMA = "corpus"
+corpus_metadata = MetaData(schema=CORPUS_SCHEMA)
+
+
+def _created_at() -> Column[datetime]:
+    return Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+def _surrogate(name: str) -> Column[int]:
+    return Column(name, BigInteger, Identity(), primary_key=True)
+
+
+# Which migration ran, its dry run included, and the rows it changed: the undo reads the receipts.
+corpus_migrations = Table(
+    "corpus_migrations",
+    corpus_metadata,
+    _surrogate("migration_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("finished_at", DateTime(timezone=True), nullable=True),
+    _created_at(),
+    UniqueConstraint("natural_id", name="corpus_migrations_natural_id_key"),
+    CheckConstraint(
+        "status IN ('dry_run', 'applied', 'undone')", name="corpus_migrations_status_check"
+    ),
+)
+
+migration_receipts = Table(
+    "migration_receipts",
+    corpus_metadata,
+    _surrogate("receipt_id"),
+    Column(
+        "migration_id", BigInteger, ForeignKey("corpus_migrations.migration_id"), nullable=False
+    ),
+    Column("target_table", Text, nullable=False),
+    Column("target_key", Text, nullable=False),
+    Column("before", JSONB, nullable=True),
+    Column("after", JSONB, nullable=True),
+    _created_at(),
+    Index("migration_receipts_migration_idx", "migration_id"),
+)
+
+corpus_meta = Table(
+    "corpus_meta",
+    corpus_metadata,
+    Column("key", Text, primary_key=True),
+    Column("value", JSONB, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+# ``source_id``'s foreign key is added in corpus_0003, once ``sources`` exists.
+ingestion_runs = Table(
+    "ingestion_runs",
+    corpus_metadata,
+    _surrogate("run_id"),
+    Column("natural_id", Text, nullable=False),
+    Column(
+        "source_id",
+        BigInteger,
+        ForeignKey("sources.source_id", name="ingestion_runs_source_id_fkey"),
+        nullable=True,
+    ),
+    Column("status", Text, nullable=False, server_default=text("'running'")),
+    Column("finished_at", DateTime(timezone=True), nullable=True),
+    _created_at(),
+    UniqueConstraint("natural_id", name="ingestion_runs_natural_id_key"),
+    Index("ingestion_runs_created_idx", text("created_at DESC")),
+    Index("ingestion_runs_source_idx", "source_id"),
+)
+
+run_item_outcomes = Table(
+    "run_item_outcomes",
+    corpus_metadata,
+    _surrogate("outcome_id"),
+    Column(
+        "run_id",
+        BigInteger,
+        ForeignKey("ingestion_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "item_id",
+        BigInteger,
+        ForeignKey(
+            "content_items.item_id", name="run_item_outcomes_item_id_fkey", ondelete="SET NULL"
+        ),
+        nullable=True,
+    ),
+    Column("outcome", Text, nullable=False),
+    Column("detail", JSONB, nullable=True),
+    _created_at(),
+    Index("run_item_outcomes_run_idx", "run_id"),
+    Index("run_item_outcomes_item_idx", "item_id"),
+)
+
+# What produced a row (stage, method version, model, prompt hash, git sha, run).
+processing_stages = Table(
+    "processing_stages",
+    corpus_metadata,
+    _surrogate("processing_stage_id"),
+    Column("stage", Text, nullable=False),
+    Column("method_version", Text, nullable=True),
+    Column("model", Text, nullable=True),
+    Column("prompt_hash", Text, nullable=True),
+    Column("git_sha", Text, nullable=True),
+    Column("run_id", BigInteger, ForeignKey("ingestion_runs.run_id"), nullable=True),
+    _created_at(),
+    Index("processing_stages_run_idx", "run_id"),
+)
+
+enrichment_runs = Table(
+    "enrichment_runs",
+    corpus_metadata,
+    _surrogate("enrichment_run_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("enricher_id", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default=text("'running'")),
+    Column("finished_at", DateTime(timezone=True), nullable=True),
+    _created_at(),
+    UniqueConstraint("natural_id", name="enrichment_runs_natural_id_key"),
+    Index("enrichment_runs_created_idx", text("created_at DESC")),
+)
+
+# The job's cursor lives on its row, so a restarted job resumes from it.
+jobs = Table(
+    "jobs",
+    corpus_metadata,
+    _surrogate("job_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default=text("'queued'")),
+    Column("cursor", JSONB, nullable=True),
+    _created_at(),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("natural_id", name="jobs_natural_id_key"),
+    Index("jobs_created_idx", text("created_at DESC")),
+)
+
+# A writer re-checks its lease in every chunk: ``holder = :me AND expires_at > now()``.
+job_leases = Table(
+    "job_leases",
+    corpus_metadata,
+    _surrogate("lease_id"),
+    Column("resource", Text, nullable=False),
+    Column("mode", Text, nullable=False),
+    Column("holder", Text, nullable=False),
+    Column("job_id", BigInteger, ForeignKey("jobs.job_id", ondelete="CASCADE"), nullable=True),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("heartbeat_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    _created_at(),
+    UniqueConstraint("resource", "holder", name="job_leases_resource_holder_key"),
+    CheckConstraint("mode IN ('exclusive', 'shared')", name="job_leases_mode_check"),
+    Index("job_leases_expires_idx", "expires_at"),
+    Index("job_leases_job_idx", "job_id"),
+)
+
+assets = Table(
+    "assets",
+    corpus_metadata,
+    _surrogate("asset_id"),
+    Column("owner_kind", Text, nullable=False),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role", Text, nullable=False),
+    Column("path", Text, nullable=False),
+    Column("content_type", Text, nullable=False),
+    _created_at(),
+    UniqueConstraint("owner_kind", "owner_id", "role", name="assets_owner_role_key"),
+)
+
+sources = Table(
+    "sources",
+    corpus_metadata,
+    _surrogate("source_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("raw_feed_id", Text, nullable=True),
+    Column("content_type", Text, nullable=False),
+    Column("title", Text, nullable=False),
+    # No foreign key until the entities table exists.
+    Column("publisher_id", BigInteger, nullable=True),
+    Column("language", Text, nullable=True),
+    Column("category", Text, nullable=True),
+    Column("licence", Text, nullable=True),
+    Column(
+        "artwork_asset_id",
+        BigInteger,
+        ForeignKey("assets.asset_id", ondelete="SET NULL"),
+        nullable=True,
+    ),
+    _created_at(),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("natural_id", name="sources_natural_id_key"),
+    UniqueConstraint("raw_feed_id", name="sources_raw_feed_id_key"),
+    Index("sources_artwork_idx", "artwork_asset_id"),
+)
+
+
+def _flag(name: str) -> Column[bool]:
+    return Column(name, Boolean, nullable=False, server_default=text("false"))
+
+
+def _flags() -> list[Column[bool]]:
+    return [
+        _flag(n)
+        for n in ("has_transcript", "has_gi", "has_kg", "has_moments", "withheld", "unusable")
+    ]
+
+
+# ``served`` (0 not served, 1 served, 2 served and in the newest run) replaces the read-time rule
+# for the newest copy of an item; a superseded copy is not a row.
+content_items = Table(
+    "content_items",
+    corpus_metadata,
+    _surrogate("item_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("slug", Text, nullable=False),
+    Column("source_id", BigInteger, ForeignKey("sources.source_id"), nullable=False),
+    Column("external_item_id", Text, nullable=False),
+    Column("content_type", Text, nullable=False),
+    Column("editorial_type", Text, nullable=True),
+    Column("title", Text, nullable=False),
+    # Each time is nullable: unknown stays null, never a guess.
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    Column("filed_at", DateTime(timezone=True), nullable=True),
+    Column("period_start", DateTime(timezone=True), nullable=True),
+    Column("period_end", DateTime(timezone=True), nullable=True),
+    Column("observed_at", DateTime(timezone=True), nullable=True),
+    Column("ingested_at", DateTime(timezone=True), nullable=True),
+    Column("duration_s", Integer, nullable=True),
+    Column("language", Text, nullable=True),
+    Column("served", SmallInteger, nullable=False, server_default=text("0")),
+    *_flags(),
+    Column("type_attrs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    _created_at(),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("natural_id", name="content_items_natural_id_key"),
+    UniqueConstraint("slug", name="content_items_slug_key"),
+    UniqueConstraint("source_id", "external_item_id", name="content_items_source_external_key"),
+    CheckConstraint("served IN (0, 1, 2)", name="content_items_served_check"),
+    Index(
+        "content_items_published_idx",
+        text("published_at DESC"),
+        "item_id",
+        postgresql_where=text("served > 0"),
+    ),
+    Index(
+        "content_items_source_published_idx",
+        "source_id",
+        text("published_at DESC"),
+        postgresql_where=text("served > 0"),
+    ),
+    Index(
+        "content_items_type_published_idx",
+        "content_type",
+        text("published_at DESC"),
+        postgresql_where=text("served > 0"),
+    ),
+    Index(
+        "content_items_title_trgm_idx",
+        "title",
+        postgresql_using="gin",
+        postgresql_ops={"title": "gin_trgm_ops"},
+    ),
+)
+
+# One row per item, written in the item's transaction: the card payload a list reads.
+item_cards = Table(
+    "item_cards",
+    corpus_metadata,
+    Column(
+        "item_id",
+        BigInteger,
+        ForeignKey("content_items.item_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("title", Text, nullable=False),
+    Column("source_title", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    Column("duration_s", Integer, nullable=True),
+    Column(
+        "artwork_asset_id",
+        BigInteger,
+        ForeignKey("assets.asset_id", ondelete="SET NULL"),
+        nullable=True,
+    ),
+    Column("lede", Text, nullable=True),
+    Column("summary_bullets", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("top_topics", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    *_flags(),
+    _created_at(),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Index("item_cards_artwork_idx", "artwork_asset_id"),
 )
