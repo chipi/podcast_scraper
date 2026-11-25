@@ -399,11 +399,17 @@ def role_with_default_timeouts(url: str):
             conn.execute(
                 text(f"ALTER ROLE {name} SET idle_in_transaction_session_timeout = '1min'")
             )
+            # What infra's corpus grant step gives corpus_ro: the version tables, for readiness.
+            conn.execute(text(f"GRANT USAGE ON SCHEMA corpus TO {name}"))
+            conn.execute(
+                text(f"GRANT SELECT ON corpus.alembic_version, corpus.schema_history TO {name}")
+            )
         yield make_url(url).set(username=name, password="probe").render_as_string(
             hide_password=False
         )
     finally:
         with admin.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text(f"DROP OWNED BY {name}"))
             conn.execute(text(f"DROP ROLE IF EXISTS {name}"))
         admin.dispose()
 

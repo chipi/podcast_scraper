@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -17,9 +18,9 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, make_url
 
 from podcast_scraper.db import init_engines, migrate, reset_engines, rw_engine
-from podcast_scraper.db.engines import DatabaseNotReady
+from podcast_scraper.db.engines import corpus_ro_engine, DatabaseNotReady, init_corpus_engine
 from podcast_scraper.db.schema import corpus_metadata
-from podcast_scraper.db.settings import DatabaseSettings, normalize_url
+from podcast_scraper.db.settings import CorpusSettings, DatabaseSettings, normalize_url
 from tests._database import captured_statements, worker_database_url
 from tests.unit.podcast_scraper.db.test_db_migrate import _shape, REPO
 
@@ -428,22 +429,45 @@ def test_corpus_readiness_at_head_behind_and_ahead(conn: Connection, restore_cor
     assert migrate.readiness(conn, "corpus")[0] == "unknown"
 
 
-def test_the_engines_refuse_a_corpus_behind_the_code_and_accept_one_ahead(
+def test_the_corpus_engine_refuses_a_corpus_behind_the_code_and_accepts_one_ahead(
     url: str, conn: Connection, restore_corpus: None
 ) -> None:
-    settings = DatabaseSettings(rw_url=url, ro_url=url)
+    settings = CorpusSettings(url=url)
     head = migrate.head_revision("corpus")
     reset_engines()
     _set_corpus_revision(conn, "corpus_0001_bookkeeping")
     with pytest.raises(DatabaseNotReady, match=r"schema 'corpus' is at revision corpus_0001"):
-        init_engines(settings)
+        init_corpus_engine(settings)
 
     conn.execute(text("INSERT INTO corpus.schema_history (revision) VALUES (:r)"), {"r": head})
     _set_corpus_revision(conn, "9999_later")
-    init_engines(settings)
-    assert rw_engine() is not None
+    init_corpus_engine(settings)
+    assert corpus_ro_engine() is not None
     reset_engines()
-    init_engines(settings)
+
+
+def test_the_plane_engines_start_on_a_role_with_no_corpus_privilege(url: str) -> None:
+    """Prod: the plane roles hold nothing on ``corpus``; only corpus_ro reads its version."""
+    name = f"plane_probe_{uuid.uuid4().hex[:10]}"
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    reset_engines()
+    try:
+        with admin.connect() as c:
+            c.execute(text(f"CREATE ROLE {name} LOGIN PASSWORD 'probe'"))
+            for schema in ("player", "shared"):
+                c.execute(text(f"GRANT USAGE ON SCHEMA {schema} TO {name}"))
+                c.execute(text(f"GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO {name}"))
+        role_url = (
+            make_url(url).set(username=name, password="probe").render_as_string(hide_password=False)
+        )
+        init_engines(DatabaseSettings(rw_url=role_url, ro_url=role_url))
+        assert rw_engine() is not None
+    finally:
+        reset_engines()
+        with admin.connect() as c:
+            c.execute(text(f"DROP OWNED BY {name}"))
+            c.execute(text(f"DROP ROLE IF EXISTS {name}"))
+        admin.dispose()
 
 
 def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
