@@ -636,6 +636,8 @@ def download_media_for_transcription(
                     "[%s] %s — skipping, no ASR spend: %s", episode.idx, reason, episode.title
                 )
                 _mark_episode_skipped_existing(episode, cfg, pipeline_metrics, reason)
+                if not dup.get("in_flight"):
+                    audio_fingerprint.record_duplicate(fp_root, audio_sha256, identity)
                 return None
             audio_fingerprint.claim(fp_root, audio_sha256, identity)
 
