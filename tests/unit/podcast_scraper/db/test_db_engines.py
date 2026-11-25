@@ -33,10 +33,14 @@ def url() -> str:
     return found
 
 
+def _replica_url(url: str) -> str:
+    """The same database under a different URL, as a replica's would be."""
+    return url + ("&" if "?" in url else "?") + "sslmode=disable"
+
+
 def test_engines_are_opened_once_and_carry_the_plane(url: str) -> None:
     assert rw_engine() is rw_engine()
-    assert ro_engine() is ro_engine()
-    assert rw_engine() is not ro_engine()
+    assert ro_engine() is rw_engine(), "one URL is one role: a second pool would double it"
     assert plane_schema() == "player"
     with rw_engine().connect() as conn:
         # Kernel tables carry no schema; the engine maps them onto the plane.
@@ -51,10 +55,14 @@ def test_a_second_init_is_a_no_op(url: str) -> None:
     assert plane_schema() == "player"
 
 
-def test_the_ro_engine_refuses_writes(url: str) -> None:
+def test_a_separate_ro_url_gets_its_own_engine_that_refuses_writes(url: str) -> None:
+    reset_engines()
+    init_engines(DatabaseSettings(rw_url=url, ro_url=_replica_url(url)))
+    assert ro_engine() is not rw_engine()
     with pytest.raises(sa_exc.InternalError):
         with ro_engine().begin() as conn:
             conn.execute(text("CREATE TEMP TABLE should_not_exist (x int)"))
+    reset_engines()
 
 
 def test_no_url_fails_with_the_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -297,6 +305,8 @@ def test_connect_args_combine_the_timeouts_with_read_only() -> None:
 
 
 def test_every_app_engine_carries_the_timeouts_and_the_migration_engine_none(url: str) -> None:
+    reset_engines()
+    init_engines(DatabaseSettings(rw_url=url, ro_url=_replica_url(url)))
     for engine in (rw_engine(), ro_engine()):
         with engine.connect() as conn:
             assert conn.execute(text("SHOW statement_timeout")).scalar() == "15s"
@@ -305,6 +315,7 @@ def test_every_app_engine_carries_the_timeouts_and_the_migration_engine_none(url
         assert conn.execute(text("SHOW default_transaction_read_only")).scalar() == "on"
     with rw_engine().connect() as conn:
         assert conn.execute(text("SHOW default_transaction_read_only")).scalar() == "off"
+    reset_engines()
     migration = migrate._engine(url)
     try:
         with migration.connect() as conn:
@@ -445,3 +456,52 @@ def test_the_importer_connection_overrides_a_role_default(
     args = argparse.Namespace(from_files=tmp_path, plane="player", only=None, dry_run=True)
     cli_handlers._import(args, logging.getLogger("test"))
     assert seen == [("0", "0")]
+
+
+def test_the_corpus_engine_sets_its_own_5s_over_the_role_and_refuses_writes(
+    role_with_default_timeouts: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CRFC-005 §7: the session's timeout replaces the role's, so the engine must pass 5 s itself;
+    the plane's 15 s (here the role's default, too) must never reach a corpus read."""
+    reset_engines()
+    monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", role_with_default_timeouts)
+    engine = engines_mod.corpus_ro_engine()
+    assert engine is engines_mod.corpus_ro_engine()
+    assert _show_timeouts(engine) == ("5s", "1min")
+    with pytest.raises(sa_exc.InternalError):
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TEMP TABLE should_not_exist (x int)"))
+    reset_engines()
+
+
+def test_a_corpus_only_process_opens_no_plane_engine(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """compose-api: the plane is set, its URL is empty, only the corpus URL is given."""
+    from podcast_scraper.db.settings import CorpusSettings
+
+    reset_engines()
+    monkeypatch.setenv("PODCAST_DB_PLANE", "player")
+    monkeypatch.setenv("PODCAST_DATABASE_URL", "")
+    monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", url)
+    monkeypatch.setenv("PODCAST_DB_CORPUS_POOL_SIZE", "3")
+    monkeypatch.setenv("PODCAST_DB_CORPUS_MAX_OVERFLOW", "1")
+    engines_mod.init_corpus_engine()
+    pool = engines_mod.corpus_ro_engine().pool
+    assert (pool.size(), pool._max_overflow) == (3, 1)  # type: ignore[attr-defined]
+    assert not engines_mod.engines_open()
+    assert not engines_mod.database_available()
+    with pytest.raises(DatabaseNotConfigured, match="PODCAST_DATABASE_URL"):
+        rw_engine()
+    assert CorpusSettings.from_env().pool_size == 3
+    reset_engines()
+
+
+def test_an_unreachable_corpus_database_fails_fast_and_leaves_nothing_open() -> None:
+    from podcast_scraper.db.settings import CorpusSettings
+
+    reset_engines()
+    dead = CorpusSettings(url="postgresql+psycopg://nobody:nobody@127.0.0.1:1/none")
+    with pytest.raises(DatabaseNotReady, match="corpus_ro"):
+        engines_mod.init_corpus_engine(dead)
+    assert engines_mod._corpus is None

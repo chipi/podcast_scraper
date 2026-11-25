@@ -45,6 +45,24 @@ def test_the_app_starts_and_an_operator_route_works_with_the_key_and_no_url(
     assert not engines.engines_open(), "no URL, so nothing was opened"
 
 
+def test_the_control_plane_starts_on_the_corpus_url_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """compose-api inherits PODCAST_DB_PLANE=player with an empty PODCAST_DATABASE_URL and gets
+    only the corpus_ro URL (CRFC-005 §7): that is corpus-only, not a misconfiguration."""
+    url = worker_database_url()
+    assert url, "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
+    reset_engines()
+    monkeypatch.setenv("PODCAST_DB_PLANE", "player")
+    monkeypatch.setenv("PODCAST_DATABASE_URL", "")
+    monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", url)
+    with TestClient(_control_plane_app(tmp_path)) as client:
+        assert client.get("/api/health").status_code == 200
+    assert not engines.engines_open(), "no plane URL, so no plane engine"
+    assert engines._corpus is not None, "the corpus engine opened at start"
+    reset_engines()
+
+
 def test_a_store_call_with_no_url_names_the_missing_configuration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
