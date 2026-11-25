@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import uuid
 from collections.abc import Iterator
 
@@ -491,6 +492,67 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
         ]
         assert {r["release"] for r in rows} == {"b5a243d"}
         assert migrate.upgrade_corpus(url) == []
+    finally:
+        admin.dispose()
+        migrate.upgrade(url, "operator")
+
+
+def test_an_upgrade_waits_while_another_holds_the_schemas_migration_lock(url: str) -> None:
+    holder = create_engine(normalize_url(url))
+    done = threading.Event()
+    failed: list[BaseException] = []
+
+    def upgrade() -> None:
+        try:
+            migrate.upgrade_corpus(url)
+        except BaseException as exc:  # handed to the test thread below
+            failed.append(exc)
+        finally:
+            done.set()
+
+    try:
+        with holder.connect() as c:
+            c.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:name, 0))"),
+                {"name": migrate.migration_lock_name("corpus")},
+            )
+            worker = threading.Thread(target=upgrade)
+            worker.start()
+            assert not done.wait(2.0), "the upgrade ran while the lock was held"
+            c.rollback()
+        assert done.wait(60.0)
+        worker.join()
+        assert not failed, failed
+    finally:
+        holder.dispose()
+
+
+def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None:
+    """Prod's plane deploys migrate in parallel; each brings corpus to head."""
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    reset_engines()
+    with admin.connect() as c:
+        c.execute(text("DROP SCHEMA IF EXISTS corpus CASCADE"))
+    start = threading.Barrier(2)
+    results: list[list[str]] = []
+    failed: list[BaseException] = []
+
+    def upgrade() -> None:
+        start.wait()
+        try:
+            results.append(migrate.upgrade_corpus(url))
+        except BaseException as exc:  # handed to the test thread below
+            failed.append(exc)
+
+    try:
+        workers = [threading.Thread(target=upgrade) for _ in range(2)]
+        for w in workers:
+            w.start()
+        for w in workers:
+            w.join(120)
+        assert not failed, failed
+        assert sorted(len(r) for r in results) == [0, 3]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 3
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
