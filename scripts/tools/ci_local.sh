@@ -111,7 +111,7 @@ run_unit() {
         --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 \
         --min-avg-edges 0 --min-extraction-coverage 1.0 &&
       "$PY" -m pytest tests/unit/ tests/guardrails/ -v --tb=short -n "$WORKERS" \
-        --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
+        --cov=podcast_scraper --cov=src/podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
   } 2>&1 | tee "$log"
   local rc=${PIPESTATUS[0]}
   [ "$rc" = 0 ] && check_counts "$log"
@@ -121,7 +121,7 @@ run_integration() {
   local log="$LOGS/integration.log"
   verify_models || return 1
   ML_MODELS_VALIDATED=true "$PY" -m pytest tests/integration/ -v -m integration -n "$WORKERS" \
-    --cov=podcast_scraper --cov-append --cov-report=term-missing --cov-fail-under=42 \
+    --cov=podcast_scraper --cov=src/podcast_scraper --cov-append --cov-report=term-missing --cov-fail-under=42 \
     --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 | tee "$log"
   local rc=${PIPESTATUS[0]}
   [ "$rc" = 0 ] && check_counts "$log"
@@ -147,7 +147,7 @@ run_e2e() {
   # CI's test-e2e job has no Postgres service and no PODCAST_TEST_DATABASE_URL.
   env -u PODCAST_TEST_DATABASE_URL ${token:+HF_TOKEN="$token"} ML_MODELS_VALIDATED=true HF_HUB_OFFLINE=1 \
     E2E_TEST_MODE=multi_episode "$PY" -m pytest tests/e2e/ -v -m "e2e and not nightly" -n "$WORKERS" \
-    --cov=podcast_scraper --cov-config=.coveragerc-e2e --cov-report=term-missing \
+    --cov=podcast_scraper --cov=src/podcast_scraper --cov-config=.coveragerc-e2e --cov-report=term-missing \
     --cov-fail-under=37.5 --disable-socket --allow-hosts=127.0.0.1,localhost \
     --reruns 2 --reruns-delay 1 2>&1 | tee "$log"
   local rc=${PIPESTATUS[0]}
