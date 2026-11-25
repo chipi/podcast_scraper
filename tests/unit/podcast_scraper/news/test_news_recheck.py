@@ -64,7 +64,7 @@ def test_a_full_article_turned_teaser_is_held_even_above_the_share() -> None:
 def test_the_schedule_runs_on_its_days_and_ends() -> None:
     state = recheck.start(T0)
     assert state.next_due == T0 + timedelta(days=1)
-    dues = []
+    dues: list[datetime | None] = []
     for _ in recheck.DEFAULT_DAYS:
         dues.append(state.next_due)
         state, action = recheck.advance(state, recheck.SAME)
