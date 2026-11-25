@@ -1,0 +1,10 @@
+Summarise what the news says about this storyline: "{{ label }}"{% if topics %}, on {{ topics | join(", ") }}{% endif %}.
+{% for a in articles %}
+<article{% if a.date %} date={{ a.date }}{% endif %}>
+Title: {{ a.title }}
+{% if a.publisher %}Publisher: {{ a.publisher }}
+{% endif %}{% if a.summary %}Summary: {{ a.summary }}
+{% endif %}</article>
+{% endfor %}
+
+Remember: one paragraph, at most three sentences and 80 words, on the news alone. Name the publisher of each point you take from an article.
