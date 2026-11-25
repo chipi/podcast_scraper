@@ -50,13 +50,25 @@ def test_a_write_is_still_a_transaction() -> None:
 
 
 def test_autocommit_does_not_lift_the_read_only_guard() -> None:
+    """On a separate ro URL (a replica) the ro engine is read-only; one URL shares the rw engine."""
     from sqlalchemy import text
     from sqlalchemy.exc import DBAPIError
 
-    with read_connection(ro_engine()) as conn:
-        assert conn.execute(text("SHOW default_transaction_read_only")).scalar() == "on"
-        with pytest.raises(DBAPIError, match="read-only"):
-            conn.execute(text("DELETE FROM shared.app_releases"))
+    from podcast_scraper.db import DatabaseSettings, init_engines, reset_engines
+    from tests._database import worker_database_url
+
+    url = worker_database_url()
+    assert url, "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
+    replica = url + ("&" if "?" in url else "?") + "sslmode=disable"
+    reset_engines()
+    init_engines(DatabaseSettings(rw_url=url, ro_url=replica))
+    try:
+        with read_connection(ro_engine()) as conn:
+            assert conn.execute(text("SHOW default_transaction_read_only")).scalar() == "on"
+            with pytest.raises(DBAPIError, match="read-only"):
+                conn.execute(text("DELETE FROM shared.app_releases"))
+    finally:
+        reset_engines()
 
 
 def test_the_pooled_connection_goes_back_in_transaction_mode() -> None:

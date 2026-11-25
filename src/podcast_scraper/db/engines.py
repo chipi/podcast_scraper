@@ -3,7 +3,11 @@
 Engines are opened once per process, never per request: ``init_engines()`` at process start (the
 API lifespan; lazily for CLI entry points), then ``rw_engine()`` / ``ro_engine()`` anywhere. Both
 carry ``schema_translate_map={None: plane}`` so kernel tables, defined without a schema, land in
-the process's plane schema.
+the process's plane schema. They are one engine unless the ro URL names another database.
+
+The ``corpus_ro`` engine (CRFC-005 §7) is separate: its own URL, its own 5 s statement timeout and
+pool, no schema map, opened by ``init_corpus_engine()`` or on first ``corpus_ro_engine()``. A
+process with only a corpus URL never opens the plane's engines.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from typing import Callable, TypeVar
 from sqlalchemy import create_engine, Engine, exc as sa_exc, text
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db.settings import DatabaseSettings
+from podcast_scraper.db.settings import CorpusSettings, DatabaseSettings
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +39,15 @@ class _Engines:
     rw: Engine
     ro: Engine
 
+    def dispose(self) -> None:
+        self.rw.dispose()
+        if self.ro is not self.rw:
+            self.ro.dispose()
+
 
 _lock = threading.Lock()
 _engines: _Engines | None = None
+_corpus: tuple[CorpusSettings, Engine] | None = None
 
 ENV_APPLICATION_NAME = "PODCAST_DB_APPLICATION_NAME"
 
@@ -54,7 +64,9 @@ def application_name_args() -> dict[str, str]:
     return {"application_name": name[:63]} if name else {}
 
 
-def app_connect_args(settings: DatabaseSettings, *, read_only: bool) -> dict[str, object]:
+def app_connect_args(
+    settings: DatabaseSettings | CorpusSettings, *, read_only: bool
+) -> dict[str, object]:
     """libpq arguments for an app connection (ADR-173): the timeouts and, on the ro engine,
     read-only, in one ``options`` string so none overwrites another."""
     options = [
@@ -81,9 +93,13 @@ def unbounded_connect_args(*, read_only: bool = False) -> dict[str, str]:
     return {"options": options, **application_name_args()}
 
 
-def _make_engine(settings: DatabaseSettings, url: str, *, read_only: bool) -> Engine:
-    plane = settings.plane
-    connect_args = app_connect_args(settings, read_only=read_only)
+def _create(
+    settings: DatabaseSettings | CorpusSettings,
+    url: str,
+    *,
+    read_only: bool,
+    execution_options: dict[str, object],
+) -> Engine:
     return create_engine(
         url,
         pool_pre_ping=True,
@@ -93,22 +109,36 @@ def _make_engine(settings: DatabaseSettings, url: str, *, read_only: bool) -> En
         pool_size=settings.pool_size,
         max_overflow=settings.max_overflow,
         pool_timeout=settings.pool_timeout_s,
-        connect_args=connect_args,
-        execution_options={"schema_translate_map": {None: plane}},
+        connect_args=app_connect_args(settings, read_only=read_only),
+        execution_options=execution_options,
     )
 
 
+def _make_engine(settings: DatabaseSettings, url: str, *, read_only: bool) -> Engine:
+    return _create(
+        settings,
+        url,
+        read_only=read_only,
+        execution_options={"schema_translate_map": {None: settings.plane}},
+    )
+
+
+def _check_reachable(label: str, engine: Engine) -> None:
+    try:
+        with read_connection(engine) as conn:
+            conn.execute(text("SELECT 1"))
+    except sa_exc.SQLAlchemyError as exc:
+        raise DatabaseNotReady(f"database ({label}) is not reachable: {exc}") from exc
+
+
 def check_ready(engines: _Engines) -> None:
-    """Fail fast: both engines connect, and every history on the plane is at its head or ahead."""
+    """Fail fast: the engines connect, and every history on the plane is at its head or ahead."""
     from podcast_scraper.db import migrate
 
     plane = engines.settings.plane
-    for label, engine in (("rw", engines.rw), ("ro", engines.ro)):
-        try:
-            with read_connection(engine) as conn:
-                conn.execute(text("SELECT 1"))
-        except sa_exc.SQLAlchemyError as exc:
-            raise DatabaseNotReady(f"database ({label}) is not reachable: {exc}") from exc
+    _check_reachable("rw", engines.rw)
+    if engines.ro is not engines.rw:
+        _check_reachable("ro", engines.ro)
     from podcast_scraper.db.schema import SHARED_SCHEMA
 
     checks = [("schema", SHARED_SCHEMA, migrate.SHARED), ("plane", plane, migrate.KERNEL)]
@@ -152,31 +182,59 @@ def init_engines(settings: DatabaseSettings | None = None, *, check: bool = True
         if _engines is not None:
             return
         cfg = settings or DatabaseSettings.from_env()
-        opened = _Engines(
-            settings=cfg,
-            rw=_make_engine(cfg, cfg.rw_url, read_only=False),
-            ro=_make_engine(cfg, cfg.ro_url, read_only=True),
-        )
+        rw = _make_engine(cfg, cfg.rw_url, read_only=False)
+        ro = rw if cfg.ro_url == cfg.rw_url else _make_engine(cfg, cfg.ro_url, read_only=True)
+        opened = _Engines(settings=cfg, rw=rw, ro=ro)
         if check:
             try:
                 check_ready(opened)
             except Exception:
-                opened.rw.dispose()
-                opened.ro.dispose()
+                opened.dispose()
                 raise
         _engines = opened
         logger.info("database engines ready (plane=%s)", cfg.plane)
 
 
+def init_corpus_engine(settings: CorpusSettings | None = None, *, check: bool = True) -> None:
+    """Open the process's ``corpus_ro`` engine once; a later call is a no-op.
+
+    Raises ``DatabaseNotConfigured`` with no corpus URL, ``DatabaseNotReady`` when ``check`` finds
+    it unreachable.
+    """
+    global _corpus
+    with _lock:
+        if _corpus is not None:
+            return
+        cfg = settings or CorpusSettings.from_env()
+        engine = _create(cfg, cfg.url, read_only=True, execution_options={})
+        if check:
+            try:
+                _check_reachable("corpus_ro", engine)
+            except Exception:
+                engine.dispose()
+                raise
+        _corpus = (cfg, engine)
+        logger.info("corpus_ro engine ready")
+
+
+def corpus_ro_engine() -> Engine:
+    """The ``corpus_ro`` engine, opened lazily from the environment on first use."""
+    if _corpus is None:
+        init_corpus_engine()
+    assert _corpus is not None
+    return _corpus[1]
+
+
 def reset_engines() -> None:
     """Dispose the registry (process shutdown; tests that switch databases)."""
-    global _engines
+    global _engines, _corpus
     with _lock:
-        if _engines is None:
-            return
-        _engines.rw.dispose()
-        _engines.ro.dispose()
-        _engines = None
+        if _engines is not None:
+            _engines.dispose()
+            _engines = None
+        if _corpus is not None:
+            _corpus[1].dispose()
+            _corpus = None
 
 
 def engines_open() -> bool:
@@ -208,7 +266,7 @@ def rw_engine() -> Engine:
 
 
 def ro_engine() -> Engine:
-    """The read-only engine (the same database unless a replica URL is set)."""
+    """The read engine: the rw engine itself unless a separate ro URL (a replica) is set."""
     return _current().ro
 
 

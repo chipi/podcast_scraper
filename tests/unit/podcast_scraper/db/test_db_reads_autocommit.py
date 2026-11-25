@@ -42,7 +42,10 @@ def in_transaction() -> Iterator[list[str]]:
 
     def after(conn: Any, _cursor: Any, statement: str, *_args: Any) -> None:
         status = conn.connection.dbapi_connection.info.transaction_status
-        if status == psycopg.pq.TransactionStatus.INTRANS:
+        # The ro engine is the rw engine on one URL, so a store's own write (list_pending's
+        # purge) passes here too; only reads must stay out of a transaction.
+        is_read = statement.lstrip().upper().startswith(("SELECT", "WITH"))
+        if status == psycopg.pq.TransactionStatus.INTRANS and is_read:
             found.append(statement)
 
     engine = ro_engine()

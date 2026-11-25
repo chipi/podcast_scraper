@@ -164,14 +164,19 @@ def _open_app_database(app: FastAPI) -> None:
     A server without one (the control-plane api, which never touches the users store) keeps
     starting; engines otherwise open lazily on first use, and a store call with no URL raises the
     named configuration error. With a URL, an unreachable or un-migrated database fails the start
-    (ADR-169). Prod migrates in its own step, never here.
+    (ADR-169). Prod migrates in its own step, never here. The ``corpus_ro`` engine opens the same
+    way from its own URL, so a server with only that URL (the control-plane api) starts on it alone.
     """
-    from podcast_scraper.db.settings import is_configured
+    from podcast_scraper.db.settings import corpus_is_configured, is_configured
 
     if is_configured():
         from podcast_scraper.db import init_engines
 
         init_engines()
+    if corpus_is_configured():
+        from podcast_scraper.db import init_corpus_engine
+
+        init_corpus_engine()
 
 
 def _default_static_dir() -> Path | None:

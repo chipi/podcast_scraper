@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.db.settings import (
+    corpus_is_configured,
+    CorpusSettings,
     DatabaseNotConfigured,
     DatabaseSettings,
     is_configured,
@@ -127,3 +129,58 @@ def test_connection_settings_read_the_environment() -> None:
 def test_a_bad_connection_setting_is_refused_naming_the_variable(name: str, value: str) -> None:
     with pytest.raises(ValueError, match=name):
         DatabaseSettings.from_env({**_URL, name: value})
+
+
+_CORPUS = {"PODCAST_DATABASE_CORPUS_RO_URL": "postgresql://corpus_ro@h/db"}
+
+
+def test_no_corpus_url_is_a_clear_error_naming_the_variable() -> None:
+    with pytest.raises(DatabaseNotConfigured, match="PODCAST_DATABASE_CORPUS_RO_URL"):
+        CorpusSettings.from_env(_URL)
+
+
+def test_corpus_settings_default_to_5s_and_never_take_the_planes_timeout_or_pool() -> None:
+    cfg = CorpusSettings.from_env(
+        {
+            **_URL,
+            **_CORPUS,
+            "PODCAST_DB_STATEMENT_TIMEOUT_MS": "15000",
+            "PODCAST_DB_POOL_SIZE": "8",
+            "PODCAST_DB_MAX_OVERFLOW": "8",
+        }
+    )
+    assert cfg.url == "postgresql+psycopg://corpus_ro@h/db"
+    assert (cfg.statement_timeout_ms, cfg.pool_size, cfg.max_overflow) == (5000, 2, 2)
+
+
+def test_corpus_settings_read_their_own_variables() -> None:
+    cfg = CorpusSettings.from_env(
+        {
+            **_CORPUS,
+            "PODCAST_DB_CORPUS_STATEMENT_TIMEOUT_MS": "3000",
+            "PODCAST_DB_CORPUS_POOL_SIZE": "3",
+            "PODCAST_DB_CORPUS_MAX_OVERFLOW": "0",
+        }
+    )
+    assert (cfg.statement_timeout_ms, cfg.pool_size, cfg.max_overflow) == (3000, 3, 0)
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [
+        ("PODCAST_DB_CORPUS_STATEMENT_TIMEOUT_MS", "-1"),
+        ("PODCAST_DB_CORPUS_POOL_SIZE", "0"),
+        ("PODCAST_DB_CORPUS_MAX_OVERFLOW", "x"),
+    ],
+)
+def test_a_bad_corpus_setting_is_refused_naming_the_variable(name: str, value: str) -> None:
+    with pytest.raises(ValueError, match=name):
+        CorpusSettings.from_env({**_CORPUS, name: value})
+
+
+def test_corpus_is_configured_reads_its_own_variable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SECRETS_DIR", "/nonexistent")
+    monkeypatch.delenv("PODCAST_DATABASE_CORPUS_RO_URL", raising=False)
+    assert not corpus_is_configured()
+    monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", "postgresql://corpus_ro@h/db")
+    assert corpus_is_configured()

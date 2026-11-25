@@ -129,7 +129,12 @@ def captured_statements() -> Iterator[list[tuple[str, bool]]]:
 
 def database_fixture(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     # A developer's real database must never be what a test talks to.
-    for var in ("PODCAST_DATABASE_URL", "PODCAST_DATABASE_RO_URL", "PODCAST_DB_PLANE"):
+    for var in (
+        "PODCAST_DATABASE_URL",
+        "PODCAST_DATABASE_RO_URL",
+        "PODCAST_DATABASE_CORPUS_RO_URL",
+        "PODCAST_DB_PLANE",
+    ):
         monkeypatch.delenv(var, raising=False)
     url = worker_database_url()
     if url is None:

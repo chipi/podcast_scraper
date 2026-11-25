@@ -15,6 +15,22 @@ ENV_URL = "PODCAST_DATABASE_URL"
 ENV_RO_URL = "PODCAST_DATABASE_RO_URL"
 ENV_PLANE = "PODCAST_DB_PLANE"
 
+# The corpus schema's roles (CRFC-005 §7): one URL, one engine, one pool per role. A process
+# that reads the corpus and keeps no app state (MCP, the control-plane api) sets only the
+# ``corpus_ro`` URL. The writers' URLs are named here for infra to stage; the writers read them.
+ENV_CORPUS_RO_URL = "PODCAST_DATABASE_CORPUS_RO_URL"
+ENV_PIPELINE_RW_URL = "PODCAST_DATABASE_PIPELINE_RW_URL"
+ENV_MIGRATOR_URL = "PODCAST_DATABASE_MIGRATOR_URL"
+ENV_CORPUS_STATEMENT_TIMEOUT_MS = "PODCAST_DB_CORPUS_STATEMENT_TIMEOUT_MS"
+ENV_CORPUS_POOL_SIZE = "PODCAST_DB_CORPUS_POOL_SIZE"
+ENV_CORPUS_MAX_OVERFLOW = "PODCAST_DB_CORPUS_MAX_OVERFLOW"
+
+# The session's timeout replaces the role's, so the engine passes corpus_ro's 5 s itself: the
+# plane's 15 s would otherwise apply to corpus reads.
+DEFAULT_CORPUS_STATEMENT_TIMEOUT_MS = 5_000
+DEFAULT_CORPUS_POOL_SIZE = 2
+DEFAULT_CORPUS_MAX_OVERFLOW = 2
+
 # Connection behaviour of the app's engines (ADR-173). Migrations and the importers do not read
 # these: a migration may legitimately run long.
 ENV_STATEMENT_TIMEOUT_MS = "PODCAST_DB_STATEMENT_TIMEOUT_MS"
@@ -27,7 +43,9 @@ ENV_PREPARE_THRESHOLD = "PODCAST_DB_PREPARE_THRESHOLD"
 DEFAULT_STATEMENT_TIMEOUT_MS = 15_000
 DEFAULT_IDLE_TX_TIMEOUT_MS = 60_000
 # pool_size + max_overflow per engine, times workers, times processes, must stay under the
-# server's max_connections (or PgBouncer's pool). Each process opens two engines (rw and ro).
+# server's max_connections (or PgBouncer's pool) and each role's CONNECTION LIMIT. The plane's ro
+# engine is the rw engine unless the ro URL names another database: two pools on one role would
+# double its connections (CRFC-005 §7).
 DEFAULT_POOL_SIZE = 5
 DEFAULT_MAX_OVERFLOW = 5
 DEFAULT_POOL_TIMEOUT_S = 10.0
@@ -57,8 +75,13 @@ def _lookup(source: Mapping[str, str], name: str) -> str:
 
 
 def is_configured() -> bool:
-    """Whether this process was given a database URL."""
+    """Whether this process was given a database URL for its plane's app state."""
     return bool(_lookup(os.environ, ENV_URL))
+
+
+def corpus_is_configured() -> bool:
+    """Whether this process was given a ``corpus_ro`` URL."""
+    return bool(_lookup(os.environ, ENV_CORPUS_RO_URL))
 
 
 class DatabaseNotConfigured(RuntimeError):
@@ -160,6 +183,58 @@ class DatabaseSettings:
             ),
             pool_size=_int_setting(source, ENV_POOL_SIZE, DEFAULT_POOL_SIZE, minimum=1),
             max_overflow=_int_setting(source, ENV_MAX_OVERFLOW, DEFAULT_MAX_OVERFLOW, minimum=0),
+            pool_timeout_s=_pool_timeout(source),
+            prepare_threshold=_prepare_threshold(source),
+        )
+
+
+@dataclass(frozen=True)
+class CorpusSettings:
+    """The ``corpus_ro`` engine's URL and its own timeout and pool (CRFC-005 §7).
+
+    Independent of the plane: a process with a plane URL may have no corpus URL, and the reverse.
+    The idle-in-transaction timeout, the pool timeout and the prepare threshold are the process's,
+    shared with the plane's engine.
+    """
+
+    url: str
+    statement_timeout_ms: int = DEFAULT_CORPUS_STATEMENT_TIMEOUT_MS
+    idle_tx_timeout_ms: int = DEFAULT_IDLE_TX_TIMEOUT_MS
+    pool_size: int = DEFAULT_CORPUS_POOL_SIZE
+    max_overflow: int = DEFAULT_CORPUS_MAX_OVERFLOW
+    pool_timeout_s: float = DEFAULT_POOL_TIMEOUT_S
+    prepare_threshold: int | None = DEFAULT_PREPARE_THRESHOLD
+
+    @classmethod
+    def from_env(cls, env: dict[str, str] | None = None) -> "CorpusSettings":
+        """Read the settings from ``env`` (default ``os.environ``).
+
+        Raises ``DatabaseNotConfigured`` when no ``corpus_ro`` URL is set.
+        """
+        source: Mapping[str, str] = os.environ if env is None else env
+        url = _lookup(source, ENV_CORPUS_RO_URL)
+        if not url:
+            raise DatabaseNotConfigured(
+                f"{ENV_CORPUS_RO_URL} is not set, and corpus reads go to Postgres as the "
+                "corpus_ro role. Set it to that role's URL."
+            )
+        return cls(
+            url=normalize_url(url),
+            statement_timeout_ms=_int_setting(
+                source,
+                ENV_CORPUS_STATEMENT_TIMEOUT_MS,
+                DEFAULT_CORPUS_STATEMENT_TIMEOUT_MS,
+                minimum=0,
+            ),
+            idle_tx_timeout_ms=_int_setting(
+                source, ENV_IDLE_TX_TIMEOUT_MS, DEFAULT_IDLE_TX_TIMEOUT_MS, minimum=0
+            ),
+            pool_size=_int_setting(
+                source, ENV_CORPUS_POOL_SIZE, DEFAULT_CORPUS_POOL_SIZE, minimum=1
+            ),
+            max_overflow=_int_setting(
+                source, ENV_CORPUS_MAX_OVERFLOW, DEFAULT_CORPUS_MAX_OVERFLOW, minimum=0
+            ),
             pool_timeout_s=_pool_timeout(source),
             prepare_threshold=_prepare_threshold(source),
         )
