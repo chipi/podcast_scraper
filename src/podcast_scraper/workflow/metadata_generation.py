@@ -217,6 +217,18 @@ def _recoverable_summary_content_reason(exc: BaseException) -> Optional[str]:
 _MIN_CLEANED_RATIO = 0.30
 
 
+def _pattern_pre_clean(text: str, pattern_kwargs: Dict[str, Any]) -> str:
+    """The bundled paths' pattern pre-clean. An item whose profile has no ad cleaning (a news
+    article) keeps its text, as :func:`stage_hooks.clean_for_summary` does for the staged path."""
+    from ..cleaning import PatternBasedCleaner
+    from ..content_types import AD_CLEANING, stage_runs
+
+    if not stage_runs(AD_CLEANING):
+        return text
+    cleaned: str = PatternBasedCleaner().clean(text, **pattern_kwargs)
+    return cleaned
+
+
 def _reject_destroyed_cleaning(
     original: str, cleaned: str, episode_idx: object, cleaner: object = None
 ) -> str:
@@ -2710,13 +2722,8 @@ def _generate_episode_summary(  # noqa: C901
             if pipeline_mode == "mega_bundled" and callable(mega_fn):
                 try:
                     logger.debug("[%s] mega_bundled single-call path", episode_idx)
-                    from ..cleaning import PatternBasedCleaner
-
                     cleaning_started = time.perf_counter()
-                    pattern_cleaned = PatternBasedCleaner().clean(
-                        transcript_text,
-                        **pattern_clean_kwargs,
-                    )
+                    pattern_cleaned = _pattern_pre_clean(transcript_text, pattern_clean_kwargs)
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
@@ -2824,13 +2831,8 @@ def _generate_episode_summary(  # noqa: C901
             if result is None and pipeline_mode == "bundled" and callable(bundled_fn):
                 try:
                     logger.debug("[%s] Bundled clean+summary (pattern pre-clean)", episode_idx)
-                    from ..cleaning import PatternBasedCleaner
-
                     cleaning_started = time.perf_counter()
-                    pattern_cleaned = PatternBasedCleaner().clean(
-                        transcript_text,
-                        **pattern_clean_kwargs,
-                    )
+                    pattern_cleaned = _pattern_pre_clean(transcript_text, pattern_clean_kwargs)
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
