@@ -60,7 +60,7 @@ def _extractor(monkeypatch: pytest.MonkeyPatch) -> None:
 def _served() -> str:
     found = _fake_main_text(ORIGINAL, URL)
     assert found is not None
-    return found.text
+    return str(found.text)
 
 
 class _Net:
