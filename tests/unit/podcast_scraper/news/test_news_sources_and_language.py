@@ -314,6 +314,63 @@ def test_a_source_can_take_the_standfirst_or_the_feed_text() -> None:
     assert feed is not None and feed.method == extract.FEED and feed.text == ES
 
 
+def test_a_source_whose_text_is_the_feeds_never_fetches_the_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SCMP (Common #51): its pages answer 403 and its text is the feed's anyway; 49 of 50 items
+    were lost to the page fetch on the 2026-11-24 nightly."""
+
+    def _no_page(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("the article page was fetched")
+
+    monkeypatch.setattr(downloader, "fetch_url", _no_page)
+    monkeypatch.setattr(downloader, "http_get_any_status", _no_page)
+    src = _Source()
+    src.news = NewsSourceSpec(serveable="metadata", text_from="feed", text_status="teaser")
+    item = ct.SourceItem(
+        item_id="g",
+        url="https://news.test/a",
+        metadata={"feed_html": f"<p>{EN}</p>", "byline_raw": "Ana Example"},
+    )
+    got = fetch.fetch_body(item, src)
+    assert got is not None
+    assert (got.text, got.metadata["extraction"], got.metadata["text_status"]) == (
+        EN,
+        extract.FEED,
+        "teaser",
+    )
+    assert got.metadata["byline_raw"] == "Ana Example"
+
+
+def test_a_feed_text_source_with_no_feed_text_is_skipped_without_a_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: pytest.fail("page fetched"))
+    monkeypatch.setattr(downloader, "http_get_any_status", lambda *a: pytest.fail("robots read"))
+    src = _Source()
+    src.news = NewsSourceSpec(text_from="feed")
+    assert fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src) is None
+
+
+def test_the_feed_text_keeps_the_words_outside_its_blocks() -> None:
+    # Nature's content:encoded (Common #50): a date line in a <p>, then the standfirst as loose
+    # text after it. The date line is boilerplate; the standfirst is the item's text.
+    feed_html = (
+        '<p>Nature, Published online: 25 November 2026; <a href="https://news.test/a">'
+        "doi:10.1038/d41586-026-00001-1</a></p>A survey of ten thousand gardens finds that bees "
+        "visit the oldest plants first."
+    )
+    found = extract.main_text("", "https://news.test/a", feed_html, text_from="feed")
+    assert found is not None and found.method == extract.FEED
+    assert found.text == (
+        "A survey of ten thousand gardens finds that bees visit the oldest plants first."
+    )
+    mixed = extract.main_text(
+        "", "https://news.test/a", f"Lead <b>words</b> here.<p>{EN}</p>Tail.", text_from="feed"
+    )
+    assert mixed is not None and mixed.text == f"Lead words here.\n\n{EN}\n\nTail."
+
+
 def test_the_page_author_is_its_meta_tag() -> None:
     html = '<html><head><meta name="author" content="Ana  Example"></head><body></body></html>'
     assert extract.page_author(html, "https://news.test/a") == "Ana Example"

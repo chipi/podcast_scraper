@@ -34,7 +34,7 @@ from ...search.corpus_scope import (
     dedupe_metadata_paths_newest_run_per_episode,
     run_recency_epoch,
 )
-from ...utils import filesystem
+from ...utils import audio_fingerprint, filesystem
 from ..types import FeedMetadata
 
 logger = logging.getLogger(__name__)
@@ -212,6 +212,11 @@ def _drop_already_ingested(items: List[Any], cfg: config.Config) -> List[Any]:
         )
         return items
     known = collect_existing_guids(str(out_dir))
+    # A content-duplicate skip (#1656) writes no metadata; without this its republish is
+    # offered as new work every run.
+    known |= audio_fingerprint.known_duplicate_identities(
+        audio_fingerprint.resolve_index_root(cfg, None)
+    )
     if not known:
         logger.info(
             "episode_selection=unprocessed: no episodes on disk under %s; nothing to filter "

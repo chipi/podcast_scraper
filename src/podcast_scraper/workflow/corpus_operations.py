@@ -723,6 +723,7 @@ def finalize_multi_feed_batch(
             logger.warning(
                 "Parent corpus topic-clusters rebuild did not complete (non-fatal): %s", exc
             )
+        stage_hooks.corpus_indexed(Path(corpus_parent))
         # Advance the fingerprint manifest only after ALL synchronous derivations succeeded.
         # A failed index OR a failed cluster build leaves it untouched, so the next batch
         # still sees the episodes as changed and re-derives — advancing past a failed

@@ -187,6 +187,21 @@ jobs:
           image: podcast-scraper:snyk-scan
           args: --severity-threshold=high --sarif-file-output=snyk-docker.sarif
 
+      # Since 2026-11-23 Snyk writes some fix suggestions whose insertedContent.text is not a
+      # string, and code scanning then rejects the whole file ("is not of a type(s) string",
+      # results 63 and 64), so none of the scan's findings were uploaded. Only those results'
+      # fix suggestions are dropped; every finding is kept.
+      - name: Drop the fix suggestions code scanning rejects
+        if: always() && hashFiles('snyk-docker.sarif') != ''
+        run: |
+          bad='def bad: any(.fixes[]?.artifactChanges[]?.replacements[]?;
+                 has("insertedContent") and (.insertedContent.text | type) != "string");'
+          jq "$bad"' .runs |= map(.results |= map(if bad then del(.fixes) else . end))' \
+            snyk-docker.sarif > snyk-docker.fixed.sarif
+          echo "results whose fix suggestions were dropped: $(jq "$bad"' [.runs[].results[]
+            | select(bad)] | length' snyk-docker.sarif)"
+          mv snyk-docker.fixed.sarif snyk-docker.sarif
+
       - name: Upload Snyk Docker results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
         if: |

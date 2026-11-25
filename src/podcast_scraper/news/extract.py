@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, List, Optional
 from urllib.parse import urlsplit
 
 #: trafilatura's text shorter than this share of readability's means trafilatura missed part of
@@ -67,7 +67,8 @@ def _lines(text: str) -> str:
 
 
 def _blocks_text(fragment: str) -> str:
-    """An HTML fragment's block elements as paragraphs; plain text when it has none."""
+    """An HTML fragment's block elements as paragraphs, and the text between them as paragraphs
+    of its own (Nature's feed puts the standfirst after its date line's ``<p>``, Common #50)."""
     import lxml.html
 
     try:
@@ -75,13 +76,30 @@ def _blocks_text(fragment: str) -> str:
     except (ValueError, lxml.etree.ParserError):
         return ""
     blocks: List[str] = []
-    for el in root.iter(*_BLOCKS):
-        # A block inside another block is read with its parent.
-        if any(a.tag in _BLOCKS for a in el.iterancestors()):
-            continue
-        blocks.append(" ".join(el.text_content().split()))
-    if not any(blocks):
-        blocks = [" ".join(root.text_content().split())]
+    loose: List[str] = []
+
+    def flush() -> None:
+        blocks.append(" ".join("".join(loose).split()))
+        loose.clear()
+
+    def walk(el: Any) -> None:
+        loose.append(el.text or "")
+        for child in el:
+            if not isinstance(child.tag, str):
+                pass
+            elif child.tag in _BLOCKS:
+                # A block inside another block is read with its parent.
+                flush()
+                blocks.append(" ".join(child.text_content().split()))
+            else:
+                walk(child)
+            loose.append(child.tail or "")
+
+    if root.tag in _BLOCKS:
+        blocks.append(" ".join(root.text_content().split()))
+    else:
+        walk(root)
+        flush()
     return _lines("\n".join(blocks))
 
 

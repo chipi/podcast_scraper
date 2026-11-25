@@ -92,10 +92,38 @@ def test_a_theme_card_lists_its_members_articles_newest_first_without_none(corpu
     assert "body" not in json.dumps(card.model_dump())
 
 
-def test_a_storyline_card_lists_its_articles(corpus: Path) -> None:
+_THEMES_ONLY = (
+    "item:news_article:b626e4b9538458cb6235"  # risk management's, in the themes file only
+)
+
+
+def test_a_storyline_shows_every_article_of_its_member_topics(corpus: Path) -> None:
+    """Next-cycle item 25: a storyline's news comes from its member topics, as its episodes and
+    top voices do, each topic's articles from the themes file. The storyline file's own
+    ``news_item_ids`` named only part of them (on prod 45 articles, against 253 there)."""
+    from podcast_scraper.server.news_access import cached_served_items
+
+    members = {
+        m["topic_id"]
+        for c in _clusters(
+            json.loads((corpus / "enrichments/topic_theme_clusters.json").read_text())
+        )
+        if c["graph_compound_parent_id"] == _STORYLINE
+        for m in c["members"]
+    }
+    of_members = {
+        i
+        for c in _clusters(json.loads((corpus / "search/topic_clusters.json").read_text()))
+        for m in [*c["members"], *(c.get("news_members") or [])]
+        if m["topic_id"] in members
+        for i in m.get("news_item_ids") or []
+    }
+    served = [i["item_id"] for i in cached_served_items(corpus) if i["item_id"] in of_members]
     card = rv.build_storyline_card(corpus, _STORYLINE, news=True)
     assert isinstance(card, AppClusterCardWithNews)
-    assert [a.item_id for a in card.articles] == [_SUMMARY_NEW] and card.article_count == 1
+    assert [a.item_id for a in card.articles] == served and card.article_count == len(served)
+    assert _THEMES_ONLY in served and _SUMMARY_NEW in served  # not just the storyline file's one
+    assert _NONE not in served  # serveable none is never shown
 
 
 def test_a_file_without_news_item_ids_gives_no_articles(corpus: Path) -> None:
