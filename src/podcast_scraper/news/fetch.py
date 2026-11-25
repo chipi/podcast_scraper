@@ -126,9 +126,12 @@ def _now() -> str:
 
 def fetch_body(item: SourceItem, source: Any) -> Optional[SourceItem]:
     """``item`` with its page's main text, or ``None`` when robots.txt refuses it, the fetch fails
-    or no text is found."""
+    or no text is found. A source whose text is the feed's (``text_from: feed``) never fetches
+    the page: SCMP's pages answer 403 (Common #51)."""
     if not item.url:
         return None
+    if source_spec(source).text_from == extract.TEXT_FROM_FEED:
+        return _from_feed(item, source)
     agent = user_agent(source)
     if not robots_allow(item.url, agent):
         logger.info("news: robots.txt disallows %s; skipped", item.url)
@@ -154,6 +157,26 @@ def fetch_body(item: SourceItem, source: Any) -> Optional[SourceItem]:
         declared_language=found.language,
         byline_raw=item.metadata.get("byline_raw") or extract.page_author(html, item.url),
         raw=html,
+        raw_suffix=".html",
+    )
+
+
+def _from_feed(item: SourceItem, source: Any) -> Optional[SourceItem]:
+    """``item`` with the feed's own text for it; ``None`` when the feed gives none. The feed's
+    HTML is kept as the raw cache, since no page was fetched."""
+    feed_html = item.metadata.get("feed_html")
+    found = extract.main_text("", item.url or "", feed_html, text_from=extract.TEXT_FROM_FEED)
+    if found is None:
+        logger.warning("news: the feed gives no text for %s; skipped", item.url)
+        return None
+    return complete(
+        item,
+        source,
+        found.text,
+        method=found.method,
+        declared_language=None,
+        byline_raw=item.metadata.get("byline_raw"),
+        raw=feed_html,
         raw_suffix=".html",
     )
 
