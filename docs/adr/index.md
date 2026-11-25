@@ -149,10 +149,11 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-181](ADR-181-a-content-types-own-fields.md) | A content type's own fields live with the type, not on the shared item | Accepted | [RFC-134](../rfc/RFC-134-news-as-the-second-content-type.md) | Shared fields on the item; a type's own fields under a key named for it in files; in the database, the type module's table for filtered fields and one JSON column for displayed ones; never a column per type | No |
 | [ADR-182](ADR-182-extension-owned-configuration.md) | An installed extension declares its own configuration | Accepted | [ADR-176](ADR-176-extension-seams-for-the-split.md) | `Extension.config_model` holds the fields only the extension reads (47 measured); flat keys as today, split on load; a key nobody installed declares is refused; amends ADR-176 decision 7 | No |
 | [ADR-183](ADR-183-the-graph-api.md) | The graph is read through one engine: a structured query and presets, returning one slice shape | Proposed | [ADR-169](ADR-169-the-database-is-the-source-of-truth.md) | One engine over the corpus tables; the graph API (a bounded structured query, named paths, presets, `graph-slice/1`) for graph surfaces and agents; preset routes keep their shapes; the walk is bounded level by level in one read-only transaction | No |
+| [ADR-184](ADR-184-the-corpus-schema-and-its-histories.md) | The corpus schema has its own built-in history; a type module's corpus tables live beside it | Proposed | [ADR-172](ADR-172-module-migration-histories-and-readiness.md) | `corpus` is a built-in history like `shared`; a module may declare prefixed tables in `corpus` (amends ADR-172 decision 4); infra owns the schema, `pg_trgm` and the grants; upgrade-only; partitions and partial indexes as SQL; keys to the parent tables; no search vectors yet | No |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **131** files under `docs/adr/ADR-*.md` (ADR-001–ADR-183;
+**Counts (reconcile when adding ADRs):** **132** files under `docs/adr/ADR-*.md` (ADR-001–ADR-184;
 numbering has historical gaps; ADR-138–140 = ad-cleaning stage, text-normalization contract,
 versioned labeling profiles; ADR-149 = corpus reprocess methodology;
 ADR-147 = first-class vllm provider (real model ids + fail-closed served-model verification);
