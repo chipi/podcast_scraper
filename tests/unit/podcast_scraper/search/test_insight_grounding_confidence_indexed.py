@@ -65,9 +65,12 @@ def test_insight_document_confidence_is_the_grounding_confidence() -> None:
     assert tti._grounding_confidence({"grounding_confidence": None}) == 0.0
 
 
-def test_fingerprint_changes_when_an_insight_gains_a_confidence() -> None:
+def test_an_episode_that_only_gained_a_confidence_keeps_its_fingerprint() -> None:
+    # 3,549 of prod's 4,089 GI files carry grounding_confidence (2026-11-25): hashing it would
+    # re-embed nearly the whole corpus on the first index after a deploy. The operator held that
+    # back; rows written for any other reason still store the confidence.
     base = [("insight:i1", "text", {"doc_type": "insight"})]
-    graded = [("insight:i1", "text", {"doc_type": "insight", "grounding_confidence": 0.9})]
-    assert tti._episode_fingerprint(base, "m") != tti._episode_fingerprint(graded, "m")
-    none_conf = [("insight:i1", "text", {"doc_type": "insight", "grounding_confidence": None})]
-    assert tti._episode_fingerprint(base, "m") == tti._episode_fingerprint(none_conf, "m")
+    fp = tti._episode_fingerprint(base, "m")
+    for conf in (0.9, 0.1, None):
+        graded = [("insight:i1", "text", {"doc_type": "insight", "grounding_confidence": conf})]
+        assert tti._episode_fingerprint(graded, "m") == fp
