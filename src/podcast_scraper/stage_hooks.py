@@ -41,6 +41,11 @@ CorpusDerivedHook = Callable[[Path], None]
 #: ``(corpus_parent)``. Once per multi-feed batch, after every feed finished, before the
 #: enrichment follow-up is queued. Must not raise.
 BatchFinalizedHook = Callable[[Path], None]
+#: ``(corpus_root)``. Once the corpus search index is built: by the multi-feed batch (after
+#: its topic clusters) and by ``index --with-clusters``, at the corpus root. For what an owner
+#: derives from the index (the insight clusters, Common #49). Not called when the index build
+#: did not complete. Must not raise.
+CorpusIndexedHook = Callable[[Path], None]
 #: ``(corpus_root, run_dir)``. End of a run, before local audio is evicted: the last moment the
 #: run's audio is on local disk. Must not raise.
 RunFinalizedHook = Callable[[str, str], None]
@@ -235,6 +240,7 @@ class PipelineHooks:
     run_started: Sequence[RunStartedHook] = field(default_factory=tuple)
     corpus_derived: Sequence[CorpusDerivedHook] = field(default_factory=tuple)
     batch_finalized: Sequence[BatchFinalizedHook] = field(default_factory=tuple)
+    corpus_indexed: Sequence[CorpusIndexedHook] = field(default_factory=tuple)
     run_finalized: Sequence[RunFinalizedHook] = field(default_factory=tuple)
     index_rows: Sequence[IndexRowsHook] = field(default_factory=tuple)
     insight_grounding: Optional[InsightGrounding] = None
@@ -331,6 +337,14 @@ def batch_finalized(corpus_parent: Path) -> None:
     for hooks in _all():
         for hook in hooks.batch_finalized:
             hook(corpus_parent)
+
+
+def corpus_indexed(corpus_root: Path) -> None:
+    """Run every ``corpus_indexed`` stage hook: the built-in ones, then each extension's, in
+    load order."""
+    for hooks in _all():
+        for hook in hooks.corpus_indexed:
+            hook(corpus_root)
 
 
 def index_rows(

@@ -711,6 +711,9 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
             )
         except Exception as exc:  # noqa: BLE001 — clusters are non-fatal like the index build
             logger.warning("index: topic-clusters rebuild failed (non-fatal): %s", exc)
+        from podcast_scraper import stage_hooks
+
+        stage_hooks.corpus_indexed(Path(output_dir))
     return EXIT_SUCCESS
 
 
