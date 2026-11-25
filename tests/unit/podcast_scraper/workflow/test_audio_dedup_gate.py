@@ -158,3 +158,55 @@ def test_registration_survives_and_is_atomic_on_disk(corpus: Path):
     entry = json.loads(index_file.read_text())[job.audio_sha256]
     assert entry["identity"] == "guid-a"
     assert entry["transcript_path"] == "transcripts/0001.txt"
+
+
+def _item(guid: str) -> ET.Element:
+    it = ET.Element("item")
+    ET.SubElement(it, "guid").text = guid
+    return it
+
+
+def test_a_skipped_republish_is_not_selected_again_next_night(corpus: Path):
+    """Prod nightly 2026-11-25, Simplecast JT6pbPkg: the skip wrote no metadata.
+
+    ``episode_selection=unprocessed`` reads ``run_*/metadata/*.metadata.json`` for what is
+    already done, and a content-duplicate skip writes none, so the republish was a candidate
+    again every night: one of the feed's slots, a full download and the same skip, forever.
+    """
+    from podcast_scraper.workflow.stages import scraping
+
+    cfg = _cfg(corpus, episode_selection="unprocessed")
+    first = _schedule(cfg, corpus, _episode(1, "guid-original", "The Episode", "https://cdn/a.mp3"))
+    assert first is not None
+    episode_processor._register_audio_fingerprint(first, cfg, str(corpus), "transcripts/0001.txt")
+    audio_fingerprint.reset_pending_for_tests()
+    assert (
+        _schedule(cfg, corpus, _episode(2, "guid-republish", "Rerun", "https://cdn/b.mp3")) is None
+    )
+
+    kept = scraping._drop_already_ingested([_item("guid-republish"), _item("guid-new")], cfg)
+
+    assert [scraping.extract_item_guid(i) for i in kept] == ["guid-new"]
+
+
+def test_a_same_run_twin_skip_is_not_remembered(corpus: Path):
+    """An in-flight claim can still fail; the twin must stay a candidate for the next run."""
+    cfg = _cfg(corpus)
+    assert _schedule(cfg, corpus, _episode(1, "guid-a", "Ep", "https://cdn/a.mp3")) is not None
+    assert _schedule(cfg, corpus, _episode(2, "guid-b", "Ep 2", "https://cdn/b.mp3")) is None
+
+    assert audio_fingerprint.known_duplicate_identities(str(corpus)) == set()
+
+
+def test_re_recording_the_original_keeps_its_duplicates(corpus: Path):
+    """A retry of the original re-records its digest; the skipped republish must stay known."""
+    cfg = _cfg(corpus)
+    first = _schedule(cfg, corpus, _episode(1, "guid-a", "Ep", "https://cdn/a.mp3"))
+    assert first is not None
+    episode_processor._register_audio_fingerprint(first, cfg, str(corpus), "transcripts/0001.txt")
+    audio_fingerprint.reset_pending_for_tests()
+    assert _schedule(cfg, corpus, _episode(2, "guid-b", "Ep 2", "https://cdn/b.mp3")) is None
+
+    episode_processor._register_audio_fingerprint(first, cfg, str(corpus), "transcripts/0001.txt")
+
+    assert audio_fingerprint.known_duplicate_identities(str(corpus)) == {"guid-b"}

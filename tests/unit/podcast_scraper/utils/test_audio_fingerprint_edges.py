@@ -82,3 +82,42 @@ def test_record_then_lookup_round_trip_and_pending_release(tmp_path: Path) -> No
     # The pending claim was released on record; the persistent entry now answers instead.
     hit = audio_fingerprint.duplicate_of(root, "d" * 64, "guid-b")
     assert hit is not None and "in_flight" not in hit
+
+
+def test_duplicate_records_are_inert_without_a_root_or_an_original(tmp_path: Path) -> None:
+    audio_fingerprint.record_duplicate(None, "d" * 64, "guid-b")
+    audio_fingerprint.record_duplicate(str(tmp_path), "d" * 64, "guid-b")
+    assert not (tmp_path / audio_fingerprint.INDEX_RELPATH).exists()
+    assert audio_fingerprint.known_duplicate_identities(None) == set()
+
+
+def test_a_duplicate_is_recorded_once_and_garbage_entries_are_ignored(tmp_path: Path) -> None:
+    root = str(tmp_path)
+    audio_fingerprint.record(root, "d" * 64, identity="guid-a")
+    audio_fingerprint.record_duplicate(root, "d" * 64, "guid-b")
+    audio_fingerprint.record_duplicate(root, "d" * 64, "guid-b")
+    index = tmp_path / audio_fingerprint.INDEX_RELPATH
+    data = json.loads(index.read_text(encoding="utf-8"))
+    assert data["d" * 64]["duplicates"] == ["guid-b"]
+
+    data["e" * 64] = "not an entry"
+    index.write_text(json.dumps(data), encoding="utf-8")
+    assert audio_fingerprint.known_duplicate_identities(root) == {"guid-b"}
+
+
+def test_write_failures_warn_and_leave_no_temp_file(tmp_path: Path, monkeypatch, caplog) -> None:
+    root = str(tmp_path)
+    audio_fingerprint.record(root, "d" * 64, identity="guid-a")
+
+    def _boom(*_a, **_k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(audio_fingerprint.os, "replace", _boom)
+    caplog.set_level("WARNING")
+    audio_fingerprint.record_duplicate(root, "d" * 64, "guid-b")
+    audio_fingerprint.record(root, "d" * 64, identity="guid-a")
+
+    assert audio_fingerprint.known_duplicate_identities(root) == set()
+    assert not list((tmp_path / ".podcast_scraper").glob(".fingerprints-*"))
+    msgs = " ".join(r.getMessage() for r in caplog.records)
+    assert "failed to record duplicate" in msgs and "failed to record ddd" in msgs
