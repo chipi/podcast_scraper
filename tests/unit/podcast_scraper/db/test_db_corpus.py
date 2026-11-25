@@ -81,9 +81,10 @@ def _source(conn: Connection, natural_id: str = "source:a", **fields: object) ->
     values = {"natural_id": natural_id, "content_type": "podcast", "title": "A", **fields}
     cols = ", ".join(values)
     binds = ", ".join(f":{k}" for k in values)
-    return conn.execute(
+    source_id: int = conn.execute(
         text(f"INSERT INTO corpus.sources ({cols}) VALUES ({binds}) RETURNING source_id"), values
     ).scalar_one()
+    return source_id
 
 
 def _item(conn: Connection, source_id: int, n: str = "1", **fields: object) -> int:
@@ -98,10 +99,11 @@ def _item(conn: Connection, source_id: int, n: str = "1", **fields: object) -> i
     }
     cols = ", ".join(values)
     binds = ", ".join(f":{k}" for k in values)
-    return conn.execute(
+    item_id: int = conn.execute(
         text(f"INSERT INTO corpus.content_items ({cols}) VALUES ({binds}) RETURNING item_id"),
         values,
     ).scalar_one()
+    return item_id
 
 
 def test_upgrade_to_head_creates_every_table_and_index(conn: Connection) -> None:
@@ -136,7 +138,7 @@ def test_upgrade_to_head_creates_every_table_and_index(conn: Connection) -> None
 def test_the_item_list_indexes_are_partial_on_served_and_the_title_index_is_trigram(
     conn: Connection,
 ) -> None:
-    defs = dict(
+    defs: dict[str, str] = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
