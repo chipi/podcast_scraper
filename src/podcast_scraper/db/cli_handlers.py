@@ -1,10 +1,14 @@
-"""CLI for the database (ADR-169): ``podcast_scraper db upgrade | status | import``.
+"""CLI for the database (ADR-169): ``podcast_scraper db upgrade | status | check | import``.
 
 - ``upgrade --plane P``: bring ``shared``, ``corpus`` and plane ``P``'s schema to head. The prod
   migrate step; the API never does this at start. ``--sql`` prints the SQL it would run (from the
   plane's current revision, or ``--from REV``) and executes nothing.
 - ``status --plane P``: current vs head. Exit **2** when behind (distinct from error=1), so a
   boot script can gate on it.
+- ``check``: whether ``corpus`` is at head or ahead, read-only through
+  ``PODCAST_DATABASE_CORPUS_RO_URL`` (the role the API reads the corpus as). Exit 0 at head or
+  ahead, **2** behind or at a revision this code does not know, 1 on error: a start gate before
+  the API that needs no migrating role.
 - ``import --from-files DIR --plane P [--only STORE] [--dry-run]``: read the file stores into the
   database through the registered importers and report every file under DIR by class. Exit 1 on
   any mismatch or any UNCLAIMED file (a dry run included).
@@ -24,14 +28,16 @@ from typing import Sequence
 from sqlalchemy import create_engine
 
 from podcast_scraper.db import inventory, migrate
-from podcast_scraper.db.engines import unbounded_connect_args
+from podcast_scraper.db.engines import read_connection, unbounded_connect_args
 from podcast_scraper.db.importers import registry
 from podcast_scraper.db.schema import CORPUS_SCHEMA, SHARED_SCHEMA
 from podcast_scraper.db.settings import (
+    CorpusSettings,
     DatabaseSettings,
     DEFAULT_PLANE,
     ENV_PLANE,
     ENV_URL,
+    normalize_url,
     PLANES,
 )
 
@@ -63,6 +69,7 @@ def parse_db_argv(argv: Sequence[str]) -> argparse.Namespace:
         help="With --sql: start from this revision instead of the plane's current one.",
     )
     _add_plane(sub.add_parser("status", help="Show a plane's current vs head revision"))
+    sub.add_parser("check", help="Exit 0 when the corpus schema is at head (read-only, corpus_ro)")
     imp = sub.add_parser("import", help="Import file stores into the database and verify")
     _add_plane(imp)
     imp.add_argument("--from-files", required=True, type=Path, help="The APP_DATA_DIR to read.")
@@ -127,6 +134,20 @@ def _status(args: argparse.Namespace, log: logging.Logger) -> int:
     return 2 if behind else 0
 
 
+def _check(args: argparse.Namespace, log: logging.Logger) -> int:
+    engine = create_engine(
+        normalize_url(CorpusSettings.from_env().url),
+        connect_args=unbounded_connect_args(read_only=True),
+    )
+    try:
+        with read_connection(engine) as conn:
+            state, current, head = migrate.readiness(conn, CORPUS_SCHEMA, migrate.CORPUS)
+    finally:
+        engine.dispose()
+    print(f"schema {CORPUS_SCHEMA}: {state}, current {current or 'none'}, head {head}")
+    return 0 if state in ("at_head", "ahead") else 2
+
+
 def _import(args: argparse.Namespace, log: logging.Logger) -> int:
     data_dir: Path = args.from_files
     if not data_dir.is_dir():
@@ -178,8 +199,9 @@ def _import(args: argparse.Namespace, log: logging.Logger) -> int:
 
 
 def run_db_cli(args: argparse.Namespace, log: logging.Logger) -> int:
-    """Run one ``db`` subcommand; 0 on success, 1 on error, 2 for ``status`` when behind."""
-    handlers = {"upgrade": _upgrade, "status": _status, "import": _import}
+    """Run one ``db`` subcommand; 0 on success, 1 on error, 2 for ``status`` or ``check`` when
+    behind."""
+    handlers = {"upgrade": _upgrade, "status": _status, "check": _check, "import": _import}
     try:
         return handlers[args.db_subcommand](args, log)
     except Exception as exc:  # noqa: BLE001 — a CLI reports, with the cause, and exits 1

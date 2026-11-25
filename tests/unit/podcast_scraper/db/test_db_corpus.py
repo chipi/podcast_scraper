@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import subprocess
@@ -19,6 +20,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, make_url
 
 from podcast_scraper.db import init_engines, migrate, reset_engines, rw_engine
+from podcast_scraper.db.cli_handlers import parse_db_argv, run_db_cli
 from podcast_scraper.db.engines import corpus_ro_engine, DatabaseNotReady, init_corpus_engine
 from podcast_scraper.db.schema import corpus_metadata
 from podcast_scraper.db.settings import CorpusSettings, DatabaseSettings, normalize_url
@@ -444,6 +446,58 @@ def test_the_corpus_engine_refuses_a_corpus_behind_the_code_and_accepts_one_ahea
     init_corpus_engine(settings)
     assert corpus_ro_engine() is not None
     reset_engines()
+
+
+def _check(url: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> int:
+    monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", url)
+    code = run_db_cli(parse_db_argv(["check"]), logging.getLogger("t"))
+    return code
+
+
+def test_db_check_passes_at_head_and_ahead_and_fails_behind(
+    url: str,
+    conn: Connection,
+    restore_corpus: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    head = migrate.head_revision("corpus")
+    assert _check(url, monkeypatch, capsys) == 0
+    assert f"schema corpus: at_head, current {head}, head {head}" in capsys.readouterr().out
+
+    _set_corpus_revision(conn, "corpus_0002_operations")
+    assert _check(url, monkeypatch, capsys) == 2
+    assert "schema corpus: behind, current corpus_0002_operations" in capsys.readouterr().out
+
+    # This code's head is in schema_history, so a later revision is a release migrated past it.
+    _set_corpus_revision(conn, "9999_later")
+    assert _check(url, monkeypatch, capsys) == 0
+    assert "schema corpus: ahead, current 9999_later" in capsys.readouterr().out
+
+
+def test_db_check_runs_as_a_role_that_may_only_read_the_corpus_version(
+    url: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Prod runs it as corpus_ro: USAGE on corpus and SELECT on its version tables, no write."""
+    name = f"corpus_ro_probe_{uuid.uuid4().hex[:10]}"
+    admin = create_engine(normalize_url(url), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as c:
+            c.execute(text(f"CREATE ROLE {name} LOGIN PASSWORD 'probe'"))
+            c.execute(text(f"GRANT USAGE ON SCHEMA corpus TO {name}"))
+            c.execute(
+                text(f"GRANT SELECT ON corpus.alembic_version, corpus.schema_history TO {name}")
+            )
+        role_url = (
+            make_url(url).set(username=name, password="probe").render_as_string(hide_password=False)
+        )
+        assert _check(role_url, monkeypatch, capsys) == 0
+        assert "schema corpus: at_head" in capsys.readouterr().out
+    finally:
+        with admin.connect() as c:
+            c.execute(text(f"DROP OWNED BY {name}"))
+            c.execute(text(f"DROP ROLE IF EXISTS {name}"))
+        admin.dispose()
 
 
 def test_the_plane_engines_start_on_a_role_with_no_corpus_privilege(url: str) -> None:
