@@ -1172,7 +1172,7 @@ def test_an_insight_must_name_its_documents_own_item_and_goes_with_it(conn: Conn
 
 
 def test_an_insights_item_rank_index_orders_by_rank_ascending(conn: Connection) -> None:
-    defs = dict(
+    defs: dict[str, str] = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
@@ -1240,7 +1240,7 @@ def test_an_evidence_speaker_must_be_an_entity_and_is_cleared_when_it_goes(
 
 
 def test_the_evidence_speaker_index_is_partial_on_a_known_speaker(conn: Connection) -> None:
-    defs = dict(
+    defs: dict[str, str] = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
@@ -1339,7 +1339,7 @@ def test_a_mention_needs_its_entity_and_item_and_goes_with_its_insight(conn: Con
 
 
 def test_the_mention_index_covers_a_topics_top_insights_with_the_item(conn: Connection) -> None:
-    defs = dict(
+    defs: dict[str, str] = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
@@ -1401,7 +1401,7 @@ def test_an_item_entity_is_one_per_item_entity_and_role_and_goes_with_its_item(
 def test_the_item_entity_indexes_serve_newest_first_of_every_type_or_of_one(
     conn: Connection,
 ) -> None:
-    defs = dict(
+    defs: dict[str, str] = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
@@ -1471,7 +1471,7 @@ def test_a_topic_relation_is_per_build_and_kind_between_two_distinct_topics(
 
 
 def test_the_topic_relation_indexes_read_both_directions_by_weight(conn: Connection) -> None:
-    defs = dict(
+    defs: dict[str, str] = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
@@ -1481,7 +1481,7 @@ def test_the_topic_relation_indexes_read_both_directions_by_weight(conn: Connect
 
 
 def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Connection) -> None:
-    options = dict(
+    options: dict[str, list[str] | None] = dict(
         conn.execute(
             text(
                 "SELECT c.relname, c.reloptions FROM pg_class c "
@@ -1500,7 +1500,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
         "item_entities",
         "evidence",
     ):
-        assert sorted(options[name]) == expected, name
+        assert sorted(options[name] or []) == expected, name
 
 
 def test_the_corpus_history_has_one_head() -> None:
