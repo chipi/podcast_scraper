@@ -313,16 +313,12 @@ lint:
 lint-search-v3:
 	$(PYTHON) scripts/check/lint_search_v3_forbidden_imports.py
 
-# Search v3 quality-eval harness (RFC-107 §T2, PRD-045 FR10; #1230 S0(c)).
-# Default corpus + query set = the v3 synthetic fixture; output the S0 baseline
-# under data/eval/search-v3/eval/. Override via CORPUS= / QUERIES= / OUT= to
-# eval against a different corpus / query set.
+# Default CORPUS for every target that reads it (ci-ui-validation, enrich, pipeline-check): the
+# v3 synthetic fixture, so it is never empty.
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
-QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
-OUT ?= data/eval/search-v3/eval/latest.json
-# `data/eval/**`: eval runs write their reports there. The `eval-data` ignores below point at
-# a directory that no longer exists (the path moved), so 320 generated reports were being
-# linted locally. CI never saw it — they are gitignored, so a fresh checkout has none.
+
+# `data/eval/**`: eval runs write their reports there; gitignored, so CI never sees them, but a
+# local run left 320 generated reports to lint. `eval-data/` is the private eval repo mount.
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	".github/**/*.md" \
 	".cursor/**/*.md" \
@@ -413,15 +409,7 @@ security-bandit:
 #
 # Ignored advisories carry a reason and a re-check trigger. Never add a blanket skip:
 #
-#   PYSEC-2026-3740 — nltk 3.10.3, NO fix version published.
-#     File-sandbox bypass in the model-artifact APIs: TransitionParser.train/parse,
-#     AveragedPerceptron.save/load, PerceptronTagger.save_to_json/load. We import nltk in
-#     exactly ONE module (src/podcast_scraper/evaluation/scorer.py) for word_tokenize and
-#     sentence_bleu, and none of those vulnerable symbols appears anywhere in src/, tests/
-#     or scripts/. The vulnerable code paths are unreachable in our usage, and upstream has
-#     published no release to move to. DROP this ignore as soon as nltk ships a fix.
 # Ignored advisories (each has a reason; everything else must be fixed by upgrading):
-#   PYSEC-2026-3740 — pre-existing (kept).
 #   CVE-2026-69112  (accelerate 1.13.0) — no fixed release exists yet.
 #   PYSEC-2026-2447 (diskcache 5.6.3)  — no fixed release exists yet (latest is 5.6.3).
 #   PYSEC-2026-3624 (lightning 2.6.5)  — the only listed "fix" (2022.6.15) is a breaking downgrade
@@ -467,7 +455,6 @@ security-audit:
 		echo "x86_64 macOS local run: ignoring the torch/transformers/sentence-transformers advisories (see Makefile)"; \
 	fi; \
 	$(PYTHON) -m pip_audit --progress-spinner off \
-		--ignore-vuln PYSEC-2026-3740 \
 		--ignore-vuln CVE-2026-69112 \
 		--ignore-vuln PYSEC-2026-2447 \
 		--ignore-vuln PYSEC-2026-3624 \
@@ -548,31 +535,20 @@ quality: complexity deadcode docstrings spelling
 	#   the install path is trusted (PyPI-only, no third-party indexes). Revisit once GHA images ship pip>=26.1.
 	# TODO(CVE-2026-6357): Remove --ignore-vuln once the GHA runner's bundled pip is >=26.1.
 	#
-	# --- ML-stack deserialization class (joblib / nltk / torch / transformers) ---
-	# 22 PYSECs below all share the same shape: vulnerable code path is reached
+	# --- ML-stack deserialization class (joblib / torch / transformers) ---
+	# The PYSECs below all share the same shape: vulnerable code path is reached
 	# only when the program deserialises an attacker-supplied artifact (joblib
-	# pickle, torch checkpoint, transformers conversion script, nltk user-path).
+	# pickle, torch checkpoint, transformers conversion script).
 	# In this project we (1) only load model weights from pinned HuggingFace
 	# repos that we control, (2) only joblib-cache values we computed in-process,
-	# (3) never expose ``nltk.util.filestring`` to user input, and (4) don't use
-	# any of the transformers conversion utilities (X-CLIP / Trainer / etc.).
+	# and (3) don't use any of the transformers conversion utilities (X-CLIP /
+	# Trainer / etc.).
 	# Re-evaluate per package when a fixed release is published.
 	#
 	# Ignore PYSEC-2024-277 (joblib NumpyArrayWrapper.read_array deserialization).
 	#   Disputed by maintainer ("only used during caching of trusted content").
 	#   No fix version exists; affects all joblib through 1.5.3.
 	# TODO(PYSEC-2024-277): drop ignore if joblib upstream addresses the dispute.
-	#
-	# Ignore PYSEC-2026-97 (nltk.util.filestring arbitrary file read).
-	#   We use nltk only for tokeniser/stopwords; ``filestring`` is never called
-	#   on user-supplied paths. No fix version yet; affects all nltk through 3.9.4.
-	# TODO(PYSEC-2026-97): drop ignore when nltk releases a sanitised filestring.
-	#
-	# Ignore PYSEC-2026-597 (nltk 3.9.4 — same deserialization/file-read class as
-	#   PYSEC-2026-97 above; newly published against the nltk we pin). Same
-	#   reachability argument: nltk is used only for the tokeniser/stopwords, never
-	#   fed user-supplied paths. No fix version yet (affects all nltk through 3.9.4).
-	# TODO(PYSEC-2026-597): drop ignore when nltk publishes a fixed release.
 	#
 	# Ignore PYSEC-2025-189..197, PYSEC-2025-210, PYSEC-2026-139 (torch checkpoint /
 	#   operator deserialization class). 11 advisories against torch <= 2.12.0 with
@@ -601,20 +577,6 @@ quality: complexity deadcode docstrings spelling
 	# TODO(PYSEC-2026-3624): drop ignore when lightning ships a release past commit
 	#   d710d68 (PR #21832) and we confirm pip-audit accepts it.
 	#
-	# Ignore PYSEC-2026-3740 / CVE-2026-81726 (nltk <= 3.10.3, path traversal in model-artifact
-	#   APIs — TransitionParser, AveragedPerceptron, PerceptronTagger and maxent read/write
-	#   caller-controlled paths with raw file ops, bypassing pathsec).
-	#   NOT REACHABLE HERE: `grep -rnE 'TransitionParser|AveragedPerceptron|PerceptronTagger|maxent'
-	#   src/ scripts/` is empty. The only nltk surface we touch is `evaluation/scorer.py` —
-	#   `word_tokenize`, `sentence_bleu`, and `nltk.data.find` against the hardcoded
-	#   `_NLTK_TOKENIZER_DATA` list, so no path in the advisory's class is caller-controlled.
-	#   Nothing to bump to: 3.10.3 IS the latest on PyPI. The advisory is self-contradictory —
-	#   its prose says "through 3.10.3 contains", its OSV range says `fixed: 3.10.3` — which is
-	#   why pip-audit reports it with an EMPTY Fix Versions column. Published 2026-08-27; it
-	#   turned this gate red on a branch that does not touch nltk.
-	# TODO(PYSEC-2026-3740): drop ignore once upstream resolves the range/prose contradiction or
-	#   ships a release that pip-audit accepts.
-	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
@@ -626,8 +588,6 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln CVE-2026-3219 \
 		--ignore-vuln CVE-2026-6357 \
 		--ignore-vuln PYSEC-2024-277 \
-		--ignore-vuln PYSEC-2026-97 \
-		--ignore-vuln PYSEC-2026-597 \
 		--ignore-vuln PYSEC-2025-189 \
 		--ignore-vuln PYSEC-2025-190 \
 		--ignore-vuln PYSEC-2025-191 \
@@ -642,8 +602,7 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2026-161 \
 		--ignore-vuln MAL-2026-4750 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln CVE-2025-3000 \
-		--ignore-vuln PYSEC-2026-3740
+		--ignore-vuln CVE-2025-3000
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
 	# FastAPI routing uses the real request path, not the reconstructed URL. Traefik
@@ -2692,13 +2651,7 @@ gi-kg-flow:
 	@dot -Tsvg docs/architecture/diagrams/kg-pipeline-flow.dot -o docs/architecture/diagrams/kg-pipeline-flow.svg 2>/dev/null && echo "  ✓ kg-pipeline-flow.svg" || echo "  ⚠ kg-pipeline-flow.svg skipped (graphviz not available)"
 	@echo "✓ GI/KG pipeline flowcharts written"
 
-eval-flow:
-	@mkdir -p docs/architecture/diagrams
-	@echo "Rendering evaluation scorer flowchart from DOT..."
-	@dot -Tsvg docs/architecture/diagrams/eval-scorer-flow.dot -o docs/architecture/diagrams/eval-scorer-flow.svg 2>/dev/null && echo "  ✓ eval-scorer-flow.svg" || echo "  ⚠ eval-scorer-flow.svg skipped (graphviz not available)"
-	@echo "✓ Evaluation flowchart written"
-
-visualize: deps-graph call-graph flowcharts providers-deps gi-kg-flow eval-flow
+visualize: deps-graph call-graph flowcharts providers-deps gi-kg-flow
 	@echo "✓ Architecture visualizations up to date (see docs/architecture/diagrams/)"
 
 

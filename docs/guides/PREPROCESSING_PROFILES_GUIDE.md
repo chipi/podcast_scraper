@@ -260,7 +260,7 @@ register_profile("cleaning_v4", _cleaning_v4)
 If you want the profile to appear in fingerprints with version info, update the metadata functions:
 
 ```python
-# In scripts/eval/data/materialize_baseline.py
+# In scripts/eval/data/materialize_baseline.py (private eval repo)
 
 def get_preprocessing_profile_version(profile_id: str) -> str:
     """Get version string for a preprocessing profile."""
@@ -279,7 +279,7 @@ def get_preprocessing_profile_version(profile_id: str) -> str:
 Test the profile in an experiment:
 
 ```yaml
-# data/eval/configs/test_cleaning_v4.yaml
+# data/eval/configs/test_cleaning_v4.yaml (private eval repo)
 id: "test_cleaning_v4"
 preprocessing_profile: "cleaning_v4"
 # ... rest of config
@@ -368,10 +368,10 @@ Profile functions must:
 
 ### Q: How do I know which profile was used for a baseline?
 
-**A:** Check the baseline's fingerprint:
+**A:** Check the baseline's fingerprint (private eval repo):
 
 ```bash
-cat data/eval/baselines/bart_led_baseline_v1/fingerprint.json | jq '.preprocessing.profile_id'
+cat data/eval/baselines/baseline_llm_anthropic_smoke_paragraph_v1/fingerprint.json | jq '.preprocessing.profile_id'
 ```
 
 ### Q: Can I change a profile after creating a baseline?

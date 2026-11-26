@@ -223,9 +223,6 @@ config/ci/*
 # Experiments (local / ad-hoc configs)
 config/playground/
 
-# Evaluation dataset (contains personal transcripts and reference summaries)
-data/eval-old/
-
 # Evaluation results
 data/results-old/
 
@@ -282,17 +279,8 @@ data/query_router.joblib
 # Local spaCy model wheels (see make download-spacy-wheels, docs/guides/DEPENDENCIES_GUIDE.md)
 wheels/spacy/*.whl
 
-# Autoresearch merged experiment configs (temp files next to score.py)
-autoresearch/**/eval/autoresearch_cfg_*.yaml
-
-# Autoresearch run logs
-autoresearch/logs/
+# Run logs
 logs/
-
-# Autoresearch local sweep ledgers — laptop iteration output; the weekly
-# ledger (autoresearch-YYYY-WNN.json) stays tracked, but per-run local
-# artifacts are transient (see ``make autoresearch-sweep-local``).
-data/autoresearch_baselines/autoresearch-local-*.json
 
 # pyinfra deploy debug log (transient per `make dgx-deploy` run)
 
@@ -322,10 +310,6 @@ web/workbench/e2e/.app-state/
 # `make serve-for-app-validation` (the Tier-3 app walk's API) writes its users' state here, at the
 # repo root; a `git add -A` after a local walk swept it into a commit (2026-10-12).
 /.tier3-app-data/
-
-# Search v3 eval — transient `make eval-search` output; keep only labelled
-# baselines (S0-baseline.json, S<N>-<label>.json) checked in.
-docs/wip/search-v3/eval/latest.json
 
 .shots/
 

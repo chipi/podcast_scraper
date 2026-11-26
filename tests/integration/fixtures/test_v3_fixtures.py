@@ -388,9 +388,13 @@ def test_v3_smoke_has_v2_shape_compatible_fields():
     # a reason that was true for the wrong half.
     v3_path = DATASET_DIR / "curated_5feeds_smoke_v3.json"
     assert v3_path.exists(), f"{v3_path} missing — run `python scripts/build_v3_fixtures.py`"
-    v2_path = (
-        PROJECT_ROOT / "eval-data" / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v2.json"
-    )
+    # The eval repo keeps its records under records/ since 2026-11-22 (data/eval/ before);
+    # either checkout may be mounted.
+    candidates = [
+        PROJECT_ROOT / "eval-data" / tree / "datasets" / "curated_5feeds_smoke_v2.json"
+        for tree in ("records", "data/eval")
+    ]
+    v2_path = next((p for p in candidates if p.exists()), candidates[0])
     if not v2_path.exists():
         pytest.skip(
             "v2 smoke dataset lives in the private eval repo; mount it at eval-data/ "

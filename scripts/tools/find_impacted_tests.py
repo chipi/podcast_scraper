@@ -44,8 +44,6 @@ MODULE_MAPPING = {
     "preprocessing/": "module_preprocessing",
     # Cache
     "cache/": "module_cache",
-    # Evaluation
-    "evaluation/": "module_evaluation",
     # Utils
     "utils/": "module_utils",
     # Models

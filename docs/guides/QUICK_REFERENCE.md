@@ -180,7 +180,7 @@ The experiment, run-promote, profile-freeze and profile-diff commands are retire
 from this repository (#2134).
 
 **Docs:**
-`data/eval/README.md`
+`data/eval/README.md` (private eval repo)
 · `data/profiles/README.md`
 
 ---

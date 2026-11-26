@@ -275,7 +275,7 @@ cat output/.monitor.log
 # Read per-stage metrics after a run
 cat output/metrics.json
 
-# Compare with frozen release profile
+# Compare with frozen release profile (script is in the private eval repo)
 python scripts/eval/profile/diff_profiles.py data/profiles/v0.42.yaml data/profiles/v0.43.yaml
 ```
 
