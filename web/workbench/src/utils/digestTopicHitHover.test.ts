@@ -66,3 +66,24 @@ describe('buildTopicHitHoverPanel', () => {
     expect(topicHitFirstRowHasContent(p)).toBe(true)
   })
 })
+
+describe('buildTopicHitHoverPanel publish day', () => {
+  it('shows the viewer-local day of published_at, falling back to publish_date', () => {
+    const original = process.env.TZ
+    process.env.TZ = 'America/New_York'
+    try {
+      const ctx = { feedDisplayLabel: 'F', showFeedLine: false, summaryPreview: '' }
+      const base = { metadata_relative_path: 'm.json', episode_title: 'T', feed_id: 'f1' }
+      const withInstant = buildTopicHitHoverPanel(
+        { ...base, publish_date: '2026-09-17', published_at: '2026-09-17T02:00:00Z' },
+        ctx,
+      )
+      expect(withInstant.publishDateValue).toBe('2026-09-16')
+      const dayOnly = buildTopicHitHoverPanel({ ...base, publish_date: '2026-09-17', published_at: null }, ctx)
+      expect(dayOnly.publishDateValue).toBe('2026-09-17')
+    } finally {
+      if (original === undefined) delete process.env.TZ
+      else process.env.TZ = original
+    }
+  })
+})

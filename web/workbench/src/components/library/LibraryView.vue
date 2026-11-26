@@ -32,6 +32,7 @@ import {
 import { isPublishDateWithin24hRolling, recencyDotHoverTitle } from '../../utils/digestRecency'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
+import { formatCalendarDateForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import {
@@ -872,12 +873,12 @@ const libraryMode = computed({
                   <div class="flex items-baseline justify-between gap-2">
                     <div class="flex min-w-0 flex-1 items-baseline gap-1.5">
                       <span
-                        v-if="isPublishDateWithin24hRolling(e.publish_date)"
+                        v-if="isPublishDateWithin24hRolling(e.published_at || e.publish_date)"
                         role="img"
                         class="mb-0.5 h-1.5 w-1.5 shrink-0 self-center rounded-full bg-success"
-                        :title="recencyDotHoverTitle(e.publish_date) || undefined"
+                        :title="recencyDotHoverTitle(e.published_at || e.publish_date) || undefined"
                         :aria-label="
-                          recencyDotHoverTitle(e.publish_date) || 'Recently published'
+                          recencyDotHoverTitle(e.published_at || e.publish_date) || 'Recently published'
                         "
                       />
                       <span class="min-w-0 flex-1 truncate font-medium text-surface-foreground">{{
@@ -906,7 +907,7 @@ const libraryMode = computed({
                         "
                         class="inline-flex shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right tabular-nums leading-tight"
                       >
-                        <span v-if="e.publish_date">{{ e.publish_date }}</span>
+                        <span v-if="e.publish_date">{{ formatCalendarDateForDisplay(e.published_at || e.publish_date) }}</span>
                         <span v-if="e.episode_number != null">E{{ e.episode_number }}</span>
                         <span v-if="formatDurationSeconds(e.duration_seconds)">{{
                           formatDurationSeconds(e.duration_seconds)

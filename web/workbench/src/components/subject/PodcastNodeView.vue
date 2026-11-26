@@ -17,6 +17,7 @@ import {
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { StaleGeneration } from '../../utils/staleGeneration'
+import { formatCalendarDateForDisplay } from '../../utils/formatting'
 import PodcastCover from '../shared/PodcastCover.vue'
 
 const props = withDefaults(defineProps<{ subjectIdOverride?: string }>(), {
@@ -188,7 +189,7 @@ function openEpisode(ep: CorpusEpisodeListItem): void {
             size-class="h-9 w-9"
           />
           <div class="min-w-0 flex-1">
-            <p class="text-[10px] font-medium text-gi/90">{{ ep.publish_date || 'Date unknown' }}</p>
+            <p class="text-[10px] font-medium text-gi/90">{{ formatCalendarDateForDisplay(ep.published_at || ep.publish_date) || 'Date unknown' }}</p>
             <p class="break-words text-[11px] font-semibold leading-snug text-surface-foreground">
               {{ ep.episode_title }}
             </p>

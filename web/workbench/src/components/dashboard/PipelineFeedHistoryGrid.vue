@@ -15,6 +15,7 @@
 import { computed } from 'vue'
 import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
 import type { CorpusFeedItem } from '../../api/corpusLibraryApi'
+import { localDay } from '../../utils/formatting'
 
 const props = withDefaults(
   defineProps<{
@@ -51,7 +52,7 @@ function statusOf(r: CorpusRunSummaryItem): Status {
 
 function dayKey(r: CorpusRunSummaryItem): string {
   const ca = (r.created_at ?? '').trim()
-  if (ca.length >= 10) return ca.slice(0, 10)
+  if (ca.length >= 10) return localDay(ca) ?? ca.slice(0, 10)
   return r.run_id ?? r.relative_path
 }
 

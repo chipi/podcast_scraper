@@ -538,7 +538,7 @@ describe('DashboardView', () => {
       const dated = (durations: number[]) =>
         durations.map((d, i) =>
           run(`r${i}`, {
-            created_at: `2026-06-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+            created_at: `2026-06-${String(i + 1).padStart(2, '0')}T12:00:00Z`,
             run_duration_seconds: d,
           }),
         )
@@ -599,7 +599,7 @@ describe('DashboardView', () => {
       const dated = (eps: number[]) =>
         eps.map((e, i) =>
           run(`r${i}`, {
-            created_at: `2026-06-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+            created_at: `2026-06-${String(i + 1).padStart(2, '0')}T12:00:00Z`,
             episodes_scraped_total: e,
           }),
         )

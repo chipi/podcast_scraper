@@ -8,7 +8,7 @@ import { computed, ref, watch } from 'vue'
 import { fetchNewsItem, type NewsItemDetail, type NewsKgNode } from '../../api/newsApi'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
-import { formatAbsoluteUtc } from '../../utils/relativeTime'
+import { formatAbsoluteLocal } from '../../utils/relativeTime'
 import { primaryLanguage } from '../../utils/language'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import LanguageBadge from '../shared/LanguageBadge.vue'
@@ -109,7 +109,7 @@ function openNode(n: NewsKgNode): void {
         </template>
       </p>
       <p v-if="item.published_at" class="mt-0.5 text-[10px] text-muted" data-testid="article-published">
-        {{ formatAbsoluteUtc(item.published_at) }}
+        {{ formatAbsoluteLocal(item.published_at) }}
       </p>
       <div class="mt-1.5 flex flex-wrap items-center gap-1">
         <span v-if="editorial" class="rounded border border-border px-1 text-[10px]">{{ editorial }}</span>

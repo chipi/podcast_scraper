@@ -29,4 +29,12 @@ describe('digestRecency', () => {
     expect(recencyDotHoverTitle('2026-04-19')).toBe('Published less than 1 hour ago')
     vi.useRealTimers()
   })
+  it('a stored instant counts from the instant, not the day', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-17T05:00:00Z'))
+    expect(recencyDotHoverTitle('2026-09-17T02:00:00Z')).toBe('Published 3 hours ago')
+    expect(isPublishDateWithin24hRolling('2026-09-16T04:00:00Z')).toBe(false)
+    expect(isPublishDateWithin24hRolling('2026-09-16T06:00:00')).toBe(true)
+    vi.useRealTimers()
+  })
 })

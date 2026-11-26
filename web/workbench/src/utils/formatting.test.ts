@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   escapeHtml,
   formatBytes,
   formatCalendarDateForDisplay,
-  formatUtcDateTimeForDisplay,
+  formatDateTimeForDisplay,
+  localDay,
+  parseStoredInstant,
   humanizeSlug,
   shortPhrase,
   truncate,
@@ -146,26 +148,162 @@ describe('formatCalendarDateForDisplay', () => {
   })
 })
 
-describe('formatUtcDateTimeForDisplay', () => {
-  it('formats UTC instant without fractional seconds in output', () => {
-    const out = formatUtcDateTimeForDisplay('2026-04-10T18:05:06.789Z')
-    expect(out).toBe('Apr 10, 2026, 6:05 PM UTC')
-    expect(out).not.toMatch(/\.\d/)
+const ORIGINAL_TZ = process.env.TZ
+
+function inZone(tz: string, fn: () => void): void {
+  process.env.TZ = tz
+  fn()
+}
+
+afterEach(() => {
+  if (ORIGINAL_TZ === undefined) delete process.env.TZ
+  else process.env.TZ = ORIGINAL_TZ
+})
+
+const ZONES = ['America/New_York', 'Europe/Belgrade', 'Pacific/Auckland'] as const
+
+describe('parseStoredInstant', () => {
+  it('reads a naive ISO datetime as UTC in every zone', () => {
+    for (const tz of ZONES) {
+      inZone(tz, () => {
+        expect(parseStoredInstant('2026-09-17T02:00:00')?.toISOString()).toBe('2026-09-17T02:00:00.000Z')
+        expect(parseStoredInstant('2026-09-17 02:00:00.5')?.toISOString()).toBe('2026-09-17T02:00:00.500Z')
+        expect(parseStoredInstant('2026-09-17T02:00')?.toISOString()).toBe('2026-09-17T02:00:00.000Z')
+      })
+    }
+  })
+
+  it('keeps Z and offset values', () => {
+    expect(parseStoredInstant('2026-09-17T02:00:00Z')?.toISOString()).toBe('2026-09-17T02:00:00.000Z')
+    expect(parseStoredInstant('2026-09-17T02:00:00+02:00')?.toISOString()).toBe('2026-09-17T00:00:00.000Z')
+    expect(parseStoredInstant('2026-09-17T02:00:00-0500')?.toISOString()).toBe('2026-09-17T07:00:00.000Z')
+  })
+
+  it('reads epoch seconds and milliseconds', () => {
+    expect(parseStoredInstant(1789005600)?.toISOString()).toBe('2026-09-10T02:00:00.000Z')
+    expect(parseStoredInstant(1789005600000)?.toISOString()).toBe('2026-09-10T02:00:00.000Z')
+  })
+
+  it('is null for a bare date, blank and garbage', () => {
+    expect(parseStoredInstant('2026-09-17')).toBeNull()
+    expect(parseStoredInstant('')).toBeNull()
+    expect(parseStoredInstant('   ')).toBeNull()
+    expect(parseStoredInstant(null)).toBeNull()
+    expect(parseStoredInstant(undefined)).toBeNull()
+    expect(parseStoredInstant('not-a-date')).toBeNull()
+    expect(parseStoredInstant('2026-13-45T99:00:00')).toBeNull()
+    expect(parseStoredInstant(Number.NaN)).toBeNull()
+  })
+})
+
+describe('localDay', () => {
+  it('shows the viewer-local day of a naive (UTC) datetime', () => {
+    inZone('America/New_York', () => {
+      expect(localDay('2026-09-17T02:00:00')).toBe('2026-09-16')
+    })
+    inZone('Europe/Belgrade', () => {
+      expect(localDay('2026-09-17T02:00:00')).toBe('2026-09-17')
+      expect(localDay('2026-09-16T23:00:00')).toBe('2026-09-17')
+    })
+  })
+
+  it('honours Z and offsets', () => {
+    inZone('America/New_York', () => {
+      expect(localDay('2026-09-17T02:00:00Z')).toBe('2026-09-16')
+      expect(localDay('2026-09-17T02:00:00+02:00')).toBe('2026-09-16')
+      expect(localDay('2026-09-17T22:30:00-05:00')).toBe('2026-09-17')
+    })
+  })
+
+  it('returns a bare date unchanged in every zone', () => {
+    for (const tz of ZONES) {
+      inZone(tz, () => {
+        expect(localDay('2026-09-17')).toBe('2026-09-17')
+        expect(localDay(' 2026-01-01 ')).toBe('2026-01-01')
+      })
+    }
+  })
+
+  it('is null for garbage', () => {
+    expect(localDay('')).toBeNull()
+    expect(localDay(null)).toBeNull()
+    expect(localDay('garbage')).toBeNull()
+    expect(localDay('2026-02-31')).toBeNull()
+  })
+
+  it('handles epoch numbers', () => {
+    inZone('America/New_York', () => {
+      expect(localDay(1789005600)).toBe('2026-09-09')
+    })
+  })
+})
+
+describe('formatCalendarDateForDisplay (local zone)', () => {
+  it('shows the local day for a naive UTC datetime', () => {
+    inZone('America/New_York', () => {
+      expect(formatCalendarDateForDisplay('2026-09-17T02:00:00')).toBe('Sep 16, 2026')
+    })
+    inZone('Europe/Belgrade', () => {
+      expect(formatCalendarDateForDisplay('2026-09-17T02:00:00')).toBe('Sep 17, 2026')
+    })
+  })
+
+  it('handles Z and offset', () => {
+    inZone('America/New_York', () => {
+      expect(formatCalendarDateForDisplay('2026-09-17T02:00:00Z')).toBe('Sep 16, 2026')
+      expect(formatCalendarDateForDisplay('2026-09-17T02:00:00+02:00')).toBe('Sep 16, 2026')
+    })
+  })
+
+  it('never shifts a bare date', () => {
+    for (const tz of ZONES) {
+      inZone(tz, () => {
+        expect(formatCalendarDateForDisplay('2026-09-17')).toBe('Sep 17, 2026')
+        expect(formatCalendarDateForDisplay('2026-01-01')).toBe('Jan 1, 2026')
+      })
+    }
+  })
+})
+
+describe('formatDateTimeForDisplay', () => {
+  it('formats in the viewer zone with the short zone name and no fractional seconds', () => {
+    inZone('America/New_York', () => {
+      const out = formatDateTimeForDisplay('2026-04-10T18:05:06.789Z')
+      expect(out).toBe('Apr 10, 2026, 2:05 PM EDT')
+      expect(out).not.toMatch(/\.\d/)
+    })
+  })
+
+  it('reads a naive datetime as UTC', () => {
+    inZone('America/New_York', () => {
+      expect(formatDateTimeForDisplay('2026-09-17T02:00:00')).toBe('Sep 16, 2026, 10:00 PM EDT')
+    })
+    inZone('Europe/Belgrade', () => {
+      expect(formatDateTimeForDisplay('2026-09-17T02:00:00')).toMatch(/^Sep 17, 2026, 4:00 AM GMT\+2$/)
+    })
+  })
+
+  it('applies an explicit offset', () => {
+    inZone('America/New_York', () => {
+      expect(formatDateTimeForDisplay('2026-09-17T02:00:00+02:00')).toBe('Sep 16, 2026, 8:00 PM EDT')
+    })
+  })
+
+  it('shows a bare date as that calendar day', () => {
+    for (const tz of ZONES) {
+      inZone(tz, () => {
+        expect(formatDateTimeForDisplay('2026-09-17')).toBe('Sep 17, 2026')
+      })
+    }
   })
 
   it('returns empty for blank', () => {
-    expect(formatUtcDateTimeForDisplay('')).toBe('')
-    expect(formatUtcDateTimeForDisplay('   ')).toBe('')
+    expect(formatDateTimeForDisplay('')).toBe('')
+    expect(formatDateTimeForDisplay('   ')).toBe('')
   })
 
   it('returns original when not parseable', () => {
-    expect(formatUtcDateTimeForDisplay('not-a-date')).toBe('not-a-date')
-  })
-
-  it('handles +00:00 style ISO', () => {
-    expect(formatUtcDateTimeForDisplay('2024-06-01T00:00:00.000+00:00')).toBe(
-      'Jun 1, 2024, 12:00 AM UTC',
-    )
+    expect(formatDateTimeForDisplay('not-a-date')).toBe('not-a-date')
   })
 })
 

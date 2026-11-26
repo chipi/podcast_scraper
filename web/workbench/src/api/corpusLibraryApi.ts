@@ -52,6 +52,7 @@ export type CorpusEpisodeListItem = {
   episode_id: string | null
   episode_title: string
   publish_date: string | null
+  published_at?: string | null
   feed_image_url?: string | null
   episode_image_url?: string | null
   duration_seconds?: number | null
@@ -100,6 +101,7 @@ export type CorpusEpisodeDetailResponse = {
   episode_id: string | null
   episode_title: string
   publish_date: string | null
+  published_at?: string | null
   summary_title: string | null
   summary_bullets: string[]
   summary_text: string | null
@@ -337,6 +339,7 @@ export type CorpusSimilarEpisodeItem = {
   episode_title: string
   metadata_relative_path: string | null
   publish_date: string | null
+  published_at?: string | null
   doc_type: string | null
   snippet: string
   feed_image_url?: string | null
@@ -386,6 +389,7 @@ export async function fetchCorpusSimilarEpisodes(
 export type CorpusResolvedEpisodeArtifact = {
   episode_id: string
   publish_date: string | null
+  published_at?: string | null
   gi_relative_path: string | null
   kg_relative_path: string | null
   bridge_relative_path: string | null
@@ -431,6 +435,7 @@ export type CorpusNodeEpisodeItem = {
   feed_id?: string | null
   feed_title?: string | null
   publish_date?: string | null
+  published_at?: string | null
   metadata_relative_path?: string | null
 }
 
