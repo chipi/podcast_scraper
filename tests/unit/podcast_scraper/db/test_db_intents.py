@@ -65,6 +65,36 @@ def test_an_empty_key_list_runs_nothing_and_too_many_keys_are_refused(
         intents.newest_items(conn, limit=201)
 
 
+def test_articles_carry_their_source_title_and_url_in_one_statement(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source = _source(conn, "source:n", title="The Example Times", content_type="news_article")
+    kept = _item(
+        conn,
+        source,
+        "a",
+        content_type="news_article",
+        served=0,
+        published_at=T0,
+        type_attrs={"url": "https://www.example.com/a/1", "byline": ["A. Writer"]},
+    )
+    with _statements(conn) as seen:
+        found = intents.articles_by_natural_ids(conn, ["item:a", "item:missing"])
+    assert len(seen) == 1
+    assert found == [
+        {
+            "item_id": kept,
+            "natural_id": "item:a",
+            "served": 0,
+            "title": "Episode a",
+            "published_at": T0,
+            "source_title": "The Example Times",
+            "url": "https://www.example.com/a/1",
+        }
+    ]
+    conn.rollback()
+
+
 def test_cards_are_one_row_per_item_in_one_statement(conn: Connection) -> None:  # noqa: F811
     source = _source(conn)
     one = _item(conn, source, "1")

@@ -122,6 +122,29 @@ def items_by_feed_episode(
     return _rows(conn, statement)
 
 
+def articles_by_natural_ids(conn: Connection, natural_ids: Sequence[str]) -> list[dict[str, Any]]:
+    """Kept articles for a board (I4): each item's ``item_id``, ``natural_id``, ``served``,
+    ``title``, ``published_at``, its source's ``title`` as ``source_title`` and its ``url`` (the one
+    key of ``type_attrs``), any ``served``; unknown ids are left out."""
+    keys = _keys(natural_ids, "natural ids")
+    if not keys:
+        return []
+    statement = (
+        select(
+            content_items.c.item_id,
+            content_items.c.natural_id,
+            content_items.c.served,
+            content_items.c.title,
+            content_items.c.published_at,
+            sources.c.title.label("source_title"),
+            content_items.c.type_attrs["url"].astext.label("url"),
+        )
+        .join(sources, sources.c.source_id == content_items.c.source_id)
+        .where(content_items.c.natural_id.in_(keys))
+    )
+    return _rows(conn, statement)
+
+
 def cards(conn: Connection, item_ids: Sequence[int]) -> list[dict[str, Any]]:
     """The ``item_cards`` rows of these items; an item with no card is left out (AP-23)."""
     keys = _keys(item_ids, "item ids")
