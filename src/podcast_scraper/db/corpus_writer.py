@@ -550,8 +550,10 @@ def sync_episode(
     """Sync one item's rows and documents (:func:`sync_rows`), then, when its rows are kept
     (:data:`ROWS_KEPT`), run every ``artifact_rows`` stage hook on its metadata, GI and KG files
     (:func:`artifact_paths`), after the rows' transaction: those writers own their transaction,
-    their counts. A hook that fails is counted in ``OUTCOMES["hook_failed"]`` and never stops the
-    others or the pipeline, unless ``PODCAST_CORPUS_WRITE_STRICT`` is set (:class:`SyncFailed`)."""
+    their counts. A hook that fails is counted in ``OUTCOMES["hook_failed"]`` and deferred like a
+    failed row write (retried at the run's end and the next run, its rows then ``unchanged``); a
+    hook that cannot succeed returns ``"refused"`` instead. It never stops the others or the
+    pipeline, unless ``PODCAST_CORPUS_WRITE_STRICT`` is set (:class:`SyncFailed`)."""
     outcome = sync_rows(metadata_path, transcript_path, change_kind=change_kind)
     if outcome in ROWS_KEPT:
         from podcast_scraper import stage_hooks
@@ -560,6 +562,7 @@ def sync_episode(
         failed = hooked.count("failed")
         if failed:
             OUTCOMES["hook_failed"] += failed
+            _defer(metadata_path, transcript_path, change_kind)
             if _strict():
                 raise SyncFailed(f"{failed} artifact_rows hooks failed for {metadata_path.name}")
     return outcome

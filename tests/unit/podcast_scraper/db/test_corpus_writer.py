@@ -712,6 +712,11 @@ def test_a_failed_artifact_hook_is_counted_and_raised_only_when_strict(
     meta = _corpus_episode(tmp_path)
     assert sync_episode(meta, None) == "no_files"
     assert corpus_writer.OUTCOMES["hook_failed"] == 1
+    assert corpus_writer._DEFERRED[str(meta)] == (None, corpus_writer.RETRANSCRIBED)
+    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda *_: ["written"])
+    assert sync_episode(meta, None) == "no_files"
+    assert str(meta) not in corpus_writer._DEFERRED
+    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda *_: ["failed", "written"])
     monkeypatch.setenv(corpus_writer.ENV_STRICT, "1")
     with pytest.raises(corpus_writer.SyncFailed, match="1 artifact_rows hooks failed"):
         sync_episode(meta, None)
