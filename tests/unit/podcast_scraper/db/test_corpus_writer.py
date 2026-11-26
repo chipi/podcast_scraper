@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import corpus_writer, engines, leases
@@ -137,10 +137,9 @@ def pipeline_db(url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:  #
 
 
 def _row(db: Connection, table: str, natural_id: str) -> dict:
-    found = db.execute(
-        text(f"SELECT * FROM corpus.{table} WHERE natural_id = :n"), {"n": natural_id}
-    ).mappings()
-    return dict(found.one())
+    found = corpus_metadata.tables[f"corpus.{table}"]
+    rows = db.execute(select(found).where(found.c.natural_id == natural_id)).mappings()
+    return dict(rows.one())
 
 
 def _source_of(doc: dict) -> str:

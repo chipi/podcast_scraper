@@ -27,10 +27,11 @@ The rules, settled with the database session (tracker ``w-public``, ``note_rules
   gap: when the newest served item later stops being served, the source keeps its columns, where
   ``source_row_for`` over every item would take the next newest's; seeing that needs every served
   item's metadata, so the cut-over import reconciles it, and after it a row migration does.
-- The item row is upserted on its natural id, every column ``item_row`` decides overwritten; the
-  ``has_*`` flags, the publisher and the artwork are their writers'. An item whose stored source
-  differs, or whose slug or ``(source_id, external_item_id)`` is another item's, is refused:
-  moving or merging items is a migration.
+- The item row is upserted on its natural id, every column ``item_row`` decides overwritten.
+  ``has_transcript`` is this writer's: whether the item has a transcript document after the sync.
+  The other ``has_*`` flags, the publisher and the artwork are their writers'. An item whose
+  stored source differs, or whose slug or ``(source_id, external_item_id)`` is another item's, is
+  refused: moving or merging items is a migration.
 - A body that equals the newest version's writes nothing. A different body is a new version that
   supersedes it, keeping the old version's segments; ``change_kind`` is ``created`` on version 1
   and the caller's cause on the later ones.
@@ -259,6 +260,23 @@ def upsert_item(conn: Connection, doc: Mapping[str, Any], source_id: int) -> int
     return item_id
 
 
+def mark_has_transcript(conn: Connection, item_id: int) -> bool:
+    """Set the item's ``has_transcript`` to whether it has a transcript document; returns it."""
+    has = bool(
+        conn.execute(
+            select(func.count()).where(
+                and_(documents.c.item_id == item_id, documents.c.kind == TRANSCRIPT)
+            )
+        ).scalar_one()
+    )
+    conn.execute(
+        update(content_items)
+        .where(and_(content_items.c.item_id == item_id, content_items.c.has_transcript != has))
+        .values(has_transcript=has, updated_at=func.now())
+    )
+    return has
+
+
 def _segment_count(conn: Connection, item_id: int, document_id: int) -> int:
     count: int = conn.execute(
         select(func.count()).where(
@@ -397,6 +415,7 @@ def sync_episode(
             leases.heartbeat(conn, holder, held)
             item_id = upsert_item(conn, doc, upsert_source(conn, doc))
             synced = sync_documents(conn, item_id, files, change_kind=change_kind)
+            mark_has_transcript(conn, item_id)
         return _count(_outcome(synced) if files else "no_files")
     except leases.LeaseRefused as exc:
         return _fail("lease_refused", metadata_path, exc)
