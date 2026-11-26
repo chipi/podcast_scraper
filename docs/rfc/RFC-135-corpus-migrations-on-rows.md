@@ -89,14 +89,15 @@ close (the survey, 2026-11-26):
 
 - Expand-only schema changes, no `downgrade()` (ADR-172 decision 6, ADR-184 decision 4). The
   corpus history has not shipped to prod, but other branches and the rehearsal databases are at
-  `corpus_0003`, so this RFC adds a revision rather than editing `corpus_0002`.
+  the latest corpus revision, so this RFC adds a revision rather than editing `corpus_0002`.
 - Infra owns grants (ADR-184 decision 3). `migrator` owns the `corpus` schema; the grant step
   after each migrate gives `pipeline_rw` and `corpus_ro` what this RFC's tables need (§3).
 - The `migrator` URL goes only into one-shots, connection limit 2 (CRFC-005 §7).
 - Migrations read stored evidence only: no LLM call, no model, no network (the prod ladder).
-- Content tables beyond `sources`, `content_items` and `item_cards` are not written yet (the
-  database session's s-entities and s-intel). The framework and its tests use those three; it must
-  not assume any other table's shape.
+- The content tables are being written (`sources`, `content_items` and `item_cards` in
+  `corpus_0003`; `documents` and hash-partitioned `segments` in `corpus_0004`, #2564; entities and
+  intel to come, the database session's s-entities and s-intel). The framework and its tests use
+  `content_items` and `item_cards`; it must not assume any other table's shape.
 - `corpus_revision` (DECISIONS rule 7, bumped in every content transaction) is not in the schema
   yet. The framework bumps it through one function that is a no-op until the table exists, and a
   test pins the bump once it does.
@@ -127,7 +128,7 @@ class RowMigration(Migration):
 - `RowResult` names the `item_ids` it changed, for the derived surfaces (§6).
 - Idempotent: a second apply finds nothing to change and writes no receipt (as files).
 
-### 2. Schema additions (`corpus_0004_migration_runs`)
+### 2. Schema additions (the next corpus revision, `migration_runs`)
 
 | Object | Change |
 | --- | --- |
@@ -276,7 +277,7 @@ surfaces.
 
 ## Open Questions
 
-1. The database session: is `corpus_0004_migration_runs` (§2) acceptable, or does it want the
+1. The database session: is the `migration_runs` revision (§2) acceptable, or does it want the
    receipts' run id another way?
 2. Infra: the lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the
    refusal rule of §3 step 2 matches theirs.
