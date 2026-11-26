@@ -280,3 +280,21 @@ def test_a_service_run_text_source_moves_the_cache_token(tmp_path: Path) -> None
     assert (corpus / "corpus_manifest.json").is_file()
     assert corpus_mtime(corpus) > before
     assert not (corpus / "sources" / "test_text_item" / "corpus_manifest.json").exists()
+
+
+def test_a_text_run_retries_and_keeps_its_deferred_syncs_like_a_podcast_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from podcast_scraper.workflow import orchestration
+
+    corpus = tmp_path / "corpus"
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    calls: List[Tuple[str, dict]] = []
+    monkeypatch.setattr(
+        orchestration,
+        "_corpus_deferred",
+        lambda step, directory, **kw: calls.append((step, kw)),
+    )
+    with use_extensions([_ext(_transport([]))]):
+        ct.run_source(_cfg(corpus, entry), entry)
+    assert calls == [("retry_deferred", {}), ("flush_deferred", {})]

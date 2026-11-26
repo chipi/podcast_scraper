@@ -263,6 +263,44 @@ def test_a_roundup_is_written_under_news_article_and_kept_by_a_rederive() -> Non
     assert restored.metadata.get("roundup") is True
 
 
+@pytest.mark.parametrize(
+    "method, version",
+    [
+        (extract.FEED, "feed/1"),
+        (extract.STANDFIRST, "standfirst/1"),
+        ("guardian", "guardian/api"),
+        ("something_else", "something_else/unknown"),
+    ],
+)
+def test_each_extractor_has_its_version(method: str, version: str) -> None:
+    assert extract.extractor_version(method) == version
+
+
+def test_a_library_extractor_carries_its_package_version() -> None:
+    from importlib import metadata
+
+    assert extract.extractor_version(extract.TRAFILATURA) == (
+        f"trafilatura/{metadata.version('trafilatura')}"
+    )
+    assert extract.extractor_version(extract.READABILITY) == (
+        f"readability/{metadata.version('readability-lxml')}"
+    )
+
+
+def test_the_extraction_is_written_under_news_article_and_kept_by_a_rederive() -> None:
+    plain = document.shape({}, _item("https://n.test/a"), registry=_REG)
+    assert "extraction" not in plain["news_article"]
+    doc = document.shape(
+        {},
+        _item("https://n.test/a", extraction="trafilatura", extractor_version="trafilatura/2.0.1"),
+        registry=_REG,
+    )
+    own = doc["news_article"]
+    assert (own["extraction"], own["extractor_version"]) == ("trafilatura", "trafilatura/2.0.1")
+    restored = document.restore_item(doc, "Body.")
+    assert restored.metadata.get("extractor_version") == "trafilatura/2.0.1"
+
+
 def test_an_item_class_is_written_under_news_article_and_kept_by_a_rederive() -> None:
     plain = document.shape({}, _item("https://n.test/a"), registry=_REG)
     assert "item_class" not in plain["news_article"]

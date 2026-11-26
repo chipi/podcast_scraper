@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Iterator
 
 import pytest
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import and_, create_engine, select, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import corpus_writer, engines, leases
@@ -26,7 +26,14 @@ from podcast_scraper.db.importers.corpus_documents import (
     transcript_files,
     TranscriptFile,
 )
-from podcast_scraper.db.schema import corpus_metadata, corpus_revision
+from podcast_scraper.db.schema import (
+    corpus_metadata,
+    corpus_revision,
+    documents,
+    item_cards,
+    segments,
+    sources,
+)
 from podcast_scraper.db.settings import ENV_PIPELINE_RW_URL, normalize_url
 from tests.unit.podcast_scraper.db.test_db_corpus import _item, _source, conn, url  # noqa: F401
 
@@ -460,11 +467,259 @@ def test_a_refused_item_is_counted_and_fails_only_when_strict(
     assert OUTCOMES["refused"] == 2
 
 
-def test_a_news_item_is_not_this_slices(pipeline_db: None, tmp_path: Path) -> None:
-    meta = tmp_path / "n.metadata.json"
-    meta.write_text(json.dumps({"content_type": "news_article", "item_id": "item:n"}))
-    assert sync_episode(meta, _write(tmp_path, "n.txt", "x\n")) == "news_item"
-    assert corpus_writer.OUTCOMES["news_item"] == 1
+NEWS_BODY = "First paragraph.\n\nSecond paragraph.\n"
+
+
+def _news_item(root: Path, body: str = NEWS_BODY, **fields: object) -> tuple[Path, Path]:
+    """A news item as the text-in path writes it: metadata and body under a source run."""
+    import hashlib
+
+    run = root / "sources" / "news_article" / "example" / "run_20261124-060000"
+    (run / "metadata").mkdir(parents=True, exist_ok=True)
+    (run / "transcripts").mkdir(exist_ok=True)
+    body_path = run / "transcripts" / "0001 - A headline.txt"
+    body_path.write_text(body, encoding="utf-8")
+    doc = {
+        "content_type": "news_article",
+        "item_id": "item:news_article:0001",
+        "source_id": "source:0001",
+        "url": "https://www.example.com/a/1",
+        "title": "A headline",
+        "published_at": "2026-11-22T01:00:09Z",
+        "ingested_at": "2026-11-24T06:00:13Z",
+        "fetched_at": "2026-11-24T06:00:10Z",
+        "body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "language": "en",
+        "serveable": "summary",
+        "news_article": {
+            "editorial_type": "analysis",
+            "text_status": "full",
+            "extraction": "trafilatura",
+            "extractor_version": "trafilatura/2.0.0",
+        },
+        **fields,
+    }
+    meta = run / "metadata" / "0001 - A headline.metadata.json"
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    return meta, body_path
+
+
+@pytest.fixture
+def news_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.publishers import Publisher, Registry
+
+    publisher = Publisher(
+        id="org:example-times", name="The Example Times", domains=("example.com",)
+    )
+    monkeypatch.setattr(corpus_writer, "_REGISTRY", Registry(publishers=(publisher,)))
+
+
+def test_a_news_item_writes_its_source_item_and_article(
+    pipeline_db: None, news_registry: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    meta, body = _news_item(tmp_path)
+    assert sync_episode(meta, body) == "written"
+    item = _row(conn, "content_items", "item:news_article:0001")
+    source = (
+        conn.execute(select(sources).where(sources.c.source_id == item["source_id"]))
+        .mappings()
+        .one()
+    )
+    assert source["title"] == "The Example Times"
+    assert item["source_attrs"]["title"] == "The Example Times"
+    doc = (
+        conn.execute(select(documents).where(documents.c.item_id == item["item_id"]))
+        .mappings()
+        .one()
+    )
+    assert (doc["kind"], doc["variant"], doc["version"], doc["change_kind"]) == (
+        "article",
+        "raw",
+        1,
+        "created",
+    )
+    assert doc["fetched_at"].isoformat() == "2026-11-24T06:00:10+00:00"
+    assert (doc["extraction"], doc["extractor_version"]) == ("trafilatura", "trafilatura/2.0.0")
+    assert _segment_texts(conn, item["item_id"], doc["document_id"]) == [
+        "First paragraph.\n\n",
+        "Second paragraph.\n",
+    ]
+    assert item["has_transcript"] is False
+    count = conn.execute(text("SELECT count(*) FROM corpus.item_cards")).scalar_one()
+    assert count == 0
+
+
+def test_a_changed_article_is_a_corrected_version(
+    pipeline_db: None, news_registry: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    meta, body = _news_item(tmp_path)
+    assert sync_episode(meta, body) == "written"
+    meta, body = _news_item(tmp_path, body="First paragraph, corrected.\n")
+    assert sync_episode(meta, body) == "superseded"
+    item = _row(conn, "content_items", "item:news_article:0001")["item_id"]
+    rows = conn.execute(
+        select(documents.c.version, documents.c.change_kind)
+        .where(documents.c.item_id == item)
+        .order_by(documents.c.version)
+    ).all()
+    assert [tuple(r) for r in rows] == [(1, "created"), (2, "corrected")]
+
+
+def test_an_article_that_does_not_hash_to_its_body_sha256_is_refused(
+    pipeline_db: None, news_registry: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    meta, body = _news_item(tmp_path, body_sha256="0" * 64)
+    assert sync_episode(meta, body) == "refused"
+    assert conn.execute(text("SELECT count(*) FROM corpus.content_items")).scalar_one() == 0
+
+
+def _corpus_episode(root: Path, episode_id: str = "item:c", **episode: object) -> Path:
+    run = root / "feeds" / "show" / "run_20261101-000000" / "metadata"
+    run.mkdir(parents=True, exist_ok=True)
+    return _metadata(run, episode_id, _doc(episode_id, **episode))
+
+
+def test_an_episode_in_a_corpus_gets_its_card_and_flags(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.db.corpus_cards import card_row
+
+    meta = _corpus_episode(tmp_path)
+    assert sync_episode(meta, None) == "no_files"
+    item = _row(conn, "content_items", "item:c")
+    card = (
+        conn.execute(select(item_cards).where(item_cards.c.item_id == item["item_id"]))
+        .mappings()
+        .one()
+    )
+    rel = "feeds/show/run_20261101-000000/metadata/item_c.metadata.json"
+    wanted = card_row(tmp_path, rel, item_row(_doc("item:c"), metadata_relpath=rel))
+    assert wanted is not None
+    for column, value in wanted.items():
+        assert card[column] == value, column
+    for flag in ("has_transcript", "has_gi", "has_kg", "has_moments"):
+        assert item[flag] == wanted[flag], flag
+
+
+def test_an_episode_that_becomes_unusable_loses_its_card(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    meta = _corpus_episode(tmp_path)
+    assert sync_episode(meta, None) == "no_files"
+    doc = json.loads(meta.read_text())
+    doc["processing"] = {"unusable": {"reason": "silence"}}
+    from podcast_scraper.languages import UNUSABLE_FIELD
+
+    doc["episode"][UNUSABLE_FIELD] = {"reason": "silence"}
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    count = conn.execute(text("SELECT count(*) FROM corpus.item_cards")).scalar_one()
+    assert count == 0
+
+
+def test_the_artifact_hooks_run_after_a_kept_sync_and_not_after_a_refused_one(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from podcast_scraper import stage_hooks
+
+    calls: list[tuple[Path, Path | None, Path | None]] = []
+
+    def record(m: Path, g: Path | None, k: Path | None) -> list[str]:
+        calls.append((m, g, k))
+        return []
+
+    monkeypatch.setattr(stage_hooks, "artifact_rows", record)
+    meta = _corpus_episode(tmp_path)
+    gi = meta.with_name("item_c.gi.json")
+    gi.write_text("{}", encoding="utf-8")
+    assert sync_episode(meta, None) == "lease_refused"
+    assert calls == []
+    corpus_held()
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 0
+    assert calls == [(meta, gi, None)]
+
+
+def test_an_episode_that_becomes_unusable_has_its_card_flags_cleared(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # As the importer leaves an item it writes no card for (review of #2597, point 3).
+    from podcast_scraper.languages import UNUSABLE_FIELD
+
+    meta = _corpus_episode(tmp_path)
+    meta.with_name("item_c.gi.json").write_text("{}", encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    assert _row(conn, "content_items", "item:c")["has_gi"] is True
+    conn.rollback()
+    doc = json.loads(meta.read_text())
+    doc["episode"][UNUSABLE_FIELD] = {"reason": "silence"}
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    item = _row(conn, "content_items", "item:c")
+    assert (item["has_gi"], item["has_kg"], item["has_moments"]) == (False, False, False)
+
+
+def test_a_card_that_cannot_be_read_refuses_the_item_and_is_not_retried(
+    pipeline_db: None,
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The importer refuses such an item; failing it would retry it on every run (point 4).
+    def corrupt(*_: object) -> None:
+        raise ValueError("gi.json: Expecting value")
+
+    monkeypatch.setattr(corpus_writer, "card_row", corrupt)
+    meta = _corpus_episode(tmp_path)
+    assert sync_episode(meta, None) == "refused"
+    assert str(meta) not in corpus_writer._DEFERRED
+    assert conn.execute(text("SELECT count(*) FROM corpus.content_items")).scalar_one() == 0
+
+
+def test_a_raising_artifact_hook_neither_stops_the_next_nor_escapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    from podcast_scraper import stage_hooks
+
+    seen: list[str] = []
+
+    def broken(*_: object) -> str:
+        raise RuntimeError("gi rows")
+
+    def after(*_: object) -> str:
+        seen.append("after")
+        return "written"
+
+    monkeypatch.setattr(
+        stage_hooks, "_all", lambda: [SimpleNamespace(artifact_rows=[broken, after])]
+    )
+    meta = tmp_path / "x.metadata.json"
+    assert stage_hooks.artifact_rows(meta, None, None) == ["failed", "written"]
+    assert seen == ["after"]
+
+
+def test_a_failed_artifact_hook_is_counted_and_raised_only_when_strict(
+    pipeline_db: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from podcast_scraper import stage_hooks
+
+    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda *_: ["failed", "written"])
+    corpus_writer.OUTCOMES.clear()
+    meta = _corpus_episode(tmp_path)
+    assert sync_episode(meta, None) == "no_files"
+    assert corpus_writer.OUTCOMES["hook_failed"] == 1
+    assert corpus_writer._DEFERRED[str(meta)] == (None, corpus_writer.RETRANSCRIBED)
+    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda *_: ["written"])
+    assert sync_episode(meta, None) == "no_files"
+    assert str(meta) not in corpus_writer._DEFERRED
+    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda *_: ["failed", "written"])
+    monkeypatch.setenv(corpus_writer.ENV_STRICT, "1")
+    with pytest.raises(corpus_writer.SyncFailed, match="1 artifact_rows hooks failed"):
+        sync_episode(meta, None)
 
 
 def test_every_variant_is_written_with_its_own_cuts(
@@ -746,3 +1001,14 @@ def test_a_reimport_after_a_sync_is_accepted(
     with engine.begin() as db:
         assert import_corpus(db, tmp_path, registry=Registry(publishers=())).refused == []
     engine.dispose()
+
+
+def _segment_texts(db: Connection, item_id: int, document_id: int) -> list[str]:
+    return [
+        r[0]
+        for r in db.execute(
+            select(segments.c.text)
+            .where(and_(segments.c.item_id == item_id, segments.c.document_id == document_id))
+            .order_by(segments.c.seq)
+        )
+    ]

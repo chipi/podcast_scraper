@@ -76,6 +76,8 @@ _RESTORED_OWN = (
     "roundup",
     F_ITEM_CLASS,
     "language_source",
+    "extraction",
+    "extractor_version",
 )
 
 
@@ -185,5 +187,9 @@ def shape(
         own["roundup"] = True
     if f.get(F_ITEM_CLASS):
         own[F_ITEM_CLASS] = f[F_ITEM_CLASS]
+    # How the body was extracted, for its article document (``documents.extraction``, G9).
+    for name in ("extraction", "extractor_version"):
+        if f.get(name):
+            own[name] = f[name]
     out[NEWS_ARTICLE] = own
     return out

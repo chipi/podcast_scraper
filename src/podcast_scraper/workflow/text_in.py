@@ -324,6 +324,7 @@ def run_text_source(
         )
     source_dir = cfg.output_dir or "."
     cfg, effective_output_dir, run_suffix, _cfg_str, pipeline_metrics = orch._begin_run(cfg)
+    orch._corpus_deferred("retry_deferred", source_dir)
     try:
         stage_hooks.run_started(cfg)
         jsonl_emitter = orch._setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
@@ -389,9 +390,14 @@ def run_text_source(
             summary_provider=summary_provider,
             transcription_provider=None,
         )
+        orch._corpus_deferred("flush_deferred", effective_output_dir)
         stage_hooks.run_completed(cfg, effective_output_dir)
         _write_cursor(source_dir, transport.name, next_cursor)
         return result
+    except BaseException:
+        # Kept for the next run, not retried: the process may be stopping.
+        orch._corpus_deferred("flush_deferred", effective_output_dir, retry=False)
+        raise
     finally:
         from .show_events import unbind_show
 

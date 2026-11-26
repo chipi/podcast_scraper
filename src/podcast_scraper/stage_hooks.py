@@ -12,6 +12,7 @@ moves to an extension, its built-in entry goes and the extension's ``pipeline_ho
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
@@ -31,6 +32,8 @@ from typing import (
 )
 
 from .content_types import AD_CLEANING, GI, stage_runs
+
+logger = logging.getLogger(__name__)
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -67,6 +70,12 @@ InsightGrounding = Callable[
 #: ``(cfg, output_dir)``. After every episode of the run is finalized and on disk, before the
 #: run is marked done. Must not raise.
 RunCompletedHook = Callable[[Any, str], None]
+#: ``(metadata_path, gi_path, kg_path) -> outcome``: an item's rows from its artifacts, run
+#: after the pipeline's corpus writer synced the item's rows and documents
+#: (``db.corpus_writer.sync_episode``). ``gi_path`` / ``kg_path`` are ``None`` when the file is
+#: not there. Each owner's writer takes its own transaction, counts and logs its outcome, and
+#: raises only under its strict setting.
+ArtifactRowsHook = Callable[[Path, Optional[Path], Optional[Path]], Optional[str]]
 #: ``(transcript_text, cfg, kg_extraction_provider, max_entities) -> (hints, prompt_version)``.
 #: Entity hints for the KG extraction prompt. One owner answers: the first that is set. Without
 #: one the prompt is the plain ``v4`` with no hints.
@@ -248,6 +257,7 @@ class PipelineHooks:
     artifact_kinds: Sequence[ArtifactKind] = field(default_factory=tuple)
     index_source_paths: Sequence[IndexSourcePathsHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
+    artifact_rows: Sequence[ArtifactRowsHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
     adfree_base: Optional[AdfreeBase] = None
     excise_ads: Optional[ExciseAds] = None
@@ -426,6 +436,28 @@ def run_completed(cfg: Any, output_dir: str) -> None:
     for hooks in _all():
         for hook in hooks.run_completed:
             hook(cfg, output_dir)
+
+
+def artifact_rows(
+    metadata_path: Path, gi_path: Optional[Path], kg_path: Optional[Path]
+) -> List[Optional[str]]:
+    """Run every ``artifact_rows`` stage hook (built-in, then extensions in load order); returns
+    their outcomes. A hook that raises is logged and reported as ``"failed"``, and the hooks after
+    it still run."""
+    outcomes: List[Optional[str]] = []
+    for hooks in _all():
+        for hook in hooks.artifact_rows:
+            try:
+                outcomes.append(hook(metadata_path, gi_path, kg_path))
+            except Exception:  # noqa: BLE001 - one writer's failure is not the next writer's
+                logger.warning(
+                    "artifact_rows hook %s failed for %s",
+                    getattr(hook, "__qualname__", hook),
+                    metadata_path.name,
+                    exc_info=True,
+                )
+                outcomes.append("failed")
+    return outcomes
 
 
 def kg_prompt_hints(

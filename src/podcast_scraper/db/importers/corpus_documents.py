@@ -179,14 +179,17 @@ def import_documents(
     kind: str = TRANSCRIPT,
     fetched_at: Optional[datetime] = None,
     body_sha256: Optional[str] = None,
+    extraction: Optional[str] = None,
+    extractor_version: Optional[str] = None,
 ) -> list[ImportedDocument]:
     """Write each file as version 1 of its (item, kind, variant) and its segments, then check
     every document joins back to its file. Idempotent: a document already there with the same
     body is left as it is. Runs in the caller's transaction.
 
-    An ``article`` is cut into paragraphs (``paragraph_cuts``), carries ``fetched_at``, and its
-    ``raw`` body must hash to the metadata's ``body_sha256`` when one is given. Its
-    ``extraction`` and ``extractor_version`` stay null: no stored file records them.
+    An ``article`` is cut into paragraphs (``paragraph_cuts``), carries ``fetched_at`` and the
+    ``extraction`` and ``extractor_version`` its metadata states (null for an item written before
+    the metadata recorded them), and its ``raw`` body must hash to the metadata's
+    ``body_sha256`` when one is given.
     """
     imported: list[ImportedDocument] = []
     for file in files:
@@ -228,6 +231,8 @@ def import_documents(
                 change_kind=CREATED,
                 body_sha256=digest,
                 fetched_at=fetched_at,
+                extraction=extraction,
+                extractor_version=extractor_version,
             )
             .returning(documents.c.document_id)
         ).scalar_one()

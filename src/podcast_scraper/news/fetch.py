@@ -237,6 +237,7 @@ def complete(
         "language": language,
         "language_source": language_source,
         "extraction": method,
+        "extractor_version": extract.extractor_version(method),
         "serveable": spec.serveable,
         "mineable": spec.mineable,
         "licence": spec.licence,

@@ -179,6 +179,12 @@ def _transcripts_of(member: _Member) -> tuple[Path, str]:
     return run / "transcripts", member.path.name[: -len(_SUFFIX)]
 
 
+def _own_str(doc: Mapping[str, Any], name: str) -> Optional[str]:
+    own = doc.get("news_article")
+    value = own.get(name) if isinstance(own, Mapping) else None
+    return value if isinstance(value, str) and value else None
+
+
 def _write_documents(conn: Connection, item_id: int, member: _Member) -> tuple[int, int, str]:
     directory, base = _transcripts_of(member)
     if not directory.is_dir():
@@ -192,6 +198,8 @@ def _write_documents(conn: Connection, item_id: int, member: _Member) -> tuple[i
             kind=ARTICLE,
             fetched_at=_instant(member.doc.get("fetched_at")),
             body_sha256=member.doc.get("body_sha256"),
+            extraction=_own_str(member.doc, "extraction"),
+            extractor_version=_own_str(member.doc, "extractor_version"),
         )
         kind = ARTICLE
     else:

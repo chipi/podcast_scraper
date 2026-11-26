@@ -215,16 +215,18 @@ def test_an_article_is_cut_into_paragraphs_with_its_fetch_time_and_hash(
         kind=ARTICLE,
         fetched_at=fetched,
         body_sha256=digest,
+        extraction="trafilatura",
+        extractor_version="trafilatura/2.0.0",
     )
     assert [(d.variant, d.segments) for d in imported] == [("raw", 2), ("cleaned", 2)]
     row = conn.execute(
         text(
-            "SELECT kind, fetched_at, body_sha256, extraction FROM corpus.documents "
-            "WHERE document_id = :d"
+            "SELECT kind, fetched_at, body_sha256, extraction, extractor_version "
+            "FROM corpus.documents WHERE document_id = :d"
         ),
         {"d": imported[0].document_id},
     ).one()
-    assert tuple(row) == (ARTICLE, fetched, digest, None)
+    assert tuple(row) == (ARTICLE, fetched, digest, "trafilatura", "trafilatura/2.0.0")
     assert joined_body(conn, item, imported[0].document_id) == body
     conn.rollback()
 
