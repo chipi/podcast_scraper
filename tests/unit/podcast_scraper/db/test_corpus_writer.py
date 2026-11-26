@@ -204,12 +204,23 @@ def test_a_strict_refusal_is_kept_for_the_retry_too(
 def test_the_runs_retry_hook_never_stops_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
     from podcast_scraper.workflow import orchestration
 
-    def boom(_directory: str) -> int:
+    def boom(_directory: str, **_kw: object) -> int:
         raise RuntimeError("database gone")
 
     monkeypatch.setattr(corpus_writer, "flush_deferred", boom)
     orchestration._corpus_deferred("flush_deferred", "/out/run")
     orchestration._corpus_deferred("retry_deferred", None)
+
+
+def test_a_run_that_raises_flushes_without_retrying(monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.workflow import orchestration
+
+    calls: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        corpus_writer, "flush_deferred", lambda directory, **kw: calls.append((directory, kw))
+    )
+    orchestration._corpus_deferred("flush_deferred", "/out/run", retry=False)
+    assert calls == [("/out/run", {"retry": False})]
 
 
 def _row(db: Connection, table: str, natural_id: str) -> dict:
@@ -518,6 +529,52 @@ def test_anything_else_is_counted_failed(
     transcript = _write(tmp_path, BASE + ".txt", "x\n")
     assert sync_episode(_metadata(tmp_path), transcript) == "failed"
     assert OUTCOMES["failed"] == 1
+
+
+def test_a_failed_write_is_kept_and_a_later_retry_syncs_it(
+    pipeline_db: None,
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = engines.pipeline_rw_engine
+
+    def gone() -> None:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(engines, "pipeline_rw_engine", gone)
+    meta = _metadata(tmp_path, "item:f")
+    assert sync_episode(meta, None) == "failed"
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 1
+    assert (tmp_path / corpus_writer.DEFERRED_FILE).exists()
+    monkeypatch.setattr(engines, "pipeline_rw_engine", real)
+    assert corpus_writer.retry_deferred(str(tmp_path)) == 0
+    assert not (tmp_path / corpus_writer.DEFERRED_FILE).exists()
+    assert _row(conn, "content_items", "item:f")["served"] == 1
+
+
+def test_a_refused_item_is_not_kept_for_a_retry(pipeline_db: None, tmp_path: Path) -> None:
+    transcript = _write(tmp_path, BASE + ".txt", "x\n")
+    _write(tmp_path, BASE + ".cleaned.adfree.txt", "x\n")
+    assert sync_episode(_metadata(tmp_path), transcript) == "refused"
+    assert corpus_writer._DEFERRED == {}
+
+
+def test_a_run_that_raises_keeps_its_deferred_episodes_without_retrying(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    meta = _metadata(tmp_path, "item:z")
+    assert sync_episode(meta, None) == "lease_refused"
+    corpus_held()
+    tried: list[str] = []
+    monkeypatch.setattr(corpus_writer, "sync_episode", lambda path, *a, **k: tried.append(path))
+    assert corpus_writer.flush_deferred(str(tmp_path), retry=False) == 1
+    assert tried == []
+    kept = (tmp_path / corpus_writer.DEFERRED_FILE).read_text().splitlines()
+    assert [json.loads(line)["metadata"] for line in kept] == [str(meta)]
 
 
 def test_the_metadata_hook_joins_a_relative_path_keeps_an_absolute_one_and_syncs_without_one(

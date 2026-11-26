@@ -109,9 +109,11 @@ UNREADABLE: collections.Counter[str] = collections.Counter()
 
 _SEGMENTS_BATCH = 1000
 
-#: The run directory's record of episodes whose sync a lease refused, one JSON object a line.
+#: The run directory's record of episodes whose sync is to be tried again, one JSON object a line.
 DEFERRED_FILE = "corpus_sync_deferred.jsonl"
-#: This process's episodes whose sync a lease refused: metadata path to (transcript, change_kind).
+#: This process's episodes whose sync is to be tried again (a lease refused or lost, or the write
+#: ``failed``): metadata path to (transcript, change_kind). ``refused`` is final: the same files
+#: would be refused again.
 _DEFERRED: dict[str, tuple[Optional[str], str]] = {}
 
 
@@ -434,19 +436,24 @@ def sync_episode(
             )
         return _count(_outcome(synced) if files else "no_files")
     except (leases.LeaseRefused, leases.LeaseLost) as exc:
+        _defer(metadata_path, transcript_path, change_kind)
         outcome = "lease_refused" if isinstance(exc, leases.LeaseRefused) else "lease_lost"
-        _DEFERRED[str(metadata_path)] = (
-            None if transcript_path is None else str(transcript_path),
-            change_kind,
-        )
         return _fail(outcome, metadata_path, exc)
     except (DocumentRefused, KeyNotDerivable, RowRefused) as exc:
         return _fail("refused", metadata_path, exc)
     except Exception as exc:  # noqa: BLE001 - a corpus write never stops the pipeline (yet)
+        _defer(metadata_path, transcript_path, change_kind)
         return _fail("failed", metadata_path, exc)
     finally:
         if engine is not None and holder:
             _release(engine, holder)
+
+
+def _defer(metadata_path: Path, transcript_path: Optional[Path], change_kind: str) -> None:
+    _DEFERRED[str(metadata_path)] = (
+        None if transcript_path is None else str(transcript_path),
+        change_kind,
+    )
 
 
 def _release(engine: Any, holder: str) -> None:
@@ -470,9 +477,9 @@ def _fail(outcome: str, metadata_path: Path, exc: BaseException) -> str:
 
 
 def _retry(entries: dict[str, tuple[Optional[str], str]]) -> dict[str, tuple[Optional[str], str]]:
-    """Sync each entry once more, never raising; returns the ones a lease still refused (what
-    :func:`sync_episode` put back in ``_DEFERRED``). Any other outcome, a strict failure included,
-    is the sync's own and is counted and logged there."""
+    """Sync each entry once more, never raising; returns the ones to try again still (what
+    :func:`sync_episode` put back in ``_DEFERRED``: a lease refused or lost, or ``failed``). Each
+    outcome, a strict failure included, is the sync's own and is counted and logged there."""
     left: dict[str, tuple[Optional[str], str]] = {}
     for metadata, (transcript, change_kind) in entries.items():
         _DEFERRED.pop(metadata, None)
@@ -504,24 +511,23 @@ def _write_deferred(path: Path, entries: dict[str, tuple[Optional[str], str]]) -
     os.replace(tmp, path)
 
 
-def flush_deferred(run_dir: str) -> int:
-    """At the end of a run: retry this process's lease-refused episodes once and write those
-    still refused to ``run_dir``'s :data:`DEFERRED_FILE`; returns how many are left."""
+def flush_deferred(run_dir: str, *, retry: bool = True) -> int:
+    """At the end of a run: retry this process's deferred episodes once (not when ``retry`` is
+    false: a run that raised keeps them as they are) and write those left to ``run_dir``'s
+    :data:`DEFERRED_FILE`; returns how many are left."""
     if not _DEFERRED or not pipeline_is_configured():
         return 0
-    left = _retry(dict(_DEFERRED))
+    left = _retry(dict(_DEFERRED)) if retry else dict(_DEFERRED)
     _DEFERRED.clear()
     _write_deferred(Path(run_dir) / DEFERRED_FILE, left)
     if left:
-        logger.warning(
-            "corpus write: %d episodes still refused a lease, kept in %s", len(left), run_dir
-        )
+        logger.warning("corpus write: %d episodes to try again, kept in %s", len(left), run_dir)
     return len(left)
 
 
 def retry_deferred(output_root: str) -> int:
     """At the start of a run: retry every :data:`DEFERRED_FILE` under ``output_root`` and rewrite
-    each with what a lease still refuses (removed when empty); returns how many are left."""
+    each with what is still to try again (removed when empty); returns how many are left."""
     if not pipeline_is_configured():
         return 0
     left_total = 0
