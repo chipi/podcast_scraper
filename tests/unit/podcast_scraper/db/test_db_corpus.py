@@ -43,6 +43,8 @@ TABLES = {
     "sources",
     "content_items",
     "item_cards",
+    "documents",
+    "segments",
 }
 
 INDEXES = {
@@ -106,13 +108,36 @@ def _item(conn: Connection, source_id: int, n: str = "1", **fields: object) -> i
     return item_id
 
 
+def _partitions(conn: Connection) -> set[str]:
+    """The hash partitions of ``segments``: the migration makes them, the metadata does not
+    list them, so the shape comparisons leave them out."""
+    return {
+        r[0]
+        for r in conn.execute(
+            text(
+                "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'corpus' AND c.relispartition AND c.relkind IN ('r', 'p')"
+            )
+        ).all()
+    }
+
+
+def _document(conn: Connection, item_id: int, **fields: object) -> int:
+    values = {"item_id": item_id, "kind": "transcript", "variant": "cleaned", **fields}
+    table = corpus_metadata.tables["corpus.documents"]
+    document_id: int = conn.execute(
+        insert(table).values(values).returning(table.c.document_id)
+    ).scalar_one()
+    return document_id
+
+
 def test_upgrade_to_head_creates_every_table_and_index(conn: Connection) -> None:
     tables = {
         r[0]
         for r in conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname = 'corpus'")
         ).all()
-    }
+    } - _partitions(conn)
     assert tables == TABLES
     indexes = {
         r[0]
@@ -350,29 +375,198 @@ def test_the_operations_tables_are_usable(conn: Connection) -> None:
     assert asset
 
 
+def _segment(conn: Connection, item_id: int, document_id: int, seq: int, **fields: object) -> None:
+    values = {
+        "item_id": item_id,
+        "document_id": document_id,
+        "seq": seq,
+        "text": f"segment {seq}",
+        **fields,
+    }
+    conn.execute(insert(corpus_metadata.tables["corpus.segments"]).values(values))
+
+
+def test_a_document_is_unique_by_item_kind_variant_and_version(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    _document(conn, item)
+    _document(conn, item, variant="raw")
+    _document(conn, item, kind="article")
+    _document(conn, item, version=2)
+    with pytest.raises(sa_exc.IntegrityError, match="documents_item_kind_variant_version_key"):
+        _document(conn, item)
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"kind": "podcast"}, "documents_kind_check"),
+        ({"variant": "summary"}, "documents_variant_check"),
+        ({"version": 0}, "documents_version_check"),
+    ],
+)
+def test_a_document_refuses_a_bad_kind_variant_or_version(
+    conn: Connection, fields: dict[str, object], constraint: str
+) -> None:
+    item = _item(conn, _source(conn))
+    with pytest.raises(sa_exc.IntegrityError, match=constraint):
+        _document(conn, item, **fields)
+    conn.rollback()
+
+
+def test_a_document_version_defaults_to_one(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    assert (
+        conn.execute(
+            text("SELECT version FROM corpus.documents WHERE document_id = :d"), {"d": document}
+        ).scalar_one()
+        == 1
+    )
+    conn.rollback()
+
+
+def test_deleting_an_item_deletes_its_documents_and_their_segments(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    _document(conn, item, version=2, supersedes_id=document)
+    _segment(conn, item, document, 0)
+    conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
+    assert conn.execute(text("SELECT count(*) FROM corpus.documents")).scalar_one() == 0
+    assert conn.execute(text("SELECT count(*) FROM corpus.segments")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_the_served_document_is_the_one_nothing_supersedes(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    first = _document(conn, item)
+    second = _document(conn, item, version=2, supersedes_id=first)
+    served = (
+        conn.execute(
+            text(
+                "SELECT d.document_id FROM corpus.documents d WHERE d.item_id = :i "
+                "AND NOT EXISTS (SELECT 1 FROM corpus.documents s "
+                "WHERE s.supersedes_id = d.document_id)"
+            ),
+            {"i": item},
+        )
+        .scalars()
+        .all()
+    )
+    assert served == [second]
+    with pytest.raises(sa_exc.IntegrityError, match="documents_supersedes_key"):
+        _document(conn, item, version=3, supersedes_id=first)
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    "successor",
+    [{"variant": "raw"}, {"kind": "article"}, {"item": "other"}],
+    ids=["other variant", "other kind", "other item"],
+)
+def test_a_version_supersedes_only_a_document_of_its_own_series(
+    conn: Connection, successor: dict[str, str]
+) -> None:
+    source = _source(conn)
+    item = _item(conn, source)
+    first = _document(conn, item)
+    owner = _item(conn, source, n="2") if successor.pop("item", None) else item
+    with pytest.raises(sa_exc.IntegrityError, match="documents_supersedes_fkey"):
+        _document(conn, owner, version=2, supersedes_id=first, **successor)
+    conn.rollback()
+
+
+def test_a_segment_must_name_its_documents_own_item(conn: Connection) -> None:
+    source = _source(conn)
+    item, other = _item(conn, source), _item(conn, source, n="2")
+    document = _document(conn, item)
+    with pytest.raises(sa_exc.IntegrityError, match="segments_document_fkey"):
+        _segment(conn, other, document, 0)
+    conn.rollback()
+
+
+def test_a_segment_lands_in_the_hash_partition_of_its_item(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    _segment(conn, item, document, 0)
+    landed = conn.execute(
+        text(
+            "SELECT c.relname FROM corpus.segments s JOIN pg_class c ON c.oid = s.tableoid "
+            "WHERE s.item_id = :i"
+        ),
+        {"i": item},
+    ).scalar_one()
+    remainder = conn.execute(
+        text(
+            "SELECT n FROM generate_series(0, 15) n "
+            "WHERE satisfies_hash_partition('corpus.segments'::regclass, 16, n, CAST(:i AS bigint))"
+        ),
+        {"i": item},
+    ).scalar_one()
+    expected = f"segments_p{remainder:02d}"
+    assert landed == expected
+    conn.rollback()
+
+
+def test_segments_has_sixteen_partitions_each_tuned_for_autovacuum(conn: Connection) -> None:
+    rows = conn.execute(
+        text(
+            "SELECT c.relname, c.reloptions FROM pg_class c "
+            "JOIN pg_inherits i ON i.inhrelid = c.oid "
+            "WHERE i.inhparent = 'corpus.segments'::regclass ORDER BY 1"
+        )
+    ).all()
+    assert [r[0] for r in rows] == [f"segments_p{n:02d}" for n in range(16)]
+    for _name, options in rows:
+        assert sorted(options) == [
+            "autovacuum_analyze_scale_factor=0.005",
+            "autovacuum_vacuum_scale_factor=0.01",
+        ]
+    assert {r[0] for r in rows} == _partitions(conn)
+
+
+def test_two_documents_of_one_item_each_keep_their_own_segments(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    old = _document(conn, item)
+    new = _document(conn, item, version=2, supersedes_id=old)
+    _segment(conn, item, old, 0, text="old text")
+    _segment(conn, item, new, 0, text="new text")
+    rows = conn.execute(
+        text("SELECT document_id, text FROM corpus.segments WHERE item_id = :i ORDER BY 1"),
+        {"i": item},
+    ).all()
+    assert rows == [(old, "old text"), (new, "new text")]
+    with pytest.raises(sa_exc.IntegrityError, match="segments_span_check"):
+        _segment(conn, item, new, 1, start_ms=500, end_ms=100)
+    conn.rollback()
+
+
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0003_sources_and_items"]
+    assert scripts.get_heads() == ["corpus_0004_documents"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
         "corpus_0003_sources_and_items",
+        "corpus_0004_documents",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0003_sources_and_items"
+    assert migrate.head_revision("corpus") == "corpus_0004_documents"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
+    partitions = _partitions(conn)
     ctx = MigrationContext.configure(
         conn,
         opts={
             "compare_type": True,
             "compare_server_default": True,
             "include_schemas": True,
-            # schema_history is the kernel's table definition, written there by migrate.
+            # schema_history is the kernel's table definition, written there by migrate; the
+            # partitions of segments are the migration's, not the metadata's.
             "include_name": lambda name, kind, _parent: (
                 name == "corpus"
                 if kind == "schema"
-                else name not in ("alembic_version", "schema_history")
+                else name not in ("alembic_version", "schema_history") and name not in partitions
             ),
         },
     )
@@ -381,7 +575,8 @@ def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
 
 def test_the_shape_names_every_corpus_table_and_index(conn: Connection) -> None:
     shape = _shape(conn)
-    assert {t for (s, t, *_r) in shape["columns"] if s == "corpus"} == TABLES
+    partitions = _partitions(conn)
+    assert {t for (s, t, *_r) in shape["columns"] if s == "corpus"} - partitions == TABLES
     assert {i for (s, i, _d) in shape["indexes"] if s == "corpus"} >= INDEXES
 
 
@@ -393,6 +588,13 @@ def test_the_offline_sql_creates_the_corpus_tables_without_schema_or_extension()
     assert re.search(r"CREATE INDEX content_items_published_idx ON corpus\.content_items", corpus)
     assert "WHERE served > 0" in corpus
     assert "gin_trgm_ops" in corpus
+    assert "PARTITION BY HASH (item_id)" in corpus
+    for n in range(16):
+        assert re.search(
+            rf"CREATE TABLE corpus\.segments_p{n:02d} PARTITION OF corpus\.segments "
+            rf"FOR VALUES WITH \(MODULUS 16, REMAINDER {n}\)",
+            corpus,
+        ), n
     assert not re.search(r"CREATE (SCHEMA|EXTENSION)|GRANT", corpus, re.I)
     assert not re.search(r"INSERT INTO \"?corpus\"?\.schema_history", corpus)
     assert out.index("-- schema shared:") < out.index("-- schema corpus:")
@@ -537,9 +739,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0001_bookkeeping",
             "corpus_0002_operations",
             "corpus_0003_sources_and_items",
+            "corpus_0004_documents",
         ]
         rows = migrate.history_rows(url, "corpus")
         assert [r["revision"] for r in rows] == [
+            "corpus_0004_documents",
             "corpus_0003_sources_and_items",
             "corpus_0002_operations",
             "corpus_0001_bookkeeping",
@@ -605,8 +809,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 3]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 3
+        assert sorted(len(r) for r in results) == [0, 4]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 4
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -655,7 +859,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 3
+        assert len(revisions) == 4
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -694,7 +898,7 @@ def test_upgrade_creates_pg_trgm_only_when_it_is_missing(url: str) -> None:
         scratch = (
             make_url(normalize_url(url)).set(database=name).render_as_string(hide_password=False)
         )
-        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0003_sources_and_items"
+        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0004_documents"
         probe = create_engine(normalize_url(scratch))
         with probe.connect() as c:
             assert c.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")).first()
