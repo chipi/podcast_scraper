@@ -38,7 +38,7 @@ from .corpus_scope import (
     index_fingerprint_scope_key,
 )
 from .groupings import STORYLINE_DOC_TYPE, storyline_index_rows
-from .indexer import _collect_docs_for_episode, _load_metadata_file
+from .indexer import _collect_docs_for_episode, _load_metadata_file, chunked_bodies
 from .interest_index import build_interest_index, write_interest_index
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
 
@@ -62,6 +62,30 @@ DEFAULT_UPSERT_BATCH_SIZE = _config_constants.DEFAULT_VECTOR_UPSERT_BATCH_SIZE
 #: 2026-10-07 the backlog grew to 367 episodes and search stayed stale. Override with
 #: ``PODCAST_INDEX_CHECKPOINT_EPISODES``.
 DEFAULT_CHECKPOINT_EPISODES = 25
+
+
+def _sync_search_chunks(
+    episode_root: Path, meta_path: Path, doc: Dict[str, Any], rows: List[Any]
+) -> None:
+    """The episode's transcript chunks as ``search_chunks`` rows (``db.search_chunks_writer``);
+    nothing without a pipeline database, and never stops the build."""
+    from podcast_scraper.db.settings import pipeline_is_configured
+
+    if not pipeline_is_configured():
+        return
+    try:
+        from podcast_scraper.db.search_chunks_writer import sync_episode_chunks
+        from podcast_scraper.languages import episode_language
+
+        sync_episode_chunks(
+            doc, chunked_bodies(episode_root, meta_path, doc, rows), episode_language(dict(doc))
+        )
+    except Exception:  # noqa: BLE001 - only the strict setting fails the build
+        from podcast_scraper.db.search_chunks_writer import _strict
+
+        if _strict():
+            raise
+        logger.warning("search chunks failed for %s", meta_path, exc_info=True)
 
 
 def _checkpoint_every() -> int:
@@ -760,6 +784,9 @@ def build_two_tier_index(
             overlap_tokens=overlap_tokens,
             metadata_relative_path=meta_rel,
         )
+        # r-search: its chunks as search_chunks rows, an unchanged episode's too (a no-op when the
+        # stored rows match), before the skip below.
+        _sync_search_chunks(episode_root, meta_path, doc, rows)
         # D8: skip re-embedding an UNCHANGED episode. ``_collect_docs_for_episode`` above is cheap;
         # ``_embed`` below is the O(N) cost. If the episode's content fingerprint matches the last
         # build, its rows are already embedded+upserted (merge on id) — skip embed+upsert.
