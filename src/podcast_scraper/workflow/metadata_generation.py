@@ -4442,6 +4442,18 @@ def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], r
         logger.warning("    marked episode UNUSABLE (%s): %s", reason, meta_path)
 
 
+def _sync_corpus_documents(
+    metadata_path: str, output_dir: str, transcript_relpath: Optional[str]
+) -> Optional[str]:
+    """w-public: the episode's transcript documents as rows, once the metadata they key on is
+    written. A stored path is relative to ``output_dir`` or absolute (``/app/output/...``)."""
+    if not transcript_relpath:
+        return None
+    from ..db.corpus_writer import sync_episode
+
+    return sync_episode(Path(metadata_path), Path(output_dir) / transcript_relpath)
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -5047,11 +5059,7 @@ def generate_episode_metadata(  # noqa: C901
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
         if _not_served:
             _mark_episode_unusable(output_dir, transcript_file_path, _not_served)
-        if transcript_file_path:
-            # w-public: the transcript documents' rows, once the metadata they key on is written.
-            from ..db.corpus_writer import sync_episode
-
-            sync_episode(Path(metadata_path), Path(output_dir) / transcript_file_path)
+        _sync_corpus_documents(metadata_path, output_dir, transcript_file_path)
 
         # RFC-109 / ADR-132: append the summary/GI/KG stage blocks to the per-episode manifest that
         # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.

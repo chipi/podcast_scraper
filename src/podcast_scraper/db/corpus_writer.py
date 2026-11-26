@@ -187,10 +187,16 @@ def _load(metadata_path: Path) -> Mapping[str, Any]:
 
 
 def _base(transcript_path: Path) -> str:
-    name = transcript_path.name
-    if not name.endswith(".txt"):
-        raise ValueError(f"{name} is not a transcript body")
-    return name[: -len(".txt")]
+    """The episode's base name: the transcript's name without its extension (``.txt``, or a
+    downloaded ``.vtt`` / ``.srt``, whose ``.txt`` siblings are what is written)."""
+    return transcript_path.name.rsplit(".", 1)[0]
+
+
+def _outcome(synced: Sequence[SyncedDocument]) -> str:
+    written = [d for d in synced if d.written]
+    if any(d.version > 1 for d in written):
+        return "superseded"
+    return "written" if written else "unchanged"
 
 
 def sync_episode(
@@ -198,9 +204,14 @@ def sync_episode(
 ) -> str:
     """Sync one podcast episode's transcript documents; returns and counts the outcome.
 
-    ``written``, ``unchanged``, ``no_item_row``, ``refused`` (the files cannot be named one way,
-    or a body does not cut), ``failed`` (anything else), ``news_item`` (not this slice's) or
-    ``not_configured`` (no pipeline database URL). Never raises unless the strict setting is on.
+    ``written`` (version 1 of every variant written), ``superseded`` (a later version written: its
+    ``change_kind`` is the caller's, so the metadata stage's ``retranscribed`` is assumed until the
+    translation, repunctuate and retranscript_only stages sync themselves), ``unchanged``,
+    ``no_files`` (no transcript body beside ``transcript_path``), ``no_item_row``, ``refused`` (the
+    files cannot be named one way, or a body does not cut), ``failed`` (anything else),
+    ``news_item`` (not this slice's) or ``not_configured`` (no pipeline database URL). Never raises
+    unless the strict setting is on. An item the pipeline marked not served is synced too: which
+    items are served is the read side's (``content_items.served``), as in the importer.
     """
     if not pipeline_is_configured():
         return _count("not_configured")
@@ -209,9 +220,14 @@ def sync_episode(
         if is_news(doc):
             return _count("news_item")
         natural_id = item_natural_id(doc)
-        files = transcript_files(
-            transcript_path.parent, _base(transcript_path), episode_language(dict(doc))
+        directory = transcript_path.parent
+        files = (
+            transcript_files(directory, _base(transcript_path), episode_language(dict(doc)))
+            if directory.is_dir()
+            else []
         )
+        if not files:
+            return _count("no_files")
         from podcast_scraper.db.engines import pipeline_rw_engine
 
         with pipeline_rw_engine().begin() as conn:
@@ -219,7 +235,7 @@ def sync_episode(
             if item_id is None:
                 return _count("no_item_row")
             synced = sync_documents(conn, item_id, files, change_kind=change_kind)
-        return _count("written" if any(d.written for d in synced) else "unchanged")
+        return _count(_outcome(synced))
     except (DocumentRefused, KeyNotDerivable) as exc:
         return _fail("refused", metadata_path, exc)
     except Exception as exc:  # noqa: BLE001 - a corpus write never stops the pipeline (yet)

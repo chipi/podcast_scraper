@@ -162,3 +162,93 @@ def test_a_news_item_is_not_this_slices(pipeline_db: None, tmp_path: Path) -> No
     meta.write_text(json.dumps({"content_type": "news_article", "item_id": "item:n"}))
     assert sync_episode(meta, _write(tmp_path, "n.txt", "x\n")) == "news_item"
     assert corpus_writer.OUTCOMES["news_item"] == 1
+
+
+def test_every_variant_is_written_with_its_own_cuts(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, BASE + ".txt", "Raw one.\nRaw two.\n")
+    _write(tmp_path, BASE + ".cleaned.txt", "Clean one.\n")
+    _write(tmp_path, BASE + ".adfree.txt", "Free one.\nFree two.\nFree three.\n")
+    item = _item(conn, _source(conn))
+    synced = sync_documents(conn, item, _files(tmp_path), change_kind=RETRANSCRIBED)
+    assert sorted((d.variant, d.segments) for d in synced) == [
+        ("adfree", 3),
+        ("cleaned", 1),
+        ("raw", 2),
+    ]
+    conn.rollback()
+
+
+def test_a_translated_item_writes_its_source_raw_and_its_render_en(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, BASE + ".txt", "Hello.\n")
+    _write(tmp_path, BASE + ".es.txt", "Hola.\n")
+    _write(tmp_path, BASE + ".translation.json", "{}")
+    for name, words in ((".segments.json", "Hello."), (".es.segments.json", "Hola.")):
+        cue = [{"start": 0.0, "end": 1.0, "text": words, "char_start": 0, "char_end": 6}]
+        _write(tmp_path, BASE + name, json.dumps(cue))
+    item = _item(conn, _source(conn))
+    files = transcript_files(tmp_path, BASE, "es")
+    synced = {d.variant: d for d in sync_documents(conn, item, files, change_kind=RETRANSCRIBED)}
+    assert set(synced) == {"en", "raw"}
+    assert joined_body(conn, item, synced["raw"].document_id) == "Hola.\n"
+    assert joined_body(conn, item, synced["en"].document_id) == "Hello.\n"
+    conn.rollback()
+
+
+def test_no_transcript_body_is_its_own_outcome(pipeline_db: None, tmp_path: Path) -> None:
+    meta = _metadata(tmp_path)
+    assert sync_episode(meta, tmp_path / "gone" / f"{BASE}.txt") == "no_files"
+    assert sync_episode(meta, tmp_path / f"{BASE}.vtt") == "no_files"
+    assert OUTCOMES["no_files"] == 2
+
+
+def test_a_later_version_is_counted_superseded(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    item = _item(conn, _source(conn, "source:s"), "s1")
+    conn.commit()
+    try:
+        meta = _metadata(tmp_path, "item:s1")
+        transcript = _write(tmp_path, BASE + ".txt", "First.\n")
+        assert sync_episode(meta, transcript) == "written"
+        _write(tmp_path, BASE + ".txt", "Second.\n")
+        assert sync_episode(meta, transcript) == "superseded"
+        assert _versions(conn, item) == [(1, "created", False), (2, "retranscribed", True)]
+    finally:
+        conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
+        conn.execute(text("DELETE FROM corpus.sources WHERE natural_id = 'source:s'"))
+        conn.commit()
+
+
+def test_anything_else_is_counted_failed(
+    pipeline_db: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse() -> None:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(engines, "pipeline_rw_engine", refuse)
+    transcript = _write(tmp_path, BASE + ".txt", "x\n")
+    assert sync_episode(_metadata(tmp_path), transcript) == "failed"
+    assert OUTCOMES["failed"] == 1
+
+
+def test_the_metadata_hook_joins_a_relative_path_and_keeps_an_absolute_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from podcast_scraper.workflow import metadata_generation
+
+    calls: list[tuple[Path, Path]] = []
+    monkeypatch.setattr(
+        corpus_writer, "sync_episode", lambda meta, transcript: calls.append((meta, transcript))
+    )
+    hook = metadata_generation._sync_corpus_documents
+    hook("/out/metadata/e.metadata.json", "/out", "transcripts/e.txt")
+    hook("/out/metadata/e.metadata.json", "/elsewhere", "/app/output/transcripts/e.txt")
+    hook("/out/metadata/e.metadata.json", "/out", None)
+    assert calls == [
+        (Path("/out/metadata/e.metadata.json"), Path("/out/transcripts/e.txt")),
+        (Path("/out/metadata/e.metadata.json"), Path("/app/output/transcripts/e.txt")),
+    ]
