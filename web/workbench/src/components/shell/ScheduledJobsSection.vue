@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { getScheduledJobs, type ScheduledJobItem } from '../../api/scheduledJobsApi'
 import { isValidCron, nextCronRuns } from '../../utils/cronPreview'
-import { formatAbsoluteUtc } from '../../utils/relativeTime'
+import { formatAbsoluteLocal } from '../../utils/relativeTime'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import RelativeTime from '../shared/RelativeTime.vue'
 import ToggleSwitch from '../shared/ToggleSwitch.vue'
@@ -68,7 +68,7 @@ watch(
 function cronPreviewTitle(cron: string): string {
   const runs = nextCronRuns(cron, 3, { tz: timezone.value })
   if (!runs) return 'Invalid cron expression'
-  return `Next runs (${timezone.value}):\n${runs.map((r) => formatAbsoluteUtc(r)).join('\n')}`
+  return `Next runs (cron in ${timezone.value}, shown in your local time):\n${runs.map((r) => formatAbsoluteLocal(r)).join('\n')}`
 }
 </script>
 

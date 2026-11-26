@@ -1,4 +1,4 @@
-import { localYmdDaysAgo } from './localCalendarDate'
+import { utcYmdDaysAgo } from './localCalendarDate'
 
 /** Which graph lens control matches ``sinceYmd`` (Digest preset pattern). */
 export function graphLensActivePreset(
@@ -6,9 +6,9 @@ export function graphLensActivePreset(
 ): 'all' | '7' | '30' | '90' | 'custom' {
   const s = sinceYmd.trim()
   if (!s) return 'all'
-  if (s === localYmdDaysAgo(7)) return '7'
-  if (s === localYmdDaysAgo(30)) return '30'
-  if (s === localYmdDaysAgo(90)) return '90'
+  if (s === utcYmdDaysAgo(7)) return '7'
+  if (s === utcYmdDaysAgo(30)) return '30'
+  if (s === utcYmdDaysAgo(90)) return '90'
   return 'custom'
 }
 
@@ -18,9 +18,9 @@ export function graphLensSummaryLabel(sinceYmd: string): string {
   if (!s) {
     return 'all time'
   }
-  if (s === localYmdDaysAgo(7)) return 'last 7 days'
-  if (s === localYmdDaysAgo(30)) return 'last 30 days'
-  if (s === localYmdDaysAgo(90)) return 'last 90 days'
+  if (s === utcYmdDaysAgo(7)) return 'last 7 days'
+  if (s === utcYmdDaysAgo(30)) return 'last 30 days'
+  if (s === utcYmdDaysAgo(90)) return 'last 90 days'
   return `since ${s}`
 }
 

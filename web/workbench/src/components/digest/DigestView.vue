@@ -31,7 +31,7 @@ import {
 import { isPublishDateWithin24hRolling, recencyDotHoverTitle } from '../../utils/digestRecency'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
-import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
+import { formatDateTimeForDisplay, formatPublishDayForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
@@ -241,7 +241,7 @@ function topicHitTimingTooltipLines(h: CorpusDigestTopicHit): string[] {
   const lines: string[] = []
   const pd = h.publish_date?.trim()
   if (pd) {
-    lines.push(`Published: ${pd}`)
+    lines.push(`Published: ${formatPublishDayForDisplay(h.published_at, pd)}`)
   }
   if (h.episode_number != null) {
     lines.push(`Episode: E${h.episode_number}`)
@@ -655,11 +655,11 @@ onBeforeUnmount(() => {
         class="text-left text-[10px] leading-snug text-muted"
       >
         <time :datetime="digest.window_start_utc">{{
-          formatUtcDateTimeForDisplay(digest.window_start_utc)
+          formatDateTimeForDisplay(digest.window_start_utc)
         }}</time>
         →
         <time :datetime="digest.window_end_utc">{{
-          formatUtcDateTimeForDisplay(digest.window_end_utc)
+          formatDateTimeForDisplay(digest.window_end_utc)
         }}</time>
         · {{ recentCountLabel }}
         {{ digest.rows.length === 1 && recentCountLabel === '1' ? 'episode' : 'episodes' }}
@@ -799,12 +799,12 @@ onBeforeUnmount(() => {
                     <div class="flex w-full min-w-0 items-start justify-between gap-2">
                       <div class="flex min-w-0 flex-1 items-start gap-1.5">
                         <span
-                          v-if="isPublishDateWithin24hRolling(h.publish_date)"
+                          v-if="isPublishDateWithin24hRolling(h.published_at || h.publish_date)"
                           role="img"
                           class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-success"
-                          :title="recencyDotHoverTitle(h.publish_date) || undefined"
+                          :title="recencyDotHoverTitle(h.published_at || h.publish_date) || undefined"
                           :aria-label="
-                            recencyDotHoverTitle(h.publish_date) || 'Recently published'
+                            recencyDotHoverTitle(h.published_at || h.publish_date) || 'Recently published'
                           "
                         />
                         <span
@@ -979,12 +979,12 @@ onBeforeUnmount(() => {
                       class="flex min-w-0 items-start gap-1.5 sm:max-w-[min(100%,24rem)] sm:flex-1"
                     >
                       <span
-                        v-if="isPublishDateWithin24hRolling(row.publish_date)"
+                        v-if="isPublishDateWithin24hRolling(row.published_at || row.publish_date)"
                         role="img"
                         class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success"
-                        :title="recencyDotHoverTitle(row.publish_date) || undefined"
+                        :title="recencyDotHoverTitle(row.published_at || row.publish_date) || undefined"
                         :aria-label="
-                          recencyDotHoverTitle(row.publish_date) || 'Recently published'
+                          recencyDotHoverTitle(row.published_at || row.publish_date) || 'Recently published'
                         "
                       />
                       <span
@@ -1014,7 +1014,7 @@ onBeforeUnmount(() => {
                         "
                         class="inline-flex shrink-0 flex-wrap items-baseline gap-x-1.5 tabular-nums leading-tight text-muted"
                       >
-                        <span v-if="row.publish_date">{{ row.publish_date }}</span>
+                        <span v-if="row.publish_date">{{ formatPublishDayForDisplay(row.published_at, row.publish_date) }}</span>
                         <span v-if="row.episode_number != null">E{{ row.episode_number }}</span>
                         <span v-if="formatDurationSeconds(row.duration_seconds)">{{
                           formatDurationSeconds(row.duration_seconds)

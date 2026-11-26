@@ -29,6 +29,7 @@ export type CorpusDigestRow = {
   episode_id: string | null
   episode_title: string
   publish_date: string | null
+  published_at?: string | null
   summary_title: string | null
   summary_bullets_preview: string[]
   /** Same length as summary_bullets_preview when from current API; topic:{slug} graph hints. */
@@ -59,6 +60,7 @@ export type CorpusDigestTopicHit = {
   summary_preview?: string | null
   episode_id?: string | null
   publish_date?: string | null
+  published_at?: string | null
   gi_relative_path?: string
   kg_relative_path?: string
   has_gi?: boolean

@@ -93,7 +93,7 @@ const timeline = computed<SubjectMentionsTimeline>(() => {
       undated += 1
       continue
     }
-    const ymd = raw.slice(0, 7) // YYYY-MM
+    const ymd = raw.trim().slice(0, 7) // YYYY-MM of the stated day
     if (!/^\d{4}-\d{2}$/.test(ymd)) {
       undated += 1
       continue

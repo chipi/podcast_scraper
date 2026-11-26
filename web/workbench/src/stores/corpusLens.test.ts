@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { localYmdDaysAgo } from '../utils/localCalendarDate'
+import { utcYmdDaysAgo } from '../utils/localCalendarDate'
 
 describe('useCorpusLensStore', () => {
   beforeEach(() => {
@@ -29,7 +29,7 @@ describe('useCorpusLensStore', () => {
       const { useCorpusLensStore } = await import('./corpusLens')
       const s = useCorpusLensStore()
       s.setPreset(7)
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(7))
       expect(s.activePreset).toBe('7')
     })
 
@@ -37,7 +37,7 @@ describe('useCorpusLensStore', () => {
       const { useCorpusLensStore } = await import('./corpusLens')
       const s = useCorpusLensStore()
       s.setPreset(30)
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(30))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(30))
       expect(s.activePreset).toBe('30')
     })
 
@@ -45,7 +45,7 @@ describe('useCorpusLensStore', () => {
       const { useCorpusLensStore } = await import('./corpusLens')
       const s = useCorpusLensStore()
       s.setPreset(90)
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(90))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(90))
       expect(s.activePreset).toBe('90')
     })
 
@@ -55,7 +55,7 @@ describe('useCorpusLensStore', () => {
       s.setPreset(7)
       expect(s.activePreset).toBe('7')
       s.setPreset(90)
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(90))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(90))
       expect(s.activePreset).toBe('90')
     })
   })
@@ -78,7 +78,7 @@ describe('useCorpusLensStore', () => {
     it('preset boundaries are recognized after manual assignment', async () => {
       const { useCorpusLensStore } = await import('./corpusLens')
       const s = useCorpusLensStore()
-      s.sinceYmd = localYmdDaysAgo(30)
+      s.sinceYmd = utcYmdDaysAgo(30)
       expect(s.activePreset).toBe('30')
     })
 
@@ -86,7 +86,7 @@ describe('useCorpusLensStore', () => {
       const { useCorpusLensStore } = await import('./corpusLens')
       const s = useCorpusLensStore()
       expect(s.activePreset).toBe('all')
-      s.sinceYmd = localYmdDaysAgo(7)
+      s.sinceYmd = utcYmdDaysAgo(7)
       expect(s.activePreset).toBe('7')
       s.sinceYmd = 'not-a-preset'
       expect(s.activePreset).toBe('custom')
@@ -150,7 +150,7 @@ describe('useCorpusLensStore', () => {
       const s = useCorpusLensStore()
       await new Promise((r) => setTimeout(r, 0))
       // sinceYmd was moved to today-minus-7 by setPreset.
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(7))
       expect(s.activePreset).toBe('7')
       // And the applyingRemote guard suppressed the echo write-back.
       expect(setSpy).not.toHaveBeenCalled()

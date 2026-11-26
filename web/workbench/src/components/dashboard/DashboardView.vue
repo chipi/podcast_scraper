@@ -9,6 +9,7 @@ import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
 import { lastYmdOfMonth } from '../../utils/dashboardTime'
+import { localDay } from '../../utils/formatting'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import ArtifactActivityChart from './ArtifactActivityChart.vue'
 import DashboardNewsCounts from './DashboardNewsCounts.vue'
@@ -227,7 +228,7 @@ const durationFive = computed(() => {
   }
   return {
     title,
-    labels: last5.map((r) => (r.created_at ?? '').slice(0, 10)),
+    labels: last5.map((r) => (localDay(r.created_at) ?? '')),
     values: last5.map((r) => r.run_duration_seconds ?? 0),
   }
 })
@@ -244,7 +245,7 @@ const episodesPerRun = computed(() => {
       : `Average ${avg.toFixed(0)} episodes per run`
   return {
     title,
-    labels: cap.map((r) => (r.created_at ?? '').slice(0, 10)),
+    labels: cap.map((r) => (localDay(r.created_at) ?? '')),
     values: eps,
   }
 })

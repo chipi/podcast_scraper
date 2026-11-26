@@ -10,7 +10,7 @@ import type {
   RawGraphNode,
 } from '../types/artifact'
 import { graphElementDecorators, graphNodeFilters, graphTypeTraits } from '../extensions'
-import { humanizeSlug, shortPhrase, truncate } from './formatting'
+import { humanizeSlug, publishDateDay, shortPhrase, truncate } from './formatting'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 import { giReadView } from './giReadView'
 import { kgReadView } from './kgReadView'
@@ -552,7 +552,7 @@ export function personEpisodeAppearances(
     const altTitle = typeof p?.title === 'string' ? p.title.trim() : ''
     const title = rawTitle || altTitle || null
     const pdRaw = typeof p?.publish_date === 'string' ? p.publish_date.trim() : ''
-    const publishDate = pdRaw ? pdRaw.slice(0, 10) : null
+    const publishDate = pdRaw ? publishDateDay(pdRaw) : null
     rows.push({ episodeId: epId, title, publishDate })
   }
   rows.sort((a, b) => {

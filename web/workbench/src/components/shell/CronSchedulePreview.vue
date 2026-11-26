@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { isValidCron, nextCronRuns } from '../../utils/cronPreview'
-import { formatAbsoluteUtc } from '../../utils/relativeTime'
+import { formatAbsoluteLocal } from '../../utils/relativeTime'
 import { parseScheduledJobsFromYaml } from '../../utils/scheduledJobsYaml'
 
 /**
@@ -54,8 +54,8 @@ const invalidCount = computed(() => rows.value.filter((r) => !r.valid).length)
         <span
           v-else
           class="ml-1 text-muted"
-          :title="row.next.map((r) => formatAbsoluteUtc(r)).join('\n')"
-        >next: {{ formatAbsoluteUtc(row.next[0]) }}<span v-if="row.next.length > 1"> · +{{ row.next.length - 1 }} more</span></span>
+          :title="row.next.map((r) => formatAbsoluteLocal(r)).join('\n')"
+        >next: {{ formatAbsoluteLocal(row.next[0]) }}<span v-if="row.next.length > 1"> · +{{ row.next.length - 1 }} more</span></span>
       </li>
     </ul>
   </div>

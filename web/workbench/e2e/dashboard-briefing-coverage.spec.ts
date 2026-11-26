@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { localDay } from '../src/utils/formatting'
 import { setupDashboardApiMocks } from './dashboardApiMocks'
 import {
   liveCorpusRoot,
@@ -320,7 +321,7 @@ test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
     await listArtifactsThenOpenDashboard(page)
     const activity = page.getByTestId('artifact-activity-chart')
     await expect(activity.locator('canvas')).toBeVisible()
-    const ymd = (offset: number) => new Date(Date.now() - offset * DAY).toISOString().slice(0, 10)
+    const ymd = (offset: number) => localDay(new Date(Date.now() - offset * DAY).toISOString())
     await expect(activity).toContainText(`Last KG: ${ymd(3)}`)
     await expect(activity).not.toContainText('Last GI')
   })
@@ -381,7 +382,7 @@ test.describe('Dashboard Coverage tab — live corpus', () => {
     const newest = (kind: string) =>
       artifacts
         .filter((a) => a.kind === kind)
-        .map((a) => a.mtime_utc.slice(0, 10))
+        .map((a) => localDay(a.mtime_utc) ?? '')
         .sort()
         .at(-1)
     await statusBarCorpusPathInput(page).fill(root)

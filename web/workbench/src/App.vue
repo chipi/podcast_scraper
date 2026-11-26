@@ -47,7 +47,7 @@ import {
   GRAPH_DEFAULT_EPISODE_CAP,
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
-import { localYmdDaysAgo } from './utils/localCalendarDate'
+import { utcYmdDaysAgo } from './utils/localCalendarDate'
 import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
 import { stripLayerPrefixesForCil } from './utils/mergeGiKg'
 import { topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
@@ -571,8 +571,8 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   let wasCapped = false
   const widenSchedule: ReadonlyArray<{ sinceYmd: string; label: string }> = [
     { sinceYmd: graphExplorer.sinceYmd, label: 'default' },
-    { sinceYmd: localYmdDaysAgo(30), label: '30d' },
-    { sinceYmd: localYmdDaysAgo(90), label: '90d' },
+    { sinceYmd: utcYmdDaysAgo(30), label: '30d' },
+    { sinceYmd: utcYmdDaysAgo(90), label: '90d' },
     { sinceYmd: '', label: 'all' },
   ]
   let appliedStep: (typeof widenSchedule)[number] | null = null

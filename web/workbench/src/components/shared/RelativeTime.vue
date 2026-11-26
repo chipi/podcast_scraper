@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { formatAbsoluteUtc, formatRelativeShort } from '../../utils/relativeTime'
+import { formatAbsoluteLocal, formatRelativeShort } from '../../utils/relativeTime'
 
 /**
- * Compact relative timestamp ("in 3h 12m") with the absolute UTC time on hover.
+ * Compact relative timestamp ("in 3h 12m") with the absolute local time on hover.
  * Used for scheduled-jobs `next_run_at` (#709); `nowMs` is captured per render
  * (refreshed when the value changes) — no background ticker.
  */
@@ -24,6 +24,6 @@ watch(
 <template>
   <span
     :data-testid="testid"
-    :title="formatAbsoluteUtc(iso) || undefined"
+    :title="formatAbsoluteLocal(iso) || undefined"
   >{{ formatRelativeShort(iso, nowMs) }}</span>
 </template>

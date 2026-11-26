@@ -57,6 +57,28 @@ describe('NodeEpisodesSection', () => {
     })
   })
 
+  it('shows the viewer-local publish day from published_at, not the UTC publish_date', async () => {
+    const original = process.env.TZ
+    process.env.TZ = 'America/New_York'
+    try {
+      vi.mocked(fetchNodeEpisodes).mockResolvedValue({
+        path: '/c',
+        node_id: 'topic:ai',
+        episodes: [{ ...ep(1), publish_date: '2026-09-17', published_at: '2026-09-17T02:00:00Z' }],
+        truncated: false,
+        total_matched: 1,
+      })
+      const w = mount(NodeEpisodesSection, { props: { nodeId: 'k:topic:ai' } })
+      await flushPromises()
+      const row = w.get('[data-testid="node-episodes-row-0"]')
+      expect(row.text()).toContain('2026-09-16')
+      expect(row.text()).not.toContain('2026-09-17')
+    } finally {
+      if (original === undefined) delete process.env.TZ
+      else process.env.TZ = original
+    }
+  })
+
   it('says how many there are when it shows only the newest', async () => {
     vi.mocked(fetchNodeEpisodes).mockResolvedValue({
       path: '/c',

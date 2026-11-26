@@ -7,6 +7,7 @@ import { fetchWithTimeout } from './httpClient'
 export interface CilArcEpisodeBlock {
   episode_id: string
   publish_date: string | null
+  published_at?: string | null
   episode_title: string | null
   feed_title: string | null
   episode_number: number | null

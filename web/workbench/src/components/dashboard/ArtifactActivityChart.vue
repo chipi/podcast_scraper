@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
     data-testid="artifact-activity-chart"
   >
     <h3 class="mb-1 text-sm font-semibold">
-      New artifacts per day (last 30 UTC days)
+      New artifacts per day (last 30 days, local time)
     </h3>
     <div class="mb-1 flex gap-4 text-[10px] text-muted">
       <span

@@ -28,6 +28,7 @@ import { buildLibrarySearchHandoffQuery } from '../../utils/corpusSearchHandoff'
 import { digestRowFeedLabelWithCatalog } from '../../utils/digestRowDisplay'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
+import { formatPublishDayForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import {
   SEARCH_RESULT_COPY_TITLE_CHIP_CLASS,
@@ -709,7 +710,7 @@ watch(
                       "
                       class="inline-flex w-full min-w-0 flex-wrap items-baseline gap-x-1.5 text-left text-[10px] tabular-nums leading-tight text-muted"
                     >
-                      <span v-if="detail.publish_date">{{ detail.publish_date }}</span>
+                      <span v-if="detail.publish_date">{{ formatPublishDayForDisplay(detail.published_at, detail.publish_date) }}</span>
                       <span v-if="detail.episode_number != null">E{{ detail.episode_number }}</span>
                       <span v-if="formatDurationSeconds(detail.duration_seconds)">{{
                         formatDurationSeconds(detail.duration_seconds)

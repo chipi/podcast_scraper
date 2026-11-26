@@ -1,7 +1,10 @@
 /**
- * Recency dot for Digest / Library episode rows (WIP: last rolling 24h from local publish day).
- * ``publish_date`` is treated as **local calendar midnight** for that YYYY-MM-DD.
+ * Recency dot for Digest / Library episode rows: published within the last rolling 24h.
+ * Callers pass ``published_at || publish_date``: the stored UTC instant when the server has one,
+ * else the day alone, which is treated as **local calendar midnight** for that YYYY-MM-DD.
  */
+
+import { parseStoredInstant } from './formatting'
 
 const YMD = /^(\d{4})-(\d{2})-(\d{2})$/
 
@@ -27,7 +30,11 @@ export function parsePublishYmdLocalMidnight(ymd: string): Date | null {
   return dt
 }
 
-/** True when publish local midnight is within the last 24h (non-negative age). */
+function publishedMoment(raw: string): Date | null {
+  return parseStoredInstant(raw) ?? parsePublishYmdLocalMidnight(raw)
+}
+
+/** True when the publish moment is within the last 24h (non-negative age). */
 export function isPublishDateWithin24hRolling(
   publishDate: string | null | undefined,
 ): boolean {
@@ -35,7 +42,7 @@ export function isPublishDateWithin24hRolling(
   if (!s) {
     return false
   }
-  const pub = parsePublishYmdLocalMidnight(s)
+  const pub = publishedMoment(s)
   if (!pub) {
     return false
   }
@@ -43,7 +50,7 @@ export function isPublishDateWithin24hRolling(
   return age >= 0 && age < MS_PER_DAY
 }
 
-/** Hover copy: whole hours since local publish-day midnight. */
+/** Hover copy: whole hours since the publish moment. */
 export function recencyDotHoverTitle(
   publishDate: string | null | undefined,
 ): string | undefined {
@@ -51,7 +58,7 @@ export function recencyDotHoverTitle(
   if (!s) {
     return undefined
   }
-  const pub = parsePublishYmdLocalMidnight(s)
+  const pub = publishedMoment(s)
   if (!pub) {
     return undefined
   }

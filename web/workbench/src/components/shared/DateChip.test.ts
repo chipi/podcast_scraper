@@ -2,7 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { localYmdDaysAgo } from '../../utils/localCalendarDate'
+import { utcYmdDaysAgo } from '../../utils/localCalendarDate'
 import DateChip from './DateChip.vue'
 
 const CHIP = '[data-testid="date-chip"]'
@@ -45,17 +45,17 @@ describe('DateChip', () => {
   })
 
   it('renders the 7d preset label when modelValue matches 7 days ago', () => {
-    const w = mountChip(localYmdDaysAgo(7))
+    const w = mountChip(utcYmdDaysAgo(7))
     expect(w.get(CHIP).text()).toBe('Date: Last 7d ▾')
   })
 
   it('renders the 30d preset label when modelValue matches 30 days ago', () => {
-    const w = mountChip(localYmdDaysAgo(30))
+    const w = mountChip(utcYmdDaysAgo(30))
     expect(w.get(CHIP).text()).toBe('Date: Last 30d ▾')
   })
 
   it('renders the 90d preset label when modelValue matches 90 days ago', () => {
-    const w = mountChip(localYmdDaysAgo(90))
+    const w = mountChip(utcYmdDaysAgo(90))
     expect(w.get(CHIP).text()).toBe('Date: Last 90d ▾')
   })
 
@@ -105,7 +105,7 @@ describe('DateChip', () => {
     await w.get(CHIP).trigger('click')
     const btn = w.get(POPOVER).findAll('button').find((b) => b.text() === '7d')!
     await btn.trigger('click')
-    expect(w.emitted('update:modelValue')).toEqual([[localYmdDaysAgo(7)]])
+    expect(w.emitted('update:modelValue')).toEqual([[utcYmdDaysAgo(7)]])
     expect(w.get(POPOVER).isVisible()).toBe(false)
   })
 
@@ -117,13 +117,13 @@ describe('DateChip', () => {
     const btn90 = w.get(POPOVER).findAll('button').find((b) => b.text() === '90d')!
     await btn90.trigger('click')
     expect(w.emitted('update:modelValue')).toEqual([
-      [localYmdDaysAgo(30)],
-      [localYmdDaysAgo(90)],
+      [utcYmdDaysAgo(30)],
+      [utcYmdDaysAgo(90)],
     ])
   })
 
   it('marks the active preset button as visually selected', async () => {
-    const w = mountChip(localYmdDaysAgo(7))
+    const w = mountChip(utcYmdDaysAgo(7))
     const sevenBtn = w
       .get(POPOVER)
       .findAll('button')

@@ -19,6 +19,7 @@ import {
 } from '../../api/enrichmentApi'
 import { invalidateEnrichmentCache } from '../../composables/useEnrichmentEnvelopeCache'
 import EnrichmentConfigEditor from './EnrichmentConfigEditor.vue'
+import { formatDateTimeForDisplay } from '../../utils/formatting'
 
 const configExpanded = ref(false)
 
@@ -264,7 +265,7 @@ watch(
         <div class="flex items-center gap-2" data-testid="enrichment-current-notice">
           <span class="text-emerald-300">Enrichment current</span>
           <span v-if="stats.last_run_finished_at" class="text-muted text-[10px]">
-            — last finished {{ stats.last_run_finished_at }}
+            — last finished {{ formatDateTimeForDisplay(stats.last_run_finished_at) }}
           </span>
         </div>
       </template>
@@ -354,7 +355,7 @@ watch(
         </span>
       </div>
       <div class="text-muted mt-1 text-[10px]">
-        {{ runSummary?.finished_at ?? runSummary?.started_at ?? '—' }} ·
+        {{ formatDateTimeForDisplay(runSummary?.finished_at ?? runSummary?.started_at) || '—' }} ·
         {{ runSummary?.duration_ms ? (runSummary.duration_ms / 1000).toFixed(2) + 's' : '—' }}
         <span v-if="runSummary?.profile"> · profile {{ runSummary.profile }}</span>
       </div>
