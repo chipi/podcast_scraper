@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
+from podcast_scraper.utils.utc import utc_iso
 
 from ..rss.licence import channel_licence_from_bytes, episode_licence
 from ..rss.parser import (
@@ -83,7 +84,7 @@ def _derive_feed_updates(rss_bytes: bytes, base_url: str) -> dict[str, Any]:
     if image_url is not None:
         updates["image_url"] = image_url
     if last_updated is not None:
-        updates["last_updated"] = last_updated.isoformat()
+        updates["last_updated"] = utc_iso(last_updated)
     if category is not None:
         updates["category"] = category
     return updates

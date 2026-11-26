@@ -53,6 +53,7 @@ from ..exceptions import (
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem, llm_call_fuse
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
+from ..utils.utc import utc_iso, utc_now
 from .transcript_resolution import resolve_text_path, TranscriptPurpose
 
 logger = logging.getLogger(__name__)
@@ -523,8 +524,8 @@ class FeedMetadata(BaseModel):
 
     @field_serializer("last_updated")
     def serialize_last_updated(self, value: Optional[datetime]) -> Optional[str]:
-        """Serialize datetime as ISO 8601 string for database compatibility."""
-        return value.isoformat() if value else None
+        """Serialize datetime as ISO 8601 in UTC (``utils.utc``)."""
+        return utc_iso(value) if value else None
 
 
 class EpisodeMetadata(BaseModel):
@@ -560,8 +561,8 @@ class EpisodeMetadata(BaseModel):
 
     @field_serializer("published_date")
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
-        """Serialize datetime as ISO 8601 string for database compatibility."""
-        return value.isoformat() if value else None
+        """Serialize datetime as ISO 8601 in UTC (``utils.utc``)."""
+        return utc_iso(value) if value else None
 
 
 class TranscriptInfo(BaseModel):
@@ -840,7 +841,7 @@ class SummaryMetadata(BaseModel):
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
-        return value.isoformat()
+        return utc_iso(value)
 
     @computed_field
     def short_summary(self) -> str:
@@ -869,7 +870,7 @@ class ProcessingMetadata(BaseModel):
     @field_serializer("processing_timestamp")
     def serialize_processing_timestamp(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
-        return value.isoformat()
+        return utc_iso(value)
 
 
 class GroundedInsightsMetadata(BaseModel):
@@ -887,7 +888,7 @@ class GroundedInsightsMetadata(BaseModel):
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
-        return value.isoformat()
+        return utc_iso(value)
 
 
 class KnowledgeGraphMetadata(BaseModel):
@@ -905,7 +906,7 @@ class KnowledgeGraphMetadata(BaseModel):
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
-        return value.isoformat()
+        return utc_iso(value)
 
 
 class EpisodeMetadataDocument(BaseModel):
@@ -2571,7 +2572,7 @@ def _build_processing_metadata(
     )
 
     return ProcessingMetadata(
-        processing_timestamp=datetime.now(),
+        processing_timestamp=utc_now(),
         output_directory=output_dir,
         run_id=cfg.run_id,
         config_snapshot=config_snapshot,
@@ -3246,7 +3247,7 @@ def _generate_episode_summary(  # noqa: C901
             # Build SummaryMetadata with required schema fields
             return (
                 SummaryMetadata(
-                    generated_at=datetime.now(),
+                    generated_at=utc_now(),
                     word_count=word_count,
                     title=schema.title,
                     bullets=schema.bullets,
@@ -4859,7 +4860,7 @@ def generate_episode_metadata(  # noqa: C901
                 # Legacy: #663 excise pre-roll / post-roll ads so KG entity/topic
                 # extraction doesn't pick up sponsor names (Ramp, WorkOS) as content.
                 transcript_text_kg, _, _ = stage_hooks.excise_ads(transcript_text_kg)
-        publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
+        publish_date_str_kg = utc_iso(episode_published_date) if episode_published_date else None
         # ADR-156 / #2164: summary bullets are NOT a topic source. This block used to hand the
         # episode's bullets to the KG as ``topic_labels`` — verbatim, with no shortening, unlike the
         # GI path twenty lines up which ran them through ``_bullet_to_topic_phrase`` first. The same
@@ -4982,7 +4983,7 @@ def generate_episode_metadata(  # noqa: C901
                     artifact_path=os.path.relpath(kg_path, output_dir),
                     node_count=len(nodes_kg),
                     edge_count=len(edges_kg),
-                    generated_at=datetime.now(),
+                    generated_at=utc_now(),
                     schema_version=str(kg_payload.get("schema_version", "1.0")),
                 )
                 if pipeline_metrics is not None:

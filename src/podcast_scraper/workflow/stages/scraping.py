@@ -35,6 +35,7 @@ from ...search.corpus_scope import (
     run_recency_epoch,
 )
 from ...utils import audio_fingerprint, filesystem
+from ...utils.utc import rfc2822_from_iso
 from ..types import FeedMetadata
 
 logger = logging.getLogger(__name__)
@@ -444,7 +445,12 @@ def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element
     ET.SubElement(item, "title").text = str(episode_meta.get("title") or "")
     published = episode_meta.get("published_date")
     if published:
-        ET.SubElement(item, "pubDate").text = str(published)
+        # RFC 2822, which rss.parser reads; the stored ISO string it cannot, so the episode lost
+        # its publish date on every reprocess. A naive stored value comes back as -0000, as sent.
+        try:
+            ET.SubElement(item, "pubDate").text = rfc2822_from_iso(str(published))
+        except ValueError:
+            logger.warning("guid %s: stored published_date %r is not ISO 8601", guid, published)
     description = episode_meta.get("description")
     if description:
         ET.SubElement(item, "description").text = str(description)
