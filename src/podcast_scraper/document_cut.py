@@ -16,6 +16,7 @@ times.
 
 from __future__ import annotations
 
+import bisect
 import math
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
@@ -132,3 +133,41 @@ def paragraph_cuts(body: str) -> list[Cut]:
     if "".join(cut.text for cut in cuts) != body:
         raise DocumentCutError("the cuts do not join back to the body")
     return cuts
+
+
+@dataclass(frozen=True)
+class CutRange:
+    """A character span of a body as positions in its cuts: the span starts at ``start_offset``
+    in cut ``start_seq`` and ends, exclusive, at ``end_offset`` in cut ``end_seq``."""
+
+    start_seq: int
+    start_offset: int
+    end_seq: int
+    end_offset: int
+
+
+def cut_range(cuts: Sequence[Cut], char_start: int, char_end: int) -> CutRange:
+    """The body span ``[char_start, char_end)`` as a range over ``cuts`` (a search chunk's or a
+    quote's range in ``search_chunks`` and ``evidence``). A span ending on a cut boundary ends in
+    the cut before it, not at offset 0 of the next.
+
+    Raises ``ValueError`` for a span outside the body or reversed.
+    """
+    starts: list[int] = []
+    pos = 0
+    for cut in cuts:
+        starts.append(pos)
+        pos += len(cut.text)
+    if not cuts or not 0 <= char_start <= char_end <= pos:
+        raise ValueError(f"span [{char_start}, {char_end}) is outside the body of {pos} chars")
+    first = min(bisect.bisect_right(starts, char_start) - 1, len(cuts) - 1)
+    if char_end == char_start:
+        last = first
+    else:
+        last = bisect.bisect_left(starts, char_end) - 1
+    return CutRange(
+        start_seq=cuts[first].seq,
+        start_offset=char_start - starts[first],
+        end_seq=cuts[last].seq,
+        end_offset=char_end - starts[last],
+    )

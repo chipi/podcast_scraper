@@ -10,6 +10,8 @@ import pytest
 from podcast_scraper.document_cut import (
     Cut,
     cut_body,
+    cut_range,
+    CutRange,
     DocumentCutError,
     paragraph_cuts,
     seconds_to_ms,
@@ -128,3 +130,48 @@ def test_a_cut_that_does_not_join_back_is_refused(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(document_cut, "_line_cuts", lambda body: [Cut(0, "other", None, None)])
     with pytest.raises(DocumentCutError):
         cut_body("body", None)
+
+
+def _three() -> list[Cut]:
+    return [Cut(0, "Hello", None, None), Cut(1, " there", None, None), Cut(2, " you.", None, None)]
+
+
+@pytest.mark.parametrize(
+    "span,expected",
+    [
+        ((0, 5), CutRange(0, 0, 0, 5)),
+        ((2, 8), CutRange(0, 2, 1, 3)),
+        ((5, 11), CutRange(1, 0, 1, 6)),
+        ((5, 12), CutRange(1, 0, 2, 1)),
+        ((0, 16), CutRange(0, 0, 2, 5)),
+        ((5, 5), CutRange(1, 0, 1, 0)),
+        ((16, 16), CutRange(2, 5, 2, 5)),
+    ],
+)
+def test_a_span_maps_to_its_cut_range(span: tuple[int, int], expected: CutRange) -> None:
+    assert cut_range(_three(), *span) == expected
+
+
+@pytest.mark.parametrize("span", [(-1, 3), (3, 2), (0, 17)])
+def test_a_span_outside_the_body_or_reversed_is_refused(span: tuple[int, int]) -> None:
+    with pytest.raises(ValueError):
+        cut_range(_three(), *span)
+
+
+def test_every_fixture_chunk_span_round_trips_through_its_range() -> None:
+    from podcast_scraper.search.chunker import chunk_transcript
+
+    body = (_FIXTURE / "p01_e01.txt").read_text(encoding="utf-8")
+    segments = json.loads((_FIXTURE / "p01_e01.segments.json").read_text(encoding="utf-8"))
+    cuts = cut_body(body, segments)
+    for chunk in chunk_transcript(body, target_tokens=120, overlap_tokens=20):
+        r = cut_range(cuts, chunk.char_start, chunk.char_end)
+        text = "".join(
+            c.text[
+                r.start_offset if c.seq == r.start_seq else 0 : (
+                    r.end_offset if c.seq == r.end_seq else None
+                )
+            ]
+            for c in cuts[r.start_seq : r.end_seq + 1]
+        )
+        assert text == body[chunk.char_start : chunk.char_end]
