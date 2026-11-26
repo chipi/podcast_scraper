@@ -1,7 +1,7 @@
 # Handover: the public session, 2026-11-26 (afternoon)
 
 For the next public-repo agent. It follows `HANDOVER-PUBLIC-2026-11-26.md` (the morning) and covers
-state as of about 12:30Z. Check each "open" line against GitHub and the trackers before acting.
+state as of about 11:25Z. Check each "open" line against GitHub and the trackers before acting.
 
 ## The rule that changed today
 
@@ -43,7 +43,7 @@ main's own upgrade tests; infra's `deploy-prod.yml` only computes the bump and p
 
 | PR | What | State at handover | Operator's go |
 | --- | --- | --- | --- |
-| #2565 | `pipeline_rw` engine: `PipelineSettings`, `init_pipeline_engine`, `pipeline_rw_engine`; 1+1 pool, no statement timeout | all checks passed except `test-e2e-fast`, still running | merge on green, given |
+| #2565 | `pipeline_rw` engine: `PipelineSettings`, `init_pipeline_engine`, `pipeline_rw_engine`; 1+1 pool, no statement timeout | all checks passed except `test-e2e-fast`, running (started 11:08Z) | merge on green, given |
 | #2566 | `document_cut.cut_body` and `paragraph_cuts`, the cutter the writer and the importer share | same | merge on green, given |
 | #2562 | `docs/wip/HARNESS-PUBLIC-SURFACES-2026-11-26.md` | CI green | not asked |
 | branch `feat/chunk-segment-range` (803c4b8ea, pushed, no PR) | `cut_range`: a body span as `(start_seq, start_offset, end_seq, end_offset)` over the cuts; the start of `r-search` and #2518's missing offsets | stacked on #2566 | open its PR after #2566 merges: rebase onto the release branch and drop the cutter commit |
@@ -92,7 +92,7 @@ Risk to check: `text_in.py:280` writes the article body with no `encoding=`, whi
 
 | Item | Needs | From |
 | --- | --- | --- |
-| The writer's item upsert | Where the metadata-to-row mapping lives (title, dates, `duration_s`, language, flags, `type_attrs`, `served`) and what `served` 0, 1 and 2 mean; asked 12:20Z, no answer yet | database |
+| The writer's item upsert | Where the metadata-to-row mapping lives (title, dates, `duration_s`, language, flags, `type_attrs`, `served`) and what `served` 0, 1 and 2 mean; asked about 11:15Z, no answer yet | database |
 | The writer's first PR | #2565, #2566 and #2569 merged. Until the mapping answer it writes documents and segments only for an item whose row exists, and counts the rest. | CI, database |
 | `search_chunks` and `embeddings` tables | A corpus revision after `corpus_0005`; agreed the database session writes it, and public fills and reads them | database |
 | Insight and quote hydration, `r-graph-engine` | #2567 (`corpus_0005`, entities), then `s-intel` | database |
