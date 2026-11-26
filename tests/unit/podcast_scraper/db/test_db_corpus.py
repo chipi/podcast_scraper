@@ -1080,6 +1080,7 @@ def _insight(conn: Connection, item_id: int, document_id: int, **fields: object)
         "document_id": document_id,
         "insight_type": "claim",
         "rank": 0,
+        "routing_tag": "surface",
         "text_origin": "authored",
         "text": "A claim.",
         **fields,
@@ -1132,6 +1133,8 @@ def test_an_insight_is_unique_by_natural_id_and_defaults_to_visible(conn: Connec
         ({"insight_type": "opinion"}, "insights_type_check"),
         ({"text_origin": "spoken"}, "insights_text_origin_check"),
         ({"rank": -1}, "insights_rank_check"),
+        ({"routing_tag": "hide"}, "insights_routing_tag_check"),
+        ({"tier": 4}, "insights_tier_check"),
         ({"grounding_confidence": 1.5}, "insights_unit_check"),
         ({"position_hint": -0.1}, "insights_unit_check"),
     ],
@@ -1168,13 +1171,13 @@ def test_an_insight_must_name_its_documents_own_item_and_goes_with_it(conn: Conn
     conn.rollback()
 
 
-def test_an_insights_item_rank_index_orders_by_rank_descending(conn: Connection) -> None:
+def test_an_insights_item_rank_index_orders_by_rank_ascending(conn: Connection) -> None:
     defs = dict(
         conn.execute(
             text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
         ).all()
     )
-    assert re.search(r"\(item_id, rank DESC\)$", defs["insights_item_rank_idx"])
+    assert re.search(r"\(item_id, rank\)$", defs["insights_item_rank_idx"])
 
 
 @pytest.mark.parametrize(
@@ -1342,7 +1345,7 @@ def test_the_mention_index_covers_a_topics_top_insights_with_the_item(conn: Conn
         ).all()
     )
     assert re.search(
-        r"\(entity_id, kind, rank DESC, insight_id\) INCLUDE \(item_id\)$",
+        r"\(entity_id, kind, rank, insight_id\) INCLUDE \(item_id\)$",
         defs["insight_mentions_entity_rank_idx"],
     )
 

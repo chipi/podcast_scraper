@@ -18,6 +18,8 @@ _INSIGHT_TYPES = "'claim', 'recommendation', 'observation', 'question', 'unknown
 _MENTION_KINDS = "'ABOUT', 'MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_OBJECT'"
 # kg/speaker_coherence.py KNOWN_ROLES.
 _PERSON_ROLES = "'host', 'guest', 'mentioned'"
+# GI routing (AP-11): what a surface may show is "not drop, surfaceable".
+_ROUTING_TAGS = "'surface', 'connect', 'drop'"
 
 # CRFC-005 section 6: the default 0.2 waits for 32M dead rows on 160M at 100x.
 _EDGE_STORAGE = {"autovacuum_vacuum_scale_factor": 0.01, "autovacuum_analyze_scale_factor": 0.005}
@@ -33,7 +35,15 @@ def upgrade() -> None:
         sa.Column("item_id", sa.BigInteger(), nullable=False),
         sa.Column("document_id", sa.BigInteger(), nullable=False),
         sa.Column("insight_type", sa.Text(), nullable=False),
+        # 0 is the first insight in the order the GI view shows: salience descending, ties in file
+        # order. A reader wanting another order (cil_queries: salience, position_hint, id) has the
+        # columns for it.
         sa.Column("rank", sa.Integer(), nullable=False),
+        sa.Column("salience", sa.REAL(), nullable=True),
+        sa.Column("routing_tag", sa.Text(), nullable=False),
+        sa.Column("surfaceable", sa.Boolean(), nullable=True),
+        sa.Column("grounded", sa.Boolean(), nullable=True),
+        sa.Column("tier", sa.SmallInteger(), nullable=True),
         sa.Column("grounding_confidence", sa.REAL(), nullable=True),
         sa.Column("position_hint", sa.REAL(), nullable=True),
         sa.Column("text_origin", sa.Text(), nullable=False),
@@ -49,6 +59,8 @@ def upgrade() -> None:
         sa.CheckConstraint(f"insight_type IN ({_INSIGHT_TYPES})", name="insights_type_check"),
         sa.CheckConstraint("text_origin IN ('authored')", name="insights_text_origin_check"),
         sa.CheckConstraint("rank >= 0", name="insights_rank_check"),
+        sa.CheckConstraint(f"routing_tag IN ({_ROUTING_TAGS})", name="insights_routing_tag_check"),
+        sa.CheckConstraint("tier IS NULL OR tier BETWEEN 0 AND 3", name="insights_tier_check"),
         sa.CheckConstraint(
             "(grounding_confidence IS NULL OR grounding_confidence BETWEEN 0 AND 1) "
             "AND (position_hint IS NULL OR position_hint BETWEEN 0 AND 1)",
@@ -56,9 +68,7 @@ def upgrade() -> None:
         ),
         schema=schema,
     )
-    op.create_index(
-        "insights_item_rank_idx", "insights", ["item_id", sa.text("rank DESC")], schema=schema
-    )
+    op.create_index("insights_item_rank_idx", "insights", ["item_id", "rank"], schema=schema)
     op.create_table(
         "evidence",
         sa.Column("evidence_id", sa.BigInteger(), sa.Identity(), primary_key=True),
@@ -166,7 +176,7 @@ def upgrade() -> None:
     op.create_index(
         "insight_mentions_entity_rank_idx",
         "insight_mentions",
-        ["entity_id", "kind", sa.text("rank DESC"), "insight_id"],
+        ["entity_id", "kind", "rank", "insight_id"],
         schema=schema,
         postgresql_include=["item_id"],
     )

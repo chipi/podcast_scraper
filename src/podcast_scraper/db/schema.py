@@ -874,6 +874,7 @@ _EDGE_STORAGE = {"autovacuum_vacuum_scale_factor": 0.01, "autovacuum_analyze_sca
 _INSIGHT_TYPES = "'claim', 'recommendation', 'observation', 'question', 'unknown'"
 _MENTION_KINDS = "'ABOUT', 'MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_OBJECT'"
 _PERSON_ROLES = "'host', 'guest', 'mentioned'"
+_ROUTING_TAGS = "'surface', 'connect', 'drop'"
 
 insights = Table(
     "insights",
@@ -884,6 +885,11 @@ insights = Table(
     Column("document_id", BigInteger, nullable=False),
     Column("insight_type", Text, nullable=False),
     Column("rank", Integer, nullable=False),
+    Column("salience", REAL, nullable=True),
+    Column("routing_tag", Text, nullable=False),
+    Column("surfaceable", Boolean, nullable=True),
+    Column("grounded", Boolean, nullable=True),
+    Column("tier", SmallInteger, nullable=True),
     Column("grounding_confidence", REAL, nullable=True),
     Column("position_hint", REAL, nullable=True),
     Column("text_origin", Text, nullable=False),
@@ -899,12 +905,14 @@ insights = Table(
     CheckConstraint(f"insight_type IN ({_INSIGHT_TYPES})", name="insights_type_check"),
     CheckConstraint("text_origin IN ('authored')", name="insights_text_origin_check"),
     CheckConstraint("rank >= 0", name="insights_rank_check"),
+    CheckConstraint(f"routing_tag IN ({_ROUTING_TAGS})", name="insights_routing_tag_check"),
+    CheckConstraint("tier IS NULL OR tier BETWEEN 0 AND 3", name="insights_tier_check"),
     CheckConstraint(
         "(grounding_confidence IS NULL OR grounding_confidence BETWEEN 0 AND 1) "
         "AND (position_hint IS NULL OR position_hint BETWEEN 0 AND 1)",
         name="insights_unit_check",
     ),
-    Index("insights_item_rank_idx", "item_id", text("rank DESC")),
+    Index("insights_item_rank_idx", "item_id", "rank"),
 )
 
 evidence = Table(
@@ -1007,7 +1015,7 @@ insight_mentions = Table(
         "insight_mentions_entity_rank_idx",
         "entity_id",
         "kind",
-        text("rank DESC"),
+        "rank",
         "insight_id",
         postgresql_include=["item_id"],
     ),
