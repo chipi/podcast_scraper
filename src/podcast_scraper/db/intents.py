@@ -20,7 +20,7 @@ is not in :data:`ITEM_COLUMNS`.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Collection, Optional, Sequence, Tuple
 
 from sqlalchemy import and_, or_, select, tuple_
 from sqlalchemy.engine import Connection
@@ -192,6 +192,27 @@ def newest_items(
         .where(and_(*conditions))
         .order_by(content_items.c.published_at.desc().nulls_last(), content_items.c.item_id.desc())
         .limit(limit)
+    )
+    return _rows(conn, statement)
+
+
+def catalog_items(conn: Connection, content_types: Collection[str]) -> list[dict[str, Any]]:
+    """Every served item of these content types with what a catalog row reads (AP-02): the item
+    columns, its ``type_attrs`` and ``source_attrs`` (the source columns this item states, which
+    the file catalog reads per episode) and its source's ``raw_feed_id``. The whole catalog in
+    one statement, as ``catalog_cache`` holds it."""
+    types = sorted(content_types)
+    if not types:
+        return []
+    statement = (
+        select(
+            *_ITEM,
+            content_items.c.type_attrs,
+            content_items.c.source_attrs,
+            sources.c.raw_feed_id,
+        )
+        .join(sources, sources.c.source_id == content_items.c.source_id)
+        .where(and_(content_items.c.served > 0, content_items.c.content_type.in_(types)))
     )
     return _rows(conn, statement)
 
