@@ -513,6 +513,58 @@ def _measure(
     return measured
 
 
+def _apply_in(
+    conn: Connection,
+    migration: RowMigration,
+    kind: str,
+    dry_run: bool,
+    regime: Optional[Regime],
+    plan: list[dict[str, Any]],
+) -> Tuple[int, dict[str, Any], frozenset[int]]:
+    """The apply inside the caller's transaction: ledger and run rows, the rows and receipts, the
+    plan (into ``plan``, kept for a refusal's record), the in-transaction surfaces, the measure,
+    the revision bump and ``verify_rows``. Returns the run id, its result and the changed items."""
+    stamps = {
+        "code_digest": regime.code_digest if regime else None,
+        "outcome_sha256": regime.outcome_sha if regime else None,
+    }
+    row = _ledger_row(conn, migration.id)
+    if row is not None and row.status == "applied":
+        raise RowsRefused(f"{migration.id} is applied already")
+    run_id = _new_run(conn, migration.id, kind, **stamps)
+    migration_id = _set_ledger(
+        conn, migration.id, "applied", run_id, to_version=migration.to_version or None
+    )
+    board = SCOREBOARD
+    # Scored in the transaction, before and after: a scoreboard that fails rolls the apply back,
+    # so a migration on rows is never left applied and unmeasured.
+    scored = board.score_items(conn) if board is not None else {}
+    rows = Rows(conn, migration_id, run_id)
+    res = migration.apply_rows(RowContext(conn=conn, rows=rows, dry_run=dry_run))
+    plan[:] = rows.plan()
+    diff = _check_plan(migration, regime, plan) if regime is not None else []
+    items = frozenset(res.item_ids)
+    for _name, refresh in IN_TRANSACTION_SURFACES:
+        refresh(conn, items)
+    if board is not None:
+        measured = _measure(scored, board.score_items(conn), board.gating_metrics(), regime, diff)
+    else:
+        measured = {"skipped": "no row scoreboard registered: gated on the plan only"}
+    result: dict[str, Any] = {
+        "measure": measured,
+        "message": res.message,
+        "counts": res.counts,
+        "receipts": rows.receipts,
+        "receipts_by_table": rows.by_table,
+        "items": len(items),
+        "item_ids": sorted(items),
+        "corpus_revision_bumped": bump_corpus_revision(conn),
+    }
+    ok, msg = migration.verify_rows(conn)
+    result["verify"] = {"ok": ok, "message": msg}
+    return run_id, result, items
+
+
 def run_migration(
     engine: Engine,
     migration: RowMigration,
@@ -540,42 +592,7 @@ def run_migration(
         try:
             with engine.connect() as conn, conn.begin() as tx:
                 leases.heartbeat(conn, holder, held)
-                row = _ledger_row(conn, migration.id)
-                if row is not None and row.status == "applied":
-                    raise RowsRefused(f"{migration.id} is applied already")
-                run_id = _new_run(conn, migration.id, kind, **stamps)
-                migration_id = _set_ledger(
-                    conn, migration.id, "applied", run_id, to_version=migration.to_version or None
-                )
-                board = SCOREBOARD
-                # Scored in the transaction, before and after: a scoreboard that fails rolls the
-                # apply back, so a migration on rows is never left applied and unmeasured.
-                scored = board.score_items(conn) if board is not None else {}
-                rows = Rows(conn, migration_id, run_id)
-                res = migration.apply_rows(RowContext(conn=conn, rows=rows, dry_run=dry_run))
-                plan = rows.plan()
-                diff = _check_plan(migration, regime, plan) if regime is not None else []
-                items = frozenset(res.item_ids)
-                for _name, refresh in IN_TRANSACTION_SURFACES:
-                    refresh(conn, items)
-                if board is not None:
-                    measured = _measure(
-                        scored, board.score_items(conn), board.gating_metrics(), regime, diff
-                    )
-                else:
-                    measured = {"skipped": "no row scoreboard registered: gated on the plan only"}
-                result: dict[str, Any] = {
-                    "measure": measured,
-                    "message": res.message,
-                    "counts": res.counts,
-                    "receipts": rows.receipts,
-                    "receipts_by_table": rows.by_table,
-                    "items": len(items),
-                    "item_ids": sorted(items),
-                    "corpus_revision_bumped": bump_corpus_revision(conn),
-                }
-                ok, msg = migration.verify_rows(conn)
-                result["verify"] = {"ok": ok, "message": msg}
+                run_id, result, items = _apply_in(conn, migration, kind, dry_run, regime, plan)
                 if dry_run:
                     tx.rollback()
                 else:
@@ -603,11 +620,52 @@ def run_migration(
         else:
             failed = _after_commit(engine, run_id, result, items)
             outcome = RunOutcome(run_id, "apply", "ok", result["receipts"], items, result, failed)
-        outcome.outcome_failed = list(measured.get("failures") or [])
+        outcome.outcome_failed = list(result["measure"].get("failures") or [])
         _emit(outcome, migration.id)
         return outcome
     finally:
         leases.release(engine, holder)
+
+
+def gate_report(engine: Engine, migration: RowMigration, *, snapshot: str) -> dict[str, Any]:
+    """The change gate on rows (``scripts/measure/corpus_change_gate.py --database-url``): the
+    apply on a restored copy of prod's dump, measured and then rolled back, so the copy is never
+    written. The report carries the keys ``build_outcome.py`` copies into the shipped outcome."""
+    applied = DbStateStore(engine).applied_migration_ids()
+    plan: list[dict[str, Any]] = []
+    with engine.connect() as conn, conn.begin() as tx:
+        _run_id, result, _items = _apply_in(conn, migration, "dry_run", True, None, plan)
+        tx.rollback()
+    measured = result["measure"]
+    before = measured.get("totals_before", {})
+    after = measured.get("totals_after", {})
+    moves = {m: after[m] - before.get(m, 0) for m in after if after[m] != before.get(m, 0)}
+    receipts = result["receipts"]
+    why = [f"{n} row(s) of {t} written" for t, n in sorted(result["receipts_by_table"].items())]
+    why += [f"gating number moved: {k} {v:+d}" for k, v in moves.items()]
+    if "skipped" in measured:
+        why.append(measured["skipped"])
+    return {
+        "migration": migration.id,
+        "kind": "rows",
+        "computed_class": "full" if receipts or moves else "light",
+        "why": why or ["no row written, no gating number moved"],
+        "gating_moves": moves,
+        "scoreboard_before": before,
+        "scoreboard_after": after,
+        "rows_changed": receipts,
+        "rows_changed_by_table": result["receipts_by_table"],
+        "apply_message": result["message"],
+        "verify": result["verify"],
+        "snapshot": snapshot,
+        "applied_before": sorted(applied),
+        "code_digest": outcome_hook.migration_digest(migration),
+        "verdicts_sha256": None,
+        "gating_metrics": SCOREBOARD.gating_metrics() if SCOREBOARD is not None else [],
+        "episode_deltas": measured.get("prod_deltas", {}),
+        "plan": plan,
+        "plan_sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
+    }
 
 
 def rerun_after_commit(engine: Engine, natural_id: str) -> RunOutcome:

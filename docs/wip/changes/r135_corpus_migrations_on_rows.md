@@ -8,6 +8,7 @@ touches:
   - src/podcast_scraper/upgrade/cli_handlers.py
   - src/podcast_scraper/upgrade/runner.py
   - src/podcast_scraper/db/engines.py
+  - scripts/measure/corpus_change_gate.py
   - tests/unit/podcast_scraper/upgrade/test_rows.py
 ---
 
@@ -80,6 +81,13 @@ with no row scoreboard registered the measure is recorded skipped; with one, it 
 after `apply_rows` in the transaction, passes when the deltas are the clone's, keeps the apply and
 names the failure (exit 5, with the undo command) when they are not, and rolls the apply back
 when the scoreboard fails. The file runner leaves a migration on rows out.
+
+Added with the gate (`scripts/measure/corpus_change_gate.py --database-url`, `rows.gate_report`):
+the gate measures the apply in a rolled-back transaction and leaves every corpus table and the
+run history as they were; its report carries every key `build_outcome.py` copies (class FULL for
+any row written, the rows per table, the plan, the deltas and gating moves); an outcome built
+from it lets the real run through with no measure failure; the script writes the report with the
+copy's URL password-masked, and its rows mode refuses a migration on files.
 
 The roles (not a repo test; `~/.cache/closelistening-ingestion-drill/rows-migrator/run.sh`, a
 throwaway `postgres:18.6` with infra #120's `roles.sql` and `pg_db_grants.sh`'s corpus step,

@@ -14,6 +14,10 @@ what the landing check reads; a record that says light while this says full cann
 
 Bookkeeping the upgrade runner writes for every migration (``.podcast_scraper/``, the receipts
 ``*.jsonl`` at the corpus root) is not counted as the migration's output.
+
+A migration on rows (RFC-135) is measured with ``--database-url`` on a restored copy of prod's
+dump instead of ``--clone``/``--work``: the apply runs in a transaction that is rolled back, the
+plan and the row scoreboard's deltas come from it, and any row written makes the class FULL.
 """
 
 from __future__ import annotations
@@ -123,12 +127,44 @@ def _plan_or_none(migration: Any, root: Path) -> Optional[List[Dict[str, Any]]]:
     return rows
 
 
+def rows_gate(migration: Any, database_url: str, snapshot: str, out: Path) -> int:
+    """The gate for a migration on rows (RFC-135 §5): measured on a restored copy of prod's dump
+    inside a transaction that is rolled back, so the copy is never written."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+
+    from podcast_scraper.db.settings import normalize_url
+    from podcast_scraper.upgrade import rows
+
+    if not isinstance(migration, rows.RowMigration):
+        print(f"{migration.id} is a migration on files: give --clone and --work", file=sys.stderr)
+        return 2
+    engine = create_engine(normalize_url(database_url))
+    try:
+        report = rows.gate_report(engine, migration, snapshot=snapshot)
+    finally:
+        engine.dispose()
+    report.update(
+        measured_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+        clone=make_url(normalize_url(database_url)).render_as_string(hide_password=True),
+        code={"sha": _git("rev-parse", "HEAD"), "dirty": bool(_git("status", "--porcelain"))},
+    )
+    out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({k: report[k] for k in ("computed_class", "gating_moves", "rows_changed")}))
+    print(f"report: {out}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--migration", required=True, help="registered migration id")
-    ap.add_argument("--clone", required=True, type=Path, help="snapshot clone (never written)")
+    ap.add_argument("--clone", type=Path, help="snapshot clone (never written)")
+    ap.add_argument("--work", type=Path, help="where the copy is made (must not exist)")
     ap.add_argument(
-        "--work", required=True, type=Path, help="where the copy is made (must not exist)"
+        "--database-url",
+        default=None,
+        help="a migration on rows: a restored copy of prod's dump, measured in a rolled-back "
+        "transaction (never written); replaces --clone and --work",
     )
     ap.add_argument("--out", required=True, type=Path, help="gate report JSON")
     ap.add_argument("--snapshot", required=True, help="the snapshot id the clone was made from")
@@ -138,6 +174,14 @@ def main() -> int:
     migration = next((m for m in get_migrations() if m.id == args.migration), None)
     if migration is None:
         print(f"not registered: {args.migration}", file=sys.stderr)
+        return 2
+    if args.database_url:
+        return rows_gate(migration, args.database_url, args.snapshot, args.out)
+    if args.clone is None or args.work is None:
+        print("--clone and --work are required (or --database-url for rows)", file=sys.stderr)
+        return 2
+    if getattr(migration, "kind", None) == "rows":
+        print(f"{migration.id} is a migration on rows: give --database-url", file=sys.stderr)
         return 2
     if args.work.exists():
         print(f"--work must not exist: {args.work}", file=sys.stderr)

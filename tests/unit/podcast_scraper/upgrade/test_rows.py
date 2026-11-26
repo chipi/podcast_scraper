@@ -22,6 +22,7 @@ from podcast_scraper.db.schema import (
 )
 from podcast_scraper.db.settings import ENV_MIGRATOR_URL, normalize_url
 from podcast_scraper.upgrade import cli_handlers, outcome_hook, rows as rows_mod
+from podcast_scraper.upgrade.migration import Migration
 from podcast_scraper.upgrade.rows import (
     DbStateStore,
     migrator_engine,
@@ -701,6 +702,78 @@ def test_a_scoreboard_that_fails_after_the_apply_rolls_it_back(
     assert _snapshot(engine) == before
     assert _ledger(engine, Retitle.id) is None
     assert _runs(engine) == [("apply", "failed")]
+
+
+# ---------------------------------------------------------------- the gate (--database-url)
+
+#: What ``scripts/measure/build_outcome.py`` copies from a gate report into the outcome.
+BUILD_OUTCOME_KEYS = {
+    "snapshot",
+    "applied_before",
+    "code_digest",
+    "verdicts_sha256",
+    "scoreboard_before",
+    "scoreboard_after",
+    "episode_deltas",
+    "plan",
+    "plan_sha256",
+    "computed_class",
+}
+
+
+def test_the_gate_measures_and_writes_nothing(
+    engine: Engine, items: dict[str, int], scoreboard: list[int]
+) -> None:
+    before = _every_corpus_row(engine)
+    report = rows_mod.gate_report(engine, Retitle(items), snapshot="snap-test")
+    assert _every_corpus_row(engine) == before
+    assert _runs(engine) == []
+    assert BUILD_OUTCOME_KEYS <= set(report)
+    assert (report["computed_class"], report["rows_changed"]) == ("full", 3)
+    assert report["rows_changed_by_table"] == {"content_items": 1, "item_cards": 2}
+    assert report["episode_deltas"] == {"item:1": {"titled_one": 1}}
+    assert report["gating_moves"] == {"titled_one": 1}
+    assert [p["meta"] for p in report["plan"]] == ["item:1", "item:2", "item:3"]
+
+
+def test_an_outcome_from_the_gate_lets_the_run_through(
+    engine: Engine, items: dict[str, int], tmp_path: Path, scoreboard: list[int]
+) -> None:
+    mig = Retitle(items)
+    report = rows_mod.gate_report(engine, mig, snapshot="snap-test")
+    doc = outcome_for(mig, report["plan"], episode_deltas=report["episode_deltas"])
+    doc.update({k: report[k] for k in BUILD_OUTCOME_KEYS})
+    regime = prepare_regime(mig, set(), [mig.id], outcome_file=_write(tmp_path, "o.json", doc))
+    outcome = run_migration(engine, mig, regime=regime)
+    assert (outcome.status, outcome.outcome_failed) == ("ok", [])
+
+
+def test_the_gate_script_writes_the_report_for_a_migration_on_rows(
+    engine: Engine, items: dict[str, int], tmp_path: Path
+) -> None:
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[4] / "scripts" / "measure" / "corpus_change_gate.py"
+    spec = importlib.util.spec_from_file_location("corpus_change_gate_rows", script)
+    assert spec is not None and spec.loader is not None
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    out = tmp_path / "gate.json"
+    url = worker_database_url() or ""
+    assert gate.rows_gate(Retitle(items), url, "snap-test", out) == 0
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert BUILD_OUTCOME_KEYS | {"code", "measured_at", "clone"} <= set(report)
+    assert "podcast:***@" in report["clone"]
+    assert "gated on the plan only" in " ".join(report["why"])
+
+    class OnFiles(Migration):
+        id = "9002_test_files"
+
+        def apply(self, ctx: Any) -> Any:
+            raise AssertionError("not applied")
+
+    assert gate.rows_gate(OnFiles(), url, "snap-test", tmp_path / "files.json") == 2
+    assert not (tmp_path / "files.json").exists()
 
 
 # ---------------------------------------------------------------- the CLI (row mode)
