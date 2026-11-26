@@ -99,8 +99,9 @@ close (the survey, 2026-11-26):
   intel to come, the database session's s-entities and s-intel). The framework and its tests use
   `content_items` and `item_cards`; it must not assume any other table's shape.
 - `corpus_revision` (DECISIONS rule 7, bumped in every content transaction) is not in the schema
-  yet. The framework bumps it through one function that is a no-op until the table exists, and a
-  test pins the bump once it does.
+  yet. The database session adds it (one row, a bigint counter) in `corpus_0007`. The framework
+  bumps it through one function that is a no-op until the table exists, and a test against
+  `corpus_0007`'s table pins the bump, so it cannot stay a no-op.
 
 ## Design & Implementation
 
@@ -128,7 +129,7 @@ class RowMigration(Migration):
 - `RowResult` names the `item_ids` it changed, for the derived surfaces (§6).
 - Idempotent: a second apply finds nothing to change and writes no receipt (as files).
 
-### 2. Schema additions (the next corpus revision, `migration_runs`)
+### 2. Schema additions (`corpus_0006_migration_runs`)
 
 | Object | Change |
 | --- | --- |
@@ -148,8 +149,11 @@ class RowMigration(Migration):
   `pipeline_rw` reads `corpus_migrations` (a writer refuses to start on a pending migration, as
   readiness does for schema heads).
 
-The database session owns the corpus history; this revision is proposed to it, not written over
-it.
+The database session owns the corpus history and agreed to this table as written (2026-11-26):
+the revision is `corpus_0006_migration_runs`, `down_revision` `corpus_0005_entities` (public
+#2567); its `search_chunks` and `corpus_revision` revision takes `corpus_0007` on top. `schema.py`'s
+`corpus_metadata` carries the same columns (`test_db_corpus.py` compares the metadata with the
+migrated database); the grants are infra's step after the migrate.
 
 ### 3. The run
 
@@ -284,12 +288,24 @@ surfaces.
 
 ## Open Questions
 
-1. The database session: is the `migration_runs` revision (§2) acceptable, or does it want the
-   receipts' run id another way?
+1. Answered 2026-11-26 by the database session: yes, as `corpus_0006_migration_runs` (§2).
 2. Infra: the lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the
    refusal rule of §3 step 2 matches theirs.
 3. Answered 2026-11-26: undo is a subcommand (Key Decision 6).
 4. A derived surface failing after the commit (§6): exit 4 with the migration applied and the step
    re-runnable (proposed, as today), an automatic undo, or the surfaces inside the data
    transaction where they are in Postgres. The operator asked the database and infra sessions to
-   weigh in (2026-11-26); open until they answer.
+   weigh in (2026-11-26).
+   - The database session (2026-11-26) recommends A plus C, not B. The per-item surfaces in
+     Postgres (`item_cards`, the flags on `content_items`, `search_chunks` and embeddings rows of
+     the changed items) are refreshed inside the data transaction, because readers read them
+     directly, so a stale one is wrong. LanceDB (outside Postgres until E09) and the corpus-wide
+     projections and identity builds (batch-built under a build id, readers see the previous build
+     during a rebuild) run after the commit with exit 4 on failure. An automatic undo is "a second
+     prod write nobody reviewed, made while something is already failing". The views it lists
+     (`v_bridge`, `v_context`, `v_catalog`, `v_served_id_map`, `v_confidence_words`) need no
+     refresh while they are plain views. Not measured: how long the in-transaction refresh of
+     `item_cards` takes for a migration touching many items.
+   - A gap it names for A: a stale LanceDB hit is safe only if search hydration drops a hit whose
+     natural id no longer resolves, which r-intents must do and does not do yet.
+   - Infra: not answered yet. Open until it answers and the operator decides.
