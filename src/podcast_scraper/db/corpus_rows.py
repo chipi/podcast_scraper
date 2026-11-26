@@ -191,6 +191,25 @@ def _newest(doc: Mapping[str, Any]) -> NewestKey:
     return newest_key(_instant(raw), item_natural_id(doc))
 
 
+def unreadable_times(doc: Mapping[str, Any]) -> tuple[str, ...]:
+    """The ``content_items`` time columns the item states but :func:`_instant` cannot read, so
+    :func:`item_row` writes them null: ``published_at``, ``ingested_at``. A missing time is not
+    listed; only a stated one that is not ISO 8601."""
+    if is_news(doc):
+        raw = {"published_at": doc.get(F_PUBLISHED_AT), "ingested_at": doc.get(_F_INGESTED_AT)}
+    else:
+        raw = {
+            "published_at": _block(doc, "episode").get("published_date"),
+            "ingested_at": _block(doc, "processing").get("processing_timestamp"),
+        }
+    stated = {
+        column: value
+        for column, value in raw.items()
+        if value is not None and not (isinstance(value, str) and not value.strip())
+    }
+    return tuple(column for column, value in stated.items() if _instant(value) is None)
+
+
 #: The ``sources`` columns an item states for its source: what ``content_items.source_attrs``
 #: holds (corpus_0008), so a source row can be merged again from its items' rows.
 SOURCE_ATTRS = ("raw_feed_id", "title", "language", "category", "licence")

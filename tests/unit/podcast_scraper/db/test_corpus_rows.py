@@ -17,6 +17,7 @@ from podcast_scraper.db.corpus_rows import (
     served_for,
     source_row,
     source_row_for,
+    unreadable_times,
 )
 from podcast_scraper.publishers import Publisher, Registry
 
@@ -225,6 +226,21 @@ def test_equal_instants_go_to_the_greater_natural_id_whatever_the_order() -> Non
     second["feed"]["title"] = "From b"
     assert source_row_for([first, second])["title"] == "From b"
     assert source_row_for([second, first])["title"] == "From b"
+
+
+def test_a_stated_time_that_cannot_be_read_is_listed_and_a_missing_one_is_not() -> None:
+    assert unreadable_times(_episode()) == ()
+    assert unreadable_times(_episode(published_date=None)) == ()
+    assert unreadable_times(_episode(published_date="  ")) == ()
+    assert unreadable_times(_episode(published_date="Tue, 3 Nov 2026 08:00 GMT")) == (
+        "published_at",
+    )
+    assert unreadable_times(_episode(published_date=20261103)) == ("published_at",)
+    doc = _episode()
+    doc["processing"]["processing_timestamp"] = "yesterday"
+    assert unreadable_times(doc) == ("ingested_at",)
+    assert item_row(doc)["ingested_at"] is None
+    assert unreadable_times(_news(published_at="soon")) == ("published_at",)
 
 
 def test_a_show_of_items_from_two_sources_is_refused() -> None:

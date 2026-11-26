@@ -359,6 +359,16 @@ def test_has_transcript_follows_the_items_transcript_documents(
     assert _row(conn, "content_items", "item:t")["has_transcript"] is True
 
 
+def test_an_unreadable_publish_time_is_written_null_and_counted(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    corpus_writer.UNREADABLE.clear()
+    doc = _doc("item:u", published_date="Tue, 3 Nov 2026 08:00 GMT")
+    assert sync_episode(_metadata(tmp_path, "item:u", doc), None) == "no_files"
+    assert _row(conn, "content_items", "item:u")["published_at"] is None
+    assert corpus_writer.UNREADABLE == {"published_at": 1}
+
+
 def test_an_item_whose_id_in_its_source_is_another_items_is_refused(
     pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:

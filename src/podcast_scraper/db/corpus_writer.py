@@ -74,6 +74,7 @@ from podcast_scraper.db.corpus_rows import (
     newest_key,
     source_attrs,
     source_row,
+    unreadable_times,
 )
 from podcast_scraper.db.importers.corpus_documents import (
     DocumentRefused,
@@ -102,6 +103,9 @@ CHANGE_KINDS = (RETRANSCRIBED, REPUNCTUATED, TRANSLATED, CORRECTED)
 
 #: How each sync ended, by outcome, since the process started; the run's metrics read it.
 OUTCOMES: collections.Counter[str] = collections.Counter()
+#: Items written with a time column null because the metadata states it unreadably, by column
+#: (``corpus_rows.unreadable_times``), since the process started.
+UNREADABLE: collections.Counter[str] = collections.Counter()
 
 _SEGMENTS_BATCH = 1000
 
@@ -421,6 +425,13 @@ def sync_episode(
             synced = sync_documents(conn, item_id, files, change_kind=change_kind)
             mark_has_transcript(conn, item_id)
         _DEFERRED.pop(str(metadata_path), None)
+        for column in unreadable_times(doc):
+            UNREADABLE[column] += 1
+            logger.warning(
+                "corpus write: %s states a %s that is not ISO 8601; written null",
+                metadata_path.name,
+                column,
+            )
         return _count(_outcome(synced) if files else "no_files")
     except (leases.LeaseRefused, leases.LeaseLost) as exc:
         outcome = "lease_refused" if isinstance(exc, leases.LeaseRefused) else "lease_lost"
