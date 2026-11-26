@@ -21,7 +21,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Set, Tuple
 
-from sqlalchemy import and_, delete, func, insert, select, Table, text, update
+from sqlalchemy import (
+    and_,
+    column as sa_column,
+    delete,
+    func,
+    insert,
+    select,
+    Table,
+    table as sa_table,
+    text,
+    update,
+)
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
 
@@ -152,10 +163,12 @@ def _sha(state: Mapping[str, Any]) -> str:
 
 def _state(conn: Connection, table: Table, key: Mapping[str, Any]) -> Optional[dict[str, Any]]:
     """The row's whole state, locked for the rest of the transaction; ``None`` when absent."""
-    cond = " AND ".join(f't."{n}" = :k{i}' for i, n in enumerate(_pk(table)))
+    _key_values(table, key)  # refuses a key that is not the table's primary key
     state: Optional[dict[str, Any]] = conn.execute(
-        text(f"SELECT to_jsonb(t) FROM {CORPUS_SCHEMA}.{table.name} AS t WHERE {cond} FOR UPDATE"),
-        {f"k{i}": v for i, v in enumerate(_key_values(table, key))},
+        select(func.to_jsonb(table.table_valued()))
+        .select_from(table)
+        .where(_where(table, key))
+        .with_for_update()
     ).scalar_one_or_none()
     return state
 
@@ -304,14 +317,19 @@ class RowMigration(Migration):
 
 def bump_corpus_revision(conn: Connection) -> bool:
     """Advance the corpus revision counter; ``False`` while its table does not exist yet."""
-    found = conn.execute(text(f"SELECT to_regclass('{CORPUS_SCHEMA}.corpus_revision')")).scalar()
-    if found is None:
+    name = f"{CORPUS_SCHEMA}.corpus_revision"
+    if conn.execute(select(func.to_regclass(name))).scalar() is None:
         return False
+    # Named here, not taken from ``schema.py``: the table is the database session's corpus_0007.
+    rev = sa_table(
+        "corpus_revision",
+        sa_column("id"),
+        sa_column("revision"),
+        sa_column("updated_at"),
+        schema=CORPUS_SCHEMA,
+    )
     conn.execute(
-        text(
-            f"UPDATE {CORPUS_SCHEMA}.corpus_revision "
-            "SET revision = revision + 1, updated_at = now() WHERE id = 1"
-        )
+        update(rev).where(rev.c.id == 1).values(revision=rev.c.revision + 1, updated_at=func.now())
     )
     return True
 
@@ -709,16 +727,24 @@ def _restore(
     if state is None:
         conn.execute(delete(table).where(_where(table, key)))
         return
+    # jsonb_populate_record needs the table's row type by name, which no bound parameter can
+    # carry. Every name below comes from ``corpus_metadata`` (a receipt's ``target_table`` is
+    # resolved through ``_table``, which refuses any other), and every value is bound.
     name = f"{CORPUS_SCHEMA}.{table.name}"
     record = f"jsonb_populate_record(NULL::{name}, CAST(:s AS jsonb))"
     if not exists:
-        conn.execute(text(f"INSERT INTO {name} SELECT * FROM {record}"), {"s": json.dumps(state)})
+        insert_sql = f"INSERT INTO {name} SELECT * FROM {record}"  # nosec B608 - names above
+        conn.execute(text(insert_sql), {"s": json.dumps(state)})
         return
     cols = ", ".join(f'"{c.name}"' for c in table.columns)
     picked = ", ".join(f'r."{c.name}"' for c in table.columns)
     cond = " AND ".join(f'"{n}" = :k{i}' for i, n in enumerate(_pk(table)))
+    update_sql = (
+        f"UPDATE {name} SET ({cols}) = (SELECT {picked} FROM {record} AS r) "  # nosec B608
+        f"WHERE {cond}"
+    )
     conn.execute(
-        text(f"UPDATE {name} SET ({cols}) = (SELECT {picked} FROM {record} AS r) WHERE {cond}"),
+        text(update_sql),
         {"s": json.dumps(state), **{f"k{i}": v for i, v in enumerate(_key_values(table, key))}},
     )
 

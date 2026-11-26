@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, insert, select, text
+from sqlalchemy import cast, create_engine, func, insert, select, Text, text
 from sqlalchemy.engine import Connection, Engine
 
 from podcast_scraper.db import leases
@@ -120,11 +120,11 @@ def _snapshot(engine: Engine) -> dict[tuple[str, int], Any]:
     """Every content item and card, as ``to_jsonb``."""
     with engine.connect() as conn:
         out: dict[tuple[str, int], Any] = {}
-        for name in ("content_items", "item_cards"):
+        for t in (ITEMS, CARDS):
             for item_id, state in conn.execute(
-                text(f"SELECT item_id, to_jsonb(t) FROM corpus.{name} AS t")
+                select(t.c.item_id, func.to_jsonb(t.table_valued()))
             ):
-                out[(name, item_id)] = state
+                out[(t.name, item_id)] = state
         return out
 
 
@@ -303,7 +303,7 @@ def _every_corpus_row(engine: Engine) -> dict[str, list[str]]:
     with engine.connect() as conn:
         return {
             t.name: sorted(
-                conn.execute(text(f"SELECT md5(to_jsonb(r)::text) FROM corpus.{t.name} AS r"))
+                conn.execute(select(func.md5(cast(func.to_jsonb(t.table_valued()), Text))))
                 .scalars()
                 .all()
             )
