@@ -24,7 +24,14 @@ from typing import Any, Callable, TypeVar
 from sqlalchemy import create_engine, Engine, exc as sa_exc, text
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db.settings import CorpusSettings, DatabaseSettings, PipelineSettings
+from podcast_scraper.db.settings import (
+    CorpusSettings,
+    DatabaseNotConfigured,
+    DatabaseSettings,
+    ENV_MIGRATOR_URL,
+    normalize_url,
+    PipelineSettings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +101,32 @@ def unbounded_connect_args(*, read_only: bool = False) -> dict[str, str]:
     if read_only:
         options += " -c default_transaction_read_only=on"
     return {"options": options, **application_name_args()}
+
+
+def migrator_engine(url: str | None = None) -> Engine:
+    """A ``migrator`` engine for one corpus migration one-shot on rows (RFC-135 §3); the caller
+    disposes it.
+
+    Only one-shots get the ``migrator`` URL (CRFC-005 §7). One connection, no statement timeout as
+    for schema migrations, and a 5 s lock timeout so a row another writer holds fails the run
+    instead of hanging it.
+    """
+    if url is None:
+        url = (os.environ.get(ENV_MIGRATOR_URL) or "").strip()
+        if not url:
+            raise DatabaseNotConfigured(
+                f"{ENV_MIGRATOR_URL} is not set; a corpus migration on rows runs as migrator"
+            )
+    args = unbounded_connect_args()
+    args["options"] += " -c lock_timeout=5000"
+    return create_engine(
+        normalize_url(url),
+        pool_size=1,
+        max_overflow=0,
+        pool_pre_ping=True,
+        hide_parameters=True,
+        connect_args=args,
+    )
 
 
 def _create(

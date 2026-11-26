@@ -11,6 +11,10 @@ Subcommands give both on-demand and automated operation:
 - ``verify``  — run each applied migration's verification. Exit 1 on any failure.
 - ``rerun``   — apply an applied regime migration again for the episodes a file names, measured
   by the outcome hook against its outcome's rows for them; ``--dry-run`` shows the plan.
+- ``run --database``, ``undo``, ``surfaces`` — migrations on rows (RFC-135, ``upgrade/rows.py``):
+  apply the first pending one, undo one from its receipts, or run its after-commit surfaces again
+  after an exit **6** (committed, an after-commit surface failed). Refused: 1; outcome hook: 3/4,
+  and 5 when the row scoreboard's deltas are not the clone's (applied; the undo is named).
 
 ``--json`` on any subcommand emits a machine-readable object for pipelines.
 """
@@ -24,13 +28,17 @@ import logging
 import os
 import shutil
 import sys
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from .migration import MigrationContext, MigrationResult
 from .runner import UpgradeRunner, UpgradeStatus
 from .state import FilesystemStateStore
+
+if TYPE_CHECKING:
+    from .rows import RunOutcome
 
 
 def _add_common(sub: argparse.ArgumentParser) -> None:
@@ -80,6 +88,27 @@ def parse_upgrade_argv(argv: Sequence[str]) -> argparse.Namespace:
         help="A plan-diff file from a stopped run, every entry given a cause and the operator's "
         "go: applies only if prod's plan still differs exactly so (upgrade/outcome_hook.py).",
     )
+    run_p.add_argument(
+        "--database",
+        action="store_true",
+        help="Apply the first pending migration on rows (RFC-135) as migrator, under the "
+        "exclusive corpus lease; no snapshot (the pg_dump before the one-shot is the backstop).",
+    )
+
+    undo_p = subparsers.add_parser(
+        "undo", help="Undo a migration on rows from its receipts, all or nothing (RFC-135 §4)"
+    )
+    undo_p.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    undo_p.add_argument("--migration", required=True, help="The applied migration's full id.")
+    undo_p.add_argument("--dry-run", action="store_true", help="The undo rolled back.")
+    undo_p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation (automation).")
+
+    surfaces_p = subparsers.add_parser(
+        "surfaces",
+        help="Run a migration on rows' after-commit surfaces again (after an exit 6)",
+    )
+    surfaces_p.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    surfaces_p.add_argument("--migration", required=True, help="The migration's full id.")
 
     rerun_p = subparsers.add_parser(
         "rerun", help="Apply an applied migration again, for named episodes only (measured)"
@@ -452,8 +481,164 @@ def _cmd_rerun(
     return 0
 
 
+#: Exit code when a migration on rows committed and an after-commit surface failed (RFC-135 §6);
+#: 4 is taken on the one-shot path.
+EXIT_AFTER_COMMIT = 6
+
+
+def _row_migrations() -> list:
+    from .registry import get_migrations
+    from .rows import RowMigration
+
+    return [m for m in get_migrations() if isinstance(m, RowMigration)]
+
+
+def _confirm_rows(what: str, args: argparse.Namespace, log: logging.Logger) -> bool:
+    if args.dry_run or args.yes:
+        return True
+    if not sys.stdin.isatty():
+        log.error("Refusing to %s without confirmation; pass --yes for automation.", what)
+        return False
+    return input(f"{what}? [y/N] ").strip().lower() in ("y", "yes")
+
+
+def _print_rows_outcome(outcome: RunOutcome, as_json: bool) -> None:
+    if as_json:
+        payload = asdict(outcome)
+        payload["item_ids"] = sorted(outcome.item_ids)
+        print(json.dumps(payload, indent=2, default=str))
+        return
+    print(
+        f"  [{outcome.kind}] run {outcome.run_id}: {outcome.status}, "
+        f"{outcome.receipts} receipt(s), {len(outcome.item_ids)} item(s)"
+    )
+
+
+def _after_commit_exit(natural_id: str, failed: List[str]) -> int:
+    if not failed:
+        return 0
+    print(
+        f"after-commit step(s) failed ({', '.join(failed)}); the migration stays committed; "
+        f"re-run them: podcast_scraper upgrade surfaces --migration {natural_id}",
+        file=sys.stderr,
+    )
+    return EXIT_AFTER_COMMIT
+
+
+def _rows_call(
+    fn: Callable[[], RunOutcome], log: logging.Logger
+) -> Tuple[Optional[RunOutcome], int]:
+    """Run ``fn`` (a call into ``upgrade.rows``); map its refusals to the CLI's exit codes."""
+    from . import outcome_hook
+    from .rows import RowsRefused, UndoRefused
+
+    try:
+        return fn(), 0
+    except outcome_hook.HookError as exc:
+        print(f"OUTCOME HOOK: {exc}", file=sys.stderr)
+        return None, exc.code
+    except UndoRefused as exc:
+        print(f"UNDO REFUSED, nothing restored: {exc}", file=sys.stderr)
+        for row in exc.refused:
+            print(f"  changed since the apply: {row}", file=sys.stderr)
+        return None, 1
+    except RowsRefused as exc:
+        log.error("Refused: %s", exc)
+        return None, 1
+
+
+def _cmd_run_rows(args: argparse.Namespace, log: logging.Logger) -> int:
+    from .rows import DbStateStore, migrator_engine, prepare_regime, run_migration
+
+    engine = migrator_engine()
+    try:
+        applied = DbStateStore(engine).applied_migration_ids()
+        pending = [m for m in _row_migrations() if m.id not in applied]
+        if not pending:
+            print("Up to date — no pending migration on rows.")
+            return 0
+        mig = pending[0]
+        if not _confirm_rows(f"Apply {mig.id} on rows", args, log):
+            print("Aborted.")
+            return 1
+        accept = Path(args.accept_plan_diff) if args.accept_plan_diff else None
+
+        def call() -> RunOutcome:
+            regime = prepare_regime(mig, applied, [m.id for m in pending], accept_file=accept)
+            return run_migration(engine, mig, dry_run=args.dry_run, regime=regime)
+
+        outcome, code = _rows_call(call, log)
+        if outcome is None:
+            return code
+        _print_rows_outcome(outcome, args.json)
+        if len(pending) > 1:
+            print(
+                f"{len(pending) - 1} more pending on rows; each runs on its own.", file=sys.stderr
+            )
+        after = _after_commit_exit(mig.id, outcome.after_commit_failed)
+        if outcome.outcome_failed and not args.dry_run:
+            from . import outcome_hook
+
+            print(
+                f"OUTCOME HOOK: {mig.id}: applied, and the outcome is not the measured one "
+                f"({len(outcome.outcome_failed)}): {outcome.outcome_failed[:5]}; "
+                f"undo: podcast_scraper upgrade undo --migration {mig.id}",
+                file=sys.stderr,
+            )
+            return outcome_hook.EXIT_OUTCOME
+        return after
+    finally:
+        engine.dispose()
+
+
+def _cmd_undo(args: argparse.Namespace, log: logging.Logger) -> int:
+    from .rows import migrator_engine, undo_migration
+
+    if not _confirm_rows(f"Undo {args.migration} on rows", args, log):
+        print("Aborted.")
+        return 1
+    engine = migrator_engine()
+    try:
+        outcome, code = _rows_call(
+            lambda: undo_migration(engine, args.migration, dry_run=args.dry_run), log
+        )
+        if outcome is None:
+            return code
+        _print_rows_outcome(outcome, args.json)
+        return _after_commit_exit(args.migration, outcome.after_commit_failed)
+    finally:
+        engine.dispose()
+
+
+def _cmd_surfaces(args: argparse.Namespace, log: logging.Logger) -> int:
+    from .rows import migrator_engine, rerun_after_commit
+
+    engine = migrator_engine()
+    try:
+        outcome, code = _rows_call(lambda: rerun_after_commit(engine, args.migration), log)
+        if outcome is None:
+            return code
+        _print_rows_outcome(outcome, args.json)
+        return _after_commit_exit(args.migration, outcome.after_commit_failed)
+    finally:
+        engine.dispose()
+
+
 def run_upgrade_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     """Dispatch a parsed ``upgrade`` namespace to its subcommand handler."""
+    from podcast_scraper.db.settings import DatabaseNotConfigured
+
+    sub = args.upgrade_subcommand
+    try:
+        if sub == "run" and getattr(args, "database", False):
+            return _cmd_run_rows(args, log)
+        if sub == "undo":
+            return _cmd_undo(args, log)
+        if sub == "surfaces":
+            return _cmd_surfaces(args, log)
+    except DatabaseNotConfigured as exc:
+        log.error("%s", exc)
+        return 1
     corpus_root = _resolve_corpus_root(args, log)
     if corpus_root is None:
         return 1
