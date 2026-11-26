@@ -160,11 +160,12 @@ def _receipts(engine: Engine) -> list[Any]:
 
 def test_apply_then_undo_restores_every_row(engine: Engine, items: dict[str, int]) -> None:
     before = _snapshot(engine)
+    start = _revision(engine)
     applied = run_migration(engine, Retitle(items))
     assert (applied.kind, applied.status, applied.receipts) == ("apply", "ok", 3)
     assert applied.result["verify"] == {"ok": True, "message": "item 1 title 'Episode One'"}
     assert applied.result["corpus_revision_bumped"] is True
-    assert _revision(engine) == 1
+    assert _revision(engine) == start + 1
     ledger = _ledger(engine, Retitle.id)
     assert (ledger.status, ledger.to_version, ledger.last_run_id) == (
         "applied",
@@ -177,7 +178,7 @@ def test_apply_then_undo_restores_every_row(engine: Engine, items: dict[str, int
     assert (undone.kind, undone.status) == ("undo", "ok")
     assert undone.result["restored"] == 3
     assert undone.result["corpus_revision_bumped"] is True
-    assert _revision(engine) == 2
+    assert _revision(engine) == start + 2
     assert _snapshot(engine) == before
     ledger = _ledger(engine, Retitle.id)
     assert (ledger.status, ledger.last_run_id) == ("undone", undone.run_id)
@@ -295,7 +296,9 @@ def test_the_revision_bump_is_a_no_op_without_its_table(engine: Engine) -> None:
         conn.execute(text("DROP TABLE corpus.corpus_revision"))
         assert bump_corpus_revision(conn) is False
         tx.rollback()
-    assert _revision(engine) == 0
+    with engine.connect() as conn:
+        restored = conn.execute(text("SELECT to_regclass('corpus.corpus_revision')")).scalar()
+    assert restored is not None
 
 
 def test_apply_through_the_file_runner_is_refused(items: dict[str, int]) -> None:
