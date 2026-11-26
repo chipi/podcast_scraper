@@ -33,6 +33,7 @@ TABLES = {
     "corpus_meta",
     "corpus_migrations",
     "migration_receipts",
+    "migration_runs",
     "processing_stages",
     "jobs",
     "job_leases",
@@ -55,6 +56,8 @@ TABLES = {
 
 INDEXES = {
     "migration_receipts_migration_idx",
+    "migration_receipts_run_idx",
+    "migration_runs_natural_idx",
     "ingestion_runs_created_idx",
     "ingestion_runs_source_idx",
     "run_item_outcomes_run_idx",
@@ -310,6 +313,61 @@ def test_a_card_is_one_row_per_item(conn: Connection) -> None:
     conn.execute(insert, {"i": item})
     with pytest.raises(sa_exc.IntegrityError, match="item_cards_pkey"):
         conn.execute(insert, {"i": item})
+    conn.rollback()
+
+
+def test_a_migration_run_ties_the_ledger_row_and_its_receipts(conn: Connection) -> None:
+    run = conn.execute(
+        text(
+            "INSERT INTO corpus.migration_runs (natural_id, kind, status) "
+            "VALUES ('0060_x', 'apply', 'ok') RETURNING run_id"
+        )
+    ).scalar_one()
+    migration = conn.execute(
+        text(
+            "INSERT INTO corpus.corpus_migrations (natural_id, status, to_version, last_run_id) "
+            "VALUES ('0060_x', 'applied', '3.0.0', :r) RETURNING migration_id"
+        ),
+        {"r": run},
+    ).scalar_one()
+    conn.execute(
+        text(
+            "INSERT INTO corpus.migration_receipts "
+            "(migration_id, run_id, seq, target_table, target_key, before, after) "
+            "VALUES (:m, :r, 1, 'content_items', '[1]', NULL, '{\"item_id\": 1}')"
+        ),
+        {"m": migration, "r": run},
+    )
+    assert conn.execute(
+        text(
+            "SELECT m.natural_id, r.kind, count(c.receipt_id) FROM corpus.corpus_migrations m "
+            "JOIN corpus.migration_runs r ON r.run_id = m.last_run_id "
+            "JOIN corpus.migration_receipts c ON c.run_id = r.run_id GROUP BY 1, 2"
+        )
+    ).all() == [("0060_x", "apply", 1)]
+    for kind, status, check in (
+        ("replay", "ok", "migration_runs_kind_check"),
+        ("apply", "running", "migration_runs_status_check"),
+    ):
+        with pytest.raises(sa_exc.IntegrityError, match=check):
+            with conn.begin_nested():
+                conn.execute(
+                    text(
+                        "INSERT INTO corpus.migration_runs (natural_id, kind, status) "
+                        "VALUES ('0060_x', :kind, :status)"
+                    ),
+                    {"kind": kind, "status": status},
+                )
+    with pytest.raises(sa_exc.IntegrityError, match="migration_receipts_run_id_fkey"):
+        with conn.begin_nested():
+            conn.execute(
+                text(
+                    "INSERT INTO corpus.migration_receipts "
+                    "(migration_id, run_id, seq, target_table, target_key) "
+                    "VALUES (:m, :r, 2, 'content_items', '[2]')"
+                ),
+                {"m": migration, "r": run + 1000},
+            )
     conn.rollback()
 
 
@@ -845,15 +903,16 @@ def test_a_segment_speaker_must_be_an_entity_and_is_cleared_when_it_goes(conn: C
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0005_entities"]
+    assert scripts.get_heads() == ["corpus_0006_migration_runs"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
         "corpus_0003_sources_and_items",
         "corpus_0004_documents",
         "corpus_0005_entities",
+        "corpus_0006_migration_runs",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0005_entities"
+    assert migrate.head_revision("corpus") == "corpus_0006_migration_runs"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1049,9 +1108,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0003_sources_and_items",
             "corpus_0004_documents",
             "corpus_0005_entities",
+            "corpus_0006_migration_runs",
         ]
-        rows = migrate.history_rows(url, "corpus")
+        rows = migrate.history_rows(url, "corpus", limit=10)
         assert [r["revision"] for r in rows] == [
+            "corpus_0006_migration_runs",
             "corpus_0005_entities",
             "corpus_0004_documents",
             "corpus_0003_sources_and_items",
@@ -1119,8 +1180,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 5]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 5
+        assert sorted(len(r) for r in results) == [0, 6]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 6
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1169,7 +1230,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 5
+        assert len(revisions) == 6
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1208,7 +1269,7 @@ def test_upgrade_creates_pg_trgm_only_when_it_is_missing(url: str) -> None:
         scratch = (
             make_url(normalize_url(url)).set(database=name).render_as_string(hide_password=False)
         )
-        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0005_entities"
+        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0006_migration_runs"
         probe = create_engine(normalize_url(scratch))
         with probe.connect() as c:
             assert c.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")).first()
