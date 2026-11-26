@@ -89,6 +89,7 @@ from podcast_scraper.db.schema import content_items, documents, segments, source
 from podcast_scraper.db.settings import pipeline_is_configured
 from podcast_scraper.document_cut import cut_body, DocumentCutError
 from podcast_scraper.languages import episode_language
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 logger = logging.getLogger(__name__)
 
@@ -531,7 +532,7 @@ def retry_deferred(output_root: str) -> int:
     if not pipeline_is_configured():
         return 0
     left_total = 0
-    for path in sorted(Path(output_root).rglob(DEFERRED_FILE)):
+    for path in sorted(corpus_rglob(Path(output_root), DEFERRED_FILE, include_sources=True)):
         entries: dict[str, tuple[Optional[str], str]] = {}
         try:
             for line in path.read_text(encoding="utf-8").splitlines():
