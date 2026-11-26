@@ -153,7 +153,12 @@ class RowMigration(Migration):
   `schema_history` and `alembic_version*`. So an infra PR adds the three tables to that narrowing,
   in `roles.sql` and in the corpus branch of `infra/deploy/pg_db_grants.sh`: revoke all from
   `pipeline_rw` on `migration_runs` and `migration_receipts`, and revoke INSERT, UPDATE, DELETE and
-  TRUNCATE on `corpus_migrations`. A test in §Testing pins it.
+  TRUNCATE on `corpus_migrations`. A test in §Testing pins it. That PR is chipi/infra #120
+  (open). Sequences: the default privileges also give `pipeline_rw` USAGE, SELECT and UPDATE on
+  every sequence `migrator` creates in `corpus`, so it could advance the identity counters of
+  these tables without inserting rows; #120 is to revoke them on `migration_runs_run_id_seq`,
+  `corpus_migrations_migration_id_seq` and `migration_receipts_receipt_id_seq` (Postgres's default
+  names for the identity columns, checked against the migrated test database before #120 merges).
 
 The database session owns the corpus history and agreed to this table as written (2026-11-26):
 the revision is `corpus_0006_migration_runs`, `down_revision` `corpus_0005_entities` (public
@@ -170,7 +175,16 @@ migrated database); the grants are infra's step after the migrate.
    fast instead of hanging).
 2. Take the lease: `job_leases` resource `corpus`, mode `exclusive`, holder `upgrade:<run_id>`,
    with a heartbeat. Refused (exit 1, nothing written) when any holder has it, shared or
-   exclusive. This replaces the file lock; the file lock is not taken in row mode.
+   exclusive. This replaces the file lock; the file lock is not taken in row mode. The lease
+   scheme is the database session's (tracker row `w-leases`, 2026-11-26): resources `corpus`,
+   `source:<natural_id>` and `build:<kind>`; an exclusive lease only when the resource has no
+   unexpired holder, a shared one only when it has no unexpired exclusive holder, expired leases
+   free, refused and never waited for; `corpus` first, then a source or build lease, all outside
+   the job's transactions. An ingest takes `corpus` shared then its source exclusive, an enricher
+   and a corpus-wide build `corpus` shared (a build also its `build:` lease), and a row migration
+   and the schema migrate step `corpus` exclusive. Every chunk transaction, a row migration's one
+   included, starts with the heartbeat `UPDATE ... WHERE holder = :me AND expires_at > now()` and
+   stops if it touches no row.
 3. Regime checks before the transaction (as today, exits 3 / 4): outcome, digest, first pending,
    the plan diff against the outcome's plan.
 4. **One transaction:** `apply_rows`; receipts; `corpus_migrations` row; `corpus_revision` bump
@@ -332,10 +346,7 @@ surfaces.
 ## Open Questions
 
 1. Answered 2026-11-26 by the database session: yes, as `corpus_0006_migration_runs` (§2).
-2. The lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the refusal
-   rule of §3 step 2 matches theirs. Infra (2026-11-26): not infra's; `job_leases` is the database
-   session's tracker row `w-leases` (todo), and infra has no lease code. Asked of the database
-   session.
+2. Answered 2026-11-26 by the database session (`w-leases`): the scheme in §3 step 2.
 3. Answered 2026-11-26: undo is a subcommand (Key Decision 6).
 4. Answered 2026-11-26: the operator took the database session's recommendation (Key Decision 7,
    §6). Infra had not answered when the operator decided; its retry practice for a failed one-shot
