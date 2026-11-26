@@ -98,6 +98,39 @@ def test_idempotent_across_last_updated_zulu_vs_offset(tmp_path: Path) -> None:
     assert result.files_updated == 0  # same instant, just a different string form → no rewrite
 
 
+@pytest.mark.parametrize(
+    "stored", ["2024-01-01T00:00:00", "2024-01-01T02:00:00+02:00", "2024-01-01T00:00:00+00:00"]
+)
+def test_a_stored_naive_or_offset_last_updated_of_the_same_instant_is_not_rewritten(
+    tmp_path: Path, stored: str
+) -> None:
+    # The pipeline writes UTC with Z now (utils.utc); a feed block written before it holds the
+    # same instant naive (UTC, as -0000 parses) or with its own offset. Same instant: no rewrite.
+    dated_rss = (
+        b'<?xml version="1.0"?>'
+        b'<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
+        b"<channel><title>Show</title><description>A fresh blurb</description>"
+        b'<itunes:category text="Business"/>'
+        b"<lastBuildDate>Mon, 01 Jan 2024 00:00:00 -0000</lastBuildDate>"
+        b"</channel></rss>"
+    )
+    path = tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    feed = {
+        "feed_id": "p1",
+        "title": "Show",
+        "url": "http://x/rss",
+        "description": "A fresh blurb",
+        "category": "Business",
+        "last_updated": stored,
+        "licence": {"status": "no_explicit_licence_found", "declarations": []},
+    }
+    path.write_text(json.dumps({"feed": feed, "episode": {"episode_id": "e1"}}), encoding="utf-8")
+    result = refresh_feed_metadata(tmp_path, fetch=lambda url: (dated_rss, url))
+    assert result.files_updated == 0
+    assert _feed_block(path)["last_updated"] == stored
+
+
 def test_refresh_skips_a_feed_with_no_url(tmp_path: Path) -> None:
     _write(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json", "p1", None)
     result = refresh_feed_metadata(tmp_path, fetch=lambda url: (_RSS, url))
