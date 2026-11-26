@@ -1,0 +1,133 @@
+"""A corpus root's sources, items and documents as rows (db.importers.corpus_items)."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import func, select, text
+from sqlalchemy.engine import Connection
+
+from podcast_scraper.db.importers.corpus_items import import_corpus
+from podcast_scraper.db.schema import content_items, documents, item_cards, sources
+from podcast_scraper.publishers import Registry
+from tests.unit.podcast_scraper.db.test_corpus_rows import _episode
+from tests.unit.podcast_scraper.db.test_db_corpus import conn, url  # noqa: F401
+
+_REGISTRY = Registry(publishers=())
+
+
+def _write(root: Path, run: str, base: str, doc: dict[str, Any], body: str | None = None) -> None:
+    run_dir = root / "feeds" / "rss_example" / run
+    (run_dir / "metadata").mkdir(parents=True, exist_ok=True)
+    (run_dir / "metadata" / f"{base}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    if body is not None:
+        (run_dir / "transcripts").mkdir(exist_ok=True)
+        (run_dir / "transcripts" / f"{base}.txt").write_text(body, encoding="utf-8")
+
+
+def _count(conn: Connection, table: Any) -> int:  # noqa: F811
+    return int(conn.execute(select(func.count()).select_from(table)).scalar_one())
+
+
+def test_a_corpus_becomes_one_source_its_items_and_their_documents(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\nWorld.\n")
+    _write(
+        tmp_path,
+        "run_20261101-000000",
+        "0002 - Two",
+        _episode(episode_id="ep-2", guid="guid-2", title="Two"),
+        "Second.\n",
+    )
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.sources, report.items, report.documents, report.refused) == (1, 2, 2, [])
+    assert report.segments == 3
+    assert (_count(conn, sources), _count(conn, content_items), _count(conn, documents)) == (
+        1,
+        2,
+        2,
+    )
+    assert conn.execute(select(sources.c.title)).scalar_one() == "A show"
+    conn.rollback()
+
+
+def test_an_episode_gets_its_card_and_its_flags(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = "transcripts/0001 - One.txt"
+    doc["summary"] = {"title": "A lede", "bullets": ["First point.", "Second point."]}
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc, "Hello.\n")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.cards == 1
+    card = conn.execute(select(item_cards)).mappings().one()
+    assert (card["title"], card["source_title"], card["has_transcript"]) == (
+        "An episode",
+        "A show",
+        True,
+    )
+    assert card["summary_bullets"] and card["lede"]
+    item = conn.execute(select(content_items.c.has_transcript)).scalar_one()
+    assert item is True
+    conn.rollback()
+
+
+def test_the_newest_run_of_an_episode_is_the_one_imported(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(title="Old"), "Old body.\n")
+    _write(tmp_path, "run_20261102-000000", "0001 - One", _episode(title="New"), "New body.\n")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.items, report.documents) == (1, 1)
+    assert conn.execute(select(content_items.c.title)).scalar_one() == "New"
+    body = conn.execute(text("SELECT string_agg(text, '' ORDER BY seq) FROM corpus.segments"))
+    assert body.scalar_one() == "New body.\n"
+    conn.rollback()
+
+
+def test_an_unusable_episode_is_written_not_served(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    doc = _episode(unusable=True, unusable_reason="no English after translation")
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc)
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.items, report.refused) == (1, [])
+    assert conn.execute(select(content_items.c.served)).scalar_one() == 0
+    conn.rollback()
+
+
+def test_a_refused_item_writes_nothing_and_the_rest_is_written(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    bad = "0002 - Two"
+    _write(
+        tmp_path,
+        "run_20261101-000000",
+        bad,
+        _episode(episode_id="ep-2", guid="guid-2"),
+        "Body.\n",
+    )
+    transcripts = tmp_path / "feeds" / "rss_example" / "run_20261101-000000" / "transcripts"
+    (transcripts / f"{bad}.cleaned.adfree.txt").write_text("stacked\n", encoding="utf-8")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.items == 1
+    assert [reason for _, reason in report.refused] == [f"{bad}: a stacked .cleaned.adfree.txt"]
+    assert _count(conn, content_items) == 1 and _count(conn, documents) == 1
+    conn.rollback()
+
+
+def test_a_second_import_writes_nothing_new(conn: Connection, tmp_path: Path) -> None:  # noqa: F811
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    import_corpus(conn, tmp_path, registry=_REGISTRY)
+    again = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (again.sources, again.items, again.refused) == (0, 1, [])
+    assert (_count(conn, sources), _count(conn, content_items), _count(conn, documents)) == (
+        1,
+        1,
+        1,
+    )
+    conn.rollback()
