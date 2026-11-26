@@ -44,6 +44,7 @@ from podcast_scraper.db.corpus_rows import (
     item_row,
     SERVED,
     served_for,
+    source_attrs,
     source_row_for,
 )
 from podcast_scraper.db.importers.corpus_documents import (
@@ -215,6 +216,9 @@ def import_corpus(
             try:
                 item = {**item_row(member.doc, metadata_relpath=member.relpath)}
                 item["source_id"] = source_id
+                # The source columns this item states: the pipeline's writer merges a source again
+                # from its items' source_attrs, so an imported item must carry its own.
+                item["source_attrs"] = source_attrs(member.doc, registry=registry)
                 item_id = _upsert_item(conn, item)
                 documents, segments, kind = _write_documents(conn, item_id, member)
                 report.cards += _write_card(conn, root, member, item_id, item)

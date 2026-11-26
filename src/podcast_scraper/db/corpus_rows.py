@@ -17,8 +17,9 @@ What each column comes from (a column changes only with its source):
 - ``sources``: ``title``, ``category`` and ``licence`` from the catalog's feed readers
   (``server.corpus_catalog._feed_display_title``, ``_feed_category``, ``_feed_licence``);
   ``language`` from ``languages.feed_language``; each from the newest item that states it
-  (:func:`source_row_for`, the catalog's ``aggregate_feeds``). A news source has no feed block, so
-  these are ``None`` except ``title``: the publisher's name, else the URL's host.
+  (:func:`source_row_for`: the catalog's ``aggregate_feeds`` ordered by :func:`newest_key`). A
+  news source has no feed block, so these are ``None`` except ``title``: the publisher's name,
+  else the URL's host.
 - Times: UTC datetimes; one stored with no offset is UTC (:func:`_instant`).
 - ``content_items``: ``title`` as the catalog shows it (``_episode_title``, ``"(untitled)"`` when
   missing; a news item's ``title`` as ``news_items.served_item`` gives it); ``duration_s`` from
@@ -38,8 +39,8 @@ files, so their stages' writers set them; ``filed_at``, ``period_start``, ``peri
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from typing import Any, Iterable, Mapping, Optional
+from datetime import datetime, timezone
+from typing import Any, Iterable, Mapping, Optional, Tuple
 
 from podcast_scraper.content_types import item_content_type
 from podcast_scraper.db.corpus_keys import (
@@ -81,7 +82,6 @@ from podcast_scraper.server.corpus_catalog import (
     _feed_display_title,
     _feed_licence,
     _optional_non_negative_int,
-    _parse_publish_date_str,
 )
 
 #: ``content_items.served`` (CRFC-005 §3.1). The schema also allows 2, "served and in the newest
@@ -172,35 +172,86 @@ def source_row(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -
     }
 
 
-def _newest_first(doc: Mapping[str, Any]) -> tuple[int, int]:
-    """The catalog's order (``CatalogEpisodeRow.sort_key``): dated items first, newest first, by
-    the date as stored."""
+#: An item that states no readable publish time sorts below every dated one.
+NewestKey = Tuple[int, float, str]
+
+
+def newest_key(published_at: Optional[datetime], natural_id: str) -> NewestKey:
+    """The order in which items decide their source's columns: the greater key is newer. Dated
+    items above undated ones, then by the UTC instant, then by the greater ``natural_id``, so the
+    order never depends on the order items arrive in. The pipeline's row writer
+    (``corpus_writer``) compares the same key against the rows it holds."""
+    if published_at is None:
+        return (0, 0.0, natural_id)
+    return (1, published_at.timestamp(), natural_id)
+
+
+def _newest(doc: Mapping[str, Any]) -> NewestKey:
     raw = doc.get(F_PUBLISHED_AT) if is_news(doc) else _block(doc, "episode").get("published_date")
-    stored = _parse_publish_date_str(raw)
-    if stored is None:
-        return (1, 0)
-    return (0, -date.fromisoformat(stored).toordinal())
+    return newest_key(_instant(raw), item_natural_id(doc))
+
+
+def unreadable_times(doc: Mapping[str, Any]) -> tuple[str, ...]:
+    """The ``content_items`` time columns the item states but :func:`_instant` cannot read, so
+    :func:`item_row` writes them null: ``published_at``, ``ingested_at``. A missing time is not
+    listed; only a stated one that is not ISO 8601."""
+    if is_news(doc):
+        raw = {"published_at": doc.get(F_PUBLISHED_AT), "ingested_at": doc.get(_F_INGESTED_AT)}
+    else:
+        raw = {
+            "published_at": _block(doc, "episode").get("published_date"),
+            "ingested_at": _block(doc, "processing").get("processing_timestamp"),
+        }
+    stated = {
+        column: value
+        for column, value in raw.items()
+        if value is not None and not (isinstance(value, str) and not value.strip())
+    }
+    return tuple(column for column, value in stated.items() if _instant(value) is None)
+
+
+#: The ``sources`` columns an item states for its source: what ``content_items.source_attrs``
+#: holds (corpus_0008), so a source row can be merged again from its items' rows.
+SOURCE_ATTRS = ("raw_feed_id", "title", "language", "category", "licence")
+
+
+def source_attrs(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -> dict[str, Any]:
+    """The item's ``content_items.source_attrs``: the :data:`SOURCE_ATTRS` of its
+    :func:`source_row`."""
+    row = source_row(doc, registry=registry)
+    return {column: row[column] for column in SOURCE_ATTRS}
+
+
+def merge_source_attrs(newest_first: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Each of :data:`SOURCE_ATTRS` from the first of ``newest_first`` that states it (not
+    ``None``): the catalog's rule (``corpus_catalog.aggregate_feeds``). The one merge
+    :func:`source_row_for` and the pipeline's writer (``corpus_writer``) both use."""
+    merged: dict[str, Any] = {column: None for column in SOURCE_ATTRS}
+    for attrs in newest_first:
+        for column in SOURCE_ATTRS:
+            if merged[column] is None and attrs.get(column) is not None:
+                merged[column] = attrs[column]
+    return merged
 
 
 def source_row_for(
     docs: Iterable[Mapping[str, Any]], *, registry: Optional[Registry] = None
 ) -> dict[str, Any]:
-    """The ``sources`` columns of the show whose served items are ``docs``: each column from the
-    newest item that states it, the catalog's rule (``corpus_catalog.aggregate_feeds``). Items
-    published the same day keep the order given, so pass them in ``metadata_relpath`` order to
-    match the catalog exactly."""
-    rows = [source_row(doc, registry=registry) for doc in sorted(docs, key=_newest_first)]
+    """The ``sources`` columns of the show whose served items are ``docs``:
+    :func:`merge_source_attrs` over them in :func:`newest_key` order (newest first)."""
+    ordered = sorted(docs, key=_newest, reverse=True)
+    rows = [source_row(doc, registry=registry) for doc in ordered]
     if not rows:
         raise ValueError("a source needs at least one item")
     keys = {(row["natural_id"], row["raw_feed_id"]) for row in rows}
     if len(keys) > 1:
         raise ValueError(f"items of different sources: {sorted(map(str, keys))}")
-    merged = dict(rows[0])
-    for row in rows[1:]:
-        for column, value in row.items():
-            if merged[column] is None and value is not None:
-                merged[column] = value
-    return merged
+    first = rows[0]
+    return {
+        "natural_id": first["natural_id"],
+        "content_type": first["content_type"],
+        **merge_source_attrs(rows),
+    }
 
 
 def _podcast_type_attrs(doc: Mapping[str, Any]) -> dict[str, Any]:

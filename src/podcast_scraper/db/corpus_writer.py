@@ -1,17 +1,41 @@
-"""The pipeline's writes to the corpus database: an item's transcript documents and segments.
+"""The pipeline's writes to the corpus database: an item's source and item rows, its transcript
+documents and their segments.
 
-CRFC-005 §3.5, tracker row ``w-public``. After a stage writes an episode's transcript files the
-pipeline syncs them, one transaction per item on the ``pipeline_rw`` engine
+CRFC-005 §3.5, tracker row ``w-public``. After a stage writes an episode's files the pipeline syncs
+them, one transaction per item on the ``pipeline_rw`` engine
 (:func:`~podcast_scraper.db.engines.pipeline_rw_engine`). The files stay the source until the
 cut-over; no reader reads these rows before it.
+
+Each sync takes its own job leases (:mod:`podcast_scraper.db.leases`): ``corpus`` shared, then its
+source's exclusive, released when the sync ends; the transaction starts with their heartbeat. The
+lease lives for one episode, so its TTL never needs a heartbeat between episodes. While a row
+migration or ``db migrate`` holds ``corpus`` exclusive, every episode synced in that window is
+``lease_refused`` and has no rows until something syncs it again: before the cut-over the
+importer's run writes every item from the files, and after it the strict setting fails the item,
+which the run's retry path picks up. The importer takes no lease: it runs into an empty database
+with the pipeline stopped (the cut-over runbook), so the two never write one source at once.
+
+An episode refused or losing its lease is not left without rows: it is remembered, retried once
+when the run ends (:func:`flush_deferred`), written to the run directory's ``DEFERRED_FILE`` if
+still refused, and retried from there when a later run starts (:func:`retry_deferred`) until it
+syncs. A sync that already landed writes nothing, so a repeated retry is harmless.
 
 The rules, settled with the database session (tracker ``w-public``, ``note_rules_2``):
 
 - The files and their variants are the importer's (``db.importers.corpus_documents``
   ``transcript_files``), read the same way (``read_body``), so a document hashes the same
   whichever side wrote it.
-- Only an item whose ``content_items`` row exists is written; any other is counted. The item
-  upsert is the next slice.
+- The source row is found on its natural id, inserted from the item when missing. Each item row
+  stores the source columns its own metadata states (``source_attrs``, corpus_0008); after the
+  item is written, the source's columns are merged again from every served item's
+  ``source_attrs``, newest first (:func:`~podcast_scraper.db.corpus_rows.newest_key`), by the
+  merge ``source_row_for`` uses. So the row is the same whatever order items arrive in, and an
+  item that stops being served stops deciding it. A source with no served item keeps its columns.
+- The item row is upserted on its natural id, every column ``item_row`` decides overwritten.
+  ``has_transcript`` is this writer's: whether the item has a transcript document after the sync.
+  The other ``has_*`` flags, the publisher and the artwork are their writers'. An item whose
+  stored source differs, or whose slug or ``(source_id, external_item_id)`` is another item's, is
+  refused: moving or merging items is a migration.
 - A body that equals the newest version's writes nothing. A different body is a new version that
   supersedes it, keeping the old version's segments; ``change_kind`` is ``created`` on version 1
   and the caller's cause on the later ones.
@@ -28,15 +52,30 @@ import hashlib
 import json
 import logging
 import os
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 import yaml
-from sqlalchemy import and_, func, insert, select
+from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db.corpus_keys import is_news, item_natural_id, KeyNotDerivable
+from podcast_scraper.db import leases
+from podcast_scraper.db.corpus_keys import (
+    is_news,
+    item_natural_id,
+    KeyNotDerivable,
+    source_natural_id,
+)
+from podcast_scraper.db.corpus_rows import (
+    item_row,
+    merge_source_attrs,
+    newest_key,
+    source_attrs,
+    source_row,
+    unreadable_times,
+)
 from podcast_scraper.db.importers.corpus_documents import (
     DocumentRefused,
     joined_body,
@@ -46,10 +85,11 @@ from podcast_scraper.db.importers.corpus_documents import (
     transcript_files,
     TranscriptFile,
 )
-from podcast_scraper.db.schema import content_items, documents, segments
+from podcast_scraper.db.schema import content_items, documents, segments, sources
 from podcast_scraper.db.settings import pipeline_is_configured
 from podcast_scraper.document_cut import cut_body, DocumentCutError
 from podcast_scraper.languages import episode_language
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +102,50 @@ TRANSLATED = "translated"
 CORRECTED = "corrected"
 CHANGE_KINDS = (RETRANSCRIBED, REPUNCTUATED, TRANSLATED, CORRECTED)
 
+#: The change a later version of an episode's transcript records, by the run's ``pipeline_stage``.
+#: Every reprocess stage reaches the metadata stage, whose hook syncs the episode, so the stage
+#: names its change there: ``translate_only`` re-translates, ``repunctuate_only`` re-transcribes
+#: windows to restore punctuation, and the stages that keep the transcription and change the text
+#: around it (speaker names: ``relabel_only``, ``rediarize_only``; the cleaned render:
+#: ``rederive_only``) correct it. A full run, ``retranscript_only`` and any other stage
+#: re-transcribe.
+STAGE_CHANGE_KINDS = {
+    "translate_only": TRANSLATED,
+    "repunctuate_only": REPUNCTUATED,
+    "relabel_only": CORRECTED,
+    "rediarize_only": CORRECTED,
+    "rederive_only": CORRECTED,
+}
+
+
+def change_kind_for(pipeline_stage: Optional[str]) -> str:
+    """The ``change_kind`` a sync in a run of ``pipeline_stage`` records: its
+    :data:`STAGE_CHANGE_KINDS` entry, else ``retranscribed``."""
+    return STAGE_CHANGE_KINDS.get(pipeline_stage or "", RETRANSCRIBED)
+
+
 #: How each sync ended, by outcome, since the process started; the run's metrics read it.
 OUTCOMES: collections.Counter[str] = collections.Counter()
+#: Items written with a time column null because the metadata states it unreadably, by column
+#: (``corpus_rows.unreadable_times``), since the process started.
+UNREADABLE: collections.Counter[str] = collections.Counter()
 
 _SEGMENTS_BATCH = 1000
+
+#: The run directory's record of episodes whose sync is to be tried again, one JSON object a line.
+DEFERRED_FILE = "corpus_sync_deferred.jsonl"
+#: This process's episodes whose sync is to be tried again (a lease refused or lost, or the write
+#: ``failed``): metadata path to (transcript, change_kind). ``refused`` is final: the same files
+#: would be refused again.
+_DEFERRED: dict[str, tuple[Optional[str], str]] = {}
 
 
 class SyncFailed(RuntimeError):
     """A sync failed while ``PODCAST_CORPUS_WRITE_STRICT`` is set."""
+
+
+class RowRefused(RuntimeError):
+    """The item's rows contradict the stored ones in a way only a migration may change."""
 
 
 @dataclass(frozen=True)
@@ -109,6 +185,127 @@ def _newest(conn: Connection, item_id: int, variant: str) -> Optional[tuple[int,
         .limit(1)
     ).first()
     return (row[0], row[1], row[2]) if row else None
+
+
+def ensure_source(conn: Connection, doc: Mapping[str, Any]) -> int:
+    """The ``source_id`` of a podcast item ``doc``'s source, inserting the row from ``doc`` when
+    it is missing; :func:`merge_source` decides its columns once the item's row is written."""
+    wanted = source_row(doc)
+    stored = (
+        conn.execute(
+            select(sources.c.source_id, sources.c.content_type, sources.c.raw_feed_id).where(
+                sources.c.natural_id == wanted["natural_id"]
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if stored is None:
+        source_id: int = conn.execute(
+            insert(sources).values(**wanted).returning(sources.c.source_id)
+        ).scalar_one()
+        return source_id
+    if stored["content_type"] != wanted["content_type"] or (
+        stored["raw_feed_id"] is not None
+        and wanted["raw_feed_id"] is not None
+        and stored["raw_feed_id"] != wanted["raw_feed_id"]
+    ):
+        raise RowRefused(f"source {wanted['natural_id']}: its stored type or feed id differs")
+    source_id = stored["source_id"]
+    return source_id
+
+
+def merge_source(conn: Connection, source_id: int) -> bool:
+    """Set the source's columns to :func:`~podcast_scraper.db.corpus_rows.merge_source_attrs`
+    over its served items' ``source_attrs``, newest first (``newest_key``); returns whether a
+    column changed. A source with no served item keeps its columns."""
+    rows = conn.execute(
+        select(
+            content_items.c.published_at, content_items.c.natural_id, content_items.c.source_attrs
+        ).where(and_(content_items.c.source_id == source_id, content_items.c.served > 0))
+    ).all()
+    if not rows:
+        return False
+    ordered = sorted(rows, key=lambda row: newest_key(row[0], row[1]), reverse=True)
+    wanted = merge_source_attrs(row[2] for row in ordered)
+    stored = conn.execute(select(sources).where(sources.c.source_id == source_id)).mappings().one()
+    changes = {
+        column: value
+        for column, value in wanted.items()
+        if stored[column] != value and (value is not None or column != "title")
+    }
+    if not changes:
+        return False
+    conn.execute(
+        update(sources)
+        .where(sources.c.source_id == source_id)
+        .values(**changes, updated_at=func.now())
+    )
+    return True
+
+
+def upsert_item(conn: Connection, doc: Mapping[str, Any], source_id: int) -> int:
+    """Insert or update the item row of a podcast item ``doc`` under ``source_id``; returns its
+    ``item_id``."""
+    wanted = {**item_row(doc), "source_id": source_id, "source_attrs": source_attrs(doc)}
+    clash = conn.execute(
+        select(content_items.c.natural_id)
+        .where(
+            and_(
+                content_items.c.natural_id != wanted["natural_id"],
+                or_(
+                    content_items.c.slug == wanted["slug"],
+                    and_(
+                        content_items.c.source_id == source_id,
+                        content_items.c.external_item_id == wanted["external_item_id"],
+                    ),
+                ),
+            )
+        )
+        .limit(1)
+    ).scalar_one_or_none()
+    if clash is not None:
+        raise RowRefused(f"item {wanted['natural_id']}: its slug or source id is {clash}'s")
+    stored = (
+        conn.execute(
+            select(content_items).where(content_items.c.natural_id == wanted["natural_id"])
+        )
+        .mappings()
+        .first()
+    )
+    if stored is None:
+        item_id: int = conn.execute(
+            insert(content_items).values(**wanted).returning(content_items.c.item_id)
+        ).scalar_one()
+        return item_id
+    if stored["source_id"] != source_id:
+        raise RowRefused(f"item {wanted['natural_id']}: it is stored under another source")
+    changes = {column: value for column, value in wanted.items() if stored[column] != value}
+    if changes:
+        conn.execute(
+            update(content_items)
+            .where(content_items.c.item_id == stored["item_id"])
+            .values(**changes, updated_at=func.now())
+        )
+    item_id = stored["item_id"]
+    return item_id
+
+
+def mark_has_transcript(conn: Connection, item_id: int) -> bool:
+    """Set the item's ``has_transcript`` to whether it has a transcript document; returns it."""
+    has = bool(
+        conn.execute(
+            select(func.count()).where(
+                and_(documents.c.item_id == item_id, documents.c.kind == TRANSCRIPT)
+            )
+        ).scalar_one()
+    )
+    conn.execute(
+        update(content_items)
+        .where(and_(content_items.c.item_id == item_id, content_items.c.has_transcript != has))
+        .values(has_transcript=has, updated_at=func.now())
+    )
+    return has
 
 
 def _segment_count(conn: Connection, item_id: int, document_id: int) -> int:
@@ -200,46 +397,94 @@ def _outcome(synced: Sequence[SyncedDocument]) -> str:
 
 
 def sync_episode(
-    metadata_path: Path, transcript_path: Path, *, change_kind: str = RETRANSCRIBED
+    metadata_path: Path, transcript_path: Optional[Path], *, change_kind: str = RETRANSCRIBED
 ) -> str:
-    """Sync one podcast episode's transcript documents; returns and counts the outcome.
+    """Sync one podcast episode's source and item rows and its transcript documents; returns and
+    counts the outcome.
 
-    ``written`` (version 1 of every variant written), ``superseded`` (a later version written: its
-    ``change_kind`` is the caller's, so the metadata stage's ``retranscribed`` is assumed until the
-    translation, repunctuate and retranscript_only stages sync themselves), ``unchanged``,
-    ``no_files`` (no transcript body beside ``transcript_path``), ``no_item_row``, ``refused`` (the
-    files cannot be named one way, or a body does not cut), ``failed`` (anything else),
-    ``news_item`` (not this slice's) or ``not_configured`` (no pipeline database URL). Never raises
-    unless the strict setting is on. An item the pipeline marked not served is synced too: which
-    items are served is the read side's (``content_items.served``), as in the importer.
+    The outcome names the documents: ``written`` (version 1 of every variant written),
+    ``superseded`` (a later version written: its ``change_kind`` is the caller's, so the metadata
+    stage's ``retranscribed`` is assumed until the translation, repunctuate and retranscript_only
+    stages' runs pass theirs: :func:`change_kind_for`), ``unchanged`` or ``no_files`` (no
+    ``transcript_path``, or no
+    transcript body beside it); the rows are upserted in each of these. Otherwise nothing is
+    written: ``lease_refused`` (another job holds a conflicting lease), ``lease_lost``,
+    ``refused`` (the keys cannot be derived, a stored row contradicts the item, or a body does not
+    cut), ``failed`` (anything else), ``news_item`` (not this slice's) or ``not_configured`` (no
+    pipeline database URL). Never raises unless the strict setting is on. An item the pipeline
+    marked not served is synced too, with ``served`` 0: which items are served is the read side's.
     """
     if not pipeline_is_configured():
         return _count("not_configured")
+    engine = None
+    holder = ""
     try:
         doc = _load(metadata_path)
         if is_news(doc):
             return _count("news_item")
         natural_id = item_natural_id(doc)
-        directory = transcript_path.parent
+        source = source_natural_id(doc)
         files = (
-            transcript_files(directory, _base(transcript_path), episode_language(dict(doc)))
-            if directory.is_dir()
+            transcript_files(
+                transcript_path.parent, _base(transcript_path), episode_language(dict(doc))
+            )
+            if transcript_path is not None and transcript_path.parent.is_dir()
             else []
         )
-        if not files:
-            return _count("no_files")
         from podcast_scraper.db.engines import pipeline_rw_engine
 
-        with pipeline_rw_engine().begin() as conn:
-            item_id = item_id_for(conn, natural_id)
-            if item_id is None:
-                return _count("no_item_row")
+        engine = pipeline_rw_engine()
+        holder = f"pipeline:{uuid.uuid4().hex[:12]}:{natural_id}"
+        held = leases.acquire(
+            engine,
+            [
+                leases.LeaseRequest(leases.CORPUS, leases.SHARED),
+                leases.LeaseRequest(leases.source_resource(source), leases.EXCLUSIVE),
+            ],
+            holder,
+        )
+        with engine.begin() as conn:
+            leases.heartbeat(conn, holder, held)
+            source_id = ensure_source(conn, doc)
+            item_id = upsert_item(conn, doc, source_id)
+            merge_source(conn, source_id)
             synced = sync_documents(conn, item_id, files, change_kind=change_kind)
-        return _count(_outcome(synced))
-    except (DocumentRefused, KeyNotDerivable) as exc:
+            mark_has_transcript(conn, item_id)
+        _DEFERRED.pop(str(metadata_path), None)
+        for column in unreadable_times(doc):
+            UNREADABLE[column] += 1
+            logger.warning(
+                "corpus write: %s states a %s that is not ISO 8601; written null",
+                metadata_path.name,
+                column,
+            )
+        return _count(_outcome(synced) if files else "no_files")
+    except (leases.LeaseRefused, leases.LeaseLost) as exc:
+        _defer(metadata_path, transcript_path, change_kind)
+        outcome = "lease_refused" if isinstance(exc, leases.LeaseRefused) else "lease_lost"
+        return _fail(outcome, metadata_path, exc)
+    except (DocumentRefused, KeyNotDerivable, RowRefused) as exc:
         return _fail("refused", metadata_path, exc)
     except Exception as exc:  # noqa: BLE001 - a corpus write never stops the pipeline (yet)
+        _defer(metadata_path, transcript_path, change_kind)
         return _fail("failed", metadata_path, exc)
+    finally:
+        if engine is not None and holder:
+            _release(engine, holder)
+
+
+def _defer(metadata_path: Path, transcript_path: Optional[Path], change_kind: str) -> None:
+    _DEFERRED[str(metadata_path)] = (
+        None if transcript_path is None else str(transcript_path),
+        change_kind,
+    )
+
+
+def _release(engine: Any, holder: str) -> None:
+    try:
+        leases.release(engine, holder)
+    except Exception as exc:  # noqa: BLE001 - an unreleased lease expires with its TTL
+        logger.warning("corpus write could not release %s: %s", holder, exc)
 
 
 def _count(outcome: str) -> str:
@@ -253,3 +498,74 @@ def _fail(outcome: str, metadata_path: Path, exc: BaseException) -> str:
     if _strict():
         raise SyncFailed(f"corpus write {outcome} for {metadata_path.name}: {exc}") from exc
     return outcome
+
+
+def _retry(entries: dict[str, tuple[Optional[str], str]]) -> dict[str, tuple[Optional[str], str]]:
+    """Sync each entry once more, never raising; returns the ones to try again still (what
+    :func:`sync_episode` put back in ``_DEFERRED``: a lease refused or lost, or ``failed``). Each
+    outcome, a strict failure included, is the sync's own and is counted and logged there."""
+    left: dict[str, tuple[Optional[str], str]] = {}
+    for metadata, (transcript, change_kind) in entries.items():
+        _DEFERRED.pop(metadata, None)
+        if not Path(metadata).is_file():
+            continue
+        try:
+            sync_episode(
+                Path(metadata),
+                None if transcript is None else Path(transcript),
+                change_kind=change_kind,
+            )
+        except SyncFailed:
+            pass
+        if _DEFERRED.pop(metadata, None) is not None:
+            left[metadata] = (transcript, change_kind)
+    return left
+
+
+def _write_deferred(path: Path, entries: dict[str, tuple[Optional[str], str]]) -> None:
+    if not entries:
+        path.unlink(missing_ok=True)
+        return
+    lines = [
+        json.dumps({"metadata": m, "transcript": t, "change_kind": c}, sort_keys=True)
+        for m, (t, c) in sorted(entries.items())
+    ]
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def flush_deferred(run_dir: str, *, retry: bool = True) -> int:
+    """At the end of a run: retry this process's deferred episodes once (not when ``retry`` is
+    false: a run that raised keeps them as they are) and write those left to ``run_dir``'s
+    :data:`DEFERRED_FILE`; returns how many are left."""
+    if not _DEFERRED or not pipeline_is_configured():
+        return 0
+    left = _retry(dict(_DEFERRED)) if retry else dict(_DEFERRED)
+    _DEFERRED.clear()
+    _write_deferred(Path(run_dir) / DEFERRED_FILE, left)
+    if left:
+        logger.warning("corpus write: %d episodes to try again, kept in %s", len(left), run_dir)
+    return len(left)
+
+
+def retry_deferred(output_root: str) -> int:
+    """At the start of a run: retry every :data:`DEFERRED_FILE` under ``output_root`` and rewrite
+    each with what is still to try again (removed when empty); returns how many are left."""
+    if not pipeline_is_configured():
+        return 0
+    left_total = 0
+    for path in sorted(corpus_rglob(Path(output_root), DEFERRED_FILE, include_sources=True)):
+        entries: dict[str, tuple[Optional[str], str]] = {}
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    rec = json.loads(line)
+                    entries[rec["metadata"]] = (rec.get("transcript"), rec["change_kind"])
+        except (OSError, ValueError, KeyError) as exc:
+            logger.warning("corpus write: unreadable %s: %s", path, exc)
+            continue
+        left = _retry(entries)
+        _write_deferred(path, left)
+        left_total += len(left)
+    return left_total

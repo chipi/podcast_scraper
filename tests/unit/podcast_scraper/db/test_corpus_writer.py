@@ -1,16 +1,18 @@
-"""The pipeline's transcript documents and segments in the corpus database (db.corpus_writer)."""
+"""The pipeline's source and item rows, transcript documents and segments in the corpus database
+(db.corpus_writer)."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db import corpus_writer, engines
+from podcast_scraper.db import corpus_writer, engines, leases
+from podcast_scraper.db.corpus_rows import item_row, source_row, source_row_for
 from podcast_scraper.db.corpus_writer import (
     ENV_STRICT,
     OUTCOMES,
@@ -19,8 +21,13 @@ from podcast_scraper.db.corpus_writer import (
     sync_episode,
     SyncFailed,
 )
-from podcast_scraper.db.importers.corpus_documents import joined_body, transcript_files
-from podcast_scraper.db.settings import ENV_PIPELINE_RW_URL
+from podcast_scraper.db.importers.corpus_documents import (
+    joined_body,
+    transcript_files,
+    TranscriptFile,
+)
+from podcast_scraper.db.schema import corpus_metadata, corpus_revision
+from podcast_scraper.db.settings import ENV_PIPELINE_RW_URL, normalize_url
 from tests.unit.podcast_scraper.db.test_db_corpus import _item, _source, conn, url  # noqa: F401
 
 BASE = "0001 - An episode_abc"
@@ -32,7 +39,7 @@ def _write(directory: Path, name: str, body: str) -> Path:
     return path
 
 
-def _files(directory: Path) -> list:
+def _files(directory: Path) -> list[TranscriptFile]:
     return transcript_files(directory, BASE, "en")
 
 
@@ -92,14 +99,35 @@ def test_an_unknown_cause_is_refused(conn: Connection, tmp_path: Path) -> None: 
         sync_documents(conn, 1, _files(tmp_path), change_kind="created")
 
 
-def _metadata(directory: Path, episode_id: str = "item:1") -> Path:
-    path = directory / f"{BASE}.metadata.json"
-    doc = {
-        "feed": {"feed_id": "sha256:" + "ab" * 32, "title": "A show"},
-        "episode": {"episode_id": episode_id, "title": "E", "language": "en"},
+FEED = "sha256:" + "ab" * 32
+
+
+def _doc(episode_id: str = "item:1", **episode: object) -> dict:
+    return {
+        "feed": {"feed_id": FEED, "title": "A show", "language": "en"},
+        "episode": {
+            "episode_id": episode_id,
+            "title": "E",
+            "language": "en",
+            "published_date": "2026-11-20T08:00:00+00:00",
+            **episode,
+        },
     }
-    path.write_text(json.dumps(doc), encoding="utf-8")
+
+
+def _metadata(directory: Path, episode_id: str = "item:1", doc: dict | None = None) -> Path:
+    path = directory / f"{episode_id.replace(':', '_')}.metadata.json"
+    path.write_text(json.dumps(doc or _doc(episode_id)), encoding="utf-8")
     return path
+
+
+def _empty_corpus(url: str) -> None:  # noqa: F811
+    engine = create_engine(normalize_url(url))
+    with engine.begin() as db:
+        for table in reversed(corpus_metadata.sorted_tables):
+            if table is not corpus_revision:
+                db.execute(table.delete())
+    engine.dispose()
 
 
 @pytest.fixture
@@ -107,8 +135,102 @@ def pipeline_db(url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:  #
     monkeypatch.setenv(ENV_PIPELINE_RW_URL, url)
     engines.reset_engines()
     OUTCOMES.clear()
+    corpus_writer._DEFERRED.clear()
     yield
+    corpus_writer._DEFERRED.clear()
     engines.reset_engines()
+    _empty_corpus(url)
+
+
+@pytest.fixture
+def corpus_held(url: str) -> Iterator[Callable[[], object]]:  # noqa: F811
+    """Hold ``corpus`` exclusive as another job would; call the yielded function to release."""
+    other = create_engine(normalize_url(url))
+    leases.acquire(other, [leases.LeaseRequest(leases.CORPUS, leases.EXCLUSIVE)], "migrate:t")
+    yield lambda: leases.release(other, "migrate:t")
+    leases.release(other, "migrate:t")
+    other.dispose()
+
+
+def test_a_refused_episode_is_retried_when_the_run_ends(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\\n")
+    assert sync_episode(_metadata(tmp_path, "item:r"), transcript) == "lease_refused"
+    corpus_held()
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 0
+    assert _row(conn, "content_items", "item:r")["has_transcript"] is True
+    assert not (tmp_path / corpus_writer.DEFERRED_FILE).exists()
+    assert corpus_writer._DEFERRED == {}
+
+
+def test_a_still_refused_episode_is_kept_and_a_later_run_syncs_it(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "run_1"
+    run.mkdir()
+    meta = _metadata(run, "item:k")
+    assert sync_episode(meta, None) == "lease_refused"
+    assert corpus_writer.flush_deferred(str(run)) == 1
+    kept = [
+        json.loads(line) for line in (run / corpus_writer.DEFERRED_FILE).read_text().splitlines()
+    ]
+    assert kept == [{"metadata": str(meta), "transcript": None, "change_kind": RETRANSCRIBED}]
+    assert corpus_writer.retry_deferred(str(tmp_path)) == 1
+    corpus_held()
+    assert corpus_writer.retry_deferred(str(tmp_path)) == 0
+    assert not (run / corpus_writer.DEFERRED_FILE).exists()
+    assert _row(conn, "content_items", "item:k")["served"] == 1
+
+
+def test_a_strict_refusal_is_kept_for_the_retry_too(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_STRICT, "1")
+    with pytest.raises(SyncFailed, match="lease_refused"):
+        sync_episode(_metadata(tmp_path, "item:s"), None)
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 1
+
+
+def test_the_runs_retry_hook_never_stops_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.workflow import orchestration
+
+    def boom(_directory: str, **_kw: object) -> int:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(corpus_writer, "flush_deferred", boom)
+    orchestration._corpus_deferred("flush_deferred", "/out/run")
+    orchestration._corpus_deferred("retry_deferred", None)
+
+
+def test_a_run_that_raises_flushes_without_retrying(monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.workflow import orchestration
+
+    calls: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        corpus_writer, "flush_deferred", lambda directory, **kw: calls.append((directory, kw))
+    )
+    orchestration._corpus_deferred("flush_deferred", "/out/run", retry=False)
+    assert calls == [("/out/run", {"retry": False})]
+
+
+def _row(db: Connection, table: str, natural_id: str) -> dict:
+    found = corpus_metadata.tables[f"corpus.{table}"]
+    rows = db.execute(select(found).where(found.c.natural_id == natural_id)).mappings()
+    return dict(rows.one())
+
+
+def _source_of(doc: dict) -> str:
+    return str(source_row(doc)["natural_id"])
 
 
 def test_with_no_database_configured_nothing_happens(
@@ -119,29 +241,209 @@ def test_with_no_database_configured_nothing_happens(
     assert sync_episode(_metadata(tmp_path), transcript) == "not_configured"
 
 
-def test_an_episode_with_no_item_row_is_counted(
-    pipeline_db: None, tmp_path: Path  # noqa: F811
-) -> None:
-    transcript = _write(tmp_path, BASE + ".txt", "x\n")
-    assert sync_episode(_metadata(tmp_path, "item:none"), transcript) == "no_item_row"
-    assert OUTCOMES["no_item_row"] == 1
-
-
-def test_an_episode_with_a_row_is_written_then_unchanged(
+def test_a_sync_writes_the_source_and_item_rows_then_its_documents(
     pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
-    item = _item(conn, _source(conn, "source:w"), "w1")
-    conn.commit()
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
+    meta = _metadata(tmp_path, "item:w1")
+    assert sync_episode(meta, transcript) == "written"
+    doc = _doc("item:w1")
+    source = _row(conn, "sources", _source_of(doc))
+    item = _row(conn, "content_items", "item:w1")
+    for column, value in source_row(doc).items():
+        assert source[column] == value, column
+    for column, value in item_row(doc).items():
+        assert item[column] == value, column
+    assert item["source_id"] == source["source_id"]
+    assert _versions(conn, item["item_id"]) == [(1, "created", False)]
+    conn.rollback()
+    assert sync_episode(meta, transcript) == "unchanged"
+    again = _row(conn, "content_items", "item:w1")
+    assert (again["updated_at"], again["item_id"]) == (item["updated_at"], item["item_id"])
+    held = conn.execute(text("SELECT count(*) FROM corpus.job_leases")).scalar_one()
+    assert held == 0
+
+
+def test_a_changed_item_overwrites_its_row(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
+    sync_episode(_metadata(tmp_path, "item:c"), transcript)
+    renamed = _doc("item:c", title="Renamed", duration_seconds=60)
+    assert sync_episode(_metadata(tmp_path, "item:c", renamed), transcript) == "unchanged"
+    item = _row(conn, "content_items", "item:c")
+    assert (item["title"], item["duration_s"]) == ("Renamed", 60)
+
+
+def test_a_newer_served_item_decides_the_source_and_an_older_one_fills_only_nulls(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    missing = tmp_path / "none" / "x.txt"
+    old = _doc("item:old", published_date="2026-01-01T00:00:00+00:00")
+    old["feed"].update(title="Old name", category="Science")
+    sync_episode(_metadata(tmp_path, "item:old", old), missing)
+    new = _doc("item:new", published_date="2026-11-01T00:00:00+00:00")
+    new["feed"]["title"] = "New name"
+    sync_episode(_metadata(tmp_path, "item:new", new), missing)
+    older = _doc("item:older", published_date="2025-01-01T00:00:00+00:00")
+    older["feed"].update(title="Oldest name", licence={"status": "declared"})
+    sync_episode(_metadata(tmp_path, "item:older", older), missing)
+    source = _row(conn, "sources", _source_of(new))
+    assert (source["title"], source["category"]) == ("New name", "Science")
+    assert json.loads(source["licence"]) == {"status": "declared"}
+    assert OUTCOMES["no_files"] == 3
+
+
+def test_equal_instants_go_to_the_greater_natural_id_whatever_the_order(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    missing = tmp_path / "none" / "x.txt"
+    for episode_id in ("item:b", "item:a"):
+        doc = _doc(episode_id)
+        doc["feed"]["title"] = f"Title {episode_id}"
+        sync_episode(_metadata(tmp_path, episode_id, doc), missing)
+    assert _row(conn, "sources", _source_of(_doc()))["title"] == "Title item:b"
+
+
+def test_an_item_not_served_changes_nothing_on_its_source(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    missing = tmp_path / "none" / "x.txt"
+    sync_episode(_metadata(tmp_path, "item:1"), missing)
+    unusable = _doc("item:2", published_date="2026-11-25T00:00:00+00:00")
+    unusable["feed"].update(title="Unserved name", category="Comedy")
+    unusable["episode"]["unusable"] = True
+    sync_episode(_metadata(tmp_path, "item:2", unusable), missing)
+    source = _row(conn, "sources", _source_of(unusable))
+    assert (source["title"], source["category"]) == ("A show", None)
+    assert _row(conn, "content_items", "item:2")["served"] == 0
+
+
+def _dated(episode_id: str, day: str, **feed: object) -> dict:
+    doc = _doc(episode_id, published_date=f"{day}T00:00:00+00:00")
+    doc["feed"].update(feed)
+    return doc
+
+
+@pytest.mark.parametrize("order", ["abc", "acb", "bac", "bca", "cab", "cba"])
+def test_each_column_comes_from_the_newest_served_item_that_states_it_in_any_order(
+    pipeline_db: None, conn: Connection, tmp_path: Path, order: str  # noqa: F811
+) -> None:
+    # The database session's case (#2583 review): the newest item states no licence, so the
+    # middle one's wins over the oldest one's, whichever arrives first.
+    docs = {
+        "a": _dated("item:a", "2026-11-01"),
+        "c": _dated("item:c", "2026-06-01", licence={"status": "middle"}, category="Science"),
+        "b": _dated("item:b", "2026-01-01", licence={"status": "oldest"}, category="History"),
+    }
+    for key in order:
+        sync_episode(_metadata(tmp_path, f"item:{key}", docs[key]), None)
+    source = _row(conn, "sources", _source_of(docs["a"]))
+    assert json.loads(source["licence"]) == {"status": "middle"}
+    assert source["category"] == "Science"
+    assert source == {**source, **source_row_for(list(docs.values()))}
+
+
+def test_an_item_that_stops_being_served_stops_deciding_its_source(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    old = _dated("item:old", "2026-01-01", title="Old name")
+    new = _dated("item:new", "2026-11-01", title="New name")
+    for doc in (old, new):
+        sync_episode(_metadata(tmp_path, doc["episode"]["episode_id"], doc), None)
+    assert _row(conn, "sources", _source_of(new))["title"] == "New name"
+    conn.rollback()
+    new["episode"]["unusable"] = True
+    sync_episode(_metadata(tmp_path, "item:new", new), None)
+    assert _row(conn, "sources", _source_of(new))["title"] == "Old name"
+    assert _row(conn, "content_items", "item:new")["source_attrs"]["title"] == "New name"
+
+
+def test_has_transcript_follows_the_items_transcript_documents(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    meta = _metadata(tmp_path, "item:t")
+    assert sync_episode(meta, None) == "no_files"
+    assert _row(conn, "content_items", "item:t")["has_transcript"] is False
+    conn.rollback()
+    assert sync_episode(meta, _write(tmp_path, BASE + ".txt", "Words.\n")) == "written"
+    assert _row(conn, "content_items", "item:t")["has_transcript"] is True
+
+
+def test_an_unreadable_publish_time_is_written_null_and_counted(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    corpus_writer.UNREADABLE.clear()
+    doc = _doc("item:u", published_date="Tue, 3 Nov 2026 08:00 GMT")
+    assert sync_episode(_metadata(tmp_path, "item:u", doc), None) == "no_files"
+    assert _row(conn, "content_items", "item:u")["published_at"] is None
+    assert corpus_writer.UNREADABLE == {"published_at": 1}
+
+
+def test_an_item_whose_id_in_its_source_is_another_items_is_refused(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    missing = tmp_path / "none" / "x.txt"
+    sync_episode(_metadata(tmp_path, "item:1"), missing)
+    clash = _doc("item:2", guid="item:1")
+    assert sync_episode(_metadata(tmp_path, "item:2", clash), missing) == "refused"
+    found = conn.execute(text("SELECT count(*) FROM corpus.content_items")).scalar_one()
+    assert found == 1
+
+
+def test_an_item_moved_to_another_source_is_refused(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    missing = tmp_path / "none" / "x.txt"
+    sync_episode(_metadata(tmp_path, "item:1"), missing)
+    moved = _doc("item:1")
+    moved["feed"]["feed_id"] = "sha256:" + "cd" * 32
+    assert sync_episode(_metadata(tmp_path, "item:1", moved), missing) == "refused"
+    assert conn.execute(text("SELECT count(*) FROM corpus.sources")).scalar_one() == 1
+
+
+def test_a_held_lease_refuses_the_sync_and_writes_nothing(
+    pipeline_db: None,
+    conn: Connection,  # noqa: F811
+    url: str,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
+    meta = _metadata(tmp_path, "item:l")
+    other = create_engine(normalize_url(url))
     try:
-        transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
-        meta = _metadata(tmp_path, "item:w1")
-        assert sync_episode(meta, transcript) == "written"
-        assert sync_episode(meta, transcript) == "unchanged"
-        assert _versions(conn, item) == [(1, "created", False)]
+        leases.acquire(other, [leases.LeaseRequest(leases.CORPUS, leases.EXCLUSIVE)], "migrate:t")
+        assert sync_episode(meta, transcript) == "lease_refused"
+        leases.release(other, "migrate:t")
+        source = leases.source_resource(_source_of(_doc("item:l")))
+        leases.acquire(other, [leases.LeaseRequest(source, leases.EXCLUSIVE)], "ingest:t")
+        assert sync_episode(meta, transcript) == "lease_refused"
+        monkeypatch.setenv(ENV_STRICT, "1")
+        with pytest.raises(SyncFailed, match="lease_refused"):
+            sync_episode(meta, transcript)
+        leases.release(other, "ingest:t")
     finally:
-        conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
-        conn.execute(text("DELETE FROM corpus.sources WHERE natural_id = 'source:w'"))
-        conn.commit()
+        other.dispose()
+    assert OUTCOMES["lease_refused"] == 3
+    assert conn.execute(text("SELECT count(*) FROM corpus.content_items")).scalar_one() == 0
+    assert conn.execute(text("SELECT count(*) FROM corpus.job_leases")).scalar_one() == 0
+
+
+def test_a_lost_lease_rolls_the_sync_back(
+    pipeline_db: None,
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def lost(*_args: object, **_kwargs: object) -> None:
+        raise leases.LeaseLost("expired")
+
+    monkeypatch.setattr(leases, "heartbeat", lost)
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
+    assert sync_episode(_metadata(tmp_path, "item:x"), transcript) == "lease_lost"
+    assert conn.execute(text("SELECT count(*) FROM corpus.sources")).scalar_one() == 0
+    assert conn.execute(text("SELECT count(*) FROM corpus.job_leases")).scalar_one() == 0
 
 
 def test_a_refused_item_is_counted_and_fails_only_when_strict(
@@ -208,19 +510,13 @@ def test_no_transcript_body_is_its_own_outcome(pipeline_db: None, tmp_path: Path
 def test_a_later_version_is_counted_superseded(
     pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
-    item = _item(conn, _source(conn, "source:s"), "s1")
-    conn.commit()
-    try:
-        meta = _metadata(tmp_path, "item:s1")
-        transcript = _write(tmp_path, BASE + ".txt", "First.\n")
-        assert sync_episode(meta, transcript) == "written"
-        _write(tmp_path, BASE + ".txt", "Second.\n")
-        assert sync_episode(meta, transcript) == "superseded"
-        assert _versions(conn, item) == [(1, "created", False), (2, "retranscribed", True)]
-    finally:
-        conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
-        conn.execute(text("DELETE FROM corpus.sources WHERE natural_id = 'source:s'"))
-        conn.commit()
+    meta = _metadata(tmp_path, "item:s1")
+    transcript = _write(tmp_path, BASE + ".txt", "First.\n")
+    assert sync_episode(meta, transcript) == "written"
+    _write(tmp_path, BASE + ".txt", "Second.\n")
+    assert sync_episode(meta, transcript) == "superseded"
+    item = _row(conn, "content_items", "item:s1")["item_id"]
+    assert _versions(conn, item) == [(1, "created", False), (2, "retranscribed", True)]
 
 
 def test_anything_else_is_counted_failed(
@@ -235,20 +531,145 @@ def test_anything_else_is_counted_failed(
     assert OUTCOMES["failed"] == 1
 
 
-def test_the_metadata_hook_joins_a_relative_path_and_keeps_an_absolute_one(
+def test_a_failed_write_is_kept_and_a_later_retry_syncs_it(
+    pipeline_db: None,
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = engines.pipeline_rw_engine
+
+    def gone() -> None:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(engines, "pipeline_rw_engine", gone)
+    meta = _metadata(tmp_path, "item:f")
+    assert sync_episode(meta, None) == "failed"
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 1
+    assert (tmp_path / corpus_writer.DEFERRED_FILE).exists()
+    monkeypatch.setattr(engines, "pipeline_rw_engine", real)
+    assert corpus_writer.retry_deferred(str(tmp_path)) == 0
+    assert not (tmp_path / corpus_writer.DEFERRED_FILE).exists()
+    assert _row(conn, "content_items", "item:f")["served"] == 1
+
+
+def test_a_refused_item_is_not_kept_for_a_retry(pipeline_db: None, tmp_path: Path) -> None:
+    transcript = _write(tmp_path, BASE + ".txt", "x\n")
+    _write(tmp_path, BASE + ".cleaned.adfree.txt", "x\n")
+    assert sync_episode(_metadata(tmp_path), transcript) == "refused"
+    assert corpus_writer._DEFERRED == {}
+
+
+def test_a_run_that_raises_keeps_its_deferred_episodes_without_retrying(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    meta = _metadata(tmp_path, "item:z")
+    assert sync_episode(meta, None) == "lease_refused"
+    corpus_held()
+    tried: list[str] = []
+    monkeypatch.setattr(corpus_writer, "sync_episode", lambda path, *a, **k: tried.append(path))
+    assert corpus_writer.flush_deferred(str(tmp_path), retry=False) == 1
+    assert tried == []
+    kept = (tmp_path / corpus_writer.DEFERRED_FILE).read_text().splitlines()
+    assert [json.loads(line)["metadata"] for line in kept] == [str(meta)]
+
+
+def test_the_metadata_hook_joins_a_relative_path_keeps_an_absolute_one_and_syncs_without_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from podcast_scraper.workflow import metadata_generation
 
-    calls: list[tuple[Path, Path]] = []
+    calls: list[tuple[Path, Path | None]] = []
     monkeypatch.setattr(
-        corpus_writer, "sync_episode", lambda meta, transcript: calls.append((meta, transcript))
+        corpus_writer,
+        "sync_episode",
+        lambda meta, transcript, change_kind: calls.append((meta, transcript)),
     )
-    hook = metadata_generation._sync_corpus_documents
+    hook = metadata_generation._sync_corpus_rows
     hook("/out/metadata/e.metadata.json", "/out", "transcripts/e.txt")
     hook("/out/metadata/e.metadata.json", "/elsewhere", "/app/output/transcripts/e.txt")
     hook("/out/metadata/e.metadata.json", "/out", None)
     assert calls == [
         (Path("/out/metadata/e.metadata.json"), Path("/out/transcripts/e.txt")),
         (Path("/out/metadata/e.metadata.json"), Path("/app/output/transcripts/e.txt")),
+        (Path("/out/metadata/e.metadata.json"), None),
     ]
+
+
+@pytest.mark.parametrize(
+    "stage, kind",
+    [
+        ("full", RETRANSCRIBED),
+        (None, RETRANSCRIBED),
+        ("retranscript_only", RETRANSCRIBED),
+        ("translate_only", "translated"),
+        ("repunctuate_only", "repunctuated"),
+        ("relabel_only", "corrected"),
+        ("rediarize_only", "corrected"),
+        ("rederive_only", "corrected"),
+    ],
+)
+def test_the_metadata_hook_records_the_change_its_runs_stage_makes(
+    stage: str | None, kind: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from podcast_scraper.workflow import metadata_generation
+
+    kinds: list[str] = []
+    monkeypatch.setattr(
+        corpus_writer,
+        "sync_episode",
+        lambda meta, transcript, change_kind: kinds.append(change_kind),
+    )
+    metadata_generation._sync_corpus_rows("/out/metadata/e.metadata.json", "/out", None, stage)
+    assert kinds == [kind]
+
+
+def test_a_translate_only_rerun_records_its_new_version_as_translated(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.workflow import metadata_generation
+
+    meta = _metadata(tmp_path, "item:t")
+    _write(tmp_path, BASE + ".txt", "First.\n")
+    assert metadata_generation._sync_corpus_rows(str(meta), str(tmp_path), BASE + ".txt") == (
+        "written"
+    )
+    _write(tmp_path, BASE + ".txt", "Second.\n")
+    assert (
+        metadata_generation._sync_corpus_rows(
+            str(meta), str(tmp_path), BASE + ".txt", "translate_only"
+        )
+        == "superseded"
+    )
+    item = _row(conn, "content_items", "item:t")["item_id"]
+    assert _versions(conn, item) == [(1, "created", False), (2, "translated", True)]
+
+
+def test_an_episode_with_no_transcript_still_gets_its_rows(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    assert sync_episode(_metadata(tmp_path, "item:n"), None) == "no_files"
+    assert _row(conn, "content_items", "item:n")["served"] == 1
+
+
+def test_after_an_import_a_synced_item_keeps_the_columns_its_imported_items_state(
+    pipeline_db: None, url: str, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.db.importers.corpus_items import import_corpus
+    from podcast_scraper.publishers import Registry
+
+    run = tmp_path / "feeds" / "show" / "run_20261101-000000" / "metadata"
+    run.mkdir(parents=True)
+    old = _doc("item:old", published_date="2026-01-01T00:00:00+00:00")
+    old["feed"]["category"] = "Science"
+    _metadata(run, "item:old", old)
+    engine = create_engine(normalize_url(url))
+    with engine.begin() as db:
+        assert import_corpus(db, tmp_path, registry=Registry(publishers=())).refused == []
+    engine.dispose()
+    new = _doc("item:new", published_date="2026-11-01T00:00:00+00:00")
+    assert sync_episode(_metadata(run, "item:new", new), None) == "no_files"
+    assert _row(conn, "sources", _source_of(new))["category"] == "Science"
