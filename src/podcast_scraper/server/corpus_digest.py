@@ -132,7 +132,16 @@ def utc_bounds_for_window(
 
 
 def episode_in_utc_window(row: CatalogEpisodeRow, start: datetime, end: datetime) -> bool:
-    """True when publish_date (UTC midnight) lies within [start, end]."""
+    """True when the episode's publish instant (``published_at``), else its publish date at UTC
+    midnight, lies within [start, end]. The instant matters for the 24h window: an episode from
+    yesterday evening is inside it, which its date's midnight is not."""
+    if row.published_at:
+        try:
+            instant = datetime.fromisoformat(row.published_at.replace("Z", "+00:00"))
+        except ValueError:
+            instant = None
+        if instant is not None:
+            return start <= instant <= end
     if not row.publish_date:
         return False
     try:
@@ -222,6 +231,7 @@ def digest_row_dict(
         "episode_id": row.episode_id,
         "episode_title": row.episode_title,
         "publish_date": row.publish_date,
+        "published_at": row.published_at,
         "summary_title": row.summary_title,
         "summary_bullets_preview": bullets,
         "summary_bullet_graph_topic_ids": bullet_graph_topic_ids,
