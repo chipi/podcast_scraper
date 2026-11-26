@@ -43,10 +43,18 @@
     "0042_insight_cluster_quotes_resynced",
     "0043_non_participant_names_removed",
     "0044_title_spelling_voices_renamed",
-    "0045_episode_voices_corrected"
+    "0045_episode_voices_corrected",
+    "0046_unplaced_raw_label_quotes",
+    "0047_self_intro_claims_settled",
+    "0048_ad_only_insights_ungrounded",
+    "0049_published_names_corrected",
+    "0050_gi_4_0",
+    "0051_kg_3_0",
+    "0052_kg_prompt_example_entities_removed",
+    "0053_rotating_hosts_answered"
   ],
   "code_version": "2.7.0.dev0",
-  "deployed_at": "2026-11-17",
+  "deployed_at": "2026-11-26",
   "note": "This marker tracks what is currently running on prod. Auto-updated by the prod deploy workflow (in the infrastructure repository). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
-  "sha": "d4033b3"
+  "sha": "6a9a4a7"
 }
