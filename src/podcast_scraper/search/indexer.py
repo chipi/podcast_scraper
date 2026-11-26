@@ -518,6 +518,46 @@ def _attach_grounding_confidence(
             meta["grounding_confidence"] = conf
 
 
+def chunked_bodies(
+    episode_root: Path,
+    metadata_path: Path,
+    doc: Dict[str, Any],
+    rows: List[Tuple[str, str, Dict[str, Any]]],
+) -> List[Any]:
+    """The bodies :func:`_collect_docs_for_episode` chunked into ``rows``, as
+    ``db.search_chunks_writer.ChunkedBody`` (the file, the exact text read, each chunk's id and
+    span): the analysis body, and for a translated episode the source-language layer."""
+    from podcast_scraper.db.search_chunks_writer import ChunkedBody, ChunkSpan
+
+    def spans(source_layer: bool) -> List[Any]:
+        return [
+            ChunkSpan(doc_id, int(meta["char_start"]), int(meta["char_end"]))
+            for doc_id, _, meta in rows
+            if meta.get("doc_type") == "transcript"
+            and (meta.get(INDEX_LAYER_KEY) == INDEX_LAYER_SOURCE) == source_layer
+            and meta.get("char_start") is not None
+            and meta.get("char_end") is not None
+        ]
+
+    bodies: List[Any] = []
+    candidates: List[Tuple[Optional[Path], List[Any]]] = [
+        (_transcript_path(episode_root, doc), spans(False))
+    ]
+    layer = _source_layer_body(
+        episode_root, doc, _indexed_text_language(episode_root, metadata_path, doc)
+    )
+    candidates.append((layer[0] if layer else None, spans(True)))
+    for path, found in candidates:
+        if path is None or not found:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        bodies.append(ChunkedBody(path, text, found))
+    return bodies
+
+
 def _collect_docs_for_episode(  # noqa: C901
     episode_root: Path,
     metadata_path: Path,
