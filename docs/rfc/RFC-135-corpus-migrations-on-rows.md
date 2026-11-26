@@ -153,12 +153,12 @@ class RowMigration(Migration):
   `schema_history` and `alembic_version*`. So an infra PR adds the three tables to that narrowing,
   in `roles.sql` and in the corpus branch of `infra/deploy/pg_db_grants.sh`: revoke all from
   `pipeline_rw` on `migration_runs` and `migration_receipts`, and revoke INSERT, UPDATE, DELETE and
-  TRUNCATE on `corpus_migrations`. A test in §Testing pins it. That PR is chipi/infra #120
-  (open). Sequences: the default privileges also give `pipeline_rw` USAGE, SELECT and UPDATE on
-  every sequence `migrator` creates in `corpus`, so it could advance the identity counters of
-  these tables without inserting rows; #120 is to revoke them on `migration_runs_run_id_seq`,
-  `corpus_migrations_migration_id_seq` and `migration_receipts_receipt_id_seq` (Postgres's default
-  names for the identity columns, checked against the migrated test database before #120 merges).
+  TRUNCATE on `corpus_migrations`. A test in §Testing pins it. That PR is chipi/infra #120, merged
+  as 7746cf7e. Sequences: the default privileges also give `pipeline_rw` USAGE, SELECT and UPDATE
+  on every sequence `migrator` creates in `corpus`, so it could advance the identity counters of
+  these tables without inserting rows. An infra follow-up to #120 (not written yet; the operator's
+  go asked) revokes them on every sequence `pg_depend` shows belongs to the three tables, rather
+  than on hard-coded names, with `make postgres-local` checks on real identity columns.
 
 The database session owns the corpus history and agreed to this table as written (2026-11-26):
 the revision is `corpus_0006_migration_runs`, `down_revision` `corpus_0005_entities` (public
