@@ -235,7 +235,7 @@ def test_an_item_defaults_to_not_served_with_every_flag_false(conn: Connection) 
         conn.execute(
             text(
                 "SELECT served, has_transcript, has_gi, has_kg, has_moments, withheld, unusable, "
-                "type_attrs FROM corpus.content_items WHERE item_id = :i"
+                "type_attrs, source_attrs FROM corpus.content_items WHERE item_id = :i"
             ),
             {"i": item},
         )
@@ -243,8 +243,18 @@ def test_an_item_defaults_to_not_served_with_every_flag_false(conn: Connection) 
         .one()
     )
     conn.rollback()
-    assert row["served"] == 0 and row["type_attrs"] == {}
-    assert not any(row[k] for k in row.keys() if k not in ("served", "type_attrs"))
+    assert row["served"] == 0 and row["type_attrs"] == {} and row["source_attrs"] == {}
+    assert not any(row[k] for k in row.keys() if k not in ("served", "type_attrs", "source_attrs"))
+
+
+def test_an_items_source_attrs_cannot_be_null(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    with pytest.raises(sa_exc.IntegrityError, match="source_attrs"):
+        conn.execute(
+            text("UPDATE corpus.content_items SET source_attrs = NULL WHERE item_id = :i"),
+            {"i": item},
+        )
+    conn.rollback()
 
 
 @pytest.mark.parametrize(
@@ -1031,7 +1041,7 @@ def test_the_corpus_revision_is_one_row_starting_at_zero(conn: Connection) -> No
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0007_search_chunks"]
+    assert scripts.get_heads() == ["corpus_0008_source_attrs"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1040,8 +1050,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0005_entities",
         "corpus_0006_migration_runs",
         "corpus_0007_search_chunks",
+        "corpus_0008_source_attrs",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0007_search_chunks"
+    assert migrate.head_revision("corpus") == "corpus_0008_source_attrs"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1239,9 +1250,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0005_entities",
             "corpus_0006_migration_runs",
             "corpus_0007_search_chunks",
+            "corpus_0008_source_attrs",
         ]
         rows = migrate.history_rows(url, "corpus", limit=10)
         assert [r["revision"] for r in rows] == [
+            "corpus_0008_source_attrs",
             "corpus_0007_search_chunks",
             "corpus_0006_migration_runs",
             "corpus_0005_entities",
@@ -1311,8 +1324,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 7]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 7
+        assert sorted(len(r) for r in results) == [0, 8]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 8
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1361,7 +1374,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 7
+        assert len(revisions) == 8
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
