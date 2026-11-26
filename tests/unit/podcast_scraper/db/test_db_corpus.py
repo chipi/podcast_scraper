@@ -345,16 +345,18 @@ def test_a_migration_run_ties_the_ledger_row_and_its_receipts(conn: Connection) 
             "JOIN corpus.migration_receipts c ON c.run_id = r.run_id GROUP BY 1, 2"
         )
     ).all() == [("0060_x", "apply", 1)]
-    for bad, check in (
-        ("('0060_x', 'replay', 'ok')", "migration_runs_kind_check"),
-        ("('0060_x', 'apply', 'running')", "migration_runs_status_check"),
+    for kind, status, check in (
+        ("replay", "ok", "migration_runs_kind_check"),
+        ("apply", "running", "migration_runs_status_check"),
     ):
         with pytest.raises(sa_exc.IntegrityError, match=check):
             with conn.begin_nested():
                 conn.execute(
                     text(
-                        f"INSERT INTO corpus.migration_runs (natural_id, kind, status) VALUES {bad}"
-                    )
+                        "INSERT INTO corpus.migration_runs (natural_id, kind, status) "
+                        "VALUES ('0060_x', :kind, :status)"
+                    ),
+                    {"kind": kind, "status": status},
                 )
     with pytest.raises(sa_exc.IntegrityError, match="migration_receipts_run_id_fkey"):
         with conn.begin_nested():
