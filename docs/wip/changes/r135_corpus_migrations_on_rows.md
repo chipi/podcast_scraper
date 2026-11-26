@@ -74,3 +74,17 @@ written, applies with an accept file naming the difference, and stops on one nam
 CLI refuses without a migrator URL and off a terminal without `--yes`, exits 6 with the re-run
 command on stderr's last line, 1 for an undo refused with the changed rows listed, and leaves the
 file commands as they were.
+
+Added with the measure: plan rows are keyed by the item's natural id (the row scoreboard's key);
+with no row scoreboard registered the measure is recorded skipped; with one, it scores before and
+after `apply_rows` in the transaction, passes when the deltas are the clone's, keeps the apply and
+names the failure (exit 5, with the undo command) when they are not, and rolls the apply back
+when the scoreboard fails. The file runner leaves a migration on rows out.
+
+The roles (not a repo test; `~/.cache/closelistening-ingestion-drill/rows-migrator/run.sh`, a
+throwaway `postgres:18.6` with infra #120's `roles.sql` and `pg_db_grants.sh`'s corpus step,
+removed on exit): the corpus plane migrated as `migrator` owns the three framework tables; a dry
+run, apply and undo as `migrator` (content written as `pipeline_rw`) restore every row;
+`pipeline_rw` cannot write `migration_runs` or `corpus_migrations` or read `migration_receipts`;
+`corpus_ro` reads the runs and receipts and cannot write them. `ROLES: PASS`, 12 checks,
+2026-11-26.

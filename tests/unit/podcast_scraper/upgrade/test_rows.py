@@ -321,8 +321,9 @@ def test_a_dry_run_leaves_every_corpus_table_as_it_was(
         plan = conn.execute(
             select(migration_runs.c.plan).where(migration_runs.c.run_id == outcome.run_id)
         ).scalar_one()
-    one, two, three = (f"item:{items[n]}" for n in ("1", "2", "3"))
-    assert [p["meta"] for p in plan] == sorted([one, two, three])
+    # Keyed by the items' natural ids (the fixture's are item:1, item:2, item:3).
+    one, two, three = "item:1", "item:2", "item:3"
+    assert [p["meta"] for p in plan] == [one, two, three]
     by_meta = {p["meta"]: p for p in plan}
     assert by_meta[one]["counts"] == {"content_items": 1}
     assert by_meta[two]["counts"] == {"item_cards": 1}
@@ -483,7 +484,7 @@ def outcome_for(migration: RowMigration, plan: list[dict[str, Any]], **over: Any
         "verdicts_sha256": None,
         "scoreboard_before": {},
         "scoreboard_after": {},
-        "episode_deltas": [],
+        "episode_deltas": {},
         "plan": plan,
         "computed_class": "light",
         "verdict": "GO",
@@ -567,9 +568,7 @@ def test_a_plan_that_differs_stops_the_run_and_writes_nothing(
     with pytest.raises(PlanStopped) as caught:
         run_migration(engine, mig, regime=regime)
     assert caught.value.code == 4
-    assert caught.value.diff == [
-        {"meta": f"item:{items['2']}", "kind": "differs", "fields": ["inputs"]}
-    ]
+    assert caught.value.diff == [{"meta": "item:2", "kind": "differs", "fields": ["inputs"]}]
     assert _snapshot(engine) == before
     assert _receipts(engine) == []
     assert _ledger(engine, mig.id) is None
@@ -597,7 +596,7 @@ def test_an_accept_file_for_another_difference_stops_the_run(
     engine: Engine, items: dict[str, int], tmp_path: Path
 ) -> None:
     mig = Retitle(items)
-    plan = [p for p in _clone_plan(engine, mig) if p["meta"] != f"item:{items['3']}"]
+    plan = [p for p in _clone_plan(engine, mig) if p["meta"] != "item:3"]
     doc = outcome_for(mig, plan)
     sha = hashlib.sha256(json.dumps(doc).encode("utf-8")).hexdigest()
     accept = {
@@ -617,6 +616,91 @@ def test_an_accept_file_for_another_difference_stops_the_run(
     with pytest.raises(outcome_hook.HookStopped, match="not the accepted one"):
         run_migration(engine, mig, regime=regime)
     assert _snapshot(engine) == before
+
+
+# ---------------------------------------------------------------- the measure (exit 5)
+
+
+def _titles(conn: Connection) -> dict[str, dict[str, int]]:
+    """A test scoreboard: per item, whether it is titled 'Episode One', and no inconsistency."""
+    return {
+        natural_id: {"titled_one": int(title == "Episode One"), "S1c_inconsistent": 0}
+        for natural_id, title in conn.execute(select(ITEMS.c.natural_id, ITEMS.c.title))
+    }
+
+
+@pytest.fixture
+def scoreboard(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    calls: list[int] = []
+
+    def score(conn: Connection) -> dict[str, dict[str, int]]:
+        calls.append(1)
+        return _titles(conn)
+
+    board = rows_mod.RowScoreboard(score_items=score, gating_metrics=lambda: ["titled_one"])
+    monkeypatch.setattr(rows_mod, "SCOREBOARD", board)
+    return calls
+
+
+def test_without_a_scoreboard_the_measure_is_recorded_skipped(
+    engine: Engine, items: dict[str, int]
+) -> None:
+    outcome = run_migration(engine, Retitle(items))
+    assert "gated on the plan only" in outcome.result["measure"]["skipped"]
+
+
+def test_the_measure_passes_when_the_deltas_are_the_clones(
+    engine: Engine, items: dict[str, int], tmp_path: Path, scoreboard: list[int]
+) -> None:
+    mig = Retitle(items)
+    doc = outcome_for(mig, _clone_plan(engine, mig), episode_deltas={"item:1": {"titled_one": 1}})
+    regime = prepare_regime(mig, set(), [mig.id], outcome_file=_write(tmp_path, "o.json", doc))
+    outcome = run_migration(engine, mig, regime=regime)
+    assert outcome.outcome_failed == []
+    measured = outcome.result["measure"]
+    assert measured["prod_deltas"] == {"item:1": {"titled_one": 1}}
+    assert (measured["totals_before"], measured["totals_after"]) == (
+        {"titled_one": 0},
+        {"titled_one": 1},
+    )
+
+
+def test_a_measure_that_differs_keeps_the_apply_and_names_the_failure(
+    engine: Engine, items: dict[str, int], tmp_path: Path, scoreboard: list[int]
+) -> None:
+    mig = Retitle(items)
+    doc = outcome_for(mig, _clone_plan(engine, mig), episode_deltas={})
+    regime = prepare_regime(mig, set(), [mig.id], outcome_file=_write(tmp_path, "o.json", doc))
+    outcome = run_migration(engine, mig, regime=regime)
+    assert outcome.outcome_failed == ["item:1: titled_one changed +1, the clone's +0"]
+    assert _ledger(engine, mig.id).status == "applied"
+    with engine.connect() as conn:
+        result = conn.execute(
+            select(migration_runs.c.result).where(migration_runs.c.run_id == outcome.run_id)
+        ).scalar_one()
+    assert result["measure"]["failures"] == outcome.outcome_failed
+
+
+def test_a_scoreboard_that_fails_after_the_apply_rolls_it_back(
+    engine: Engine, items: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[int] = []
+
+    def score(conn: Connection) -> dict[str, dict[str, int]]:
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("scoreboard down")
+        return _titles(conn)
+
+    monkeypatch.setattr(
+        rows_mod, "SCOREBOARD", rows_mod.RowScoreboard(score, lambda: ["titled_one"])
+    )
+    before = _snapshot(engine)
+    with pytest.raises(RuntimeError, match="scoreboard down"):
+        run_migration(engine, Retitle(items))
+    assert _snapshot(engine) == before
+    assert _ledger(engine, Retitle.id) is None
+    assert _runs(engine) == [("apply", "failed")]
 
 
 # ---------------------------------------------------------------- the CLI (row mode)
@@ -725,6 +809,20 @@ def test_cli_regime_exit_codes(
     assert "prod's plan differs from the clone's in 1 item(s)" in capsys.readouterr().err
     assert _snapshot(engine) == before
     assert _ledger(engine, shipped.id) is None
+
+
+def test_cli_a_measure_that_differs_exits_5_and_names_the_undo(
+    engine: Engine,
+    shipped: Retitle,
+    scoreboard: list[int],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The shipped outcome's deltas are the fixture's empty ones: the apply's +1 is not measured.
+    assert cli("run", "--database", "--yes") == 5
+    err = capsys.readouterr().err
+    assert "applied, and the outcome is not the measured one (1)" in err
+    assert f"upgrade undo --migration {shipped.id}" in err
+    assert _ledger(engine, shipped.id).status == "applied"
 
 
 def test_cli_undo_refused_exits_1_and_lists_the_rows(

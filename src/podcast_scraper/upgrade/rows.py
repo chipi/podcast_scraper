@@ -49,6 +49,21 @@ IN_TRANSACTION_SURFACES: list[Tuple[str, Callable[[Connection, frozenset[int]], 
 AFTER_COMMIT_SURFACES: list[Tuple[str, Callable[[Engine, frozenset[int]], None]]] = []
 
 
+@dataclass
+class RowScoreboard:
+    """The outcome hook's scoreboard on rows (RFC-135 §5): ``score_items`` gives each served
+    item's counts keyed by its natural id, with the metric names of the file scoreboard;
+    ``gating_metrics`` the ones a migration's outcome is held to."""
+
+    score_items: Callable[[Connection], dict[str, dict[str, int]]]
+    gating_metrics: Callable[[], list[str]]
+
+
+#: The registered row scoreboard (the database session's loaders over Common's scoring); while it
+#: is ``None`` a migration on rows is gated on its plan only and the measure is recorded skipped.
+SCOREBOARD: Optional[RowScoreboard] = None
+
+
 class RowsRefused(RuntimeError):
     """The run was refused before it wrote anything (applied already, not applied, lease held)."""
 
@@ -90,6 +105,8 @@ class RunOutcome:
     result: dict[str, Any]
     #: After-commit surfaces that failed: the migration stays applied (exit 6).
     after_commit_failed: list[str] = field(default_factory=list)
+    #: The measure's failures against the outcome: the migration stays applied (exit 5).
+    outcome_failed: list[str] = field(default_factory=list)
 
 
 def _table(name: str) -> Table:
@@ -117,11 +134,15 @@ def _row_name(table: Table, key: Mapping[str, Any]) -> str:
     )
 
 
+#: Prefix of an item's plan key until :meth:`Rows.plan` names it by its natural id; an item deleted
+#: by the run keeps it (``item_id:<id>``).
+_ITEM = "item_id:"
+
+
 def _meta(table: Table, key: Mapping[str, Any], state: Mapping[str, Any]) -> str:
-    """The plan row a row belongs to: its item, else the row itself. Item ids are the same on the
-    gate's clone, a restored copy of prod's dump, as on prod."""
+    """The plan row a row belongs to: its item, else the row itself."""
     item = state.get("item_id")
-    return f"item:{item}" if isinstance(item, int) else _row_name(table, key)
+    return f"{_ITEM}{item}" if isinstance(item, int) else _row_name(table, key)
 
 
 def _sha(state: Mapping[str, Any]) -> str:
@@ -200,17 +221,32 @@ class Rows:
         return True
 
     def plan(self) -> list[dict[str, Any]]:
-        """The run's plan in the outcome hook's shape: one row per item it read or wrote, with the
-        receipts per table (``counts``) and the sha256 of each row read (``inputs``)."""
-        metas = sorted(set(self.reads) | set(self.writes))
-        return [
+        """The run's plan in the outcome hook's shape: one row per item it read or wrote, keyed by
+        the item's natural id (the row scoreboard's key), with the receipts per table (``counts``)
+        and the sha256 of each row read (``inputs``)."""
+        keys = set(self.reads) | set(self.writes)
+        ids = [int(k[len(_ITEM) :]) for k in keys if k.startswith(_ITEM)]
+        items = _table("content_items")
+        natural = dict(
+            self.conn.execute(
+                select(items.c.item_id, items.c.natural_id).where(items.c.item_id.in_(ids))
+            ).all()
+        )
+
+        def meta(k: str) -> str:
+            if k.startswith(_ITEM):
+                return str(natural.get(int(k[len(_ITEM) :]), k))
+            return k
+
+        rows = [
             {
-                "meta": m,
-                "counts": dict(sorted(self.writes.get(m, {}).items())),
-                "inputs": dict(sorted(self.reads.get(m, {}).items())),
+                "meta": meta(k),
+                "counts": dict(sorted(self.writes.get(k, {}).items())),
+                "inputs": dict(sorted(self.reads.get(k, {}).items())),
             }
-            for m in metas
+            for k in keys
         ]
+        return sorted(rows, key=lambda r: str(r["meta"]))
 
     def _receipt(
         self,
@@ -352,6 +388,7 @@ def _emit(outcome: RunOutcome, natural_id: str) -> None:
         receipts=outcome.receipts,
         items=len(outcome.item_ids),
         after_commit_failed=outcome.after_commit_failed or None,
+        outcome_failed=len(outcome.outcome_failed) or None,
     )
 
 
@@ -427,11 +464,14 @@ def prepare_regime(
     return Regime(outcome, sha, digest, accept)
 
 
-def _check_plan(migration: RowMigration, regime: Regime, plan: list[dict[str, Any]]) -> None:
-    """``HookStopped`` (exit 4) when the plan differs from the clone's and no accept names it."""
+def _check_plan(
+    migration: RowMigration, regime: Regime, plan: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The plan's difference from the clone's, accepted; ``HookStopped`` (exit 4) when it differs
+    and no accept file names the difference."""
     diff = outcome_hook.plan_diff(regime.outcome["plan"], plan)
     if not diff:
-        return
+        return diff
     if regime.accept is None:
         lines = "\n".join(f"  {e['kind']:10} {e['meta']} {e.get('fields', '')}" for e in diff)
         raise PlanStopped(
@@ -440,6 +480,37 @@ def _check_plan(migration: RowMigration, regime: Regime, plan: list[dict[str, An
             diff,
         )
     outcome_hook.check_accept(regime.accept, migration.id, regime.outcome_sha, diff)
+    return diff
+
+
+def _measure(
+    before: dict[str, dict[str, int]],
+    after: dict[str, dict[str, int]],
+    metrics: list[str],
+    regime: Optional[Regime],
+    diff: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """The file regime's comparison (``outcome_hook.measure``) on the row scoreboard: this run's
+    deltas against the clone's, an accepted row that differs only in its inputs held to the
+    clone's exactly, a differing one only to no rise, and no inconsistency left after."""
+    prod = outcome_hook.deltas(before, after, metrics)
+    totals_after = {m: sum(e.get(m, 0) for e in after.values()) for m in metrics}
+    measured: dict[str, Any] = {
+        "prod_deltas": prod,
+        "totals_before": {m: sum(e.get(m, 0) for e in before.values()) for m in metrics},
+        "totals_after": totals_after,
+        "failures": [],
+    }
+    if regime is None:
+        return measured
+    inputs_only = {e["meta"] for e in diff if outcome_hook._inputs_only(e)}
+    differing = {e["meta"] for e in diff} - inputs_only
+    fails = outcome_hook.compare(prod, regime.outcome["episode_deltas"], differing, metrics)
+    if totals_after.get("S1c_inconsistent", 0):
+        fails.append(f"S1c is {totals_after['S1c_inconsistent']} after, not 0")
+    measured["failures"] = fails
+    measured["clone_deltas"] = regime.outcome["episode_deltas"]
+    return measured
 
 
 def run_migration(
@@ -476,15 +547,25 @@ def run_migration(
                 migration_id = _set_ledger(
                     conn, migration.id, "applied", run_id, to_version=migration.to_version or None
                 )
+                board = SCOREBOARD
+                # Scored in the transaction, before and after: a scoreboard that fails rolls the
+                # apply back, so a migration on rows is never left applied and unmeasured.
+                scored = board.score_items(conn) if board is not None else {}
                 rows = Rows(conn, migration_id, run_id)
                 res = migration.apply_rows(RowContext(conn=conn, rows=rows, dry_run=dry_run))
                 plan = rows.plan()
-                if regime is not None:
-                    _check_plan(migration, regime, plan)
+                diff = _check_plan(migration, regime, plan) if regime is not None else []
                 items = frozenset(res.item_ids)
                 for _name, refresh in IN_TRANSACTION_SURFACES:
                     refresh(conn, items)
+                if board is not None:
+                    measured = _measure(
+                        scored, board.score_items(conn), board.gating_metrics(), regime, diff
+                    )
+                else:
+                    measured = {"skipped": "no row scoreboard registered: gated on the plan only"}
                 result: dict[str, Any] = {
+                    "measure": measured,
                     "message": res.message,
                     "counts": res.counts,
                     "receipts": rows.receipts,
@@ -522,6 +603,7 @@ def run_migration(
         else:
             failed = _after_commit(engine, run_id, result, items)
             outcome = RunOutcome(run_id, "apply", "ok", result["receipts"], items, result, failed)
+        outcome.outcome_failed = list(measured.get("failures") or [])
         _emit(outcome, migration.id)
         return outcome
     finally:

@@ -13,7 +13,8 @@ Subcommands give both on-demand and automated operation:
   by the outcome hook against its outcome's rows for them; ``--dry-run`` shows the plan.
 - ``run --database``, ``undo``, ``surfaces`` — migrations on rows (RFC-135, ``upgrade/rows.py``):
   apply the first pending one, undo one from its receipts, or run its after-commit surfaces again
-  after an exit **6** (committed, an after-commit surface failed). Refused: 1; outcome hook: 3/4.
+  after an exit **6** (committed, an after-commit surface failed). Refused: 1; outcome hook: 3/4,
+  and 5 when the row scoreboard's deltas are not the clone's (applied; the undo is named).
 
 ``--json`` on any subcommand emits a machine-readable object for pipelines.
 """
@@ -574,7 +575,18 @@ def _cmd_run_rows(args: argparse.Namespace, log: logging.Logger) -> int:
             print(
                 f"{len(pending) - 1} more pending on rows; each runs on its own.", file=sys.stderr
             )
-        return _after_commit_exit(mig.id, outcome.after_commit_failed)
+        after = _after_commit_exit(mig.id, outcome.after_commit_failed)
+        if outcome.outcome_failed and not args.dry_run:
+            from . import outcome_hook
+
+            print(
+                f"OUTCOME HOOK: {mig.id}: applied, and the outcome is not the measured one "
+                f"({len(outcome.outcome_failed)}): {outcome.outcome_failed[:5]}; "
+                f"undo: podcast_scraper upgrade undo --migration {mig.id}",
+                file=sys.stderr,
+            )
+            return outcome_hook.EXIT_OUTCOME
+        return after
     finally:
         engine.dispose()
 
