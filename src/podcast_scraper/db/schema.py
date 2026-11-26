@@ -28,6 +28,7 @@ from sqlalchemy import (
     Table,
     Text,
     text,
+    true,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
@@ -455,6 +456,8 @@ sources = Table(
     ),
     _created_at(),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    # corpus_0010: the feed fields the catalog row reads that no column holds.
+    Column("type_attrs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
     UniqueConstraint("natural_id", name="sources_natural_id_key"),
     UniqueConstraint("raw_feed_id", name="sources_raw_feed_id_key"),
     Index("sources_artwork_idx", "artwork_asset_id"),
@@ -863,4 +866,243 @@ corpus_revision = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     CheckConstraint("id = 1", name="corpus_revision_one_row_check"),
     CheckConstraint("revision >= 0", name="corpus_revision_revision_check"),
+)
+
+# CRFC-005 3.4: an item's insights (of one document version), the quotes that support them, and the
+# entity edges. The edge tables carry the autovacuum settings of section 6.
+_EDGE_STORAGE = {"autovacuum_vacuum_scale_factor": 0.01, "autovacuum_analyze_scale_factor": 0.005}
+_INSIGHT_TYPES = "'claim', 'recommendation', 'observation', 'question', 'unknown'"
+_MENTION_KINDS = "'ABOUT', 'MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_OBJECT'"
+_PERSON_ROLES = "'host', 'guest', 'mentioned'"
+_ROUTING_TAGS = "'surface', 'connect', 'drop'"
+
+insights = Table(
+    "insights",
+    corpus_metadata,
+    _surrogate("insight_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("item_id", BigInteger, nullable=False),
+    Column("document_id", BigInteger, nullable=False),
+    Column("insight_type", Text, nullable=False),
+    Column("rank", Integer, nullable=False),
+    Column("salience", REAL, nullable=True),
+    Column("routing_tag", Text, nullable=False),
+    Column("surfaceable", Boolean, nullable=True),
+    Column("grounded", Boolean, nullable=True),
+    Column("tier", SmallInteger, nullable=True),
+    Column("grounding_confidence", REAL, nullable=True),
+    Column("position_hint", REAL, nullable=True),
+    Column("text_origin", Text, nullable=False),
+    Column("visible", Boolean, nullable=False, server_default=true()),
+    Column("text", Text, nullable=False),
+    UniqueConstraint("natural_id", name="insights_natural_id_key"),
+    ForeignKeyConstraint(
+        ["item_id", "document_id"],
+        ["documents.item_id", "documents.document_id"],
+        name="insights_document_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(f"insight_type IN ({_INSIGHT_TYPES})", name="insights_type_check"),
+    CheckConstraint("text_origin IN ('authored')", name="insights_text_origin_check"),
+    CheckConstraint("rank >= 0", name="insights_rank_check"),
+    CheckConstraint(f"routing_tag IN ({_ROUTING_TAGS})", name="insights_routing_tag_check"),
+    CheckConstraint("tier IS NULL OR tier BETWEEN 0 AND 3", name="insights_tier_check"),
+    CheckConstraint(
+        "(grounding_confidence IS NULL OR grounding_confidence BETWEEN 0 AND 1) "
+        "AND (position_hint IS NULL OR position_hint BETWEEN 0 AND 1)",
+        name="insights_unit_check",
+    ),
+    Index("insights_item_rank_idx", "item_id", "rank"),
+)
+
+evidence = Table(
+    "evidence",
+    corpus_metadata,
+    _surrogate("evidence_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("item_id", BigInteger, nullable=False),
+    Column("document_id", BigInteger, nullable=False),
+    Column("speaker_id", BigInteger, nullable=True),
+    Column("start_seq", Integer, nullable=False),
+    Column("start_offset", Integer, nullable=False),
+    Column("end_seq", Integer, nullable=False),
+    Column("end_offset", Integer, nullable=False),
+    Column("start_ms", Integer, nullable=True),
+    Column("end_ms", Integer, nullable=True),
+    Column("text", Text, nullable=False),
+    UniqueConstraint("natural_id", name="evidence_natural_id_key"),
+    ForeignKeyConstraint(
+        ["item_id", "document_id"],
+        ["documents.item_id", "documents.document_id"],
+        name="evidence_document_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["speaker_id"], ["entities.entity_id"], name="evidence_speaker_fkey", ondelete="SET NULL"
+    ),
+    CheckConstraint(
+        "start_seq >= 0 AND start_offset >= 0 AND end_offset >= 0", name="evidence_bounds_check"
+    ),
+    CheckConstraint(
+        "(end_seq, end_offset) > (start_seq, start_offset)", name="evidence_span_check"
+    ),
+    CheckConstraint(
+        "(start_ms IS NULL) = (end_ms IS NULL) "
+        "AND (start_ms IS NULL OR (start_ms >= 0 AND end_ms >= start_ms))",
+        name="evidence_ms_check",
+    ),
+    Index("evidence_item_idx", "item_id"),
+    Index(
+        "evidence_speaker_idx",
+        "speaker_id",
+        "item_id",
+        postgresql_where=text("speaker_id IS NOT NULL"),
+    ),
+    postgresql_with=_EDGE_STORAGE,
+)
+
+insight_support = Table(
+    "insight_support",
+    corpus_metadata,
+    Column("insight_id", BigInteger, nullable=False),
+    Column("evidence_id", BigInteger, nullable=False),
+    Column("ord", Integer, nullable=False),
+    PrimaryKeyConstraint("insight_id", "evidence_id", name="insight_support_pkey"),
+    ForeignKeyConstraint(
+        ["insight_id"],
+        ["insights.insight_id"],
+        name="insight_support_insight_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["evidence_id"],
+        ["evidence.evidence_id"],
+        name="insight_support_evidence_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint("ord >= 0", name="insight_support_ord_check"),
+    Index("insight_support_evidence_idx", "evidence_id"),
+    postgresql_with=_EDGE_STORAGE,
+)
+
+insight_mentions = Table(
+    "insight_mentions",
+    corpus_metadata,
+    Column("insight_id", BigInteger, nullable=False),
+    Column("entity_id", BigInteger, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("item_id", BigInteger, nullable=False),
+    Column("rank", Integer, nullable=False),
+    PrimaryKeyConstraint("insight_id", "kind", "entity_id", name="insight_mentions_pkey"),
+    ForeignKeyConstraint(
+        ["insight_id"],
+        ["insights.insight_id"],
+        name="insight_mentions_insight_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["entity_id"], ["entities.entity_id"], name="insight_mentions_entity_fkey"
+    ),
+    ForeignKeyConstraint(
+        ["item_id"],
+        ["content_items.item_id"],
+        name="insight_mentions_item_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(f"kind IN ({_MENTION_KINDS})", name="insight_mentions_kind_check"),
+    CheckConstraint("rank >= 0", name="insight_mentions_rank_check"),
+    Index(
+        "insight_mentions_entity_rank_idx",
+        "entity_id",
+        "kind",
+        "rank",
+        "insight_id",
+        postgresql_include=["item_id"],
+    ),
+    Index("insight_mentions_item_idx", "item_id"),
+    postgresql_with=_EDGE_STORAGE,
+)
+
+insight_attribution = Table(
+    "insight_attribution",
+    corpus_metadata,
+    Column("insight_id", BigInteger, nullable=False),
+    Column("person_id", BigInteger, nullable=False),
+    Column("item_id", BigInteger, nullable=False),
+    PrimaryKeyConstraint("insight_id", "person_id", name="insight_attribution_pkey"),
+    ForeignKeyConstraint(
+        ["insight_id"],
+        ["insights.insight_id"],
+        name="insight_attribution_insight_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["person_id"], ["entities.entity_id"], name="insight_attribution_person_fkey"
+    ),
+    ForeignKeyConstraint(
+        ["item_id"],
+        ["content_items.item_id"],
+        name="insight_attribution_item_fkey",
+        ondelete="CASCADE",
+    ),
+    Index("insight_attribution_person_idx", "person_id", "item_id"),
+    postgresql_with=_EDGE_STORAGE,
+)
+
+# ``published_at`` and ``content_type`` are copied from the item so an entity's newest items, of
+# every type or of one, are an index range; the item's writer keeps them equal.
+item_entities = Table(
+    "item_entities",
+    corpus_metadata,
+    Column("item_id", BigInteger, nullable=False),
+    Column("entity_id", BigInteger, nullable=False),
+    Column("role", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    Column("content_type", Text, nullable=False),
+    PrimaryKeyConstraint("item_id", "entity_id", "role", name="item_entities_pkey"),
+    ForeignKeyConstraint(
+        ["item_id"], ["content_items.item_id"], name="item_entities_item_fkey", ondelete="CASCADE"
+    ),
+    ForeignKeyConstraint(["entity_id"], ["entities.entity_id"], name="item_entities_entity_fkey"),
+    Index("item_entities_entity_published_idx", "entity_id", text("published_at DESC"), "item_id"),
+    Index(
+        "item_entities_entity_type_published_idx",
+        "entity_id",
+        "content_type",
+        text("published_at DESC"),
+        "item_id",
+    ),
+    postgresql_with=_EDGE_STORAGE,
+)
+
+person_roles = Table(
+    "person_roles",
+    corpus_metadata,
+    Column("item_id", BigInteger, nullable=False),
+    Column("person_id", BigInteger, nullable=False),
+    Column("role", Text, nullable=False),
+    PrimaryKeyConstraint("item_id", "person_id", "role", name="person_roles_pkey"),
+    ForeignKeyConstraint(
+        ["item_id"], ["content_items.item_id"], name="person_roles_item_fkey", ondelete="CASCADE"
+    ),
+    ForeignKeyConstraint(["person_id"], ["entities.entity_id"], name="person_roles_person_fkey"),
+    CheckConstraint(f"role IN ({_PERSON_ROLES})", name="person_roles_role_check"),
+    Index("person_roles_person_idx", "person_id", "item_id"),
+)
+
+# No build table exists until the clusters revision, so ``build_id`` is a plain number here.
+topic_relations = Table(
+    "topic_relations",
+    corpus_metadata,
+    Column("topic_a", BigInteger, nullable=False),
+    Column("topic_b", BigInteger, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("weight", REAL, nullable=False),
+    Column("build_id", BigInteger, nullable=False),
+    PrimaryKeyConstraint("build_id", "topic_a", "topic_b", "kind", name="topic_relations_pkey"),
+    ForeignKeyConstraint(["topic_a"], ["entities.entity_id"], name="topic_relations_topic_a_fkey"),
+    ForeignKeyConstraint(["topic_b"], ["entities.entity_id"], name="topic_relations_topic_b_fkey"),
+    CheckConstraint("topic_a <> topic_b", name="topic_relations_distinct_check"),
+    Index("topic_relations_a_idx", "topic_a", "kind", text("weight DESC"), "topic_b"),
+    Index("topic_relations_b_idx", "topic_b", "kind", text("weight DESC"), "topic_a"),
 )
