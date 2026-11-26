@@ -136,3 +136,25 @@ def test_a_second_import_writes_nothing_and_another_body_is_refused(
     with pytest.raises(DocumentRefused, match="another body"):
         import_documents(conn, item, transcript_files(tmp_path, BASE, "en"))
     conn.rollback()
+
+
+def test_an_unfinished_translation_swap_is_refused(tmp_path: Path) -> None:
+    _write(tmp_path, BASE + ".txt", "Hello\n")
+    _write(tmp_path, BASE + ".es.txt", "Hola\n")
+    _write(tmp_path, BASE + ".translation.json", "{}")
+    _segments(tmp_path, BASE + ".es.segments.json", [])
+    with pytest.raises(DocumentRefused, match="unfinished translation swap"):
+        transcript_files(tmp_path, BASE, "es")
+    _segments(tmp_path, BASE + ".segments.json", [])
+    assert _variants(tmp_path, "es") == {"en": BASE + ".txt", "raw": BASE + ".es.txt"}
+
+
+def test_a_body_that_does_not_cut_is_refused_naming_its_file(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, BASE + ".txt", "one\n")
+    _write(tmp_path, BASE + ".segments.json", "not json")
+    item = _item(conn, _source(conn))
+    with pytest.raises(DocumentRefused, match=r"0001 - An episode_abc\.txt: "):
+        import_documents(conn, item, transcript_files(tmp_path, BASE, "en"))
+    conn.rollback()

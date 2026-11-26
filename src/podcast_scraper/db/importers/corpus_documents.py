@@ -13,6 +13,9 @@ What is refused, never guessed (the item is listed and nothing of it is written)
   translated;
 - an ``en`` document (a non-English item's ``<base>.txt``) with no ``<base>.<lang>.txt`` beside
   it: the rule assumes a translation swap that did not happen, so the file is the source text;
+- an ``en`` document with no ``.segments.json`` while its ``<base>.<lang>.txt`` has one: a swap
+  that stopped between its renames;
+- a body that does not cut (a ``.segments.json`` that is not JSON, or cuts that do not join back);
 - two files with one variant;
 - an existing document of the same (item, kind, variant) version 1 with another body: a new
   version is the writer's, not the importer's.
@@ -33,7 +36,7 @@ from sqlalchemy import and_, func, insert, select
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.schema import documents, segments
-from podcast_scraper.document_cut import cut_body
+from podcast_scraper.document_cut import cut_body, DocumentCutError
 from podcast_scraper.kg.as_v3 import document_variant
 
 TRANSCRIPT = "transcript"
@@ -102,6 +105,16 @@ def transcript_files(
                 f"{base}: {path.name} reads as the English render of a {language} item, but no "
                 f"{base}.<lang>.txt holds its source"
             )
+        if variant == "en" and not _segments_path(path):
+            # The swap is finished only when the render's segments moved in beside it
+            # (translation/artifacts.py _swap_in_translation); a crash between its renames
+            # leaves the source's segments tagged and the render's missing.
+            tagged = [p for _, p in lang_files if _segments_path(p)]
+            if tagged:
+                raise DocumentRefused(
+                    f"{base}: {tagged[0].name} has its segments but {path.name} has none: an "
+                    "unfinished translation swap"
+                )
         if variant in seen:
             raise DocumentRefused(
                 f"{base}: {seen[variant].name} and {path.name} are both variant {variant}"
@@ -173,7 +186,10 @@ def import_documents(
             ).scalar_one()
             imported.append(ImportedDocument(document_id, file.variant, count, False))
             continue
-        cuts = cut_body(body, _read_segments(file.segments_path))
+        try:
+            cuts = cut_body(body, _read_segments(file.segments_path))
+        except (DocumentCutError, ValueError) as exc:
+            raise DocumentRefused(f"{file.path.name}: {exc}") from exc
         document_id = conn.execute(
             insert(documents)
             .values(item_id=item_id, kind=TRANSCRIPT, variant=file.variant, body_sha256=digest)
