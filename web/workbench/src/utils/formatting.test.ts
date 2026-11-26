@@ -4,8 +4,11 @@ import {
   formatBytes,
   formatCalendarDateForDisplay,
   formatDateTimeForDisplay,
+  formatPublishDayForDisplay,
   localDay,
   parseStoredInstant,
+  publishDateDay,
+  publishDay,
   humanizeSlug,
   shortPhrase,
   truncate,
@@ -334,5 +337,30 @@ describe('formatBytes', () => {
 
   it('handles zero', () => {
     expect(formatBytes(0)).toBe('0 B')
+  })
+})
+
+describe('publish days', () => {
+  it('a publish_date is a day: its first ten characters, never shifted', () => {
+    inZone('America/New_York', () => {
+      expect(publishDateDay('2026-09-16T00:00:00Z')).toBe('2026-09-16')
+      expect(publishDateDay('2026-09-16')).toBe('2026-09-16')
+      expect(publishDateDay('2026-09')).toBeNull()
+      expect(publishDateDay('')).toBeNull()
+    })
+  })
+
+  it('published_at gives the local day, else publish_date its stated day', () => {
+    inZone('America/New_York', () => {
+      expect(publishDay('2026-09-16T02:00:00Z', '2026-09-16')).toBe('2026-09-15')
+      expect(publishDay(null, '2026-09-16T00:00:00Z')).toBe('2026-09-16')
+      expect(publishDay(undefined, undefined)).toBeNull()
+      expect(formatPublishDayForDisplay(null, '2026-09-16T00:00:00Z')).toBe('Sep 16, 2026')
+      expect(formatPublishDayForDisplay('2026-09-16T02:00:00Z', '2026-09-16')).toBe('Sep 15, 2026')
+    })
+    inZone('Pacific/Kiritimati', () => {
+      expect(publishDay('2026-09-16T13:00:00Z', '2026-09-16')).toBe('2026-09-17')
+      expect(publishDay(null, '2026-09-16T13:00:00Z')).toBe('2026-09-16')
+    })
   })
 })

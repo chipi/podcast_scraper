@@ -15,7 +15,7 @@
 import { computed, ref, watch } from 'vue'
 import {
   inferCorpusLensPreset,
-  localYmdDaysAgo,
+  utcYmdDaysAgo,
 } from '../../utils/localCalendarDate'
 import { useFilterChipPopover } from '../../composables/useFilterChipPopover'
 
@@ -84,7 +84,7 @@ function setAll(): void {
 }
 
 function setPreset(days: 7 | 30 | 90): void {
-  emit('update:modelValue', localYmdDaysAgo(days))
+  emit('update:modelValue', utcYmdDaysAgo(days))
   close()
 }
 

@@ -40,7 +40,7 @@ import {
   graphNodeIdFromSearchHit,
 } from '../../utils/searchFocus'
 import { copyTextToClipboard } from '../../utils/clipboard'
-import { localDay } from '../../utils/formatting'
+import { publishDay } from '../../utils/formatting'
 import {
   buildPaletteCommands,
   matchCommands,
@@ -270,7 +270,7 @@ function episodeSuggestionLabel(item: CorpusEpisodeListItem): string {
 
 function episodeSuggestionSubtitle(item: CorpusEpisodeListItem): string {
   const feed = item.feed_display_title?.trim() || ''
-  const date = localDay(item.published_at || item.publish_date) || ''
+  const date = publishDay(item.published_at, item.publish_date) || ''
   return [feed, date].filter(Boolean).join(' · ')
 }
 

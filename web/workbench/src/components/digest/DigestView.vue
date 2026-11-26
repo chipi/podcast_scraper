@@ -31,7 +31,7 @@ import {
 import { isPublishDateWithin24hRolling, recencyDotHoverTitle } from '../../utils/digestRecency'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
-import { formatCalendarDateForDisplay, formatDateTimeForDisplay } from '../../utils/formatting'
+import { formatDateTimeForDisplay, formatPublishDayForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
@@ -241,7 +241,7 @@ function topicHitTimingTooltipLines(h: CorpusDigestTopicHit): string[] {
   const lines: string[] = []
   const pd = h.publish_date?.trim()
   if (pd) {
-    lines.push(`Published: ${formatCalendarDateForDisplay(h.published_at || pd)}`)
+    lines.push(`Published: ${formatPublishDayForDisplay(h.published_at, pd)}`)
   }
   if (h.episode_number != null) {
     lines.push(`Episode: E${h.episode_number}`)
@@ -1014,7 +1014,7 @@ onBeforeUnmount(() => {
                         "
                         class="inline-flex shrink-0 flex-wrap items-baseline gap-x-1.5 tabular-nums leading-tight text-muted"
                       >
-                        <span v-if="row.publish_date">{{ formatCalendarDateForDisplay(row.published_at || row.publish_date) }}</span>
+                        <span v-if="row.publish_date">{{ formatPublishDayForDisplay(row.published_at, row.publish_date) }}</span>
                         <span v-if="row.episode_number != null">E{{ row.episode_number }}</span>
                         <span v-if="formatDurationSeconds(row.duration_seconds)">{{
                           formatDurationSeconds(row.duration_seconds)

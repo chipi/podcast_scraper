@@ -96,6 +96,35 @@ export function localDay(raw: string | number | null | undefined): string | null
   return `${String(d.getFullYear()).padStart(4, '0')}-${mm}-${dd}`
 }
 
+/** The day of a stored `publish_date`: its first 10 characters (a day, never shifted), or null. */
+export function publishDateDay(raw: string | null | undefined): string | null {
+  const s = String(raw ?? '').trim()
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null
+}
+
+/**
+ * An item's publish day for display: the viewer-local day of `published_at` (an instant), else
+ * the day `publish_date` states.
+ */
+export function publishDay(
+  publishedAt: string | null | undefined,
+  publishDate: string | null | undefined,
+): string | null {
+  return (publishedAt ? localDay(publishedAt) : null) ?? publishDateDay(publishDate)
+}
+
+/**
+ * An item's publish day as a calendar date ("Feb 28, 2024"): `published_at` in the viewer's zone,
+ * else the day `publish_date` states (never shifted).
+ */
+export function formatPublishDayForDisplay(
+  publishedAt: string | null | undefined,
+  publishDate: string | null | undefined,
+): string {
+  if (publishedAt) return formatCalendarDateForDisplay(publishedAt)
+  return formatCalendarDateForDisplay(publishDateDay(publishDate) ?? publishDate)
+}
+
 /** Short name of the viewer's zone at `d` (e.g. "EDT", "GMT+2"). */
 export function localZoneShortName(d: Date): string {
   const part = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })

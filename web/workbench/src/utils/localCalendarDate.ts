@@ -1,16 +1,13 @@
-/** Local calendar YYYY-MM-DD (same convention as Library ``since`` filter). */
-export function formatLocalYmd(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+/** UTC calendar YYYY-MM-DD of ``d``: the day the server's ``since`` filter compares with. */
+export function formatUtcYmd(d: Date): string {
+  return d.toISOString().slice(0, 10)
 }
 
-/** Today minus ``days`` in the local calendar, as YYYY-MM-DD. */
-export function localYmdDaysAgo(days: number): string {
+/** Today minus ``days`` in the UTC calendar, as YYYY-MM-DD (a ``since`` value). */
+export function utcYmdDaysAgo(days: number): string {
   const d = new Date()
-  d.setDate(d.getDate() - days)
-  return formatLocalYmd(d)
+  d.setUTCDate(d.getUTCDate() - days)
+  return formatUtcYmd(d)
 }
 
 export type CorpusLensPreset = 'all' | '7' | '30' | '90' | 'custom'
@@ -22,7 +19,7 @@ export function inferCorpusLensPreset(sinceYmd: string): CorpusLensPreset {
     return 'all'
   }
   for (const n of [7, 30, 90] as const) {
-    if (s === localYmdDaysAgo(n)) {
+    if (s === utcYmdDaysAgo(n)) {
       return String(n) as CorpusLensPreset
     }
   }

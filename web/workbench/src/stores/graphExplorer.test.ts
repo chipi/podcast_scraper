@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { localYmdDaysAgo } from '../utils/localCalendarDate'
+import { utcYmdDaysAgo } from '../utils/localCalendarDate'
 import { useCorpusLensStore } from './corpusLens'
 import {
   GRAPH_LAYOUT_CYCLE_ORDER,
@@ -109,7 +109,7 @@ describe('useGraphExplorerStore', () => {
       corpus.sinceYmd = ''
       const s = useGraphExplorerStore()
       s.seedFromCorpusLensIfNeeded()
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(7))
       expect(s.seeded).toBe(true)
     })
 
@@ -118,7 +118,7 @@ describe('useGraphExplorerStore', () => {
       corpus.sinceYmd = '   '
       const s = useGraphExplorerStore()
       s.seedFromCorpusLensIfNeeded()
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(7))
       expect(s.seeded).toBe(true)
     })
 
@@ -150,7 +150,7 @@ describe('useGraphExplorerStore', () => {
       corpus.sinceYmd = ''
       const s = useGraphExplorerStore()
       s.resetSinceYmdToInitialCorpusSeed()
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(7))
       expect(s.seeded).toBe(true)
     })
 
@@ -197,7 +197,7 @@ describe('useGraphExplorerStore', () => {
     it.each([7, 30, 90] as const)('sets sinceYmd to %d days ago and seeds', (days) => {
       const s = useGraphExplorerStore()
       s.setPresetDays(days)
-      expect(s.sinceYmd).toBe(localYmdDaysAgo(days))
+      expect(s.sinceYmd).toBe(utcYmdDaysAgo(days))
       expect(s.seeded).toBe(true)
     })
   })

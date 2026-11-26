@@ -7,7 +7,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import type { ArtifactData } from '../../types/artifact'
-import { localYmdDaysAgo } from '../../utils/localCalendarDate'
+import { utcYmdDaysAgo } from '../../utils/localCalendarDate'
 import { parseArtifact } from '../../utils/parsing'
 import GraphStatusLine from './GraphStatusLine.vue'
 import { graphTypeTraits } from '../../extensions'
@@ -192,18 +192,18 @@ describe('GraphStatusLine', () => {
     it('7d sets a 7-day since lower bound and emits request-reload', async () => {
       const w = await clickPreset('7d')
       const ge = useGraphExplorerStore()
-      expect(ge.sinceYmd).toBe(localYmdDaysAgo(7))
+      expect(ge.sinceYmd).toBe(utcYmdDaysAgo(7))
       expect(w.emitted('request-reload')).toHaveLength(1)
     })
 
     it('30d sets a 30-day since lower bound', async () => {
       await clickPreset('30d')
-      expect(useGraphExplorerStore().sinceYmd).toBe(localYmdDaysAgo(30))
+      expect(useGraphExplorerStore().sinceYmd).toBe(utcYmdDaysAgo(30))
     })
 
     it('90d sets a 90-day since lower bound', async () => {
       await clickPreset('90d')
-      expect(useGraphExplorerStore().sinceYmd).toBe(localYmdDaysAgo(90))
+      expect(useGraphExplorerStore().sinceYmd).toBe(utcYmdDaysAgo(90))
     })
 
     it('All clears the since lower bound (all time) and emits request-reload', async () => {

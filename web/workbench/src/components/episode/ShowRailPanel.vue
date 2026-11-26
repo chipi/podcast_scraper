@@ -29,7 +29,7 @@ import {
 import LanguageBadge from '../shared/LanguageBadge.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { spansLanguages } from '../../utils/language'
-import { localDay } from '../../utils/formatting'
+import { publishDay } from '../../utils/formatting'
 
 const emit = defineEmits<{
   (e: 'switch-main-tab', tab: 'digest' | 'library' | 'graph' | 'dashboard'): void
@@ -103,9 +103,8 @@ const hasSignals = computed(
         .some((x) => x.region === 'signals' && x.hasContent?.(signals.value as unknown as Record<string, unknown>))),
 )
 
-function fmtDate(iso: string | null | undefined): string {
-  const s = (iso ?? '').trim()
-  return s ? (localDay(s) ?? '') : ''
+function fmtDate(e: { published_at?: string | null; publish_date?: string | null }): string {
+  return publishDay(e.published_at, e.publish_date) ?? ''
 }
 function episodeSummary(e: CorpusEpisodeListItem): string {
   return (e.summary_preview?.trim() || e.summary_title?.trim() || '').trim()
@@ -541,8 +540,8 @@ watch(
                     class="min-w-0 flex-1 truncate font-medium text-surface-foreground group-hover:text-primary"
                     >{{ e.episode_title }}</span
                   >
-                  <span v-if="fmtDate(e.published_at || e.publish_date)" class="shrink-0 text-[11px] text-muted">{{
-                    fmtDate(e.published_at || e.publish_date)
+                  <span v-if="fmtDate(e)" class="shrink-0 text-[11px] text-muted">{{
+                    fmtDate(e)
                   }}</span>
                 </div>
                 <p v-if="episodeSummary(e)" class="mt-0.5 text-[11px] leading-snug text-muted">

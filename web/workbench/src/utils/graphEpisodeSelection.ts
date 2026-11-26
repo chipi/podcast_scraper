@@ -2,7 +2,7 @@
  * Graph initial load: filter artifact list rows by graph time lens, score episodes, then cap.
  */
 import { episodeScoreBonuses } from '../extensions'
-import { formatLocalYmd } from './localCalendarDate'
+import { formatUtcYmd } from './localCalendarDate'
 import type { ParsedArtifact } from '../types/artifact'
 
 /**
@@ -234,9 +234,9 @@ export function calendarPublishYmdFromParsedArtifact(
 ): string {
   const ms = publishMsFromEpisodeNode(art)
   if (ms != null) {
-    return formatLocalYmd(new Date(ms))
+    return formatUtcYmd(new Date(ms))
   }
-  return formatLocalYmd(new Date(fileLastModifiedMs))
+  return formatUtcYmd(new Date(fileLastModifiedMs))
 }
 
 export type LocalArtifactCandidate = {
@@ -285,7 +285,7 @@ export function selectParsedArtifactsForGraphLoad(
 
   for (const [, v] of byStem) {
     if (!v.publishYmd) {
-      v.publishYmd = formatLocalYmd(new Date(v.maxMtime))
+      v.publishYmd = formatUtcYmd(new Date(v.maxMtime))
       v.publishMs = publishDayMs(v.publishYmd)
     }
   }

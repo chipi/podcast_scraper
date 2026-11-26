@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { localYmdDaysAgo } from '../utils/localCalendarDate'
+import { utcYmdDaysAgo } from '../utils/localCalendarDate'
 
 /**
  * Stack-test (#666 follow-up): the production graph time-lens defaults
@@ -15,7 +15,7 @@ import { localYmdDaysAgo } from '../utils/localCalendarDate'
  *   - unset    → 7-day default (production)
  *   - ``"0"``  → empty string (= all time)
  *   - ``""``   → empty string (= all time)
- *   - ``"30"`` → ``localYmdDaysAgo(30)``
+ *   - ``"30"`` → ``utcYmdDaysAgo(30)``
  *   - ``"abc"``→ falls back to 7-day default (defensive)
  */
 
@@ -43,7 +43,7 @@ describe('seedFromCorpusLensIfNeeded — VITE_DEFAULT_GRAPH_LENS_DAYS resolution
     const { useGraphExplorerStore } = await import('./graphExplorer')
     const store = useGraphExplorerStore()
     store.seedFromCorpusLensIfNeeded()
-    expect(store.sinceYmd).toBe(localYmdDaysAgo(7))
+    expect(store.sinceYmd).toBe(utcYmdDaysAgo(7))
   })
 
   it('"0" → empty string (= all time, no lower bound)', async () => {
@@ -62,12 +62,12 @@ describe('seedFromCorpusLensIfNeeded — VITE_DEFAULT_GRAPH_LENS_DAYS resolution
     expect(store.sinceYmd).toBe('')
   })
 
-  it('positive integer → localYmdDaysAgo(N)', async () => {
+  it('positive integer → utcYmdDaysAgo(N)', async () => {
     vi.stubEnv(ENV_KEY, '30')
     const { useGraphExplorerStore } = await import('./graphExplorer')
     const store = useGraphExplorerStore()
     store.seedFromCorpusLensIfNeeded()
-    expect(store.sinceYmd).toBe(localYmdDaysAgo(30))
+    expect(store.sinceYmd).toBe(utcYmdDaysAgo(30))
   })
 
   it('non-numeric / unparseable → fall back to 7-day default', async () => {
@@ -75,7 +75,7 @@ describe('seedFromCorpusLensIfNeeded — VITE_DEFAULT_GRAPH_LENS_DAYS resolution
     const { useGraphExplorerStore } = await import('./graphExplorer')
     const store = useGraphExplorerStore()
     store.seedFromCorpusLensIfNeeded()
-    expect(store.sinceYmd).toBe(localYmdDaysAgo(7))
+    expect(store.sinceYmd).toBe(utcYmdDaysAgo(7))
   })
 
   it('seeded flag prevents reseed once set', async () => {

@@ -1,6 +1,6 @@
 import type { CorpusDigestTopicHit } from '../api/digestApi'
 import { formatDurationSeconds } from './formatDuration'
-import { localDay } from './formatting'
+import { publishDay } from './formatting'
 
 export type TopicHitHoverContext = {
   feedDisplayLabel: string
@@ -44,7 +44,7 @@ export function buildTopicHitHoverPanel(
   h: CorpusDigestTopicHit,
   ctx: TopicHitHoverContext,
 ): DigestTopicHitHoverPanel {
-  const publishDateValue = localDay(h.published_at || h.publish_date) || null
+  const publishDateValue = publishDay(h.published_at, h.publish_date)
 
   const extras: string[] = []
   if (h.episode_number != null) {

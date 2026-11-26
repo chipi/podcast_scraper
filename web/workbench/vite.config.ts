@@ -71,6 +71,8 @@ export default defineConfig({
     // / emits (avoids flaky network side effects). See src/lib/analytics.ts.
     env: {
       VITE_ANALYTICS_OFF: '1',
+      // Day-boundary tests expect a fixed zone; TZ=<zone> still runs the suite in another one.
+      TZ: process.env.TZ || 'UTC',
     },
     // UI test-coverage track (#914): a parallel gate to the Python coverage gate.
     // Thresholds are a ratchetable floor set a few points below the current

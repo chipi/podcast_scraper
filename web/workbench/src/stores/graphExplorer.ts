@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { localYmdDaysAgo } from '../utils/localCalendarDate'
+import { utcYmdDaysAgo } from '../utils/localCalendarDate'
 import { useCorpusLensStore } from './corpusLens'
 
 // #967 — fcose replaces cose as the force-directed layout (cose froze the canvas at
@@ -12,7 +12,7 @@ export type GraphLayoutName = 'fcose' | 'breadthfirst' | 'circle' | 'grid' | 'ti
  * Default lower bound (YYYY-MM-DD) for the Graph time lens on first
  * auto-load. Production: ``last 7 days`` to keep the canvas snappy for
  * large corpora. Build-time override via ``VITE_DEFAULT_GRAPH_LENS_DAYS``:
- *   - positive integer N → ``localYmdDaysAgo(N)``
+ *   - positive integer N → ``utcYmdDaysAgo(N)``
  *   - ``0`` or ``""`` → ``""`` (= **all time**, no lower bound)
  *
  * Used by stack-test / smoke-test builds where the corpus has fixed
@@ -23,9 +23,9 @@ function seedDefaultSinceYmd(): string {
   if (raw === '' || raw === '0') return ''
   if (raw != null) {
     const n = Number(raw)
-    if (Number.isFinite(n) && n > 0) return localYmdDaysAgo(Math.floor(n))
+    if (Number.isFinite(n) && n > 0) return utcYmdDaysAgo(Math.floor(n))
   }
-  return localYmdDaysAgo(7)
+  return utcYmdDaysAgo(7)
 }
 
 /**
@@ -104,7 +104,7 @@ export const useGraphExplorerStore = defineStore('graphExplorer', () => {
   }
 
   function setPresetDays(days: 7 | 30 | 90): void {
-    sinceYmd.value = localYmdDaysAgo(days)
+    sinceYmd.value = utcYmdDaysAgo(days)
     seeded.value = true
   }
 

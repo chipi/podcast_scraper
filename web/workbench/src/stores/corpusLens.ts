@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import {
   inferCorpusLensPreset,
   type CorpusLensPreset,
-  localYmdDaysAgo,
+  utcYmdDaysAgo,
 } from '../utils/localCalendarDate'
 import { useUserPreferencesStore } from './userPreferences'
 
@@ -49,7 +49,7 @@ export const useCorpusLensStore = defineStore('corpusLens', () => {
     if (kind === 'all') {
       sinceYmd.value = ''
     } else {
-      sinceYmd.value = localYmdDaysAgo(kind)
+      sinceYmd.value = utcYmdDaysAgo(kind)
     }
   }
 

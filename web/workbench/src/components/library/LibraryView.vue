@@ -32,7 +32,7 @@ import {
 import { isPublishDateWithin24hRolling, recencyDotHoverTitle } from '../../utils/digestRecency'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
-import { formatCalendarDateForDisplay } from '../../utils/formatting'
+import { publishDay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import {
@@ -907,7 +907,7 @@ const libraryMode = computed({
                         "
                         class="inline-flex shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 text-right tabular-nums leading-tight"
                       >
-                        <span v-if="e.publish_date">{{ formatCalendarDateForDisplay(e.published_at || e.publish_date) }}</span>
+                        <span v-if="e.publish_date">{{ publishDay(e.published_at, e.publish_date) }}</span>
                         <span v-if="e.episode_number != null">E{{ e.episode_number }}</span>
                         <span v-if="formatDurationSeconds(e.duration_seconds)">{{
                           formatDurationSeconds(e.duration_seconds)

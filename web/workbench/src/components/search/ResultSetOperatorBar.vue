@@ -17,7 +17,6 @@ import { computed } from 'vue'
 import { searchOperators, type SearchOperator } from '../../extensions'
 import type { SearchHit } from '../../api/searchApi'
 import type { SubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
-import { localDay } from '../../utils/formatting'
 import SubjectTimelineChart from '../subject/SubjectTimelineChart.vue'
 
 const props = defineProps<{
@@ -94,7 +93,7 @@ const timeline = computed<SubjectMentionsTimeline>(() => {
       undated += 1
       continue
     }
-    const ymd = (localDay(raw) ?? '').slice(0, 7) // YYYY-MM
+    const ymd = raw.trim().slice(0, 7) // YYYY-MM of the stated day
     if (!/^\d{4}-\d{2}$/.test(ymd)) {
       undated += 1
       continue

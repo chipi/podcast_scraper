@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ParsedArtifact } from '../types/artifact'
-import { formatLocalYmd } from './localCalendarDate'
+import { formatUtcYmd } from './localCalendarDate'
 import {
   GRAPH_DEFAULT_EPISODE_CAP,
   GRAPH_SCORE_RECENCY_MIN,
@@ -224,20 +224,20 @@ describe('calendarPublishYmdFromParsedArtifact', () => {
       { type: 'Episode', properties: { publish_date: '2024-03-15T00:00:00Z' } },
     ])
     expect(calendarPublishYmdFromParsedArtifact(art, 0)).toBe(
-      formatLocalYmd(new Date(Date.parse('2024-03-15T00:00:00Z'))),
+      formatUtcYmd(new Date(Date.parse('2024-03-15T00:00:00Z'))),
     )
   })
 
   it('falls back to file mtime when there is no Episode node', () => {
     const art = makeArtifact([{ type: 'Topic', properties: {} }])
     const mtime = Date.parse('2024-09-01T12:00:00')
-    expect(calendarPublishYmdFromParsedArtifact(art, mtime)).toBe(formatLocalYmd(new Date(mtime)))
+    expect(calendarPublishYmdFromParsedArtifact(art, mtime)).toBe(formatUtcYmd(new Date(mtime)))
   })
 
   it('falls back to mtime when nodes is missing entirely', () => {
     const art = { ...makeArtifact([]), data: {} } as ParsedArtifact
     const mtime = Date.parse('2024-09-01T12:00:00')
-    expect(calendarPublishYmdFromParsedArtifact(art, mtime)).toBe(formatLocalYmd(new Date(mtime)))
+    expect(calendarPublishYmdFromParsedArtifact(art, mtime)).toBe(formatUtcYmd(new Date(mtime)))
   })
 
   it('skips null nodes, non-Episode nodes, and missing/unparseable publish_date', () => {
@@ -248,7 +248,7 @@ describe('calendarPublishYmdFromParsedArtifact', () => {
       { type: 'Episode', properties: {} },
       { type: 'Episode', properties: { publish_date: 'not-a-date' } },
     ] as unknown as ParsedArtifact['data']['nodes'])
-    expect(calendarPublishYmdFromParsedArtifact(artNullPd, mtime)).toBe(formatLocalYmd(new Date(mtime)))
+    expect(calendarPublishYmdFromParsedArtifact(artNullPd, mtime)).toBe(formatUtcYmd(new Date(mtime)))
   })
 
   it('uses the first Episode node with a parseable date', () => {
@@ -257,7 +257,7 @@ describe('calendarPublishYmdFromParsedArtifact', () => {
       { type: 'Episode', properties: { publish_date: '2024-05-05T00:00:00Z' } },
     ])
     expect(calendarPublishYmdFromParsedArtifact(art, 0)).toBe(
-      formatLocalYmd(new Date(Date.parse('2024-05-05T00:00:00Z'))),
+      formatUtcYmd(new Date(Date.parse('2024-05-05T00:00:00Z'))),
     )
   })
 })

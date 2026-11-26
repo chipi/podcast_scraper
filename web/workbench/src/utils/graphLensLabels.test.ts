@@ -4,7 +4,7 @@ import {
   graphLensActivePreset,
   graphLensSummaryLabel,
 } from './graphLensLabels'
-import { localYmdDaysAgo } from './localCalendarDate'
+import { utcYmdDaysAgo } from './localCalendarDate'
 
 describe('graphLensActivePreset', () => {
   it('detects all time', () => {
@@ -13,14 +13,14 @@ describe('graphLensActivePreset', () => {
   })
 
   it('detects 7/30/90 presets', () => {
-    expect(graphLensActivePreset(localYmdDaysAgo(7))).toBe('7')
-    expect(graphLensActivePreset(localYmdDaysAgo(30))).toBe('30')
-    expect(graphLensActivePreset(localYmdDaysAgo(90))).toBe('90')
+    expect(graphLensActivePreset(utcYmdDaysAgo(7))).toBe('7')
+    expect(graphLensActivePreset(utcYmdDaysAgo(30))).toBe('30')
+    expect(graphLensActivePreset(utcYmdDaysAgo(90))).toBe('90')
   })
 
   it('trims surrounding whitespace before matching presets', () => {
-    expect(graphLensActivePreset(`  ${localYmdDaysAgo(7)}  `)).toBe('7')
-    expect(graphLensActivePreset(`\t${localYmdDaysAgo(30)}\n`)).toBe('30')
+    expect(graphLensActivePreset(`  ${utcYmdDaysAgo(7)}  `)).toBe('7')
+    expect(graphLensActivePreset(`\t${utcYmdDaysAgo(30)}\n`)).toBe('30')
   })
 
   it('treats arbitrary YYYY-MM-DD as custom', () => {
@@ -39,13 +39,13 @@ describe('graphLensSummaryLabel', () => {
   })
 
   it('labels the 7/30/90 presets', () => {
-    expect(graphLensSummaryLabel(localYmdDaysAgo(7))).toBe('last 7 days')
-    expect(graphLensSummaryLabel(localYmdDaysAgo(30))).toBe('last 30 days')
-    expect(graphLensSummaryLabel(localYmdDaysAgo(90))).toBe('last 90 days')
+    expect(graphLensSummaryLabel(utcYmdDaysAgo(7))).toBe('last 7 days')
+    expect(graphLensSummaryLabel(utcYmdDaysAgo(30))).toBe('last 30 days')
+    expect(graphLensSummaryLabel(utcYmdDaysAgo(90))).toBe('last 90 days')
   })
 
   it('trims before matching presets', () => {
-    expect(graphLensSummaryLabel(`  ${localYmdDaysAgo(90)}  `)).toBe(
+    expect(graphLensSummaryLabel(`  ${utcYmdDaysAgo(90)}  `)).toBe(
       'last 90 days',
     )
   })

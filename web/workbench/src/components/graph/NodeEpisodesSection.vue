@@ -10,7 +10,7 @@ import { fetchNodeEpisodes, type CorpusNodeEpisodeItem } from '../../api/corpusL
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import { localDay } from '../../utils/formatting'
+import { publishDay } from '../../utils/formatting'
 
 /** Rows shown; the heading gives the total when there are more. */
 const SHOWN = 10
@@ -46,9 +46,8 @@ watch(() => [props.nodeId, shell.corpusPath, shell.healthStatus], () => void loa
   immediate: true,
 })
 
-function fmtDate(iso: string | null | undefined): string {
-  const s = (iso ?? '').trim()
-  return s ? (localDay(s) ?? '') : ''
+function fmtDate(e: { published_at?: string | null; publish_date?: string | null }): string {
+  return publishDay(e.published_at, e.publish_date) ?? ''
 }
 
 function open(e: CorpusNodeEpisodeItem): void {
@@ -83,8 +82,8 @@ function open(e: CorpusNodeEpisodeItem): void {
             <span class="min-w-0 flex-1 truncate text-xs font-medium text-surface-foreground">{{
               e.episode_title || e.episode_id || 'Episode'
             }}</span>
-            <span v-if="fmtDate(e.published_at || e.publish_date)" class="shrink-0 text-[11px] text-muted">{{
-              fmtDate(e.published_at || e.publish_date)
+            <span v-if="fmtDate(e)" class="shrink-0 text-[11px] text-muted">{{
+              fmtDate(e)
             }}</span>
           </div>
           <p v-if="e.feed_title" class="truncate text-[11px] text-muted">{{ e.feed_title }}</p>
