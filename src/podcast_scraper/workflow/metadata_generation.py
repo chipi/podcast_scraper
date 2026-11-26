@@ -5047,6 +5047,11 @@ def generate_episode_metadata(  # noqa: C901
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
         if _not_served:
             _mark_episode_unusable(output_dir, transcript_file_path, _not_served)
+        if transcript_file_path:
+            # w-public: the transcript documents' rows, once the metadata they key on is written.
+            from ..db.corpus_writer import sync_episode
+
+            sync_episode(Path(metadata_path), Path(output_dir) / transcript_file_path)
 
         # RFC-109 / ADR-132: append the summary/GI/KG stage blocks to the per-episode manifest that
         # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.
