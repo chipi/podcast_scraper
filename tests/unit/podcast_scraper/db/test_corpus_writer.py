@@ -653,3 +653,23 @@ def test_an_episode_with_no_transcript_still_gets_its_rows(
 ) -> None:
     assert sync_episode(_metadata(tmp_path, "item:n"), None) == "no_files"
     assert _row(conn, "content_items", "item:n")["served"] == 1
+
+
+def test_after_an_import_a_synced_item_keeps_the_columns_its_imported_items_state(
+    pipeline_db: None, url: str, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.db.importers.corpus_items import import_corpus
+    from podcast_scraper.publishers import Registry
+
+    run = tmp_path / "feeds" / "show" / "run_20261101-000000" / "metadata"
+    run.mkdir(parents=True)
+    old = _doc("item:old", published_date="2026-01-01T00:00:00+00:00")
+    old["feed"]["category"] = "Science"
+    _metadata(run, "item:old", old)
+    engine = create_engine(normalize_url(url))
+    with engine.begin() as db:
+        assert import_corpus(db, tmp_path, registry=Registry(publishers=())).refused == []
+    engine.dispose()
+    new = _doc("item:new", published_date="2026-11-01T00:00:00+00:00")
+    assert sync_episode(_metadata(run, "item:new", new), None) == "no_files"
+    assert _row(conn, "sources", _source_of(new))["category"] == "Science"
