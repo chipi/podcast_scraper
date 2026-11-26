@@ -55,6 +55,14 @@ TABLES = {
     "search_chunks",
     "embeddings",
     "corpus_revision",
+    "insights",
+    "evidence",
+    "insight_support",
+    "insight_mentions",
+    "insight_attribution",
+    "item_entities",
+    "person_roles",
+    "topic_relations",
 }
 
 INDEXES = {
@@ -86,6 +94,18 @@ INDEXES = {
     "search_chunks_document_idx",
     "search_chunks_speakers_idx",
     "embeddings_model_idx",
+    "insights_item_rank_idx",
+    "evidence_item_idx",
+    "evidence_speaker_idx",
+    "insight_support_evidence_idx",
+    "insight_mentions_entity_rank_idx",
+    "insight_mentions_item_idx",
+    "insight_attribution_person_idx",
+    "item_entities_entity_published_idx",
+    "item_entities_entity_type_published_idx",
+    "person_roles_person_idx",
+    "topic_relations_a_idx",
+    "topic_relations_b_idx",
 }
 
 
@@ -1039,9 +1059,436 @@ def test_the_corpus_revision_is_one_row_starting_at_zero(conn: Connection) -> No
     conn.rollback()
 
 
+def _insight(conn: Connection, item_id: int, document_id: int, **fields: object) -> int:
+    values = {
+        "natural_id": "insight:1",
+        "item_id": item_id,
+        "document_id": document_id,
+        "insight_type": "claim",
+        "rank": 0,
+        "text_origin": "authored",
+        "text": "A claim.",
+        **fields,
+    }
+    table = corpus_metadata.tables["corpus.insights"]
+    insight_id: int = conn.execute(
+        insert(table).values(values).returning(table.c.insight_id)
+    ).scalar_one()
+    return insight_id
+
+
+def _evidence(conn: Connection, item_id: int, document_id: int, **fields: object) -> int:
+    values = {
+        "natural_id": "quote:1",
+        "item_id": item_id,
+        "document_id": document_id,
+        "start_seq": 0,
+        "start_offset": 0,
+        "end_seq": 0,
+        "end_offset": 10,
+        "text": "A quote.",
+        **fields,
+    }
+    table = corpus_metadata.tables["corpus.evidence"]
+    evidence_id: int = conn.execute(
+        insert(table).values(values).returning(table.c.evidence_id)
+    ).scalar_one()
+    return evidence_id
+
+
+def _doc(conn: Connection) -> tuple[int, int]:
+    item = _item(conn, _source(conn))
+    return item, _document(conn, item)
+
+
+def test_an_insight_is_unique_by_natural_id_and_defaults_to_visible(conn: Connection) -> None:
+    item, document = _doc(conn)
+    insight = _insight(conn, item, document)
+    assert conn.execute(
+        text("SELECT visible FROM corpus.insights WHERE insight_id = :i"), {"i": insight}
+    ).scalar_one()
+    with pytest.raises(sa_exc.IntegrityError, match="insights_natural_id_key"):
+        _insight(conn, item, document)
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"insight_type": "opinion"}, "insights_type_check"),
+        ({"text_origin": "spoken"}, "insights_text_origin_check"),
+        ({"rank": -1}, "insights_rank_check"),
+        ({"grounding_confidence": 1.5}, "insights_unit_check"),
+        ({"position_hint": -0.1}, "insights_unit_check"),
+    ],
+)
+def test_an_insight_refuses_a_type_origin_rank_or_score_outside_the_gi_ontology(
+    conn: Connection, fields: dict[str, object], constraint: str
+) -> None:
+    item, document = _doc(conn)
+    with pytest.raises(sa_exc.IntegrityError, match=constraint):
+        _insight(conn, item, document, **fields)
+    conn.rollback()
+
+
+def test_an_insight_accepts_every_gi_type_and_unscored_confidence(conn: Connection) -> None:
+    item, document = _doc(conn)
+    for n, kind in enumerate(("claim", "recommendation", "observation", "question", "unknown")):
+        _insight(
+            conn, item, document, natural_id=f"insight:{n}", insight_type=kind, position_hint=1
+        )
+    conn.rollback()
+
+
+def test_an_insight_must_name_its_documents_own_item_and_goes_with_it(conn: Connection) -> None:
+    source = _source(conn)
+    item, other = _item(conn, source, "1"), _item(conn, source, "2")
+    document = _document(conn, item)
+    with pytest.raises(sa_exc.IntegrityError, match="insights_document_fkey"):
+        _insight(conn, other, document)
+    conn.rollback()
+    item, document = _doc(conn)
+    _insight(conn, item, document)
+    conn.execute(text("DELETE FROM corpus.documents WHERE document_id = :d"), {"d": document})
+    assert conn.execute(text("SELECT count(*) FROM corpus.insights")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_an_insights_item_rank_index_orders_by_rank_descending(conn: Connection) -> None:
+    defs = dict(
+        conn.execute(
+            text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
+        ).all()
+    )
+    assert re.search(r"\(item_id, rank DESC\)$", defs["insights_item_rank_idx"])
+
+
+@pytest.mark.parametrize(
+    ("span", "constraint"),
+    [
+        ({"end_seq": 0, "end_offset": 0}, "evidence_span_check"),  # empty
+        ({"start_seq": 2, "end_seq": 1, "end_offset": 50}, "evidence_span_check"),
+        ({"start_offset": 20, "end_offset": 10}, "evidence_span_check"),
+        ({"start_offset": -1}, "evidence_bounds_check"),
+        ({"start_ms": 5}, "evidence_ms_check"),  # one end of the time range only
+        ({"start_ms": 9, "end_ms": 5}, "evidence_ms_check"),
+        ({"start_ms": -1, "end_ms": 5}, "evidence_ms_check"),
+    ],
+)
+def test_evidence_refuses_an_empty_backwards_or_half_timed_span(
+    conn: Connection, span: dict[str, object], constraint: str
+) -> None:
+    item, document = _doc(conn)
+    with pytest.raises(sa_exc.IntegrityError, match=constraint):
+        _evidence(conn, item, document, **span)
+    conn.rollback()
+
+
+def test_evidence_may_be_untimed_and_is_unique_by_natural_id(conn: Connection) -> None:
+    item, document = _doc(conn)
+    _evidence(conn, item, document, start_ms=None, end_ms=None)
+    _evidence(conn, item, document, natural_id="quote:2", start_ms=0, end_ms=0)
+    with pytest.raises(sa_exc.IntegrityError, match="evidence_natural_id_key"):
+        _evidence(conn, item, document)
+    conn.rollback()
+
+
+def test_evidence_must_name_its_documents_own_item_and_goes_with_it(conn: Connection) -> None:
+    source = _source(conn)
+    item, other = _item(conn, source, "1"), _item(conn, source, "2")
+    document = _document(conn, item)
+    with pytest.raises(sa_exc.IntegrityError, match="evidence_document_fkey"):
+        _evidence(conn, other, document)
+    conn.rollback()
+    item, document = _doc(conn)
+    _evidence(conn, item, document)
+    conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
+    assert conn.execute(text("SELECT count(*) FROM corpus.evidence")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_an_evidence_speaker_must_be_an_entity_and_is_cleared_when_it_goes(
+    conn: Connection,
+) -> None:
+    item, document = _doc(conn)
+    with pytest.raises(sa_exc.IntegrityError, match="evidence_speaker_fkey"):
+        _evidence(conn, item, document, speaker_id=999_999_999)
+    conn.rollback()
+    item, document = _doc(conn)
+    speaker = _entity(conn)
+    _evidence(conn, item, document, speaker_id=speaker)
+    conn.execute(text("DELETE FROM corpus.entities WHERE entity_id = :e"), {"e": speaker})
+    assert conn.execute(text("SELECT speaker_id FROM corpus.evidence")).scalar_one() is None
+    conn.rollback()
+
+
+def test_the_evidence_speaker_index_is_partial_on_a_known_speaker(conn: Connection) -> None:
+    defs = dict(
+        conn.execute(
+            text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
+        ).all()
+    )
+    assert re.search(
+        r"\(speaker_id, item_id\) WHERE \(speaker_id IS NOT NULL\)$", defs["evidence_speaker_idx"]
+    )
+
+
+def test_a_support_is_one_per_insight_and_evidence_and_goes_with_either(conn: Connection) -> None:
+    item, document = _doc(conn)
+    insight, evidence = _insight(conn, item, document), _evidence(conn, item, document)
+    support = corpus_metadata.tables["corpus.insight_support"]
+    conn.execute(insert(support).values(insight_id=insight, evidence_id=evidence, ord=0))
+    with pytest.raises(sa_exc.IntegrityError, match="insight_support_pkey"):
+        conn.execute(insert(support).values(insight_id=insight, evidence_id=evidence, ord=1))
+    conn.rollback()
+    item, document = _doc(conn)
+    insight, evidence = _insight(conn, item, document), _evidence(conn, item, document)
+    with pytest.raises(sa_exc.IntegrityError, match="insight_support_ord_check"):
+        conn.execute(insert(support).values(insight_id=insight, evidence_id=evidence, ord=-1))
+    conn.rollback()
+    for parent in ("insight", "evidence"):
+        item, document = _doc(conn)
+        insight, evidence = _insight(conn, item, document), _evidence(conn, item, document)
+        conn.execute(insert(support).values(insight_id=insight, evidence_id=evidence, ord=0))
+        if parent == "insight":
+            conn.execute(text("DELETE FROM corpus.insights WHERE insight_id = :i"), {"i": insight})
+        else:
+            conn.execute(
+                text("DELETE FROM corpus.evidence WHERE evidence_id = :e"), {"e": evidence}
+            )
+        assert conn.execute(text("SELECT count(*) FROM corpus.insight_support")).scalar_one() == 0
+        conn.rollback()
+
+
+def _mention(
+    conn: Connection, insight_id: int, entity_id: int, item_id: int, **fields: object
+) -> None:
+    values = {
+        "insight_id": insight_id,
+        "entity_id": entity_id,
+        "kind": "ABOUT",
+        "item_id": item_id,
+        "rank": 0,
+        **fields,
+    }
+    conn.execute(insert(corpus_metadata.tables["corpus.insight_mentions"]).values(values))
+
+
+def test_a_mention_is_one_per_insight_kind_and_entity(conn: Connection) -> None:
+    item, document = _doc(conn)
+    insight, entity = _insight(conn, item, document), _entity(conn)
+    _mention(conn, insight, entity, item)
+    _mention(conn, insight, entity, item, kind="MENTIONS_PERSON")
+    with pytest.raises(sa_exc.IntegrityError, match="insight_mentions_pkey"):
+        _mention(conn, insight, entity, item)
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"kind": "MENTIONS"}, "insight_mentions_kind_check"),
+        ({"kind": "about"}, "insight_mentions_kind_check"),
+        ({"rank": -1}, "insight_mentions_rank_check"),
+    ],
+)
+def test_a_mention_refuses_a_kind_outside_the_gi_edge_types_or_a_negative_rank(
+    conn: Connection, fields: dict[str, object], constraint: str
+) -> None:
+    item, document = _doc(conn)
+    insight, entity = _insight(conn, item, document), _entity(conn)
+    with pytest.raises(sa_exc.IntegrityError, match=constraint):
+        _mention(conn, insight, entity, item, **fields)
+    conn.rollback()
+
+
+def test_a_mention_needs_its_entity_and_item_and_goes_with_its_insight(conn: Connection) -> None:
+    item, document = _doc(conn)
+    insight, entity = _insight(conn, item, document), _entity(conn)
+    with pytest.raises(sa_exc.IntegrityError, match="insight_mentions_entity_fkey"):
+        _mention(conn, insight, 999_999_999, item)
+    conn.rollback()
+    item, document = _doc(conn)
+    insight, entity = _insight(conn, item, document), _entity(conn)
+    with pytest.raises(sa_exc.IntegrityError, match="insight_mentions_item_fkey"):
+        _mention(conn, insight, entity, 999_999_999)
+    conn.rollback()
+    item, document = _doc(conn)
+    insight, entity = _insight(conn, item, document), _entity(conn)
+    _mention(conn, insight, entity, item)
+    conn.execute(text("DELETE FROM corpus.insights WHERE insight_id = :i"), {"i": insight})
+    assert conn.execute(text("SELECT count(*) FROM corpus.insight_mentions")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_the_mention_index_covers_a_topics_top_insights_with_the_item(conn: Connection) -> None:
+    defs = dict(
+        conn.execute(
+            text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
+        ).all()
+    )
+    assert re.search(
+        r"\(entity_id, kind, rank DESC, insight_id\) INCLUDE \(item_id\)$",
+        defs["insight_mentions_entity_rank_idx"],
+    )
+
+
+def test_an_attribution_is_one_per_insight_and_person_and_goes_with_its_insight(
+    conn: Connection,
+) -> None:
+    item, document = _doc(conn)
+    insight, person = _insight(conn, item, document), _entity(conn)
+    table = corpus_metadata.tables["corpus.insight_attribution"]
+    values = {"insight_id": insight, "person_id": person, "item_id": item}
+    conn.execute(insert(table).values(values))
+    with pytest.raises(sa_exc.IntegrityError, match="insight_attribution_pkey"):
+        conn.execute(insert(table).values(values))
+    conn.rollback()
+    item, document = _doc(conn)
+    insight = _insight(conn, item, document)
+    values = {"insight_id": insight, "person_id": 0, "item_id": item}
+    with pytest.raises(sa_exc.IntegrityError, match="insight_attribution_person_fkey"):
+        conn.execute(insert(table).values({**values, "person_id": 999_999_999}))
+    conn.rollback()
+    item, document = _doc(conn)
+    insight, person = _insight(conn, item, document), _entity(conn)
+    conn.execute(insert(table).values(insight_id=insight, person_id=person, item_id=item))
+    conn.execute(text("DELETE FROM corpus.insights WHERE insight_id = :i"), {"i": insight})
+    assert conn.execute(text("SELECT count(*) FROM corpus.insight_attribution")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_an_item_entity_is_one_per_item_entity_and_role_and_goes_with_its_item(
+    conn: Connection,
+) -> None:
+    item = _item(conn, _source(conn))
+    entity = _entity(conn)
+    table = corpus_metadata.tables["corpus.item_entities"]
+    values = {"item_id": item, "entity_id": entity, "role": "mentions", "content_type": "podcast"}
+    conn.execute(insert(table).values(values))
+    conn.execute(insert(table).values({**values, "role": "about"}))
+    with pytest.raises(sa_exc.IntegrityError, match="item_entities_pkey"):
+        conn.execute(insert(table).values(values))
+    conn.rollback()
+    item = _item(conn, _source(conn))
+    with pytest.raises(sa_exc.IntegrityError, match="item_entities_entity_fkey"):
+        conn.execute(insert(table).values({**values, "item_id": item, "entity_id": 999_999_999}))
+    conn.rollback()
+    item, entity = _item(conn, _source(conn)), _entity(conn)
+    conn.execute(insert(table).values({**values, "item_id": item, "entity_id": entity}))
+    conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
+    assert conn.execute(text("SELECT count(*) FROM corpus.item_entities")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_the_item_entity_indexes_serve_newest_first_of_every_type_or_of_one(
+    conn: Connection,
+) -> None:
+    defs = dict(
+        conn.execute(
+            text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
+        ).all()
+    )
+    assert re.search(
+        r"\(entity_id, published_at DESC, item_id\)$", defs["item_entities_entity_published_idx"]
+    )
+    assert re.search(
+        r"\(entity_id, content_type, published_at DESC, item_id\)$",
+        defs["item_entities_entity_type_published_idx"],
+    )
+
+
+def test_a_person_role_is_one_per_item_person_and_role_of_a_known_role(conn: Connection) -> None:
+    item, person = _item(conn, _source(conn)), _entity(conn)
+    table = corpus_metadata.tables["corpus.person_roles"]
+    values = {"item_id": item, "person_id": person, "role": "host"}
+    conn.execute(insert(table).values(values))
+    conn.execute(insert(table).values({**values, "role": "guest"}))
+    with pytest.raises(sa_exc.IntegrityError, match="person_roles_pkey"):
+        conn.execute(insert(table).values(values))
+    conn.rollback()
+    item, person = _item(conn, _source(conn)), _entity(conn)
+    with pytest.raises(sa_exc.IntegrityError, match="person_roles_role_check"):
+        conn.execute(
+            insert(table).values(
+                {**values, "item_id": item, "person_id": person, "role": "co-host"}
+            )
+        )
+    conn.rollback()
+    item = _item(conn, _source(conn))
+    with pytest.raises(sa_exc.IntegrityError, match="person_roles_person_fkey"):
+        conn.execute(insert(table).values({**values, "item_id": item, "person_id": 999_999_999}))
+    conn.rollback()
+    item, person = _item(conn, _source(conn)), _entity(conn)
+    conn.execute(insert(table).values({**values, "item_id": item, "person_id": person}))
+    conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
+    assert conn.execute(text("SELECT count(*) FROM corpus.person_roles")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_a_topic_relation_is_per_build_and_kind_between_two_distinct_topics(
+    conn: Connection,
+) -> None:
+    a, b = _entity(conn, "a"), _entity(conn, "b")
+    table = corpus_metadata.tables["corpus.topic_relations"]
+    values = {"topic_a": a, "topic_b": b, "kind": "related", "weight": 0.5, "build_id": 1}
+    conn.execute(insert(table).values(values))
+    conn.execute(insert(table).values({**values, "build_id": 2}))
+    conn.execute(insert(table).values({**values, "kind": "co_occurs"}))
+    with pytest.raises(sa_exc.IntegrityError, match="topic_relations_pkey"):
+        conn.execute(insert(table).values(values))
+    conn.rollback()
+    a = _entity(conn, "a")
+    with pytest.raises(sa_exc.IntegrityError, match="topic_relations_distinct_check"):
+        conn.execute(insert(table).values({**values, "topic_a": a, "topic_b": a}))
+    conn.rollback()
+    a = _entity(conn, "a")
+    for column in ("topic_a", "topic_b"):
+        other = {"topic_a": a, "topic_b": a, "kind": "related"}
+        other["topic_b" if column == "topic_a" else "topic_a"] = _entity(conn, "x")
+        other[column] = 999_999_999
+        with pytest.raises(sa_exc.IntegrityError, match=f"topic_relations_{column}_fkey"):
+            conn.execute(insert(table).values({**values, **other}))
+        conn.rollback()
+        a = _entity(conn, "a")
+
+
+def test_the_topic_relation_indexes_read_both_directions_by_weight(conn: Connection) -> None:
+    defs = dict(
+        conn.execute(
+            text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'corpus'")
+        ).all()
+    )
+    assert re.search(r"\(topic_a, kind, weight DESC, topic_b\)$", defs["topic_relations_a_idx"])
+    assert re.search(r"\(topic_b, kind, weight DESC, topic_a\)$", defs["topic_relations_b_idx"])
+
+
+def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Connection) -> None:
+    options = dict(
+        conn.execute(
+            text(
+                "SELECT c.relname, c.reloptions FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'corpus'"
+            )
+        ).all()
+    )
+    expected = [
+        "autovacuum_analyze_scale_factor=0.005",
+        "autovacuum_vacuum_scale_factor=0.01",
+    ]
+    for name in (
+        "insight_mentions",
+        "insight_support",
+        "insight_attribution",
+        "item_entities",
+        "evidence",
+    ):
+        assert sorted(options[name]) == expected, name
+
+
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0008_source_attrs"]
+    assert scripts.get_heads() == ["corpus_0009_intelligence"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1051,8 +1498,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0006_migration_runs",
         "corpus_0007_search_chunks",
         "corpus_0008_source_attrs",
+        "corpus_0009_intelligence",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0008_source_attrs"
+    assert migrate.head_revision("corpus") == "corpus_0009_intelligence"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1251,9 +1699,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0006_migration_runs",
             "corpus_0007_search_chunks",
             "corpus_0008_source_attrs",
+            "corpus_0009_intelligence",
         ]
         rows = migrate.history_rows(url, "corpus", limit=10)
         assert [r["revision"] for r in rows] == [
+            "corpus_0009_intelligence",
             "corpus_0008_source_attrs",
             "corpus_0007_search_chunks",
             "corpus_0006_migration_runs",
@@ -1324,8 +1774,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 8]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 8
+        assert sorted(len(r) for r in results) == [0, 9]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 9
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1374,7 +1824,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 8
+        assert len(revisions) == 9
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
