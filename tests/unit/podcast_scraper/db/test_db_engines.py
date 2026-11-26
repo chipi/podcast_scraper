@@ -511,3 +511,45 @@ def test_an_unreachable_corpus_database_fails_fast_and_leaves_nothing_open() -> 
     with pytest.raises(DatabaseNotReady, match="corpus_ro"):
         engines_mod.init_corpus_engine(dead)
     assert engines_mod._corpus is None
+
+
+def test_the_pipeline_engine_has_no_statement_timeout_over_the_role_and_writes(
+    role_with_default_timeouts: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CRFC-005 §7: pipeline_rw has no statement timeout (writers run long statements); the
+    session's 0 must replace a role-level default."""
+    reset_engines()
+    monkeypatch.setenv("PODCAST_DATABASE_PIPELINE_RW_URL", role_with_default_timeouts)
+    engine = engines_mod.pipeline_rw_engine()
+    assert engine is engines_mod.pipeline_rw_engine()
+    assert _show_timeouts(engine) == ("0", "1min")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TEMP TABLE pipeline_probe (x int)"))
+    reset_engines()
+    assert engines_mod._pipeline is None
+
+
+def test_a_pipeline_only_process_opens_no_plane_or_corpus_engine(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pipeline job: only the pipeline URL is given, and its pool is 1+1 by default."""
+    reset_engines()
+    monkeypatch.setenv("PODCAST_DATABASE_URL", "")
+    monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", "")
+    monkeypatch.setenv("PODCAST_DATABASE_PIPELINE_RW_URL", url)
+    engines_mod.init_pipeline_engine()
+    pool = engines_mod.pipeline_rw_engine().pool
+    assert (pool.size(), pool._max_overflow) == (1, 1)  # type: ignore[attr-defined]
+    assert not engines_mod.engines_open()
+    assert engines_mod._corpus is None
+    reset_engines()
+
+
+def test_an_unreachable_pipeline_database_fails_fast_and_leaves_nothing_open() -> None:
+    from podcast_scraper.db.settings import PipelineSettings
+
+    reset_engines()
+    dead = PipelineSettings(url="postgresql+psycopg://nobody:nobody@127.0.0.1:1/none")
+    with pytest.raises(DatabaseNotReady, match="pipeline_rw"):
+        engines_mod.init_pipeline_engine(dead)
+    assert engines_mod._pipeline is None

@@ -13,6 +13,8 @@ from podcast_scraper.db.settings import (
     DatabaseSettings,
     is_configured,
     normalize_url,
+    pipeline_is_configured,
+    PipelineSettings,
 )
 
 
@@ -184,3 +186,54 @@ def test_corpus_is_configured_reads_its_own_variable(monkeypatch: pytest.MonkeyP
     assert not corpus_is_configured()
     monkeypatch.setenv("PODCAST_DATABASE_CORPUS_RO_URL", "postgresql://corpus_ro@h/db")
     assert corpus_is_configured()
+
+
+_PIPELINE = {"PODCAST_DATABASE_PIPELINE_RW_URL": "postgresql://pipeline_rw@h/db"}
+
+
+def test_no_pipeline_url_is_a_clear_error_naming_the_variable() -> None:
+    with pytest.raises(DatabaseNotConfigured, match="PODCAST_DATABASE_PIPELINE_RW_URL"):
+        PipelineSettings.from_env(_URL)
+
+
+def test_pipeline_settings_default_to_no_timeout_and_1_plus_1_never_the_planes() -> None:
+    cfg = PipelineSettings.from_env(
+        {
+            **_URL,
+            **_PIPELINE,
+            "PODCAST_DB_STATEMENT_TIMEOUT_MS": "15000",
+            "PODCAST_DB_POOL_SIZE": "8",
+            "PODCAST_DB_MAX_OVERFLOW": "8",
+        }
+    )
+    assert cfg.url == "postgresql+psycopg://pipeline_rw@h/db"
+    assert (cfg.statement_timeout_ms, cfg.pool_size, cfg.max_overflow) == (0, 1, 1)
+    assert cfg.idle_tx_timeout_ms == 60_000
+
+
+def test_pipeline_settings_read_their_own_pool_variables() -> None:
+    cfg = PipelineSettings.from_env(
+        {
+            **_PIPELINE,
+            "PODCAST_DB_PIPELINE_POOL_SIZE": "2",
+            "PODCAST_DB_PIPELINE_MAX_OVERFLOW": "0",
+        }
+    )
+    assert (cfg.pool_size, cfg.max_overflow) == (2, 0)
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [("PODCAST_DB_PIPELINE_POOL_SIZE", "0"), ("PODCAST_DB_PIPELINE_MAX_OVERFLOW", "x")],
+)
+def test_a_bad_pipeline_setting_is_refused_naming_the_variable(name: str, value: str) -> None:
+    with pytest.raises(ValueError, match=name):
+        PipelineSettings.from_env({**_PIPELINE, name: value})
+
+
+def test_pipeline_is_configured_reads_its_own_variable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SECRETS_DIR", "/nonexistent")
+    monkeypatch.delenv("PODCAST_DATABASE_PIPELINE_RW_URL", raising=False)
+    assert not pipeline_is_configured()
+    monkeypatch.setenv("PODCAST_DATABASE_PIPELINE_RW_URL", "postgresql://pipeline_rw@h/db")
+    assert pipeline_is_configured()

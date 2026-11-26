@@ -7,7 +7,9 @@ the process's plane schema. They are one engine unless the ro URL names another 
 
 The ``corpus_ro`` engine (CRFC-005 §7) is separate: its own URL, its own 5 s statement timeout and
 pool, no schema map, opened by ``init_corpus_engine()`` or on first ``corpus_ro_engine()``. A
-process with only a corpus URL never opens the plane's engines.
+process with only a corpus URL never opens the plane's engines. The ``pipeline_rw`` engine is the
+same shape for the corpus writers: ``init_pipeline_engine()`` or the first ``pipeline_rw_engine()``,
+no statement timeout, a pool of 1+1.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from typing import Any, Callable, TypeVar
 from sqlalchemy import create_engine, Engine, exc as sa_exc, text
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db.settings import CorpusSettings, DatabaseSettings
+from podcast_scraper.db.settings import CorpusSettings, DatabaseSettings, PipelineSettings
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ class _Engines:
 _lock = threading.Lock()
 _engines: _Engines | None = None
 _corpus: tuple[CorpusSettings, Engine] | None = None
+_pipeline: tuple[PipelineSettings, Engine] | None = None
 
 ENV_APPLICATION_NAME = "PODCAST_DB_APPLICATION_NAME"
 
@@ -65,7 +68,7 @@ def application_name_args() -> dict[str, str]:
 
 
 def app_connect_args(
-    settings: DatabaseSettings | CorpusSettings, *, read_only: bool
+    settings: DatabaseSettings | CorpusSettings | PipelineSettings, *, read_only: bool
 ) -> dict[str, object]:
     """libpq arguments for an app connection (ADR-173): the timeouts and, on the ro engine,
     read-only, in one ``options`` string so none overwrites another."""
@@ -94,7 +97,7 @@ def unbounded_connect_args(*, read_only: bool = False) -> dict[str, str]:
 
 
 def _create(
-    settings: DatabaseSettings | CorpusSettings,
+    settings: DatabaseSettings | CorpusSettings | PipelineSettings,
     url: str,
     *,
     read_only: bool,
@@ -244,9 +247,40 @@ def corpus_ro_engine() -> Engine:
     return _corpus[1]
 
 
+def init_pipeline_engine(settings: PipelineSettings | None = None, *, check: bool = True) -> None:
+    """Open the process's ``pipeline_rw`` engine once; a later call is a no-op.
+
+    Raises ``DatabaseNotConfigured`` with no pipeline URL, ``DatabaseNotReady`` when ``check``
+    finds it unreachable or the corpus schema not at head.
+    """
+    global _pipeline
+    with _lock:
+        if _pipeline is not None:
+            return
+        cfg = settings or PipelineSettings.from_env()
+        engine = _create(cfg, cfg.url, read_only=False, execution_options={})
+        if check:
+            try:
+                _check_reachable("pipeline_rw", engine)
+                _check_corpus_ready(engine)
+            except Exception:
+                engine.dispose()
+                raise
+        _pipeline = (cfg, engine)
+        logger.info("pipeline_rw engine ready")
+
+
+def pipeline_rw_engine() -> Engine:
+    """The ``pipeline_rw`` engine, opened lazily from the environment on first use."""
+    if _pipeline is None:
+        init_pipeline_engine()
+    assert _pipeline is not None
+    return _pipeline[1]
+
+
 def reset_engines() -> None:
     """Dispose the registry (process shutdown; tests that switch databases)."""
-    global _engines, _corpus
+    global _engines, _corpus, _pipeline
     with _lock:
         if _engines is not None:
             _engines.dispose()
@@ -254,6 +288,9 @@ def reset_engines() -> None:
         if _corpus is not None:
             _corpus[1].dispose()
             _corpus = None
+        if _pipeline is not None:
+            _pipeline[1].dispose()
+            _pipeline = None
 
 
 def engines_open() -> bool:
