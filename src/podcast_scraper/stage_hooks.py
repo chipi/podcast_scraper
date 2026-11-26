@@ -67,6 +67,12 @@ InsightGrounding = Callable[
 #: ``(cfg, output_dir)``. After every episode of the run is finalized and on disk, before the
 #: run is marked done. Must not raise.
 RunCompletedHook = Callable[[Any, str], None]
+#: ``(metadata_path, gi_path, kg_path) -> outcome``: an item's rows from its artifacts, run
+#: after the pipeline's corpus writer synced the item's rows and documents
+#: (``db.corpus_writer.sync_episode``). ``gi_path`` / ``kg_path`` are ``None`` when the file is
+#: not there. Each owner's writer takes its own transaction, counts and logs its outcome, and
+#: raises only under its strict setting.
+ArtifactRowsHook = Callable[[Path, Optional[Path], Optional[Path]], Optional[str]]
 #: ``(transcript_text, cfg, kg_extraction_provider, max_entities) -> (hints, prompt_version)``.
 #: Entity hints for the KG extraction prompt. One owner answers: the first that is set. Without
 #: one the prompt is the plain ``v4`` with no hints.
@@ -248,6 +254,7 @@ class PipelineHooks:
     artifact_kinds: Sequence[ArtifactKind] = field(default_factory=tuple)
     index_source_paths: Sequence[IndexSourcePathsHook] = field(default_factory=tuple)
     run_completed: Sequence[RunCompletedHook] = field(default_factory=tuple)
+    artifact_rows: Sequence[ArtifactRowsHook] = field(default_factory=tuple)
     kg_prompt_hints: Optional[KgPromptHints] = None
     adfree_base: Optional[AdfreeBase] = None
     excise_ads: Optional[ExciseAds] = None
@@ -426,6 +433,16 @@ def run_completed(cfg: Any, output_dir: str) -> None:
     for hooks in _all():
         for hook in hooks.run_completed:
             hook(cfg, output_dir)
+
+
+def artifact_rows(
+    metadata_path: Path, gi_path: Optional[Path], kg_path: Optional[Path]
+) -> List[Optional[str]]:
+    """Run every ``artifact_rows`` stage hook (built-in, then extensions in load order); returns
+    their outcomes."""
+    return [
+        hook(metadata_path, gi_path, kg_path) for hooks in _all() for hook in hooks.artifact_rows
+    ]
 
 
 def kg_prompt_hints(

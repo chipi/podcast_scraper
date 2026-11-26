@@ -54,15 +54,17 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 import yaml
-from sqlalchemy import and_, func, insert, or_, select, update
+from sqlalchemy import and_, delete, func, insert, or_, select, update
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.db import leases
+from podcast_scraper.db.corpus_cards import card_row, FLAGS
 from podcast_scraper.db.corpus_keys import (
     is_news,
     item_natural_id,
@@ -70,6 +72,7 @@ from podcast_scraper.db.corpus_keys import (
     source_natural_id,
 )
 from podcast_scraper.db.corpus_rows import (
+    _instant,
     item_row,
     merge_source_attrs,
     newest_key,
@@ -78,6 +81,7 @@ from podcast_scraper.db.corpus_rows import (
     unreadable_times,
 )
 from podcast_scraper.db.importers.corpus_documents import (
+    ARTICLE,
     DocumentRefused,
     joined_body,
     read_body,
@@ -86,10 +90,12 @@ from podcast_scraper.db.importers.corpus_documents import (
     transcript_files,
     TranscriptFile,
 )
-from podcast_scraper.db.schema import content_items, documents, segments, sources
+from podcast_scraper.db.schema import content_items, documents, item_cards, segments, sources
 from podcast_scraper.db.settings import pipeline_is_configured
-from podcast_scraper.document_cut import cut_body, DocumentCutError
+from podcast_scraper.document_cut import cut_body, DocumentCutError, paragraph_cuts
 from podcast_scraper.languages import episode_language
+from podcast_scraper.publishers import load_registry, Registry
+from podcast_scraper.server.corpus_catalog import _gi_kg_relpaths_from_metadata
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 logger = logging.getLogger(__name__)
@@ -176,13 +182,15 @@ def item_id_for(conn: Connection, natural_id: str) -> Optional[int]:
     return found
 
 
-def _newest(conn: Connection, item_id: int, variant: str) -> Optional[tuple[int, int, str]]:
+def _newest(
+    conn: Connection, item_id: int, variant: str, kind: str = TRANSCRIPT
+) -> Optional[tuple[int, int, str]]:
     row = conn.execute(
         select(documents.c.document_id, documents.c.version, documents.c.body_sha256)
         .where(
             and_(
                 documents.c.item_id == item_id,
-                documents.c.kind == TRANSCRIPT,
+                documents.c.kind == kind,
                 documents.c.variant == variant,
             )
         )
@@ -192,10 +200,13 @@ def _newest(conn: Connection, item_id: int, variant: str) -> Optional[tuple[int,
     return (row[0], row[1], row[2]) if row else None
 
 
-def ensure_source(conn: Connection, doc: Mapping[str, Any]) -> int:
-    """The ``source_id`` of a podcast item ``doc``'s source, inserting the row from ``doc`` when
-    it is missing; :func:`merge_source` decides its columns once the item's row is written."""
-    wanted = source_row(doc)
+def ensure_source(
+    conn: Connection, doc: Mapping[str, Any], *, registry: Optional[Registry] = None
+) -> int:
+    """The ``source_id`` of item ``doc``'s source, inserting the row from ``doc`` when it is
+    missing; :func:`merge_source` decides its columns once the item's row is written. A news
+    item's source needs ``registry`` for its title."""
+    wanted = source_row(doc, registry=registry)
     stored = (
         conn.execute(
             select(sources.c.source_id, sources.c.content_type, sources.c.raw_feed_id).where(
@@ -270,13 +281,15 @@ def upsert_item(
     *,
     metadata_relpath: str = "",
     has_bridge: Optional[bool] = None,
+    registry: Optional[Registry] = None,
 ) -> int:
-    """Insert or update the item row of a podcast item ``doc`` under ``source_id``; returns its
-    ``item_id``. ``metadata_relpath`` and ``has_bridge`` go to :func:`item_row`."""
+    """Insert or update the item row of ``doc`` under ``source_id``; returns its ``item_id``.
+    ``metadata_relpath`` and ``has_bridge`` go to :func:`item_row`; a news item's
+    ``source_attrs`` need ``registry``."""
     wanted = {
         **item_row(doc, metadata_relpath=metadata_relpath, has_bridge=has_bridge),
         "source_id": source_id,
-        "source_attrs": source_attrs(doc),
+        "source_attrs": source_attrs(doc, registry=registry),
     }
     clash = conn.execute(
         select(content_items.c.natural_id)
@@ -338,6 +351,69 @@ def mark_has_transcript(conn: Connection, item_id: int) -> bool:
     return has
 
 
+def write_card(
+    conn: Connection, corpus_root: Path, metadata_relpath: str, item_id: int, item: dict[str, Any]
+) -> bool:
+    """The episode's ``item_cards`` row and its item's ``has_*`` flags (CRFC-005 §3.2: the item's
+    writers write its card in the item's transaction), from ``corpus_cards.card_row``, the
+    importer's; returns whether the episode has a card. One the catalog does not show (unusable)
+    has none, so a card written before is removed."""
+    card = card_row(corpus_root, metadata_relpath, item)
+    if card is None:
+        conn.execute(delete(item_cards).where(item_cards.c.item_id == item_id))
+        return False
+    stored = (
+        conn.execute(select(item_cards).where(item_cards.c.item_id == item_id)).mappings().first()
+    )
+    if stored is None:
+        conn.execute(insert(item_cards).values(item_id=item_id, **card))
+    else:
+        changes = {column: value for column, value in card.items() if stored[column] != value}
+        if changes:
+            conn.execute(
+                update(item_cards)
+                .where(item_cards.c.item_id == item_id)
+                .values(**changes, updated_at=func.now())
+            )
+    flags = {flag: card[flag] for flag in FLAGS}
+    conn.execute(
+        update(content_items)
+        .where(
+            and_(
+                content_items.c.item_id == item_id,
+                or_(*(content_items.c[flag] != value for flag, value in flags.items())),
+            )
+        )
+        .values(**flags, updated_at=func.now())
+    )
+    return True
+
+
+_REGISTRY: Optional[Registry] = None
+
+
+def _registry() -> Registry:
+    """The publisher registry a news source's title comes from, read once per process."""
+    global _REGISTRY
+    if _REGISTRY is None:
+        _REGISTRY = load_registry()
+    return _REGISTRY
+
+
+def _corpus_root(metadata_path: Path, metadata_relpath: str) -> Path:
+    return metadata_path.parents[len(Path(metadata_relpath).parts) - 1]
+
+
+def artifact_paths(metadata_path: Path) -> tuple[Optional[Path], Optional[Path]]:
+    """The item's GI and KG files beside its metadata (the catalog's naming rule), each ``None``
+    when it is not there."""
+    gi, kg = _gi_kg_relpaths_from_metadata(str(metadata_path))
+    return (
+        Path(gi) if os.path.isfile(gi) else None,
+        Path(kg) if os.path.isfile(kg) else None,
+    )
+
+
 def _segment_count(conn: Connection, item_id: int, document_id: int) -> int:
     count: int = conn.execute(
         select(func.count()).where(
@@ -348,24 +424,42 @@ def _segment_count(conn: Connection, item_id: int, document_id: int) -> int:
 
 
 def sync_documents(
-    conn: Connection, item_id: int, files: Sequence[TranscriptFile], *, change_kind: str
+    conn: Connection,
+    item_id: int,
+    files: Sequence[TranscriptFile],
+    *,
+    change_kind: str,
+    kind: str = TRANSCRIPT,
+    fetched_at: Optional[datetime] = None,
+    body_sha256: Optional[str] = None,
 ) -> list[SyncedDocument]:
-    """Write each file whose body differs from its variant's newest version, in the caller's
-    transaction. ``change_kind`` names why a later version exists; version 1 is ``created``."""
+    """Write each file whose body differs from its variant's newest version of ``kind``, in the
+    caller's transaction. ``change_kind`` names why a later version exists; version 1 is
+    ``created``. An ``article`` is cut into paragraphs (``paragraph_cuts``) and carries
+    ``fetched_at``, and its ``raw`` body must hash to the metadata's ``body_sha256`` when one is
+    given, as the importer writes it."""
     if change_kind not in CHANGE_KINDS:
         raise ValueError(f"change_kind {change_kind!r} is not one of {CHANGE_KINDS}")
     synced: list[SyncedDocument] = []
     for file in files:
         body = read_body(file.path)
         digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        newest = _newest(conn, item_id, file.variant)
+        if body_sha256 and file.variant == "raw" and digest != body_sha256:
+            raise DocumentRefused(
+                f"{file.path.name}: its sha256 is not the metadata's body_sha256 {body_sha256}"
+            )
+        newest = _newest(conn, item_id, file.variant, kind)
         if newest is not None and newest[2] == digest:
             document_id, version, _ = newest
             count = _segment_count(conn, item_id, document_id)
             synced.append(SyncedDocument(file.variant, document_id, version, count, False))
             continue
         try:
-            cuts = cut_body(body, read_segments(file.segments_path))
+            cuts = (
+                paragraph_cuts(body)
+                if kind == ARTICLE
+                else cut_body(body, read_segments(file.segments_path))
+            )
         except (DocumentCutError, ValueError) as exc:
             raise DocumentRefused(f"{file.path.name}: {exc}") from exc
         version = 1 if newest is None else newest[1] + 1
@@ -373,12 +467,13 @@ def sync_documents(
             insert(documents)
             .values(
                 item_id=item_id,
-                kind=TRANSCRIPT,
+                kind=kind,
                 variant=file.variant,
                 version=version,
                 supersedes_id=None if newest is None else newest[0],
                 change_kind=CREATED if newest is None else change_kind,
                 body_sha256=digest,
+                fetched_at=fetched_at,
             )
             .returning(documents.c.document_id)
         ).scalar_one()
@@ -426,23 +521,42 @@ def _outcome(synced: Sequence[SyncedDocument]) -> str:
     return "written" if written else "unchanged"
 
 
+#: The outcomes in which the item's rows are written or already right: the artifact hooks run.
+ROWS_KEPT = ("written", "superseded", "unchanged", "no_files")
+
+
 def sync_episode(
     metadata_path: Path, transcript_path: Optional[Path], *, change_kind: str = RETRANSCRIBED
 ) -> str:
-    """Sync one podcast episode's source and item rows and its transcript documents; returns and
-    counts the outcome.
+    """Sync one item's rows and documents (:func:`sync_rows`), then, when its rows are kept
+    (:data:`ROWS_KEPT`), run every ``artifact_rows`` stage hook on its metadata, GI and KG files
+    (:func:`artifact_paths`), after the rows' transaction: those writers own their transaction,
+    their counts and their strict failure."""
+    outcome = sync_rows(metadata_path, transcript_path, change_kind=change_kind)
+    if outcome in ROWS_KEPT:
+        from podcast_scraper import stage_hooks
+
+        stage_hooks.artifact_rows(metadata_path, *artifact_paths(metadata_path))
+    return outcome
+
+
+def sync_rows(
+    metadata_path: Path, transcript_path: Optional[Path], *, change_kind: str = RETRANSCRIBED
+) -> str:
+    """Sync one item's source and item rows and its documents (a podcast episode's transcripts
+    and card, a news item's article); returns and counts the outcome.
 
     The outcome names the documents: ``written`` (version 1 of every variant written),
-    ``superseded`` (a later version written: its ``change_kind`` is the caller's, so the metadata
-    stage's ``retranscribed`` is assumed until the translation, repunctuate and retranscript_only
-    stages' runs pass theirs: :func:`change_kind_for`), ``unchanged`` or ``no_files`` (no
-    ``transcript_path``, or no
-    transcript body beside it); the rows are upserted in each of these. Otherwise nothing is
-    written: ``lease_refused`` (another job holds a conflicting lease), ``lease_lost``,
-    ``refused`` (the keys cannot be derived, a stored row contradicts the item, or a body does not
-    cut), ``failed`` (anything else), ``news_item`` (not this slice's) or ``not_configured`` (no
-    pipeline database URL). Never raises unless the strict setting is on. An item the pipeline
-    marked not served is synced too, with ``served`` 0: which items are served is the read side's.
+    ``superseded`` (a later version written, recording ``change_kind``: the metadata hook passes
+    :func:`change_kind_for` its run's stage; a news item's later article is ``corrected``,
+    CRFC-005 §3.5), ``unchanged`` or ``no_files`` (no ``transcript_path``, or no body beside it);
+    the rows are upserted in each of these. Otherwise nothing is written: ``lease_refused``
+    (another job holds a conflicting lease), ``lease_lost``, ``refused`` (the keys cannot be
+    derived, a stored row contradicts the item, or a body does not cut or hash), ``failed``
+    (anything else) or ``not_configured`` (no pipeline database URL). A news item's
+    ``transcript_path`` is its body file, and it has no card yet (the importer writes none
+    either). Never raises unless the strict setting is on. An item the pipeline marked not served
+    is synced too, with ``served`` 0: which items are served is the read side's.
     """
     if not pipeline_is_configured():
         return _count("not_configured")
@@ -450,16 +564,15 @@ def sync_episode(
     holder = ""
     try:
         doc = _load(metadata_path)
-        if is_news(doc):
-            return _count("news_item")
+        news = is_news(doc)
+        registry = _registry() if news else None
         natural_id = item_natural_id(doc)
         source = source_natural_id(doc)
         relpath = corpus_relpath(metadata_path)
         has_bridge = os.path.isfile(bridge_json_path_adjacent_to_metadata(str(metadata_path)))
+        language = doc.get("language") if news else episode_language(dict(doc))
         files = (
-            transcript_files(
-                transcript_path.parent, _base(transcript_path), episode_language(dict(doc))
-            )
+            transcript_files(transcript_path.parent, _base(transcript_path), language)
             if transcript_path is not None and transcript_path.parent.is_dir()
             else []
         )
@@ -477,13 +590,32 @@ def sync_episode(
         )
         with engine.begin() as conn:
             leases.heartbeat(conn, holder, held)
-            source_id = ensure_source(conn, doc)
+            source_id = ensure_source(conn, doc, registry=registry)
             item_id = upsert_item(
-                conn, doc, source_id, metadata_relpath=relpath or "", has_bridge=has_bridge
+                conn,
+                doc,
+                source_id,
+                metadata_relpath=relpath or "",
+                has_bridge=has_bridge,
+                registry=registry,
             )
             merge_source(conn, source_id)
-            synced = sync_documents(conn, item_id, files, change_kind=change_kind)
-            mark_has_transcript(conn, item_id)
+            if news:
+                synced = sync_documents(
+                    conn,
+                    item_id,
+                    files,
+                    change_kind=CORRECTED,
+                    kind=ARTICLE,
+                    fetched_at=_instant(doc.get("fetched_at")),
+                    body_sha256=_str_or_none(doc.get("body_sha256")),
+                )
+            else:
+                synced = sync_documents(conn, item_id, files, change_kind=change_kind)
+                mark_has_transcript(conn, item_id)
+                if relpath is not None:
+                    item = item_row(doc, metadata_relpath=relpath, has_bridge=has_bridge)
+                    write_card(conn, _corpus_root(metadata_path, relpath), relpath, item_id, item)
         _DEFERRED.pop(str(metadata_path), None)
         if relpath is None:
             UNPLACED["metadata_relative_path"] += 1
@@ -518,6 +650,10 @@ def _defer(metadata_path: Path, transcript_path: Optional[Path], change_kind: st
         None if transcript_path is None else str(transcript_path),
         change_kind,
     )
+
+
+def _str_or_none(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) and value else None
 
 
 def _release(engine: Any, holder: str) -> None:
