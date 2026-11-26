@@ -15,7 +15,7 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, exc as sa_exc, insert, select, text
+from sqlalchemy import create_engine, exc as sa_exc, func, insert, select, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, make_url
 
@@ -822,8 +822,9 @@ def test_deleting_a_build_deletes_its_clusters_members_and_changes(conn: Connect
     _cluster(conn, build, 1, canonical)
     _member(conn, build, 1, canonical, decision_id=decision)
     conn.execute(text("DELETE FROM corpus.identity_builds WHERE build_id = :b"), {"b": build})
-    for table in ("identity_changes", "identity_clusters", "identity_members"):
-        assert conn.execute(text(f"SELECT count(*) FROM corpus.{table}")).scalar_one() == 0
+    for name in ("identity_changes", "identity_clusters", "identity_members"):
+        table = corpus_metadata.tables[f"corpus.{name}"]
+        assert conn.execute(select(func.count()).select_from(table)).scalar_one() == 0
     conn.rollback()
 
 
