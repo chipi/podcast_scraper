@@ -32,7 +32,7 @@ from podcast_scraper.utils.path_validation import (
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
-from podcast_scraper.utils.utc import as_utc, utc_iso
+from podcast_scraper.utils.utc import parse_stored, utc_iso
 
 
 def _feed_and_episode_ids(doc: Optional[dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
@@ -82,16 +82,8 @@ def _gi_kg_relpaths_from_metadata(metadata_relpath: str) -> tuple[str, str]:
 
 
 def _published_instant(raw: Any) -> Optional[datetime]:
-    """A stored publish time with a time of day, as an aware UTC datetime (``utils.utc``: a naive
-    one is UTC); ``None`` for a date with no time, a missing value or an unreadable one."""
-    if isinstance(raw, datetime):
-        return as_utc(raw)
-    if isinstance(raw, str) and len(raw.strip()) > 10:
-        try:
-            return as_utc(datetime.fromisoformat(raw.strip().replace("Z", "+00:00")))
-        except ValueError:
-            return None
-    return None
+    """A stored publish time with a time of day as an aware UTC datetime (``utils.utc``)."""
+    return parse_stored(raw)
 
 
 def _parse_published_at(raw: Any) -> Optional[str]:

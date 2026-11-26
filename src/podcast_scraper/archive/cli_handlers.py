@@ -20,6 +20,7 @@ import os
 import re
 from typing import Any, Dict, List
 
+from ..utils.utc import utc_day
 from .offload import sweep_corpus
 
 _SAFE = re.compile(r"[^A-Za-z0-9._ -]+")
@@ -93,7 +94,7 @@ def _select(episodes: List[Dict[str, Any]], args: argparse.Namespace) -> List[Di
     if getattr(args, "episode", None):
         out = [e for e in out if args.episode in (e["episode_id"], e["guid"])]
     if getattr(args, "since", None):
-        out = [e for e in out if (e["published_date"] or "")[:10] >= args.since]
+        out = [e for e in out if (utc_day(e["published_date"]) or "") >= args.since]
     return out
 
 
