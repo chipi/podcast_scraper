@@ -48,7 +48,7 @@ without the `v`**:
 Releases that change providers, default models, or quality-sensitive pipeline behavior are
 defensible on **two** axes:
 
-1. **Evaluation (quality)** — `Experiment Guide`, baselines under `data/eval/`,
+1. **Evaluation (quality)** — `Experiment Guide`, baselines under `data/eval/` (private eval repo),
    `Evaluation reports`.
 2. **Performance (resource / wall time)** — Performance Profile Guide (moved to the private eval repo),
    artifacts under `data/profiles/`, companion
@@ -96,7 +96,7 @@ this repository (#2134).
 **If skipping for minor:** Add a subsection to release notes: "Eval/profiles unchanged from
 vX.Y.(Z-1)."
 
-**Outputs:** Eval run artifacts under `data/eval/`; profile YAML + `stage_truth.json` under
+**Outputs:** Eval run artifacts under `data/eval/` (private eval repo); profile YAML + `stage_truth.json` under
 `data/profiles/`; optional report pages.
 
 **Gate:** Eval meets baseline / quality policy; profile shows no unexpected regression (advisory or

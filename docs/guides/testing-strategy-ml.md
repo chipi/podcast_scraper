@@ -154,7 +154,7 @@ between SDK versions.
   (`bart-base`, `roberta-base-squad2`, `all-MiniLM-L6-v2`) from the local
   HF cache with `local_files_only=True`. Real model, real tokenizer, real
   forward pass. These are the tests that prove the backend actually works.
-- **Phase 7 parity gate** (`scripts/eval/compare_v5_parity.py`) compares
+- **Phase 7 parity gate** (`scripts/eval/compare_v5_parity.py`, private eval repo) compares
   real end-to-end outputs pre-vs-post migration. No mocks.
 - **QA baseline capture** (`scripts/dev/capture_qa_baseline.py`) — real
   QA model, deterministic device=CPU, fixed fixture set. No mocks.

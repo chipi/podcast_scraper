@@ -14,7 +14,6 @@ profile: airgapped
 #   Summary:   SummLlama3.2-3B 0.485 paragraph (#571, 2.4x over bart-led 0.206).
 #              Refreshed 2026-04-23 post-#652/#653 (standalone, no judge re-run):
 #              paragraph ROUGE-L 0.325 / cosine 0.784 / ~78 s/ep on MPS.
-#              eval: data/eval/runs/summllama32_standalone_benchmark_v2_paragraph/
 #              Historic compound "Final" = 0.4×ROUGE-L + 0.6×judge. Solving for
 #              judge on historic Final 0.485 → judge ~0.59; with fresh ROUGE-L
 #              0.325, implied Final ≈ 0.484. No regression within eval noise.

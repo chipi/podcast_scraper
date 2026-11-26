@@ -1141,10 +1141,10 @@ This is the **existing multi-provider architecture** (9 providers, RFC-029). The
 provider selection (ADR-026) already supports mixed configurations — e.g., local Whisper +
 cloud summarization, or cloud transcription + local GIL.
 
-### D.9 Evaluation workloads (`data/eval/`)
+### D.9 Evaluation workloads (private eval repo)
 
-The evaluation infrastructure (`data/eval/`, `evaluation/scorer.py`) has its
-own resource considerations:
+The evaluation infrastructure lives in the private eval repo
+(`docs/guides/EVAL_RESEARCH_MOUNT.md`) and has its own resource considerations:
 
 | Workload | Resource needs | Where it runs |
 | --- | --- | --- |

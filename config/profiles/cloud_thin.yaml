@@ -31,7 +31,7 @@ auto_speakers: true
 # to autoresearch — wins composite ranking by 4-10× on $/successful-call and
 # 3× on p50 vs alternatives. Prod operating point (2026-05-24) shows
 # ~15-20% Gemini 503 burst absorbed by #697 circuit breaker. Re-validate via
-# scripts/eval/score/summary_model_reliability_v1.py before swapping.
+# scripts/eval/score/summary_model_reliability_v1.py (private eval repo) before swapping.
 summary_provider: gemini
 gemini_summary_model: gemini-2.5-flash-lite
 gemini_speaker_model: gemini-2.5-flash-lite

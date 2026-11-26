@@ -86,7 +86,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
-#   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics; no torch/transformers
+#   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API); no torch/transformers
 #   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, etc.
 #               NOT lancedb: that is search-only, as the note in [ml] itself says. This line
 #               claimed otherwise.
@@ -332,17 +332,6 @@ dev = [
   "bandit>=1.9.4,<2.0.0",
   "pip-audit>=2.10.1,<3.0.0",
   "build",
-  "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
-  "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
-  # Floor >=3.10 (Dependabot #1373, taken): 3.10 fixes 3 download/pathsec CVEs that
-  # ``pip_audit`` (make quality) flags against 3.9.4 — CVE-2026-12061 / 12074 / 12075
-  # (zip-slip, signature bypass, SSRF in ``nltk.download`` / ``data.load``). 3.10 also
-  # ships ``nltk.inisec``, a CWD import-security hook that is incompatible with our
-  # in-tree ``.venv`` (it blocks NLTK-initiated dep imports resolving inside the CWD →
-  # breaks eval/BLEU collection from repo root). We disable ONLY that hook via
-  # ``NLTK_DISABLE_IMPORT_SECURITY=1`` (set in evaluation/scorer.py, the sole nltk import
-  # site) — the pathsec CVE fixes are in a different module and stay in effect.
-  "nltk>=3.10.0,<4.0.0",  # Required for BLEU computation
   # Code complexity analysis (RFC-031, #424). wily dropped (#1014) — it pinned radon<5.2 and was
   # near-vestigial (CI/dashboard read radon directly; only local make complexity-track used it).
   "radon>=6.0.1,<6.1",
@@ -450,7 +439,6 @@ exclude = [
     "^tools/.*",  # Standalone Streamlit tools (not part of src package)
     "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
     "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
-    "^autoresearch/.*",  # Standalone autoresearch scripts (not part of src package)
     "^apps/.*",  # Private repos mounted here (ADR-168); they type-check in their own repos
     "^eval-data/.*",  # The private eval repo, mounted here per its README; its own make ci types it
 ]
@@ -587,7 +575,6 @@ markers = [
     "module_speaker_detection: tests for speaker_detectors/*.py",
     "module_preprocessing: tests for preprocessing/*.py",
     "module_cache: tests for cache/*.py",
-    "module_evaluation: tests for evaluation/*.py",
     "module_utils: tests for utils/*.py",
     "module_models: tests for models.py",
     "module_exceptions: tests for exceptions.py",

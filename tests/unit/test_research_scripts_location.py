@@ -31,7 +31,6 @@ PUBLIC = {
     "scripts/measure/plan_diff_ro.py",
     "scripts/measure/review_verdicts_to_tsv.py",
     "scripts/measure/write_digest_ro.py",
-    "scripts/eval/score/README.md",
 }
 
 

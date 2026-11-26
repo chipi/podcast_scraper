@@ -36,8 +36,8 @@ deployment profile — explicit deployment profile fields still win on overlap.
    audio_preprocessing_profile: <name>
    ```
 
-3. Document the data backing the choice (link to eval-reports / experiment
-   run IDs) in a comment block at the top.
+3. Document the data backing the choice (a public doc or an issue; eval reports and run IDs
+   live in the private eval repo) in a comment block at the top.
 
 ## When to add variants
 
