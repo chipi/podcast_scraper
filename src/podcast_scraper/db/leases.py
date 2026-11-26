@@ -4,13 +4,16 @@ A lease is on a *resource*: ``corpus`` (the whole corpus), ``source:`` plus a so
 or ``build:`` plus a corpus-wide build's kind. Its *mode* is ``shared`` or ``exclusive``: an
 exclusive lease is granted only when the resource has no unexpired holder, a shared one only when
 it has no unexpired exclusive holder. An expired lease counts as free and is removed when the
-resource is next taken. A request that cannot be granted is refused at once, never waited for.
+resource is next taken. A request that cannot be granted is refused at once, never queued: the
+only wait is for a chunk transaction that is extending the lease to commit (its heartbeat holds
+the row), after which the lease is no longer expired and the request is refused.
 
 :func:`acquire` takes several leases all or nothing, in the order given (``corpus`` first, then a
 source or build lease), each under a transaction-scoped advisory lock on its resource so two
-takers cannot both see it free. Leases are taken outside the job's own transactions. A job's
-chunk transaction starts with :func:`heartbeat`, which extends its leases only while they are
-unexpired: when it touches nothing the job has lost them and must stop without committing.
+takers cannot both see it free, and returns how many leases the holder then holds. Leases are
+taken outside the job's own transactions. A job's chunk transaction starts with :func:`heartbeat`
+given that number: it raises :class:`LeaseLost` unless every one of them is still unexpired, so a
+job that lost any lease (one expired while another was refreshed) stops without committing.
 
 Who takes what after the cut-over: an ingest of a source, ``corpus`` shared then its
 ``source:`` exclusive; an enricher, ``corpus`` shared; a corpus-wide build, ``corpus`` shared then
@@ -37,6 +40,10 @@ _MODES = (SHARED, EXCLUSIVE)
 
 class LeaseRefused(RuntimeError):
     """A lease is held in a conflicting mode; nothing was taken."""
+
+
+class LeaseLost(RuntimeError):
+    """A job's lease expired; its transaction must roll back and the job stop."""
 
 
 @dataclass(frozen=True)
@@ -109,28 +116,36 @@ def acquire(
     *,
     ttl: timedelta = timedelta(minutes=10),
     job_id: Optional[int] = None,
-) -> None:
-    """Take every lease in ``requests`` for ``holder``, all or nothing, in one short transaction.
+) -> int:
+    """Take every lease in ``requests`` for ``holder``, all or nothing, in one short transaction,
+    and return how many leases ``holder`` holds afterwards (what :func:`heartbeat` checks).
 
     Raises :class:`LeaseRefused` (and takes none) when any is held in a conflicting mode.
     """
     with engine.begin() as conn:
         for request in requests:
             _take(conn, request, holder, ttl, job_id)
+        return int(
+            conn.execute(select(func.count()).where(job_leases.c.holder == holder)).scalar_one()
+        )
 
 
-def heartbeat(conn: Connection, holder: str, *, ttl: timedelta = timedelta(minutes=10)) -> int:
-    """Extend ``holder``'s unexpired leases; the first statement of each chunk transaction.
+def heartbeat(
+    conn: Connection, holder: str, held: int, *, ttl: timedelta = timedelta(minutes=10)
+) -> None:
+    """Extend ``holder``'s ``held`` leases (``acquire``'s count); the first statement of each
+    chunk transaction.
 
-    Returns how many leases it extended: 0 means the leases expired and the job must stop.
+    Raises :class:`LeaseLost` when fewer than ``held`` are unexpired: the caller's transaction
+    then rolls back, the partial extension with it.
     """
-    return int(
-        conn.execute(
-            update(job_leases)
-            .where(and_(job_leases.c.holder == holder, job_leases.c.expires_at > func.now()))
-            .values(expires_at=func.now() + ttl, heartbeat_at=func.now())
-        ).rowcount
-    )
+    extended = conn.execute(
+        update(job_leases)
+        .where(and_(job_leases.c.holder == holder, job_leases.c.expires_at > func.now()))
+        .values(expires_at=func.now() + ttl, heartbeat_at=func.now())
+    ).rowcount
+    if extended != held:
+        raise LeaseLost(f"{holder}: {extended} of its {held} leases are unexpired")
 
 
 def release(engine: Engine, holder: str) -> int:

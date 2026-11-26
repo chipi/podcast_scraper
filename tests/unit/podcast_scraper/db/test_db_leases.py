@@ -15,6 +15,7 @@ from podcast_scraper.db.leases import (
     CORPUS,
     EXCLUSIVE,
     heartbeat,
+    LeaseLost,
     LeaseRefused,
     LeaseRequest,
     release,
@@ -80,14 +81,24 @@ def test_two_ingests_of_one_source_serialise_and_of_two_sources_run_together(
     assert len(_held(engine)) == 4
 
 
-def test_an_expired_lease_is_free_and_its_heartbeat_extends_nothing(engine: Engine) -> None:
-    acquire(engine, [LeaseRequest(CORPUS, EXCLUSIVE)], "upgrade:old", ttl=EXPIRED)
-    with engine.begin() as conn:
-        assert heartbeat(conn, "upgrade:old") == 0
-    acquire(engine, [LeaseRequest(CORPUS, EXCLUSIVE)], "upgrade:new")
+def test_an_expired_lease_is_free_and_its_heartbeat_is_refused(engine: Engine) -> None:
+    held = acquire(engine, [LeaseRequest(CORPUS, EXCLUSIVE)], "upgrade:old", ttl=EXPIRED)
+    with pytest.raises(LeaseLost, match="0 of its 1"), engine.begin() as conn:
+        heartbeat(conn, "upgrade:old", held)
+    held = acquire(engine, [LeaseRequest(CORPUS, EXCLUSIVE)], "upgrade:new")
     assert _held(engine) == {(CORPUS, EXCLUSIVE, "upgrade:new")}
     with engine.begin() as conn:
-        assert heartbeat(conn, "upgrade:new") == 1
+        heartbeat(conn, "upgrade:new", held)
+
+
+def test_a_job_that_lost_one_of_its_leases_is_stopped(engine: Engine) -> None:
+    acquire(engine, [LeaseRequest(CORPUS, SHARED)], "ingest:1", ttl=EXPIRED)
+    held = acquire(engine, [LeaseRequest(source_resource("podcast:a"), EXCLUSIVE)], "ingest:1")
+    assert held == 2
+    # Another job takes the expired corpus lease exclusively.
+    acquire(engine, [LeaseRequest(CORPUS, EXCLUSIVE)], "upgrade:1")
+    with pytest.raises(LeaseLost, match="1 of its 2"), engine.begin() as conn:
+        heartbeat(conn, "ingest:1", held)
 
 
 def test_a_holder_retaking_its_own_lease_refreshes_it(engine: Engine) -> None:
