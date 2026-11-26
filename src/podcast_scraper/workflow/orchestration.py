@@ -3071,6 +3071,19 @@ def _begin_run(
     return cfg, effective_output_dir, run_suffix, full_config_string, pipeline_metrics
 
 
+def _corpus_deferred(step: str, directory: Optional[str]) -> None:
+    """w-public: retry the episodes whose corpus sync a lease refused (``db.corpus_writer``'s
+    ``retry_deferred`` at a run's start, ``flush_deferred`` at its end); never stops the run."""
+    if not directory:
+        return
+    try:
+        from ..db import corpus_writer
+
+        getattr(corpus_writer, step)(directory)
+    except Exception:  # noqa: BLE001 - a corpus write never stops the pipeline (yet)
+        logger.warning("corpus write %s failed", step, exc_info=True)
+
+
 def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     """Execute the main podcast scraping pipeline.
 
@@ -3164,6 +3177,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             "or `rss_urls` in config before running the pipeline."
         )
     cfg, effective_output_dir, run_suffix, full_config_string, pipeline_metrics = _begin_run(cfg)
+    _corpus_deferred("retry_deferred", cfg.output_dir)
 
     monitor_proc: Optional[Any] = None
     py_spy_stop: Optional[Callable[[], None]] = None
@@ -3355,6 +3369,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 except Exception:
                     pass
             raise
+
+        _corpus_deferred("flush_deferred", effective_output_dir)
 
         # Step 16: after per-episode finalize, so every artifact is on disk.
         stage_hooks.run_completed(cfg, effective_output_dir)

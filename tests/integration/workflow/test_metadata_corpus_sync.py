@@ -39,6 +39,7 @@ def _generate(output_dir: Path) -> object:
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 def test_the_metadata_stage_syncs_the_written_metadata_and_its_transcript(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -52,6 +53,7 @@ def test_the_metadata_stage_syncs_the_written_metadata_and_its_transcript(
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 def test_a_strict_sync_failure_fails_the_episodes_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -191,13 +191,35 @@ def _newest(doc: Mapping[str, Any]) -> NewestKey:
     return newest_key(_instant(raw), item_natural_id(doc))
 
 
+#: The ``sources`` columns an item states for its source: what ``content_items.source_attrs``
+#: holds (corpus_0008), so a source row can be merged again from its items' rows.
+SOURCE_ATTRS = ("raw_feed_id", "title", "language", "category", "licence")
+
+
+def source_attrs(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -> dict[str, Any]:
+    """The item's ``content_items.source_attrs``: the :data:`SOURCE_ATTRS` of its
+    :func:`source_row`."""
+    row = source_row(doc, registry=registry)
+    return {column: row[column] for column in SOURCE_ATTRS}
+
+
+def merge_source_attrs(newest_first: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Each of :data:`SOURCE_ATTRS` from the first of ``newest_first`` that states it (not
+    ``None``): the catalog's rule (``corpus_catalog.aggregate_feeds``). The one merge
+    :func:`source_row_for` and the pipeline's writer (``corpus_writer``) both use."""
+    merged: dict[str, Any] = {column: None for column in SOURCE_ATTRS}
+    for attrs in newest_first:
+        for column in SOURCE_ATTRS:
+            if merged[column] is None and attrs.get(column) is not None:
+                merged[column] = attrs[column]
+    return merged
+
+
 def source_row_for(
     docs: Iterable[Mapping[str, Any]], *, registry: Optional[Registry] = None
 ) -> dict[str, Any]:
-    """The ``sources`` columns of the show whose served items are ``docs``: each column from the
-    newest item that states it (:func:`newest_key`), the catalog's rule
-    (``corpus_catalog.aggregate_feeds``) on the UTC instant instead of the stored date, so the
-    pipeline's one-item-at-a-time writer reaches the same row."""
+    """The ``sources`` columns of the show whose served items are ``docs``:
+    :func:`merge_source_attrs` over them in :func:`newest_key` order (newest first)."""
     ordered = sorted(docs, key=_newest, reverse=True)
     rows = [source_row(doc, registry=registry) for doc in ordered]
     if not rows:
@@ -205,12 +227,12 @@ def source_row_for(
     keys = {(row["natural_id"], row["raw_feed_id"]) for row in rows}
     if len(keys) > 1:
         raise ValueError(f"items of different sources: {sorted(map(str, keys))}")
-    merged = dict(rows[0])
-    for row in rows[1:]:
-        for column, value in row.items():
-            if merged[column] is None and value is not None:
-                merged[column] = value
-    return merged
+    first = rows[0]
+    return {
+        "natural_id": first["natural_id"],
+        "content_type": first["content_type"],
+        **merge_source_attrs(rows),
+    }
 
 
 def _podcast_type_attrs(doc: Mapping[str, Any]) -> dict[str, Any]:

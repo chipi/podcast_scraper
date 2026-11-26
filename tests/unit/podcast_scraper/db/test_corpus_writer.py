@@ -5,14 +5,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 import pytest
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import corpus_writer, engines, leases
-from podcast_scraper.db.corpus_rows import item_row, source_row
+from podcast_scraper.db.corpus_rows import item_row, source_row, source_row_for
 from podcast_scraper.db.corpus_writer import (
     ENV_STRICT,
     OUTCOMES,
@@ -21,7 +21,11 @@ from podcast_scraper.db.corpus_writer import (
     sync_episode,
     SyncFailed,
 )
-from podcast_scraper.db.importers.corpus_documents import joined_body, transcript_files
+from podcast_scraper.db.importers.corpus_documents import (
+    joined_body,
+    transcript_files,
+    TranscriptFile,
+)
 from podcast_scraper.db.schema import corpus_metadata, corpus_revision
 from podcast_scraper.db.settings import ENV_PIPELINE_RW_URL, normalize_url
 from tests.unit.podcast_scraper.db.test_db_corpus import _item, _source, conn, url  # noqa: F401
@@ -35,7 +39,7 @@ def _write(directory: Path, name: str, body: str) -> Path:
     return path
 
 
-def _files(directory: Path) -> list:
+def _files(directory: Path) -> list[TranscriptFile]:
     return transcript_files(directory, BASE, "en")
 
 
@@ -131,9 +135,81 @@ def pipeline_db(url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:  #
     monkeypatch.setenv(ENV_PIPELINE_RW_URL, url)
     engines.reset_engines()
     OUTCOMES.clear()
+    corpus_writer._DEFERRED.clear()
     yield
+    corpus_writer._DEFERRED.clear()
     engines.reset_engines()
     _empty_corpus(url)
+
+
+@pytest.fixture
+def corpus_held(url: str) -> Iterator[Callable[[], object]]:  # noqa: F811
+    """Hold ``corpus`` exclusive as another job would; call the yielded function to release."""
+    other = create_engine(normalize_url(url))
+    leases.acquire(other, [leases.LeaseRequest(leases.CORPUS, leases.EXCLUSIVE)], "migrate:t")
+    yield lambda: leases.release(other, "migrate:t")
+    leases.release(other, "migrate:t")
+    other.dispose()
+
+
+def test_a_refused_episode_is_retried_when_the_run_ends(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\\n")
+    assert sync_episode(_metadata(tmp_path, "item:r"), transcript) == "lease_refused"
+    corpus_held()
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 0
+    assert _row(conn, "content_items", "item:r")["has_transcript"] is True
+    assert not (tmp_path / corpus_writer.DEFERRED_FILE).exists()
+    assert corpus_writer._DEFERRED == {}
+
+
+def test_a_still_refused_episode_is_kept_and_a_later_run_syncs_it(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "run_1"
+    run.mkdir()
+    meta = _metadata(run, "item:k")
+    assert sync_episode(meta, None) == "lease_refused"
+    assert corpus_writer.flush_deferred(str(run)) == 1
+    kept = [
+        json.loads(line) for line in (run / corpus_writer.DEFERRED_FILE).read_text().splitlines()
+    ]
+    assert kept == [{"metadata": str(meta), "transcript": None, "change_kind": RETRANSCRIBED}]
+    assert corpus_writer.retry_deferred(str(tmp_path)) == 1
+    corpus_held()
+    assert corpus_writer.retry_deferred(str(tmp_path)) == 0
+    assert not (run / corpus_writer.DEFERRED_FILE).exists()
+    assert _row(conn, "content_items", "item:k")["served"] == 1
+
+
+def test_a_strict_refusal_is_kept_for_the_retry_too(
+    pipeline_db: None,
+    corpus_held: Callable[[], object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_STRICT, "1")
+    with pytest.raises(SyncFailed, match="lease_refused"):
+        sync_episode(_metadata(tmp_path, "item:s"), None)
+    assert corpus_writer.flush_deferred(str(tmp_path)) == 1
+
+
+def test_the_runs_retry_hook_never_stops_the_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    from podcast_scraper.workflow import orchestration
+
+    def boom(_directory: str) -> int:
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(corpus_writer, "flush_deferred", boom)
+    orchestration._corpus_deferred("flush_deferred", "/out/run")
+    orchestration._corpus_deferred("retry_deferred", None)
 
 
 def _row(db: Connection, table: str, natural_id: str) -> dict:
@@ -230,6 +306,57 @@ def test_an_item_not_served_changes_nothing_on_its_source(
     source = _row(conn, "sources", _source_of(unusable))
     assert (source["title"], source["category"]) == ("A show", None)
     assert _row(conn, "content_items", "item:2")["served"] == 0
+
+
+def _dated(episode_id: str, day: str, **feed: object) -> dict:
+    doc = _doc(episode_id, published_date=f"{day}T00:00:00+00:00")
+    doc["feed"].update(feed)
+    return doc
+
+
+@pytest.mark.parametrize("order", ["abc", "acb", "bac", "bca", "cab", "cba"])
+def test_each_column_comes_from_the_newest_served_item_that_states_it_in_any_order(
+    pipeline_db: None, conn: Connection, tmp_path: Path, order: str  # noqa: F811
+) -> None:
+    # The database session's case (#2583 review): the newest item states no licence, so the
+    # middle one's wins over the oldest one's, whichever arrives first.
+    docs = {
+        "a": _dated("item:a", "2026-11-01"),
+        "c": _dated("item:c", "2026-06-01", licence={"status": "middle"}, category="Science"),
+        "b": _dated("item:b", "2026-01-01", licence={"status": "oldest"}, category="History"),
+    }
+    for key in order:
+        sync_episode(_metadata(tmp_path, f"item:{key}", docs[key]), None)
+    source = _row(conn, "sources", _source_of(docs["a"]))
+    assert json.loads(source["licence"]) == {"status": "middle"}
+    assert source["category"] == "Science"
+    assert source == {**source, **source_row_for(list(docs.values()))}
+
+
+def test_an_item_that_stops_being_served_stops_deciding_its_source(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    old = _dated("item:old", "2026-01-01", title="Old name")
+    new = _dated("item:new", "2026-11-01", title="New name")
+    for doc in (old, new):
+        sync_episode(_metadata(tmp_path, doc["episode"]["episode_id"], doc), None)
+    assert _row(conn, "sources", _source_of(new))["title"] == "New name"
+    conn.rollback()
+    new["episode"]["unusable"] = True
+    sync_episode(_metadata(tmp_path, "item:new", new), None)
+    assert _row(conn, "sources", _source_of(new))["title"] == "Old name"
+    assert _row(conn, "content_items", "item:new")["source_attrs"]["title"] == "New name"
+
+
+def test_has_transcript_follows_the_items_transcript_documents(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    meta = _metadata(tmp_path, "item:t")
+    assert sync_episode(meta, None) == "no_files"
+    assert _row(conn, "content_items", "item:t")["has_transcript"] is False
+    conn.rollback()
+    assert sync_episode(meta, _write(tmp_path, BASE + ".txt", "Words.\n")) == "written"
+    assert _row(conn, "content_items", "item:t")["has_transcript"] is True
 
 
 def test_an_item_whose_id_in_its_source_is_another_items_is_refused(
