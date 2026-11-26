@@ -62,6 +62,9 @@ def test_memory_stays_below_one_full_matrix() -> None:
     n = 3000
     v = _sparse_topics(5, n=n)
     full_matrix_bytes = n * n * 4
+    # The first call imports scipy lazily (cluster_math), about 11 MB of import-time allocations
+    # that tracemalloc would charge to the new path when this test runs first in its process.
+    tc.cluster_labels_by_threshold(_clustered(0, n=24), 0.7)
 
     tracemalloc.start()
     tc.cluster_indices_by_threshold(tc.cosine_similarity_matrix(v), 0.7)
