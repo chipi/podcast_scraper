@@ -96,6 +96,14 @@ INDEXES = {
     "embeddings_model_idx",
     "insights_item_rank_idx",
     "evidence_item_idx",
+    "evidence_document_idx",
+    "insights_document_idx",
+    "insight_attribution_item_idx",
+    "segments_speaker_idx",
+    "documents_supersedes_idx",
+    "identity_members_cluster_idx",
+    "identity_members_decision_idx",
+    "corpus_migrations_last_run_idx",
     "evidence_speaker_idx",
     "insight_support_evidence_idx",
     "insight_mentions_entity_rank_idx",
@@ -1250,6 +1258,24 @@ def test_the_evidence_speaker_index_is_partial_on_a_known_speaker(conn: Connecti
     )
 
 
+def test_every_foreign_key_has_an_index_that_starts_with_its_columns(conn: Connection) -> None:
+    # A delete of a parent row checks (and cascades into) its children by these columns; with no
+    # index each one scans the child table. A wipe after the KG importer stalled for 27+ minutes on
+    # segments.speaker_id (public, 2026-11-27).
+    unindexed = conn.execute(
+        text(
+            "SELECT c.conname FROM pg_constraint c "
+            "JOIN pg_namespace n ON n.oid = c.connamespace AND n.nspname = 'corpus' "
+            "WHERE c.contype = 'f' AND c.conparentid = 0 AND NOT EXISTS ("
+            "  SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid"
+            "  AND (i.indkey::int2[])[0:array_length(c.conkey, 1) - 1] @> c.conkey"
+            "  AND (i.indkey::int2[])[0:array_length(c.conkey, 1) - 1] <@ c.conkey) "
+            "ORDER BY 1"
+        )
+    ).scalars()
+    assert list(unindexed) == []
+
+
 def test_a_support_is_one_per_insight_and_evidence_and_goes_with_either(conn: Connection) -> None:
     item, document = _doc(conn)
     insight, evidence = _insight(conn, item, document), _evidence(conn, item, document)
@@ -1505,7 +1531,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0010_source_type_attrs"]
+    assert scripts.get_heads() == ["corpus_0011_foreign_key_indexes"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1517,8 +1543,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0008_source_attrs",
         "corpus_0009_intelligence",
         "corpus_0010_source_type_attrs",
+        "corpus_0011_foreign_key_indexes",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0010_source_type_attrs"
+    assert migrate.head_revision("corpus") == "corpus_0011_foreign_key_indexes"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1719,9 +1746,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0008_source_attrs",
             "corpus_0009_intelligence",
             "corpus_0010_source_type_attrs",
+            "corpus_0011_foreign_key_indexes",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=10)
+        rows = migrate.history_rows(url, "corpus", limit=11)
         assert [r["revision"] for r in rows] == [
+            "corpus_0011_foreign_key_indexes",
             "corpus_0010_source_type_attrs",
             "corpus_0009_intelligence",
             "corpus_0008_source_attrs",
@@ -1794,8 +1823,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 10]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 10
+        assert sorted(len(r) for r in results) == [0, 11]
+        assert len(migrate.history_rows(url, "corpus", limit=11)) == 11
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1843,8 +1872,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 10
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=11)]
+        assert len(revisions) == 11
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
