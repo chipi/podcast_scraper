@@ -479,17 +479,14 @@ def build_catalog_rows_cumulative(
 ) -> list[CatalogEpisodeRow]:
     """Cumulative-unique catalog rows across ALL runs (v2.6.1 hotfix #818/#820/#821).
 
-    Differs from :func:`build_catalog_rows`:
+    Walks **every** ``run_*/metadata/*.metadata.json`` file (uses
+    :func:`discover_all_metadata_files`) and deduplicates by ``(feed_id, episode_id)``, newest
+    run winning (the recency rule below). :func:`build_catalog_rows` reaches the same set through
+    :func:`discover_metadata_files`, which applies that rule itself: on snapshot-prod-20261124
+    both return the same 3,522 rows.
 
-    - Walks **every** ``run_*/metadata/*.metadata.json`` file (uses
-      :func:`discover_all_metadata_files`), not just the latest run per feed.
-    - Deduplicates by ``(feed_id, episode_id)`` — when the same episode appears
-      in multiple runs (skip_existing scenario), the row whose metadata file
-      lives under the lexicographically-greatest ``run_*`` segment wins.
-
-    Use for the operator-facing library / stats endpoints. Index rebuild,
-    digest, and topic-clusters continue using :func:`build_catalog_rows`
-    (which is last-run-only and faster for rebuild work).
+    Used by the operator-facing library / stats endpoints; index rebuild, digest and
+    topic-clusters call :func:`build_catalog_rows`.
     """
     root = safe_resolve_directory(corpus_root)
     if root is None:

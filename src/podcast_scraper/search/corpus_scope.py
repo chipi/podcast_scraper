@@ -578,16 +578,13 @@ def discover_metadata_files(output_root: Path, *, include_sources: bool = False)
 
 
 def discover_all_metadata_files(output_root: Path, *, include_sources: bool = False) -> List[Path]:
-    """Like :func:`discover_metadata_files` but WITHOUT the last-run-only filter.
+    """Like :func:`discover_metadata_files` but WITHOUT the newest-run-per-episode dedupe.
 
     Returns every ``*.metadata.json`` under ``feeds/<feedDir>/run_*/metadata/``
-    (and the flat top-level ``metadata/``) for every run. Used by the corpus
-    library + stats routes which need cumulative-unique counts across all
-    runs (v2.6.1 hotfix: #818 / #820 / #821).
-
-    Indexing, digest, and topic-clusters still call :func:`discover_metadata_files`
-    so they continue seeing one-run-per-feed (load-bearing for index rebuild
-    performance).
+    (and the flat top-level ``metadata/``) for every run, superseded copies included.
+    ``build_catalog_rows_cumulative`` dedupes them itself with the same newest-run rule, so
+    its rows and :func:`discover_metadata_files`' are one set (3c01787de; before it, one was
+    last-run-only and the other cumulative).
     """
     corpus_root = safe_resolve_directory(output_root)
     if corpus_root is None:
