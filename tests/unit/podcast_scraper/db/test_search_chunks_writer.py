@@ -99,7 +99,7 @@ def _chunks(run: Path, meta: Path, doc: dict[str, Any]) -> tuple[list[Any], list
 
 
 def _range_text(c: Connection, row: Any) -> str:
-    cuts = [
+    cuts: list[str] = [
         r[0]
         for r in c.execute(
             select(segments.c.text)
