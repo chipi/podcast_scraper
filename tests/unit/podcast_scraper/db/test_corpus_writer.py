@@ -729,3 +729,20 @@ def test_the_sources_type_attrs_follow_its_newest_item(
         )
     attrs = _row(conn, "sources", _source_of(new))["type_attrs"]
     assert attrs == {"feed_description": "New blurb.", "feed_rss_url": "https://example/feed.xml"}
+
+
+def test_a_reimport_after_a_sync_is_accepted(
+    pipeline_db: None, url: str, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.db.importers.corpus_items import import_corpus
+    from podcast_scraper.publishers import Registry
+
+    run = tmp_path / "feeds" / "show" / "run_20261101-000000" / "metadata"
+    run.mkdir(parents=True)
+    meta = _metadata(run, "item:b")
+    meta.with_name("item_b.bridge.json").write_text("{}", encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    engine = create_engine(normalize_url(url))
+    with engine.begin() as db:
+        assert import_corpus(db, tmp_path, registry=Registry(publishers=())).refused == []
+    engine.dispose()

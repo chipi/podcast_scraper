@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import collections
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional
@@ -37,6 +38,7 @@ from typing import Any, Mapping, Optional
 from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection
 
+from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.db.corpus_cards import card_row, FLAGS
 from podcast_scraper.db.corpus_keys import is_news, KeyNotDerivable, source_natural_id
 from podcast_scraper.db.corpus_rows import (
@@ -214,7 +216,15 @@ def import_corpus(
         for member in group:
             savepoint = conn.begin_nested()
             try:
-                item = {**item_row(member.doc, metadata_relpath=member.relpath)}
+                item = {
+                    **item_row(
+                        member.doc,
+                        metadata_relpath=member.relpath,
+                        has_bridge=os.path.isfile(
+                            bridge_json_path_adjacent_to_metadata(str(member.path))
+                        ),
+                    )
+                }
                 item["source_id"] = source_id
                 # The source columns this item states: the pipeline's writer merges a source again
                 # from its items' source_attrs, so an imported item must carry its own.
