@@ -24,12 +24,19 @@ ENV_MIGRATOR_URL = "PODCAST_DATABASE_MIGRATOR_URL"
 ENV_CORPUS_STATEMENT_TIMEOUT_MS = "PODCAST_DB_CORPUS_STATEMENT_TIMEOUT_MS"
 ENV_CORPUS_POOL_SIZE = "PODCAST_DB_CORPUS_POOL_SIZE"
 ENV_CORPUS_MAX_OVERFLOW = "PODCAST_DB_CORPUS_MAX_OVERFLOW"
+ENV_PIPELINE_POOL_SIZE = "PODCAST_DB_PIPELINE_POOL_SIZE"
+ENV_PIPELINE_MAX_OVERFLOW = "PODCAST_DB_PIPELINE_MAX_OVERFLOW"
 
 # The session's timeout replaces the role's, so the engine passes corpus_ro's 5 s itself: the
 # plane's 15 s would otherwise apply to corpus reads.
 DEFAULT_CORPUS_STATEMENT_TIMEOUT_MS = 5_000
 DEFAULT_CORPUS_POOL_SIZE = 2
 DEFAULT_CORPUS_MAX_OVERFLOW = 2
+# pipeline_rw has no statement timeout, since writers run long statements, and 1+1 per job: at most
+# four jobs at once stay inside the role's connection limit (CRFC-005 §7).
+DEFAULT_PIPELINE_STATEMENT_TIMEOUT_MS = 0
+DEFAULT_PIPELINE_POOL_SIZE = 1
+DEFAULT_PIPELINE_MAX_OVERFLOW = 1
 
 # Connection behaviour of the app's engines (ADR-173). Migrations and the importers do not read
 # these: a migration may legitimately run long.
@@ -82,6 +89,11 @@ def is_configured() -> bool:
 def corpus_is_configured() -> bool:
     """Whether this process was given a ``corpus_ro`` URL."""
     return bool(_lookup(os.environ, ENV_CORPUS_RO_URL))
+
+
+def pipeline_is_configured() -> bool:
+    """Whether this process was given a ``pipeline_rw`` URL."""
+    return bool(_lookup(os.environ, ENV_PIPELINE_RW_URL))
 
 
 class DatabaseNotConfigured(RuntimeError):
@@ -234,6 +246,51 @@ class CorpusSettings:
             ),
             max_overflow=_int_setting(
                 source, ENV_CORPUS_MAX_OVERFLOW, DEFAULT_CORPUS_MAX_OVERFLOW, minimum=0
+            ),
+            pool_timeout_s=_pool_timeout(source),
+            prepare_threshold=_prepare_threshold(source),
+        )
+
+
+@dataclass(frozen=True)
+class PipelineSettings:
+    """The ``pipeline_rw`` engine's URL and its own pool (CRFC-005 §7).
+
+    The pipeline and enricher jobs write corpus rows through it. No statement timeout; the
+    idle-in-transaction timeout, the pool timeout and the prepare threshold are the process's.
+    """
+
+    url: str
+    statement_timeout_ms: int = DEFAULT_PIPELINE_STATEMENT_TIMEOUT_MS
+    idle_tx_timeout_ms: int = DEFAULT_IDLE_TX_TIMEOUT_MS
+    pool_size: int = DEFAULT_PIPELINE_POOL_SIZE
+    max_overflow: int = DEFAULT_PIPELINE_MAX_OVERFLOW
+    pool_timeout_s: float = DEFAULT_POOL_TIMEOUT_S
+    prepare_threshold: int | None = DEFAULT_PREPARE_THRESHOLD
+
+    @classmethod
+    def from_env(cls, env: dict[str, str] | None = None) -> "PipelineSettings":
+        """Read the settings from ``env`` (default ``os.environ``).
+
+        Raises ``DatabaseNotConfigured`` when no ``pipeline_rw`` URL is set.
+        """
+        source: Mapping[str, str] = os.environ if env is None else env
+        url = _lookup(source, ENV_PIPELINE_RW_URL)
+        if not url:
+            raise DatabaseNotConfigured(
+                f"{ENV_PIPELINE_RW_URL} is not set, and corpus rows are written as the "
+                "pipeline_rw role. Set it to that role's URL."
+            )
+        return cls(
+            url=normalize_url(url),
+            idle_tx_timeout_ms=_int_setting(
+                source, ENV_IDLE_TX_TIMEOUT_MS, DEFAULT_IDLE_TX_TIMEOUT_MS, minimum=0
+            ),
+            pool_size=_int_setting(
+                source, ENV_PIPELINE_POOL_SIZE, DEFAULT_PIPELINE_POOL_SIZE, minimum=1
+            ),
+            max_overflow=_int_setting(
+                source, ENV_PIPELINE_MAX_OVERFLOW, DEFAULT_PIPELINE_MAX_OVERFLOW, minimum=0
             ),
             pool_timeout_s=_pool_timeout(source),
             prepare_threshold=_prepare_threshold(source),
