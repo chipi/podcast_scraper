@@ -209,6 +209,24 @@ def test_an_undated_item_counts_as_oldest() -> None:
     assert source_row_for([undated, dated])["title"] == "A show"
 
 
+def test_items_of_one_day_are_ordered_by_their_utc_instant() -> None:
+    morning = _episode(episode_id="ep-b", published_date="2026-11-20T08:00:00+00:00")
+    evening = _episode(episode_id="ep-a", published_date="2026-11-20T18:00:00-05:00")
+    morning["feed"]["title"] = "Morning"
+    evening["feed"]["title"] = "Evening"
+    assert source_row_for([morning, evening])["title"] == "Evening"
+    assert source_row_for([evening, morning])["title"] == "Evening"
+
+
+def test_equal_instants_go_to_the_greater_natural_id_whatever_the_order() -> None:
+    first = _episode(episode_id="ep-a")
+    second = _episode(episode_id="ep-b")
+    first["feed"]["title"] = "From a"
+    second["feed"]["title"] = "From b"
+    assert source_row_for([first, second])["title"] == "From b"
+    assert source_row_for([second, first])["title"] == "From b"
+
+
 def test_a_show_of_items_from_two_sources_is_refused() -> None:
     other = _episode(episode_id="ep-2")
     other["feed"]["feed_id"] = "sha256:" + "cd" * 32

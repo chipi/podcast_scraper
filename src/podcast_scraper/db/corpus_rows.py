@@ -17,8 +17,9 @@ What each column comes from (a column changes only with its source):
 - ``sources``: ``title``, ``category`` and ``licence`` from the catalog's feed readers
   (``server.corpus_catalog._feed_display_title``, ``_feed_category``, ``_feed_licence``);
   ``language`` from ``languages.feed_language``; each from the newest item that states it
-  (:func:`source_row_for`, the catalog's ``aggregate_feeds``). A news source has no feed block, so
-  these are ``None`` except ``title``: the publisher's name, else the URL's host.
+  (:func:`source_row_for`: the catalog's ``aggregate_feeds`` ordered by :func:`newest_key`). A
+  news source has no feed block, so these are ``None`` except ``title``: the publisher's name,
+  else the URL's host.
 - Times: UTC datetimes; one stored with no offset is UTC (:func:`_instant`).
 - ``content_items``: ``title`` as the catalog shows it (``_episode_title``, ``"(untitled)"`` when
   missing; a news item's ``title`` as ``news_items.served_item`` gives it); ``duration_s`` from
@@ -38,8 +39,8 @@ files, so their stages' writers set them; ``filed_at``, ``period_start``, ``peri
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from typing import Any, Iterable, Mapping, Optional
+from datetime import datetime, timezone
+from typing import Any, Iterable, Mapping, Optional, Tuple
 
 from podcast_scraper.content_types import item_content_type
 from podcast_scraper.db.corpus_keys import (
@@ -81,7 +82,6 @@ from podcast_scraper.server.corpus_catalog import (
     _feed_display_title,
     _feed_licence,
     _optional_non_negative_int,
-    _parse_publish_date_str,
 )
 
 #: ``content_items.served`` (CRFC-005 §3.1). The schema also allows 2, "served and in the newest
@@ -172,24 +172,34 @@ def source_row(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -
     }
 
 
-def _newest_first(doc: Mapping[str, Any]) -> tuple[int, int]:
-    """The catalog's order (``CatalogEpisodeRow.sort_key``): dated items first, newest first, by
-    the date as stored."""
+#: An item that states no readable publish time sorts below every dated one.
+NewestKey = Tuple[int, float, str]
+
+
+def newest_key(published_at: Optional[datetime], natural_id: str) -> NewestKey:
+    """The order in which items decide their source's columns: the greater key is newer. Dated
+    items above undated ones, then by the UTC instant, then by the greater ``natural_id``, so the
+    order never depends on the order items arrive in. The pipeline's row writer
+    (``corpus_writer``) compares the same key against the rows it holds."""
+    if published_at is None:
+        return (0, 0.0, natural_id)
+    return (1, published_at.timestamp(), natural_id)
+
+
+def _newest(doc: Mapping[str, Any]) -> NewestKey:
     raw = doc.get(F_PUBLISHED_AT) if is_news(doc) else _block(doc, "episode").get("published_date")
-    stored = _parse_publish_date_str(raw)
-    if stored is None:
-        return (1, 0)
-    return (0, -date.fromisoformat(stored).toordinal())
+    return newest_key(_instant(raw), item_natural_id(doc))
 
 
 def source_row_for(
     docs: Iterable[Mapping[str, Any]], *, registry: Optional[Registry] = None
 ) -> dict[str, Any]:
     """The ``sources`` columns of the show whose served items are ``docs``: each column from the
-    newest item that states it, the catalog's rule (``corpus_catalog.aggregate_feeds``). Items
-    published the same day keep the order given, so pass them in ``metadata_relpath`` order to
-    match the catalog exactly."""
-    rows = [source_row(doc, registry=registry) for doc in sorted(docs, key=_newest_first)]
+    newest item that states it (:func:`newest_key`), the catalog's rule
+    (``corpus_catalog.aggregate_feeds``) on the UTC instant instead of the stored date, so the
+    pipeline's one-item-at-a-time writer reaches the same row."""
+    ordered = sorted(docs, key=_newest, reverse=True)
+    rows = [source_row(doc, registry=registry) for doc in ordered]
     if not rows:
         raise ValueError("a source needs at least one item")
     keys = {(row["natural_id"], row["raw_feed_id"]) for row in rows}
