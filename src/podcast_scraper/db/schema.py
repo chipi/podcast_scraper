@@ -456,6 +456,8 @@ sources = Table(
     ),
     _created_at(),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    # corpus_0010: the feed fields the catalog row reads that no column holds.
+    Column("type_attrs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
     UniqueConstraint("natural_id", name="sources_natural_id_key"),
     UniqueConstraint("raw_feed_id", name="sources_raw_feed_id_key"),
     Index("sources_artwork_idx", "artwork_asset_id"),

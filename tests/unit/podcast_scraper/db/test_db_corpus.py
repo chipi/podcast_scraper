@@ -277,6 +277,20 @@ def test_an_items_source_attrs_cannot_be_null(conn: Connection) -> None:
     conn.rollback()
 
 
+def test_a_sources_type_attrs_defaults_to_empty_and_cannot_be_null(conn: Connection) -> None:
+    source = _source(conn)
+    stored = conn.execute(
+        text("SELECT type_attrs FROM corpus.sources WHERE source_id = :s"), {"s": source}
+    ).scalar_one()
+    assert stored == {}
+    with pytest.raises(sa_exc.IntegrityError, match="type_attrs"):
+        conn.execute(
+            text("UPDATE corpus.sources SET type_attrs = NULL WHERE source_id = :s"),
+            {"s": source},
+        )
+    conn.rollback()
+
+
 @pytest.mark.parametrize(
     ("column", "constraint"),
     [
@@ -1488,7 +1502,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0009_intelligence"]
+    assert scripts.get_heads() == ["corpus_0010_source_type_attrs"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1499,8 +1513,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0007_search_chunks",
         "corpus_0008_source_attrs",
         "corpus_0009_intelligence",
+        "corpus_0010_source_type_attrs",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0009_intelligence"
+    assert migrate.head_revision("corpus") == "corpus_0010_source_type_attrs"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1700,9 +1715,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0007_search_chunks",
             "corpus_0008_source_attrs",
             "corpus_0009_intelligence",
+            "corpus_0010_source_type_attrs",
         ]
         rows = migrate.history_rows(url, "corpus", limit=10)
         assert [r["revision"] for r in rows] == [
+            "corpus_0010_source_type_attrs",
             "corpus_0009_intelligence",
             "corpus_0008_source_attrs",
             "corpus_0007_search_chunks",
@@ -1774,8 +1791,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 9]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 9
+        assert sorted(len(r) for r in results) == [0, 10]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 10
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1824,7 +1841,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 9
+        assert len(revisions) == 10
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
