@@ -64,10 +64,11 @@ def utc_day(raw: object) -> Optional[str]:
 
 def utc_sort_key(raw: object) -> str:
     """A stored time as text that sorts in time order whatever form it was stored in: the UTC
-    instant with ``Z``, else the stored date, else ``""`` (sorts first)."""
+    instant with ``Z`` and a fixed six-digit fraction (``.`` sorts below ``Z``, so a variable width
+    would put ``00.5Z`` before ``00Z``), else the stored date, else ``""`` (sorts first)."""
     moment = parse_stored(raw)
     if moment is not None:
-        return utc_iso(moment)
+        return moment.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return utc_day(raw) or ""
 
 
