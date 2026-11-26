@@ -213,3 +213,98 @@ def test_a_kg_node_with_no_label_refuses_its_item(
     assert "no label" in report.refused[0][1]
     assert _count(conn, content_items) == 0
     conn.rollback()
+
+
+def test_an_episodes_transcripts_are_found_by_its_transcript_path_not_its_metadata_name(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # The metadata name truncates the title; the transcripts carry it whole, and the metadata
+    # names them (content.transcript_file_path), as on snapshot-prod-20261124 (200 episodes).
+    run = "run_20261101-000000"
+    full = "0001 - How to Fund a Hospital in a Warzone_x"
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = f"../{run}/transcripts/{full}.txt"
+    _write(tmp_path, run, "0001 - How to Fund a Hospital in a Warz_x", doc)
+    transcripts = tmp_path / "feeds" / "rss_example" / run / "transcripts"
+    transcripts.mkdir()
+    (transcripts / f"{full}.txt").write_text("Hello.\nWorld.\n", encoding="utf-8")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.items, report.documents, report.refused) == (1, 1, [])
+    conn.rollback()
+
+
+def test_an_episode_reusing_an_earlier_runs_transcript_is_found_in_that_run(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # Two episodes of snapshot-prod-20261124 name a transcript in a sibling run of their feed.
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = "../run_20261101-000000/transcripts/0001 - One.txt"
+    _write(
+        tmp_path,
+        "run_20261101-000000",
+        "0002 - Other",
+        _episode(episode_id="ep-2", guid="g-2", title="Other"),
+        "Other.\n",
+    )
+    _write(tmp_path, "run_20261102-000000", "0001 - One", doc)
+    earlier = tmp_path / "feeds" / "rss_example" / "run_20261101-000000" / "transcripts"
+    (earlier / "0001 - One.txt").write_text("Hello.\n", encoding="utf-8")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.items, report.documents, report.refused) == (2, 2, [])
+    conn.rollback()
+
+
+def test_a_transcript_path_leading_out_of_the_feed_refuses_the_episode(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = "../../../elsewhere/0001 - One.txt"
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc)
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.items == 0
+    assert [reason for _, reason in report.refused] == [
+        "its transcript path '../../../elsewhere/0001 - One.txt' leads out of its feed"
+    ]
+    conn.rollback()
+
+
+def test_an_absolute_container_transcript_path_is_read_under_this_corpus_root(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # 121 episodes of snapshot-prod-20261124 state the path the pipeline wrote in its container.
+    run = "run_20261101-000000"
+    doc = _episode()
+    doc["content"][
+        "transcript_file_path"
+    ] = f"/app/output/feeds/rss_example/{run}/transcripts/0001 - One.txt"
+    _write(tmp_path, run, "0001 - One", doc, "Hello.\n")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.items, report.documents, report.refused) == (1, 1, [])
+    conn.rollback()
+
+
+def test_an_absolute_transcript_path_of_another_feed_refuses_the_episode(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = "/app/output/feeds/rss_other/run_1/transcripts/x.txt"
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc, "Hello.\n")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.items == 0 and len(report.refused) == 1
+    assert "leads out of its feed" in report.refused[0][1]
+    conn.rollback()
+
+
+def test_an_items_has_transcript_follows_its_documents_not_its_card(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # The metadata names a transcript the run does not hold: the card says what today's card
+    # says (from the metadata), the item says there is no transcript document.
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = "transcripts/0001 - One.txt"
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc)
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.items, report.documents, report.cards) == (1, 0, 1)
+    assert conn.execute(select(item_cards.c.has_transcript)).scalar_one() is True
+    assert conn.execute(select(content_items.c.has_transcript)).scalar_one() is False
+    conn.rollback()
