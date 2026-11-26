@@ -1,225 +1,265 @@
 {
   "applied": [
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0001_faiss_to_lance",
       "to_version": "2.7.0"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0002_two_tier_native_reindex",
       "to_version": "2.7.0"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0003_gi_v3_typed_mentions",
       "to_version": "2.7.1"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0004_insight_type_reindex",
       "to_version": "2.7.1"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0005_gi_v3_1_route_and_tag",
       "to_version": "2.7.1"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0006_kg_v2_typed_entities",
       "to_version": "2.7.1"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0007_scope_bare_person_names",
       "to_version": "2.7.1"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0008_object_entity_kind",
       "to_version": "2.7.2"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0009_backfill_speaker_roles",
       "to_version": "2.7.3"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0010_canonical_person_names",
       "to_version": "2.7.4"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0011_shared_artwork_store",
       "to_version": "2.7.5"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0012_org_speakers_removed",
       "to_version": "2.7.6"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0013_artwork_thumbnails",
       "to_version": "2.7.7"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0014_eponymous_hosts_restored",
       "to_version": "2.7.8"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0015_unpublishable_speaker_names_removed",
       "to_version": "2.7.9"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0016_ad_reader_names_removed",
       "to_version": "2.7.10"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0017_speaker_names_canonicalised",
       "to_version": "2.7.11"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0018_org_speakers_removed_residue",
       "to_version": "2.7.12"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0019_descriptor_speaker_names_removed",
       "to_version": "2.7.13"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0020_titled_person_ids_remerged",
       "to_version": "2.7.14"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0021_backfill_feed_language",
       "to_version": "2.7.15"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0022_derived_speaker_surfaces_resynced",
       "to_version": "2.7.16"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0023_transcript_speaker_prefixes_resynced",
       "to_version": "2.7.17"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0024_shared_removed_speaker_prefixes",
       "to_version": "2.7.18"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0025_one_person_one_entry",
       "to_version": "2.7.19"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0026_artwork_medium",
       "to_version": "2.7.20"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0027_missing_covers_stored",
       "to_version": "2.7.21"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0028_transcript_chunk_times",
       "to_version": "2.7.22"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0029_naming_arc_voices_repaired",
       "to_version": "2.7.23"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0030_adfree_cut_resynced",
       "to_version": "2.7.24"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0031_named_voices_shown",
       "to_version": "2.7.25"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0033_hand_removed_names_refused",
       "to_version": "2.7.27"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0034_talk_floor_names_removed",
       "to_version": "2.7.28"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0035_voice_identity_names",
       "to_version": "2.7.29"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0036_bridge_identities_restored",
       "to_version": "2.7.30"
     },
     {
-      "at": "2026-10-29T21:53:04Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0037_named_voices_corrected",
       "to_version": "2.7.31"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0038_raw_label_speakers_removed",
       "to_version": "2.7.32"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0039_adfree_segment_offsets_realigned",
       "to_version": "2.7.33"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0040_gi_quote_offsets_realigned",
       "to_version": "2.7.34"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0041_joined_names_respelled",
       "to_version": "2.7.35"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0042_insight_cluster_quotes_resynced",
       "to_version": "2.7.36"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0043_non_participant_names_removed",
       "to_version": "2.7.37"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0044_title_spelling_voices_renamed",
       "to_version": "2.7.38"
     },
     {
-      "at": "2026-11-05T11:12:05Z",
+      "at": "2026-11-26T07:55:55Z",
       "id": "0045_episode_voices_corrected",
       "to_version": "2.7.39"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0046_unplaced_raw_label_quotes",
+      "to_version": "2.7.40"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0047_self_intro_claims_settled",
+      "to_version": "2.7.41"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0048_ad_only_insights_ungrounded",
+      "to_version": "2.7.42"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0049_published_names_corrected",
+      "to_version": "2.7.43"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0050_gi_4_0",
+      "to_version": "2.8.0"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0051_kg_3_0",
+      "to_version": "2.8.1"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0052_kg_prompt_example_entities_removed",
+      "to_version": "2.8.2"
+    },
+    {
+      "at": "2026-11-26T07:55:55Z",
+      "id": "0053_rotating_hosts_answered",
+      "to_version": "2.8.3"
     }
   ],
-  "version": "2.7.39"
+  "version": "2.8.3"
 }
