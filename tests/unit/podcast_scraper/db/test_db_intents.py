@@ -139,3 +139,28 @@ def test_newest_items_of_a_content_type(conn: Connection) -> None:  # noqa: F811
     found = intents.newest_items(conn, content_type="podcast")
     assert [r["item_id"] for r in found] == [podcast]
     conn.rollback()
+
+
+def test_catalog_items_are_the_served_items_of_the_types_asked_in_one_statement(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source = _source(conn, raw_feed_id="feed-a")
+    served = _item(
+        conn,
+        source,
+        "1",
+        served=1,
+        type_attrs={"metadata_relative_path": "feeds/a/run_1/metadata/x.metadata.json"},
+        source_attrs={"title": "A show"},
+    )
+    _item(conn, source, "2", served=0)
+    _item(conn, source, "3", served=1, content_type="news_article")
+    with _statements(conn) as seen:
+        found = intents.catalog_items(conn, {"podcast"})
+    assert len(seen) == 1
+    assert [r["item_id"] for r in found] == [served]
+    row = found[0]
+    assert row["raw_feed_id"] == "feed-a" and row["source_attrs"] == {"title": "A show"}
+    assert row["type_attrs"]["metadata_relative_path"].endswith("x.metadata.json")
+    assert intents.catalog_items(conn, set()) == []
+    conn.rollback()
