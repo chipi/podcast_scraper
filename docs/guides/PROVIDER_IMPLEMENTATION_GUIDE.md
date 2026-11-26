@@ -101,9 +101,9 @@ delegate load + generate through one of two shared backends:
    `transformers.GenerationConfig` — never as arbitrary keyword args.
    That keeps behavior parity with pipeline-era defaults and makes
    determinism explicit.
-4. Add a fixture-based regression baseline under `data/eval/references/`
+4. Add a fixture-based regression baseline under `data/eval/references/` (private eval repo)
    (see `scripts/dev/capture_*_baseline.py` for the pattern) and a
-   comparator step in `scripts/eval/full_ml_recheck.py`. The nightly
+   comparator step in `scripts/eval/full_ml_recheck.py` (private eval repo). The nightly
    regression test at `tests/e2e/test_v5_parity_regression.py`
    auto-enforces new entries.
 

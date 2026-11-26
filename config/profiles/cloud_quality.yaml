@@ -15,7 +15,6 @@ profile: cloud_quality
 #              Refreshed 2026-04-23 post-#652/#653 (non-bundled, no judge re-run):
 #              bullets ROUGE-L 0.422 / cosine 0.887 / 14.3s/ep
 #              paragraph ROUGE-L 0.378 / cosine 0.860 / 25.7s/ep
-#              eval: data/eval/runs/autoresearch_prompt_deepseek_benchmark_*_v2/
 #              #657 Part A: compound "final" score requires judge-model re-run
 #              (separate scope); DeepSeek remains clearly above cloud_balanced
 #              on ROUGE-L (+5.4pp bullets / +11.4pp paragraph), preserving the

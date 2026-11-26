@@ -13,7 +13,6 @@ See [Architecture](../ARCHITECTURE.md) for where each diagram is referenced.
 - `providers-deps.svg` — Providers subpackage dependency graph (pydeps)
 - `gi-pipeline-flow.svg` — GIL extraction pipeline flowchart (Graphviz DOT)
 - `kg-pipeline-flow.svg` — KG extraction pipeline flowchart (Graphviz DOT)
-- `eval-scorer-flow.svg` — Evaluation scorer pipeline flowchart (Graphviz DOT)
 
 **Regenerate locally:** Diagrams are not generated in CI. Run `make visualize` from the
 project root when you change code that affects architecture (e.g. new modules, workflow

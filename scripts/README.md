@@ -34,7 +34,7 @@ repository (#2134).
 
 ### Evaluation Dataset Structure
 
-See `data/eval/README.md` for details on the evaluation dataset structure.
+See `data/eval/README.md` in the private eval repo (`docs/guides/EVAL_RESEARCH_MOUNT.md`).
 
 ---
 

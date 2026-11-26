@@ -9,7 +9,7 @@ This directory contains scripts for **end-to-end (E2E) acceptance testing**: ful
 - **Full pipeline**: the fast matrix merges **official `config/profiles/`** bundles so each row exercises summaries, GI/KG, and semantic index when the profile enables them (see `config/acceptance/README.md`). The E2E test suite also covers GI/KG CLI paths (e.g. `tests/e2e/test_gi_cli_e2e.py`, `tests/e2e/test_kg_cli_e2e.py`).
 - **Optional fixtures**: with `--use-fixtures`, runs use a local E2E server (test feeds, mock APIs) so tests can run without network or real provider keys.
 
-They are **not** the same as the **evaluation framework** in `scripts/eval/` (experiments, baselines, datasets, metrics, regression). Use evaluation for model/prompt comparison and quality metrics; use acceptance for “does the pipeline run and produce expected outputs?”.
+They are **not** the same as the **evaluation framework** in the private eval repo (experiments, baselines, datasets, metrics, regression). Use evaluation for model/prompt comparison and quality metrics; use acceptance for “does the pipeline run and produce expected outputs?”.
 
 ## Core Scripts
 
