@@ -15,7 +15,7 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, exc as sa_exc, insert, select, text
+from sqlalchemy import create_engine, exc as sa_exc, func, insert, select, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, make_url
 
@@ -45,6 +45,12 @@ TABLES = {
     "item_cards",
     "documents",
     "segments",
+    "entities",
+    "entity_identifiers",
+    "identity_builds",
+    "identity_changes",
+    "identity_clusters",
+    "identity_members",
 }
 
 INDEXES = {
@@ -64,6 +70,13 @@ INDEXES = {
     "content_items_type_published_idx",
     "content_items_title_trgm_idx",
     "item_cards_artwork_idx",
+    "entities_canonical_idx",
+    "entities_type_label_idx",
+    "entities_label_trgm_idx",
+    "identity_builds_one_published_idx",
+    "identity_changes_build_idx",
+    "identity_clusters_canonical_idx",
+    "identity_members_member_idx",
 }
 
 
@@ -541,16 +554,306 @@ def test_two_documents_of_one_item_each_keep_their_own_segments(conn: Connection
     conn.rollback()
 
 
+# --- entities and identity builds --------------------------------------------------------------
+
+
+def _entity(conn: Connection, n: str = "1", **fields: object) -> int:
+    values = {
+        "natural_id": f"person:p{n}",
+        "type": "person",
+        "label": f"Person {n}",
+        "normalized_label": f"person {n}",
+        **fields,
+    }
+    table = corpus_metadata.tables["corpus.entities"]
+    entity_id: int = conn.execute(
+        insert(table).values(values).returning(table.c.entity_id)
+    ).scalar_one()
+    return entity_id
+
+
+def _build(conn: Connection, state: str = "built") -> int:
+    table = corpus_metadata.tables["corpus.identity_builds"]
+    build_id: int = conn.execute(
+        insert(table).values({"rule_version": "r1", "state": state}).returning(table.c.build_id)
+    ).scalar_one()
+    return build_id
+
+
+def _decision(conn: Connection, build_id: int, **fields: object) -> uuid.UUID:
+    values = {
+        "build_id": build_id,
+        "scope": "person",
+        "action": "merge",
+        "subject_a": "person:p1",
+        "subject_b": "person:p2",
+        "basis": "rule",
+        "decided_by": "test",
+        "decided_at": text("now()"),
+        **fields,
+    }
+    table = corpus_metadata.tables["corpus.identity_changes"]
+    decision_id: uuid.UUID = conn.execute(
+        insert(table).values(values).returning(table.c.decision_id)
+    ).scalar_one()
+    return decision_id
+
+
+def _cluster(conn: Connection, build_id: int, cluster_id: int, canonical_id: int) -> None:
+    conn.execute(
+        insert(corpus_metadata.tables["corpus.identity_clusters"]).values(
+            build_id=build_id,
+            cluster_id=cluster_id,
+            scope="person",
+            canonical_id=canonical_id,
+            member_count=1,
+        )
+    )
+
+
+def _member(
+    conn: Connection, build_id: int, cluster_id: int, member_id: int, **fields: object
+) -> None:
+    conn.execute(
+        insert(corpus_metadata.tables["corpus.identity_members"]).values(
+            {
+                "build_id": build_id,
+                "cluster_id": cluster_id,
+                "member_id": member_id,
+                "scope": "person",
+                **fields,
+            }
+        )
+    )
+
+
+def _canonical_of(conn: Connection, entity_id: int) -> int:
+    found: int = conn.execute(
+        text("SELECT canonical_id FROM corpus.entities WHERE entity_id = :e"), {"e": entity_id}
+    ).scalar_one()
+    return found
+
+
+def test_an_entity_inserted_without_a_canonical_is_its_own_canonical(conn: Connection) -> None:
+    entity = _entity(conn)
+    assert _canonical_of(conn, entity) == entity
+    conn.rollback()
+
+
+def test_the_canonical_trigger_exists_on_entities_only_for_inserts(conn: Connection) -> None:
+    rows = conn.execute(
+        text(
+            "SELECT t.tgname, p.proname, pg_get_triggerdef(t.oid) FROM pg_trigger t "
+            "JOIN pg_proc p ON p.oid = t.tgfoid "
+            "WHERE t.tgrelid = 'corpus.entities'::regclass AND NOT t.tgisinternal"
+        )
+    ).all()
+    assert [(r[0], r[1]) for r in rows] == [
+        ("entities_canonical_default", "entities_canonical_default")
+    ]
+    assert "BEFORE INSERT" in rows[0][2]
+
+
+def test_a_member_keeps_the_canonical_it_names(conn: Connection) -> None:
+    canonical = _entity(conn)
+    member = _entity(conn, "2", canonical_id=canonical)
+    assert _canonical_of(conn, member) == canonical
+    assert _canonical_of(conn, canonical) == canonical
+    conn.rollback()
+
+
+def test_a_canonical_naming_no_row_is_refused_at_commit(conn: Connection) -> None:
+    _entity(conn, canonical_id=999_999_999)
+    with pytest.raises(sa_exc.IntegrityError, match="entities_canonical_fkey"):
+        conn.commit()
+    conn.rollback()
+
+
+def test_a_canonical_lookup_returns_the_canonical_and_its_members(conn: Connection) -> None:
+    canonical = _entity(conn)
+    member = _entity(conn, "2", canonical_id=canonical)
+    _entity(conn, "3")
+    found = conn.execute(
+        text("SELECT entity_id FROM corpus.entities WHERE canonical_id = :c"), {"c": canonical}
+    ).scalars()
+    assert sorted(found) == sorted([canonical, member])
+    conn.rollback()
+
+
+def test_an_entity_is_unique_by_natural_id(conn: Connection) -> None:
+    _entity(conn)
+    with pytest.raises(sa_exc.IntegrityError, match="entities_natural_id_key"):
+        _entity(conn, "2", natural_id="person:p1")
+    conn.rollback()
+
+
+def _identifier(conn: Connection, entity_id: int, scheme: str, value: str) -> None:
+    conn.execute(
+        insert(corpus_metadata.tables["corpus.entity_identifiers"]).values(
+            entity_id=entity_id, scheme=scheme, value=value
+        )
+    )
+
+
+def test_an_identifier_belongs_to_one_entity_and_one_value_per_scheme(conn: Connection) -> None:
+    first, second = _entity(conn), _entity(conn, "2")
+    _identifier(conn, first, "wikidata", "Q1")
+    _identifier(conn, first, "isni", "Q1")
+    _identifier(conn, second, "wikidata", "Q2")
+    with pytest.raises(sa_exc.IntegrityError, match="entity_identifiers_scheme_value_key"):
+        _identifier(conn, second, "isni", "Q1")
+    conn.rollback()
+    first = _entity(conn)
+    _identifier(conn, first, "wikidata", "Q1")
+    with pytest.raises(sa_exc.IntegrityError, match="entity_identifiers_pkey"):
+        _identifier(conn, first, "wikidata", "Q9")
+    conn.rollback()
+
+
+def test_an_entitys_identifiers_go_with_it(conn: Connection) -> None:
+    entity = _entity(conn)
+    _identifier(conn, entity, "wikidata", "Q1")
+    conn.execute(text("DELETE FROM corpus.entities WHERE entity_id = :e"), {"e": entity})
+    assert conn.execute(text("SELECT count(*) FROM corpus.entity_identifiers")).scalar_one() == 0
+    conn.rollback()
+
+
+def test_at_most_one_identity_build_is_published(conn: Connection) -> None:
+    first = _build(conn, "published")
+    with pytest.raises(sa_exc.IntegrityError, match="identity_builds_one_published_idx"):
+        _build(conn, "published")
+    conn.rollback()
+    first = _build(conn, "published")
+    _build(conn, "built")
+    _build(conn, "retired")
+    conn.execute(
+        text("UPDATE corpus.identity_builds SET state = 'retired' WHERE build_id = :b"),
+        {"b": first},
+    )
+    _build(conn, "published")
+    conn.rollback()
+
+
+def test_an_identity_build_refuses_a_bad_state(conn: Connection) -> None:
+    with pytest.raises(sa_exc.IntegrityError, match="identity_builds_state_check"):
+        _build(conn, "draft")
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"scope": "place"}, "identity_changes_scope_check"),
+        ({"action": "split"}, "identity_changes_action_check"),
+        ({"basis": "guess"}, "identity_changes_basis_check"),
+        ({"status": "pending"}, "identity_changes_status_check"),
+    ],
+)
+def test_an_identity_change_refuses_a_bad_scope_action_basis_or_status(
+    conn: Connection, fields: dict[str, object], constraint: str
+) -> None:
+    build = _build(conn)
+    with pytest.raises(sa_exc.IntegrityError, match=constraint):
+        _decision(conn, build, **fields)
+    conn.rollback()
+
+
+def test_an_identity_change_gets_a_uuid_and_is_accepted_by_default(conn: Connection) -> None:
+    decision = _decision(conn, _build(conn))
+    assert isinstance(decision, uuid.UUID)
+    assert (
+        conn.execute(
+            text("SELECT status FROM corpus.identity_changes WHERE decision_id = :d"),
+            {"d": decision},
+        ).scalar_one()
+        == "accepted"
+    )
+    conn.rollback()
+
+
+def test_a_cluster_refuses_a_bad_scope_or_an_empty_member_count(conn: Connection) -> None:
+    build, entity = _build(conn), _entity(conn)
+    table = corpus_metadata.tables["corpus.identity_clusters"]
+    values = {"build_id": build, "cluster_id": 1, "canonical_id": entity}
+    with pytest.raises(sa_exc.IntegrityError, match="identity_clusters_scope_check"):
+        conn.execute(insert(table).values(**values, scope="place", member_count=1))
+    conn.rollback()
+    build, entity = _build(conn), _entity(conn)
+    values = {"build_id": build, "cluster_id": 1, "canonical_id": entity}
+    with pytest.raises(sa_exc.IntegrityError, match="identity_clusters_member_count_check"):
+        conn.execute(insert(table).values(**values, scope="person", member_count=0))
+    conn.rollback()
+
+
+def test_a_member_must_name_a_cluster_of_its_own_build(conn: Connection) -> None:
+    first, second = _build(conn), _build(conn)
+    canonical, other = _entity(conn), _entity(conn, "2")
+    _cluster(conn, first, 1, canonical)
+    _member(conn, first, 1, canonical)
+    with pytest.raises(sa_exc.IntegrityError, match="identity_members_cluster_fkey"):
+        _member(conn, second, 1, other)
+    conn.rollback()
+
+
+def test_a_member_is_of_its_clusters_scope(conn: Connection) -> None:
+    build = _build(conn)
+    canonical, other = _entity(conn), _entity(conn, "2")
+    _cluster(conn, build, 1, canonical)
+    with pytest.raises(sa_exc.IntegrityError, match="identity_members_cluster_fkey"):
+        _member(conn, build, 1, other, scope="topic")
+    conn.rollback()
+
+
+def test_a_written_id_is_in_one_cluster_per_build(conn: Connection) -> None:
+    build = _build(conn)
+    canonical, other = _entity(conn), _entity(conn, "2")
+    _cluster(conn, build, 1, canonical)
+    _cluster(conn, build, 2, other)
+    _member(conn, build, 1, canonical)
+    with pytest.raises(sa_exc.IntegrityError, match="identity_members_pkey"):
+        _member(conn, build, 2, canonical)
+    conn.rollback()
+
+
+def test_deleting_a_build_deletes_its_clusters_members_and_changes(conn: Connection) -> None:
+    build = _build(conn)
+    canonical = _entity(conn)
+    decision = _decision(conn, build)
+    _cluster(conn, build, 1, canonical)
+    _member(conn, build, 1, canonical, decision_id=decision)
+    conn.execute(text("DELETE FROM corpus.identity_builds WHERE build_id = :b"), {"b": build})
+    for name in ("identity_changes", "identity_clusters", "identity_members"):
+        table = corpus_metadata.tables[f"corpus.{name}"]
+        assert conn.execute(select(func.count()).select_from(table)).scalar_one() == 0
+    conn.rollback()
+
+
+def test_a_segment_speaker_must_be_an_entity_and_is_cleared_when_it_goes(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    with pytest.raises(sa_exc.IntegrityError, match="segments_speaker_fkey"):
+        _segment(conn, item, document, 0, speaker_id=999_999_999)
+    conn.rollback()
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    speaker = _entity(conn)
+    _segment(conn, item, document, 0, speaker_id=speaker)
+    conn.execute(text("DELETE FROM corpus.entities WHERE entity_id = :e"), {"e": speaker})
+    assert conn.execute(text("SELECT speaker_id FROM corpus.segments")).scalar_one() is None
+    conn.rollback()
+
+
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0004_documents"]
+    assert scripts.get_heads() == ["corpus_0005_entities"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
         "corpus_0003_sources_and_items",
         "corpus_0004_documents",
+        "corpus_0005_entities",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0004_documents"
+    assert migrate.head_revision("corpus") == "corpus_0005_entities"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -589,6 +892,11 @@ def test_the_offline_sql_creates_the_corpus_tables_without_schema_or_extension()
     assert "WHERE served > 0" in corpus
     assert "gin_trgm_ops" in corpus
     assert "PARTITION BY HASH (item_id)" in corpus
+    assert "CREATE FUNCTION corpus.entities_canonical_default()" in corpus
+    assert re.search(
+        r"CREATE TRIGGER entities_canonical_default BEFORE INSERT ON corpus\.entities", corpus
+    )
+    assert "ADD CONSTRAINT segments_speaker_fkey FOREIGN KEY(speaker_id)" in corpus
     for n in range(16):
         assert re.search(
             rf"CREATE TABLE corpus\.segments_p{n:02d} PARTITION OF corpus\.segments "
@@ -740,9 +1048,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0002_operations",
             "corpus_0003_sources_and_items",
             "corpus_0004_documents",
+            "corpus_0005_entities",
         ]
         rows = migrate.history_rows(url, "corpus")
         assert [r["revision"] for r in rows] == [
+            "corpus_0005_entities",
             "corpus_0004_documents",
             "corpus_0003_sources_and_items",
             "corpus_0002_operations",
@@ -809,8 +1119,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 4]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 4
+        assert sorted(len(r) for r in results) == [0, 5]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 5
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -859,7 +1169,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 4
+        assert len(revisions) == 5
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -898,7 +1208,7 @@ def test_upgrade_creates_pg_trgm_only_when_it_is_missing(url: str) -> None:
         scratch = (
             make_url(normalize_url(url)).set(database=name).render_as_string(hide_password=False)
         )
-        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0004_documents"
+        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0005_entities"
         probe = create_engine(normalize_url(scratch))
         with probe.connect() as c:
             assert c.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")).first()
