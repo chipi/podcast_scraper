@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -215,3 +216,14 @@ def test_a_show_of_items_from_two_sources_is_refused() -> None:
         source_row_for([_episode(), other])
     with pytest.raises(ValueError, match="at least one"):
         source_row_for([])
+
+
+def test_an_unusable_episode_read_as_any_mapping_is_not_served() -> None:
+    doc = MappingProxyType(_episode(unusable=True, unusable_reason="translation_incomplete"))
+    assert served_for(doc) == NOT_SERVED
+    assert item_row(doc)["served"] == NOT_SERVED
+
+
+def test_a_date_alone_reads_as_utc_midnight() -> None:
+    published = item_row(_episode(published_date="2026-09-16"))["published_at"]
+    assert published == datetime(2026, 9, 16, tzinfo=timezone.utc)

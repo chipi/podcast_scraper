@@ -143,12 +143,17 @@ def _source_title(doc: Mapping[str, Any], registry: Optional[Registry]) -> str:
     return title
 
 
+def _unusable_episode(doc: Mapping[str, Any]) -> bool:
+    # episode_is_unusable answers None for anything that is not a dict, so a copy is passed.
+    return episode_is_unusable(dict(doc)) is not None
+
+
 def served_for(doc: Mapping[str, Any]) -> int:
     """Whether a surface may show the item: a podcast episode the pipeline completed (D-44), a news
     item :func:`news_items.is_shown` shows."""
     if is_news(doc):
         return SERVED if is_shown(doc) else NOT_SERVED
-    return NOT_SERVED if episode_is_unusable(doc) else SERVED
+    return NOT_SERVED if _unusable_episode(doc) else SERVED
 
 
 def source_row(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -> dict[str, Any]:
@@ -262,7 +267,7 @@ def item_row(doc: Mapping[str, Any], *, metadata_relpath: str = "") -> dict[str,
         ingested = _instant(_block(doc, "processing").get("processing_timestamp"))
         duration = _optional_non_negative_int(episode.get("duration_seconds"))
         language = episode_language(podcast)
-        unusable = episode_is_unusable(podcast) is not None
+        unusable = _unusable_episode(doc)
         withheld = False
     return {
         "natural_id": item_natural_id(doc),
