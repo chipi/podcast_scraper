@@ -38,10 +38,10 @@ from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.corpus_keys import is_news, item_natural_id, KeyNotDerivable
 from podcast_scraper.db.importers.corpus_documents import (
-    _read_segments,
     DocumentRefused,
     joined_body,
     read_body,
+    read_segments,
     TRANSCRIPT,
     transcript_files,
     TranscriptFile,
@@ -138,7 +138,7 @@ def sync_documents(
             synced.append(SyncedDocument(file.variant, document_id, version, count, False))
             continue
         try:
-            cuts = cut_body(body, _read_segments(file.segments_path))
+            cuts = cut_body(body, read_segments(file.segments_path))
         except (DocumentCutError, ValueError) as exc:
             raise DocumentRefused(f"{file.path.name}: {exc}") from exc
         version = 1 if newest is None else newest[1] + 1
