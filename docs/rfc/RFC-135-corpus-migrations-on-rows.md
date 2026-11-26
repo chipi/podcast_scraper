@@ -234,6 +234,11 @@ database session's recommendation, Key Decision 7):
   nightly and pipeline guards, which also pass a container's own exit code through; `run-step`;
   the corpus-migration skill's `migrate.py`; `upgrade run`'s plan diff), and the codes in use are
   2, 3, 4, 5, 10 and 137. A failed one-shot is re-run by hand on the box, never automatically.
+  Infra (2026-11-26): 6 is free on the one-shot path but used by the deploy scripts with other
+  meanings (`deploy*.sh` missing secrets, `deploy-postgres.sh`, `install_app_compose.sh`), and a
+  deploy maps a failed `db-migrate` one-shot to exit 1, so 6 is the one-shot's code, not a signal
+  a deploy workflow can branch on. The re-run command is printed on stderr on one line, where the
+  operator reads the one-shot's log.
   The file framework's `upgrade run` exits 4 today when the ledger refresh fails after an apply
   (`cli_handlers.py`, the `ledger_refresh` call), the same ambiguity; changing it is outside this
   RFC.
