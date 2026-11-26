@@ -61,14 +61,15 @@ equal); a dry run leaves every row as it was and records a `dry_run` run with ze
 a second apply is refused; an undo refuses, and restores nothing, when a row changed after the
 apply; a failure inside `apply_rows` leaves no row, receipt or ledger change; the changed-row
 census (every changed row has a receipt); the `corpus` lease refuses a run while another holder
-has it; the `corpus_revision` bump is a no-op while its table is absent.
+has it; the `corpus_revision` bump is a no-op on a database not yet at corpus_0007 (its table
+dropped in a rolled-back transaction), and an apply and an undo each advance it by one.
 
 Added with the CLI: a dry run leaves every corpus table's rows as they were and records its plan
 (per item: receipts per table, the sha256 of each row read); apply, undo, apply gives the rows of
 one apply but for the times the database stamps; an in-transaction surface sees the changes and
 its failure undoes them; an after-commit failure keeps the apply, is recorded, and `upgrade
 surfaces` completes it; an ingest is refused while a migration holds the lease; the revision bump
-advances the counter when its table exists (made and rolled back in the test); every run is a
+advances corpus_0007's counter; every run is a
 `corpus_migration.run` event; the regime refuses (exit 3) on a digest, applied-set, verdict or
 dirty-code mismatch and without an outcome, stops (exit 4) on a plan difference with nothing
 written, applies with an accept file naming the difference, and stops on one naming another; the
@@ -94,5 +95,6 @@ throwaway `postgres:18.6` with infra #120's `roles.sql` and `pg_db_grants.sh`'s 
 removed on exit): the corpus plane migrated as `migrator` owns the three framework tables; a dry
 run, apply and undo as `migrator` (content written as `pipeline_rw`) restore every row;
 `pipeline_rw` cannot write `migration_runs` or `corpus_migrations` or read `migration_receipts`;
-`corpus_ro` reads the runs and receipts and cannot write them. `ROLES: PASS`, 12 checks,
-2026-11-26.
+`corpus_ro` reads the runs and receipts and cannot write them; the sequence privileges match.
+`ROLES: PASS`, 15 checks, on infra f4f1e57, 2026-11-26. The drill ran on a tree before
+corpus_0007, so it does not cover `migrator`'s update of `corpus_revision`.

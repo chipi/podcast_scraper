@@ -23,13 +23,11 @@ from typing import Any, Callable, Mapping, Optional, Set, Tuple
 
 from sqlalchemy import (
     and_,
-    column as sa_column,
     delete,
     func,
     insert,
     select,
     Table,
-    table as sa_table,
     text,
     update,
 )
@@ -41,6 +39,7 @@ from podcast_scraper.db.engines import migrator_engine  # noqa: F401 - re-export
 from podcast_scraper.db.schema import (
     corpus_metadata,
     corpus_migrations,
+    corpus_revision,
     CORPUS_SCHEMA,
     migration_receipts,
     migration_runs,
@@ -316,18 +315,11 @@ class RowMigration(Migration):
 
 
 def bump_corpus_revision(conn: Connection) -> bool:
-    """Advance the corpus revision counter; ``False`` while its table does not exist yet."""
+    """Advance the corpus revision counter; ``False`` on a database not yet at corpus_0007."""
     name = f"{CORPUS_SCHEMA}.corpus_revision"
     if conn.execute(select(func.to_regclass(name))).scalar() is None:
         return False
-    # Named here, not taken from ``schema.py``: the table is the database session's corpus_0007.
-    rev = sa_table(
-        "corpus_revision",
-        sa_column("id"),
-        sa_column("revision"),
-        sa_column("updated_at"),
-        schema=CORPUS_SCHEMA,
-    )
+    rev = corpus_revision  # one row, id 1
     conn.execute(
         update(rev).where(rev.c.id == 1).values(revision=rev.c.revision + 1, updated_at=func.now())
     )
