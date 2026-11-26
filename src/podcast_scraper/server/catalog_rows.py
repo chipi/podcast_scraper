@@ -12,6 +12,10 @@ type_attrs writer and ``corpus_rows.item_row``), so a row equals the one built f
 - the GI, KG and bridge paths are derived from ``metadata_relative_path`` as the file catalog
   derives them; ``has_gi`` and ``has_kg`` are the item's columns.
 
+One known difference: an episode whose metadata states a date with no time of day is stored at
+midnight UTC, so its row has ``published_at`` midnight where the file catalog has ``None``. The
+2026-11-24 snapshot has no such episode.
+
 An item with no ``metadata_relative_path`` has no catalog row: every surface keys on it.
 """
 
@@ -31,6 +35,7 @@ from podcast_scraper.server.corpus_catalog import (
     _verified_artwork_relpath,
     CatalogEpisodeRow,
 )
+from podcast_scraper.utils.utc import utc_iso
 
 
 def _text(attrs: Mapping[str, Any], key: str) -> Optional[str]:
@@ -102,6 +107,7 @@ def catalog_row(corpus_root: Path, item: Mapping[str, Any]) -> Optional[CatalogE
         feed_last_updated=_text(feed, "feed_last_updated"),
         feed_licence_json=_text(stated, "licence"),
         episode_licence_json=_text(attrs, "episode_licence_json"),
+        published_at=utc_iso(item["published_at"]) if item.get("published_at") else None,
     )
 
 

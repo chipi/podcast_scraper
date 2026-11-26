@@ -55,6 +55,7 @@ def test_a_row_carries_every_field_from_its_stored_value(tmp_path: Path) -> None
     assert row is not None
     assert (row.metadata_relative_path, row.feed_id, row.episode_id) == (RELPATH, "rss_a", "ep-1")
     assert (row.feed_title, row.episode_title, row.publish_date) == ("A show", "One", "2026-09-16")
+    assert row.published_at == "2026-09-16T23:05:00Z"
     assert row.summary_bullets == ("First.", "Second.")
     assert (row.summary_title, row.summary_text) == ("A lede", "Body.")
     assert row.gi_relative_path.endswith("0001 - One.gi.json")
@@ -80,7 +81,8 @@ def test_artwork_shows_only_when_its_file_is_on_disk(tmp_path: Path) -> None:
         "episode_image_local_relpath": ".podcast_scraper/corpus-art/sha256/ab/e.jpg",
         "feed_image_local_relpath": ".podcast_scraper/corpus-art/sha256/ab/f.jpg",
     }
-    assert catalog_row(tmp_path, _item(type_attrs=attrs)).episode_image_local_relpath is None
+    bare = catalog_row(tmp_path, _item(type_attrs=attrs))
+    assert bare is not None and bare.episode_image_local_relpath is None
     art = tmp_path / ".podcast_scraper" / "corpus-art" / "sha256" / "ab"
     art.mkdir(parents=True)
     (art / "e.jpg").write_bytes(b"jpg")
