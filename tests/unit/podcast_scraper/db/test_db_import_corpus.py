@@ -131,3 +131,85 @@ def test_a_second_import_writes_nothing_new(conn: Connection, tmp_path: Path) ->
         1,
     )
     conn.rollback()
+
+
+def _kg(item_id: str) -> dict[str, Any]:
+    return {
+        "schema_version": "3.0",
+        "item_id": item_id,
+        "content_type": "podcast_episode",
+        "nodes": [
+            {"id": f"episode:{item_id}", "type": "ContentItem", "properties": {"title": "One"}},
+            {"id": "podcast:show", "type": "Source", "properties": {"title": "A show"}},
+            {"id": "person:ann", "type": "Person", "properties": {"name": "Ann", "role": "host"}},
+            {"id": "topic:ai", "type": "Topic", "properties": {"label": "AI"}},
+            {"id": "topic:ml", "type": "Topic", "properties": {"label": "ML"}},
+        ],
+        "edges": [
+            {
+                "type": "HAS_ITEM",
+                "from": "podcast:show",
+                "to": f"episode:{item_id}",
+                "properties": {},
+            },
+            {"type": "MENTIONS", "from": "topic:ai", "to": f"episode:{item_id}", "properties": {}},
+            {
+                "type": "MENTIONS",
+                "from": "person:ann",
+                "to": f"episode:{item_id}",
+                "properties": {},
+            },
+            {"type": "MENTIONS", "from": "topic:ml", "to": "podcast:show", "properties": {}},
+            {
+                "type": "CONTRIBUTES_TO",
+                "from": "person:ann",
+                "to": "podcast:show",
+                "properties": {"role": "host"},
+            },
+        ],
+    }
+
+
+def _write_kg(root: Path, run: str, base: str, kg: dict[str, Any]) -> None:
+    path = root / "feeds" / "rss_example" / run / "metadata" / f"{base}.kg.json"
+    path.write_text(json.dumps(kg), encoding="utf-8")
+
+
+def test_an_episodes_kg_gives_its_entities_edges_and_roles(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    import_corpus(conn, tmp_path, registry=_REGISTRY)
+    natural_id = "flightcast:01"  # the root item_id; the ContentItem node is episode:<it>
+    conn.rollback()
+    _write_kg(tmp_path, "run_20261101-000000", "0001 - One", _kg(natural_id))
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.entities, report.entity_edges, report.person_roles) == (3, 3, 1)
+    edges = conn.execute(
+        text(
+            "SELECT e.natural_id, ie.role FROM corpus.item_entities ie "
+            "JOIN corpus.entities e USING (entity_id) ORDER BY 1, 2"
+        )
+    ).all()
+    assert [tuple(r) for r in edges] == [
+        ("person:ann", "contributes_to"),
+        ("person:ann", "mentions"),
+        ("topic:ai", "mentions"),
+    ]
+    roles = conn.execute(text("SELECT role FROM corpus.person_roles")).scalars().all()
+    assert roles == ["host"]
+    conn.rollback()
+
+
+def test_a_kg_node_with_no_label_refuses_its_item(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    kg = _kg("episode:x")
+    kg["nodes"][3]["properties"] = {}  # topic:ai
+    _write_kg(tmp_path, "run_20261101-000000", "0001 - One", kg)
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.items == 0 and len(report.refused) == 1
+    assert "no label" in report.refused[0][1]
+    assert _count(conn, content_items) == 0
+    conn.rollback()

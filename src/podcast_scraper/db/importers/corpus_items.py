@@ -16,6 +16,8 @@ transaction:
   ``importers.corpus_documents.import_documents``.
 - Each episode the catalog shows gets its card (``corpus_cards.card_row``, the functions today's
   card is built by) and its item's ``has_*`` flags from the same values. News cards come later.
+- Each item's KG file next to its metadata gives its entities, ``item_entities`` and
+  ``person_roles`` (``importers.corpus_kg.import_kg``).
 
 What cannot be written is refused, never guessed: an item whose keys cannot be derived, whose
 documents cannot be named one way or do not cut, or whose slug or ``(source, external id)`` another
@@ -53,6 +55,7 @@ from podcast_scraper.db.importers.corpus_documents import (
     TRANSCRIPT,
     transcript_files,
 )
+from podcast_scraper.db.importers.corpus_kg import import_kg, KgWritten, read_kg
 from podcast_scraper.db.schema import content_items, item_cards, sources
 from podcast_scraper.languages import episode_language
 from podcast_scraper.publishers import load_registry, Registry
@@ -70,6 +73,9 @@ class ImportReport:
     documents: int = 0
     segments: int = 0
     cards: int = 0
+    entities: int = 0
+    entity_edges: int = 0
+    person_roles: int = 0
     by_kind: collections.Counter[str] = field(default_factory=collections.Counter)
     refused: list[tuple[str, str]] = field(default_factory=list)
 
@@ -99,6 +105,23 @@ def _write_card(
         .values(**{flag: card[flag] for flag in FLAGS})
     )
     return 1
+
+
+def _write_kg(
+    conn: Connection, member: _Member, item_id: int, item: dict[str, Any]
+) -> Optional[KgWritten]:
+    """The item's KG file next to its metadata as rows, or ``None`` when it has none."""
+    path = member.path.with_name(member.path.name[: -len(_SUFFIX)] + ".kg.json")
+    if not path.is_file():
+        return None
+    language = None if is_news(member.doc) else episode_language(dict(member.doc))
+    return import_kg(
+        conn,
+        item_id,
+        read_kg(path, language),
+        published_at=item["published_at"],
+        content_type=item["content_type"],
+    )
 
 
 def _members(root: Path) -> tuple[list[_Member], list[tuple[str, str]]]:
@@ -218,6 +241,7 @@ def import_corpus(
                 item_id = _upsert_item(conn, item)
                 documents, segments, kind = _write_documents(conn, item_id, member)
                 report.cards += _write_card(conn, root, member, item_id, item)
+                written_kg = _write_kg(conn, member, item_id, item)
             except (DocumentRefused, KeyNotDerivable, ValueError) as exc:
                 savepoint.rollback()
                 report.refused.append((member.relpath, str(exc)))
@@ -226,6 +250,10 @@ def import_corpus(
             report.items += 1
             report.documents += documents
             report.segments += segments
+            if written_kg is not None:
+                report.entities += written_kg.entities
+                report.entity_edges += written_kg.edges
+                report.person_roles += written_kg.roles
             if kind:
                 report.by_kind[kind] += documents
     return report
