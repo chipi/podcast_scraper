@@ -259,10 +259,34 @@ corpus_migrations = Table(
     Column("status", Text, nullable=False),
     Column("finished_at", DateTime(timezone=True), nullable=True),
     _created_at(),
+    Column("to_version", Text, nullable=True),
+    Column("last_run_id", BigInteger, ForeignKey("migration_runs.run_id"), nullable=True),
     UniqueConstraint("natural_id", name="corpus_migrations_natural_id_key"),
+    # 'dry_run' is allowed and unused: a dry run is a migration_runs row (RFC-135 §2).
     CheckConstraint(
         "status IN ('dry_run', 'applied', 'undone')", name="corpus_migrations_status_check"
     ),
+)
+
+# Every attempt of a migration on rows: dry run, apply, undo, rerun (RFC-135 §2).
+migration_runs = Table(
+    "migration_runs",
+    corpus_metadata,
+    _surrogate("run_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("code_digest", Text, nullable=True),
+    Column("outcome_sha256", Text, nullable=True),
+    Column("plan", JSONB, nullable=True),
+    Column("result", JSONB, nullable=True),
+    Column("started_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("finished_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(
+        "kind IN ('dry_run', 'apply', 'undo', 'rerun')", name="migration_runs_kind_check"
+    ),
+    CheckConstraint("status IN ('ok', 'refused', 'failed')", name="migration_runs_status_check"),
+    Index("migration_runs_natural_idx", "natural_id", "run_id"),
 )
 
 migration_receipts = Table(
@@ -277,7 +301,10 @@ migration_receipts = Table(
     Column("before", JSONB, nullable=True),
     Column("after", JSONB, nullable=True),
     _created_at(),
+    Column("run_id", BigInteger, ForeignKey("migration_runs.run_id"), nullable=True),
+    Column("seq", Integer, nullable=True),
     Index("migration_receipts_migration_idx", "migration_id"),
+    Index("migration_receipts_run_idx", "run_id", "seq"),
 )
 
 corpus_meta = Table(
