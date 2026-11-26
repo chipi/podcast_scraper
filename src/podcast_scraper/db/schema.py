@@ -499,6 +499,8 @@ content_items = Table(
     Column("type_attrs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
     _created_at(),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    # corpus_0008: the source columns this item states; the source row is merged from them.
+    Column("source_attrs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
     UniqueConstraint("natural_id", name="content_items_natural_id_key"),
     UniqueConstraint("slug", name="content_items_slug_key"),
     UniqueConstraint("source_id", "external_item_id", name="content_items_source_external_key"),
