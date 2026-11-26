@@ -17,8 +17,10 @@ What is refused, never guessed (the item is listed and nothing of it is written)
   that stopped between its renames;
 - a body that does not cut (a ``.segments.json`` that is not JSON, or cuts that do not join back);
 - two files with one variant;
-- an existing document of the same (item, kind, variant) version 1 with another body: a new
-  version is the writer's, not the importer's.
+- an existing document of the same (item, kind, variant) whose newest version has another body:
+  a new version is the writer's (``db.corpus_writer``), not the importer's.
+
+Version 1 is written with ``change_kind`` ``created``, as the writer writes it.
 
 ``<base>.anon.txt`` is skipped: it is a derived copy, not a document.
 """
@@ -42,6 +44,7 @@ from podcast_scraper.kg.as_v3 import document_variant
 
 TRANSCRIPT = "transcript"
 ARTICLE = "article"
+CREATED = "created"
 
 _SEGMENTS_BATCH = 1000
 
@@ -131,7 +134,8 @@ def read_body(path: Path) -> str:
     return path.read_bytes().decode("utf-8")
 
 
-def _read_segments(path: Optional[Path]) -> Optional[Sequence[Any]]:
+def read_segments(path: Optional[Path]) -> Optional[Sequence[Any]]:
+    """The entries of a ``.segments.json`` (a list, or a mapping's ``segments``), else ``None``."""
     if path is None:
         return None
     raw = json.loads(path.read_text(encoding="utf-8"))
@@ -143,14 +147,16 @@ def _existing(
     conn: Connection, item_id: int, kind: str, variant: str
 ) -> Optional[tuple[int, Optional[str]]]:
     row = conn.execute(
-        select(documents.c.document_id, documents.c.body_sha256).where(
+        select(documents.c.document_id, documents.c.body_sha256)
+        .where(
             and_(
                 documents.c.item_id == item_id,
                 documents.c.kind == kind,
                 documents.c.variant == variant,
-                documents.c.version == 1,
             )
         )
+        .order_by(documents.c.version.desc())
+        .limit(1)
     ).first()
     return (row[0], row[1]) if row else None
 
@@ -209,7 +215,7 @@ def import_documents(
             cuts = (
                 paragraph_cuts(body)
                 if kind == ARTICLE
-                else cut_body(body, _read_segments(file.segments_path))
+                else cut_body(body, read_segments(file.segments_path))
             )
         except (DocumentCutError, ValueError) as exc:
             raise DocumentRefused(f"{file.path.name}: {exc}") from exc
@@ -219,6 +225,7 @@ def import_documents(
                 item_id=item_id,
                 kind=kind,
                 variant=file.variant,
+                change_kind=CREATED,
                 body_sha256=digest,
                 fetched_at=fetched_at,
             )

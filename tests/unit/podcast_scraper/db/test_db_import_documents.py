@@ -141,6 +141,41 @@ def test_a_second_import_writes_nothing_and_another_body_is_refused(
     conn.rollback()
 
 
+def test_version_one_is_created_and_a_re_import_compares_the_newest_version(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, BASE + ".txt", "one\n")
+    item = _item(conn, _source(conn))
+    first = import_documents(conn, item, transcript_files(tmp_path, BASE, "en"))[0]
+    assert (
+        conn.execute(
+            text("SELECT change_kind FROM corpus.documents WHERE document_id = :d"),
+            {"d": first.document_id},
+        ).scalar_one()
+        == "created"
+    )
+    second_body = "one\ntwo\n"
+    second = conn.execute(
+        text(
+            "INSERT INTO corpus.documents (item_id, kind, variant, version, supersedes_id,"
+            " change_kind, body_sha256) VALUES (:i, 'transcript', 'raw', 2, :s,"
+            " 'retranscribed', :h) RETURNING document_id"
+        ),
+        {
+            "i": item,
+            "s": first.document_id,
+            "h": hashlib.sha256(second_body.encode("utf-8")).hexdigest(),
+        },
+    ).scalar_one()
+    _write(tmp_path, BASE + ".txt", second_body)
+    again = import_documents(conn, item, transcript_files(tmp_path, BASE, "en"))
+    assert [(d.document_id, d.inserted) for d in again] == [(second, False)]
+    _write(tmp_path, BASE + ".txt", "one\n")
+    with pytest.raises(DocumentRefused, match="another body"):
+        import_documents(conn, item, transcript_files(tmp_path, BASE, "en"))
+    conn.rollback()
+
+
 def test_an_unfinished_translation_swap_is_refused(tmp_path: Path) -> None:
     _write(tmp_path, BASE + ".txt", "Hello\n")
     _write(tmp_path, BASE + ".es.txt", "Hola\n")
