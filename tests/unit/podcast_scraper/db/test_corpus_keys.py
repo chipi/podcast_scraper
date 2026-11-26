@@ -29,7 +29,8 @@ _PROD_GUID = "7c624127-5f6f-42b8-974e-ca4e131a19a1"
 
 
 def _load(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    doc: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return doc
 
 
 @pytest.fixture
