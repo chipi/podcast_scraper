@@ -22,8 +22,10 @@ from podcast_scraper.server.corpus_catalog import (
     episode_list_topics,
 )
 
-#: The ``content_items`` flags a card carries too; their writer is the item's.
-FLAGS = ("has_transcript", "has_gi", "has_kg", "has_moments")
+#: The ``content_items`` flags a card writes. ``has_transcript`` is not one: on the item it says
+#: whether a transcript document exists (``corpus_writer.mark_has_transcript``), while the card's
+#: own ``has_transcript`` is what today's card shows, from the metadata.
+FLAGS = ("has_gi", "has_kg", "has_moments")
 
 
 def card_row(

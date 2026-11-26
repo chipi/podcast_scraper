@@ -51,6 +51,7 @@ from podcast_scraper.db.corpus_rows import (
     source_attrs,
     source_row_for,
 )
+from podcast_scraper.db.corpus_writer import mark_has_transcript
 from podcast_scraper.db.importers.corpus_documents import (
     ARTICLE,
     DocumentRefused,
@@ -145,9 +146,41 @@ def _members(root: Path) -> tuple[list[_Member], list[tuple[str, str]]]:
     return members, refused
 
 
+def _transcripts_of(member: _Member) -> tuple[Path, str]:
+    """The episode's transcripts directory and base name, the files ``corpus_writer`` is handed.
+
+    An episode that names its transcript (``content.transcript_file_path``) is found by that path:
+    the metadata's own name can truncate the title while the transcripts carry it whole, and a
+    later run can reuse an earlier run's transcript, so the path may lead into a sibling run of
+    the same feed. A relative path is read from the run directory; an absolute one is the path in
+    the container that wrote it (``/app/output/feeds/<feed>/...``) and is read from what follows
+    its ``feeds/<this feed>/``. A path leading out of the feed is refused. An episode that names
+    none is found by the metadata's name in its run's ``transcripts/``."""
+    run = member.path.parent.parent
+    feed = run.parent
+    content = member.doc.get("content")
+    named = content.get("transcript_file_path") if isinstance(content, Mapping) else None
+    if isinstance(named, str) and named.strip() and not is_news(member.doc):
+        stated = Path(named.strip())
+        if stated.is_absolute():
+            parts = stated.parts
+            starts = [
+                i + 2
+                for i in range(len(parts) - 2)
+                if parts[i] == "feeds" and parts[i + 1] == feed.name
+            ]
+            if not starts:
+                raise DocumentRefused(f"its transcript path {named!r} leads out of its feed")
+            stated = feed / Path(*parts[starts[-1] :])
+        path = Path(os.path.normpath(run / stated))
+        if not path.is_relative_to(feed):
+            raise DocumentRefused(f"its transcript path {named!r} leads out of its feed")
+        return path.parent, path.name.rsplit(".", 1)[0]
+    return run / "transcripts", member.path.name[: -len(_SUFFIX)]
+
+
 def _write_documents(conn: Connection, item_id: int, member: _Member) -> tuple[int, int, str]:
-    base = member.path.name[: -len(_SUFFIX)]
-    directory = member.path.parent.parent / "transcripts"
+    directory, base = _transcripts_of(member)
     if not directory.is_dir():
         return 0, 0, ""
     if is_news(member.doc):
@@ -254,6 +287,7 @@ def import_corpus(
                 item["source_attrs"] = source_attrs(member.doc, registry=registry)
                 item_id = _upsert_item(conn, item)
                 documents, segments, kind = _write_documents(conn, item_id, member)
+                mark_has_transcript(conn, item_id)
                 report.cards += _write_card(conn, root, member, item_id, item)
                 written_kg = _write_kg(conn, member, item_id, item)
             except (DocumentRefused, KeyNotDerivable, ValueError) as exc:
