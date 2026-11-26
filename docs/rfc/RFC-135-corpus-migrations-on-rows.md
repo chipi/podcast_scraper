@@ -115,8 +115,9 @@ class RowMigration(Migration):
 
     def apply_rows(self, ctx: RowContext) -> RowResult: ...
     def verify_rows(self, conn: Connection) -> Tuple[bool, str]: ...  # SQL assertions
-    def plan_rows(self, ctx: RowContext) -> Iterable[PlanRow]: ...     # for the outcome hook
 ```
+
+There is no separate `plan_rows`: the plan is what `ctx.rows` saw during the apply (§5).
 
 - `RowContext` carries the open transaction's connection and `ctx.rows`, the only way a row
   migration writes: `rows.update(table, key, values)`, `rows.insert(table, values)`,
@@ -168,9 +169,10 @@ migrated database); the grants are infra's step after the migrate.
 
 ### 3. The run
 
-`upgrade run` (and `rerun`, `undo`) with `--database` (or when the corpus is configured as rows):
+`upgrade run --database` (and `undo`) applies the first pending migration on rows; a second runs
+in its own run. `upgrade rerun` for named items is not built on rows (no migration needs it yet).
 
-1. Connect as `migrator` (`db/engines.migrator_engine()`: `PODCAST_DATABASE_MIGRATOR_URL`, pool 1
+1. Connect as `migrator` (`upgrade.rows.migrator_engine()`: `PODCAST_DATABASE_MIGRATOR_URL`, pool 1
    plus 0, no statement timeout as `migrate._engine`, `lock_timeout` 5 s so a held row lock fails
    fast instead of hanging).
 2. Take the lease: `job_leases` resource `corpus`, mode `exclusive`, holder `upgrade:<run_id>`,
@@ -223,12 +225,22 @@ exit codes) and carries the same guards: `--yes`, refused on a non-TTY without i
 
 ### 5. The outcome hook on rows
 
-- Plan rows keep their shape (`meta`, `counts`, `inputs`). `inputs` becomes the sha256 of each row
-  the plan read, keyed `table:key`, recorded by `ctx.rows` reads (`rows.get`, `rows.select`)
-  instead of `read_recorder`'s file hooks.
+- Plan rows keep their shape (`meta`, `counts`, `inputs`), one per item (`item:<item_id>`; a row
+  with no `item_id` is its own, `table:[key]`). `counts` is the receipts per table; `inputs` is
+  the sha256 of each row's state when `ctx.rows` first read it (`get`, `update`, `delete`),
+  keyed `table:[key]`, instead of `read_recorder`'s file hooks. Item ids match because the clone
+  is a restored copy of prod's dump.
+- The plan is the apply's own, so it is compared with the outcome's **inside the transaction**,
+  after `apply_rows`: a difference with no accept file naming it rolls back and exits 4 with
+  nothing written, and the refused run keeps the plan and the diff. The static checks (outcome,
+  verdict, clean code, digest, first pending, applied set: exit 3) run before the lease.
 - The clone is a restored copy of a prod `pg_dump` (the rehearsal's local copy), not a file
   clone; `corpus_change_gate.py` gets a `--database-url` mode. The rest of the regime (digest over
   the module closure plus `verdicts_file()` and `list_file()`, the accept file) is unchanged.
+- **Open: the measure (exit 5).** The file regime's scoreboard reads files
+  (`score_by_episode`); on rows it is not defined, and neither is the gate's `--database-url`
+  mode that measures it. Both wait for a decision on what a row scoreboard counts; until then a
+  migration on rows is gated on its plan only.
 
 ### 6. Derived surfaces
 
@@ -243,7 +255,9 @@ database session's recommendation, Key Decision 7):
   projections and identity builds (batch-built under a build id; readers see the previous build
   during a rebuild), and the deterministic non-LLM enrichers. Each step's result goes into
   `migration_runs.result`; a failed step exits **6** with the migration applied, and the message
-  names the command that re-runs that step on its own (each step is idempotent). Not 4: on this
+  names the command that re-runs the after-commit steps on their own (each step is idempotent):
+  `upgrade surfaces --migration <id>`, for the items of the ledger's last run, recorded as a
+  `rerun` run with `result.of = "after_commit"`. Not 4: on this
   path 4 already means "refused before starting, nothing ran" (infra, 2026-11-26: `cl-oneoff.sh`'s
   nightly and pipeline guards, which also pass a container's own exit code through; `run-step`;
   the corpus-migration skill's `migrate.py`; `upgrade run`'s plan diff), and the codes in use are
@@ -270,7 +284,10 @@ database session's recommendation, Key Decision 7):
 
 ### 7. Where it lives
 
-Public `podcast_scraper/upgrade/` (`rows.py`, `db_state.py`) and `db/engines.py`. CRFC-005 §8
+Public `podcast_scraper/upgrade/rows.py`: the framework, the `migrator` engine and the database
+`StateStore` (`DbStateStore`), with the CLI in `upgrade/cli_handlers.py`. The engine is not in
+`db/engines.py` because that module is in 0054's code closure until 0054 is applied; it can move
+there afterwards. CRFC-005 §8
 lists "the migration framework" under Common; the framework extends public's `Migration`,
 runner, registry and outcome hook, which every extension's migrations already use (ADR-174), and
 ADR-169's Implementation Notes put the database `StateStore` there. Common's row migrations, when
@@ -312,7 +329,8 @@ a test-only row migration over `content_items` and `item_cards`:
   pending again;
 - dry run: every corpus table's row hash equal before and after; a `migration_runs` row with the
   plan; receipts zero;
-- second apply writes no receipt; apply, undo, apply gives the same rows as one apply;
+- second apply writes no receipt; apply, undo, apply gives the same rows as one apply, but for the
+  times the database stamps (`created_at`, `updated_at` of a re-inserted row);
 - undo refused when one row changed after the apply: nothing restored, the row list names it;
 - a failure inside `apply_rows` leaves no row, receipt or ledger change;
 - the derived surfaces (§6): the changed items' `item_cards` equal a fresh build after the apply;
