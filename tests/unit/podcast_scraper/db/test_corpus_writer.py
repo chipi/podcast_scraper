@@ -135,6 +135,7 @@ def pipeline_db(url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:  #
     monkeypatch.setenv(ENV_PIPELINE_RW_URL, url)
     engines.reset_engines()
     OUTCOMES.clear()
+    corpus_writer.UNPLACED.clear()
     corpus_writer._DEFERRED.clear()
     yield
     corpus_writer._DEFERRED.clear()
@@ -252,7 +253,7 @@ def test_a_sync_writes_the_source_and_item_rows_then_its_documents(
     item = _row(conn, "content_items", "item:w1")
     for column, value in source_row(doc).items():
         assert source[column] == value, column
-    for column, value in item_row(doc).items():
+    for column, value in item_row(doc, has_bridge=False).items():
         assert item[column] == value, column
     assert item["source_id"] == source["source_id"]
     assert _versions(conn, item["item_id"]) == [(1, "created", False)]
@@ -673,3 +674,58 @@ def test_after_an_import_a_synced_item_keeps_the_columns_its_imported_items_stat
     new = _doc("item:new", published_date="2026-11-01T00:00:00+00:00")
     assert sync_episode(_metadata(run, "item:new", new), None) == "no_files"
     assert _row(conn, "sources", _source_of(new))["category"] == "Science"
+
+
+@pytest.mark.parametrize(
+    "path, rel",
+    [
+        ("/srv/c/feeds/f/run_1/metadata/e.metadata.json", "feeds/f/run_1/metadata/e.metadata.json"),
+        (
+            "/srv/c/sources/news/s/run_1/metadata/e.metadata.json",
+            "sources/news/s/run_1/metadata/e.metadata.json",
+        ),
+        ("/srv/c/run_1/metadata/e.metadata.json", "run_1/metadata/e.metadata.json"),
+        ("/srv/c/metadata/e.metadata.json", "metadata/e.metadata.json"),
+        ("/srv/c/elsewhere/e.metadata.json", None),
+    ],
+)
+def test_the_corpus_relpath_is_the_longest_end_in_a_corpus_layout(path: str, rel: object) -> None:
+    assert corpus_writer.corpus_relpath(Path(path)) == rel
+
+
+def test_a_sync_stores_its_corpus_path_and_bridge(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    run = tmp_path / "feeds" / "show" / "run_1" / "metadata"
+    run.mkdir(parents=True)
+    meta = _metadata(run, "item:p")
+    meta.with_name("item_p.bridge.json").write_text("{}", encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    attrs = _row(conn, "content_items", "item:p")["type_attrs"]
+    assert attrs["metadata_relative_path"] == "feeds/show/run_1/metadata/item_p.metadata.json"
+    assert attrs["has_bridge"] is True
+    assert corpus_writer.UNPLACED["metadata_relative_path"] == 0
+
+
+def test_a_metadata_file_in_no_corpus_layout_is_counted(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    assert sync_episode(_metadata(tmp_path, "item:u"), None) == "no_files"
+    assert "metadata_relative_path" not in _row(conn, "content_items", "item:u")["type_attrs"]
+    assert corpus_writer.UNPLACED["metadata_relative_path"] == 1
+
+
+def test_the_sources_type_attrs_follow_its_newest_item(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    old = _doc("item:o", published_date="2026-01-01T00:00:00+00:00")
+    old["feed"]["description"] = "Old blurb."
+    old["feed"]["url"] = "https://example/feed.xml"
+    new = _doc("item:n", published_date="2026-11-01T00:00:00+00:00")
+    new["feed"]["description"] = "New blurb."
+    for doc in (new, old):
+        assert sync_episode(_metadata(tmp_path, doc["episode"]["episode_id"], doc), None) == (
+            "no_files"
+        )
+    attrs = _row(conn, "sources", _source_of(new))["type_attrs"]
+    assert attrs == {"feed_description": "New blurb.", "feed_rss_url": "https://example/feed.xml"}

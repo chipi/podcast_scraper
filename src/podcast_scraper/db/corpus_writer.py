@@ -61,6 +61,7 @@ import yaml
 from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.engine import Connection
 
+from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.db import leases
 from podcast_scraper.db.corpus_keys import (
     is_news,
@@ -131,6 +132,10 @@ OUTCOMES: collections.Counter[str] = collections.Counter()
 UNREADABLE: collections.Counter[str] = collections.Counter()
 
 _SEGMENTS_BATCH = 1000
+
+#: Items written with no ``type_attrs.metadata_relative_path``: the metadata file is in no corpus
+#: layout ``corpus_scope.classify_metadata_relpath`` knows, since the process started.
+UNPLACED: collections.Counter[str] = collections.Counter()
 
 #: The run directory's record of episodes whose sync is to be tried again, one JSON object a line.
 DEFERRED_FILE = "corpus_sync_deferred.jsonl"
@@ -244,10 +249,35 @@ def merge_source(conn: Connection, source_id: int) -> bool:
     return True
 
 
-def upsert_item(conn: Connection, doc: Mapping[str, Any], source_id: int) -> int:
+def corpus_relpath(metadata_path: Path) -> Optional[str]:
+    """The metadata file's path from the served corpus root: the longest end of ``metadata_path``
+    that ``corpus_scope.classify_metadata_relpath`` recognises as a corpus layout (the importer
+    passes the same path, relative to the corpus root); ``None`` when there is none."""
+    from podcast_scraper.search.corpus_scope import classify_metadata_relpath
+
+    parts = metadata_path.parts[1:] if metadata_path.is_absolute() else metadata_path.parts
+    for start in range(len(parts)):
+        rel = "/".join(parts[start:])
+        if classify_metadata_relpath(rel) is not None:
+            return rel
+    return None
+
+
+def upsert_item(
+    conn: Connection,
+    doc: Mapping[str, Any],
+    source_id: int,
+    *,
+    metadata_relpath: str = "",
+    has_bridge: Optional[bool] = None,
+) -> int:
     """Insert or update the item row of a podcast item ``doc`` under ``source_id``; returns its
-    ``item_id``."""
-    wanted = {**item_row(doc), "source_id": source_id, "source_attrs": source_attrs(doc)}
+    ``item_id``. ``metadata_relpath`` and ``has_bridge`` go to :func:`item_row`."""
+    wanted = {
+        **item_row(doc, metadata_relpath=metadata_relpath, has_bridge=has_bridge),
+        "source_id": source_id,
+        "source_attrs": source_attrs(doc),
+    }
     clash = conn.execute(
         select(content_items.c.natural_id)
         .where(
@@ -424,6 +454,8 @@ def sync_episode(
             return _count("news_item")
         natural_id = item_natural_id(doc)
         source = source_natural_id(doc)
+        relpath = corpus_relpath(metadata_path)
+        has_bridge = os.path.isfile(bridge_json_path_adjacent_to_metadata(str(metadata_path)))
         files = (
             transcript_files(
                 transcript_path.parent, _base(transcript_path), episode_language(dict(doc))
@@ -446,11 +478,19 @@ def sync_episode(
         with engine.begin() as conn:
             leases.heartbeat(conn, holder, held)
             source_id = ensure_source(conn, doc)
-            item_id = upsert_item(conn, doc, source_id)
+            item_id = upsert_item(
+                conn, doc, source_id, metadata_relpath=relpath or "", has_bridge=has_bridge
+            )
             merge_source(conn, source_id)
             synced = sync_documents(conn, item_id, files, change_kind=change_kind)
             mark_has_transcript(conn, item_id)
         _DEFERRED.pop(str(metadata_path), None)
+        if relpath is None:
+            UNPLACED["metadata_relative_path"] += 1
+            logger.warning(
+                "corpus write: %s is in no corpus layout; written with no metadata_relative_path",
+                metadata_path,
+            )
         for column in unreadable_times(doc):
             UNREADABLE[column] += 1
             logger.warning(
