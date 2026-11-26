@@ -147,7 +147,13 @@ class RowMigration(Migration):
   insert and `after` null for a delete.
 - Grants (infra's step): `migrator` owns all three; `corpus_ro` reads them (status, the Workbench);
   `pipeline_rw` reads `corpus_migrations` (a writer refuses to start on a pending migration, as
-  readiness does for schema heads).
+  readiness does for schema heads) and has no privilege on the other two. Infra (2026-11-26): its
+  default privileges (`infra/postgres/roles.sql`, `ALTER DEFAULT PRIVILEGES FOR ROLE migrator IN
+  SCHEMA corpus`) give `pipeline_rw` full DML on every new corpus table, narrowed today only for
+  `schema_history` and `alembic_version*`. So an infra PR adds the three tables to that narrowing,
+  in `roles.sql` and in the corpus branch of `infra/deploy/pg_db_grants.sh`: revoke all from
+  `pipeline_rw` on `migration_runs` and `migration_receipts`, and revoke INSERT, UPDATE, DELETE and
+  TRUNCATE on `corpus_migrations`. A test in §Testing pins it.
 
 The database session owns the corpus history and agreed to this table as written (2026-11-26):
 the revision is `corpus_0006_migration_runs`, `down_revision` `corpus_0005_entities` (public
@@ -222,8 +228,15 @@ database session's recommendation, Key Decision 7):
 - **After the commit:** the LanceDB search index (outside Postgres until E09), the corpus-wide
   projections and identity builds (batch-built under a build id; readers see the previous build
   during a rebuild), and the deterministic non-LLM enrichers. Each step's result goes into
-  `migration_runs.result`; a failed step exits 4 with the migration applied (as the ledger refresh
-  does today, `cli_handlers.py`), and the step is re-runnable on its own.
+  `migration_runs.result`; a failed step exits **6** with the migration applied, and the message
+  names the command that re-runs that step on its own (each step is idempotent). Not 4: on this
+  path 4 already means "refused before starting, nothing ran" (infra, 2026-11-26: `cl-oneoff.sh`'s
+  nightly and pipeline guards, which also pass a container's own exit code through; `run-step`;
+  the corpus-migration skill's `migrate.py`; `upgrade run`'s plan diff), and the codes in use are
+  2, 3, 4, 5, 10 and 137. A failed one-shot is re-run by hand on the box, never automatically.
+  The file framework's `upgrade run` exits 4 today when the ledger refresh fails after an apply
+  (`cli_handlers.py`, the `ledger_refresh` call), the same ambiguity; changing it is outside this
+  RFC.
 - **No automatic undo** on a failed step: it would be a second prod write nobody reviewed, made
   while something is already failing.
 - The views of DECISIONS (`v_bridge`, `v_context`, `v_catalog`, `v_served_id_map`,
@@ -257,7 +270,7 @@ there are any, live in Common as its file migrations do.
    entry point with the apply's role, lease, run row, derived surfaces, exit codes and guards; no
    per-migration undo code. Cost: a new CLI surface, and two undo mechanisms while files remain.
 7. **Derived surfaces: per-item Postgres surfaces inside the transaction, the rest after the
-   commit with exit 4, no automatic undo** (the operator, 2026-11-26, on the database session's
+   commit with exit 6, no automatic undo** (the operator, 2026-11-26, on the database session's
    recommendation; §6).
 
 ## Alternatives Considered
@@ -285,7 +298,7 @@ a test-only row migration over `content_items` and `item_cards`:
 - a failure inside `apply_rows` leaves no row, receipt or ledger change;
 - the derived surfaces (§6): the changed items' `item_cards` equal a fresh build after the apply;
   a failure in an in-transaction refresh leaves no row, receipt or ledger change; a failure in an
-  after-commit step exits 4 with the migration applied, the failure in `migration_runs.result`,
+  after-commit step exits 6 with the migration applied, the failure in `migration_runs.result`,
   and the step re-run on its own completes it;
 - the changed-row census: every row that differs after the test migration has a receipt;
 - two processes: a migration refused while an ingest holds the lease, and an ingest refused while
@@ -314,8 +327,10 @@ surfaces.
 ## Open Questions
 
 1. Answered 2026-11-26 by the database session: yes, as `corpus_0006_migration_runs` (§2).
-2. Infra: the lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the
-   refusal rule of §3 step 2 matches theirs.
+2. The lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the refusal
+   rule of §3 step 2 matches theirs. Infra (2026-11-26): not infra's; `job_leases` is the database
+   session's tracker row `w-leases` (todo), and infra has no lease code. Asked of the database
+   session.
 3. Answered 2026-11-26: undo is a subcommand (Key Decision 6).
 4. Answered 2026-11-26: the operator took the database session's recommendation (Key Decision 7,
    §6). Infra had not answered when the operator decided; its retry practice for a failed one-shot
