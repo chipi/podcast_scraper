@@ -182,8 +182,12 @@ migration is the pre-migration `pg_dump` of DECISIONS §5, taken by the one-shot
 
 ### 4. Undo
 
-`upgrade undo --migration <id>` (new subcommand; in row mode only, since files keep each module's
-`undo(root)`):
+`upgrade undo --migration <id>` (new subcommand, the operator's decision 2026-11-26; in row mode
+only, since files keep each module's `undo(root)`). Row migrations define no undo of their own:
+the receipts hold whole rows, so the undo is the same for every migration. It runs as `upgrade run`
+does (§3: `migrator`, the exclusive lease, a `migration_runs` row, the derived surfaces, the same
+exit codes) and carries the same guards: `--yes`, refused on a non-TTY without it, a
+`--dry-run` that is the undo rolled back, and on prod the operator's go as for any apply. It:
 
 - reads the receipts of the migration's `last_run_id`, in reverse `seq`;
 - for each, locks the row and compares it with `after` (JSONB equality of the whole row); a row
@@ -227,6 +231,9 @@ there are any, live in Common as its file migrations do.
    partial undo would leave a state no receipt describes.
 4. **Writes only through `ctx.rows`**, so every changed row has a receipt by construction.
 5. **No framework snapshot; the `pg_dump` before the one-shot is the backstop.**
+6. **Undo is a subcommand, `upgrade undo`** (the operator, 2026-11-26, on the recommendation): one
+   entry point with the apply's role, lease, run row, derived surfaces, exit codes and guards; no
+   per-migration undo code. Cost: a new CLI surface, and two undo mechanisms while files remain.
 
 ## Alternatives Considered
 
@@ -281,8 +288,8 @@ surfaces.
    receipts' run id another way?
 2. Infra: the lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the
    refusal rule of §3 step 2 matches theirs.
-3. The operator: `upgrade undo` as a subcommand (new; files have none), or a per-migration module
-   function as today.
-4. Whether the derived surfaces' failure (§6) should roll the migration back instead of exiting 4
-   with it applied. Proposed: no, as today, because the surfaces are rebuildable and the data
-   change is the reviewed part.
+3. Answered 2026-11-26: undo is a subcommand (Key Decision 6).
+4. A derived surface failing after the commit (§6): exit 4 with the migration applied and the step
+   re-runnable (proposed, as today), an automatic undo, or the surfaces inside the data
+   transaction where they are in Postgres. The operator asked the database and infra sessions to
+   weigh in (2026-11-26); open until they answer.
