@@ -30,7 +30,7 @@ from podcast_scraper.db import (
     rw_engine,
 )
 from podcast_scraper.db.migrate import with_kernel
-from podcast_scraper.db.schema import app_releases, corpus_metadata, metadata
+from podcast_scraper.db.schema import app_releases, corpus_metadata, corpus_revision, metadata
 from podcast_scraper.db.settings import DatabaseSettings, normalize_url
 
 # Bound at import, not inside the cleanup: a test that strips podcast_scraper from sys.modules
@@ -111,7 +111,11 @@ def empty_kernel_tables() -> None:
                 planed.execute(table.delete())
         conn.execute(app_releases.delete())
         for table in reversed(corpus_metadata.sorted_tables):
-            conn.execute(table.delete())
+            if table is corpus_revision:
+                # corpus_0007 seeds its one row; a test starts from that row, not from none.
+                conn.execute(corpus_revision.update().values(revision=0))
+            else:
+                conn.execute(table.delete())
     # In-process memory of what the emptied tables held (imported here: the server modules are
     # heavy and the window comment above applies to them too).
     from podcast_scraper.server import app_outbox_store, app_release_store
