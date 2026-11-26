@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.importers.corpus_documents import (
+    ARTICLE,
     DocumentRefused,
     import_documents,
     joined_body,
@@ -157,4 +160,47 @@ def test_a_body_that_does_not_cut_is_refused_naming_its_file(
     item = _item(conn, _source(conn))
     with pytest.raises(DocumentRefused, match=r"0001 - An episode_abc\.txt: "):
         import_documents(conn, item, transcript_files(tmp_path, BASE, "en"))
+    conn.rollback()
+
+
+def test_an_article_is_cut_into_paragraphs_with_its_fetch_time_and_hash(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    body = "First paragraph.\nStill first.\n\nSecond one.\n"
+    _write(tmp_path, BASE + ".txt", body)
+    _write(tmp_path, BASE + ".cleaned.txt", "First.\n\nSecond.\n")
+    _write(tmp_path, BASE + ".raw.html", "<html></html>")
+    item = _item(conn, _source(conn), content_type="news_article")
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    fetched = datetime(2026, 11, 24, 6, 17, 36, tzinfo=timezone.utc)
+    imported = import_documents(
+        conn,
+        item,
+        transcript_files(tmp_path, BASE, "en"),
+        kind=ARTICLE,
+        fetched_at=fetched,
+        body_sha256=digest,
+    )
+    assert [(d.variant, d.segments) for d in imported] == [("raw", 2), ("cleaned", 2)]
+    row = conn.execute(
+        text(
+            "SELECT kind, fetched_at, body_sha256, extraction FROM corpus.documents "
+            "WHERE document_id = :d"
+        ),
+        {"d": imported[0].document_id},
+    ).one()
+    assert tuple(row) == (ARTICLE, fetched, digest, None)
+    assert joined_body(conn, item, imported[0].document_id) == body
+    conn.rollback()
+
+
+def test_an_article_whose_body_is_not_the_metadatas_hash_is_refused(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, BASE + ".txt", "changed\n")
+    item = _item(conn, _source(conn), content_type="news_article")
+    with pytest.raises(DocumentRefused, match="not the metadata's body_sha256"):
+        import_documents(
+            conn, item, transcript_files(tmp_path, BASE, "en"), kind=ARTICLE, body_sha256="0" * 64
+        )
     conn.rollback()

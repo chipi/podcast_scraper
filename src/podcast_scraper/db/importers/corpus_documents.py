@@ -1,4 +1,4 @@
-"""A podcast item's transcript files as ``documents`` and ``segments`` rows (CRFC-005 §3.5).
+"""An item's transcript or article files as ``documents`` and ``segments`` rows (CRFC-005 §3.5).
 
 The variant of each file is ``kg.as_v3.document_variant``'s, the rule the pipeline writes by. A
 file's body becomes its document's segments through ``document_cut.cut_body`` (with the file's own
@@ -29,6 +29,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -36,10 +37,11 @@ from sqlalchemy import and_, func, insert, select
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.schema import documents, segments
-from podcast_scraper.document_cut import cut_body, DocumentCutError
+from podcast_scraper.document_cut import cut_body, DocumentCutError, paragraph_cuts
 from podcast_scraper.kg.as_v3 import document_variant
 
 TRANSCRIPT = "transcript"
+ARTICLE = "article"
 
 _SEGMENTS_BATCH = 1000
 
@@ -137,12 +139,14 @@ def _read_segments(path: Optional[Path]) -> Optional[Sequence[Any]]:
     return found if isinstance(found, list) else None
 
 
-def _existing(conn: Connection, item_id: int, variant: str) -> Optional[tuple[int, Optional[str]]]:
+def _existing(
+    conn: Connection, item_id: int, kind: str, variant: str
+) -> Optional[tuple[int, Optional[str]]]:
     row = conn.execute(
         select(documents.c.document_id, documents.c.body_sha256).where(
             and_(
                 documents.c.item_id == item_id,
-                documents.c.kind == TRANSCRIPT,
+                documents.c.kind == kind,
                 documents.c.variant == variant,
                 documents.c.version == 1,
             )
@@ -162,21 +166,36 @@ def joined_body(conn: Connection, item_id: int, document_id: int) -> str:
 
 
 def import_documents(
-    conn: Connection, item_id: int, files: Sequence[TranscriptFile]
+    conn: Connection,
+    item_id: int,
+    files: Sequence[TranscriptFile],
+    *,
+    kind: str = TRANSCRIPT,
+    fetched_at: Optional[datetime] = None,
+    body_sha256: Optional[str] = None,
 ) -> list[ImportedDocument]:
-    """Write each file as version 1 of its (item, transcript, variant) and its segments, then check
+    """Write each file as version 1 of its (item, kind, variant) and its segments, then check
     every document joins back to its file. Idempotent: a document already there with the same
-    body is left as it is. Runs in the caller's transaction."""
+    body is left as it is. Runs in the caller's transaction.
+
+    An ``article`` is cut into paragraphs (``paragraph_cuts``), carries ``fetched_at``, and its
+    ``raw`` body must hash to the metadata's ``body_sha256`` when one is given. Its
+    ``extraction`` and ``extractor_version`` stay null: no stored file records them.
+    """
     imported: list[ImportedDocument] = []
     for file in files:
         body = read_body(file.path)
         digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        existing = _existing(conn, item_id, file.variant)
+        if body_sha256 and file.variant == "raw" and digest != body_sha256:
+            raise DocumentRefused(
+                f"{file.path.name}: its sha256 is not the metadata's body_sha256 {body_sha256}"
+            )
+        existing = _existing(conn, item_id, kind, file.variant)
         if existing is not None:
             document_id, stored = existing
             if stored != digest:
                 raise DocumentRefused(
-                    f"{file.path.name}: item {item_id} already has a {file.variant} transcript "
+                    f"{file.path.name}: item {item_id} already has a {file.variant} {kind} "
                     "with another body"
                 )
             count = conn.execute(
@@ -187,12 +206,22 @@ def import_documents(
             imported.append(ImportedDocument(document_id, file.variant, count, False))
             continue
         try:
-            cuts = cut_body(body, _read_segments(file.segments_path))
+            cuts = (
+                paragraph_cuts(body)
+                if kind == ARTICLE
+                else cut_body(body, _read_segments(file.segments_path))
+            )
         except (DocumentCutError, ValueError) as exc:
             raise DocumentRefused(f"{file.path.name}: {exc}") from exc
         document_id = conn.execute(
             insert(documents)
-            .values(item_id=item_id, kind=TRANSCRIPT, variant=file.variant, body_sha256=digest)
+            .values(
+                item_id=item_id,
+                kind=kind,
+                variant=file.variant,
+                body_sha256=digest,
+                fetched_at=fetched_at,
+            )
             .returning(documents.c.document_id)
         ).scalar_one()
         rows = [
