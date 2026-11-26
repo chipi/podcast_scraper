@@ -792,3 +792,73 @@ segments = Table(
     ),
     postgresql_partition_by="HASH (item_id)",
 )
+
+# A transcript span the search index cut by tokens, so it can cross voices: ``speakers`` holds
+# every speaker of its range. Offsets are characters into the cuts of ``document_cut``.
+search_chunks = Table(
+    "search_chunks",
+    corpus_metadata,
+    _surrogate("chunk_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("item_id", BigInteger, nullable=False),
+    Column("document_id", BigInteger, nullable=False),
+    Column("start_seq", Integer, nullable=False),
+    Column("start_offset", Integer, nullable=False),
+    Column("end_seq", Integer, nullable=False),
+    Column("end_offset", Integer, nullable=False),
+    Column("speakers", ARRAY(BigInteger), nullable=False, server_default=text("'{}'::bigint[]")),
+    _created_at(),
+    UniqueConstraint("natural_id", name="search_chunks_natural_id_key"),
+    ForeignKeyConstraint(
+        ["item_id", "document_id"],
+        ["documents.item_id", "documents.document_id"],
+        name="search_chunks_document_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(
+        "start_seq >= 0 AND start_offset >= 0 AND end_offset >= 0",
+        name="search_chunks_bounds_check",
+    ),
+    CheckConstraint(
+        "(end_seq, end_offset) > (start_seq, start_offset)", name="search_chunks_span_check"
+    ),
+    Index("search_chunks_document_idx", "item_id", "document_id", "start_seq"),
+    Index("search_chunks_speakers_idx", "speakers", postgresql_using="gin"),
+)
+
+_EMBEDDING_KINDS = (
+    "'insight', 'quote', 'transcript', 'summary', 'summary_short', 'kg_topic', 'kg_entity', "
+    "'episode_title', 'episode_description'"
+)
+
+# Keyed by the object's natural id (most kinds have no table yet); ``text_hash`` lets a re-index
+# embed only what changed. ``vector`` is real[] until E09 chooses its type.
+embeddings = Table(
+    "embeddings",
+    corpus_metadata,
+    Column("kind", Text, nullable=False),
+    Column("object_id", Text, nullable=False),
+    Column("model", Text, nullable=False),
+    Column("text_hash", Text, nullable=False),
+    Column("dims", SmallInteger, nullable=False),
+    Column("vector", ARRAY(REAL), nullable=False),
+    _created_at(),
+    PrimaryKeyConstraint("kind", "object_id", "model", name="embeddings_pkey"),
+    CheckConstraint(f"kind IN ({_EMBEDDING_KINDS})", name="embeddings_kind_check"),
+    CheckConstraint(
+        "dims >= 1 AND array_ndims(vector) = 1 AND cardinality(vector) = dims",
+        name="embeddings_dims_check",
+    ),
+    Index("embeddings_model_idx", "model"),
+)
+
+# One row (id 1), bumped last in every content transaction (DECISIONS rule 7); corpus_0007 seeds it.
+corpus_revision = Table(
+    "corpus_revision",
+    corpus_metadata,
+    Column("id", SmallInteger, primary_key=True, server_default=text("1")),
+    Column("revision", BigInteger, nullable=False, server_default=text("0")),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("id = 1", name="corpus_revision_one_row_check"),
+    CheckConstraint("revision >= 0", name="corpus_revision_revision_check"),
+)

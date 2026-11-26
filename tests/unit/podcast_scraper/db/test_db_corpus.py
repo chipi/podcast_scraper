@@ -52,6 +52,9 @@ TABLES = {
     "identity_changes",
     "identity_clusters",
     "identity_members",
+    "search_chunks",
+    "embeddings",
+    "corpus_revision",
 }
 
 INDEXES = {
@@ -80,6 +83,9 @@ INDEXES = {
     "identity_changes_build_idx",
     "identity_clusters_canonical_idx",
     "identity_members_member_idx",
+    "search_chunks_document_idx",
+    "search_chunks_speakers_idx",
+    "embeddings_model_idx",
 }
 
 
@@ -901,9 +907,131 @@ def test_a_segment_speaker_must_be_an_entity_and_is_cleared_when_it_goes(conn: C
     conn.rollback()
 
 
+def _chunk(conn: Connection, item_id: int, document_id: int, **fields: object) -> int:
+    values = {
+        "natural_id": "chunk:1",
+        "item_id": item_id,
+        "document_id": document_id,
+        "start_seq": 0,
+        "start_offset": 0,
+        "end_seq": 0,
+        "end_offset": 10,
+        **fields,
+    }
+    table = corpus_metadata.tables["corpus.search_chunks"]
+    chunk_id: int = conn.execute(
+        insert(table).values(values).returning(table.c.chunk_id)
+    ).scalar_one()
+    return chunk_id
+
+
+def test_a_chunk_spans_segments_and_carries_every_speaker_of_its_range(conn: Connection) -> None:
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    chunk = _chunk(conn, item, document, end_seq=3, end_offset=0, speakers=[7, 9])
+    assert conn.execute(
+        text("SELECT speakers FROM corpus.search_chunks WHERE chunk_id = :c"), {"c": chunk}
+    ).scalar_one() == [7, 9]
+    # The speaker filter reads the GIN index's operator.
+    assert (
+        conn.execute(
+            text("SELECT count(*) FROM corpus.search_chunks WHERE speakers @> ARRAY[9]::bigint[]")
+        ).scalar_one()
+        == 1
+    )
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    "span",
+    [
+        {"end_seq": 0, "end_offset": 0},  # empty
+        {"start_seq": 2, "end_seq": 1, "end_offset": 50},  # ends before its start segment
+        {"start_offset": 20, "end_offset": 10},  # ends before its start offset
+        {"start_offset": -1},
+    ],
+)
+def test_a_chunk_refuses_an_empty_or_backwards_span(
+    conn: Connection, span: dict[str, object]
+) -> None:
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    with pytest.raises(sa_exc.IntegrityError, match="search_chunks_(span|bounds)_check"):
+        _chunk(conn, item, document, **span)
+    conn.rollback()
+
+
+def test_a_chunk_must_name_its_documents_own_item_and_goes_with_it(conn: Connection) -> None:
+    source = _source(conn)
+    item, other = _item(conn, source, "1"), _item(conn, source, "2")
+    document = _document(conn, item)
+    with pytest.raises(sa_exc.IntegrityError, match="search_chunks_document_fkey"):
+        _chunk(conn, other, document)
+    conn.rollback()
+    item = _item(conn, _source(conn))
+    document = _document(conn, item)
+    _chunk(conn, item, document)
+    with pytest.raises(sa_exc.IntegrityError, match="search_chunks_natural_id_key"):
+        _chunk(conn, item, document)
+    conn.rollback()
+    item = _item(conn, _source(conn))
+    _chunk(conn, item, _document(conn, item))
+    conn.execute(text("DELETE FROM corpus.content_items WHERE item_id = :i"), {"i": item})
+    assert conn.execute(text("SELECT count(*) FROM corpus.search_chunks")).scalar_one() == 0
+    conn.rollback()
+
+
+def _embedding(conn: Connection, **fields: object) -> None:
+    values = {
+        "kind": "insight",
+        "object_id": "insight:1",
+        "model": "minilm-l6-v2",
+        "text_hash": "h",
+        "dims": 3,
+        "vector": [0.1, 0.2, 0.3],
+        **fields,
+    }
+    conn.execute(insert(corpus_metadata.tables["corpus.embeddings"]).values(values))
+
+
+def test_an_embedding_is_one_per_object_and_model(conn: Connection) -> None:
+    _embedding(conn)
+    _embedding(conn, model="other")
+    with pytest.raises(sa_exc.IntegrityError, match="embeddings_pkey"):
+        _embedding(conn)
+    conn.rollback()
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"kind": "episode"},
+        {"dims": 4},
+        {"dims": 0, "vector": []},
+        {"vector": [[0.1, 0.2, 0.3]], "dims": 3},
+    ],
+)
+def test_an_embedding_refuses_a_bad_kind_or_a_vector_not_of_its_dims(
+    conn: Connection, fields: dict[str, object]
+) -> None:
+    with pytest.raises(sa_exc.IntegrityError, match="embeddings_(kind|dims)_check"):
+        _embedding(conn, **fields)
+    conn.rollback()
+
+
+def test_the_corpus_revision_is_one_row_starting_at_zero(conn: Connection) -> None:
+    assert conn.execute(text("SELECT id, revision FROM corpus.corpus_revision")).all() == [(1, 0)]
+    with pytest.raises(sa_exc.IntegrityError, match="corpus_revision_one_row_check"):
+        conn.execute(text("INSERT INTO corpus.corpus_revision (id) VALUES (2)"))
+    conn.rollback()
+    with pytest.raises(sa_exc.IntegrityError, match="corpus_revision_pkey"):
+        conn.execute(text("INSERT INTO corpus.corpus_revision DEFAULT VALUES"))
+    conn.rollback()
+
+
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0006_migration_runs"]
+    assert scripts.get_heads() == ["corpus_0007_search_chunks"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -911,8 +1039,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0004_documents",
         "corpus_0005_entities",
         "corpus_0006_migration_runs",
+        "corpus_0007_search_chunks",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0006_migration_runs"
+    assert migrate.head_revision("corpus") == "corpus_0007_search_chunks"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1109,9 +1238,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0004_documents",
             "corpus_0005_entities",
             "corpus_0006_migration_runs",
+            "corpus_0007_search_chunks",
         ]
         rows = migrate.history_rows(url, "corpus", limit=10)
         assert [r["revision"] for r in rows] == [
+            "corpus_0007_search_chunks",
             "corpus_0006_migration_runs",
             "corpus_0005_entities",
             "corpus_0004_documents",
@@ -1180,8 +1311,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 6]
-        assert len(migrate.history_rows(url, "corpus", limit=10)) == 6
+        assert sorted(len(r) for r in results) == [0, 7]
+        assert len(migrate.history_rows(url, "corpus", limit=10)) == 7
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1230,7 +1361,7 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
         revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=10)]
-        assert len(revisions) == 6
+        assert len(revisions) == 7
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1269,7 +1400,7 @@ def test_upgrade_creates_pg_trgm_only_when_it_is_missing(url: str) -> None:
         scratch = (
             make_url(normalize_url(url)).set(database=name).render_as_string(hide_password=False)
         )
-        assert migrate.upgrade_corpus(scratch)[-1] == "corpus_0006_migration_runs"
+        assert migrate.upgrade_corpus(scratch)[-1] == migrate.head_revision("corpus")
         probe = create_engine(normalize_url(scratch))
         with probe.connect() as c:
             assert c.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")).first()
