@@ -24,7 +24,7 @@ from podcast_scraper.identity.display import person_display
 from podcast_scraper.languages import translated_from_label
 from podcast_scraper.search import groupings
 from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
-from podcast_scraper.utils.utc import as_utc
+from podcast_scraper.utils.utc import as_utc, utc_sort_key
 
 logger = logging.getLogger(__name__)
 
@@ -355,7 +355,9 @@ def _show_tiles(root: Path, card: object) -> tuple[bytes, ...]:
             continue
         fid = row.feed_id or ""
         cur = by_feed.get(fid)
-        if cur is None or (row.publish_date or "") > (getattr(cur, "publish_date", "") or ""):
+        if cur is None or utc_sort_key(row.published_at or row.publish_date) > utc_sort_key(
+            getattr(cur, "published_at", None) or getattr(cur, "publish_date", None)
+        ):
             by_feed[fid] = row
     tiles = []
     for row in list(by_feed.values())[:4]:

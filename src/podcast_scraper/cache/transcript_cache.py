@@ -8,10 +8,10 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from podcast_scraper.utils.log_redaction import format_exception_for_log
+from podcast_scraper.utils.utc import utc_iso, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +230,7 @@ def save_transcript_to_cache(
 
     cache_data: Dict[str, Any] = {
         "transcript": transcript,
-        "cached_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "cached_at": utc_iso(utc_now()),
     }
     if preprocessing:
         cache_data["preprocessing"] = preprocessing

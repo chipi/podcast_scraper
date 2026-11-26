@@ -25,6 +25,7 @@ from podcast_scraper.news_classify import is_kept
 from podcast_scraper.publishers import load_registry, Registry
 from podcast_scraper.search.corpus_scope import discover_metadata_files
 from podcast_scraper.utils.corpus_walk import SOURCES_DIR
+from podcast_scraper.utils.utc import utc_sort_key
 
 NEWS_ARTICLE = "news_article"
 
@@ -243,7 +244,7 @@ def served_items(corpus_root: Path, registry: Optional[Registry] = None) -> List
         item = served_item(f.doc, reg, metadata_relative_path=f.relative_path)
         if item is not None:
             out.append(item)
-    out.sort(key=lambda i: i["published_at"] or "", reverse=True)
+    out.sort(key=lambda i: utc_sort_key(i["published_at"]), reverse=True)
     return out
 
 

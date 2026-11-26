@@ -21,6 +21,7 @@ from podcast_scraper.server.schemas import (
     NewsKgNode,
     NewsSummaryResponse,
 )
+from podcast_scraper.utils.utc import utc_day
 
 router = APIRouter(tags=["corpus"])
 
@@ -52,7 +53,7 @@ def corpus_news_items(
     items = cached_served_items(root)
     if since and since.strip():
         day = since.strip()[:10]
-        items = [i for i in items if (i.get("published_at") or "")[:10] >= day]
+        items = [i for i in items if (utc_day(i.get("published_at")) or "") >= day]
     if publisher_id:
         items = [i for i in items if (i.get("publisher") or {}).get("id") == publisher_id]
     page = items[offset : offset + limit]

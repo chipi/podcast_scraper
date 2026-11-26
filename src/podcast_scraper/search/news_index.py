@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from podcast_scraper.news_items import current_copies, F_TEXT_STATUS, is_shown
+from podcast_scraper.utils.utc import utc_day, utc_sort_key
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,8 @@ def news_rows(corpus_root: Path) -> List[Dict[str, Any]]:
                     "item_id": item_id,
                     "text": text,
                     "language": str(f.doc.get("language") or ""),
-                    "published_at": str(f.doc.get("published_at") or ""),
+                    # UTC with Z, so the `since` filter (text) compares UTC days.
+                    "published_at": utc_sort_key(f.doc.get("published_at")),
                     "metadata_relative_path": f.relative_path,
                 }
             )
@@ -142,7 +144,7 @@ def news_topic_rows(corpus_root: Path) -> List[Dict[str, Any]]:
             art = json.loads(kg_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        published = str(f.doc.get("published_at") or "")[:10]
+        published = utc_day(f.doc.get("published_at")) or ""
         for node in art.get("nodes") or []:
             if not isinstance(node, dict) or node.get("type") != "Topic":
                 continue
