@@ -98,10 +98,10 @@ close (the survey, 2026-11-26):
   `corpus_0003`; `documents` and hash-partitioned `segments` in `corpus_0004`, #2564; entities and
   intel to come, the database session's s-entities and s-intel). The framework and its tests use
   `content_items` and `item_cards`; it must not assume any other table's shape.
-- `corpus_revision` (DECISIONS rule 7, bumped in every content transaction) is not in the schema
-  yet. The database session adds it (one row, a bigint counter) in `corpus_0007`. The framework
-  bumps it through one function that is a no-op until the table exists, and a test against
-  `corpus_0007`'s table pins the bump, so it cannot stay a no-op.
+- `corpus_revision` (DECISIONS rule 7, bumped in every content transaction) is the database
+  session's `corpus_0007` (#2572): one row, a bigint counter, seeded at 0. The framework bumps it
+  through one function, a no-op only on a database not yet at `corpus_0007`; its tests pin that an
+  apply and an undo each advance it by one (#2582).
 
 ## Design & Implementation
 
