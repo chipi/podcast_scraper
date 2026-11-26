@@ -4444,15 +4444,21 @@ def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], r
 
 
 def _sync_corpus_rows(
-    metadata_path: str, output_dir: str, transcript_relpath: Optional[str]
+    metadata_path: str,
+    output_dir: str,
+    transcript_relpath: Optional[str],
+    pipeline_stage: Optional[str] = None,
 ) -> str:
     """w-public: the episode's source and item rows and its transcript documents, once the
     metadata they key on is written; an episode with no transcript still gets its rows. A stored
-    path is relative to ``output_dir`` or absolute (``/app/output/...``)."""
-    from ..db.corpus_writer import sync_episode
+    path is relative to ``output_dir`` or absolute (``/app/output/...``). A later transcript
+    version records the change the run's ``pipeline_stage`` makes (``change_kind_for``)."""
+    from ..db.corpus_writer import change_kind_for, sync_episode
 
     transcript = Path(output_dir) / transcript_relpath if transcript_relpath else None
-    return sync_episode(Path(metadata_path), transcript)
+    return sync_episode(
+        Path(metadata_path), transcript, change_kind=change_kind_for(pipeline_stage)
+    )
 
 
 def generate_episode_metadata(  # noqa: C901
@@ -5060,7 +5066,7 @@ def generate_episode_metadata(  # noqa: C901
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
         if _not_served:
             _mark_episode_unusable(output_dir, transcript_file_path, _not_served)
-        _sync_corpus_rows(metadata_path, output_dir, transcript_file_path)
+        _sync_corpus_rows(metadata_path, output_dir, transcript_file_path, cfg.pipeline_stage)
 
         # RFC-109 / ADR-132: append the summary/GI/KG stage blocks to the per-episode manifest that
         # the transcript-side stages (ASR/diarization/naming) started. Best-effort — never fatal.

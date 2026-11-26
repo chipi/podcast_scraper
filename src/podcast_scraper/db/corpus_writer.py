@@ -102,6 +102,28 @@ TRANSLATED = "translated"
 CORRECTED = "corrected"
 CHANGE_KINDS = (RETRANSCRIBED, REPUNCTUATED, TRANSLATED, CORRECTED)
 
+#: The change a later version of an episode's transcript records, by the run's ``pipeline_stage``.
+#: Every reprocess stage reaches the metadata stage, whose hook syncs the episode, so the stage
+#: names its change there: ``translate_only`` re-translates, ``repunctuate_only`` re-transcribes
+#: windows to restore punctuation, and the stages that keep the transcription and change the text
+#: around it (speaker names: ``relabel_only``, ``rediarize_only``; the cleaned render:
+#: ``rederive_only``) correct it. A full run, ``retranscript_only`` and any other stage
+#: re-transcribe.
+STAGE_CHANGE_KINDS = {
+    "translate_only": TRANSLATED,
+    "repunctuate_only": REPUNCTUATED,
+    "relabel_only": CORRECTED,
+    "rediarize_only": CORRECTED,
+    "rederive_only": CORRECTED,
+}
+
+
+def change_kind_for(pipeline_stage: Optional[str]) -> str:
+    """The ``change_kind`` a sync in a run of ``pipeline_stage`` records: its
+    :data:`STAGE_CHANGE_KINDS` entry, else ``retranscribed``."""
+    return STAGE_CHANGE_KINDS.get(pipeline_stage or "", RETRANSCRIBED)
+
+
 #: How each sync ended, by outcome, since the process started; the run's metrics read it.
 OUTCOMES: collections.Counter[str] = collections.Counter()
 #: Items written with a time column null because the metadata states it unreadably, by column
@@ -383,7 +405,8 @@ def sync_episode(
     The outcome names the documents: ``written`` (version 1 of every variant written),
     ``superseded`` (a later version written: its ``change_kind`` is the caller's, so the metadata
     stage's ``retranscribed`` is assumed until the translation, repunctuate and retranscript_only
-    stages sync themselves), ``unchanged`` or ``no_files`` (no ``transcript_path``, or no
+    stages' runs pass theirs: :func:`change_kind_for`), ``unchanged`` or ``no_files`` (no
+    ``transcript_path``, or no
     transcript body beside it); the rows are upserted in each of these. Otherwise nothing is
     written: ``lease_refused`` (another job holds a conflicting lease), ``lease_lost``,
     ``refused`` (the keys cannot be derived, a stored row contradicts the item, or a body does not

@@ -584,7 +584,9 @@ def test_the_metadata_hook_joins_a_relative_path_keeps_an_absolute_one_and_syncs
 
     calls: list[tuple[Path, Path | None]] = []
     monkeypatch.setattr(
-        corpus_writer, "sync_episode", lambda meta, transcript: calls.append((meta, transcript))
+        corpus_writer,
+        "sync_episode",
+        lambda meta, transcript, change_kind: calls.append((meta, transcript)),
     )
     hook = metadata_generation._sync_corpus_rows
     hook("/out/metadata/e.metadata.json", "/out", "transcripts/e.txt")
@@ -595,6 +597,55 @@ def test_the_metadata_hook_joins_a_relative_path_keeps_an_absolute_one_and_syncs
         (Path("/out/metadata/e.metadata.json"), Path("/app/output/transcripts/e.txt")),
         (Path("/out/metadata/e.metadata.json"), None),
     ]
+
+
+@pytest.mark.parametrize(
+    "stage, kind",
+    [
+        ("full", RETRANSCRIBED),
+        (None, RETRANSCRIBED),
+        ("retranscript_only", RETRANSCRIBED),
+        ("translate_only", "translated"),
+        ("repunctuate_only", "repunctuated"),
+        ("relabel_only", "corrected"),
+        ("rediarize_only", "corrected"),
+        ("rederive_only", "corrected"),
+    ],
+)
+def test_the_metadata_hook_records_the_change_its_runs_stage_makes(
+    stage: str | None, kind: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from podcast_scraper.workflow import metadata_generation
+
+    kinds: list[str] = []
+    monkeypatch.setattr(
+        corpus_writer,
+        "sync_episode",
+        lambda meta, transcript, change_kind: kinds.append(change_kind),
+    )
+    metadata_generation._sync_corpus_rows("/out/metadata/e.metadata.json", "/out", None, stage)
+    assert kinds == [kind]
+
+
+def test_a_translate_only_rerun_records_its_new_version_as_translated(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.workflow import metadata_generation
+
+    meta = _metadata(tmp_path, "item:t")
+    _write(tmp_path, BASE + ".txt", "First.\n")
+    assert metadata_generation._sync_corpus_rows(str(meta), str(tmp_path), BASE + ".txt") == (
+        "written"
+    )
+    _write(tmp_path, BASE + ".txt", "Second.\n")
+    assert (
+        metadata_generation._sync_corpus_rows(
+            str(meta), str(tmp_path), BASE + ".txt", "translate_only"
+        )
+        == "superseded"
+    )
+    item = _row(conn, "content_items", "item:t")["item_id"]
+    assert _versions(conn, item) == [(1, "created", False), (2, "translated", True)]
 
 
 def test_an_episode_with_no_transcript_still_gets_its_rows(

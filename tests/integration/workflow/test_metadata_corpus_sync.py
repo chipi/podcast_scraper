@@ -43,12 +43,14 @@ def _generate(output_dir: Path) -> object:
 def test_the_metadata_stage_syncs_the_written_metadata_and_its_transcript(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    calls: list[tuple[Path, Path]] = []
+    calls: list[tuple[Path, Path, str]] = []
     monkeypatch.setattr(
-        corpus_writer, "sync_episode", lambda meta, transcript: calls.append((meta, transcript))
+        corpus_writer,
+        "sync_episode",
+        lambda meta, transcript, change_kind: calls.append((meta, transcript, change_kind)),
     )
     metadata_path = _generate(tmp_path)
-    assert calls == [(Path(str(metadata_path)), tmp_path / TRANSCRIPT)]
+    assert calls == [(Path(str(metadata_path)), tmp_path / TRANSCRIPT, "retranscribed")]
     assert calls[0][0].is_file()
 
 
@@ -57,7 +59,7 @@ def test_the_metadata_stage_syncs_the_written_metadata_and_its_transcript(
 def test_a_strict_sync_failure_fails_the_episodes_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def fail(meta: Path, transcript: Path) -> str:
+    def fail(meta: Path, transcript: Path, change_kind: str) -> str:
         raise corpus_writer.SyncFailed("corpus write refused")
 
     monkeypatch.setattr(corpus_writer, "sync_episode", fail)
