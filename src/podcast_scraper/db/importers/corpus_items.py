@@ -14,6 +14,8 @@ transaction:
 - Each item's transcript files (a podcast) or article files (news, ``kind`` article, with the
   metadata's ``fetched_at`` and ``body_sha256``) are written by
   ``importers.corpus_documents.import_documents``.
+- Each episode the catalog shows gets its card (``corpus_cards.card_row``, the functions today's
+  card is built by) and its item's ``has_*`` flags from the same values. News cards come later.
 
 What cannot be written is refused, never guessed: an item whose keys cannot be derived, whose
 documents cannot be named one way or do not cut, or whose slug or ``(source, external id)`` another
@@ -32,9 +34,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection
 
+from podcast_scraper.db.corpus_cards import card_row, FLAGS
 from podcast_scraper.db.corpus_keys import is_news, KeyNotDerivable, source_natural_id
 from podcast_scraper.db.corpus_rows import (
     _instant,
@@ -50,7 +53,7 @@ from podcast_scraper.db.importers.corpus_documents import (
     TRANSCRIPT,
     transcript_files,
 )
-from podcast_scraper.db.schema import content_items, sources
+from podcast_scraper.db.schema import content_items, item_cards, sources
 from podcast_scraper.languages import episode_language
 from podcast_scraper.publishers import load_registry, Registry
 from podcast_scraper.search.corpus_scope import discover_metadata_files
@@ -66,6 +69,7 @@ class ImportReport:
     items: int = 0
     documents: int = 0
     segments: int = 0
+    cards: int = 0
     by_kind: collections.Counter[str] = field(default_factory=collections.Counter)
     refused: list[tuple[str, str]] = field(default_factory=list)
 
@@ -75,6 +79,26 @@ class _Member:
     relpath: str
     path: Path
     doc: Mapping[str, Any]
+
+
+def _write_card(
+    conn: Connection, root: Path, member: _Member, item_id: int, item: dict[str, Any]
+) -> int:
+    """The episode's card and its item's ``has_*`` flags; 1 when a card was written."""
+    if is_news(member.doc):
+        return 0
+    card = card_row(root, member.relpath, item)
+    if card is None:
+        return 0
+    if conn.execute(select(item_cards.c.item_id).where(item_cards.c.item_id == item_id)).first():
+        return 0
+    conn.execute(insert(item_cards).values(item_id=item_id, **card))
+    conn.execute(
+        update(content_items)
+        .where(content_items.c.item_id == item_id)
+        .values(**{flag: card[flag] for flag in FLAGS})
+    )
+    return 1
 
 
 def _members(root: Path) -> tuple[list[_Member], list[tuple[str, str]]]:
@@ -193,6 +217,7 @@ def import_corpus(
                 item["source_id"] = source_id
                 item_id = _upsert_item(conn, item)
                 documents, segments, kind = _write_documents(conn, item_id, member)
+                report.cards += _write_card(conn, root, member, item_id, item)
             except (DocumentRefused, KeyNotDerivable, ValueError) as exc:
                 savepoint.rollback()
                 report.refused.append((member.relpath, str(exc)))

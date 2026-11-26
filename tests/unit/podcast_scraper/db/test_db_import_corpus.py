@@ -10,7 +10,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.importers.corpus_items import import_corpus
-from podcast_scraper.db.schema import content_items, documents, sources
+from podcast_scraper.db.schema import content_items, documents, item_cards, sources
 from podcast_scraper.publishers import Registry
 from tests.unit.podcast_scraper.db.test_corpus_rows import _episode
 from tests.unit.podcast_scraper.db.test_db_corpus import conn, url  # noqa: F401
@@ -51,6 +51,27 @@ def test_a_corpus_becomes_one_source_its_items_and_their_documents(
         2,
     )
     assert conn.execute(select(sources.c.title)).scalar_one() == "A show"
+    conn.rollback()
+
+
+def test_an_episode_gets_its_card_and_its_flags(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    doc = _episode()
+    doc["content"]["transcript_file_path"] = "transcripts/0001 - One.txt"
+    doc["summary"] = {"title": "A lede", "bullets": ["First point.", "Second point."]}
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc, "Hello.\n")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.cards == 1
+    card = conn.execute(select(item_cards)).mappings().one()
+    assert (card["title"], card["source_title"], card["has_transcript"]) == (
+        "An episode",
+        "A show",
+        True,
+    )
+    assert card["summary_bullets"] and card["lede"]
+    item = conn.execute(select(content_items.c.has_transcript)).scalar_one()
+    assert item is True
     conn.rollback()
 
 
