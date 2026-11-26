@@ -15,19 +15,18 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import uuid
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Set, Tuple
 
-from sqlalchemy import and_, create_engine, delete, func, insert, select, Table, text, update
+from sqlalchemy import and_, delete, func, insert, select, Table, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
 
 from podcast_scraper.db import leases
-from podcast_scraper.db.engines import unbounded_connect_args
+from podcast_scraper.db.engines import migrator_engine  # noqa: F401 - re-exported for the CLI
 from podcast_scraper.db.schema import (
     corpus_metadata,
     corpus_migrations,
@@ -35,7 +34,6 @@ from podcast_scraper.db.schema import (
     migration_receipts,
     migration_runs,
 )
-from podcast_scraper.db.settings import DatabaseNotConfigured, ENV_MIGRATOR_URL, normalize_url
 from podcast_scraper.obs.events import emit_event
 
 from . import outcome_hook
@@ -69,31 +67,6 @@ class PlanStopped(outcome_hook.HookStopped):
     def __init__(self, message: str, diff: list[dict[str, Any]]) -> None:
         super().__init__(message)
         self.diff = diff
-
-
-def migrator_engine(url: Optional[str] = None) -> Engine:
-    """A ``migrator`` engine for one corpus migration one-shot (RFC-135 §3); the caller disposes it.
-
-    Only one-shots get the ``migrator`` URL (CRFC-005 §7). One connection, no statement timeout as
-    for schema migrations, and a 5 s lock timeout so a row another writer holds fails the run
-    instead of hanging it.
-    """
-    if url is None:
-        url = (os.environ.get(ENV_MIGRATOR_URL) or "").strip()
-        if not url:
-            raise DatabaseNotConfigured(
-                f"{ENV_MIGRATOR_URL} is not set; a corpus migration on rows runs as migrator"
-            )
-    args = unbounded_connect_args()
-    args["options"] += " -c lock_timeout=5000"
-    return create_engine(
-        normalize_url(url),
-        pool_size=1,
-        max_overflow=0,
-        pool_pre_ping=True,
-        hide_parameters=True,
-        connect_args=args,
-    )
 
 
 @dataclass

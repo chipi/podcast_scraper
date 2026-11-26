@@ -6,6 +6,8 @@ issue: none (E06 item 6, tracker row w-migrations; RFC-135, public #2568)
 touches:
   - src/podcast_scraper/upgrade/rows.py
   - src/podcast_scraper/upgrade/cli_handlers.py
+  - src/podcast_scraper/upgrade/runner.py
+  - src/podcast_scraper/db/engines.py
   - tests/unit/podcast_scraper/upgrade/test_rows.py
 ---
 
@@ -21,25 +23,34 @@ one module, `upgrade/rows.py`: the framework RFC-135 designs for migrations over
 `migrator` engine, `run_migration` and `undo_migration` under the `corpus` lease, the database
 ledger). Its tables are `corpus_0006_migration_runs`'s (committed before it, `db/schema.py`).
 
-- **Nothing registers a row migration.** The registry, the file runner and every file migration
-  are unchanged, so `upgrade run`, `verify` and `rerun` do on the files what they do today; the
-  only row migrations are test-only, in its tests.
+- **Nothing registers a row migration.** The registry and every file migration are unchanged;
+  the file runner (`runner.py`) now leaves out a migration of kind `rows`, which none of the
+  registered ones is, so `upgrade run`, `verify` and `rerun` do on the files what they do today;
+  the only row migrations are test-only, in its tests. `migrator_engine` moves to
+  `db/engines.py`, beside `unbounded_connect_args`; nothing else there changes.
 - **The CLI's new paths are row mode only.** `upgrade run --database`, `upgrade undo` and
   `upgrade surfaces` are new in `upgrade/cli_handlers.py`; every file subcommand, and `run`
   without `--database`, takes the code path it takes today.
 - **No digest moves from this change** (0051's is `5699a0209e74` on 35650421d, on 5e44cff02 and
   with this change: `digests_check.py`, every public migration with a shipped outcome). `rows.py`
-  is a new module that no existing migration imports, so it is in
-  no migration's code closure; nor is `cli_handlers.py` (`closure54.txt` lists no CLI module); `db/engines.py`, `db/settings.py`, `upgrade/migration.py`,
-  `state.py`, `registry.py` and `runner.py`, which are in 0054's closure (`r37` drill
-  `closure54_new.txt`, 2026-11-26), are not edited.
+  is a new module that no existing migration imports, so it is in no migration's code closure;
+  nor is `cli_handlers.py` (`closure54.txt` lists no CLI module).
+- **`runner.py` and `db/engines.py` are in 0054's closure** (`closure54.txt`), and 0054 is a
+  Common migration still pending on prod. Its digest is taken over the installed public package
+  (`outcome_hook.py:74`), which Common's image pins by `PUBLIC_REF` (e29fcc3ad), so these edits
+  move 0054's digest only when `PUBLIC_REF` is bumped to a public commit carrying them. The
+  database session and ingestion agreed (2026-11-26) to re-gate 0054 once, after the last corpus
+  revision of this release is on public's release branch and `PUBLIC_REF` is bumped to it, and
+  before the release image is chosen; these edits are under that re-gate. Rehearsal 1 runs
+  `PUBLIC_REF` e29fcc3ad and is unaffected.
 - **But `corpus_0006` moves 0051's digest, and 0054's.** `db/schema.py` is in both closures
   (`module_closure` of `m0051_kg_3_0`, 509 modules, and `closure54.txt`), and the separate commit
   `corpus_0006` (35650421d) edits it: 0051's digest on this tree is `5699a0209e74`, its shipped
   outcome's `ec6f3d57c6ce`. The release base d2e2cde76 is already stale for 0051 (`9bb72871e96d`:
   the database session's corpus_0004 and corpus_0005 edited `schema.py` after the outcome), so
-  this branch adds a move, not the first one. It matters only if 0051 or 0054 is still pending
-  when this branch's release deploys; then its outcome is re-gated on the final chain.
+  this branch adds a move, not the first one. 0051 is applied on prod (snapshot-prod-20261124's
+  `upgrade_ledger.json`: 2026-11-23T20:25:25Z), so its move does not matter; 0054's is under the
+  one re-gate above.
 - **What a listener or reader is shown:** unchanged. The framework writes only when a row
   migration is run, and the first real one is written after the cut-over with a record of its own
   (full or light by what it changes).

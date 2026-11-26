@@ -287,6 +287,16 @@ def test_apply_through_the_file_runner_is_refused(items: dict[str, int]) -> None
         Retitle(items).apply(None)  # type: ignore[arg-type]
 
 
+def test_the_file_runner_leaves_migrations_on_rows_out(
+    items: dict[str, int], tmp_path: Path
+) -> None:
+    from podcast_scraper.upgrade.runner import UpgradeRunner
+    from podcast_scraper.upgrade.state import FilesystemStateStore
+
+    runner = UpgradeRunner(FilesystemStateStore(tmp_path), migrations=[Retitle(items)])
+    assert (runner.migrations, runner.pending(), runner.status().pending) == ([], [], [])
+
+
 def _every_corpus_row(engine: Engine) -> dict[str, list[str]]:
     """Every corpus table but the run history, as sorted row hashes."""
     with engine.connect() as conn:

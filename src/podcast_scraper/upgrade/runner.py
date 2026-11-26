@@ -75,8 +75,11 @@ class UpgradeRunner:
         self.state = state_store
         source = migrations if migrations is not None else get_migrations()
         # Id order is a runner invariant — migrations must apply deterministically in
-        # sequence regardless of how the list was supplied.
-        self.migrations = sorted(source, key=lambda m: m.id)
+        # sequence regardless of how the list was supplied. Migrations on rows run through
+        # ``upgrade.rows`` against their own ledger (RFC-135), never through this runner.
+        self.migrations = sorted(
+            (m for m in source if getattr(m, "kind", None) != "rows"), key=lambda m: m.id
+        )
         #: Regime migrations the outcome hook prepared for this run (``outcome_hook.prepare``),
         #: by id; a regime migration with none is refused (``upgrade/outcome_hook.py``).
         self.prepared: Dict[str, Any] = {}
