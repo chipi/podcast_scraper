@@ -12,14 +12,17 @@ import pytest
 from podcast_scraper.db.corpus_keys import KeyNotDerivable
 from podcast_scraper.db.corpus_rows import (
     item_row,
+    merge_source_attrs,
     NOT_SERVED,
     SERVED,
     served_for,
+    source_attrs,
     source_row,
     source_row_for,
     unreadable_times,
 )
 from podcast_scraper.publishers import Publisher, Registry
+from podcast_scraper.server.corpus_catalog import catalog_row_for_metadata_path
 
 _FEED_ID = "sha256:" + "ab" * 32
 _REGISTRY = Registry(
@@ -261,3 +264,83 @@ def test_an_unusable_episode_read_as_any_mapping_is_not_served() -> None:
 def test_a_date_alone_reads_as_utc_midnight() -> None:
     published = item_row(_episode(published_date="2026-09-16"))["published_at"]
     assert published == datetime(2026, 9, 16, tzinfo=timezone.utc)
+
+
+def _full_episode() -> dict[str, Any]:
+    doc = _episode(
+        description="  The blurb.  ",
+        image_url="https://cdn.example/ep1.jpg",
+        image_local_relpath="\\.podcast_scraper\\artwork\\ep1.jpg",
+        licence={"status": "declared", "url": "https://example/licence"},
+        episode_number=7,
+    )
+    doc["feed"].update(
+        url="https://example/feed.xml",
+        description="A show about things.",
+        authors=["A. Host", "", "B. Host"],
+        last_updated="2026-11-20T09:00:00Z",
+        image_url="https://cdn.example/show.jpg",
+        image_local_relpath="/.podcast_scraper/artwork/show.jpg",
+    )
+    doc["summary"] = {"title": " Title ", "bullets": [" One ", "", "Two"], "raw_text": " Body "}
+    return doc
+
+
+def test_the_catalog_fields_are_in_type_attrs_under_the_catalogs_names(tmp_path: Any) -> None:
+    rel = "feeds/show/run_1/metadata/ep1.metadata.json"
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(_full_episode()), encoding="utf-8")
+    path.with_name("ep1.bridge.json").write_text("{}", encoding="utf-8")
+    cat = catalog_row_for_metadata_path(tmp_path, rel)
+    assert cat is not None
+    attrs = item_row(_full_episode(), metadata_relpath=rel, has_bridge=True)["type_attrs"]
+    for field in (
+        "metadata_relative_path",
+        "summary_title",
+        "summary_text",
+        "has_bridge",
+        "episode_image_url",
+        "episode_description",
+        "episode_licence_json",
+        "episode_number",
+    ):
+        assert attrs[field] == getattr(cat, field), field
+    assert tuple(attrs["summary_bullets"]) == cat.summary_bullets
+    # Stored as stated; the catalog shows them once the file exists (checked at read time).
+    assert attrs["episode_image_local_relpath"] == ".podcast_scraper/artwork/ep1.jpg"
+    assert attrs["feed_image_local_relpath"] == ".podcast_scraper/artwork/show.jpg"
+    source = source_attrs(_full_episode())["type_attrs"]
+    assert source == {
+        "feed_rss_url": cat.feed_rss_url,
+        "feed_description": cat.feed_description,
+        "feed_authors": list(cat.feed_authors),
+        "feed_last_updated": cat.feed_last_updated,
+        "feed_image_url": cat.feed_image_url,
+        "feed_image_local_relpath": ".podcast_scraper/artwork/show.jpg",
+    }
+
+
+def test_a_field_the_metadata_does_not_state_is_left_out() -> None:
+    attrs = item_row(_episode())["type_attrs"]
+    assert not {"metadata_relative_path", "summary_title", "summary_bullets", "has_bridge"} & set(
+        attrs
+    )
+    assert source_row(_episode())["type_attrs"] == {}
+
+
+def test_a_shows_type_attrs_take_each_key_from_its_newest_item_that_states_it() -> None:
+    old = _full_episode()
+    old["episode"].update(episode_id="ep-old", published_date="2026-01-01T00:00:00+00:00")
+    new = _episode(episode_id="ep-new", published_date="2026-11-01T00:00:00+00:00")
+    new["feed"]["description"] = "Newer blurb."
+    row = source_row_for([new, old])
+    assert row["type_attrs"]["feed_description"] == "Newer blurb."
+    assert row["type_attrs"]["feed_rss_url"] == "https://example/feed.xml"
+    assert merge_source_attrs([source_attrs(new), source_attrs(old)]) == {
+        key: row[key] for key in merge_source_attrs([]) if key in row
+    }
+
+
+def test_source_attrs_stored_before_type_attrs_merge_as_none_stated() -> None:
+    assert merge_source_attrs([{"title": "A show"}])["type_attrs"] == {}

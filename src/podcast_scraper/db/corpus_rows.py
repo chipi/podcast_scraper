@@ -28,7 +28,11 @@ What each column comes from (a column changes only with its source):
 - ``served``: :func:`served_for`.
 - ``unusable``: ``languages.episode_is_unusable`` (D-44); a news item's top-level ``unusable``.
   ``withheld``: a news item whose ``serveable`` is ``none``.
-- ``type_attrs``: the fields surfaces only display (DECISIONS rule 16).
+- ``type_attrs``: the fields surfaces only display (DECISIONS rule 16). The ones a
+  ``CatalogEpisodeRow`` reads are named after its fields (``metadata_relative_path``,
+  ``summary_title`` …, and on the source :data:`SOURCE_TYPE_ATTRS`), so the catalog built from rows
+  reads them without a mapping. Image paths are stored as the metadata states them; the reader
+  checks them on disk, as the catalog does.
 
 Left to others: ``publisher_id`` and ``artwork_asset_id`` are references the writer resolves to row
 ids; ``has_transcript``, ``has_gi``, ``has_kg`` and ``has_moments`` come from the item's other
@@ -77,11 +81,21 @@ from podcast_scraper.news_items import (
 )
 from podcast_scraper.publishers import Registry
 from podcast_scraper.server.corpus_catalog import (
+    _episode_description,
+    _episode_licence,
     _episode_title,
+    _feed_authors,
     _feed_category,
+    _feed_description,
     _feed_display_title,
+    _feed_last_updated,
     _feed_licence,
+    _feed_rss_url,
+    _optional_image_url,
     _optional_non_negative_int,
+    _optional_relpath_field,
+    _summary_body_text,
+    _summary_fields,
 )
 
 #: ``content_items.served`` (CRFC-005 §3.1). The schema also allows 2, "served and in the newest
@@ -169,7 +183,33 @@ def source_row(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -
         "language": feed_language(podcast) if podcast else None,
         "category": _feed_category(podcast) if podcast else None,
         "licence": _feed_licence(podcast) if podcast else None,
+        "type_attrs": _source_type_attrs(podcast) if podcast else {},
     }
+
+
+#: The feed fields a ``CatalogEpisodeRow`` reads that no ``sources`` column holds: the keys of
+#: ``sources.type_attrs`` (corpus_0010), named after those fields.
+SOURCE_TYPE_ATTRS = (
+    "feed_rss_url",
+    "feed_description",
+    "feed_authors",
+    "feed_last_updated",
+    "feed_image_url",
+    "feed_image_local_relpath",
+)
+
+
+def _source_type_attrs(podcast: dict[str, Any]) -> dict[str, Any]:
+    feed = _block(podcast, "feed")
+    stated = {
+        "feed_rss_url": _feed_rss_url(podcast),
+        "feed_description": _feed_description(podcast),
+        "feed_authors": list(_feed_authors(podcast)) or None,
+        "feed_last_updated": _feed_last_updated(podcast),
+        "feed_image_url": _optional_image_url(feed.get("image_url")),
+        "feed_image_local_relpath": _optional_relpath_field(feed.get("image_local_relpath")),
+    }
+    return {key: value for key, value in stated.items() if value is not None}
 
 
 #: An item that states no readable publish time sorts below every dated one.
@@ -211,27 +251,33 @@ def unreadable_times(doc: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 #: The ``sources`` columns an item states for its source: what ``content_items.source_attrs``
-#: holds (corpus_0008), so a source row can be merged again from its items' rows.
+#: holds (corpus_0008), with its ``type_attrs`` (:data:`SOURCE_TYPE_ATTRS`), so a source row can be
+#: merged again from its items' rows.
 SOURCE_ATTRS = ("raw_feed_id", "title", "language", "category", "licence")
 
 
 def source_attrs(doc: Mapping[str, Any], *, registry: Optional[Registry] = None) -> dict[str, Any]:
-    """The item's ``content_items.source_attrs``: the :data:`SOURCE_ATTRS` of its
-    :func:`source_row`."""
+    """The item's ``content_items.source_attrs``: the :data:`SOURCE_ATTRS` and ``type_attrs`` of
+    its :func:`source_row`."""
     row = source_row(doc, registry=registry)
-    return {column: row[column] for column in SOURCE_ATTRS}
+    return {**{column: row[column] for column in SOURCE_ATTRS}, "type_attrs": row["type_attrs"]}
 
 
 def merge_source_attrs(newest_first: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """Each of :data:`SOURCE_ATTRS` from the first of ``newest_first`` that states it (not
-    ``None``): the catalog's rule (``corpus_catalog.aggregate_feeds``). The one merge
-    :func:`source_row_for` and the pipeline's writer (``corpus_writer``) both use."""
+    """Each of :data:`SOURCE_ATTRS`, and each ``type_attrs`` key, from the first of
+    ``newest_first`` that states it (not ``None``): the catalog's rule
+    (``corpus_catalog.aggregate_feeds``). The one merge :func:`source_row_for` and the pipeline's
+    writer (``corpus_writer``) both use."""
     merged: dict[str, Any] = {column: None for column in SOURCE_ATTRS}
+    type_attrs: dict[str, Any] = {}
     for attrs in newest_first:
         for column in SOURCE_ATTRS:
             if merged[column] is None and attrs.get(column) is not None:
                 merged[column] = attrs[column]
-    return merged
+        for key, value in (attrs.get("type_attrs") or {}).items():
+            if key not in type_attrs and value is not None:
+                type_attrs[key] = value
+    return {**merged, "type_attrs": {key: type_attrs[key] for key in sorted(type_attrs)}}
 
 
 def source_row_for(
@@ -254,10 +300,35 @@ def source_row_for(
     }
 
 
-def _podcast_type_attrs(doc: Mapping[str, Any]) -> dict[str, Any]:
+def _catalog_type_attrs(
+    doc: Mapping[str, Any], metadata_relpath: str, has_bridge: Optional[bool]
+) -> dict[str, Any]:
+    podcast = dict(doc)
+    episode = _block(doc, "episode")
+    summary_title, summary_bullets = _summary_fields(podcast)
+    stated = {
+        "metadata_relative_path": metadata_relpath or None,
+        "summary_title": summary_title,
+        "summary_bullets": summary_bullets or None,
+        "summary_text": _summary_body_text(podcast),
+        "has_bridge": has_bridge,
+        "episode_image_url": _optional_image_url(episode.get("image_url")),
+        "episode_description": _episode_description(podcast),
+        "episode_image_local_relpath": _optional_relpath_field(episode.get("image_local_relpath")),
+        "feed_image_local_relpath": _optional_relpath_field(
+            _block(doc, "feed").get("image_local_relpath")
+        ),
+        "episode_licence_json": _episode_licence(podcast),
+    }
+    return {key: value for key, value in stated.items() if value is not None}
+
+
+def _podcast_type_attrs(
+    doc: Mapping[str, Any], metadata_relpath: str, has_bridge: Optional[bool]
+) -> dict[str, Any]:
     episode = _block(doc, "episode")
     content = _block(doc, "content")
-    attrs: dict[str, Any] = {}
+    attrs: dict[str, Any] = _catalog_type_attrs(doc, metadata_relpath, has_bridge)
     number = _optional_non_negative_int(episode.get("episode_number"))
     if number is not None:
         attrs["episode_number"] = number
@@ -294,9 +365,13 @@ def _news_type_attrs(doc: Mapping[str, Any]) -> dict[str, Any]:
     return attrs
 
 
-def item_row(doc: Mapping[str, Any], *, metadata_relpath: str = "") -> dict[str, Any]:
+def item_row(
+    doc: Mapping[str, Any], *, metadata_relpath: str = "", has_bridge: Optional[bool] = None
+) -> dict[str, Any]:
     """The ``content_items`` columns the item's metadata decides, keyed by column name.
-    ``metadata_relpath`` matters only for the slug of an episode with no ``episode_id``."""
+    ``metadata_relpath`` is the metadata file's path from the served corpus root: an episode's
+    ``type_attrs.metadata_relative_path``, and the slug of an episode with no ``episode_id``.
+    ``has_bridge`` (whether the bridge file beside the metadata exists) is stored when given."""
     if is_news(doc):
         own = _block(doc, NEWS_ARTICLE)
         type_attrs = _news_type_attrs(doc)
@@ -311,7 +386,7 @@ def item_row(doc: Mapping[str, Any], *, metadata_relpath: str = "") -> dict[str,
     else:
         podcast = dict(doc)
         episode = _block(doc, "episode")
-        type_attrs = _podcast_type_attrs(doc)
+        type_attrs = _podcast_type_attrs(doc, metadata_relpath, has_bridge)
         editorial = None
         title = _episode_title(podcast)
         published = _instant(episode.get("published_date"))
