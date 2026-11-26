@@ -13,45 +13,22 @@ be added later if the scan cost ever warrants it.
 
 from __future__ import annotations
 
-import hashlib
 from functools import lru_cache
 from pathlib import Path
 
 from podcast_scraper import perf_cache
-from podcast_scraper.identity.slugify import slugify
+from podcast_scraper.db.corpus_keys import item_slug
 from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
-_HASH_LEN = 10  # hex chars of the stable discriminator suffix
 _SLUG_INDEX_NS = "app_slug_index"
-
-
-def _feed_slug(feed_id: str) -> str:
-    """Readable, URL-safe prefix from a feed id; ``"feed"`` when empty/unslug-able."""
-    fid = (feed_id or "").strip()
-    if not fid:
-        return "feed"
-    try:
-        return slugify(fid)
-    except ValueError:
-        return "feed"
 
 
 @lru_cache(maxsize=65536)
 def episode_slug(feed_id: str, episode_id: str | None, metadata_relpath: str) -> str:
-    """Deterministic, URL-safe slug ``{feed-slug}-{hash}`` for one episode.
-
-    The hash is taken over the stable identity ``(feed_id, episode_id)``; when an
-    episode has no ``episode_id`` we fall back to the metadata relpath so every
-    episode still gets a deterministic slug. Title/run-suffix never affect the slug,
-    so it survives re-scrapes.
-    """
-    if episode_id:
-        key = f"{feed_id}\x00{episode_id}"
-    else:
-        key = f"{feed_id}\x00path:{metadata_relpath}"
-    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:_HASH_LEN]
-    return f"{_feed_slug(feed_id)}-{digest}"
+    """Deterministic, URL-safe slug ``{feed-slug}-{hash}`` for one episode (the derivation lives in
+    :func:`podcast_scraper.db.corpus_keys.item_slug`, memoised here for the per-request scans)."""
+    return item_slug(feed_id, episode_id, metadata_relpath)
 
 
 def slug_for_row(row: CatalogEpisodeRow) -> str:
