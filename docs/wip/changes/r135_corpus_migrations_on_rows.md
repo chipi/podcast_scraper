@@ -89,7 +89,7 @@ any row written, the rows per table, the plan, the deltas and gating moves); an 
 from it lets the real run through with no measure failure; the script writes the report with the
 copy's URL password-masked, and its rows mode refuses a migration on files.
 
-The roles (not a repo test; `~/.cache/closelistening-ingestion-drill/rows-migrator/run.sh`, a
+The roles (not a repo test; the ingestion session's drill script `rows-migrator/run.sh`, a
 throwaway `postgres:18.6` with infra #120's `roles.sql` and `pg_db_grants.sh`'s corpus step,
 removed on exit): the corpus plane migrated as `migrator` owns the three framework tables; a dry
 run, apply and undo as `migrator` (content written as `pipeline_rw`) restore every row;
