@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
-from podcast_scraper.utils.utc import utc_iso
+from podcast_scraper.utils.utc import as_utc, utc_iso
 
 from ..rss.licence import channel_licence_from_bytes, episode_licence
 from ..rss.parser import (
@@ -92,12 +92,13 @@ def _derive_feed_updates(rss_bytes: bytes, base_url: str) -> dict[str, Any]:
 
 def _value_current(key: str, stored: Any, new: Any) -> bool:
     """Whether a stored feed field already equals the derived one — with datetime normalization for
-    ``last_updated`` (advisor M2): the pipeline serializes Zulu and our isoformat gives ``+00:00``,
-    so a naive `==` would rewrite (and format-flip) every pipeline-written file forever."""
+    ``last_updated`` (advisor M2): compared as instants, so a different string form of the same
+    time (``Z``, ``+00:00``, another offset, or a naive value written before ``utils.utc``, which
+    is UTC) is current and not rewritten."""
     if key == "last_updated" and isinstance(stored, str) and isinstance(new, str):
         try:
-            return datetime.fromisoformat(stored.replace("Z", "+00:00")) == datetime.fromisoformat(
-                new.replace("Z", "+00:00")
+            return as_utc(datetime.fromisoformat(stored.replace("Z", "+00:00"))) == as_utc(
+                datetime.fromisoformat(new.replace("Z", "+00:00"))
             )
         except ValueError:
             return stored == new
