@@ -16,11 +16,13 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     func,
     Identity,
     Index,
     Integer,
     MetaData,
+    PrimaryKeyConstraint,
     SmallInteger,
     Table,
     Text,
@@ -526,4 +528,77 @@ item_cards = Table(
     _created_at(),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Index("item_cards_artwork_idx", "artwork_asset_id"),
+)
+
+# A document is one version of one kind and variant of an item; the served one is the one no row
+# supersedes.
+documents = Table(
+    "documents",
+    corpus_metadata,
+    _surrogate("document_id"),
+    Column(
+        "item_id",
+        BigInteger,
+        ForeignKey("content_items.item_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("kind", Text, nullable=False),
+    Column("variant", Text, nullable=False),
+    Column("version", Integer, nullable=False, server_default=text("1")),
+    Column("supersedes_id", BigInteger, nullable=True),
+    Column("change_kind", Text, nullable=True),
+    Column("body_sha256", Text, nullable=True),
+    Column("fetched_at", DateTime(timezone=True), nullable=True),
+    Column("extraction", Text, nullable=True),
+    Column("extractor_version", Text, nullable=True),
+    _created_at(),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint(
+        "item_id", "kind", "variant", "version", name="documents_item_kind_variant_version_key"
+    ),
+    UniqueConstraint("supersedes_id", name="documents_supersedes_key"),
+    UniqueConstraint("item_id", "document_id", name="documents_item_document_key"),
+    UniqueConstraint(
+        "item_id", "kind", "variant", "document_id", name="documents_series_document_key"
+    ),
+    ForeignKeyConstraint(
+        ["item_id", "kind", "variant", "supersedes_id"],
+        [
+            "documents.item_id",
+            "documents.kind",
+            "documents.variant",
+            "documents.document_id",
+        ],
+        name="documents_supersedes_fkey",
+    ),
+    CheckConstraint("kind IN ('transcript', 'article')", name="documents_kind_check"),
+    CheckConstraint(
+        "variant IN ('raw', 'cleaned', 'adfree', 'en')", name="documents_variant_check"
+    ),
+    CheckConstraint("version >= 1", name="documents_version_check"),
+)
+
+# Keyed by document, not variant, so an old version keeps the text its quotes were cut from. The
+# sixteen hash partitions (segments_p00..p15) are made by corpus_0004, not listed in the metadata.
+segments = Table(
+    "segments",
+    corpus_metadata,
+    Column("item_id", BigInteger, nullable=False),
+    Column("document_id", BigInteger, nullable=False),
+    Column("seq", Integer, nullable=False),
+    Column("start_ms", Integer, nullable=True),
+    Column("end_ms", Integer, nullable=True),
+    Column("speaker_id", BigInteger, nullable=True),
+    Column("text", Text, nullable=False),
+    PrimaryKeyConstraint("item_id", "document_id", "seq", name="segments_pkey"),
+    ForeignKeyConstraint(
+        ["item_id", "document_id"],
+        ["documents.item_id", "documents.document_id"],
+        name="segments_document_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(
+        "start_ms IS NULL OR end_ms IS NULL OR end_ms >= start_ms", name="segments_span_check"
+    ),
+    postgresql_partition_by="HASH (item_id)",
 )
