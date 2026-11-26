@@ -12,6 +12,7 @@ moves to an extension, its built-in entry goes and the extension's ``pipeline_ho
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
@@ -31,6 +32,8 @@ from typing import (
 )
 
 from .content_types import AD_CLEANING, GI, stage_runs
+
+logger = logging.getLogger(__name__)
 
 #: ``(cfg)``. Before any feed is fetched; raise to stop the run (a missing dependency).
 RunStartedHook = Callable[[Any], None]
@@ -439,10 +442,22 @@ def artifact_rows(
     metadata_path: Path, gi_path: Optional[Path], kg_path: Optional[Path]
 ) -> List[Optional[str]]:
     """Run every ``artifact_rows`` stage hook (built-in, then extensions in load order); returns
-    their outcomes."""
-    return [
-        hook(metadata_path, gi_path, kg_path) for hooks in _all() for hook in hooks.artifact_rows
-    ]
+    their outcomes. A hook that raises is logged and reported as ``"failed"``, and the hooks after
+    it still run."""
+    outcomes: List[Optional[str]] = []
+    for hooks in _all():
+        for hook in hooks.artifact_rows:
+            try:
+                outcomes.append(hook(metadata_path, gi_path, kg_path))
+            except Exception:  # noqa: BLE001 - one writer's failure is not the next writer's
+                logger.warning(
+                    "artifact_rows hook %s failed for %s",
+                    getattr(hook, "__qualname__", hook),
+                    metadata_path.name,
+                    exc_info=True,
+                )
+                outcomes.append("failed")
+    return outcomes
 
 
 def kg_prompt_hints(

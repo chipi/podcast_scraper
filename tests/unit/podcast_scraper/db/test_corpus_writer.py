@@ -626,7 +626,12 @@ def test_the_artifact_hooks_run_after_a_kept_sync_and_not_after_a_refused_one(
     from podcast_scraper import stage_hooks
 
     calls: list[tuple[Path, Path | None, Path | None]] = []
-    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda m, g, k: calls.append((m, g, k)))
+
+    def record(m: Path, g: Path | None, k: Path | None) -> list[str]:
+        calls.append((m, g, k))
+        return []
+
+    monkeypatch.setattr(stage_hooks, "artifact_rows", record)
     meta = _corpus_episode(tmp_path)
     gi = meta.with_name("item_c.gi.json")
     gi.write_text("{}", encoding="utf-8")
@@ -635,6 +640,81 @@ def test_the_artifact_hooks_run_after_a_kept_sync_and_not_after_a_refused_one(
     corpus_held()
     assert corpus_writer.flush_deferred(str(tmp_path)) == 0
     assert calls == [(meta, gi, None)]
+
+
+def test_an_episode_that_becomes_unusable_has_its_card_flags_cleared(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # As the importer leaves an item it writes no card for (review of #2597, point 3).
+    from podcast_scraper.languages import UNUSABLE_FIELD
+
+    meta = _corpus_episode(tmp_path)
+    meta.with_name("item_c.gi.json").write_text("{}", encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    assert _row(conn, "content_items", "item:c")["has_gi"] is True
+    conn.rollback()
+    doc = json.loads(meta.read_text())
+    doc["episode"][UNUSABLE_FIELD] = {"reason": "silence"}
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    assert sync_episode(meta, None) == "no_files"
+    item = _row(conn, "content_items", "item:c")
+    assert (item["has_gi"], item["has_kg"], item["has_moments"]) == (False, False, False)
+
+
+def test_a_card_that_cannot_be_read_refuses_the_item_and_is_not_retried(
+    pipeline_db: None,
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The importer refuses such an item; failing it would retry it on every run (point 4).
+    def corrupt(*_: object) -> None:
+        raise ValueError("gi.json: Expecting value")
+
+    monkeypatch.setattr(corpus_writer, "card_row", corrupt)
+    meta = _corpus_episode(tmp_path)
+    assert sync_episode(meta, None) == "refused"
+    assert str(meta) not in corpus_writer._DEFERRED
+    assert conn.execute(text("SELECT count(*) FROM corpus.content_items")).scalar_one() == 0
+
+
+def test_a_raising_artifact_hook_neither_stops_the_next_nor_escapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    from podcast_scraper import stage_hooks
+
+    seen: list[str] = []
+
+    def broken(*_: object) -> str:
+        raise RuntimeError("gi rows")
+
+    def after(*_: object) -> str:
+        seen.append("after")
+        return "written"
+
+    monkeypatch.setattr(
+        stage_hooks, "_all", lambda: [SimpleNamespace(artifact_rows=[broken, after])]
+    )
+    meta = tmp_path / "x.metadata.json"
+    assert stage_hooks.artifact_rows(meta, None, None) == ["failed", "written"]
+    assert seen == ["after"]
+
+
+def test_a_failed_artifact_hook_is_counted_and_raised_only_when_strict(
+    pipeline_db: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from podcast_scraper import stage_hooks
+
+    monkeypatch.setattr(stage_hooks, "artifact_rows", lambda *_: ["failed", "written"])
+    corpus_writer.OUTCOMES.clear()
+    meta = _corpus_episode(tmp_path)
+    assert sync_episode(meta, None) == "no_files"
+    assert corpus_writer.OUTCOMES["hook_failed"] == 1
+    monkeypatch.setenv(corpus_writer.ENV_STRICT, "1")
+    with pytest.raises(corpus_writer.SyncFailed, match="1 artifact_rows hooks failed"):
+        sync_episode(meta, None)
 
 
 def test_every_variant_is_written_with_its_own_cuts(

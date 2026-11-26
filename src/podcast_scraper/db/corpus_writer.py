@@ -357,10 +357,25 @@ def write_card(
     """The episode's ``item_cards`` row and its item's ``has_*`` flags (CRFC-005 §3.2: the item's
     writers write its card in the item's transaction), from ``corpus_cards.card_row``, the
     importer's; returns whether the episode has a card. One the catalog does not show (unusable)
-    has none, so a card written before is removed."""
-    card = card_row(corpus_root, metadata_relpath, item)
+    has none, so a card written before is removed and its flags are cleared, as the importer leaves
+    an item it writes no card for. A card that cannot be read (``ValueError``, a corrupt GI file)
+    refuses the item, as the importer refuses it, rather than failing it on every run."""
+    try:
+        card = card_row(corpus_root, metadata_relpath, item)
+    except ValueError as exc:
+        raise RowRefused(f"item {item.get('natural_id')}: its card cannot be read: {exc}") from exc
     if card is None:
         conn.execute(delete(item_cards).where(item_cards.c.item_id == item_id))
+        conn.execute(
+            update(content_items)
+            .where(
+                and_(
+                    content_items.c.item_id == item_id,
+                    or_(*(content_items.c[flag].is_(True) for flag in FLAGS)),
+                )
+            )
+            .values(**{flag: False for flag in FLAGS}, updated_at=func.now())
+        )
         return False
     stored = (
         conn.execute(select(item_cards).where(item_cards.c.item_id == item_id)).mappings().first()
@@ -535,12 +550,18 @@ def sync_episode(
     """Sync one item's rows and documents (:func:`sync_rows`), then, when its rows are kept
     (:data:`ROWS_KEPT`), run every ``artifact_rows`` stage hook on its metadata, GI and KG files
     (:func:`artifact_paths`), after the rows' transaction: those writers own their transaction,
-    their counts and their strict failure."""
+    their counts. A hook that fails is counted in ``OUTCOMES["hook_failed"]`` and never stops the
+    others or the pipeline, unless ``PODCAST_CORPUS_WRITE_STRICT`` is set (:class:`SyncFailed`)."""
     outcome = sync_rows(metadata_path, transcript_path, change_kind=change_kind)
     if outcome in ROWS_KEPT:
         from podcast_scraper import stage_hooks
 
-        stage_hooks.artifact_rows(metadata_path, *artifact_paths(metadata_path))
+        hooked = stage_hooks.artifact_rows(metadata_path, *artifact_paths(metadata_path))
+        failed = hooked.count("failed")
+        if failed:
+            OUTCOMES["hook_failed"] += failed
+            if _strict():
+                raise SyncFailed(f"{failed} artifact_rows hooks failed for {metadata_path.name}")
     return outcome
 
 
