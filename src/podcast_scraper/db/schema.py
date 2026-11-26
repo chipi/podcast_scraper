@@ -23,13 +23,14 @@ from sqlalchemy import (
     Integer,
     MetaData,
     PrimaryKeyConstraint,
+    REAL,
     SmallInteger,
     Table,
     Text,
     text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 metadata = MetaData()
 
@@ -578,6 +579,165 @@ documents = Table(
     CheckConstraint("version >= 1", name="documents_version_check"),
 )
 
+_SCOPES = "'person', 'organisation', 'topic', 'object'"
+
+# Every written id is a row; ``canonical_id`` is the id its identity resolves to (itself for a
+# canonical row, filled by the ``entities_canonical_default`` insert trigger that corpus_0005
+# creates and the metadata cannot describe). Deferred, so a merge can repoint a group in one commit.
+entities = Table(
+    "entities",
+    corpus_metadata,
+    _surrogate("entity_id"),
+    Column("natural_id", Text, nullable=False),
+    Column("type", Text, nullable=False),
+    Column("label", Text, nullable=False),
+    Column("normalized_label", Text, nullable=False),
+    Column("canonical_id", BigInteger, nullable=False),
+    Column("scope", Text, nullable=True),
+    Column("flags", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    _created_at(),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("natural_id", name="entities_natural_id_key"),
+    ForeignKeyConstraint(
+        ["canonical_id"],
+        ["entities.entity_id"],
+        name="entities_canonical_fkey",
+        deferrable=True,
+        initially="DEFERRED",
+    ),
+    Index("entities_canonical_idx", "canonical_id"),
+    Index("entities_type_label_idx", "type", "normalized_label"),
+    Index(
+        "entities_label_trgm_idx",
+        "normalized_label",
+        postgresql_using="gin",
+        postgresql_ops={"normalized_label": "gin_trgm_ops"},
+    ),
+)
+
+entity_identifiers = Table(
+    "entity_identifiers",
+    corpus_metadata,
+    Column(
+        "entity_id",
+        BigInteger,
+        ForeignKey("entities.entity_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("scheme", Text, nullable=False),
+    Column("value", Text, nullable=False),
+    PrimaryKeyConstraint("entity_id", "scheme", name="entity_identifiers_pkey"),
+    UniqueConstraint("scheme", "value", name="entity_identifiers_scheme_value_key"),
+)
+
+identity_builds = Table(
+    "identity_builds",
+    corpus_metadata,
+    _surrogate("build_id"),
+    Column("rule_version", Text, nullable=False),
+    Column("inputs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("built_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("state", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(
+        "state IN ('built', 'published', 'retired', 'refused')", name="identity_builds_state_check"
+    ),
+    # One pointer to the served build; undo publishes the previous build again.
+    Index(
+        "identity_builds_one_published_idx",
+        text("(true)"),
+        unique=True,
+        postgresql_where=text("state = 'published'"),
+    ),
+)
+
+# The decision rows of an identity build: what was decided, on what basis, by whom.
+identity_changes = Table(
+    "identity_changes",
+    corpus_metadata,
+    Column(
+        "decision_id",
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    ),
+    Column(
+        "build_id",
+        BigInteger,
+        ForeignKey("identity_builds.build_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("scope", Text, nullable=False),
+    Column("action", Text, nullable=False),
+    Column("subject_a", Text, nullable=False),
+    Column("subject_b", Text, nullable=True),
+    Column("basis", Text, nullable=False),
+    Column("scorer", Text, nullable=True),
+    Column("scorer_version", Text, nullable=True),
+    Column("score", REAL, nullable=True),
+    Column("evidence", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("decided_by", Text, nullable=False),
+    Column("decided_at", DateTime(timezone=True), nullable=False),
+    Column("status", Text, nullable=False, server_default=text("'accepted'")),
+    CheckConstraint(f"scope IN ({_SCOPES})", name="identity_changes_scope_check"),
+    CheckConstraint(
+        "action IN ('merge', 'reject', 'confirm')", name="identity_changes_action_check"
+    ),
+    CheckConstraint("basis IN ('rule', 'scorer', 'human')", name="identity_changes_basis_check"),
+    CheckConstraint("status IN ('accepted')", name="identity_changes_status_check"),
+    Index("identity_changes_build_idx", "build_id"),
+)
+
+# ``cluster_id`` is assigned by the build, durable across builds while the canonical is unchanged.
+identity_clusters = Table(
+    "identity_clusters",
+    corpus_metadata,
+    Column(
+        "build_id",
+        BigInteger,
+        ForeignKey("identity_builds.build_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("cluster_id", BigInteger, nullable=False),
+    Column("scope", Text, nullable=False),
+    Column("canonical_id", BigInteger, ForeignKey("entities.entity_id"), nullable=False),
+    Column("display_name", Text, nullable=True),
+    Column("display_evidence", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("member_count", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "cluster_id", name="identity_clusters_pkey"),
+    UniqueConstraint(
+        "build_id", "cluster_id", "scope", name="identity_clusters_build_cluster_scope_key"
+    ),
+    CheckConstraint(f"scope IN ({_SCOPES})", name="identity_clusters_scope_check"),
+    CheckConstraint("member_count >= 1", name="identity_clusters_member_count_check"),
+    Index("identity_clusters_canonical_idx", "canonical_id"),
+)
+
+identity_members = Table(
+    "identity_members",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("cluster_id", BigInteger, nullable=False),
+    Column("member_id", BigInteger, ForeignKey("entities.entity_id"), nullable=False),
+    Column("scope", Text, nullable=False),
+    Column(
+        "decision_id",
+        UUID(as_uuid=True),
+        ForeignKey("identity_changes.decision_id", ondelete="SET NULL"),
+        nullable=True,
+    ),
+    # One written id is in one cluster per build.
+    PrimaryKeyConstraint("build_id", "member_id", name="identity_members_pkey"),
+    ForeignKeyConstraint(
+        ["build_id", "cluster_id", "scope"],
+        ["identity_clusters.build_id", "identity_clusters.cluster_id", "identity_clusters.scope"],
+        name="identity_members_cluster_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(f"scope IN ({_SCOPES})", name="identity_members_scope_check"),
+    Index("identity_members_member_idx", "member_id"),
+)
+
 # Keyed by document, not variant, so an old version keeps the text its quotes were cut from. The
 # sixteen hash partitions (segments_p00..p15) are made by corpus_0004, not listed in the metadata.
 segments = Table(
@@ -596,6 +756,9 @@ segments = Table(
         ["documents.item_id", "documents.document_id"],
         name="segments_document_fkey",
         ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["speaker_id"], ["entities.entity_id"], name="segments_speaker_fkey", ondelete="SET NULL"
     ),
     CheckConstraint(
         "start_ms IS NULL OR end_ms IS NULL OR end_ms >= start_ms", name="segments_span_check"
