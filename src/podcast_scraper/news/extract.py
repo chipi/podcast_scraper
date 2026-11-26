@@ -26,6 +26,29 @@ FEED = "feed"
 #: The page's own summary line (its description metadata).
 STANDFIRST = "standfirst"
 
+#: The package each library extractor is, for its version in :func:`extractor_version`.
+_EXTRACTOR_PACKAGES = {TRAFILATURA: "trafilatura", READABILITY: "readability-lxml"}
+
+
+def extractor_version(method: str) -> str:
+    """``documents.extractor_version`` of a text ``method`` extracted (CRFC-006 G9, the rule
+    settled with the database session): ``<name>/<package version>`` for a library, ``feed/1`` and
+    ``standfirst/1`` for ours, ``guardian/api`` for the Guardian's API body."""
+    from importlib import metadata
+
+    if method in (FEED, STANDFIRST):
+        return f"{method}/1"
+    if method == "guardian":
+        return "guardian/api"
+    package = _EXTRACTOR_PACKAGES.get(method)
+    if package is None:
+        return f"{method}/unknown"
+    try:
+        return f"{method}/{metadata.version(package)}"
+    except metadata.PackageNotFoundError:
+        return f"{method}/unknown"
+
+
 #: Where a source's item text comes from (``news.text_from`` in feeds.spec).
 TEXT_FROM_PAGE = "page"
 TEXT_FROM_FEED = "feed"

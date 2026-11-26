@@ -432,12 +432,14 @@ def sync_documents(
     kind: str = TRANSCRIPT,
     fetched_at: Optional[datetime] = None,
     body_sha256: Optional[str] = None,
+    extraction: Optional[str] = None,
+    extractor_version: Optional[str] = None,
 ) -> list[SyncedDocument]:
     """Write each file whose body differs from its variant's newest version of ``kind``, in the
     caller's transaction. ``change_kind`` names why a later version exists; version 1 is
     ``created``. An ``article`` is cut into paragraphs (``paragraph_cuts``) and carries
-    ``fetched_at``, and its ``raw`` body must hash to the metadata's ``body_sha256`` when one is
-    given, as the importer writes it."""
+    ``fetched_at``, ``extraction`` and ``extractor_version`` (G9), and its ``raw`` body must hash
+    to the metadata's ``body_sha256`` when one is given, as the importer writes it."""
     if change_kind not in CHANGE_KINDS:
         raise ValueError(f"change_kind {change_kind!r} is not one of {CHANGE_KINDS}")
     synced: list[SyncedDocument] = []
@@ -474,6 +476,8 @@ def sync_documents(
                 change_kind=CREATED if newest is None else change_kind,
                 body_sha256=digest,
                 fetched_at=fetched_at,
+                extraction=extraction,
+                extractor_version=extractor_version,
             )
             .returning(documents.c.document_id)
         ).scalar_one()
@@ -609,6 +613,8 @@ def sync_rows(
                     kind=ARTICLE,
                     fetched_at=_instant(doc.get("fetched_at")),
                     body_sha256=_str_or_none(doc.get("body_sha256")),
+                    extraction=_str_or_none(_own(doc).get("extraction")),
+                    extractor_version=_str_or_none(_own(doc).get("extractor_version")),
                 )
             else:
                 synced = sync_documents(conn, item_id, files, change_kind=change_kind)
@@ -650,6 +656,11 @@ def _defer(metadata_path: Path, transcript_path: Optional[Path], change_kind: st
         None if transcript_path is None else str(transcript_path),
         change_kind,
     )
+
+
+def _own(doc: Mapping[str, Any]) -> Mapping[str, Any]:
+    own = doc.get("news_article")
+    return own if isinstance(own, Mapping) else {}
 
 
 def _str_or_none(value: Any) -> Optional[str]:

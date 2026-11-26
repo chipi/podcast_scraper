@@ -491,7 +491,12 @@ def _news_item(root: Path, body: str = NEWS_BODY, **fields: object) -> tuple[Pat
         "body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
         "language": "en",
         "serveable": "summary",
-        "news_article": {"editorial_type": "analysis", "text_status": "full"},
+        "news_article": {
+            "editorial_type": "analysis",
+            "text_status": "full",
+            "extraction": "trafilatura",
+            "extractor_version": "trafilatura/2.0.0",
+        },
         **fields,
     }
     meta = run / "metadata" / "0001 - A headline.metadata.json"
@@ -534,6 +539,7 @@ def test_a_news_item_writes_its_source_item_and_article(
         "created",
     )
     assert doc["fetched_at"].isoformat() == "2026-11-24T06:00:10+00:00"
+    assert (doc["extraction"], doc["extractor_version"]) == ("trafilatura", "trafilatura/2.0.0")
     assert _segment_texts(conn, item["item_id"], doc["document_id"]) == [
         "First paragraph.\n\n",
         "Second paragraph.\n",
