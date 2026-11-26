@@ -212,11 +212,29 @@ exit codes) and carries the same guards: `--yes`, refused on a non-TTY without i
 
 ### 6. Derived surfaces
 
-`RowResult.item_ids` drives, in the same run and after the commit: the search-index rows of those
-items (rung 3), the deterministic non-LLM enrichers and the view refresh for those items (rung 4),
-and the identity ledger where the migration touched people. Each step's result goes into
-`migration_runs.result`; a failed step exits 4 with the migration applied (as the ledger refresh
-does today, `cli_handlers.py`), and the step is re-runnable on its own.
+`RowResult.item_ids` drives two kinds of refresh (the operator's decision 2026-11-26, on the
+database session's recommendation, Key Decision 7):
+
+- **Inside the data transaction:** the per-item surfaces in Postgres that readers read directly,
+  for the changed items: `item_cards`, the flags on `content_items`, and the `search_chunks` and
+  embeddings rows. A failure rolls the whole migration back, so rows and these surfaces never
+  disagree. A dry run refreshes them too, and rolls them back with the rest.
+- **After the commit:** the LanceDB search index (outside Postgres until E09), the corpus-wide
+  projections and identity builds (batch-built under a build id; readers see the previous build
+  during a rebuild), and the deterministic non-LLM enrichers. Each step's result goes into
+  `migration_runs.result`; a failed step exits 4 with the migration applied (as the ledger refresh
+  does today, `cli_handlers.py`), and the step is re-runnable on its own.
+- **No automatic undo** on a failed step: it would be a second prod write nobody reviewed, made
+  while something is already failing.
+- The views of DECISIONS (`v_bridge`, `v_context`, `v_catalog`, `v_served_id_map`,
+  `v_confidence_words`) need no refresh while they are plain views; a view made materialized
+  joins the first list or the second when that is decided.
+- **A precondition outside this RFC:** a stale LanceDB hit after the commit is safe only if search
+  hydration drops a hit whose natural id no longer resolves; the Player's intents (r-intents) must
+  do that and do not yet.
+- **Not measured:** how long the in-transaction refresh takes for a migration touching many items.
+  The test migration measures it on the rehearsal copy; a migration too slow for one transaction
+  is the chunking case of §3.
 
 ### 7. Where it lives
 
@@ -238,6 +256,9 @@ there are any, live in Common as its file migrations do.
 6. **Undo is a subcommand, `upgrade undo`** (the operator, 2026-11-26, on the recommendation): one
    entry point with the apply's role, lease, run row, derived surfaces, exit codes and guards; no
    per-migration undo code. Cost: a new CLI surface, and two undo mechanisms while files remain.
+7. **Derived surfaces: per-item Postgres surfaces inside the transaction, the rest after the
+   commit with exit 4, no automatic undo** (the operator, 2026-11-26, on the database session's
+   recommendation; §6).
 
 ## Alternatives Considered
 
@@ -262,6 +283,10 @@ a test-only row migration over `content_items` and `item_cards`:
 - second apply writes no receipt; apply, undo, apply gives the same rows as one apply;
 - undo refused when one row changed after the apply: nothing restored, the row list names it;
 - a failure inside `apply_rows` leaves no row, receipt or ledger change;
+- the derived surfaces (§6): the changed items' `item_cards` equal a fresh build after the apply;
+  a failure in an in-transaction refresh leaves no row, receipt or ledger change; a failure in an
+  after-commit step exits 4 with the migration applied, the failure in `migration_runs.result`,
+  and the step re-run on its own completes it;
 - the changed-row census: every row that differs after the test migration has a receipt;
 - two processes: a migration refused while an ingest holds the lease, and an ingest refused while
   a migration holds it;
@@ -292,20 +317,6 @@ surfaces.
 2. Infra: the lease resource and mode the ingest and enrichers take (`corpus`, shared?), so the
    refusal rule of §3 step 2 matches theirs.
 3. Answered 2026-11-26: undo is a subcommand (Key Decision 6).
-4. A derived surface failing after the commit (§6): exit 4 with the migration applied and the step
-   re-runnable (proposed, as today), an automatic undo, or the surfaces inside the data
-   transaction where they are in Postgres. The operator asked the database and infra sessions to
-   weigh in (2026-11-26).
-   - The database session (2026-11-26) recommends A plus C, not B. The per-item surfaces in
-     Postgres (`item_cards`, the flags on `content_items`, `search_chunks` and embeddings rows of
-     the changed items) are refreshed inside the data transaction, because readers read them
-     directly, so a stale one is wrong. LanceDB (outside Postgres until E09) and the corpus-wide
-     projections and identity builds (batch-built under a build id, readers see the previous build
-     during a rebuild) run after the commit with exit 4 on failure. An automatic undo is "a second
-     prod write nobody reviewed, made while something is already failing". The views it lists
-     (`v_bridge`, `v_context`, `v_catalog`, `v_served_id_map`, `v_confidence_words`) need no
-     refresh while they are plain views. Not measured: how long the in-transaction refresh of
-     `item_cards` takes for a migration touching many items.
-   - A gap it names for A: a stale LanceDB hit is safe only if search hydration drops a hit whose
-     natural id no longer resolves, which r-intents must do and does not do yet.
-   - Infra: not answered yet. Open until it answers and the operator decides.
+4. Answered 2026-11-26: the operator took the database session's recommendation (Key Decision 7,
+   §6). Infra had not answered when the operator decided; its retry practice for a failed one-shot
+   is still asked, for the runbook, not for this decision.
