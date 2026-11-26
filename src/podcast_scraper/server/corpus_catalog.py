@@ -32,6 +32,7 @@ from podcast_scraper.utils.path_validation import (
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
+from podcast_scraper.utils.utc import as_utc, utc_iso
 
 
 def _feed_and_episode_ids(doc: Optional[dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
@@ -80,22 +81,42 @@ def _gi_kg_relpaths_from_metadata(metadata_relpath: str) -> tuple[str, str]:
     return f"{stem}.gi.json", f"{stem}.kg.json"
 
 
+def _published_instant(raw: Any) -> Optional[datetime]:
+    """A stored publish time with a time of day, as an aware UTC datetime (``utils.utc``: a naive
+    one is UTC); ``None`` for a date with no time, a missing value or an unreadable one."""
+    if isinstance(raw, datetime):
+        return as_utc(raw)
+    if isinstance(raw, str) and len(raw.strip()) > 10:
+        try:
+            return as_utc(datetime.fromisoformat(raw.strip().replace("Z", "+00:00")))
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_published_at(raw: Any) -> Optional[str]:
+    """The full publish instant as ISO 8601 UTC with ``Z``, or ``None`` when no time is stored."""
+    instant = _published_instant(raw)
+    return utc_iso(instant) if instant is not None else None
+
+
 def _parse_publish_date_str(raw: Any) -> Optional[str]:
+    """The publish date as ``YYYY-MM-DD``: the UTC day of the stored instant (not the day in the
+    publisher's own offset), or a stored date with no time as it is."""
     if raw is None:
         return None
-    if isinstance(raw, datetime):
-        return raw.date().isoformat()
+    instant = _published_instant(raw)
+    if instant is not None:
+        return instant.date().isoformat()
     if isinstance(raw, date):
         return raw.isoformat()
     if isinstance(raw, str) and raw.strip():
         s = raw.strip()
         if len(s) >= 10 and s[4] == "-" and s[7] == "-":
-            return s[:10]
-        try:
-            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-            return dt.date().isoformat()
-        except ValueError:
-            return None
+            try:
+                return date.fromisoformat(s[:10]).isoformat()
+            except ValueError:
+                return None
     return None
 
 
@@ -347,6 +368,10 @@ class CatalogEpisodeRow:
     feed_licence_json: Optional[str] = None
     #: The episode's own licence record (#2325) as JSON, or None (not checked).
     episode_licence_json: Optional[str] = None
+    #: The full publish instant, ISO 8601 UTC with ``Z`` (``publish_date`` is its UTC day), or
+    #: None when the metadata stores no time of day (operator, 2026-11-26: UTC in the data, local
+    #: time only on display).
+    published_at: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
         """Newest-first: dated episodes before undated; then by ordinal desc; then path."""
@@ -410,6 +435,7 @@ def build_catalog_rows(
         if isinstance(ep, dict):
             pub_raw = ep.get("published_date")
         publish_date = _parse_publish_date_str(pub_raw)
+        published_at = _parse_published_at(pub_raw)
         stitle, sbullets = _summary_fields(doc)
         sbody = _summary_body_text(doc)
         f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
@@ -443,6 +469,7 @@ def build_catalog_rows(
                 episode_id=eid,
                 episode_title=episode_title,
                 publish_date=publish_date,
+                published_at=published_at,
                 summary_title=stitle,
                 summary_bullets=tuple(sbullets),
                 summary_text=sbody,
@@ -520,6 +547,7 @@ def build_catalog_rows_cumulative(
         if isinstance(ep, dict):
             pub_raw = ep.get("published_date")
         publish_date = _parse_publish_date_str(pub_raw)
+        published_at = _parse_published_at(pub_raw)
         stitle, sbullets = _summary_fields(doc)
         sbody = _summary_body_text(doc)
         f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
@@ -553,6 +581,7 @@ def build_catalog_rows_cumulative(
                 episode_id=eid,
                 episode_title=episode_title,
                 publish_date=publish_date,
+                published_at=published_at,
                 summary_title=stitle,
                 summary_bullets=tuple(sbullets),
                 summary_text=sbody,
@@ -641,6 +670,7 @@ def catalog_row_for_metadata_path(
     if isinstance(ep, dict):
         pub_raw = ep.get("published_date")
     publish_date = _parse_publish_date_str(pub_raw)
+    published_at = _parse_published_at(pub_raw)
     stitle, sbullets = _summary_fields(doc)
     sbody = _summary_body_text(doc)
     f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
@@ -673,6 +703,7 @@ def catalog_row_for_metadata_path(
         episode_id=eid,
         episode_title=episode_title,
         publish_date=publish_date,
+        published_at=published_at,
         summary_title=stitle,
         summary_bullets=tuple(sbullets),
         summary_text=sbody,

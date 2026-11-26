@@ -24,6 +24,7 @@ from podcast_scraper.identity.display import person_display
 from podcast_scraper.languages import translated_from_label
 from podcast_scraper.search import groupings
 from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
+from podcast_scraper.utils.utc import as_utc
 
 logger = logging.getLogger(__name__)
 
@@ -645,10 +646,12 @@ def _cadence_and_length(rows: list, feed_id: str) -> tuple[str | None, int | Non
     for r in rows:
         if (getattr(r, "feed_id", None) or "") != feed_id:
             continue
-        pub = (getattr(r, "publish_date", "") or "").strip()
+        # The UTC instant, else the UTC day's midnight: a naive date's timestamp() is the host's
+        # local midnight, which moves with the server's zone.
+        pub = (getattr(r, "published_at", None) or getattr(r, "publish_date", "") or "").strip()
         if len(pub) >= 10:
             try:
-                dates.append(datetime.fromisoformat(pub[:10]).timestamp())
+                dates.append(as_utc(datetime.fromisoformat(pub.replace("Z", "+00:00"))).timestamp())
             except ValueError:
                 pass
         dur = getattr(r, "duration_seconds", None)

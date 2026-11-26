@@ -145,6 +145,7 @@ def _similar_items_to_response_models(
                 episode_title=row.episode_title if row else "",
                 metadata_relative_path=row.metadata_relative_path if row else None,
                 publish_date=row.publish_date if row else None,
+                published_at=row.published_at if row else None,
                 doc_type=doc_type,
                 snippet=str(it.get("text") or ""),
                 feed_image_url=row.feed_image_url if row else None,
@@ -213,6 +214,7 @@ def corpus_resolve_episode_artifacts(
             CorpusResolvedEpisodeArtifact(
                 episode_id=eid,
                 publish_date=row.publish_date,
+                published_at=row.published_at,
                 gi_relative_path=row.gi_relative_path or None,
                 kg_relative_path=row.kg_relative_path if row.has_kg else None,
                 bridge_relative_path=row.bridge_relative_path if row.has_bridge else None,
@@ -307,6 +309,7 @@ def corpus_node_episodes(
                 feed_id=row.feed_id if row else None,
                 feed_title=row.feed_title if row else None,
                 publish_date=row.publish_date if row else None,
+                published_at=row.published_at if row else None,
                 metadata_relative_path=row.metadata_relative_path if row else None,
             )
         )
@@ -501,6 +504,7 @@ def corpus_episodes(
             episode_id=r.episode_id,
             episode_title=r.episode_title,
             publish_date=r.publish_date,
+            published_at=r.published_at,
             feed_image_url=r.feed_image_url,
             episode_image_url=r.episode_image_url,
             duration_seconds=r.duration_seconds,
@@ -583,6 +587,7 @@ def corpus_episode_detail(
         episode_id=r.episode_id,
         episode_title=r.episode_title,
         publish_date=r.publish_date,
+        published_at=r.published_at,
         summary_title=r.summary_title,
         summary_bullets=list(r.summary_bullets),
         summary_text=r.summary_text,

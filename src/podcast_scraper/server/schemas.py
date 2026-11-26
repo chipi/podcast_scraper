@@ -161,6 +161,12 @@ class AppEpisodeDetail(BaseModel):
     publish_date: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) when known."
     )
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     duration_seconds: int | None = Field(
         default=None, ge=0, description="Episode duration when known."
     )
@@ -241,6 +247,12 @@ class AppEpisodeSummary(BaseModel):
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     publish_date: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) when known."
+    )
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
     )
     duration_seconds: int | None = Field(
         default=None, ge=0, description="Episode duration when known."
@@ -4483,6 +4495,12 @@ class CorpusEpisodeListItem(BaseModel):
         default=None,
         description="YYYY-MM-DD when parseable from metadata.",
     )
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     feed_image_url: str | None = Field(
         default=None,
         description="From ``feed.image_url`` in metadata when present.",
@@ -4578,6 +4596,12 @@ class CorpusEpisodeDetailResponse(BaseModel):
     episode_id: str | None = None
     episode_title: str
     publish_date: str | None = None
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     summary_title: str | None = None
     summary_bullets: list[str] = Field(default_factory=list)
     summary_text: str | None = Field(
@@ -4686,6 +4710,12 @@ class CorpusSimilarEpisodeItem(BaseModel):
         description="Catalog metadata path when known; use with episodes/detail.",
     )
     publish_date: str | None = None
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     doc_type: str | None = Field(
         default=None,
         description="Vector doc_type of the highest-scoring chunk for this episode.",
@@ -4739,6 +4769,12 @@ class CorpusDigestRow(BaseModel):
     episode_id: str | None = None
     episode_title: str
     publish_date: str | None = None
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     summary_title: str | None = None
     summary_bullets_preview: list[str] = Field(default_factory=list)
     summary_bullet_graph_topic_ids: list[str] = Field(
@@ -4797,6 +4833,12 @@ class CorpusDigestTopicHit(BaseModel):
     publish_date: str | None = Field(
         default=None,
         description="Episode publish day from catalog (YYYY-MM-DD) when joined.",
+    )
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
     )
     gi_relative_path: str = ""
     kg_relative_path: str = ""
@@ -4988,6 +5030,12 @@ class CorpusResolvedEpisodeArtifact(BaseModel):
 
     episode_id: str
     publish_date: str | None = None
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     gi_relative_path: str | None = None
     kg_relative_path: str | None = None
     bridge_relative_path: str | None = None
@@ -5036,6 +5084,12 @@ class CorpusNodeEpisodeItem(BaseModel):
     feed_id: str | None = None
     feed_title: str | None = None
     publish_date: str | None = None
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     metadata_relative_path: str | None = None
 
 
@@ -5064,6 +5118,12 @@ class CilArcEpisodeBlock(BaseModel):
 
     episode_id: str
     publish_date: str | None = None
+    published_at: str | None = Field(
+        default=None,
+        description="The full publish instant, ISO 8601 UTC with Z; publish_date is its UTC "
+        "day. Null when the metadata stores no time of day. Show it in the viewer's local "
+        "time.",
+    )
     episode_title: str | None = None
     feed_title: str | None = None
     episode_number: int | None = None

@@ -173,6 +173,7 @@ def _topic_band_for_query(
                 summary_preview=episode_list_summary_preview(catalog_row),
                 episode_id=catalog_row.episode_id,
                 publish_date=catalog_row.publish_date,
+                published_at=catalog_row.published_at,
                 gi_relative_path=catalog_row.gi_relative_path,
                 kg_relative_path=catalog_row.kg_relative_path,
                 has_gi=catalog_row.has_gi,
