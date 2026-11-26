@@ -17,6 +17,7 @@ from podcast_scraper.db import leases
 from podcast_scraper.db.schema import (
     corpus_metadata,
     corpus_migrations,
+    corpus_revision,
     migration_receipts,
     migration_runs,
 )
@@ -54,7 +55,11 @@ def engine() -> Iterator[Engine]:
     cleaner = create_engine(normalize_url(url))
     with cleaner.begin() as conn:
         for table in reversed(corpus_metadata.sorted_tables):
-            conn.execute(table.delete())
+            if table is corpus_revision:
+                # Reset, not deleted, as tests/_database.py does: corpus_0007 seeds its one row.
+                conn.execute(corpus_revision.update().values(revision=0))
+            else:
+                conn.execute(table.delete())
     cleaner.dispose()
 
 
@@ -143,6 +148,11 @@ def _ledger(engine: Engine, natural_id: str) -> Any:
         ).one_or_none()
 
 
+def _revision(engine: Engine) -> int:
+    with engine.connect() as conn:
+        return int(conn.execute(select(corpus_revision.c.revision)).scalar_one())
+
+
 def _receipts(engine: Engine) -> list[Any]:
     with engine.connect() as conn:
         return list(conn.execute(select(migration_receipts).order_by(migration_receipts.c.seq)))
@@ -150,10 +160,12 @@ def _receipts(engine: Engine) -> list[Any]:
 
 def test_apply_then_undo_restores_every_row(engine: Engine, items: dict[str, int]) -> None:
     before = _snapshot(engine)
+    start = _revision(engine)
     applied = run_migration(engine, Retitle(items))
     assert (applied.kind, applied.status, applied.receipts) == ("apply", "ok", 3)
     assert applied.result["verify"] == {"ok": True, "message": "item 1 title 'Episode One'"}
-    assert applied.result["corpus_revision_bumped"] is False
+    assert applied.result["corpus_revision_bumped"] is True
+    assert _revision(engine) == start + 1
     ledger = _ledger(engine, Retitle.id)
     assert (ledger.status, ledger.to_version, ledger.last_run_id) == (
         "applied",
@@ -165,6 +177,8 @@ def test_apply_then_undo_restores_every_row(engine: Engine, items: dict[str, int
     undone = undo_migration(engine, Retitle.id)
     assert (undone.kind, undone.status) == ("undo", "ok")
     assert undone.result["restored"] == 3
+    assert undone.result["corpus_revision_bumped"] is True
+    assert _revision(engine) == start + 2
     assert _snapshot(engine) == before
     ledger = _ledger(engine, Retitle.id)
     assert (ledger.status, ledger.last_run_id) == ("undone", undone.run_id)
@@ -277,10 +291,14 @@ def test_the_corpus_lease_refuses_a_run_while_another_holds_it(
 def test_the_revision_bump_is_a_no_op_without_its_table(engine: Engine) -> None:
     from podcast_scraper.upgrade.rows import bump_corpus_revision
 
-    with engine.begin() as conn:
-        found = conn.execute(text("SELECT to_regclass('corpus.corpus_revision')")).scalar()
-        assert found is None
+    with engine.connect() as conn, conn.begin() as tx:
+        # A database not yet at corpus_0007: its table dropped here and rolled back.
+        conn.execute(text("DROP TABLE corpus.corpus_revision"))
         assert bump_corpus_revision(conn) is False
+        tx.rollback()
+    with engine.connect() as conn:
+        restored = conn.execute(text("SELECT to_regclass('corpus.corpus_revision')")).scalar()
+    assert restored is not None
 
 
 def test_apply_through_the_file_runner_is_refused(items: dict[str, int]) -> None:
@@ -440,19 +458,10 @@ def test_an_ingest_is_refused_while_a_migration_holds_the_lease(
 def test_the_revision_bump_advances_the_counter_when_its_table_exists(engine: Engine) -> None:
     from podcast_scraper.upgrade.rows import bump_corpus_revision
 
-    with engine.connect() as conn, conn.begin() as tx:
-        # corpus_0007's table, made here and rolled back: the database session's revision lands it.
-        conn.execute(
-            text(
-                "CREATE TABLE corpus.corpus_revision (id SMALLINT PRIMARY KEY, "
-                "revision BIGINT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())"
-            )
-        )
-        conn.execute(text("INSERT INTO corpus.corpus_revision (id, revision) VALUES (1, 41)"))
+    with engine.begin() as conn:
+        conn.execute(corpus_revision.update().values(revision=41))
         assert bump_corpus_revision(conn) is True
-        got = conn.execute(text("SELECT revision FROM corpus.corpus_revision")).scalar_one()
-        assert got == 42
-        tx.rollback()
+    assert _revision(engine) == 42
 
 
 def test_every_run_is_an_event(
