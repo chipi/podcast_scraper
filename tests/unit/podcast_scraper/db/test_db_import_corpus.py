@@ -307,4 +307,16 @@ def test_an_items_has_transcript_follows_its_documents_not_its_card(
     assert (report.items, report.documents, report.cards) == (1, 0, 1)
     assert conn.execute(select(item_cards.c.has_transcript)).scalar_one() is True
     assert conn.execute(select(content_items.c.has_transcript)).scalar_one() is False
+
+
+def test_an_unusable_episode_with_a_transcript_has_one(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # No card (the catalog does not show it), so the flag comes from its documents, as the
+    # pipeline's writer sets it (snapshot parity: 2 such items differed).
+    doc = _episode(unusable=True, unusable_reason="no English after translation")
+    _write(tmp_path, "run_20261101-000000", "0001 - One", doc, "Hello.\n")
+    import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert conn.execute(select(content_items.c.has_transcript)).scalar_one() is True
+    assert _count(conn, item_cards) == 0
     conn.rollback()
