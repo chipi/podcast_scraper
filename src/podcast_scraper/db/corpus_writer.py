@@ -336,21 +336,36 @@ def upsert_item(
     return item_id
 
 
-def bump_revision_if_written(conn: Connection, item_id: int) -> bool:
-    """Bump ``corpus_revision`` when this transaction wrote the item's row; returns whether it did.
-    Last in the transaction (DECISIONS rule 7). The catalog's token reads the revision because a
-    written row's ``updated_at`` is its transaction's start: a sync that began before another
-    committed, and commits after it, leaves the newest ``updated_at`` where it was (#2614)."""
+def bump_revision(conn: Connection, item_id: int, source_id: int, wrote: bool) -> bool:
+    """Bump ``corpus_revision`` when this transaction wrote content; returns whether it did. Last
+    in the transaction (DECISIONS rule 7): the graph's slices and the catalog's token read it.
+    Content is ``wrote`` (a document version, a card) or the item's or source's row, whose
+    ``updated_at`` every writer sets to ``now()``, this transaction's start. That start is also why
+    the catalog needs the revision: a sync that began before another committed, and commits after
+    it, leaves the newest ``updated_at`` where it was (#2614). An unchanged sync bumps nothing."""
     from podcast_scraper.upgrade.rows import bump_corpus_revision
 
-    written = conn.execute(
-        select(
-            exists().where(
-                and_(content_items.c.item_id == item_id, content_items.c.updated_at == func.now())
-            )
+    if not wrote:
+        wrote = bool(
+            conn.execute(
+                select(
+                    or_(
+                        exists().where(
+                            and_(
+                                content_items.c.item_id == item_id,
+                                content_items.c.updated_at == func.now(),
+                            )
+                        ),
+                        exists().where(
+                            and_(
+                                sources.c.source_id == source_id, sources.c.updated_at == func.now()
+                            )
+                        ),
+                    )
+                )
+            ).scalar_one()
         )
-    ).scalar_one()
-    return bool(written) and bump_corpus_revision(conn)
+    return wrote and bump_corpus_revision(conn)
 
 
 def mark_has_transcript(conn: Connection, item_id: int) -> bool:
@@ -375,16 +390,17 @@ def write_card(
 ) -> bool:
     """The episode's ``item_cards`` row and its item's ``has_*`` flags (CRFC-005 §3.2: the item's
     writers write its card in the item's transaction), from ``corpus_cards.card_row``, the
-    importer's; returns whether the episode has a card. One the catalog does not show (unusable)
-    has none, so a card written before is removed and its flags are cleared, as the importer leaves
-    an item it writes no card for. A card that cannot be read (``ValueError``, a corrupt GI file)
-    refuses the item, as the importer refuses it, rather than failing it on every run."""
+    importer's; returns whether it changed the card (written, changed or removed). One the catalog
+    does not show (unusable) has none, so a card written before is removed and its flags are
+    cleared, as the importer leaves an item it writes no card for. A card that cannot be read
+    (``ValueError``, a corrupt GI file) refuses the item, as the importer refuses it, rather than
+    failing it on every run. The flags are the item row's: :func:`bump_revision` sees them there."""
     try:
         card = card_row(corpus_root, metadata_relpath, item)
     except ValueError as exc:
         raise RowRefused(f"item {item.get('natural_id')}: its card cannot be read: {exc}") from exc
     if card is None:
-        conn.execute(delete(item_cards).where(item_cards.c.item_id == item_id))
+        removed = conn.execute(delete(item_cards).where(item_cards.c.item_id == item_id)).rowcount
         conn.execute(
             update(content_items)
             .where(
@@ -395,7 +411,8 @@ def write_card(
             )
             .values(**{flag: False for flag in FLAGS}, updated_at=func.now())
         )
-        return False
+        return bool(removed)
+    changed = True
     stored = (
         conn.execute(select(item_cards).where(item_cards.c.item_id == item_id)).mappings().first()
     )
@@ -403,6 +420,7 @@ def write_card(
         conn.execute(insert(item_cards).values(item_id=item_id, **card))
     else:
         changes = {column: value for column, value in card.items() if stored[column] != value}
+        changed = bool(changes)
         if changes:
             conn.execute(
                 update(item_cards)
@@ -420,7 +438,7 @@ def write_card(
         )
         .values(**flags, updated_at=func.now())
     )
-    return True
+    return changed
 
 
 _REGISTRY: Optional[Registry] = None
@@ -653,6 +671,7 @@ def sync_rows(
             if not news:
                 audio_fingerprints.link_item(conn, source_id, external_item_id(doc), item_id)
             merge_source(conn, source_id)
+            carded = False
             if news:
                 synced = sync_documents(
                     conn,
@@ -670,8 +689,9 @@ def sync_rows(
                 mark_has_transcript(conn, item_id)
                 if relpath is not None:
                     item = item_row(doc, metadata_relpath=relpath, has_bridge=has_bridge)
-                    write_card(conn, _corpus_root(metadata_path, relpath), relpath, item_id, item)
-            bump_revision_if_written(conn, item_id)
+                    root = _corpus_root(metadata_path, relpath)
+                    carded = write_card(conn, root, relpath, item_id, item)
+            bump_revision(conn, item_id, source_id, carded or any(d.written for d in synced))
         audio_fingerprints.forget_held(feed, fingerprints)
         _DEFERRED.pop(str(metadata_path), None)
         if relpath is None:
