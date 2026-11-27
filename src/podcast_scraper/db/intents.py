@@ -8,6 +8,8 @@ AP-04, AP-23):
 
 - items by key: slug, natural id, ``(raw feed id, external item id)``; every item whatever its
   ``served``, which each row carries, since a listener's saved item may no longer be served;
+- transcript search hits by their index id: the chunk's item, range, text, times and speakers
+  (``search_chunks`` over ``segments``, r-search);
 - the cards of a set of items (``item_cards``, one row per item);
 - served items newest first, of some sources or of one content type, with a keyset cursor
   ``(published_at, item_id)``: dated items first, then undated ones, item id descending within a
@@ -22,10 +24,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Collection, Optional, Sequence, Tuple
 
-from sqlalchemy import and_, or_, select, tuple_
+from sqlalchemy import and_, any_, case, func, literal, or_, select, true, tuple_
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db.schema import content_items, item_cards, sources
+from podcast_scraper.db.schema import (
+    content_items,
+    entities,
+    item_cards,
+    search_chunks,
+    segments,
+    sources,
+)
 
 #: The most keys one by-key call takes (AP-01: rails, favourites and world sets reach hundreds).
 MAX_KEYS = 500
@@ -143,6 +153,87 @@ def articles_by_natural_ids(conn: Connection, natural_ids: Sequence[str]) -> lis
         .where(content_items.c.natural_id.in_(keys))
     )
     return _rows(conn, statement)
+
+
+def _chunks_statement(keys: list[str]) -> Any:
+    sc, s = search_chunks.alias("sc"), segments.alias("s")
+    e, k = entities.alias("e"), entities.alias("k")
+    first, last = s.c.seq == sc.c.start_seq, s.c.seq == sc.c.end_seq
+    # Python slices count code points and so does Postgres's substr on text: the same cut.
+    piece = case(
+        (
+            and_(first, last),
+            func.substr(s.c.text, sc.c.start_offset + 1, sc.c.end_offset - sc.c.start_offset),
+        ),
+        (first, func.substr(s.c.text, sc.c.start_offset + 1)),
+        (last, func.substr(s.c.text, 1, sc.c.end_offset)),
+        else_=s.c.text,
+    )
+    seg = (
+        select(
+            func.string_agg(piece, aggregate_order_by(literal(""), s.c.seq)).label("text"),
+            func.min(s.c.start_ms).label("start_ms"),
+            func.max(s.c.end_ms).label("end_ms"),
+        )
+        .where(
+            s.c.item_id == sc.c.item_id,
+            s.c.document_id == sc.c.document_id,
+            s.c.seq.between(sc.c.start_seq, sc.c.end_seq),
+        )
+        .lateral("seg")
+    )
+    spk = (
+        select(func.array_agg(aggregate_order_by(k.c.natural_id, k.c.natural_id)).label("speakers"))
+        .select_from(e.join(k, k.c.entity_id == e.c.canonical_id))
+        .where(e.c.entity_id == any_(sc.c.speakers))
+        .lateral("spk")
+    )
+    return (
+        select(
+            sc.c.natural_id,
+            sc.c.item_id,
+            content_items.c.natural_id.label("item_natural_id"),
+            content_items.c.served,
+            content_items.c.content_type,
+            content_items.c.title,
+            content_items.c.published_at,
+            sources.c.title.label("source_title"),
+            sc.c.document_id,
+            sc.c.start_seq,
+            sc.c.start_offset,
+            sc.c.end_seq,
+            sc.c.end_offset,
+            seg.c.text,
+            seg.c.start_ms,
+            seg.c.end_ms,
+            spk.c.speakers,
+        )
+        .select_from(
+            sc.join(content_items, content_items.c.item_id == sc.c.item_id)
+            .join(sources, sources.c.source_id == content_items.c.source_id)
+            .join(seg, true())
+            .join(spk, true())
+        )
+        .where(sc.c.natural_id.in_(keys))
+    )
+
+
+def chunks_by_natural_ids(conn: Connection, natural_ids: Sequence[str]) -> list[dict[str, Any]]:
+    """Transcript search hits by their index id (``chunk:<scope>:<n>``, CRFC-005 §6): each
+    chunk's item (``item_id``, ``item_natural_id``, ``served``, ``content_type``, ``title``,
+    ``published_at``, ``source_title``), its range in its document, the range's ``text`` cut
+    from ``segments``, ``start_ms`` and ``end_ms`` (the range's first and last segment, so a
+    chunk that starts inside a segment gets that segment's start; null when untimed) and
+    ``speakers``, the canonical natural ids of the range's speakers. Any ``served``; unknown
+    ids are left out."""
+    keys = _keys(natural_ids, "natural ids")
+    if not keys:
+        return []
+    rows = _rows(conn, _chunks_statement(keys))
+    for row in rows:
+        # Two members of one canonical person in one range name it once.
+        row["speakers"] = list(dict.fromkeys(row["speakers"] or []))
+    return rows
 
 
 def cards(conn: Connection, item_ids: Sequence[int]) -> list[dict[str, Any]]:
