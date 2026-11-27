@@ -136,6 +136,12 @@ def import_search_chunks(
         if item_id is None:
             report["no_item_row"] += 1
             continue
+        try:
+            meta_rel = meta_path.resolve().relative_to(out.resolve()).as_posix()
+        except ValueError:
+            # A symlink out of the corpus: one refused episode, not a failed import.
+            report["refused"] += 1
+            continue
         episode_root = episode_root_from_metadata_path(meta_path)
         rows = _collect_docs_for_episode(
             episode_root,
@@ -143,7 +149,7 @@ def import_search_chunks(
             doc,
             target_tokens=target_tokens,
             overlap_tokens=overlap_tokens,
-            metadata_relative_path=meta_path.resolve().relative_to(out.resolve()).as_posix(),
+            metadata_relative_path=meta_rel,
         )
         bodies = chunked_bodies(episode_root, meta_path, doc, rows)
         try:

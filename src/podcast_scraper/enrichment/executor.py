@@ -209,11 +209,14 @@ class EnrichmentExecutor:
         enricher_set: EnricherSet,
     ) -> None:
         self._corpus_root = corpus_root
-        # Enrichers that wrote an envelope in this run: each publishes its rows once after its
-        # run (:meth:`_publish_rows`).
-        self._wrote: set[str] = set()
         self._registry = registry
         self._enricher_set = enricher_set
+        # Enrichers that wrote an envelope in this run, each with the metadata files (relative to
+        # the corpus root) of the episodes it wrote: each publishes its rows once after its run
+        # (:meth:`_publish_rows`), which checks those episodes made the build.
+        self._wrote: dict[str, set[str]] = {}
+        # The pending file was unreadable at the run's start: every enricher run publishes.
+        self._publish_all = False
 
     # ------------------------------------------------------------------ run
 
@@ -235,6 +238,10 @@ class EnrichmentExecutor:
         """
         opts = options or ExecutorOptions()
         run_id = run_id or str(uuid.uuid4())
+        from podcast_scraper.db.enrichment_rows import take_unreadable
+
+        self._wrote = {}
+        self._publish_all = take_unreadable(self._corpus_root)
         started_at_iso = utc_iso_now()
         started_at_s = time.monotonic()
 
@@ -608,6 +615,24 @@ class EnrichmentExecutor:
 
         await asyncio.gather(*(_in_order(e) for e in enrichers))
 
+    def _metadata_relpath(self, metadata_path: Path) -> list[str]:
+        """The episode's metadata file as the rows name it (``type_attrs``'
+        ``metadata_relative_path``: relative to the corpus root, unresolved, as the importer and
+        the row writer write it); the resolved form when only that is under the root. A file
+        under neither is logged and not checked."""
+        root = self._corpus_root
+        for path, base in ((metadata_path, root), (metadata_path.resolve(), root.resolve())):
+            try:
+                return [path.relative_to(base).as_posix()]
+            except ValueError:
+                continue
+        logger.warning(
+            "enrichment rows: %s is not under the corpus root %s; its publish is not checked",
+            metadata_path,
+            root,
+        )
+        return []
+
     async def _publish_rows(self, enricher_id: str) -> None:
         """After one enricher's run: its outputs onto the corpus rows as its new build
         (``db.enrichment_rows``), when it wrote an envelope this run or an earlier publish did not
@@ -616,10 +641,17 @@ class EnrichmentExecutor:
         envelopes."""
         from podcast_scraper.db.enrichment_rows import pending, publish_after_run
 
-        if enricher_id not in self._wrote and enricher_id not in pending(self._corpus_root):
+        wrote = self._wrote.get(enricher_id)
+        if (
+            wrote is None
+            and not self._publish_all
+            and enricher_id not in pending(self._corpus_root)
+        ):
             return
 
-        await asyncio.to_thread(publish_after_run, self._corpus_root, enricher_id)
+        await asyncio.to_thread(
+            publish_after_run, self._corpus_root, enricher_id, touched=wrote or set()
+        )
 
     # ------------------------------------------------------------------ single enricher
 
@@ -1257,7 +1289,9 @@ class EnrichmentExecutor:
             # The next run reads its own previous output (the storyline registry lives
             # in it), and a half-written file would read as "no previous run".
             write_json_atomic(path, payload, indent=2)
-            self._wrote.add(manifest.id)
+            touched = self._wrote.setdefault(manifest.id, set())
+            if bundle is not None:
+                touched.update(self._metadata_relpath(bundle.metadata_path))
         except OSError as exc:
             logger.warning(
                 "enrichment envelope write failed: %s (enricher=%s, path=%s)",

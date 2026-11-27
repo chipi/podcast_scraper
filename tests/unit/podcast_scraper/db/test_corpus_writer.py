@@ -322,6 +322,35 @@ def test_a_new_transcript_version_bumps_the_revision_with_the_item_row_unchanged
     assert _revision(conn) == start + 1
 
 
+def test_a_card_only_change_bumps_the_revision(
+    pipeline_db: None,  # noqa: F811
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Audit of #2617: item_cards is not the item row, so the updated_at fallback cannot see a
+    # card-only change; write_card's return is what bumps it.
+    from podcast_scraper.db import corpus_cards
+
+    meta = _corpus_episode(tmp_path)
+    sync_episode(meta, None)
+    before = _row(conn, "content_items", "item:c")["updated_at"]
+    start = _revision(conn)
+    sync_episode(meta, None)
+    assert _revision(conn) == start
+    real = corpus_cards.card_row
+
+    def relede(*args: object) -> object:
+        card = real(*args)  # type: ignore[arg-type]
+        assert card is not None
+        return {**card, "lede": "A new lede."}
+
+    monkeypatch.setattr(corpus_writer, "card_row", relede)
+    sync_episode(meta, None)
+    assert _row(conn, "content_items", "item:c")["updated_at"] == before
+    assert _revision(conn) == start + 1
+
+
 def test_write_card_returns_whether_it_changed_the_card(
     pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:

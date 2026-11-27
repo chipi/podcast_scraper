@@ -354,7 +354,9 @@ def corpus_indexed(corpus_root: Path) -> None:
     """Run every ``corpus_indexed`` stage hook: the built-in ones, then each extension's, in
     load order; then the projections build (``db.projections.after_batch``), last, so it counts
     the grouping build an extension's hook just published (a cluster build it did not count would
-    have no reach rows)."""
+    have no reach rows). The hooks must not raise; the build raises ``corpus_writer.SyncFailed``
+    when it fails under ``PODCAST_CORPUS_WRITE_STRICT``, as the row writer does, and not
+    otherwise."""
     for hooks in _all():
         for hook in hooks.corpus_indexed:
             hook(corpus_root)

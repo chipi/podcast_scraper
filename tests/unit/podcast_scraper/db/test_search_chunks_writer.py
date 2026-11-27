@@ -264,3 +264,19 @@ def test_without_a_pipeline_database_nothing_is_written(
     run, meta, doc = _episode(tmp_path)
     rows, _ = _chunks(run, meta, doc)
     assert sync_episode_chunks(doc, chunked_bodies(run, meta, doc, rows), "en") == "not_configured"
+
+
+def test_a_metadata_file_linked_from_outside_the_corpus_is_refused_not_raised(
+    db: Any, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.search.two_tier_indexer import import_search_chunks
+
+    root = tmp_path / "corpus"
+    run, meta, doc = _episode(root)
+    _item_with_documents(db, run, doc)
+    outside = tmp_path / "elsewhere.metadata.json"
+    outside.write_text(meta.read_text(encoding="utf-8"), encoding="utf-8")
+    meta.unlink()
+    meta.symlink_to(outside)
+    assert import_search_chunks(conn, root) == {"refused": 1}
+    conn.rollback()
