@@ -5,10 +5,9 @@ and episode id — so the consumer API (``/api/app/*``) can address episodes by 
 rather than the opaque internal ``episode_id``. Keying on ``(feed_id, episode_id)``
 (both stable across re-scrapes) keeps a slug valid when an episode is re-processed.
 
-No new persistence: slugs are computed on the fly from the catalog (the same
-per-request scan the catalog/relational layers already do), consistent with the
-"plain files, no DB" decision. A persisted ``episode_slugs`` index can
-be added later if the scan cost ever warrants it.
+Slugs are computed from the catalog, which is read from the corpus rows
+(``catalog_cache``); ``content_items.slug`` holds the same derivation
+(``corpus_keys.item_slug``).
 """
 
 from __future__ import annotations
@@ -18,6 +17,7 @@ from pathlib import Path
 
 from podcast_scraper import perf_cache
 from podcast_scraper.db.corpus_keys import item_slug
+from podcast_scraper.server import catalog_cache
 from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
@@ -37,7 +37,7 @@ def slug_for_row(row: CatalogEpisodeRow) -> str:
 
 
 def _slug_index(corpus_root: Path) -> dict[str, CatalogEpisodeRow]:
-    """``{slug: row}`` for the whole catalog, cached by corpus mtime (bumps on ingest).
+    """``{slug: row}`` for the whole catalog, cached by the catalog's row token (moves on ingest).
 
     Built once per ingest over the shared cached catalog, so ``resolve_slug`` is O(1) instead of an
     O(episodes) scan + per-row hash on every ``/episodes/{slug}/*`` call (a Player load fires ~9 of
@@ -46,7 +46,7 @@ def _slug_index(corpus_root: Path) -> dict[str, CatalogEpisodeRow]:
     index: dict[str, CatalogEpisodeRow] = perf_cache.get_or_compute(
         _SLUG_INDEX_NS,
         str(Path(corpus_root).resolve()),
-        perf_cache.corpus_mtime(corpus_root),
+        catalog_cache.catalog_token(),
         lambda: {slug_for_row(row): row for row in cached_catalog(corpus_root)},
         stale_ok=True,
     )

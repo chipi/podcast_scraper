@@ -219,6 +219,8 @@ def ensure_source(
         .first()
     )
     if stored is None:
+        if wanted["title"] is None:
+            raise RowRefused(f"source {wanted['natural_id']}: the metadata names no source title")
         source_id: int = conn.execute(
             insert(sources).values(**wanted).returning(sources.c.source_id)
         ).scalar_one()

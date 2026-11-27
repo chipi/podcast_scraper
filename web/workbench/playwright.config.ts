@@ -101,7 +101,9 @@ export default defineConfig({
       // the server exited 2 on a corpus directory that did not exist yet.
       // No identity ledger step: `identity-ledger` is a stage's command since E04 (public has no
       // such command without that stage installed, and read the word as a feed URL).
-      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli db upgrade --plane player && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
+      // The catalog reads the corpus rows (r-intents): the seeded corpus is imported after the
+      // upgrade and before the API starts.
+      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli db upgrade --plane player && ${pythonBin} -m podcast_scraper.cli db import-corpus --root .e2e-corpus/v3 && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
       cwd: __dirname,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       env: {
@@ -122,6 +124,12 @@ export default defineConfig({
         // App state is Postgres (ADR-169): PODCAST_DATABASE_URL, else the test database.
         PODCAST_DATABASE_URL:
           process.env.PODCAST_DATABASE_URL || process.env.PODCAST_TEST_DATABASE_URL || '',
+        // The API reads the corpus as corpus_ro; the test database has one role, so the same URL.
+        PODCAST_DATABASE_CORPUS_RO_URL:
+          process.env.PODCAST_DATABASE_CORPUS_RO_URL ||
+          process.env.PODCAST_DATABASE_URL ||
+          process.env.PODCAST_TEST_DATABASE_URL ||
+          '',
         PODCAST_DEV_OBS_ENV: '0',
         // The fixture's invented news publishers (UXS-019; the shipped registry names real ones).
         PODCAST_PUBLISHERS_FILE: path.join(

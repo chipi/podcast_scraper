@@ -668,6 +668,23 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, test-unit]
     if: needs.detect-changes.outputs.python == 'true'
+    # App state and the corpus rows are Postgres (ADR-169): the catalog reads rows, and tests
+    # import their file corpus first (tests/_corpus_rows.py), so every pytest job needs the DB.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python
@@ -1147,12 +1164,28 @@ jobs:
     # failures). Path-A python gate skips this for viewer-only PRs.
     needs: [detect-changes, preload-ml-models, test-unit]
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'pull_request' &&
       needs.detect-changes.outputs.python == 'true'
+    # App state and the corpus rows are Postgres (ADR-169): the catalog reads rows, and tests
+    # import their file corpus first (tests/_corpus_rows.py), so every pytest job needs the DB.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
     - uses: actions/checkout@v7
     - name: Free disk space
@@ -1267,6 +1300,7 @@ jobs:
     # ``test-unit`` added for fail-fast. Path-A python gate skips on viewer-only.
     needs: [detect-changes, preload-ml-models, test-unit]
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -1282,6 +1316,21 @@ jobs:
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
       needs.detect-changes.outputs.python == 'true'
+    # App state and the corpus rows are Postgres (ADR-169): the catalog reads rows, and tests
+    # import their file corpus first (tests/_corpus_rows.py), so every pytest job needs the DB.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
     - uses: actions/checkout@v7
     - name: Free disk space
@@ -1419,6 +1468,7 @@ jobs:
     timeout-minutes: 90
     needs: [detect-changes, preload-ml-models, test-unit]
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     # Push-to-main runs the full acceptance gate. Additionally run on PRs that touch
@@ -1434,6 +1484,21 @@ jobs:
         github.event_name == 'pull_request' &&
         needs.detect-changes.outputs.acceptance == 'true'
       )
+    # App state and the corpus rows are Postgres (ADR-169): the catalog reads rows, and tests
+    # import their file corpus first (tests/_corpus_rows.py), so every pytest job needs the DB.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
     - uses: actions/checkout@v7
     - name: Free disk space

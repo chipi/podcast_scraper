@@ -85,7 +85,7 @@ def test_corpus_coverage_metadata_only_episodes_count_as_neither(tmp_path: Path)
         json.dumps(
             _episode_doc(
                 episode_id="e0",
-                feed_id="",
+                feed_id="z",
                 published="bad-month",
             ),
         ),
@@ -100,8 +100,10 @@ def test_corpus_coverage_metadata_only_episodes_count_as_neither(tmp_path: Path)
     assert body["with_neither"] == 1
     assert body["with_gi"] == 0
     assert body["by_month"] == []
+    # An item with no feed id is refused at import, so on rows no episode reaches the "(unknown)"
+    # feed bucket.
     feeds = {f["feed_id"]: f for f in body["by_feed"]}
-    assert "(unknown)" in feeds
+    assert set(feeds) == {"z"}
 
 
 def test_corpus_coverage_empty_corpus(tmp_path: Path) -> None:

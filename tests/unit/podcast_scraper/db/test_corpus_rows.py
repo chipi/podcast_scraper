@@ -213,6 +213,15 @@ def test_an_undated_item_counts_as_oldest() -> None:
     assert source_row_for([undated, dated])["title"] == "A show"
 
 
+def test_an_item_that_names_no_show_title_takes_its_shows() -> None:
+    untitled = _episode(episode_id="ep-new", published_date="2026-11-22T08:00:00+00:00")
+    del untitled["feed"]["title"]
+    assert source_row(untitled)["title"] is None
+    assert source_row_for([untitled, _episode()])["title"] == "A show"
+    with pytest.raises(ValueError, match="names no source title"):
+        source_row_for([untitled])
+
+
 def test_items_of_one_day_are_ordered_by_their_utc_instant() -> None:
     morning = _episode(episode_id="ep-b", published_date="2026-11-20T08:00:00+00:00")
     evening = _episode(episode_id="ep-a", published_date="2026-11-20T18:00:00-05:00")

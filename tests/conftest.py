@@ -97,6 +97,10 @@ TEST_CONTENT_TYPE_SRT = "text/srt"
 # re-import silently swaps in a fresh ledger reading $0.00 spent. Importing at collection puts it
 # in sys.modules before any test's patch window opens.
 from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
+from tests._corpus_rows import (  # noqa: E402
+    corpus_rows_fixture as _corpus_rows_fixture,
+    corpus_rows_patch as _corpus_rows_patch,
+)
 
 # Same reason as above: the database layer is imported at collection, before any sys.modules patch
 # window opens (sqlalchemy and psycopg are C-extension-backed and must not be re-imported).
@@ -1083,3 +1087,16 @@ def _app_database(monkeypatch):
     fails with the "start the test database" message (``make test-db-up``).
     """
     yield from _database_fixture(monkeypatch)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _corpus_rows_session():
+    """The catalog reads rows: a test's file corpus is imported before the catalog reads it
+    (``tests._corpus_rows``)."""
+    yield from _corpus_rows_patch()
+
+
+@pytest.fixture(autouse=True)
+def _corpus_rows(_app_database):
+    """Empty catalog caches around each test (``tests._corpus_rows``)."""
+    yield from _corpus_rows_fixture()
