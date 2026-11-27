@@ -233,30 +233,87 @@ def test_a_failed_publish_stays_pending_under_strict_too(
     assert enrichment_rows.pending(tmp_path) == {"note"}
 
 
-def test_a_publish_that_leaves_out_an_episode_the_run_wrote_stays_pending(
-    pipeline_db: None, url: str, conn: Connection, tmp_path: Path  # noqa: F811
+def test_a_left_out_episode_is_checked_again_by_a_retry_that_wrote_nothing(
+    pipeline_db: None,  # noqa: F811
+    url: str,  # noqa: F811
+    conn: Connection,  # noqa: F811
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # Audit of #2616: the build reads served items only, so an episode whose row is not synced
-    # yet is not in it. Cleared as published, the staleness gate would skip it next run and its
-    # output would never reach the rows.
+    # Audit of #2616, and database's review of #2632: the build reads served items only, so an
+    # episode whose row is not served yet is not in it. The retry run's staleness gate skips the
+    # episode, so it touches nothing; the pending entry must still remember the episode.
     _corpus(tmp_path)
     _episode_output(tmp_path, 4)
     engine = create_engine(normalize_url(url))
     with engine.begin() as db:
         import_corpus(db, tmp_path, registry=_REGISTRY)
-    engine.dispose()
-    unsynced = f"feeds/rss_example/{_RUN}/metadata/0002 - Two.metadata.json"
-    got = enrichment_rows.publish_after_run(tmp_path, "episode_note", touched={_META, unsynced})
+        db.execute(text("UPDATE corpus.content_items SET served = 0"))
+    with caplog.at_level("WARNING", logger=enrichment_rows.__name__):
+        got = enrichment_rows.publish_after_run(tmp_path, "episode_note", touched={_META})
     assert got == "left_out"
-    assert _published(conn) == [("episode_note", "4")]
+    assert enrichment_rows.left_out(tmp_path, "episode_note") == {_META}
+    assert _META in caplog.text and "pending since" in caplog.text
+    # The retry writes nothing: the episode is still checked, and still not served.
+    again = enrichment_rows.publish_after_run(tmp_path, "episode_note")
+    assert again == "left_out"
     assert enrichment_rows.pending(tmp_path) == {"episode_note"}
-    # Once every episode it wrote is in the build, the publish lands and clears it.
-    landed = enrichment_rows.publish_after_run(tmp_path, "episode_note", touched={_META})
-    assert landed == "published"
+    with engine.begin() as db:
+        db.execute(text("UPDATE corpus.content_items SET served = 1"))
+    engine.dispose()
+    # Served now: the retry that wrote nothing publishes it and clears the entry.
+    assert enrichment_rows.publish_after_run(tmp_path, "episode_note") == "published"
+    assert _published(conn) == [("episode_note", "4")]
     assert enrichment_rows.pending(tmp_path) == set()
 
 
-def test_an_enricher_with_no_readable_output_publishes_nothing_and_keeps_pending_as_it_was(
+def test_a_refused_publish_keeps_the_left_out_files_and_the_first_pending_time(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(settings, "pipeline_is_configured", lambda: True)
+    monkeypatch.setattr(
+        enrichment_rows, "_publish", lambda root, enricher_id, touched: (1, set(touched))
+    )
+    assert enrichment_rows.publish_after_run(tmp_path, "note", touched={"a.json"}) == "left_out"
+    path = enrichment_rows.pending_path(tmp_path)
+    first = json.loads(path.read_text(encoding="utf-8"))
+
+    def refused(root: Path, enricher_id: str, touched: set[str]) -> None:
+        raise leases.LeaseRefused("held")
+
+    monkeypatch.setattr(enrichment_rows, "_publish", refused)
+    assert enrichment_rows.publish_after_run(tmp_path, "note") == "lease_refused"
+    assert json.loads(path.read_text(encoding="utf-8")) == first
+    assert first["note"]["left_out"] == ["a.json"] and first["note"]["since"]
+
+
+def test_the_pending_file_of_2620_a_list_of_ids_still_reads(tmp_path: Path) -> None:
+    path = enrichment_rows.pending_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text('["a", "b"]', encoding="utf-8")
+    assert enrichment_rows.pending(tmp_path) == {"a", "b"}
+    assert enrichment_rows.left_out(tmp_path, "a") == set()
+    assert enrichment_rows.take_unreadable(tmp_path) is False
+
+
+def test_a_pending_file_corrupted_during_the_run_is_set_aside_by_the_next_mark(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(settings, "pipeline_is_configured", lambda: True)
+
+    def refused(root: Path, enricher_id: str, touched: set[str]) -> None:
+        raise leases.LeaseRefused("held")
+
+    monkeypatch.setattr(enrichment_rows, "_publish", refused)
+    path = enrichment_rows.pending_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text("{torn", encoding="utf-8")
+    assert enrichment_rows.publish_after_run(tmp_path, "note") == "lease_refused"
+    assert path.with_name(path.name + ".unreadable").read_text(encoding="utf-8") == "{torn"
+    assert enrichment_rows.pending(tmp_path) == {"note"}
+
+
+def test_an_enricher_with_no_readable_output_publishes_nothing_and_is_no_longer_pending(
     pipeline_db: None, url: str, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
     _corpus(tmp_path)
@@ -264,6 +321,11 @@ def test_an_enricher_with_no_readable_output_publishes_nothing_and_keeps_pending
     with engine.begin() as db:
         import_corpus(db, tmp_path, registry=_REGISTRY)
     engine.dispose()
+    # Pending from a refused publish, with nothing left out: nothing to publish clears it, so
+    # later runs stop reading every served envelope for nothing (database's review of #2632).
+    path = enrichment_rows.pending_path(tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('["episode_note"]', encoding="utf-8")
     assert enrichment_rows.publish_after_run(tmp_path, "episode_note") == "nothing_to_publish"
     assert _published(conn) == []
     assert enrichment_rows.pending(tmp_path) == set()

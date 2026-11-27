@@ -615,6 +615,24 @@ class EnrichmentExecutor:
 
         await asyncio.gather(*(_in_order(e) for e in enrichers))
 
+    def _metadata_relpath(self, metadata_path: Path) -> list[str]:
+        """The episode's metadata file as the rows name it (``type_attrs``'
+        ``metadata_relative_path``: relative to the corpus root, unresolved, as the importer and
+        the row writer write it); the resolved form when only that is under the root. A file
+        under neither is logged and not checked."""
+        root = self._corpus_root
+        for path, base in ((metadata_path, root), (metadata_path.resolve(), root.resolve())):
+            try:
+                return [path.relative_to(base).as_posix()]
+            except ValueError:
+                continue
+        logger.warning(
+            "enrichment rows: %s is not under the corpus root %s; its publish is not checked",
+            metadata_path,
+            root,
+        )
+        return []
+
     async def _publish_rows(self, enricher_id: str) -> None:
         """After one enricher's run: its outputs onto the corpus rows as its new build
         (``db.enrichment_rows``), when it wrote an envelope this run or an earlier publish did not
@@ -1273,11 +1291,7 @@ class EnrichmentExecutor:
             write_json_atomic(path, payload, indent=2)
             touched = self._wrote.setdefault(manifest.id, set())
             if bundle is not None:
-                try:
-                    root = self._corpus_root.resolve()
-                    touched.add(bundle.metadata_path.resolve().relative_to(root).as_posix())
-                except ValueError:
-                    pass
+                touched.update(self._metadata_relpath(bundle.metadata_path))
         except OSError as exc:
             logger.warning(
                 "enrichment envelope write failed: %s (enricher=%s, path=%s)",
