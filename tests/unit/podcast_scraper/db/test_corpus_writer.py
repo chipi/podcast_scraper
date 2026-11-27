@@ -283,6 +283,60 @@ def test_a_changed_item_overwrites_its_row(
     assert (item["title"], item["duration_s"]) == ("Renamed", 60)
 
 
+def _revision(db: Connection) -> int:
+    db.rollback()
+    return int(db.execute(select(corpus_revision.c.revision)).scalar_one())
+
+
+def test_a_sync_that_writes_the_item_row_bumps_the_revision_and_an_unchanged_one_does_not(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # The catalog's token reads the revision: a sync that started before another committed and
+    # commits after it carries an older now() as updated_at, so the newest updated_at alone
+    # would not move (#2614).
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
+    start = _revision(conn)
+    sync_episode(_metadata(tmp_path, "item:v"), transcript)
+    assert _revision(conn) == start + 1
+    sync_episode(_metadata(tmp_path, "item:v"), transcript)
+    assert _revision(conn) == start + 1
+    renamed = _doc("item:v", title="Renamed")
+    sync_episode(_metadata(tmp_path, "item:v", renamed), transcript)
+    assert _revision(conn) == start + 2
+
+
+def test_a_new_transcript_version_bumps_the_revision_with_the_item_row_unchanged(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # DECISIONS rule 7: every content write, not only the item row's; the graph keys on it.
+    meta = _metadata(tmp_path, "item:t")
+    sync_episode(meta, _write(tmp_path, BASE + ".txt", "Hello.\n"))
+    before = _row(conn, "content_items", "item:t")["updated_at"]
+    start = _revision(conn)
+    assert sync_episode(meta, _write(tmp_path, BASE + ".txt", "Hello again.\n")) == "superseded"
+    assert _row(conn, "content_items", "item:t")["updated_at"] == before
+    assert _revision(conn) == start + 1
+
+
+def test_write_card_returns_whether_it_changed_the_card(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.languages import UNUSABLE_FIELD
+
+    meta = _corpus_episode(tmp_path)
+    sync_episode(meta, None)
+    rel = "feeds/show/run_20261101-000000/metadata/item_c.metadata.json"
+    item_id = _row(conn, "content_items", "item:c")["item_id"]
+    doc = _doc("item:c")
+    same = item_row(doc, metadata_relpath=rel)
+    assert corpus_writer.write_card(conn, tmp_path, rel, item_id, same) is False
+    doc["episode"][UNUSABLE_FIELD] = {"reason": "silence"}
+    unusable = item_row(doc, metadata_relpath=rel)
+    assert corpus_writer.write_card(conn, tmp_path, rel, item_id, unusable) is True
+    assert corpus_writer.write_card(conn, tmp_path, rel, item_id, unusable) is False
+    conn.rollback()
+
+
 def test_a_newer_served_item_decides_the_source_and_an_older_one_fills_only_nulls(
     pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
