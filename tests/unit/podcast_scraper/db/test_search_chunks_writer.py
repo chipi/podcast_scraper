@@ -60,7 +60,11 @@ def db(url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:  # noqa: F81
     yield engine
     with engine.begin() as c:
         for table in reversed(corpus_metadata.sorted_tables):
-            if table is not corpus_revision:
+            # The writer bumps the revision (#2617): reset it, or a later test in this
+            # worker's database reads another test's count.
+            if table is corpus_revision:
+                c.execute(corpus_revision.update().values(revision=0))
+            else:
                 c.execute(table.delete())
     engine.dispose()
     engines.reset_engines()
