@@ -24,6 +24,7 @@ import hashlib
 import json
 import logging
 import os
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, cast, Dict, Iterable, Iterator, List, Optional, Tuple
@@ -89,6 +90,70 @@ def _sync_search_chunks(
         if _strict():
             raise
         logger.warning("search chunks failed for %s", meta_path, exc_info=True)
+
+
+def import_search_chunks(
+    conn: Any,
+    corpus_dir: str | Path,
+    *,
+    target_tokens: Optional[int] = None,
+    overlap_tokens: Optional[int] = None,
+) -> Counter:
+    """Every servable episode's transcript chunks as ``search_chunks`` rows, in the caller's
+    transaction (``conn``), as the index build writes them: the build's walk and chunker, so the
+    same ``chunk:<scope>:<n>`` ids, and no embedding and no LanceDB read. The cut-over's import
+    calls it after ``import_corpus`` (hydration reads rows only, r-search slice 3); a dry run
+    rolls both back. ``target_tokens`` and ``overlap_tokens`` must be the build's, or each id
+    names another span of the body: they default to the config's ``vector_chunk_size_tokens``
+    and ``vector_chunk_overlap_tokens``, which the pipeline's build (``indexer.index_corpus``)
+    uses, not this module's defaults. Leases are the caller's. Returns the episodes per outcome:
+    ``written``, ``unchanged``, ``stale`` (a body with no served document of that text; its
+    chunks left out), ``no_item_row`` and ``refused`` (no item key, or a span outside its
+    document)."""
+    from sqlalchemy import select
+
+    from podcast_scraper.db.corpus_keys import item_natural_id, KeyNotDerivable
+    from podcast_scraper.db.schema import content_items
+    from podcast_scraper.db.search_chunks_writer import chunk_rows, replace_item_chunks
+    from podcast_scraper.languages import episode_language
+
+    fields = _config.Config.model_fields
+    if target_tokens is None:
+        target_tokens = int(fields["vector_chunk_size_tokens"].default)
+    if overlap_tokens is None:
+        overlap_tokens = int(fields["vector_chunk_overlap_tokens"].default)
+    out = Path(corpus_dir)
+    report: Counter = Counter()
+    for meta_path, doc in _servable_docs(discover_metadata_files(out), {}, set(), set()):
+        try:
+            natural_id = item_natural_id(doc)
+        except KeyNotDerivable:
+            report["refused"] += 1
+            continue
+        item_id = conn.execute(
+            select(content_items.c.item_id).where(content_items.c.natural_id == natural_id)
+        ).scalar_one_or_none()
+        if item_id is None:
+            report["no_item_row"] += 1
+            continue
+        episode_root = episode_root_from_metadata_path(meta_path)
+        rows = _collect_docs_for_episode(
+            episode_root,
+            meta_path,
+            doc,
+            target_tokens=target_tokens,
+            overlap_tokens=overlap_tokens,
+            metadata_relative_path=meta_path.resolve().relative_to(out.resolve()).as_posix(),
+        )
+        bodies = chunked_bodies(episode_root, meta_path, doc, rows)
+        try:
+            chunks, stale = chunk_rows(conn, item_id, bodies, episode_language(dict(doc)))
+        except ValueError:
+            report["refused"] += 1
+            continue
+        changed = replace_item_chunks(conn, item_id, chunks)
+        report["stale" if stale else "written" if changed else "unchanged"] += 1
+    return report
 
 
 def _checkpoint_every() -> int:
