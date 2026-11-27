@@ -103,9 +103,10 @@ def import_search_chunks(
     rolls both back. ``target_tokens`` and ``overlap_tokens`` must be the build's, or each id
     names another span of the body: they default to the config's ``vector_chunk_size_tokens``
     and ``vector_chunk_overlap_tokens``, which the pipeline's build (``indexer.index_corpus``)
-    uses, not this module's defaults. Leases are the caller's. Returns the episodes per outcome: ``written``, ``unchanged``,
-    ``stale`` (a body with no served document of that text; its chunks left out),
-    ``no_item_row`` and ``refused`` (no item key, or a span outside its document)."""
+    uses, not this module's defaults. Leases are the caller's. Returns the episodes per outcome:
+    ``written``, ``unchanged``, ``stale`` (a body with no served document of that text; its
+    chunks left out), ``no_item_row`` and ``refused`` (no item key, or a span outside its
+    document)."""
     from sqlalchemy import select
 
     from podcast_scraper.db.corpus_keys import item_natural_id, KeyNotDerivable
