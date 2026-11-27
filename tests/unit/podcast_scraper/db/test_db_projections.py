@@ -18,8 +18,10 @@ from podcast_scraper.db.schema import (
     cluster_members,
     cluster_reach,
     clusters,
+    entities,
     entity_item_counts,
     entity_weeks,
+    person_rankings,
     projection_builds,
 )
 from podcast_scraper.db.settings import normalize_url
@@ -183,3 +185,73 @@ def test_after_batch_counts_its_outcome_and_raises_only_when_strict(
     with pytest.raises(corpus_writer.SyncFailed):
         projections.after_batch()
     assert projections.OUTCOMES == {"not_configured": 1, "lease_refused": 1, "failed": 2}
+
+
+def test_person_rankings_count_the_insights_a_persons_quotes_support_under_the_canonical(
+    conn: Connection,  # noqa: F811
+) -> None:
+    # Common's _rank_all_persons on rows (database, 2026-11-27): Insight SUPPORTED_BY Quote
+    # SPOKEN_BY Person, distinct current insights on shown items; rank by insights, then the
+    # canonical natural id; an unresolved voice never ranks.
+    c = Corpus(conn)
+    bob_2 = _one(
+        conn,
+        entities,
+        natural_id="person:bob-2",
+        type="person",
+        label="Bob",
+        normalized_label="bob",
+        canonical_id=c.e["person:bob"],
+    )
+    c.e["person:bob-2"] = bob_2
+    c.entity("person:speaker-03")
+    c.entity("person:carl")
+    d2 = c.items["2"]
+    # The fixture's q1: bob's quote supports n1 (item 1). bob-2 is bob: n3 on item 2.
+    c.quote(d2, "person:bob-2", c.n3, "b2")
+    # ann: n1 and n3, so 2 and 2 like bob; the tie goes to the natural id, person:ann first.
+    c.quote(c.items["1"], "person:ann", c.n1, "a1")
+    c.quote(d2, "person:ann", c.n3, "a3")
+    # A diarization voice ranks for nothing.
+    c.quote(d2, "person:speaker-03", c.n3, "s3")
+    # carl supports only insights the graph does not serve: on a superseded document, hidden.
+    c.quote(c.stale, "person:carl", c.n4, "c4")
+    c.quote(d2, "person:carl", c.n5, "c5")
+    built = projections.build_in(conn)
+    rows = conn.execute(
+        select(entities.c.natural_id, person_rankings.c["items"], person_rankings.c.insights)
+        .join(entities, entities.c.entity_id == person_rankings.c.entity_id)
+        .where(person_rankings.c.build_id == built.build_id)
+        .order_by(person_rankings.c.rank)
+    ).all()
+    assert [tuple(r) for r in rows] == [("person:ann", 2, 2), ("person:bob", 2, 2)]
+    assert built.stats["person_rankings"] == 2
+    ranks = conn.execute(
+        select(person_rankings.c.rank)
+        .where(person_rankings.c.build_id == built.build_id)
+        .order_by(person_rankings.c.rank)
+    ).scalars()
+    assert list(ranks) == [1, 2]
+
+
+def test_the_placeholder_test_is_the_file_codes_on_the_speakers_own_id(
+    conn: Connection,  # noqa: F811
+) -> None:
+    from podcast_scraper.graph_id_utils import is_unresolved_speaker_placeholder
+
+    c = Corpus(conn)
+    for natural_id in (
+        "person:speaker-03",
+        "person:speaker-ep1-host",
+        "person:speaker-john-knight",
+    ):
+        c.entity(natural_id)
+        c.quote(c.items["2"], natural_id, c.n3, natural_id)
+    got = set(projections._placeholder_speakers(conn))
+    wanted = {
+        c.e[n]
+        for n in ("person:speaker-03", "person:speaker-ep1-host", "person:speaker-john-knight")
+        if is_unresolved_speaker_placeholder(n)
+    }
+    assert got == wanted and c.e["person:speaker-03"] in got
+    assert c.e["person:speaker-john-knight"] not in got
