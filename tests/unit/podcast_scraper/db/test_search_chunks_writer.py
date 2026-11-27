@@ -158,6 +158,67 @@ def test_a_body_the_pipeline_has_not_synced_is_stale_and_not_cut(
     assert conn.execute(text("SELECT count(*) FROM corpus.search_chunks")).scalar_one() == 0
 
 
+def _stored(c: Connection, item_id: int) -> list[tuple[Any, ...]]:
+    return sorted(
+        tuple(r)
+        for r in c.execute(
+            select(
+                search_chunks.c.natural_id,
+                search_chunks.c.document_id,
+                search_chunks.c.start_seq,
+                search_chunks.c.start_offset,
+                search_chunks.c.end_seq,
+                search_chunks.c.end_offset,
+            ).where(search_chunks.c.item_id == item_id)
+        )
+    )
+
+
+def test_the_import_writes_the_builds_rows_in_the_callers_transaction(
+    db: Any, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.search.two_tier_indexer import import_search_chunks
+
+    run, meta, doc = _episode(tmp_path)
+    item_id = _item_with_documents(db, run, doc)
+    # A second run of a show the pipeline has not written: no item row.
+    other = tmp_path / "feeds" / "other" / "run_20261101-000000"
+    (other / "metadata").mkdir(parents=True)
+    unsynced = {**_doc(), "episode": {"episode_id": "item:none", "title": "N", "language": "en"}}
+    (other / "metadata" / f"{BASE}.metadata.json").write_text(json.dumps(unsynced), "utf-8")
+    report = import_search_chunks(conn, tmp_path, target_tokens=40, overlap_tokens=8)
+    assert report == {"written": 1, "no_item_row": 1}
+    imported = _stored(conn, item_id)
+    conn.rollback()
+    # A dry run: the caller rolls it back, nothing is left.
+    assert _stored(conn, item_id) == []
+    rows, transcript = _chunks(run, meta, doc)
+    assert sync_episode_chunks(doc, chunked_bodies(run, meta, doc, rows), "en") == "written"
+    # The same rows, ids included, as the index build writes.
+    assert imported == _stored(conn, item_id)
+    assert {r[0] for r in imported} == {r[0] for r in transcript}
+    assert import_search_chunks(conn, tmp_path, target_tokens=40, overlap_tokens=8) == {
+        "unchanged": 1,
+        "no_item_row": 1,
+    }
+    conn.rollback()
+
+
+def test_the_import_leaves_out_an_unusable_episode(
+    db: Any, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    from podcast_scraper.languages import UNUSABLE_FIELD
+    from podcast_scraper.search.two_tier_indexer import import_search_chunks
+
+    run, meta, doc = _episode(tmp_path)
+    item_id = _item_with_documents(db, run, doc)
+    doc["episode"][UNUSABLE_FIELD] = {"reason": "silence"}
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    assert import_search_chunks(conn, tmp_path) == {}
+    assert _stored(conn, item_id) == []
+    conn.rollback()
+
+
 def test_an_episode_the_pipeline_has_not_written_has_no_rows(db: Any, tmp_path: Path) -> None:
     run, meta, doc = _episode(tmp_path)
     rows, _ = _chunks(run, meta, doc)
