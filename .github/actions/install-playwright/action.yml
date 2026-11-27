@@ -84,11 +84,17 @@ runs:
             | sudo tee /etc/apt/apt.conf.d/99keep-downloaded-packages >/dev/null
         }
         missing_libs() {
-          # Shared libraries the browser's own binaries cannot resolve on this machine.
-          # -L: the browser directory may be a symlink (a mounted cache).
-          find -L ~/.cache/ms-playwright -type f \( -name chrome -o -name chrome-headless-shell \
-              -o -name headless_shell -o -name firefox -o -name 'lib*.so' \) 2>/dev/null \
-            | xargs -r ldd 2>/dev/null | grep -c "not found" || true
+          # Shared libraries the browser's own binaries cannot resolve on this machine, looked up
+          # where Playwright runs them (PLAYWRIGHT_BROWSERS_PATH on the X3). No binary found is
+          # not "none missing": it reports "no-browser". -L: the folder may be a symlink.
+          local dir="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}" bins
+          bins=$(find -L "$dir" -type f \( -name chrome -o -name chrome-headless-shell \
+              -o -name headless_shell -o -name firefox -o -name 'lib*.so' \) 2>/dev/null || true)
+          if [ -z "$bins" ]; then
+            echo "no-browser"
+            return
+          fi
+          printf '%s\n' "$bins" | xargs -r ldd 2>/dev/null | grep -c "not found" || true
         }
         fresh() {
           if [ "$WITH_DEPS" = "true" ]; then
@@ -101,8 +107,8 @@ runs:
             ls /var/cache/apt/archives/*.deb 2>/dev/null | sort | comm -13 "$before" - \
               | xargs -r -I{} cp {} "$DEB_DIR"/
             if ! ls "$DEB_DIR"/*.deb >/dev/null 2>&1; then
-              # Nothing new to download (all present on the image): a hit then finds no missing
-              # library and skips install-deps.
+              # Nothing new to download (all present on the image, or already in the apt
+              # archive): a hit then runs install-deps if the browser misses a library.
               echo "playwright: no new system packages captured"
             fi
           else
@@ -113,7 +119,10 @@ runs:
         if [ "$KEPT" = "true" ]; then
           echo "playwright: installing into the runner's kept folder (${CI_CACHE})"
           node_modules/.bin/playwright install "$BROWSER"
-          if [ "$WITH_DEPS" = "true" ] && [ "$(missing_libs)" != "0" ]; then
+          # Every X3 job is a fresh container: the browser is kept, its system libraries are not.
+          # install-deps installs them from the kept apt archive (Player run 45987127171 failed
+          # at launch on libnspr4.so when this was skipped).
+          if [ "$WITH_DEPS" = "true" ]; then
             node_modules/.bin/playwright install-deps "$BROWSER"
           fi
           echo "save=false" >> "$GITHUB_OUTPUT"
