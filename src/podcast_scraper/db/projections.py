@@ -26,7 +26,11 @@ their canonical id, every member's rows included (§3.3).
   speaker whose own id is an unresolved diarization voice
   (``graph_id_utils.is_unresolved_speaker_placeholder``, the file code's test, on the same id)
   never counts; a person with no such insight has no row. No top topics until
-  ``insight_mentions.confidence`` is filled (corpus_0016), and no ``total_persons``.
+  ``insight_mentions.confidence`` is filled (corpus_0016), and no ``total_persons``. The file
+  code counts SPOKEN_BY only, while ``evidence.speaker_id`` also holds an ATTRIBUTED_TO target
+  for a quote with no SPOKEN_BY; snapshot-prod-20261127 has no ATTRIBUTED_TO edge in any of its
+  4,125 episodes' GI, so the two agree there. Should one appear, ``evidence`` needs the edge it
+  came from.
 
 The published build and the one before it are kept, so undo can publish the previous one; older
 builds are deleted with their rows.
