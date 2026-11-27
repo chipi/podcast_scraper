@@ -91,7 +91,9 @@ def _news_hits(
                 score=score,
                 content_type="news_article",
                 news_item=NewsItem(**item),
-                metadata={"doc_type": "news_article", "item_id": item_id},
+                # source_id is the hit's graph node (n-source-id): an item's node id is its
+                # natural id, which for a news item is the metadata's item_id.
+                metadata={"doc_type": "news_article", "item_id": item_id, "source_id": item_id},
                 text="",
                 source_tier="news",
             )
