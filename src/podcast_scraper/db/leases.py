@@ -60,7 +60,8 @@ def source_resource(source_natural_id: str) -> str:
 
 
 def build_resource(kind: str) -> str:
-    """The lease resource of a corpus-wide build (``identity``, ``clusters``, ``projections``)."""
+    """The lease resource of a corpus-wide build: ``identity``, ``groupings`` (both groupings
+    writers) or ``projections``."""
     return f"build:{kind}"
 
 
