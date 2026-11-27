@@ -71,8 +71,11 @@ if [ -n "$py" ]; then
   # and `mypy .` skips those (scripts/ alone: 18 errors in 7 files that CI never sees).
   mypy_py=$(printf '%s\n' "$py" | grep -vE '^(scripts|tools|apps|eval-data|\.venv|\.venv-dev)/' || true)
   if [ -n "$mypy_py" ]; then
+    # This checkout's src/ and root, as `make type` (PYTHONPATH=$PWD, and `.` names src/): a
+    # worktree's .venv is often shared, and its editable install points at another checkout.
     # shellcheck disable=SC2086
-    gate mypy "$PY" -m mypy $mypy_py
+    gate mypy env MYPYPATH="$PWD/src" PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}" \
+      "$PY" -m mypy --config-file pyproject.toml $mypy_py
   fi
   # The flags of `make security-bandit`, which CI runs over the whole tree.
   # shellcheck disable=SC2086
