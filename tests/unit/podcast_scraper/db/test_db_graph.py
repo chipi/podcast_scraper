@@ -627,6 +627,22 @@ def test_nodes_carry_their_groups_and_the_slice_a_catalogue_with_their_parents(
     ]
 
 
+def test_a_slice_with_no_entity_or_insight_node_sends_no_groups_statement(
+    conn: Connection,
+) -> None:
+    # Decision 9's counts are an upper bound fixed by the preset: a read whose input is empty
+    # sends nothing. An item with no KG or GI rows reaches only its source, so the tail is
+    # nodes, items and induced edges, without groups: 3, not 4.
+    c = Corpus(conn)
+    c.item("bare", T0)
+    with _statements(conn) as seen:
+        got = graph.slice_items(conn, ["episode:bare"])
+    assert _ids(got) == {"episode:bare", "podcast:s"}
+    assert got["groups"] == []
+    # 1 (revision and seeds) + 1 item step (the insight step has no frontier) + 3.
+    assert len(seen) == 1 + 1 + 3
+
+
 def test_with_no_published_cluster_build_nodes_are_in_no_group(conn: Connection) -> None:
     c = Corpus(conn)
     old = _one(conn, cluster_builds, rule_version="test/1", state="retired")
