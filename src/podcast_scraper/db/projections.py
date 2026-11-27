@@ -35,8 +35,10 @@ their canonical id, every member's rows included (§3.3).
   (``GET /relational/related-topics``, the MCP ``related_topics``; ``relational_queries.
   related_topics`` on files): per ordered pair of canonical topics, the distinct current insights
   on shown items ABOUT both, in both directions; each topic keeps its :data:`RELATED_PER_TOPIC`
-  strongest, by weight and then the other topic's natural id, as the route ranks them. Not
-  shown-item co-occurrence: ``topic_cooccurrence_corpus``'s ``entity_pairs`` give that.
+  strongest, by weight and then the other topic's natural id, as the route ranks them. Each
+  direction is cut by its own topic's list, so ``(a, b)`` can be stored without ``(b, a)``: read
+  one topic's related topics by ``topic_a``, never the table as symmetric. Not shown-item
+  co-occurrence: ``topic_cooccurrence_corpus``'s ``entity_pairs`` give that.
 
 The published build and the one before it are kept, so undo can publish the previous one; older
 builds are deleted with their rows.
