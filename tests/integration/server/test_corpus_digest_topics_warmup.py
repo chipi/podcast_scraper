@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +35,12 @@ from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server.app import create_app
 
 pytestmark = pytest.mark.integration
+
+
+def _ago(minutes: int) -> str:
+    # The digest compares the publish instant with now (#2589): an episode at today's noon UTC is
+    # in the future, and outside every window, until noon.
+    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _row(published: str, *, eid: str = "ep1", feed: str = "feed_a") -> dict:
@@ -59,11 +65,10 @@ def test_first_topic_band_completes_before_any_second_band_starts(
     the concurrent first-touch SIGSEGV shape.
 
     Rationale in the module docstring above."""
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
-        json.dumps(_row(f"{today}T12:00:00Z")),
+        json.dumps(_row(_ago(60))),
         encoding="utf-8",
     )
     lance_idx = tmp_path / "search" / "lance_index"
