@@ -1001,6 +1001,9 @@ insight_mentions = Table(
     Column("kind", Text, nullable=False),
     Column("item_id", BigInteger, nullable=False),
     Column("rank", Integer, nullable=False),
+    # The ABOUT edge's confidence (persons/top ranks a person's topics by its sum); null until the
+    # GI writers fill it (corpus_0016).
+    Column("confidence", REAL, nullable=True),
     PrimaryKeyConstraint("insight_id", "kind", "entity_id", name="insight_mentions_pkey"),
     ForeignKeyConstraint(
         ["insight_id"],
@@ -1111,6 +1114,12 @@ topic_relations = Table(
     PrimaryKeyConstraint("build_id", "topic_a", "topic_b", "kind", name="topic_relations_pkey"),
     ForeignKeyConstraint(["topic_a"], ["entities.entity_id"], name="topic_relations_topic_a_fkey"),
     ForeignKeyConstraint(["topic_b"], ["entities.entity_id"], name="topic_relations_topic_b_fkey"),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["projection_builds.build_id"],
+        name="topic_relations_build_fkey",
+        ondelete="CASCADE",
+    ),
     CheckConstraint("topic_a <> topic_b", name="topic_relations_distinct_check"),
     Index("topic_relations_a_idx", "topic_a", "kind", text("weight DESC"), "topic_b"),
     Index("topic_relations_b_idx", "topic_b", "kind", text("weight DESC"), "topic_a"),
@@ -1545,4 +1554,55 @@ cluster_reach = Table(
         ondelete="CASCADE",
     ),
     Index("cluster_reach_cluster_idx", "cluster_build_id", "cluster_id"),
+)
+
+
+def _projection_build_fk(table: str) -> ForeignKeyConstraint:
+    return ForeignKeyConstraint(
+        ["build_id"],
+        ["projection_builds.build_id"],
+        name=f"{table}_build_fkey",
+        ondelete="CASCADE",
+    )
+
+
+# persons/top (CRFC-005 §5, corpus_0016): per canonical person, the distinct current insights on
+# shown items that a quote the person spoke supports, the items they are on, and the rank
+# (insights descending, then the person's natural id).
+person_rankings = Table(
+    "person_rankings",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("entity_id", BigInteger, nullable=False),
+    Column("items", Integer, nullable=False),
+    Column("insights", Integer, nullable=False),
+    Column("rank", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "entity_id", name="person_rankings_pkey"),
+    _projection_build_fk("person_rankings"),
+    ForeignKeyConstraint(
+        ["entity_id"], ["entities.entity_id"], name="person_rankings_entity_id_fkey"
+    ),
+    UniqueConstraint("build_id", "rank", name="person_rankings_rank_key"),
+    Index("person_rankings_entity_idx", "entity_id"),
+)
+# A topic's perspectives (CRFC-005 §5, corpus_0016): per canonical topic and speaker, the counts
+# and the rank; the takes themselves are read per request for the speakers shown.
+topic_speakers = Table(
+    "topic_speakers",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("topic_id", BigInteger, nullable=False),
+    Column("person_id", BigInteger, nullable=False),
+    Column("items", Integer, nullable=False),
+    Column("insights", Integer, nullable=False),
+    Column("rank", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "topic_id", "person_id", name="topic_speakers_pkey"),
+    _projection_build_fk("topic_speakers"),
+    ForeignKeyConstraint(["topic_id"], ["entities.entity_id"], name="topic_speakers_topic_id_fkey"),
+    ForeignKeyConstraint(
+        ["person_id"], ["entities.entity_id"], name="topic_speakers_person_id_fkey"
+    ),
+    UniqueConstraint("build_id", "topic_id", "rank", name="topic_speakers_rank_key"),
+    Index("topic_speakers_topic_idx", "topic_id"),
+    Index("topic_speakers_person_idx", "person_id"),
 )
