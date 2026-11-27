@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterator, Optional
 
 import pytest
-from sqlalchemy import create_engine, event, insert, Table, text
+from sqlalchemy import create_engine, event, insert, select, Table, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import graph, projections
@@ -738,3 +738,28 @@ def test_slice_group_cuts_its_items_at_the_budget(conn: Connection) -> None:
     got = graph.slice_group(conn, "thc:s", budget=2)
     assert "budget" in got["truncated"]["reasons"]
     assert len(got["nodes"]) <= 2
+
+
+def test_a_group_with_more_topics_than_the_budget_still_shows_its_items(
+    conn: Connection,
+) -> None:
+    # Database's review of #2628: topics admitted first left a wide storyline no items at all.
+    c = Corpus(conn)
+    made = _groups_build(c)
+    build = conn.execute(select(cluster_builds.c.build_id)).scalar_one()
+    wide = _one(conn, cluster_ids, kind="storyline", natural_id="thc:wide")
+    conn.execute(
+        insert(clusters).values(build_id=build, cluster_id=wide, kind="storyline", label="w")
+    )
+    for name in ("topic:ai-2", "topic:other", "person:ann"):
+        conn.execute(
+            insert(cluster_members).values(build_id=build, cluster_id=wide, entity_id=c.e[name])
+        )
+    got = graph.slice_group(conn, "thc:wide", budget=2)
+    assert [i["item_id"] for i in got["items"]] == ["episode:1"]
+    assert len(got["nodes"]) <= 2 and "budget" in got["truncated"]["reasons"]
+    # With room for every topic and both items, nothing is cut for the rule.
+    roomy = graph.slice_group(conn, "thc:wide", budget=50)
+    assert [i["item_id"] for i in roomy["items"]] == ["episode:1", "episode:2"]
+    assert {"topic:ai", "topic:other", "person:ann"} <= _ids(roomy)
+    assert made["thc:s"]

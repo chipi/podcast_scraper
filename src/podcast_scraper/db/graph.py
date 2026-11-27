@@ -922,14 +922,16 @@ def slice_group(
     if not rows or rows[0].group is None:
         s.unknown_seeds = [group_id]
         return _finish(conn, s)
+    # An item slice (CRFC-004 §5): the topics take at most half the budget while there are
+    # items for the rest, so a group with more topics than the budget still shows its items.
+    # One more item than the budget is read, so a cut is known, but not how many more there are.
+    chosen = [row.item_id for row in rows if row.item_id is not None]
+    topic_room = max(budget - len(chosen), budget // 2)
     for topic in sorted(rows[0].topics or []):
-        if len(s.nodes) >= budget:
+        if len(s.nodes) >= topic_room:
             s.reasons.add("budget")
             break
         s.admit((ENTITY, int(topic)))
-    # The items get what the topics leave of the budget; one more than the budget is read, so
-    # a cut is known, but not how many more there are.
-    chosen = [row.item_id for row in rows if row.item_id is not None]
     room = budget - len(s.nodes)
     if len(chosen) > room:
         s.reasons.add("budget")
