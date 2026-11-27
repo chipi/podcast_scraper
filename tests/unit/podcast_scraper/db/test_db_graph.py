@@ -13,6 +13,10 @@ from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import graph, projections
 from podcast_scraper.db.schema import (
+    cluster_builds,
+    cluster_ids,
+    cluster_members,
+    clusters,
     content_items,
     documents,
     entities,
@@ -276,13 +280,12 @@ def _edges(slice_: dict[str, Any]) -> set[tuple[str, str, str]]:
     return {(e["type"], e["from"], e["to"]) for e in slice_["edges"]}
 
 
-def test_slice_items_returns_the_items_graph_in_six_statements(conn: Connection) -> None:
+def test_slice_items_returns_the_items_graph_in_seven_statements(conn: Connection) -> None:
     Corpus(conn)
     with _statements(conn) as seen:
         got = graph.slice_items(conn, ["episode:1", "episode:3", "episode:x"])
-    # 1 (revision and seeds) + 2 steps + nodes, items, induced edges. No groups statement until
-    # the clusters tables exist (s-clusters), so ADR-183's 1 + 2 + 4 is 1 + 2 + 3 here.
-    assert len(seen) == 6
+    # 1 (revision and seeds) + 2 steps + nodes, items, induced edges, groups: ADR-183's 1 + 2 + 4.
+    assert len(seen) == 7
     assert got["format"] == "graph-slice/1"
     assert got["corpus_revision"] == 0
     assert got["unknown_seeds"] == ["episode:3", "episode:x"]
@@ -338,8 +341,8 @@ def test_node_items_walks_every_branch_and_joins_seed_and_item_by_path_count(
     Corpus(conn)
     with _statements(conn) as seen:
         got = graph.slice_neighbourhood(conn, "topic:ai", "node.items")
-    # 1 (revision and seed) + 2 levels (the longest branch) + nodes, items, induced edges.
-    assert len(seen) == 6
+    # 1 (revision and seed) + 2 levels (the longest branch) + nodes, items, induced edges, groups.
+    assert len(seen) == 7
     assert _ids(got) == {"topic:ai", "episode:1", "episode:2"}
     weights = {(e["from"], e["to"]): e["weight"] for e in got["edges"] if e["type"] == "node.items"}
     # episode:1 by MENTIONS and by n1's ABOUT; episode:2 by ai-2's MENTIONS and n3's ABOUT.
@@ -352,7 +355,7 @@ def test_node_items_for_a_person_reaches_items_through_quotes_and_roles(conn: Co
     Corpus(conn)
     with _statements(conn) as seen:
         got = graph.slice_neighbourhood(conn, "person:bob", "node.items")
-    assert len(seen) == 1 + 3 + 3
+    assert len(seen) == 1 + 3 + 4
     assert _ids(got) == {"person:bob", "episode:1", "episode:2"}
 
 
@@ -360,8 +363,8 @@ def test_person_topics_reads_entity_types_for_the_kept_ends(conn: Connection) ->
     Corpus(conn)
     with _statements(conn) as seen:
         got = graph.slice_neighbourhood(conn, "person:bob", "person.topics")
-    # 1 + 2 levels + the reached entities' types + 3.
-    assert len(seen) == 1 + 2 + 1 + 3
+    # 1 + 2 levels + the reached entities' types + 4.
+    assert len(seen) == 1 + 2 + 1 + 4
     assert _ids(got) == {"person:bob", "topic:ai"}
     assert [i["item_id"] for i in got["items"]] == ["episode:1"]
 
@@ -380,7 +383,7 @@ def test_slice_recent_widens_its_window_until_enough_items_match(conn: Connectio
     Corpus(conn)
     with _statements(conn) as seen:
         got = graph.slice_recent(conn, window="7d", min_items=3, now=T0)
-    assert len(seen) == 6
+    assert len(seen) == 7
     assert got["applied_window"] == "90d"
     assert [i["item_id"] for i in got["items"]] == ["episode:1", "episode:2", "episode:old"]
     narrow = graph.slice_recent(conn, window="7d", min_items=2, now=T0)
@@ -567,8 +570,8 @@ def test_with_counts_reads_item_counts_from_the_published_build_in_one_statement
     built = projections.build_in(conn)
     with _statements(conn) as seen:
         got = graph.slice_items(conn, ["episode:1"], with_=["counts"])
-    # 6 as without counts, plus the one counts statement.
-    assert len(seen) == 7
+    # 7 as without counts, plus the one counts statement.
+    assert len(seen) == 8
     assert got["graph_build_id"] == built.build_id
     assert got["params"]["with"] == ["counts"]
     counts = {n["id"]: n.get("item_count") for n in got["nodes"]}
@@ -578,3 +581,75 @@ def test_with_counts_reads_item_counts_from_the_published_build_in_one_statement
     assert counts["episode:1"] is None and counts["insight:n1"] is None
     with pytest.raises(ValueError):
         graph.slice_items(conn, ["episode:1"], with_=["groups"])
+
+
+def test_nodes_carry_their_groups_and_the_slice_a_catalogue_with_their_parents(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+
+    def group(build: int, kind: str, natural_id: str, parent: Optional[int] = None) -> int:
+        cluster = _one(conn, cluster_ids, kind=kind, natural_id=natural_id)
+        conn.execute(
+            insert(clusters).values(
+                build_id=build,
+                cluster_id=cluster,
+                kind=kind,
+                label=natural_id.upper(),
+                parent_id=parent,
+            )
+        )
+        return cluster
+
+    def member(build: int, cluster: int, **key: int) -> None:
+        conn.execute(insert(cluster_members).values(build_id=build, cluster_id=cluster, **key))
+
+    old = _one(conn, cluster_builds, rule_version="test/1", state="retired")
+    member(old, group(old, "theme", "tc:old"), entity_id=c.e["topic:ai"])
+    build = _one(conn, cluster_builds, rule_version="test/1", state="published")
+    sup = group(build, "super_theme", "sth:x")
+    # A member of topic:ai's merged row puts its canonical node in the storyline.
+    member(build, group(build, "storyline", "thc:s", parent=sup), entity_id=c.e["topic:ai-2"])
+    member(build, group(build, "insight", "ic:i"), insight_id=c.n1)
+    member(build, group(build, "theme", "tc:quiet"), entity_id=c.e["topic:other"])
+    with _statements(conn) as seen:
+        got = graph.slice_items(conn, ["episode:1"])
+    assert len(seen) == 7
+    groups = {n["id"]: n["groups"] for n in got["nodes"]}
+    assert groups["topic:ai"] == ["thc:s"]
+    assert groups["insight:n1"] == ["ic:i"]
+    assert groups["person:ann"] == [] and groups["episode:1"] == []
+    # The parent comes with its storyline; a group no node is in, and the retired build, do not.
+    assert got["groups"] == [
+        {"id": "ic:i", "kind": "insight", "label": "IC:I", "parent_id": None},
+        {"id": "sth:x", "kind": "super_theme", "label": "STH:X", "parent_id": None},
+        {"id": "thc:s", "kind": "storyline", "label": "THC:S", "parent_id": "sth:x"},
+    ]
+
+
+def test_a_slice_with_no_entity_or_insight_node_sends_no_groups_statement(
+    conn: Connection,
+) -> None:
+    # Decision 9's counts are an upper bound fixed by the preset: a read whose input is empty
+    # sends nothing. An item with no KG or GI rows reaches only its source, so the tail is
+    # nodes, items and induced edges, without groups: 3, not 4.
+    c = Corpus(conn)
+    c.item("bare", T0)
+    with _statements(conn) as seen:
+        got = graph.slice_items(conn, ["episode:bare"])
+    assert _ids(got) == {"episode:bare", "podcast:s"}
+    assert got["groups"] == []
+    # 1 (revision and seeds) + 1 item step (the insight step has no frontier) + 3.
+    assert len(seen) == 1 + 1 + 3
+
+
+def test_with_no_published_cluster_build_nodes_are_in_no_group(conn: Connection) -> None:
+    c = Corpus(conn)
+    old = _one(conn, cluster_builds, rule_version="test/1", state="retired")
+    cluster = _one(conn, cluster_ids, kind="theme", natural_id="tc:old")
+    conn.execute(insert(clusters).values(build_id=old, cluster_id=cluster, kind="theme", label="x"))
+    conn.execute(
+        insert(cluster_members).values(build_id=old, cluster_id=cluster, entity_id=c.e["topic:ai"])
+    )
+    got = graph.slice_items(conn, ["episode:1"])
+    assert all(n["groups"] == [] for n in got["nodes"]) and got["groups"] == []
