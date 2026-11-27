@@ -267,6 +267,7 @@ corpus_migrations = Table(
     CheckConstraint(
         "status IN ('dry_run', 'applied', 'undone')", name="corpus_migrations_status_check"
     ),
+    Index("corpus_migrations_last_run_idx", "last_run_id"),
 )
 
 # Every attempt of a migration on rows: dry run, apply, undo, rerun (RFC-135 §2).
@@ -609,6 +610,7 @@ documents = Table(
         "variant IN ('raw', 'cleaned', 'adfree', 'en')", name="documents_variant_check"
     ),
     CheckConstraint("version >= 1", name="documents_version_check"),
+    Index("documents_supersedes_idx", "item_id", "kind", "variant", "supersedes_id"),
 )
 
 _SCOPES = "'person', 'organisation', 'topic', 'object'"
@@ -768,6 +770,8 @@ identity_members = Table(
     ),
     CheckConstraint(f"scope IN ({_SCOPES})", name="identity_members_scope_check"),
     Index("identity_members_member_idx", "member_id"),
+    Index("identity_members_cluster_idx", "build_id", "cluster_id", "scope"),
+    Index("identity_members_decision_idx", "decision_id"),
 )
 
 # Keyed by document, not variant, so an old version keeps the text its quotes were cut from. The
@@ -795,6 +799,7 @@ segments = Table(
     CheckConstraint(
         "start_ms IS NULL OR end_ms IS NULL OR end_ms >= start_ms", name="segments_span_check"
     ),
+    Index("segments_speaker_idx", "speaker_id"),
     postgresql_partition_by="HASH (item_id)",
 )
 
@@ -913,6 +918,7 @@ insights = Table(
         name="insights_unit_check",
     ),
     Index("insights_item_rank_idx", "item_id", "rank"),
+    Index("insights_document_idx", "item_id", "document_id"),
 )
 
 evidence = Table(
@@ -952,6 +958,7 @@ evidence = Table(
         name="evidence_ms_check",
     ),
     Index("evidence_item_idx", "item_id"),
+    Index("evidence_document_idx", "item_id", "document_id"),
     Index(
         "evidence_speaker_idx",
         "speaker_id",
@@ -1046,6 +1053,7 @@ insight_attribution = Table(
         ondelete="CASCADE",
     ),
     Index("insight_attribution_person_idx", "person_id", "item_id"),
+    Index("insight_attribution_item_idx", "item_id"),
     postgresql_with=_EDGE_STORAGE,
 )
 
