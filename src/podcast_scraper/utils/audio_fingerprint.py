@@ -114,7 +114,27 @@ def _load(root: str) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
-def duplicate_of(root: Optional[str], digest: str, identity: str) -> Optional[Dict[str, Any]]:
+def _on_rows() -> bool:
+    """Whether the index is the ``audio_fingerprints`` table (``db.audio_fingerprints``) rather
+    than the file: the corpus is served from rows (``db.settings.corpus_served_from_rows``). The
+    file is then neither read nor written."""
+    from podcast_scraper.db.settings import corpus_served_from_rows
+
+    return corpus_served_from_rows()
+
+
+def _rows_feed(feed_url: Optional[str]) -> str:
+    """The feed's ``raw_feed_id``, the key of its source row; a feed with no URL has none."""
+    if not feed_url:
+        raise ValueError("the corpus is served from rows and the gate was given no feed URL")
+    from podcast_scraper.workflow.metadata_generation import generate_feed_id
+
+    return generate_feed_id(feed_url)
+
+
+def duplicate_of(
+    root: Optional[str], digest: str, identity: str, *, feed_url: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     """The already-known episode holding these exact bytes, or None.
 
     Checks the in-process pending set first (same-run duplicates), then the persistent index.
@@ -129,6 +149,15 @@ def duplicate_of(root: Optional[str], digest: str, identity: str) -> Optional[Di
         pending_owner = _PENDING.get((root, digest))
     if pending_owner is not None and pending_owner != identity:
         return {"identity": pending_owner, "in_flight": True}
+    if _on_rows():
+        try:
+            feed = _rows_feed(feed_url)
+            from podcast_scraper.db import audio_fingerprints as rows
+
+            return rows.gate_duplicate_of(feed, digest, identity)
+        except Exception as exc:  # noqa: BLE001 - the gate degrades to "no duplicate found"
+            logger.warning("audio fingerprint: row check failed for %s: %s", digest[:12], exc)
+            return None
     entry = _load(root).get(digest)
     if entry is None or entry.get("identity") == identity:
         return None
@@ -152,8 +181,32 @@ def record(
     episode_title: Optional[str] = None,
     transcript_path: Optional[str] = None,
 ) -> None:
-    """Persist ``digest`` → episode once a transcript actually exists. Atomic, best-effort."""
+    """Persist ``digest`` → episode once a transcript actually exists. Atomic, best-effort.
+
+    On rows the fingerprint is held in-process until the episode's ``corpus_writer.sync_rows``
+    writes it with the source row (``db.audio_fingerprints.write_held``); ``feed_id`` is the
+    feed URL, as the file entry stores it."""
     if not root or not isinstance(digest, str) or not digest or not identity:
+        return
+    if _on_rows():
+        try:
+            from podcast_scraper.db import audio_fingerprints as rows
+
+            rows.hold(
+                _rows_feed(feed_id),
+                digest,
+                rows.Held(
+                    identity=identity,
+                    episode_title=episode_title,
+                    transcript_path=transcript_path,
+                    recorded_at=datetime.now(timezone.utc).replace(microsecond=0),
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001 - best-effort, as the file write is
+            logger.warning("audio fingerprint: failed to hold %s: %s", digest[:12], exc)
+        finally:
+            with _LOCK:
+                _PENDING.pop((root, digest), None)
         return
     entry: Dict[str, Any] = {
         "identity": identity,
@@ -178,7 +231,9 @@ def record(
             _PENDING.pop((root, digest), None)
 
 
-def record_duplicate(root: Optional[str], digest: str, identity: str) -> None:
+def record_duplicate(
+    root: Optional[str], digest: str, identity: str, *, feed_url: Optional[str] = None
+) -> None:
     """Remember that ``identity`` was skipped as a copy of the episode recorded under ``digest``.
 
     A content-duplicate skip writes no episode metadata, so without this record
@@ -187,6 +242,14 @@ def record_duplicate(root: Optional[str], digest: str, identity: str) -> None:
     then the twin must be a candidate again (the self-healing in the module docstring).
     """
     if not root or not digest or not identity:
+        return
+    if _on_rows():
+        try:
+            from podcast_scraper.db import audio_fingerprints as rows
+
+            rows.gate_record_duplicate(_rows_feed(feed_url), digest, identity)
+        except Exception as exc:  # noqa: BLE001 - next run's gate skips the copy again
+            logger.warning("audio fingerprint: failed to record duplicate %s: %s", digest[:12], exc)
         return
     with _LOCK:
         try:
@@ -203,10 +266,18 @@ def record_duplicate(root: Optional[str], digest: str, identity: str) -> None:
             logger.warning("audio fingerprint: failed to record duplicate %s: %s", digest[:12], exc)
 
 
-def known_duplicate_identities(root: Optional[str]) -> Set[str]:
+def known_duplicate_identities(root: Optional[str], *, feed_url: Optional[str] = None) -> Set[str]:
     """Every identity the gate skipped as a copy of an already-transcribed episode."""
     if not root:
         return set()
+    if _on_rows():
+        try:
+            from podcast_scraper.db import audio_fingerprints as rows
+
+            return rows.gate_known_duplicates(_rows_feed(feed_url))
+        except Exception as exc:  # noqa: BLE001 - selection then offers the copies; the gate skips
+            logger.warning("audio fingerprint: row read of skipped copies failed: %s", exc)
+            return set()
     out: Set[str] = set()
     for entry in _load(root).values():
         if isinstance(entry, dict):

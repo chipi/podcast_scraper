@@ -21,6 +21,8 @@ ENV_PLANE = "PODCAST_DB_PLANE"
 ENV_CORPUS_RO_URL = "PODCAST_DATABASE_CORPUS_RO_URL"
 ENV_PIPELINE_RW_URL = "PODCAST_DATABASE_PIPELINE_RW_URL"
 ENV_MIGRATOR_URL = "PODCAST_DATABASE_MIGRATOR_URL"
+#: Set at the cut-over: the corpus is served from its rows, not its files.
+ENV_SERVED_FROM_ROWS = "PODCAST_CORPUS_SERVED_FROM_ROWS"
 ENV_CORPUS_STATEMENT_TIMEOUT_MS = "PODCAST_DB_CORPUS_STATEMENT_TIMEOUT_MS"
 ENV_CORPUS_POOL_SIZE = "PODCAST_DB_CORPUS_POOL_SIZE"
 ENV_CORPUS_MAX_OVERFLOW = "PODCAST_DB_CORPUS_MAX_OVERFLOW"
@@ -94,6 +96,13 @@ def corpus_is_configured() -> bool:
 def pipeline_is_configured() -> bool:
     """Whether this process was given a ``pipeline_rw`` URL."""
     return bool(_lookup(os.environ, ENV_PIPELINE_RW_URL))
+
+
+def corpus_served_from_rows() -> bool:
+    """Whether the corpus is served from its rows: the cut-over has happened (s-runbook sets
+    :data:`ENV_SERVED_FROM_ROWS`). Every reader with a file path today reads rows instead once it
+    is on. A database URL alone does not mean this: a rehearsal sets URLs before the cut-over."""
+    return os.environ.get(ENV_SERVED_FROM_ROWS, "").strip().lower() in ("1", "true", "yes")
 
 
 class DatabaseNotConfigured(RuntimeError):

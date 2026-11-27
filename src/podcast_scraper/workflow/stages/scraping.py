@@ -216,7 +216,8 @@ def _drop_already_ingested(items: List[Any], cfg: config.Config) -> List[Any]:
     # A content-duplicate skip (#1656) writes no metadata; without this its republish is
     # offered as new work every run.
     known |= audio_fingerprint.known_duplicate_identities(
-        audio_fingerprint.resolve_index_root(cfg, None)
+        audio_fingerprint.resolve_index_root(cfg, None),
+        feed_url=str(getattr(cfg, "rss_url", None) or "") or None,
     )
     if not known:
         logger.info(

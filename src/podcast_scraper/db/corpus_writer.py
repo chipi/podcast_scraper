@@ -63,12 +63,13 @@ from sqlalchemy import and_, delete, func, insert, or_, select, update
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
-from podcast_scraper.db import leases
+from podcast_scraper.db import audio_fingerprints, leases
 from podcast_scraper.db.corpus_cards import card_row, FLAGS
 from podcast_scraper.db.corpus_keys import (
     is_news,
     item_natural_id,
     KeyNotDerivable,
+    raw_feed_id,
     source_natural_id,
 )
 from podcast_scraper.db.corpus_rows import (
@@ -627,6 +628,10 @@ def sync_rows(
                 has_bridge=has_bridge,
                 registry=registry,
             )
+            # The gate's fingerprints held for this feed (db.audio_fingerprints): after the item,
+            # so a fingerprint links to it.
+            feed = None if news else raw_feed_id(doc)
+            fingerprints = audio_fingerprints.write_held(conn, feed, source_id)
             merge_source(conn, source_id)
             if news:
                 synced = sync_documents(
@@ -646,6 +651,7 @@ def sync_rows(
                 if relpath is not None:
                     item = item_row(doc, metadata_relpath=relpath, has_bridge=has_bridge)
                     write_card(conn, _corpus_root(metadata_path, relpath), relpath, item_id, item)
+        audio_fingerprints.forget_held(feed, fingerprints)
         _DEFERRED.pop(str(metadata_path), None)
         if relpath is None:
             UNPLACED["metadata_relative_path"] += 1

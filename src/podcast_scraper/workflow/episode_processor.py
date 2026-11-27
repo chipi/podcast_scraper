@@ -624,7 +624,8 @@ def download_media_for_transcription(
         audio_sha256 = audio_fingerprint.sha256_file(temp_media) if identity else None
         if identity and audio_sha256:
             fp_root = audio_fingerprint.resolve_index_root(cfg, effective_output_dir)
-            dup = audio_fingerprint.duplicate_of(fp_root, audio_sha256, identity)
+            feed_url = str(getattr(cfg, "rss_url", None) or "") or None
+            dup = audio_fingerprint.duplicate_of(fp_root, audio_sha256, identity, feed_url=feed_url)
             if dup is not None:
                 dup_title = dup.get("episode_title")
                 reason = (
@@ -637,7 +638,9 @@ def download_media_for_transcription(
                 )
                 _mark_episode_skipped_existing(episode, cfg, pipeline_metrics, reason)
                 if not dup.get("in_flight"):
-                    audio_fingerprint.record_duplicate(fp_root, audio_sha256, identity)
+                    audio_fingerprint.record_duplicate(
+                        fp_root, audio_sha256, identity, feed_url=feed_url
+                    )
                 return None
             audio_fingerprint.claim(fp_root, audio_sha256, identity)
 
