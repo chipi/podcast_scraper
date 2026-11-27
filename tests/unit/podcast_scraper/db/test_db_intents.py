@@ -4,15 +4,21 @@ from __future__ import annotations
 
 import contextlib
 from datetime import datetime, timedelta, timezone
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import pytest
 from sqlalchemy import event, insert
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import intents
-from podcast_scraper.db.schema import item_cards
-from tests.unit.podcast_scraper.db.test_db_corpus import _item, _source, conn, url  # noqa: F401
+from podcast_scraper.db.schema import entities, item_cards, search_chunks, segments
+from tests.unit.podcast_scraper.db.test_db_corpus import (  # noqa: F401
+    _document,
+    _item,
+    _source,
+    conn,
+    url,
+)
 
 T0 = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -163,4 +169,98 @@ def test_catalog_items_are_the_served_items_of_the_types_asked_in_one_statement(
     assert row["raw_feed_id"] == "feed-a" and row["source_attrs"] == {"title": "A show"}
     assert row["type_attrs"]["metadata_relative_path"].endswith("x.metadata.json")
     assert intents.catalog_items(conn, set()) == []
+    conn.rollback()
+
+
+def _entity(
+    conn: Connection, natural_id: str, canonical: Optional[int] = None  # noqa: F811
+) -> int:
+    values: dict[str, Any] = {
+        "natural_id": natural_id,
+        "type": "person",
+        "label": natural_id,
+        "normalized_label": natural_id,
+    }
+    if canonical is not None:
+        values["canonical_id"] = canonical
+    entity_id: int = conn.execute(
+        insert(entities).values(values).returning(entities.c.entity_id)
+    ).scalar_one()
+    return entity_id
+
+
+def test_chunks_carry_their_item_range_text_times_and_canonical_speakers_in_one_statement(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source = _source(conn, title="The Show")
+    item = _item(conn, source, "1", served=1, published_at=T0)
+    document = _document(conn, item)
+    ann = _entity(conn, "person:ann")
+    canonical = _entity(conn, "person:bob")
+    member = _entity(conn, "person:bob-2", canonical=canonical)
+    for seq, (body, start, end, speaker) in enumerate(
+        [
+            ("Hello world. ", 0, 1000, ann),
+            ("Second part here. ", 1000, 2000, member),
+            ("Third.", 2000, None, None),
+        ]
+    ):
+        conn.execute(
+            insert(segments).values(
+                item_id=item,
+                document_id=document,
+                seq=seq,
+                start_ms=start,
+                end_ms=end,
+                speaker_id=speaker,
+                text=body,
+            )
+        )
+    for natural_id, (start_seq, start_offset, end_seq, end_offset), speakers in (
+        ("chunk:s__1:0", (0, 6, 0, 11), [ann]),
+        ("chunk:s__1:1", (0, 6, 2, 5), [ann, member, canonical]),
+        ("chunk:s__1:2", (2, 0, 2, 6), []),
+    ):
+        conn.execute(
+            insert(search_chunks).values(
+                natural_id=natural_id,
+                item_id=item,
+                document_id=document,
+                start_seq=start_seq,
+                start_offset=start_offset,
+                end_seq=end_seq,
+                end_offset=end_offset,
+                speakers=speakers,
+            )
+        )
+    with _statements(conn) as seen:
+        found = intents.chunks_by_natural_ids(
+            conn, ["chunk:s__1:0", "chunk:s__1:1", "chunk:s__1:2", "chunk:none", "chunk:s__1:0"]
+        )
+    assert len(seen) == 1
+    by_id = {r["natural_id"]: r for r in found}
+    assert set(by_id) == {"chunk:s__1:0", "chunk:s__1:1", "chunk:s__1:2"}
+    one = by_id["chunk:s__1:0"]
+    assert (one["text"], one["start_ms"], one["end_ms"], one["speakers"]) == (
+        "world",
+        0,
+        1000,
+        ["person:ann"],
+    )
+    assert one["item_natural_id"] == "item:1" and one["source_title"] == "The Show"
+    assert one["published_at"] == T0 and one["served"] == 1 and one["document_id"] == document
+    many = by_id["chunk:s__1:1"]
+    assert many["text"] == "world. Second part here. Third"
+    assert (many["start_ms"], many["end_ms"]) == (0, 2000)
+    assert many["speakers"] == ["person:ann", "person:bob"]
+    untimed = by_id["chunk:s__1:2"]
+    assert (untimed["text"], untimed["start_ms"], untimed["end_ms"], untimed["speakers"]) == (
+        "Third.",
+        2000,
+        None,
+        [],
+    )
+    with _statements(conn) as seen:
+        assert intents.chunks_by_natural_ids(conn, []) == []
+    assert seen == []
     conn.rollback()
