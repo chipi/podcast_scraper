@@ -160,4 +160,55 @@ def record(
     )
 
 
-__all__ = ["Due", "due", "enrol", "record", "schedule", "set_window"]
+#: ``documents.change_kind`` of a withdrawal (CRFC-006 B.1).
+WITHDRAW = "withdraw"
+
+
+def withdraw(conn: Connection, item_id: int) -> bool:
+    """Withdraw an item whose page answered gone on ``recheck.GONE_CHECKS`` checks in a row
+    (CRFC-006 B.1, B.3), in the caller's transaction; returns whether it was served. Each document
+    series of the item gets a ``withdraw`` row with no body that supersedes its newest version,
+    so nothing of it is served; the item is ``served`` 0; its ``item_entities``,
+    ``insight_mentions`` and card are deleted and the card's flags cleared; ``corpus_revision`` is
+    bumped last (DECISIONS rule 7). Insights, evidence and segments are kept, never served (B.3).
+    A second call writes nothing."""
+    from podcast_scraper.db.corpus_cards import FLAGS
+    from podcast_scraper.db.schema import insight_mentions, item_cards, item_entities
+    from podcast_scraper.upgrade.rows import bump_corpus_revision
+
+    served = conn.execute(
+        select(_ITEM.served).where(_ITEM.item_id == item_id).with_for_update()
+    ).scalar_one_or_none()
+    if not served:
+        return False
+    d, newer = documents.c, documents.alias("newer")
+    newest = conn.execute(
+        select(d.document_id, d.kind, d.variant, d.version).where(
+            d.item_id == item_id,
+            ~select(newer.c.document_id).where(newer.c.supersedes_id == d.document_id).exists(),
+        )
+    ).all()
+    for row in newest:
+        conn.execute(
+            insert(documents).values(
+                item_id=item_id,
+                kind=row.kind,
+                variant=row.variant,
+                version=row.version + 1,
+                supersedes_id=row.document_id,
+                change_kind=WITHDRAW,
+            )
+        )
+    conn.execute(
+        update(content_items)
+        .where(_ITEM.item_id == item_id)
+        .values(served=0, updated_at=func.now(), **{flag: False for flag in FLAGS})
+    )
+    conn.execute(item_entities.delete().where(item_entities.c.item_id == item_id))
+    conn.execute(insight_mentions.delete().where(insight_mentions.c.item_id == item_id))
+    conn.execute(item_cards.delete().where(item_cards.c.item_id == item_id))
+    bump_corpus_revision(conn)
+    return True
+
+
+__all__ = ["Due", "due", "enrol", "record", "schedule", "set_window", "withdraw", "WITHDRAW"]
