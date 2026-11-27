@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection
 
@@ -360,21 +360,17 @@ def _events(conn: Connection, root: Path, written: GroupingsWritten) -> None:
                 continue
             changes = {k: v for k, v in line.items() if k not in ("ts", "kind")}
             rows.append(dict(at=at, kind=kind, changes=changes, source=Path(relpath).name))
+        source = Path(relpath).name
+        latest = conn.execute(
+            select(func.max(cluster_events.c.at)).where(cluster_events.c.source == source)
+        ).scalar_one()
+        rows = [r for r in rows if latest is None or r["at"] > latest]
         if rows:
             conn.execute(insert(cluster_events), rows)
             written.events += len(rows)
 
 
-def import_groupings(conn: Connection, corpus_root: Path) -> GroupingsWritten:
-    """Write the clustering files under ``corpus_root`` as one published build; nothing when a
-    build is already published (a second import)."""
-    root = Path(corpus_root)
-    written = GroupingsWritten()
-    published = conn.execute(
-        select(cluster_builds.c.build_id).where(cluster_builds.c.state == "published")
-    ).first()
-    if published is not None:
-        return written
+def _write_build(conn: Connection, root: Path, written: GroupingsWritten, state: str) -> None:
     docs = {rel: _read(root, rel, written) for rel in (THEMES, STORYLINES, INSIGHT_CLUSTERS)}
     present = {rel: doc for rel, doc in docs.items() if doc is not None}
     if present:
@@ -410,8 +406,8 @@ def import_groupings(conn: Connection, corpus_root: Path) -> GroupingsWritten:
                     rel: _scalars({k: v for k, v in doc.items() if k != "registry"})
                     for rel, doc in present.items()
                 },
-                state="published",
-                published_at=func.now(),
+                state=state,
+                published_at=func.now() if state == "published" else None,
             )
             .returning(cluster_builds.c.build_id)
         ).scalar_one()
@@ -425,5 +421,47 @@ def import_groupings(conn: Connection, corpus_root: Path) -> GroupingsWritten:
             _insight_clusters(w, present[INSIGHT_CLUSTERS], insight_ids)
         for rel, doc in present.items():
             _history(w, rel, doc)
+
+
+def import_groupings(conn: Connection, corpus_root: Path) -> GroupingsWritten:
+    """Write the clustering files under ``corpus_root`` as one published build; nothing when a
+    build is already published (a second import)."""
+    root = Path(corpus_root)
+    written = GroupingsWritten()
+    published = conn.execute(
+        select(cluster_builds.c.build_id).where(cluster_builds.c.state == "published")
+    ).first()
+    if published is None:
+        _write_build(conn, root, written, "published")
+    _events(conn, root, written)
+    return written
+
+
+def publish_groupings(conn: Connection, corpus_root: Path) -> GroupingsWritten:
+    """After a clustering run on files: write the files as a new build, publish it in place of the
+    published one (now ``retired``), and delete retired builds but the newest, so undo can publish
+    the previous build. Nothing is published when no clustering file is present. Call it in the
+    run's transaction; durable group ids are kept by natural id."""
+    root = Path(corpus_root)
+    written = GroupingsWritten()
+    _write_build(conn, root, written, "built")
+    if written.build_id is not None:
+        builds = cluster_builds.c
+        conn.execute(
+            update(cluster_builds).where(builds.state == "published").values(state="retired")
+        )
+        conn.execute(
+            update(cluster_builds)
+            .where(builds.build_id == written.build_id)
+            .values(state="published", published_at=func.now())
+        )
+        newest_retired = (
+            select(func.max(builds.build_id)).where(builds.state == "retired").scalar_subquery()
+        )
+        conn.execute(
+            delete(cluster_builds).where(
+                builds.state == "retired", builds.build_id < newest_retired
+            )
+        )
     _events(conn, root, written)
     return written

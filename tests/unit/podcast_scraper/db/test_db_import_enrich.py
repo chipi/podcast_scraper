@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import select, text
 from sqlalchemy.engine import Connection
 
+from podcast_scraper.db.importers.corpus_enrichments import publish_enrichments
+from podcast_scraper.db.importers.corpus_groupings import publish_groupings
 from podcast_scraper.db.importers.corpus_items import import_corpus
 from podcast_scraper.db.schema import content_items, documents
 from tests.unit.podcast_scraper.db.test_corpus_rows import _episode
@@ -427,4 +429,59 @@ def test_an_episode_output_of_an_older_run_is_not_read(
     report = import_corpus(conn, tmp_path, registry=_REGISTRY)
     assert report.enrichment_outputs == 0
     assert _rows(conn, "SELECT count(*) FROM corpus.enrichment_builds") == [(0,)]
+    conn.rollback()
+
+
+def test_a_clustering_run_publishes_a_new_build_and_keeps_the_one_before(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _corpus(tmp_path)
+    _groupings(tmp_path)
+    history = tmp_path / "enrichments" / "clustering_history.jsonl"
+    history.write_text(json.dumps({"ts": 1791979247.5, "kind": "theme", "changes": {}}) + "\n")
+    import_corpus(conn, tmp_path, registry=_REGISTRY)
+    tc_ai = _rows(conn, "SELECT cluster_id FROM corpus.cluster_ids WHERE natural_id = 'tc:ai'")
+    for _ in range(3):
+        written = publish_groupings(conn, tmp_path)
+        assert written.build_id is not None
+    builds = _rows(conn, "SELECT state FROM corpus.cluster_builds ORDER BY build_id")
+    assert builds == [("retired",), ("published",)]
+    assert (
+        _rows(conn, "SELECT cluster_id FROM corpus.cluster_ids WHERE natural_id = 'tc:ai'") == tc_ai
+    )
+    published = _rows(
+        conn,
+        "SELECT count(*) FROM corpus.clusters c JOIN corpus.cluster_builds b USING (build_id)"
+        " WHERE b.state = 'published'",
+    )
+    assert published == [(3,)]
+    assert _rows(conn, "SELECT count(*) FROM corpus.cluster_events") == [(1,)]
+    conn.rollback()
+
+
+def test_an_enricher_run_publishes_only_its_own_build(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _corpus(tmp_path)
+    rate = tmp_path / "enrichments" / "grounding_rate.json"
+    _json(tmp_path, "enrichments/grounding_rate.json", _envelope("grounding_rate", {"r": 1}))
+    _json(tmp_path, "enrichments/topic_consensus.json", _envelope("topic_consensus", {"c": 1}))
+    import_corpus(conn, tmp_path, registry=_REGISTRY)
+    rate.write_text(json.dumps(_envelope("grounding_rate", {"r": 2})), encoding="utf-8")
+    publish_enrichments(conn, tmp_path, [], "grounding_rate")
+    assert publish_enrichments(conn, tmp_path, [], "absent_enricher").builds == 0
+    builds = _rows(
+        conn, "SELECT enricher_id, state FROM corpus.enrichment_builds ORDER BY build_id"
+    )
+    assert builds == [
+        ("grounding_rate", "retired"),
+        ("topic_consensus", "published"),
+        ("grounding_rate", "published"),
+    ]
+    outputs = _rows(
+        conn,
+        "SELECT o.enricher_id, o.output::text FROM corpus.enrichment_outputs o"
+        " JOIN corpus.enrichment_builds b USING (build_id) WHERE b.state = 'published' ORDER BY 1",
+    )
+    assert outputs == [("grounding_rate", '{"r": 2}'), ("topic_consensus", '{"c": 1}')]
     conn.rollback()
