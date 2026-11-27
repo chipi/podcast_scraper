@@ -1,15 +1,15 @@
 """Unit tests for the consumer catalog cache + O(1) slug index (perf remediation).
 
-The cache must do two things and never a third: (1) serve repeated reads without re-walking the
-corpus, (2) invalidate when the corpus changes (a stale catalog would silently hide new episodes),
-and never (3) hand back a shared list a caller can mutate. resolve_slug must be O(1) over the
-cached index and stay correct across an invalidation.
+The cache must do two things and never a third: (1) serve repeated reads without reading the rows
+again, (2) invalidate when the rows change (a stale catalog would silently hide new episodes), and
+never (3) hand back a shared list a caller can mutate. resolve_slug must be O(1) over the cached
+index and stay correct across an invalidation. The test corpus is written as files and imported
+into the test database before the catalog reads it (``tests._corpus_rows``).
 """
 
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -34,58 +34,41 @@ def _write_episode(root: Path, *, stem: str, feed_id: str, episode_id: str) -> N
     (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
 
 
-def _set_corpus_stamp(root: Path, mtime: float) -> None:
-    """Write/age the run-summary that ``perf_cache.corpus_mtime`` keys on (the ingest signal)."""
-    stamp = root / "corpus_run_summary.json"
-    stamp.write_text("{}", encoding="utf-8")
-    os.utime(stamp, (mtime, mtime))
-
-
-@pytest.fixture(autouse=True)
-def _fresh_cache():
-    perf_cache.clear()
-    yield
-    perf_cache.clear()
-
-
-def _spy_build(monkeypatch) -> list[int]:
-    """Count real catalog walks so a cache HIT is provable, not assumed."""
+def _spy_read(monkeypatch) -> list[int]:
+    """Count real catalog reads of the rows so a cache HIT is provable, not assumed."""
     calls = [0]
-    real = catalog_cache.build_catalog_rows_cumulative
+    real = catalog_cache._catalog_rows
 
     def _counting(root: Path):
         calls[0] += 1
         return real(root)
 
-    monkeypatch.setattr(catalog_cache, "build_catalog_rows_cumulative", _counting)
+    monkeypatch.setattr(catalog_cache, "_catalog_rows", _counting)
     return calls
 
 
-def test_repeated_reads_walk_the_corpus_once(tmp_path: Path, monkeypatch) -> None:
+def test_repeated_reads_read_the_rows_once(tmp_path: Path, monkeypatch) -> None:
     _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
-    calls = _spy_build(monkeypatch)
+    calls = _spy_read(monkeypatch)
 
     first = catalog_cache.cached_catalog(tmp_path)
     for _ in range(5):
         catalog_cache.cached_catalog(tmp_path)
 
     assert len(first) == 1
-    assert calls[0] == 1, "the catalog was re-walked on a cache hit"
+    assert calls[0] == 1, "the rows were read again on a cache hit"
 
 
-def test_invalidates_when_the_corpus_changes(tmp_path: Path, monkeypatch) -> None:
+def test_invalidates_when_the_rows_change(tmp_path: Path, monkeypatch) -> None:
     _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
-    calls = _spy_build(monkeypatch)
+    calls = _spy_read(monkeypatch)
 
     assert len(catalog_cache.cached_catalog(tmp_path)) == 1
     assert calls[0] == 1
 
-    # A new episode lands and the ingest stamp advances: the next read gets the previous catalog
+    # A new episode's row lands and the row token moves: the next read gets the previous catalog
     # at once while the background builder rebuilds; reads after the rebuild reflect it.
     _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
-    _set_corpus_stamp(tmp_path, 2_000_000.0)
 
     assert len(catalog_cache.cached_catalog(tmp_path)) == 1
     assert perf_cache.wait_for_rebuilds()
@@ -97,7 +80,6 @@ def test_invalidates_when_the_corpus_changes(tmp_path: Path, monkeypatch) -> Non
 def test_returned_list_is_a_copy_callers_cannot_corrupt_the_cache(tmp_path: Path) -> None:
     _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
     _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
 
     first = catalog_cache.cached_catalog(tmp_path)
     first.clear()  # a caller mutating its copy (e.g. /discover sorts in place)
@@ -105,66 +87,16 @@ def test_returned_list_is_a_copy_callers_cannot_corrupt_the_cache(tmp_path: Path
     assert len(second) == 2, "mutating a returned list corrupted the shared cache entry"
 
 
-def _spy_build_last_run(monkeypatch) -> list[int]:
-    """Count real last-run catalog walks so a cache HIT on cached_catalog_last_run is provable."""
-    calls = [0]
-    real = catalog_cache.build_catalog_rows
-
-    def _counting(root: Path):
-        calls[0] += 1
-        return real(root)
-
-    monkeypatch.setattr(catalog_cache, "build_catalog_rows", _counting)
-    return calls
-
-
-def test_last_run_repeated_reads_walk_the_corpus_once(tmp_path: Path, monkeypatch) -> None:
+def test_the_last_run_catalog_is_the_catalog_on_rows(tmp_path: Path, monkeypatch) -> None:
     _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
-    calls = _spy_build_last_run(monkeypatch)
+    calls = _spy_read(monkeypatch)
 
-    first = catalog_cache.cached_catalog_last_run(tmp_path)
-    for _ in range(5):
-        catalog_cache.cached_catalog_last_run(tmp_path)
-
-    assert len(first) == 1
-    assert calls[0] == 1, "the last-run catalog was re-walked on a cache hit"
-
-
-def test_last_run_invalidates_when_the_corpus_changes(tmp_path: Path, monkeypatch) -> None:
-    _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
-    calls = _spy_build_last_run(monkeypatch)
-
-    assert len(catalog_cache.cached_catalog_last_run(tmp_path)) == 1
-    assert calls[0] == 1
-
-    _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
-    _set_corpus_stamp(tmp_path, 2_000_000.0)
-
-    assert len(catalog_cache.cached_catalog_last_run(tmp_path)) == 1
-    assert perf_cache.wait_for_rebuilds()
-    after = catalog_cache.cached_catalog_last_run(tmp_path)
-    assert len(after) == 2, "a stale last-run catalog hid the new episode"
-    assert calls[0] == 2, "invalidation did not trigger a rebuild"
-
-
-def test_last_run_uses_a_distinct_namespace_from_cumulative(tmp_path: Path) -> None:
-    """The two variants must not share a cache entry — swapping them would change the row set."""
-    _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
-
-    # Prime the cumulative cache first; the last-run read must still compute its own entry, not
-    # return the cumulative one, even though both key on the same root + mtime.
-    catalog_cache.cached_catalog(tmp_path)
-    last_run = catalog_cache.cached_catalog_last_run(tmp_path)
-    last_run.clear()  # mutating this copy must not affect the cumulative entry
-    assert len(catalog_cache.cached_catalog(tmp_path)) == 1
+    assert catalog_cache.cached_catalog_last_run(tmp_path) == catalog_cache.cached_catalog(tmp_path)
+    assert calls[0] == 1, "the last-run catalog read the rows a second time"
 
 
 def test_resolve_slug_is_correct_and_survives_invalidation(tmp_path: Path) -> None:
     _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
-    _set_corpus_stamp(tmp_path, 1_000_000.0)
 
     rows = catalog_cache.cached_catalog(tmp_path)
     slug = slugs.slug_for_row(rows[0])
@@ -174,7 +106,6 @@ def test_resolve_slug_is_correct_and_survives_invalidation(tmp_path: Path) -> No
 
     # After an ingest, a newly-added episode's slug resolves through the refreshed index.
     _write_episode(tmp_path, stem="0002", feed_id="f1", episode_id="e2")
-    _set_corpus_stamp(tmp_path, 2_000_000.0)
     catalog_cache.cached_catalog(tmp_path)
     slugs.resolve_slug(tmp_path, slug)
     assert perf_cache.wait_for_rebuilds()

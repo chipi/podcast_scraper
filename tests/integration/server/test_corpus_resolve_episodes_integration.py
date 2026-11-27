@@ -27,6 +27,7 @@ def cil_corpus(tmp_path: Path) -> Path:
         person="person:pat",
         topic="topic:science",
         metadata_episode_title="Science Monday",
+        metadata_feed_title="Test Show",
     )
     return tmp_path
 

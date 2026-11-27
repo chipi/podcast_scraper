@@ -1,111 +1,83 @@
-"""Shared, corpus-mtime-cached catalog + slug index for the consumer ``/api/app/*`` plane.
+"""The episode catalog for both planes, read from the corpus rows and cached by a row token.
 
-``build_catalog_rows_cumulative()`` is a full-corpus scan (~0.5 ms/episode: open + JSON-parse each
-``*.metadata.json`` and stat three sidecars). Its result only changes on **ingest**, yet nearly
-every consumer route re-ran it *per request* — the dominant scaling cost. Uncached it is ~50 ms at
-100 episodes, ~350 ms at 700, and projects to **~5 s/request at 10k**; because the scan is
-synchronous CPU + GIL-bound JSON parsing, concurrent requests serialize (measured: 20 concurrent
-``/discover`` went from 54 ms to 2.7 s each).
+``catalog_rows.catalog_from_rows`` builds the catalog's :class:`CatalogEpisodeRow` list from the
+served items in one statement (``intents.catalog_items``), over the ``corpus_ro`` engine. There is
+no file scan and no fallback: with no corpus URL a call raises ``DatabaseNotConfigured`` (r-intents;
+agreed with the Player 2026-11-26, the way back is the cut-over's rollback).
 
-This caches the catalog through the shared :mod:`podcast_scraper.perf_cache`, keyed by the corpus
-run-summary mtime (``corpus_mtime`` — bumps on ingest) — the *same* token + pattern the operator
-``catalog_feeds`` route already uses (``routes/corpus_library.py``). One warm catalog is then shared
-across every consumer route; the scan runs once per ingest, not once per request.
+The cache is the shared :mod:`podcast_scraper.perf_cache`, keyed by :func:`catalog_token`: the
+count and newest ``updated_at`` of ``content_items`` and the corpus revision, in one small query.
+Every writer of an item row sets ``updated_at``, and a row migration bumps the revision, so the
+token moves with every change the catalog shows. The corpus revision alone would not: only corpus
+migrations bump it, not an ingest.
 
-Rows are immutable (``@dataclass(frozen=True)``), so sharing row objects is safe; we hand back a
-shallow **copy** of the list so a caller that sorts/filters in place (e.g. ``/discover``) cannot
-corrupt the shared entry. The slug index is read-only (callers only ``.get``) so it is shared as-is.
+The file era had two shapes, the cumulative scan over every run and the last run's. Rows hold one
+item per episode, the import's and the writer's newest run, so both names return the same rows; the
+``_last_run`` names stay so their callers need no change (the two scans returned the same 3,522
+rows on snapshot-prod-20261124).
 
-Scope: both planes. The consumer ``/api/app/*`` routes and the operator ``/api/corpus/*`` viewer
-routes share this cache — the scan and its cost are identical, so there is no reason to cache it
-twice. Two variants, because the corpus catalog has two legitimate shapes (see
-:mod:`corpus_catalog`): :func:`cached_catalog` wraps the cumulative-unique scan (all runs), and
-:func:`cached_catalog_last_run` wraps the last-run-only scan. Callers keep whichever shape they
-already used — this is a perf cache, not a semantics change.
+Rows are immutable (``@dataclass(frozen=True)``); callers get a shallow copy of the list, so one
+that sorts or filters in place cannot corrupt the shared entry.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy import func, select
+
 from podcast_scraper import perf_cache
-from podcast_scraper.server.corpus_catalog import (
-    build_catalog_rows,
-    build_catalog_rows_cumulative,
-    CatalogEpisodeRow,
-)
+from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 
 _CATALOG_NS = "app_catalog_rows"
-CATALOG_LAST_RUN_NS = "catalog_rows_last_run"
-_CATALOG_LAST_RUN_NS = CATALOG_LAST_RUN_NS
+CATALOG_LAST_RUN_NS = _CATALOG_NS
+_TOKEN_BITS = (1 << 52) - 1
 
 
 def _key(root: Path) -> str:
     return str(Path(root).resolve())
 
 
-def cached_catalog(root: Path) -> list[CatalogEpisodeRow]:
-    """The cumulative-unique catalog, cached by corpus mtime; a fresh list copy per call.
+def catalog_token() -> float:
+    """The catalog's cache token: it changes whenever an item row is written or a row migration
+    runs."""
+    from podcast_scraper.db.engines import corpus_ro_engine, read_connection
+    from podcast_scraper.db.schema import content_items, corpus_revision
 
-    Drop-in for ``build_catalog_rows_cumulative(root)``. The copy is O(rows) pointer work
-    (microseconds) and lets callers sort/filter in place without touching the shared cache entry.
-    """
+    revision = select(corpus_revision.c.revision).where(corpus_revision.c.id == 1)
+    with read_connection(corpus_ro_engine()) as conn:
+        count, newest, rev = conn.execute(
+            select(
+                func.count(), func.max(content_items.c.updated_at), revision.scalar_subquery()
+            ).select_from(content_items)
+        ).one()
+    return float(hash((count, newest, rev)) & _TOKEN_BITS)
+
+
+def _catalog_rows(root: Path) -> list[CatalogEpisodeRow]:
+    from podcast_scraper.db.engines import corpus_ro_engine, read_connection
+    from podcast_scraper.server.catalog_rows import catalog_from_rows
+
+    with read_connection(corpus_ro_engine()) as conn:
+        return catalog_from_rows(conn, Path(root))
+
+
+def cached_catalog(root: Path) -> list[CatalogEpisodeRow]:
+    """The catalog of the served podcast items, cached by :func:`catalog_token`; a fresh list copy
+    per call."""
     rows = perf_cache.get_or_compute(
-        _CATALOG_NS,
-        _key(root),
-        perf_cache.corpus_mtime(root),
-        lambda: _sharing_rows(build_catalog_rows_cumulative(root), _cached_last_run(root)),
-        stale_ok=True,
+        _CATALOG_NS, _key(root), catalog_token(), lambda: _catalog_rows(root), stale_ok=True
     )
     return list(rows)
-
-
-def _cached_last_run(root: Path) -> list[CatalogEpisodeRow]:
-    """The last-run catalog when it is already cached, else nothing (see :func:`_sharing_rows`)."""
-    rows = perf_cache.cache_peek(CATALOG_LAST_RUN_NS, _key(root), perf_cache.corpus_mtime(root))
-    return list(rows) if rows else []
 
 
 def cached_catalog_last_run(root: Path) -> list[CatalogEpisodeRow]:
-    """The last-run-only catalog, cached by corpus mtime; a fresh list copy per call.
-
-    Drop-in for ``build_catalog_rows(root)`` — the last-run-only shape the operator episode-detail /
-    similar / resolve routes use. Kept distinct from :func:`cached_catalog` (different namespace)
-    because the two scans return different row sets; swapping one for the other would change
-    behaviour, not just latency.
-    """
-    rows = perf_cache.get_or_compute(
-        _CATALOG_LAST_RUN_NS,
-        _key(root),
-        perf_cache.corpus_mtime(root),
-        lambda: _sharing_rows(build_catalog_rows(root), _cached_cumulative(root)),
-        stale_ok=True,
-    )
-    return list(rows)
-
-
-def _cached_cumulative(root: Path) -> list[CatalogEpisodeRow]:
-    """The cumulative catalog when it is already cached, else nothing: sharing must not build a
-    second catalog in a process that only ever asks for the last-run one."""
-    rows = perf_cache.cache_peek(_CATALOG_NS, _key(root), perf_cache.corpus_mtime(root))
-    return list(rows) if rows else []
-
-
-def _sharing_rows(
-    rows: list[CatalogEpisodeRow], other: list[CatalogEpisodeRow]
-) -> list[CatalogEpisodeRow]:
-    """``rows``, each replaced by the equal row of ``other`` where there is one.
-
-    The last-run scan and the cumulative scan parse the same metadata files: on a corpus with one
-    run per episode every last-run row equals a cumulative row, field for field, yet each scan holds
-    its own copy of the text (30.5 MB twice on a 3,128-episode corpus, 2026-11-08). Rows are frozen,
-    so an equal row can stand in for the other; a row whose metadata file differs keeps its own."""
-    by_path = {r.metadata_relative_path: r for r in other}
-    return [same if (same := by_path.get(r.metadata_relative_path)) == r else r for r in rows]
+    """:func:`cached_catalog`: on rows the last run's catalog and the cumulative one are one."""
+    return cached_catalog(root)
 
 
 def current_catalog(root: Path) -> list[CatalogEpisodeRow]:
-    """:func:`cached_catalog` for the CURRENT corpus, never the previous one while it rebuilds.
+    """:func:`cached_catalog` for the CURRENT rows, never the previous ones while it rebuilds.
 
     The stale answer spares the Player's cold reads after an ingest; the operator's routes need what
     the job just wrote: the Workbench refetches once after a job and showed the pre-job lists until
@@ -116,6 +88,5 @@ def current_catalog(root: Path) -> list[CatalogEpisodeRow]:
 
 
 def current_catalog_last_run(root: Path) -> list[CatalogEpisodeRow]:
-    """:func:`cached_catalog_last_run` for the CURRENT corpus (see :func:`current_catalog`)."""
-    with perf_cache.fresh():
-        return cached_catalog_last_run(root)
+    """:func:`current_catalog` (see :func:`cached_catalog_last_run`)."""
+    return current_catalog(root)

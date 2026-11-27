@@ -141,20 +141,20 @@ def _instant(raw: Any) -> Optional[datetime]:
     return moment.astimezone(timezone.utc)
 
 
-def _source_title(doc: Mapping[str, Any], registry: Optional[Registry]) -> str:
-    """The source's display name. A podcast: its feed's title. A news item names none, so it is
-    the label readers see today: the publisher's name (``news_items._publisher``'s order), else
-    the URL's host (``news_items._site``)."""
+def _source_title(doc: Mapping[str, Any], registry: Optional[Registry]) -> Optional[str]:
+    """The source's display name. A podcast: its feed's title, or ``None`` when this episode's
+    metadata names none (another episode of the show does: :func:`source_row_for`). A news item
+    names none, so it is the label readers see today: the publisher's name
+    (``news_items._publisher``'s order), else the URL's host (``news_items._site``)."""
     if is_news(doc):
         if registry is None:
             raise ValueError("a news source's title needs the publisher registry")
         publisher = _publisher(doc, registry)
         title = (publisher or {}).get("name") or _site(doc)
-    else:
-        title = _feed_display_title(dict(doc))
-    if not title:
-        raise ValueError("the metadata names no source title")
-    return title
+        if not title:
+            raise ValueError("the metadata names no source title")
+        return str(title)
+    return _feed_display_title(dict(doc)) or None
 
 
 def _unusable_episode(doc: Mapping[str, Any]) -> bool:
@@ -293,11 +293,10 @@ def source_row_for(
     if len(keys) > 1:
         raise ValueError(f"items of different sources: {sorted(map(str, keys))}")
     first = rows[0]
-    return {
-        "natural_id": first["natural_id"],
-        "content_type": first["content_type"],
-        **merge_source_attrs(rows),
-    }
+    merged = merge_source_attrs(rows)
+    if merged["title"] is None:
+        raise ValueError("the metadata names no source title")
+    return {"natural_id": first["natural_id"], "content_type": first["content_type"], **merged}
 
 
 def _catalog_type_attrs(

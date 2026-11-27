@@ -346,8 +346,8 @@ def corpus_feeds(
 ) -> CorpusFeedsResponse:
     """List feeds and per-feed episode counts for the corpus library API.
 
-    Sync ``def`` (not ``async``) on purpose: the body is CPU/file work
-    (``build_catalog_rows_cumulative`` over the corpus) with no awaits, so
+    Sync ``def`` (not ``async``) on purpose: the body is CPU and database work
+    (the catalog over the corpus rows) with no awaits, so
     FastAPI runs it in its threadpool — it must NOT block the single-worker
     event loop during the page-load burst, or it head-of-line-blocks the first
     /api/search (perf-traces 2026-07-24; #1276).
@@ -452,13 +452,12 @@ def corpus_episodes(
 ) -> CorpusEpisodesResponse:
     """Paginated episode list with optional feed, title, topic, and date filters.
 
-    v2.6.1 #818: uses ``build_catalog_rows_cumulative`` so the response
-    reflects every unique episode in the corpus across all runs (not just
-    the latest run per feed). ``limit`` raised from 200 → 1000 so callers
-    can fetch the full operator-facing set in one request when desired.
+    The response reflects every served episode in the corpus rows (v2.6.1 #818: not just the
+    latest run per feed). ``limit`` raised from 200 → 1000 so callers can fetch the full
+    operator-facing set in one request when desired.
 
-    Sync ``def`` (no awaits) so the O(corpus) scan runs in FastAPI's threadpool, and the scan is
-    served from the corpus-mtime catalog cache.
+    Sync ``def`` (no awaits) so the O(corpus) read runs in FastAPI's threadpool, and it is served
+    from the catalog cache, keyed on the row token.
     """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
