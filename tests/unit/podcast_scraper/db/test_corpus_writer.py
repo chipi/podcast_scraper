@@ -283,6 +283,28 @@ def test_a_changed_item_overwrites_its_row(
     assert (item["title"], item["duration_s"]) == ("Renamed", 60)
 
 
+def _revision(db: Connection) -> int:
+    db.rollback()
+    return int(db.execute(select(corpus_revision.c.revision)).scalar_one())
+
+
+def test_a_sync_that_writes_the_item_row_bumps_the_revision_and_an_unchanged_one_does_not(
+    pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # The catalog's token reads the revision: a sync that started before another committed and
+    # commits after it carries an older now() as updated_at, so the newest updated_at alone
+    # would not move (#2614).
+    transcript = _write(tmp_path, BASE + ".txt", "Hello.\n")
+    start = _revision(conn)
+    sync_episode(_metadata(tmp_path, "item:v"), transcript)
+    assert _revision(conn) == start + 1
+    sync_episode(_metadata(tmp_path, "item:v"), transcript)
+    assert _revision(conn) == start + 1
+    renamed = _doc("item:v", title="Renamed")
+    sync_episode(_metadata(tmp_path, "item:v", renamed), transcript)
+    assert _revision(conn) == start + 2
+
+
 def test_a_newer_served_item_decides_the_source_and_an_older_one_fills_only_nulls(
     pipeline_db: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:

@@ -59,7 +59,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 import yaml
-from sqlalchemy import and_, delete, func, insert, or_, select, update
+from sqlalchemy import and_, delete, exists, func, insert, or_, select, update
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
@@ -334,6 +334,23 @@ def upsert_item(
         )
     item_id = stored["item_id"]
     return item_id
+
+
+def bump_revision_if_written(conn: Connection, item_id: int) -> bool:
+    """Bump ``corpus_revision`` when this transaction wrote the item's row; returns whether it did.
+    Last in the transaction (DECISIONS rule 7). The catalog's token reads the revision because a
+    written row's ``updated_at`` is its transaction's start: a sync that began before another
+    committed, and commits after it, leaves the newest ``updated_at`` where it was (#2614)."""
+    from podcast_scraper.upgrade.rows import bump_corpus_revision
+
+    written = conn.execute(
+        select(
+            exists().where(
+                and_(content_items.c.item_id == item_id, content_items.c.updated_at == func.now())
+            )
+        )
+    ).scalar_one()
+    return bool(written) and bump_corpus_revision(conn)
 
 
 def mark_has_transcript(conn: Connection, item_id: int) -> bool:
@@ -654,6 +671,7 @@ def sync_rows(
                 if relpath is not None:
                     item = item_row(doc, metadata_relpath=relpath, has_bridge=has_bridge)
                     write_card(conn, _corpus_root(metadata_path, relpath), relpath, item_id, item)
+            bump_revision_if_written(conn, item_id)
         audio_fingerprints.forget_held(feed, fingerprints)
         _DEFERRED.pop(str(metadata_path), None)
         if relpath is None:
