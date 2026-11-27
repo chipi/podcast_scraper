@@ -45,8 +45,11 @@ from .segments import link_insights_to_segments, link_insights_to_segments_by_te
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-DEFAULT_TARGET_TOKENS = 256
-DEFAULT_OVERLAP_TOKENS = 32
+# The config's chunk sizes, which the pipeline's build passes (indexer.index_corpus): a build that
+# passes none (the index-two-tier CLI, the m0002 / m0004 migrations) cuts the same spans, so each
+# chunk:<scope>:<n> id names one span whichever build last wrote the index. These were 256 / 32.
+DEFAULT_TARGET_TOKENS: int = _config.Config.model_fields["vector_chunk_size_tokens"].default
+DEFAULT_OVERLAP_TOKENS: int = _config.Config.model_fields["vector_chunk_overlap_tokens"].default
 # Rows accumulated (across episodes) before a tier is flushed in one merge_insert.
 # Each flush = one LanceDB transaction (data file + version), so this trades peak
 # memory for fewer fragments: ~total_rows/batch transactions per tier instead of
