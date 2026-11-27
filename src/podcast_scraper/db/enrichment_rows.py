@@ -56,11 +56,21 @@ def pending_path(corpus_root: Path) -> Path:
 
 
 def pending(corpus_root: Path) -> set[str]:
-    """The enrichers to publish after their run whether or not they wrote an envelope."""
+    """The enrichers to publish after their run whether or not they wrote an envelope. A file that
+    is not a list of ids reads as empty, logged: it must not fail the run, and the next refused or
+    failed publish rewrites it."""
+    path = pending_path(corpus_root)
     try:
-        return set(json.loads(pending_path(corpus_root).read_text(encoding="utf-8")))
+        ids = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return set()
+    except (OSError, ValueError) as exc:
+        logger.warning("enrichment rows: %s is unreadable, read as empty: %s", path, exc)
+        return set()
+    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+        logger.warning("enrichment rows: %s is not a list of enricher ids, read as empty", path)
+        return set()
+    return set(ids)
 
 
 def _mark(corpus_root: Path, enricher_id: str, *, landed: bool) -> None:
