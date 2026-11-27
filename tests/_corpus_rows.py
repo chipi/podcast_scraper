@@ -75,6 +75,7 @@ def corpus_rows_patch() -> Iterator[None]:
     from podcast_scraper.db import engines
     from podcast_scraper.db.importers.corpus_items import import_corpus
     from podcast_scraper.db.settings import CorpusSettings
+    from podcast_scraper.search import corpus_search
     from podcast_scraper.search.two_tier_indexer import import_search_chunks
     from podcast_scraper.server import catalog_cache
 
@@ -117,6 +118,14 @@ def corpus_rows_patch() -> Iterator[None]:
         ensure(root)
         return read(root)
 
+    hydrate = corpus_search._enrich_lift_and_slice
+
+    def search_rows(filtered: Any, output_dir: Path, *args: Any, **kwargs: Any) -> Any:
+        # A search hydrates its transcript hits from search_chunks: the corpus it searches is
+        # imported first, as a catalog read imports it.
+        ensure(Path(output_dir))
+        return hydrate(filtered, output_dir, *args, **kwargs)
+
     def current_token() -> float:
         connect()
         if loaded["root"] is not None:
@@ -128,6 +137,7 @@ def corpus_rows_patch() -> Iterator[None]:
         patch.setattr(catalog_cache, "_key", key)
         patch.setattr(catalog_cache, "_catalog_rows", rows)
         patch.setattr(catalog_cache, "catalog_token", current_token)
+        patch.setattr(corpus_search, "_enrich_lift_and_slice", search_rows)
         yield
     _REAL.clear()
     for engine in writer:
@@ -164,3 +174,29 @@ def corpus_rows_fixture() -> Iterator[None]:
     yield
     for namespace in _NAMESPACES:
         perf_cache.clear(namespace)
+
+
+def every_hit_has_a_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    """For a search test over an index built from synthetic segments, with no corpus to import:
+    each transcript hit gets a served row, so the hit is kept and the test sees what the index
+    returned. Search hydrates from ``search_chunks`` only and drops a hit with no row; that is
+    ``tests/unit/podcast_scraper/search/test_search_hydrates_from_rows.py``'s to pin."""
+    from podcast_scraper.search import corpus_search
+
+    def rows(ids: list) -> list:
+        return [
+            {
+                "natural_id": i,
+                "served": 1,
+                "withheld": False,
+                "text": "",
+                "start_ms": None,
+                "end_ms": None,
+                "title": None,
+                "source_title": None,
+                "speakers": [],
+            }
+            for i in ids
+        ]
+
+    monkeypatch.setattr(corpus_search, "_chunk_rows", rows)
