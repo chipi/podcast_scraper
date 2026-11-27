@@ -4,7 +4,8 @@ One module of functions over the corpus tables (decision 1). Each request runs i
 repeatable-read transaction (:func:`read_slice`); inside it every step of a walk is one statement,
 a ``UNION ALL`` over the step's edges, each frontier node joined ``LATERAL`` with at most
 :data:`FANOUT` edges per edge type (decision 9, CRFC-005 §4). No recursive statement is used: it
-cannot cap a level's frontier.
+cannot cap a level's frontier. Statements are SQLAlchemy Core with bound arrays: no request value
+reaches SQL text.
 
 Built here, the walk core:
 
@@ -18,15 +19,16 @@ Not built yet: the groups catalogue and node ``groups`` (no ``clusters`` table u
 ``with: counts`` (``entity_item_counts``, r-projections), ``exclude_items`` and held stubs, the
 structured query, the routes, caching and the replica retry.
 
-Statement counts, against decision 9's table: the tail is 3 (nodes, items, induced edges), since
-there is no groups catalogue to read yet; aggregated edges are counted during the walk, not by a
-statement of their own; a path whose last step reaches entities reads their types in one more
-statement, so ``keep`` can choose among them. ``tests/unit/podcast_scraper/db/test_db_graph.py``
-asserts each count.
+Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
+sends nothing. The tail is 3 (nodes, items, induced edges), since there is no groups catalogue to
+read yet; aggregated edges are counted during the walk, not by a statement of their own; a path
+whose last step reaches entities reads their types in one more statement, so ``keep`` can choose
+among them. ``tests/unit/podcast_scraper/db/test_db_graph.py`` asserts each count.
 
-Node and edge ids in a slice are natural ids; an entity's is its canonical row's. Insights and
-quotes are served only when visible and cut from their item's served document (CRFC-005 §3.4),
-and items only when served.
+What is never served: an item that is not served or is withheld, an insight that is hidden
+(``visible`` false) or cut from a document something supersedes, a quote cut from such a
+document (CRFC-005 §3.4), and anything of an item that is not served. Node and edge ids in a slice
+are natural ids; an entity's is its canonical row's.
 """
 
 from __future__ import annotations
@@ -35,11 +37,41 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable, Optional, Sequence, TypeVar
 
-from sqlalchemy import BigInteger, bindparam, exc as sa_exc, text
+from sqlalchemy import (
+    and_,
+    BigInteger,
+    bindparam,
+    cast,
+    exc as sa_exc,
+    exists,
+    func,
+    Integer,
+    literal,
+    null,
+    select,
+    Text,
+    text,
+    true,
+    union_all,
+)
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.sql import ColumnElement, Select
 
-from podcast_scraper.db.schema import CORPUS_SCHEMA
+from podcast_scraper.db.schema import (
+    content_items,
+    corpus_revision,
+    documents,
+    entities,
+    evidence,
+    insight_attribution,
+    insight_mentions,
+    insight_support,
+    insights,
+    item_entities,
+    person_roles,
+    sources,
+)
 
 FORMAT = "graph-slice/1"
 #: The most edges of one type a frontier node contributes to a step.
@@ -66,9 +98,11 @@ Ref = tuple[str, int]
 #: ``entities.type`` as an ontology v3 node type.
 ENTITY_TYPES = {"person": "Person", "org": "Organization", "topic": "Topic", "object": "Object"}
 NODE_TYPES = {ITEM: "ContentItem", SOURCE: "Source", INSIGHT: "Insight", EVIDENCE: "Quote"}
+_PARTICIPANT_ROLES = ("host", "guest")
 
 T = TypeVar("T")
-_S = CORPUS_SCHEMA
+#: ``slice_recent`` takes a ``sources`` filter, so the table has a second name there.
+_SOURCES = sources
 
 
 class GraphTimeout(RuntimeError):
@@ -79,217 +113,329 @@ class UnknownPath(ValueError):
     """A named path the engine does not have, or one not defined for the seed's type."""
 
 
-def _current(alias: str) -> str:
+# --- statement pieces ------------------------------------------------------------------------
+
+
+def _frontier(p: str) -> Any:
+    """``unnest(:p) AS f(id)``: one step's frontier of one kind, bound as an array."""
+    return (
+        func.unnest(bindparam(p, type_=ARRAY(BigInteger)))
+        .table_valued("id")
+        .render_derived(name="f")
+    )
+
+
+def _shown(item_id: Any) -> ColumnElement[bool]:
+    """The item is served and not withheld."""
+    c = content_items.alias()
+    return exists().where(c.c.item_id == item_id, c.c.served > 0, ~c.c.withheld)
+
+
+def _current(row: Any) -> ColumnElement[bool]:
     """The row was cut from its item's served document: nothing supersedes it."""
-    return (
-        f"NOT EXISTS (SELECT 1 FROM {_S}.documents d WHERE d.item_id = {alias}.item_id "
-        f"AND d.supersedes_id = {alias}.document_id)"
-    )
+    d = documents.alias()
+    return ~exists().where(d.c.item_id == row.c.item_id, d.c.supersedes_id == row.c.document_id)
 
 
-def _frontier(p: str) -> str:
-    return f"unnest(CAST(:{p} AS bigint[])) AS f(id)"
+def _insight_ok(i: Any) -> ColumnElement[bool]:
+    return and_(i.c.visible, _current(i), _shown(i.c.item_id))
 
 
-def _canonical(column: str) -> str:
-    return f"(SELECT e.canonical_id FROM {_S}.entities e WHERE e.entity_id = {column})"
+def _quote_ok(ev: Any) -> ColumnElement[bool]:
+    return and_(_current(ev), _shown(ev.c.item_id))
 
 
-def _per_member(p: str, inner: str, order: str) -> str:
+def _cols(frm: Any, dst: Any, item: Any = None, prop: Any = None) -> list[Any]:
+    return [
+        frm.label("frm"),
+        dst.label("dst"),
+        (item if item is not None else cast(null(), BigInteger)).label("item_id"),
+        (prop if prop is not None else cast(null(), Text)).label("prop"),
+    ]
+
+
+def _per_member(
+    p: str, inner: Callable[[Any], Select[Any]], order: Callable[[Any], list[Any]]
+) -> tuple[Any, Any]:
     """A canonical entity's edges, read per member (one index range each), merged in ``order``
-    and capped again, so a merged node fans out like any other."""
-    return (
-        f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT y.* FROM {_S}.entities m "
-        f"CROSS JOIN LATERAL ({inner} LIMIT {FANOUT}) y WHERE m.canonical_id = f.id "
-        f"ORDER BY {order} LIMIT {FANOUT}) x"
+    and capped again, so a merged node fans out like any other. Each cap reads one row past
+    :data:`FANOUT`, so :func:`_step` can tell a capped node from one with exactly that many."""
+    f = _frontier(p)
+    m = entities.alias("m")
+    y = inner(m).limit(FANOUT + 1).lateral("y")
+    x = (
+        select(*y.c)
+        .select_from(m.join(y, true()))
+        .where(m.c.canonical_id == f.c.id)
+        .order_by(*order(y))
+        .limit(FANOUT + 1)
+        .lateral("x")
     )
-
-
-_SERVED = f"JOIN {_S}.content_items c ON c.item_id = {{0}} AND c.served > 0"
-_VISIBLE = f"JOIN {_S}.insights i ON i.insight_id = {{0}} AND i.visible AND {_current('i')}"
-_PARTICIPANT_ROLES = "('host', 'guest')"
-
-
-def _sel(frm: str, dst: str, item: str, prop: str = "NULL::text") -> str:
-    return f"SELECT {frm} AS frm, {dst} AS dst, {item} AS item_id, {prop} AS prop "
+    return f, x
 
 
 @dataclass(frozen=True)
 class EdgeType:
     """One edge of decision 10: its ends, class, whether it belongs to an item, and the
-    statement fragment that reads it from a frontier in each direction. ``out`` starts from the
-    ``source`` end, ``in`` from the ``target`` end; both answer ``(frm, dst)`` in the edge's own
-    direction."""
+    statement that reads it from a frontier in each direction. ``out`` starts from the
+    ``source`` end, ``in`` from the ``target`` end; both answer ``(frm, dst, item_id, prop)`` in
+    the edge's own direction."""
 
     name: str
     cls: str
     source: str
     target: str
     item_scoped: bool
-    out: Callable[[str], str]
-    in_: Callable[[str], str]
+    out: Callable[[str], Select[Any]]
+    in_: Callable[[str], Select[Any]]
 
 
-def _mention(kind: str) -> EdgeType:
-    return EdgeType(
-        kind,
-        "descriptive",
-        INSIGHT,
-        ENTITY,
-        True,
-        lambda p: _sel("f.id", _canonical("x.entity_id"), "x.item_id")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT im.entity_id, im.item_id "
-        f"FROM {_S}.insight_mentions im WHERE im.insight_id = f.id AND im.kind = '{kind}' "
-        f"ORDER BY im.entity_id LIMIT {FANOUT}) x",
-        lambda p: _sel("x.insight_id", "f.id", "x.item_id")
-        + _per_member(
-            p,
-            f"SELECT im.insight_id, im.item_id, im.rank FROM {_S}.insight_mentions im "
-            f"{_VISIBLE.format('im.insight_id')} WHERE im.entity_id = m.entity_id "
-            f"AND im.kind = '{kind}' ORDER BY im.rank, im.insight_id",
-            "y.rank, y.insight_id",
-        ),
+def _has_item_out(p: str) -> Select[Any]:
+    f = _frontier(p)
+    c = content_items.alias("c")
+    x = (
+        select(c.c.item_id)
+        .where(c.c.source_id == f.c.id, c.c.served > 0, ~c.c.withheld)
+        .order_by(c.c.published_at.desc().nulls_last(), c.c.item_id.desc())
+        .limit(FANOUT + 1)
+        .lateral("x")
+    )
+    return select(*_cols(f.c.id, x.c.item_id, x.c.item_id)).select_from(f.join(x, true()))
+
+
+def _has_item_in(p: str) -> Select[Any]:
+    f = _frontier(p)
+    c = content_items.alias("c")
+    on = and_(c.c.item_id == f.c.id, c.c.served > 0, ~c.c.withheld)
+    return select(*_cols(c.c.source_id, f.c.id, f.c.id)).select_from(f.join(c, on))
+
+
+def _has_insight_out(p: str) -> Select[Any]:
+    f = _frontier(p)
+    i = insights.alias("i")
+    x = (
+        select(i.c.insight_id)
+        .where(i.c.item_id == f.c.id, i.c.visible, _current(i))
+        .order_by(i.c.rank, i.c.insight_id)
+        .limit(FANOUT + 1)
+        .lateral("x")
+    )
+    return select(*_cols(f.c.id, x.c.insight_id, f.c.id)).select_from(f.join(x, true()))
+
+
+def _has_insight_in(p: str) -> Select[Any]:
+    f = _frontier(p)
+    i = insights.alias("i")
+    on = and_(i.c.insight_id == f.c.id, _insight_ok(i))
+    return select(*_cols(i.c.item_id, f.c.id, i.c.item_id)).select_from(f.join(i, on))
+
+
+def _published_by_out(p: str) -> Select[Any]:
+    f = _frontier(p)
+    so = sources.alias("so")
+    k = entities.alias("k")
+    return select(*_cols(f.c.id, k.c.canonical_id)).select_from(
+        f.join(so, so.c.source_id == f.c.id).join(k, k.c.entity_id == so.c.publisher_id)
     )
 
 
+def _published_by_in(p: str) -> Select[Any]:
+    so = sources.alias("so")
+    f, x = _per_member(
+        p,
+        lambda m: select(so.c.source_id)
+        .where(so.c.publisher_id == m.c.entity_id)
+        .order_by(so.c.source_id),
+        lambda y: [y.c.source_id],
+    )
+    return select(*_cols(x.c.source_id, f.c.id)).select_from(f.join(x, true()))
+
+
+def _participates_out(p: str) -> Select[Any]:
+    r = person_roles.alias("r")
+    c = content_items.alias("c")
+    f, x = _per_member(
+        p,
+        lambda m: select(r.c.item_id, r.c.role, c.c.published_at)
+        .join(c, and_(c.c.item_id == r.c.item_id, c.c.served > 0, ~c.c.withheld))
+        .where(r.c.person_id == m.c.entity_id, r.c.role.in_(_PARTICIPANT_ROLES))
+        .order_by(c.c.published_at.desc().nulls_last(), r.c.item_id.desc(), r.c.role),
+        lambda y: [y.c.published_at.desc().nulls_last(), y.c.item_id.desc(), y.c.role],
+    )
+    return select(*_cols(f.c.id, x.c.item_id, x.c.item_id, x.c.role)).select_from(f.join(x, true()))
+
+
+def _participates_in(p: str) -> Select[Any]:
+    f = _frontier(p)
+    r = person_roles.alias("r")
+    k = entities.alias("k")
+    x = (
+        select(r.c.person_id, r.c.role)
+        .where(r.c.item_id == f.c.id, r.c.role.in_(_PARTICIPANT_ROLES))
+        .order_by(r.c.person_id, r.c.role)
+        .limit(FANOUT + 1)
+        .lateral("x")
+    )
+    return select(*_cols(k.c.canonical_id, f.c.id, f.c.id, x.c.role)).select_from(
+        f.join(x, true()).join(k, k.c.entity_id == x.c.person_id)
+    )
+
+
+def _mentions_out(p: str) -> Select[Any]:
+    ie = item_entities.alias("ie")
+    # The index's order, (published_at DESC, item_id): Postgres puts undated rows first.
+    f, x = _per_member(
+        p,
+        lambda m: select(ie.c.item_id, ie.c.published_at)
+        .where(ie.c.entity_id == m.c.entity_id, ie.c.role == "mentions", _shown(ie.c.item_id))
+        .order_by(ie.c.published_at.desc(), ie.c.item_id),
+        lambda y: [y.c.published_at.desc(), y.c.item_id],
+    )
+    return select(*_cols(f.c.id, x.c.item_id, x.c.item_id)).select_from(f.join(x, true()))
+
+
+def _mentions_in(p: str) -> Select[Any]:
+    f = _frontier(p)
+    ie = item_entities.alias("ie")
+    k = entities.alias("k")
+    x = (
+        select(ie.c.entity_id)
+        .where(ie.c.item_id == f.c.id, ie.c.role == "mentions")
+        .order_by(ie.c.entity_id)
+        .limit(FANOUT + 1)
+        .lateral("x")
+    )
+    return select(*_cols(k.c.canonical_id, f.c.id, f.c.id)).select_from(
+        f.join(x, true()).join(k, k.c.entity_id == x.c.entity_id)
+    )
+
+
+def _mention(kind: str) -> EdgeType:
+    def out(p: str) -> Select[Any]:
+        f = _frontier(p)
+        im = insight_mentions.alias("im")
+        k = entities.alias("k")
+        x = (
+            select(im.c.entity_id, im.c.item_id)
+            .where(im.c.insight_id == f.c.id, im.c.kind == kind)
+            .order_by(im.c.entity_id)
+            .limit(FANOUT + 1)
+            .lateral("x")
+        )
+        return select(*_cols(f.c.id, k.c.canonical_id, x.c.item_id)).select_from(
+            f.join(x, true()).join(k, k.c.entity_id == x.c.entity_id)
+        )
+
+    def in_(p: str) -> Select[Any]:
+        im = insight_mentions.alias("im")
+        i = insights.alias("i")
+        f, x = _per_member(
+            p,
+            lambda m: select(im.c.insight_id, im.c.item_id, im.c.rank)
+            .join(i, i.c.insight_id == im.c.insight_id)
+            .where(im.c.entity_id == m.c.entity_id, im.c.kind == kind, _insight_ok(i))
+            .order_by(im.c.rank, im.c.insight_id),
+            lambda y: [y.c.rank, y.c.insight_id],
+        )
+        return select(*_cols(x.c.insight_id, f.c.id, x.c.item_id)).select_from(f.join(x, true()))
+
+    return EdgeType(kind, "descriptive", INSIGHT, ENTITY, True, out, in_)
+
+
+def _supported_out(p: str) -> Select[Any]:
+    f = _frontier(p)
+    s = insight_support.alias("s")
+    ev = evidence.alias("ev")
+    x = (
+        select(s.c.evidence_id, ev.c.item_id)
+        .join(ev, ev.c.evidence_id == s.c.evidence_id)
+        .where(s.c.insight_id == f.c.id, _quote_ok(ev))
+        .order_by(s.c.ord, s.c.evidence_id)
+        .limit(FANOUT + 1)
+        .lateral("x")
+    )
+    return select(*_cols(f.c.id, x.c.evidence_id, x.c.item_id)).select_from(f.join(x, true()))
+
+
+def _supported_in(p: str) -> Select[Any]:
+    f = _frontier(p)
+    s = insight_support.alias("s")
+    i = insights.alias("i")
+    x = (
+        select(s.c.insight_id, i.c.item_id)
+        .join(i, i.c.insight_id == s.c.insight_id)
+        .where(s.c.evidence_id == f.c.id, _insight_ok(i))
+        .order_by(i.c.rank, s.c.insight_id)
+        .limit(FANOUT + 1)
+        .lateral("x")
+    )
+    return select(*_cols(x.c.insight_id, f.c.id, x.c.item_id)).select_from(f.join(x, true()))
+
+
+def _attributed_out(p: str) -> Select[Any]:
+    f = _frontier(p)
+    ev = evidence.alias("ev")
+    k = entities.alias("k")
+    on = and_(ev.c.evidence_id == f.c.id, _quote_ok(ev))
+    return select(*_cols(f.c.id, k.c.canonical_id, ev.c.item_id)).select_from(
+        f.join(ev, on).join(k, k.c.entity_id == ev.c.speaker_id)
+    )
+
+
+def _attributed_in(p: str) -> Select[Any]:
+    ev = evidence.alias("ev")
+    f, x = _per_member(
+        p,
+        lambda m: select(ev.c.evidence_id, ev.c.item_id)
+        .where(ev.c.speaker_id == m.c.entity_id, _quote_ok(ev))
+        .order_by(ev.c.item_id.desc(), ev.c.evidence_id),
+        lambda y: [y.c.item_id.desc(), y.c.evidence_id],
+    )
+    return select(*_cols(x.c.evidence_id, f.c.id, x.c.item_id)).select_from(f.join(x, true()))
+
+
+def _stated_out(p: str) -> Select[Any]:
+    f = _frontier(p)
+    a = insight_attribution.alias("a")
+    k = entities.alias("k")
+    return select(*_cols(f.c.id, k.c.canonical_id, a.c.item_id)).select_from(
+        f.join(a, a.c.insight_id == f.c.id).join(k, k.c.entity_id == a.c.person_id)
+    )
+
+
+def _stated_in(p: str) -> Select[Any]:
+    a = insight_attribution.alias("a")
+    i = insights.alias("i")
+    f, x = _per_member(
+        p,
+        lambda m: select(a.c.insight_id, a.c.item_id)
+        .join(i, i.c.insight_id == a.c.insight_id)
+        .where(a.c.person_id == m.c.entity_id, _insight_ok(i))
+        .order_by(a.c.item_id.desc(), a.c.insight_id),
+        lambda y: [y.c.item_id.desc(), y.c.insight_id],
+    )
+    return select(*_cols(x.c.insight_id, f.c.id, x.c.item_id)).select_from(f.join(x, true()))
+
+
 _EDGE_LIST = [
+    EdgeType("HAS_ITEM", "structural", SOURCE, ITEM, True, _has_item_out, _has_item_in),
+    EdgeType("HAS_INSIGHT", "structural", ITEM, INSIGHT, True, _has_insight_out, _has_insight_in),
     EdgeType(
-        "HAS_ITEM",
-        "structural",
-        SOURCE,
-        ITEM,
-        True,
-        lambda p: _sel("f.id", "x.item_id", "x.item_id")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT c.item_id FROM {_S}.content_items c "
-        f"WHERE c.source_id = f.id AND c.served > 0 "
-        f"ORDER BY c.published_at DESC NULLS LAST, c.item_id DESC LIMIT {FANOUT}) x",
-        lambda p: _sel("c.source_id", "f.id", "f.id")
-        + f"FROM {_frontier(p)} {_SERVED.format('f.id')}",
+        "PUBLISHED_BY", "structural", SOURCE, ENTITY, False, _published_by_out, _published_by_in
     ),
     EdgeType(
-        "HAS_INSIGHT",
-        "structural",
-        ITEM,
-        INSIGHT,
-        True,
-        lambda p: _sel("f.id", "x.insight_id", "f.id")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT i.insight_id FROM {_S}.insights i "
-        f"WHERE i.item_id = f.id AND i.visible AND {_current('i')} "
-        f"ORDER BY i.rank, i.insight_id LIMIT {FANOUT}) x",
-        lambda p: _sel("i.item_id", "f.id", "i.item_id")
-        + f"FROM {_frontier(p)} {_VISIBLE.format('f.id')} {_SERVED.format('i.item_id')}",
+        "PARTICIPATES_IN", "attribution", ENTITY, ITEM, True, _participates_out, _participates_in
     ),
-    EdgeType(
-        "PUBLISHED_BY",
-        "structural",
-        SOURCE,
-        ENTITY,
-        False,
-        lambda p: _sel("f.id", _canonical("s.publisher_id"), "NULL::bigint")
-        + f"FROM {_frontier(p)} JOIN {_S}.sources s ON s.source_id = f.id "
-        f"AND s.publisher_id IS NOT NULL",
-        lambda p: _sel("x.source_id", "f.id", "NULL::bigint")
-        + _per_member(
-            p,
-            f"SELECT s.source_id FROM {_S}.sources s WHERE s.publisher_id = m.entity_id "
-            f"ORDER BY s.source_id",
-            "y.source_id",
-        ),
-    ),
-    EdgeType(
-        "PARTICIPATES_IN",
-        "attribution",
-        ENTITY,
-        ITEM,
-        True,
-        lambda p: _sel("f.id", "x.item_id", "x.item_id", "x.role")
-        + _per_member(
-            p,
-            f"SELECT r.item_id, r.role, c.published_at FROM {_S}.person_roles r "
-            f"{_SERVED.format('r.item_id')} WHERE r.person_id = m.entity_id "
-            f"AND r.role IN {_PARTICIPANT_ROLES} "
-            f"ORDER BY c.published_at DESC NULLS LAST, r.item_id DESC",
-            "y.published_at DESC NULLS LAST, y.item_id DESC",
-        ),
-        lambda p: _sel(_canonical("x.person_id"), "f.id", "f.id", "x.role")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT r.person_id, r.role "
-        f"FROM {_S}.person_roles r WHERE r.item_id = f.id AND r.role IN {_PARTICIPANT_ROLES} "
-        f"ORDER BY r.person_id LIMIT {FANOUT}) x",
-    ),
-    EdgeType(
-        "MENTIONS",
-        "discovery",
-        ENTITY,
-        ITEM,
-        True,
-        # The index's order, (published_at DESC, item_id): Postgres puts undated rows first.
-        lambda p: _sel("f.id", "x.item_id", "x.item_id")
-        + _per_member(
-            p,
-            f"SELECT ie.item_id, ie.published_at FROM {_S}.item_entities ie "
-            f"{_SERVED.format('ie.item_id')} WHERE ie.entity_id = m.entity_id "
-            f"AND ie.role = 'mentions' ORDER BY ie.published_at DESC, ie.item_id",
-            "y.published_at DESC, y.item_id",
-        ),
-        lambda p: _sel(_canonical("x.entity_id"), "f.id", "f.id")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT ie.entity_id "
-        f"FROM {_S}.item_entities ie WHERE ie.item_id = f.id AND ie.role = 'mentions' "
-        f"ORDER BY ie.entity_id LIMIT {FANOUT}) x",
-    ),
+    EdgeType("MENTIONS", "discovery", ENTITY, ITEM, True, _mentions_out, _mentions_in),
     _mention("ABOUT"),
     _mention("MENTIONS_PERSON"),
     _mention("MENTIONS_ORG"),
     _mention("MENTIONS_OBJECT"),
+    EdgeType("SUPPORTED_BY", "evidentiary", INSIGHT, EVIDENCE, True, _supported_out, _supported_in),
     EdgeType(
-        "SUPPORTED_BY",
-        "evidentiary",
-        INSIGHT,
-        EVIDENCE,
-        True,
-        lambda p: _sel("f.id", "x.evidence_id", "x.item_id")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT s.evidence_id, ev.item_id "
-        f"FROM {_S}.insight_support s JOIN {_S}.evidence ev ON ev.evidence_id = s.evidence_id "
-        f"WHERE s.insight_id = f.id ORDER BY s.ord, s.evidence_id LIMIT {FANOUT}) x",
-        lambda p: _sel("x.insight_id", "f.id", "x.item_id")
-        + f"FROM {_frontier(p)} CROSS JOIN LATERAL (SELECT s.insight_id, i.item_id "
-        f"FROM {_S}.insight_support s {_VISIBLE.format('s.insight_id')} "
-        f"WHERE s.evidence_id = f.id ORDER BY i.rank, s.insight_id LIMIT {FANOUT}) x",
+        "ATTRIBUTED_TO", "attribution", EVIDENCE, ENTITY, True, _attributed_out, _attributed_in
     ),
-    EdgeType(
-        "ATTRIBUTED_TO",
-        "attribution",
-        EVIDENCE,
-        ENTITY,
-        True,
-        lambda p: _sel("f.id", _canonical("ev.speaker_id"), "ev.item_id")
-        + f"FROM {_frontier(p)} JOIN {_S}.evidence ev ON ev.evidence_id = f.id "
-        f"AND ev.speaker_id IS NOT NULL",
-        lambda p: _sel("x.evidence_id", "f.id", "x.item_id")
-        + _per_member(
-            p,
-            f"SELECT ev.evidence_id, ev.item_id FROM {_S}.evidence ev "
-            f"WHERE ev.speaker_id = m.entity_id AND {_current('ev')} "
-            f"ORDER BY ev.item_id DESC, ev.evidence_id",
-            "y.item_id DESC, y.evidence_id",
-        ),
-    ),
-    EdgeType(
-        "STATED_BY",
-        "attribution",
-        INSIGHT,
-        ENTITY,
-        True,
-        lambda p: _sel("f.id", _canonical("a.person_id"), "a.item_id")
-        + f"FROM {_frontier(p)} JOIN {_S}.insight_attribution a ON a.insight_id = f.id",
-        lambda p: _sel("x.insight_id", "f.id", "x.item_id")
-        + _per_member(
-            p,
-            f"SELECT a.insight_id, a.item_id FROM {_S}.insight_attribution a "
-            f"{_VISIBLE.format('a.insight_id')} WHERE a.person_id = m.entity_id "
-            f"ORDER BY a.item_id DESC, a.insight_id",
-            "y.item_id DESC, y.insight_id",
-        ),
-    ),
+    EdgeType("STATED_BY", "attribution", INSIGHT, ENTITY, True, _stated_out, _stated_in),
 ]
 EDGES: dict[str, EdgeType] = {e.name: e for e in _EDGE_LIST}
 
@@ -372,10 +518,6 @@ _INSIGHT_STEP: Step = (
 )
 
 
-def _ids(name: str) -> Any:
-    return bindparam(name, type_=ARRAY(BigInteger))
-
-
 def read_slice(
     engine: Engine,
     fn: Callable[[Connection], T],
@@ -385,16 +527,20 @@ def read_slice(
     """Run ``fn`` in one read-only, repeatable-read transaction with ``timeout_ms`` as its
     statement timeout (``SET LOCAL``: nothing outlives the transaction). A timeout raises
     :class:`GraphTimeout`."""
+    ms = int(timeout_ms)
     with engine.connect() as raw:
         conn = raw.execution_options(isolation_level="REPEATABLE READ")
         try:
             with conn.begin():
                 conn.execute(text("SET TRANSACTION READ ONLY"))
-                conn.execute(text(f"SET LOCAL statement_timeout = {int(timeout_ms)}"))
+                # set_config(..., true) is SET LOCAL with a bound value.
+                conn.execute(
+                    select(func.set_config("statement_timeout", bindparam("ms", str(ms)), True))
+                )
                 return fn(conn)
         except sa_exc.DBAPIError as exc:
             if getattr(exc.orig, "sqlstate", None) == "57014":
-                raise GraphTimeout(f"the graph read ran past {timeout_ms} ms") from exc
+                raise GraphTimeout(f"the graph read ran past {ms} ms") from exc
             raise
 
 
@@ -412,38 +558,41 @@ def _kind_end(edge: EdgeType, direction: str) -> tuple[str, str]:
     return (edge.source, edge.target) if direction == "out" else (edge.target, edge.source)
 
 
-def _step(
-    conn: Connection, parts: Sequence[tuple[str, str, Sequence[int]]]
-) -> list[tuple[int, _Hit]]:
+Parts = Sequence[tuple[str, str, Sequence[int]]]
+
+
+def _step(conn: Connection, parts: Parts) -> tuple[list[tuple[int, _Hit]], set[Ref]]:
     """One statement for a whole step: ``parts`` are ``(edge, direction, frontier ids)``. Each
-    hit carries the index of its part."""
-    selects: list[str] = []
+    hit carries the index of its part; one edge between the same two nodes comes once (a person
+    who is host and guest of one item, two merged members mentioning it). The second value is
+    the frontier nodes past the fan-out cap: each read one row more than :data:`FANOUT`, and
+    that row is dropped."""
+    selects = []
     params: dict[str, list[int]] = {}
-    binds = []
     for n, (name, direction, ids) in enumerate(parts):
         edge = EDGES[name]
-        fragment = edge.out(f"p{n}") if direction == "out" else edge.in_(f"p{n}")
-        selects.append(f"SELECT {n} AS part, q.* FROM ({fragment}) q")
+        q = (edge.out if direction == "out" else edge.in_)(f"p{n}").subquery(f"q{n}")
+        selects.append(select(literal(n, Integer).label("part"), *q.c))
         params[f"p{n}"] = list(ids)
-        binds.append(_ids(f"p{n}"))
-    statement = text(" UNION ALL ".join(selects)).bindparams(*binds)
-    hits = []
+    statement = selects[0] if len(selects) == 1 else union_all(*selects)
+    hits: list[tuple[int, _Hit]] = []
+    seen: set[tuple[int, int, int]] = set()
+    counts: dict[tuple[int, int], int] = {}
+    capped: set[Ref] = set()
     for row in conn.execute(statement, params):
-        name, direction, _ids_ = parts[row.part]
+        name, direction, _ = parts[row.part]
         edge = EDGES[name]
-        hits.append(
-            (
-                row.part,
-                _Hit(
-                    name,
-                    (edge.source, row.frm),
-                    (edge.target, row.dst),
-                    row.item_id,
-                    row.prop,
-                ),
-            )
-        )
-    return hits
+        start = row.frm if direction == "out" else row.dst
+        n = counts[(row.part, start)] = counts.get((row.part, start), 0) + 1
+        if n > FANOUT:
+            capped.add((_kind_end(edge, direction)[0], start))
+            continue
+        if (row.part, row.frm, row.dst) in seen:
+            continue
+        seen.add((row.part, row.frm, row.dst))
+        hit = _Hit(name, (edge.source, row.frm), (edge.target, row.dst), row.item_id, row.prop)
+        hits.append((row.part, hit))
+    return hits, capped
 
 
 @dataclass
@@ -470,19 +619,10 @@ class _Slice:
         if ref[0] == ITEM:
             self.items.setdefault(ref[1], None)
 
-
-def _note_fanout(s: _Slice, parts: Sequence[tuple[str, str, Sequence[int]]], hits: Any) -> None:
-    counts: dict[tuple[int, int], int] = {}
-    for part, hit in hits:
-        name, direction, _ = parts[part]
-        start = hit.frm if direction == "out" else hit.dst
-        counts[(part, start[1])] = counts.get((part, start[1]), 0) + 1
-    for (part, start_id), n in counts.items():
-        if n >= FANOUT:
-            name, direction, _ = parts[part]
-            kind, _ = _kind_end(EDGES[name], direction)
-            s.fanout_capped.add((kind, start_id))
-            s.reasons.add("fanout")
+    def capped(self, refs: set[Ref]) -> None:
+        if refs:
+            self.fanout_capped |= refs
+            self.reasons.add("fanout")
 
 
 def _check_budgets(budget: int, edge_budget: int) -> None:
@@ -492,36 +632,42 @@ def _check_budgets(budget: int, edge_budget: int) -> None:
         raise ValueError(f"edge_budget {edge_budget} is not between 1 and {MAX_EDGE_BUDGET}")
 
 
+def _revision() -> Any:
+    return select(corpus_revision.c.revision).where(corpus_revision.c.id == 1).subquery("r")
+
+
 # --- item slices -----------------------------------------------------------------------------
 
 
 def _fill_items(conn: Connection, s: _Slice, item_ids: Sequence[int]) -> None:
     """Decision 9's item mode: the items in order, then round-robin across them, each item's KG
-    nodes first, then its insights by rank; admitting an insight admits the nodes it reaches."""
-    items = list(dict.fromkeys(item_ids))[: s.budget]
+    nodes first, then its insights by rank; admitting an insight admits the nodes it reaches.
+    Items past the budget are cut and counted in ``items_left``."""
+    items = list(dict.fromkeys(item_ids))
+    if len(items) > s.budget:
+        s.reasons.add("budget")
+        s.items_left = len(items) - s.budget
+        items = items[: s.budget]
     if not items:
         return
     for item in items:
         s.admit((ITEM, item))
-    first_parts = [(name, direction, items) for name, direction in _ITEM_STEP]
-    first = _step(conn, first_parts)
-    _note_fanout(s, first_parts, first)
+    first, capped = _step(conn, [(name, direction, items) for name, direction in _ITEM_STEP])
+    s.capped(capped)
     kg: dict[int, list[Ref]] = {item: [] for item in items}
     ranked: dict[int, list[int]] = {item: [] for item in items}
     for _, hit in first:
         if hit.edge == "HAS_INSIGHT":
             ranked[hit.frm[1]].append(hit.dst[1])
-        else:
-            item = hit.dst[1]
-            other = hit.frm
-            if other not in kg[item]:
-                kg[item].append(other)
-    insights = [i for item in items for i in ranked[item]]
-    reach: dict[int, list[Ref]] = {i: [] for i in insights}
-    if insights:
-        second_parts = [(name, direction, insights) for name, direction in _INSIGHT_STEP]
-        second = _step(conn, second_parts)
-        _note_fanout(s, second_parts, second)
+        elif hit.frm not in kg[hit.dst[1]]:
+            kg[hit.dst[1]].append(hit.frm)
+    insights_ = [i for item in items for i in ranked[item]]
+    reach: dict[int, list[Ref]] = {i: [] for i in insights_}
+    if insights_:
+        second, capped = _step(
+            conn, [(name, direction, insights_) for name, direction in _INSIGHT_STEP]
+        )
+        s.capped(capped)
         for _, hit in second:
             if hit.dst not in reach[hit.frm[1]]:
                 reach[hit.frm[1]].append(hit.dst)
@@ -545,20 +691,6 @@ def _fill_items(conn: Connection, s: _Slice, item_ids: Sequence[int]) -> None:
     if stopped:
         s.reasons.add("budget")
         s.nodes_left = left
-    # The items that own an admitted insight are in the slice already: every insight came from
-    # one of ``items``.
-
-
-def _first_statement_items(conn: Connection, natural_ids: Sequence[str]) -> tuple[Any, dict]:
-    statement = text(
-        f"SELECT r.revision, x.item_id, x.natural_id FROM "
-        f"(SELECT revision FROM {_S}.corpus_revision WHERE id = 1) r "
-        f"LEFT JOIN LATERAL (SELECT c.item_id, c.natural_id FROM {_S}.content_items c "
-        f"WHERE c.natural_id = ANY(:ids) AND c.served > 0) x ON true"
-    )
-    rows = conn.execute(statement, {"ids": list(natural_ids)}).all()
-    revision = rows[0].revision if rows else None
-    return revision, {row.natural_id: row.item_id for row in rows if row.item_id is not None}
 
 
 def slice_items(
@@ -568,13 +700,25 @@ def slice_items(
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
 ) -> dict[str, Any]:
-    """``slice.items``: these items' graph. Unknown or unserved items are ``unknown_seeds``."""
+    """``slice.items``: these items' graph. Unknown, unserved or withheld items are
+    ``unknown_seeds``."""
     _check_budgets(budget, edge_budget)
     seeds = list(dict.fromkeys(natural_ids))
     if len(seeds) > MAX_ITEM_SEEDS:
         raise ValueError(f"{len(seeds)} item ids is more than {MAX_ITEM_SEEDS}")
     s = _Slice("slice.items", {"items": seeds}, budget=budget, edge_budget=edge_budget)
-    s.revision, found = _first_statement_items(conn, seeds)
+    r = _revision()
+    c = content_items.alias("c")
+    x = (
+        select(c.c.item_id, c.c.natural_id)
+        .where(c.c.natural_id.in_(seeds), c.c.served > 0, ~c.c.withheld)
+        .lateral("x")
+    )
+    rows = conn.execute(
+        select(r.c.revision, x.c.item_id, x.c.natural_id).select_from(r.outerjoin(x, true()))
+    ).all()
+    s.revision = rows[0].revision if rows else None
+    found = {row.natural_id: row.item_id for row in rows if row.item_id is not None}
     s.unknown_seeds = [n for n in seeds if n not in found]
     _fill_items(conn, s, [found[n] for n in seeds if n in found])
     return _finish(conn, s)
@@ -593,7 +737,8 @@ def slice_recent(
 ) -> dict[str, Any]:
     """``slice.recent``: the newest served items. The window widens (7d, 30d, 90d, all) while
     fewer than ``min_items`` match; every widening is answered by the one candidate statement,
-    newest first and at most ``budget`` items, and the response names ``applied_window``."""
+    newest first and at most ``budget`` items (one more is read to know whether the budget cut),
+    and the response names ``applied_window``."""
     _check_budgets(budget, edge_budget)
     if window not in WINDOWS:
         raise ValueError(f"window {window!r} is not one of {sorted(WINDOWS)}")
@@ -607,25 +752,26 @@ def slice_recent(
         "min_items": min_items,
     }
     s = _Slice("slice.recent", params, budget=budget, edge_budget=edge_budget)
-    conditions = ["c.served > 0"]
-    values: dict[str, Any] = {"budget": budget}
+    c = content_items.alias("c")
+    conditions: list[Any] = [c.c.served > 0, ~c.c.withheld]
     if content_types is not None:
-        conditions.append("c.content_type = ANY(:types)")
-        values["types"] = list(content_types)
+        conditions.append(c.c.content_type.in_(list(content_types)))
     if sources is not None:
+        so = _SOURCES.alias("so")
         conditions.append(
-            f"c.source_id IN (SELECT so.source_id FROM {_S}.sources so "
-            f"WHERE so.natural_id = ANY(:sources))"
+            c.c.source_id.in_(select(so.c.source_id).where(so.c.natural_id.in_(list(sources))))
         )
-        values["sources"] = list(sources)
-    statement = text(
-        f"SELECT r.revision, x.item_id, x.published_at FROM "
-        f"(SELECT revision FROM {_S}.corpus_revision WHERE id = 1) r "
-        f"LEFT JOIN LATERAL (SELECT c.item_id, c.published_at FROM {_S}.content_items c "
-        f"WHERE {' AND '.join(conditions)} "
-        f"ORDER BY c.published_at DESC NULLS LAST, c.item_id DESC LIMIT :budget) x ON true"
+    r = _revision()
+    x = (
+        select(c.c.item_id, c.c.published_at)
+        .where(*conditions)
+        .order_by(c.c.published_at.desc().nulls_last(), c.c.item_id.desc())
+        .limit(budget + 1)
+        .lateral("x")
     )
-    rows = conn.execute(statement, values).all()
+    rows = conn.execute(
+        select(r.c.revision, x.c.item_id, x.c.published_at).select_from(r.outerjoin(x, true()))
+    ).all()
     s.revision = rows[0].revision if rows else None
     candidates = [(row.item_id, row.published_at) for row in rows if row.item_id is not None]
     names = list(WINDOWS)
@@ -641,6 +787,10 @@ def slice_recent(
         s.applied_window = name
         if len(chosen) >= min_items:
             break
+    if len(chosen) > budget:
+        # More match than the budget holds; how many more is not read.
+        s.reasons.add("budget")
+        chosen = chosen[:budget]
     _fill_items(conn, s, chosen)
     return _finish(conn, s)
 
@@ -670,13 +820,18 @@ def slice_neighbourhood(
         budget=budget,
         edge_budget=edge_budget,
     )
-    statement = text(
-        f"SELECT r.revision, x.canonical_id, x.type FROM "
-        f"(SELECT revision FROM {_S}.corpus_revision WHERE id = 1) r "
-        f"LEFT JOIN LATERAL (SELECT e.canonical_id, k.type FROM {_S}.entities e "
-        f"JOIN {_S}.entities k ON k.entity_id = e.canonical_id WHERE e.natural_id = :id) x ON true"
+    r = _revision()
+    e = entities.alias("e")
+    k = entities.alias("k")
+    x = (
+        select(e.c.canonical_id, k.c.type)
+        .select_from(e.join(k, k.c.entity_id == e.c.canonical_id))
+        .where(e.c.natural_id == node_id)
+        .lateral("x")
     )
-    row = conn.execute(statement, {"id": node_id}).first()
+    row = conn.execute(
+        select(r.c.revision, x.c.canonical_id, x.c.type).select_from(r.outerjoin(x, true()))
+    ).first()
     s.revision = row.revision if row is not None else None
     if row is None or row.canonical_id is None:
         s.unknown_seeds = [node_id]
@@ -697,13 +852,14 @@ def _type_of(ref: Ref, entity_types: dict[int, str]) -> Optional[str]:
 
 
 def _walk(conn: Connection, s: _Slice, seed: Ref, branches: Branches, keep: frozenset) -> None:
-    """Every branch from ``seed``, level by level. A frontier entry carries its branch and the
-    number of paths that reach it; after each level the new frontier is cut to the budget left."""
+    """Every branch from ``seed``, level by level. A frontier entry carries its branch, the
+    number of paths that reach it and the items those paths draw from; after each level the new
+    frontier is cut to the budget left. Ties in a cut go to the node with more paths, then the
+    newer row (the higher key)."""
     frontier: list[tuple[int, Ref, int, frozenset[int]]] = [
         (b, seed, 1, frozenset()) for b in range(len(branches))
     ]
-    # A reached node: the number of paths to it and the items those paths draw from, so the
-    # slice's items are those of the nodes it returns, not of the paths the budget cut.
+    # The slice's items are those of the nodes it returns, not of the paths the budget cut.
     reached: dict[Ref, tuple[int, set[int]]] = {}
     depth = 0
     while frontier:
@@ -722,33 +878,36 @@ def _walk(conn: Connection, s: _Slice, seed: Ref, branches: Branches, keep: froz
                     owners.append(b)
         if not parts:
             break
-        hits = _step(conn, parts)
-        _note_fanout(s, parts, hits)
-        paths_at = {(fb, ref): (n, items) for fb, ref, n, items in frontier}
+        hits, capped = _step(conn, parts)
+        s.capped(capped)
+        paths_at = {(fb, ref): (n, along) for fb, ref, n, along in frontier}
         nxt: dict[tuple[int, Ref], tuple[int, set[int]]] = {}
         for part, hit in hits:
             b = owners[part]
             _, direction, _ = parts[part]
             start, end = (hit.frm, hit.dst) if direction == "out" else (hit.dst, hit.frm)
-            n, items = paths_at.get((b, start), (0, frozenset()))
-            step_items = set(items) | ({hit.item_id} if hit.item_id is not None else set())
-            target = reached if depth + 1 == len(branches[b]) else nxt
-            key: Any = end if target is reached else (b, end)
-            count, seen = target.get(key, (0, set()))
-            target[key] = (count + n, seen | step_items)
+            n, along = paths_at.get((b, start), (0, frozenset()))
+            drawn = set(along) | ({hit.item_id} if hit.item_id is not None else set())
+            if depth + 1 == len(branches[b]):
+                count, seen = reached.get(end, (0, set()))
+                reached[end] = (count + n, seen | drawn)
+            else:
+                count, seen = nxt.get((b, end), (0, set()))
+                nxt[(b, end)] = (count + n, seen | drawn)
         room = max(s.budget - len(s.nodes) - len(reached), 0)
-        if len({ref for _, ref in nxt}) > room:
-            s.reasons.add("budget")
+        ranked = sorted(nxt.items(), key=lambda kv: (-kv[1][0], -kv[0][1][1], kv[0][0]))
         kept_refs: set[Ref] = set()
         cut: list[tuple[int, Ref, int, frozenset[int]]] = []
-        for (b, ref), (n, along) in nxt.items():
+        for (b, ref), (n, items_on) in ranked:
             if ref in kept_refs or len(kept_refs) < room:
                 kept_refs.add(ref)
-                cut.append((b, ref, n, frozenset(along)))
+                cut.append((b, ref, n, frozenset(items_on)))
+            else:
+                s.reasons.add("budget")
         frontier = cut
         depth += 1
     types = _entity_types(conn, [ref[1] for ref in reached if ref[0] == ENTITY])
-    ordered = sorted(reached.items(), key=lambda kv: -kv[1][0])
+    ordered = sorted(reached.items(), key=lambda kv: (-kv[1][0], -kv[0][1]))
     room = max(s.budget - len(s.nodes), 0)
     kept = [(ref, v) for ref, v in ordered if _type_of(ref, types) in keep and ref != seed]
     if len(kept) > room:
@@ -763,15 +922,13 @@ def _walk(conn: Connection, s: _Slice, seed: Ref, branches: Branches, keep: froz
 
 
 def _entity_types(conn: Connection, ids: Sequence[int]) -> dict[int, str]:
-    """The node type of each entity reached on a path's last step, read only when the path keeps
-    some entity type and ends on entities."""
+    """The node type of each entity a path's last step reached, so ``keep`` can choose."""
     if not ids:
         return {}
     rows = conn.execute(
-        text(f"SELECT entity_id, type FROM {_S}.entities WHERE entity_id = ANY(:ids)").bindparams(
-            _ids("ids")
-        ),
-        {"ids": sorted(set(ids))},
+        select(entities.c.entity_id, entities.c.type).where(
+            entities.c.entity_id.in_(sorted(set(ids)))
+        )
     )
     return {row.entity_id: ENTITY_TYPES.get(row.type, row.type) for row in rows}
 
@@ -785,31 +942,79 @@ def _by_kind(refs: Iterable[Ref], kind: str) -> list[int]:
 
 def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
     """The returned nodes other than items, one statement."""
-    groups = {
-        ENTITY: _by_kind(s.nodes, ENTITY),
-        INSIGHT: _by_kind(s.nodes, INSIGHT),
-        EVIDENCE: _by_kind(s.nodes, EVIDENCE),
-        SOURCE: _by_kind(s.nodes, SOURCE),
-    }
-    if not any(groups.values()):
+    ids = {kind: _by_kind(s.nodes, kind) for kind in (ENTITY, INSIGHT, EVIDENCE, SOURCE)}
+    if not any(ids.values()):
         return {}
-    statement = text(
-        f"SELECT 'entity' AS kind, e.entity_id AS id, e.natural_id, e.type, e.label, "
-        f"NULL::bigint AS item_id, '{{}}'::jsonb AS props FROM {_S}.entities e "
-        f"WHERE e.entity_id = ANY(:entity) "
-        f"UNION ALL SELECT 'insight', i.insight_id, i.natural_id, 'Insight', i.text, i.item_id, "
-        f"jsonb_build_object('insight_type', i.insight_type, 'rank', i.rank, "
-        f"'grounding_confidence', i.grounding_confidence, 'position_hint', i.position_hint) "
-        f"FROM {_S}.insights i WHERE i.insight_id = ANY(:insight) "
-        f"UNION ALL SELECT 'evidence', ev.evidence_id, ev.natural_id, 'Quote', ev.text, "
-        f"ev.item_id, jsonb_build_object('start_ms', ev.start_ms, 'end_ms', ev.end_ms) "
-        f"FROM {_S}.evidence ev WHERE ev.evidence_id = ANY(:evidence) "
-        f"UNION ALL SELECT 'source', so.source_id, so.natural_id, 'Source', so.title, "
-        f"NULL::bigint, jsonb_build_object('content_type', so.content_type) "
-        f"FROM {_S}.sources so WHERE so.source_id = ANY(:source)"
-    ).bindparams(*(_ids(k) for k in groups))
+
+    def node(kind: str, key: Any, nat: Any, typ: Any, label: Any, item: Any, props: Any) -> Any:
+        return [
+            literal(kind, Text).label("kind"),
+            key.label("id"),
+            nat.label("natural_id"),
+            typ.label("type"),
+            label.label("label"),
+            item.label("item_id"),
+            props.label("props"),
+        ]
+
+    i, ev, so = insights, evidence, sources
+    statement = union_all(
+        select(
+            *node(
+                ENTITY,
+                entities.c.entity_id,
+                entities.c.natural_id,
+                entities.c.type,
+                entities.c.label,
+                cast(null(), BigInteger),
+                func.jsonb_build_object(),
+            )
+        ).where(entities.c.entity_id.in_(ids[ENTITY])),
+        select(
+            *node(
+                INSIGHT,
+                i.c.insight_id,
+                i.c.natural_id,
+                literal("Insight", Text),
+                i.c.text,
+                i.c.item_id,
+                func.jsonb_build_object(
+                    "insight_type",
+                    i.c.insight_type,
+                    "rank",
+                    i.c.rank,
+                    "grounding_confidence",
+                    i.c.grounding_confidence,
+                    "position_hint",
+                    i.c.position_hint,
+                ),
+            )
+        ).where(i.c.insight_id.in_(ids[INSIGHT])),
+        select(
+            *node(
+                EVIDENCE,
+                ev.c.evidence_id,
+                ev.c.natural_id,
+                literal("Quote", Text),
+                ev.c.text,
+                ev.c.item_id,
+                func.jsonb_build_object("start_ms", ev.c.start_ms, "end_ms", ev.c.end_ms),
+            )
+        ).where(ev.c.evidence_id.in_(ids[EVIDENCE])),
+        select(
+            *node(
+                SOURCE,
+                so.c.source_id,
+                so.c.natural_id,
+                literal("Source", Text),
+                so.c.title,
+                cast(null(), BigInteger),
+                func.jsonb_build_object("content_type", so.c.content_type),
+            )
+        ).where(so.c.source_id.in_(ids[SOURCE])),
+    )
     out = {}
-    for row in conn.execute(statement, groups):
+    for row in conn.execute(statement):
         node_type = ENTITY_TYPES.get(row.type, row.type) if row.kind == ENTITY else row.type
         out[(row.kind, row.id)] = {
             "natural_id": row.natural_id,
@@ -822,71 +1027,89 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
 
 
 def _item_rows(conn: Connection, s: _Slice) -> dict[int, dict[str, Any]]:
+    """The slice's items, served and not withheld only: a node of any other item is dropped."""
     ids = sorted(s.items)
     if not ids:
         return {}
-    statement = text(
-        f"SELECT c.item_id, c.natural_id, c.content_type, c.published_at, c.title, "
-        f"so.natural_id AS source_natural_id, so.title AS source_title "
-        f"FROM {_S}.content_items c JOIN {_S}.sources so ON so.source_id = c.source_id "
-        f"WHERE c.item_id = ANY(:items)"
-    ).bindparams(_ids("items"))
-    return {row.item_id: dict(row._mapping) for row in conn.execute(statement, {"items": ids})}
+    c, so = content_items, sources
+    statement = (
+        select(
+            c.c.item_id,
+            c.c.natural_id,
+            c.c.content_type,
+            c.c.published_at,
+            c.c.title,
+            so.c.natural_id.label("source_natural_id"),
+            so.c.title.label("source_title"),
+        )
+        .join(so, so.c.source_id == c.c.source_id)
+        .where(c.c.item_id.in_(ids), c.c.served > 0, ~c.c.withheld)
+    )
+    return {row.item_id: dict(row._mapping) for row in conn.execute(statement)}
 
 
 def _induced(conn: Connection, s: _Slice) -> list[_Hit]:
     """Every stored edge with both ends returned, one statement. Each edge type is probed from
-    its bounded, indexed end: the returned items, insights, quotes or sources."""
-    ids = {
-        "items": _by_kind(s.nodes, ITEM),
-        "insights": _by_kind(s.nodes, INSIGHT),
-        "evidence": _by_kind(s.nodes, EVIDENCE),
-        "sources": _by_kind(s.nodes, SOURCE),
-        "entities": _by_kind(s.nodes, ENTITY),
-    }
-    if sum(1 for ref in s.nodes) < 2:
+    its bounded, indexed end (the returned items, insights, quotes or sources), and an entity end
+    is matched through its member rows' canonical id."""
+    if len(s.nodes) < 2:
         return []
-    ent = "= ANY(:entities)"
-    parts = [
-        f"SELECT 'HAS_ITEM' AS edge, c.source_id AS frm, c.item_id AS dst, c.item_id AS item_id, "
-        f"NULL::text AS prop FROM {_S}.content_items c WHERE c.item_id = ANY(:items) "
-        f"AND c.source_id = ANY(:sources)",
-        f"SELECT 'HAS_INSIGHT', i.item_id, i.insight_id, i.item_id, NULL FROM {_S}.insights i "
-        f"WHERE i.insight_id = ANY(:insights) AND i.item_id = ANY(:items)",
-        f"SELECT 'PUBLISHED_BY', so.source_id, {_canonical('so.publisher_id')}, NULL, NULL "
-        f"FROM {_S}.sources so WHERE so.source_id = ANY(:sources) "
-        f"AND {_canonical('so.publisher_id')} {ent}",
-        f"SELECT 'PARTICIPATES_IN', {_canonical('r.person_id')}, r.item_id, r.item_id, r.role "
-        f"FROM {_S}.person_roles r WHERE r.item_id = ANY(:items) "
-        f"AND r.role IN {_PARTICIPANT_ROLES} AND {_canonical('r.person_id')} {ent}",
-        f"SELECT 'MENTIONS', {_canonical('ie.entity_id')}, ie.item_id, ie.item_id, NULL "
-        f"FROM {_S}.item_entities ie WHERE ie.item_id = ANY(:items) AND ie.role = 'mentions' "
-        f"AND {_canonical('ie.entity_id')} {ent}",
-        f"SELECT im.kind, im.insight_id, {_canonical('im.entity_id')}, im.item_id, NULL "
-        f"FROM {_S}.insight_mentions im WHERE im.insight_id = ANY(:insights) "
-        f"AND {_canonical('im.entity_id')} {ent}",
-        f"SELECT 'SUPPORTED_BY', s.insight_id, s.evidence_id, ev.item_id, NULL "
-        f"FROM {_S}.insight_support s JOIN {_S}.evidence ev ON ev.evidence_id = s.evidence_id "
-        f"WHERE s.insight_id = ANY(:insights) AND s.evidence_id = ANY(:evidence)",
-        f"SELECT 'ATTRIBUTED_TO', ev.evidence_id, {_canonical('ev.speaker_id')}, ev.item_id, NULL "
-        f"FROM {_S}.evidence ev WHERE ev.evidence_id = ANY(:evidence) "
-        f"AND {_canonical('ev.speaker_id')} {ent}",
-        f"SELECT 'STATED_BY', a.insight_id, {_canonical('a.person_id')}, a.item_id, NULL "
-        f"FROM {_S}.insight_attribution a WHERE a.insight_id = ANY(:insights) "
-        f"AND {_canonical('a.person_id')} {ent}",
-    ]
-    statement = text(" UNION ALL ".join(parts)).bindparams(*(_ids(k) for k in ids))
+    items = _by_kind(s.nodes, ITEM)
+    ins = _by_kind(s.nodes, INSIGHT)
+    quotes = _by_kind(s.nodes, EVIDENCE)
+    srcs = _by_kind(s.nodes, SOURCE)
+    ents = _by_kind(s.nodes, ENTITY)
+
+    def edge(name: Any, frm: Any, dst: Any, item: Any = None, prop: Any = None) -> list[Any]:
+        label = name if not isinstance(name, str) else literal(name, Text)
+        return [label.label("edge"), *_cols(frm, dst, item, prop)]
+
+    c, i, so = content_items, insights, sources
+    r, ie, im = person_roles, item_entities, insight_mentions
+    sp, ev, a = insight_support, evidence, insight_attribution
+    k = entities.alias("k")
+    statement = union_all(
+        select(*edge("HAS_ITEM", c.c.source_id, c.c.item_id, c.c.item_id)).where(
+            c.c.item_id.in_(items), c.c.source_id.in_(srcs)
+        ),
+        select(*edge("HAS_INSIGHT", i.c.item_id, i.c.insight_id, i.c.item_id)).where(
+            i.c.insight_id.in_(ins), i.c.item_id.in_(items)
+        ),
+        select(*edge("PUBLISHED_BY", so.c.source_id, k.c.canonical_id))
+        .select_from(so.join(k, k.c.entity_id == so.c.publisher_id))
+        .where(so.c.source_id.in_(srcs), k.c.canonical_id.in_(ents)),
+        select(*edge("PARTICIPATES_IN", k.c.canonical_id, r.c.item_id, r.c.item_id, r.c.role))
+        .select_from(r.join(k, k.c.entity_id == r.c.person_id))
+        .where(
+            r.c.item_id.in_(items),
+            r.c.role.in_(_PARTICIPANT_ROLES),
+            k.c.canonical_id.in_(ents),
+        ),
+        select(*edge("MENTIONS", k.c.canonical_id, ie.c.item_id, ie.c.item_id))
+        .select_from(ie.join(k, k.c.entity_id == ie.c.entity_id))
+        .where(ie.c.item_id.in_(items), ie.c.role == "mentions", k.c.canonical_id.in_(ents)),
+        select(*edge(im.c.kind, im.c.insight_id, k.c.canonical_id, im.c.item_id))
+        .select_from(im.join(k, k.c.entity_id == im.c.entity_id))
+        .where(im.c.insight_id.in_(ins), k.c.canonical_id.in_(ents)),
+        select(*edge("SUPPORTED_BY", sp.c.insight_id, sp.c.evidence_id, ev.c.item_id))
+        .select_from(sp.join(ev, ev.c.evidence_id == sp.c.evidence_id))
+        .where(sp.c.insight_id.in_(ins), sp.c.evidence_id.in_(quotes)),
+        select(*edge("ATTRIBUTED_TO", ev.c.evidence_id, k.c.canonical_id, ev.c.item_id))
+        .select_from(ev.join(k, k.c.entity_id == ev.c.speaker_id))
+        .where(ev.c.evidence_id.in_(quotes), k.c.canonical_id.in_(ents)),
+        select(*edge("STATED_BY", a.c.insight_id, k.c.canonical_id, a.c.item_id))
+        .select_from(a.join(k, k.c.entity_id == a.c.person_id))
+        .where(a.c.insight_id.in_(ins), k.c.canonical_id.in_(ents)),
+    )
     hits = []
     seen = set()
-    for row in conn.execute(statement, ids):
-        edge = EDGES[row.edge]
+    for row in conn.execute(statement):
         key = (row.edge, row.frm, row.dst)
         if key in seen:
             continue
         seen.add(key)
-        hits.append(
-            _Hit(row.edge, (edge.source, row.frm), (edge.target, row.dst), row.item_id, row.prop)
-        )
+        e = EDGES[row.edge]
+        hits.append(_Hit(row.edge, (e.source, row.frm), (e.target, row.dst), row.item_id, row.prop))
     return hits
 
 
@@ -897,10 +1120,17 @@ def _iso(value: Optional[datetime]) -> Optional[str]:
 
 
 def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
-    """The tail: nodes' rows, items' rows, the induced edges; then ``graph-slice/1``."""
+    """The tail: nodes' rows, items' rows, the induced edges; then ``graph-slice/1``. A node
+    whose item is not in the items' rows is dropped, with every edge that touches it."""
     nodes = _node_rows(conn, s)
     items = _item_rows(conn, s)
     induced = _induced(conn, s)
+
+    def present(ref: Ref) -> bool:
+        if ref[0] == ITEM:
+            return ref[1] in items
+        node = nodes.get(ref)
+        return node is not None and (node["item_id"] is None or node["item_id"] in items)
 
     def node_id(ref: Ref) -> str:
         if ref[0] == ITEM:
@@ -914,10 +1144,10 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
 
     out_nodes = []
     for ref in s.nodes:
+        if not present(ref):
+            continue
         if ref[0] == ITEM:
-            row = items.get(ref[1])
-            if row is None:
-                continue
+            row = items[ref[1]]
             out_nodes.append(
                 {
                     "id": row["natural_id"],
@@ -932,9 +1162,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
                 }
             )
             continue
-        node = nodes.get(ref)
-        if node is None:
-            continue
+        node = nodes[ref]
         entry: dict[str, Any] = {
             "id": node["natural_id"],
             "type": node["type"],
@@ -953,6 +1181,10 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
 
     candidates: list[tuple[float, float, str, dict[str, Any]]] = []
     for hit in induced:
+        if not (present(hit.frm) and present(hit.dst)):
+            continue
+        if hit.item_id is not None and hit.item_id not in items:
+            continue
         edge = EDGES[hit.edge]
         frm, to = node_id(hit.frm), node_id(hit.dst)
         entry = {
@@ -967,6 +1199,8 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
             entry["item_id"] = item_natural(hit.item_id)
         candidates.append((1.0, recency(hit.item_id), f"{hit.edge}:{frm}:{to}", entry))
     for (a, b), n in s.aggregated.items():
+        if not (present(a) and present(b)):
+            continue
         frm, to = node_id(a), node_id(b)
         entry = {
             "type": s.params.get("path", s.preset),
@@ -982,7 +1216,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
         s.reasons.add("edge_budget")
     out_edges = [c[3] for c in candidates[: s.edge_budget]]
 
-    capped = sorted(node_id(ref) for ref in s.fanout_capped if ref in s.nodes)
+    capped = sorted(node_id(ref) for ref in s.fanout_capped if ref in s.nodes and present(ref))
     truncated: dict[str, Any] = {"reasons": sorted(s.reasons), "fanout_capped": capped}
     if s.nodes_left:
         truncated["nodes_left"] = s.nodes_left

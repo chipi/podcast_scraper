@@ -108,6 +108,7 @@ class Corpus:
             supersedes_id=stale,
         )
         self.items["1"] = (i1, d1)
+        self.stale = (i1, stale)
         i2, _ = self.items["2"]
         i3, _ = self.items["3"]
         self.mention(i1, "topic:ai")
@@ -224,6 +225,47 @@ class Corpus:
                     )
                 )
         return insight
+
+    def tag(self, insight: int, natural_id: str, kind: str) -> None:
+        """One more ``insight_mentions`` row for ``insight``, of any kind."""
+        item, rank = self.conn.execute(
+            text("SELECT item_id, rank FROM corpus.insights WHERE insight_id = :i"), {"i": insight}
+        ).one()
+        self.conn.execute(
+            insert(insight_mentions).values(
+                insight_id=insight, entity_id=self.e[natural_id], kind=kind, item_id=item, rank=rank
+            )
+        )
+
+    def stated(self, insight: int, person: str) -> None:
+        item = self.conn.execute(
+            text("SELECT item_id FROM corpus.insights WHERE insight_id = :i"), {"i": insight}
+        ).scalar_one()
+        self.conn.execute(
+            insert(insight_attribution).values(
+                insight_id=insight, person_id=self.e[person], item_id=item
+            )
+        )
+
+    def quote(self, doc: tuple[int, int], speaker: str, support: int, n: str) -> int:
+        item, document = doc
+        quote = _one(
+            self.conn,
+            evidence,
+            natural_id=f"quote:{n}",
+            item_id=item,
+            document_id=document,
+            speaker_id=self.e[speaker],
+            start_seq=0,
+            start_offset=0,
+            end_seq=0,
+            end_offset=1,
+            text="q",
+        )
+        self.conn.execute(
+            insert(insight_support).values(insight_id=support, evidence_id=quote, ord=1)
+        )
+        return quote
 
 
 def _ids(slice_: dict[str, Any]) -> set[str]:
@@ -413,3 +455,101 @@ def test_read_slice_is_read_only_repeatable_read_and_times_out() -> None:
             assert after.execute(text("SHOW statement_timeout")).scalar_one() != "50ms"
     finally:
         engine.dispose()
+
+
+def _weights(slice_: dict[str, Any], path: str) -> dict[str, int]:
+    return {e["to"]: e["weight"] for e in slice_["edges"] if e["type"] == path}
+
+
+def test_an_unserved_or_withheld_items_rows_reach_no_walk(conn: Connection) -> None:
+    c = Corpus(conn)
+    hidden = c.insight("n6", c.items["3"], 0, about=["topic:ai"])
+    c.stated(hidden, "person:ann")
+    withheld, _ = c.item("w", T0 - timedelta(hours=1))
+    conn.execute(
+        content_items.update().where(content_items.c.item_id == withheld).values(withheld=True)
+    )
+    c.mention(withheld, "topic:ai")
+    topics = graph.slice_neighbourhood(conn, "person:ann", "person.topics")
+    assert _ids(topics) == {"person:ann"} and topics["items"] == []
+    people = graph.slice_neighbourhood(conn, "topic:ai", "topic.people")
+    assert "person:ann" not in _ids(people)
+    assert "episode:3" not in {i["item_id"] for i in people["items"]}
+    items = graph.slice_neighbourhood(conn, "topic:ai", "node.items")
+    assert _ids(items) == {"topic:ai", "episode:1", "episode:2"}
+    assert graph.slice_items(conn, ["episode:w"])["unknown_seeds"] == ["episode:w"]
+
+
+def test_a_cut_keeps_the_node_with_more_paths_then_the_newer_row(conn: Connection) -> None:
+    Corpus(conn)
+    got = graph.slice_neighbourhood(conn, "topic:ai", "node.items", budget=2)
+    # episode:1 and episode:2 both have 2 paths; episode:2's row is the newer (higher key).
+    assert {n["id"] for n in got["nodes"] if n["type"] == "ContentItem"} == {"episode:2"}
+
+
+def test_item_slices_say_when_the_budget_cut_items(conn: Connection) -> None:
+    Corpus(conn)
+    got = graph.slice_items(conn, ["episode:1", "episode:2"], budget=1)
+    assert _ids(got) == {"episode:1"}
+    assert got["truncated"]["reasons"] == ["budget"] and got["truncated"]["items_left"] == 1
+    recent = graph.slice_recent(conn, window="all", min_items=1, budget=2, now=T0)
+    assert [i["item_id"] for i in recent["items"]] == ["episode:1", "episode:2"]
+    assert "budget" in recent["truncated"]["reasons"]
+
+
+def test_a_quote_on_a_superseded_document_is_not_walked(conn: Connection) -> None:
+    c = Corpus(conn)
+    c.quote(c.stale, "person:ann", c.n2, "stale")
+    got = graph.slice_neighbourhood(conn, "person:ann", "node.items")
+    # ann reaches episode:1 by MENTIONS and by n2's MENTIONS_PERSON, not by the stale quote.
+    assert _weights(got, "node.items") == {"episode:1": 2}
+
+
+def test_a_person_reaches_items_by_role_and_by_quote_and_a_second_role_is_one_edge(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+    i1, _ = c.items["1"]
+    conn.execute(insert(person_roles).values(item_id=i1, person_id=c.e["person:bob"], role="guest"))
+    got = graph.slice_neighbourhood(conn, "person:bob", "node.items")
+    # episode:1: PARTICIPATES_IN once (host and guest are one edge), and q1 -> n1 -> episode:1.
+    assert _weights(got, "node.items") == {"episode:1": 2, "episode:2": 1}
+    roles = [e for e in got["edges"] if e["type"] == "PARTICIPATES_IN" and e["to"] == "episode:1"]
+    assert len(roles) == 1
+
+
+def test_the_insight_paths_between_people_topics_and_organisations(conn: Connection) -> None:
+    c = Corpus(conn)
+    c.tag(c.n1, "org:acme", "MENTIONS_ORG")
+    c.stated(c.n3, "person:ann")
+    c.entity("object:mic")
+    c.tag(c.n3, "object:mic", "MENTIONS_OBJECT")
+    assert _ids(graph.slice_neighbourhood(conn, "topic:ai", "topic.people")) == {
+        "topic:ai",
+        "person:bob",
+        "person:ann",
+    }
+    assert _ids(graph.slice_neighbourhood(conn, "topic:ai", "topic.entities")) == {
+        "topic:ai",
+        "org:acme",
+    }
+    assert _ids(graph.slice_neighbourhood(conn, "org:acme", "org.topics")) == {
+        "org:acme",
+        "topic:ai",
+    }
+    assert _ids(graph.slice_neighbourhood(conn, "person:bob", "person.co_speakers")) == {
+        "person:bob",
+        "person:ann",
+    }
+    objects = graph.slice_neighbourhood(conn, "object:mic", "node.items")
+    assert _ids(objects) == {"object:mic", "episode:2"}
+
+
+def test_exactly_fanout_edges_is_not_capped(conn: Connection) -> None:
+    c = Corpus(conn)
+    for n in range(graph.FANOUT):
+        item, _ = c.item(f"edge{n}", T0 - timedelta(hours=n))
+        c.mention(item, "topic:other")
+    got = graph.slice_neighbourhood(conn, "topic:other", "node.items", budget=3000)
+    assert got["truncated"]["reasons"] == [] and got["truncated"]["fanout_capped"] == []
+    assert len([n for n in got["nodes"] if n["type"] == "ContentItem"]) == graph.FANOUT
