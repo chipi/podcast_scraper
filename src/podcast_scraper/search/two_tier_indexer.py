@@ -93,16 +93,17 @@ def import_search_chunks(
     conn: Any,
     corpus_dir: str | Path,
     *,
-    target_tokens: int = DEFAULT_TARGET_TOKENS,
-    overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
+    target_tokens: Optional[int] = None,
+    overlap_tokens: Optional[int] = None,
 ) -> Counter:
     """Every servable episode's transcript chunks as ``search_chunks`` rows, in the caller's
     transaction (``conn``), as the index build writes them: the build's walk and chunker, so the
     same ``chunk:<scope>:<n>`` ids, and no embedding and no LanceDB read. The cut-over's import
     calls it after ``import_corpus`` (hydration reads rows only, r-search slice 3); a dry run
-    rolls both back. ``target_tokens`` and ``overlap_tokens`` must be the build's
-    (``vector_chunk_size_tokens``, ``vector_chunk_overlap_tokens``) or the ids do not match its
-    index. Leases are the caller's. Returns the episodes per outcome: ``written``, ``unchanged``,
+    rolls both back. ``target_tokens`` and ``overlap_tokens`` must be the build's, or each id
+    names another span of the body: they default to the config's ``vector_chunk_size_tokens``
+    and ``vector_chunk_overlap_tokens``, which the pipeline's build (``indexer.index_corpus``)
+    uses, not this module's defaults. Leases are the caller's. Returns the episodes per outcome: ``written``, ``unchanged``,
     ``stale`` (a body with no served document of that text; its chunks left out),
     ``no_item_row`` and ``refused`` (no item key, or a span outside its document)."""
     from sqlalchemy import select
@@ -112,6 +113,11 @@ def import_search_chunks(
     from podcast_scraper.db.search_chunks_writer import chunk_rows, replace_item_chunks
     from podcast_scraper.languages import episode_language
 
+    fields = _config.Config.model_fields
+    if target_tokens is None:
+        target_tokens = int(fields["vector_chunk_size_tokens"].default)
+    if overlap_tokens is None:
+        overlap_tokens = int(fields["vector_chunk_overlap_tokens"].default)
     out = Path(corpus_dir)
     report: Counter = Counter()
     for meta_path, doc in _servable_docs(discover_metadata_files(out), {}, set(), set()):

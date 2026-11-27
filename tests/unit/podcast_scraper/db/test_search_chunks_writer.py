@@ -204,6 +204,33 @@ def test_the_import_writes_the_builds_rows_in_the_callers_transaction(
     conn.rollback()
 
 
+def test_the_import_chunks_as_the_pipelines_build_by_default(
+    db: Any, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    # indexer.index_corpus builds with the config's chunk sizes (300 / 50), not this module's
+    # 256 / 32: a different size gives every chunk:<scope>:<n> another span of the body.
+    from podcast_scraper import config
+    from podcast_scraper.search.two_tier_indexer import import_search_chunks
+
+    cfg = config.Config()
+    body = "".join(f"Word{n} " * 7 + "end.\n" for n in range(150))
+    run, meta, doc = _episode(tmp_path, body)
+    item_id = _item_with_documents(db, run, doc)
+    assert import_search_chunks(conn, tmp_path) == {"written": 1}
+    imported = _stored(conn, item_id)
+    conn.rollback()
+    rows = _collect_docs_for_episode(
+        run,
+        meta,
+        doc,
+        target_tokens=cfg.vector_chunk_size_tokens,
+        overlap_tokens=cfg.vector_chunk_overlap_tokens,
+        metadata_relative_path="m",
+    )
+    assert sync_episode_chunks(doc, chunked_bodies(run, meta, doc, rows), "en") == "written"
+    assert len(imported) > 2 and imported == _stored(conn, item_id)
+
+
 def test_the_import_leaves_out_an_unusable_episode(
     db: Any, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
