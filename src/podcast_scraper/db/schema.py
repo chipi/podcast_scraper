@@ -1149,6 +1149,52 @@ audio_fingerprints = Table(
     Index("audio_fingerprints_item_idx", "item_id"),
 )
 
+# The news re-check (CRFC-006 Part B, G7). A source's window in days; a source with no row has a
+# window of 0 and is never re-checked, which is how W9 ships dark.
+news_recheck_sources = Table(
+    "news_recheck_sources",
+    corpus_metadata,
+    Column("source_id", BigInteger, nullable=False),
+    Column("window_days", Integer, nullable=False, server_default=text("0")),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("source_id", name="news_recheck_sources_pkey"),
+    ForeignKeyConstraint(
+        ["source_id"],
+        ["sources.source_id"],
+        name="news_recheck_sources_source_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint("window_days >= 0", name="news_recheck_sources_window_check"),
+)
+
+# One item's re-check state (``news.recheck.RecheckState``) and the validators its page last sent.
+# ``done`` and a null ``next_due_at`` go together.
+news_recheck = Table(
+    "news_recheck",
+    corpus_metadata,
+    Column("item_id", BigInteger, nullable=False),
+    Column("first_fetched_at", DateTime(timezone=True), nullable=False),
+    Column("checks_done", Integer, nullable=False, server_default=text("0")),
+    Column("next_due_at", DateTime(timezone=True), nullable=True),
+    Column("last_status", Text, nullable=True),
+    Column("gone_in_a_row", Integer, nullable=False, server_default=text("0")),
+    Column("done", Boolean, nullable=False, server_default=text("false")),
+    Column("etag", Text, nullable=True),
+    Column("last_modified", Text, nullable=True),
+    Column("last_checked_at", DateTime(timezone=True), nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    PrimaryKeyConstraint("item_id", name="news_recheck_pkey"),
+    ForeignKeyConstraint(
+        ["item_id"],
+        ["content_items.item_id"],
+        name="news_recheck_item_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint("checks_done >= 0 AND gone_in_a_row >= 0", name="news_recheck_counts_check"),
+    CheckConstraint("done = (next_due_at IS NULL)", name="news_recheck_due_check"),
+    Index("news_recheck_due_idx", "next_due_at", postgresql_where=text("NOT done")),
+)
+
 _GROUP_KINDS = "'theme', 'storyline', 'super_theme', 'insight'"
 _BUILD_STATES = "'built', 'published', 'retired', 'refused'"
 
