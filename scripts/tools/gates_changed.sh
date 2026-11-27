@@ -67,8 +67,13 @@ if [ -n "$py" ]; then
   # shellcheck disable=SC2086
   gate flake8 "$PY" -m flake8 --config .flake8 $py
   # Tests too: CI's `make type` runs mypy over the whole tree, so a test-only error is red there.
-  # shellcheck disable=SC2086
-  gate mypy "$PY" -m mypy $py
+  # Not pyproject's mypy exclude: a file named on the command line is checked even when excluded,
+  # and `mypy .` skips those (scripts/ alone: 18 errors in 7 files that CI never sees).
+  mypy_py=$(printf '%s\n' "$py" | grep -vE '^(scripts|tools|apps|eval-data|\.venv|\.venv-dev)/' || true)
+  if [ -n "$mypy_py" ]; then
+    # shellcheck disable=SC2086
+    gate mypy "$PY" -m mypy $mypy_py
+  fi
   # The flags of `make security-bandit`, which CI runs over the whole tree.
   # shellcheck disable=SC2086
   gate bandit "$PY" -m bandit -q --skip B113,B108,B110,B310 --severity-level medium $py
