@@ -1,6 +1,6 @@
 ---
 name: local-gates
-description: Run the local checks that match what changed, and only those, each ending PASS or FAIL — black/isort/flake8/mypy/docstrings and the tests that name a changed module for Python, markdownlint with the repo config and the strict docs build for Markdown, vitest-related and vue-tsc for the viewer, actionlint for workflows. Use when about to commit or push, or asked to "run the gates", "lint what I changed", "check this before pushing", or "is this ready".
+description: Run the local checks that match what changed, and only those, each ending PASS or FAIL — black/isort/flake8/mypy/bandit/docstrings and the tests that name a changed module for Python, markdownlint with the repo config and the strict docs build for Markdown, vitest-related and vue-tsc for the viewer, actionlint for workflows. Use when about to commit or push, or asked to "run the gates", "lint what I changed", "check this before pushing", or "is this ready".
 ---
 
 # local-gates
@@ -17,8 +17,8 @@ rewrite files, `make format`.
 
 | Changed | Gates |
 | --- | --- |
-| `*.py` (not under `web/`, `infra/`) | black `--check`, isort `--check-only`, flake8 |
-| `src/**/*.py` | + mypy, `make docstrings` |
+| `*.py` (not under `web/`, `infra/`) | black `--check`, isort `--check-only`, flake8, mypy, bandit (the `make security-bandit` flags) |
+| `src/**/*.py` | + `make docstrings` |
 | `*.py` | + pytest on the changed test files and every `tests/**/test_*.py` that names a changed module (dotted path or file stem) |
 | `*.md` | markdownlint with `.markdownlint.json` |
 | `docs/**`, `mkdocs.yml` | `make docs` (strict) |

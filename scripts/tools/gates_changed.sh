@@ -66,10 +66,14 @@ if [ -n "$py" ]; then
   gate isort "$PY" -m isort --check-only --quiet $py
   # shellcheck disable=SC2086
   gate flake8 "$PY" -m flake8 --config .flake8 $py
+  # Tests too: CI's `make type` runs mypy over the whole tree, so a test-only error is red there.
+  # shellcheck disable=SC2086
+  gate mypy "$PY" -m mypy $py
+  # The flags of `make security-bandit`, which CI runs over the whole tree.
+  # shellcheck disable=SC2086
+  gate bandit "$PY" -m bandit -q --skip B113,B108,B110,B310 --severity-level medium $py
 fi
 if [ -n "$src_py" ]; then
-  # shellcheck disable=SC2086
-  gate mypy "$PY" -m mypy $src_py
   gate docstrings make --no-print-directory docstrings
 fi
 if [ -n "$py" ]; then
