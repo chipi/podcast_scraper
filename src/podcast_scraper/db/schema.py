@@ -1147,3 +1147,270 @@ audio_fingerprints = Table(
     CheckConstraint("digest ~ '^[0-9a-f]{64}$'", name="audio_fingerprints_digest_check"),
     Index("audio_fingerprints_item_idx", "item_id"),
 )
+
+_GROUP_KINDS = "'theme', 'storyline', 'super_theme', 'insight'"
+_BUILD_STATES = "'built', 'published', 'retired', 'refused'"
+
+# The clustering build (CRFC-005 §3.7): groups are written under a build and published by pointer
+# swap; undo publishes the previous build. ``registry_state`` is the storyline registry's durable
+# state the clustering reads back whole (candidates, together, retired, the seed).
+cluster_builds = Table(
+    "cluster_builds",
+    corpus_metadata,
+    _surrogate("build_id"),
+    Column("rule_version", Text, nullable=False),
+    Column("inputs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("min_link_weight", Integer, nullable=True),
+    Column("registry_state", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("stats", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("built_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("state", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(f"state IN ({_BUILD_STATES})", name="cluster_builds_state_check"),
+    Index(
+        "cluster_builds_one_published_idx",
+        text("(true)"),
+        unique=True,
+        postgresql_where=text("state = 'published'"),
+    ),
+)
+
+# One durable id per group natural id (``tc:``, ``thc:``, ``sth:``, ``ic:``), allocated once and
+# never reused for another group (DECISIONS rule 8).
+cluster_ids = Table(
+    "cluster_ids",
+    corpus_metadata,
+    _surrogate("cluster_id"),
+    Column("kind", Text, nullable=False),
+    Column("natural_id", Text, nullable=False),
+    UniqueConstraint("natural_id", name="cluster_ids_natural_id_key"),
+    CheckConstraint(f"kind IN ({_GROUP_KINDS})", name="cluster_ids_kind_check"),
+)
+
+clusters = Table(
+    "clusters",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("cluster_id", BigInteger, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("label", Text, nullable=False),
+    Column("parent_id", BigInteger, nullable=True),
+    Column("member_count", Integer, nullable=True),
+    Column("anchor_entity_id", BigInteger, nullable=True),
+    Column("reach", Integer, nullable=True),
+    Column("state", Text, nullable=True),
+    Column("aliases", ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")),
+    Column("created_at", DateTime(timezone=True), nullable=True),
+    Column("last_active_at", DateTime(timezone=True), nullable=True),
+    Column("detail", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    PrimaryKeyConstraint("build_id", "cluster_id", name="clusters_pkey"),
+    ForeignKeyConstraint(
+        ["build_id"], ["cluster_builds.build_id"], name="clusters_build_fkey", ondelete="CASCADE"
+    ),
+    ForeignKeyConstraint(["cluster_id"], ["cluster_ids.cluster_id"], name="clusters_cluster_fkey"),
+    ForeignKeyConstraint(
+        ["build_id", "parent_id"],
+        ["clusters.build_id", "clusters.cluster_id"],
+        name="clusters_parent_fkey",
+    ),
+    ForeignKeyConstraint(
+        ["anchor_entity_id"], ["entities.entity_id"], name="clusters_anchor_entity_fkey"
+    ),
+    CheckConstraint(f"kind IN ({_GROUP_KINDS})", name="clusters_kind_check"),
+    CheckConstraint("state IS NULL OR state IN ('active', 'quiet')", name="clusters_state_check"),
+    Index("clusters_cluster_idx", "cluster_id"),
+    Index("clusters_build_kind_idx", "build_id", "kind"),
+    Index("clusters_parent_idx", "build_id", "parent_id"),
+    Index("clusters_anchor_entity_idx", "anchor_entity_id"),
+)
+
+# A group's members: topics (as written) for themes and storylines, insights for insight
+# clusters. Episode lists are not stored: ``item_entities`` gives them.
+cluster_members = Table(
+    "cluster_members",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("cluster_id", BigInteger, nullable=False),
+    Column("entity_id", BigInteger, nullable=True),
+    Column("insight_id", BigInteger, nullable=True),
+    Column("strength", REAL, nullable=True),
+    Column("lift_to_cluster", REAL, nullable=True),
+    Column("is_anchor", Boolean, nullable=False, server_default=text("false")),
+    ForeignKeyConstraint(
+        ["build_id", "cluster_id"],
+        ["clusters.build_id", "clusters.cluster_id"],
+        name="cluster_members_cluster_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(["entity_id"], ["entities.entity_id"], name="cluster_members_entity_fkey"),
+    ForeignKeyConstraint(
+        ["insight_id"],
+        ["insights.insight_id"],
+        name="cluster_members_insight_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(
+        "(entity_id IS NULL) <> (insight_id IS NULL)", name="cluster_members_one_member_check"
+    ),
+    Index("cluster_members_cluster_idx", "build_id", "cluster_id"),
+    Index("cluster_members_entity_idx", "entity_id"),
+    Index("cluster_members_insight_idx", "insight_id"),
+    Index(
+        "cluster_members_entity_key",
+        "build_id",
+        "cluster_id",
+        "entity_id",
+        unique=True,
+        postgresql_where=text("entity_id IS NOT NULL"),
+    ),
+    Index(
+        "cluster_members_insight_key",
+        "build_id",
+        "cluster_id",
+        "insight_id",
+        unique=True,
+        postgresql_where=text("insight_id IS NOT NULL"),
+    ),
+)
+
+cluster_id_history = Table(
+    "cluster_id_history",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("old_natural_id", Text, nullable=False),
+    Column("new_natural_id", Text, nullable=True),
+    Column("change", Text, nullable=False),
+    PrimaryKeyConstraint("build_id", "old_natural_id", name="cluster_id_history_pkey"),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["cluster_builds.build_id"],
+        name="cluster_id_history_build_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint(
+        "(change = 'successor') = (new_natural_id IS NOT NULL) AND change IN ('successor', 'gone')",
+        name="cluster_id_history_change_check",
+    ),
+)
+
+# One row per clustering run's changes (today's clustering_history.jsonl and its backfill).
+cluster_events = Table(
+    "cluster_events",
+    corpus_metadata,
+    _surrogate("event_id"),
+    Column("at", DateTime(timezone=True), nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("changes", JSONB, nullable=False),
+    Column("source", Text, nullable=True),
+    Index("cluster_events_kind_at_idx", "kind", "at"),
+)
+
+# The weight between two groups of one kind (CRFC-004 §1), written by the clustering build.
+cluster_links = Table(
+    "cluster_links",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("a", BigInteger, nullable=False),
+    Column("b", BigInteger, nullable=False),
+    Column("weight", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "kind", "a", "b", name="cluster_links_pkey"),
+    ForeignKeyConstraint(
+        ["build_id", "a"],
+        ["clusters.build_id", "clusters.cluster_id"],
+        name="cluster_links_a_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["build_id", "b"],
+        ["clusters.build_id", "clusters.cluster_id"],
+        name="cluster_links_b_fkey",
+        ondelete="CASCADE",
+    ),
+    CheckConstraint("a < b", name="cluster_links_order_check"),
+    Index("cluster_links_a_idx", "build_id", "a"),
+    Index("cluster_links_b_idx", "build_id", "b"),
+)
+
+# One build per enricher run; one published build per enricher.
+enrichment_builds = Table(
+    "enrichment_builds",
+    corpus_metadata,
+    _surrogate("build_id"),
+    Column("enricher_id", Text, nullable=False),
+    Column("enricher_version", Text, nullable=True),
+    Column("computed_at", DateTime(timezone=True), nullable=True),
+    Column("built_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("state", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(f"state IN ({_BUILD_STATES})", name="enrichment_builds_state_check"),
+    Index(
+        "enrichment_builds_one_published_idx",
+        "enricher_id",
+        unique=True,
+        postgresql_where=text("state = 'published'"),
+    ),
+)
+
+# An enricher's output read whole: per item, per entity, or for the corpus (both null).
+enrichment_outputs = Table(
+    "enrichment_outputs",
+    corpus_metadata,
+    _surrogate("output_id"),
+    Column("build_id", BigInteger, nullable=False),
+    Column("enricher_id", Text, nullable=False),
+    Column("scope", Text, nullable=False),
+    Column("item_id", BigInteger, nullable=True),
+    Column("entity_id", BigInteger, nullable=True),
+    Column("output", JSONB, nullable=False),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["enrichment_builds.build_id"],
+        name="enrichment_outputs_build_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["item_id"],
+        ["content_items.item_id"],
+        name="enrichment_outputs_item_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["entity_id"], ["entities.entity_id"], name="enrichment_outputs_entity_fkey"
+    ),
+    UniqueConstraint(
+        "build_id",
+        "scope",
+        "item_id",
+        "entity_id",
+        name="enrichment_outputs_key",
+        postgresql_nulls_not_distinct=True,
+    ),
+    Index("enrichment_outputs_lookup_idx", "enricher_id", "scope", "item_id"),
+    Index("enrichment_outputs_item_idx", "item_id"),
+    Index("enrichment_outputs_entity_idx", "entity_id"),
+)
+
+# A score between two entities (topic similarity, guest co-appearance, topic co-occurrence).
+entity_pairs = Table(
+    "entity_pairs",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("enricher_id", Text, nullable=False),
+    Column("a", BigInteger, nullable=False),
+    Column("b", BigInteger, nullable=False),
+    Column("score", REAL, nullable=False),
+    Column("detail", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    PrimaryKeyConstraint("build_id", "a", "b", name="entity_pairs_pkey"),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["enrichment_builds.build_id"],
+        name="entity_pairs_build_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(["a"], ["entities.entity_id"], name="entity_pairs_a_fkey"),
+    ForeignKeyConstraint(["b"], ["entities.entity_id"], name="entity_pairs_b_fkey"),
+    CheckConstraint("a <> b", name="entity_pairs_distinct_check"),
+    Index("entity_pairs_a_idx", "a", "enricher_id"),
+    Index("entity_pairs_b_idx", "b", "enricher_id"),
+)

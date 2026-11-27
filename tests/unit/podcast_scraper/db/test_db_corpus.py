@@ -64,6 +64,16 @@ TABLES = {
     "person_roles",
     "topic_relations",
     "audio_fingerprints",
+    "cluster_builds",
+    "cluster_ids",
+    "clusters",
+    "cluster_members",
+    "cluster_id_history",
+    "cluster_events",
+    "cluster_links",
+    "enrichment_builds",
+    "enrichment_outputs",
+    "entity_pairs",
 }
 
 INDEXES = {
@@ -116,6 +126,25 @@ INDEXES = {
     "topic_relations_a_idx",
     "topic_relations_b_idx",
     "audio_fingerprints_item_idx",
+    "cluster_builds_one_published_idx",
+    "clusters_cluster_idx",
+    "clusters_build_kind_idx",
+    "clusters_parent_idx",
+    "clusters_anchor_entity_idx",
+    "cluster_members_cluster_idx",
+    "cluster_members_entity_idx",
+    "cluster_members_insight_idx",
+    "cluster_members_entity_key",
+    "cluster_members_insight_key",
+    "cluster_events_kind_at_idx",
+    "cluster_links_a_idx",
+    "cluster_links_b_idx",
+    "enrichment_builds_one_published_idx",
+    "enrichment_outputs_lookup_idx",
+    "enrichment_outputs_item_idx",
+    "enrichment_outputs_entity_idx",
+    "entity_pairs_a_idx",
+    "entity_pairs_b_idx",
 }
 
 
@@ -1126,6 +1155,128 @@ def _doc(conn: Connection) -> tuple[int, int]:
     return item, _document(conn, item)
 
 
+def _cluster_build(conn: Connection, state: str = "built") -> int:
+    table = corpus_metadata.tables["corpus.cluster_builds"]
+    build: int = conn.execute(
+        insert(table).values(rule_version="1", state=state).returning(table.c.build_id)
+    ).scalar_one()
+    return build
+
+
+def _group(conn: Connection, build: int, natural_id: str, kind: str = "storyline") -> int:
+    ids = corpus_metadata.tables["corpus.cluster_ids"]
+    cluster: int = conn.execute(
+        insert(ids).values(kind=kind, natural_id=natural_id).returning(ids.c.cluster_id)
+    ).scalar_one()
+    conn.execute(
+        insert(corpus_metadata.tables["corpus.clusters"]).values(
+            build_id=build, cluster_id=cluster, kind=kind, label=natural_id
+        )
+    )
+    return cluster
+
+
+def test_one_cluster_build_and_one_build_per_enricher_are_published(conn: Connection) -> None:
+    _cluster_build(conn, "published")
+    with pytest.raises(sa_exc.IntegrityError, match="cluster_builds_one_published_idx"):
+        _cluster_build(conn, "published")
+    conn.rollback()
+    builds = corpus_metadata.tables["corpus.enrichment_builds"]
+    conn.execute(insert(builds).values(enricher_id="topic_similarity", state="published"))
+    conn.execute(insert(builds).values(enricher_id="guest_coappearance", state="published"))
+    with pytest.raises(sa_exc.IntegrityError, match="enrichment_builds_one_published_idx"):
+        conn.execute(insert(builds).values(enricher_id="topic_similarity", state="published"))
+    conn.rollback()
+
+
+def test_a_cluster_member_is_a_topic_or_an_insight_never_both(conn: Connection) -> None:
+    item, document = _doc(conn)
+    build = _cluster_build(conn)
+    group = _group(conn, build, "thc:one")
+    members = corpus_metadata.tables["corpus.cluster_members"]
+    topic = _entity(conn, natural_id="topic:ai", type="topic", label="AI", normalized_label="ai")
+    insight = _insight(conn, item, document)
+    conn.execute(insert(members).values(build_id=build, cluster_id=group, entity_id=topic))
+    conn.execute(insert(members).values(build_id=build, cluster_id=group, insight_id=insight))
+    with pytest.raises(sa_exc.IntegrityError, match="cluster_members_entity_key"):
+        conn.execute(insert(members).values(build_id=build, cluster_id=group, entity_id=topic))
+    conn.rollback()
+    build = _cluster_build(conn)
+    group = _group(conn, build, "thc:two")
+    for values in ({}, {"entity_id": topic, "insight_id": insight}):
+        with pytest.raises(sa_exc.IntegrityError, match="cluster_members_one_member_check"):
+            conn.execute(insert(members).values(build_id=build, cluster_id=group, **values))
+        conn.rollback()
+        build = _cluster_build(conn)
+        group = _group(conn, build, f"thc:x{len(values)}")
+
+
+def test_a_group_id_is_durable_across_builds_and_a_parent_is_in_the_same_build(
+    conn: Connection,
+) -> None:
+    clusters = corpus_metadata.tables["corpus.clusters"]
+    first, second = _cluster_build(conn), _cluster_build(conn)
+    parent = _group(conn, first, "sth:ai", kind="super_theme")
+    child = _group(conn, first, "thc:agents")
+    conn.execute(
+        clusters.update()
+        .where((clusters.c.build_id == first) & (clusters.c.cluster_id == child))
+        .values(parent_id=parent)
+    )
+    conn.execute(
+        insert(clusters).values(build_id=second, cluster_id=child, kind="storyline", label="x")
+    )
+    with pytest.raises(sa_exc.IntegrityError, match="cluster_ids_natural_id_key"):
+        _group(conn, second, "thc:agents")
+    conn.rollback()
+    first, second = _cluster_build(conn), _cluster_build(conn)
+    parent = _group(conn, first, "sth:ai", kind="super_theme")
+    child = _group(conn, second, "thc:agents")
+    with pytest.raises(sa_exc.IntegrityError, match="clusters_parent_fkey"):
+        conn.execute(
+            clusters.update()
+            .where((clusters.c.build_id == second) & (clusters.c.cluster_id == child))
+            .values(parent_id=parent)
+        )
+    conn.rollback()
+
+
+def test_an_id_change_is_a_successor_with_its_new_id_or_gone_without_one(conn: Connection) -> None:
+    history = corpus_metadata.tables["corpus.cluster_id_history"]
+    build = _cluster_build(conn)
+    conn.execute(
+        insert(history).values(
+            build_id=build, old_natural_id="tc:a", new_natural_id="tc:b", change="successor"
+        )
+    )
+    conn.execute(insert(history).values(build_id=build, old_natural_id="tc:c", change="gone"))
+    for values in (
+        {"old_natural_id": "tc:d", "change": "successor"},
+        {"old_natural_id": "tc:e", "new_natural_id": "tc:f", "change": "gone"},
+    ):
+        with pytest.raises(sa_exc.IntegrityError, match="cluster_id_history_change_check"):
+            conn.execute(insert(history).values(build_id=build, **values))
+        conn.rollback()
+        build = _cluster_build(conn)
+
+
+def test_an_enrichment_output_is_one_per_scope_and_owner_corpus_rows_included(
+    conn: Connection,
+) -> None:
+    builds = corpus_metadata.tables["corpus.enrichment_builds"]
+    outputs = corpus_metadata.tables["corpus.enrichment_outputs"]
+    build = conn.execute(
+        insert(builds)
+        .values(enricher_id="grounding_rate", state="built")
+        .returning(builds.c.build_id)
+    ).scalar_one()
+    row = {"build_id": build, "enricher_id": "grounding_rate", "scope": "corpus", "output": {}}
+    conn.execute(insert(outputs).values(**row))
+    with pytest.raises(sa_exc.IntegrityError, match="enrichment_outputs_key"):
+        conn.execute(insert(outputs).values(**row))
+    conn.rollback()
+
+
 def test_an_insight_is_unique_by_natural_id_and_defaults_to_visible(conn: Connection) -> None:
     item, document = _doc(conn)
     insight = _insight(conn, item, document)
@@ -1533,7 +1684,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0012_audio_fingerprints"]
+    assert scripts.get_heads() == ["corpus_0013_groupings"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1547,8 +1698,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0010_source_type_attrs",
         "corpus_0011_foreign_key_indexes",
         "corpus_0012_audio_fingerprints",
+        "corpus_0013_groupings",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0012_audio_fingerprints"
+    assert migrate.head_revision("corpus") == "corpus_0013_groupings"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1751,9 +1903,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0010_source_type_attrs",
             "corpus_0011_foreign_key_indexes",
             "corpus_0012_audio_fingerprints",
+            "corpus_0013_groupings",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=12)
+        rows = migrate.history_rows(url, "corpus", limit=13)
         assert [r["revision"] for r in rows] == [
+            "corpus_0013_groupings",
             "corpus_0012_audio_fingerprints",
             "corpus_0011_foreign_key_indexes",
             "corpus_0010_source_type_attrs",
@@ -1828,8 +1982,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 12]
-        assert len(migrate.history_rows(url, "corpus", limit=12)) == 12
+        assert sorted(len(r) for r in results) == [0, 13]
+        assert len(migrate.history_rows(url, "corpus", limit=13)) == 13
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1877,8 +2031,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=12)]
-        assert len(revisions) == 12
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=13)]
+        assert len(revisions) == 13
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
