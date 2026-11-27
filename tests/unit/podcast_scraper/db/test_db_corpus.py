@@ -10,6 +10,7 @@ import sys
 import threading
 import uuid
 from collections.abc import Iterator
+from datetime import date
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -64,6 +65,10 @@ TABLES = {
     "person_roles",
     "topic_relations",
     "audio_fingerprints",
+    "projection_builds",
+    "entity_item_counts",
+    "entity_weeks",
+    "cluster_reach",
     "cluster_builds",
     "cluster_ids",
     "clusters",
@@ -126,6 +131,11 @@ INDEXES = {
     "topic_relations_a_idx",
     "topic_relations_b_idx",
     "audio_fingerprints_item_idx",
+    "projection_builds_one_published_idx",
+    "entity_item_counts_entity_idx",
+    "entity_weeks_kind_week_idx",
+    "entity_weeks_entity_idx",
+    "cluster_reach_cluster_idx",
     "cluster_builds_one_published_idx",
     "clusters_cluster_idx",
     "clusters_build_kind_idx",
@@ -1189,6 +1199,58 @@ def test_one_cluster_build_and_one_build_per_enricher_are_published(conn: Connec
     conn.rollback()
 
 
+def _projection_build(conn: Connection, state: str = "built") -> int:
+    table = corpus_metadata.tables["corpus.projection_builds"]
+    build: int = conn.execute(
+        insert(table).values(state=state).returning(table.c.build_id)
+    ).scalar_one()
+    return build
+
+
+def test_one_projection_build_is_published_and_a_week_is_a_monday(conn: Connection) -> None:
+    _projection_build(conn, "published")
+    with pytest.raises(sa_exc.IntegrityError, match="projection_builds_one_published_idx"):
+        _projection_build(conn, "published")
+    conn.rollback()
+    build, entity = _projection_build(conn), _entity(conn)
+    weeks = corpus_metadata.tables["corpus.entity_weeks"]
+    row = dict(build_id=build, kind="topic", entity_id=entity, items=1, insights=0)
+    conn.execute(insert(weeks).values(week=date(2026, 11, 23), **row))
+    with pytest.raises(sa_exc.IntegrityError, match="entity_weeks_monday_check"):
+        conn.execute(insert(weeks).values(week=date(2026, 11, 24), **row))
+    conn.rollback()
+
+
+def test_a_reach_names_a_group_of_its_cluster_build_and_goes_with_it(conn: Connection) -> None:
+    clusters_build = _cluster_build(conn)
+    group = _group(conn, clusters_build, "thc:a")
+    other_build = _cluster_build(conn)
+    reach = corpus_metadata.tables["corpus.cluster_reach"]
+    build = _projection_build(conn)
+    conn.execute(
+        insert(reach).values(
+            build_id=build, cluster_build_id=clusters_build, cluster_id=group, reach=3
+        )
+    )
+    with pytest.raises(sa_exc.IntegrityError, match="cluster_reach_cluster_fkey"):
+        with conn.begin_nested():
+            conn.execute(
+                insert(reach).values(
+                    build_id=_projection_build(conn),
+                    cluster_build_id=other_build,
+                    cluster_id=group,
+                    reach=1,
+                )
+            )
+    conn.execute(
+        corpus_metadata.tables["corpus.cluster_builds"]
+        .delete()
+        .where(corpus_metadata.tables["corpus.cluster_builds"].c.build_id == clusters_build)
+    )
+    assert conn.execute(select(func.count()).select_from(reach)).scalar_one() == 0
+    conn.rollback()
+
+
 def test_a_cluster_member_is_a_topic_or_an_insight_never_both(conn: Connection) -> None:
     item, document = _doc(conn)
     build = _cluster_build(conn)
@@ -1684,7 +1746,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0013_groupings"]
+    assert scripts.get_heads() == ["corpus_0014_projections"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1699,8 +1761,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0011_foreign_key_indexes",
         "corpus_0012_audio_fingerprints",
         "corpus_0013_groupings",
+        "corpus_0014_projections",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0013_groupings"
+    assert migrate.head_revision("corpus") == "corpus_0014_projections"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1904,9 +1967,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0011_foreign_key_indexes",
             "corpus_0012_audio_fingerprints",
             "corpus_0013_groupings",
+            "corpus_0014_projections",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=13)
+        rows = migrate.history_rows(url, "corpus", limit=14)
         assert [r["revision"] for r in rows] == [
+            "corpus_0014_projections",
             "corpus_0013_groupings",
             "corpus_0012_audio_fingerprints",
             "corpus_0011_foreign_key_indexes",
@@ -1982,8 +2047,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 13]
-        assert len(migrate.history_rows(url, "corpus", limit=13)) == 13
+        assert sorted(len(r) for r in results) == [0, 14]
+        assert len(migrate.history_rows(url, "corpus", limit=14)) == 14
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -2031,8 +2096,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=13)]
-        assert len(revisions) == 13
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=14)]
+        assert len(revisions) == 14
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
