@@ -108,8 +108,10 @@ def _insight_ok(i: Any) -> Any:
 
 
 def _written(conn: Connection, statement: Any) -> int:
-    """Run an ``INSERT ... SELECT`` and count its rows (the driver reports no rowcount for it)."""
-    return len(conn.execute(statement.returning(literal(1))).all())
+    """Run an ``INSERT ... SELECT`` and count its rows in the same statement (the driver reports
+    no rowcount for it): ``WITH w AS (INSERT ... RETURNING 1) SELECT count(*) FROM w``."""
+    w = statement.returning(literal(1)).cte("w")
+    return int(conn.execute(select(func.count()).select_from(w)).scalar_one())
 
 
 def _week(at: Any) -> Any:
@@ -314,12 +316,12 @@ def build_in(conn: Connection, *, now: Optional[datetime] = None) -> Build:
         "entity_weeks": _write_weeks(conn, build_id),
         "cluster_reach": _write_reach(conn, build_id, clusters_of),
     }
+    stats["builds_deleted"] = len(_publish(conn, build_id, at))
     conn.execute(
         update(projection_builds)
         .where(projection_builds.c.build_id == build_id)
         .values(stats=stats)
     )
-    stats["builds_deleted"] = len(_publish(conn, build_id, at))
     return Build(build_id=build_id, stats=stats)
 
 

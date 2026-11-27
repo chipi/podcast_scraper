@@ -134,3 +134,7 @@ def test_a_build_is_published_as_graph_build_id_and_keeps_the_one_before(
         select(projection_builds.c.inputs).where(projection_builds.c.build_id == third.build_id)
     ).scalar_one()
     assert set(inputs) == {"identity_build_id", "cluster_build_id", "corpus_revision"}
+    stored = conn.execute(
+        select(projection_builds.c.stats).where(projection_builds.c.build_id == third.build_id)
+    ).scalar_one()
+    assert stored == third.stats
