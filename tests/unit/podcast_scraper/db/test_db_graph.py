@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import create_engine, event, insert, Table, text
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db import graph
+from podcast_scraper.db import graph, projections
 from podcast_scraper.db.schema import (
     content_items,
     documents,
@@ -553,3 +553,28 @@ def test_exactly_fanout_edges_is_not_capped(conn: Connection) -> None:
     got = graph.slice_neighbourhood(conn, "topic:other", "node.items", budget=3000)
     assert got["truncated"]["reasons"] == [] and got["truncated"]["fanout_capped"] == []
     assert len([n for n in got["nodes"] if n["type"] == "ContentItem"]) == graph.FANOUT
+
+
+def test_with_counts_reads_item_counts_from_the_published_build_in_one_statement(
+    conn: Connection,
+) -> None:
+    Corpus(conn)
+    plain = graph.slice_items(conn, ["episode:1"])
+    assert plain["graph_build_id"] is None
+    assert all("item_count" not in n for n in plain["nodes"])
+    unbuilt = graph.slice_items(conn, ["episode:1"], with_=["counts"])
+    assert all("item_count" not in n for n in unbuilt["nodes"])
+    built = projections.build_in(conn)
+    with _statements(conn) as seen:
+        got = graph.slice_items(conn, ["episode:1"], with_=["counts"])
+    # 6 as without counts, plus the one counts statement.
+    assert len(seen) == 7
+    assert got["graph_build_id"] == built.build_id
+    assert got["params"]["with"] == ["counts"]
+    counts = {n["id"]: n.get("item_count") for n in got["nodes"]}
+    # topic:ai is on items 1 and 2 under its canonical id; bob is on items only by role, which
+    # entity_item_counts does not count; nodes that are not entities carry no item_count.
+    assert counts["topic:ai"] == 2 and counts["person:ann"] == 1 and counts["person:bob"] == 0
+    assert counts["episode:1"] is None and counts["insight:n1"] is None
+    with pytest.raises(ValueError):
+        graph.slice_items(conn, ["episode:1"], with_=["groups"])
