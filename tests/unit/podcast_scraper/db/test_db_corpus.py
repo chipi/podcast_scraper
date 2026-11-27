@@ -65,6 +65,8 @@ TABLES = {
     "person_roles",
     "topic_relations",
     "audio_fingerprints",
+    "news_recheck_sources",
+    "news_recheck",
     "projection_builds",
     "entity_item_counts",
     "entity_weeks",
@@ -131,6 +133,7 @@ INDEXES = {
     "topic_relations_a_idx",
     "topic_relations_b_idx",
     "audio_fingerprints_item_idx",
+    "news_recheck_due_idx",
     "projection_builds_one_published_idx",
     "entity_item_counts_entity_idx",
     "entity_weeks_kind_week_idx",
@@ -1746,7 +1749,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0014_projections"]
+    assert scripts.get_heads() == ["corpus_0015_news_recheck"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1762,8 +1765,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0012_audio_fingerprints",
         "corpus_0013_groupings",
         "corpus_0014_projections",
+        "corpus_0015_news_recheck",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0014_projections"
+    assert migrate.head_revision("corpus") == "corpus_0015_news_recheck"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1968,9 +1972,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0012_audio_fingerprints",
             "corpus_0013_groupings",
             "corpus_0014_projections",
+            "corpus_0015_news_recheck",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=14)
+        rows = migrate.history_rows(url, "corpus", limit=15)
         assert [r["revision"] for r in rows] == [
+            "corpus_0015_news_recheck",
             "corpus_0014_projections",
             "corpus_0013_groupings",
             "corpus_0012_audio_fingerprints",
@@ -2047,8 +2053,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 14]
-        assert len(migrate.history_rows(url, "corpus", limit=14)) == 14
+        assert sorted(len(r) for r in results) == [0, 15]
+        assert len(migrate.history_rows(url, "corpus", limit=15)) == 15
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -2096,8 +2102,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=14)]
-        assert len(revisions) == 14
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=16)]
+        assert len(revisions) == 15
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
