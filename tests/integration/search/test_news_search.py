@@ -88,6 +88,8 @@ def test_news_only_and_merged_searches(client: TestClient) -> None:
     assert news and all(r["content_type"] == "news_article" for r in news)
     assert all(r["text"] == "" and r["source_tier"] == "news" for r in news)
     assert len({r["doc_id"] for r in news}) == len(news)
+    # n-source-id: "Show on graph" opens the item's node, whose id is the item's natural id.
+    assert all(r["metadata"]["source_id"] == r["doc_id"] == r["news_item"]["item_id"] for r in news)
     both = client.get(
         "/api/search",
         params=[
