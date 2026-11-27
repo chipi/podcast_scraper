@@ -75,6 +75,7 @@ def corpus_rows_patch() -> Iterator[None]:
     from podcast_scraper.db import engines
     from podcast_scraper.db.importers.corpus_items import import_corpus
     from podcast_scraper.db.settings import CorpusSettings
+    from podcast_scraper.search.two_tier_indexer import import_search_chunks
     from podcast_scraper.server import catalog_cache
 
     read = catalog_cache._catalog_rows
@@ -103,6 +104,7 @@ def corpus_rows_patch() -> Iterator[None]:
             with writer[0].begin() as conn:
                 _empty_corpus_tables(conn)
                 import_corpus(conn, Path(key))
+                import_search_chunks(conn, Path(key))
             loaded.update(root=key, stamp=stamp, token=token())
 
     def key(root: Path) -> str:

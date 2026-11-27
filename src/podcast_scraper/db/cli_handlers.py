@@ -213,6 +213,7 @@ def _import_corpus(args: argparse.Namespace, log: logging.Logger) -> int:
 
     from podcast_scraper.db.importers.corpus_items import import_corpus
     from podcast_scraper.publishers import load_registry
+    from podcast_scraper.search.two_tier_indexer import import_search_chunks
 
     root: Path = args.root
     if not root.is_dir():
@@ -225,6 +226,8 @@ def _import_corpus(args: argparse.Namespace, log: logging.Logger) -> int:
         with engine.connect() as conn:
             tx = conn.begin()
             report = import_corpus(conn, root.resolve(), registry=load_registry())
+            # The search rows hydration reads, chunked as the pipeline's build chunks them.
+            chunks = import_search_chunks(conn, root.resolve())
             if args.dry_run:
                 tx.rollback()
             else:
@@ -239,6 +242,7 @@ def _import_corpus(args: argparse.Namespace, log: logging.Logger) -> int:
     ]
     print(f"corpus {root}: {verb} {', '.join(counts)}")
     print(f"refused: {len(report.refused)}")
+    print("search chunks: " + ", ".join(f"{k} {chunks[k]}" for k in sorted(chunks)))
     for relpath, reason in report.refused:
         print(f"  REFUSED {relpath}: {reason}")
     return 0
