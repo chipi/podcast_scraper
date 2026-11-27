@@ -37,6 +37,20 @@ def test_run_builds_and_reports(tmp_path, monkeypatch):
     assert captured["lance"].endswith("search/lance_index")  # default co-located path
 
 
+def test_every_build_chunks_at_the_configs_sizes_by_default():
+    # The pipeline's build passes the config's sizes (indexer.index_corpus); this CLI and the
+    # m0002 / m0004 migrations pass none. Each chunk:<scope>:<n> names a span cut at one size, so
+    # an index rebuilt at other sizes has other ids than the rows the pipeline writes.
+    import inspect
+
+    from podcast_scraper import config
+
+    cfg = config.Config()
+    params = inspect.signature(two_tier_indexer.build_two_tier_index).parameters
+    assert params["target_tokens"].default == cfg.vector_chunk_size_tokens
+    assert params["overlap_tokens"].default == cfg.vector_chunk_overlap_tokens
+
+
 def test_run_requires_output_dir():
     args = parse_index_two_tier_argv(["--output-dir", "/c"])
     args.output_dir = None  # simulate missing
