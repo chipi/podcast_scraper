@@ -80,7 +80,11 @@ def test_a_transcript_hit_takes_its_rows_and_other_hits_are_untouched() -> None:
     assert out[1] is insight and insight["text"] == "index text"
 
 
-def test_a_hit_with_no_row_an_unserved_or_a_withheld_item_is_dropped() -> None:
+def test_a_hit_with_no_row_an_unserved_or_a_withheld_item_is_dropped(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    corpus_search.HYDRATION_DROPS.clear()
+
     def fetch(ids: List[str]) -> List[Dict[str, Any]]:
         return [
             _chunk("chunk:kept:0"),
@@ -94,9 +98,16 @@ def test_a_hit_with_no_row_an_unserved_or_a_withheld_item_is_dropped() -> None:
         _hit("chunk:withheld:0"),
         _hit("chunk:stale:0"),
     ]
-    assert [r["doc_id"] for r in corpus_search._hydrate_transcript_hits(rows, fetch)] == [
-        "chunk:kept:0"
-    ]
+    with caplog.at_level("WARNING", logger=corpus_search.__name__):
+        kept = corpus_search._hydrate_transcript_hits(rows, fetch)
+    assert [r["doc_id"] for r in kept] == ["chunk:kept:0"]
+    # Counted by reason; a hit with no row is logged, so a deploy whose search_chunks is not
+    # filled shows in the logs (database's review of #2633).
+    assert corpus_search.HYDRATION_DROPS == {"no_row": 1, "not_served": 1, "withheld": 1}
+    assert "1 of 4 transcript hits have no search_chunks row" in caplog.text
+    caplog.clear()
+    corpus_search._hydrate_transcript_hits([_hit("chunk:withheld:0")], fetch)
+    assert "no search_chunks row" not in caplog.text
 
 
 def test_no_transcript_hit_reads_no_rows() -> None:
