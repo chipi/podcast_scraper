@@ -17,7 +17,10 @@ A failure is logged and counted; it raises only with ``PODCAST_CORPUS_WRITE_STRI
 row writer (``corpus_writer``) does. An enricher whose publish did not land stays in the pending
 file beside the health file until one does, and the executor publishes a pending enricher after
 its run even when it wrote nothing: the staleness gate skips an enricher whose inputs did not
-change, so waiting for its next envelope could leave its build behind its files for weeks.
+change, so waiting for its next envelope could leave its build behind its files for weeks. A
+publish that left out an episode the run wrote (its item row not synced yet, so not served) has
+not landed either. An unreadable pending file is set aside, not overwritten
+(:func:`take_unreadable`), and that run publishes every enricher it runs.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ import logging
 import threading
 import uuid
 from pathlib import Path
+from typing import Iterable, Optional
 
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
@@ -55,22 +59,44 @@ def pending_path(corpus_root: Path) -> Path:
     return enrichment_health_path(Path(corpus_root)).with_name("enrichment_rows_pending.json")
 
 
-def pending(corpus_root: Path) -> set[str]:
-    """The enrichers to publish after their run whether or not they wrote an envelope. A file that
-    is not a list of ids reads as empty, logged: it must not fail the run, and the next refused or
-    failed publish rewrites it."""
-    path = pending_path(corpus_root)
+def _read(path: Path) -> Optional[set[str]]:
+    """The pending ids; ``None`` when the file is there but is not a list of ids."""
     try:
         ids = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return set()
     except (OSError, ValueError) as exc:
-        logger.warning("enrichment rows: %s is unreadable, read as empty: %s", path, exc)
-        return set()
+        logger.warning("enrichment rows: %s is unreadable: %s", path, exc)
+        return None
     if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
-        logger.warning("enrichment rows: %s is not a list of enricher ids, read as empty", path)
-        return set()
+        logger.warning("enrichment rows: %s is not a list of enricher ids", path)
+        return None
     return set(ids)
+
+
+def pending(corpus_root: Path) -> set[str]:
+    """The enrichers to publish after their run whether or not they wrote an envelope. A file that
+    is not a list of ids reads as empty, logged: it must not fail the run (the executor sets it
+    aside first, :func:`take_unreadable`)."""
+    return _read(pending_path(corpus_root)) or set()
+
+
+def take_unreadable(corpus_root: Path) -> bool:
+    """Set an unreadable pending file aside (``<name>.unreadable``, the last one kept) and return
+    ``True``: which enrichers it named is lost, so the caller publishes every enricher it runs.
+    ``False`` when the file is readable or absent."""
+    path = pending_path(corpus_root)
+    with _PENDING_LOCK:
+        if _read(path) is not None:
+            return False
+        aside = path.with_name(path.name + ".unreadable")
+        try:
+            path.replace(aside)
+        except OSError as exc:
+            logger.warning("enrichment rows: could not set %s aside: %s", path, exc)
+        else:
+            logger.warning("enrichment rows: set %s aside as %s", path, aside.name)
+        return True
 
 
 def _mark(corpus_root: Path, enricher_id: str, *, landed: bool) -> None:
@@ -102,7 +128,9 @@ def served_metadata_relpaths(conn: Connection) -> list[str]:
     return [str(row[0]) for row in rows]
 
 
-def _publish(corpus_root: Path, enricher_id: str) -> None:
+def _publish(corpus_root: Path, enricher_id: str, touched: set[str]) -> tuple[int, set[str]]:
+    """Publish in one transaction under the leases; the builds written and the episodes of
+    ``touched`` the build left out."""
     from podcast_scraper.db.engines import pipeline_rw_engine
     from podcast_scraper.db.importers.corpus_enrichments import publish_enrichments
     from podcast_scraper.db.importers.corpus_groupings import publish_groupings
@@ -123,18 +151,27 @@ def _publish(corpus_root: Path, enricher_id: str) -> None:
             relpaths = served_metadata_relpaths(conn)
             written = publish_enrichments(conn, corpus_root, relpaths, enricher_id)
             logger.info("enrichment rows: %s published %s", enricher_id, written)
-            if groupings:
+            if groupings and written.builds:
                 logger.info("groupings rows: published %s", publish_groupings(conn, corpus_root))
     finally:
         leases.release(engine, holder)
+    left_out = set(touched) if not written.builds else set(touched) - set(relpaths)
+    return written.builds, left_out
 
 
-def publish_after_run(corpus_root: Path, enricher_id: str) -> str:
+def publish_after_run(corpus_root: Path, enricher_id: str, *, touched: Iterable[str] = ()) -> str:
     """Publish ``enricher_id``'s outputs under ``corpus_root`` as its new build (and, after the
     groupings' enricher, the groupings and then the projections); returns and counts the
-    outcome: ``published``, ``not_configured`` (no pipeline database URL), ``lease_refused``
-    or ``failed``. The last two leave the enricher :func:`pending`, so the next run publishes it
-    again; ``published`` clears it."""
+    outcome. ``touched`` is the metadata files (relative to the root) of the episodes the run
+    wrote an envelope for.
+
+    - ``published`` clears :func:`pending`.
+    - ``left_out``: a build was published (or none could be) without an episode of ``touched``,
+      whose item is not served yet. The enricher stays pending, so a later run publishes again.
+    - ``nothing_to_publish``: no readable ``ok`` output and nothing touched; pending is unchanged.
+    - ``lease_refused`` and ``failed`` leave it pending.
+    - ``not_configured``: no pipeline database URL.
+    """
     from podcast_scraper.db import corpus_writer
     from podcast_scraper.db.settings import pipeline_is_configured
 
@@ -142,7 +179,7 @@ def publish_after_run(corpus_root: Path, enricher_id: str) -> str:
         OUTCOMES["not_configured"] += 1
         return "not_configured"
     try:
-        _publish(Path(corpus_root), enricher_id)
+        builds, left_out = _publish(Path(corpus_root), enricher_id, set(touched))
     except leases.LeaseRefused:
         OUTCOMES["lease_refused"] += 1
         _mark(corpus_root, enricher_id, landed=False)
@@ -154,13 +191,25 @@ def publish_after_run(corpus_root: Path, enricher_id: str) -> str:
         if corpus_writer._strict():
             raise corpus_writer.SyncFailed(f"enrichment rows for {enricher_id}: {exc}") from exc
         return "failed"
-    OUTCOMES["published"] += 1
-    _mark(corpus_root, enricher_id, landed=True)
-    if enricher_id == GROUPINGS_ENRICHER:
+    if left_out:
+        logger.warning(
+            "enrichment rows: %s left out %d episode(s) it wrote, not served yet; kept pending",
+            enricher_id,
+            len(left_out),
+        )
+        outcome = "left_out"
+        _mark(corpus_root, enricher_id, landed=False)
+    elif not builds:
+        outcome = "nothing_to_publish"
+    else:
+        outcome = "published"
+        _mark(corpus_root, enricher_id, landed=True)
+    OUTCOMES[outcome] += 1
+    if builds and enricher_id == GROUPINGS_ENRICHER:
         from podcast_scraper.db import projections
 
         projections.after_batch()
-    return "published"
+    return outcome
 
 
 __all__ = [
@@ -172,4 +221,5 @@ __all__ = [
     "pending_path",
     "publish_after_run",
     "served_metadata_relpaths",
+    "take_unreadable",
 ]
