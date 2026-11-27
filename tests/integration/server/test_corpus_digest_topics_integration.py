@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +17,12 @@ from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server.app import create_app
 
 pytestmark = pytest.mark.integration
+
+
+def _ago(minutes: int) -> str:
+    # The digest compares the publish instant with now (#2589): an episode at today's noon UTC is
+    # in the future, and outside every window, until noon.
+    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _row(published: str, *, eid: str = "ep1", feed: str = "feed_a") -> dict:
@@ -35,11 +41,10 @@ def test_digest_include_topics_builds_bands_when_search_hits_catalog(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
-        json.dumps(_row(f"{today}T12:00:00Z")),
+        json.dumps(_row(_ago(60))),
         encoding="utf-8",
     )
     # ADR-099 #995: the digest now checks for an index on disk (not a probe search) before
@@ -105,12 +110,11 @@ def test_digest_max_rows_clamp_and_probe_no_index(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     for i in range(5):
         (meta / f"e{i}.metadata.json").write_text(
-            json.dumps(_row(f"{today}T12:00:00Z", eid=f"e{i}")),
+            json.dumps(_row(_ago(60), eid=f"e{i}")),
             encoding="utf-8",
         )
 
@@ -156,12 +160,9 @@ def test_digest_topic_bands_cached_and_invalidate_on_reindex(
 
     from podcast_scraper.server.routes.corpus_digest import clear_digest_topics_cache
 
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
-    (meta / "one.metadata.json").write_text(
-        json.dumps(_row(f"{today}T12:00:00Z")), encoding="utf-8"
-    )
+    (meta / "one.metadata.json").write_text(json.dumps(_row(_ago(60))), encoding="utf-8")
     lance_idx = tmp_path / "search" / "lance_index"
     lance_idx.mkdir(parents=True)
     (lance_idx / "marker").write_text("x", encoding="utf-8")
