@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, Tuple
 
 from .. import config, content_types, stage_hooks
 from ..kg.v3 import ITEM_TIMES
@@ -308,6 +308,10 @@ def _jobs_for_items(
     return episodes, jobs
 
 
+#: What a run's items are: ``(items, the cursor to keep, whether every item is rewritten)``.
+ItemsOf = Callable[[str], Tuple[List[content_types.SourceItem], Optional[str], bool]]
+
+
 def run_text_source(
     cfg: config.Config,
     entry: Any,
@@ -315,13 +319,56 @@ def run_text_source(
     transport: content_types.Transport,
 ) -> Tuple[int, str]:
     """List the source's new items through ``transport`` and run ``ctype``'s stages on each."""
-    from . import orchestration as orch
-    from .stages import processing as processing_stage
-
     if transport.list_items is None:
         raise content_types.NoTextRunner(
             f"transport {transport.name!r} lists no items itself; it cannot feed the text-in path"
         )
+    list_items = transport.list_items
+
+    def items_of(source_dir: str) -> Tuple[List[content_types.SourceItem], Optional[str], bool]:
+        if str(getattr(cfg, "pipeline_stage", "") or "") == REDERIVE_ONLY:
+            # The stored items again, under this run's profile: nothing fetched, the cursor kept,
+            # and every item rewritten (a new run supersedes the old one, newest run per item).
+            return stored_items(source_dir, ctype), None, True
+        listed, next_cursor = list_items(entry, _read_cursor(source_dir, transport.name))
+        return listed, next_cursor, False
+
+    return _run_text(cfg, entry, ctype, transport, items_of)
+
+
+def run_text_items(
+    cfg: config.Config,
+    entry: Any,
+    ctype: content_types.ContentType,
+    transport: content_types.Transport,
+    items: Sequence[content_types.SourceItem],
+) -> Tuple[int, str]:
+    """Run ``ctype``'s stages on ``items``, items the source already holds, as one run: the
+    rederive path on just these (CRFC-006 B.2 step 5, the news re-check's changed pages). Nothing
+    is listed or fetched and the cursor is kept; each item is written again in this run, which
+    supersedes its older run (newest run per item), and on rows its article syncs as its next
+    version. ``cfg.pipeline_stage`` must be ``rederive_only``: that stage is what the processing
+    path treats as a reprocess, and what the row sync records the change under."""
+    stage = str(getattr(cfg, "pipeline_stage", "") or "")
+    if stage != REDERIVE_ONLY:
+        raise ValueError(f"run_text_items needs pipeline_stage={REDERIVE_ONLY!r}, not {stage!r}")
+    given = list(items)
+    return _run_text(cfg, entry, ctype, transport, lambda _source_dir: (given, None, True))
+
+
+def _run_text(
+    cfg: config.Config,
+    entry: Any,
+    ctype: content_types.ContentType,
+    transport: content_types.Transport,
+    items_of: ItemsOf,
+) -> Tuple[int, str]:
+    """One text-in run over the items ``items_of`` gives for the source directory: the shared
+    start, the processing worker and finalisation of :func:`run_text_source` and
+    :func:`run_text_items`."""
+    from . import orchestration as orch
+    from .stages import processing as processing_stage
+
     source_dir = cfg.output_dir or "."
     cfg, effective_output_dir, run_suffix, _cfg_str, pipeline_metrics = orch._begin_run(cfg)
     orch._corpus_deferred("retry_deferred", source_dir)
@@ -330,14 +377,7 @@ def run_text_source(
         jsonl_emitter = orch._setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
         run_manifest = orch._create_run_manifest(cfg, effective_output_dir)
 
-        rederive = str(getattr(cfg, "pipeline_stage", "") or "") == REDERIVE_ONLY
-        if rederive:
-            # The stored items again, under this run's profile: nothing fetched, the cursor kept,
-            # and every item rewritten (a new run supersedes the old one, newest run per item).
-            items, next_cursor = stored_items(source_dir, ctype), None
-        else:
-            cursor = _read_cursor(source_dir, transport.name)
-            items, next_cursor = transport.list_items(entry, cursor)
+        items, next_cursor, rewrite = items_of(source_dir)
         episodes, jobs = _jobs_for_items(
             items,
             ctype,
@@ -346,7 +386,7 @@ def run_text_source(
             source_id=content_types.source_id(ctype, _source_url(cfg, entry)),
             transport=transport.name,
             entry=entry,
-            written=None if rederive else written_items(source_dir, ctype),
+            written=None if rewrite else written_items(source_dir, ctype),
         )
         logger.info(
             "text-in: %s over %s: %d new item(s), %d with text",
