@@ -136,3 +136,26 @@ def test_the_token_is_read_once_in_its_hold_and_every_time_inside_fresh(monkeypa
     assert hold() == 3.0
     clock[0] += 0.2
     assert hold() == 4.0
+
+
+def test_a_settled_block_reads_the_token_once_and_serves_the_cached_catalog(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """``corpus_rows_settled``: the API's own functions, so a measured request pays no token query
+    the API would not (the Player's round-trip budgets)."""
+    from tests._corpus_rows import corpus_rows_settled
+
+    _write_episode(tmp_path, stem="0001", feed_id="f1", episode_id="e1")
+    assert len(catalog_cache.cached_catalog(tmp_path)) == 1
+    reads = [0]
+    real = catalog_cache._read_token
+
+    def _counting() -> float:
+        reads[0] += 1
+        return real()
+
+    monkeypatch.setattr(catalog_cache, "_read_token", _counting)
+    with corpus_rows_settled():
+        for _ in range(3):
+            assert len(catalog_cache.cached_catalog(tmp_path)) == 1
+    assert reads[0] == 1, "a settled block read the token more than once"

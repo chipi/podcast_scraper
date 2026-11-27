@@ -13,15 +13,18 @@ imports again. ``import_corpus`` refuses a changed item rather than
 updating it, so it is never asked to.
 
 The patch is session-wide, so module-scoped fixtures that read the catalog get rows too;
-:func:`corpus_rows_fixture` clears the catalog caches around each test. Both live outside
+:func:`corpus_rows_fixture` clears the catalog caches around each test. The change check costs
+token queries the API never makes: a test that counts statements wraps its measured request in
+:func:`corpus_rows_settled`, which puts the API's own catalog functions back while it is open. Both live outside
 ``tests/conftest.py`` so the Player's suite, which replaces public's conftest with its own, can
 register them too.
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Any, Iterator, Optional
 
 import pytest
 from sqlalchemy import create_engine
@@ -31,6 +34,8 @@ from tests._database import worker_database_url
 
 _NO_DATABASE = "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
 _NAMESPACES = ("app_catalog_rows", "app_slug_index")
+#: The API's own catalog functions, while :func:`corpus_rows_patch` replaces them.
+_REAL: dict[str, Any] = {}
 
 
 #: Rows ``import_corpus`` never writes; a test's own job and lease rows outlive a re-import.
@@ -110,13 +115,35 @@ def corpus_rows_patch() -> Iterator[None]:
             ensure(Path(str(loaded["root"])))
         return token()
 
+    _REAL.update(_key=key_of, _catalog_rows=read, catalog_token=catalog_cache.catalog_token)
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(catalog_cache, "_key", key)
         patch.setattr(catalog_cache, "_catalog_rows", rows)
         patch.setattr(catalog_cache, "catalog_token", current_token)
         yield
+    _REAL.clear()
     for engine in writer:
         engine.dispose()
+
+
+@contextmanager
+def corpus_rows_settled() -> Iterator[None]:
+    """While open, the catalog runs the API's own functions: no import and no change check, and
+    the token's hold starts empty, so a request reads the token once as a cold API would. The
+    corpus must already be imported (a read before the block)."""
+    from podcast_scraper.server import catalog_cache
+
+    if not _REAL:
+        raise RuntimeError("corpus_rows_settled needs corpus_rows_patch active")
+    patched = {name: getattr(catalog_cache, name) for name in _REAL}
+    for name, real in _REAL.items():
+        setattr(catalog_cache, name, real)
+    catalog_cache._held_token._held = None
+    try:
+        yield
+    finally:
+        for name, value in patched.items():
+            setattr(catalog_cache, name, value)
 
 
 def corpus_rows_fixture() -> Iterator[None]:
