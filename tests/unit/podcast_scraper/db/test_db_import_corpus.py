@@ -320,3 +320,132 @@ def test_an_unusable_episode_with_a_transcript_has_one(
     assert conn.execute(select(content_items.c.has_transcript)).scalar_one() is True
     assert _count(conn, item_cards) == 0
     conn.rollback()
+
+
+_DIGEST_A = "a" * 64
+_DIGEST_B = "b" * 64
+_FINGERPRINTS = "feeds/rss_example/.podcast_scraper/audio-fingerprints.json"
+
+
+def _write_fingerprints(root: Path, index: dict[str, Any], feed: str = "rss_example") -> None:
+    path = root / "feeds" / feed / ".podcast_scraper" / "audio-fingerprints.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(index), encoding="utf-8")
+
+
+def _fingerprint_rows(conn: Connection) -> list[tuple[Any, ...]]:  # noqa: F811
+    return [
+        tuple(r)
+        for r in conn.execute(
+            text(
+                "SELECT f.digest, f.identity, i.external_item_id, f.episode_title, "
+                "f.transcript_path, f.recorded_at IS NOT NULL, f.duplicates "
+                "FROM corpus.audio_fingerprints f "
+                "LEFT JOIN corpus.content_items i USING (item_id) ORDER BY f.digest"
+            )
+        ).all()
+    ]
+
+
+def test_a_feeds_fingerprint_file_gives_its_rows_under_the_feeds_source(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    _write_fingerprints(
+        tmp_path,
+        {
+            _DIGEST_A: {
+                "identity": "guid-1",
+                "episode_title": "One",
+                "transcript_path": "transcripts/0001 - One.txt",
+                "recorded_at": "2026-10-18T06:59:10+00:00",
+                "duplicates": ["guid-9", "guid-8", "guid-9"],
+            },
+            _DIGEST_B: {"identity": "https://cdn.example/two.mp3"},
+        },
+    )
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert (report.fingerprints, report.refused) == (2, [])
+    assert _fingerprint_rows(conn) == [
+        (
+            _DIGEST_A,
+            "guid-1",
+            "guid-1",
+            "One",
+            "transcripts/0001 - One.txt",
+            True,
+            ["guid-8", "guid-9"],
+        ),
+        (_DIGEST_B, "https://cdn.example/two.mp3", None, None, None, False, []),
+    ]
+    source = conn.execute(select(sources.c.source_id)).scalar_one()
+    scopes = conn.execute(text("SELECT DISTINCT source_id FROM corpus.audio_fingerprints"))
+    assert scopes.scalars().all() == [source]
+    conn.rollback()
+
+
+def test_a_fingerprint_file_of_a_feed_with_no_item_is_refused(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    _write_fingerprints(tmp_path, {_DIGEST_A: {"identity": "guid-1"}}, feed="rss_other")
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.fingerprints == 0
+    assert report.refused == [
+        (
+            "feeds/rss_other/.podcast_scraper/audio-fingerprints.json",
+            "its feed directory holds items of 0 sources",
+        )
+    ]
+    assert _fingerprint_rows(conn) == []
+    conn.rollback()
+
+
+def test_a_fingerprint_file_of_a_feed_directory_with_two_sources_is_refused(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    other = _episode(episode_id="ep-2", guid="guid-2", title="Two")
+    other["feed"] = {**other["feed"], "feed_id": "sha256:" + "c" * 64, "title": "Another show"}
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    _write(tmp_path, "run_20261101-000000", "0002 - Two", other, "Second.\n")
+    _write_fingerprints(tmp_path, {_DIGEST_A: {"identity": "guid-1"}})
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.sources == 2
+    assert (report.fingerprints, report.refused) == (
+        0,
+        [(_FINGERPRINTS, "its feed directory holds items of 2 sources")],
+    )
+    conn.rollback()
+
+
+def test_a_fingerprint_entry_with_no_identity_or_a_bad_digest_is_refused_alone(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    _write_fingerprints(
+        tmp_path,
+        {
+            _DIGEST_A: {"identity": "guid-1"},
+            _DIGEST_B: {"episode_title": "x"},
+            "nothex": {"identity": "g"},
+        },
+    )
+    report = import_corpus(conn, tmp_path, registry=_REGISTRY)
+    assert report.fingerprints == 1
+    assert sorted(report.refused) == [
+        (f"{_FINGERPRINTS}#{_DIGEST_B}", "the entry names no identity"),
+        (f"{_FINGERPRINTS}#nothex", "the key is not a sha256 digest"),
+    ]
+    assert [r[0] for r in _fingerprint_rows(conn)] == [_DIGEST_A]
+    conn.rollback()
+
+
+def test_a_second_import_writes_no_fingerprint_twice(
+    conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    _write(tmp_path, "run_20261101-000000", "0001 - One", _episode(), "Hello.\n")
+    _write_fingerprints(tmp_path, {_DIGEST_A: {"identity": "guid-1"}})
+    assert import_corpus(conn, tmp_path, registry=_REGISTRY).fingerprints == 1
+    assert import_corpus(conn, tmp_path, registry=_REGISTRY).fingerprints == 0
+    assert len(_fingerprint_rows(conn)) == 1
+    conn.rollback()

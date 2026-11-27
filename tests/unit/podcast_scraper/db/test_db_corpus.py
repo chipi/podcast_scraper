@@ -63,6 +63,7 @@ TABLES = {
     "item_entities",
     "person_roles",
     "topic_relations",
+    "audio_fingerprints",
 }
 
 INDEXES = {
@@ -114,6 +115,7 @@ INDEXES = {
     "person_roles_person_idx",
     "topic_relations_a_idx",
     "topic_relations_b_idx",
+    "audio_fingerprints_item_idx",
 }
 
 
@@ -1531,7 +1533,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0011_foreign_key_indexes"]
+    assert scripts.get_heads() == ["corpus_0012_audio_fingerprints"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1544,8 +1546,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0009_intelligence",
         "corpus_0010_source_type_attrs",
         "corpus_0011_foreign_key_indexes",
+        "corpus_0012_audio_fingerprints",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0011_foreign_key_indexes"
+    assert migrate.head_revision("corpus") == "corpus_0012_audio_fingerprints"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1747,9 +1750,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0009_intelligence",
             "corpus_0010_source_type_attrs",
             "corpus_0011_foreign_key_indexes",
+            "corpus_0012_audio_fingerprints",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=11)
+        rows = migrate.history_rows(url, "corpus", limit=12)
         assert [r["revision"] for r in rows] == [
+            "corpus_0012_audio_fingerprints",
             "corpus_0011_foreign_key_indexes",
             "corpus_0010_source_type_attrs",
             "corpus_0009_intelligence",
@@ -1823,8 +1828,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 11]
-        assert len(migrate.history_rows(url, "corpus", limit=11)) == 11
+        assert sorted(len(r) for r in results) == [0, 12]
+        assert len(migrate.history_rows(url, "corpus", limit=12)) == 12
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -1872,8 +1877,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=11)]
-        assert len(revisions) == 11
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=12)]
+        assert len(revisions) == 12
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")

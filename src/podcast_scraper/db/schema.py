@@ -1114,3 +1114,36 @@ topic_relations = Table(
     Index("topic_relations_a_idx", "topic_a", "kind", text("weight DESC"), "topic_b"),
     Index("topic_relations_b_idx", "topic_b", "kind", text("weight DESC"), "topic_a"),
 )
+
+# The audio dedup gate's index (#1656), one row per digest a source's episode was transcribed from
+# (operator, 2026-11-26: a corpus table, not a file beside the rows). ``identity`` is the episode's
+# GUID, else its media URL, as the gate keys it; ``item_id`` is that item when it is a row.
+# ``duplicates`` are the identities the gate skipped as copies of it, which the nightly's
+# ``episode_selection=unprocessed`` must not offer again.
+audio_fingerprints = Table(
+    "audio_fingerprints",
+    corpus_metadata,
+    Column("source_id", BigInteger, nullable=False),
+    Column("digest", Text, nullable=False),
+    Column("identity", Text, nullable=False),
+    Column("item_id", BigInteger, nullable=True),
+    Column("episode_title", Text, nullable=True),
+    Column("transcript_path", Text, nullable=True),
+    Column("recorded_at", DateTime(timezone=True), nullable=True),
+    Column("duplicates", ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")),
+    PrimaryKeyConstraint("source_id", "digest", name="audio_fingerprints_pkey"),
+    ForeignKeyConstraint(
+        ["source_id"],
+        ["sources.source_id"],
+        name="audio_fingerprints_source_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["item_id"],
+        ["content_items.item_id"],
+        name="audio_fingerprints_item_fkey",
+        ondelete="SET NULL",
+    ),
+    CheckConstraint("digest ~ '^[0-9a-f]{64}$'", name="audio_fingerprints_digest_check"),
+    Index("audio_fingerprints_item_idx", "item_id"),
+)
