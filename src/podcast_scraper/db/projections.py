@@ -19,6 +19,18 @@ their canonical id, every member's rows included (§3.3).
   the distinct items its members reach (AP-34). A theme or storyline reaches its member topics'
   items, an insight cluster its insights' items, a super-theme (no member rows of its own) its
   child storylines' members' items.
+- :data:`~podcast_scraper.db.schema.person_rankings` (``GET /api/corpus/persons/top``, the MCP
+  ``top_people``; Common's ``_rank_all_persons`` on files): per canonical person, the distinct
+  insights a quote the person spoke supports (Insight SUPPORTED_BY Quote SPOKEN_BY Person), the
+  items they are on, and the rank (insights descending, then the canonical natural id). A
+  speaker whose own id is an unresolved diarization voice
+  (``graph_id_utils.is_unresolved_speaker_placeholder``, the file code's test, on the same id)
+  never counts; a person with no such insight has no row. No top topics until
+  ``insight_mentions.confidence`` is filled (corpus_0016), and no ``total_persons``. The file
+  code counts SPOKEN_BY only, while ``evidence.speaker_id`` also holds an ATTRIBUTED_TO target
+  for a quote with no SPOKEN_BY; snapshot-prod-20261127 has no ATTRIBUTED_TO edge in any of its
+  4,125 episodes' GI, so the two agree there. Should one appear, ``evidence`` needs the edge it
+  came from.
 
 The published build and the one before it are kept, so undo can publish the previous one; older
 builds are deleted with their rows.
@@ -63,10 +75,13 @@ from podcast_scraper.db.schema import (
     entities,
     entity_item_counts,
     entity_weeks,
+    evidence,
     identity_builds,
     insight_mentions,
+    insight_support,
     insights,
     item_entities,
+    person_rankings,
     projection_builds,
 )
 
@@ -267,6 +282,68 @@ def _write_reach(conn: Connection, build_id: int, cluster_build_id: Optional[int
     return _written(conn, statement)
 
 
+def _placeholder_speakers(conn: Connection) -> list[int]:
+    """The person entities that speak a quote and are unresolved diarization voices. The test is
+    the file code's own predicate in Python, not a copy of its patterns in SQL, so the two cannot
+    drift; it reads one row per distinct speaker."""
+    from podcast_scraper.graph_id_utils import is_unresolved_speaker_placeholder
+
+    e = entities.alias("ps")
+    rows = conn.execute(
+        select(e.c.entity_id, e.c.natural_id)
+        .where(
+            e.c.type == "person",
+            exists().where(evidence.c.speaker_id == e.c.entity_id),
+        )
+        .order_by(e.c.entity_id)
+    )
+    return [int(r.entity_id) for r in rows if is_unresolved_speaker_placeholder(r.natural_id)]
+
+
+def _write_person_rankings(conn: Connection, build_id: int) -> int:
+    sp = entities.alias("sp")
+    k = entities.alias("pk")
+    s = insight_support.alias("s")
+    ev = evidence.alias("ev")
+    i = insights.alias("i")
+    placeholders = _placeholder_speakers(conn)
+    insight_count = func.count(distinct(i.c.insight_id))
+    ranked = (
+        select(
+            k.c.entity_id.label("entity_id"),
+            func.count(distinct(i.c.item_id)).label("items"),
+            insight_count.label("insights"),
+            func.row_number()
+            .over(order_by=(insight_count.desc(), k.c.natural_id.asc()))
+            .label("rank"),
+        )
+        .select_from(
+            s.join(ev, ev.c.evidence_id == s.c.evidence_id)
+            .join(sp, sp.c.entity_id == ev.c.speaker_id)
+            .join(k, k.c.entity_id == sp.c.canonical_id)
+            .join(i, i.c.insight_id == s.c.insight_id)
+        )
+        .where(
+            sp.c.type == "person",
+            sp.c.entity_id.not_in(placeholders) if placeholders else literal(True),
+            _insight_ok(i),
+        )
+        .group_by(k.c.entity_id, k.c.natural_id)
+        .subquery("ranked")
+    )
+    statement = insert(person_rankings).from_select(
+        ["build_id", "entity_id", "items", "insights", "rank"],
+        select(
+            literal(build_id, BigInteger),
+            ranked.c.entity_id,
+            ranked.c["items"],
+            ranked.c.insights,
+            ranked.c.rank,
+        ),
+    )
+    return _written(conn, statement)
+
+
 def _published(conn: Connection, table: Any) -> Optional[int]:
     found: Optional[int] = conn.execute(
         select(table.c.build_id).where(table.c.state == "published")
@@ -322,6 +399,7 @@ def build_in(conn: Connection, *, now: Optional[datetime] = None) -> Build:
         "entity_item_counts": _write_counts(conn, build_id),
         "entity_weeks": _write_weeks(conn, build_id),
         "cluster_reach": _write_reach(conn, build_id, clusters_of),
+        "person_rankings": _write_person_rankings(conn, build_id),
     }
     stats["builds_deleted"] = len(_publish(conn, build_id, at))
     conn.execute(
