@@ -69,7 +69,12 @@ def test_publish_after_run_counts_its_outcome_and_raises_only_when_strict(
     assert enrichment_rows.publish_after_run(tmp_path, "x") == "not_configured"
     monkeypatch.setattr(settings, "pipeline_is_configured", lambda: True)
     after: list[str] = []
-    monkeypatch.setattr(projections, "after_batch", lambda: after.append("built") or "published")
+
+    def built() -> str:
+        after.append("built")
+        return "published"
+
+    monkeypatch.setattr(projections, "after_batch", built)
     monkeypatch.setattr(enrichment_rows, "_publish", lambda root, enricher_id: None)
     assert enrichment_rows.publish_after_run(tmp_path, "x") == "published"
     assert after == []
@@ -103,9 +108,12 @@ def test_the_executor_publishes_only_an_enricher_that_wrote_an_envelope(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     published: list[str] = []
-    monkeypatch.setattr(
-        enrichment_rows, "publish_after_run", lambda root, eid: published.append(eid) or "published"
-    )
+
+    def publish(root: Path, enricher_id: str) -> str:
+        published.append(enricher_id)
+        return "published"
+
+    monkeypatch.setattr(enrichment_rows, "publish_after_run", publish)
     executor = EnrichmentExecutor(
         corpus_root=tmp_path, registry=MagicMock(), enricher_set=MagicMock()
     )
