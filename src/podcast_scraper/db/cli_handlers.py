@@ -1,4 +1,5 @@
-"""CLI for the database (ADR-169): ``podcast_scraper db upgrade | status | check | import``.
+"""CLI for the database (ADR-169): ``podcast_scraper db upgrade | status | check | import |
+import-corpus``.
 
 - ``upgrade --plane P``: bring ``shared``, ``corpus`` and plane ``P``'s schema to head. The prod
   migrate step; the API never does this at start. ``--sql`` prints the SQL it would run (from the
@@ -12,6 +13,10 @@
 - ``import --from-files DIR --plane P [--only STORE] [--dry-run]``: read the file stores into the
   database through the registered importers and report every file under DIR by class. Exit 1 on
   any mismatch or any UNCLAIMED file (a dry run included).
+- ``import-corpus --root DIR [--dry-run]``: write the file corpus at DIR into the ``corpus``
+  schema with ``importers.corpus_items.import_corpus`` in one transaction, and print what it wrote
+  and refused (``--dry-run`` rolls the transaction back). Exit 0 when it ran, refusals included:
+  they are printed for the caller's own assertions.
 
 The database is ``PODCAST_DATABASE_URL`` (the migrating role in the migrate step).
 """
@@ -77,6 +82,11 @@ def parse_db_argv(argv: Sequence[str]) -> argparse.Namespace:
         "--only", default=None, help="Run only this store's importer (the inventory still runs)."
     )
     imp.add_argument("--dry-run", action="store_true", help="Write nothing; report and verify.")
+    corpus = sub.add_parser("import-corpus", help="Import a file corpus into the corpus schema")
+    corpus.add_argument("--root", required=True, type=Path, help="The corpus root to read.")
+    corpus.add_argument(
+        "--dry-run", action="store_true", help="Roll the transaction back; report only."
+    )
     args = parser.parse_args(list(argv))
     args.command = "db"
     return args
@@ -198,10 +208,52 @@ def _import(args: argparse.Namespace, log: logging.Logger) -> int:
     return 1 if failed or inv.unclaimed else 0
 
 
+def _import_corpus(args: argparse.Namespace, log: logging.Logger) -> int:
+    from dataclasses import fields
+
+    from podcast_scraper.db.importers.corpus_items import import_corpus
+    from podcast_scraper.publishers import load_registry
+
+    root: Path = args.root
+    if not root.is_dir():
+        log.error("not a directory: %s", root)
+        return 1
+    engine = create_engine(
+        DatabaseSettings.from_env().rw_url, connect_args=unbounded_connect_args()
+    )
+    try:
+        with engine.connect() as conn:
+            tx = conn.begin()
+            report = import_corpus(conn, root.resolve(), registry=load_registry())
+            if args.dry_run:
+                tx.rollback()
+            else:
+                tx.commit()
+    finally:
+        engine.dispose()
+    verb = "would write" if args.dry_run else "wrote"
+    counts = [
+        f"{f.name} {getattr(report, f.name)}"
+        for f in fields(report)
+        if f.name not in ("by_kind", "refused")
+    ]
+    print(f"corpus {root}: {verb} {', '.join(counts)}")
+    print(f"refused: {len(report.refused)}")
+    for relpath, reason in report.refused:
+        print(f"  REFUSED {relpath}: {reason}")
+    return 0
+
+
 def run_db_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     """Run one ``db`` subcommand; 0 on success, 1 on error, 2 for ``status`` or ``check`` when
     behind."""
-    handlers = {"upgrade": _upgrade, "status": _status, "check": _check, "import": _import}
+    handlers = {
+        "upgrade": _upgrade,
+        "status": _status,
+        "check": _check,
+        "import": _import,
+        "import-corpus": _import_corpus,
+    }
     try:
         return handlers[args.db_subcommand](args, log)
     except Exception as exc:  # noqa: BLE001 — a CLI reports, with the cause, and exits 1
