@@ -71,6 +71,8 @@ TABLES = {
     "entity_item_counts",
     "entity_weeks",
     "cluster_reach",
+    "person_rankings",
+    "topic_speakers",
     "cluster_builds",
     "cluster_ids",
     "clusters",
@@ -139,6 +141,9 @@ INDEXES = {
     "entity_weeks_kind_week_idx",
     "entity_weeks_entity_idx",
     "cluster_reach_cluster_idx",
+    "person_rankings_entity_idx",
+    "topic_speakers_topic_idx",
+    "topic_speakers_person_idx",
     "cluster_builds_one_published_idx",
     "clusters_cluster_idx",
     "clusters_build_kind_idx",
@@ -1254,6 +1259,49 @@ def test_a_reach_names_a_group_of_its_cluster_build_and_goes_with_it(conn: Conne
     conn.rollback()
 
 
+def test_a_ranking_ranks_once_per_build_and_goes_with_its_build(conn: Connection) -> None:
+    build, person, other = _projection_build(conn), _entity(conn, "1"), _entity(conn, "2")
+    rankings = corpus_metadata.tables["corpus.person_rankings"]
+    conn.execute(
+        insert(rankings).values(build_id=build, entity_id=person, items=2, insights=3, rank=0)
+    )
+    with pytest.raises(sa_exc.IntegrityError, match="person_rankings_rank_key"):
+        with conn.begin_nested():
+            conn.execute(
+                insert(rankings).values(
+                    build_id=build, entity_id=other, items=1, insights=1, rank=0
+                )
+            )
+    topic = _entity(conn, "t", natural_id="topic:t", type="topic")
+    speakers = corpus_metadata.tables["corpus.topic_speakers"]
+    row = dict(build_id=build, topic_id=topic, items=1, insights=1)
+    conn.execute(insert(speakers).values(person_id=person, rank=0, **row))
+    with pytest.raises(sa_exc.IntegrityError, match="topic_speakers_rank_key"):
+        with conn.begin_nested():
+            conn.execute(insert(speakers).values(person_id=other, rank=0, **row))
+    builds = corpus_metadata.tables["corpus.projection_builds"]
+    conn.execute(builds.delete().where(builds.c.build_id == build))
+    assert conn.execute(select(func.count()).select_from(rankings)).scalar_one() == 0
+    assert conn.execute(select(func.count()).select_from(speakers)).scalar_one() == 0
+    conn.rollback()
+
+
+def test_a_topic_relation_belongs_to_a_projection_build(conn: Connection) -> None:
+    a = _entity(conn, "a", natural_id="topic:a", type="topic")
+    b = _entity(conn, "b", natural_id="topic:b", type="topic")
+    relations = corpus_metadata.tables["corpus.topic_relations"]
+    row = dict(topic_a=a, topic_b=b, kind="shares_insight", weight=2.0)
+    with pytest.raises(sa_exc.IntegrityError, match="topic_relations_build_fkey"):
+        with conn.begin_nested():
+            conn.execute(insert(relations).values(build_id=987654321, **row))
+    build = _projection_build(conn)
+    conn.execute(insert(relations).values(build_id=build, **row))
+    builds = corpus_metadata.tables["corpus.projection_builds"]
+    conn.execute(builds.delete().where(builds.c.build_id == build))
+    assert conn.execute(select(func.count()).select_from(relations)).scalar_one() == 0
+    conn.rollback()
+
+
 def test_a_cluster_member_is_a_topic_or_an_insight_never_both(conn: Connection) -> None:
     item, document = _doc(conn)
     build = _cluster_build(conn)
@@ -1692,19 +1740,22 @@ def test_a_topic_relation_is_per_build_and_kind_between_two_distinct_topics(
 ) -> None:
     a, b = _entity(conn, "a"), _entity(conn, "b")
     table = corpus_metadata.tables["corpus.topic_relations"]
-    values = {"topic_a": a, "topic_b": b, "kind": "related", "weight": 0.5, "build_id": 1}
+    build, second = _projection_build(conn), _projection_build(conn)
+    values = {"topic_a": a, "topic_b": b, "kind": "related", "weight": 0.5, "build_id": build}
     conn.execute(insert(table).values(values))
-    conn.execute(insert(table).values({**values, "build_id": 2}))
+    conn.execute(insert(table).values({**values, "build_id": second}))
     conn.execute(insert(table).values({**values, "kind": "co_occurs"}))
     with pytest.raises(sa_exc.IntegrityError, match="topic_relations_pkey"):
         conn.execute(insert(table).values(values))
     conn.rollback()
     a = _entity(conn, "a")
+    values["build_id"] = _projection_build(conn)
     with pytest.raises(sa_exc.IntegrityError, match="topic_relations_distinct_check"):
         conn.execute(insert(table).values({**values, "topic_a": a, "topic_b": a}))
     conn.rollback()
     a = _entity(conn, "a")
     for column in ("topic_a", "topic_b"):
+        values["build_id"] = _projection_build(conn)
         other = {"topic_a": a, "topic_b": a, "kind": "related"}
         other["topic_b" if column == "topic_a" else "topic_a"] = _entity(conn, "x")
         other[column] = 999_999_999
@@ -1749,7 +1800,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0015_news_recheck"]
+    assert scripts.get_heads() == ["corpus_0016_rankings"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1766,8 +1817,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0013_groupings",
         "corpus_0014_projections",
         "corpus_0015_news_recheck",
+        "corpus_0016_rankings",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0015_news_recheck"
+    assert migrate.head_revision("corpus") == "corpus_0016_rankings"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -1973,9 +2025,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0013_groupings",
             "corpus_0014_projections",
             "corpus_0015_news_recheck",
+            "corpus_0016_rankings",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=15)
+        rows = migrate.history_rows(url, "corpus", limit=16)
         assert [r["revision"] for r in rows] == [
+            "corpus_0016_rankings",
             "corpus_0015_news_recheck",
             "corpus_0014_projections",
             "corpus_0013_groupings",
@@ -2053,8 +2107,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 15]
-        assert len(migrate.history_rows(url, "corpus", limit=15)) == 15
+        assert sorted(len(r) for r in results) == [0, 16]
+        assert len(migrate.history_rows(url, "corpus", limit=16)) == 16
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -2102,8 +2156,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=16)]
-        assert len(revisions) == 15
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=17)]
+        assert len(revisions) == 16
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
