@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.schema import (
@@ -250,7 +250,7 @@ def _write_entities(
     return {k: v for k, v in data.items() if k != listed}
 
 
-def _build(conn: Connection, enricher_id: str, envs: list[_Envelope]) -> int:
+def _build(conn: Connection, enricher_id: str, envs: list[_Envelope], state: str) -> int:
     newest = max(envs, key=lambda e: e.computed_at or _EPOCH)
     build_id: int = conn.execute(
         insert(enrichment_builds)
@@ -258,8 +258,8 @@ def _build(conn: Connection, enricher_id: str, envs: list[_Envelope]) -> int:
             enricher_id=enricher_id,
             enricher_version=newest.version,
             computed_at=newest.computed_at,
-            state="published",
-            published_at=func.now(),
+            state=state,
+            published_at=func.now() if state == "published" else None,
         )
         .returning(enrichment_builds.c.build_id)
     ).scalar_one()
@@ -275,14 +275,9 @@ def _episode_item(data: Any) -> Optional[str]:
     return None
 
 
-def import_enrichments(
-    conn: Connection, corpus_root: Path, metadata_relpaths: Iterable[str]
-) -> EnrichmentsWritten:
-    """Write the enricher outputs under ``corpus_root``; ``metadata_relpaths`` are the metadata
-    files the item import selected. An enricher with a published build is left as it is (a second
-    import)."""
-    root = Path(corpus_root)
-    written = EnrichmentsWritten()
+def _envelopes(
+    conn: Connection, root: Path, metadata_relpaths: Iterable[str], written: EnrichmentsWritten
+) -> tuple[dict[str, list[tuple[str, _Envelope]]], dict[str, int]]:
     by_enricher: dict[str, list[tuple[str, _Envelope]]] = collections.defaultdict(list)
     for path in _corpus_files(root):
         env = _read(root, path, written)
@@ -301,48 +296,100 @@ def import_enrichments(
         if k
     ]
     items = _lookup(conn, content_items.c.natural_id, content_items.c.item_id, episode_keys)
+    return by_enricher, items
+
+
+def _write_enricher(
+    conn: Connection,
+    enricher_id: str,
+    envs: list[tuple[str, _Envelope]],
+    items: dict[str, int],
+    written: EnrichmentsWritten,
+    state: str,
+) -> int:
+    build_id = _build(conn, enricher_id, [e for _, e in envs], state)
+    written.builds += 1
+    rows: dict[tuple[str, Optional[int]], dict[str, Any]] = {}
+    missing: list[str] = []
+    for scope, env in envs:
+        if scope == CORPUS:
+            data: Any = env.data
+            if enricher_id in _PER_ENTITY:
+                data = _write_entities(conn, build_id, env, written)
+            else:
+                data = _write_pairs(conn, build_id, env, written)
+            key: tuple[str, Optional[int]] = (CORPUS, None)
+            if key in rows:
+                written.refused.append((env.relpath, "a second corpus output of this enricher"))
+                continue
+            rows[key] = dict(scope=CORPUS, item_id=None, output=data)
+            continue
+        natural_id = _episode_item(env.data)
+        item_id = items.get(natural_id) if natural_id else None
+        if item_id is None:
+            missing.append(natural_id or env.relpath)
+            continue
+        if (EPISODE, item_id) in rows:
+            written.refused.append((env.relpath, "a second output of this enricher for its item"))
+            continue
+        rows[(EPISODE, item_id)] = dict(scope=EPISODE, item_id=item_id, output=env.data)
+    _missing(written, f"{enricher_id} episode outputs", "an item", missing)
+    values = [
+        dict(build_id=build_id, enricher_id=enricher_id, entity_id=None, **r) for r in rows.values()
+    ]
+    for start in range(0, len(values), 2000):
+        conn.execute(insert(enrichment_outputs), values[start : start + 2000])
+    for r in rows.values():
+        written.outputs[r["scope"]] += 1
+    return build_id
+
+
+def import_enrichments(
+    conn: Connection, corpus_root: Path, metadata_relpaths: Iterable[str]
+) -> EnrichmentsWritten:
+    """Write the enricher outputs under ``corpus_root``; ``metadata_relpaths`` are the metadata
+    files the item import selected. An enricher with a published build is left as it is (a second
+    import)."""
+    written = EnrichmentsWritten()
+    by_enricher, items = _envelopes(conn, Path(corpus_root), metadata_relpaths, written)
     published = set(
         conn.execute(
             select(enrichment_builds.c.enricher_id).where(enrichment_builds.c.state == "published")
         ).scalars()
     )
     for enricher_id in sorted(set(by_enricher) - published):
-        envs = by_enricher[enricher_id]
-        build_id = _build(conn, enricher_id, [e for _, e in envs])
-        written.builds += 1
-        rows: dict[tuple[str, Optional[int]], dict[str, Any]] = {}
-        missing: list[str] = []
-        for scope, env in envs:
-            if scope == CORPUS:
-                data: Any = env.data
-                if enricher_id in _PER_ENTITY:
-                    data = _write_entities(conn, build_id, env, written)
-                else:
-                    data = _write_pairs(conn, build_id, env, written)
-                key: tuple[str, Optional[int]] = (CORPUS, None)
-                if key in rows:
-                    written.refused.append((env.relpath, "a second corpus output of this enricher"))
-                    continue
-                rows[key] = dict(scope=CORPUS, item_id=None, output=data)
-                continue
-            natural_id = _episode_item(env.data)
-            item_id = items.get(natural_id) if natural_id else None
-            if item_id is None:
-                missing.append(natural_id or env.relpath)
-                continue
-            if (EPISODE, item_id) in rows:
-                written.refused.append(
-                    (env.relpath, "a second output of this enricher for its item")
-                )
-                continue
-            rows[(EPISODE, item_id)] = dict(scope=EPISODE, item_id=item_id, output=env.data)
-        _missing(written, f"{enricher_id} episode outputs", "an item", missing)
-        values = [
-            dict(build_id=build_id, enricher_id=enricher_id, entity_id=None, **r)
-            for r in rows.values()
-        ]
-        for start in range(0, len(values), 2000):
-            conn.execute(insert(enrichment_outputs), values[start : start + 2000])
-        for r in rows.values():
-            written.outputs[r["scope"]] += 1
+        _write_enricher(conn, enricher_id, by_enricher[enricher_id], items, written, "published")
+    return written
+
+
+def publish_enrichments(
+    conn: Connection, corpus_root: Path, metadata_relpaths: Iterable[str], enricher_id: str
+) -> EnrichmentsWritten:
+    """After one enricher's run on files: write its outputs as a new build, publish it in place of
+    its published one (now ``retired``), and delete its retired builds but the newest, so undo can
+    publish the previous build. Nothing is published when the enricher left no readable ``ok``
+    output. Call it in the run's transaction."""
+    written = EnrichmentsWritten()
+    by_enricher, items = _envelopes(conn, Path(corpus_root), metadata_relpaths, written)
+    if enricher_id not in by_enricher:
+        return written
+    build_id = _write_enricher(conn, enricher_id, by_enricher[enricher_id], items, written, "built")
+    builds = enrichment_builds.c
+    mine = builds.enricher_id == enricher_id
+    conn.execute(
+        update(enrichment_builds).where(mine, builds.state == "published").values(state="retired")
+    )
+    conn.execute(
+        update(enrichment_builds)
+        .where(builds.build_id == build_id)
+        .values(state="published", published_at=func.now())
+    )
+    newest_retired = (
+        select(func.max(builds.build_id)).where(mine, builds.state == "retired").scalar_subquery()
+    )
+    conn.execute(
+        delete(enrichment_builds).where(
+            mine, builds.state == "retired", builds.build_id < newest_retired
+        )
+    )
     return written
