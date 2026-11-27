@@ -22,6 +22,7 @@ conftest with its own, can register and use them too.
 
 from __future__ import annotations
 
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, Optional
@@ -40,6 +41,10 @@ _REAL: dict[str, Any] = {}
 
 #: Rows ``import_corpus`` never writes; a test's own job and lease rows outlive a re-import.
 _KEPT = ("jobs", "job_leases")
+#: One check-and-import at a time: a route's worker threads and the perf cache's rebuild thread
+#: read the catalog at once, and two imports interleaved commit one's rows between the other's
+#: deletes (a ForeignKeyViolation on ``cluster_ids``, Player's suite, 2026-11-27).
+_ENSURE = threading.Lock()
 
 
 def _stamp(root: Path) -> int:
@@ -89,15 +94,16 @@ def corpus_rows_patch() -> Iterator[None]:
             writer.append(create_engine(url))
 
     def ensure(root: Path) -> None:
-        connect()
-        key = str(Path(root).resolve())
-        stamp = _stamp(Path(root))
-        if (key, stamp, token()) == (loaded["root"], loaded["stamp"], loaded["token"]):
-            return
-        with writer[0].begin() as conn:
-            _empty_corpus_tables(conn)
-            import_corpus(conn, Path(key))
-        loaded.update(root=key, stamp=stamp, token=token())
+        with _ENSURE:
+            connect()
+            key = str(Path(root).resolve())
+            stamp = _stamp(Path(root))
+            if (key, stamp, token()) == (loaded["root"], loaded["stamp"], loaded["token"]):
+                return
+            with writer[0].begin() as conn:
+                _empty_corpus_tables(conn)
+                import_corpus(conn, Path(key))
+            loaded.update(root=key, stamp=stamp, token=token())
 
     def key(root: Path) -> str:
         # ``cached_catalog`` evaluates its key before its token: importing here, the token it

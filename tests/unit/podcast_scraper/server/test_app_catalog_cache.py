@@ -159,3 +159,46 @@ def test_a_settled_block_reads_the_token_once_and_serves_the_cached_catalog(
         for _ in range(3):
             assert len(catalog_cache.cached_catalog(tmp_path)) == 1
     assert reads[0] == 1, "a settled block read the token more than once"
+
+
+def test_two_threads_reading_two_corpora_import_one_at_a_time(tmp_path: Path, monkeypatch) -> None:
+    """``tests._corpus_rows`` empties and imports the corpus tables for a read of another root. A
+    route's worker threads and the perf cache's rebuild thread read at once; two imports
+    interleaved committed one's rows between the other's deletes (Player's suite, 2026-11-27)."""
+    import threading
+    import time
+
+    from tests import _corpus_rows
+
+    roots = [tmp_path / "a", tmp_path / "b"]
+    for n, root in enumerate(roots):
+        _write_episode(root, stem="0001", feed_id=f"f{n}", episode_id=f"e{n}")
+    inside = [0]
+    most = [0]
+    real = _corpus_rows._empty_corpus_tables
+
+    def _probe(conn) -> None:  # type: ignore[no-untyped-def]
+        inside[0] += 1
+        most[0] = max(most[0], inside[0])
+        time.sleep(0.2)
+        real(conn)
+        inside[0] -= 1
+
+    monkeypatch.setattr(_corpus_rows, "_empty_corpus_tables", _probe)
+    start = threading.Barrier(2)
+    failed: list[BaseException] = []
+
+    def _read(root: Path) -> None:
+        start.wait()
+        try:
+            catalog_cache.cached_catalog(root)
+        except BaseException as exc:  # noqa: BLE001 - reported below
+            failed.append(exc)
+
+    threads = [threading.Thread(target=_read, args=(root,)) for root in roots]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert not failed, failed
+    assert most[0] == 1, "two imports ran at once"
