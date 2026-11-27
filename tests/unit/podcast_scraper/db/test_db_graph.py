@@ -15,6 +15,7 @@ from podcast_scraper.db import graph, projections
 from podcast_scraper.db.schema import (
     cluster_builds,
     cluster_ids,
+    cluster_links,
     cluster_members,
     clusters,
     content_items,
@@ -763,3 +764,64 @@ def test_a_group_with_more_topics_than_the_budget_still_shows_its_items(
     assert [i["item_id"] for i in roomy["items"]] == ["episode:1", "episode:2"]
     assert {"topic:ai", "topic:other", "person:ann"} <= _ids(roomy)
     assert made["thc:s"]
+
+
+def test_groups_summary_is_every_group_of_a_kind_with_children_and_link_weights(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+    made = _groups_build(c)
+    build = conn.execute(
+        select(cluster_builds.c.build_id).where(cluster_builds.c.state == "published")
+    ).scalar_one()
+    other = _one(conn, cluster_ids, kind="super_theme", natural_id="sth:y")
+    conn.execute(
+        insert(clusters).values(build_id=build, cluster_id=other, kind="super_theme", label="Y")
+    )
+    a, b = sorted((made["sth:x"], other))
+    conn.execute(
+        insert(cluster_links).values(build_id=build, kind="super_theme", a=a, b=b, weight=4)
+    )
+    # A retired build's groups and links are not read.
+    old = _one(conn, cluster_builds, rule_version="test/1", state="retired")
+    gone = _one(conn, cluster_ids, kind="super_theme", natural_id="sth:old")
+    conn.execute(
+        insert(clusters).values(build_id=old, cluster_id=gone, kind="super_theme", label="old")
+    )
+    with _statements(conn) as seen:
+        got = graph.groups_summary(conn, "super_theme")
+    assert len(seen) == 1
+    assert got["preset"] == "groups.summary" and got["params"] == {"kind": "super_theme"}
+    assert got["corpus_revision"] == 0
+    assert got["groups"] == [
+        {
+            "id": "sth:x",
+            "kind": "super_theme",
+            "label": "sth:x",
+            "parent_id": None,
+            "child_count": 1,
+        },
+        {"id": "sth:y", "kind": "super_theme", "label": "Y", "parent_id": None, "child_count": 0},
+    ]
+    assert got["links"] == [{"a": "sth:x", "b": "sth:y", "weight": 4}]
+    storylines = graph.groups_summary(conn, "storyline")
+    assert storylines["groups"] == [
+        {
+            "id": "thc:s",
+            "kind": "storyline",
+            "label": "thc:s",
+            "parent_id": "sth:x",
+            "child_count": 0,
+        }
+    ]
+    assert storylines["links"] == []
+
+
+def test_groups_summary_refuses_an_unknown_kind_and_is_empty_without_a_published_build(
+    conn: Connection,
+) -> None:
+    Corpus(conn)
+    with pytest.raises(graph.UnknownKind):
+        graph.groups_summary(conn, "galaxy")
+    empty = graph.groups_summary(conn, "theme")
+    assert empty["groups"] == [] and empty["links"] == [] and empty["corpus_revision"] == 0
