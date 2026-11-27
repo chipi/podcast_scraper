@@ -23,6 +23,7 @@ from podcast_scraper.db.schema import (
     entity_weeks,
     person_rankings,
     projection_builds,
+    topic_relations,
 )
 from podcast_scraper.db.settings import normalize_url
 from tests.unit.podcast_scraper.db.test_corpus_writer import pipeline_db  # noqa: F401
@@ -255,3 +256,65 @@ def test_the_placeholder_test_is_the_file_codes_on_the_speakers_own_id(
     }
     assert got == wanted and c.e["person:speaker-03"] in got
     assert c.e["person:speaker-john-knight"] not in got
+
+
+def _relations(conn: Connection, build_id: int) -> list[tuple[str, str, float]]:  # noqa: F811
+    a, b = entities.alias("a"), entities.alias("b")
+    return [
+        tuple(r)
+        for r in conn.execute(
+            select(a.c.natural_id, b.c.natural_id, topic_relations.c.weight)
+            .select_from(
+                topic_relations.join(a, a.c.entity_id == topic_relations.c.topic_a).join(
+                    b, b.c.entity_id == topic_relations.c.topic_b
+                )
+            )
+            .where(
+                topic_relations.c.build_id == build_id,
+                topic_relations.c.kind == projections.SHARES_INSIGHT,
+            )
+            .order_by(a.c.natural_id, topic_relations.c.weight.desc(), b.c.natural_id)
+        )
+    ]
+
+
+def test_topic_relations_count_the_current_shown_insights_two_canonical_topics_share(
+    conn: Connection,  # noqa: F811
+) -> None:
+    # relational_queries.related_topics on rows (database, 2026-11-27): topic ABOUT insight ABOUT
+    # other topic, the distinct insights the two share, both directions, canonical ids.
+    c = Corpus(conn)
+    c.entity("topic:ml")
+    # n1 (item 1) is about topic:ai; n3 (item 2) about topic:ai-2, which is topic:ai.
+    c.tag(c.n1, "topic:other", "ABOUT")
+    c.tag(c.n1, "topic:ml", "ABOUT")
+    c.tag(c.n3, "topic:ml", "ABOUT")
+    # Not counted: a stale document's insight, a hidden one, a person mention.
+    c.tag(c.n4, "topic:other", "ABOUT")
+    c.tag(c.n5, "topic:other", "ABOUT")
+    c.tag(c.n3, "person:ann", "ABOUT")
+    built = projections.build_in(conn)
+    assert _relations(conn, built.build_id) == [
+        ("topic:ai", "topic:ml", 2.0),
+        ("topic:ai", "topic:other", 1.0),
+        ("topic:ml", "topic:ai", 2.0),
+        ("topic:ml", "topic:other", 1.0),
+        ("topic:other", "topic:ai", 1.0),
+        ("topic:other", "topic:ml", 1.0),
+    ]
+    assert built.stats["topic_relations"] == 6
+
+
+def test_each_topic_keeps_its_strongest_related_topics_ties_by_natural_id(
+    conn: Connection, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    monkeypatch.setattr(projections, "RELATED_PER_TOPIC", 2)
+    c = Corpus(conn)
+    for name in ("topic:b", "topic:c", "topic:d"):
+        c.entity(name)
+        c.tag(c.n1, name, "ABOUT")
+    c.tag(c.n3, "topic:d", "ABOUT")
+    built = projections.build_in(conn)
+    kept = [r for r in _relations(conn, built.build_id) if r[0] == "topic:ai"]
+    # topic:d shares 2, then topic:b before topic:c on the id; topic:c is cut.
+    assert kept == [("topic:ai", "topic:d", 2.0), ("topic:ai", "topic:b", 1.0)]
