@@ -413,6 +413,59 @@ def test_rederive_reruns_the_stored_items_without_fetching_anything(
         assert raw.exists()  # and its raw page
 
 
+def test_run_text_items_rewrites_only_the_items_it_is_given(
+    tmp_path: Path,
+    net: FakeNet,
+    no_podcast_stages: None,
+    registry: Registry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The news re-check's entry point (CRFC-006 B.2 step 5): one item the source holds, with the
+    page it changed to, goes through the rederive path alone. Nothing is fetched, the cursor is
+    kept, that item is written again in a new run with its new body, and every other item keeps
+    its one copy."""
+    from podcast_scraper.workflow import text_in
+
+    corpus = _run(tmp_path)
+    first = {stem: doc for stem, (_p, doc) in _docs(corpus).items()}
+    cursors = {p: p.read_text(encoding="utf-8") for p in corpus.rglob("source_cursor.json")}
+    fetched = len(net.requests)
+    changed: List[str] = []
+
+    def recheck(cfg: Any, entry: Any, ctype: Any, transport: Any) -> Tuple[int, str]:
+        stored = text_in.stored_items(cfg.output_dir, ctype)
+        body = f"{stored[0].text}\n\nA paragraph added later."
+        item = dataclasses.replace(stored[0], text=body)
+        changed.append(body)
+        return text_in.run_text_items(cfg, entry, ctype, transport, [item])
+
+    monkeypatch.setattr(text_in, "run_text_source", recheck)
+    _run(tmp_path, "--pipeline-stage", "rederive_only")
+
+    assert net.requests[fetched:] == []
+    assert {p: p.read_text(encoding="utf-8") for p in corpus.rglob("source_cursor.json")} == cursors
+    metas = sorted(corpus.rglob("*.metadata.json"))
+    assert len(metas) == len(fixtures.ITEMS) + 1
+    copies: Dict[str, List[Dict[str, Any]]] = {}
+    for path in metas:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        copies.setdefault(doc["news_article"]["transport_ids"]["rss"], []).append(doc)
+    (stem,) = [k for k, docs in copies.items() if len(docs) == 2]
+    (rewritten,) = [d for d in copies[stem] if d["body_sha256"] != first[stem]["body_sha256"]]
+    assert rewritten["item_id"] == first[stem]["item_id"]
+    assert rewritten["body_sha256"] == hashlib.sha256(changed[0].encode("utf-8")).hexdigest()
+
+
+def test_run_text_items_refuses_any_stage_but_rederive_only() -> None:
+    from podcast_scraper import config
+    from podcast_scraper.workflow import text_in
+
+    with pytest.raises(ValueError, match="rederive_only"):
+        text_in.run_text_items(
+            config.Config(), None, ct.content_type(NEWS), ct.Transport(name="bare"), []
+        )
+
+
 def test_a_source_that_may_not_be_mined_gets_no_kg(
     tmp_path: Path, net: FakeNet, no_podcast_stages: None, registry: Registry
 ) -> None:

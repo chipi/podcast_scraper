@@ -152,7 +152,7 @@ def test_run_pipeline_installs_the_run_fuse() -> None:
     assert "llm_max_calls_per_run" in begin
     from podcast_scraper.workflow import text_in
 
-    for fn in (orchestration.run_pipeline, text_in.run_text_source):
+    for fn in (orchestration.run_pipeline, text_in._run_text):
         run = inspect.getsource(fn)
         assert "_begin_run(" in run, f"{fn.__name__} must start through _begin_run"
         assert run.index("_begin_run(") < run.index(
