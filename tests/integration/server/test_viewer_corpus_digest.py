@@ -250,9 +250,7 @@ def test_digest_after_a_job_lists_what_the_job_added(tmp_path: Path) -> None:
     def add(ep: str, mtime: float) -> None:
         p = meta / f"{ep}.metadata.json"
         p.write_text(
-            json.dumps(
-                _episode_doc(episode_id=ep, episode_title=ep, published=_ago(60))
-            ),
+            json.dumps(_episode_doc(episode_id=ep, episode_title=ep, published=_ago(60))),
             encoding="utf-8",
         )
         for q in (p, meta, tmp_path):
