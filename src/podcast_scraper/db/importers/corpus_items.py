@@ -20,6 +20,9 @@ transaction:
   ``person_roles`` (``importers.corpus_kg.import_kg``).
 - Each feed's audio fingerprint file gives its ``audio_fingerprints`` rows, under the source of
   the items in that feed's directory (``importers.corpus_fingerprints.import_fingerprints``).
+- The enrichers' outputs (``importers.corpus_enrichments.import_enrichments``) and the clustering's
+  groups (``importers.corpus_groupings.import_groupings``), each one published build. An insight
+  cluster's members are insights, so they need the GI rows written first.
 
 What cannot be written is refused, never guessed: an item whose keys cannot be derived, whose
 documents cannot be named one way or do not cut, or whose slug or ``(source, external id)`` another
@@ -61,7 +64,9 @@ from podcast_scraper.db.importers.corpus_documents import (
     TRANSCRIPT,
     transcript_files,
 )
+from podcast_scraper.db.importers.corpus_enrichments import import_enrichments
 from podcast_scraper.db.importers.corpus_fingerprints import import_fingerprints
+from podcast_scraper.db.importers.corpus_groupings import import_groupings
 from podcast_scraper.db.importers.corpus_kg import import_kg, KgWritten, read_kg
 from podcast_scraper.db.schema import content_items, item_cards, sources
 from podcast_scraper.languages import episode_language
@@ -84,6 +89,10 @@ class ImportReport:
     entity_edges: int = 0
     person_roles: int = 0
     fingerprints: int = 0
+    groups: int = 0
+    group_members: int = 0
+    enrichment_outputs: int = 0
+    entity_pairs: int = 0
     by_kind: collections.Counter[str] = field(default_factory=collections.Counter)
     refused: list[tuple[str, str]] = field(default_factory=list)
 
@@ -321,4 +330,12 @@ def import_corpus(
     fingerprints = import_fingerprints(conn, root, sources_by_relpath)
     report.fingerprints = fingerprints.rows
     report.refused.extend(fingerprints.refused)
+    enrichments = import_enrichments(conn, root, sources_by_relpath)
+    report.enrichment_outputs = sum(enrichments.outputs.values())
+    report.entity_pairs = sum(enrichments.pairs.values())
+    report.refused.extend(enrichments.refused)
+    groupings = import_groupings(conn, root)
+    report.groups = sum(groupings.groups.values())
+    report.group_members = groupings.members
+    report.refused.extend(groupings.refused)
     return report
