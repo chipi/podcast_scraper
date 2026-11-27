@@ -14,7 +14,7 @@ from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import audio_fingerprints as rows
 from podcast_scraper.db.corpus_writer import sync_episode
-from podcast_scraper.db.schema import audio_fingerprints, sources
+from podcast_scraper.db.schema import audio_fingerprints, content_items, sources
 from podcast_scraper.db.settings import ENV_SERVED_FROM_ROWS
 from podcast_scraper.utils import audio_fingerprint as gate
 from podcast_scraper.workflow.metadata_generation import generate_feed_id
@@ -94,6 +94,28 @@ def test_a_held_fingerprint_is_written_with_the_source_row_its_episode_creates(
     assert item[1] == generate_feed_id(FEED_URL)
     assert rows._HELD == {}
     assert not (tmp_path / gate.INDEX_RELPATH).exists()
+
+
+def test_a_fingerprint_written_in_another_episodes_sync_links_to_its_own_item_later(
+    on_rows: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    root = str(tmp_path)
+    gate.record(root, A, identity="guid-1", feed_id=FEED_URL, episode_title="One")
+    gate.record(root, "b" * 64, identity="guid-2", feed_id=FEED_URL, episode_title="Two")
+    one, two = tmp_path / "one", tmp_path / "two"
+    one.mkdir()
+    two.mkdir()
+    assert _sync(one, "guid-1") == "written"
+    assert {r["identity"]: r["item_id"] is None for r in _fingerprints(conn)} == {
+        "guid-1": False,
+        "guid-2": True,
+    }
+    assert _sync(two, "guid-2") == "written"
+    items = dict(
+        conn.execute(select(content_items.c.external_item_id, content_items.c.item_id)).all()
+    )
+    conn.rollback()
+    assert {r["identity"]: r["item_id"] for r in _fingerprints(conn)} == items
 
 
 def test_on_rows_the_gate_reads_and_records_copies_on_the_table(

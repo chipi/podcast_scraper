@@ -181,6 +181,24 @@ def write_held(conn: Connection, raw_feed_id: Optional[str], source_id: int) -> 
     return sorted(pending)
 
 
+def link_item(conn: Connection, source_id: int, external_item_id: str, item_id: int) -> int:
+    """Link this item's fingerprints that have no item yet; the rows linked.
+
+    :func:`write_held` writes every fingerprint held for the feed, so one written in another
+    episode's sync, before its own item row existed, has no ``item_id`` until its own sync.
+    """
+    result = conn.execute(
+        audio_fingerprints.update()
+        .where(
+            _FP.source_id == source_id,
+            _FP.identity == external_item_id,
+            _FP.item_id.is_(None),
+        )
+        .values(item_id=item_id)
+    )
+    return int(result.rowcount)
+
+
 def forget_held(raw_feed_id: Optional[str], digests: list[str]) -> None:
     """Drop the held fingerprints :func:`write_held` wrote, once their transaction committed."""
     if raw_feed_id is None or not digests:

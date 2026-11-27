@@ -66,6 +66,7 @@ from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adja
 from podcast_scraper.db import audio_fingerprints, leases
 from podcast_scraper.db.corpus_cards import card_row, FLAGS
 from podcast_scraper.db.corpus_keys import (
+    external_item_id,
     is_news,
     item_natural_id,
     KeyNotDerivable,
@@ -629,9 +630,11 @@ def sync_rows(
                 registry=registry,
             )
             # The gate's fingerprints held for this feed (db.audio_fingerprints): after the item,
-            # so a fingerprint links to it.
+            # so a fingerprint links to it; one an earlier sync wrote for this episode links now.
             feed = None if news else raw_feed_id(doc)
             fingerprints = audio_fingerprints.write_held(conn, feed, source_id)
+            if not news:
+                audio_fingerprints.link_item(conn, source_id, external_item_id(doc), item_id)
             merge_source(conn, source_id)
             if news:
                 synced = sync_documents(
