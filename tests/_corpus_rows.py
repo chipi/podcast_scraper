@@ -15,9 +15,9 @@ updating it, so it is never asked to.
 The patch is session-wide, so module-scoped fixtures that read the catalog get rows too;
 :func:`corpus_rows_fixture` clears the catalog caches around each test. The change check costs
 token queries the API never makes: a test that counts statements wraps its measured request in
-:func:`corpus_rows_settled`, which puts the API's own catalog functions back while it is open. Both live outside
-``tests/conftest.py`` so the Player's suite, which replaces public's conftest with its own, can
-register them too.
+:func:`corpus_rows_settled`, which puts the API's own catalog functions back while it is open.
+All three live outside ``tests/conftest.py`` so the Player's suite, which replaces public's
+conftest with its own, can register and use them too.
 """
 
 from __future__ import annotations
