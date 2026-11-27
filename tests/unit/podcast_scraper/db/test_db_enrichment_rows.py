@@ -171,6 +171,29 @@ def test_a_publish_that_did_not_land_is_retried_by_a_run_that_writes_nothing(
     assert enrichment_rows.pending(tmp_path) == set()
 
 
+@pytest.mark.parametrize("body", ["{not json", '{"note": 1}', "[1, 2]"])
+def test_an_unreadable_pending_file_reads_as_empty_and_is_rewritten(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, body: str
+) -> None:
+    # Database's review of #2616: a corrupt file raised inside _publish_rows and failed the run.
+    path = enrichment_rows.pending_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text(body, encoding="utf-8")
+    assert enrichment_rows.pending(tmp_path) == set()
+    executor = EnrichmentExecutor(
+        corpus_root=tmp_path, registry=MagicMock(), enricher_set=MagicMock()
+    )
+    asyncio.run(executor._publish_rows("note"))
+    monkeypatch.setattr(settings, "pipeline_is_configured", lambda: True)
+
+    def refused(root: Path, enricher_id: str) -> None:
+        raise leases.LeaseRefused("held")
+
+    monkeypatch.setattr(enrichment_rows, "_publish", refused)
+    assert enrichment_rows.publish_after_run(tmp_path, "note") == "lease_refused"
+    assert enrichment_rows.pending(tmp_path) == {"note"}
+
+
 def test_a_failed_publish_stays_pending_under_strict_too(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
