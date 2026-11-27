@@ -957,7 +957,9 @@ def groups_summary(conn: Connection, kind: str) -> dict[str, Any]:
     group's ``id``, ``kind``, ``label``, ``parent_id`` and ``child_count`` (the groups whose
     parent it is), and ``links``, ``cluster_links``' weights between two groups of the kind, from
     the same build, so the two never mix builds. Weights are corpus-wide, not the loaded graph's.
-    With no published build, both lists are empty."""
+    With no published build, both lists are empty. Nothing writes ``cluster_links`` yet (the
+    viewer derives its top-down links itself, ``topDownSlice.ts``), so ``links`` is empty until
+    a writer exists; one would be the groupings importer's (CRFC-005 §8)."""
     if kind not in GROUP_KINDS:
         raise UnknownKind(f"grouping kind {kind!r} is not one of {list(GROUP_KINDS)}")
     build = (
