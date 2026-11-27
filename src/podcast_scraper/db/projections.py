@@ -45,7 +45,11 @@ their canonical id, every member's rows included (§3.3).
   their items, ranked by insights and then the speaker's natural id. An insight's speaker is its
   first supporting quote's (the lowest ``insight_support.ord``), as the file code takes the first
   SUPPORTED_BY edge; a first quote with no speaker attributes it to no one. A canonical speaker
-  that is an unresolved voice (the file code's predicate, on its id and label) has no row. What
+  that is an unresolved voice (the file code's predicate, on its id and label) has no row. The
+  name is not quite the file code's: it passes ``person_display.shown`` (the group's spelling of
+  a joined id, else the episode's own name), the rows the entity's label (the first KG file's
+  name for it). The id test alone catches the scoped and numbered voices; the two can differ only
+  for a real-looking id whose name is a bare label (``Host``, ``SPEAKER_03``). What
   it cannot serve stays per request: ``scope=mine``, the insight-type filter, and a grouping's
   union of topics.
 
@@ -64,6 +68,7 @@ from typing import Any, Optional
 
 from sqlalchemy import (
     and_,
+    any_,
     BigInteger,
     cast,
     Date,
@@ -78,7 +83,7 @@ from sqlalchemy import (
     union_all,
     update,
 )
-from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy.dialects.postgresql import ARRAY, distinct_on
 from sqlalchemy.engine import Connection, Engine
 
 from podcast_scraper.db import leases
@@ -306,6 +311,12 @@ def _write_reach(conn: Connection, build_id: int, cluster_build_id: Optional[int
     return _written(conn, statement)
 
 
+def _none_of(column: Any, ids: list[int]) -> Any:
+    """``column`` is none of ``ids``, bound as one array parameter rather than one per id (the
+    unresolved voices grow with the corpus: 153 of 2,986 speakers on snapshot-prod-20261127)."""
+    return ~(column == any_(literal(ids, ARRAY(BigInteger))))
+
+
 def _placeholder_speakers(conn: Connection) -> list[int]:
     """The person entities that speak a quote and are unresolved diarization voices. The test is
     the file code's own predicate in Python, not a copy of its patterns in SQL, so the two cannot
@@ -349,7 +360,7 @@ def _write_person_rankings(conn: Connection, build_id: int) -> int:
         )
         .where(
             sp.c.type == "person",
-            sp.c.entity_id.not_in(placeholders) if placeholders else literal(True),
+            _none_of(sp.c.entity_id, placeholders),
             _insight_ok(i),
         )
         .group_by(k.c.entity_id, k.c.natural_id)
@@ -482,7 +493,7 @@ def _write_topic_speakers(conn: Connection, build_id: int) -> int:
         )
         .where(
             sp.c.type == "person",
-            k.c.entity_id.not_in(placeholders) if placeholders else literal(True),
+            _none_of(k.c.entity_id, placeholders),
         )
         .group_by(about.c.topic_id, k.c.entity_id, k.c.natural_id)
         .subquery("ranked")
