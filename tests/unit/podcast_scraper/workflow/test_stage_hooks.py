@@ -437,3 +437,19 @@ def test_index_rows_come_from_every_owner_built_in_first(tmp_path: Path) -> None
             tmp_path, tmp_path, {}, scope_tag="t", episode_id="e", raw_feed_id="f", published=None
         )
     assert [r[0] for r in rows] == ["builtin:1", "ext:1"]
+
+
+def test_corpus_indexed_runs_the_projections_build_after_every_hook(tmp_path: Path) -> None:
+    """Last, so the projections count the grouping build an extension's hook just published."""
+    calls: List[str] = []
+
+    def hook(who: str) -> PipelineHooks:
+        return PipelineHooks(name=who, corpus_indexed=(lambda root: calls.append(who),))
+
+    with (
+        patch.object(builtin_stage_hooks, "BUILTIN", hook("builtin")),
+        use_extensions([Extension(name="common", pipeline_hooks=hook("common"))]),
+        patch("podcast_scraper.db.projections.after_batch", lambda: calls.append("projections")),
+    ):
+        stage_hooks.corpus_indexed(tmp_path)
+    assert calls == ["builtin", "common", "projections"]

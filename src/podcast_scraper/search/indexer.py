@@ -956,8 +956,9 @@ def maybe_index_corpus(
     cfg: config.Config,
     *,
     backbone_changed_relpaths: Optional[Sequence[str]] = None,
-) -> None:
+) -> bool:
     """Build the corpus vector index when ``vector_search`` is enabled; log failures only.
+    Returns whether an index build ran and completed (False when it is skipped or off).
 
     Runs in the SUBPROCESS-ISOLATED path (``run_index_in_subprocess``), never in-process. The
     Arrow/LanceDB native layer can SIGSEGV inside ``create_table`` on the pipeline's torch+pyarrow
@@ -968,9 +969,13 @@ def maybe_index_corpus(
     single-feed gap so a native index crash is a non-fatal subprocess exit, not a killed run.
     """
     if getattr(cfg, "skip_auto_vector_index", False) is True:
-        return
+        return False
     if getattr(cfg, "vector_search", False) is not True:
-        return
+        return False
     from .reindex import run_index_in_subprocess
 
-    run_index_in_subprocess(output_dir, cfg, backbone_changed_relpaths=backbone_changed_relpaths)
+    return bool(
+        run_index_in_subprocess(
+            output_dir, cfg, backbone_changed_relpaths=backbone_changed_relpaths
+        )
+    )

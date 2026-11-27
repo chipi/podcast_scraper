@@ -7,10 +7,11 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any
 
+import pytest
 from sqlalchemy import insert, select, text
 from sqlalchemy.engine import Connection
 
-from podcast_scraper.db import projections
+from podcast_scraper.db import leases, projections
 from podcast_scraper.db.schema import (
     cluster_builds,
     cluster_ids,
@@ -138,3 +139,31 @@ def test_a_build_is_published_as_graph_build_id_and_keeps_the_one_before(
         select(projection_builds.c.stats).where(projection_builds.c.build_id == third.build_id)
     ).scalar_one()
     assert stored == third.stats
+
+
+def test_after_batch_counts_its_outcome_and_raises_only_when_strict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from podcast_scraper.db import corpus_writer, settings
+
+    projections.OUTCOMES.clear()
+    monkeypatch.setattr(settings, "pipeline_is_configured", lambda: False)
+    assert projections.after_batch() == "not_configured"
+    monkeypatch.setattr(settings, "pipeline_is_configured", lambda: True)
+    monkeypatch.setattr("podcast_scraper.db.engines.pipeline_rw_engine", lambda: object())
+
+    def refused(_engine: Any) -> None:
+        raise leases.LeaseRefused("held")
+
+    def broken(_engine: Any) -> None:
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(projections, "build", refused)
+    assert projections.after_batch() == "lease_refused"
+    monkeypatch.setattr(projections, "build", broken)
+    monkeypatch.delenv(corpus_writer.ENV_STRICT, raising=False)
+    assert projections.after_batch() == "failed"
+    monkeypatch.setenv(corpus_writer.ENV_STRICT, "1")
+    with pytest.raises(corpus_writer.SyncFailed):
+        projections.after_batch()
+    assert projections.OUTCOMES == {"not_configured": 1, "lease_refused": 1, "failed": 2}

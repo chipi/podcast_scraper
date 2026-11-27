@@ -26,6 +26,8 @@ builds are deleted with their rows.
 
 from __future__ import annotations
 
+import collections
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -67,6 +69,11 @@ from podcast_scraper.db.schema import (
     item_entities,
     projection_builds,
 )
+
+logger = logging.getLogger(__name__)
+
+#: How each :func:`after_batch` ended, since the process started.
+OUTCOMES: collections.Counter[str] = collections.Counter()
 
 #: The lease resource of this job (w-leases: a corpus-wide build takes ``corpus`` shared, then
 #: its ``build:<kind>`` exclusive).
@@ -346,4 +353,44 @@ def build(engine: Engine, *, now: Optional[datetime] = None) -> Build:
         leases.release(engine, holder)
 
 
-__all__ = ["Build", "build", "build_in", "graph_build_id", "KEEP", "RESOURCE", "WORK_MEM"]
+def after_batch() -> str:
+    """The job's call after a batch (``stage_hooks.corpus_indexed``, after every hook): build and
+    publish on the pipeline's engine; returns and counts the outcome. ``not_configured`` without a
+    pipeline database URL; ``lease_refused`` when another build holds the lease (the next batch
+    builds again); ``failed`` is logged. Never raises unless ``PODCAST_CORPUS_WRITE_STRICT`` is
+    set, as the row writer (``corpus_writer``)."""
+    from podcast_scraper.db import corpus_writer
+    from podcast_scraper.db.settings import pipeline_is_configured
+
+    if not pipeline_is_configured():
+        outcome = "not_configured"
+    else:
+        from podcast_scraper.db.engines import pipeline_rw_engine
+
+        try:
+            built = build(pipeline_rw_engine())
+            logger.info("projections: build %s published %s", built.build_id, built.stats)
+            outcome = "published"
+        except leases.LeaseRefused:
+            outcome = "lease_refused"
+        except Exception as exc:  # noqa: BLE001 - a failed build keeps the published one
+            logger.warning("projections: build failed: %s", exc)
+            OUTCOMES["failed"] += 1
+            if corpus_writer._strict():
+                raise corpus_writer.SyncFailed(f"projections build failed: {exc}") from exc
+            return "failed"
+    OUTCOMES[outcome] += 1
+    return outcome
+
+
+__all__ = [
+    "after_batch",
+    "Build",
+    "build",
+    "build_in",
+    "graph_build_id",
+    "KEEP",
+    "OUTCOMES",
+    "RESOURCE",
+    "WORK_MEM",
+]

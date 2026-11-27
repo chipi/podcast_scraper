@@ -45,7 +45,8 @@ CorpusDerivedHook = Callable[[Path], None]
 #: enrichment follow-up is queued. Must not raise.
 BatchFinalizedHook = Callable[[Path], None]
 #: ``(corpus_root)``. Once the corpus search index is built: by the multi-feed batch (after
-#: its topic clusters) and by ``index --with-clusters``, at the corpus root. For what an owner
+#: its topic clusters), by a single-feed run's finalize (after its topic clusters) and by
+#: ``index --with-clusters``, at the corpus root. For what an owner
 #: derives from the index (the insight clusters, Common #49). Not called when the index build
 #: did not complete. Must not raise.
 CorpusIndexedHook = Callable[[Path], None]
@@ -351,10 +352,15 @@ def batch_finalized(corpus_parent: Path) -> None:
 
 def corpus_indexed(corpus_root: Path) -> None:
     """Run every ``corpus_indexed`` stage hook: the built-in ones, then each extension's, in
-    load order."""
+    load order; then the projections build (``db.projections.after_batch``), last, so it counts
+    the grouping build an extension's hook just published (a cluster build it did not count would
+    have no reach rows)."""
     for hooks in _all():
         for hook in hooks.corpus_indexed:
             hook(corpus_root)
+    from podcast_scraper.db import projections
+
+    projections.after_batch()
 
 
 def index_rows(
