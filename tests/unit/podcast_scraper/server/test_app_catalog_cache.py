@@ -112,3 +112,27 @@ def test_resolve_slug_is_correct_and_survives_invalidation(tmp_path: Path) -> No
     new_row = next(r for r in catalog_cache.cached_catalog(tmp_path) if r.episode_id == "e2")
     new_slug = slugs.slug_for_row(new_row)
     assert slugs.resolve_slug(tmp_path, new_slug) is not None
+
+
+def test_the_token_is_read_once_in_its_hold_and_every_time_inside_fresh(monkeypatch) -> None:
+    """A request that reads the catalog several times pays one token query (the Player's
+    round-trip budgets); the operator's current reads (``fresh()``) never reuse a held token."""
+    reads = [0]
+
+    def read() -> float:
+        reads[0] += 1
+        return float(reads[0])
+
+    clock = [100.0]
+    monkeypatch.setattr(catalog_cache.time, "monotonic", lambda: clock[0])
+    hold = catalog_cache._TokenHold(read, 2.0)
+
+    assert [hold(), hold(), hold()] == [1.0, 1.0, 1.0]
+    assert reads[0] == 1
+    with perf_cache.fresh():
+        assert hold() == 2.0
+        assert hold() == 3.0
+    clock[0] += 1.9
+    assert hold() == 3.0
+    clock[0] += 0.2
+    assert hold() == 4.0

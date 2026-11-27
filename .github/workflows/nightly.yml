@@ -519,6 +519,7 @@ jobs:
     timeout-minutes: 60  # was 45; full e2e suite hit the 45m cap (cancelled 2026-08-03)
     needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
@@ -528,6 +529,21 @@ jobs:
       # time (airgapped contract). The token is kept for any authenticated Hub call.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HF_HUB_OFFLINE: "1"
+    # App state and the corpus rows are Postgres (ADR-169): the catalog reads rows, and tests
+    # import their file corpus first (tests/_corpus_rows.py), so every pytest job needs the DB.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
     - uses: actions/checkout@v7
 
@@ -981,11 +997,27 @@ jobs:
       - nightly-viewer-unit
       - nightly-viewer-e2e
     env:
+      PODCAST_TEST_DATABASE_URL: postgresql://podcast:podcast@127.0.0.1:5432/postgres
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
       # Nightly mode uses p01-p05 podcasts with production models
       E2E_TEST_MODE: "nightly"
+    # App state and the corpus rows are Postgres (ADR-169): the catalog reads rows, and tests
+    # import their file corpus first (tests/_corpus_rows.py), so every pytest job needs the DB.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: podcast
+          POSTGRES_PASSWORD: podcast
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U podcast"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
     - uses: actions/checkout@v7
 

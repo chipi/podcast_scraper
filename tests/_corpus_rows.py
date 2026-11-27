@@ -7,8 +7,9 @@ per-process test database (``tests._database``) first, with the importer the cut
 (``importers.corpus_items.import_corpus``), so those tests run the rows path unchanged.
 
 The rows hold one root at a time, because the catalog reads every row: a read of another root, a
-metadata file written or edited since the import, or a write by anything else (the row token moved)
-empties the corpus tables and imports again. ``import_corpus`` refuses a changed item rather than
+file under it written, edited or deleted since the import (its path, size and mtime), or a write by
+anything else (the row token moved) empties the corpus tables, but the job and lease rows, and
+imports again. ``import_corpus`` refuses a changed item rather than
 updating it, so it is never asked to.
 
 The patch is session-wide, so module-scoped fixtures that read the catalog get rows too;
@@ -32,14 +33,27 @@ _NO_DATABASE = "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
 _NAMESPACES = ("app_catalog_rows", "app_slug_index")
 
 
-def _stamp(root: Path) -> float:
-    return max((p.stat().st_mtime for p in root.rglob("*.metadata.json")), default=0.0)
+#: Rows ``import_corpus`` never writes; a test's own job and lease rows outlive a re-import.
+_KEPT = ("jobs", "job_leases")
+
+
+def _stamp(root: Path) -> int:
+    """Every file under ``root``, by path, size and mtime: the importer reads more than metadata
+    (transcripts, GI and KG, artwork), and a delete or a same-mtime edit moves no newest mtime."""
+    files = []
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            stat = path.stat()
+            files.append((str(path.relative_to(root)), stat.st_size, stat.st_mtime_ns))
+    return hash(tuple(files))
 
 
 def _empty_corpus_tables(conn: Connection) -> None:
     from podcast_scraper.db.schema import corpus_metadata, corpus_revision
 
     for table in reversed(corpus_metadata.sorted_tables):
+        if table.name in _KEPT:
+            continue
         if table is corpus_revision:
             conn.execute(corpus_revision.update().values(revision=0))
         else:
@@ -54,7 +68,8 @@ def corpus_rows_patch() -> Iterator[None]:
     from podcast_scraper.server import catalog_cache
 
     read = catalog_cache._catalog_rows
-    token = catalog_cache.catalog_token
+    # The token without its hold: a test reads the rows it just imported.
+    token = catalog_cache._read_token
     key_of = catalog_cache._key
     loaded: dict[str, Optional[object]] = {"root": None, "stamp": None, "token": None}
     # Its own engine: module-scoped fixtures read the catalog before the app engines are set up.

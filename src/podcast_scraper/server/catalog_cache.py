@@ -11,6 +11,11 @@ Every writer of an item row sets ``updated_at``, and a row migration bumps the r
 token moves with every change the catalog shows. The corpus revision alone would not: only corpus
 migrations bump it, not an ingest.
 
+A read token is reused for :data:`TOKEN_HOLD_S` outside :func:`perf_cache.fresh`, so a request
+that reads the catalog several times pays one token query, not one a read (the Player's
+round-trip budgets, 2026-11-27). A change then reaches the catalog that much later; inside
+``fresh()``, as :func:`current_catalog` reads, the token is read every time.
+
 The file era had two shapes, the cumulative scan over every run and the last run's. Rows hold one
 item per episode, the import's and the writer's newest run, so both names return the same rows; the
 ``_last_run`` names stay so their callers need no change (the two scans returned the same 3,522
@@ -22,7 +27,10 @@ that sorts or filters in place cannot corrupt the shared entry.
 
 from __future__ import annotations
 
+import threading
+import time
 from pathlib import Path
+from typing import Callable, Optional
 
 from sqlalchemy import func, select
 
@@ -32,13 +40,15 @@ from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 _CATALOG_NS = "app_catalog_rows"
 CATALOG_LAST_RUN_NS = _CATALOG_NS
 _TOKEN_BITS = (1 << 52) - 1
+#: Seconds a read row token is reused outside ``perf_cache.fresh()``.
+TOKEN_HOLD_S = 2.0
 
 
 def _key(root: Path) -> str:
     return str(Path(root).resolve())
 
 
-def catalog_token() -> float:
+def _read_token() -> float:
     """The catalog's cache token: it changes whenever an item row is written or a row migration
     runs."""
     from podcast_scraper.db.engines import corpus_ro_engine, read_connection
@@ -52,6 +62,35 @@ def catalog_token() -> float:
             ).select_from(content_items)
         ).one()
     return float(hash((count, newest, rev)) & _TOKEN_BITS)
+
+
+class _TokenHold:
+    """A token reader that reuses its last answer for ``seconds`` outside ``perf_cache.fresh()``."""
+
+    def __init__(self, read: Callable[[], float], seconds: float) -> None:
+        self._read = read
+        self._seconds = seconds
+        self._held: Optional[tuple[float, float]] = None
+        self._lock = threading.Lock()
+
+    def __call__(self) -> float:
+        if not perf_cache.in_fresh():
+            with self._lock:
+                if self._held is not None and time.monotonic() - self._held[0] < self._seconds:
+                    return self._held[1]
+        token = self._read()
+        with self._lock:
+            self._held = (time.monotonic(), token)
+        return token
+
+
+_held_token = _TokenHold(lambda: _read_token(), TOKEN_HOLD_S)
+
+
+def catalog_token() -> float:
+    """The catalog's cache token: it changes whenever an item row is written or a row migration
+    runs; reused for :data:`TOKEN_HOLD_S` outside ``perf_cache.fresh()``."""
+    return _held_token()
 
 
 def _catalog_rows(root: Path) -> list[CatalogEpisodeRow]:

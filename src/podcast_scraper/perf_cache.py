@@ -93,6 +93,11 @@ def fresh() -> Iterator[None]:
         _FRESH.depth = depth
 
 
+def in_fresh() -> bool:
+    """Whether this thread is inside :func:`fresh`."""
+    return bool(getattr(_FRESH, "depth", 0))
+
+
 def get_or_compute(
     namespace: str,
     key: Hashable,
