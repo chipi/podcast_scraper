@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,12 @@ from fastapi.testclient import TestClient
 from podcast_scraper.server.app import create_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
+
+
+def _ago(minutes: int) -> str:
+    # The digest compares the publish instant with now (#2589): an episode at today's noon UTC is
+    # in the future, and outside every window, until noon.
+    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _episode_doc(
@@ -36,7 +42,6 @@ def _episode_doc(
 
 
 def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     for i in range(3):
@@ -46,7 +51,7 @@ def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
                     feed_id="feed_a",
                     episode_id=f"a{i}",
                     episode_title=f"A{i}",
-                    published=f"{today}T12:00:00Z",
+                    published=_ago(60),
                 ),
             ),
             encoding="utf-8",
@@ -58,7 +63,7 @@ def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
                     feed_id="feed_b",
                     episode_id=f"b{i}",
                     episode_title=f"B{i}",
-                    published=f"{today}T12:00:00Z",
+                    published=_ago(60),
                 ),
             ),
             encoding="utf-8",
@@ -91,13 +96,12 @@ def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
 
 
 def test_digest_full_window_and_topics_no_index(tmp_path: Path) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
         json.dumps(
             _episode_doc(
-                published=f"{today}T12:00:00Z",
+                published=_ago(60),
             ),
         ),
         encoding="utf-8",
@@ -120,13 +124,12 @@ def test_digest_full_window_and_topics_no_index(tmp_path: Path) -> None:
 
 
 def test_digest_window_1mo_ok(tmp_path: Path) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
         json.dumps(
             _episode_doc(
-                published=f"{today}T12:00:00Z",
+                published=_ago(60),
             ),
         ),
         encoding="utf-8",
@@ -155,10 +158,9 @@ def test_digest_since_requires_param(tmp_path: Path) -> None:
 
 
 def test_digest_rows_include_visual_metadata(tmp_path: Path) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
-    d = _episode_doc(published=f"{today}T12:00:00Z")
+    d = _episode_doc(published=_ago(60))
     d["feed"]["image_url"] = "https://cdn.example/f.png"
     d["episode"]["image_url"] = "https://cdn.example/e.png"
     d["episode"]["duration_seconds"] = 61
@@ -188,19 +190,18 @@ def test_digest_rows_include_visual_metadata(tmp_path: Path) -> None:
 def test_digest_feed_display_title_from_sibling_when_feed_title_omitted(
     tmp_path: Path,
 ) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "a.metadata.json").write_text(
         json.dumps(
-            _episode_doc(episode_id="ep1", published=f"{today}T12:00:00Z"),
+            _episode_doc(episode_id="ep1", published=_ago(60)),
         ),
         encoding="utf-8",
     )
     bare = _episode_doc(
         episode_id="ep2",
         episode_title="Other ep",
-        published=f"{today}T12:05:00Z",
+        published=_ago(55),
     )
     bare["feed"] = {"feed_id": "feed_a"}
     (meta / "b.metadata.json").write_text(json.dumps(bare), encoding="utf-8")
@@ -215,10 +216,9 @@ def test_digest_feed_display_title_from_sibling_when_feed_title_omitted(
 
 
 def test_digest_row_includes_feed_rss_and_description(tmp_path: Path) -> None:
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
-    d = _episode_doc(published=f"{today}T12:00:00Z")
+    d = _episode_doc(published=_ago(60))
     d["feed"]["url"] = "https://feeds.example/pod.xml"
     d["feed"]["description"] = "Digest feed desc"
     (meta / "one.metadata.json").write_text(json.dumps(d), encoding="utf-8")
@@ -244,7 +244,6 @@ def test_digest_after_a_job_lists_what_the_job_added(tmp_path: Path) -> None:
     from podcast_scraper import perf_cache
 
     perf_cache.clear()
-    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
 
@@ -252,7 +251,7 @@ def test_digest_after_a_job_lists_what_the_job_added(tmp_path: Path) -> None:
         p = meta / f"{ep}.metadata.json"
         p.write_text(
             json.dumps(
-                _episode_doc(episode_id=ep, episode_title=ep, published=f"{today}T12:00:00Z")
+                _episode_doc(episode_id=ep, episode_title=ep, published=_ago(60))
             ),
             encoding="utf-8",
         )
