@@ -13,11 +13,14 @@ Built here, the walk core:
   and ``IN_GROUP`` are not built yet;
 - the presets ``slice.items``, ``slice.recent`` (without ``expand_groups`` or an extension score)
   and ``slice.neighbourhood`` with the named paths of decision 6;
-- a merged entity read per member and answered under its canonical id (CRFC-005 §4).
+- a merged entity read per member and answered under its canonical id (CRFC-005 §4);
+- ``with: counts``: an entity node's ``item_count`` from the published projections build
+  (``db.projections``), one more statement; every slice names that build as ``graph_build_id``,
+  read in its seed statement.
 
-Not built yet: the groups catalogue and node ``groups`` (no ``clusters`` table until s-clusters),
-``with: counts`` (``entity_item_counts``, r-projections), ``exclude_items`` and held stubs, the
-structured query, the routes, caching and the replica retry.
+Not built yet: the groups catalogue and node ``groups`` (the ``clusters`` tables exist since
+corpus_0013), ``exclude_items`` and held stubs, the structured query, the routes, caching and the
+replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
 sends nothing. The tail is 3 (nodes, items, induced edges), since there is no groups catalogue to
@@ -63,6 +66,7 @@ from podcast_scraper.db.schema import (
     corpus_revision,
     documents,
     entities,
+    entity_item_counts,
     evidence,
     insight_attribution,
     insight_mentions,
@@ -70,6 +74,7 @@ from podcast_scraper.db.schema import (
     insights,
     item_entities,
     person_roles,
+    projection_builds,
     sources,
 )
 
@@ -602,6 +607,8 @@ class _Slice:
     preset: str
     params: dict[str, Any]
     revision: Optional[int] = None
+    graph_build_id: Optional[int] = None
+    counts: bool = False
     budget: int = DEFAULT_BUDGET
     edge_budget: int = DEFAULT_EDGE_BUDGET
     nodes: dict[Ref, None] = field(default_factory=dict)
@@ -633,7 +640,31 @@ def _check_budgets(budget: int, edge_budget: int) -> None:
 
 
 def _revision() -> Any:
-    return select(corpus_revision.c.revision).where(corpus_revision.c.id == 1).subquery("r")
+    """The corpus revision and the published projections build (``graph_build_id``), read in the
+    seed statement, so a slice names the build its caches and ETags key on (CRFC-005 §4)."""
+    built = (
+        select(projection_builds.c.build_id)
+        .where(projection_builds.c.state == "published")
+        .scalar_subquery()
+    )
+    return (
+        select(corpus_revision.c.revision, built.label("graph_build_id"))
+        .where(corpus_revision.c.id == 1)
+        .subquery("r")
+    )
+
+
+#: What ``with`` may name (CRFC-004 §2).
+WITH = frozenset({"counts"})
+
+
+def _with(s: "_Slice", with_: Sequence[str]) -> None:
+    unknown = sorted(set(with_) - WITH)
+    if unknown:
+        raise ValueError(f"with {unknown} is not one of {sorted(WITH)}")
+    if with_:
+        s.counts = "counts" in with_
+        s.params["with"] = sorted(set(with_))
 
 
 # --- item slices -----------------------------------------------------------------------------
@@ -699,6 +730,7 @@ def slice_items(
     *,
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
+    with_: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.items``: these items' graph. Unknown, unserved or withheld items are
     ``unknown_seeds``."""
@@ -707,6 +739,7 @@ def slice_items(
     if len(seeds) > MAX_ITEM_SEEDS:
         raise ValueError(f"{len(seeds)} item ids is more than {MAX_ITEM_SEEDS}")
     s = _Slice("slice.items", {"items": seeds}, budget=budget, edge_budget=edge_budget)
+    _with(s, with_)
     r = _revision()
     c = content_items.alias("c")
     x = (
@@ -715,9 +748,12 @@ def slice_items(
         .lateral("x")
     )
     rows = conn.execute(
-        select(r.c.revision, x.c.item_id, x.c.natural_id).select_from(r.outerjoin(x, true()))
+        select(r.c.revision, r.c.graph_build_id, x.c.item_id, x.c.natural_id).select_from(
+            r.outerjoin(x, true())
+        )
     ).all()
     s.revision = rows[0].revision if rows else None
+    s.graph_build_id = rows[0].graph_build_id if rows else None
     found = {row.natural_id: row.item_id for row in rows if row.item_id is not None}
     s.unknown_seeds = [n for n in seeds if n not in found]
     _fill_items(conn, s, [found[n] for n in seeds if n in found])
@@ -734,6 +770,7 @@ def slice_recent(
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
     now: Optional[datetime] = None,
+    with_: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.recent``: the newest served items. The window widens (7d, 30d, 90d, all) while
     fewer than ``min_items`` match; every widening is answered by the one candidate statement,
@@ -752,6 +789,7 @@ def slice_recent(
         "min_items": min_items,
     }
     s = _Slice("slice.recent", params, budget=budget, edge_budget=edge_budget)
+    _with(s, with_)
     c = content_items.alias("c")
     conditions: list[Any] = [c.c.served > 0, ~c.c.withheld]
     if content_types is not None:
@@ -770,9 +808,12 @@ def slice_recent(
         .lateral("x")
     )
     rows = conn.execute(
-        select(r.c.revision, x.c.item_id, x.c.published_at).select_from(r.outerjoin(x, true()))
+        select(r.c.revision, r.c.graph_build_id, x.c.item_id, x.c.published_at).select_from(
+            r.outerjoin(x, true())
+        )
     ).all()
     s.revision = rows[0].revision if rows else None
+    s.graph_build_id = rows[0].graph_build_id if rows else None
     candidates = [(row.item_id, row.published_at) for row in rows if row.item_id is not None]
     names = list(WINDOWS)
     chosen: list[int] = []
@@ -805,6 +846,7 @@ def slice_neighbourhood(
     *,
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
+    with_: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.neighbourhood``: the node, what the named path reaches from it, and the items
     those draw from. Nodes of a type the path does not keep are walked through, not returned;
@@ -820,6 +862,7 @@ def slice_neighbourhood(
         budget=budget,
         edge_budget=edge_budget,
     )
+    _with(s, with_)
     r = _revision()
     e = entities.alias("e")
     k = entities.alias("k")
@@ -830,9 +873,12 @@ def slice_neighbourhood(
         .lateral("x")
     )
     row = conn.execute(
-        select(r.c.revision, x.c.canonical_id, x.c.type).select_from(r.outerjoin(x, true()))
+        select(r.c.revision, r.c.graph_build_id, x.c.canonical_id, x.c.type).select_from(
+            r.outerjoin(x, true())
+        )
     ).first()
     s.revision = row.revision if row is not None else None
+    s.graph_build_id = row.graph_build_id if row is not None else None
     if row is None or row.canonical_id is None:
         s.unknown_seeds = [node_id]
         return _finish(conn, s)
@@ -1119,12 +1165,33 @@ def _iso(value: Optional[datetime]) -> Optional[str]:
     return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _item_counts(conn: Connection, s: _Slice) -> Optional[dict[int, int]]:
+    """``with: counts``: each entity node's corpus-wide item count, from the published
+    projections build (``entity_item_counts``, keyed by canonical id), in one statement. None
+    when counts were not asked for or no build is published: the nodes then carry no
+    ``item_count``. An entity the build has no row for has 0 items."""
+    if not s.counts or s.graph_build_id is None:
+        return None
+    ids = sorted(ref[1] for ref in s.nodes if ref[0] == ENTITY)
+    if not ids:
+        return {}
+    rows = conn.execute(
+        select(entity_item_counts.c.entity_id, entity_item_counts.c["items"]).where(
+            entity_item_counts.c.build_id == s.graph_build_id,
+            entity_item_counts.c.entity_id
+            == func.any(bindparam("count_ids", ids, type_=ARRAY(BigInteger))),
+        )
+    )
+    return {int(row.entity_id): int(row[1]) for row in rows}
+
+
 def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
     """The tail: nodes' rows, items' rows, the induced edges; then ``graph-slice/1``. A node
     whose item is not in the items' rows is dropped, with every edge that touches it."""
     nodes = _node_rows(conn, s)
     items = _item_rows(conn, s)
     induced = _induced(conn, s)
+    counts = _item_counts(conn, s)
 
     def present(ref: Ref) -> bool:
         if ref[0] == ITEM:
@@ -1172,6 +1239,8 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
         }
         if node["item_id"] is not None:
             entry["item_id"] = item_natural(node["item_id"])
+        if counts is not None and ref[0] == ENTITY:
+            entry["item_count"] = counts.get(ref[1], 0)
         out_nodes.append(entry)
 
     def recency(item_id: Optional[int]) -> float:
@@ -1225,6 +1294,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
     return {
         "format": FORMAT,
         "corpus_revision": s.revision,
+        "graph_build_id": s.graph_build_id,
         "preset": s.preset,
         "params": s.params,
         "applied_window": s.applied_window,
