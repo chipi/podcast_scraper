@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import create_engine, func, select
 
 from podcast_scraper.db.cli_handlers import parse_db_argv, run_db_cli
-from podcast_scraper.db.schema import content_items
+from podcast_scraper.db.schema import content_items, search_chunks
 from tests._corpus_rows import _empty_corpus_tables
 from tests._database import worker_database_url
 
@@ -84,3 +84,28 @@ def test_a_dry_run_writes_nothing(
 
 def test_a_missing_root_is_an_error(tmp_path: Path) -> None:
     assert run_db_cli(parse_db_argv(["import-corpus", "--root", str(tmp_path / "no")]), LOG) == 1
+
+
+def _chunks(url: str) -> int:
+    engine = create_engine(url)
+    try:
+        with engine.connect() as conn:
+            return int(conn.execute(select(func.count()).select_from(search_chunks)).scalar_one())
+    finally:
+        engine.dispose()
+
+
+def test_it_writes_the_search_chunks_and_a_dry_run_leaves_none(
+    tmp_path: Path, _database_url: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from tests.unit.podcast_scraper.db.test_search_chunks_writer import _episode
+
+    _episode(tmp_path)
+    before = _chunks(_database_url)
+    args = parse_db_argv(["import-corpus", "--root", str(tmp_path), "--dry-run"])
+    assert run_db_cli(args, LOG) == 0
+    assert "search chunks: written 1" in capsys.readouterr().out
+    assert _chunks(_database_url) == before
+    assert run_db_cli(parse_db_argv(["import-corpus", "--root", str(tmp_path)]), LOG) == 0
+    assert "search chunks: written 1" in capsys.readouterr().out
+    assert _chunks(_database_url) > before
