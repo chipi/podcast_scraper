@@ -11,18 +11,19 @@ Built here, the walk core:
 
 - the edges of decision 10 whose tables exist (:data:`EDGES`); ``CONTRIBUTES_TO``, ``RELATED_TO``
   and ``IN_GROUP`` are not built yet;
-- the presets ``slice.items``, ``slice.recent`` (without ``expand_groups`` or an extension score)
-  and ``slice.neighbourhood`` with the named paths of decision 6;
+- the presets ``slice.items``, ``slice.recent`` (without ``expand_groups`` or an extension score),
+  ``slice.group`` (one group of the published cluster build: its topics, or its child groups',
+  and the newest items that carry them) and ``slice.neighbourhood`` with the named paths of
+  decision 6;
 - a merged entity read per member and answered under its canonical id (CRFC-005 §4);
 - ``with: counts``: an entity node's ``item_count`` from the published projections build
   (``db.projections``), one more statement; every slice names that build as ``graph_build_id``,
-  read in its seed statement.
-
+  read in its seed statement;
 - node ``groups`` and the slice's groups catalogue (CRFC-004 §2) from the published cluster build:
   a topic is in a group when a member of its canonical is, and the catalogue holds every group a
   served node is in and that group's parent.
 
-Not built yet: ``slice.group``, ``groups.summary`` and ``expand_groups``, ``exclude_items`` and
+Not built yet: ``groups.summary`` and ``expand_groups``, ``exclude_items`` and
 held stubs, the structured query, the routes, caching and the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
@@ -840,6 +841,101 @@ def slice_recent(
         # More match than the budget holds; how many more is not read.
         s.reasons.add("budget")
         chosen = chosen[:budget]
+    _fill_items(conn, s, chosen)
+    return _finish(conn, s)
+
+
+def slice_group(
+    conn: Connection,
+    group_id: str,
+    *,
+    budget: int = DEFAULT_BUDGET,
+    edge_budget: int = DEFAULT_EDGE_BUDGET,
+    with_: Sequence[str] = (),
+) -> dict[str, Any]:
+    """``slice.group``: one group of any kind in the published cluster build (CRFC-004 §2): its
+    member topics, or its child groups' for a group with children (a super-theme), and the
+    served items that carry them, newest first, at most ``budget`` items, and their graph. An
+    item carries a topic when an ``item_entities`` row names a member of its canonical; an
+    insight cluster's items are its shown insights'. The seed statement reads the group, its
+    topics and its items; a group not in that build is ``unknown_seeds``."""
+    _check_budgets(budget, edge_budget)
+    s = _Slice("slice.group", {"group": group_id}, budget=budget, edge_budget=edge_budget)
+    _with(s, with_)
+    build = (
+        select(cluster_builds.c.build_id)
+        .where(cluster_builds.c.state == "published")
+        .scalar_subquery()
+    )
+    own = cluster_ids.alias("sg")
+    group = (
+        select(clusters.c.cluster_id)
+        .select_from(clusters.join(own, own.c.cluster_id == clusters.c.cluster_id))
+        .where(clusters.c.build_id == build, own.c.natural_id == group_id)
+        .scalar_subquery()
+    )
+    sub = clusters.alias("sc")
+    scope = select(sub.c.cluster_id).where(
+        sub.c.build_id == build, (sub.c.cluster_id == group) | (sub.c.parent_id == group)
+    )
+    m, k = cluster_members.alias("sm"), entities.alias("sk")
+    topics = (
+        select(k.c.canonical_id)
+        .select_from(m.join(k, k.c.entity_id == m.c.entity_id))
+        .where(m.c.build_id == build, m.c.cluster_id.in_(scope))
+        .distinct()
+    )
+    mi, i = cluster_members.alias("si"), insights.alias("sn")
+    ie, ke = item_entities.alias("se"), entities.alias("sq")
+    carriers = union_all(
+        select(ie.c.item_id)
+        .select_from(ie.join(ke, ke.c.entity_id == ie.c.entity_id))
+        .where(ke.c.canonical_id.in_(topics)),
+        select(i.c.item_id)
+        .select_from(mi.join(i, i.c.insight_id == mi.c.insight_id))
+        .where(mi.c.build_id == build, mi.c.cluster_id.in_(scope), _insight_ok(i)),
+    )
+    c = content_items.alias("c")
+    x = (
+        select(c.c.item_id)
+        .where(c.c.item_id.in_(carriers), c.c.served > 0, ~c.c.withheld)
+        .order_by(c.c.published_at.desc().nulls_last(), c.c.item_id.desc())
+        .limit(budget + 1)
+        .lateral("x")
+    )
+    tk = entities.alias("st")
+    members = (
+        select(func.array_agg(tk.c.entity_id)).where(tk.c.entity_id.in_(topics)).scalar_subquery()
+    )
+    r = _revision()
+    rows = conn.execute(
+        select(
+            r.c.revision,
+            r.c.graph_build_id,
+            group.label("group"),
+            members.label("topics"),
+            x.c.item_id,
+        ).select_from(r.outerjoin(x, true()))
+    ).all()
+    s.revision = rows[0].revision if rows else None
+    s.graph_build_id = rows[0].graph_build_id if rows else None
+    if not rows or rows[0].group is None:
+        s.unknown_seeds = [group_id]
+        return _finish(conn, s)
+    # An item slice (CRFC-004 §5): the topics take at most half the budget while there are
+    # items for the rest, so a group with more topics than the budget still shows its items.
+    # One more item than the budget is read, so a cut is known, but not how many more there are.
+    chosen = [row.item_id for row in rows if row.item_id is not None]
+    topic_room = max(budget - len(chosen), budget // 2)
+    for topic in sorted(rows[0].topics or []):
+        if len(s.nodes) >= topic_room:
+            s.reasons.add("budget")
+            break
+        s.admit((ENTITY, int(topic)))
+    room = budget - len(s.nodes)
+    if len(chosen) > room:
+        s.reasons.add("budget")
+        chosen = chosen[: max(room, 0)]
     _fill_items(conn, s, chosen)
     return _finish(conn, s)
 
