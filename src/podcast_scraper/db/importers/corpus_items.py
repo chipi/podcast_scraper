@@ -18,6 +18,8 @@ transaction:
   card is built by) and its item's ``has_*`` flags from the same values. News cards come later.
 - Each item's KG file next to its metadata gives its entities, ``item_entities`` and
   ``person_roles`` (``importers.corpus_kg.import_kg``).
+- Each feed's audio fingerprint file gives its ``audio_fingerprints`` rows, under the source of
+  the items in that feed's directory (``importers.corpus_fingerprints.import_fingerprints``).
 
 What cannot be written is refused, never guessed: an item whose keys cannot be derived, whose
 documents cannot be named one way or do not cut, or whose slug or ``(source, external id)`` another
@@ -59,6 +61,7 @@ from podcast_scraper.db.importers.corpus_documents import (
     TRANSCRIPT,
     transcript_files,
 )
+from podcast_scraper.db.importers.corpus_fingerprints import import_fingerprints
 from podcast_scraper.db.importers.corpus_kg import import_kg, KgWritten, read_kg
 from podcast_scraper.db.schema import content_items, item_cards, sources
 from podcast_scraper.languages import episode_language
@@ -80,6 +83,7 @@ class ImportReport:
     entities: int = 0
     entity_edges: int = 0
     person_roles: int = 0
+    fingerprints: int = 0
     by_kind: collections.Counter[str] = field(default_factory=collections.Counter)
     refused: list[tuple[str, str]] = field(default_factory=list)
 
@@ -260,6 +264,7 @@ def import_corpus(
     members, report.refused = _members(root)
     registry = registry if registry is not None else load_registry()
 
+    sources_by_relpath: dict[str, int] = {}
     by_source: dict[str, list[_Member]] = collections.defaultdict(list)
     for member in members:
         try:
@@ -277,6 +282,7 @@ def import_corpus(
             continue
         source_id, inserted = _source_id(conn, row)
         report.sources += int(inserted)
+        sources_by_relpath.update((m.relpath, source_id) for m in group)
         for member in group:
             savepoint = conn.begin_nested()
             try:
@@ -312,4 +318,7 @@ def import_corpus(
                 report.person_roles += written_kg.roles
             if kind:
                 report.by_kind[kind] += documents
+    fingerprints = import_fingerprints(conn, root, sources_by_relpath)
+    report.fingerprints = fingerprints.rows
+    report.refused.extend(fingerprints.refused)
     return report
