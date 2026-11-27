@@ -14,6 +14,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -1197,7 +1198,6 @@ clusters = Table(
     Column("parent_id", BigInteger, nullable=True),
     Column("member_count", Integer, nullable=True),
     Column("anchor_entity_id", BigInteger, nullable=True),
-    Column("reach", Integer, nullable=True),
     Column("state", Text, nullable=True),
     Column("aliases", ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")),
     Column("created_at", DateTime(timezone=True), nullable=True),
@@ -1413,4 +1413,90 @@ entity_pairs = Table(
     CheckConstraint("a <> b", name="entity_pairs_distinct_check"),
     Index("entity_pairs_a_idx", "a", "enricher_id"),
     Index("entity_pairs_b_idx", "b", "enricher_id"),
+)
+
+# One build of the projections after each batch; its published build is the graph's
+# ``graph_build_id``, which graph caches and ETags key on (CRFC-005 §5).
+projection_builds = Table(
+    "projection_builds",
+    corpus_metadata,
+    _surrogate("build_id"),
+    Column("inputs", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("stats", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("built_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("state", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint(f"state IN ({_BUILD_STATES})", name="projection_builds_state_check"),
+    Index(
+        "projection_builds_one_published_idx",
+        text("(true)"),
+        unique=True,
+        postgresql_where=text("state = 'published'"),
+    ),
+)
+# A canonical entity's shown items and visible insights.
+entity_item_counts = Table(
+    "entity_item_counts",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("entity_id", BigInteger, nullable=False),
+    Column("items", Integer, nullable=False),
+    Column("insights", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "entity_id", name="entity_item_counts_pkey"),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["projection_builds.build_id"],
+        name="entity_item_counts_build_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["entity_id"], ["entities.entity_id"], name="entity_item_counts_entity_fkey"
+    ),
+    Index("entity_item_counts_entity_idx", "entity_id"),
+)
+# The same per ISO week (the Monday, UTC), which replaces temporal_velocity's file.
+entity_weeks = Table(
+    "entity_weeks",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("entity_id", BigInteger, nullable=False),
+    Column("week", Date, nullable=False),
+    Column("items", Integer, nullable=False),
+    Column("insights", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "entity_id", "week", name="entity_weeks_pkey"),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["projection_builds.build_id"],
+        name="entity_weeks_build_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(["entity_id"], ["entities.entity_id"], name="entity_weeks_entity_fkey"),
+    CheckConstraint("extract(isodow from week) = 1", name="entity_weeks_monday_check"),
+    Index("entity_weeks_kind_week_idx", "build_id", "kind", "week"),
+    Index("entity_weeks_entity_idx", "entity_id"),
+)
+# A group's reach: the distinct shown items of its members' canonical entities (AP-34). Its own
+# table, so a published cluster build is never written after publishing.
+cluster_reach = Table(
+    "cluster_reach",
+    corpus_metadata,
+    Column("build_id", BigInteger, nullable=False),
+    Column("cluster_build_id", BigInteger, nullable=False),
+    Column("cluster_id", BigInteger, nullable=False),
+    Column("reach", Integer, nullable=False),
+    PrimaryKeyConstraint("build_id", "cluster_id", name="cluster_reach_pkey"),
+    ForeignKeyConstraint(
+        ["build_id"],
+        ["projection_builds.build_id"],
+        name="cluster_reach_build_fkey",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ["cluster_build_id", "cluster_id"],
+        ["clusters.build_id", "clusters.cluster_id"],
+        name="cluster_reach_cluster_fkey",
+        ondelete="CASCADE",
+    ),
+    Index("cluster_reach_cluster_idx", "cluster_build_id", "cluster_id"),
 )
