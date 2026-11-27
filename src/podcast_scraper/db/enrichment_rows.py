@@ -14,13 +14,18 @@ published. Leases: ``corpus`` shared, then ``build:enrichment:<id>`` exclusive, 
 ``build:groupings`` exclusive for the groupings (w-leases).
 
 A failure is logged and counted; it raises only with ``PODCAST_CORPUS_WRITE_STRICT`` set, as the
-row writer (``corpus_writer``) does.
+row writer (``corpus_writer``) does. An enricher whose publish did not land stays in the pending
+file beside the health file until one does, and the executor publishes a pending enricher after
+its run even when it wrote nothing: the staleness gate skips an enricher whose inputs did not
+change, so waiting for its next envelope could leave its build behind its files for weeks.
 """
 
 from __future__ import annotations
 
 import collections
+import json
 import logging
+import threading
 import uuid
 from pathlib import Path
 
@@ -38,6 +43,38 @@ GROUPINGS_RESOURCE = leases.build_resource("groupings")
 
 #: How each :func:`publish_after_run` ended, since the process started.
 OUTCOMES: collections.Counter[str] = collections.Counter()
+
+
+_PENDING_LOCK = threading.Lock()
+
+
+def pending_path(corpus_root: Path) -> Path:
+    """The enrichers whose last publish did not land: beside ``enrichment_health.json``."""
+    from podcast_scraper.enrichment.paths import enrichment_health_path
+
+    return enrichment_health_path(Path(corpus_root)).with_name("enrichment_rows_pending.json")
+
+
+def pending(corpus_root: Path) -> set[str]:
+    """The enrichers to publish after their run whether or not they wrote an envelope."""
+    try:
+        return set(json.loads(pending_path(corpus_root).read_text(encoding="utf-8")))
+    except FileNotFoundError:
+        return set()
+
+
+def _mark(corpus_root: Path, enricher_id: str, *, landed: bool) -> None:
+    from podcast_scraper.utils.atomic_io import write_json_atomic
+
+    # Enrichers publish from worker threads at once (executor ``asyncio.to_thread``).
+    with _PENDING_LOCK:
+        ids = pending(corpus_root)
+        if (enricher_id in ids) != landed:
+            return
+        ids.symmetric_difference_update({enricher_id})
+        path = pending_path(corpus_root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(path, sorted(ids))
 
 
 def enricher_resource(enricher_id: str) -> str:
@@ -86,7 +123,8 @@ def publish_after_run(corpus_root: Path, enricher_id: str) -> str:
     """Publish ``enricher_id``'s outputs under ``corpus_root`` as its new build (and, after the
     groupings' enricher, the groupings and then the projections); returns and counts the
     outcome: ``published``, ``not_configured`` (no pipeline database URL), ``lease_refused``
-    (the next run publishes again) or ``failed``."""
+    or ``failed``. The last two leave the enricher :func:`pending`, so the next run publishes it
+    again; ``published`` clears it."""
     from podcast_scraper.db import corpus_writer
     from podcast_scraper.db.settings import pipeline_is_configured
 
@@ -97,14 +135,17 @@ def publish_after_run(corpus_root: Path, enricher_id: str) -> str:
         _publish(Path(corpus_root), enricher_id)
     except leases.LeaseRefused:
         OUTCOMES["lease_refused"] += 1
+        _mark(corpus_root, enricher_id, landed=False)
         return "lease_refused"
     except Exception as exc:  # noqa: BLE001 - the files stay; the next run publishes again
         logger.warning("enrichment rows: %s failed: %s", enricher_id, exc)
         OUTCOMES["failed"] += 1
+        _mark(corpus_root, enricher_id, landed=False)
         if corpus_writer._strict():
             raise corpus_writer.SyncFailed(f"enrichment rows for {enricher_id}: {exc}") from exc
         return "failed"
     OUTCOMES["published"] += 1
+    _mark(corpus_root, enricher_id, landed=True)
     if enricher_id == GROUPINGS_ENRICHER:
         from podcast_scraper.db import projections
 
@@ -117,6 +158,8 @@ __all__ = [
     "GROUPINGS_ENRICHER",
     "GROUPINGS_RESOURCE",
     "OUTCOMES",
+    "pending",
+    "pending_path",
     "publish_after_run",
     "served_metadata_relpaths",
 ]

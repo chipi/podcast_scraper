@@ -610,12 +610,14 @@ class EnrichmentExecutor:
 
     async def _publish_rows(self, enricher_id: str) -> None:
         """After one enricher's run: its outputs onto the corpus rows as its new build
-        (``db.enrichment_rows``), when it wrote an envelope this run. Before the enrichers that
-        wait for it start, so they never read rows older than its files. Off the event loop: the
-        publish reads every served item's envelopes."""
-        if enricher_id not in self._wrote:
+        (``db.enrichment_rows``), when it wrote an envelope this run or an earlier publish did not
+        land (``pending``). Before the enrichers that wait for it start, so they never read rows
+        older than its files. Off the event loop: the publish reads every served item's
+        envelopes."""
+        from podcast_scraper.db.enrichment_rows import pending, publish_after_run
+
+        if enricher_id not in self._wrote and enricher_id not in pending(self._corpus_root):
             return
-        from podcast_scraper.db.enrichment_rows import publish_after_run
 
         await asyncio.to_thread(publish_after_run, self._corpus_root, enricher_id)
 

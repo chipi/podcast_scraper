@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import insert, select, text
+from sqlalchemy import create_engine, insert, select, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import leases, projections
@@ -22,6 +22,9 @@ from podcast_scraper.db.schema import (
     entity_weeks,
     projection_builds,
 )
+from podcast_scraper.db.settings import normalize_url
+from tests.unit.podcast_scraper.db.test_corpus_writer import pipeline_db  # noqa: F401
+from tests.unit.podcast_scraper.db.test_db_corpus import url  # noqa: F401
 from tests.unit.podcast_scraper.db.test_db_graph import _one, conn, Corpus  # noqa: F401
 
 SUNDAY_LATE = datetime(2026, 11, 15, 23, 30, tzinfo=timezone.utc)
@@ -139,6 +142,19 @@ def test_a_build_is_published_as_graph_build_id_and_keeps_the_one_before(
         select(projection_builds.c.stats).where(projection_builds.c.build_id == third.build_id)
     ).scalar_one()
     assert stored == third.stats
+
+
+def test_after_batch_builds_on_the_pipeline_engine_and_is_refused_while_another_build_runs(
+    pipeline_db: None, url: str, conn: Connection  # noqa: F811
+) -> None:
+    engine = create_engine(normalize_url(url))
+    leases.acquire(engine, [leases.LeaseRequest(projections.RESOURCE, leases.EXCLUSIVE)], "o:t")
+    assert projections.after_batch() == "lease_refused"
+    leases.release(engine, "o:t")
+    engine.dispose()
+    assert projections.after_batch() == "published"
+    assert projections.graph_build_id(conn) is not None
+    assert conn.execute(text("SELECT count(*) FROM corpus.job_leases")).scalar_one() == 0
 
 
 def test_after_batch_counts_its_outcome_and_raises_only_when_strict(
