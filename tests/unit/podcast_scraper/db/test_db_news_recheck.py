@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import exc as sa_exc, insert, select
+from sqlalchemy import exc as sa_exc, insert, select, text
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import news_recheck as rows
@@ -14,7 +14,10 @@ from podcast_scraper.news import recheck
 from podcast_scraper.news.recheck_fetch import Validators
 from tests.unit.podcast_scraper.db.test_db_corpus import (  # noqa: F401
     _document,
+    _entity,
+    _insight,
     _item,
+    _mention,
     _source,
     conn,
     url,
@@ -166,3 +169,70 @@ def test_a_negative_window_is_refused(conn: Connection) -> None:  # noqa: F811
     source_id = _news_source(conn)
     with pytest.raises(sa_exc.IntegrityError, match="news_recheck_sources_window_check"):
         rows.set_window(conn, source_id, -1)
+
+
+def _count(conn: Connection, table: str, item_id: int) -> int:  # noqa: F811
+    from sqlalchemy import func
+
+    from podcast_scraper.db.schema import corpus_metadata
+
+    t = corpus_metadata.tables[f"corpus.{table}"]
+    return int(
+        conn.execute(select(func.count()).select_from(t).where(t.c.item_id == item_id)).scalar_one()
+    )
+
+
+def _revision(conn: Connection) -> int:  # noqa: F811
+    return int(conn.execute(text("SELECT revision FROM corpus.corpus_revision")).scalar_one())
+
+
+def test_a_withdrawn_item_is_served_by_nothing_and_keeps_its_insights(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source_id = _news_source(conn)
+    item_id = _item(
+        conn, source_id, "1", content_type="news_article", served=1, has_kg=True, has_gi=True
+    )
+    raw = _document(conn, item_id, kind="article", variant="raw", fetched_at=NOW)
+    old = _document(conn, item_id, kind="article", variant="cleaned", fetched_at=NOW)
+    cleaned = _document(
+        conn, item_id, kind="article", variant="cleaned", version=2, supersedes_id=old
+    )
+    insight = _insight(conn, item_id, cleaned)
+    topic = _entity(conn, "t", natural_id="topic:t", type="topic")
+    _mention(conn, insight, topic, item_id)
+    conn.execute(
+        text(
+            "INSERT INTO corpus.item_entities (item_id, entity_id, role, content_type) "
+            "VALUES (:i, :e, 'mentions', 'news_article')"
+        ),
+        {"i": item_id, "e": topic},
+    )
+    conn.execute(
+        text("INSERT INTO corpus.item_cards (item_id, title, source_title) VALUES (:i, 't', 's')"),
+        {"i": item_id},
+    )
+    before = _revision(conn)
+    assert rows.withdraw(conn, item_id) is True
+    written = conn.execute(
+        text(
+            "SELECT variant, version, supersedes_id FROM corpus.documents "
+            "WHERE item_id = :i AND change_kind = 'withdraw' ORDER BY variant"
+        ),
+        {"i": item_id},
+    ).all()
+    # One per series, each on the series' newest version; the superseded cleaned v1 gets none.
+    assert [tuple(r) for r in written] == [("cleaned", 3, cleaned), ("raw", 2, raw)]
+    item = conn.execute(
+        text("SELECT served, has_kg, has_gi FROM corpus.content_items WHERE item_id = :i"),
+        {"i": item_id},
+    ).one()
+    assert tuple(item) == (0, False, False)
+    for table in ("item_entities", "insight_mentions", "item_cards"):
+        assert _count(conn, table, item_id) == 0, table
+    assert _count(conn, "insights", item_id) == 1
+    assert _revision(conn) == before + 1
+    # A second call finds nothing served and writes nothing.
+    assert rows.withdraw(conn, item_id) is False
+    assert _count(conn, "documents", item_id) == 5
+    assert _revision(conn) == before + 1
