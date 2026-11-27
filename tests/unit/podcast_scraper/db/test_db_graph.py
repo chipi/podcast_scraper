@@ -653,3 +653,88 @@ def test_with_no_published_cluster_build_nodes_are_in_no_group(conn: Connection)
     )
     got = graph.slice_items(conn, ["episode:1"])
     assert all(n["groups"] == [] for n in got["nodes"]) and got["groups"] == []
+
+
+def _groups_build(c: Corpus) -> dict[str, int]:
+    conn = c.conn
+    build = _one(conn, cluster_builds, rule_version="test/1", state="published")
+    made: dict[str, int] = {}
+
+    def group(kind: str, natural_id: str, parent: Optional[str] = None) -> int:
+        cluster = _one(conn, cluster_ids, kind=kind, natural_id=natural_id)
+        conn.execute(
+            insert(clusters).values(
+                build_id=build,
+                cluster_id=cluster,
+                kind=kind,
+                label=natural_id,
+                parent_id=made[parent] if parent else None,
+            )
+        )
+        made[natural_id] = cluster
+        return cluster
+
+    def member(natural_id: str, **key: int) -> None:
+        conn.execute(
+            insert(cluster_members).values(build_id=build, cluster_id=made[natural_id], **key)
+        )
+
+    group("super_theme", "sth:x")
+    group("storyline", "thc:s", parent="sth:x")
+    member("thc:s", entity_id=c.e["topic:ai-2"])
+    group("insight", "ic:i")
+    member("ic:i", insight_id=c.n3)
+    group("theme", "tc:quiet")
+    member("tc:quiet", entity_id=c.e["topic:other"])
+    return made
+
+
+def test_slice_group_is_a_groups_topics_and_the_newest_items_that_carry_them(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+    _groups_build(c)
+    with _statements(conn) as seen:
+        got = graph.slice_group(conn, "thc:s")
+    # 1 (revision, the group, its topics and items) + 2 item steps + the tail of 4.
+    assert len(seen) == 7
+    assert got["preset"] == "slice.group" and got["params"]["group"] == "thc:s"
+    # topic:ai-2's canonical topic:ai is on items 1 and 2; item 3 is not served.
+    assert [i["item_id"] for i in got["items"]] == ["episode:1", "episode:2"]
+    assert "topic:ai" in _ids(got) and "topic:ai-2" not in _ids(got)
+    assert {g["id"] for g in got["groups"]} >= {"thc:s", "sth:x"}
+    assert got["unknown_seeds"] == []
+
+
+def test_a_super_theme_reaches_its_child_groups_topics_and_an_insight_cluster_its_items(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+    _groups_build(c)
+    sup = graph.slice_group(conn, "sth:x")
+    assert [i["item_id"] for i in sup["items"]] == ["episode:1", "episode:2"]
+    assert "topic:ai" in _ids(sup)
+    ins = graph.slice_group(conn, "ic:i")
+    assert [i["item_id"] for i in ins["items"]] == ["episode:2"]
+    quiet = graph.slice_group(conn, "tc:quiet")
+    assert quiet["items"] == [] and quiet["unknown_seeds"] == []
+
+
+def test_an_unknown_group_or_one_only_in_a_retired_build_is_an_unknown_seed(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+    made = _groups_build(c)
+    assert graph.slice_group(conn, "thc:none")["unknown_seeds"] == ["thc:none"]
+    conn.execute(cluster_builds.update().values(state="retired"))
+    gone = graph.slice_group(conn, "thc:s")
+    assert gone["unknown_seeds"] == ["thc:s"] and gone["nodes"] == []
+    assert made["thc:s"]
+
+
+def test_slice_group_cuts_its_items_at_the_budget(conn: Connection) -> None:
+    c = Corpus(conn)
+    _groups_build(c)
+    got = graph.slice_group(conn, "thc:s", budget=2)
+    assert "budget" in got["truncated"]["reasons"]
+    assert len(got["nodes"]) <= 2
