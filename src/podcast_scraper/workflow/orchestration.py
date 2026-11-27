@@ -1974,7 +1974,7 @@ def _finalize_pipeline(
         )
         # Incremental upsert (skips unchanged episodes) — NOT a full rebuild. Adding one
         # episode stats the corpus and upserts only the new vectors.
-        maybe_index_corpus(
+        _indexed = maybe_index_corpus(
             _corpus_finalize_dir,
             cfg,
             backbone_changed_relpaths=(
@@ -1997,6 +1997,15 @@ def _finalize_pipeline(
                 delta=_corpus_delta,
             )
             stage_hooks.corpus_derived(Path(_corpus_finalize_dir))
+            # As the multi-feed batch does after its index and clusters: what an owner derives
+            # from the index (Common's insight clusters and groupings publish), then the
+            # projections build. A single-feed run never fired it, so its groupings never
+            # reached the rows. Not when the index build did not complete (the hook's contract),
+            # and not when the run changed nothing: Common's insight-clusters rebuild re-embeds
+            # every insight on each call (840 s on snapshot-prod-20261124, ingestion 2026-11-27).
+            # A delta that could not be computed (None) is not known to be empty, so it fires.
+            if _indexed is True and not (_corpus_delta is not None and _corpus_delta.is_empty):
+                stage_hooks.corpus_indexed(Path(_corpus_finalize_dir))
         if _corpus_delta is not None:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 

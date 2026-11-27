@@ -209,6 +209,9 @@ class EnrichmentExecutor:
         enricher_set: EnricherSet,
     ) -> None:
         self._corpus_root = corpus_root
+        # Enrichers that wrote an envelope in this run: each publishes its rows once after its
+        # run (:meth:`_publish_rows`).
+        self._wrote: set[str] = set()
         self._registry = registry
         self._enricher_set = enricher_set
 
@@ -599,10 +602,24 @@ class EnrichmentExecutor:
                 for dep in waits_for.get(enricher.manifest.id, ()):
                     await done[dep].wait()
                 await _run_one_enricher(enricher)
+                await self._publish_rows(enricher.manifest.id)
             finally:
                 done[enricher.manifest.id].set()
 
         await asyncio.gather(*(_in_order(e) for e in enrichers))
+
+    async def _publish_rows(self, enricher_id: str) -> None:
+        """After one enricher's run: its outputs onto the corpus rows as its new build
+        (``db.enrichment_rows``), when it wrote an envelope this run or an earlier publish did not
+        land (``pending``). Before the enrichers that wait for it start, so they never read rows
+        older than its files. Off the event loop: the publish reads every served item's
+        envelopes."""
+        from podcast_scraper.db.enrichment_rows import pending, publish_after_run
+
+        if enricher_id not in self._wrote and enricher_id not in pending(self._corpus_root):
+            return
+
+        await asyncio.to_thread(publish_after_run, self._corpus_root, enricher_id)
 
     # ------------------------------------------------------------------ single enricher
 
@@ -1240,6 +1257,7 @@ class EnrichmentExecutor:
             # The next run reads its own previous output (the storyline registry lives
             # in it), and a half-written file would read as "no previous run".
             write_json_atomic(path, payload, indent=2)
+            self._wrote.add(manifest.id)
         except OSError as exc:
             logger.warning(
                 "enrichment envelope write failed: %s (enricher=%s, path=%s)",

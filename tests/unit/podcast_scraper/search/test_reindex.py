@@ -12,6 +12,7 @@ from __future__ import annotations
 import signal
 import subprocess
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -114,3 +115,22 @@ def test_no_delta_omits_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(reindex.subprocess, "run", _capture)
     reindex.run_index_in_subprocess("/corpus", _fake_cfg())
     assert "--backbone-changed-file" not in seen["argv"]
+
+
+@pytest.mark.parametrize(
+    ("cfg", "child_ok", "ran"),
+    [
+        ({"vector_search": True}, True, True),
+        ({"vector_search": True}, False, False),
+        ({"vector_search": False}, True, False),
+        ({"vector_search": True, "skip_auto_vector_index": True}, True, False),
+    ],
+)
+def test_maybe_index_corpus_says_whether_a_build_completed(
+    monkeypatch: pytest.MonkeyPatch, cfg: dict, child_ok: bool, ran: bool
+) -> None:
+    # The single-feed finalize fires corpus_indexed only after a completed build.
+    from podcast_scraper.search import indexer
+
+    monkeypatch.setattr(reindex, "run_index_in_subprocess", lambda *a, **k: child_ok)
+    assert indexer.maybe_index_corpus("/corpus", cast(Any, SimpleNamespace(**cfg))) is ran

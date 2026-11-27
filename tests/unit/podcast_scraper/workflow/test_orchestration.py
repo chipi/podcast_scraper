@@ -5,6 +5,7 @@ Tests for parallelism logging and configuration.
 
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
@@ -1285,6 +1286,68 @@ class TestFinalizePipeline(unittest.TestCase):
             threshold=cfg.topic_cluster_threshold,
             delta=ANY,
         )
+
+    @patch("podcast_scraper.corpus_delta.write_fingerprint_manifest")
+    @patch("podcast_scraper.workflow.orchestration._compute_corpus_delta_safe")
+    @patch("podcast_scraper.stage_hooks.corpus_indexed")
+    @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
+    @patch("podcast_scraper.search.indexer.maybe_index_corpus")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.cleanup_pipeline")
+    @patch("podcast_scraper.workflow.orchestration._log_episode_results")
+    def test_a_single_feed_finalize_fires_corpus_indexed_only_after_a_completed_index(
+        self,
+        _mock_log_results,
+        _mock_cleanup,
+        mock_generate_summary,
+        mock_maybe_index_corpus,
+        _mock_topic_clusters,
+        mock_corpus_indexed,
+        mock_delta,
+        _mock_manifest,
+    ):
+        """As the multi-feed batch does: the owners' index derivations (groupings) and the
+        projections run after a single-feed run's index too; never after a failed index, nor
+        when the run changed nothing (Common's insight-clusters rebuild costs 840 s a call)."""
+        changed = MagicMock(is_empty=False)
+        changed.changed_metadata_relpaths.return_value = ["a.metadata.json"]
+        unchanged = MagicMock(is_empty=True)
+        unchanged.changed_metadata_relpaths.return_value = []
+        mock_delta.return_value = changed
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            dry_run=False,
+            run_id="test-run",
+            vector_search=True,
+        )
+        mock_generate_summary.return_value = (5, "Summary")
+        args = (
+            cfg,
+            5,
+            self.transcription_resources,
+            self.output_dir,
+            self.run_suffix,
+            self.pipeline_metrics,
+            self.episodes,
+            None,
+            None,
+            None,
+            None,
+        )
+        mock_maybe_index_corpus.return_value = False
+        orchestration._finalize_pipeline(*args)
+        mock_corpus_indexed.assert_not_called()
+        mock_maybe_index_corpus.return_value = True
+        mock_delta.return_value = unchanged
+        orchestration._finalize_pipeline(*args)
+        mock_corpus_indexed.assert_not_called()
+        mock_delta.return_value = changed
+        orchestration._finalize_pipeline(*args)
+        mock_corpus_indexed.assert_called_once_with(Path(self.output_dir))
+        # A delta that could not be computed is not known to be empty.
+        mock_delta.return_value = None
+        orchestration._finalize_pipeline(*args)
+        self.assertEqual(mock_corpus_indexed.call_count, 2)
 
     @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
     @patch("podcast_scraper.search.indexer.maybe_index_corpus")
