@@ -18,15 +18,19 @@ Built here, the walk core:
   (``db.projections``), one more statement; every slice names that build as ``graph_build_id``,
   read in its seed statement.
 
-Not built yet: the groups catalogue and node ``groups`` (the ``clusters`` tables exist since
-corpus_0013), ``exclude_items`` and held stubs, the structured query, the routes, caching and the
-replica retry.
+- node ``groups`` and the slice's groups catalogue (CRFC-004 §2) from the published cluster build:
+  a topic is in a group when a member of its canonical is, and the catalogue holds every group a
+  served node is in and that group's parent.
+
+Not built yet: ``slice.group``, ``groups.summary`` and ``expand_groups``, ``exclude_items`` and
+held stubs, the structured query, the routes, caching and the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
-sends nothing. The tail is 3 (nodes, items, induced edges), since there is no groups catalogue to
-read yet; aggregated edges are counted during the walk, not by a statement of their own; a path
-whose last step reaches entities reads their types in one more statement, so ``keep`` can choose
-among them. ``tests/unit/podcast_scraper/db/test_db_graph.py`` asserts each count.
+sends nothing. The tail is 4 (nodes, items, induced edges, groups; groups only when the slice has
+an entity or insight node), decision 9's 4; aggregated edges are counted during the walk, not by
+a statement of their own; a path whose last step reaches entities reads their types in one more
+statement, so ``keep`` can choose among them. ``tests/unit/podcast_scraper/db/test_db_graph.py``
+asserts each count.
 
 What is never served: an item that is not served or is withheld, an insight that is hidden
 (``visible`` false) or cut from a document something supersedes, a quote cut from such a
@@ -62,6 +66,10 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.sql import ColumnElement, Select
 
 from podcast_scraper.db.schema import (
+    cluster_builds,
+    cluster_ids,
+    cluster_members,
+    clusters,
     content_items,
     corpus_revision,
     documents,
@@ -1165,6 +1173,87 @@ def _iso(value: Optional[datetime]) -> Optional[str]:
     return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _groups(conn: Connection, s: _Slice) -> tuple[dict[Ref, list[str]], dict[str, dict[str, Any]]]:
+    """Node ``groups`` and the groups catalogue (CRFC-004 §2), from the published cluster build, in
+    one statement: each entity node's groups (a topic is in a group when a member of its canonical
+    is), each insight node's, and a catalogue row (``id``, ``kind``, ``label``, ``parent_id``) for
+    every group a node is in and for its parent, so a storyline's super-theme can be drawn. Ids are
+    ``cluster_ids.natural_id``. Nothing is read for a slice with no entity or insight node."""
+    ents = sorted(ref[1] for ref in s.nodes if ref[0] == ENTITY)
+    ins = sorted(ref[1] for ref in s.nodes if ref[0] == INSIGHT)
+    if not ents and not ins:
+        return {}, {}
+    m, k = cluster_members, entities.alias("gk")
+    build = (
+        select(cluster_builds.c.build_id)
+        .where(cluster_builds.c.state == "published")
+        .scalar_subquery()
+    )
+    members = union_all(
+        select(
+            literal(ENTITY).label("node_kind"),
+            k.c.canonical_id.label("node_key"),
+            m.c.cluster_id,
+        )
+        .select_from(m.join(k, k.c.entity_id == m.c.entity_id))
+        .where(
+            m.c.build_id == build,
+            k.c.canonical_id == func.any(bindparam("group_ents", ents, type_=ARRAY(BigInteger))),
+        ),
+        select(literal(INSIGHT), m.c.insight_id, m.c.cluster_id).where(
+            m.c.build_id == build,
+            m.c.insight_id == func.any(bindparam("group_ins", ins, type_=ARRAY(BigInteger))),
+        ),
+    ).cte("gm")
+    c, own, up = clusters, cluster_ids.alias("gi"), cluster_ids.alias("gp")
+    referenced = select(members.c.cluster_id)
+    parents = select(c.c.parent_id).where(
+        c.c.build_id == build, c.c.cluster_id.in_(referenced), c.c.parent_id.is_not(None)
+    )
+    statement = union_all(
+        select(
+            literal("member").label("row"),
+            members.c.node_kind,
+            members.c.node_key,
+            own.c.natural_id,
+            cast(null(), Text).label("kind"),
+            cast(null(), Text).label("label"),
+            cast(null(), Text).label("parent"),
+        ).select_from(members.join(own, own.c.cluster_id == members.c.cluster_id)),
+        select(
+            literal("group"),
+            cast(null(), Text),
+            cast(null(), BigInteger),
+            own.c.natural_id,
+            c.c.kind,
+            c.c.label,
+            up.c.natural_id,
+        )
+        .select_from(
+            c.join(own, own.c.cluster_id == c.c.cluster_id).outerjoin(
+                up, up.c.cluster_id == c.c.parent_id
+            )
+        )
+        .where(
+            c.c.build_id == build,
+            c.c.cluster_id.in_(referenced) | c.c.cluster_id.in_(parents),
+        ),
+    )
+    of: dict[Ref, set[str]] = {}
+    catalogue: dict[str, dict[str, Any]] = {}
+    for row in conn.execute(statement):
+        if row.row == "member":
+            of.setdefault((str(row.node_kind), int(row.node_key)), set()).add(str(row.natural_id))
+        else:
+            catalogue[str(row.natural_id)] = {
+                "id": str(row.natural_id),
+                "kind": row.kind,
+                "label": row.label,
+                "parent_id": row.parent,
+            }
+    return {ref: sorted(ids) for ref, ids in of.items()}, catalogue
+
+
 def _item_counts(conn: Connection, s: _Slice) -> Optional[dict[int, int]]:
     """``with: counts``: each entity node's corpus-wide item count, from the published
     projections build (``entity_item_counts``, keyed by canonical id), in one statement. None
@@ -1192,6 +1281,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
     items = _item_rows(conn, s)
     induced = _induced(conn, s)
     counts = _item_counts(conn, s)
+    node_groups, catalogue = _groups(conn, s)
 
     def present(ref: Ref) -> bool:
         if ref[0] == ITEM:
@@ -1235,7 +1325,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
             "type": node["type"],
             "label": node["label"],
             "properties": node["properties"],
-            "groups": [],
+            "groups": node_groups.get(ref, []),
         }
         if node["item_id"] is not None:
             entry["item_id"] = item_natural(node["item_id"])
@@ -1313,6 +1403,15 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
                 items.values(), key=lambda r: (-recency(r["item_id"]), r["natural_id"])
             )
         ],
-        "groups": [],
+        "groups": _catalogue(out_nodes, catalogue),
         "truncated": truncated,
     }
+
+
+def _catalogue(
+    out_nodes: list[dict[str, Any]], catalogue: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The catalogue rows of the groups the served nodes are in, and of their parents, by id."""
+    wanted = {group for node in out_nodes for group in node["groups"]}
+    wanted |= {catalogue[g]["parent_id"] for g in wanted if g in catalogue} - {None}
+    return [catalogue[g] for g in sorted(wanted) if g in catalogue]
