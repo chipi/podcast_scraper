@@ -39,6 +39,15 @@ their canonical id, every member's rows included (§3.3).
   direction is cut by its own topic's list, so ``(a, b)`` can be stored without ``(b, a)``: read
   one topic's related topics by ``topic_a``, never the table as symmetric. Not shown-item
   co-occurrence: ``topic_cooccurrence_corpus``'s ``entity_pairs`` give that.
+- :data:`~podcast_scraper.db.schema.topic_speakers` (one topic's perspectives, unscoped;
+  ``cil_queries.topics_perspectives`` on files): per canonical topic and canonical speaker, the
+  distinct current insights on shown items ABOUT the topic that the speaker is attributed, and
+  their items, ranked by insights and then the speaker's natural id. An insight's speaker is its
+  first supporting quote's (the lowest ``insight_support.ord``), as the file code takes the first
+  SUPPORTED_BY edge; a first quote with no speaker attributes it to no one. A canonical speaker
+  that is an unresolved voice (the file code's predicate, on its id and label) has no row. What
+  it cannot serve stays per request: ``scope=mine``, the insight-type filter, and a grouping's
+  union of topics.
 
 The published build and the one before it are kept, so undo can publish the previous one; older
 builds are deleted with their rows.
@@ -69,6 +78,7 @@ from sqlalchemy import (
     union_all,
     update,
 )
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.engine import Connection, Engine
 
 from podcast_scraper.db import leases
@@ -92,6 +102,7 @@ from podcast_scraper.db.schema import (
     person_rankings,
     projection_builds,
     topic_relations,
+    topic_speakers,
 )
 
 logger = logging.getLogger(__name__)
@@ -403,6 +414,93 @@ def _write_topic_relations(conn: Connection, build_id: int) -> int:
     return _written(conn, statement)
 
 
+def _placeholder_canonical_speakers(conn: Connection) -> list[int]:
+    """The canonical persons of quote speakers that are unresolved voices, tested as the
+    perspectives code tests them: on the canonical id and its name."""
+    from podcast_scraper.graph_id_utils import is_unresolved_speaker_placeholder
+
+    sp, k = entities.alias("cs"), entities.alias("ck")
+    rows = conn.execute(
+        select(k.c.entity_id, k.c.natural_id, k.c.label)
+        .distinct()
+        .select_from(
+            evidence.join(sp, sp.c.entity_id == evidence.c.speaker_id).join(
+                k, k.c.entity_id == sp.c.canonical_id
+            )
+        )
+        .where(sp.c.type == "person")
+        .order_by(k.c.entity_id)
+    )
+    return [
+        int(r.entity_id) for r in rows if is_unresolved_speaker_placeholder(r.natural_id, r.label)
+    ]
+
+
+def _write_topic_speakers(conn: Connection, build_id: int) -> int:
+    s = insight_support.alias("fs")
+    ev = evidence.alias("fe")
+    first = (
+        select(s.c.insight_id.label("insight_id"), ev.c.speaker_id.label("speaker_id"))
+        .ext(distinct_on(s.c.insight_id))
+        .select_from(s.join(ev, ev.c.evidence_id == s.c.evidence_id))
+        .order_by(s.c.insight_id, s.c.ord)
+        .subquery("first_quote")
+    )
+    e = entities.alias("ae")
+    m = insight_mentions.alias("am")
+    i = insights.alias("ai")
+    about = (
+        select(
+            e.c.canonical_id.label("topic_id"),
+            m.c.insight_id.label("insight_id"),
+            i.c.item_id.label("item_id"),
+        )
+        .distinct()
+        .select_from(
+            m.join(e, e.c.entity_id == m.c.entity_id).join(i, i.c.insight_id == m.c.insight_id)
+        )
+        .where(m.c.kind == "ABOUT", e.c.type == "topic", _insight_ok(i))
+        .subquery("about")
+    )
+    sp, k = entities.alias("ss"), entities.alias("sk")
+    placeholders = _placeholder_canonical_speakers(conn)
+    insight_count = func.count(distinct(about.c.insight_id))
+    ranked = (
+        select(
+            about.c.topic_id.label("topic_id"),
+            k.c.entity_id.label("person_id"),
+            func.count(distinct(about.c.item_id)).label("items"),
+            insight_count.label("insights"),
+            func.row_number()
+            .over(partition_by=about.c.topic_id, order_by=(insight_count.desc(), k.c.natural_id))
+            .label("rank"),
+        )
+        .select_from(
+            about.join(first, first.c.insight_id == about.c.insight_id)
+            .join(sp, sp.c.entity_id == first.c.speaker_id)
+            .join(k, k.c.entity_id == sp.c.canonical_id)
+        )
+        .where(
+            sp.c.type == "person",
+            k.c.entity_id.not_in(placeholders) if placeholders else literal(True),
+        )
+        .group_by(about.c.topic_id, k.c.entity_id, k.c.natural_id)
+        .subquery("ranked")
+    )
+    statement = insert(topic_speakers).from_select(
+        ["build_id", "topic_id", "person_id", "items", "insights", "rank"],
+        select(
+            literal(build_id, BigInteger),
+            ranked.c.topic_id,
+            ranked.c.person_id,
+            ranked.c["items"],
+            ranked.c.insights,
+            ranked.c.rank,
+        ),
+    )
+    return _written(conn, statement)
+
+
 def _published(conn: Connection, table: Any) -> Optional[int]:
     found: Optional[int] = conn.execute(
         select(table.c.build_id).where(table.c.state == "published")
@@ -460,6 +558,7 @@ def build_in(conn: Connection, *, now: Optional[datetime] = None) -> Build:
         "cluster_reach": _write_reach(conn, build_id, clusters_of),
         "person_rankings": _write_person_rankings(conn, build_id),
         "topic_relations": _write_topic_relations(conn, build_id),
+        "topic_speakers": _write_topic_speakers(conn, build_id),
     }
     stats["builds_deleted"] = len(_publish(conn, build_id, at))
     conn.execute(

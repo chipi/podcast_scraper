@@ -24,6 +24,7 @@ from podcast_scraper.db.schema import (
     person_rankings,
     projection_builds,
     topic_relations,
+    topic_speakers,
 )
 from podcast_scraper.db.settings import normalize_url
 from tests.unit.podcast_scraper.db.test_corpus_writer import pipeline_db  # noqa: F401
@@ -318,3 +319,82 @@ def test_each_topic_keeps_its_strongest_related_topics_ties_by_natural_id(
     kept = [r for r in _relations(conn, built.build_id) if r[0] == "topic:ai"]
     # topic:d shares 2, then topic:b before topic:c on the id; topic:c is cut.
     assert kept == [("topic:ai", "topic:d", 2.0), ("topic:ai", "topic:b", 1.0)]
+
+
+def _speakers(
+    conn: Connection, build_id: int  # noqa: F811
+) -> list[tuple[str, str, int, int, int]]:
+    t, p = entities.alias("t"), entities.alias("p")
+    return [
+        tuple(r)
+        for r in conn.execute(
+            select(
+                t.c.natural_id,
+                p.c.natural_id,
+                topic_speakers.c["items"],
+                topic_speakers.c.insights,
+                topic_speakers.c.rank,
+            )
+            .select_from(
+                topic_speakers.join(t, t.c.entity_id == topic_speakers.c.topic_id).join(
+                    p, p.c.entity_id == topic_speakers.c.person_id
+                )
+            )
+            .where(topic_speakers.c.build_id == build_id)
+            .order_by(t.c.natural_id, topic_speakers.c.rank)
+        )
+    ]
+
+
+def test_topic_speakers_attribute_each_insight_to_its_first_quotes_speaker(
+    conn: Connection,  # noqa: F811
+) -> None:
+    # cil_queries.topics_perspectives on rows, one topic, unscoped (database, 2026-11-27).
+    c = Corpus(conn)
+    c.e["person:bob-2"] = _one(
+        conn,
+        entities,
+        natural_id="person:bob-2",
+        type="person",
+        label="Bob",
+        normalized_label="bob",
+        canonical_id=c.e["person:bob"],
+    )
+    c.entity("person:speaker-03")
+    d2 = c.items["2"]
+    # n1 (topic:ai, item 1): the fixture's q1 by bob is its first quote (ord 0); ann's later
+    # quote does not take it.
+    c.quote(c.items["1"], "person:ann", c.n1, "a1")
+    # n3 (topic:ai-2, which is topic:ai; item 2): first quote by bob-2, so bob again.
+    c.quote(d2, "person:bob-2", c.n3, "b3")
+    # An insight about topic:other first spoken by ann, and one by a diarization voice.
+    other = c.insight("o1", d2, 3, about=["topic:other"])
+    c.quote(d2, "person:ann", other, "a-o1")
+    voice = c.insight("o2", d2, 4, about=["topic:other"])
+    c.quote(d2, "person:speaker-03", voice, "s-o2")
+    # Not counted: a hidden insight's quote.
+    c.quote(d2, "person:ann", c.n5, "a5")
+    built = projections.build_in(conn)
+    assert _speakers(conn, built.build_id) == [
+        ("topic:ai", "person:bob", 2, 2, 1),
+        ("topic:other", "person:ann", 1, 1, 1),
+    ]
+    assert built.stats["topic_speakers"] == 2
+
+
+def test_topic_speakers_rank_by_insights_then_the_speakers_natural_id(
+    conn: Connection,  # noqa: F811
+) -> None:
+    c = Corpus(conn)
+    c.entity("person:abe")
+    d2 = c.items["2"]
+    # topic:other: abe and ann one insight each; the tie goes to person:abe.
+    for n, person in (("x1", "person:ann"), ("x2", "person:abe")):
+        insight = c.insight(n, d2, 5 + len(n), about=["topic:other"])
+        c.quote(d2, person, insight, n)
+    built = projections.build_in(conn)
+    other = [r for r in _speakers(conn, built.build_id) if r[0] == "topic:other"]
+    assert other == [
+        ("topic:other", "person:abe", 1, 1, 1),
+        ("topic:other", "person:ann", 1, 1, 2),
+    ]
