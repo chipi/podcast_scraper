@@ -19,6 +19,10 @@ description: |
   Keys: as install-ffmpeg, `<base>-<run id>` restored by the `<base>-` prefix, so the newest entry
   wins and a fallback replaces a bad one; a healthy hit saves nothing.
 
+  On a runner with a kept folder (`CI_CACHE`, set only on the X3 runners): GitHub's cache is
+  neither restored nor saved. The runner keeps the browser folder and its apt archive between
+  jobs itself, so a restore is a second download and each save stores another entry for nothing.
+
 inputs:
   working-directory:
     description: The app directory whose node_modules holds the Playwright version to use.
@@ -49,9 +53,11 @@ runs:
         echo "debs=${RUNNER_TEMP}/apt-playwright-${BROWSER}" >> "$GITHUB_OUTPUT"
         echo "base=${base}" >> "$GITHUB_OUTPUT"
         echo "key=${base}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+        echo "kept=$([ -n "${CI_CACHE:-}" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
     - name: Restore Playwright browser
       id: restore
+      if: steps.key.outputs.kept != 'true'
       uses: actions/cache/restore@v6
       with:
         path: |
@@ -68,6 +74,7 @@ runs:
         BROWSER: ${{ inputs.browser }}
         WITH_DEPS: ${{ inputs.with-deps }}
         DEB_DIR: ${{ steps.key.outputs.debs }}
+        KEPT: ${{ steps.key.outputs.kept }}
         RESTORED: ${{ steps.restore.outputs.cache-matched-key }}
       run: |
         set -euo pipefail
@@ -103,7 +110,14 @@ runs:
           fi
           echo "save=true" >> "$GITHUB_OUTPUT"
         }
-        if [ -n "${RESTORED}" ]; then
+        if [ "$KEPT" = "true" ]; then
+          echo "playwright: installing into the runner's kept folder (${CI_CACHE})"
+          node_modules/.bin/playwright install "$BROWSER"
+          if [ "$WITH_DEPS" = "true" ] && [ "$(missing_libs)" != "0" ]; then
+            node_modules/.bin/playwright install-deps "$BROWSER"
+          fi
+          echo "save=false" >> "$GITHUB_OUTPUT"
+        elif [ -n "${RESTORED}" ]; then
           ok=true
           if [ "$WITH_DEPS" = "true" ] && ls "$DEB_DIR"/*.deb >/dev/null 2>&1; then
             echo "playwright: installing $(ls "$DEB_DIR"/*.deb | wc -l) cached system packages (${RESTORED})"
