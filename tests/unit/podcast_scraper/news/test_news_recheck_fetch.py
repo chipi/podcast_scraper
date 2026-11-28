@@ -165,7 +165,6 @@ def test_the_same_extractor_or_none_named_extracts_once(
 
 
 def test_method_text_gives_one_extractor_alone_and_nothing_for_the_feed() -> None:
-    pytest.importorskip("trafilatura")
     page = _page(_P)
     assert extract.method_text(page, URL, extract.FEED) is None
     traf = extract.method_text(page, URL, extract.TRAFILATURA)
