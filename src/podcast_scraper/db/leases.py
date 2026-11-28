@@ -19,7 +19,20 @@ Who takes what after the cut-over: an ingest of a source, ``corpus`` shared then
 ``source:`` exclusive; an enricher, ``corpus`` shared; a corpus-wide build, ``corpus`` shared then
 its ``build:`` exclusive; the news re-check, ``corpus`` shared and ``build:news_recheck``
 exclusive, and for a withdrawal its source's ``source:`` exclusive under a holder of its own; a
-row migration and the schema migrate step, ``corpus`` exclusive.
+row migration and the schema migrate step, ``corpus`` exclusive; the identity import (Common's
+``run_identity_import``), ``corpus`` exclusive and ``build:identity`` exclusive, because it
+derives across every item (a one-shot at the cut-over with ingest stopped; revisit if it becomes
+a recurring build).
+
+A groupings publish (``build:groupings``) holds ``corpus`` shared, so per-item GI writes run beside
+it. That is safe because the publish writes its whole build in one transaction and its members
+reference insights by foreign key (``ON DELETE CASCADE``). If a GI write's delete of an insight
+commits first, the publish's member insert fails, it rolls back and the next run publishes. If the
+publish inserted first, the delete waits on the key-share lock and then cascades the new member away
+(Common's ``test_a_rewrite_during_a_groupings_publish_waits_and_cascades_its_new_membership``).
+What it does not give: at read committed each statement of a long publish sees the latest commits,
+so counts or members read early can be one GI write behind those read late; the next publish
+corrects them.
 """
 
 from __future__ import annotations
