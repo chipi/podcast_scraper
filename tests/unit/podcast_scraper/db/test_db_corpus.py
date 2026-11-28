@@ -1483,7 +1483,8 @@ def test_evidence_keeps_its_body_span_and_translation(conn: Connection) -> None:
     evidence_id = _evidence(conn, item, document, char_start=0, char_end=12, translated_from="de")
     got = conn.execute(
         text(
-            "SELECT char_start, char_end, translated_from FROM corpus.evidence WHERE evidence_id = :e"
+            "SELECT char_start, char_end, translated_from FROM corpus.evidence"
+            " WHERE evidence_id = :e"
         ),
         {"e": evidence_id},
     ).one()
