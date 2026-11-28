@@ -3,6 +3,13 @@
 robots.txt first (RFC 9309), then the page through the shared downloader (its retries, SSRF guard,
 circuit breaker and the run's per-host throttle), then the main text (``extract``). The page is
 kept as the item's raw cache (RFC-134 §5).
+
+An item that gets no text says why (:class:`~podcast_scraper.content_types.NotFetched`). A page
+whose request failed is classified by the downloader's own rule
+(:func:`~podcast_scraper.rss.downloader.is_transient_failure`, the statuses its retry transport
+retries): transient, the item waits for the next run; permanent (a 404, a 410, a 403), it is
+skipped. A robots.txt that could not be read (a 5xx, an unreachable host) is transient too and is
+not remembered; one that refuses the page is permanent.
 """
 
 from __future__ import annotations
@@ -12,12 +19,12 @@ import logging
 import re
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
 from .. import config
-from ..content_types import SourceItem
+from ..content_types import FetchedBody, NotFetched, SourceItem
 from ..news_classify import classify
 from ..news_items import F_ITEM_CLASS
 from ..rss import downloader
@@ -45,20 +52,20 @@ def user_agent(source: Any) -> str:
 
 def _robots(origin: str, agent: str) -> Optional[RobotFileParser]:
     """The origin's parsed robots.txt; an empty parser (allow all) for a 4xx, ``None`` (disallow
-    all) for a 5xx or an unreachable host (RFC 9309 §2.3.1)."""
+    all, RFC 9309 §2.3.1) for a 5xx or an unreachable host. Only a parsed answer is remembered:
+    an unreadable robots.txt is asked for again by the next item, so an outage of one run does
+    not refuse the origin for the rest of the process."""
     with _ROBOTS_LOCK:
         if origin in _ROBOTS:
             return _ROBOTS[origin]
     status, body = downloader.http_get_any_status(origin + "/robots.txt", agent, TIMEOUT_S)
-    parser: Optional[RobotFileParser] = RobotFileParser()
+    parser = RobotFileParser()
     if 200 <= status < 300:
-        assert parser is not None
         parser.parse(body.decode("utf-8", errors="replace").splitlines())
     elif 400 <= status < 500:
-        assert parser is not None
         parser.parse([])
     else:
-        parser = None
+        return None
     with _ROBOTS_LOCK:
         _ROBOTS[origin] = parser
     return parser
@@ -72,9 +79,14 @@ def reset_robots_cache() -> None:
 
 def robots_allow(url: str, agent: str) -> bool:
     """Whether robots.txt lets ``agent`` fetch ``url``."""
+    return robots_answer(url, agent) is True
+
+
+def robots_answer(url: str, agent: str) -> Optional[bool]:
+    """Whether robots.txt lets ``agent`` fetch ``url``; ``None`` when it could not be read."""
     parts = urlsplit(url)
     parser = _robots(f"{parts.scheme}://{parts.netloc}", agent)
-    return parser is not None and parser.can_fetch(agent, url)
+    return None if parser is None else parser.can_fetch(agent, url)
 
 
 #: Where an item's language came from (recorded as ``news_article.language_source``).
@@ -124,21 +136,28 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def fetch_body(item: SourceItem, source: Any) -> Optional[SourceItem]:
-    """``item`` with its page's main text, or ``None`` when robots.txt refuses it, the fetch fails
-    or no text is found. A source whose text is the feed's (``text_from: feed``) never fetches
-    the page: SCMP's pages answer 403 (Common #51)."""
+def fetch_body(item: SourceItem, source: Any) -> FetchedBody:
+    """``item`` with its page's main text, or why it has none (:class:`NotFetched`): robots.txt
+    refuses it or could not be read, the fetch failed (classified by the downloader), or no text
+    is found. ``None``: its language is not one we ingest. A source whose text is the feed's
+    (``text_from: feed``) never fetches the page: SCMP's pages answer 403 (Common #51)."""
     if not item.url:
-        return None
+        return NotFetched("no_url", transient=False)
     if source_spec(source).text_from == extract.TEXT_FROM_FEED:
         return _from_feed(item, source)
     agent = user_agent(source)
-    if not robots_allow(item.url, agent):
+    allowed = robots_answer(item.url, agent)
+    if allowed is None:
+        logger.warning("news: robots.txt for %s could not be read; the item waits", item.url)
+        return NotFetched("robots_unavailable", transient=True)
+    if not allowed:
         logger.info("news: robots.txt disallows %s; skipped", item.url)
-        return None
-    resp = downloader.fetch_url(item.url, agent, TIMEOUT_S)
+        return NotFetched("robots_disallowed", transient=False)
+    failure: List[int] = []
+    resp = downloader.fetch_url(item.url, agent, TIMEOUT_S, failure=failure)
     if resp is None:
-        return None
+        status = failure[0] if failure else downloader.FAILURE_UNREACHABLE
+        return NotFetched(f"http_{status}", transient=downloader.is_transient_failure(status))
     html = resp.text
     found = extract.main_text(
         html,
@@ -148,7 +167,7 @@ def fetch_body(item: SourceItem, source: Any) -> Optional[SourceItem]:
     )
     if found is None:
         logger.warning("news: no text found on %s; skipped", item.url)
-        return None
+        return NotFetched("no_text", transient=False)
     return complete(
         item,
         source,
@@ -161,14 +180,14 @@ def fetch_body(item: SourceItem, source: Any) -> Optional[SourceItem]:
     )
 
 
-def _from_feed(item: SourceItem, source: Any) -> Optional[SourceItem]:
-    """``item`` with the feed's own text for it; ``None`` when the feed gives none. The feed's
+def _from_feed(item: SourceItem, source: Any) -> FetchedBody:
+    """``item`` with the feed's own text for it; ``no_text`` when the feed gives none. The feed's
     HTML is kept as the raw cache, since no page was fetched."""
     feed_html = item.metadata.get("feed_html")
     found = extract.main_text("", item.url or "", feed_html, text_from=extract.TEXT_FROM_FEED)
     if found is None:
         logger.warning("news: the feed gives no text for %s; skipped", item.url)
-        return None
+        return NotFetched("no_text", transient=False)
     return complete(
         item,
         source,

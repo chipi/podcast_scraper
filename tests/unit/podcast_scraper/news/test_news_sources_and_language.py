@@ -343,7 +343,8 @@ def test_a_feed_text_source_with_no_feed_text_is_skipped_without_a_fetch(
     monkeypatch.setattr(downloader, "http_get_any_status", lambda *a: pytest.fail("robots read"))
     src = _Source()
     src.news = NewsSourceSpec(text_from="feed")
-    assert fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src) is None
+    got = fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src)
+    assert got == ct.NotFetched("no_text", transient=False)
 
 
 def test_the_feed_text_keeps_the_words_outside_its_blocks() -> None:

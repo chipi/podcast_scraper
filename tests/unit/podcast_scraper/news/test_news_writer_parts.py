@@ -139,7 +139,56 @@ def test_fetch_body_skips_what_robots_txt_refuses(
     robots.append((200, b"User-agent: *\nDisallow: /\n"))
     monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: pytest.fail("fetched anyway"))
     item = ct.SourceItem(item_id="g", url="https://news.test/a")
-    assert fetch.fetch_body(item, None) is None
+    assert fetch.fetch_body(item, None) == ct.NotFetched("robots_disallowed", transient=False)
+
+
+@pytest.mark.parametrize("status", [500, 503, 0])
+def test_an_unreadable_robots_txt_makes_the_item_wait_and_is_asked_again(
+    robots: List[Tuple[int, bytes]], monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    """A 5xx or an unreachable host: the item waits for the next run (transient), and the
+    origin's robots.txt is not remembered, so the next item asks again and is fetched."""
+    robots.extend([(status, b""), (200, b"User-agent: *\nAllow: /\n")])
+    monkeypatch.setattr(downloader, "fetch_url", lambda *a, **k: None)
+    item = ct.SourceItem(item_id="g", url="https://news.test/a")
+    assert fetch.fetch_body(item, None) == ct.NotFetched("robots_unavailable", transient=True)
+    assert fetch.robots_allow("https://news.test/a", "agent")
+    assert robots == []
+
+
+@pytest.mark.parametrize(
+    ("status", "transient"),
+    [
+        (503, True),
+        (429, True),
+        (408, True),
+        (downloader.FAILURE_UNREACHABLE, True),
+        (downloader.FAILURE_CIRCUIT_OPEN, True),
+        (404, False),
+        (410, False),
+        (403, False),
+        (downloader.FAILURE_REFUSED, False),
+    ],
+)
+def test_a_failed_page_is_classified_by_the_downloaders_rule(
+    robots: List[Tuple[int, bytes]],
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+    transient: bool,
+) -> None:
+    """The page's status comes back from the shared downloader (``failure=``) and is classified
+    by its own rule: what its retry transport retries, an unreachable host or an open circuit
+    may succeed later; anything else is skipped for good."""
+    robots.append((200, b"User-agent: *\nAllow: /\n"))
+
+    def failed(*a: Any, failure: Optional[List[int]] = None, **k: Any) -> None:
+        assert failure is not None
+        failure.append(status)
+        return None
+
+    monkeypatch.setattr(downloader, "fetch_url", failed)
+    item = ct.SourceItem(item_id="g", url="https://news.test/a")
+    assert fetch.fetch_body(item, None) == ct.NotFetched(f"http_{status}", transient=transient)
 
 
 # --- the RSS transport's cursor ---
@@ -184,9 +233,15 @@ def test_a_later_listing_returns_only_what_is_newer_than_the_cursor(feed: None) 
     assert cursor == "2026-11-17T08:00:00Z"
 
 
-def test_an_unfetchable_feed_keeps_its_cursor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_unfetchable_feed_raises_as_a_podcast_feed_does(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The batch classifies it as a podcast feed's fetch failure: a soft feed incident. The run
+    stops before it writes the cursor, so the cursor is kept."""
+    from podcast_scraper.workflow.corpus_operations import classify_multi_feed_feed_exception
+
     monkeypatch.setattr(downloader, "fetch_rss_feed_url", lambda *a, **k: None)
-    assert rss.list_items(_Source(), "2026-11-16T08:00:00Z") == ([], "2026-11-16T08:00:00Z")
+    with pytest.raises(ValueError, match="Failed to fetch RSS feed") as raised:
+        rss.list_items(_Source(), "2026-11-16T08:00:00Z")
+    assert classify_multi_feed_feed_exception(raised.value) == "soft"
 
 
 def test_iso_reads_feedparsers_utc_struct_time() -> None:

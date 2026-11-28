@@ -169,7 +169,7 @@ def test_the_guardians_items_carry_their_text_and_record(
     assert [i.metadata["title"] for i in items] == ["A"]  # no body: nothing to write
     item = items[0]
     assert item.cursor == "2026-11-18T09:00:00Z"
-    assert f"page-size={guardian.PAGE_SIZE}" in seen[0]
+    assert f"page-size={guardian.PAGE_SIZE}" in seen[0] and "order-by=oldest" in seen[0]
     assert guardian.TRANSPORT.max_items is not None
     assert item.text is not None and item.text.startswith("Paragraph 0 of the report")
     assert len(item.text.split("\n\n")) == 12

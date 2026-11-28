@@ -1,12 +1,14 @@
-"""Park an episode whose transcription keeps failing, so the nightly stops retrying it.
+"""Park an item whose processing keeps failing, so the nightly stops retrying it.
 
-A failure is held in memory until the batch ends. ``commit_batch`` then counts it, but only when
-some other episode in the same batch transcribed: a failure in a batch where nothing transcribed
-is an endpoint outage, not this episode, and counting it would park the whole batch. An episode
-that reaches ``Config.transcription_park_after_failures`` counted failures is parked: skipped
-before download from then on, with an error log line, a GlitchTip event and a policy incident when
-it is parked. An episode that transcribes clears its count. A parked episode is released only by
-hand (``parked-episodes --release``); an operator can also park one by hand (``--park``).
+A failure is held in memory until the batch ends, under the stage it failed at: ``transcription``
+for a podcast episode, ``fetch`` or ``metadata`` for a text item (``workflow.text_in``).
+``commit_batch`` then counts it, but only when some other item in the same batch passed that
+stage: a failure in a batch where nothing passed it is an endpoint outage, not this item, and
+counting it would park the whole batch. An item that reaches
+``Config.transcription_park_after_failures`` counted failures is parked: skipped before its
+download or fetch from then on, with an error log line, a GlitchTip event and a policy incident
+when it is parked. An item that passes clears its count. A parked item is released only by hand
+(``parked-episodes --release``); an operator can also park one by hand (``--park``).
 
 State lives in ``parked_episodes.json`` beside the run's ``corpus_incidents.jsonl`` (the corpus
 parent for a multi-feed batch).
@@ -31,12 +33,13 @@ PARK_AFTER_FAILURES = 2
 STATE_FILE = "parked_episodes.json"
 SCHEMA_VERSION = 1
 LOG_MARKER = "EPISODE_PARKED"
+TRANSCRIPTION = "transcription"
 
 _lock = threading.Lock()
-# state path -> episode id -> failure seen in this batch
+# state path -> episode id -> failure seen in this batch (with the stage it failed at)
 _pending_failures: Dict[str, Dict[str, Dict[str, Any]]] = {}
-# state path -> episode ids transcribed in this batch
-_transcribed: Dict[str, set] = {}
+# state path -> stage -> ids that passed that stage in this batch
+_passed: Dict[str, Dict[str, set]] = {}
 
 
 def _now() -> str:
@@ -93,8 +96,9 @@ def note_failure(
     feed_url: Optional[str],
     exception_type: str,
     message: str,
+    stage: str = TRANSCRIPTION,
 ) -> None:
-    """Hold one transcription failure for this batch; ``commit_batch`` decides if it counts."""
+    """Hold one failure at ``stage`` for this batch; ``commit_batch`` decides if it counts."""
     path = state_path_for(incident_log_path)
     if path is None or not episode_id:
         return
@@ -104,20 +108,30 @@ def note_failure(
             "feed_url": feed_url,
             "exception_type": exception_type,
             "message": redact_for_log(message, max_len=500),
+            "stage": stage,
         }
 
 
-def note_transcribed(incident_log_path: Optional[str], episode_id: Optional[str]) -> None:
-    """Record a transcription that succeeded in this batch (clears the episode's count)."""
+def note_passed(
+    incident_log_path: Optional[str], episode_id: Optional[str], stage: str = TRANSCRIPTION
+) -> None:
+    """Record an item that passed ``stage`` in this batch (clears its count, and lets the batch's
+    failures at that stage count)."""
     path = state_path_for(incident_log_path)
     if path is None or not episode_id:
         return
     with _lock:
-        _transcribed.setdefault(path, set()).add(episode_id)
+        _passed.setdefault(path, {}).setdefault(stage, set()).add(episode_id)
+
+
+def note_transcribed(incident_log_path: Optional[str], episode_id: Optional[str]) -> None:
+    """Record a transcription that succeeded in this batch (clears the episode's count)."""
+    note_passed(incident_log_path, episode_id, TRANSCRIPTION)
 
 
 def _alert_parked(episode_id: str, entry: Dict[str, Any], state_path: str) -> None:
     last = entry["failures"][-1]
+    stage = str(last.get("stage") or TRANSCRIPTION)
     logger.error(
         "%s episode_id=%s feed_url=%s failures=%d last=%s: %s; skipped until released with "
         "`parked-episodes --output-dir %s --release %s`",
@@ -134,9 +148,9 @@ def _alert_parked(episode_id: str, entry: Dict[str, Any], state_path: str) -> No
         from podcast_scraper.utils.sentry_init import capture_enrichment_message
 
         capture_enrichment_message(
-            f"Episode parked after {len(entry['failures'])} transcription failures: {episode_id}",
+            f"Episode parked after {len(entry['failures'])} {stage} failures: {episode_id}",
             level="error",
-            tags={"stage": "transcription", "episode_id": episode_id, "park": "parked"},
+            tags={"stage": stage, "episode_id": episode_id, "park": "parked"},
         )
     except Exception:  # pragma: no cover - telemetry must never break the pipeline
         logger.debug("park alert to GlitchTip skipped", exc_info=True)
@@ -152,17 +166,28 @@ def commit_batch(
     path = state_path_for(incident_log_path)
     with _lock:
         failures = _pending_failures.pop(path, {}) if path else {}
-        transcribed = _transcribed.pop(path, set()) if path else set()
+        passed = _passed.pop(path, {}) if path else {}
     result: Dict[str, Any] = {"counted": False, "parked": [], "cleared": []}
-    if path is None or park_after <= 0 or (not failures and not transcribed):
+    if path is None or park_after <= 0 or (not failures and not passed):
         return result
-    if failures and not transcribed:
+    # A stage's failures count only when another item passed that stage in the batch.
+    uncounted: Dict[str, List[str]] = {}
+    for eid, failure in list(failures.items()):
+        stage = str(failure.get("stage") or TRANSCRIPTION)
+        if not passed.get(stage):
+            uncounted.setdefault(stage, []).append(eid)
+            del failures[eid]
+    for stage, eids in sorted(uncounted.items()):
         logger.warning(
-            "park: %d transcription failure(s) not counted, no episode transcribed in this batch "
-            "(an endpoint outage is not the episode's fault): %s",
-            len(failures),
-            ", ".join(sorted(failures)),
+            "park: %d %s failure(s) not counted, no item passed %s in this batch "
+            "(an endpoint outage is not the item's fault): %s",
+            len(eids),
+            stage,
+            stage,
+            ", ".join(sorted(eids)),
         )
+    cleared_ids = set().union(*passed.values()) if passed else set()
+    if not failures and not cleared_ids:
         return result
     try:
         doc = _load(path)
@@ -170,7 +195,7 @@ def commit_batch(
         logger.error("parked-episodes state unreadable, this batch not counted: %s", exc)
         return result
     episodes = doc["episodes"]
-    for eid in sorted(transcribed):
+    for eid in sorted(cleared_ids):
         if eid in episodes and not episodes[eid].get("parked_at"):
             del episodes[eid]
             result["cleared"].append(eid)
@@ -180,7 +205,9 @@ def commit_batch(
         )
         if entry.get("parked_at"):
             continue
-        entry["failures"].append({k: failure[k] for k in ("at", "exception_type", "message")})
+        entry["failures"].append(
+            {k: failure[k] for k in ("at", "exception_type", "message", "stage")}
+        )
         if len(entry["failures"]) >= park_after:
             entry["parked_at"] = _now()
             result["parked"].append(eid)
@@ -192,13 +219,14 @@ def commit_batch(
         _alert_parked(eid, episodes[eid], path)
         from podcast_scraper.utils.corpus_incidents import append_corpus_incident
 
+        stage = str(episodes[eid]["failures"][-1].get("stage") or TRANSCRIPTION)
         append_corpus_incident(
             incident_log_path,
             scope="episode",
             category="policy",
-            message=f"parked after {len(episodes[eid]['failures'])} transcription failures",
+            message=f"parked after {len(episodes[eid]['failures'])} {stage} failures",
             exception_type="EpisodeParked",
-            stage="transcription",
+            stage=stage,
             feed_url=episodes[eid].get("feed_url"),
             episode_id=eid,
         )
@@ -263,4 +291,4 @@ def release(corpus_dir: str, episode_ids: Iterable[str], *, all_parked: bool = F
 def _reset_for_tests() -> None:
     with _lock:
         _pending_failures.clear()
-        _transcribed.clear()
+        _passed.clear()

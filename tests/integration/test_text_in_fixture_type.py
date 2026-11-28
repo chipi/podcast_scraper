@@ -70,13 +70,13 @@ def _ext(transport: ct.Transport) -> Extension:
 
 
 def _cfg(corpus: Path, entry: RssFeedEntry, **overrides: Any) -> config.Config:
-    base = config.Config(
-        rss=entry.url,
-        output_dir=str(corpus),
-        generate_metadata=True,
-        generate_summaries=False,
-        **overrides,
-    )
+    fields: dict = {
+        "rss": entry.url,
+        "output_dir": str(corpus),
+        "generate_metadata": True,
+        "generate_summaries": False,
+    }
+    base = config.Config(**{**fields, **overrides})
     return merge_feed_entry_into_config(base, entry)
 
 
@@ -383,3 +383,213 @@ def test_items_past_the_cap_wait_for_a_later_run_and_written_ones_do_not_count(
     assert _guids(corpus) == ["n10", "n11", "n8", "n9"]
     assert _cursor(corpus) == "11"
     assert listed == [None, None]
+
+
+def test_a_capped_item_and_a_failed_one_in_one_run_hold_the_cursor_below_both(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cap 2 over 11, 10, 9, 8: 11 fails, 10 writes, 9 and 8 wait past the cap. The oldest
+    unwritten item is 8 and nothing older wrote, so the cursor stays; the next run writes the
+    other three (11 again, 9 and 8)."""
+    corpus = tmp_path / "corpus"
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    with use_extensions([_ext(_dated_transport([], cap=2))]):
+        with monkeypatch.context() as m:
+            _fail_for(m, ["Item 11"])
+            ct.run_source(_cfg(corpus, entry), entry)
+        assert _guids(corpus) == ["n10"]
+        assert _cursor(corpus) is None
+        ct.run_source(_cfg(corpus, entry), entry)
+        ct.run_source(_cfg(corpus, entry), entry)
+    assert _guids(corpus) == ["n10", "n11", "n8", "n9"]
+    assert _cursor(corpus) == "11"
+
+
+# --- the body's fetch, the park and the fuse: the podcast path's own mechanisms ---
+
+
+def _fetching_type(outcomes: dict) -> ct.ContentType:
+    """The fixture type with a ``fetch_body``: ``outcomes`` maps an item id to what its next
+    fetches return, in turn (a NotFetched, else the item gets a body); unlisted ids get one."""
+
+    def fetch_body(item: ct.SourceItem, source: Any) -> ct.FetchedBody:
+        queue = outcomes.get(item.item_id)
+        got = queue.pop(0) if queue else None
+        if isinstance(got, ct.NotFetched):
+            return got
+        return dataclasses.replace(item, text=f"{item.item_id}'s body.")
+
+    return dataclasses.replace(TEXT, fetch_body=fetch_body)
+
+
+def _url_item(n: int) -> ct.SourceItem:
+    return ct.SourceItem(
+        item_id=f"u{n}",
+        url=f"https://example.com/u{n}",
+        cursor=str(n),
+        metadata={"title": f"Url {n}"},
+    )
+
+
+def _feed_transport(feed: List[ct.SourceItem]) -> ct.Transport:
+    def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[ct.SourceItem], str]:
+        after = int(cursor) if cursor else 0
+        listed = [i for i in feed if int(i.cursor or 0) > after]
+        return sorted(listed, key=lambda i: -int(i.cursor or 0)), str(
+            max(int(i.cursor or 0) for i in feed)
+        )
+
+    return ct.Transport(name="fixture_feed", list_items=list_items, cursor_key=int)
+
+
+def _with(ctype: ct.ContentType, transport: ct.Transport) -> Extension:
+    return Extension(
+        name="fixture-fetching-type",
+        content_types=lambda: [ctype],
+        transports=lambda: [transport],
+    )
+
+
+def _incidents(corpus: Path) -> List[dict]:
+    path = corpus / "corpus_incidents.jsonl"
+    if not path.is_file():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+def _batch_cfg(corpus: Path, entry: RssFeedEntry) -> config.Config:
+    """As a multi-feed batch has it: the incident log, and so the park's state, at the corpus."""
+    return _cfg(corpus, entry, incident_log_path=str(corpus / "corpus_incidents.jsonl"))
+
+
+def test_a_transient_fetch_failure_waits_and_a_permanent_one_is_passed(tmp_path: Path) -> None:
+    """u12's page answers 503 (transient: the downloader's retry rule), u11's 404 (permanent).
+    The cursor stops at 11, below u12 and past u11; the soft and policy incidents are recorded;
+    the next run fetches u12 and writes it."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    outcomes = {
+        "u12": [ct.NotFetched("http_503", transient=True)],
+        "u11": [ct.NotFetched("http_404", transient=False)],
+    }
+    feed = [_url_item(13), _url_item(12), _url_item(11)]
+    with use_extensions([_with(_fetching_type(outcomes), _feed_transport(feed))]):
+        ct.run_source(_batch_cfg(corpus, entry), entry)
+        assert _guids(corpus) == ["u13"]
+        assert _cursor(corpus) == "11"
+        rows = {(r["category"], r["stage"], r["message"]) for r in _incidents(corpus)}
+        assert ("soft", "fetch", "not fetched: http_503") in rows
+        assert ("policy", "fetch", "not fetched: http_404") in rows
+        ct.run_source(_batch_cfg(corpus, entry), entry)
+    assert _guids(corpus) == ["u12", "u13"]
+    assert _cursor(corpus) == "13"
+
+
+def test_an_item_whose_fetch_keeps_failing_is_parked_as_a_podcast_episode_is(
+    tmp_path: Path,
+) -> None:
+    """episode_park, under stage ``fetch``: u12 fails in two batches in which another item's
+    fetch passed, so the batch's commit parks it. The third batch skips it before its fetch, and
+    a parked item no longer holds the cursor."""
+    from podcast_scraper.workflow import episode_park
+
+    episode_park._reset_for_tests()
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    log = str(corpus / "corpus_incidents.jsonl")
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    down = ct.NotFetched("http_503", transient=True)
+    outcomes = {"u12": [down, down, down]}
+    feed = [_url_item(13), _url_item(12)]
+    with use_extensions([_with(_fetching_type(outcomes), _feed_transport(feed))]):
+        ct.run_source(_batch_cfg(corpus, entry), entry)
+        assert episode_park.commit_batch(log)["counted"] is True
+        feed.insert(0, _url_item(14))
+        ct.run_source(_batch_cfg(corpus, entry), entry)
+        parked = episode_park.commit_batch(log)["parked"]
+        assert parked == [ct.item_id(TEXT, _url_item(12))]
+        feed.insert(0, _url_item(15))
+        ct.run_source(_batch_cfg(corpus, entry), entry)
+    assert outcomes["u12"] == [down]  # the third batch never fetched it
+    assert _guids(corpus) == ["u13", "u14", "u15"]
+    assert _cursor(corpus) == "15"
+    assert any(r["exception_type"] == "EpisodeParked" for r in _incidents(corpus))
+
+
+def test_a_batch_where_no_fetch_passed_counts_no_fetch_failure(tmp_path: Path) -> None:
+    """The podcast park's outage rule: the source's host was down for every item, so nothing
+    is counted and nothing is parked."""
+    from podcast_scraper.workflow import episode_park
+
+    episode_park._reset_for_tests()
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    down = ct.NotFetched("http_0", transient=True)
+    outcomes = {"u13": [down], "u12": [down]}
+    with use_extensions(
+        [_with(_fetching_type(outcomes), _feed_transport([_url_item(13), _url_item(12)]))]
+    ):
+        ct.run_source(_batch_cfg(corpus, entry), entry)
+    result = episode_park.commit_batch(str(corpus / "corpus_incidents.jsonl"))
+    assert result == {"counted": False, "parked": [], "cleared": []}
+    assert _cursor(corpus) is None
+
+
+def test_an_item_whose_summary_keeps_failing_is_parked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under stage ``metadata``, cap 2: item 10's metadata fails in a batch where 11 wrote, then
+    in one where 9 wrote; the second commit parks it. The third batch skips it, writes 8, and
+    the parked item no longer holds the cursor."""
+    from podcast_scraper.workflow import episode_park
+
+    episode_park._reset_for_tests()
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    log = str(corpus / "corpus_incidents.jsonl")
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    _fail_for(monkeypatch, ["Item 10"])
+    with use_extensions([_ext(_dated_transport([], cap=2))]):
+        ct.run_source(_batch_cfg(corpus, entry), entry)  # 11 writes, 10 fails; 9, 8 wait
+        assert episode_park.commit_batch(log)["parked"] == []
+        ct.run_source(_batch_cfg(corpus, entry), entry)  # 10 fails, 9 writes; 8 waits
+        assert episode_park.commit_batch(log)["parked"] == ["item:test_text_item:n10"]
+        ct.run_source(_batch_cfg(corpus, entry), entry)  # 10 skipped as parked, 8 writes
+    assert _guids(corpus) == ["n11", "n8", "n9"]
+    assert _cursor(corpus) == "11"
+
+
+def test_an_open_resilience_fuse_halts_the_run_and_keeps_the_cursor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-122, through the real summary path: the provider's fuse opens on the first item.
+    The run halts (as a podcast batch does) instead of failing every item, and the cursor file
+    is never written, so the next run lists all of them again."""
+    from podcast_scraper.providers.resilience import ResilienceFuseOpenError
+    from podcast_scraper.workflow import orchestration
+
+    class Held:
+        """A provider whose endpoint stayed down past its hold budget (only ``summarize``)."""
+
+        def summarize(self, *args: Any, **kwargs: Any) -> Any:
+            raise ResilienceFuseOpenError("llm:vllm: overload persisted 905s (> 900s hold budget)")
+
+    monkeypatch.setattr(orchestration, "_create_summarization_provider", lambda cfg: Held())
+    corpus = tmp_path / "corpus"
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    long = [
+        dataclasses.replace(i, text=f"{i.text} " + "A sentence long enough to summarise. " * 80)
+        for i in DATED
+    ]
+
+    def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[ct.SourceItem], str]:
+        return long, "11"
+
+    transport = ct.Transport(name="fixture_feed", list_items=list_items, cursor_key=int)
+    with use_extensions([_ext(transport)]):
+        with pytest.raises(ResilienceFuseOpenError):
+            ct.run_source(_cfg(corpus, entry, generate_summaries=True), entry)
+    assert _cursor(corpus) is None
+    assert _guids(corpus) == []

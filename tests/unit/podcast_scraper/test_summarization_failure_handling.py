@@ -110,6 +110,35 @@ class TestEpisodeSummarizationFailure(unittest.TestCase):
         self.assertIn("generate_summaries=True", str(context.exception))
         self.assertIn("Failed to generate summary", str(context.exception))
 
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_an_open_resilience_fuse_is_raised_as_itself_not_as_a_failed_summary(self, mock_clean):
+        """ADR-122: the fuse halts the batch (processing's drain). Wrapped as this item's failed
+        summary, every remaining item went through the same hold and failed (2026-11-28)."""
+        import os
+
+        from podcast_scraper.providers.resilience import ResilienceFuseOpenError
+        from podcast_scraper.workflow import metadata_generation as metadata
+
+        with open(os.path.join(self.output_dir, "transcript.txt"), "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        mock_provider.summarize.side_effect = ResilienceFuseOpenError(
+            "llm:vllm: overload persisted"
+        )
+        cfg = create_test_config(
+            output_dir=self.output_dir, generate_summaries=True, generate_metadata=True
+        )
+        with self.assertRaises(ResilienceFuseOpenError) as context:
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.output_dir,
+                cfg=cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
+        self.assertIs(type(context.exception), ResilienceFuseOpenError)
+
     def test_episode_summarization_without_provider_raises_error(self):
         """Test that episode summarization without provider raises RuntimeError."""
         from podcast_scraper.workflow import metadata_generation as metadata

@@ -52,8 +52,9 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     url = str(getattr(source, "url", "") or "")
     resp = downloader.fetch_rss_feed_url(url, user_agent(source), TIMEOUT_S)
     if resp is None:
-        logger.warning("news rss: feed %s could not be fetched; cursor kept", url)
-        return [], cursor
+        # As a podcast feed's (stages/scraping.py): the batch records a soft feed incident, and
+        # the source's cursor is kept since the run stops before writing it.
+        raise ValueError(f"Failed to fetch RSS feed. (news rss: {url})")
     parsed = feedparser.parse(resp.content)
     feed_language = (parsed.feed.get("language") or "").split("-")[0].lower() or None
     spec = source_spec(source)

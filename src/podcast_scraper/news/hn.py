@@ -39,13 +39,12 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
     url = str(getattr(source, "url", "") or "")
     resp = downloader.fetch_url(url, user_agent(source), TIMEOUT_S)
     if resp is None:
-        logger.warning("news hn: %s could not be fetched; cursor kept", url)
-        return [], cursor
+        # As a podcast feed's (stages/scraping.py): a soft feed incident, the cursor kept.
+        raise ValueError(f"Failed to fetch RSS feed. (news hn: {url})")
     try:
         hits = resp.json().get("hits") or []
-    except ValueError:
-        logger.warning("news hn: %s did not answer JSON; cursor kept", url)
-        return [], cursor
+    except ValueError as exc:
+        raise ValueError(f"Failed to parse RSS XML: news hn: {url} did not answer JSON") from exc
     spec = source_spec(source)
     include = re.compile(spec.include_url_pattern) if spec.include_url_pattern else None
     exclude = re.compile(spec.exclude_url_pattern) if spec.exclude_url_pattern else None

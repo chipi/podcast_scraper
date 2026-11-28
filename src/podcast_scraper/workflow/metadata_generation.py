@@ -50,6 +50,7 @@ from ..exceptions import (
     RecoverableSummarizationError,
     TRANSIENT_SUMMARY_FAILURES,
 )
+from ..providers.resilience import ResilienceFuseOpenError
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem, llm_call_fuse
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
@@ -3259,6 +3260,12 @@ def _generate_episode_summary(  # noqa: C901
                 ),
                 call_metrics,
             )
+        except ResilienceFuseOpenError:
+            # ADR-122: the endpoint stayed down past its hold budget. It halts the batch
+            # (processing's drain), as a transcription fuse does; wrapped as one item's failed
+            # summary it would grind every remaining item through the same hold (2026-11-28).
+            call_metrics.finalize()
+            raise
         except ProviderRuntimeError as e:
             call_metrics.finalize()
             error_msg = str(e).lower()

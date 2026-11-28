@@ -2171,6 +2171,10 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
                 )
             return True
+        except ResilienceFuseOpenError:
+            # ADR-122: the drain halts the batch on it (``_drain_completed_processing_futures``);
+            # the generic handler below would record one failed item and go on to the next.
+            raise
         except SummarizationTimeoutError as exc:
             # OVERRAN, not failed — and the difference is provable, not a judgement call.
             #

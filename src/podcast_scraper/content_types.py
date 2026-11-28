@@ -36,6 +36,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Union,
 )
 
 from podcast_scraper.utils.canonical_url import canonical_url
@@ -127,8 +128,9 @@ class ContentType:
     source_kind: str = ""
     #: The type's own step for an item its transport listed as a URL only (ADR-177 decision 2):
     #: ``(item, source) -> item with its text``, or ``None`` to skip it (``None``: such items are
-    #: skipped). News fetches and extracts the page here.
-    fetch_body: Optional[Callable[["SourceItem", Any], Optional["SourceItem"]]] = None
+    #: skipped), or a :class:`NotFetched` saying why and whether a later run may succeed. News
+    #: fetches and extracts the page here.
+    fetch_body: Optional[Callable[["SourceItem", Any], "FetchedBody"]] = None
     #: The item's metadata document as the type's contract has it, from the document the shared
     #: metadata stage built and the item's context (``None``: that document with ``content_type``
     #: first).
@@ -175,6 +177,22 @@ class SourceItem:
     #: The item's value in its transport's cursor (``None``: undated, listed every run). The run
     #: never moves the cursor to or past an item that did not write (``workflow.text_in``).
     cursor: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class NotFetched:
+    """Why a type's ``fetch_body`` gave no text for an item. ``transient``: a later run may
+    succeed (the shared downloader's :func:`~podcast_scraper.rss.downloader.is_transient_failure`
+    of the page's status, or a robots.txt that could not be read), so the item waits and its
+    source's cursor stays below it; else it is skipped for good (a 404, robots.txt refusing it,
+    no text on the page)."""
+
+    reason: str
+    transient: bool
+
+
+#: What ``fetch_body`` returns: the item with its text, ``None`` (skipped) or :class:`NotFetched`.
+FetchedBody = Union[SourceItem, NotFetched, None]
 
 
 #: ``(source, cursor) -> (items, next_cursor)``: the new items after ``cursor``.
@@ -416,6 +434,8 @@ __all__ = [
     "STAGES",
     "SUMMARY",
     "SourceItem",
+    "NotFetched",
+    "FetchedBody",
     "StageProfile",
     "TRANSLATION",
     "Transport",

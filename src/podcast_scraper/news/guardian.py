@@ -1,4 +1,4 @@
-"""The Guardian Content API transport: the newest articles with their text (E05).
+"""The Guardian Content API transport: the articles after the cursor, oldest first (E05).
 
 The API gives each article's body, byline and language, so its items arrive with their text and
 no page is fetched; the JSON record is kept as the raw cache (``.raw.json``). The key is read from
@@ -6,8 +6,8 @@ the variable the source's ``api_key_env`` names, else ``GUARDIAN_API_KEY``, and 
 log (the shared downloader redacts ``api-key`` in every URL it logs). Without a key the source
 lists nothing, and says so (naming the source, not the variable). An article's cursor value is its
 ``webPublicationDate``; the run moves the cursor only past articles that wrote
-(``workflow.text_in``). One request asks for the API's largest page, since articles already
-written no longer count toward the source's ``max_items``.
+(``workflow.text_in``). One request asks for the API's largest page, oldest first: an article
+past it is newer than all listed, so the cursor never passes it.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ PAGE_SIZE = 200
 def _request_url(source: Any, page_size: int, cursor: Optional[str], key: str) -> str:
     base = str(getattr(source, "url", "") or "")
     params: Dict[str, Any] = {
-        "order-by": "newest",
+        "order-by": "oldest",
         "page-size": page_size,
         "show-fields": FIELDS,
         "api-key": key,
@@ -77,7 +77,8 @@ def _item(result: Dict[str, Any], source: Any) -> Optional[SourceItem]:
 
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
-    """The newest articles published after ``cursor``, one page of them. The run caps what it
+    """The articles published after ``cursor``, oldest first, one page of them: an article past
+    the page is newer than every one listed, so the cursor never passes it. The run caps what it
     writes at the source's ``max_items``, counting only articles not yet written."""
     key_env = source_spec(source).api_key_env or KEY_ENV
     key = os.environ.get(key_env, "").strip()
@@ -95,13 +96,15 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
         _request_url(source, PAGE_SIZE, cursor, key), user_agent(source), TIMEOUT_S
     )
     if resp is None:
-        logger.warning("news guardian: the API could not be reached; cursor kept")
-        return [], cursor
+        # As a podcast feed's (stages/scraping.py): a soft feed incident, the cursor kept. The
+        # URL is not named: it carries the key (the downloader's own log redacts it).
+        raise ValueError("Failed to fetch RSS feed. (news guardian: the API could not be reached)")
     try:
         results = (resp.json().get("response") or {}).get("results") or []
-    except ValueError:
-        logger.warning("news guardian: the API did not answer JSON; cursor kept")
-        return [], cursor
+    except ValueError as exc:
+        raise ValueError(
+            "Failed to parse RSS XML: news guardian: the API did not answer JSON"
+        ) from exc
     items: List[SourceItem] = []
     newest = cursor
     for result in results:
