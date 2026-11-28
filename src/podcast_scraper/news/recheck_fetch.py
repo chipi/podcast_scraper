@@ -107,11 +107,18 @@ def check(
     source: Any,
     validators: Validators = Validators(),
     *,
+    served_method: Optional[str] = None,
     hold_share: float = recheck.DEFAULT_HOLD_SHARE,
 ) -> Check:
     """Re-check one served article. "Not modified" is ``SAME`` without extracting. A page is
     extracted as the ingest extracts it (the source's ``text_from``) and compared; a page with no
-    text compares as empty, so it is held, never written."""
+    text compares as empty, so it is held, never written.
+
+    Extractor instability (B.2 step 3): when the page's text differs and the extractor chosen
+    today is not ``served_method`` (the served text's ``extraction``), the page is extracted once
+    more by ``served_method`` alone; equal to the served text, the check is ``SAME``. The choice
+    between trafilatura and its readability fallback is by length, so a small change elsewhere on
+    the page can flip it with the article unchanged."""
     got = refetch(url, source, validators)
     if got.kind == NOT_MODIFIED:
         return Check(recheck.SAME, got.validators, got.http_status)
@@ -121,4 +128,15 @@ def check(
     comparison = recheck.compare(
         served_text, found.text if found else "", url=url, hold_share=hold_share
     )
+    if (
+        comparison.outcome != recheck.SAME
+        and found is not None
+        and served_method
+        and found.method != served_method
+    ):
+        again = extract.method_text(got.html or "", url, served_method)
+        if again is not None:
+            steady = recheck.compare(served_text, again, url=url, hold_share=hold_share)
+            if steady.outcome == recheck.SAME:
+                comparison = steady
     return Check(comparison.outcome, got.validators, got.http_status, comparison, got.html)

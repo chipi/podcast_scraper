@@ -118,6 +118,60 @@ def test_an_edit_is_a_new_version(net: _Net) -> None:
     )
 
 
+def _edited() -> str:
+    edited = list(_P)
+    edited[1] = edited[1].replace("eleven weeks", "fourteen weeks")
+    return _page(edited)
+
+
+def _by_method(monkeypatch: pytest.MonkeyPatch, text: str) -> List[str]:
+    asked: List[str] = []
+
+    def method_text(html: str, url: str, method: str) -> Optional[str]:
+        asked.append(method)
+        return text
+
+    monkeypatch.setattr(extract, "method_text", method_text)
+    return asked
+
+
+def test_a_flip_to_the_other_extractor_with_the_article_unchanged_is_the_same(
+    net: _Net, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Today's extractor ("fake") is not the served text's; the served one gives the served text
+    again, so the page did not change (B.2 step 3)."""
+    asked = _by_method(monkeypatch, _served())
+    got = _check(net, _resp(200, _edited()), served_method=extract.TRAFILATURA)
+    assert got.status == recheck.SAME
+    assert asked == [extract.TRAFILATURA]
+
+
+def test_a_flip_whose_served_extractor_also_differs_is_a_new_version(
+    net: _Net, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked = _by_method(monkeypatch, _served() + "\n\nA paragraph added later to the article.")
+    got = _check(net, _resp(200, _edited()), served_method=extract.TRAFILATURA)
+    assert got.status == recheck.CHANGED
+    assert asked == [extract.TRAFILATURA]
+
+
+def test_the_same_extractor_or_none_named_extracts_once(
+    net: _Net, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked = _by_method(monkeypatch, _served())
+    assert _check(net, _resp(200, _edited()), served_method="fake").status == recheck.CHANGED
+    assert _check(net, _resp(200, _edited())).status == recheck.CHANGED
+    assert asked == []
+
+
+def test_method_text_gives_one_extractor_alone_and_nothing_for_the_feed() -> None:
+    pytest.importorskip("trafilatura")
+    page = _page(_P)
+    assert extract.method_text(page, URL, extract.FEED) is None
+    traf = extract.method_text(page, URL, extract.TRAFILATURA)
+    assert traf is not None and "fatigue cracks" in traf
+
+
 def test_a_paywall_in_the_articles_place_is_held(net: _Net) -> None:
     teaser = _page([_P[0][:120] + " Subscribe to read the full story."])
     got = _check(net, _resp(200, teaser))
