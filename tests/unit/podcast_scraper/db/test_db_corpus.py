@@ -1464,6 +1464,9 @@ def test_an_insights_item_rank_index_orders_by_rank_ascending(conn: Connection) 
         ({"start_ms": 5}, "evidence_ms_check"),  # one end of the time range only
         ({"start_ms": 9, "end_ms": 5}, "evidence_ms_check"),
         ({"start_ms": -1, "end_ms": 5}, "evidence_ms_check"),
+        ({"char_start": 5}, "evidence_char_check"),  # one end of the body span only
+        ({"char_start": 9, "char_end": 9}, "evidence_char_check"),
+        ({"char_start": -1, "char_end": 5}, "evidence_char_check"),
     ],
 )
 def test_evidence_refuses_an_empty_backwards_or_half_timed_span(
@@ -1473,6 +1476,18 @@ def test_evidence_refuses_an_empty_backwards_or_half_timed_span(
     with pytest.raises(sa_exc.IntegrityError, match=constraint):
         _evidence(conn, item, document, **span)
     conn.rollback()
+
+
+def test_evidence_keeps_its_body_span_and_translation(conn: Connection) -> None:
+    item, document = _doc(conn)
+    evidence_id = _evidence(conn, item, document, char_start=0, char_end=12, translated_from="de")
+    got = conn.execute(
+        text(
+            "SELECT char_start, char_end, translated_from FROM corpus.evidence WHERE evidence_id = :e"
+        ),
+        {"e": evidence_id},
+    ).one()
+    assert tuple(got) == (0, 12, "de")
 
 
 def test_evidence_may_be_untimed_and_is_unique_by_natural_id(conn: Connection) -> None:
@@ -1800,7 +1815,7 @@ def test_the_edge_tables_vacuum_and_analyse_at_crfc_005s_scale_factors(conn: Con
 
 def test_the_corpus_history_has_one_head() -> None:
     scripts = ScriptDirectory.from_config(migrate._config(history=migrate.CORPUS))
-    assert scripts.get_heads() == ["corpus_0016_rankings"]
+    assert scripts.get_heads() == ["corpus_0017_insight_fields"]
     assert [r.revision for r in reversed(list(scripts.walk_revisions()))] == [
         "corpus_0001_bookkeeping",
         "corpus_0002_operations",
@@ -1818,8 +1833,9 @@ def test_the_corpus_history_has_one_head() -> None:
         "corpus_0014_projections",
         "corpus_0015_news_recheck",
         "corpus_0016_rankings",
+        "corpus_0017_insight_fields",
     ]
-    assert migrate.head_revision("corpus") == "corpus_0016_rankings"
+    assert migrate.head_revision("corpus") == "corpus_0017_insight_fields"
 
 
 def test_the_metadata_is_the_migrated_shape(conn: Connection) -> None:
@@ -2026,9 +2042,11 @@ def test_a_fresh_corpus_schema_writes_a_history_row_per_revision(
             "corpus_0014_projections",
             "corpus_0015_news_recheck",
             "corpus_0016_rankings",
+            "corpus_0017_insight_fields",
         ]
-        rows = migrate.history_rows(url, "corpus", limit=16)
+        rows = migrate.history_rows(url, "corpus", limit=17)
         assert [r["revision"] for r in rows] == [
+            "corpus_0017_insight_fields",
             "corpus_0016_rankings",
             "corpus_0015_news_recheck",
             "corpus_0014_projections",
@@ -2107,8 +2125,8 @@ def test_two_parallel_corpus_upgrades_apply_each_revision_once(url: str) -> None
         for w in workers:
             w.join(120)
         assert not failed, failed
-        assert sorted(len(r) for r in results) == [0, 16]
-        assert len(migrate.history_rows(url, "corpus", limit=16)) == 16
+        assert sorted(len(r) for r in results) == [0, 17]
+        assert len(migrate.history_rows(url, "corpus", limit=17)) == 17
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
@@ -2156,8 +2174,8 @@ def test_the_two_plane_upgrades_prod_runs_apply_corpus_once(url: str) -> None:
             assert f"schema corpus: {head} (head {head})" in done.stdout
             first = plane == "player"
             assert ("corpus_0001_bookkeeping" in done.stdout.split("schema corpus:")[1]) is first
-        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=17)]
-        assert len(revisions) == 16
+        revisions = [r["revision"] for r in migrate.history_rows(url, "corpus", limit=18)]
+        assert len(revisions) == 17
     finally:
         admin.dispose()
         migrate.upgrade(url, "operator")
