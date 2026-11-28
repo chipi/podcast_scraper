@@ -176,6 +176,37 @@ def _strict() -> bool:
     return os.environ.get(ENV_STRICT, "").strip().lower() in ("1", "true", "yes")
 
 
+#: ``documents.change_kind`` of a withdrawal (``db.news_recheck.withdraw``, CRFC-006 B.1).
+WITHDRAW = "withdraw"
+
+
+def is_withdrawn(conn: Connection, natural_id: str) -> bool:
+    """Whether the item's newest version of any document series is a withdrawal: the re-check
+    withdrew it on the rows, and its files, which still state it served, must not undo that.
+
+    A withdrawal is final: no code path writes a version over a withdraw row (the row sync stops
+    here, and a withdrawn item is never re-checked again). Undoing a wrong one is a row migration
+    written by hand that adds the next version over the withdraw row (CRFC-006 B.5: a wrong
+    version is undone by a new version, never a delete); then this is false and the files sync
+    again."""
+    newer = documents.alias("newer")
+    return bool(
+        conn.execute(
+            select(
+                exists()
+                .select_from(
+                    documents.join(content_items, content_items.c.item_id == documents.c.item_id)
+                )
+                .where(
+                    content_items.c.natural_id == natural_id,
+                    documents.c.change_kind == WITHDRAW,
+                    ~exists().where(newer.c.supersedes_id == documents.c.document_id),
+                )
+            )
+        ).scalar()
+    )
+
+
 def item_id_for(conn: Connection, natural_id: str) -> Optional[int]:
     """The ``content_items`` row id of ``natural_id``, or ``None`` when there is no row."""
     found: Optional[int] = conn.execute(
@@ -620,7 +651,8 @@ def sync_rows(
     the rows are upserted in each of these. Otherwise nothing is written: ``lease_refused``
     (another job holds a conflicting lease), ``lease_lost``, ``refused`` (the keys cannot be
     derived, a stored row contradicts the item, or a body does not cut or hash), ``failed``
-    (anything else) or ``not_configured`` (no pipeline database URL). A news item's
+    (anything else), ``not_configured`` (no pipeline database URL) or ``withdrawn`` (a news item
+    the re-check withdrew, :func:`is_withdrawn`: its rows are left as they are). A news item's
     ``transcript_path`` is its body file, and it has no card yet (the importer writes none
     either). Never raises unless the strict setting is on. An item the pipeline marked not served
     is synced too, with ``served`` 0: which items are served is the read side's.
@@ -657,6 +689,12 @@ def sync_rows(
         )
         with engine.begin() as conn:
             leases.heartbeat(conn, holder, held)
+            if news and is_withdrawn(conn, natural_id):
+                # A withdrawal is the rows' own (CRFC-006 B.1): a sync of the item's files, which
+                # still state it served, would serve it again and write its body over the
+                # withdraw row.
+                _DEFERRED.pop(str(metadata_path), None)
+                return _count("withdrawn")
             source_id = ensure_source(conn, doc, registry=registry)
             item_id = upsert_item(
                 conn,

@@ -212,6 +212,21 @@ def test_a_withdrawn_item_is_served_by_nothing_and_keeps_its_insights(
         text("INSERT INTO corpus.item_cards (item_id, title, source_title) VALUES (:i, 't', 's')"),
         {"i": item_id},
     )
+    # Another item's rows, which the withdrawal must leave alone.
+    other = _item(conn, source_id, "2", content_type="news_article", served=1, has_kg=True)
+    other_doc = _document(conn, other, kind="article", variant="cleaned", fetched_at=NOW)
+    _mention(conn, _insight(conn, other, other_doc, natural_id="insight:other"), topic, other)
+    conn.execute(
+        text(
+            "INSERT INTO corpus.item_entities (item_id, entity_id, role, content_type) "
+            "VALUES (:i, :e, 'mentions', 'news_article')"
+        ),
+        {"i": other, "e": topic},
+    )
+    conn.execute(
+        text("INSERT INTO corpus.item_cards (item_id, title, source_title) VALUES (:i, 'o', 's')"),
+        {"i": other},
+    )
     before = _revision(conn)
     assert rows.withdraw(conn, item_id) is True
     written = conn.execute(
@@ -231,6 +246,13 @@ def test_a_withdrawn_item_is_served_by_nothing_and_keeps_its_insights(
     for table in ("item_entities", "insight_mentions", "item_cards"):
         assert _count(conn, table, item_id) == 0, table
     assert _count(conn, "insights", item_id) == 1
+    for table in ("item_entities", "insight_mentions", "item_cards"):
+        assert _count(conn, table, other) == 1, table
+    assert _count(conn, "documents", other) == 1
+    other_row = conn.execute(
+        text("SELECT served, has_kg FROM corpus.content_items WHERE item_id = :i"), {"i": other}
+    ).one()
+    assert tuple(other_row) == (1, True)
     assert _revision(conn) == before + 1
     # A second call finds nothing served and writes nothing.
     assert rows.withdraw(conn, item_id) is False

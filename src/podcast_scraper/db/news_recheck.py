@@ -14,20 +14,31 @@ read and write the state, in the caller's transaction.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Optional, Sequence
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, true, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.corpus_keys import NEWS_ARTICLE
-from podcast_scraper.db.schema import content_items, documents, news_recheck, news_recheck_sources
+from podcast_scraper.db.schema import (
+    content_items,
+    documents,
+    news_recheck,
+    news_recheck_sources,
+    sources,
+)
 from podcast_scraper.news import recheck
 from podcast_scraper.news.recheck_fetch import Validators
 
 _STATE = news_recheck.c
 _WINDOW = news_recheck_sources.c
 _ITEM = content_items.c
+
+
+#: The least time between two checks of one item (the schedule's shortest step).
+MIN_GAP = timedelta(days=1)
 
 
 def schedule(window_days: int) -> tuple[int, ...]:
@@ -94,22 +105,42 @@ class Due:
     item_id: int
     source_id: int
     natural_id: str
+    source_natural_id: str
     state: recheck.RecheckState
     validators: Validators
 
 
-def due(conn: Connection, now: datetime, limit: int = 500) -> list[Due]:
+def due(
+    conn: Connection,
+    now: datetime,
+    limit: int = 500,
+    *,
+    source_natural_ids: Optional[Sequence[str]] = None,
+) -> list[Due]:
     """The served items of a source with a window whose next check is due at ``now``, oldest due
-    first, at most ``limit``."""
+    first, at most ``limit``; only those of ``source_natural_ids`` when it is given."""
+    only = (
+        sources.c.natural_id.in_(list(source_natural_ids))
+        if source_natural_ids is not None
+        else true()
+    )
     rows = conn.execute(
-        select(news_recheck, _ITEM.source_id, _ITEM.natural_id, _WINDOW.window_days)
+        select(
+            news_recheck,
+            _ITEM.source_id,
+            _ITEM.natural_id,
+            sources.c.natural_id.label("source_natural_id"),
+            _WINDOW.window_days,
+        )
         .join(content_items, _ITEM.item_id == _STATE.item_id)
+        .join(sources, sources.c.source_id == _ITEM.source_id)
         .join(news_recheck_sources, _WINDOW.source_id == _ITEM.source_id)
         .where(
             _STATE.done.is_(False),
             _STATE.next_due_at <= now,
             _ITEM.served > 0,
             _WINDOW.window_days > 0,
+            only,
         )
         .order_by(_STATE.next_due_at, _STATE.item_id)
         .limit(limit)
@@ -119,6 +150,7 @@ def due(conn: Connection, now: datetime, limit: int = 500) -> list[Due]:
             item_id=row["item_id"],
             source_id=row["source_id"],
             natural_id=row["natural_id"],
+            source_natural_id=row["source_natural_id"],
             state=recheck.RecheckState(
                 first_fetched_at=row["first_fetched_at"],
                 checks_done=row["checks_done"],
@@ -142,13 +174,18 @@ def record(
     checked_at: datetime,
 ) -> None:
     """Store an item's state after a check (``recheck.advance``'s) and the validators to send
-    next."""
-    conn.execute(
+    next. The next check is never sooner than :data:`MIN_GAP` after this one: an item enrolled
+    late, whose schedule's days are already past, takes its checks a day apart, not back to
+    back, so two gone answers "in a row" cannot come minutes apart."""
+    next_due = (
+        None if state.done or state.next_due is None else max(state.next_due, checked_at + MIN_GAP)
+    )
+    updated = conn.execute(
         update(news_recheck)
         .where(_STATE.item_id == item_id)
         .values(
             checks_done=state.checks_done,
-            next_due_at=None if state.done else state.next_due,
+            next_due_at=next_due,
             last_status=state.last_status,
             gone_in_a_row=state.gone_in_a_row,
             done=state.done,
@@ -157,10 +194,13 @@ def record(
             last_checked_at=checked_at,
             updated_at=func.now(),
         )
-    )
+    ).rowcount
+    if updated != 1:
+        raise LookupError(f"item {item_id} has no re-check state to record")
 
 
-#: ``documents.change_kind`` of a withdrawal (CRFC-006 B.1).
+#: ``documents.change_kind`` of a withdrawal (CRFC-006 B.1); ``corpus_writer.WITHDRAW``, which
+#: the row sync reads so that a sync of the item's files does not undo it.
 WITHDRAW = "withdraw"
 
 
