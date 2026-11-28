@@ -14,10 +14,12 @@ Its text is compared with the served text, unless the served text came from an e
 than today's (``extractor_version`` differs): then with the stored raw page extracted again first,
 so a library upgrade writes no version (B.2 step 2).
 
-Not re-checked, and counted ``unsupported``: an item of a Guardian source (its text is the API's
-body; a page fetch would compare a different text, and the re-read by id is not built), and an item
-whose served text is not a page extraction (a feed's text or a standfirst, which a page fetch does
-not reproduce). They stay due, so a window should not be set on such a source.
+Not re-checked: an item of a Guardian source (its text is the API's body; a page fetch would
+compare a different text, and the re-read by id is not built), and an item whose served text is the
+feed's (a page fetch does not reproduce it). Each is recorded as a check that found
+``unsupported``, and an item whose stored copy is missing as one that found ``no_body``, so its
+schedule moves on and it never holds the head of the queue. A run takes only the items of the
+sources it is given.
 
 Leases: the run holds ``corpus`` shared and ``build:news_recheck`` exclusive (one run at a time);
 a withdrawal also takes its source's exclusive lease, as an ingest of the source does. The version
@@ -47,7 +49,10 @@ RESOURCE = leases.build_resource("news_recheck")
 #: Transports whose items the job does not re-check (see the module docstring).
 UNSUPPORTED_TRANSPORTS = frozenset({"guardian"})
 #: Extractions a page fetch reproduces.
-PAGE_EXTRACTIONS = frozenset({extract.TRAFILATURA, extract.READABILITY})
+PAGE_EXTRACTIONS = frozenset({extract.TRAFILATURA, extract.READABILITY, extract.STANDFIRST})
+#: What a check records for an item it could not check.
+UNSUPPORTED = "unsupported"
+NO_BODY = "no_body"
 
 Check = Callable[..., recheck_fetch.Check]
 Write = Callable[..., Tuple[int, str]]
@@ -120,9 +125,8 @@ def run(
     write: Optional[Write] = None,
     limit: int = 500,
 ) -> Counter[str]:
-    """One run at ``now`` (default: the clock) over ``sources``; returns what it did, by outcome.
-    An item whose source is not in ``sources``, or whose stored copy is missing, stays due and is
-    counted (``no_source``, ``no_body``)."""
+    """One run at ``now`` (default: the clock) over the due items of ``sources``; returns what
+    it did, by outcome."""
     from ..workflow import text_in
 
     when = now or datetime.now(timezone.utc)
@@ -138,23 +142,18 @@ def run(
         holder,
     )
     try:
+        by_id = {source.natural_id: source for source in sources}
         with engine.begin() as conn:
             leases.heartbeat(conn, holder, held)
             done["enrolled"] += rows.enrol(conn, when)
-            due = rows.due(conn, when, limit)
-        by_id = {source.natural_id: source for source in sources}
+            due = rows.due(conn, when, limit, source_natural_ids=list(by_id))
         grouped: Dict[str, List[rows.Due]] = {}
         for found in due:
             grouped.setdefault(found.source_natural_id, []).append(found)
         for source_id, items in grouped.items():
-            source = by_id.get(source_id)
-            if source is None:
-                done["no_source"] += len(items)
-                logger.warning(
-                    "news re-check: %s is not configured; %d left", source_id, len(items)
-                )
-                continue
-            _run_source(engine, holder, held, source, items, when, check, write_items, done)
+            _run_source(
+                engine, holder, held, by_id[source_id], items, when, check, write_items, done
+            )
     finally:
         leases.release(engine, holder)
     logger.info("news re-check: %s", dict(sorted(done.items())))
@@ -180,11 +179,11 @@ def _run_source(
     for found in due:
         item = stored.get(found.natural_id)
         if item is None or not item.text:
-            done["no_body"] += 1
-            logger.warning("news re-check: %s has no stored body; left due", found.natural_id)
+            logger.warning("news re-check: %s has no stored body", found.natural_id)
+            _skip(engine, holder, held, found, NO_BODY, when, done)
             continue
         if _unsupported(item, source):
-            done["unsupported"] += 1
+            _skip(engine, holder, held, found, UNSUPPORTED, when, done)
             continue
         got = check(_served_text(item, source), item.url or "", source.entry, found.validators)
         state, action = recheck.advance(found.state, got.status)
@@ -241,6 +240,23 @@ def _record(
         rows.record(conn, found.item_id, state, got.validators, when)
 
 
+def _skip(
+    engine: Engine,
+    holder: str,
+    held: int,
+    found: rows.Due,
+    status: str,
+    when: datetime,
+    done: Counter[str],
+) -> None:
+    """Record a check that could not be made, so the item's schedule moves on."""
+    state, _ = recheck.advance(found.state, status)
+    with engine.begin() as conn:
+        leases.heartbeat(conn, holder, held)
+        rows.record(conn, found.item_id, state, found.validators, when)
+    done[status] += 1
+
+
 def _withdraw(
     engine: Engine,
     holder: str,
@@ -272,4 +288,12 @@ def _withdraw(
         leases.release(engine, source_holder)
 
 
-__all__ = ["PAGE_EXTRACTIONS", "RESOURCE", "run", "SourceRun", "UNSUPPORTED_TRANSPORTS"]
+__all__ = [
+    "NO_BODY",
+    "PAGE_EXTRACTIONS",
+    "RESOURCE",
+    "run",
+    "SourceRun",
+    "UNSUPPORTED",
+    "UNSUPPORTED_TRANSPORTS",
+]

@@ -15,8 +15,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional, Sequence
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, true, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection
 
@@ -105,9 +106,20 @@ class Due:
     validators: Validators
 
 
-def due(conn: Connection, now: datetime, limit: int = 500) -> list[Due]:
+def due(
+    conn: Connection,
+    now: datetime,
+    limit: int = 500,
+    *,
+    source_natural_ids: Optional[Sequence[str]] = None,
+) -> list[Due]:
     """The served items of a source with a window whose next check is due at ``now``, oldest due
-    first, at most ``limit``."""
+    first, at most ``limit``; only those of ``source_natural_ids`` when it is given."""
+    only = (
+        sources.c.natural_id.in_(list(source_natural_ids))
+        if source_natural_ids is not None
+        else true()
+    )
     rows = conn.execute(
         select(
             news_recheck,
@@ -124,6 +136,7 @@ def due(conn: Connection, now: datetime, limit: int = 500) -> list[Due]:
             _STATE.next_due_at <= now,
             _ITEM.served > 0,
             _WINDOW.window_days > 0,
+            only,
         )
         .order_by(_STATE.next_due_at, _STATE.item_id)
         .limit(limit)

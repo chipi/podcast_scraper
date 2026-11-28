@@ -208,34 +208,58 @@ def test_a_withdrawal_waits_while_the_source_is_ingested(
     assert w.run(later) == {"enrolled": 0, "withdrawn": 1}
 
 
-def test_a_guardian_item_or_a_feed_text_is_not_rechecked(
+def test_a_feed_text_is_recorded_unsupported_and_a_standfirst_is_checked(
     engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection  # noqa: F811
 ) -> None:
     w = World(engine, monkeypatch)
     feed = w.article("1", extraction=extract.FEED, extractor_version="feed/1")
-    assert w.run() == {"enrolled": 1, "unsupported": 1}
-    assert w.checked == [] and _state(conn, feed).checks_done == 0
+    w.article("2", extraction=extract.STANDFIRST, extractor_version="standfirst/1")
+    w.answer("2", _check(recheck.SAME))
+    assert w.run() == {"enrolled": 2, recheck_job.UNSUPPORTED: 1, recheck.SAME: 1}
+    assert w.checked == [SERVED]
+    state = _state(conn, feed)
+    # Recorded as a check, so its schedule moves on like any other.
+    assert (state.checks_done, state.last_status) == (1, recheck_job.UNSUPPORTED)
+    assert state.next_due_at == FETCHED + timedelta(days=2)
 
 
 def test_a_guardian_source_is_not_rechecked(
-    engine: Engine, monkeypatch: pytest.MonkeyPatch
+    engine: Engine, monkeypatch: pytest.MonkeyPatch  # noqa: F811
 ) -> None:
     w = World(engine, monkeypatch, transport="guardian")
     w.article("1")
-    assert w.run() == {"enrolled": 1, "unsupported": 1}
+    assert w.run() == {"enrolled": 1, recheck_job.UNSUPPORTED: 1}
     assert w.checked == []
 
 
-def test_an_unconfigured_source_or_a_missing_copy_leaves_the_item_due(
+def test_a_run_takes_only_its_sources_items_and_records_a_missing_copy(
     engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection  # noqa: F811
 ) -> None:
     w = World(engine, monkeypatch)
     item_id = w.article("1")
     found = recheck_job.run(engine, [], NOW, check=w.check, write=w.write)
-    assert dict(found) == {"enrolled": 1, "no_source": 1}
-    del w.stored["item:1"]
-    assert w.run() == {"enrolled": 0, "no_body": 1}
+    assert dict(found) == {"enrolled": 1}
     assert _state(conn, item_id).checks_done == 0
+    del w.stored["item:1"]
+    assert w.run() == {"enrolled": 0, recheck_job.NO_BODY: 1}
+    state = _state(conn, item_id)
+    assert (state.checks_done, state.last_status) == (1, recheck_job.NO_BODY)
+
+
+def test_an_item_that_cannot_be_checked_never_holds_the_head_of_the_queue(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    # public's review of #2641: with limit 1, an unrecorded skip would be taken on every run.
+    w = World(engine, monkeypatch)
+    w.article("1", extraction=extract.FEED, extractor_version="feed/1")
+    w.article("2")
+    w.answer("2", _check(recheck.SAME))
+    run = lambda: dict(  # noqa: E731
+        recheck_job.run(engine, [w.source], NOW, check=w.check, write=w.write, limit=1)
+    )
+    assert run() == {"enrolled": 2, recheck_job.UNSUPPORTED: 1}
+    assert run() == {"enrolled": 0, recheck.SAME: 1}
+    assert w.checked == [SERVED]
 
 
 def test_a_text_from_another_extractor_is_compared_after_extracting_its_raw_page_again(
