@@ -191,29 +191,10 @@ def page_standfirst(html: str, url: str) -> str:
     return " ".join(str(getattr(md, "description", "") or "").split())
 
 
-def main_text(
-    html: str, url: str, feed_html: Optional[str] = None, *, text_from: str = TEXT_FROM_PAGE
-) -> Optional[Extracted]:
-    """The item's text, from where its source says (``text_from``):
-
-    - ``page`` (the default): the page's main text, or the feed's own text for the item (its
-      full content or its description) when that is longer; and when neither has
-      :data:`MIN_USABLE_CHARS` (a paywalled or script-rendered page), the page's standfirst;
-    - ``feed``: the feed's own text;
-    - ``standfirst``: the page's standfirst (a source whose article pages are paywalled).
-
-    ``None`` when there is none."""
+def _trafilatura_text(html: str, url: str) -> str:
     import trafilatura
 
-    lang = page_language(html)
-    feed = strip_boilerplate(_blocks_text(feed_html)) if feed_html and feed_html.strip() else ""
-    if text_from == TEXT_FROM_FEED:
-        return Extracted(feed, FEED, lang) if feed else None
-    standfirst = page_standfirst(html, url)
-    if text_from == TEXT_FROM_STANDFIRST:
-        return Extracted(standfirst, STANDFIRST, lang) if standfirst else None
-
-    traf = strip_boilerplate(
+    return strip_boilerplate(
         _lines(
             trafilatura.extract(
                 html,
@@ -226,6 +207,46 @@ def main_text(
             or ""
         )
     )
+
+
+def method_text(html: str, url: str, method: str) -> Optional[str]:
+    """The page's text as one extractor ``method`` gives it, with no choice between them; ``None``
+    for a method a page does not give (the feed's text) or a page it gives nothing for. What the
+    re-check compares again when :func:`main_text` chose another extractor than the served text's
+    (CRFC-006 B.2 step 3: a flip between trafilatura and its readability fallback is not an edit).
+    """
+    if method == TRAFILATURA:
+        text = _trafilatura_text(html, url)
+    elif method == READABILITY:
+        text = strip_boilerplate(_readability_text(html))
+    elif method == STANDFIRST:
+        text = page_standfirst(html, url)
+    else:
+        return None
+    return text or None
+
+
+def main_text(
+    html: str, url: str, feed_html: Optional[str] = None, *, text_from: str = TEXT_FROM_PAGE
+) -> Optional[Extracted]:
+    """The item's text, from where its source says (``text_from``):
+
+    - ``page`` (the default): the page's main text, or the feed's own text for the item (its
+      full content or its description) when that is longer; and when neither has
+      :data:`MIN_USABLE_CHARS` (a paywalled or script-rendered page), the page's standfirst;
+    - ``feed``: the feed's own text;
+    - ``standfirst``: the page's standfirst (a source whose article pages are paywalled).
+
+    ``None`` when there is none."""
+    lang = page_language(html)
+    feed = strip_boilerplate(_blocks_text(feed_html)) if feed_html and feed_html.strip() else ""
+    if text_from == TEXT_FROM_FEED:
+        return Extracted(feed, FEED, lang) if feed else None
+    standfirst = page_standfirst(html, url)
+    if text_from == TEXT_FROM_STANDFIRST:
+        return Extracted(standfirst, STANDFIRST, lang) if standfirst else None
+
+    traf = _trafilatura_text(html, url)
     read = strip_boilerplate(_readability_text(html))
     best: Optional[Extracted] = None
     if traf and len(traf) >= READABILITY_RATIO * len(read):
