@@ -102,6 +102,10 @@ MAX_BUDGET = 3_000
 DEFAULT_EDGE_BUDGET = 10_000
 MAX_EDGE_BUDGET = 20_000
 MAX_ITEM_SEEDS = 200
+#: Decision 5's other static bounds (the structured query's; ``exclude_items`` every preset's).
+MAX_NODE_SEEDS = 50
+MAX_PATH_STEPS = 3
+MAX_EXCLUDE_ITEMS = 2_000
 #: CRFC-004's deadline; CRFC-005 §4 lowers it for presets only once the rehearsal confirms 2 s.
 STATEMENT_TIMEOUT_MS = 5_000
 #: ``slice.recent``'s windows, widened in this order while too few items match.
@@ -1707,3 +1711,74 @@ def _catalogue(
     wanted = {group for node in out_nodes for group in node["groups"]}
     wanted |= {catalogue[g]["parent_id"] for g in wanted if g in catalogue} - {None}
     return [catalogue[g] for g in sorted(wanted) if g in catalogue]
+
+
+#: Decision 7's presets and the parameters each takes besides ``budget`` and ``edge_budget``.
+PRESETS: dict[str, tuple[str, ...]] = {
+    "slice.recent": ("window", "sources", "content_types", "min_items", "expand_groups", "with"),
+    "slice.items": ("items", "with"),
+    "slice.neighbourhood": ("node", "path", "with"),
+    "slice.group": ("group", "with"),
+    "groups.summary": ("kind",),
+}
+
+
+def catalogue() -> dict[str, Any]:
+    """``GET /api/graph/catalogue`` (decision 11): what this build serves, from the engine's own
+    constants, so it cannot drift from them: the format, the presets, the node types, the edge
+    types with class, ends and whether they are item-scoped, the named paths with their steps, the
+    grouping kinds and the static bounds. It reads no row: the same for every revision."""
+    kinds = {ITEM: "ContentItem", SOURCE: "Source", INSIGHT: "Insight", EVIDENCE: "Quote"}
+
+    def end(kind: str) -> list[str]:
+        return sorted(ENTITY_TYPES.values()) if kind == ENTITY else [kinds[kind]]
+
+    edges = [
+        {
+            "type": e.name,
+            "class": e.cls,
+            "from": end(e.source),
+            "to": end(e.target),
+            "item_scoped": e.item_scoped,
+        }
+        for e in EDGES.values()
+    ]
+    edges.append(
+        {
+            "type": IN_GROUP,
+            "class": "structural",
+            "from": ["Topic", "group"],
+            "to": ["group"],
+            "item_scoped": False,
+        }
+    )
+    paths = {
+        name: {
+            "seeds": {
+                seed: [[[list(part) for part in step] for step in branch] for branch in branches]
+                for seed, branches in by_seed.items()
+            },
+            "keep": sorted(keep),
+        }
+        for name, (by_seed, keep) in PATHS.items()
+    }
+    return {
+        "format": FORMAT,
+        "presets": {name: list(params) for name, params in PRESETS.items()},
+        "node_types": sorted({*ENTITY_TYPES.values(), *NODE_TYPES.values()}),
+        "edge_types": sorted(edges, key=lambda e: str(e["type"])),
+        "named_paths": paths,
+        "group_kinds": list(GROUP_KINDS),
+        "windows": list(WINDOWS),
+        "with": sorted(WITH),
+        "bounds": {
+            "budget": {"default": DEFAULT_BUDGET, "max": MAX_BUDGET},
+            "edge_budget": {"default": DEFAULT_EDGE_BUDGET, "max": MAX_EDGE_BUDGET},
+            "item_seeds": MAX_ITEM_SEEDS,
+            "node_seeds": MAX_NODE_SEEDS,
+            "path_steps": MAX_PATH_STEPS,
+            "exclude_items": MAX_EXCLUDE_ITEMS,
+            "fanout": FANOUT,
+            "statement_timeout_ms": STATEMENT_TIMEOUT_MS,
+        },
+    }

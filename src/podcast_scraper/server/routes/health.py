@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +27,67 @@ from podcast_scraper.server.pathutil import (
 )
 from podcast_scraper.server.schemas import CorpusProducedBy, HealthResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
+
+#: Seconds a read corpus revision is served before health asks for a newer one.
+REVISION_HOLD_S = 2.0
+
+
+class _RevisionHold:
+    """The corpus revision (ADR-183 decision 4) as health serves it: the last one read. Health
+    stays IO-free on the event loop (``_KEEP_ASYNC``: it must answer when every worker thread is
+    busy), so a value older than :data:`REVISION_HOLD_S` starts one background read and the call
+    answers with what it holds; ``None`` until a read lands, with no corpus database, or when the
+    database cannot be read."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._value: int | None = None
+        self._read_at: float | None = None
+        self._reading = False
+
+    def __call__(self) -> int | None:
+        with self._lock:
+            stale = self._read_at is None or time.monotonic() - self._read_at >= REVISION_HOLD_S
+            if stale and not self._reading:
+                self._reading = True
+                threading.Thread(target=self._refresh, name="health-revision", daemon=True).start()
+            return self._value
+
+    def _refresh(self) -> None:
+        value = _read_corpus_revision()
+        with self._lock:
+            self._value, self._read_at, self._reading = value, time.monotonic(), False
+
+
+def _read_corpus_revision() -> int | None:
+    from podcast_scraper.db.settings import corpus_is_configured
+
+    if not corpus_is_configured():
+        return None
+    from sqlalchemy import select
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from podcast_scraper.db.engines import corpus_ro_engine, read_connection
+    from podcast_scraper.db.schema import corpus_revision
+
+    try:
+        with read_connection(corpus_ro_engine()) as conn:
+            revision = conn.execute(
+                select(corpus_revision.c.revision).where(corpus_revision.c.id == 1)
+            ).scalar()
+    except (SQLAlchemyError, RuntimeError):
+        logger.warning("health: the corpus revision could not be read", exc_info=True)
+        return None
+    return int(revision) if revision is not None else None
+
+
+_corpus_revision = _RevisionHold()
+
+
+def _graph_api(request: Request) -> bool:
+    return bool(getattr(request.app.state, "graph_api_enabled", False))
 
 
 def _probe_enriched_search_available(corpus_dir: Path | None) -> bool:
@@ -181,6 +244,8 @@ async def health(
             "auth_providers": list((getattr(st, "oauth_providers", None) or {}).keys()),
             "auth_epoch": client["auth_epoch"],
             "code_version": __version__,
+            "graph_api": _graph_api(request),
+            "corpus_revision": _corpus_revision() if _graph_api(request) else None,
             "player_version": client["player_version"],
             "app_versions": client["app_versions"],
             "min_supported_corpus_code_version": MIN_SUPPORTED_CORPUS_CODE_VERSION,
