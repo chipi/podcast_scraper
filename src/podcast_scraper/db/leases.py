@@ -17,7 +17,9 @@ job that lost any lease (one expired while another was refreshed) stops without 
 
 Who takes what after the cut-over: an ingest of a source, ``corpus`` shared then its
 ``source:`` exclusive; an enricher, ``corpus`` shared; a corpus-wide build, ``corpus`` shared then
-its ``build:`` exclusive; a row migration and the schema migrate step, ``corpus`` exclusive.
+its ``build:`` exclusive; the news re-check, ``corpus`` shared and ``build:news_recheck``
+exclusive, and for a withdrawal its source's ``source:`` exclusive under a holder of its own; a
+row migration and the schema migrate step, ``corpus`` exclusive.
 """
 
 from __future__ import annotations

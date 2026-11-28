@@ -1,9 +1,10 @@
 """Re-checking a written news article for a correction: the normaliser, the compare and hold
 rule, and the per-item schedule (CRFC-006 Part B, B.2; W2's public half).
 
-Pure code, no network and no rows: the re-check job (Common ingestion) fetches the page the way
-the ingest does and calls :func:`compare` and :func:`advance`; the database session owns the
-version rows. Nothing here runs while every source's re-check window is 0.
+Pure code, no network and no rows: the re-check job (``news.recheck_job``, the database
+session's since 2026-11-24) fetches the page the way the ingest does and calls :func:`compare`
+and :func:`advance`, and writes the version rows. Nothing here runs while every source's re-check
+window is 0.
 
 The normalisation rules and the hold share are not designed yet (CRFC-006 B.2 steps 3-4); what is
 here is a proposal, and the drift measurement (W2) is what sets the share.

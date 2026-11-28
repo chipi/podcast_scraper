@@ -56,6 +56,9 @@ CONTRACT_FIELDS = [
 ]
 
 
+LATER_PARAGRAPH = "A paragraph the publisher added after the first fetch, as a correction."
+
+
 class FakeNet:
     """Serves the fixture files by URL; counts every request."""
 
@@ -482,6 +485,105 @@ def test_the_stored_items_by_id_are_keyed_by_the_written_item_id(
         item = found[doc["item_id"]]
         assert item.item_id == rss_id
         assert item.text == _body_path(_p).read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def corpus_rows(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """The pipeline's row sync on the worker's test database; the corpus tables emptied after."""
+    from sqlalchemy import create_engine
+
+    from podcast_scraper.db import engines
+    from podcast_scraper.db.schema import corpus_metadata, corpus_revision
+    from podcast_scraper.db.settings import ENV_PIPELINE_RW_URL, normalize_url
+    from tests._database import worker_database_url
+
+    url = worker_database_url()
+    assert url, "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
+    monkeypatch.setenv(ENV_PIPELINE_RW_URL, url)
+    engines.reset_engines()
+    engine = create_engine(normalize_url(url))
+    yield engine
+    engines.reset_engines()
+    with engine.begin() as db:
+        for table in reversed(corpus_metadata.sorted_tables):
+            if table is corpus_revision:
+                db.execute(corpus_revision.update().values(revision=0))
+            else:
+                db.execute(table.delete())
+    engine.dispose()
+
+
+def test_a_rechecked_page_is_the_articles_next_version_on_the_rows(
+    tmp_path: Path,
+    net: FakeNet,
+    no_podcast_stages: None,
+    registry: Registry,
+    monkeypatch: pytest.MonkeyPatch,
+    corpus_rows: Any,
+) -> None:
+    """The news re-check end to end (CRFC-006 B.2 step 5, B.1): one stored item's page changed;
+    the job writes it through run_text_items and the row sync, so the item's article is its next
+    version, superseding the first and served in its place, and the other items keep version 1."""
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import select, text
+
+    from podcast_scraper.db import news_recheck as rows
+    from podcast_scraper.db.schema import sources
+    from podcast_scraper.news import recheck, recheck_fetch, recheck_job
+    from podcast_scraper.workflow import text_in
+
+    engine = corpus_rows
+    corpus = _run(tmp_path)
+    docs = _docs(corpus)
+    first = fixtures.ITEMS[0]
+    (changed_id,) = [d["item_id"] for _p, d in docs.values() if d["url"] == first["url"]]
+    with engine.begin() as c:
+        source_id = c.execute(
+            select(sources.c.source_id).where(sources.c.natural_id == _source_id())
+        ).scalar_one()
+        rows.set_window(c, source_id, 7)
+    edited = fixtures.page({**first, "paragraphs": [*first["paragraphs"], LATER_PARAGRAPH]})
+    now = datetime.now(timezone.utc) + timedelta(days=1, minutes=5)
+    done: Dict[str, Any] = {}
+
+    def check(served: str, page: str, source: Any, validators: Any, **kw: Any) -> Any:
+        if page == first["url"]:
+            return recheck_fetch.Check(recheck.CHANGED, validators, 200, html=edited)
+        return recheck_fetch.Check(recheck.SAME, validators, 200)
+
+    def recheck_run(cfg: Any, entry: Any, ctype: Any, transport: Any) -> Tuple[int, str]:
+        source = recheck_job.SourceRun(cfg, entry, ctype, transport)
+        done.update(recheck_job.run(engine, [source], now, check=check))
+        return 0, "rechecked"
+
+    monkeypatch.setattr(text_in, "run_text_source", recheck_run)
+    _run(tmp_path, "--pipeline-stage", "rederive_only")
+
+    # Two of the four fixture items are served articles (a paywalled teaser and a Spanish item
+    # are not), so two are enrolled: one page changed, the other is the same.
+    assert done == {"enrolled": 2, recheck.CHANGED: 1, recheck.SAME: 1}
+    with engine.connect() as c:
+        series = c.execute(
+            text(
+                "SELECT i.natural_id, d.kind, d.variant, d.version, d.change_kind,"
+                " d.supersedes_id IS NOT NULL AS supersedes,"
+                " NOT EXISTS (SELECT 1 FROM corpus.documents n"
+                "             WHERE n.supersedes_id = d.document_id) AS served"
+                " FROM corpus.documents d JOIN corpus.content_items i USING (item_id)"
+                " WHERE d.kind = 'article' ORDER BY 1, 2, 3, 4"
+            )
+        ).all()
+    newest = {(r.natural_id, r.kind, r.variant): r for r in series if r.served}
+    for (item, _kind, _variant), row in newest.items():
+        if item == changed_id:
+            assert (row.version, row.supersedes, row.change_kind) == (2, True, "corrected"), row
+        else:
+            assert row.version == 1, row
+    assert any(item == changed_id for item, _k, _v in newest)
+    # The new run's body is the page's new text, and it is what the rows serve.
+    bodies = sorted(corpus.rglob("*.txt"))
+    assert any(LATER_PARAGRAPH in b.read_text(encoding="utf-8") for b in bodies)
 
 
 def test_run_text_items_refuses_any_stage_but_rederive_only() -> None:

@@ -6,7 +6,7 @@ last answer carried validators, and tell apart what the schedule must treat diff
 compare, "not modified", gone (404 or 410: two in a row withdraw the item) and failed (a timeout,
 a 5xx, a refusal: retried on the next day, never counted as gone).
 
-The re-check job (Common ingestion) calls :func:`check` and passes its ``status`` to
+The re-check job (``news.recheck_job``) calls :func:`check` and passes its ``status`` to
 ``recheck.advance``. A Guardian item is read again by its id (:func:`check_guardian`), its text
 the API's body. Not here: re-extracting the stored raw page when the extractor changed (B.2 step
 2, the job's), and the rows themselves (the database session's).
