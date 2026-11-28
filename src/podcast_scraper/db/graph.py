@@ -21,9 +21,11 @@ Built here, the walk core:
   read in its seed statement;
 - node ``groups`` and the slice's groups catalogue (CRFC-004 §2) from the published cluster build:
   a topic is in a group when a member of its canonical is, and the catalogue holds every group a
-  served node is in and that group's parent.
+  served node is in and that group's parent;
+- ``groups.summary``: every group of one kind with its parent and child count, and
+  ``cluster_links``' weights between them, from the published cluster build, in one statement.
 
-Not built yet: ``groups.summary`` and ``expand_groups``, ``exclude_items`` and
+Not built yet: ``expand_groups``, ``exclude_items`` and
 held stubs, the structured query, the routes, caching and the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
@@ -69,6 +71,7 @@ from sqlalchemy.sql import ColumnElement, Select
 from podcast_scraper.db.schema import (
     cluster_builds,
     cluster_ids,
+    cluster_links,
     cluster_members,
     clusters,
     content_items,
@@ -125,6 +128,14 @@ class GraphTimeout(RuntimeError):
 
 class UnknownPath(ValueError):
     """A named path the engine does not have, or one not defined for the seed's type."""
+
+
+#: The grouping kinds (``cluster_ids.kind``'s check, corpus_0013).
+GROUP_KINDS = ("theme", "storyline", "super_theme", "insight")
+
+
+class UnknownKind(ValueError):
+    """A grouping kind that is not one of :data:`GROUP_KINDS`: answered 422, as a bad path."""
 
 
 # --- statement pieces ------------------------------------------------------------------------
@@ -938,6 +949,101 @@ def slice_group(
         chosen = chosen[: max(room, 0)]
     _fill_items(conn, s, chosen)
     return _finish(conn, s)
+
+
+def groups_summary(conn: Connection, kind: str) -> dict[str, Any]:
+    """``groups.summary``: every group of ``kind`` in the published cluster build (CRFC-004 §2,
+    the top-down bubbles and their links), in one statement with the revision and build ids: each
+    group's ``id``, ``kind``, ``label``, ``parent_id`` and ``child_count`` (the groups whose
+    parent it is), and ``links``, ``cluster_links``' weights between two groups of the kind, from
+    the same build, so the two never mix builds. Weights are corpus-wide, not the loaded graph's.
+    With no published build, both lists are empty. Nothing writes ``cluster_links`` yet (the
+    viewer derives its top-down links itself, ``topDownSlice.ts``), so ``links`` is empty until
+    a writer exists; one would be the groupings importer's (CRFC-005 §8)."""
+    if kind not in GROUP_KINDS:
+        raise UnknownKind(f"grouping kind {kind!r} is not one of {list(GROUP_KINDS)}")
+    build = (
+        select(cluster_builds.c.build_id)
+        .where(cluster_builds.c.state == "published")
+        .scalar_subquery()
+    )
+    c, child = clusters.alias("gc"), clusters.alias("gk")
+    own, up = cluster_ids.alias("go"), cluster_ids.alias("gu")
+    children = (
+        select(func.count())
+        .where(child.c.build_id == c.c.build_id, child.c.parent_id == c.c.cluster_id)
+        .scalar_subquery()
+    )
+    la, lb = cluster_ids.alias("la"), cluster_ids.alias("lb")
+    links = cluster_links
+    r = _revision()
+    statement = union_all(
+        select(
+            literal("head").label("row"),
+            r.c.revision,
+            r.c.graph_build_id,
+            cast(null(), Text).label("id"),
+            cast(null(), Text).label("label"),
+            cast(null(), Text).label("other"),
+            cast(null(), BigInteger).label("n"),
+        ).select_from(r),
+        select(
+            literal("group"),
+            cast(null(), BigInteger),
+            cast(null(), BigInteger),
+            own.c.natural_id,
+            c.c.label,
+            up.c.natural_id,
+            children,
+        )
+        .select_from(
+            c.join(own, own.c.cluster_id == c.c.cluster_id).outerjoin(
+                up, up.c.cluster_id == c.c.parent_id
+            )
+        )
+        .where(c.c.build_id == build, c.c.kind == kind),
+        select(
+            literal("link"),
+            cast(null(), BigInteger),
+            cast(null(), BigInteger),
+            la.c.natural_id,
+            cast(null(), Text),
+            lb.c.natural_id,
+            cast(links.c.weight, BigInteger),
+        )
+        .select_from(
+            links.join(la, la.c.cluster_id == links.c.a).join(lb, lb.c.cluster_id == links.c.b)
+        )
+        .where(links.c.build_id == build, links.c.kind == kind),
+    )
+    revision = graph_build_id = None
+    groups: list[dict[str, Any]] = []
+    weights: list[dict[str, Any]] = []
+    for row in conn.execute(statement):
+        if row.row == "head":
+            revision, graph_build_id = row.revision, row.graph_build_id
+        elif row.row == "group":
+            groups.append(
+                {
+                    "id": row.id,
+                    "kind": kind,
+                    "label": row.label,
+                    "parent_id": row.other,
+                    "child_count": int(row.n),
+                }
+            )
+        else:
+            a, b = sorted((str(row.id), str(row.other)))
+            weights.append({"a": a, "b": b, "weight": int(row.n)})
+    return {
+        "format": FORMAT,
+        "corpus_revision": revision,
+        "graph_build_id": graph_build_id,
+        "preset": "groups.summary",
+        "params": {"kind": kind},
+        "groups": sorted(groups, key=lambda g: g["id"]),
+        "links": sorted(weights, key=lambda w: (-w["weight"], w["a"], w["b"])),
+    }
 
 
 # --- path walks ------------------------------------------------------------------------------
