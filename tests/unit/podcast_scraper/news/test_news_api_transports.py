@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from podcast_scraper import content_types as ct
-from podcast_scraper.news import guardian, hn
+from podcast_scraper.news import guardian, hn, recheck, recheck_fetch
 from podcast_scraper.rss import downloader
 from podcast_scraper.rss.feeds_spec import NewsSourceSpec
 from podcast_scraper.utils.log_redaction import redact_for_log
@@ -225,3 +225,82 @@ def test_the_guardian_after_a_cursor_reads_oldest_first_and_pages_past_the_curso
     assert len(seen) == 2 and "order-by=oldest" in seen[0] and "from-date=2026-11-18" in seen[0]
     items, cursor = guardian.list_items(source, cursor)
     assert [i.metadata["title"] for i in items] == ["R5"]
+
+
+# --- The Guardian re-read by id (the news re-check, CRFC-006 B.2 step 1) ---
+
+ARTICLE = RESULTS["response"]["results"][0]
+
+
+def _answer(monkeypatch: pytest.MonkeyPatch, status: int, body: Any, seen: List[str]) -> None:
+    def fake(url: str, *a: Any, **k: Any) -> httpx.Response:
+        seen.append(url)
+        return httpx.Response(status, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(downloader, "http_get_response", fake)
+
+
+def test_a_guardian_reread_asks_for_one_article_by_its_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(guardian.KEY_ENV, "FAKEKEYFAKEKEY")
+    seen: List[str] = []
+    _answer(monkeypatch, 200, {"response": {"status": "ok", "content": ARTICLE}}, seen)
+    status, record = guardian.reread(
+        _Source("https://guardian.test/search?section=world"), "world/2026/nov/18/a"
+    )
+    assert (status, record) == (200, ARTICLE)
+    assert seen[0].startswith("https://guardian.test/world/2026/nov/18/a?")
+    assert "show-fields=body%2Cbyline%2CtrailText%2Clang" in seen[0]
+
+
+def test_the_same_guardian_body_is_the_same_and_an_edit_is_a_new_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(guardian.KEY_ENV, "FAKEKEYFAKEKEY")
+    source = _Source("https://guardian.test/search")
+    served = guardian.body_text(ARTICLE)
+    _answer(monkeypatch, 200, {"response": {"content": ARTICLE}}, [])
+    same = recheck_fetch.check_guardian(served, "world/2026/nov/18/a", source)
+    assert same.status == recheck.SAME and same.record == ARTICLE
+
+    edited = json.loads(json.dumps(ARTICLE))
+    edited["fields"]["body"] = BODY.replace("Paragraph 3 of", "Paragraph three of")
+    _answer(monkeypatch, 200, {"response": {"content": edited}}, [])
+    got = recheck_fetch.check_guardian(served, "world/2026/nov/18/a", source)
+    assert got.status == recheck.CHANGED
+    version = guardian.item_from_record(got.record or {}, source)
+    assert version is not None and "Paragraph three of" in (version.text or "")
+    assert version.metadata["transport_ids"] == {"guardian": "world/2026/nov/18/a"}
+
+
+@pytest.mark.parametrize("status", [404, 410])
+def test_a_guardian_article_the_api_says_is_gone_is_gone(
+    monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    monkeypatch.setenv(guardian.KEY_ENV, "FAKEKEYFAKEKEY")
+    _answer(monkeypatch, status, {"response": {"status": "error"}}, [])
+    got = recheck_fetch.check_guardian("text", "world/x", _Source("https://guardian.test/search"))
+    assert (got.status, got.http_status) == (recheck.GONE, status)
+
+
+@pytest.mark.parametrize("status", [500, 429, 200])
+def test_a_guardian_reread_with_no_record_is_failed_not_gone(
+    monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    monkeypatch.setenv(guardian.KEY_ENV, "FAKEKEYFAKEKEY")
+    _answer(monkeypatch, status, {"response": {}}, [])
+    got = recheck_fetch.check_guardian("text", "world/x", _Source("https://guardian.test/search"))
+    assert got.status == recheck.FAILED
+
+
+def test_a_guardian_reread_without_a_key_fetches_nothing_and_fails(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.delenv(guardian.KEY_ENV, raising=False)
+    seen: List[str] = []
+    _answer(monkeypatch, 200, {}, seen)
+    with caplog.at_level(logging.WARNING):
+        got = recheck_fetch.check_guardian("t", "world/x", _Source("https://guardian.test/s"))
+    assert got.status == recheck.FAILED and seen == []
+    assert guardian.KEY_ENV not in caplog.text

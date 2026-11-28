@@ -7,9 +7,9 @@ compare, "not modified", gone (404 or 410: two in a row withdraw the item) and f
 a 5xx, a refusal: retried on the next day, never counted as gone).
 
 The re-check job (Common ingestion) calls :func:`check` and passes its ``status`` to
-``recheck.advance``. Not here: the Guardian's re-read by id (its transport's), re-extracting the
-stored raw page when the extractor changed (B.2 step 2; needs the extractor's version on the row),
-and the rows themselves (the database session's).
+``recheck.advance``. A Guardian item is read again by its id (:func:`check_guardian`), its text
+the API's body. Not here: re-extracting the stored raw page when the extractor changed (B.2 step
+2, the job's), and the rows themselves (the database session's).
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from ..rss import downloader
-from . import extract, recheck
+from . import extract, guardian, recheck
 from .fetch import robots_allow, source_spec, TIMEOUT_S, user_agent
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,34 @@ class Check:
     http_status: int
     comparison: Optional[recheck.Comparison] = None
     html: Optional[str] = None
+    #: A Guardian check's API record (its raw cache is the record as JSON).
+    record: Optional[Dict[str, Any]] = None
+
+
+def check_guardian(
+    served_text: str,
+    item_id: str,
+    source: Any,
+    validators: Validators = Validators(),
+    *,
+    hold_share: float = recheck.DEFAULT_HOLD_SHARE,
+) -> Check:
+    """Re-check one Guardian article by reading its API record again (B.2 step 1): 404 or 410
+    is gone, any other failure (no key, no answer, no record) failed, and a record's body is
+    compared as the page's text is. ``guardian.item_from_record(check.record, source)`` is its
+    next version. The API sends no validators; the ones given are kept."""
+    status, record = guardian.reread(source, item_id)
+    if status in _GONE_STATUSES:
+        return Check(recheck.GONE, validators, status)
+    if record is None:
+        return Check(recheck.FAILED, validators, status)
+    comparison = recheck.compare(
+        served_text,
+        guardian.body_text(record),
+        url=str(record.get("webUrl") or ""),
+        hold_share=hold_share,
+    )
+    return Check(comparison.outcome, validators, status, comparison, record=record)
 
 
 def check(

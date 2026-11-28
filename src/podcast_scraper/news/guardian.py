@@ -5,7 +5,8 @@ no page is fetched; the JSON record is kept as the raw cache (``.raw.json``). Th
 the variable the source's ``api_key_env`` names, else ``GUARDIAN_API_KEY``, and never written to a
 log (the shared downloader redacts ``api-key`` in every URL it logs). Without a key the source
 lists nothing, and says so (naming the source, not the variable). The cursor is the newest
-``webPublicationDate`` listed.
+``webPublicationDate`` listed. The news re-check reads one article again by its id
+(:func:`reread`, CRFC-006 B.2 step 1).
 """
 
 from __future__ import annotations
@@ -54,11 +55,58 @@ def _request_url(
     return base + joiner + urlencode(params)
 
 
+def _key(source: Any) -> str:
+    return os.environ.get(source_spec(source).api_key_env or KEY_ENV, "").strip()
+
+
+def body_text(result: Dict[str, Any]) -> str:
+    """An API record's article text, as its item's text is made."""
+    fields = result.get("fields") or {}
+    return extract.strip_boilerplate(extract._blocks_text(str(fields.get("body") or "")))
+
+
+def item_url(source: Any, item_id: str, key: str) -> str:
+    """One article's API record: the source's API host and the article's id as the path."""
+    parts = urlsplit(str(getattr(source, "url", "") or ""))
+    query = urlencode({"show-fields": FIELDS, "api-key": key})
+    return f"{parts.scheme}://{parts.netloc}/{item_id.lstrip('/')}?{query}"
+
+
+def reread(source: Any, item_id: str) -> Tuple[int, Optional[Dict[str, Any]]]:
+    """One article's API record read again (the news re-check): ``(http_status, record)``, the
+    record ``None`` unless the API answered 2xx with one. ``http_status`` is 0 when nothing came
+    back, or no key is set."""
+    key = _key(source)
+    if not key:
+        logger.warning(
+            "news guardian: %s: the API key variable is not set; nothing re-read",
+            getattr(source, "url", ""),
+        )
+        return 0, None
+    resp = downloader.http_get_response(
+        item_url(source, item_id, key), user_agent(source), TIMEOUT_S
+    )
+    if resp is None:
+        return 0, None
+    if not 200 <= resp.status_code < 300:
+        return resp.status_code, None
+    try:
+        content = (resp.json().get("response") or {}).get("content")
+    except ValueError:
+        return resp.status_code, None
+    return resp.status_code, content if isinstance(content, dict) else None
+
+
+def item_from_record(result: Dict[str, Any], source: Any) -> Optional[SourceItem]:
+    """An API record as a written-ready item (the re-check's next version), or ``None``."""
+    return _item(result, source)
+
+
 def _item(result: Dict[str, Any], source: Any) -> Optional[SourceItem]:
     """One API result as a written-ready item, or ``None`` (no text, or a language we do not
     ingest)."""
     fields = result.get("fields") or {}
-    text = extract.strip_boilerplate(extract._blocks_text(str(fields.get("body") or "")))
+    text = body_text(result)
     if not text:
         return None
     listed = SourceItem(
@@ -85,8 +133,7 @@ def _item(result: Dict[str, Any], source: Any) -> Optional[SourceItem]:
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
     """The articles published after ``cursor`` (oldest first; the newest without a cursor), at
     most the source's ``max_items``."""
-    key_env = source_spec(source).api_key_env or KEY_ENV
-    key = os.environ.get(key_env, "").strip()
+    key = _key(source)
     if not key:
         # The variable is not named here: the config and docs/guides/NEWS_API_KEYS.md name it.
         logger.warning(
