@@ -280,3 +280,106 @@ def test_a_service_run_text_source_moves_the_cache_token(tmp_path: Path) -> None
     assert (corpus / "corpus_manifest.json").is_file()
     assert corpus_mtime(corpus) > before
     assert not (corpus / "sources" / "test_text_item" / "corpus_manifest.json").exists()
+
+
+DATED = [
+    ct.SourceItem(
+        item_id=f"n{n}", text=f"Item {n}'s body.", cursor=str(n), metadata={"title": f"Item {n}"}
+    )
+    for n in (11, 10, 9, 8)  # newest first; cursor values compare as numbers (9 < 10)
+]
+
+
+def _dated_transport(listed: List[Optional[str]], cap: Optional[int] = None) -> ct.Transport:
+    def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[ct.SourceItem], str]:
+        listed.append(cursor)
+        after = int(cursor) if cursor else 0
+        return [i for i in DATED if int(i.cursor or 0) > after], "11"
+
+    return ct.Transport(
+        name="fixture_feed",
+        list_items=list_items,
+        cursor_key=int,
+        max_items=None if cap is None else (lambda source: cap),
+    )
+
+
+def _fail_for(monkeypatch: pytest.MonkeyPatch, titles: List[str]) -> None:
+    """The metadata step raises for these items, as a summary does when its provider is down."""
+    from podcast_scraper.workflow.stages import processing
+
+    real = processing.metadata_stage.call_generate_metadata
+
+    def flaky(*args: Any, **kwargs: Any) -> Any:
+        if kwargs["episode"].title in titles:
+            raise RuntimeError("Failed to generate summary using provider: connection refused")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(processing.metadata_stage, "call_generate_metadata", flaky)
+
+
+def _cursor(corpus: Path) -> Optional[str]:
+    path = corpus / "source_cursor.json"
+    return json.loads(path.read_text(encoding="utf-8"))["cursor"] if path.is_file() else None
+
+
+def _guids(corpus: Path) -> List[str]:
+    return sorted(d["episode"]["guid"].rsplit(":", 1)[-1] for d in _metadata_docs(corpus))
+
+
+def test_an_item_that_failed_mid_run_is_listed_again_and_written_next_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """2026-11-28: summaries failed while the LLM endpoint was down, and the cursor passed the
+    failed articles. Here item 10 fails between items that write, older (8, 9) and newer (11):
+    the cursor stops at 9, the run index counts 10 failed, and the next run writes it."""
+    corpus = tmp_path / "corpus"
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    listed: List[Optional[str]] = []
+    with use_extensions([_ext(_dated_transport(listed))]):
+        with monkeypatch.context() as m:
+            _fail_for(m, ["Item 10"])
+            ct.run_source(_cfg(corpus, entry), entry)
+        assert _guids(corpus) == ["n11", "n8", "n9"]
+        assert _cursor(corpus) == "9"
+        index = json.loads(next(corpus.rglob("index.json")).read_text(encoding="utf-8"))
+        assert (index["episodes_processed"], index["episodes_failed"]) == (3, 1)
+
+        ct.run_source(_cfg(corpus, entry), entry)
+    assert listed == [None, "9"]
+    assert _guids(corpus) == ["n10", "n11", "n8", "n9"]  # 11 was skipped as already written
+    assert _cursor(corpus) == "11"
+
+
+def test_when_every_item_fails_the_cursor_stays_exactly_where_it_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "source_cursor.json").write_text(
+        json.dumps({"transport": "fixture_feed", "cursor": "7"}), encoding="utf-8"
+    )
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    _fail_for(monkeypatch, [str(i.metadata["title"]) for i in DATED])
+    with use_extensions([_ext(_dated_transport([]))]):
+        ct.run_source(_cfg(corpus, entry), entry)
+    assert _guids(corpus) == []
+    assert _cursor(corpus) == "7"
+
+
+def test_items_past_the_cap_wait_for_a_later_run_and_written_ones_do_not_count(
+    tmp_path: Path,
+) -> None:
+    """A cap of 2 over four new items: two runs write all four, newest first, because the items
+    the first run wrote do not count toward the second run's cap."""
+    corpus = tmp_path / "corpus"
+    entry = RssFeedEntry(url="https://example.com/fixture-source", content_type="test_text_item")
+    listed: List[Optional[str]] = []
+    with use_extensions([_ext(_dated_transport(listed, cap=2))]):
+        ct.run_source(_cfg(corpus, entry), entry)
+        assert _guids(corpus) == ["n10", "n11"]
+        assert _cursor(corpus) is None  # 8 and 9 wait, and nothing older wrote
+        ct.run_source(_cfg(corpus, entry), entry)
+    assert _guids(corpus) == ["n10", "n11", "n8", "n9"]
+    assert _cursor(corpus) == "11"
+    assert listed == [None, None]

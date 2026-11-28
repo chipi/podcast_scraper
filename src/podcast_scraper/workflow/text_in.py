@@ -13,7 +13,9 @@ decides which stages run (ADR-177 decision 7). Only the summary provider is crea
 never reaches transcription or speaker detection.
 
 The transport's cursor is kept in one small file per source, beside its runs, written after the
-run finishes.
+run finishes. Like an unprocessed podcast episode, a listed item that did not write (its summary
+failed, or it was left past the source's cap) is offered again: the cursor stops short of the
+oldest such item, which the next run lists again while the items already written are skipped.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple
 
 from .. import config, content_types, stage_hooks
 from ..kg.v3 import ITEM_TIMES
@@ -45,6 +47,8 @@ TEXT_BODY: Literal["text_body"] = "text_body"
 CURSOR_FILE = "source_cursor.json"
 #: The pipeline stage that re-runs a source's stored items instead of listing new ones.
 REDERIVE_ONLY = "rederive_only"
+#: Listed items still to write, each with the id its metadata will carry (``None``: not fetched).
+_Waiting = List[Tuple[content_types.SourceItem, Optional[str]]]
 
 
 def _item_element(item: content_types.SourceItem, title: str, minted_id: str) -> ET.Element:
@@ -226,14 +230,20 @@ def _jobs_for_items(
     transport: str,
     entry: Any = None,
     written: Optional[Dict[str, List[Path]]] = None,
-) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
+    cap: Optional[int] = None,
+) -> Tuple[List[Episode], List[ProcessingJob], _Waiting]:  # type: ignore[valid-type]
     """``written``: the items the corpus already holds for this type, with their metadata files.
     One article is one item, so an item already written, by this source or another (two feeds
     carrying one article), or listed twice in this batch, is skipped before its body is fetched:
     the first source to write it keeps it, and takes what the later listing adds (its type's
-    ``also_listed``: news, the listing's transport id). The set grows with this batch."""
+    ``also_listed``: news, the listing's transport id). The set grows with this batch.
+
+    ``cap``: the most jobs made; an item already written does not count toward it. Also returned:
+    the listed items still to write, each with the id its metadata will carry (``None``: left
+    past the cap, never fetched), which the cursor must not pass until they write."""
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
+    waiting: _Waiting = []
     on_disk: Dict[str, List[Path]] = written or {}
     seen: Set[str] = set(on_disk)
     for listed in items:
@@ -244,6 +254,9 @@ def _jobs_for_items(
         if listed_id is not None and listed_id in seen:
             logger.info("text-in: %s is already written; skipped (url=%s)", listed_id, listed.url)
             _note_also_listed(ctype, on_disk.get(listed_id, []), listed)
+            continue
+        if cap is not None and len(jobs) >= cap:
+            waiting.append((listed, None))
             continue
         item: Optional[content_types.SourceItem] = listed
         if listed.text is None and ctype.fetch_body is not None:
@@ -305,7 +318,27 @@ def _jobs_for_items(
                 ),
             )
         )
-    return episodes, jobs
+        waiting.append((listed, minted))
+    return episodes, jobs, waiting
+
+
+def _next_cursor(
+    cursor: Optional[str],
+    listed_next: Optional[str],
+    items: List[content_types.SourceItem],
+    unwritten: List[content_types.SourceItem],
+    key: Callable[[str], Any],
+) -> Optional[str]:
+    """Where the cursor may go after a run. Past every item when all of them wrote (the
+    transport's own next cursor); else to the newest item older than the oldest one that did not
+    write, so the next run lists that one again; with none older, where it was. Undated items
+    (no cursor value) are listed every run and never hold it."""
+    held = [key(i.cursor) for i in unwritten if i.cursor is not None]
+    if not held:
+        return listed_next
+    oldest = min(held)
+    older = [i.cursor for i in items if i.cursor is not None and key(i.cursor) < oldest]
+    return max(older, key=key) if older else cursor
 
 
 def run_text_source(
@@ -333,11 +366,12 @@ def run_text_source(
         if rederive:
             # The stored items again, under this run's profile: nothing fetched, the cursor kept,
             # and every item rewritten (a new run supersedes the old one, newest run per item).
-            items, next_cursor = stored_items(source_dir, ctype), None
+            cursor, items, next_cursor = None, stored_items(source_dir, ctype), None
         else:
             cursor = _read_cursor(source_dir, transport.name)
             items, next_cursor = transport.list_items(entry, cursor)
-        episodes, jobs = _jobs_for_items(
+        cap = None if rederive or transport.max_items is None else transport.max_items(entry)
+        episodes, jobs, waiting = _jobs_for_items(
             items,
             ctype,
             effective_output_dir,
@@ -346,13 +380,15 @@ def run_text_source(
             transport=transport.name,
             entry=entry,
             written=None if rederive else written_items(source_dir, ctype),
+            cap=cap,
         )
         logger.info(
-            "text-in: %s over %s: %d new item(s), %d with text",
+            "text-in: %s over %s: %d new item(s), %d with text, %d past the cap",
             ctype.name,
             transport.name,
             len(items),
             len(jobs),
+            sum(1 for _listed, minted in waiting if minted is None),
         )
 
         summary_provider = orch._create_summarization_provider(cfg)
@@ -390,6 +426,19 @@ def run_text_source(
             transcription_provider=None,
         )
         stage_hooks.run_completed(cfg, effective_output_dir)
+        if not rederive:
+            now_written = written_items(source_dir, ctype)
+            unwritten = [listed for listed, minted in waiting if minted not in now_written]
+            next_cursor = _next_cursor(cursor, next_cursor, items, unwritten, transport.cursor_key)
+            if unwritten:
+                logger.warning(
+                    "text-in: %s over %s: %d listed item(s) not written; cursor held at %s, so "
+                    "the next run lists them again",
+                    ctype.name,
+                    transport.name,
+                    len(unwritten),
+                    next_cursor,
+                )
         _write_cursor(source_dir, transport.name, next_cursor)
         return result
     finally:

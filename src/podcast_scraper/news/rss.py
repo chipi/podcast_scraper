@@ -1,8 +1,9 @@
 """The RSS/Atom transport for news: lists a feed's new articles as URLs to fetch (E05).
 
-The feed is read through the shared downloader (conditional GET when the run enables it). The
-cursor is the newest ``published_at`` listed; the next run lists only articles published after it.
-An article without a date is listed every run, and its id makes it the same item each time.
+The feed is read through the shared downloader (conditional GET when the run enables it). Each
+article carries its ``published_at`` as its cursor value; the run moves the cursor only past
+articles that wrote, so one that failed is listed again (``workflow.text_in``). An article without
+a date is listed every run, and its id makes it the same item each time.
 """
 
 from __future__ import annotations
@@ -43,8 +44,9 @@ def _newest_first(entries: List[Any]) -> List[Any]:
 
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
-    """The feed's articles published after ``cursor``, newest first, at most the source's
-    ``max_items``, filtered by its URL patterns."""
+    """The feed's articles published after ``cursor``, newest first, filtered by its URL
+    patterns. Every one is listed: the run caps what it fetches at the source's ``max_items``,
+    counting only articles not yet written."""
     import feedparser
 
     url = str(getattr(source, "url", "") or "")
@@ -69,8 +71,6 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
         published = _iso(entry.get("published_parsed") or entry.get("updated_parsed"))
         if cursor and published and published <= cursor:
             continue
-        if len(items) >= spec.max_items:
-            break
         guid = entry.get("id") or link
         metadata = {
             "title": entry.get("title"),
@@ -82,10 +82,12 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
             # The feed's own text for the item: its full content, else its description.
             "feed_html": (entry.get("content") or [{}])[0].get("value") or entry.get("summary"),
         }
-        items.append(SourceItem(item_id=guid, metadata=metadata, url=link))
+        items.append(SourceItem(item_id=guid, metadata=metadata, url=link, cursor=published))
         if published and (newest is None or published > newest):
             newest = published
     return items, newest
 
 
-TRANSPORT = Transport(name=NAME, list_items=list_items)
+TRANSPORT = Transport(
+    name=NAME, list_items=list_items, max_items=lambda source: source_spec(source).max_items
+)

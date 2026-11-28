@@ -4,7 +4,8 @@ A story links to an article elsewhere; the news type fetches and extracts that p
 item, so one article reached through Hacker News and through its publisher's feed is one item
 (its id is the canonical URL's). A story with no link (Ask HN, a poll) is not an article and is
 skipped. The story's author is who submitted it, not who wrote the article, so it is never a
-byline. The cursor is the newest ``created_at_i`` listed.
+byline. A story's cursor value is its ``created_at_i``, compared as a number; the run moves the
+cursor only past stories that wrote (``workflow.text_in``).
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ def _iso(epoch: Any) -> Optional[str]:
 
 def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Optional[str]]:
     """The front page's linked stories created after ``cursor`` (an epoch second), newest first,
-    at most the source's ``max_items``, filtered by its URL patterns."""
+    filtered by its URL patterns. The run caps what it fetches at the source's ``max_items``."""
     url = str(getattr(source, "url", "") or "")
     resp = downloader.fetch_url(url, user_agent(source), TIMEOUT_S)
     if resp is None:
@@ -60,18 +61,23 @@ def list_items(source: Any, cursor: Optional[str]) -> Tuple[List[SourceItem], Op
             continue
         if after is not None and created <= after:
             continue
-        if len(items) >= spec.max_items:
-            break
         story = str(hit.get("objectID") or "")
         metadata = {
             "title": hit.get("title"),
             "published_at": _iso(created),
             "transport_ids": {NAME: story},
         }
-        items.append(SourceItem(item_id=story or link, metadata=metadata, url=link))
+        items.append(
+            SourceItem(item_id=story or link, metadata=metadata, url=link, cursor=str(created))
+        )
         if newest is None or created > newest:
             newest = created
     return items, (str(newest) if newest is not None else cursor)
 
 
-TRANSPORT = Transport(name=NAME, list_items=list_items)
+TRANSPORT = Transport(
+    name=NAME,
+    list_items=list_items,
+    cursor_key=int,
+    max_items=lambda source: source_spec(source).max_items,
+)

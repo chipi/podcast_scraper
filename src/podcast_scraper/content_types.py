@@ -172,10 +172,17 @@ class SourceItem:
     #: as its raw cache (RFC-134 §5), with ``raw_suffix`` as its file suffix.
     raw: Optional[str] = None
     raw_suffix: str = ".html"
+    #: The item's value in its transport's cursor (``None``: undated, listed every run). The run
+    #: never moves the cursor to or past an item that did not write (``workflow.text_in``).
+    cursor: Optional[str] = None
 
 
 #: ``(source, cursor) -> (items, next_cursor)``: the new items after ``cursor``.
 ListItems = Callable[[Any, Optional[str]], Tuple[List[SourceItem], Optional[str]]]
+
+
+def _as_is(value: str) -> Any:
+    return value
 
 
 @dataclass(frozen=True)
@@ -188,6 +195,11 @@ class Transport:
     request_headers: Mapping[str, str] = field(default_factory=dict)
     #: Minimum seconds between two requests to one host (0: the run's own pacing).
     min_host_interval_s: float = 0.0
+    #: How two of this transport's cursor values compare (an epoch second as a number, not text).
+    cursor_key: Callable[[str], Any] = _as_is
+    #: The most items one run fetches for a source, counting only items not yet written (``None``:
+    #: no cap). The transport lists every new item; the run applies the cap.
+    max_items: Optional[Callable[[Any], int]] = None
 
 
 PODCAST = ContentType(
