@@ -29,6 +29,7 @@ pytest.importorskip("lancedb")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from podcast_scraper.db import graph  # noqa: E402
 from podcast_scraper.search import two_tier_indexer as tti  # noqa: E402
 from podcast_scraper.search.hybrid_search import lance_index_dir  # noqa: E402
 from podcast_scraper.server.app import create_app  # noqa: E402
@@ -128,6 +129,8 @@ def _values(root: Path) -> Dict[str, List[Any]]:
         "slug": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM, _podcast_slug(root)],
         "ref": [_ITEM, _WITHHELD_ITEM, _UNUSABLE_ITEM],
         "index": ["0"],
+        # The graph API's presets (ADR-183), each with no parameters: its defaults.
+        "name": sorted(graph.PRESETS),
         "rail": ["trending", "for-you"],
         "collection_id": ["x"],
         "highlight_id": ["x"],
@@ -290,6 +293,14 @@ def test_no_read_route_serves_a_news_body(client: TestClient, corpus: Path) -> N
             },
         ),
     ]
+    # The graph presets over a JSON body (ADR-183), with the news items and nodes as their seeds.
+    posts += [
+        ("/api/graph/presets/slice.recent", {"window": "all", "exclude_items": [_ITEM]}),
+        ("/api/graph/presets/slice.items", {"items": values["item_id"]}),
+        ("/api/graph/presets/slice.neighbourhood", {"node": _TOPIC, "path": "node.items"}),
+        ("/api/graph/presets/slice.group", {"group": "tc:risk-management"}),
+        ("/api/graph/presets/groups.summary", {"kind": "theme"}),
+    ]
     for url, body in posts:
         res = client.post(url, json=body)
         seen.append(url)
@@ -305,6 +316,8 @@ def test_no_read_route_serves_a_news_body(client: TestClient, corpus: Path) -> N
 #: State-changing routes the guard leaves out: each starts a background rebuild over the whole
 #: corpus and answers with a job status.
 _NOT_CALLED = {"/api/index/rebuild", "/api/corpus/topic-clusters/rebuild"}
+#: POST routes that only read, called with news-shaped bodies by the read test instead.
+_READS = {"/api/graph/presets/{name}"}
 
 
 def test_no_state_changing_route_serves_news_or_deletes_it(
@@ -325,7 +338,7 @@ def test_no_state_changing_route_serves_news_or_deletes_it(
     refused: List[str] = []
     called = 0
     for template, ops in app.openapi()["paths"].items():
-        if template in _NOT_CALLED:
+        if template in _NOT_CALLED or template in _READS:
             continue
         for method in ("post", "put", "patch", "delete"):
             op = ops.get(method)

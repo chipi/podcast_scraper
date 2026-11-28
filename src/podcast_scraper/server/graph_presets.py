@@ -30,7 +30,7 @@ NAMESPACE = "graph_presets"
 MAX_ENTRIES = 512
 _TOKEN_BITS = (1 << 52) - 1
 
-_FUNCS: dict[str, Callable[..., dict[str, Any]]] = {
+FUNCS: dict[str, Callable[..., dict[str, Any]]] = {
     "slice.recent": graph.slice_recent,
     "slice.items": graph.slice_items,
     "slice.neighbourhood": graph.slice_neighbourhood,
@@ -39,7 +39,7 @@ _FUNCS: dict[str, Callable[..., dict[str, Any]]] = {
 }
 
 
-class UnknownPreset(ValueError):
+class UnknownPreset(graph.BadParameter):
     """A preset name the engine does not serve (422 at the route)."""
 
 
@@ -69,10 +69,11 @@ def etag(name: str, params: dict[str, Any], revision: Any, build: Any) -> str:
 def serve(engine: Engine, name: str, params: dict[str, Any]) -> Served:
     """Preset ``name`` with ``params`` (its function's keyword arguments, ``conn`` aside), from
     the cache when this revision and build already answered it. A bad parameter raises the
-    engine's ``ValueError`` (or :class:`UnknownPreset`), which the route turns into 422."""
-    fn = _FUNCS.get(name)
+    engine's :class:`~podcast_scraper.db.graph.BadParameter` (or :class:`UnknownPreset`), which
+    the route turns into 422."""
+    fn = FUNCS.get(name)
     if fn is None:
-        raise UnknownPreset(f"preset {name!r} is not one of {sorted(_FUNCS)}")
+        raise UnknownPreset(f"preset {name!r} is not one of {sorted(FUNCS)}")
 
     def compute() -> dict[str, Any]:
         def run(conn: Connection) -> dict[str, Any]:

@@ -32,7 +32,8 @@ statement and leave its candidates; their nodes, their item-owned nodes and thei
 are not returned; a shared node a held item also reaches is a stub (``id``, ``type``,
 ``held: true``), read by an ``EXISTS`` in the nodes statement, so no statement is added.
 
-Not built yet: the structured query, the preset routes and the replica retry.
+The routes are ``server/routes/graph.py`` (the catalogue and the presets, cached by
+``server/graph_presets.py``). Not built yet: the structured query and the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
 sends nothing. The tail is 4 (nodes, items, induced edges, groups; groups only when the slice has
@@ -139,7 +140,12 @@ class GraphTimeout(RuntimeError):
     """The request ran past its statement timeout: answered 503, never as a partial slice."""
 
 
-class UnknownPath(ValueError):
+class BadParameter(ValueError):
+    """A request parameter the engine refuses; its message names the parameter and is shown to
+    the caller (a 422). Any other ValueError is a fault, not a refusal."""
+
+
+class UnknownPath(BadParameter):
     """A named path the engine does not have, or one not defined for the seed's type."""
 
 
@@ -147,7 +153,7 @@ class UnknownPath(ValueError):
 GROUP_KINDS = ("theme", "storyline", "super_theme", "insight")
 
 
-class UnknownKind(ValueError):
+class UnknownKind(BadParameter):
     """A grouping kind that is not one of :data:`GROUP_KINDS`: answered 422, as a bad path."""
 
 
@@ -669,9 +675,9 @@ class _Slice:
 
 def _check_budgets(budget: int, edge_budget: int) -> None:
     if not 1 <= budget <= MAX_BUDGET:
-        raise ValueError(f"budget {budget} is not between 1 and {MAX_BUDGET}")
+        raise BadParameter(f"budget {budget} is not between 1 and {MAX_BUDGET}")
     if not 1 <= edge_budget <= MAX_EDGE_BUDGET:
-        raise ValueError(f"edge_budget {edge_budget} is not between 1 and {MAX_EDGE_BUDGET}")
+        raise BadParameter(f"edge_budget {edge_budget} is not between 1 and {MAX_EDGE_BUDGET}")
 
 
 def _revision() -> Any:
@@ -696,7 +702,7 @@ WITH = frozenset({"counts"})
 def _with(s: "_Slice", with_: Sequence[str]) -> None:
     unknown = sorted(set(with_) - WITH)
     if unknown:
-        raise ValueError(f"with {unknown} is not one of {sorted(WITH)}")
+        raise BadParameter(f"with {unknown} is not one of {sorted(WITH)}")
     if with_:
         s.counts = "counts" in with_
         s.params["with"] = sorted(set(with_))
@@ -706,7 +712,7 @@ def _exclude(s: "_Slice", exclude_items: Sequence[str]) -> list[str]:
     """The held items' natural ids, bounded (decision 5), named in the slice's params."""
     held = list(dict.fromkeys(exclude_items))
     if len(held) > MAX_EXCLUDE_ITEMS:
-        raise ValueError(f"{len(held)} exclude_items is more than {MAX_EXCLUDE_ITEMS}")
+        raise BadParameter(f"{len(held)} exclude_items is more than {MAX_EXCLUDE_ITEMS}")
     if held:
         s.params["exclude_items"] = held
     return held
@@ -803,7 +809,7 @@ def slice_items(
     _check_budgets(budget, edge_budget)
     seeds = list(dict.fromkeys(natural_ids))
     if len(seeds) > MAX_ITEM_SEEDS:
-        raise ValueError(f"{len(seeds)} item ids is more than {MAX_ITEM_SEEDS}")
+        raise BadParameter(f"{len(seeds)} items is more than {MAX_ITEM_SEEDS}")
     s = _Slice("slice.items", {"items": seeds}, budget=budget, edge_budget=edge_budget)
     _with(s, with_)
     held = _exclude(s, exclude_items)
@@ -849,11 +855,11 @@ def slice_recent(
     every group with a member topic in the slice adds its ``n`` newest other items after them."""
     _check_budgets(budget, edge_budget)
     if expand_groups < 0:
-        raise ValueError("expand_groups must be at least 0")
+        raise BadParameter("expand_groups must be at least 0")
     if window not in WINDOWS:
-        raise ValueError(f"window {window!r} is not one of {sorted(WINDOWS)}")
+        raise BadParameter(f"window {window!r} is not one of {sorted(WINDOWS)}")
     if min_items < 1:
-        raise ValueError("min_items must be at least 1")
+        raise BadParameter("min_items must be at least 1")
     instant = now or datetime.now(timezone.utc)
     params = {
         "window": window,
