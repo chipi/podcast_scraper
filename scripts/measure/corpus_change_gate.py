@@ -142,6 +142,9 @@ def rows_gate(migration: Any, database_url: str, snapshot: str, out: Path) -> in
     engine = create_engine(normalize_url(database_url))
     try:
         report = rows.gate_report(engine, migration, snapshot=snapshot)
+    except rows.VerifyFailed as exc:
+        print(f"VERIFY FAILED on the copy: {exc}", file=sys.stderr)
+        return 1
     finally:
         engine.dispose()
     report.update(
