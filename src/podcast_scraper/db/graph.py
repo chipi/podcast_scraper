@@ -11,7 +11,8 @@ Built here, the walk core:
 
 - the edges of decision 10 whose tables exist (:data:`EDGES`); ``CONTRIBUTES_TO``, ``RELATED_TO``
   and ``IN_GROUP`` are not built yet;
-- the presets ``slice.items``, ``slice.recent`` (without ``expand_groups`` or an extension score),
+- the presets ``slice.items``, ``slice.recent`` (with ``expand_groups``; without an extension
+  score),
   ``slice.group`` (one group of the published cluster build: its topics, or its child groups',
   and the newest items that carry them) and ``slice.neighbourhood`` with the named paths of
   decision 6;
@@ -25,8 +26,8 @@ Built here, the walk core:
 - ``groups.summary``: every group of one kind with its parent and child count, and
   ``cluster_links``' weights between them, from the published cluster build, in one statement.
 
-Not built yet: ``expand_groups``, ``exclude_items`` and
-held stubs, the structured query, the routes, caching and the replica retry.
+Not built yet: ``exclude_items`` and held stubs, the structured query, the routes, caching and
+the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
 sends nothing. The tail is 4 (nodes, items, induced edges, groups; groups only when the slice has
@@ -693,12 +694,13 @@ def _with(s: "_Slice", with_: Sequence[str]) -> None:
 def _fill_items(conn: Connection, s: _Slice, item_ids: Sequence[int]) -> None:
     """Decision 9's item mode: the items in order, then round-robin across them, each item's KG
     nodes first, then its insights by rank; admitting an insight admits the nodes it reaches.
-    Items past the budget are cut and counted in ``items_left``."""
-    items = list(dict.fromkeys(item_ids))
-    if len(items) > s.budget:
+    Items past what the budget has left are cut and counted in ``items_left``."""
+    items = [i for i in dict.fromkeys(item_ids) if i not in s.items]
+    room = max(s.budget - len(s.nodes), 0)
+    if len(items) > room:
         s.reasons.add("budget")
-        s.items_left = len(items) - s.budget
-        items = items[: s.budget]
+        s.items_left = (s.items_left or 0) + len(items) - room
+        items = items[:room]
     if not items:
         return
     for item in items:
@@ -791,12 +793,16 @@ def slice_recent(
     edge_budget: int = DEFAULT_EDGE_BUDGET,
     now: Optional[datetime] = None,
     with_: Sequence[str] = (),
+    expand_groups: int = 0,
 ) -> dict[str, Any]:
     """``slice.recent``: the newest served items. The window widens (7d, 30d, 90d, all) while
     fewer than ``min_items`` match; every widening is answered by the one candidate statement,
     newest first and at most ``budget`` items (one more is read to know whether the budget cut),
-    and the response names ``applied_window``."""
+    and the response names ``applied_window``. With ``expand_groups: n`` (:func:`_expand_groups`),
+    every group with a member topic in the slice adds its ``n`` newest other items after them."""
     _check_budgets(budget, edge_budget)
+    if expand_groups < 0:
+        raise ValueError("expand_groups must be at least 0")
     if window not in WINDOWS:
         raise ValueError(f"window {window!r} is not one of {sorted(WINDOWS)}")
     if min_items < 1:
@@ -808,6 +814,8 @@ def slice_recent(
         "sources": list(sources) if sources is not None else None,
         "min_items": min_items,
     }
+    if expand_groups:
+        params["expand_groups"] = expand_groups
     s = _Slice("slice.recent", params, budget=budget, edge_budget=edge_budget)
     _with(s, with_)
     c = content_items.alias("c")
@@ -853,7 +861,71 @@ def slice_recent(
         s.reasons.add("budget")
         chosen = chosen[:budget]
     _fill_items(conn, s, chosen)
+    if expand_groups and len(s.nodes) < s.budget:
+        _expand_groups(conn, s, expand_groups, conditions, c)
     return _finish(conn, s)
+
+
+def _expand_groups(conn: Connection, s: _Slice, n: int, conditions: list[Any], c: Any) -> None:
+    """``expand_groups`` (CRFC-004 §2, the sibling pull): every group of the published cluster
+    build with a member topic among the slice's entities adds its ``n`` newest other items of the
+    slice's sources and content types (not its window: the siblings are what the window left
+    out), groups in id order, inside what the budget has left, after the primary items. One
+    statement chooses them (a ``LATERAL`` per group), then the item steps
+    (ADR-183 decision 9: +1, +2)."""
+    held = [ref[1] for ref in s.nodes if ref[0] == ENTITY]
+    if not held:
+        return
+    build = (
+        select(cluster_builds.c.build_id)
+        .where(cluster_builds.c.state == "published")
+        .scalar_subquery()
+    )
+    m, k = cluster_members.alias("xm"), entities.alias("xk")
+    groups = (
+        select(m.c.cluster_id)
+        .select_from(m.join(k, k.c.entity_id == m.c.entity_id))
+        .where(
+            m.c.build_id == build,
+            k.c.canonical_id == func.any(bindparam("held", type_=ARRAY(BigInteger))),
+        )
+        .distinct()
+        .subquery("xg")
+    )
+    gm, gk = cluster_members.alias("xgm"), entities.alias("xgk")
+    canon = (
+        select(gk.c.canonical_id)
+        .select_from(gm.join(gk, gk.c.entity_id == gm.c.entity_id))
+        .where(gm.c.build_id == build, gm.c.cluster_id == groups.c.cluster_id)
+        .correlate_except(gm, gk)
+    )
+    ie, ke = item_entities.alias("xe"), entities.alias("xq")
+    carriers = (
+        select(ie.c.item_id)
+        .select_from(ie.join(ke, ke.c.entity_id == ie.c.entity_id))
+        .where(ke.c.canonical_id.in_(canon))
+        .correlate_except(ie, ke)
+    )
+    x = (
+        select(c.c.item_id, c.c.published_at)
+        .where(
+            c.c.item_id.in_(carriers),
+            c.c.item_id != func.all(bindparam("primary", type_=ARRAY(BigInteger))),
+            *conditions,
+        )
+        .order_by(c.c.published_at.desc().nulls_last(), c.c.item_id.desc())
+        .limit(n)
+        .lateral("xi")
+    )
+    own = cluster_ids.alias("xo")
+    rows = conn.execute(
+        select(own.c.natural_id, x.c.item_id)
+        .select_from(groups.join(own, own.c.cluster_id == groups.c.cluster_id).join(x, true()))
+        .order_by(own.c.natural_id, x.c.published_at.desc().nulls_last(), x.c.item_id.desc()),
+        {"held": held, "primary": list(s.items)},
+    ).all()
+    added = list(dict.fromkeys(row.item_id for row in rows))
+    _fill_items(conn, s, added)
 
 
 def slice_group(

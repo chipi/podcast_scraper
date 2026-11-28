@@ -766,6 +766,61 @@ def test_a_group_with_more_topics_than_the_budget_still_shows_its_items(
     assert made["thc:s"]
 
 
+def test_expand_groups_adds_each_groups_newest_other_items_after_the_primary_ones(
+    conn: Connection,
+) -> None:
+    """The sibling pull (CRFC-004 §2): thc:s has topic:ai-2, whose canonical topic:ai is in the
+    7d slice; its newest other item is the old one, outside the window."""
+    c = Corpus(conn)
+    _groups_build(c)
+    c.mention(c.items["old"][0], "topic:ai-2")
+    c.insight("nold", c.items["old"], 0, about=["topic:ai"])
+    plain = graph.slice_recent(conn, window="7d", min_items=1, now=T0)
+    assert [i["item_id"] for i in plain["items"]] == ["episode:1", "episode:2"]
+    with _statements(conn) as seen:
+        got = graph.slice_recent(conn, window="7d", min_items=1, now=T0, expand_groups=1)
+    # decision 9: 1 + 2 + 4, and with expand_groups +1 to choose the items and +2 for their edges.
+    assert len(seen) == 10
+    assert [i["item_id"] for i in got["items"]] == ["episode:1", "episode:2", "episode:old"]
+    assert got["params"]["expand_groups"] == 1
+    assert got["applied_window"] == "7d"
+
+
+def test_expand_groups_takes_each_groups_own_newest_item(conn: Connection) -> None:
+    """Two groups in the slice, one item each: each group's newest is chosen from its own members,
+    not from every group's."""
+    c = Corpus(conn)
+    _groups_build(c)
+    c.mention(c.items["1"][0], "topic:other")
+    c.mention(c.items["old"][0], "topic:ai-2")
+    older, _ = c.item("older", T0 - timedelta(days=90))
+    c.mention(older, "topic:other")
+    got = graph.slice_recent(conn, window="7d", min_items=1, now=T0, expand_groups=1)
+    assert [i["item_id"] for i in got["items"]] == [
+        "episode:1",
+        "episode:2",
+        "episode:old",
+        "episode:older",
+    ]
+
+
+def test_expand_groups_with_no_sibling_sends_no_item_steps_and_a_full_budget_none(
+    conn: Connection,
+) -> None:
+    c = Corpus(conn)
+    _groups_build(c)
+    with _statements(conn) as seen:
+        got = graph.slice_recent(conn, window="7d", min_items=1, now=T0, expand_groups=2)
+    # The choosing statement finds no other item (item 3 is not served): no item steps.
+    assert len(seen) == 8
+    assert [i["item_id"] for i in got["items"]] == ["episode:1", "episode:2"]
+    c.mention(c.items["old"][0], "topic:ai-2")
+    full = graph.slice_recent(conn, window="7d", min_items=1, now=T0, budget=2, expand_groups=1)
+    assert "episode:old" not in {i["item_id"] for i in full["items"]}
+    with pytest.raises(ValueError, match="expand_groups"):
+        graph.slice_recent(conn, now=T0, expand_groups=-1)
+
+
 def test_groups_summary_is_every_group_of_a_kind_with_children_and_link_weights(
     conn: Connection,
 ) -> None:
