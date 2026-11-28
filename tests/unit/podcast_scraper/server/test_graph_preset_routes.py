@@ -83,6 +83,10 @@ def test_post_carries_the_etag_and_never_answers_304(client: TestClient) -> None
         ("/api/graph/presets/slice.recent?window=7d&window=30d", ["query", "window"]),
         ("/api/graph/presets/groups.summary?kind=galaxy", ["query", "kind"]),
         ("/api/graph/presets/groups.summary?kind=theme&budget=5", ["query", "budget"]),
+        ("/api/graph/presets/groups.summary", ["query", "kind"]),
+        ("/api/graph/presets/slice.items", ["query", "items"]),
+        ("/api/graph/presets/slice.neighbourhood?node=topic:ai", ["query", "path"]),
+        ("/api/graph/presets/slice.group", ["query", "group"]),
     ],
 )
 def test_a_bad_parameter_is_422_naming_it(client: TestClient, url: str, loc: list[str]) -> None:

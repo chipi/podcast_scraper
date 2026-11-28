@@ -132,6 +132,8 @@ def test_operator_public_curated_subset_has_no_mutating_operator_writes() -> Non
         "/api/corpus/resolve-episode-artifacts",
         "/api/corpus/node-episodes",
         "/api/topics/timeline",
+        # A graph preset over a JSON body, for long id lists (ADR-183 decision 11): a read.
+        "/api/graph/presets/{name}",
     }
     offenders = []
     for mod in app_mod._OPERATOR_PUBLIC_READ_ROUTES:

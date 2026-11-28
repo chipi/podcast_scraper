@@ -30,7 +30,7 @@ NAMESPACE = "graph_presets"
 MAX_ENTRIES = 512
 _TOKEN_BITS = (1 << 52) - 1
 
-_FUNCS: dict[str, Callable[..., dict[str, Any]]] = {
+FUNCS: dict[str, Callable[..., dict[str, Any]]] = {
     "slice.recent": graph.slice_recent,
     "slice.items": graph.slice_items,
     "slice.neighbourhood": graph.slice_neighbourhood,
@@ -70,9 +70,9 @@ def serve(engine: Engine, name: str, params: dict[str, Any]) -> Served:
     """Preset ``name`` with ``params`` (its function's keyword arguments, ``conn`` aside), from
     the cache when this revision and build already answered it. A bad parameter raises the
     engine's ``ValueError`` (or :class:`UnknownPreset`), which the route turns into 422."""
-    fn = _FUNCS.get(name)
+    fn = FUNCS.get(name)
     if fn is None:
-        raise UnknownPreset(f"preset {name!r} is not one of {sorted(_FUNCS)}")
+        raise UnknownPreset(f"preset {name!r} is not one of {sorted(FUNCS)}")
 
     def compute() -> dict[str, Any]:
         def run(conn: Connection) -> dict[str, Any]:

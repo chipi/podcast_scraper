@@ -17,6 +17,7 @@ Not yet: ``POST /api/graph/query``.
 
 from __future__ import annotations
 
+import inspect
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Request, Response
@@ -71,7 +72,17 @@ def _kwargs(name: str, raw: dict[str, Any], where: str) -> dict[str, Any]:
         elif not isinstance(value, str):
             raise _Bad([where, key], f"{key} must be a string")
         out[_KWARG.get(key, key)] = value
+    for kwarg in _required(name):
+        if kwarg not in out:
+            param = next((k for k, v in _KWARG.items() if v == kwarg), kwarg)
+            raise _Bad([where, param], f"{name} needs {param}")
     return out
+
+
+def _required(name: str) -> tuple[str, ...]:
+    """The preset function's keywords with no default, read from its signature (past ``conn``)."""
+    params = list(inspect.signature(graph_presets.FUNCS[name]).parameters.values())[1:]
+    return tuple(p.name for p in params if p.default is inspect.Parameter.empty)
 
 
 def _field_of(msg: str, sent: dict[str, Any]) -> Optional[str]:
