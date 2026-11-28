@@ -31,6 +31,14 @@ their canonical id, every member's rows included (§3.3).
   for a quote with no SPOKEN_BY; snapshot-prod-20261127 has no ATTRIBUTED_TO edge in any of its
   4,125 episodes' GI, so the two agree there. Should one appear, ``evidence`` needs the edge it
   came from.
+- :data:`~podcast_scraper.db.schema.topic_relations`, kind ``shares_insight``
+  (``GET /relational/related-topics``, the MCP ``related_topics``; ``relational_queries.
+  related_topics`` on files): per ordered pair of canonical topics, the distinct current insights
+  on shown items ABOUT both, in both directions; each topic keeps its :data:`RELATED_PER_TOPIC`
+  strongest, by weight and then the other topic's natural id, as the route ranks them. Each
+  direction is cut by its own topic's list, so ``(a, b)`` can be stored without ``(b, a)``: read
+  one topic's related topics by ``topic_a``, never the table as symmetric. Not shown-item
+  co-occurrence: ``topic_cooccurrence_corpus``'s ``entity_pairs`` give that.
 
 The published build and the one before it are kept, so undo can publish the previous one; older
 builds are deleted with their rows.
@@ -83,6 +91,7 @@ from podcast_scraper.db.schema import (
     item_entities,
     person_rankings,
     projection_builds,
+    topic_relations,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,6 +106,10 @@ RESOURCE = leases.build_resource("projections")
 WORK_MEM = "64MB"
 #: Builds kept: the published one and the one before it.
 KEEP = 2
+#: The related topics kept per topic: the related-topics route's ``k`` maximum.
+RELATED_PER_TOPIC = 200
+#: ``topic_relations.kind`` for two topics ABOUT the same insight.
+SHARES_INSIGHT = "shares_insight"
 
 
 @dataclass(frozen=True)
@@ -344,6 +357,52 @@ def _write_person_rankings(conn: Connection, build_id: int) -> int:
     return _written(conn, statement)
 
 
+def _write_topic_relations(conn: Connection, build_id: int) -> int:
+    e = entities.alias("te")
+    m = insight_mentions.alias("tm")
+    i = insights.alias("ti")
+    about = (
+        select(e.c.canonical_id.label("topic_id"), m.c.insight_id.label("insight_id"))
+        .distinct()
+        .select_from(
+            m.join(e, e.c.entity_id == m.c.entity_id).join(i, i.c.insight_id == m.c.insight_id)
+        )
+        .where(m.c.kind == "ABOUT", e.c.type == "topic", _insight_ok(i))
+        .cte("about")
+    )
+    x, y = about.alias("x"), about.alias("y")
+    other = entities.alias("tb")
+    weight = func.count(distinct(x.c.insight_id))
+    ranked = (
+        select(
+            x.c.topic_id.label("topic_a"),
+            y.c.topic_id.label("topic_b"),
+            weight.label("weight"),
+            func.row_number()
+            .over(partition_by=x.c.topic_id, order_by=(weight.desc(), other.c.natural_id.asc()))
+            .label("n"),
+        )
+        .select_from(
+            x.join(y, and_(y.c.insight_id == x.c.insight_id, y.c.topic_id != x.c.topic_id)).join(
+                other, other.c.entity_id == y.c.topic_id
+            )
+        )
+        .group_by(x.c.topic_id, y.c.topic_id, other.c.natural_id)
+        .subquery("ranked")
+    )
+    statement = insert(topic_relations).from_select(
+        ["build_id", "topic_a", "topic_b", "kind", "weight"],
+        select(
+            literal(build_id, BigInteger),
+            ranked.c.topic_a,
+            ranked.c.topic_b,
+            literal(SHARES_INSIGHT),
+            ranked.c.weight,
+        ).where(ranked.c.n <= RELATED_PER_TOPIC),
+    )
+    return _written(conn, statement)
+
+
 def _published(conn: Connection, table: Any) -> Optional[int]:
     found: Optional[int] = conn.execute(
         select(table.c.build_id).where(table.c.state == "published")
@@ -400,6 +459,7 @@ def build_in(conn: Connection, *, now: Optional[datetime] = None) -> Build:
         "entity_weeks": _write_weeks(conn, build_id),
         "cluster_reach": _write_reach(conn, build_id, clusters_of),
         "person_rankings": _write_person_rankings(conn, build_id),
+        "topic_relations": _write_topic_relations(conn, build_id),
     }
     stats["builds_deleted"] = len(_publish(conn, build_id, at))
     conn.execute(
@@ -469,6 +529,8 @@ __all__ = [
     "graph_build_id",
     "KEEP",
     "OUTCOMES",
+    "RELATED_PER_TOPIC",
     "RESOURCE",
+    "SHARES_INSIGHT",
     "WORK_MEM",
 ]
