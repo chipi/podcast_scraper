@@ -32,7 +32,8 @@ statement and leave its candidates; their nodes, their item-owned nodes and thei
 are not returned; a shared node a held item also reaches is a stub (``id``, ``type``,
 ``held: true``), read by an ``EXISTS`` in the nodes statement, so no statement is added.
 
-Not built yet: the structured query, the preset routes and the replica retry.
+The routes are ``server/routes/graph.py`` (the catalogue and the presets, cached by
+``server/graph_presets.py``). Not built yet: the structured query and the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
 sends nothing. The tail is 4 (nodes, items, induced edges, groups; groups only when the slice has

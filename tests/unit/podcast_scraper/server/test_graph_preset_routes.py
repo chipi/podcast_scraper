@@ -18,6 +18,15 @@ from podcast_scraper.server.app import create_app
 pytestmark = [pytest.mark.unit]
 
 
+class _Reached(Exception):
+    """The engine reached its first statement: its parameter checks have all passed."""
+
+
+class _NoConnection:
+    def __getattr__(self, name: str) -> Any:
+        raise _Reached(name)
+
+
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     perf_cache.clear(graph_presets.NAMESPACE)
@@ -28,12 +37,12 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
 
     def read(engine: Any, fn: Any) -> dict[str, Any]:
         calls.append({})
-        if getattr(fn, "__closure__", None):
-            # Let the engine refuse bad parameters: its checks run before any statement.
-            try:
-                fn(None)
-            except AttributeError:
-                pass
+        # Let the engine refuse bad parameters: its checks run before any statement, and the
+        # first use of the connection ends the read, so nothing else is swallowed.
+        try:
+            fn(_NoConnection())
+        except _Reached:
+            pass
         return {"corpus_revision": 3, "graph_build_id": 9, "nodes": [], "edges": []}
 
     monkeypatch.setattr(graph, "read_slice", read)
