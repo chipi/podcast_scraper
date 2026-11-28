@@ -48,6 +48,7 @@ from podcast_scraper.server.routes import (
     enrichment_config as enrichment_config_route,
     feed_overrides,
     feeds,
+    graph as graph_routes,
     health,
     index_rebuild,
     index_stats,
@@ -195,6 +196,7 @@ _OPERATOR_READ_ROUTES = (
     index_rebuild,
     search,
     relational,
+    graph_routes,
     query_activity,
     corpus_library,
     corpus_news,
@@ -228,6 +230,7 @@ _OPERATOR_PUBLIC_READ_ROUTES = (
     index_stats,
     search,
     relational,
+    graph_routes,
     query_activity,
     corpus_library,
     corpus_news,
@@ -275,6 +278,8 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
     elif not app_only:
         for module in _OPERATOR_READ_ROUTES:
             app.include_router(module.router, prefix="/api")
+    # /api/health's graph_api: the graph routes are in both operator sets, never the player's.
+    app.state.graph_api_enabled = operator_public or not app_only
     for module in _APP_ROUTES:
         app.include_router(module.router, prefix="/api/app")
     # Public OG-card images (#2036): served at /og/{kind}/{id}.png, UNAUTHENTICATED (unfurl bots

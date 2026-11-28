@@ -3310,6 +3310,20 @@ class HealthResponse(BaseModel):
         default="",
         description="Running server package version (``podcast_scraper.__version__``).",
     )
+    graph_api: bool = Field(
+        default=False,
+        description=(
+            "True when this server mounts the graph API (``/api/graph/*``, ADR-183 decision 11)."
+        ),
+    )
+    corpus_revision: int | None = Field(
+        default=None,
+        description=(
+            "The corpus database's revision, which every committed corpus write moves (ADR-183 "
+            "decision 4): a client holding a graph slice of another revision marks it stale. None "
+            "without a corpus database. Read at most every 2 s."
+        ),
+    )
     player_version: str | None = Field(
         default=None,
         description=(
