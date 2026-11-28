@@ -652,6 +652,50 @@ def test_a_changed_article_is_a_corrected_version(
     assert [tuple(r) for r in rows] == [(1, "created"), (2, "corrected")]
 
 
+def test_a_withdrawn_article_stays_withdrawn_when_its_files_are_synced_again(
+    pipeline_db: None, news_registry: None, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    """The re-check withdraws on the rows only; the files still state the item served. A later sync
+    of them (a retry, a rederive run) must neither serve it again nor write its body over the
+    withdraw row (CRFC-006 B.1). Another news item still syncs."""
+    from podcast_scraper.db import corpus_writer, news_recheck
+
+    meta, body = _news_item(tmp_path)
+    assert sync_episode(meta, body) == "written"
+    item = _row(conn, "content_items", "item:news_article:0001")["item_id"]
+    assert news_recheck.withdraw(conn, item) is True
+    conn.commit()
+    meta, body = _news_item(tmp_path, body="First paragraph, corrected.\n")
+    assert sync_episode(meta, body) == "withdrawn"
+    assert _row(conn, "content_items", "item:news_article:0001")["served"] == 0
+    kinds = conn.execute(
+        select(documents.c.version, documents.c.change_kind)
+        .where(documents.c.item_id == item)
+        .order_by(documents.c.version)
+    ).all()
+    assert [tuple(r) for r in kinds] == [(1, "created"), (2, news_recheck.WITHDRAW)]
+    assert corpus_writer.WITHDRAW == news_recheck.WITHDRAW
+    # A wrong withdrawal is undone by a newer version over the withdraw row, never a delete:
+    # then the item is not withdrawn, and its files sync again.
+    withdraw_row = conn.execute(
+        select(documents.c.document_id, documents.c.kind, documents.c.variant).where(
+            documents.c.item_id == item, documents.c.change_kind == news_recheck.WITHDRAW
+        )
+    ).one()
+    conn.execute(
+        documents.insert().values(
+            item_id=item,
+            kind=withdraw_row.kind,
+            variant=withdraw_row.variant,
+            version=3,
+            supersedes_id=withdraw_row.document_id,
+            change_kind="corrected",
+        )
+    )
+    conn.commit()
+    assert corpus_writer.is_withdrawn(conn, "item:news_article:0001") is False
+
+
 def test_an_article_that_does_not_hash_to_its_body_sha256_is_refused(
     pipeline_db: None, news_registry: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:

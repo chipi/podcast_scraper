@@ -28,6 +28,9 @@ from tests.unit.podcast_scraper.db.test_db_corpus import (  # noqa: F401
 
 NOW = datetime(2026, 11, 28, 12, 0, tzinfo=timezone.utc)
 FETCHED = NOW - timedelta(days=1, hours=1)
+#: When an item checked at NOW is due again: day 2 (FETCHED + 2 days, 23 hours on) is sooner
+#: than the one-day gap a check keeps.
+NEXT = NOW + rows.MIN_GAP
 SERVED = "The council voted on Tuesday to close the library. " * 20
 EDITED = SERVED + "Correction: the vote was on Wednesday, not Tuesday. " * 3
 PAGE = f"<html lang='en'><body><article><p>{EDITED}</p></article></body></html>"
@@ -80,6 +83,10 @@ class World:
         self.methods: List[Any] = []
         self.written: List[List[content_types.SourceItem]] = []
         self.fail_write = False
+        #: Whether the fake write's row sync lands a new article version (else: refused).
+        self.sync = True
+        self.stages: List[Any] = []
+        self.ids: Dict[str, int] = {}
         with engine.begin() as c:
             self.source_id = _source(
                 c, self.source.natural_id, content_type="news_article", title="News"
@@ -92,6 +99,7 @@ class World:
             item_id = _item(c, self.source_id, n, content_type="news_article", served=1)
             _document(c, item_id, kind="article", variant="cleaned", fetched_at=FETCHED)
         self.stored[f"item:{n}"] = _stored(n, **metadata)
+        self.ids[f"https://news.example.com/{n}"] = item_id
         return item_id
 
     def answer(self, n: str, *checks: recheck_fetch.Check) -> None:
@@ -107,9 +115,32 @@ class World:
         return self.answers[item_id].pop(0)
 
     def write(self, cfg: Any, entry: Any, ctype: Any, transport: Any, items: Any) -> Any:
+        self.stages.append(getattr(cfg, "pipeline_stage", None))
         if self.fail_write:
             raise RuntimeError("the pipeline failed")
         self.written.append(list(items))
+        if self.sync:
+            # As the row sync writes a changed article: its next version over the served one.
+            with self.engine.begin() as c:
+                for item in items:
+                    item_id = self.ids[item.url]
+                    served = c.execute(
+                        text(
+                            "SELECT document_id, version FROM corpus.documents d WHERE item_id = :i"
+                            " AND NOT EXISTS (SELECT 1 FROM corpus.documents n"
+                            " WHERE n.supersedes_id = d.document_id)"
+                        ),
+                        {"i": item_id},
+                    ).one()
+                    _document(
+                        c,
+                        item_id,
+                        kind="article",
+                        variant="cleaned",
+                        version=served.version + 1,
+                        supersedes_id=served.document_id,
+                        change_kind="corrected",
+                    )
         return len(items), "ok"
 
     def run(self, at: datetime = NOW) -> Dict[str, int]:
@@ -143,7 +174,7 @@ def test_the_same_page_is_recorded_and_due_again_on_its_next_day(
     assert w.checked == [SERVED]
     state = _state(conn, item_id)
     assert (state.checks_done, state.last_status, state.etag) == (1, recheck.SAME, '"e1"')
-    assert state.next_due_at == FETCHED + timedelta(days=2)
+    assert state.next_due_at == NEXT
     # Not due again the same day: nothing checked.
     assert w.run() == {"enrolled": 0}
     assert w.written == []
@@ -192,7 +223,7 @@ def test_two_gone_answers_in_a_row_withdraw_the_item(
     item_id = w.article("1")
     w.answer("1", _check(recheck.GONE), _check(recheck.GONE))
     assert w.run() == {"enrolled": 1, recheck.GONE: 1}
-    assert w.run(FETCHED + timedelta(days=2)) == {"enrolled": 0, "withdrawn": 1}
+    assert w.run(NEXT) == {"enrolled": 0, "withdrawn": 1}
     served = conn.execute(
         select(content_items.c.served).where(content_items.c.item_id == item_id)
     ).scalar_one()
@@ -214,7 +245,7 @@ def test_a_withdrawal_waits_while_the_source_is_ingested(
     w.run()
     resource = leases.source_resource(w.source.natural_id)
     leases.acquire(engine, [leases.LeaseRequest(resource, leases.EXCLUSIVE)], "pipeline:t")
-    later = FETCHED + timedelta(days=2)
+    later = NEXT
     assert w.run(later) == {"enrolled": 0, "withdraw_deferred": 1}
     assert _state(conn, item_id).gone_in_a_row == 1
     leases.release(engine, "pipeline:t")
@@ -233,7 +264,7 @@ def test_a_feed_text_is_recorded_unsupported_and_a_standfirst_is_checked(
     state = _state(conn, feed)
     # Recorded as a check, so its schedule moves on like any other.
     assert (state.checks_done, state.last_status) == (1, recheck_job.UNSUPPORTED)
-    assert state.next_due_at == FETCHED + timedelta(days=2)
+    assert state.next_due_at == NEXT
 
 
 def test_a_guardian_item_is_reread_by_id_and_its_record_is_the_next_version(
@@ -243,7 +274,9 @@ def test_a_guardian_item_is_reread_by_id_and_its_record_is_the_next_version(
     w.article("1", extraction="guardian", extractor_version="guardian/api")
     record = {"id": "world/2026/nov/27/library", "fields": {"body": "<p>edited</p>"}}
     w.answers["rss-1"] = [recheck_fetch.Check(recheck.CHANGED, Validators(), 200, record=record)]
-    made = content_types.SourceItem(item_id="world/2026/nov/27/library", text="edited")
+    made = content_types.SourceItem(
+        item_id="world/2026/nov/27/library", text="edited", url="https://news.example.com/1"
+    )
     seen: List[Any] = []
 
     def from_record(got: Any, source: Any) -> content_types.SourceItem:
@@ -341,7 +374,7 @@ def test_a_run_holds_its_lease_exclusive_and_a_withdrawal_its_source_exclusive(
     monkeypatch.setattr(w, "check", watched)
     monkeypatch.setattr(rows, "withdraw", watched_withdraw)
     w.run()
-    w.run(FETCHED + timedelta(days=2))
+    w.run(NEXT)
     assert seen == {"run": [leases.EXCLUSIVE], "source": [leases.EXCLUSIVE]}
     # Released when the run ends.
     assert _modes(engine, recheck_job.RESOURCE) == []
@@ -356,3 +389,89 @@ def test_one_run_at_a_time(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> N
     with pytest.raises(leases.LeaseRefused):
         w.run()
     assert w.checked == []
+
+
+def test_a_change_the_row_sync_refused_is_not_recorded_and_stays_due(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection  # noqa: F811
+) -> None:
+    # The review of #2641 (database's): the pipeline run reports a refused row sync as an
+    # outcome, never an exception, so the job checks the rows itself.
+    w = World(engine, monkeypatch)
+    item_id = w.article("1")
+    w.sync = False
+    w.answer("1", _check(recheck.CHANGED, PAGE))
+    assert w.run() == {"enrolled": 1, "not_synced": 1}
+    assert len(w.written) == 1
+    assert _state(conn, item_id).checks_done == 0
+
+
+def test_the_write_runs_as_a_rederive_of_the_source(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    w = World(engine, monkeypatch)
+    w.article("1")
+    w.answer("1", _check(recheck.CHANGED, PAGE))
+    w.run()
+    assert w.stages == [text_in.REDERIVE_ONLY]
+    assert getattr(w.source.cfg, "pipeline_stage", None) is None  # the caller's cfg is untouched
+
+
+def test_an_item_enrolled_late_takes_its_checks_a_day_apart(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection  # noqa: F811
+) -> None:
+    # Fetched 5 days ago: days 1, 2 and 4 are past. Two gone answers must not come minutes apart.
+    w = World(engine, monkeypatch)
+    with engine.begin() as c:
+        item_id = _item(c, w.source_id, "late", content_type="news_article", served=1)
+        _document(c, item_id, kind="article", variant="cleaned", fetched_at=NOW - timedelta(days=5))
+    w.stored["item:late"] = _stored("late")
+    w.ids["https://news.example.com/late"] = item_id
+    w.answer("late", _check(recheck.GONE), _check(recheck.GONE))
+    assert w.run() == {"enrolled": 1, recheck.GONE: 1}
+    assert w.run(NOW + timedelta(hours=1)) == {"enrolled": 0}
+    assert _state(conn, item_id).next_due_at == NEXT
+    assert w.run(NEXT) == {"enrolled": 0, "withdrawn": 1}
+
+
+def test_a_check_that_raises_is_recorded_as_failed(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection  # noqa: F811
+) -> None:
+    w = World(engine, monkeypatch)
+    one, two = w.article("1"), w.article("2")
+
+    def broken(*args: Any, **kw: Any) -> Any:
+        if args[1].endswith("/1"):
+            raise RuntimeError("a parser bug")
+        return _check(recheck.SAME)
+
+    monkeypatch.setattr(w, "check", broken)
+    assert w.run() == {"enrolled": 2, recheck.FAILED: 1, recheck.SAME: 1}
+    assert _state(conn, one).last_status == recheck.FAILED
+    assert _state(conn, two).last_status == recheck.SAME
+
+
+def test_a_long_write_keeps_the_runs_leases_and_a_lost_one_is_raised(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    import time
+
+    from podcast_scraper.db.schema import job_leases
+
+    held = leases.acquire(engine, [leases.LeaseRequest("build:t", leases.EXCLUSIVE)], "h:t")
+
+    def beats() -> List[Any]:
+        with engine.connect() as c:
+            return list(
+                c.execute(
+                    select(job_leases.c.heartbeat_at).where(job_leases.c.holder == "h:t")
+                ).scalars()
+            )
+
+    first = beats()
+    with recheck_job._kept_alive(engine, "h:t", held, every_s=0.05):
+        time.sleep(0.3)
+    assert beats() != first
+    with pytest.raises(leases.LeaseLost):
+        with recheck_job._kept_alive(engine, "h:t", held, every_s=0.05):
+            leases.release(engine, "h:t")
+            time.sleep(0.3)

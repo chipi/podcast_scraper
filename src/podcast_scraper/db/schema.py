@@ -1102,7 +1102,8 @@ person_roles = Table(
     Index("person_roles_person_idx", "person_id", "item_id"),
 )
 
-# No build table exists until the clusters revision, so ``build_id`` is a plain number here.
+# A projections build's rows (corpus_0016): ``build_id`` is a ``projection_builds`` row, and
+# the rows go with their build.
 topic_relations = Table(
     "topic_relations",
     corpus_metadata,

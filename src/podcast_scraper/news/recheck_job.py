@@ -25,25 +25,37 @@ feed drops old items within days). It is recorded as a check that found ``unsupp
 item whose stored copy is missing as one that found ``no_body``, so its schedule moves on and it
 never holds the head of the queue. A run takes only the items of the sources it is given.
 
-Leases: the run holds ``corpus`` shared and ``build:news_recheck`` exclusive (one run at a time);
-a withdrawal also takes its source's exclusive lease, as an ingest of the source does. The version
-write takes its own leases in the row sync. Each item's state is written in its own transaction,
-after its write, so a run stopped midway re-checks what it did not record.
+A changed item is recorded only when the rows serve a new article document after the write: the
+pipeline run reports a refused or deferred row sync as an outcome, never an exception, so such an
+item is counted ``not_synced``, logged as an error and left due (a deferred sync is retried at the
+next pipeline run's start). A check that raises is recorded as ``failed``.
+
+Leases: the run holds ``corpus`` shared and ``build:news_recheck`` exclusive (one run at a time),
+extended while a source's write runs; a withdrawal also takes its source's exclusive lease, as an
+ingest of the source does. The version write takes its own leases in the row sync. Each item's
+state is written in its own transaction, after its write, so a run stopped midway re-checks what it
+did not record.
 """
 
 from __future__ import annotations
 
+import copy
 import logging
+import threading
 import uuid
 from collections import Counter
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
+from sqlalchemy import exists, select
 from sqlalchemy.engine import Engine
 
 from .. import content_types
 from ..db import leases, news_recheck as rows
+from ..db.importers.corpus_documents import ARTICLE
+from ..db.schema import documents
 from . import extract, fetch, guardian, recheck, recheck_fetch
 
 logger = logging.getLogger(__name__)
@@ -219,7 +231,11 @@ def _run_source(
         if _unsupported(item, source):
             _skip(engine, holder, held, found, UNSUPPORTED, when, done)
             continue
-        got = _check(item, source, found, *checks)
+        try:
+            got = _check(item, source, found, *checks)
+        except Exception:  # noqa: BLE001 - one item's failed check is a failed check, nothing more
+            logger.exception("news re-check: checking %s failed", found.natural_id)
+            got = recheck_fetch.Check(recheck.FAILED, found.validators, 0)
         state, action = recheck.advance(found.state, got.status)
         if action == recheck.WRITE_VERSION:
             version = _new_version(item, source, got)
@@ -247,17 +263,92 @@ def _run_source(
         done[got.status] += 1
     if not versions:
         return
+    item_ids = [found.item_id for found, _state, _got in changed]
+    before = _served_articles(engine, item_ids)
     try:
-        write(source.cfg, source.entry, source.ctype, source.transport, versions)
+        with _kept_alive(engine, holder, held):
+            write(_rederive(source.cfg), source.entry, source.ctype, source.transport, versions)
+    except leases.LeaseLost:
+        raise
     except Exception:  # noqa: BLE001 - one source's failed write leaves its items due, nothing else
         logger.exception(
             "news re-check: writing %d version(s) of %s failed", len(versions), source.natural_id
         )
         done["write_failed"] += len(versions)
         return
+    after = _served_articles(engine, item_ids)
     for found, state, got in changed:
-        _record(engine, holder, held, found, state, got, when)
-        done[recheck.CHANGED] += 1
+        # The pipeline run never raises for its row sync (a refused or deferred sync is an
+        # outcome): a change counts as written only when the rows serve a new article document.
+        if after.get(found.item_id, frozenset()) - before.get(found.item_id, frozenset()):
+            _record(engine, holder, held, found, state, got, when)
+            done[recheck.CHANGED] += 1
+        else:
+            done["not_synced"] += 1
+            logger.error(
+                "news re-check: %s changed and its files were written, but the rows hold no "
+                "new version (the row sync was refused or deferred); left due",
+                found.natural_id,
+            )
+
+
+def _served_articles(engine: Engine, item_ids: Sequence[int]) -> Dict[int, frozenset[int]]:
+    """Each item's served ``article`` documents: the ones no row supersedes."""
+    d, newer = documents.c, documents.alias("newer")
+    with engine.connect() as conn:
+        found = conn.execute(
+            select(d.item_id, d.document_id).where(
+                d.item_id.in_(list(item_ids)),
+                d.kind == ARTICLE,
+                ~exists().where(newer.c.supersedes_id == d.document_id),
+            )
+        ).all()
+    out: Dict[int, set[int]] = {}
+    for item_id, document_id in found:
+        out.setdefault(int(item_id), set()).add(int(document_id))
+    return {k: frozenset(v) for k, v in out.items()}
+
+
+def _rederive(cfg: Any) -> Any:
+    """``cfg`` as a rederive run of its source: ``run_text_items`` refuses any other stage."""
+    from ..workflow.text_in import REDERIVE_ONLY
+
+    if str(getattr(cfg, "pipeline_stage", "") or "") == REDERIVE_ONLY:
+        return cfg
+    if hasattr(cfg, "model_copy"):
+        return cfg.model_copy(update={"pipeline_stage": REDERIVE_ONLY})
+    again = copy.copy(cfg)
+    setattr(again, "pipeline_stage", REDERIVE_ONLY)
+    return again
+
+
+@contextmanager
+def _kept_alive(engine: Engine, holder: str, held: int, every_s: float = 60.0) -> Iterator[None]:
+    """Extend the run's leases every ``every_s`` while a source's write runs: one write can take
+    longer than the leases' 10 minutes. A lease found lost is raised when the write returns."""
+    stop = threading.Event()
+    lost: List[leases.LeaseLost] = []
+
+    def beat() -> None:
+        while not stop.wait(every_s):
+            try:
+                with engine.begin() as conn:
+                    leases.heartbeat(conn, holder, held)
+            except leases.LeaseLost as exc:
+                lost.append(exc)
+                return
+            except Exception:  # noqa: BLE001 - a missed beat is retried on the next one
+                logger.warning("news re-check: a lease heartbeat failed", exc_info=True)
+
+    thread = threading.Thread(target=beat, name="news-recheck-heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join()
+    if lost:
+        raise lost[0]
 
 
 def _record(
