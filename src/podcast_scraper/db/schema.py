@@ -901,6 +901,10 @@ insights = Table(
     Column("text_origin", Text, nullable=False),
     Column("visible", Boolean, nullable=False, server_default=true()),
     Column("text", Text, nullable=False),
+    # corpus_0017: the GI view's own fields, filled by the GI writers.
+    Column("confidence", REAL, nullable=True),
+    Column("speaker_voice_type", Text, nullable=True),
+    Column("translated_from", Text, nullable=True),
     UniqueConstraint("natural_id", name="insights_natural_id_key"),
     ForeignKeyConstraint(
         ["item_id", "document_id"],
@@ -937,6 +941,11 @@ evidence = Table(
     Column("start_ms", Integer, nullable=True),
     Column("end_ms", Integer, nullable=True),
     Column("text", Text, nullable=False),
+    # corpus_0017: the quote's span in its body (the one its segment range names) and the
+    # source language of a translated quote.
+    Column("translated_from", Text, nullable=True),
+    Column("char_start", Integer, nullable=True),
+    Column("char_end", Integer, nullable=True),
     UniqueConstraint("natural_id", name="evidence_natural_id_key"),
     ForeignKeyConstraint(
         ["item_id", "document_id"],
@@ -957,6 +966,11 @@ evidence = Table(
         "(start_ms IS NULL) = (end_ms IS NULL) "
         "AND (start_ms IS NULL OR (start_ms >= 0 AND end_ms >= start_ms))",
         name="evidence_ms_check",
+    ),
+    CheckConstraint(
+        "(char_start IS NULL) = (char_end IS NULL) "
+        "AND (char_start IS NULL OR (char_start >= 0 AND char_end > char_start))",
+        name="evidence_char_check",
     ),
     Index("evidence_item_idx", "item_id"),
     Index("evidence_document_idx", "item_id", "document_id"),
