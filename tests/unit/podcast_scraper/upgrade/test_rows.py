@@ -907,6 +907,50 @@ def test_cli_a_measure_that_differs_exits_5_and_names_the_undo(
     assert _ledger(engine, shipped.id).status == "applied"
 
 
+def test_cli_a_dry_run_whose_measure_differs_exits_5_and_applies_nothing(
+    engine: Engine,
+    shipped: Retitle,
+    scoreboard: list[int],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    before = _snapshot(engine)
+    assert cli("run", "--database", "--dry-run") == 5
+    err = capsys.readouterr().err
+    assert "dry run: the outcome would not be the measured one (1)" in err
+    assert _snapshot(engine) == before
+    assert _ledger(engine, shipped.id) is None
+
+
+def test_cli_a_verify_that_fails_exits_1_and_applies_nothing(
+    engine: Engine,
+    shipped: Retitle,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(shipped, "verify_rows", lambda conn: (False, "deliberately wrong"))
+    before = _snapshot(engine)
+    assert cli("run", "--database", "--yes") == 1
+    assert "VERIFY FAILED, rolled back" in capsys.readouterr().err
+    assert _snapshot(engine) == before
+    assert _ledger(engine, shipped.id) is None
+
+
+def test_the_gate_script_refuses_a_migration_whose_verify_fails(
+    engine: Engine, items: dict[str, int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[4] / "scripts" / "measure" / "corpus_change_gate.py"
+    spec = importlib.util.spec_from_file_location("corpus_change_gate_rows_verify", script)
+    assert spec is not None and spec.loader is not None
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    out = tmp_path / "gate.json"
+    assert gate.rows_gate(WrongVerify(items), worker_database_url() or "", "snap-test", out) == 1
+    assert "deliberately wrong" in capsys.readouterr().err
+    assert not out.exists()
+
+
 def test_cli_undo_refused_exits_1_and_lists_the_rows(
     engine: Engine,
     shipped: Retitle,
@@ -931,3 +975,92 @@ def test_cli_file_commands_are_unchanged(tmp_path: Path) -> None:
     assert cli("list", "--corpus-dir", str(tmp_path)) == 0
     args = cli_handlers.parse_upgrade_argv(["run", "--corpus-dir", str(tmp_path)])
     assert args.database is False
+
+
+class WrongVerify(Retitle):
+    """Retitle whose verify says no."""
+
+    id = "9002_test_wrong_verify"
+
+    def verify_rows(self, conn: Connection) -> tuple[bool, str]:
+        return False, "deliberately wrong"
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+def test_a_verify_that_fails_rolls_the_apply_back_and_is_a_failed_run(
+    engine: Engine, items: dict[str, int], dry_run: bool
+) -> None:
+    before, revision = _snapshot(engine), _revision(engine)
+    with pytest.raises(rows_mod.VerifyFailed, match="deliberately wrong"):
+        run_migration(engine, WrongVerify(items), dry_run=dry_run)
+    assert _snapshot(engine) == before
+    assert _receipts(engine) == []
+    assert _ledger(engine, WrongVerify.id) is None
+    assert _revision(engine) == revision
+    assert _runs(engine) == [("dry_run" if dry_run else "apply", "failed")]
+
+
+class DropItem(RowMigration):
+    """Deletes item 1, whose card cascades from it."""
+
+    id = "9003_test_drop_item"
+    to_version = "9.0.3"
+
+    def __init__(self, items: dict[str, int], children_first: bool = False) -> None:
+        self.items = items
+        self.children_first = children_first
+
+    def apply_rows(self, ctx: RowContext) -> RowResult:
+        one = self.items["1"]
+        if self.children_first:
+            ctx.rows.delete("item_cards", {"item_id": one})
+        ctx.rows.delete("content_items", {"item_id": one})
+        return RowResult(item_ids={one}, message="dropped", counts={"items": 1})
+
+    def verify_rows(self, conn: Connection) -> tuple[bool, str]:
+        return True, "dropped"
+
+
+def test_a_delete_that_would_cascade_is_refused_and_writes_nothing(
+    engine: Engine, items: dict[str, int]
+) -> None:
+    before = _snapshot(engine)
+    with pytest.raises(RowsRefused, match="item_cards"):
+        run_migration(engine, DropItem(items))
+    assert _snapshot(engine) == before
+    assert _receipts(engine) == []
+
+
+def test_a_delete_after_its_children_undoes_whole(engine: Engine, items: dict[str, int]) -> None:
+    before = _snapshot(engine)
+    run_migration(engine, DropItem(items, children_first=True))
+    assert ("item_cards", items["1"]) not in _snapshot(engine)
+    undo_migration(engine, DropItem.id)
+    assert _snapshot(engine) == before
+
+
+class NoOp(RowMigration):
+    """Reads a row and writes nothing."""
+
+    id = "9004_test_no_op"
+    to_version = "9.0.4"
+
+    def __init__(self, items: dict[str, int]) -> None:
+        self.items = items
+
+    def apply_rows(self, ctx: RowContext) -> RowResult:
+        ctx.rows.update("content_items", {"item_id": self.items["2"]}, {"title": "Episode 2"})
+        return RowResult(item_ids=set(), message="nothing to do", counts={})
+
+    def verify_rows(self, conn: Connection) -> tuple[bool, str]:
+        return True, "nothing to do"
+
+
+def test_an_apply_that_changes_nothing_does_not_bump_the_revision(
+    engine: Engine, items: dict[str, int]
+) -> None:
+    revision = _revision(engine)
+    out = run_migration(engine, NoOp(items))
+    assert out.receipts == 0
+    assert out.result["corpus_revision_bumped"] is False
+    assert _revision(engine) == revision

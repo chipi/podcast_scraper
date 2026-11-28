@@ -33,6 +33,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.sql import column as sql_column, table as sql_table
 
 from podcast_scraper.db import leases
 from podcast_scraper.db.engines import migrator_engine  # noqa: F401 - re-exported for the CLI
@@ -76,6 +77,10 @@ SCOREBOARD: Optional[RowScoreboard] = None
 
 class RowsRefused(RuntimeError):
     """The run was refused before it wrote anything (applied already, not applied, lease held)."""
+
+
+class VerifyFailed(RuntimeError):
+    """``verify_rows`` said the change is not present; the apply was rolled back."""
 
 
 class UndoRefused(RuntimeError):
@@ -186,6 +191,7 @@ class Rows:
         self.reads: dict[str, dict[str, str]] = {}
         self.writes: dict[str, dict[str, int]] = {}
         self._seen: Set[str] = set()
+        self._dependents: dict[str, list[Tuple[str, str, list[str], list[str]]]] = {}
 
     def _read(self, t: Table, key: Mapping[str, Any]) -> Optional[dict[str, Any]]:
         state = _state(self.conn, t, key)
@@ -206,6 +212,9 @@ class Rows:
         before = self._read(t, key)
         if before is None:
             raise LookupError(f"{table} {dict(key)}: no such row")
+        changed = sorted(n for n in _pk(t) if n in values and values[n] != before[n])
+        if changed:
+            raise RowsRefused(f"{table} {dict(key)}: update changes its primary key {changed}")
         self.conn.execute(update(t).where(_where(t, key)).values(**values))
         after = _state(self.conn, t, key)
         if after == before:
@@ -219,6 +228,8 @@ class Rows:
         pk = list(t.primary_key.columns)
         got = self.conn.execute(insert(t).values(**values).returning(*pk)).one()
         key = {c.name: getattr(got, c.name) for c in pk}
+        # A row this run made is not an input: a later read of it must not enter the plan.
+        self._seen.add(_row_name(t, key))
         self._receipt(t, key, None, _state(self.conn, t, key))
         return key
 
@@ -228,9 +239,32 @@ class Rows:
         before = self._read(t, key)
         if before is None:
             return False
+        self._refuse_dependents(t, key, before)
         self.conn.execute(delete(t).where(_where(t, key)))
         self._receipt(t, key, before, None)
         return True
+
+    def _refuse_dependents(
+        self, t: Table, key: Mapping[str, Any], before: Mapping[str, Any]
+    ) -> None:
+        """Refuse a delete the database would carry to other rows (ON DELETE CASCADE, SET NULL or
+        SET DEFAULT): those rows would change with no receipt, and the undo would miss them."""
+        name = f"{t.schema}.{t.name}"
+        if name not in self._dependents:
+            self._dependents[name] = [
+                (r.child, r.action, list(r.child_cols), list(r.parent_cols))
+                for r in self.conn.execute(_DEPENDENTS, {"parent": name})
+            ]
+        for child, action, child_cols, parent_cols in self._dependents[name]:
+            schema, rel = child.split(".", 1)
+            dep = sql_table(rel, *(sql_column(c) for c in child_cols), schema=schema)
+            where = and_(*(dep.c[c] == before[p] for c, p in zip(child_cols, parent_cols)))
+            n = self.conn.execute(select(func.count()).select_from(dep).where(where)).scalar_one()
+            if n:
+                raise RowsRefused(
+                    f"{t.name} {dict(key)}: {rel} has {n} row(s) the delete would {action}; "
+                    "change them through ctx.rows first"
+                )
 
     def plan(self) -> list[dict[str, Any]]:
         """The run's plan in the outcome hook's shape: one row per item it read or wrote, keyed by
@@ -282,6 +316,26 @@ class Rows:
                 after=after,
             )
         )
+
+
+_DEPENDENTS = text("""
+    SELECT n.nspname || '.' || cr.relname AS child,
+           CASE c.confdeltype WHEN 'c' THEN 'cascade to' WHEN 'n' THEN 'set to NULL'
+                ELSE 'set to its default' END AS action,
+           array_agg(a.attname::text ORDER BY k.ord) AS child_cols,
+           array_agg(af.attname::text ORDER BY k.ord) AS parent_cols
+    FROM pg_constraint c
+    JOIN pg_class cr ON cr.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = cr.relnamespace
+    CROSS JOIN LATERAL unnest(c.conkey, c.confkey)
+        WITH ORDINALITY AS k(child_att, parent_att, ord)
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.child_att
+    JOIN pg_attribute af ON af.attrelid = c.confrelid AND af.attnum = k.parent_att
+    WHERE c.contype = 'f' AND c.confrelid = to_regclass(:parent)
+      AND c.confdeltype IN ('c', 'n', 'd')
+    GROUP BY c.conname, n.nspname, cr.relname, c.confdeltype
+    ORDER BY child, c.conname
+    """)
 
 
 @dataclass
@@ -533,7 +587,8 @@ def _apply_in(
 ) -> Tuple[int, dict[str, Any], frozenset[int]]:
     """The apply inside the caller's transaction: ledger and run rows, the rows and receipts, the
     plan (into ``plan``, kept for a refusal's record), the in-transaction surfaces, the measure,
-    the revision bump and ``verify_rows``. Returns the run id, its result and the changed items."""
+    ``verify_rows`` (:class:`VerifyFailed` when it fails) and the revision bump, which only a run
+    with receipts makes. Returns the run id, its result and the changed items."""
     stamps = {
         "code_digest": regime.code_digest if regime else None,
         "outcome_sha256": regime.outcome_sha if regime else None,
@@ -568,10 +623,12 @@ def _apply_in(
         "receipts_by_table": rows.by_table,
         "items": len(items),
         "item_ids": sorted(items),
-        "corpus_revision_bumped": bump_corpus_revision(conn),
     }
     ok, msg = migration.verify_rows(conn)
+    if not ok:
+        raise VerifyFailed(f"{migration.id}: verify_rows failed: {msg}")
     result["verify"] = {"ok": ok, "message": msg}
+    result["corpus_revision_bumped"] = bump_corpus_revision(conn) if rows.receipts else False
     return run_id, result, items
 
 
@@ -584,8 +641,9 @@ def run_migration(
 ) -> RunOutcome:
     """Apply ``migration``, or dry-run it, under the exclusive ``corpus`` lease (RFC-135 §3).
 
-    Raises :class:`RowsRefused` when it is applied already or the lease is held, and the outcome
-    hook's ``HookStopped`` when ``regime``'s plan differs; either, or any error inside the
+    Raises :class:`RowsRefused` when it is applied already, the lease is held or a write is one
+    ``Rows`` cannot undo, :class:`VerifyFailed` when ``verify_rows`` fails, and the outcome
+    hook's ``HookStopped`` when ``regime``'s plan differs; any of them, or any error inside the
     transaction, rolls everything back, is recorded as a run and re-raised. An after-commit
     surface that fails leaves the migration applied and is named in ``after_commit_failed``.
     """
@@ -603,6 +661,8 @@ def run_migration(
             with engine.connect() as conn, conn.begin() as tx:
                 leases.heartbeat(conn, holder, held)
                 run_id, result, items = _apply_in(conn, migration, kind, dry_run, regime, plan)
+                # A long apply must still hold the lease when it commits.
+                leases.heartbeat(conn, holder, held)
                 if dry_run:
                     tx.rollback()
                 else:
@@ -793,8 +853,9 @@ def undo_migration(engine: Engine, natural_id: str, *, dry_run: bool = False) ->
                     "items": len(frozen),
                     "item_ids": sorted(frozen),
                     "undid_run": row.last_run_id,
-                    "corpus_revision_bumped": bump_corpus_revision(conn),
+                    "corpus_revision_bumped": bump_corpus_revision(conn) if restored else False,
                 }
+                leases.heartbeat(conn, holder, held)
                 if dry_run:
                     tx.rollback()
                 else:

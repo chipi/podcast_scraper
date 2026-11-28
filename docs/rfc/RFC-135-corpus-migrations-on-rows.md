@@ -1,6 +1,7 @@
 # RFC-135: Corpus migrations on rows
 
-- **Status**: Draft, 2026-11-26, for review by the database session and the operator
+- **Status**: Implemented (#2579, 2026-11-26; #2582). Drafted 2026-11-26 for review by the
+  database session and the operator; this text now follows the code
 - **Release**: E06, the corpus cut-over to Postgres (with News 2.0, dark). Built before the
   cut-over; no row migration runs on prod until after it.
 - **Authors**: Marko Dragoljevic (the ingestion session)
@@ -76,7 +77,8 @@ close (the survey, 2026-11-26):
    read from the receipts it wrote before the rollback, then recorded in a separate transaction.
 4. **Undo from receipts, all or nothing.** Each changed row is restored only while it still holds
    its receipt's `after`; if any row has changed since, the undo refuses and writes nothing.
-5. **Verify by SQL assertions**, on a read connection.
+5. **Verify by SQL assertions**, inside the apply's transaction before it commits: a failed
+   verify rolls the apply back (`VerifyFailed`, exit 1).
 6. **Runs as `migrator`, in a one-shot**, holding the corpus write lease exclusively; refused, never
    waiting, while an ingest or enrichment holds it (DECISIONS §4's two-process test "migration
    refused during an ingest").
@@ -101,7 +103,8 @@ close (the survey, 2026-11-26):
 - `corpus_revision` (DECISIONS rule 7, bumped in every content transaction) is the database
   session's `corpus_0007` (#2572): one row, a bigint counter, seeded at 0. The framework bumps it
   through one function, a no-op only on a database not yet at `corpus_0007`; its tests pin that an
-  apply and an undo each advance it by one (#2582).
+  apply and an undo that write each advance it by one (#2582), and that an apply that writes no
+  receipt leaves it.
 
 ## Design & Implementation
 
@@ -124,6 +127,10 @@ There is no separate `plan_rows`: the plan is what `ctx.rows` saw during the app
   `rows.delete(table, key)`. Each call reads the row's current state `FOR UPDATE`, writes, and
   appends a receipt (§2). A write outside `ctx.rows` is a review finding; a test asserts that
   every row a test migration changed has a receipt (the changed-row census in §Testing).
+- `ctx.rows` refuses (`RowsRefused`, nothing written) the writes the database would carry to
+  rows with no receipt: a `delete` while another table holds rows that reference it by a foreign
+  key with `ON DELETE CASCADE`, `SET NULL` or `SET DEFAULT` (read from `pg_constraint`; delete
+  or change those rows through `ctx.rows` first), and an `update` that changes a primary key.
 - `apply` (the base `Migration` method) is implemented by the framework: it opens the
   transaction, calls `apply_rows`, and commits or rolls back by `ctx.dry_run`. A row migration
   never implements `apply` itself.
@@ -175,8 +182,9 @@ in its own run. `upgrade rerun` for named items is not built on rows (no migrati
 1. Connect as `migrator` (`db/engines.migrator_engine()`: `PODCAST_DATABASE_MIGRATOR_URL`, pool 1
    plus 0, no statement timeout as `migrate._engine`, `lock_timeout` 5 s so a held row lock fails
    fast instead of hanging).
-2. Take the lease: `job_leases` resource `corpus`, mode `exclusive`, holder `upgrade:<run_id>`,
-   with a heartbeat. Refused (exit 1, nothing written) when any holder has it, shared or
+2. Take the lease: `job_leases` resource `corpus`, mode `exclusive`, holder `upgrade:<12 random
+   hex>` (the run row does not exist yet), with a heartbeat at the transaction's start and again
+   before it commits. Refused (exit 1, nothing written) when any holder has it, shared or
    exclusive. This replaces the file lock; the file lock is not taken in row mode. The lease
    scheme is the database session's (tracker row `w-leases`, 2026-11-26): resources `corpus`,
    `source:<natural_id>` and `build:<kind>`; an exclusive lease only when the resource has no
@@ -189,13 +197,16 @@ in its own run. `upgrade rerun` for named items is not built on rows (no migrati
    stops if it touches no row.
 3. Regime checks before the transaction (as today, exits 3 / 4): outcome, digest, first pending,
    the plan diff against the outcome's plan.
-4. **One transaction:** `apply_rows`; receipts; `corpus_migrations` row; `corpus_revision` bump
-   (last in the lock order, DECISIONS §4); `migration_runs` row with `result`; commit. A dry run
-   reads its receipts back (what it would write, per table), then rolls back, then writes the
-   `migration_runs` row (`kind = dry_run`, `plan`, `result`) in a second, short transaction.
-5. Measure (the hook's exit 5 on an outcome mismatch keeps the apply, as files): scoreboard after,
-   written to `migration_runs.result` instead of `.podcast_scraper/upgrade-outcomes/<id>.json`.
-6. Derived surfaces (§6), then `verify_rows`, then release the lease.
+4. **One transaction:** `apply_rows`; receipts; `corpus_migrations` row; the in-transaction
+   surfaces (§6); the measure (scoreboard after, written to `migration_runs.result` instead of
+   `.podcast_scraper/upgrade-outcomes/<id>.json`); `verify_rows`, whose failure rolls everything
+   back (exit 1); the `corpus_revision` bump, only when the run wrote a receipt (last in the lock
+   order, DECISIONS §4); `migration_runs` row with `result`; commit. A dry run reads its receipts
+   back (what it would write, per table), then rolls back, then writes the `migration_runs` row
+   (`kind = dry_run`, `plan`, `result`) in a second, short transaction.
+5. The hook's exit 5 on an outcome mismatch keeps the apply, as files, and names the undo. A dry
+   run with a mismatch exits 5 too and applies nothing. Exit 5 outranks exit 6; both print.
+6. The after-commit surfaces (§6), then release the lease.
 
 **One transaction per migration** is the first version. A migration too large for one
 transaction is not supported until one exists that needs it; the design for it (chunks, each its
@@ -221,7 +232,8 @@ exit codes) and carries the same guards: `--yes`, refused on a non-TTY without i
 - restores `before` (update, re-insert, or delete for an insert);
 - all in one transaction: one refusal rolls back the whole undo and lists every refused row;
 - on success: `corpus_migrations.status = 'undone'`, a `migration_runs` row (`kind = undo`), the
-  `corpus_revision` bump, then the derived surfaces for the restored items.
+  `corpus_revision` bump (none when the run had no receipts), then the derived surfaces for the
+  restored items.
 
 ### 5. The outcome hook on rows
 

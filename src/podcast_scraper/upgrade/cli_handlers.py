@@ -13,8 +13,10 @@ Subcommands give both on-demand and automated operation:
   by the outcome hook against its outcome's rows for them; ``--dry-run`` shows the plan.
 - ``run --database``, ``undo``, ``surfaces`` — migrations on rows (RFC-135, ``upgrade/rows.py``):
   apply the first pending one, undo one from its receipts, or run its after-commit surfaces again
-  after an exit **6** (committed, an after-commit surface failed). Refused: 1; outcome hook: 3/4,
-  and 5 when the row scoreboard's deltas are not the clone's (applied; the undo is named).
+  after an exit **6** (committed, an after-commit surface failed). Refused, or ``verify_rows``
+  failed (rolled back): 1; outcome hook: 3/4, and 5 when the row scoreboard's deltas are not the
+  clone's (applied, the undo is named; a dry run applies nothing). 5 outranks 6: the undo comes
+  first, and both messages print.
 
 ``--json`` on any subcommand emits a machine-readable object for pipelines.
 """
@@ -530,7 +532,7 @@ def _rows_call(
 ) -> Tuple[Optional[RunOutcome], int]:
     """Run ``fn`` (a call into ``upgrade.rows``); map its refusals to the CLI's exit codes."""
     from . import outcome_hook
-    from .rows import RowsRefused, UndoRefused
+    from .rows import RowsRefused, UndoRefused, VerifyFailed
 
     try:
         return fn(), 0
@@ -544,6 +546,9 @@ def _rows_call(
         return None, 1
     except RowsRefused as exc:
         log.error("Refused: %s", exc)
+        return None, 1
+    except VerifyFailed as exc:
+        print(f"VERIFY FAILED, rolled back: {exc}", file=sys.stderr)
         return None, 1
 
 
@@ -576,9 +581,17 @@ def _cmd_run_rows(args: argparse.Namespace, log: logging.Logger) -> int:
                 f"{len(pending) - 1} more pending on rows; each runs on its own.", file=sys.stderr
             )
         after = _after_commit_exit(mig.id, outcome.after_commit_failed)
-        if outcome.outcome_failed and not args.dry_run:
+        if outcome.outcome_failed:
             from . import outcome_hook
 
+            if args.dry_run:
+                print(
+                    f"OUTCOME HOOK: {mig.id}: dry run: the outcome would not be the measured one "
+                    f"({len(outcome.outcome_failed)}): {outcome.outcome_failed[:5]}; "
+                    "nothing applied",
+                    file=sys.stderr,
+                )
+                return outcome_hook.EXIT_OUTCOME
             print(
                 f"OUTCOME HOOK: {mig.id}: applied, and the outcome is not the measured one "
                 f"({len(outcome.outcome_failed)}): {outcome.outcome_failed[:5]}; "

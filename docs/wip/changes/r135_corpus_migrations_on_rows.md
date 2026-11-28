@@ -98,3 +98,18 @@ run, apply and undo as `migrator` (content written as `pipeline_rw`) restore eve
 `corpus_ro` reads the runs and receipts and cannot write them; the sequence privileges match.
 `ROLES: PASS`, 15 checks, on infra f4f1e57, 2026-11-26. The drill ran on a tree before
 corpus_0007, so it does not cover `migrator`'s update of `corpus_revision`.
+
+Added with the review fixes (2026-11-28, ingestion's review of its own work): a `verify_rows`
+that fails raises `VerifyFailed` inside the transaction, so the apply (or dry run) leaves no row,
+receipt, ledger or revision change and is recorded failed; the CLI exits 1 on it and the gate
+script refuses with 1 and writes no report. A delete the database would carry to rows of another
+table (`ON DELETE CASCADE`, `SET NULL` or `SET DEFAULT`, read from `pg_constraint`) is refused
+while those rows exist, so the undo never misses a change made without a receipt; deleting the
+children through `ctx.rows` first undoes whole. An update that changes a primary key is refused.
+An apply with no receipt leaves `corpus_revision` as it was. A dry run whose measure differs
+exits 5 instead of 0. The lease is heartbeated again before the commit. Still no row migration
+is registered, so nothing a listener or reader is shown changes.
+
+**Digest:** `upgrade/rows.py` is in 0054's closure (`closure_g11.txt`, 634 files), so these
+edits move 0054's digest only when Common's `PUBLIC_REF` is bumped to a public commit that
+carries them. `PUBLIC_REF` stays at 868d2a699 (gate 11) unless the operator chooses a re-gate.
