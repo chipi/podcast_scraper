@@ -626,6 +626,14 @@ def test_nodes_carry_their_groups_and_the_slice_a_catalogue_with_their_parents(
         {"id": "sth:x", "kind": "super_theme", "label": "STH:X", "parent_id": None},
         {"id": "thc:s", "kind": "storyline", "label": "THC:S", "parent_id": "sth:x"},
     ]
+    # IN_GROUP: the topic to its storyline, the storyline to its super-theme; an insight's
+    # cluster is in its node's groups, not an edge (decision 10: a topic or group to a group).
+    in_group = [e for e in got["edges"] if e["type"] == "IN_GROUP"]
+    assert sorted((e["from"], e["to"]) for e in in_group) == [
+        ("thc:s", "sth:x"),
+        ("topic:ai", "thc:s"),
+    ]
+    assert all(e["class"] == "structural" and "item_id" not in e for e in in_group)
 
 
 def test_a_slice_with_no_entity_or_insight_node_sends_no_groups_statement(

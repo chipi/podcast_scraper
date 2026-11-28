@@ -9,8 +9,9 @@ reaches SQL text.
 
 Built here, the walk core:
 
-- the edges of decision 10 whose tables exist (:data:`EDGES`); ``CONTRIBUTES_TO``, ``RELATED_TO``
-  and ``IN_GROUP`` are not built yet;
+- the edges of decision 10 whose tables exist (:data:`EDGES`); ``CONTRIBUTES_TO`` and
+  ``RELATED_TO`` are not built yet. ``IN_GROUP`` (a topic to its groups, a group to its parent)
+  comes with the groups (below): it is not walked, only returned;
 - the presets ``slice.items``, ``slice.recent`` (with ``expand_groups``; without an extension
   score),
   ``slice.group`` (one group of the published cluster build: its topics, or its child groups',
@@ -92,6 +93,8 @@ from podcast_scraper.db.schema import (
 )
 
 FORMAT = "graph-slice/1"
+#: Membership: a topic or group to a group of the catalogue (decision 10).
+IN_GROUP = "IN_GROUP"
 #: The most edges of one type a frontier node contributes to a step.
 FANOUT = 200
 DEFAULT_BUDGET = 1_500
@@ -1644,6 +1647,21 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
             "properties": {},
         }
         candidates.append((float(n), float("-inf"), f"{entry['type']}:{frm}:{to}", entry))
+    # IN_GROUP (decision 10): a topic to each group it is in, a group to its parent; read with
+    # the groups, so no statement of its own. Its ``to`` resolves in the groups catalogue.
+    groups_out = _catalogue(out_nodes, catalogue)
+    links = [(n["id"], g) for n in out_nodes if n["type"] == "Topic" for g in n["groups"]]
+    links += [(g["id"], g["parent_id"]) for g in groups_out if g["parent_id"] is not None]
+    for frm, to in links:
+        entry = {
+            "type": IN_GROUP,
+            "class": "structural",
+            "from": frm,
+            "to": to,
+            "weight": 1,
+            "properties": {},
+        }
+        candidates.append((1.0, float("-inf"), f"{IN_GROUP}:{frm}:{to}", entry))
     candidates.sort(key=lambda c: (-c[0], -c[1], c[2]))
     if len(candidates) > s.edge_budget:
         s.reasons.add("edge_budget")
@@ -1677,7 +1695,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
                 items.values(), key=lambda r: (-recency(r["item_id"]), r["natural_id"])
             )
         ],
-        "groups": _catalogue(out_nodes, catalogue),
+        "groups": groups_out,
         "truncated": truncated,
     }
 
