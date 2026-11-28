@@ -126,6 +126,15 @@ def stored_items(
     """This source's items as they are stored: the newest run of each (by run directory name), its
     body from ``transcripts/``, listed again by the type's ``restore_item``. What ``rederive_only``
     re-runs the stages on, so nothing is fetched."""
+    return list(stored_items_by_id(source_dir, ctype).values())
+
+
+def stored_items_by_id(
+    source_dir: str, ctype: content_types.ContentType
+) -> Dict[str, content_types.SourceItem]:
+    """:func:`stored_items` by each item's written id (its metadata's ``item_id``, the rows'
+    ``content_items.natural_id``), in id order. ``restore_item`` gives an item its transport's id
+    again, so this is how a reader of the rows finds an item's stored copy (the news re-check)."""
     newest: Dict[str, Tuple[str, Path, Dict[str, Any]]] = {}
     for path in corpus_rglob(Path(source_dir), "*.metadata.json"):
         if path.parent.name != "metadata":
@@ -139,8 +148,8 @@ def stored_items(
         if iid is None or (iid in newest and newest[iid][0] >= run):
             continue
         newest[iid] = (run, path, doc)
-    items: List[content_types.SourceItem] = []
-    for _iid, (_run, path, doc) in sorted(newest.items()):
+    items: Dict[str, content_types.SourceItem] = {}
+    for iid, (_run, path, doc) in sorted(newest.items()):
         stem = path.name[: -len(".metadata.json")]
         body = path.parent.parent / filesystem.TRANSCRIPTS_SUBDIR / f"{stem}.txt"
         try:
@@ -162,7 +171,7 @@ def stored_items(
             item = dataclasses.replace(
                 item, raw=raws[0].read_text(encoding="utf-8"), raw_suffix=raws[0].suffix
             )
-        items.append(item)
+        items[iid] = item
     return items
 
 

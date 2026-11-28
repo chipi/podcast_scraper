@@ -21,7 +21,13 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db.corpus_keys import NEWS_ARTICLE
-from podcast_scraper.db.schema import content_items, documents, news_recheck, news_recheck_sources
+from podcast_scraper.db.schema import (
+    content_items,
+    documents,
+    news_recheck,
+    news_recheck_sources,
+    sources,
+)
 from podcast_scraper.news import recheck
 from podcast_scraper.news.recheck_fetch import Validators
 
@@ -94,6 +100,7 @@ class Due:
     item_id: int
     source_id: int
     natural_id: str
+    source_natural_id: str
     state: recheck.RecheckState
     validators: Validators
 
@@ -102,8 +109,15 @@ def due(conn: Connection, now: datetime, limit: int = 500) -> list[Due]:
     """The served items of a source with a window whose next check is due at ``now``, oldest due
     first, at most ``limit``."""
     rows = conn.execute(
-        select(news_recheck, _ITEM.source_id, _ITEM.natural_id, _WINDOW.window_days)
+        select(
+            news_recheck,
+            _ITEM.source_id,
+            _ITEM.natural_id,
+            sources.c.natural_id.label("source_natural_id"),
+            _WINDOW.window_days,
+        )
         .join(content_items, _ITEM.item_id == _STATE.item_id)
+        .join(sources, sources.c.source_id == _ITEM.source_id)
         .join(news_recheck_sources, _WINDOW.source_id == _ITEM.source_id)
         .where(
             _STATE.done.is_(False),
@@ -119,6 +133,7 @@ def due(conn: Connection, now: datetime, limit: int = 500) -> list[Due]:
             item_id=row["item_id"],
             source_id=row["source_id"],
             natural_id=row["natural_id"],
+            source_natural_id=row["source_natural_id"],
             state=recheck.RecheckState(
                 first_fetched_at=row["first_fetched_at"],
                 checks_done=row["checks_done"],

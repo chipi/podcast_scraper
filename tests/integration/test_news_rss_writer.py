@@ -456,6 +456,34 @@ def test_run_text_items_rewrites_only_the_items_it_is_given(
     assert rewritten["body_sha256"] == hashlib.sha256(changed[0].encode("utf-8")).hexdigest()
 
 
+def test_the_stored_items_by_id_are_keyed_by_the_written_item_id(
+    tmp_path: Path,
+    net: FakeNet,
+    no_podcast_stages: None,
+    registry: Registry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The news re-check finds an item's stored copy by its row's natural id, the metadata's
+    ``item_id``; the restored item keeps its transport's id."""
+    from podcast_scraper.workflow import text_in
+
+    corpus = _run(tmp_path)
+    docs = _docs(corpus)
+    found: Dict[str, Any] = {}
+
+    def read(cfg: Any, entry: Any, ctype: Any, transport: Any) -> Tuple[int, str]:
+        found.update(text_in.stored_items_by_id(cfg.output_dir, ctype))
+        return 0, "read"
+
+    monkeypatch.setattr(text_in, "run_text_source", read)
+    _run(tmp_path, "--pipeline-stage", "rederive_only")
+    assert sorted(found) == sorted(doc["item_id"] for _p, doc in docs.values())
+    for rss_id, (_p, doc) in docs.items():
+        item = found[doc["item_id"]]
+        assert item.item_id == rss_id
+        assert item.text == _body_path(_p).read_text(encoding="utf-8")
+
+
 def test_run_text_items_refuses_any_stage_but_rederive_only() -> None:
     from podcast_scraper import config
     from podcast_scraper.workflow import text_in
