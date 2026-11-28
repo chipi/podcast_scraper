@@ -209,17 +209,19 @@ def withdraw(conn: Connection, item_id: int) -> bool:
     (CRFC-006 B.1, B.3), in the caller's transaction; returns whether it was served. Each document
     series of the item gets a ``withdraw`` row with no body that supersedes its newest version,
     so nothing of it is served; the item is ``served`` 0; its ``item_entities``,
-    ``insight_mentions`` and card are deleted and the card's flags cleared; ``corpus_revision`` is
-    bumped last (DECISIONS rule 7). Insights, evidence and segments are kept, never served (B.3).
-    A second call writes nothing."""
+    ``insight_mentions`` and card are deleted and the card's flags cleared; its source's columns
+    are merged again from the items still served (``corpus_writer.merge_source``, the operator,
+    2026-11-28); ``corpus_revision`` is bumped last (DECISIONS rule 7). Insights, evidence and
+    segments are kept, never served (B.3). A second call writes nothing."""
     from podcast_scraper.db.corpus_cards import FLAGS
+    from podcast_scraper.db.corpus_writer import merge_source
     from podcast_scraper.db.schema import insight_mentions, item_cards, item_entities
     from podcast_scraper.upgrade.rows import bump_corpus_revision
 
-    served = conn.execute(
-        select(_ITEM.served).where(_ITEM.item_id == item_id).with_for_update()
-    ).scalar_one_or_none()
-    if not served:
+    found = conn.execute(
+        select(_ITEM.served, _ITEM.source_id).where(_ITEM.item_id == item_id).with_for_update()
+    ).one_or_none()
+    if found is None or not found.served:
         return False
     d, newer = documents.c, documents.alias("newer")
     newest = conn.execute(
@@ -247,6 +249,7 @@ def withdraw(conn: Connection, item_id: int) -> bool:
     conn.execute(item_entities.delete().where(item_entities.c.item_id == item_id))
     conn.execute(insight_mentions.delete().where(insight_mentions.c.item_id == item_id))
     conn.execute(item_cards.delete().where(item_cards.c.item_id == item_id))
+    merge_source(conn, found.source_id)
     bump_corpus_revision(conn)
     return True
 

@@ -8,7 +8,9 @@ conditional GET with the stored validators). ``recheck.advance`` says what follo
 - a changed page is written as the item's next version: every changed item of a source in one
   ``text_in.run_text_items`` run, the stored item with the page's new text and raw cache (B.2 step
   5), so its files get a new run and its row sync writes the article's next version;
-- the second gone answer in a row withdraws it (``db.news_recheck.withdraw``).
+- the second gone answer in a row withdraws it: its stored copy's metadata is marked
+  ``serveable: none`` (the surfaces and the news search read the files), then its rows
+  (``db.news_recheck.withdraw``).
 
 Its text is compared with the served text, unless the served text came from an extractor other
 than today's (``extractor_version`` differs): then with the stored raw page extracted again first,
@@ -40,6 +42,7 @@ did not record.
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import threading
 import uuid
@@ -47,6 +50,7 @@ from collections import Counter
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from sqlalchemy import exists, select
@@ -220,6 +224,7 @@ def _run_source(
     from ..workflow import text_in
 
     stored = text_in.stored_items_by_id(source.cfg.output_dir or ".", source.ctype)
+    metadata: Optional[Dict[str, Path]] = None
     changed: List[Tuple[rows.Due, recheck.RecheckState, recheck_fetch.Check]] = []
     versions: List[content_types.SourceItem] = []
     for found in due:
@@ -249,13 +254,23 @@ def _run_source(
             done["not_written"] += 1
             continue
         if action == recheck.WITHDRAW:
+            if metadata is None:
+                metadata = text_in.stored_metadata_by_id(source.cfg.output_dir or ".")
             try:
-                withdrawn = _withdraw(engine, holder, held, found, state, got, when)
+                withdrawn = _withdraw(
+                    engine, holder, held, found, state, got, when, metadata.get(found.natural_id)
+                )
             except leases.LeaseRefused as exc:
                 # The source is being ingested: the item stays due, its gone count unchanged, so
                 # the next run's gone answer withdraws it.
                 done["withdraw_deferred"] += 1
                 logger.info("news re-check: %s withdraw deferred: %s", found.natural_id, exc)
+                continue
+            except OSError:
+                # Its file could not be marked: nothing was withdrawn, the item stays due as
+                # above, and the next run's gone answer tries again.
+                done["withdraw_failed"] += 1
+                logger.exception("news re-check: %s withdraw failed", found.natural_id)
                 continue
             done["withdrawn" if withdrawn else "already_withdrawn"] += 1
             continue
@@ -393,9 +408,16 @@ def _withdraw(
     state: recheck.RecheckState,
     got: recheck_fetch.Check,
     when: datetime,
+    metadata: Optional[Path],
 ) -> bool:
     """Withdraw the item and record its last check in one transaction, under its source's
-    exclusive lease (taken by a holder of its own, as the row sync takes it)."""
+    exclusive lease (taken by a holder of its own, as the row sync takes it).
+
+    Its stored copy's metadata is marked ``serveable: none`` first, under the same lease: the news
+    search and every surface reading the files leave such an item out, and the next index build
+    drops its search rows (``news_index.indexable``). The rows alone would not: those surfaces read
+    the files (the operator, 2026-11-28). The file goes first so a failure to write it withdraws
+    nothing and the item stays due; marking it again is harmless."""
     source_holder = f"{holder}:{found.source_natural_id}"
     source_held = leases.acquire(
         engine,
@@ -406,6 +428,10 @@ def _withdraw(
         source_holder,
     )
     try:
+        if metadata is None:
+            logger.warning("news re-check: %s has no stored metadata to mark", found.natural_id)
+        else:
+            _mark_unserved(metadata)
         with engine.begin() as conn:
             leases.heartbeat(conn, holder, held)
             leases.heartbeat(conn, source_holder, source_held)
@@ -414,6 +440,19 @@ def _withdraw(
         return withdrawn
     finally:
         leases.release(engine, source_holder)
+
+
+def _mark_unserved(path: Path) -> None:
+    """Set the metadata file's ``serveable`` to ``none``, replacing the file by a rename as the
+    writer does, so its folder's time moves and the news caches see it (``news_access``)."""
+    from ..news_items import F_SERVEABLE, SERVEABLE_NONE
+    from ..server.atomic_write import atomic_write_text
+
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if doc.get(F_SERVEABLE) == SERVEABLE_NONE:
+        return
+    doc[F_SERVEABLE] = SERVEABLE_NONE
+    atomic_write_text(path, json.dumps(doc, indent=2, ensure_ascii=False))
 
 
 __all__ = [

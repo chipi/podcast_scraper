@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, Iterator, List
 
@@ -10,7 +12,7 @@ import pytest
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import Connection, Engine
 
-from podcast_scraper import content_types
+from podcast_scraper import content_types, news_items
 from podcast_scraper.db import leases, news_recheck as rows
 from podcast_scraper.db.schema import content_items, news_recheck
 from podcast_scraper.db.settings import normalize_url
@@ -93,6 +95,9 @@ class World:
             )
             rows.set_window(c, self.source_id, 7)
         monkeypatch.setattr(text_in, "stored_items_by_id", lambda _dir, _ctype: self.stored)
+        #: Each stored copy's metadata file, by natural id (:meth:`on_disk`).
+        self.metadata: Dict[str, Path] = {}
+        monkeypatch.setattr(text_in, "stored_metadata_by_id", lambda _dir: self.metadata)
 
     def article(self, n: str, **metadata: Any) -> int:
         with self.engine.begin() as c:
@@ -101,6 +106,14 @@ class World:
         self.stored[f"item:{n}"] = _stored(n, **metadata)
         self.ids[f"https://news.example.com/{n}"] = item_id
         return item_id
+
+    def on_disk(self, tmp: Path, n: str) -> Path:
+        """Item ``n``'s stored metadata file, as the writer leaves it."""
+        path = tmp / f"{n}.metadata.json"
+        doc = {"content_type": "news_article", "item_id": f"item:{n}", "title": f"Library {n}"}
+        path.write_text(json.dumps({**doc, "serveable": "summary"}), encoding="utf-8")
+        self.metadata[f"item:{n}"] = path
+        return path
 
     def answer(self, n: str, *checks: recheck_fetch.Check) -> None:
         self.answers[f"https://news.example.com/{n}"] = list(checks)
@@ -139,7 +152,7 @@ class World:
                         variant="cleaned",
                         version=served.version + 1,
                         supersedes_id=served.document_id,
-                        change_kind="corrected",
+                        change_kind="updated",
                     )
         return len(items), "ok"
 
@@ -217,13 +230,24 @@ def test_a_failed_write_leaves_the_changed_items_due(
 
 
 def test_two_gone_answers_in_a_row_withdraw_the_item(
-    engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection  # noqa: F811
+    engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
     w = World(engine, monkeypatch)
     item_id = w.article("1")
+    meta = w.on_disk(tmp_path, "1")
     w.answer("1", _check(recheck.GONE), _check(recheck.GONE))
     assert w.run() == {"enrolled": 1, recheck.GONE: 1}
+    assert json.loads(meta.read_text(encoding="utf-8"))["serveable"] == "summary"
     assert w.run(NEXT) == {"enrolled": 0, "withdrawn": 1}
+    # The files are what the news search and the other surfaces read: the stored copy says so too.
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    assert doc == {
+        "content_type": "news_article",
+        "item_id": "item:1",
+        "title": "Library 1",
+        "serveable": news_items.SERVEABLE_NONE,
+    }
+    assert not news_items.is_shown(doc)
     served = conn.execute(
         select(content_items.c.served).where(content_items.c.item_id == item_id)
     ).scalar_one()
@@ -234,6 +258,26 @@ def test_two_gone_answers_in_a_row_withdraw_the_item(
         {"i": item_id},
     ).scalars()
     assert list(kinds) == [None, rows.WITHDRAW]
+
+
+def test_a_withdrawal_whose_file_cannot_be_marked_withdraws_nothing_and_stays_due(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch, conn: Connection, tmp_path: Path  # noqa: F811
+) -> None:
+    w = World(engine, monkeypatch)
+    item_id = w.article("1")
+    meta = w.on_disk(tmp_path, "1")
+    w.answer("1", _check(recheck.GONE), _check(recheck.GONE), _check(recheck.GONE))
+    w.run()
+    stored = meta.read_text(encoding="utf-8")
+    meta.unlink()
+    assert w.run(NEXT) == {"enrolled": 0, "withdraw_failed": 1}
+    served = conn.execute(
+        select(content_items.c.served).where(content_items.c.item_id == item_id)
+    ).scalar_one()
+    assert (served, _state(conn, item_id).gone_in_a_row) == (1, 1)
+    meta.write_text(stored, encoding="utf-8")
+    assert w.run(NEXT) == {"enrolled": 0, "withdrawn": 1}
+    assert json.loads(meta.read_text(encoding="utf-8"))["serveable"] == news_items.SERVEABLE_NONE
 
 
 def test_a_withdrawal_waits_while_the_source_is_ingested(

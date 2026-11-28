@@ -473,9 +473,11 @@ def test_the_stored_items_by_id_are_keyed_by_the_written_item_id(
     corpus = _run(tmp_path)
     docs = _docs(corpus)
     found: Dict[str, Any] = {}
+    paths: Dict[str, Path] = {}
 
     def read(cfg: Any, entry: Any, ctype: Any, transport: Any) -> Tuple[int, str]:
         found.update(text_in.stored_items_by_id(cfg.output_dir, ctype))
+        paths.update(text_in.stored_metadata_by_id(cfg.output_dir))
         return 0, "read"
 
     monkeypatch.setattr(text_in, "run_text_source", read)
@@ -485,6 +487,8 @@ def test_the_stored_items_by_id_are_keyed_by_the_written_item_id(
         item = found[doc["item_id"]]
         assert item.item_id == rss_id
         assert item.text == _body_path(_p).read_text(encoding="utf-8")
+        assert paths[doc["item_id"]] == _p
+    assert sorted(paths) == sorted(found)
 
 
 @pytest.fixture
@@ -577,7 +581,7 @@ def test_a_rechecked_page_is_the_articles_next_version_on_the_rows(
     newest = {(r.natural_id, r.kind, r.variant): r for r in series if r.served}
     for (item, _kind, _variant), row in newest.items():
         if item == changed_id:
-            assert (row.version, row.supersedes, row.change_kind) == (2, True, "corrected"), row
+            assert (row.version, row.supersedes, row.change_kind) == (2, True, "updated"), row
         else:
             assert row.version == 1, row
     assert any(item == changed_id for item, _k, _v in newest)
