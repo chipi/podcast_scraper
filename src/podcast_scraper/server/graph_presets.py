@@ -39,7 +39,7 @@ FUNCS: dict[str, Callable[..., dict[str, Any]]] = {
 }
 
 
-class UnknownPreset(ValueError):
+class UnknownPreset(graph.BadParameter):
     """A preset name the engine does not serve (422 at the route)."""
 
 
@@ -69,7 +69,8 @@ def etag(name: str, params: dict[str, Any], revision: Any, build: Any) -> str:
 def serve(engine: Engine, name: str, params: dict[str, Any]) -> Served:
     """Preset ``name`` with ``params`` (its function's keyword arguments, ``conn`` aside), from
     the cache when this revision and build already answered it. A bad parameter raises the
-    engine's ``ValueError`` (or :class:`UnknownPreset`), which the route turns into 422."""
+    engine's :class:`~podcast_scraper.db.graph.BadParameter` (or :class:`UnknownPreset`), which
+    the route turns into 422."""
     fn = FUNCS.get(name)
     if fn is None:
         raise UnknownPreset(f"preset {name!r} is not one of {sorted(FUNCS)}")

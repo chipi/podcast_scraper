@@ -61,6 +61,8 @@ def _kwargs(name: str, raw: dict[str, Any], where: str) -> dict[str, Any]:
         if key not in _ALLOWED[name]:
             raise _Bad([where, key], f"{name} takes no parameter {key!r}")
         if key in _INTS:
+            if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+                raise _Bad([where, key], f"{key} must be an integer")
             try:
                 value = int(value)
             except (TypeError, ValueError):
@@ -107,9 +109,15 @@ def _serve(name: str, raw: dict[str, Any], where: str) -> Any:
         return _unprocessable([where, "path"], str(exc))
     except graph.UnknownKind as exc:
         return _unprocessable([where, "kind"], str(exc))
-    except ValueError as exc:
+    except graph.BadParameter as exc:
         field = _field_of(str(exc), raw)
         return _unprocessable([where, field] if field else [where], str(exc))
+
+
+def _none_match(header: str, etag: str) -> bool:
+    """``If-None-Match`` names ``etag``: compared weakly (RFC 9110 §13.1.2), ``*`` matches."""
+    tags = [t.strip() for t in header.split(",") if t.strip()]
+    return "*" in tags or etag in [t[2:] if t.startswith("W/") else t for t in tags]
 
 
 @router.get("/graph/catalogue")
@@ -135,7 +143,7 @@ def graph_preset(name: str, request: Request) -> Any:
     if isinstance(served, Response):
         return served
     headers = {"ETag": served.etag}
-    if served.etag in [t.strip() for t in request.headers.get("if-none-match", "").split(",")]:
+    if _none_match(request.headers.get("if-none-match", ""), served.etag):
         return Response(status_code=304, headers=headers)
     return JSONResponse(content=served.body, headers=headers)
 

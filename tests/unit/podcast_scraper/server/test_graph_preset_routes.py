@@ -105,3 +105,60 @@ def test_a_read_past_the_deadline_is_503_retry_narrower(
     got = client.get("/api/graph/presets/slice.recent")
     assert got.status_code == 503 and got.json()["retry"] == "narrower"
     assert "retry-after" not in got.headers
+
+
+def test_a_fault_below_the_engine_is_not_shown_to_the_caller(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only the engine's refusals (``graph.BadParameter``) are 422 with their message; any other
+    ValueError is a fault, answered 500 without its text (CodeQL py/stack-trace-exposure)."""
+    perf_cache.clear(graph_presets.NAMESPACE)
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path / "appdata"))
+    monkeypatch.setattr(engines, "corpus_ro_engine", lambda: object())
+    monkeypatch.setattr(graph_presets, "_probe", lambda engine: (3, 9))
+
+    def broken(engine: Any, fn: Any) -> Any:
+        raise ValueError("invalid literal for int() at /srv/secret/path.py")
+
+    monkeypatch.setattr(graph, "read_slice", broken)
+    app = TestClient(create_app(output_dir=tmp_path), raise_server_exceptions=False)
+    got = app.get("/api/graph/presets/slice.recent")
+    assert got.status_code == 500
+    assert "secret" not in got.text
+    perf_cache.clear(graph_presets.NAMESPACE)
+
+
+@pytest.mark.parametrize(
+    ("body", "loc"),
+    [
+        ({"items": ["episode:1"], "budget": True}, ["body", "budget"]),
+        ({"items": ["episode:1"], "budget": 2.9}, ["body", "budget"]),
+        ({"items": [f"episode:{n}" for n in range(graph.MAX_ITEM_SEEDS + 1)]}, ["body", "items"]),
+    ],
+)
+def test_a_bad_body_parameter_is_422_naming_it(
+    client: TestClient, body: dict, loc: list[str]
+) -> None:
+    got = client.post("/api/graph/presets/slice.items", json=body)
+    assert got.status_code == 422
+    assert got.json()["detail"][0]["loc"] == loc
+
+
+def test_an_integral_float_budget_is_taken(client: TestClient) -> None:
+    got = client.post(
+        "/api/graph/presets/slice.items", json={"items": ["episode:1"], "budget": 5.0}
+    )
+    assert got.status_code == 200
+
+
+@pytest.mark.parametrize("header", ["W/{etag}", "*", '"0:nope", {etag}'])
+def test_if_none_match_is_compared_weakly_and_star_matches(client: TestClient, header: str) -> None:
+    url = "/api/graph/presets/slice.recent?window=30d"
+    etag = client.get(url).headers["etag"]
+    again = client.get(url, headers={"If-None-Match": header.format(etag=etag)})
+    assert again.status_code == 304
+
+
+def test_if_none_match_naming_another_answer_is_200(client: TestClient) -> None:
+    url = "/api/graph/presets/slice.recent?window=30d"
+    assert client.get(url, headers={"If-None-Match": 'W/"0:nope"'}).status_code == 200
