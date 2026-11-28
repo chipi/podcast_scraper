@@ -55,6 +55,53 @@ def test_run_search_cli_no_index(mock_run, tmp_path, caplog) -> None:
     assert "index" in joined or "vector" in joined
 
 
+def test_run_search_cli_without_the_corpus_url_says_which_variable(
+    tmp_path, caplog, monkeypatch
+) -> None:
+    """A transcript hit is read from the corpus rows, so with no corpus_ro URL the search ends
+    in one line naming the variable and exit 2, not a traceback."""
+    from podcast_scraper.db import engines
+    from podcast_scraper.db.settings import ENV_CORPUS_RO_URL
+    from podcast_scraper.search import corpus_search
+
+    monkeypatch.delenv(ENV_CORPUS_RO_URL, raising=False)
+    engines.reset_engines()
+    # The session patch imports the corpus into the test database first (tests._corpus_rows).
+    real = getattr(corpus_search._enrich_lift_and_slice, "__wrapped__", None)
+    if real is not None:
+        monkeypatch.setattr(corpus_search, "_enrich_lift_and_slice", real)
+    monkeypatch.setattr(
+        corpus_search,
+        "hybrid_candidates",
+        lambda *a, **k: [
+            SearchResult(
+                doc_id="transcript:ep1:0",
+                score=0.9,
+                metadata={"doc_type": "transcript", "episode_id": "ep1", "text": "t"},
+            )
+        ],
+    )
+    args = argparse.Namespace(
+        query=["q"],
+        output_dir=str(tmp_path),
+        doc_type=None,
+        feed=None,
+        since=None,
+        speaker=None,
+        grounded_only=False,
+        top_k=5,
+        index_path=None,
+        embedding_model=None,
+        no_dedupe_kg_surfaces=False,
+        format="pretty",
+    )
+    with caplog.at_level(logging.ERROR):
+        code = cli_handlers.run_search_cli(args, _log())
+    assert code == cli_handlers.EXIT_INVALID_ARGS
+    errors = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1 and ENV_CORPUS_RO_URL in errors[0]
+
+
 def test_run_index_cli_stats_missing_index_warns_not_errors(tmp_path, caplog) -> None:
     """#1864: `index --stats` on a not-yet-built index is an EXPECTED state — it already exits
     EXIT_NO_ARTIFACTS gracefully; it must log at WARNING, not ERROR (which the signal-fleet

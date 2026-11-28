@@ -126,6 +126,9 @@ def corpus_rows_patch() -> Iterator[None]:
         ensure(Path(output_dir))
         return hydrate(filtered, output_dir, *args, **kwargs)
 
+    # A test of the search with no corpus database restores the real one.
+    search_rows.__wrapped__ = hydrate  # type: ignore[attr-defined]
+
     def current_token() -> float:
         connect()
         if loaded["root"] is not None:
