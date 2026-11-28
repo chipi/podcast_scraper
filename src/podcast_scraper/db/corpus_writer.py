@@ -109,8 +109,8 @@ RETRANSCRIBED = "retranscribed"
 REPUNCTUATED = "repunctuated"
 TRANSLATED = "translated"
 CORRECTED = "corrected"
-#: A news article's later version (CRFC-006 R6); a news ``corrected`` is only for a version a source's
-#: notice pattern or the operator marks so, and nothing marks one yet.
+#: A news article's later version (CRFC-006 R6); a news ``corrected`` is only for a version a
+#: source's notice pattern or the operator marks so, and nothing marks one yet.
 UPDATED = "updated"
 CHANGE_KINDS = (RETRANSCRIBED, REPUNCTUATED, TRANSLATED, CORRECTED, UPDATED)
 

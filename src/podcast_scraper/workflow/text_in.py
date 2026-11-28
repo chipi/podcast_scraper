@@ -129,12 +129,9 @@ def stored_items(
     return list(stored_items_by_id(source_dir, ctype).values())
 
 
-def stored_items_by_id(
-    source_dir: str, ctype: content_types.ContentType
-) -> Dict[str, content_types.SourceItem]:
-    """:func:`stored_items` by each item's written id (its metadata's ``item_id``, the rows'
-    ``content_items.natural_id``), in id order. ``restore_item`` gives an item its transport's id
-    again, so this is how a reader of the rows finds an item's stored copy (the news re-check)."""
+def _newest_copies(source_dir: str) -> Dict[str, Tuple[str, Path, Dict[str, Any]]]:
+    """Each item's newest stored copy (by run directory name) by its written id: the run, the
+    metadata file and its document."""
     newest: Dict[str, Tuple[str, Path, Dict[str, Any]]] = {}
     for path in corpus_rglob(Path(source_dir), "*.metadata.json"):
         if path.parent.name != "metadata":
@@ -148,6 +145,22 @@ def stored_items_by_id(
         if iid is None or (iid in newest and newest[iid][0] >= run):
             continue
         newest[iid] = (run, path, doc)
+    return newest
+
+
+def stored_metadata_by_id(source_dir: str) -> Dict[str, Path]:
+    """The metadata file of each item's newest stored copy, by its written id: the copy
+    :func:`stored_items_by_id` lists, and the one the surfaces read."""
+    return {iid: path for iid, (_run, path, _doc) in sorted(_newest_copies(source_dir).items())}
+
+
+def stored_items_by_id(
+    source_dir: str, ctype: content_types.ContentType
+) -> Dict[str, content_types.SourceItem]:
+    """:func:`stored_items` by each item's written id (its metadata's ``item_id``, the rows'
+    ``content_items.natural_id``), in id order. ``restore_item`` gives an item its transport's id
+    again, so this is how a reader of the rows finds an item's stored copy (the news re-check)."""
+    newest = _newest_copies(source_dir)
     items: Dict[str, content_types.SourceItem] = {}
     for iid, (_run, path, doc) in sorted(newest.items()):
         stem = path.name[: -len(".metadata.json")]

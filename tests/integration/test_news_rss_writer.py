@@ -473,9 +473,11 @@ def test_the_stored_items_by_id_are_keyed_by_the_written_item_id(
     corpus = _run(tmp_path)
     docs = _docs(corpus)
     found: Dict[str, Any] = {}
+    paths: Dict[str, Path] = {}
 
     def read(cfg: Any, entry: Any, ctype: Any, transport: Any) -> Tuple[int, str]:
         found.update(text_in.stored_items_by_id(cfg.output_dir, ctype))
+        paths.update(text_in.stored_metadata_by_id(cfg.output_dir))
         return 0, "read"
 
     monkeypatch.setattr(text_in, "run_text_source", read)
@@ -485,6 +487,8 @@ def test_the_stored_items_by_id_are_keyed_by_the_written_item_id(
         item = found[doc["item_id"]]
         assert item.item_id == rss_id
         assert item.text == _body_path(_p).read_text(encoding="utf-8")
+        assert paths[doc["item_id"]] == _p
+    assert sorted(paths) == sorted(found)
 
 
 @pytest.fixture
