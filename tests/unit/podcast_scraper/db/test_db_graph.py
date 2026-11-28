@@ -888,3 +888,24 @@ def test_groups_summary_refuses_an_unknown_kind_and_is_empty_without_a_published
         graph.groups_summary(conn, "galaxy")
     empty = graph.groups_summary(conn, "theme")
     assert empty["groups"] == [] and empty["links"] == [] and empty["corpus_revision"] == 0
+
+
+def test_the_preset_caches_probe_reads_the_revision_and_published_build() -> None:
+    """server.graph_presets keys its cache on what this statement reads (ADR-183 decision 11)."""
+    from podcast_scraper.server import graph_presets
+
+    url = worker_database_url()
+    assert url, "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
+    engine = create_engine(normalize_url(url))
+    try:
+        revision, build = graph_presets._probe(engine)
+        with engine.connect() as conn:
+            expected = conn.execute(
+                text("SELECT revision FROM corpus.corpus_revision WHERE id = 1")
+            ).scalar_one()
+            published = conn.execute(
+                text("SELECT build_id FROM corpus.projection_builds WHERE state = 'published'")
+            ).scalar()
+        assert (revision, build) == (expected, published)
+    finally:
+        engine.dispose()
