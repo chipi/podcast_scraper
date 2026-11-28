@@ -109,7 +109,10 @@ RETRANSCRIBED = "retranscribed"
 REPUNCTUATED = "repunctuated"
 TRANSLATED = "translated"
 CORRECTED = "corrected"
-CHANGE_KINDS = (RETRANSCRIBED, REPUNCTUATED, TRANSLATED, CORRECTED)
+#: A news article's later version (CRFC-006 R6); a news ``corrected`` is only for a version a source's
+#: notice pattern or the operator marks so, and nothing marks one yet.
+UPDATED = "updated"
+CHANGE_KINDS = (RETRANSCRIBED, REPUNCTUATED, TRANSLATED, CORRECTED, UPDATED)
 
 #: The change a later version of an episode's transcript records, by the run's ``pipeline_stage``.
 #: Every reprocess stage reaches the metadata stage, whose hook syncs the episode, so the stage
@@ -646,8 +649,8 @@ def sync_rows(
 
     The outcome names the documents: ``written`` (version 1 of every variant written),
     ``superseded`` (a later version written, recording ``change_kind``: the metadata hook passes
-    :func:`change_kind_for` its run's stage; a news item's later article is ``corrected``,
-    CRFC-005 §3.5), ``unchanged`` or ``no_files`` (no ``transcript_path``, or no body beside it);
+    :func:`change_kind_for` its run's stage; a news item's later article is ``updated``,
+    CRFC-006 R6), ``unchanged`` or ``no_files`` (no ``transcript_path``, or no body beside it);
     the rows are upserted in each of these. Otherwise nothing is written: ``lease_refused``
     (another job holds a conflicting lease), ``lease_lost``, ``refused`` (the keys cannot be
     derived, a stored row contradicts the item, or a body does not cut or hash), ``failed``
@@ -717,7 +720,7 @@ def sync_rows(
                     conn,
                     item_id,
                     files,
-                    change_kind=CORRECTED,
+                    change_kind=UPDATED,
                     kind=ARTICLE,
                     fetched_at=_instant(doc.get("fetched_at")),
                     body_sha256=_str_or_none(doc.get("body_sha256")),

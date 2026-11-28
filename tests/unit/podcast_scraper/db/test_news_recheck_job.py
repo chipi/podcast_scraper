@@ -139,7 +139,7 @@ class World:
                         variant="cleaned",
                         version=served.version + 1,
                         supersedes_id=served.document_id,
-                        change_kind="corrected",
+                        change_kind="updated",
                     )
         return len(items), "ok"
 

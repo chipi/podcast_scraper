@@ -258,3 +258,62 @@ def test_a_withdrawn_item_is_served_by_nothing_and_keeps_its_insights(
     assert rows.withdraw(conn, item_id) is False
     assert _count(conn, "documents", item_id) == 5
     assert _revision(conn) == before + 1
+
+
+def _source_columns(conn: Connection, source_id: int) -> tuple:  # noqa: F811
+    return tuple(
+        conn.execute(
+            text("SELECT title, language FROM corpus.sources WHERE source_id = :s"),
+            {"s": source_id},
+        ).one()
+    )
+
+
+def test_a_withdrawal_merges_its_sources_columns_from_the_items_still_served(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source_id = _news_source(conn)
+    _item(
+        conn,
+        source_id,
+        "old",
+        content_type="news_article",
+        served=1,
+        published_at=NOW - timedelta(days=2),
+        source_attrs={"title": "Old desk", "language": "en"},
+    )
+    newest = _item(
+        conn,
+        source_id,
+        "new",
+        content_type="news_article",
+        served=1,
+        published_at=NOW,
+        source_attrs={"title": "New desk", "language": "de"},
+    )
+    conn.execute(
+        text("UPDATE corpus.sources SET title = 'New desk', language = 'de' WHERE source_id = :s"),
+        {"s": source_id},
+    )
+    assert rows.withdraw(conn, newest) is True
+    assert _source_columns(conn, source_id) == ("Old desk", "en")
+
+
+def test_withdrawing_a_sources_last_served_item_keeps_its_columns(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source_id = _news_source(conn)
+    only = _item(
+        conn,
+        source_id,
+        "1",
+        content_type="news_article",
+        served=1,
+        source_attrs={"title": "Desk", "language": "en"},
+    )
+    conn.execute(
+        text("UPDATE corpus.sources SET title = 'Desk', language = 'en' WHERE source_id = :s"),
+        {"s": source_id},
+    )
+    assert rows.withdraw(conn, only) is True
+    assert _source_columns(conn, source_id) == ("Desk", "en")

@@ -577,7 +577,7 @@ def test_a_rechecked_page_is_the_articles_next_version_on_the_rows(
     newest = {(r.natural_id, r.kind, r.variant): r for r in series if r.served}
     for (item, _kind, _variant), row in newest.items():
         if item == changed_id:
-            assert (row.version, row.supersedes, row.change_kind) == (2, True, "corrected"), row
+            assert (row.version, row.supersedes, row.change_kind) == (2, True, "updated"), row
         else:
             assert row.version == 1, row
     assert any(item == changed_id for item, _k, _v in newest)

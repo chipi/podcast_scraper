@@ -636,7 +636,7 @@ def test_a_news_item_writes_its_source_item_and_article(
     assert count == 0
 
 
-def test_a_changed_article_is_a_corrected_version(
+def test_a_changed_article_is_an_updated_version(
     pipeline_db: None, news_registry: None, conn: Connection, tmp_path: Path  # noqa: F811
 ) -> None:
     meta, body = _news_item(tmp_path)
@@ -649,7 +649,7 @@ def test_a_changed_article_is_a_corrected_version(
         .where(documents.c.item_id == item)
         .order_by(documents.c.version)
     ).all()
-    assert [tuple(r) for r in rows] == [(1, "created"), (2, "corrected")]
+    assert [tuple(r) for r in rows] == [(1, "created"), (2, "updated")]
 
 
 def test_a_withdrawn_article_stays_withdrawn_when_its_files_are_synced_again(
