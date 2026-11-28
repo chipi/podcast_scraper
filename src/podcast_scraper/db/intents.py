@@ -13,7 +13,10 @@ AP-04, AP-23):
 - the cards of a set of items (``item_cards``, one row per item);
 - served items newest first, of some sources or of one content type, with a keyset cursor
   ``(published_at, item_id)``: dated items first, then undated ones, item id descending within a
-  time.
+  time;
+- entities (r-intents, for the Player's GI and KG reads): entity rows by written id, the entities
+  an item carries, an entity's or a person's newest items over every member of its canonical
+  (CRFC-005 §3.3), and an item's current insights with their quotes and speakers.
 
 Results are plain dicts keyed by column name. No heavy column is read unless named: ``type_attrs``
 is not in :data:`ITEM_COLUMNS`.
@@ -25,17 +28,24 @@ from datetime import datetime
 from typing import Any, Collection, Optional, Sequence, Tuple
 
 from sqlalchemy import and_, any_, case, func, literal, or_, select, true, tuple_
-from sqlalchemy.dialects.postgresql import aggregate_order_by
+from sqlalchemy.dialects.postgresql import aggregate_order_by, JSONB
 from sqlalchemy.engine import Connection
 
+from podcast_scraper.db.graph import _insight_ok, _quote_ok
 from podcast_scraper.db.schema import (
     content_items,
     entities,
+    evidence,
+    insight_support,
+    insights,
     item_cards,
+    item_entities,
+    person_roles,
     search_chunks,
     segments,
     sources,
 )
+from podcast_scraper.graph_id_utils import is_raw_speaker_label
 
 #: The most keys one by-key call takes (AP-01: rails, favourites and world sets reach hundreds).
 MAX_KEYS = 500
@@ -269,19 +279,27 @@ def newest_items(
 ) -> list[dict[str, Any]]:
     """Served items newest first (dated before undated, then item id descending), of these
     sources or of this content type when given, after ``after`` (AP-03, AP-04)."""
-    if not 1 <= limit <= MAX_PAGE:
-        raise ValueError(f"limit {limit} is not between 1 and {MAX_PAGE}")
-    conditions = [content_items.c.served > 0]
+    conditions: list[Any] = []
     if source_ids is not None:
         conditions.append(content_items.c.source_id.in_(_keys(source_ids, "source ids")))
     if content_type is not None:
         conditions.append(content_items.c.content_type == content_type)
+    return _page(conn, conditions, after, limit)
+
+
+def _page(
+    conn: Connection, conditions: list[Any], after: Optional[Cursor], limit: int
+) -> list[dict[str, Any]]:
+    """One page of served items meeting ``conditions``, newest first, after ``after``."""
+    if not 1 <= limit <= MAX_PAGE:
+        raise ValueError(f"limit {limit} is not between 1 and {MAX_PAGE}")
+    where = [content_items.c.served > 0, *conditions]
     cursor = _after(after)
     if cursor is not None:
-        conditions.append(cursor)
+        where.append(cursor)
     statement = (
         select(*_ITEM)
-        .where(and_(*conditions))
+        .where(and_(*where))
         .order_by(content_items.c.published_at.desc().nulls_last(), content_items.c.item_id.desc())
         .limit(limit)
     )
@@ -312,3 +330,178 @@ def catalog_items(conn: Connection, content_types: Collection[str]) -> list[dict
 def cursor_of(row: dict[str, Any]) -> Cursor:
     """The cursor that continues a list after ``row``."""
     return (row["published_at"], row["item_id"])
+
+
+# --- entities (CRFC-005 §3.3): written ids in and out; a canonical id resolves, never serialises
+
+ENTITY_COLUMNS = ("entity_id", "natural_id", "type", "label", "normalized_label")
+
+_ENTITY = [entities.c[name] for name in ENTITY_COLUMNS]
+
+
+def entities_by_natural_ids(conn: Connection, natural_ids: Sequence[str]) -> list[dict[str, Any]]:
+    """The entity rows of these written ids (``topic:...``, ``person:...``); unknown ids are left
+    out. Each carries its own label, so a caller never builds one from the id."""
+    keys = _keys(natural_ids, "natural ids")
+    if not keys:
+        return []
+    return _rows(conn, select(*_ENTITY).where(entities.c.natural_id.in_(keys)))
+
+
+def item_entities_of(
+    conn: Connection, item_ids: Sequence[int], roles: Optional[Collection[str]] = None
+) -> list[dict[str, Any]]:
+    """The entities these items carry (KG ``MENTIONS``, ``CONTRIBUTES_TO`` and the bridge's
+    ``about``, CRFC-005 §3.4): one row per item, entity and role, with the entity's written id,
+    type and label, ordered by item, role and label. ``roles`` keeps only those roles."""
+    keys = _keys(item_ids, "item ids")
+    if not keys:
+        return []
+    conditions = [item_entities.c.item_id.in_(keys)]
+    if roles is not None:
+        conditions.append(item_entities.c.role.in_(sorted(roles)))
+    statement = (
+        select(item_entities.c.item_id, item_entities.c.role, *_ENTITY)
+        .join(entities, entities.c.entity_id == item_entities.c.entity_id)
+        .where(and_(*conditions))
+        .order_by(item_entities.c.item_id, item_entities.c.role, entities.c.normalized_label)
+    )
+    return _rows(conn, statement)
+
+
+def entity_items(
+    conn: Connection,
+    natural_id: str,
+    *,
+    content_types: Optional[Collection[str]] = None,
+    after: Optional[Cursor] = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """The served items that carry this entity, newest first (dated before undated, then item id
+    descending), after ``after``. The written id resolves to every member of its canonical
+    (``entities WHERE canonical_id = ...``), so an item that carries the thing under another
+    written id is in the list, and once (CRFC-005 §3.3); an unknown id has no items."""
+    conditions = [item_entities.c.entity_id.in_(_members(natural_id))]
+    if content_types is not None:
+        conditions.append(item_entities.c.content_type.in_(sorted(content_types)))
+    carried = select(item_entities.c.item_id).where(and_(*conditions))
+    return _page(conn, [content_items.c.item_id.in_(carried)], after, limit)
+
+
+def _members(natural_id: str) -> Any:
+    """Every entity id of this written id's canonical (CRFC-005 §3.3); none for an unknown id."""
+    seed = select(entities.c.canonical_id).where(entities.c.natural_id == natural_id)
+    return select(entities.c.entity_id).where(entities.c.canonical_id == seed.scalar_subquery())
+
+
+INSIGHT_COLUMNS = (
+    "insight_id",
+    "natural_id",
+    "item_id",
+    "insight_type",
+    "rank",
+    "salience",
+    "routing_tag",
+    "surfaceable",
+    "grounded",
+    "tier",
+    "grounding_confidence",
+    "position_hint",
+    "text",
+)
+
+
+def item_insights(conn: Connection, item_ids: Sequence[int]) -> list[dict[str, Any]]:
+    """The current, visible insights of these items, by item then ``rank`` (the stored display
+    order), each with ``attributed`` (Common's read-time rule, :func:`_attribute`) and ``quotes``:
+    its supporting quotes in ``ord`` order, each with its text, times,
+    segment range, and its speaker's written id and the canonical's label (one spelling per joined
+    person), or ``None`` when no speaker is named. ``drop``-tagged insights are rows like any
+    other: the surface decides what it shows (ADR-135). One statement, the quotes aggregated per
+    insight; the rule for current and visible is the graph engine's."""
+    keys = _keys(item_ids, "item ids")
+    if not keys:
+        return []
+    i, ev, sup = insights.alias("i"), evidence.alias("ev"), insight_support.alias("sup")
+    spk, canon = entities.alias("spk"), entities.alias("canon")
+    quote = func.jsonb_build_object(
+        "natural_id",
+        ev.c.natural_id,
+        "text",
+        ev.c.text,
+        "start_ms",
+        ev.c.start_ms,
+        "end_ms",
+        ev.c.end_ms,
+        "start_seq",
+        ev.c.start_seq,
+        "start_offset",
+        ev.c.start_offset,
+        "end_seq",
+        ev.c.end_seq,
+        "end_offset",
+        ev.c.end_offset,
+        "speaker_natural_id",
+        spk.c.natural_id,
+        "speaker",
+        canon.c.label,
+        "written_label",
+        spk.c.label,
+    )
+    quotes = (
+        select(
+            func.coalesce(
+                func.jsonb_agg(aggregate_order_by(quote, sup.c.ord, ev.c.evidence_id)),
+                literal("[]").cast(JSONB),
+            )
+        )
+        .select_from(
+            sup.join(ev, ev.c.evidence_id == sup.c.evidence_id)
+            .outerjoin(spk, spk.c.entity_id == ev.c.speaker_id)
+            .outerjoin(canon, canon.c.entity_id == spk.c.canonical_id)
+        )
+        .where(sup.c.insight_id == i.c.insight_id, _quote_ok(ev))
+        .scalar_subquery()
+    )
+    statement = (
+        select(*[i.c[name] for name in INSIGHT_COLUMNS], quotes.label("quotes"))
+        .where(i.c.item_id.in_(keys), _insight_ok(i))
+        .order_by(i.c.item_id, i.c.rank, i.c.insight_id)
+    )
+    rows = _rows(conn, statement)
+    for row in rows:
+        _attribute(row)
+    return rows
+
+
+def _attribute(row: dict[str, Any]) -> None:
+    """Common's read-time rule (gi_view.insights_from_gi, RFC-131 S3), on the rows: a speaker
+    whose written label is a raw label (``SPEAKER_07``, ``unknown_guest_1``) is no speaker, and
+    an insight is unattributed when GI marked it not surfaceable, or when no quote names a
+    speaker and at least one carries a raw label."""
+    named = raw = 0
+    for quote in row["quotes"]:
+        if is_raw_speaker_label(quote.pop("written_label")):
+            quote["speaker"], quote["speaker_natural_id"] = None, None
+            raw += 1
+        elif quote["speaker"] is not None:
+            named += 1
+    row["attributed"] = row["surfaceable"] is not False and not (named == 0 and raw > 0)
+
+
+def person_items(
+    conn: Connection,
+    natural_id: str,
+    *,
+    roles: Optional[Collection[str]] = None,
+    after: Optional[Cursor] = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """The served items this person takes part in (``person_roles``: host, guest), newest first,
+    after ``after``, of ``roles`` when given. As :func:`entity_items`, the written id resolves to
+    every member of its canonical and an item is listed once."""
+    conditions = [person_roles.c.person_id.in_(_members(natural_id))]
+    if roles is not None:
+        conditions.append(person_roles.c.role.in_(sorted(roles)))
+    taking_part = select(person_roles.c.item_id).where(and_(*conditions))
+    return _page(conn, [content_items.c.item_id.in_(taking_part)], after, limit)

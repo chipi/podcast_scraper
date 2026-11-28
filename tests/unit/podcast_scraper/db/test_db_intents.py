@@ -11,7 +11,17 @@ from sqlalchemy import event, insert
 from sqlalchemy.engine import Connection
 
 from podcast_scraper.db import intents
-from podcast_scraper.db.schema import entities, item_cards, search_chunks, segments
+from podcast_scraper.db.schema import (
+    entities,
+    evidence,
+    insight_support,
+    insights,
+    item_cards,
+    item_entities,
+    person_roles,
+    search_chunks,
+    segments,
+)
 from tests.unit.podcast_scraper.db.test_db_corpus import (  # noqa: F401
     _document,
     _item,
@@ -263,4 +273,242 @@ def test_chunks_carry_their_item_range_text_times_and_canonical_speakers_in_one_
     with _statements(conn) as seen:
         assert intents.chunks_by_natural_ids(conn, []) == []
     assert seen == []
+    conn.rollback()
+
+
+def _typed(
+    conn: Connection, natural_id: str, type_: str, label: str, **kw: Any  # noqa: F811
+) -> int:
+    entity_id: int = conn.execute(
+        insert(entities)
+        .values(
+            natural_id=natural_id, type=type_, label=label, normalized_label=label.lower(), **kw
+        )
+        .returning(entities.c.entity_id)
+    ).scalar_one()
+    return entity_id
+
+
+def _carry(
+    conn: Connection, item: int, entity: int, role: str, published: Optional[datetime]  # noqa: F811
+) -> None:
+    conn.execute(
+        insert(item_entities).values(
+            item_id=item,
+            entity_id=entity,
+            role=role,
+            published_at=published,
+            content_type="podcast",
+        )
+    )
+
+
+def test_entities_by_natural_ids_carry_their_own_labels_in_one_statement(
+    conn: Connection,  # noqa: F811
+) -> None:
+    topic = _typed(conn, "topic:ai-safety", "Topic", "AI Safety")
+    with _statements(conn) as seen:
+        found = intents.entities_by_natural_ids(conn, ["topic:ai-safety", "topic:missing"])
+    assert len(seen) == 1
+    assert found == [
+        {
+            "entity_id": topic,
+            "natural_id": "topic:ai-safety",
+            "type": "Topic",
+            "label": "AI Safety",
+            "normalized_label": "ai safety",
+        }
+    ]
+    conn.rollback()
+
+
+def test_item_entities_of_are_one_row_per_role_in_one_statement(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source = _source(conn)
+    one, two = _item(conn, source, "1", published_at=T0), _item(conn, source, "2")
+    zeta = _typed(conn, "topic:zeta", "Topic", "Zeta")
+    alpha = _typed(conn, "person:alpha", "Person", "Alpha")
+    _carry(conn, one, zeta, "mentions", T0)
+    _carry(conn, one, zeta, "about", T0)
+    _carry(conn, one, alpha, "mentions", T0)
+    _carry(conn, two, zeta, "mentions", None)
+    with _statements(conn) as seen:
+        got = intents.item_entities_of(conn, [one, two, one])
+    assert len(seen) == 1
+    assert [(r["item_id"], r["role"], r["natural_id"]) for r in got] == [
+        (one, "about", "topic:zeta"),
+        (one, "mentions", "person:alpha"),
+        (one, "mentions", "topic:zeta"),
+        (two, "mentions", "topic:zeta"),
+    ]
+    only = intents.item_entities_of(conn, [one], roles={"about"})
+    assert [r["natural_id"] for r in only] == ["topic:zeta"]
+    conn.rollback()
+
+
+def test_entity_items_reach_every_member_of_the_canonical_once_newest_first(
+    conn: Connection,  # noqa: F811
+) -> None:
+    """GI and KG write one topic under two ids (CRFC-005 §3.3): asked by either, the list holds
+    the items of both, each once, newest first, and pages without repeats."""
+    source = _source(conn)
+    kg = _typed(conn, "topic:recursive-self-improvement", "Topic", "RSI")
+    gi = _typed(conn, "topic:improvement-recursive-self", "Topic", "RSI", canonical_id=kg)
+    other = _typed(conn, "topic:other", "Topic", "Other")
+    items = [
+        _item(conn, source, str(n), served=1, published_at=T0 + timedelta(days=n)) for n in range(4)
+    ]
+    undated = _item(conn, source, "u", served=1)
+    hidden = _item(conn, source, "h", served=0, published_at=T0)
+    _carry(conn, items[0], kg, "mentions", T0)
+    _carry(conn, items[0], gi, "about", T0)
+    _carry(conn, items[1], gi, "about", T0 + timedelta(days=1))
+    _carry(conn, items[2], kg, "mentions", T0 + timedelta(days=2))
+    _carry(conn, items[3], other, "mentions", T0 + timedelta(days=3))
+    _carry(conn, undated, kg, "mentions", None)
+    _carry(conn, hidden, kg, "mentions", T0)
+    with _statements(conn) as seen:
+        first = intents.entity_items(conn, "topic:improvement-recursive-self", limit=2)
+    assert len(seen) == 1
+    assert [r["item_id"] for r in first] == [items[2], items[1]]
+    rest = intents.entity_items(
+        conn, "topic:recursive-self-improvement", after=intents.cursor_of(first[-1]), limit=10
+    )
+    assert [r["item_id"] for r in rest] == [items[0], undated]
+    assert intents.entity_items(conn, "topic:missing") == []
+    assert intents.entity_items(conn, "topic:other", content_types={"news_article"}) == []
+    with pytest.raises(ValueError, match="between 1 and 200"):
+        intents.entity_items(conn, "topic:other", limit=0)
+    conn.rollback()
+
+
+def _insight(
+    conn: Connection, item: int, doc: int, n: str, rank: int, **kw: Any  # noqa: F811
+) -> int:
+    values: dict[str, Any] = {
+        "natural_id": f"insight:{n}",
+        "item_id": item,
+        "document_id": doc,
+        "insight_type": "claim",
+        "rank": rank,
+        "routing_tag": "surface",
+        "text_origin": "authored",
+        "text": f"Insight {n}",
+        **kw,
+    }
+    insight_id: int = conn.execute(
+        insert(insights).values(values).returning(insights.c.insight_id)
+    ).scalar_one()
+    return insight_id
+
+
+def _quote(
+    conn: Connection, item: int, doc: int, n: str, insight: int, ord_: int, **kw: Any  # noqa: F811
+) -> int:
+    evidence_id: int = conn.execute(
+        insert(evidence)
+        .values(
+            natural_id=f"quote:{n}",
+            item_id=item,
+            document_id=doc,
+            start_seq=0,
+            start_offset=0,
+            end_seq=0,
+            end_offset=5,
+            text=f"Quote {n}",
+            **kw,
+        )
+        .returning(evidence.c.evidence_id)
+    ).scalar_one()
+    conn.execute(
+        insert(insight_support).values(insight_id=insight, evidence_id=evidence_id, ord=ord_)
+    )
+    return evidence_id
+
+
+def test_item_insights_carry_their_quotes_and_speakers_by_rank_in_one_statement(
+    conn: Connection,  # noqa: F811
+) -> None:
+    """Rank order, quotes in ``ord`` order with the canonical's label as the speaker, a quoteless
+    insight with ``[]``; hidden insights and those of a superseded document are left out."""
+    source = _source(conn)
+    item = _item(conn, source, "1", served=1)
+    doc = _document(conn, item)
+    newer = _document(conn, item, version=2, supersedes_id=doc)
+    canon = _typed(conn, "person:ada-lovelace", "Person", "Ada Lovelace")
+    alias = _typed(conn, "person:ada", "Person", "Ada", canonical_id=canon)
+    second = _insight(conn, item, newer, "b", 2, salience=0.4)
+    first = _insight(conn, item, newer, "a", 1, salience=0.9)
+    _insight(conn, item, newer, "hidden", 0, visible=False)
+    _insight(conn, item, doc, "old", 0)
+    _quote(conn, item, newer, "q2", first, 2, start_ms=2000, end_ms=3000)
+    _quote(conn, item, newer, "q1", first, 1, speaker_id=alias, start_ms=1000, end_ms=1500)
+    with _statements(conn) as seen:
+        got = intents.item_insights(conn, [item])
+    assert len(seen) == 1
+    assert [(r["insight_id"], r["natural_id"]) for r in got] == [
+        (first, "insight:a"),
+        (second, "insight:b"),
+    ]
+    assert [(q["natural_id"], q["speaker"], q["speaker_natural_id"]) for q in got[0]["quotes"]] == [
+        ("quote:q1", "Ada Lovelace", "person:ada"),
+        ("quote:q2", None, None),
+    ]
+    assert got[0]["quotes"][0]["start_ms"] == 1000 and got[0]["salience"] == pytest.approx(0.9)
+    assert got[1]["quotes"] == []
+    assert intents.item_insights(conn, []) == []
+    conn.rollback()
+
+
+def test_person_items_reach_every_member_once_of_the_roles_asked(
+    conn: Connection,  # noqa: F811
+) -> None:
+    source = _source(conn)
+    canon = _typed(conn, "person:ada-lovelace", "Person", "Ada Lovelace")
+    alias = _typed(conn, "person:ada", "Person", "Ada", canonical_id=canon)
+    old = _item(conn, source, "old", served=1, published_at=T0)
+    new = _item(conn, source, "new", served=1, published_at=T0 + timedelta(days=1))
+    conn.execute(
+        insert(person_roles),
+        [
+            {"item_id": old, "person_id": canon, "role": "host"},
+            {"item_id": old, "person_id": alias, "role": "guest"},
+            {"item_id": new, "person_id": alias, "role": "guest"},
+        ],
+    )
+    with _statements(conn) as seen:
+        got = intents.person_items(conn, "person:ada-lovelace")
+    assert len(seen) == 1
+    assert [r["item_id"] for r in got] == [new, old]
+    assert [r["item_id"] for r in intents.person_items(conn, "person:ada", roles={"host"})] == [old]
+    conn.rollback()
+
+
+def test_item_insights_apply_commons_read_time_attribution_rule(
+    conn: Connection,  # noqa: F811
+) -> None:
+    """RFC-131 S3 on the rows: a raw-labelled speaker is no speaker; an insight whose quotes name
+    nobody and include a raw label is unattributed, as is one GI marked not surfaceable; a named
+    quote beside a raw one keeps the insight attributed."""
+    source = _source(conn)
+    item = _item(conn, source, "1", served=1)
+    doc = _document(conn, item)
+    raw = _typed(conn, "person:speaker-07", "Person", "SPEAKER_07")
+    named = _typed(conn, "person:ada", "Person", "Ada")
+    only_raw = _insight(conn, item, doc, "raw", 1)
+    _quote(conn, item, doc, "r1", only_raw, 1, speaker_id=raw)
+    mixed = _insight(conn, item, doc, "mixed", 2)
+    _quote(conn, item, doc, "m1", mixed, 1, speaker_id=raw)
+    _quote(conn, item, doc, "m2", mixed, 2, speaker_id=named)
+    _insight(conn, item, doc, "unsurfaceable", 3, surfaceable=False)
+    _insight(conn, item, doc, "quoteless", 4)
+    got = {r["natural_id"]: r for r in intents.item_insights(conn, [item])}
+    assert got["insight:raw"]["attributed"] is False
+    assert got["insight:raw"]["quotes"][0]["speaker"] is None
+    assert "written_label" not in got["insight:raw"]["quotes"][0]
+    assert got["insight:mixed"]["attributed"] is True
+    assert [q["speaker"] for q in got["insight:mixed"]["quotes"]] == [None, "Ada"]
+    assert got["insight:unsurfaceable"]["attributed"] is False
+    assert got["insight:quoteless"]["attributed"] is True
     conn.rollback()
