@@ -13,7 +13,22 @@ decides which stages run (ADR-177 decision 7). Only the summary provider is crea
 never reaches transcription or speaker detection.
 
 The transport's cursor is kept in one small file per source, beside its runs, written after the
-run finishes.
+run finishes. Like an unprocessed podcast episode, a listed item that did not write (its summary
+failed, or it was left past the source's cap) is offered again: the cursor stops short of the
+oldest such item, which the next run lists again while the items already written are skipped.
+
+Failures go through the podcast path's own mechanisms, not copies of them:
+
+- the body's fetch is the shared downloader's (retries, backoff, Retry-After, circuit breaker,
+  throttle); a failed fetch is classified by its rule (``downloader.is_transient_failure``), so a
+  transient one waits for the next run and a permanent one is skipped;
+- every fetch that fails is a row in ``corpus_incidents.jsonl`` (soft or policy), and the batch's
+  rollup counts it as it counts an episode's;
+- an item whose fetch or metadata keeps failing is parked by ``episode_park`` (stages ``fetch``
+  and ``metadata``), with its outage rule, alert and ``parked-episodes --release``; a parked item
+  is skipped before its fetch and no longer holds the cursor;
+- a summary provider's ``ResilienceFuseOpenError`` halts the run (ADR-122), so nothing is written
+  and the cursor is kept.
 """
 
 from __future__ import annotations
@@ -30,13 +45,15 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple
 
 from .. import config, content_types, stage_hooks
 from ..kg.v3 import ITEM_TIMES
 from ..models import Episode, RssFeed
 from ..utils import filesystem
+from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.corpus_walk import corpus_rglob, SOURCES_DIR
+from . import episode_park
 from .types import FeedMetadata, HostDetectionResult, ProcessingJob
 
 logger = logging.getLogger(__name__)
@@ -45,6 +62,81 @@ TEXT_BODY: Literal["text_body"] = "text_body"
 CURSOR_FILE = "source_cursor.json"
 #: The pipeline stage that re-runs a source's stored items instead of listing new ones.
 REDERIVE_ONLY = "rederive_only"
+#: Listed items still to write, each with the id its metadata will carry (``None``: not fetched).
+_Waiting = List[Tuple[content_types.SourceItem, Optional[str]]]
+#: The park's stages for a text item (``episode_park``): its body's fetch, and its metadata.
+FETCH = "fetch"
+METADATA = "metadata"
+
+
+def park_key(ctype: content_types.ContentType, listed: content_types.SourceItem) -> str:
+    """The id an item is parked and recorded under: its minted id as listed, else its URL."""
+    try:
+        return content_types.item_id(ctype, listed)
+    except ValueError:
+        return str(listed.url or listed.item_id)
+
+
+def _skip_parked(incidents: Optional[str], key: str, feed_url: Optional[str]) -> bool:
+    """Skip, before its fetch, an item parked after repeated failures (as a podcast episode is
+    skipped before its download), with the same log marker and policy incident."""
+    entry = episode_park.parked_entry(incidents, key)
+    if entry is None:
+        return False
+    reason = (
+        f"parked {entry['parked_at']} after {len(entry.get('failures') or [])} failures; "
+        "release with `parked-episodes --release`"
+    )
+    logger.warning("text-in: %s episode_id=%s skipped: %s", episode_park.LOG_MARKER, key, reason)
+    append_corpus_incident(
+        incidents,
+        scope="episode",
+        category="policy",
+        message=reason,
+        exception_type="EpisodeParked",
+        stage=FETCH,
+        feed_url=feed_url,
+        episode_id=key,
+    )
+    return True
+
+
+def _note_not_fetched(
+    incidents: Optional[str],
+    key: str,
+    feed_url: Optional[str],
+    listed: content_types.SourceItem,
+    why: content_types.NotFetched,
+) -> None:
+    """Record a body the type could not fetch. Transient: a soft incident, and a failure in the
+    park's batch (it counts only when another item's fetch passed). Permanent: a policy incident;
+    the item is skipped for good."""
+    logger.warning(
+        "text-in: item %s not fetched (%s, %s; url=%s)",
+        key,
+        why.reason,
+        "waits for the next run" if why.transient else "skipped",
+        listed.url,
+    )
+    append_corpus_incident(
+        incidents,
+        scope="episode",
+        category="soft" if why.transient else "policy",
+        message=f"not fetched: {why.reason}",
+        exception_type="NotFetched",
+        stage=FETCH,
+        feed_url=feed_url,
+        episode_id=key,
+    )
+    if why.transient:
+        episode_park.note_failure(
+            incidents,
+            key,
+            feed_url=feed_url,
+            exception_type="NotFetched",
+            message=why.reason,
+            stage=FETCH,
+        )
 
 
 def _item_element(item: content_types.SourceItem, title: str, minted_id: str) -> ET.Element:
@@ -226,14 +318,27 @@ def _jobs_for_items(
     transport: str,
     entry: Any = None,
     written: Optional[Dict[str, List[Path]]] = None,
-) -> Tuple[List[Episode], List[ProcessingJob]]:  # type: ignore[valid-type]
+    cap: Optional[int] = None,
+    incidents: Optional[str] = None,
+    feed_url: Optional[str] = None,
+) -> Tuple[List[Episode], List[ProcessingJob], _Waiting]:  # type: ignore[valid-type]
     """``written``: the items the corpus already holds for this type, with their metadata files.
     One article is one item, so an item already written, by this source or another (two feeds
     carrying one article), or listed twice in this batch, is skipped before its body is fetched:
     the first source to write it keeps it, and takes what the later listing adds (its type's
-    ``also_listed``: news, the listing's transport id). The set grows with this batch."""
+    ``also_listed``: news, the listing's transport id). The set grows with this batch.
+
+    ``cap``: the most jobs made; an item already written does not count toward it. Also returned:
+    the listed items still to write, each with the id its metadata will carry (``None``: not
+    fetched, past the cap or after a transient fetch failure), which the cursor must not pass
+    until they write.
+
+    ``incidents``: the run's ``corpus_incidents.jsonl``. With it, an item parked after repeated
+    failures (``episode_park``, as a podcast episode is) is skipped before its fetch, and each
+    fetch is recorded there and in the park's batch, under stage ``fetch``."""
     episodes: List[Episode] = []  # type: ignore[valid-type]
     jobs: List[ProcessingJob] = []
+    waiting: _Waiting = []
     on_disk: Dict[str, List[Path]] = written or {}
     seen: Set[str] = set(on_disk)
     for listed in items:
@@ -245,9 +350,23 @@ def _jobs_for_items(
             logger.info("text-in: %s is already written; skipped (url=%s)", listed_id, listed.url)
             _note_also_listed(ctype, on_disk.get(listed_id, []), listed)
             continue
+        key = park_key(ctype, listed)
+        if _skip_parked(incidents, key, feed_url):
+            continue
+        if cap is not None and len(jobs) >= cap:
+            waiting.append((listed, None))
+            continue
         item: Optional[content_types.SourceItem] = listed
         if listed.text is None and ctype.fetch_body is not None:
-            item = ctype.fetch_body(listed, entry)
+            fetched = ctype.fetch_body(listed, entry)
+            if isinstance(fetched, content_types.NotFetched):
+                _note_not_fetched(incidents, key, feed_url, listed, fetched)
+                if fetched.transient:
+                    waiting.append((listed, None))
+                continue
+            item = fetched
+            if item is not None and item.text is not None:
+                episode_park.note_passed(incidents, key, FETCH)
         if item is None or item.text is None:
             logger.warning(
                 "text-in: item %s has no text (url=%s); skipped", listed.item_id, listed.url
@@ -305,7 +424,54 @@ def _jobs_for_items(
                 ),
             )
         )
-    return episodes, jobs
+        waiting.append((listed, minted))
+    return episodes, jobs, waiting
+
+
+def _note_metadata_outcomes(
+    incidents: Optional[str],
+    ctype: content_types.ContentType,
+    waiting: _Waiting,
+    now_written: Dict[str, List[Path]],
+    feed_url: Optional[str],
+) -> None:
+    """Each fetched item's metadata outcome in the park's batch, under stage ``metadata``: one
+    that wrote passed, one that did not failed (its processing already recorded the hard
+    incident). Counted at the batch's end only when another item's metadata wrote."""
+    for listed, minted in waiting:
+        if minted is None:
+            continue
+        key = park_key(ctype, listed)
+        if minted in now_written:
+            episode_park.note_passed(incidents, key, METADATA)
+        else:
+            episode_park.note_failure(
+                incidents,
+                key,
+                feed_url=feed_url,
+                exception_type="NotWritten",
+                message="its metadata was not written",
+                stage=METADATA,
+            )
+
+
+def _next_cursor(
+    cursor: Optional[str],
+    listed_next: Optional[str],
+    items: List[content_types.SourceItem],
+    unwritten: List[content_types.SourceItem],
+    key: Callable[[str], Any],
+) -> Optional[str]:
+    """Where the cursor may go after a run. Past every item when all of them wrote (the
+    transport's own next cursor); else to the newest item older than the oldest one that did not
+    write, so the next run lists that one again; with none older, where it was. Undated items
+    (no cursor value) are listed every run and never hold it."""
+    held = [key(i.cursor) for i in unwritten if i.cursor is not None]
+    if not held:
+        return listed_next
+    oldest = min(held)
+    older = [i.cursor for i in items if i.cursor is not None and key(i.cursor) < oldest]
+    return max(older, key=key) if older else cursor
 
 
 def run_text_source(
@@ -333,11 +499,13 @@ def run_text_source(
         if rederive:
             # The stored items again, under this run's profile: nothing fetched, the cursor kept,
             # and every item rewritten (a new run supersedes the old one, newest run per item).
-            items, next_cursor = stored_items(source_dir, ctype), None
+            cursor, items, next_cursor = None, stored_items(source_dir, ctype), None
         else:
             cursor = _read_cursor(source_dir, transport.name)
             items, next_cursor = transport.list_items(entry, cursor)
-        episodes, jobs = _jobs_for_items(
+        cap = None if rederive or transport.max_items is None else transport.max_items(entry)
+        incidents = getattr(cfg, "incident_log_path", None)
+        episodes, jobs, waiting = _jobs_for_items(
             items,
             ctype,
             effective_output_dir,
@@ -346,13 +514,17 @@ def run_text_source(
             transport=transport.name,
             entry=entry,
             written=None if rederive else written_items(source_dir, ctype),
+            cap=cap,
+            incidents=None if rederive else incidents,
+            feed_url=_source_url(cfg, entry),
         )
         logger.info(
-            "text-in: %s over %s: %d new item(s), %d with text",
+            "text-in: %s over %s: %d new item(s), %d with text, %d waiting",
             ctype.name,
             transport.name,
             len(items),
             len(jobs),
+            sum(1 for _listed, minted in waiting if minted is None),
         )
 
         summary_provider = orch._create_summarization_provider(cfg)
@@ -390,6 +562,20 @@ def run_text_source(
             transcription_provider=None,
         )
         stage_hooks.run_completed(cfg, effective_output_dir)
+        if not rederive:
+            now_written = written_items(source_dir, ctype)
+            unwritten = [listed for listed, minted in waiting if minted not in now_written]
+            _note_metadata_outcomes(incidents, ctype, waiting, now_written, _source_url(cfg, entry))
+            next_cursor = _next_cursor(cursor, next_cursor, items, unwritten, transport.cursor_key)
+            if unwritten:
+                logger.warning(
+                    "text-in: %s over %s: %d listed item(s) not written; cursor held at %s, so "
+                    "the next run lists them again",
+                    ctype.name,
+                    transport.name,
+                    len(unwritten),
+                    next_cursor,
+                )
         _write_cursor(source_dir, transport.name, next_cursor)
         return result
     finally:

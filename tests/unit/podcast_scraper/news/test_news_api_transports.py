@@ -47,13 +47,19 @@ HITS = {
 }
 
 
-def test_hn_lists_linked_stories_newest_first_up_to_the_cap(
+def test_hn_lists_every_linked_story_newest_first_with_its_cursor_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Every story is listed, past the source's cap of 2: the run applies the cap, counting only
+    stories not yet written. Each carries its ``created_at_i``, compared as a number."""
     seen: List[str] = []
     _serve(monkeypatch, HITS, seen)
     items, cursor = hn.list_items(_Source("https://hn.test/api"), None)
-    assert [i.metadata["title"] for i in items] == ["C", "B"]  # no link: no article; cap 2
+    assert [i.metadata["title"] for i in items] == ["C", "B", "A"]  # no link: no article
+    assert [i.cursor for i in items] == ["300", "200", "100"]
+    assert hn.TRANSPORT.cursor_key("99") < hn.TRANSPORT.cursor_key("100")
+    assert hn.TRANSPORT.max_items is not None
+    assert hn.TRANSPORT.max_items(_Source("https://hn.test/api")) == 2
     assert items[0].url == "https://c.test/a" and items[0].text is None  # the page is fetched
     assert items[0].metadata["transport_ids"] == {"hn": "3"}
     assert items[0].metadata["published_at"] == "1970-01-01T00:05:00Z"
@@ -162,6 +168,9 @@ def test_the_guardians_items_carry_their_text_and_record(
     items, cursor = guardian.list_items(_Source("https://guardian.test/search"), None)
     assert [i.metadata["title"] for i in items] == ["A"]  # no body: nothing to write
     item = items[0]
+    assert item.cursor == "2026-11-18T09:00:00Z"
+    assert f"page-size={guardian.PAGE_SIZE}" in seen[0] and "order-by=oldest" in seen[0]
+    assert guardian.TRANSPORT.max_items is not None
     assert item.text is not None and item.text.startswith("Paragraph 0 of the report")
     assert len(item.text.split("\n\n")) == 12
     assert item.raw_suffix == ".json" and json.loads(item.raw or "")["id"] == item.item_id

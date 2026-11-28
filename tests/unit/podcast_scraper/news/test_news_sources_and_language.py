@@ -217,14 +217,22 @@ def feed(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_the_listing_filters_by_url_and_keeps_the_newest_up_to_the_cap(feed: None) -> None:
+def test_the_listing_filters_by_url_and_lists_every_article_newest_first(feed: None) -> None:
+    """D is listed although the source's cap is 2: the run applies the cap, counting only
+    articles not yet written, so an article past it is listed again next run."""
     src = _Source()
     src.news = NewsSourceSpec(
         max_items=2, include_url_pattern="/articles/d", exclude_url_pattern="/video/"
     )
     items, cursor = rss.list_items(src, None)
-    assert [i.metadata["title"] for i in items] == ["E", "A"]  # newest first, D past the cap
+    assert [i.metadata["title"] for i in items] == ["E", "A", "D"]
+    assert [i.cursor for i in items] == [
+        "2026-11-17T10:00:00Z",
+        "2026-11-17T09:00:00Z",
+        "2026-11-17T06:00:00Z",
+    ]
     assert cursor == "2026-11-17T10:00:00Z"
+    assert rss.TRANSPORT.max_items is not None and rss.TRANSPORT.max_items(src) == 2
 
 
 def test_a_feeds_spec_entry_carries_its_news_settings() -> None:
@@ -335,7 +343,8 @@ def test_a_feed_text_source_with_no_feed_text_is_skipped_without_a_fetch(
     monkeypatch.setattr(downloader, "http_get_any_status", lambda *a: pytest.fail("robots read"))
     src = _Source()
     src.news = NewsSourceSpec(text_from="feed")
-    assert fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src) is None
+    got = fetch.fetch_body(ct.SourceItem(item_id="g", url="https://news.test/a"), src)
+    assert got == ct.NotFetched("no_text", transient=False)
 
 
 def test_the_feed_text_keeps_the_words_outside_its_blocks() -> None:

@@ -103,6 +103,21 @@ DOWNLOAD_CHUNK_SIZE = 1024 * 256
 HTTP_RETRY_ALLOWED_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 # 408: some CDNs return this under load; 429/5xx: retry with backoff
 HTTP_RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
+#: A failed request's status when no HTTP status came back (``failure=`` of :func:`fetch_url`).
+FAILURE_UNREACHABLE = 0  # a connect, read or timeout error
+FAILURE_CIRCUIT_OPEN = -1  # the circuit breaker skipped the request
+FAILURE_REFUSED = -2  # the SSRF guard refused the target
+
+
+def is_transient_failure(status: int) -> bool:
+    """Whether a failed request may succeed later: a status the retry transport retries
+    (:data:`HTTP_RETRY_STATUS_CODES`), an unreachable host, or an open circuit. Any other status
+    (a 404, a 410, a 403) and a refused target are permanent."""
+    return status in HTTP_RETRY_STATUS_CODES or status in (
+        FAILURE_UNREACHABLE,
+        FAILURE_CIRCUIT_OPEN,
+    )
+
 
 # Runtime-configurable retry settings (set via configure_downloader).
 _configured_http_retry_total: Optional[int] = None
@@ -402,13 +417,17 @@ def _open_http_request(
     session: Optional[httpx.Client] = None,
     extra_headers: Optional[Dict[str, str]] = None,
     accept_not_modified: bool = False,
+    failure: Optional[List[int]] = None,
 ) -> Optional[httpx.Response]:
-    """Execute an HTTP GET request and return the response if successful."""
+    """Execute an HTTP GET request and return the response if successful. On failure, the
+    status (an HTTP status, or a ``FAILURE_*`` value) is appended to ``failure`` when given."""
     normalized_url = normalize_url(url)
     if _is_ssrf_target(normalized_url):
         logger.warning(
             "Request refused (private/link-local target): %s", redact_for_log(normalized_url)
         )
+        if failure is not None:
+            failure.append(FAILURE_REFUSED)
         return None
     headers: Dict[str, str] = {"User-Agent": user_agent}
     if extra_headers:
@@ -423,6 +442,8 @@ def _open_http_request(
                 "Request skipped (circuit open): %s",
                 redact_for_log(normalized_url),
             )
+            if failure is not None:
+                failure.append(FAILURE_CIRCUIT_OPEN)
             return None
 
     try:
@@ -455,12 +476,12 @@ def _open_http_request(
         )
         return resp
     except httpx.HTTPError as exc:
+        err_resp = getattr(exc, "response", None)
+        status = int(err_resp.status_code) if err_resp is not None else FAILURE_UNREACHABLE
         if br is not None:
-            err_resp = getattr(exc, "response", None)
-            if err_resp is not None:
-                br.record_failure(normalized_url, int(err_resp.status_code))
-            else:
-                br.record_failure(normalized_url, 0)
+            br.record_failure(normalized_url, status)
+        if failure is not None:
+            failure.append(status)
         logger.warning(
             "Failed to fetch %s: %s",
             redact_for_log(url),
@@ -531,10 +552,17 @@ def fetch_url(
     *,
     stream: bool = False,
     extra_headers: Optional[Dict[str, str]] = None,
+    failure: Optional[List[int]] = None,
 ) -> Optional[httpx.Response]:
     """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches).
-    ``extra_headers`` carries what must not sit in a URL, which is logged (an API key)."""
+    ``extra_headers`` carries what must not sit in a URL, which is logged (an API key).
+    ``failure``: a list a failed request's status is appended to, for the caller to classify
+    with :func:`is_transient_failure`."""
 
+    if failure is not None:
+        return _open_http_request(
+            url, user_agent, timeout, stream=stream, extra_headers=extra_headers, failure=failure
+        )
     if extra_headers:
         return _open_http_request(
             url, user_agent, timeout, stream=stream, extra_headers=extra_headers

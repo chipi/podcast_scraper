@@ -681,11 +681,10 @@ def _determine_episode_status(
         # Metadata exists → episode was fully processed
         return "ok"
     elif transcript_path:
-        # Transcript exists but no metadata → partially processed
-        # (transcribed but not summarized/metadata generated)
-        # This could be "ok" if metadata generation was disabled, or "failed" if enabled
-        # For now, treat as "ok" since transcript was successfully created
-        return "ok"
+        # Transcript exists but no metadata: "ok" when metadata generation was off, "failed" when
+        # the run recorded its metadata step failing. A text item's body is its transcript, so
+        # without this a news item whose summary failed counted as processed (2026-11-28).
+        return "failed" if status_from_map == "failed" else "ok"
     else:
         # Neither exists → determine if skipped or failed
         # Use status_map if available, otherwise infer from episode properties

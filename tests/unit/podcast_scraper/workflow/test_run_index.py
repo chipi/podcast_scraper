@@ -383,6 +383,16 @@ class TestDetermineEpisodeStatus(unittest.TestCase):
         )
         self.assertEqual(status, "ok")
 
+    def test_a_transcript_whose_metadata_step_failed_is_failed(self):
+        """A text item's body is its transcript; its summary failing must not count it ok."""
+        status = run_index._determine_episode_status(
+            metadata_path=None,
+            transcript_path="transcript.txt",
+            status_from_map="failed",
+            episode=self.episode,
+        )
+        self.assertEqual(status, "failed")
+
     def test_determine_episode_status_with_status_from_map(self):
         """Test status determination using status from map."""
         status = run_index._determine_episode_status(
