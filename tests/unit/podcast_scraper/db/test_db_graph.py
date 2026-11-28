@@ -909,3 +909,48 @@ def test_the_preset_caches_probe_reads_the_revision_and_published_build() -> Non
         assert (revision, build) == (expected, published)
     finally:
         engine.dispose()
+
+
+def test_held_items_are_left_out_and_the_shared_nodes_they_reach_are_stubs(
+    conn: Connection,
+) -> None:
+    """exclude_items (decision 8): episode:1 is held. Its node, its insights and quote and its
+    item-scoped edges are not sent; topic:ai, person:bob and the source, which it also reaches,
+    come back as stubs, so episode:2's edges to them do not dangle. No statement is added."""
+    Corpus(conn)
+    with _statements(conn) as seen:
+        got = graph.slice_recent(
+            conn, window="7d", min_items=1, now=T0, exclude_items=["episode:1"]
+        )
+    assert len(seen) == 7
+    assert got["params"]["exclude_items"] == ["episode:1"]
+    assert [i["item_id"] for i in got["items"]] == ["episode:2"]
+    nodes = {n["id"]: n for n in got["nodes"]}
+    assert not {"episode:1", "insight:n1", "insight:n2", "quote:1", "person:ann"} & set(nodes)
+    for stub in ("topic:ai", "person:bob", "podcast:s"):
+        assert nodes[stub] == {"id": stub, "type": nodes[stub]["type"], "held": True}
+    assert nodes["episode:2"].get("held") is None and nodes["insight:n3"].get("held") is None
+    assert all(e.get("item_id") != "episode:1" for e in got["edges"])
+    assert ("MENTIONS", "topic:ai", "episode:2") in _edges(got)
+    assert ("HAS_ITEM", "podcast:s", "episode:2") in _edges(got)
+
+
+def test_held_items_leave_item_slices_walks_and_groups(conn: Connection) -> None:
+    c = Corpus(conn)
+    _groups_build(c)
+    items = graph.slice_items(conn, ["episode:1", "episode:2"], exclude_items=["episode:1"])
+    assert [i["item_id"] for i in items["items"]] == ["episode:2"] and items["unknown_seeds"] == []
+    walk = graph.slice_neighbourhood(conn, "topic:ai", "node.items", exclude_items=["episode:1"])
+    assert {n["id"] for n in walk["nodes"] if n["type"] == "ContentItem"} == {"episode:2"}
+    assert {i["item_id"] for i in walk["items"]} == {"episode:2"}
+    group = graph.slice_group(conn, "thc:s", exclude_items=["episode:2"])
+    assert [i["item_id"] for i in group["items"]] == ["episode:1"]
+
+
+def test_without_held_items_no_node_is_a_stub_and_the_bound_is_refused(conn: Connection) -> None:
+    Corpus(conn)
+    got = graph.slice_items(conn, ["episode:1", "episode:2"], exclude_items=["episode:none"])
+    assert all("held" not in n for n in got["nodes"])
+    assert len(got["items"]) == 2
+    with pytest.raises(ValueError, match="exclude_items"):
+        graph.slice_items(conn, ["episode:1"], exclude_items=[f"episode:{n}" for n in range(2_001)])

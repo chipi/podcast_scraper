@@ -281,6 +281,11 @@ one shared Postgres.
   reconciliation, the identity map, `_spell_people`) did at serve time, each either stored in the
   rows already or listed as a change.
 - The ontology docs gain `MENTIONS_OBJECT`, `STATED_BY` and `IN_GROUP` with this ADR's acceptance.
+- Held stubs (decision 8) are decided by the rows: a shared node is a stub when any held item
+  reaches it (its own edges, or its insights' and quotes'), an `EXISTS` on the held ids inside the
+  nodes statement, so decision 9's counts hold. A client may not hold every such node (its own
+  slice was cut by a budget); a stub it does not hold, it reads with `slice.items` over the held
+  item that reaches it.
 - Not built now: extension layers from tables outside the corpus schema; enrichment edges drawn on
   the canvas.
 

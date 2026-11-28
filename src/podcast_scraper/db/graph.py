@@ -27,8 +27,12 @@ Built here, the walk core:
 - ``groups.summary``: every group of one kind with its parent and child count, and
   ``cluster_links``' weights between them, from the published cluster build, in one statement.
 
-Not built yet: ``exclude_items`` and held stubs, the structured query, the routes, caching and
-the replica retry.
+``exclude_items`` (decision 8), on every item-bearing preset: the held items resolve in the seed
+statement and leave its candidates; their nodes, their item-owned nodes and their item-scoped edges
+are not returned; a shared node a held item also reaches is a stub (``id``, ``type``,
+``held: true``), read by an ``EXISTS`` in the nodes statement, so no statement is added.
+
+Not built yet: the structured query, the preset routes and the replica retry.
 
 Statement counts, against decision 9's table, are an upper bound: a step whose frontier is empty
 sends nothing. The tail is 4 (nodes, items, induced edges, groups; groups only when the slice has
@@ -60,6 +64,7 @@ from sqlalchemy import (
     Integer,
     literal,
     null,
+    or_,
     select,
     Text,
     text,
@@ -648,6 +653,8 @@ class _Slice:
     items_left: Optional[int] = None
     applied_window: Optional[str] = None
     unknown_seeds: list[str] = field(default_factory=list)
+    #: The items the client holds (``exclude_items``), resolved in the seed statement.
+    held: frozenset[int] = field(default_factory=frozenset)
 
     def admit(self, ref: Ref) -> None:
         self.nodes.setdefault(ref, None)
@@ -695,6 +702,35 @@ def _with(s: "_Slice", with_: Sequence[str]) -> None:
         s.params["with"] = sorted(set(with_))
 
 
+def _exclude(s: "_Slice", exclude_items: Sequence[str]) -> list[str]:
+    """The held items' natural ids, bounded (decision 5), named in the slice's params."""
+    held = list(dict.fromkeys(exclude_items))
+    if len(held) > MAX_EXCLUDE_ITEMS:
+        raise ValueError(f"{len(held)} exclude_items is more than {MAX_EXCLUDE_ITEMS}")
+    if held:
+        s.params["exclude_items"] = held
+    return held
+
+
+def _held_col(held: list[str]) -> Any:
+    """The held items' keys, a column of the seed statement."""
+    hc = content_items.alias("hc")
+    return (
+        select(func.array_agg(hc.c.item_id))
+        .where(hc.c.natural_id == func.any(literal(held, ARRAY(Text))))
+        .scalar_subquery()
+        .label("held")
+    )
+
+
+def _not_held(natural_id: Any, held: list[str]) -> ColumnElement[bool]:
+    return natural_id != func.all(literal(held, ARRAY(Text)))  # type: ignore[no-any-return]
+
+
+def _set_held(s: "_Slice", value: Any) -> None:
+    s.held = frozenset(int(i) for i in (value or []))
+
+
 # --- item slices -----------------------------------------------------------------------------
 
 
@@ -702,7 +738,7 @@ def _fill_items(conn: Connection, s: _Slice, item_ids: Sequence[int]) -> None:
     """Decision 9's item mode: the items in order, then round-robin across them, each item's KG
     nodes first, then its insights by rank; admitting an insight admits the nodes it reaches.
     Items past what the budget has left are cut and counted in ``items_left``."""
-    items = [i for i in dict.fromkeys(item_ids) if i not in s.items]
+    items = [i for i in dict.fromkeys(item_ids) if i not in s.items and i not in s.held]
     room = max(s.budget - len(s.nodes), 0)
     if len(items) > room:
         s.reasons.add("budget")
@@ -760,15 +796,17 @@ def slice_items(
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
     with_: Sequence[str] = (),
+    exclude_items: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.items``: these items' graph. Unknown, unserved or withheld items are
-    ``unknown_seeds``."""
+    ``unknown_seeds``; a held one is left out."""
     _check_budgets(budget, edge_budget)
     seeds = list(dict.fromkeys(natural_ids))
     if len(seeds) > MAX_ITEM_SEEDS:
         raise ValueError(f"{len(seeds)} item ids is more than {MAX_ITEM_SEEDS}")
     s = _Slice("slice.items", {"items": seeds}, budget=budget, edge_budget=edge_budget)
     _with(s, with_)
+    held = _exclude(s, exclude_items)
     r = _revision()
     c = content_items.alias("c")
     x = (
@@ -777,12 +815,13 @@ def slice_items(
         .lateral("x")
     )
     rows = conn.execute(
-        select(r.c.revision, r.c.graph_build_id, x.c.item_id, x.c.natural_id).select_from(
-            r.outerjoin(x, true())
-        )
+        select(
+            r.c.revision, r.c.graph_build_id, _held_col(held), x.c.item_id, x.c.natural_id
+        ).select_from(r.outerjoin(x, true()))
     ).all()
     s.revision = rows[0].revision if rows else None
     s.graph_build_id = rows[0].graph_build_id if rows else None
+    _set_held(s, rows[0].held if rows else None)
     found = {row.natural_id: row.item_id for row in rows if row.item_id is not None}
     s.unknown_seeds = [n for n in seeds if n not in found]
     _fill_items(conn, s, [found[n] for n in seeds if n in found])
@@ -801,6 +840,7 @@ def slice_recent(
     now: Optional[datetime] = None,
     with_: Sequence[str] = (),
     expand_groups: int = 0,
+    exclude_items: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.recent``: the newest served items. The window widens (7d, 30d, 90d, all) while
     fewer than ``min_items`` match; every widening is answered by the one candidate statement,
@@ -825,8 +865,9 @@ def slice_recent(
         params["expand_groups"] = expand_groups
     s = _Slice("slice.recent", params, budget=budget, edge_budget=edge_budget)
     _with(s, with_)
+    held = _exclude(s, exclude_items)
     c = content_items.alias("c")
-    conditions: list[Any] = [c.c.served > 0, ~c.c.withheld]
+    conditions: list[Any] = [c.c.served > 0, ~c.c.withheld, _not_held(c.c.natural_id, held)]
     if content_types is not None:
         conditions.append(c.c.content_type.in_(list(content_types)))
     if sources is not None:
@@ -843,12 +884,13 @@ def slice_recent(
         .lateral("x")
     )
     rows = conn.execute(
-        select(r.c.revision, r.c.graph_build_id, x.c.item_id, x.c.published_at).select_from(
-            r.outerjoin(x, true())
-        )
+        select(
+            r.c.revision, r.c.graph_build_id, _held_col(held), x.c.item_id, x.c.published_at
+        ).select_from(r.outerjoin(x, true()))
     ).all()
     s.revision = rows[0].revision if rows else None
     s.graph_build_id = rows[0].graph_build_id if rows else None
+    _set_held(s, rows[0].held if rows else None)
     candidates = [(row.item_id, row.published_at) for row in rows if row.item_id is not None]
     names = list(WINDOWS)
     chosen: list[int] = []
@@ -942,6 +984,7 @@ def slice_group(
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
     with_: Sequence[str] = (),
+    exclude_items: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.group``: one group of any kind in the published cluster build (CRFC-004 §2): its
     member topics, or its child groups' for a group with children (a super-theme), and the
@@ -952,6 +995,7 @@ def slice_group(
     _check_budgets(budget, edge_budget)
     s = _Slice("slice.group", {"group": group_id}, budget=budget, edge_budget=edge_budget)
     _with(s, with_)
+    held = _exclude(s, exclude_items)
     build = (
         select(cluster_builds.c.build_id)
         .where(cluster_builds.c.state == "published")
@@ -988,7 +1032,12 @@ def slice_group(
     c = content_items.alias("c")
     x = (
         select(c.c.item_id)
-        .where(c.c.item_id.in_(carriers), c.c.served > 0, ~c.c.withheld)
+        .where(
+            c.c.item_id.in_(carriers),
+            c.c.served > 0,
+            ~c.c.withheld,
+            _not_held(c.c.natural_id, held),
+        )
         .order_by(c.c.published_at.desc().nulls_last(), c.c.item_id.desc())
         .limit(budget + 1)
         .lateral("x")
@@ -1002,6 +1051,7 @@ def slice_group(
         select(
             r.c.revision,
             r.c.graph_build_id,
+            _held_col(held),
             group.label("group"),
             members.label("topics"),
             x.c.item_id,
@@ -1009,6 +1059,7 @@ def slice_group(
     ).all()
     s.revision = rows[0].revision if rows else None
     s.graph_build_id = rows[0].graph_build_id if rows else None
+    _set_held(s, rows[0].held if rows else None)
     if not rows or rows[0].group is None:
         s.unknown_seeds = [group_id]
         return _finish(conn, s)
@@ -1136,6 +1187,7 @@ def slice_neighbourhood(
     budget: int = DEFAULT_BUDGET,
     edge_budget: int = DEFAULT_EDGE_BUDGET,
     with_: Sequence[str] = (),
+    exclude_items: Sequence[str] = (),
 ) -> dict[str, Any]:
     """``slice.neighbourhood``: the node, what the named path reaches from it, and the items
     those draw from. Nodes of a type the path does not keep are walked through, not returned;
@@ -1152,6 +1204,7 @@ def slice_neighbourhood(
         edge_budget=edge_budget,
     )
     _with(s, with_)
+    held = _exclude(s, exclude_items)
     r = _revision()
     e = entities.alias("e")
     k = entities.alias("k")
@@ -1162,12 +1215,13 @@ def slice_neighbourhood(
         .lateral("x")
     )
     row = conn.execute(
-        select(r.c.revision, r.c.graph_build_id, x.c.canonical_id, x.c.type).select_from(
-            r.outerjoin(x, true())
-        )
+        select(
+            r.c.revision, r.c.graph_build_id, _held_col(held), x.c.canonical_id, x.c.type
+        ).select_from(r.outerjoin(x, true()))
     ).first()
     s.revision = row.revision if row is not None else None
     s.graph_build_id = row.graph_build_id if row is not None else None
+    _set_held(s, row.held if row is not None else None)
     if row is None or row.canonical_id is None:
         s.unknown_seeds = [node_id]
         return _finish(conn, s)
@@ -1244,7 +1298,13 @@ def _walk(conn: Connection, s: _Slice, seed: Ref, branches: Branches, keep: froz
     types = _entity_types(conn, [ref[1] for ref in reached if ref[0] == ENTITY])
     ordered = sorted(reached.items(), key=lambda kv: (-kv[1][0], -kv[0][1]))
     room = max(s.budget - len(s.nodes), 0)
-    kept = [(ref, v) for ref, v in ordered if _type_of(ref, types) in keep and ref != seed]
+    kept = [
+        (ref, v)
+        for ref, v in ordered
+        if _type_of(ref, types) in keep
+        and ref != seed
+        and not (ref[0] == ITEM and ref[1] in s.held)
+    ]
     if len(kept) > room:
         s.reasons.add("budget")
         s.nodes_left = len(kept) - room
@@ -1252,7 +1312,7 @@ def _walk(conn: Connection, s: _Slice, seed: Ref, branches: Branches, keep: froz
     for ref, (n, drawn) in kept:
         s.admit(ref)
         s.aggregated[(seed, ref)] = n
-        for item in sorted(drawn):
+        for item in sorted(drawn - s.held):
             s.items.setdefault(item, None)
 
 
@@ -1281,7 +1341,9 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
     if not any(ids.values()):
         return {}
 
-    def node(kind: str, key: Any, nat: Any, typ: Any, label: Any, item: Any, props: Any) -> Any:
+    def node(
+        kind: str, key: Any, nat: Any, typ: Any, label: Any, item: Any, props: Any, held: Any
+    ) -> Any:
         return [
             literal(kind, Text).label("kind"),
             key.label("id"),
@@ -1290,9 +1352,34 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
             label.label("label"),
             item.label("item_id"),
             props.label("props"),
+            held.label("held"),
         ]
 
     i, ev, so = insights, evidence, sources
+    no = literal(False)
+    entity_held: Any = no
+    source_held: Any = no
+    if s.held:
+        # A shared node a held item reaches (decision 8): by any member of the canonical, through
+        # the item's own edges or its insights' and quotes'.
+        hl = literal(sorted(s.held), ARRAY(BigInteger))
+        reaches = []
+        for table, ent, item in (
+            (item_entities, "entity_id", "item_id"),
+            (person_roles, "person_id", "item_id"),
+            (insight_mentions, "entity_id", "item_id"),
+            (insight_attribution, "person_id", "item_id"),
+            (evidence, "speaker_id", "item_id"),
+        ):
+            t, m = table.alias(f"h_{table.name}"), entities.alias(f"hm_{table.name}")
+            reaches.append(
+                exists()
+                .select_from(t.join(m, m.c.entity_id == t.c[ent]))
+                .where(m.c.canonical_id == entities.c.entity_id, t.c[item] == func.any(hl))
+            )
+        entity_held = or_(*reaches)
+        hs = content_items.alias("hs")
+        source_held = exists().where(hs.c.source_id == so.c.source_id, hs.c.item_id == func.any(hl))
     statement = union_all(
         select(
             *node(
@@ -1303,6 +1390,7 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
                 entities.c.label,
                 cast(null(), BigInteger),
                 func.jsonb_build_object(),
+                entity_held,
             )
         ).where(entities.c.entity_id.in_(ids[ENTITY])),
         select(
@@ -1323,6 +1411,7 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
                     "position_hint",
                     i.c.position_hint,
                 ),
+                no,
             )
         ).where(i.c.insight_id.in_(ids[INSIGHT])),
         select(
@@ -1334,6 +1423,7 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
                 ev.c.text,
                 ev.c.item_id,
                 func.jsonb_build_object("start_ms", ev.c.start_ms, "end_ms", ev.c.end_ms),
+                no,
             )
         ).where(ev.c.evidence_id.in_(ids[EVIDENCE])),
         select(
@@ -1345,6 +1435,7 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
                 so.c.title,
                 cast(null(), BigInteger),
                 func.jsonb_build_object("content_type", so.c.content_type),
+                source_held,
             )
         ).where(so.c.source_id.in_(ids[SOURCE])),
     )
@@ -1357,6 +1448,7 @@ def _node_rows(conn: Connection, s: _Slice) -> dict[Ref, dict[str, Any]]:
             "label": row.label,
             "item_id": row.item_id,
             "properties": dict(row.props or {}),
+            "held": bool(row.held),
         }
     return out
 
@@ -1601,6 +1693,10 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
             )
             continue
         node = nodes[ref]
+        if node.get("held"):
+            # A stub (decision 8): the client holds the node; the new edge does not dangle.
+            out_nodes.append({"id": node["natural_id"], "type": node["type"], "held": True})
+            continue
         entry: dict[str, Any] = {
             "id": node["natural_id"],
             "type": node["type"],
@@ -1654,7 +1750,7 @@ def _finish(conn: Connection, s: _Slice) -> dict[str, Any]:
     # IN_GROUP (decision 10): a topic to each group it is in, a group to its parent; read with
     # the groups, so no statement of its own. Its ``to`` resolves in the groups catalogue.
     groups_out = _catalogue(out_nodes, catalogue)
-    links = [(n["id"], g) for n in out_nodes if n["type"] == "Topic" for g in n["groups"]]
+    links = [(n["id"], g) for n in out_nodes if n["type"] == "Topic" for g in n.get("groups", [])]
     links += [(g["id"], g["parent_id"]) for g in groups_out if g["parent_id"] is not None]
     for frm, to in links:
         entry = {
@@ -1708,7 +1804,7 @@ def _catalogue(
     out_nodes: list[dict[str, Any]], catalogue: dict[str, dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """The catalogue rows of the groups the served nodes are in, and of their parents, by id."""
-    wanted = {group for node in out_nodes for group in node["groups"]}
+    wanted = {group for node in out_nodes for group in node.get("groups", [])}
     wanted |= {catalogue[g]["parent_id"] for g in wanted if g in catalogue} - {None}
     return [catalogue[g] for g in sorted(wanted) if g in catalogue]
 
