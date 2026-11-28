@@ -81,3 +81,50 @@ def test_the_revision_hold_answers_at_once_and_reads_in_the_background(
         if thread.name == "health-revision":
             thread.join(5)
     assert hold() == 42 and reads == [1]
+
+
+def test_the_revision_read_is_none_without_a_corpus_database_or_when_it_fails(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from sqlalchemy.exc import OperationalError
+
+    from podcast_scraper.db import engines
+    from podcast_scraper.db.settings import ENV_CORPUS_RO_URL
+
+    monkeypatch.delenv(ENV_CORPUS_RO_URL, raising=False)
+    assert health._read_corpus_revision() is None
+    monkeypatch.setenv(ENV_CORPUS_RO_URL, "postgresql://nobody@127.0.0.1:1/none")
+
+    def down() -> None:
+        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+
+    monkeypatch.setattr(engines, "corpus_ro_engine", down)
+    with caplog.at_level("WARNING"):
+        assert health._read_corpus_revision() is None
+    assert "corpus revision could not be read" in caplog.text
+
+
+@pytest.mark.integration
+def test_the_revision_read_returns_the_databases_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from sqlalchemy import create_engine, text
+
+    from podcast_scraper.db import engines
+    from podcast_scraper.db.settings import ENV_CORPUS_RO_URL, normalize_url
+    from tests._database import worker_database_url
+
+    url = worker_database_url()
+    assert url, "set PODCAST_TEST_DATABASE_URL (make test-db-up)"
+    monkeypatch.setenv(ENV_CORPUS_RO_URL, url)
+    engines.reset_engines()
+    try:
+        engine = create_engine(normalize_url(url))
+        with engine.connect() as conn:
+            expected = conn.execute(
+                text("SELECT revision FROM corpus.corpus_revision WHERE id = 1")
+            ).scalar_one()
+        engine.dispose()
+        assert health._read_corpus_revision() == expected
+    finally:
+        engines.reset_engines()
