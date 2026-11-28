@@ -596,6 +596,7 @@ def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
         return EXIT_INVALID_ARGS
 
     out = Path(output_dir)
+    from podcast_scraper.db.settings import DatabaseNotConfigured
     from podcast_scraper.search.corpus_search import run_corpus_search
 
     doc_type_raw = getattr(args, "doc_type", None)
@@ -603,19 +604,25 @@ def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
     if isinstance(doc_type_raw, str) and doc_type_raw.strip():
         doc_types = [doc_type_raw.strip()]
 
-    outcome = run_corpus_search(
-        out,
-        query,
-        doc_types=doc_types,
-        feed=getattr(args, "feed", None),
-        since=getattr(args, "since", None),
-        speaker=getattr(args, "speaker", None),
-        grounded_only=bool(getattr(args, "grounded_only", False)),
-        top_k=max(1, int(getattr(args, "top_k", 10) or 10)),
-        index_path=getattr(args, "index_path", None),
-        embedding_model=getattr(args, "embedding_model", None),
-        dedupe_kg_surfaces=not bool(getattr(args, "no_dedupe_kg_surfaces", False)),
-    )
+    try:
+        outcome = run_corpus_search(
+            out,
+            query,
+            doc_types=doc_types,
+            feed=getattr(args, "feed", None),
+            since=getattr(args, "since", None),
+            speaker=getattr(args, "speaker", None),
+            grounded_only=bool(getattr(args, "grounded_only", False)),
+            top_k=max(1, int(getattr(args, "top_k", 10) or 10)),
+            index_path=getattr(args, "index_path", None),
+            embedding_model=getattr(args, "embedding_model", None),
+            dedupe_kg_surfaces=not bool(getattr(args, "no_dedupe_kg_surfaces", False)),
+        )
+    except DatabaseNotConfigured as exc:
+        # Transcript hits are read from the corpus rows only (r-search slice 3): one line, not a
+        # traceback, naming the variable to set.
+        logger.error("search: %s", exc)
+        return EXIT_INVALID_ARGS
 
     if outcome.error == "empty_query":
         logger.error("search: provide a non-empty query")
