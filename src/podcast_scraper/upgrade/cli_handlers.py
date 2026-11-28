@@ -587,7 +587,8 @@ def _cmd_run_rows(args: argparse.Namespace, log: logging.Logger) -> int:
             if args.dry_run:
                 print(
                     f"OUTCOME HOOK: {mig.id}: dry run: the outcome would not be the measured one "
-                    f"({len(outcome.outcome_failed)}): {outcome.outcome_failed[:5]}; nothing applied",
+                    f"({len(outcome.outcome_failed)}): {outcome.outcome_failed[:5]}; "
+                    "nothing applied",
                     file=sys.stderr,
                 )
                 return outcome_hook.EXIT_OUTCOME

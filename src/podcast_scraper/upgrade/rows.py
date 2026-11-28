@@ -33,6 +33,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.sql import column as sql_column, table as sql_table
 
 from podcast_scraper.db import leases
 from podcast_scraper.db.engines import migrator_engine  # noqa: F401 - re-exported for the CLI
@@ -254,14 +255,11 @@ class Rows:
                 (r.child, r.action, list(r.child_cols), list(r.parent_cols))
                 for r in self.conn.execute(_DEPENDENTS, {"parent": name})
             ]
-        quote = self.conn.dialect.identifier_preparer.quote
         for child, action, child_cols, parent_cols in self._dependents[name]:
             schema, rel = child.split(".", 1)
-            where = " AND ".join(f"{quote(c)} = :v{i}" for i, c in enumerate(child_cols))
-            params = {f"v{i}": before[c] for i, c in enumerate(parent_cols)}
-            n = self.conn.execute(
-                text(f"SELECT count(*) FROM {quote(schema)}.{quote(rel)} WHERE {where}"), params
-            ).scalar_one()
+            dep = sql_table(rel, *(sql_column(c) for c in child_cols), schema=schema)
+            where = and_(*(dep.c[c] == before[p] for c, p in zip(child_cols, parent_cols)))
+            n = self.conn.execute(select(func.count()).select_from(dep).where(where)).scalar_one()
             if n:
                 raise RowsRefused(
                     f"{t.name} {dict(key)}: {rel} has {n} row(s) the delete would {action}; "
@@ -320,8 +318,7 @@ class Rows:
         )
 
 
-_DEPENDENTS = text(
-    """
+_DEPENDENTS = text("""
     SELECT n.nspname || '.' || cr.relname AS child,
            CASE c.confdeltype WHEN 'c' THEN 'cascade to' WHEN 'n' THEN 'set to NULL'
                 ELSE 'set to its default' END AS action,
@@ -330,14 +327,15 @@ _DEPENDENTS = text(
     FROM pg_constraint c
     JOIN pg_class cr ON cr.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = cr.relnamespace
-    CROSS JOIN LATERAL unnest(c.conkey, c.confkey) WITH ORDINALITY AS k(child_att, parent_att, ord)
+    CROSS JOIN LATERAL unnest(c.conkey, c.confkey)
+        WITH ORDINALITY AS k(child_att, parent_att, ord)
     JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.child_att
     JOIN pg_attribute af ON af.attrelid = c.confrelid AND af.attnum = k.parent_att
-    WHERE c.contype = 'f' AND c.confrelid = to_regclass(:parent) AND c.confdeltype IN ('c', 'n', 'd')
+    WHERE c.contype = 'f' AND c.confrelid = to_regclass(:parent)
+      AND c.confdeltype IN ('c', 'n', 'd')
     GROUP BY c.conname, n.nspname, cr.relname, c.confdeltype
     ORDER BY child, c.conname
-    """
-)
+    """)
 
 
 @dataclass
