@@ -14,12 +14,16 @@ Its text is compared with the served text, unless the served text came from an e
 than today's (``extractor_version`` differs): then with the stored raw page extracted again first,
 so a library upgrade writes no version (B.2 step 2).
 
-Not re-checked: an item of a Guardian source (its text is the API's body; a page fetch would
-compare a different text, and the re-read by id is not built), and an item whose served text is the
-feed's (a page fetch does not reproduce it). Each is recorded as a check that found
-``unsupported``, and an item whose stored copy is missing as one that found ``no_body``, so its
-schedule moves on and it never holds the head of the queue. A run takes only the items of the
-sources it is given.
+A page's text is compared as ``recheck_fetch.check`` compares it, given the served text's
+extraction method, so a page that only flips between trafilatura and readability is the same (B.2
+step 3). An item of a Guardian source is re-read by id instead (``recheck_fetch.check_guardian``),
+and its next version is the API record made into an item as the listing makes one
+(``guardian.item_from_record``).
+
+Not re-checked: an item whose served text is the feed's (a page fetch does not reproduce it, and a
+feed drops old items within days). It is recorded as a check that found ``unsupported``, and an
+item whose stored copy is missing as one that found ``no_body``, so its schedule moves on and it
+never holds the head of the queue. A run takes only the items of the sources it is given.
 
 Leases: the run holds ``corpus`` shared and ``build:news_recheck`` exclusive (one run at a time);
 a withdrawal also takes its source's exclusive lease, as an ingest of the source does. The version
@@ -40,14 +44,14 @@ from sqlalchemy.engine import Engine
 
 from .. import content_types
 from ..db import leases, news_recheck as rows
-from . import extract, fetch, recheck, recheck_fetch
+from . import extract, fetch, guardian, recheck, recheck_fetch
 
 logger = logging.getLogger(__name__)
 
 #: The run's own lease: one re-check run at a time.
 RESOURCE = leases.build_resource("news_recheck")
-#: Transports whose items the job does not re-check (see the module docstring).
-UNSUPPORTED_TRANSPORTS = frozenset({"guardian"})
+#: The transport whose items are re-read by id.
+GUARDIAN = "guardian"
 #: Extractions a page fetch reproduces.
 PAGE_EXTRACTIONS = frozenset({extract.TRAFILATURA, extract.READABILITY, extract.STANDFIRST})
 #: What a check records for an item it could not check.
@@ -89,11 +93,14 @@ def _served_text(item: content_types.SourceItem, source: SourceRun) -> str:
 
 
 def _new_version(
-    item: content_types.SourceItem, source: SourceRun, html: str
+    item: content_types.SourceItem, source: SourceRun, got: recheck_fetch.Check
 ) -> Optional[content_types.SourceItem]:
     """The stored item with the page's text, its fields and its raw cache, as the ingest's page
-    fetch completes it; ``None`` when the page gives no text or a language we do not ingest."""
-    url = item.url or ""
+    fetch completes it (a Guardian item: its API record, as the listing makes it); ``None`` when
+    there is no text or it is in a language we do not ingest."""
+    if source.transport.name == GUARDIAN:
+        return guardian.item_from_record(got.record, source.entry) if got.record else None
+    url, html = item.url or "", got.html or ""
     found = extract.main_text(html, url, text_from=fetch.source_spec(source.entry).text_from)
     if found is None:
         return None
@@ -111,8 +118,26 @@ def _new_version(
 
 def _unsupported(item: content_types.SourceItem, source: SourceRun) -> bool:
     return (
-        source.transport.name in UNSUPPORTED_TRANSPORTS
-        or str(item.metadata.get("extraction") or "") not in PAGE_EXTRACTIONS
+        source.transport.name != GUARDIAN
+        and str(item.metadata.get("extraction") or "") not in PAGE_EXTRACTIONS
+    )
+
+
+def _check(
+    item: content_types.SourceItem,
+    source: SourceRun,
+    found: rows.Due,
+    check: Check,
+    check_guardian: Check,
+) -> recheck_fetch.Check:
+    if source.transport.name == GUARDIAN:
+        return check_guardian(item.text or "", item.item_id, source.entry, found.validators)
+    return check(
+        _served_text(item, source),
+        item.url or "",
+        source.entry,
+        found.validators,
+        served_method=str(item.metadata.get("extraction") or "") or None,
     )
 
 
@@ -122,6 +147,7 @@ def run(
     now: Optional[datetime] = None,
     *,
     check: Check = recheck_fetch.check,
+    check_guardian: Check = recheck_fetch.check_guardian,
     write: Optional[Write] = None,
     limit: int = 500,
 ) -> Counter[str]:
@@ -152,7 +178,15 @@ def run(
             grouped.setdefault(found.source_natural_id, []).append(found)
         for source_id, items in grouped.items():
             _run_source(
-                engine, holder, held, by_id[source_id], items, when, check, write_items, done
+                engine,
+                holder,
+                held,
+                by_id[source_id],
+                items,
+                when,
+                (check, check_guardian),
+                write_items,
+                done,
             )
     finally:
         leases.release(engine, holder)
@@ -167,7 +201,7 @@ def _run_source(
     source: SourceRun,
     due: List[rows.Due],
     when: datetime,
-    check: Check,
+    checks: Tuple[Check, Check],
     write: Write,
     done: Counter[str],
 ) -> None:
@@ -185,10 +219,10 @@ def _run_source(
         if _unsupported(item, source):
             _skip(engine, holder, held, found, UNSUPPORTED, when, done)
             continue
-        got = check(_served_text(item, source), item.url or "", source.entry, found.validators)
+        got = _check(item, source, found, *checks)
         state, action = recheck.advance(found.state, got.status)
         if action == recheck.WRITE_VERSION:
-            version = _new_version(item, source, got.html or "")
+            version = _new_version(item, source, got)
             if version is not None:
                 changed.append((found, state, got))
                 versions.append(version)
@@ -289,11 +323,11 @@ def _withdraw(
 
 
 __all__ = [
+    "GUARDIAN",
     "NO_BODY",
     "PAGE_EXTRACTIONS",
     "RESOURCE",
     "run",
     "SourceRun",
     "UNSUPPORTED",
-    "UNSUPPORTED_TRANSPORTS",
 ]

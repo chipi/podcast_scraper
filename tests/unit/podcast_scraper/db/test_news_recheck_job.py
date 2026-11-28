@@ -14,7 +14,7 @@ from podcast_scraper import content_types
 from podcast_scraper.db import leases, news_recheck as rows
 from podcast_scraper.db.schema import content_items, news_recheck
 from podcast_scraper.db.settings import normalize_url
-from podcast_scraper.news import extract, recheck, recheck_fetch, recheck_job
+from podcast_scraper.news import extract, guardian, recheck, recheck_fetch, recheck_job
 from podcast_scraper.news.recheck_fetch import Validators
 from podcast_scraper.workflow import text_in
 from tests.unit.podcast_scraper.db.test_corpus_writer import _empty_corpus
@@ -77,6 +77,7 @@ class World:
         self.stored: Dict[str, content_types.SourceItem] = {}
         self.answers: Dict[str, List[recheck_fetch.Check]] = {}
         self.checked: List[str] = []
+        self.methods: List[Any] = []
         self.written: List[List[content_types.SourceItem]] = []
         self.fail_write = False
         with engine.begin() as c:
@@ -96,9 +97,14 @@ class World:
     def answer(self, n: str, *checks: recheck_fetch.Check) -> None:
         self.answers[f"https://news.example.com/{n}"] = list(checks)
 
-    def check(self, served: str, page: str, source: Any, validators: Validators) -> Any:
+    def check(self, served: str, page: str, source: Any, validators: Validators, **kw: Any) -> Any:
         self.checked.append(served)
+        self.methods.append(kw.get("served_method"))
         return self.answers[page].pop(0)
+
+    def check_guardian(self, served: str, item_id: str, source: Any, validators: Any) -> Any:
+        self.checked.append(f"guardian:{item_id}")
+        return self.answers[item_id].pop(0)
 
     def write(self, cfg: Any, entry: Any, ctype: Any, transport: Any, items: Any) -> Any:
         if self.fail_write:
@@ -108,7 +114,14 @@ class World:
 
     def run(self, at: datetime = NOW) -> Dict[str, int]:
         return dict(
-            recheck_job.run(self.engine, [self.source], at, check=self.check, write=self.write)
+            recheck_job.run(
+                self.engine,
+                [self.source],
+                at,
+                check=self.check,
+                check_guardian=self.check_guardian,
+                write=self.write,
+            )
         )
 
 
@@ -223,13 +236,34 @@ def test_a_feed_text_is_recorded_unsupported_and_a_standfirst_is_checked(
     assert state.next_due_at == FETCHED + timedelta(days=2)
 
 
-def test_a_guardian_source_is_not_rechecked(
+def test_a_guardian_item_is_reread_by_id_and_its_record_is_the_next_version(
     engine: Engine, monkeypatch: pytest.MonkeyPatch  # noqa: F811
 ) -> None:
-    w = World(engine, monkeypatch, transport="guardian")
-    w.article("1")
-    assert w.run() == {"enrolled": 1, recheck_job.UNSUPPORTED: 1}
-    assert w.checked == []
+    w = World(engine, monkeypatch, transport=recheck_job.GUARDIAN)
+    w.article("1", extraction="guardian", extractor_version="guardian/api")
+    record = {"id": "world/2026/nov/27/library", "fields": {"body": "<p>edited</p>"}}
+    w.answers["rss-1"] = [recheck_fetch.Check(recheck.CHANGED, Validators(), 200, record=record)]
+    made = content_types.SourceItem(item_id="world/2026/nov/27/library", text="edited")
+    seen: List[Any] = []
+
+    def from_record(got: Any, source: Any) -> content_types.SourceItem:
+        seen.append(got)
+        return made
+
+    monkeypatch.setattr(guardian, "item_from_record", from_record)
+    assert w.run() == {"enrolled": 1, recheck.CHANGED: 1}
+    assert w.checked == ["guardian:rss-1"]
+    assert seen == [record] and w.written == [[made]]
+
+
+def test_a_page_check_is_given_the_served_texts_method(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    w = World(engine, monkeypatch)
+    w.article("1", extraction=extract.READABILITY)
+    w.answer("1", _check(recheck.SAME))
+    w.run()
+    assert w.methods == [extract.READABILITY]
 
 
 def test_a_run_takes_only_its_sources_items_and_records_a_missing_copy(
@@ -294,9 +328,9 @@ def test_a_run_holds_its_lease_exclusive_and_a_withdrawal_its_source_exclusive(
     seen: Dict[str, List[str]] = {}
     check = w.check
 
-    def watched(*args: Any) -> Any:
+    def watched(*args: Any, **kw: Any) -> Any:
         seen["run"] = _modes(engine, recheck_job.RESOURCE)
-        return check(*args)
+        return check(*args, **kw)
 
     withdraw = rows.withdraw
 
