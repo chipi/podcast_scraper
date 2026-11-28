@@ -169,6 +169,21 @@ def test_method_text_gives_one_extractor_alone_and_nothing_for_the_feed() -> Non
     assert extract.method_text(page, URL, extract.FEED) is None
     traf = extract.method_text(page, URL, extract.TRAFILATURA)
     assert traf is not None and "fatigue cracks" in traf
+    read = extract.method_text(page, URL, extract.READABILITY)
+    assert read is not None and "fatigue cracks" in read
+    described = page.replace(
+        "<title>", "<meta name='description' content='The bridge will close.'><title>"
+    )
+    assert extract.method_text(described, URL, extract.STANDFIRST) == "The bridge will close."
+    assert extract.method_text("<html><body></body></html>", URL, extract.STANDFIRST) is None
+
+
+def test_a_flip_whose_served_extractor_gives_nothing_keeps_the_first_comparison(
+    net: _Net, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(extract, "method_text", lambda html, url, method: None)
+    got = _check(net, _resp(200, _edited()), served_method=extract.TRAFILATURA)
+    assert got.status == recheck.CHANGED
 
 
 def test_a_paywall_in_the_articles_place_is_held(net: _Net) -> None:
