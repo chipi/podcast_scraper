@@ -293,7 +293,10 @@ def _run_source(
 
 
 def _served_articles(engine: Engine, item_ids: Sequence[int]) -> Dict[int, frozenset[int]]:
-    """Each item's served ``article`` documents: the ones no row supersedes."""
+    """Each item's served ``article`` documents: the ones no row supersedes. Read outside the
+    source's lease (the row sync takes it itself), so an ingest that wrote the same item's next
+    version during the write would count as the re-check's; an ingest skips an item it has
+    already written (text_in's resume skip), which is what this relies on."""
     d, newer = documents.c, documents.alias("newer")
     with engine.connect() as conn:
         found = conn.execute(

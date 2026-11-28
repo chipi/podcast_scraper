@@ -675,8 +675,9 @@ def test_a_withdrawn_article_stays_withdrawn_when_its_files_are_synced_again(
     ).all()
     assert [tuple(r) for r in kinds] == [(1, "created"), (2, news_recheck.WITHDRAW)]
     assert corpus_writer.WITHDRAW == news_recheck.WITHDRAW
-    # A wrong withdrawal is undone by a newer version over the withdraw row, never a delete:
-    # then the item is not withdrawn, and its files sync again.
+    # No code path writes over a withdraw row: undoing a wrong withdrawal is a hand-written row
+    # migration adding the next version over it (never a delete). Then the item is not
+    # withdrawn, and its files sync again.
     withdraw_row = conn.execute(
         select(documents.c.document_id, documents.c.kind, documents.c.variant).where(
             documents.c.item_id == item, documents.c.change_kind == news_recheck.WITHDRAW

@@ -182,7 +182,13 @@ WITHDRAW = "withdraw"
 
 def is_withdrawn(conn: Connection, natural_id: str) -> bool:
     """Whether the item's newest version of any document series is a withdrawal: the re-check
-    withdrew it on the rows, and its files, which still state it served, must not undo that."""
+    withdrew it on the rows, and its files, which still state it served, must not undo that.
+
+    A withdrawal is final: no code path writes a version over a withdraw row (the row sync stops
+    here, and a withdrawn item is never re-checked again). Undoing a wrong one is a row migration
+    written by hand that adds the next version over the withdraw row (CRFC-006 B.5: a wrong
+    version is undone by a new version, never a delete); then this is false and the files sync
+    again."""
     newer = documents.alias("newer")
     return bool(
         conn.execute(
