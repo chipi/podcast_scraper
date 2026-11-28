@@ -84,6 +84,10 @@ fi
 if [ -n "$src_py" ]; then
   gate docstrings make --no-print-directory docstrings
 fi
+if printf '%s\n' "$py" | grep -qE '^tests/'; then
+  # CI's lint job runs it (`make check-test-policy`); a unit test's importorskip was red there only.
+  gate test-policy "$PY" scripts/tools/check_test_policy.py --fix-hint
+fi
 if [ -n "$py" ]; then
   tests=$(printf '%s\n' "$py" | grep -E '^tests/.*test_[^/]*\.py$' || true)
   for f in $src_py; do
