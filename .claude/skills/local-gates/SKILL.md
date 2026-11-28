@@ -19,6 +19,7 @@ rewrite files, `make format`.
 | --- | --- |
 | `*.py` (not under `web/`, `infra/`) | black `--check`, isort `--check-only`, flake8, mypy, bandit (the `make security-bandit` flags) |
 | `src/**/*.py` | + `make docstrings` |
+| `tests/**/*.py` | + `check_test_policy.py` (CI's lint job: no `importorskip` in a unit test, the tier rules) |
 | `*.py` | + pytest on the changed test files and every `tests/**/test_*.py` that names a changed module (dotted path or file stem) |
 | `*.md` | markdownlint with `.markdownlint.json` |
 | `docs/**`, `mkdocs.yml` | `make docs` (strict) |
