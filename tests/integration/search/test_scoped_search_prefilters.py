@@ -19,6 +19,7 @@ pytest.importorskip("lancedb")
 
 from podcast_scraper.search.backend import SegmentDocument  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
+from tests._corpus_rows import every_hit_has_a_row  # noqa: E402
 
 DIM = 4
 QUERY_VEC = [1.0, 0.0, 0.0, 0.0]
@@ -58,6 +59,7 @@ def _corpus(root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     b.write_index_meta("test-model")
     # The query embedding is the only ML in the path; a fixed vector keeps these tests model-free.
     monkeypatch.setattr(hybrid_search.embedding_loader, "encode", lambda *a, **k: list(QUERY_VEC))
+    every_hit_has_a_row(monkeypatch)
 
 
 def _episodes(out: dict) -> list:

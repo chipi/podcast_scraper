@@ -194,6 +194,7 @@ def _chunks_statement(keys: list[str]) -> Any:
             sc.c.item_id,
             content_items.c.natural_id.label("item_natural_id"),
             content_items.c.served,
+            content_items.c.withheld,
             content_items.c.content_type,
             content_items.c.title,
             content_items.c.published_at,
@@ -220,12 +221,12 @@ def _chunks_statement(keys: list[str]) -> Any:
 
 def chunks_by_natural_ids(conn: Connection, natural_ids: Sequence[str]) -> list[dict[str, Any]]:
     """Transcript search hits by their index id (``chunk:<scope>:<n>``, CRFC-005 §6): each
-    chunk's item (``item_id``, ``item_natural_id``, ``served``, ``content_type``, ``title``,
-    ``published_at``, ``source_title``), its range in its document, the range's ``text`` cut
-    from ``segments``, ``start_ms`` and ``end_ms`` (the range's first and last segment, so a
-    chunk that starts inside a segment gets that segment's start; null when untimed) and
-    ``speakers``, the canonical natural ids of the range's speakers. Any ``served``; unknown
-    ids are left out."""
+    chunk's item (``item_id``, ``item_natural_id``, ``served``, ``withheld``,
+    ``content_type``, ``title``, ``published_at``, ``source_title``), its range in its document,
+    the range's ``text`` cut from ``segments``, ``start_ms`` and ``end_ms`` (the range's first
+    and last segment, so a chunk that starts inside a segment gets that segment's start; null
+    when untimed) and ``speakers``, the canonical natural ids of the range's speakers. Any
+    ``served``; unknown ids are left out."""
     keys = _keys(natural_ids, "natural ids")
     if not keys:
         return []

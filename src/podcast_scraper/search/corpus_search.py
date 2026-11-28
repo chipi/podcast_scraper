@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import json
 import logging
 import re
@@ -46,6 +47,10 @@ from podcast_scraper.search.hybrid_search import (
 from podcast_scraper.search.protocol import SearchResult
 
 logger = logging.getLogger(__name__)
+
+#: Transcript hits dropped by :func:`_hydrate_transcript_hits` since the process started, by
+#: reason: ``no_row``, ``not_served``, ``withheld``.
+HYDRATION_DROPS: collections.Counter[str] = collections.Counter()
 
 _DEDUPE_KG_DOC_TYPES = frozenset({"kg_entity", "kg_topic"})
 _KG_SURFACE_MAX_EPISODE_IDS = 48
@@ -191,6 +196,87 @@ def _attach_storyline_metadata(
     return out
 
 
+#: ``intents.chunks_by_natural_ids`` takes at most this many ids a call.
+_CHUNK_IDS_PER_CALL = 500
+
+
+def _chunk_rows(natural_ids: List[str]) -> List[Dict[str, Any]]:
+    from podcast_scraper.db import intents
+    from podcast_scraper.db.engines import corpus_ro_engine
+
+    found: List[Dict[str, Any]] = []
+    with corpus_ro_engine().connect() as conn:
+        for start in range(0, len(natural_ids), _CHUNK_IDS_PER_CALL):
+            batch = natural_ids[start : start + _CHUNK_IDS_PER_CALL]
+            found.extend(intents.chunks_by_natural_ids(conn, batch))
+    return found
+
+
+def _hydrate_transcript_hits(
+    rows: List[Dict[str, Any]],
+    fetch: Optional[Callable[[List[str]], List[Dict[str, Any]]]] = None,
+) -> List[Dict[str, Any]]:
+    """Transcript hits read from the corpus rows (``search_chunks`` cut from ``segments``, r-search
+    slice 3): the text, times, titles and canonical speakers. Rows only, no file fallback
+    (database, 2026-11-27): a hit with no row (its body changed since the index cut it, or no
+    build has written its rows yet), an item not served, or a withheld one is dropped. An untimed
+    range has no ``timestamp_*_ms``; the index gave such a chunk 0.
+
+    The drops are counted by reason in :data:`HYDRATION_DROPS`, and a call that dropped a hit for
+    want of a row logs a warning: a deploy whose ``search_chunks`` is not filled drops every
+    transcript hit, and the post-deploy check reads it there."""
+    ids = [
+        str(r["doc_id"])
+        for r in rows
+        if isinstance(r.get("metadata"), dict) and r["metadata"].get("doc_type") == "transcript"
+    ]
+    if not ids:
+        return rows
+    read = fetch or _chunk_rows
+    chunks = {c["natural_id"]: c for c in read(list(dict.fromkeys(ids)))}
+    out: List[Dict[str, Any]] = []
+    dropped: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict) or meta.get("doc_type") != "transcript":
+            out.append(row)
+            continue
+        chunk = chunks.get(str(row["doc_id"]))
+        if chunk is None:
+            dropped["no_row"] += 1
+            continue
+        if not chunk["served"]:
+            dropped["not_served"] += 1
+            continue
+        if chunk["withheld"]:
+            dropped["withheld"] += 1
+            continue
+        row["text"] = chunk["text"]
+        for key, value in (
+            ("timestamp_start_ms", chunk["start_ms"]),
+            ("timestamp_end_ms", chunk["end_ms"]),
+        ):
+            if value is None:
+                meta.pop(key, None)
+            else:
+                meta[key] = value
+        if chunk["title"]:
+            meta["episode_title"] = chunk["title"]
+        if chunk["source_title"]:
+            meta["feed_title"] = chunk["source_title"]
+        meta["speakers"] = chunk["speakers"]
+        out.append(row)
+    HYDRATION_DROPS.update(dropped)
+    if dropped["no_row"]:
+        logger.warning(
+            "search: %d of %d transcript hits have no search_chunks row and were dropped (%s)",
+            dropped["no_row"],
+            len(ids),
+            dict(dropped),
+        )
+    return out
+
+
 def _lift_stats_for_page(enriched: List[Dict[str, Any]]) -> Dict[str, int]:
     transcript_returned = 0
     lift_applied = 0
@@ -244,6 +330,8 @@ def _enrich_lift_and_slice(
             )
             for h in hits
         ]
+        # Before the lift, so a lifted hit is lifted from the text it serves.
+        enriched = _hydrate_transcript_hits(enriched)
         read_hooks.lift_transcript_hits(
             enriched,
             output_dir,

@@ -126,8 +126,17 @@ class TestUpgradeCliE2E:
 
         # Search path: `search` hits the LanceDB two-tier index built above — the single
         # search path (FAISS retired, #995). Exercises hybrid_search + corpus_search
-        # through the real CLI.
-        env = os.environ.copy()
+        # through the real CLI. Its transcript hits are read from the corpus rows only
+        # (r-search slice 3), so the corpus is imported into the test database first (a catalog
+        # read imports it, tests._corpus_rows) and the CLI reads it as corpus_ro.
+        from podcast_scraper.db.settings import ENV_CORPUS_RO_URL
+        from podcast_scraper.server import catalog_cache
+        from tests._database import worker_database_url
+
+        url = worker_database_url()
+        assert url is not None, "the search step needs PODCAST_TEST_DATABASE_URL"
+        catalog_cache._catalog_rows(corpus)
+        env = {**os.environ, ENV_CORPUS_RO_URL: url}
         r = subprocess.run(
             [
                 sys.executable,
